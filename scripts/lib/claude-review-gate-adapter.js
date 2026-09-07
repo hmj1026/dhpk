@@ -63,7 +63,7 @@ const IDENTITY_FIELDS = Object.freeze([
   'diffId',
 ]);
 const REVIEW_VERDICTS = new Set(['PASS', 'CHANGES_REQUIRED', 'BLOCKED']);
-const PHASES = new Set(['BASELINE', 'OBSERVE']);
+const PHASES = new Set(['BASELINE', 'OBSERVE', 'DUAL_ENFORCE']);
 const LIFECYCLE_STATES = new Set([
   'planned',
   'dispatched',
@@ -341,6 +341,20 @@ const comparisonFor = (sentinel, gate) => {
   return sentinelVerdict === gateVerdict ? 'AGREE' : 'DISAGREE';
 };
 
+const dualAllowsProgress = (context, gate, comparison) => (
+  context.input.phase === 'DUAL_ENFORCE'
+  && comparison === 'AGREE'
+  && canonicalVerdict(context.sentinel.verdict || context.sentinel.outcome || context.sentinel.status) === 'PASS'
+  && ['PASS', 'CLEARED'].includes(context.sentinel.status)
+  && gate.accepted === true
+  && gate.allowsProgress === true
+  && gate.lifecycleStatus === 'RESOLVED'
+  && gate.executionStatus === 'COMPLETE'
+  && gate.applicability === 'REQUIRED'
+  && gate.semanticVerdict === 'PASS'
+  && gate.blockingReasons.length === 0
+);
+
 const identityDigest = (
   identity,
   phase,
@@ -502,7 +516,7 @@ function buildReviewGateEvent(adapter, context, executedCommands) {
       comparison: 'pending',
     }, adapter.producer, adapter.adapter),
     eventType: REVIEW_RESULT_RECORDED,
-    effect: 'OBSERVE_ONLY',
+    effect: input.phase === 'DUAL_ENFORCE' ? 'ENFORCE' : 'OBSERVE_ONLY',
     workId: plan.workId,
     waveId: plan.waveId,
     planId: plan.planId,
@@ -537,14 +551,28 @@ function invokeReviewGate(adapter, context, event) {
 }
 
 function recordReviewGateObservation(adapter, context) {
-  if (context.input.phase !== 'OBSERVE') return { gateResult: null, gate: normalizeGate(null) };
+  if (!['OBSERVE', 'DUAL_ENFORCE'].includes(context.input.phase)) {
+    return { gateResult: null, gate: normalizeGate(null) };
+  }
   const { input, artifactDigest } = context;
   assertRecord(input.reviewRequest, 'MALFORMED_REVIEW');
   assertRecord(input.reviewResult, 'MALFORMED_REVIEW');
   requireArtifactEvidence(input.reviewResult, artifactDigest);
   const event = buildReviewGateEvent(adapter, context, normalizeCommands(input.executedCommands));
-  const gateResult = invokeReviewGate(adapter, context, event);
-  return { gateResult, gate: normalizeGate(gateResult, event.eventId) };
+  try {
+    const gateResult = invokeReviewGate(adapter, context, event);
+    return { gateResult, gate: normalizeGate(gateResult, event.eventId), reasonCodes: [] };
+  } catch (error) {
+    // DUAL_ENFORCE must leave a durable, fail-closed diagnostic when the
+    // enforcement authority cannot produce a trusted result. OBSERVE retains
+    // its historical rejection behavior.
+    if (context.input.phase !== 'DUAL_ENFORCE') throw error;
+    return {
+      gateResult: null,
+      gate: normalizeGate(null, event.eventId),
+      reasonCodes: [error && SAFE_CODE.test(error.code) ? error.code : 'REVIEW_GATE_FAILED'],
+    };
+  }
 }
 
 function buildObservationProvenance(adapter, context, gate, eventId, recordedAt) {
@@ -586,8 +614,8 @@ function observationHeader(context, comparison) {
     schema: OBSERVATION_SCHEMA,
     phase: input.phase,
     comparison,
-    authority: 'SENTINEL',
-    effect: input.phase === 'BASELINE' ? 'DISABLED' : 'OBSERVE_ONLY',
+    authority: input.phase === 'DUAL_ENFORCE' ? 'SENTINEL_AND_REVIEW_GATE' : 'SENTINEL',
+    effect: input.phase === 'BASELINE' ? 'DISABLED' : input.phase === 'DUAL_ENFORCE' ? 'ENFORCE' : 'OBSERVE_ONLY',
     automaticPromotion: false,
     retirementEligible: false,
   };
@@ -646,7 +674,7 @@ function observationEvidence(context, gate) {
   return evidence;
 }
 
-function buildMigrationObservation(adapter, context, gate, comparison, provenance, eventId, recordedAt) {
+function buildMigrationObservation(adapter, context, gate, comparison, provenance, eventId, recordedAt, reasonCodes = []) {
   return immutable({
     ...observationHeader(context, comparison),
     ...observationMetadata(adapter, context, eventId, recordedAt),
@@ -655,7 +683,8 @@ function buildMigrationObservation(adapter, context, gate, comparison, provenanc
     authorizesApproval: false,
     clearsSentinel: false,
     blocksSentinel: false,
-    allowsTargetProgress: false,
+    allowsTargetProgress: dualAllowsProgress(context, gate, comparison),
+    ...(reasonCodes.length > 0 ? { reasonCodes: [...new Set(reasonCodes)] } : {}),
     liveness: 'COMPATIBILITY_ONLY',
     processLivenessRole: 'COMPATIBILITY_ONLY',
     provenance,
@@ -666,10 +695,10 @@ function persistMigrationObservation(adapter, context, observation, gateResult) 
   const { input } = context;
   const expectedRevision = input.expectedRevision === undefined ? 0 : assertExpectedRevision(input.expectedRevision);
   const expectedChainDigest = input.expectedChainDigest === undefined ? null : input.expectedChainDigest;
-  const coordinatorRevision = input.phase === 'OBSERVE'
+  const coordinatorRevision = ['OBSERVE', 'DUAL_ENFORCE'].includes(input.phase)
     && gateResult && Number.isSafeInteger(gateResult.revision) && gateResult.revision >= 0
     ? gateResult.revision : expectedRevision;
-  const coordinatorChainDigest = input.phase === 'OBSERVE'
+  const coordinatorChainDigest = ['OBSERVE', 'DUAL_ENFORCE'].includes(input.phase)
     && gateResult && typeof gateResult.chainDigest === 'string'
     ? gateResult.chainDigest : expectedChainDigest;
   let recording;
@@ -714,9 +743,14 @@ class ClaudeReviewGateAdapter {
       storeEventSchema: STORE_EVENT_SCHEMA,
       migrationObservationReceiptKind: MIGRATION_RECEIPT_KIND,
       reviewerContractVersion: REVIEWER_CONTRACT_VERSION,
-      phases: ['BASELINE', 'OBSERVE'],
+      phases: ['BASELINE', 'OBSERVE', 'DUAL_ENFORCE'],
       authority: 'SENTINEL',
-      effects: { BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY' },
+      authorities: {
+        BASELINE: 'SENTINEL',
+        OBSERVE: 'SENTINEL',
+        DUAL_ENFORCE: 'SENTINEL_AND_REVIEW_GATE',
+      },
+      effects: { BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY', DUAL_ENFORCE: 'ENFORCE' },
       explicitInvocationOnly: true,
       processLivenessRole: 'COMPATIBILITY_ONLY',
     });
@@ -728,7 +762,7 @@ class ClaudeReviewGateAdapter {
 
   observe(input = {}) {
     const context = normalizeObservationContext(input);
-    const { gateResult, gate } = recordReviewGateObservation(this, context);
+    const { gateResult, gate, reasonCodes } = recordReviewGateObservation(this, context);
     const comparison = context.input.phase === 'BASELINE' ? 'INDETERMINATE' : comparisonFor(context.sentinel, gate);
     const eventId = makeEventId({
       phase: context.input.phase,
@@ -745,7 +779,19 @@ class ClaudeReviewGateAdapter {
     }, this.producer, this.adapter);
     const recordedAt = normalizeTimestamp(this.now);
     const provenance = buildObservationProvenance(this, context, gate, eventId, recordedAt);
-    const observation = buildMigrationObservation(this, context, gate, comparison, provenance, eventId, recordedAt);
+    const diagnosticReasons = context.input.phase === 'DUAL_ENFORCE' && comparison !== 'AGREE'
+      ? [...reasonCodes, 'DUAL_ENFORCEMENT_DISAGREEMENT']
+      : reasonCodes;
+    const observation = buildMigrationObservation(
+      this,
+      context,
+      gate,
+      comparison,
+      provenance,
+      eventId,
+      recordedAt,
+      diagnosticReasons,
+    );
     return persistMigrationObservation(this, context, observation, gateResult);
   }
 }

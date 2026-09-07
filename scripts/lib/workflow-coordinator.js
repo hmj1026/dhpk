@@ -27,6 +27,13 @@ const OBSERVE_CONTROL = Object.freeze({
   effect: 'OBSERVE_ONLY',
   allowsTargetProgress: false,
 });
+const DUAL_ENFORCE_CONTROL = Object.freeze({
+  enabled: true,
+  phase: 'DUAL_ENFORCE',
+  authority: 'SENTINEL_AND_REVIEW_GATE',
+  effect: 'ENFORCE',
+  allowsTargetProgress: true,
+});
 const FEATURE_KEYS = Object.freeze(['enabled', 'phase']);
 const REVIEW_PASS = 'PASS';
 const IMPLEMENTATION = 'IMPLEMENTATION';
@@ -44,12 +51,13 @@ function assertFeatureControl(featureControl) {
     throw new TypeError('Workflow Coordinator feature control has unsupported fields');
   }
   const valid = (featureControl.enabled === false && featureControl.phase === 'BASELINE')
-    || (featureControl.enabled === true && featureControl.phase === 'OBSERVE');
+    || (featureControl.enabled === true && ['OBSERVE', 'DUAL_ENFORCE'].includes(featureControl.phase));
   if (!valid) throw new TypeError('Workflow Coordinator feature control is unsupported');
 }
 
 function controlFor(featureControl) {
-  return featureControl.phase === 'BASELINE' ? BASELINE_CONTROL : OBSERVE_CONTROL;
+  if (featureControl.phase === 'BASELINE') return BASELINE_CONTROL;
+  return featureControl.phase === 'DUAL_ENFORCE' ? DUAL_ENFORCE_CONTROL : OBSERVE_CONTROL;
 }
 
 function parseTime(value) {
@@ -139,6 +147,125 @@ function allRequirementsPass(reviewRequirements, verificationRequirements, lates
     return item.payload.outcome === 'PASS' || item.payload.outcome === 'COMPLETE';
   });
   return reviewsPass && verificationsPass;
+}
+
+function dualEnforcementStatus(evidence, control, evaluatedAt) {
+  if (control.phase !== 'DUAL_ENFORCE') return { ready: true, reason: null };
+  const migrationObservations = evidence.migrationObservations || [];
+  const allObservations = migrationObservations
+    .filter((item) => item.payload && item.payload.phase === 'DUAL_ENFORCE');
+  if (allObservations.length === 0) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNOBSERVED' };
+  }
+  const transitions = evidence.phaseTransitions || [];
+  // A rollback receipt must be chronologically anchored to the DUAL evidence
+  // it is rolling back. This prevents a caller from backdating a rollback
+  // before the promotion and having the reducer silently ignore it.
+  for (const transition of transitions.filter((item) => item.payload.action === 'ROLLBACK')) {
+    const rollbackRecordedAt = parseTime(transition.receipt.recordedAt);
+    const bundle = transition.payload.evidenceBundle;
+    const anchored = migrationObservations
+      .filter((item) => item.payload && item.payload.phase === 'DUAL_ENFORCE')
+      .filter((item) => item.payload.provenance
+        && item.payload.provenance.digest === bundle.digest
+        && item.payload.provenance.reference === bundle.reference)
+      .filter((item) => parseTime(item.receipt.recordedAt) <= rollbackRecordedAt)
+      .at(-1);
+    if (!anchored) return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+  }
+  const latestTransition = transitions[transitions.length - 1];
+  if (!latestTransition || latestTransition.payload.action !== 'PROMOTE') {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+  }
+  // A promotion receipt is bound to the OBSERVE evidence that the maintainer
+  // actually reviewed.  The first DUAL observation is a new observation and
+  // therefore has a different provenance digest (the adapter includes phase
+  // and gate outcome in that digest); requiring the DUAL digest here would
+  // make every valid promotion unreachable.
+  const promotionBundle = latestTransition.payload.evidenceBundle;
+  const promotionRecordedAt = parseTime(latestTransition.receipt.recordedAt);
+  const source = (evidence.migrationObservations || [])
+    .filter((item) => item.payload && item.payload.phase === 'OBSERVE')
+    .filter((item) => item.payload.provenance
+      && item.payload.provenance.digest === promotionBundle.digest
+      && item.payload.provenance.reference === promotionBundle.reference)
+    .filter((item) => parseTime(item.receipt.recordedAt) <= promotionRecordedAt)
+    .at(-1);
+  if (!source) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+  }
+  const transitionIndex = evidence.records.lastIndexOf(latestTransition);
+  const postPromotionObservations = migrationObservations
+    .filter((item) => evidence.records.indexOf(item) > transitionIndex);
+  if (postPromotionObservations.length === 0) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNOBSERVED' };
+  }
+  // A rollback diagnostic is an OBSERVE observation without a transition
+  // receipt of its own. Any post-promotion OBSERVE record therefore ends the
+  // active DUAL epoch; an old agreeing DUAL receipt cannot be reused.
+  if (postPromotionObservations.some((item) => item.payload.phase !== 'DUAL_ENFORCE')) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+  }
+  const observations = postPromotionObservations.filter((item) => (
+    item.payload && item.payload.phase === 'DUAL_ENFORCE'
+  ));
+  const issuedAt = parseTime(latestTransition.payload.issuedAt);
+  const expiresAt = parseTime(latestTransition.payload.expiresAt);
+  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)
+    || evaluatedAt < issuedAt || evaluatedAt >= expiresAt) {
+    return { ready: false, reason: 'STALE_EVIDENCE' };
+  }
+  const latest = observations[observations.length - 1];
+  const payload = latest.payload;
+  if (latestTransition.payload.currentPhase !== 'OBSERVE'
+    || latestTransition.payload.targetPhase !== 'DUAL_ENFORCE') {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+  }
+  const boundIdentityFields = [
+    'workId', 'waveId', 'planId', 'decisionId', 'obligationId', 'lane',
+    'taskId', 'attemptId', 'attempt', 'sessionId', 'dispatchId', 'scopeId', 'diffId',
+  ];
+  const transitionIdentityFields = [
+    'workId', 'waveId', 'planId', 'decisionId', 'taskId', 'attemptId', 'attempt',
+    'dispatchId', 'scopeId', 'diffId',
+  ];
+  if (boundIdentityFields.some((field) => payload[field] !== source.payload[field])
+    || transitionIdentityFields.some((field) => latestTransition.receipt[field] !== source.payload[field])
+    || latestTransition.receipt.sourceCommit !== source.payload.sourceCommit
+    || latestTransition.receipt.sourceTree !== source.payload.sourceTree
+    || latestTransition.receipt.policyVersion !== source.payload.policyVersion
+    || latestTransition.receipt.contractVersion !== source.payload.contractVersion
+    || payload.scope.digest !== source.payload.scope.digest
+    || payload.diff.digest !== source.payload.diff.digest
+    || payload.diff.reference !== source.payload.diff.reference) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_IDENTITY_MISMATCH' };
+  }
+  if (observations.some((item) => (
+    item.payload.authority !== 'SENTINEL_AND_REVIEW_GATE'
+    || item.payload.effect !== 'ENFORCE'
+  ))) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_AUTHORITY_MISMATCH' };
+  }
+  if (observations.some((item) => (
+    item.payload.comparison !== 'AGREE' || item.payload.allowsTargetProgress !== true
+  ))) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_DISAGREEMENT' };
+  }
+  const review = (evidence.reviews || []).find((item) => (
+    item.payload
+      && item.payload.effect === 'ENFORCE'
+      && item.receipt.obligationId === payload.obligationId
+      && item.receipt.lane === payload.lane
+      && item.payload.eventId === payload.reviewGate.eventId
+  ));
+  if (!review
+    || review.payload.scopeDigest !== payload.scope.digest
+    || !review.payload.diff
+    || review.payload.diff.digest !== payload.diff.digest
+    || review.payload.diff.reference !== payload.diff.reference) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_IDENTITY_MISMATCH' };
+  }
+  return { ready: true, reason: null };
 }
 
 function blockedReasonForLane(lane, latestReviews, latestVerifications) {
@@ -260,6 +387,7 @@ function reduceAccepted(evidence, control, evaluatedAt) {
     if (freshnessTargets.has(item.receipt.receiptId)) latestVerifications.delete(key);
   }
   const authorities = evidence.authorities;
+  const dualStatus = dualEnforcementStatus(evidence, control, evaluatedAt);
 
   const immediateRequests = (decision.payload.authorityRequests || []).filter((request) => (
     request.urgency === 'IMMEDIATE_STOP' && request.blocking !== false
@@ -359,6 +487,13 @@ function reduceAccepted(evidence, control, evaluatedAt) {
     };
   } else if (failure.length > 0) {
     result.state = 'EXECUTING';
+  } else if (!dualStatus.ready) {
+    result.state = 'EVIDENCE_PENDING';
+    result.condition = {
+      type: 'BLOCKED',
+      resumeState: 'EVIDENCE_PENDING',
+      reasonCodes: [dualStatus.reason],
+    };
   } else if (allRequirementsPass(requiredReviews, requiredVerifications, latestReviews, latestVerifications, authorities, evaluatedAt)) {
     result.state = 'MERGE_READY';
     result.completion.implementation = 'COMPLETE';

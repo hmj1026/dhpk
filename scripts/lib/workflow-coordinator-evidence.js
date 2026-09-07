@@ -9,7 +9,11 @@ const {
   deepFreeze,
 } = require('./receipt-primitives');
 const { createFinding } = require('./reviewer-contract');
-const { validateMigrationObservationPayload } = require('./migration-coordinator');
+const {
+  validateMigrationObservationPayload,
+  validatePhaseTransitionPayload,
+  PHASE_TRANSITION_SCHEMA,
+} = require('./migration-coordinator');
 const RECEIPT_SCHEMA = 'dhpk.review-gate.evidence-receipt.v1';
 const DECISION_SCHEMA = 'dhpk.workflow.decision.v1';
 const VERIFICATION_SCHEMA = 'dhpk.workflow.verification.v1';
@@ -24,6 +28,7 @@ const REVIEW_APPLICABILITIES = Object.freeze(['REQUIRED', 'NOT_APPLICABLE']);
 const REVIEW_VERDICTS = Object.freeze(['PASS', 'CHANGES_REQUIRED', 'BLOCKED']);
 const AUTHORITY_URGENCIES = Object.freeze(['BATCHABLE', 'IMMEDIATE_STOP']);
 const ROUTING_ROLES = Object.freeze(['planner', 'reasoner', 'tdd-guide']);
+const MAX_FUTURE_EVIDENCE_SKEW_MS = 60 * 60 * 1000;
 const FORBIDDEN_KEY = /(?:prompt|message|chainofthought|thought|reasoning|transcript|fullsource|sourcecode|fulllog|rawlog|stdout|stderr|authorization|proxy.?authorization|token|password|secret|api.?key|private.?key|signing.?key|cookie|credential)/i;
 const SAFE_PATH = /^(?!\/)(?!.*\\)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/@+-]+$/;
 class WorkflowCoordinatorEvidenceError extends Error {
@@ -357,7 +362,7 @@ function validateReview(receipt) {
   requireSafe(receipt.obligationId);
   requireSafe(receipt.lane);
   const payload = receipt.payload;
-  if (hasOwn(payload, 'effect') && payload.effect !== 'OBSERVE_ONLY') fail('MALFORMED_RECEIPT');
+  if (hasOwn(payload, 'effect') && !['OBSERVE_ONLY', 'ENFORCE'].includes(payload.effect)) fail('MALFORMED_RECEIPT');
   const required = [
     'eventId', 'decisionId', 'planId', 'obligationId', 'lane', 'scopeDigest',
     'baseIdentity', 'headIdentity', 'diff', 'materialRisks', 'materialRisksHash',
@@ -458,13 +463,27 @@ function validateMigrationObservation(receipt) {
   const payload = validateMigrationObservationPayload(receipt.payload, receipt);
   return { receipt, payload, type: 'migration-observation' };
 }
+
+function validatePhaseTransitionAuthority(receipt) {
+  const payload = validatePhaseTransitionPayload(receipt.payload);
+  for (const field of [
+    'taskId', 'attemptId', 'dispatchId', 'scopeId', 'diffId',
+  ]) requireSafe(receipt[field]);
+  if (!Number.isSafeInteger(receipt.attempt) || receipt.attempt < 1) fail('MALFORMED_RECEIPT');
+  requireText(receipt.adapterVersion);
+  if (receipt.receiptId === payload.eventId) fail('MIXED_IDENTITY');
+  return { receipt, payload, type: 'phase-transition-authority' };
+}
 function validateTypedReceipt(receipt, policy) {
   validateEnvelope(receipt, policy);
   switch (receipt.kind) {
     case 'decision': return validateDecision(receipt);
     case 'verification': return validateVerification(receipt);
     case 'review': return validateReview(receipt);
-    case 'authority': return validateAuthority(receipt);
+    case 'authority':
+      return receipt.payload && receipt.payload.schema === PHASE_TRANSITION_SCHEMA
+        ? validatePhaseTransitionAuthority(receipt)
+        : validateAuthority(receipt);
     case 'migration-observation': return validateMigrationObservation(receipt);
     default: fail('MALFORMED_RECEIPT');
   }
@@ -699,6 +718,8 @@ function evaluateReceipts(input, policy) {
       reviews: records.filter((item) => item.kind === 'review'),
       verifications: records.filter((item) => item.kind === 'verification'),
       authorities: records.filter((item) => item.kind === 'authority'),
+      phaseTransitions: records.filter((item) => item.kind === 'authority'
+        && item.payload && item.payload.schema === PHASE_TRANSITION_SCHEMA),
       migrationObservations: records.filter((item) => item.kind === 'migration-observation'),
     };
   } catch (error) {
@@ -723,6 +744,21 @@ class WorkflowCoordinatorEvidence {
 
   evaluate(receipts) {
     const evidence = evaluateReceipts(receipts, this.trustPolicy);
+    const evaluatedAt = typeof this.evaluatedAt === 'string'
+      ? Date.parse(this.evaluatedAt)
+      : this.evaluatedAt;
+    const latestAllowed = evaluatedAt + MAX_FUTURE_EVIDENCE_SKEW_MS;
+    for (const item of evidence.phaseTransitions) {
+      const recordedAt = Date.parse(item.receipt.recordedAt);
+      if (recordedAt > latestAllowed) fail('STALE_EVIDENCE');
+      validatePhaseTransitionPayload(item.payload, () => recordedAt);
+    }
+    for (const item of evidence.migrationObservations) {
+      if (item.payload.phase === 'DUAL_ENFORCE'
+        && Date.parse(item.receipt.recordedAt) > latestAllowed) {
+        fail('STALE_EVIDENCE');
+      }
+    }
     return {
       ...evidence,
       reviews: evidence.reviews.filter((item) => item.payload.effect !== 'OBSERVE_ONLY'),

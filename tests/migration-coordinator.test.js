@@ -37,6 +37,21 @@ const TRUST_POLICY = Object.freeze({
   })]),
 });
 
+const DUAL_TRUST_POLICY = Object.freeze({
+  producers: Object.freeze([
+    ...TRUST_POLICY.producers,
+    Object.freeze({
+      producer: 'human-authority',
+      adapter: 'migration-authority-adapter',
+      eventTypes: Object.freeze(['MIGRATION_PHASE_TRANSITION_RECORDED']),
+      receiptKinds: Object.freeze(['authority']),
+    }),
+  ]),
+});
+
+const PHASE_TRANSITION_SCHEMA = 'dhpk.review-gate.phase-transition-authority.v1';
+const PHASE_TRANSITION_EVENT_TYPE = 'MIGRATION_PHASE_TRANSITION_RECORDED';
+
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
 function assertDeepFrozen(value) {
@@ -52,21 +67,23 @@ function makeObservationPayload({
   reviewGateStatus = 'PASS',
   workId = 'work-369',
 } = {}) {
+  const observationEventId = phase === 'DUAL_ENFORCE' ? 'migration-event-369-dual-1' : OBSERVATION_EVENT_ID;
+  const observationReceiptId = phase === 'DUAL_ENFORCE' ? 'migration-receipt-369-dual-1' : OBSERVATION_RECEIPT_ID;
   return {
     schema: OBSERVATION_SCHEMA,
     producer: OBSERVATION_PRODUCER,
     adapter: OBSERVATION_ADAPTER,
     adapterVersion: OBSERVATION_ADAPTER_VERSION,
-    eventId: OBSERVATION_EVENT_ID,
-    receiptId: OBSERVATION_RECEIPT_ID,
+    eventId: observationEventId,
+    receiptId: observationReceiptId,
     sourceCommit: SOURCE_COMMIT,
     sourceTree: SOURCE_TREE,
     policyVersion: OBSERVATION_POLICY_VERSION,
     contractVersion: OBSERVATION_CONTRACT_VERSION,
     recordedAt: NOW,
     phase,
-    authority: 'SENTINEL',
-    effect: phase === 'BASELINE' ? 'DISABLED' : 'OBSERVE_ONLY',
+    authority: phase === 'DUAL_ENFORCE' ? 'SENTINEL_AND_REVIEW_GATE' : 'SENTINEL',
+    effect: phase === 'BASELINE' ? 'DISABLED' : phase === 'DUAL_ENFORCE' ? 'ENFORCE' : 'OBSERVE_ONLY',
     comparison,
     workId,
     decisionId: 'decision-369',
@@ -108,7 +125,16 @@ function makeObservationPayload({
     },
     reviewGate: {
       status: reviewGateStatus,
-      ...(phase === 'OBSERVE' ? { eventId: 'diagnostic-review-event-369' } : {}),
+      ...(phase === 'OBSERVE' || phase === 'DUAL_ENFORCE' ? { eventId: 'diagnostic-review-event-369' } : {}),
+      ...(phase === 'DUAL_ENFORCE' ? {
+        accepted: reviewGateStatus === 'PASS',
+        allowsProgress: reviewGateStatus === 'PASS',
+        lifecycleStatus: reviewGateStatus === 'PASS' ? 'RESOLVED' : 'PENDING',
+        executionStatus: reviewGateStatus === 'PASS' ? 'COMPLETE' : 'NOT_RUN',
+        applicability: 'REQUIRED',
+        semanticVerdict: reviewGateStatus,
+        blockingReasons: reviewGateStatus === 'PASS' ? [] : ['REVIEW_BLOCKED'],
+      } : {}),
     },
     acceptedOutcomeCost: {
       schema: 'dhpk.accepted-outcome-cost.v1',
@@ -132,7 +158,9 @@ function makeObservationPayload({
     authorizesApproval: false,
     clearsSentinel: false,
     blocksSentinel: false,
-    allowsTargetProgress: false,
+    allowsTargetProgress: phase === 'DUAL_ENFORCE'
+      && sentinelStatus === 'PASS'
+      && reviewGateStatus === 'PASS',
     automaticPromotion: false,
     retirementEligible: false,
     liveness: 'COMPATIBILITY_ONLY',
@@ -142,8 +170,8 @@ function makeObservationPayload({
       producer: OBSERVATION_PRODUCER,
       adapter: OBSERVATION_ADAPTER,
       adapterVersion: OBSERVATION_ADAPTER_VERSION,
-      eventId: OBSERVATION_EVENT_ID,
-      receiptId: OBSERVATION_RECEIPT_ID,
+      eventId: observationEventId,
+      receiptId: observationReceiptId,
       lifecycleEventId: 'verdicted-event-369',
       costObservationId: 'legacy-d84f9181ee7209e142684505b0dbb981',
       sourceCommit: SOURCE_COMMIT,
@@ -225,7 +253,7 @@ function createFixture(options = {}) {
   let currentNow = Date.parse(NOW);
   const store = new ReceiptStore({
     root,
-    trustPolicy: TRUST_POLICY,
+    trustPolicy: options.trustPolicy || TRUST_POLICY,
     integrityKey: INTEGRITY_KEY,
     now: () => currentNow,
   });
@@ -240,6 +268,88 @@ function createFixture(options = {}) {
     coordinator,
     setNow: (value) => { currentNow = Date.parse(value); },
     cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
+  };
+}
+
+function makePhaseTransitionReceipt(payload, {
+  action = 'PROMOTE',
+  currentPhase = 'OBSERVE',
+  targetPhase = 'DUAL_ENFORCE',
+  transitionId = 'transition-373-1',
+  eventId = 'phase-transition-event-373-1',
+  receiptId = 'phase-transition-receipt-373-1',
+  evidenceBundle = null,
+  issuedAt = NOW,
+  expiresAt = '2026-09-06T06:00:00.000Z',
+} = {}) {
+  return {
+    schema: EVIDENCE_RECEIPT_SCHEMA,
+    receiptId,
+    kind: 'authority',
+    workId: payload.workId,
+    waveId: payload.waveId,
+    planId: payload.planId,
+    decisionId: payload.decisionId,
+    producer: 'human-authority',
+    adapter: 'migration-authority-adapter',
+    adapterVersion: 'migration-authority.v1',
+    sessionId: 'human-authority-session-373',
+    taskId: payload.taskId,
+    attemptId: payload.attemptId,
+    attempt: payload.attempt,
+    dispatchId: payload.dispatchId,
+    scopeId: payload.scopeId,
+    diffId: payload.diffId,
+    sourceCommit: SOURCE_COMMIT,
+    sourceTree: SOURCE_TREE,
+    policyVersion: OBSERVATION_POLICY_VERSION,
+    contractVersion: OBSERVATION_CONTRACT_VERSION,
+    recordedAt: NOW,
+    payload: {
+      schema: PHASE_TRANSITION_SCHEMA,
+      eventId,
+      transitionId,
+      action,
+      currentPhase,
+      targetPhase,
+      evidenceBundle: evidenceBundle || {
+        digest: `sha256:${'c'.repeat(64)}`,
+        reference: 'artifact:claude-migration-observation-369',
+      },
+      reason: 'maintainer approved the bounded migration transition',
+      approver: 'human:maintainer',
+      issuedAt,
+      expiresAt,
+    },
+  };
+}
+
+function makePhaseTransitionEvent(receipt, overrides = {}) {
+  return {
+    schema: STORE_EVENT_SCHEMA,
+    eventId: receipt.payload.eventId,
+    eventType: PHASE_TRANSITION_EVENT_TYPE,
+    workId: receipt.workId,
+    waveId: receipt.waveId,
+    planId: receipt.planId,
+    decisionId: receipt.decisionId,
+    producer: receipt.producer,
+    adapter: receipt.adapter,
+    adapterVersion: receipt.adapterVersion,
+    sessionId: receipt.sessionId,
+    taskId: receipt.taskId,
+    attemptId: receipt.attemptId,
+    attempt: receipt.attempt,
+    dispatchId: receipt.dispatchId,
+    scopeId: receipt.scopeId,
+    diffId: receipt.diffId,
+    sourceCommit: receipt.sourceCommit,
+    sourceTree: receipt.sourceTree,
+    policyVersion: receipt.policyVersion,
+    contractVersion: receipt.contractVersion,
+    recordedAt: receipt.recordedAt,
+    payload: { receipt },
+    ...overrides,
   };
 }
 
@@ -599,7 +709,7 @@ test('rejects provenance fields outside the bounded observation allowlist', () =
 
 test('rejects unsupported migration phases at construction', () => {
   withFixture(({ root, store }) => {
-    for (const phase of ['DUAL_ENFORCE', 'CUTOVER', 'RETIRE', 'CLEANUP', 'baseline', null]) {
+    for (const phase of ['CUTOVER', 'RETIRE', 'CLEANUP', 'baseline', null]) {
       assert.throws(
         () => new MigrationCoordinator({
           receiptStore: store,
@@ -611,6 +721,51 @@ test('rejects unsupported migration phases at construction', () => {
     }
     assert.ok(root);
   });
+});
+
+test('DUAL_ENFORCE observations require a recorded promotion and stale coordinators cannot roll back the head', () => {
+  withFixture(({ store }) => {
+    const dualCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'DUAL_ENFORCE',
+      now: () => Date.parse(NOW),
+    });
+    assert.throws(
+      () => dualCoordinator.record({
+        expectedRevision: 0,
+        expectedChainDigest: null,
+        observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'AGREE' }),
+      }),
+      /promotion|phase|stale/i,
+    );
+
+    const observeCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'OBSERVE',
+      now: () => Date.parse(NOW),
+    });
+    const observed = observeCoordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const promotionReceipt = makePhaseTransitionReceipt(observed);
+    const promotion = observeCoordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(promotionReceipt),
+      receipt: promotionReceipt,
+    });
+    const stalePayload = makeObservationPayload({ phase: 'OBSERVE', comparison: 'AGREE' });
+    stalePayload.eventId = 'migration-event-369-stale-observe';
+    stalePayload.receiptId = 'migration-receipt-369-stale-observe';
+    stalePayload.provenance.eventId = stalePayload.eventId;
+    stalePayload.provenance.receiptId = stalePayload.receiptId;
+    assert.throws(
+      () => observeCoordinator.record({
+        expectedRevision: promotion.revision,
+        expectedChainDigest: promotion.chainDigest,
+        observation: stalePayload,
+      }),
+      /phase|stale/i,
+    );
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
 });
 
 test('inspection returns the stored immutable migration projection without a promotion surface', () => {
@@ -633,8 +788,528 @@ test('inspection returns the stored immutable migration projection without a pro
 
   assert.deepStrictEqual(
     Object.getOwnPropertyNames(MigrationCoordinator.prototype).sort(),
-    ['constructor', 'inspect', 'record'],
+    ['_appendPhaseTransition', 'constructor', 'inspect', 'record', 'rollback', 'transition'],
   );
+});
+
+test('promotes OBSERVE to DUAL_ENFORCE only through a bound maintainer transition receipt', () => {
+  withFixture(({ coordinator, store }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const authorityReceipt = makePhaseTransitionReceipt(observed, {
+      currentPhase: 'OBSERVE',
+      targetPhase: 'DUAL_ENFORCE',
+    });
+    const transition = coordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(authorityReceipt),
+      receipt: authorityReceipt,
+    });
+
+    assert.strictEqual(transition.phase, 'DUAL_ENFORCE');
+    assert.strictEqual(transition.authority, 'SENTINEL_AND_REVIEW_GATE');
+    assert.strictEqual(transition.effect, 'ENFORCE');
+    assert.strictEqual(transition.allowsTargetProgress, false);
+    assert.strictEqual(transition.automaticPromotion, false);
+    assert.strictEqual(transition.authorizesApproval, false);
+    assert.strictEqual(transition.clearsSentinel, false);
+    assert.strictEqual(transition.revision, observed.revision + 1);
+    assert.match(transition.chainDigest, /^sha256:[a-f0-9]{64}$/);
+    assertDeepFrozen(transition);
+
+    const history = store.inspect({
+      workId: observed.workId,
+      expectedRevision: transition.revision,
+      expectedChainDigest: transition.chainDigest,
+    });
+    assert.strictEqual(history.events.length, 2);
+    assert.strictEqual(history.receipts.length, 2);
+    assert.strictEqual(history.receipts[1].kind, 'authority');
+    assert.strictEqual(history.receipts[1].payload.schema, PHASE_TRANSITION_SCHEMA);
+    const inspected = coordinator.inspect({
+      workId: observed.workId,
+      expectedRevision: transition.revision,
+      expectedChainDigest: transition.chainDigest,
+    });
+    assert.strictEqual(inspected.phase, 'DUAL_ENFORCE');
+    assert.strictEqual(inspected.authority, 'SENTINEL_AND_REVIEW_GATE');
+    assert.strictEqual(inspected.effect, 'ENFORCE');
+    assert.strictEqual(inspected.allowsTargetProgress, false);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('DUAL_ENFORCE allows progress only when both validated authorities pass', () => {
+  withFixture(({ coordinator }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const authorityReceipt = makePhaseTransitionReceipt(observed);
+    const transition = coordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(authorityReceipt),
+      receipt: authorityReceipt,
+    });
+    const dual = new MigrationCoordinator({
+      receiptStore: coordinator.receiptStore,
+      phase: 'DUAL_ENFORCE',
+      now: () => Date.parse(NOW),
+    }).record({
+      expectedRevision: transition.revision,
+      expectedChainDigest: transition.chainDigest,
+      observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'AGREE' }),
+    });
+
+    assert.strictEqual(dual.phase, 'DUAL_ENFORCE');
+    assert.strictEqual(dual.authority, 'SENTINEL_AND_REVIEW_GATE');
+    assert.strictEqual(dual.effect, 'ENFORCE');
+    assert.strictEqual(dual.comparison, 'AGREE');
+    assert.strictEqual(dual.allowsTargetProgress, true);
+    assert.strictEqual(dual.authorizesApproval, false);
+    assert.strictEqual(dual.clearsSentinel, false);
+    assert.strictEqual(dual.blocksSentinel, false);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('DUAL_ENFORCE disagreement fails closed and manual rollback preserves receipts', () => {
+  withFixture(({ coordinator, store }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const promotionReceipt = makePhaseTransitionReceipt(observed);
+    const promotion = coordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(promotionReceipt),
+      receipt: promotionReceipt,
+    });
+    const dualCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'DUAL_ENFORCE',
+      now: () => Date.parse(NOW),
+    });
+    const disagreement = dualCoordinator.record({
+      expectedRevision: promotion.revision,
+      expectedChainDigest: promotion.chainDigest,
+      observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'DISAGREE', reviewGateStatus: 'CHANGES_REQUIRED' }),
+    });
+    assert.strictEqual(disagreement.authority, 'SENTINEL_AND_REVIEW_GATE');
+    assert.strictEqual(disagreement.effect, 'ENFORCE');
+    assert.strictEqual(disagreement.allowsTargetProgress, false);
+
+    const rollbackReceipt = makePhaseTransitionReceipt(disagreement, {
+      action: 'ROLLBACK',
+      currentPhase: 'DUAL_ENFORCE',
+      targetPhase: 'OBSERVE',
+      transitionId: 'transition-373-rollback-1',
+      eventId: 'phase-transition-event-373-rollback-1',
+      receiptId: 'phase-transition-receipt-373-rollback-1',
+    });
+    const rollback = dualCoordinator.rollback({
+      expectedRevision: disagreement.revision,
+      expectedChainDigest: disagreement.chainDigest,
+      event: makePhaseTransitionEvent(rollbackReceipt),
+      receipt: rollbackReceipt,
+    });
+
+    assert.strictEqual(rollback.phase, 'OBSERVE');
+    assert.strictEqual(rollback.authority, 'SENTINEL');
+    assert.strictEqual(rollback.effect, 'OBSERVE_ONLY');
+    assert.strictEqual(rollback.allowsTargetProgress, false);
+    assert.strictEqual(rollback.automaticPromotion, false);
+    assert.strictEqual(rollback.clearsSentinel, false);
+    assert.strictEqual(rollback.revision, disagreement.revision + 1);
+    const history = store.inspect({
+      workId: disagreement.workId,
+      expectedRevision: rollback.revision,
+      expectedChainDigest: rollback.chainDigest,
+    });
+    assert.strictEqual(history.receipts.filter((receipt) => receipt.kind === 'migration-observation').length, 3);
+    assert.strictEqual(history.receipts.filter((receipt) => receipt.kind === 'authority').length, 2);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('hard invariant rollback returns exactly one phase without synthetic Sentinel clearance', () => {
+  withFixture(({ coordinator, store }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const promotionReceipt = makePhaseTransitionReceipt(observed);
+    const promotion = coordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(promotionReceipt),
+      receipt: promotionReceipt,
+    });
+    const dualCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'DUAL_ENFORCE',
+      now: () => Date.parse(NOW),
+    });
+    const dual = dualCoordinator.record({
+      expectedRevision: promotion.revision,
+      expectedChainDigest: promotion.chainDigest,
+      observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'DISAGREE', reviewGateStatus: 'CHANGES_REQUIRED' }),
+    });
+    const rollback = dualCoordinator.rollback({
+      workId: dual.workId,
+      expectedRevision: dual.revision,
+      expectedChainDigest: dual.chainDigest,
+      automatic: true,
+      // A caller-supplied observation is only an optional work selector; the
+      // rollback diagnostic must still be derived from the stored DUAL receipt.
+      observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'AGREE' }),
+      reasonCodes: ['IDENTITY_DISAGREEMENT'],
+    });
+
+    assert.strictEqual(rollback.phase, 'OBSERVE');
+    assert.strictEqual(rollback.authority, 'SENTINEL');
+    assert.strictEqual(rollback.effect, 'OBSERVE_ONLY');
+    assert.strictEqual(rollback.allowsTargetProgress, false);
+    assert.strictEqual(rollback.clearsSentinel, false);
+    assert.strictEqual(rollback.revision, dual.revision + 1);
+    const history = store.inspect({
+      workId: dual.workId,
+      expectedRevision: rollback.revision,
+      expectedChainDigest: rollback.chainDigest,
+    });
+    assert.strictEqual(history.receipts.filter((receipt) => receipt.kind === 'authority').length, 1);
+    assert.strictEqual(history.receipts.filter((receipt) => receipt.kind === 'migration-observation').length, 3);
+    const latest = history.receipts.filter((receipt) => receipt.kind === 'migration-observation').at(-1);
+    assert.ok(latest.payload.reasonCodes.includes('IDENTITY_DISAGREEMENT'));
+    assert.strictEqual(latest.payload.sentinelOutcome.lifecycleEventId, 'verdicted-event-369');
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('manual rollback retries remain idempotent after the rollback diagnostic advances the head', () => {
+  withFixture(({ coordinator, store }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const promotionReceipt = makePhaseTransitionReceipt(observed);
+    const promotion = coordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(promotionReceipt),
+      receipt: promotionReceipt,
+    });
+    const dualCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'DUAL_ENFORCE',
+      now: () => Date.parse(NOW),
+    });
+    const dual = dualCoordinator.record({
+      expectedRevision: promotion.revision,
+      expectedChainDigest: promotion.chainDigest,
+      observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'DISAGREE', reviewGateStatus: 'CHANGES_REQUIRED' }),
+    });
+    const rollbackReceipt = makePhaseTransitionReceipt(dual, {
+      action: 'ROLLBACK',
+      currentPhase: 'DUAL_ENFORCE',
+      targetPhase: 'OBSERVE',
+      transitionId: 'transition-373-rollback-retry',
+      eventId: 'phase-transition-event-373-rollback-retry',
+      receiptId: 'phase-transition-receipt-373-rollback-retry',
+    });
+    const input = {
+      expectedRevision: dual.revision,
+      expectedChainDigest: dual.chainDigest,
+      event: makePhaseTransitionEvent(rollbackReceipt),
+      receipt: rollbackReceipt,
+    };
+    const first = dualCoordinator.rollback(input);
+    const duplicate = dualCoordinator.rollback(input);
+    assert.deepStrictEqual(duplicate, first);
+    const history = store.inspect({
+      workId: dual.workId,
+      expectedRevision: first.revision,
+      expectedChainDigest: first.chainDigest,
+    });
+    assert.strictEqual(history.events.length, first.revision);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('automatic rollback retries remain idempotent with the original trusted head', () => {
+  withFixture(({ coordinator, store }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const promotionReceipt = makePhaseTransitionReceipt(observed);
+    const promotion = coordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(promotionReceipt),
+      receipt: promotionReceipt,
+    });
+    const dualCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'DUAL_ENFORCE',
+      now: () => Date.parse(NOW),
+    });
+    const dual = dualCoordinator.record({
+      expectedRevision: promotion.revision,
+      expectedChainDigest: promotion.chainDigest,
+      observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'DISAGREE', reviewGateStatus: 'CHANGES_REQUIRED' }),
+    });
+    const input = {
+      workId: dual.workId,
+      expectedRevision: dual.revision,
+      expectedChainDigest: dual.chainDigest,
+      automatic: true,
+      reasonCodes: ['IDENTITY_DISAGREEMENT'],
+    };
+    const first = dualCoordinator.rollback(input);
+    const duplicate = dualCoordinator.rollback(input);
+    assert.deepStrictEqual(duplicate, first);
+    const history = store.inspect({
+      workId: dual.workId,
+      expectedRevision: first.revision,
+      expectedChainDigest: first.chainDigest,
+    });
+    assert.strictEqual(history.events.length, first.revision);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('late transition retries reject a superseded authority epoch', () => {
+  withFixture(({ coordinator, store }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const promotionReceipt = makePhaseTransitionReceipt(observed);
+    const promotion = coordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(promotionReceipt),
+      receipt: promotionReceipt,
+    });
+    const dualCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'DUAL_ENFORCE',
+      now: () => Date.parse(NOW),
+    });
+    const dual = dualCoordinator.record({
+      expectedRevision: promotion.revision,
+      expectedChainDigest: promotion.chainDigest,
+      observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'DISAGREE', reviewGateStatus: 'CHANGES_REQUIRED' }),
+    });
+    const rollbackReceipt = makePhaseTransitionReceipt(dual, {
+      action: 'ROLLBACK',
+      currentPhase: 'DUAL_ENFORCE',
+      targetPhase: 'OBSERVE',
+      transitionId: 'transition-373-late-retry',
+      eventId: 'phase-transition-event-373-late-retry',
+      receiptId: 'phase-transition-receipt-373-late-retry',
+    });
+    const rollbackInput = {
+      expectedRevision: dual.revision,
+      expectedChainDigest: dual.chainDigest,
+      event: makePhaseTransitionEvent(rollbackReceipt),
+      receipt: rollbackReceipt,
+    };
+    const rollback = dualCoordinator.rollback(rollbackInput);
+
+    const observeCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'OBSERVE',
+      now: () => Date.parse(NOW),
+    });
+    const promotionTwoReceipt = makePhaseTransitionReceipt(rollback, {
+      transitionId: 'transition-373-late-retry-promotion',
+      eventId: 'phase-transition-event-373-late-retry-promotion',
+      receiptId: 'phase-transition-receipt-373-late-retry-promotion',
+    });
+    const promotionTwo = observeCoordinator.transition({
+      expectedRevision: rollback.revision,
+      expectedChainDigest: rollback.chainDigest,
+      event: makePhaseTransitionEvent(promotionTwoReceipt),
+      receipt: promotionTwoReceipt,
+    });
+    const dualTwoPayload = makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'AGREE' });
+    dualTwoPayload.eventId = 'migration-event-369-dual-2';
+    dualTwoPayload.receiptId = 'migration-receipt-369-dual-2';
+    dualTwoPayload.provenance.eventId = dualTwoPayload.eventId;
+    dualTwoPayload.provenance.receiptId = dualTwoPayload.receiptId;
+    const dualTwo = dualCoordinator.record({
+      expectedRevision: promotionTwo.revision,
+      expectedChainDigest: promotionTwo.chainDigest,
+      observation: dualTwoPayload,
+    });
+    assert.strictEqual(dualTwo.phase, 'DUAL_ENFORCE');
+
+    assert.throws(
+      () => dualCoordinator.rollback(rollbackInput),
+      (error) => error && error.code === 'STALE_EVIDENCE',
+    );
+    const current = dualCoordinator.inspect({
+      workId: dualTwo.workId,
+      expectedRevision: dualTwo.revision,
+      expectedChainDigest: dualTwo.chainDigest,
+    });
+    assert.strictEqual(current.phase, 'DUAL_ENFORCE');
+    assert.strictEqual(current.revision, dualTwo.revision);
+    assert.throws(
+      () => coordinator.transition({
+        expectedRevision: observed.revision,
+        expectedChainDigest: observed.chainDigest,
+        event: makePhaseTransitionEvent(promotionReceipt),
+        receipt: promotionReceipt,
+      }),
+      (error) => error && error.code === 'STALE_EVIDENCE',
+    );
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('late automatic rollback retries reject after a new promotion epoch', () => {
+  withFixture(({ coordinator, store }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const promotionReceipt = makePhaseTransitionReceipt(observed);
+    const promotion = coordinator.transition({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(promotionReceipt),
+      receipt: promotionReceipt,
+    });
+    const dualCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'DUAL_ENFORCE',
+      now: () => Date.parse(NOW),
+    });
+    const dual = dualCoordinator.record({
+      expectedRevision: promotion.revision,
+      expectedChainDigest: promotion.chainDigest,
+      observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'DISAGREE', reviewGateStatus: 'CHANGES_REQUIRED' }),
+    });
+    const rollbackInput = {
+      workId: dual.workId,
+      expectedRevision: dual.revision,
+      expectedChainDigest: dual.chainDigest,
+      automatic: true,
+      reasonCodes: ['IDENTITY_DISAGREEMENT'],
+    };
+    const rollback = dualCoordinator.rollback(rollbackInput);
+    const observeCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'OBSERVE',
+      now: () => Date.parse(NOW),
+    });
+    const promotionTwoReceipt = makePhaseTransitionReceipt(rollback, {
+      transitionId: 'transition-373-auto-late-promotion',
+      eventId: 'phase-transition-event-373-auto-late-promotion',
+      receiptId: 'phase-transition-receipt-373-auto-late-promotion',
+    });
+    const promotionTwo = observeCoordinator.transition({
+      expectedRevision: rollback.revision,
+      expectedChainDigest: rollback.chainDigest,
+      event: makePhaseTransitionEvent(promotionTwoReceipt),
+      receipt: promotionTwoReceipt,
+    });
+    assert.strictEqual(promotionTwo.phase, 'DUAL_ENFORCE');
+    assert.throws(
+      () => dualCoordinator.rollback(rollbackInput),
+      (error) => error && error.code === 'STALE_EVIDENCE',
+    );
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('phase transition receipt rejects stale, expired, and unsupported promotion attempts', () => {
+  withFixture(({ coordinator }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const cases = [
+      { name: 'wrong current phase', currentPhase: 'BASELINE', error: /phase|stale/i },
+      { name: 'wrong target phase', targetPhase: 'CUTOVER', error: /phase|target|unsupported/i },
+      { name: 'expired receipt', expiresAt: '2026-09-06T04:59:59.000Z', error: /expired|active|authority/i },
+    ];
+    for (const item of cases) {
+      const receipt = makePhaseTransitionReceipt(observed, {
+        currentPhase: item.currentPhase || 'OBSERVE',
+        targetPhase: item.targetPhase || 'DUAL_ENFORCE',
+        expiresAt: item.expiresAt || '2026-09-06T06:00:00.000Z',
+        transitionId: `transition-373-${item.name.replace(/ /g, '-')}`,
+        eventId: `phase-transition-event-373-${item.name.replace(/ /g, '-')}`,
+        receiptId: `phase-transition-receipt-373-${item.name.replace(/ /g, '-')}`,
+      });
+      assert.throws(
+        () => coordinator.transition({
+          expectedRevision: observed.revision,
+          expectedChainDigest: observed.chainDigest,
+          event: makePhaseTransitionEvent(receipt),
+          receipt,
+        }),
+        item.error,
+        item.name,
+      );
+    }
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('phase transition authority is bound to the current source metadata and evidence bundle', () => {
+  withFixture(({ coordinator }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const foreign = makePhaseTransitionReceipt(observed);
+    foreign.sourceCommit = 'f'.repeat(40);
+    foreign.payload.evidenceBundle = {
+      digest: `sha256:${'e'.repeat(64)}`,
+      reference: 'bundle:foreign-evidence',
+    };
+    assert.throws(
+      () => coordinator.transition({
+        expectedRevision: observed.revision,
+        expectedChainDigest: observed.chainDigest,
+        event: makePhaseTransitionEvent(foreign),
+        receipt: foreign,
+      }),
+      /identity|evidence|stale|mixed/i,
+    );
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('inspection rejects a phase transition persisted outside the coordinator boundary', () => {
+  withFixture(({ coordinator, store }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const expired = makePhaseTransitionReceipt(observed, {
+      expiresAt: '2026-09-06T04:59:59.000Z',
+    });
+    const appended = store.append({
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(expired),
+      receipts: [expired],
+    });
+    assert.throws(
+      () => coordinator.inspect({
+        workId: observed.workId,
+        expectedRevision: appended.revision,
+        expectedChainDigest: appended.chainDigest,
+      }),
+      /expired|stale|authority/i,
+    );
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('phase transition retries remain idempotent after the head advances', () => {
+  withFixture(({ coordinator }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const receipt = makePhaseTransitionReceipt(observed);
+    const input = {
+      expectedRevision: observed.revision,
+      expectedChainDigest: observed.chainDigest,
+      event: makePhaseTransitionEvent(receipt),
+      receipt,
+    };
+    const first = coordinator.transition(input);
+    const duplicate = coordinator.transition(input);
+    assert.deepStrictEqual(duplicate, first);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('phase transition aliases cannot carry conflicting authority receipts', () => {
+  withFixture(({ coordinator }) => {
+    const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+    const receipt = makePhaseTransitionReceipt(observed);
+    const foreign = makePhaseTransitionReceipt(observed, {
+      transitionId: 'transition-373-conflict',
+      eventId: 'phase-transition-event-373-conflict',
+      receiptId: 'phase-transition-receipt-373-conflict',
+    });
+    assert.throws(
+      () => coordinator.transition({
+        expectedRevision: observed.revision,
+        expectedChainDigest: observed.chainDigest,
+        event: makePhaseTransitionEvent(receipt),
+        receipt,
+        authorityReceipt: foreign,
+      }),
+      /identity|mixed|conflict/i,
+    );
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
 });
 
 run('migration-coordinator');

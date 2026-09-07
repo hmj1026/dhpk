@@ -19,9 +19,38 @@ const {
 const OBSERVATION_SCHEMA = 'dhpk.review-gate.migration-observation.v1';
 const PROJECTION_SCHEMA = 'dhpk.review-gate-migration-projection.v1';
 const EVENT_TYPE = 'MIGRATION_OBSERVATION_RECORDED';
-const PHASES = Object.freeze(['BASELINE', 'OBSERVE']);
-const EFFECTS = Object.freeze({ BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY' });
+const PHASES = Object.freeze(['BASELINE', 'OBSERVE', 'DUAL_ENFORCE']);
+const EFFECTS = Object.freeze({ BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY', DUAL_ENFORCE: 'ENFORCE' });
+const AUTHORITIES = Object.freeze({
+  BASELINE: 'SENTINEL',
+  OBSERVE: 'SENTINEL',
+  DUAL_ENFORCE: 'SENTINEL_AND_REVIEW_GATE',
+});
 const COMPARISONS = Object.freeze(['AGREE', 'DISAGREE', 'INDETERMINATE']);
+const PHASE_TRANSITION_SCHEMA = 'dhpk.review-gate.phase-transition-authority.v1';
+const PHASE_TRANSITION_EVENT_TYPE = 'MIGRATION_PHASE_TRANSITION_RECORDED';
+const PHASE_TRANSITION_ACTIONS = Object.freeze(['PROMOTE', 'ROLLBACK']);
+const PHASE_TRANSITION_PAYLOAD_FIELDS = Object.freeze([
+  'schema', 'eventId', 'transitionId', 'action', 'currentPhase', 'targetPhase',
+  'evidenceBundle', 'reason', 'approver', 'issuedAt', 'expiresAt',
+]);
+const PHASE_TRANSITION_EVIDENCE_FIELDS = Object.freeze(['digest', 'reference']);
+const PHASE_TRANSITION_IDENTITY_FIELDS = Object.freeze([
+  'workId', 'waveId', 'planId', 'decisionId', 'taskId', 'attemptId', 'attempt',
+  'sessionId', 'dispatchId', 'scopeId', 'diffId',
+]);
+const PHASE_TRANSITION_METADATA_FIELDS = Object.freeze([
+  'producer', 'adapter', 'adapterVersion', 'sourceCommit', 'sourceTree',
+  'policyVersion', 'contractVersion', 'recordedAt',
+]);
+const PHASE_TRANSITION_EVENT_FIELDS = Object.freeze([
+  'schema', 'eventId', 'eventType', ...PHASE_TRANSITION_IDENTITY_FIELDS,
+  ...PHASE_TRANSITION_METADATA_FIELDS, 'payload',
+]);
+const PHASE_TRANSITION_RECEIPT_FIELDS = Object.freeze([
+  'schema', 'receiptId', 'kind', ...PHASE_TRANSITION_IDENTITY_FIELDS,
+  ...PHASE_TRANSITION_METADATA_FIELDS, 'payload',
+]);
 const ACCEPTED_OUTCOME_COST_SCHEMA = 'dhpk.accepted-outcome-cost.v1';
 const ACCEPTED_OUTCOME_COST_FIELDS = Object.freeze([
   'schema', 'observationId', 'acceptedOutcome', 'metrics', 'telemetryFailures',
@@ -396,8 +425,51 @@ function validateObservationSchemaAndIdentity(payload, envelope) {
 function validateObservationPhaseAuthority(normalized) {
   requireVocabulary(normalized.phase, PHASES);
   requireVocabulary(normalized.comparison, COMPARISONS);
-  if (normalized.authority !== 'SENTINEL') fail('MALFORMED_RECEIPT');
+  if (normalized.authority !== AUTHORITIES[normalized.phase]) fail('MALFORMED_RECEIPT');
   if (normalized.effect !== EFFECTS[normalized.phase]) fail('MALFORMED_RECEIPT');
+  if (normalized.phase === 'DUAL_ENFORCE') {
+    if (!hasOwn(normalized.reviewGate, 'blockingReasons')
+      || !Array.isArray(normalized.reviewGate.blockingReasons)) {
+      fail('MALFORMED_RECEIPT');
+    }
+    if (normalized.comparison !== comparisonForDual(normalized)) fail('MIXED_IDENTITY');
+  }
+}
+
+function legacyVerdict(summary) {
+  if (!isRecord(summary)) return null;
+  for (const field of ['verdict', 'semanticVerdict', 'outcome', 'status']) {
+    if (typeof summary[field] !== 'string') continue;
+    const normalized = summary[field] === 'CLEARED'
+      ? 'PASS'
+      : normalizeLegacyVerdictFields({ verdict: summary[field] }).verdict;
+    if (['PASS', 'CHANGES_REQUIRED', 'BLOCKED'].includes(normalized)) return normalized;
+  }
+  return null;
+}
+
+function comparisonForDual(normalized) {
+  const sentinel = legacyVerdict(normalized.sentinelOutcome);
+  const reviewGate = legacyVerdict(normalized.reviewGate);
+  if (!sentinel || !reviewGate) return 'INDETERMINATE';
+  return sentinel === reviewGate ? 'AGREE' : 'DISAGREE';
+}
+
+function dualAllowsProgress(normalized) {
+  if (normalized.phase !== 'DUAL_ENFORCE' || comparisonForDual(normalized) !== 'AGREE') return false;
+  const sentinelPass = legacyVerdict(normalized.sentinelOutcome) === 'PASS'
+    && ['PASS', 'CLEARED'].includes(normalized.sentinelStatus);
+  const gate = normalized.reviewGate;
+  const reviewPass = isRecord(gate)
+    && gate.accepted === true
+    && gate.allowsProgress === true
+    && gate.lifecycleStatus === 'RESOLVED'
+    && gate.executionStatus === 'COMPLETE'
+    && gate.applicability === 'REQUIRED'
+    && gate.semanticVerdict === 'PASS'
+    && Array.isArray(gate.blockingReasons)
+    && gate.blockingReasons.length === 0;
+  return sentinelPass && reviewPass;
 }
 
 function validateObservationEvidenceBinding(normalized) {
@@ -470,7 +542,7 @@ function validateObservationCostCoherence(normalized, sentinelStatus) {
 }
 
 function validateObservationPhaseEvidence(normalized) {
-  if (normalized.phase === 'OBSERVE') {
+  if (normalized.phase === 'OBSERVE' || normalized.phase === 'DUAL_ENFORCE') {
     if (!hasOwn(normalized.reviewGate, 'eventId') || !hasOwn(normalized.sentinelOutcome, 'lifecycleEventId')
       || !hasOwn(normalized.provenance, 'lifecycleEventId')) fail('MALFORMED_RECEIPT');
     return;
@@ -487,7 +559,12 @@ function validateObservationLiveness(normalized) {
     && normalized.liveness !== normalized.processLivenessRole) fail('MIXED_IDENTITY');
 
   for (const field of FALSE_FIELDS) {
-    if (!hasOwn(normalized, field) || normalized[field] !== false) fail('MALFORMED_RECEIPT');
+    if (!hasOwn(normalized, field)) fail('MALFORMED_RECEIPT');
+    if (field === 'allowsTargetProgress' && normalized.phase === 'DUAL_ENFORCE') {
+      if (normalized[field] !== dualAllowsProgress(normalized)) fail('MIXED_IDENTITY');
+      continue;
+    }
+    if (normalized[field] !== false) fail('MALFORMED_RECEIPT');
   }
 }
 
@@ -693,22 +770,318 @@ function canonicalInput(input, now) {
   if (hasEnvelope && (!hasOwn(input, 'event') || !hasOwn(input, 'receipt'))) fail('MALFORMED_RECEIPT');
   return hasEnvelope ? canonicalEnvelopeInput(input) : canonicalObservationInput(input, now);
 }
-function projectionFrom(payload, history) {
+
+function clockMs(now) {
+  let value;
+  try {
+    value = now();
+  } catch (_) {
+    fail('MALFORMED_RECEIPT');
+  }
+  const milliseconds = value instanceof Date
+    ? value.getTime()
+    : typeof value === 'string' ? Date.parse(value) : Number(value);
+  if (!Number.isFinite(milliseconds)) fail('MALFORMED_RECEIPT');
+  return milliseconds;
+}
+
+function validatePhaseTransitionPayload(payload, now = null) {
+  const normalized = immutable(payload);
+  requireClosedRecord(normalized, PHASE_TRANSITION_PAYLOAD_FIELDS, PHASE_TRANSITION_PAYLOAD_FIELDS);
+  if (normalized.schema !== PHASE_TRANSITION_SCHEMA) fail('UNSUPPORTED_SCHEMA');
+  requireSafeId(normalized.eventId);
+  requireSafeId(normalized.transitionId);
+  requireVocabulary(normalized.action, PHASE_TRANSITION_ACTIONS);
+  if (!PHASES.includes(normalized.currentPhase)) fail('STALE_EVIDENCE', 'current phase is unsupported');
+  if (!PHASES.includes(normalized.targetPhase)) fail('STALE_EVIDENCE', 'target phase is unsupported');
+  const legalPromotion = normalized.action === 'PROMOTE'
+    && normalized.currentPhase === 'OBSERVE' && normalized.targetPhase === 'DUAL_ENFORCE';
+  const legalRollback = normalized.action === 'ROLLBACK'
+    && normalized.currentPhase === 'DUAL_ENFORCE' && normalized.targetPhase === 'OBSERVE';
+  if (!legalPromotion && !legalRollback) fail('STALE_EVIDENCE', 'phase transition is not a legal one-phase edge');
+  requireClosedRecord(normalized.evidenceBundle, PHASE_TRANSITION_EVIDENCE_FIELDS, PHASE_TRANSITION_EVIDENCE_FIELDS);
+  requireDigest(normalized.evidenceBundle.digest);
+  requireReference(normalized.evidenceBundle.reference);
+  requireText(normalized.reason, MAX_STRING_BYTES);
+  requireText(normalized.approver, MAX_STRING_BYTES);
+  if (!/^(?:human|maintainer):[A-Za-z0-9._:-]+$/.test(normalized.approver)) {
+    fail('UNTRUSTED_PRODUCER');
+  }
+  requireText(normalized.issuedAt, 128);
+  requireText(normalized.expiresAt, 128);
+  const issuedAt = Date.parse(normalized.issuedAt);
+  const expiresAt = Date.parse(normalized.expiresAt);
+  const evaluatedAt = now === null ? null : clockMs(now);
+  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)) {
+    fail('MALFORMED_RECEIPT');
+  }
+  if (expiresAt <= issuedAt) {
+    if (evaluatedAt !== null && expiresAt <= evaluatedAt) fail('STALE_EVIDENCE', 'phase authority receipt has expired');
+    if (evaluatedAt === null) fail('MALFORMED_RECEIPT');
+    fail('MALFORMED_RECEIPT');
+  }
+  if (evaluatedAt !== null && (evaluatedAt < issuedAt || evaluatedAt >= expiresAt)) {
+    fail('STALE_EVIDENCE', 'phase authority receipt is not active');
+  }
+  return normalized;
+}
+
+function validatePhaseTransitionBindings(event, receipt, payload) {
+  requireClosedRecord(event, PHASE_TRANSITION_EVENT_FIELDS, PHASE_TRANSITION_EVENT_FIELDS);
+  requireClosedRecord(receipt, PHASE_TRANSITION_RECEIPT_FIELDS, PHASE_TRANSITION_RECEIPT_FIELDS);
+  if (event.schema !== STORE_EVENT_SCHEMA || event.eventType !== PHASE_TRANSITION_EVENT_TYPE) {
+    fail('MALFORMED_RECEIPT');
+  }
+  if (receipt.schema !== EVIDENCE_RECEIPT_SCHEMA || receipt.kind !== 'authority') {
+    fail('MALFORMED_RECEIPT');
+  }
+  requireClosedRecord(event.payload, ['receipt'], ['receipt']);
+  if (!same(event.payload.receipt, receipt)) fail('MIXED_IDENTITY');
+  if (!same(receipt.payload, payload)) fail('MIXED_IDENTITY');
+  for (const field of PHASE_TRANSITION_IDENTITY_FIELDS) {
+    if (!hasOwn(event, field) || !hasOwn(receipt, field)) fail('MALFORMED_RECEIPT');
+    if (!same(event[field], receipt[field])) fail('MIXED_IDENTITY');
+    if (field === 'attempt') {
+      if (!Number.isSafeInteger(event[field]) || event[field] < 1) fail('MALFORMED_RECEIPT');
+    } else {
+      requireSafeId(event[field]);
+    }
+  }
+  for (const field of PHASE_TRANSITION_METADATA_FIELDS) {
+    if (!hasOwn(event, field) || !hasOwn(receipt, field)) fail('MALFORMED_RECEIPT');
+    if (!same(event[field], receipt[field])) fail('MIXED_IDENTITY');
+    if (field === 'sourceCommit' && !COMMIT.test(event[field])) fail('MALFORMED_RECEIPT');
+    else if (field === 'sourceTree' && !TREE.test(event[field])) fail('MALFORMED_RECEIPT');
+    else if (field === 'recordedAt') {
+      requireText(event[field], 128);
+      if (!Number.isFinite(Date.parse(event[field]))) fail('MALFORMED_RECEIPT');
+    } else if (field === 'producer' || field === 'adapter') requireSafeId(event[field]);
+    else if (field === 'adapterVersion' || field === 'policyVersion' || field === 'contractVersion') requireText(event[field], 128);
+  }
+  if (receipt.payload.eventId !== event.eventId) fail('MIXED_IDENTITY');
+  if (receipt.receiptId === receipt.payload.eventId) fail('MALFORMED_RECEIPT');
+  requireSafeId(event.eventId);
+  requireSafeId(receipt.receiptId);
+  return true;
+}
+
+function canonicalPhaseTransitionInput(input, now) {
+  requireRecord(input);
+  const event = immutable(input.event);
+  if (input.receipt !== undefined && input.authorityReceipt !== undefined
+    && !same(input.receipt, input.authorityReceipt)) {
+    fail('MIXED_IDENTITY');
+  }
+  const receipt = immutable(input.receipt !== undefined ? input.receipt : input.authorityReceipt);
+  requireRecord(event);
+  requireRecord(receipt);
+  const payload = validatePhaseTransitionPayload(receipt.payload, now);
+  validatePhaseTransitionBindings(event, receipt, payload);
+  return { event, receipt, payload };
+}
+
+function latestObservation(history) {
+  const observations = history.receipts.filter((candidate) => candidate.kind === 'migration-observation');
+  if (observations.length === 0) fail('MALFORMED_RECEIPT', 'migration phase has no observation');
+  return observations[observations.length - 1];
+}
+
+function phaseTransitionReceipts(history) {
+  return history.receipts.filter((candidate) => (
+    candidate.kind === 'authority'
+    && candidate.payload
+    && candidate.payload.schema === PHASE_TRANSITION_SCHEMA
+  ));
+}
+
+function validateTransitionHistory(history) {
+  const transitions = phaseTransitionReceipts(history);
+  for (const transitionReceipt of transitions) {
+    const event = history.events.find((candidate) => candidate.eventId === transitionReceipt.payload.eventId);
+    if (!event) fail('MALFORMED_RECEIPT', 'phase transition event is missing');
+    const recordedAt = Date.parse(transitionReceipt.recordedAt);
+    if (!Number.isFinite(recordedAt)) fail('MALFORMED_RECEIPT');
+    const payload = validatePhaseTransitionPayload(
+      transitionReceipt.payload,
+      () => recordedAt,
+    );
+    validatePhaseTransitionBindings(event, transitionReceipt, payload);
+    const transitionIndex = history.receipts.lastIndexOf(transitionReceipt);
+    const source = history.receipts
+      .slice(0, transitionIndex)
+      .filter((candidate) => candidate.kind === 'migration-observation')
+      .at(-1);
+    if (!source) fail('STALE_EVIDENCE', 'phase transition has no preceding observation');
+    validateTransitionAgainstObservation(payload, transitionReceipt, source, payload.currentPhase);
+  }
+  return transitions;
+}
+
+function effectivePhase(history) {
+  const observation = latestObservation(history);
+  const transitionReceipts = phaseTransitionReceipts(history);
+  const latestTransition = transitionReceipts[transitionReceipts.length - 1];
+  const observationIndex = history.receipts.lastIndexOf(observation);
+  const transitionIndex = latestTransition ? history.receipts.lastIndexOf(latestTransition) : -1;
+  return transitionIndex > observationIndex ? latestTransition.payload.targetPhase : observation.payload.phase;
+}
+
+function assertCoordinatorPhase(history, phase) {
+  validateTransitionHistory(history);
+  if (history.receipts.filter((candidate) => candidate.kind === 'migration-observation').length === 0) {
+    if (phase === 'DUAL_ENFORCE') {
+      fail('STALE_EVIDENCE', 'DUAL_ENFORCE requires an active promotion receipt');
+    }
+    return;
+  }
+  if (effectivePhase(history) !== phase) {
+    fail('STALE_EVIDENCE', 'coordinator phase is not active at the trusted receipt head');
+  }
+}
+
+function replayHead(receiptStore, workId) {
+  if (typeof receiptStore._replay !== 'function') return null;
+  return receiptStore._replay(workId);
+}
+
+function sequenceReceipts(receiptStore, history, eventIndex) {
+  const replayed = Array.isArray(history.sequences)
+    ? history
+    : typeof receiptStore._replay === 'function' ? receiptStore._replay(history.workId) : history;
+  const sequence = replayed.sequences && replayed.sequences[eventIndex];
+  if (!sequence || typeof receiptStore._readObject !== 'function') return [];
+  return sequence.receiptDigests.map((digest) => receiptStore._readObject(digest));
+}
+
+function receiptsThroughSequence(receiptStore, history, eventIndex) {
+  const replayed = Array.isArray(history.sequences)
+    ? history
+    : typeof receiptStore._replay === 'function' ? receiptStore._replay(history.workId) : history;
+  if (!Array.isArray(replayed.sequences) || typeof receiptStore._readObject !== 'function') {
+    return history.receipts;
+  }
+  return replayed.sequences
+    .slice(0, eventIndex + 1)
+    .flatMap((sequence) => sequence.receiptDigests.map((digest) => receiptStore._readObject(digest)));
+}
+
+function historicalHistoryAt(receiptStore, history, eventIndex) {
+  const replayed = Array.isArray(history.sequences)
+    ? history
+    : typeof receiptStore._replay === 'function' ? receiptStore._replay(history.workId) : history;
+  const sequence = replayed.sequences && replayed.sequences[eventIndex];
+  if (!sequence) return history;
+  return {
+    ...history,
+    revision: sequence.revision,
+    chainDigest: sequence.chainDigest,
+    events: replayed.events.slice(0, eventIndex + 1),
+    receipts: receiptsThroughSequence(receiptStore, replayed, eventIndex),
+  };
+}
+
+function duplicateTransitionProjection(receiptStore, history, canonical, eventIndex) {
+  const existingEvent = history.events[eventIndex];
+  const existingReceipts = sequenceReceipts(receiptStore, history, eventIndex);
+  const existingAuthority = existingReceipts.find((candidate) => (
+    candidate.receiptId === canonical.receipt.receiptId
+  ));
+  if (!existingEvent || !same(existingEvent, canonical.event) || !existingAuthority
+    || !same(existingAuthority, canonical.receipt)) {
+    fail('IDEMPOTENCY_CONFLICT', 'event identity is already bound to different evidence');
+  }
+  const targetReceipt = canonical.payload.action === 'ROLLBACK'
+    ? existingReceipts.find((candidate) => candidate.kind === 'migration-observation')
+    : receiptsThroughSequence(receiptStore, history, eventIndex)
+      .filter((candidate) => candidate.kind === 'migration-observation')
+      .at(-1);
+  if (!targetReceipt) fail('MALFORMED_RECEIPT', 'phase transition diagnostic is missing');
+  const historicalHistory = historicalHistoryAt(receiptStore, history, eventIndex);
+  return projectionFrom(targetReceipt.payload, historicalHistory, canonical.payload.targetPhase);
+}
+
+function validateTransitionAgainstObservation(transition, receipt, observation, currentPhase) {
+  if (transition.currentPhase !== currentPhase || transition.currentPhase !== observation.payload.phase) {
+    fail('STALE_EVIDENCE', 'phase transition current phase is stale');
+  }
+  if (transition.action === 'PROMOTE' && transition.targetPhase !== 'DUAL_ENFORCE') {
+    fail('STALE_EVIDENCE');
+  }
+  if (transition.action === 'ROLLBACK' && transition.targetPhase !== 'OBSERVE') {
+    fail('STALE_EVIDENCE');
+  }
+  for (const field of PHASE_TRANSITION_IDENTITY_FIELDS) {
+    if (field === 'sessionId') continue;
+    if (!same(receipt[field], observation.payload[field])) fail('MIXED_IDENTITY');
+  }
+  for (const field of ['sourceCommit', 'sourceTree', 'policyVersion', 'contractVersion']) {
+    if (!same(receipt[field], observation.payload[field])) fail('MIXED_IDENTITY');
+  }
+  if (!same(receipt.payload.evidenceBundle, {
+    digest: observation.payload.provenance.digest,
+    reference: observation.payload.provenance.reference,
+  })) {
+    fail('STALE_EVIDENCE', 'phase authority receipt is not bound to the current evidence bundle');
+  }
+}
+
+function diagnosticRollbackObservation(source, reasonCodes, now, sessionId = null) {
+  const normalized = immutable(source.payload);
+  const eventId = `migration-rollback-${sha256(canonicalJson({
+    sourceEventId: normalized.eventId,
+    reasonCodes,
+  })).slice(0, 32)}`;
+  const reviewGate = { ...normalized.reviewGate };
+  const provenance = {
+    ...normalized.provenance,
+    eventId,
+    receiptId: `${eventId}:receipt`,
+    recordedAt: new Date(clockMs(now)).toISOString(),
+  };
+  const identity = sessionId
+    ? { ...normalized.identity, sessionId }
+    : normalized.identity;
+  return {
+    ...normalized,
+    phase: 'OBSERVE',
+    authority: AUTHORITIES.OBSERVE,
+    effect: EFFECTS.OBSERVE,
+    comparison: 'INDETERMINATE',
+    reviewGate,
+    sessionId: sessionId || normalized.sessionId,
+    identity,
+    reasonCodes: [...new Set([...(normalized.reasonCodes || []), ...reasonCodes])],
+    authorizesApproval: false,
+    clearsSentinel: false,
+    blocksSentinel: false,
+    allowsTargetProgress: false,
+    automaticPromotion: false,
+    retirementEligible: false,
+    eventId,
+    receiptId: `${eventId}:receipt`,
+    recordedAt: provenance.recordedAt,
+    provenance,
+  };
+}
+
+function projectionFrom(payload, history, phaseOverride = null) {
   const normalized = validateMigrationObservationPayload(payload);
   const identity = extractIdentity(normalized);
+  const phase = phaseOverride || normalized.phase;
+  requireVocabulary(phase, PHASES);
   const projection = {
     schema: PROJECTION_SCHEMA,
     ...identity,
-    phase: normalized.phase,
-    authority: 'SENTINEL',
-    effect: EFFECTS[normalized.phase],
+    phase,
+    authority: AUTHORITIES[phase],
+    effect: EFFECTS[phase],
     comparison: normalized.comparison,
     sentinelStatus: normalized.sentinelStatus || statusFrom(normalized.sentinelOutcome),
     costObservationId: normalized.acceptedOutcomeCost.observationId,
     acceptedOutcomeCost: normalized.acceptedOutcomeCost,
     reviewGateStatus: normalized.reviewGateStatus || statusFrom(normalized.reviewGate),
     liveness: 'COMPATIBILITY_ONLY',
-    allowsTargetProgress: false,
+    allowsTargetProgress: phase === 'DUAL_ENFORCE' ? dualAllowsProgress(normalized) : false,
     automaticPromotion: false,
     retirementEligible: false,
     authorizesApproval: false,
@@ -737,6 +1110,34 @@ function verifyExpectedHead(receiptStore, event, expectedRevision, expectedChain
     expectedChainDigest,
   });
 }
+
+function appendCanonicalObservation({ receiptStore, canonical, expectedRevision, expectedChainDigest, phaseGuard = true }) {
+  const head = replayHead(receiptStore, canonical.event.workId);
+  const duplicate = head && head.events.some((candidate) => candidate.eventId === canonical.event.eventId);
+  if (phaseGuard && !duplicate) {
+    const history = receiptStore.inspect({
+      workId: canonical.event.workId,
+      expectedRevision,
+      expectedChainDigest,
+    });
+    assertCoordinatorPhase(history, canonical.payload.phase);
+  }
+  verifyExpectedHead(receiptStore, canonical.event, expectedRevision, expectedChainDigest);
+  const appended = receiptStore.append({
+    expectedRevision,
+    expectedChainDigest,
+    event: canonical.event,
+    receipts: [canonical.receipt],
+  });
+  const history = receiptStore.inspect({
+    workId: canonical.event.workId,
+    expectedRevision: appended.revision,
+    expectedChainDigest: appended.chainDigest,
+  });
+  const stored = history.receipts.find((candidate) => candidate.receiptId === canonical.receipt.receiptId);
+  if (!stored) fail('MALFORMED_RECEIPT');
+  return projectionFrom(stored.payload, history);
+}
 class MigrationCoordinator {
   constructor({ receiptStore, phase, now = () => Date.now() } = {}) {
     if (!(receiptStore instanceof ReceiptStore)
@@ -755,26 +1156,182 @@ class MigrationCoordinator {
     const input = observation === undefined ? { event, receipt } : { observation };
     const canonical = canonicalInput(input, this.now);
     if (canonical.payload.phase !== this.phase) fail('STALE_EVIDENCE', 'observation phase does not match coordinator phase');
+    return appendCanonicalObservation({
+      receiptStore: this.receiptStore,
+      canonical,
+      expectedRevision,
+      expectedChainDigest,
+    });
+  }
+
+  transition({ expectedRevision, expectedChainDigest = null, event, receipt, authorityReceipt } = {}) {
+    const canonical = canonicalPhaseTransitionInput({
+      event,
+      receipt,
+      authorityReceipt,
+    }, this.now);
+    return this._appendPhaseTransition({
+      expectedRevision,
+      expectedChainDigest,
+      canonical,
+    });
+  }
+
+  rollback({
+    expectedRevision,
+    expectedChainDigest = null,
+    workId = null,
+    event,
+    receipt,
+    authorityReceipt,
+    automatic = false,
+    observation,
+    reasonCodes = ['HARD_INVARIANT_ROLLBACK'],
+  } = {}) {
+    if (automatic) {
+      if (this.phase !== 'DUAL_ENFORCE' || event || receipt || authorityReceipt) {
+        fail('STALE_EVIDENCE', 'automatic rollback is only available from DUAL_ENFORCE');
+      }
+      if (!Array.isArray(reasonCodes) || reasonCodes.length === 0 || reasonCodes.length > 64) {
+        fail('MALFORMED_RECEIPT');
+      }
+      reasonCodes.forEach((code) => requireSafeId(code));
+      const sourceWorkId = workId || (observation && observation.workId);
+      requireSafeId(sourceWorkId);
+      let history;
+      try {
+        history = this.receiptStore.inspect({
+          workId: sourceWorkId,
+          expectedRevision,
+          expectedChainDigest,
+        });
+      } catch (error) {
+        // A retry may carry the original trusted head while the diagnostic
+        // event has already advanced it. Re-read the current head only to
+        // discover that deterministic duplicate; a new rollback still has to
+        // pass the caller's original head check below.
+        if (!error || !['TAMPERED_EVIDENCE', 'REVISION_CONFLICT'].includes(error.code)) throw error;
+        const current = replayHead(this.receiptStore, sourceWorkId);
+        if (!current) throw error;
+        history = this.receiptStore.inspect({
+          workId: sourceWorkId,
+          expectedRevision: current.revision,
+          expectedChainDigest: current.chainDigest,
+        });
+      }
+      const dualSources = history.receipts
+        .filter((candidate) => candidate.kind === 'migration-observation'
+          && candidate.payload && candidate.payload.phase === 'DUAL_ENFORCE')
+        .slice()
+        .reverse();
+      const source = dualSources[0];
+      if (source) {
+        const candidate = diagnosticRollbackObservation(source, reasonCodes, this.now);
+        const eventIndex = history.events.findIndex((entry) => entry.eventId === candidate.eventId);
+        if (eventIndex >= 0) {
+          const superseded = phaseTransitionReceipts(history).some((transition) => {
+            const transitionIndex = history.events.findIndex((entry) => (
+              entry.eventId === transition.payload.eventId
+            ));
+            return transitionIndex > eventIndex;
+          });
+          if (superseded || effectivePhase(history) !== 'OBSERVE') {
+            fail('STALE_EVIDENCE', 'automatic rollback has been superseded');
+          }
+          const stored = sequenceReceipts(this.receiptStore, history, eventIndex)
+            .find((entry) => entry.kind === 'migration-observation');
+          if (!stored) fail('MALFORMED_RECEIPT', 'rollback diagnostic is missing');
+          return projectionFrom(stored.payload, historicalHistoryAt(this.receiptStore, history, eventIndex));
+        }
+      }
+      const currentSource = latestObservation(history);
+      if (currentSource.payload.phase !== this.phase) fail('STALE_EVIDENCE');
+      // Automatic rollback diagnostics are always derived from the trusted source
+      // observation. A caller-provided payload may identify the work above, but
+      // it must never replace the coordinator-bound evidence.
+      const diagnostic = diagnosticRollbackObservation(currentSource, reasonCodes, this.now);
+      const canonical = canonicalObservationInput({ observation: diagnostic }, this.now);
+      return appendCanonicalObservation({
+        receiptStore: this.receiptStore,
+        canonical,
+        expectedRevision,
+        expectedChainDigest,
+        phaseGuard: false,
+      });
+    }
+    const canonical = canonicalPhaseTransitionInput({
+      event,
+      receipt,
+      authorityReceipt,
+    }, this.now);
+    if (canonical.payload.action !== 'ROLLBACK') fail('STALE_EVIDENCE');
+    return this._appendPhaseTransition({
+      expectedRevision,
+      expectedChainDigest,
+      canonical,
+    });
+  }
+
+  _appendPhaseTransition({ expectedRevision, expectedChainDigest, canonical }) {
+    const head = replayHead(this.receiptStore, canonical.event.workId);
+    const duplicateIndex = head
+      ? head.events.findIndex((candidate) => candidate.eventId === canonical.event.eventId)
+      : -1;
+    const duplicate = duplicateIndex >= 0;
+    if (duplicate) {
+      const history = this.receiptStore.inspect({
+        workId: canonical.event.workId,
+        expectedRevision: head.revision,
+        expectedChainDigest: head.chainDigest,
+      });
+      const transitions = phaseTransitionReceipts(history);
+      const latestTransition = transitions[transitions.length - 1];
+      if (!latestTransition
+        || latestTransition.receiptId !== canonical.receipt.receiptId
+        || effectivePhase(history) !== canonical.payload.targetPhase) {
+        fail('STALE_EVIDENCE', 'phase transition has been superseded');
+      }
+      return duplicateTransitionProjection(this.receiptStore, history, canonical, duplicateIndex);
+    }
+    const history = this.receiptStore.inspect({
+      workId: canonical.event.workId,
+      expectedRevision,
+      expectedChainDigest,
+    });
+    const source = latestObservation(history);
+    assertCoordinatorPhase(history, this.phase);
+    validateTransitionAgainstObservation(canonical.payload, canonical.receipt, source, this.phase);
     verifyExpectedHead(
       this.receiptStore,
       canonical.event,
       expectedRevision,
       expectedChainDigest,
     );
+    let targetPayload = source.payload;
+    const receipts = [canonical.receipt];
+    if (canonical.payload.action === 'ROLLBACK') {
+      const diagnostic = diagnosticRollbackObservation(
+        source,
+        ['MAINTAINER_ROLLBACK'],
+        this.now,
+        canonical.receipt.sessionId,
+      );
+      const canonicalDiagnostic = canonicalObservationInput({ observation: diagnostic }, this.now);
+      targetPayload = canonicalDiagnostic.payload;
+      receipts.push(canonicalDiagnostic.receipt);
+    }
     const appended = this.receiptStore.append({
       expectedRevision,
       expectedChainDigest,
       event: canonical.event,
-      receipts: [canonical.receipt],
+      receipts,
     });
-    const history = this.receiptStore.inspect({
+    const after = this.receiptStore.inspect({
       workId: canonical.event.workId,
       expectedRevision: appended.revision,
       expectedChainDigest: appended.chainDigest,
     });
-    const stored = history.receipts.find((candidate) => candidate.receiptId === canonical.receipt.receiptId);
-    if (!stored) fail('MALFORMED_RECEIPT');
-    return projectionFrom(stored.payload, history);
+    return projectionFrom(targetPayload, after, canonical.payload.targetPhase);
   }
 
   inspect({ workId, waveId = null, expectedRevision, expectedChainDigest } = {}) {
@@ -786,7 +1343,13 @@ class MigrationCoordinator {
     });
     const observations = history.receipts.filter((candidate) => candidate.kind === 'migration-observation');
     if (observations.length === 0) fail('MALFORMED_RECEIPT');
-    return projectionFrom(observations[observations.length - 1].payload, history);
+    const latestObservationReceipt = observations[observations.length - 1];
+    const transitions = validateTransitionHistory(history, this.now);
+    const latestTransition = transitions[transitions.length - 1];
+    const observationIndex = history.receipts.lastIndexOf(latestObservationReceipt);
+    const transitionIndex = latestTransition ? history.receipts.lastIndexOf(latestTransition) : -1;
+    const phaseOverride = transitionIndex > observationIndex ? latestTransition.payload.targetPhase : null;
+    return projectionFrom(latestObservationReceipt.payload, history, phaseOverride);
   }
 }
 
@@ -794,7 +1357,13 @@ module.exports = {
   MigrationCoordinator,
   MigrationCoordinatorError,
   validateMigrationObservationPayload,
+  validatePhaseTransitionPayload,
   OBSERVATION_SCHEMA,
   PROJECTION_SCHEMA,
   EVENT_TYPE,
+  PHASES,
+  EFFECTS,
+  AUTHORITIES,
+  PHASE_TRANSITION_SCHEMA,
+  PHASE_TRANSITION_EVENT_TYPE,
 };

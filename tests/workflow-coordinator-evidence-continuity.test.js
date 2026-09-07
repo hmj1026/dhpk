@@ -22,9 +22,11 @@ const MIGRATION_SOURCE_COMMIT = '3'.repeat(40);
 const MIGRATION_SOURCE_TREE = '4'.repeat(40);
 const MIGRATION_POLICY_VERSION = 'dhpk.risk-policy.initial.v1';
 const MIGRATION_CONTRACT_VERSION = 'dhpk.reviewer-contract.v2';
+const OBSERVE_MIGRATION_RECORDED_AT = '2026-09-06T04:07:00.000Z';
 const MIGRATION_RECORDED_AT = '2026-09-06T04:12:00.000Z';
 const DIAGNOSTIC_REVIEW_EVENT_ID = 'diagnostic-review-event-368';
 const COST_OBSERVATION_ID = 'legacy-01f3eb374d9d2eb448470c432bfd1a66';
+const PHASE_TRANSITION_SCHEMA = 'dhpk.review-gate.phase-transition-authority.v1';
 
 function migrationObservationPayload(overrides = {}) {
   return {
@@ -165,6 +167,85 @@ function migrationObservationReceipt(receiptId = 'receipt-migration-observation'
     payload,
   });
   return observation;
+}
+
+function observeMigrationObservationReceipt(receiptId = 'receipt-observe-migration-observation') {
+  const observation = migrationObservationReceipt(receiptId);
+  observation.recordedAt = OBSERVE_MIGRATION_RECORDED_AT;
+  observation.payload.recordedAt = OBSERVE_MIGRATION_RECORDED_AT;
+  observation.payload.provenance.recordedAt = OBSERVE_MIGRATION_RECORDED_AT;
+  observation.payload.provenance.receiptId = receiptId;
+  return observation;
+}
+
+function dualMigrationObservationReceipt(receiptId = 'receipt-dual-migration-observation', overrides = {}) {
+  const observation = migrationObservationReceipt(receiptId);
+  observation.payload = {
+    ...observation.payload,
+    phase: 'DUAL_ENFORCE',
+    authority: 'SENTINEL_AND_REVIEW_GATE',
+    effect: 'ENFORCE',
+    comparison: 'AGREE',
+    allowsTargetProgress: true,
+    reviewGate: {
+      status: 'PASS',
+      accepted: true,
+      allowsProgress: true,
+      lifecycleStatus: 'RESOLVED',
+      executionStatus: 'COMPLETE',
+      applicability: 'REQUIRED',
+      semanticVerdict: 'PASS',
+      blockingReasons: [],
+      eventId: 'review-event-368-pass',
+    },
+    ...overrides,
+  };
+  observation.payload.eventId = `${MIGRATION_EVENT_ID}-dual`;
+  observation.payload.provenance = {
+    ...observation.payload.provenance,
+    digest: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+    reference: 'artifact:claude-migration-observation-368-dual',
+    eventId: observation.payload.eventId,
+    receiptId,
+    recordedAt: MIGRATION_RECORDED_AT,
+  };
+  return observation;
+}
+
+function phaseTransitionAuthorityReceipt(receiptId = 'receipt-phase-transition-authority') {
+  const source = receipt('receipt-local-gate-pass');
+  return {
+    ...source,
+    receiptId,
+    kind: 'authority',
+    producer: 'human-authority',
+    adapter: 'human-authority-adapter',
+    adapterVersion: 'human-authority.v1',
+    sessionId: 'human-authority-session-368',
+    taskId: 'task-368',
+    attemptId: 'attempt-368',
+    attempt: 1,
+    dispatchId: 'dispatch-368',
+    scopeId: 'scope-368',
+    diffId: 'diff-368',
+    recordedAt: '2026-09-06T04:08:00.000Z',
+    payload: {
+      schema: PHASE_TRANSITION_SCHEMA,
+      eventId: 'phase-transition-event-373',
+      transitionId: 'transition-373',
+      action: 'PROMOTE',
+      currentPhase: 'OBSERVE',
+      targetPhase: 'DUAL_ENFORCE',
+      evidenceBundle: {
+        digest: 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+        reference: 'artifact:claude-migration-observation-368',
+      },
+      reason: 'maintainer approved the migration phase',
+      approver: 'human:maintainer',
+      issuedAt: '2026-09-06T03:00:00.000Z',
+      expiresAt: '2026-09-06T06:00:00.000Z',
+    },
+  };
 }
 
 function diagnosticReviewReceipt(semanticVerdict) {
@@ -686,6 +767,239 @@ test('only MERGE_READY marks implementation complete while delivery and workflow
     workflow: 'PENDING',
   });
   assert.strictEqual(result.control.allowsTargetProgress, false);
+});
+
+test('DUAL_ENFORCE requires an agreeing Sentinel and Review Gate observation before merge readiness', () => {
+  const receipts = receiptsForHistory(MERGE_READY);
+  const control = { enabled: true, phase: 'DUAL_ENFORCE' };
+  const pending = reduce(receipts, { featureControl: control });
+  assertBlocked(pending, 'EVIDENCE_PENDING', 'DUAL_ENFORCEMENT_UNOBSERVED');
+  assert.strictEqual(pending.control.authority, 'SENTINEL_AND_REVIEW_GATE');
+  assert.strictEqual(pending.control.effect, 'ENFORCE');
+  assert.strictEqual(pending.control.allowsTargetProgress, true);
+
+  const unauthorized = reduce([...receipts, dualMigrationObservationReceipt()], {
+    featureControl: control,
+  });
+  assertBlocked(unauthorized, 'EVIDENCE_PENDING', 'DUAL_ENFORCEMENT_UNAUTHORIZED');
+
+  const enforcingReceipts = receipts.map((item) => {
+    if (item.receiptId !== 'receipt-review-pass') return item;
+    return { ...item, payload: { ...item.payload, effect: 'ENFORCE' } };
+  });
+  const ready = reduce([
+    ...enforcingReceipts,
+    observeMigrationObservationReceipt(),
+    dualMigrationObservationReceipt(),
+    phaseTransitionAuthorityReceipt(),
+  ], { featureControl: control, trustPolicy: withAuthorityTrustPolicy() });
+  assertState(ready, 'MERGE_READY', []);
+  assert.strictEqual(ready.control.authority, 'SENTINEL_AND_REVIEW_GATE');
+  assert.strictEqual(ready.completion.implementation, 'COMPLETE');
+
+  const disagreement = dualMigrationObservationReceipt('receipt-dual-disagreement', {
+    comparison: 'DISAGREE',
+    reviewGateStatus: 'CHANGES_REQUIRED',
+    allowsTargetProgress: false,
+    reviewGate: {
+      status: 'CHANGES_REQUIRED',
+      accepted: false,
+      allowsProgress: false,
+      lifecycleStatus: 'PENDING',
+      executionStatus: 'COMPLETE',
+      applicability: 'REQUIRED',
+      semanticVerdict: 'CHANGES_REQUIRED',
+      blockingReasons: ['REVIEW_BLOCKED'],
+      eventId: DIAGNOSTIC_REVIEW_EVENT_ID,
+    },
+  });
+  const blocked = reduce([...receipts, disagreement], { featureControl: control });
+  assertBlocked(blocked, 'EVIDENCE_PENDING', 'DUAL_ENFORCEMENT_UNAUTHORIZED');
+});
+
+test('DUAL_ENFORCE binds migration scope and diff to the enforcing Review Gate receipt', () => {
+  const receipts = receiptsForHistory(MERGE_READY).map((item) => (
+    item.receiptId === 'receipt-review-pass'
+      ? { ...item, payload: { ...item.payload, effect: 'ENFORCE' } }
+      : item
+  ));
+  const observation = dualMigrationObservationReceipt('receipt-dual-foreign-scope');
+  observation.payload.scope = {
+    ...observation.payload.scope,
+    digest: 'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+  };
+  observation.payload.diff = {
+    ...observation.payload.diff,
+    digest: 'sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  };
+  const result = reduce([
+    ...receipts,
+    observeMigrationObservationReceipt(),
+    observation,
+    phaseTransitionAuthorityReceipt('receipt-phase-transition-foreign-scope'),
+  ], {
+    featureControl: { enabled: true, phase: 'DUAL_ENFORCE' },
+    trustPolicy: withAuthorityTrustPolicy(),
+  });
+  assertBlocked(result, 'EVIDENCE_PENDING', 'DUAL_ENFORCEMENT_IDENTITY_MISMATCH');
+});
+
+test('a later automatic OBSERVE rollback diagnostic disables the earlier DUAL epoch', () => {
+  const receipts = receiptsForHistory(MERGE_READY).map((item) => (
+    item.receiptId === 'receipt-review-pass'
+      ? { ...item, payload: { ...item.payload, effect: 'ENFORCE' } }
+      : item
+  ));
+  const rollback = observeMigrationObservationReceipt('receipt-automatic-rollback');
+  rollback.recordedAt = '2026-09-06T04:13:00.000Z';
+  rollback.payload.recordedAt = rollback.recordedAt;
+  rollback.payload.provenance.recordedAt = rollback.recordedAt;
+  rollback.payload.eventId = 'migration-rollback-368';
+  rollback.payload.receiptId = rollback.receiptId;
+  rollback.payload.provenance.eventId = rollback.payload.eventId;
+  const result = reduce([
+    ...receipts,
+    observeMigrationObservationReceipt(),
+    dualMigrationObservationReceipt(),
+    phaseTransitionAuthorityReceipt(),
+    rollback,
+  ], {
+    featureControl: { enabled: true, phase: 'DUAL_ENFORCE' },
+    trustPolicy: withAuthorityTrustPolicy(),
+  });
+  assertBlocked(result, 'EVIDENCE_PENDING', 'DUAL_ENFORCEMENT_UNAUTHORIZED');
+});
+
+test('a rollback backdated before its promotion is rejected rather than ignored', () => {
+  const receipts = receiptsForHistory(MERGE_READY).map((item) => (
+    item.receiptId === 'receipt-review-pass'
+      ? { ...item, payload: { ...item.payload, effect: 'ENFORCE' } }
+      : item
+  ));
+  const promotion = phaseTransitionAuthorityReceipt('receipt-phase-promotion-order');
+  promotion.recordedAt = '2026-09-06T04:10:00.000Z';
+  const rollback = phaseTransitionAuthorityReceipt('receipt-phase-rollback-order');
+  rollback.recordedAt = '2026-09-06T04:09:00.000Z';
+  rollback.payload = {
+    ...rollback.payload,
+    eventId: 'phase-transition-rollback-order',
+    transitionId: 'transition-rollback-order',
+    action: 'ROLLBACK',
+    currentPhase: 'DUAL_ENFORCE',
+    targetPhase: 'OBSERVE',
+    evidenceBundle: {
+      digest: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+      reference: 'artifact:claude-migration-observation-368-dual',
+    },
+  };
+  const result = reduce([
+    ...receipts,
+    observeMigrationObservationReceipt(),
+    rollback,
+    promotion,
+    dualMigrationObservationReceipt(),
+  ], {
+    featureControl: { enabled: true, phase: 'DUAL_ENFORCE' },
+    trustPolicy: withAuthorityTrustPolicy(),
+  });
+  assertBlocked(result, 'EVIDENCE_PENDING', 'DUAL_ENFORCEMENT_UNAUTHORIZED');
+});
+
+test('DUAL_ENFORCE fails closed when a migration observation is far in the future', () => {
+  const receipts = receiptsForHistory(MERGE_READY).map((item) => (
+    item.receiptId === 'receipt-review-pass'
+      ? { ...item, payload: { ...item.payload, effect: 'ENFORCE' } }
+      : item
+  ));
+  const observation = dualMigrationObservationReceipt('receipt-dual-future');
+  observation.recordedAt = '2099-01-01T00:00:00.000Z';
+  observation.payload.recordedAt = observation.recordedAt;
+  observation.payload.provenance.recordedAt = observation.recordedAt;
+  const result = reduce([
+    ...receipts,
+    observeMigrationObservationReceipt(),
+    observation,
+    phaseTransitionAuthorityReceipt('receipt-phase-transition-future'),
+  ], {
+    featureControl: { enabled: true, phase: 'DUAL_ENFORCE' },
+    trustPolicy: withAuthorityTrustPolicy(),
+  });
+  assertRejected(result, 'STALE_EVIDENCE');
+});
+
+test('phase-transition authority receipts use the dedicated schema without becoming semantic review passes', () => {
+  const receipts = receiptsForHistory(MERGE_READY);
+  const result = reduce(
+    [...receipts, phaseTransitionAuthorityReceipt()],
+    {
+      featureControl: { enabled: true, phase: 'DUAL_ENFORCE' },
+      trustPolicy: withAuthorityTrustPolicy(),
+    },
+  );
+  assertBlocked(result, 'EVIDENCE_PENDING', 'DUAL_ENFORCEMENT_UNOBSERVED');
+  assert.strictEqual(result.evidenceAccepted, true);
+  assert.strictEqual(result.completion.implementation, 'PENDING');
+});
+
+test('expired phase-transition authority cannot authorize DUAL_ENFORCE', () => {
+  const receipts = receiptsForHistory(MERGE_READY);
+  const transition = phaseTransitionAuthorityReceipt();
+  transition.payload.expiresAt = '2026-09-06T03:59:59.000Z';
+  const source = observeMigrationObservationReceipt();
+  const dual = dualMigrationObservationReceipt();
+  const result = reduce(
+    [...receipts, source, transition, dual],
+    {
+      featureControl: { enabled: true, phase: 'DUAL_ENFORCE' },
+      trustPolicy: withAuthorityTrustPolicy(),
+    },
+  );
+  assertRejected(result, 'STALE_EVIDENCE');
+});
+
+test('an expired historical promotion does not block later OBSERVE after rollback', () => {
+  const receipts = receiptsForHistory(MERGE_READY).map((item) => (
+    item.receiptId === 'receipt-review-pass'
+      ? { ...item, payload: { ...item.payload, effect: 'ENFORCE' } }
+      : item
+  ));
+  const promotion = phaseTransitionAuthorityReceipt('receipt-phase-promotion-expiry');
+  promotion.payload.eventId = 'phase-transition-promotion-expiry';
+  promotion.payload.transitionId = 'transition-promotion-expiry';
+  promotion.payload.expiresAt = '2026-09-06T04:09:00.000Z';
+  const rollback = phaseTransitionAuthorityReceipt('receipt-phase-rollback-expiry');
+  rollback.recordedAt = '2026-09-06T04:14:00.000Z';
+  rollback.payload = {
+    ...rollback.payload,
+    eventId: 'phase-transition-rollback-expiry',
+    transitionId: 'transition-rollback-expiry',
+    action: 'ROLLBACK',
+    currentPhase: 'DUAL_ENFORCE',
+    targetPhase: 'OBSERVE',
+    evidenceBundle: {
+      digest: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+      reference: 'artifact:claude-migration-observation-368-dual',
+    },
+  };
+  const diagnostic = observeMigrationObservationReceipt('receipt-expiry-rollback-diagnostic');
+  diagnostic.recordedAt = '2026-09-06T04:15:00.000Z';
+  diagnostic.payload.recordedAt = diagnostic.recordedAt;
+  diagnostic.payload.provenance.recordedAt = diagnostic.recordedAt;
+  diagnostic.payload.eventId = 'migration-expiry-rollback';
+  diagnostic.payload.provenance.eventId = diagnostic.payload.eventId;
+  const result = reduce([
+    ...receipts,
+    observeMigrationObservationReceipt(),
+    promotion,
+    dualMigrationObservationReceipt(),
+    rollback,
+    diagnostic,
+  ], {
+    featureControl: { enabled: true, phase: 'OBSERVE' },
+    trustPolicy: withAuthorityTrustPolicy(),
+    evaluatedAt: '2026-09-06T04:20:00.000Z',
+  });
+  assertState(result, 'MERGE_READY', []);
 });
 
 run('workflow-coordinator-evidence-continuity');

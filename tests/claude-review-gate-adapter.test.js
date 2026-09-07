@@ -910,4 +910,122 @@ test('OBSERVE ignores process-liveness markers when durable identity and readine
   assert.deepStrictEqual(records[0], records[1]);
 });
 
+test('DUAL_ENFORCE invokes Review Gate as an enforcement authority and only allows agreement', () => {
+  let gateEvent;
+  let observation;
+  const input = observeInput({ phase: 'DUAL_ENFORCE' });
+  const adapter = makeAdapter({
+    reviewGate: {
+      handle: ({ event }) => {
+        gateEvent = event;
+        return {
+          accepted: true,
+          revision: 1,
+          chainDigest: DIGEST,
+          decision: {
+            lifecycleStatus: 'RESOLVED',
+            executionStatus: 'COMPLETE',
+            applicability: 'REQUIRED',
+            semanticVerdict: 'PASS',
+            allowsProgress: true,
+            blockingReasons: [],
+          },
+        };
+      },
+    },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(input);
+
+  assert.strictEqual(gateEvent.effect, 'ENFORCE');
+  assert.strictEqual(observation.phase, 'DUAL_ENFORCE');
+  assert.strictEqual(observation.authority, 'SENTINEL_AND_REVIEW_GATE');
+  assert.strictEqual(observation.effect, 'ENFORCE');
+  assert.strictEqual(observation.comparison, 'AGREE');
+  assert.strictEqual(observation.allowsTargetProgress, true);
+});
+
+test('DUAL_ENFORCE records a disagreement without granting progress', () => {
+  let observation;
+  const input = observeInput({ phase: 'DUAL_ENFORCE' });
+  const { plan, obligation } = planAndReview();
+  input.plan = plan;
+  input.reviewRequest = createReviewRequest({
+    decisionId: plan.decisionId,
+    waveId: plan.waveId,
+    obligationId: obligation.obligationId,
+    lane: obligation.lane,
+    scope: plan.scope,
+    baseIdentity: plan.baseIdentity,
+    headIdentity: plan.headIdentity,
+    diff: plan.diff,
+    materialRisks: plan.materialRisks,
+    governingInputs: plan.governingInputs,
+    exclusions: [],
+    priorFindings: [],
+    contractVersion: REVIEWER_CONTRACT_VERSION,
+  });
+  input.reviewResult = makeReviewResult(plan, obligation, {
+    semanticVerdict: 'CHANGES_REQUIRED',
+    evidenceReferences: [`artifact-sha256:${DIGEST.replace(/^sha256:/, '')}`],
+  });
+  const adapter = makeAdapter({
+    reviewGate: {
+      handle: () => ({
+        accepted: true,
+        revision: 1,
+        chainDigest: DIGEST,
+        decision: {
+          lifecycleStatus: 'PENDING',
+          executionStatus: 'COMPLETE',
+          applicability: 'REQUIRED',
+          semanticVerdict: 'CHANGES_REQUIRED',
+          allowsProgress: false,
+          blockingReasons: ['REVIEW_BLOCKED'],
+        },
+      }),
+    },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(input);
+
+  assert.strictEqual(observation.authority, 'SENTINEL_AND_REVIEW_GATE');
+  assert.strictEqual(observation.effect, 'ENFORCE');
+  assert.strictEqual(observation.comparison, 'DISAGREE');
+  assert.strictEqual(observation.allowsTargetProgress, false);
+});
+
+test('DUAL_ENFORCE persists a redacted diagnostic when Review Gate cannot produce a result', () => {
+  let observation;
+  const adapter = makeAdapter({
+    reviewGate: { handle: () => { throw new Error('private validation detail'); } },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(observeInput({ phase: 'DUAL_ENFORCE' }));
+
+  assert.strictEqual(observation.phase, 'DUAL_ENFORCE');
+  assert.strictEqual(observation.comparison, 'INDETERMINATE');
+  assert.strictEqual(observation.allowsTargetProgress, false);
+  assert.ok(observation.reasonCodes.includes('REVIEW_GATE_FAILED'));
+  assert.doesNotMatch(JSON.stringify(observation), /private validation detail/);
+});
+
 run('claude-review-gate-adapter');
