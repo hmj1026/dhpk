@@ -205,7 +205,7 @@ const assertSameIdentity = (expected, actual) => {
 };
 
 const validateEvidenceEvents = (events, identity, { readiness = false } = {}) => {
-  if (!Array.isArray(events) || events.length === 0 || events.length > MAX_EVENTS) fail('BOUNDED_INPUT');
+  if (!Array.isArray(events) || events.length > MAX_EVENTS) fail('BOUNDED_INPUT');
   let readyDigest = null;
   let terminalVerdict = false;
   for (const event of events) {
@@ -285,7 +285,7 @@ const normalizeReasons = (value) => {
 
 const normalizeGate = (gateResult, eventId = null) => {
   const decision = gateResult && isRecord(gateResult.decision) ? gateResult.decision : {};
-  const semanticVerdict = canonicalVerdict(decision.semanticVerdict || gateResult && gateResult.semanticVerdict);
+  const semanticVerdict = canonicalVerdict(decision.semanticVerdict);
   const result = {
     status: semanticVerdict || 'NOT_RUN',
     accepted: decision.accepted === true,
@@ -301,8 +301,9 @@ const normalizeGate = (gateResult, eventId = null) => {
 };
 
 const normalizeCommands = (commands) => {
-  if (commands === undefined) return [];
-  if (!Array.isArray(commands) || commands.length > MAX_COMMANDS) fail('MALFORMED_COMMANDS');
+  if (!Array.isArray(commands) || commands.length === 0 || commands.length > MAX_COMMANDS) {
+    fail('MALFORMED_COMMANDS');
+  }
   return commands.map((command) => {
     assertRecord(command, 'MALFORMED_COMMANDS');
     assertText(command.command, { code: 'MALFORMED_COMMANDS' });

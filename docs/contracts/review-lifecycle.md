@@ -116,23 +116,28 @@ required review or change-control gate.
 Codex has no legacy Sentinel, hook-based dispatch, or pending-file/SubagentStop
 mechanism to observe or compare against, so the Codex Review Gate adapter
 (`scripts/lib/codex-review-gate-adapter.js`) is not a migration-observation
-bridge and shares no code, receipt kind, or persistence path with the Claude
-Review Gate observation above. It is a native contract participant: given an
-already-registered plan, a reviewer-contract v2 Review Request and Review
-Result, durable lifecycle/readiness events for the exact same identity, and
-artifact evidence bound to the readiness digest, it submits the same
-`REVIEW_RESULT_RECORDED` event shape directly to the same `ReviewGate.handle()`
-and `ReceiptStore` that every other trusted producer uses. There is no
-`sentinelOutcome`, no `comparison` (`AGREE`/`DISAGREE`/`INDETERMINATE`), no
-`migration-observation` receipt, and no `MigrationCoordinator` involvement:
-Codex has nothing legacy to reconcile against, so none of that vocabulary
-applies.
+bridge. It shares the same `ReviewGate.handle()`/`ReceiptStore` write path and
+`review` receipt kind that the Claude adapter's OBSERVE-phase diagnostic
+evaluation also uses, but it produces no `migration-observation` receipt, no
+`sentinelOutcome`, no `comparison` (`AGREE`/`DISAGREE`/`INDETERMINATE`), and
+has no `MigrationCoordinator` involvement: Codex has nothing legacy to
+reconcile against, so none of that comparison vocabulary applies. Given an
+already-registered plan (the `PLAN_REGISTERED` event `scripts/lib/review-gate.js`
+projects before any `REVIEW_RESULT_RECORDED` event for the same wave is
+accepted), a reviewer-contract v2
+Review Request and Review Result, durable lifecycle/readiness events for the
+exact same identity, and artifact evidence bound to the readiness digest, it
+submits the same `REVIEW_RESULT_RECORDED` event shape the Claude adapter uses
+directly to that shared `ReviewGate.handle()`/`ReceiptStore`.
 
 The adapter is inert until explicitly activated. Its `activation` constructor
 option defaults to `INACTIVE`, in which state `record()` refuses to run and
 `capabilities()` reports `effect: 'DISABLED'`. Constructing it with
-`activation: 'ACTIVE'` reports `effect: 'OBSERVE_ONLY'` and allows submission,
-but the returned receipt always fixes `authority: 'SENTINEL'`,
+`activation: 'ACTIVE'` reports `effect: 'OBSERVE_ONLY'` and allows submission;
+the persisted `REVIEW_RESULT_RECORDED` event itself carries that same
+`effect: 'OBSERVE_ONLY'`, so Workflow Coordinator ignores it exactly as it
+ignores the Claude adapter's `OBSERVE_ONLY` events. The returned receipt
+likewise always fixes `authority: 'SENTINEL'`,
 `authorizesApproval: false`, `clearsSentinel: false`, `blocksSentinel: false`,
 and `allowsTargetProgress: false` regardless of the Review Gate outcome —
 Sentinel remains authoritative until a separately approved, measured cutover
@@ -169,8 +174,13 @@ separate lifecycle vocabulary; lifecycle summary codes must never be passed to
 Sentinel clearance.
 
 See the [reviewer contract](reviewer-contract.md),
-[ADR-0005](../adr/0005-resumed-review-lifecycle-clearance.md), and
-[ADR-0009](../adr/0009-distribution-projection-and-orchestration-ownership.md).
+[ADR-0005](../adr/0005-resumed-review-lifecycle-clearance.md),
+[ADR-0009](../adr/0009-distribution-projection-and-orchestration-ownership.md),
+[ADR-0016](../adr/0016-phase-and-roll-back-review-gate-migration.md) for the
+`BASELINE`/`OBSERVE`/`MigrationCoordinator` phase vocabulary the Claude
+section above uses, and
+[ADR-0017](../adr/0017-implement-review-gate-as-a-local-event-module.md) for
+the `ReviewGate`/`ReceiptStore` event module both adapter sections describe.
 
 ## Retry and quota behavior
 

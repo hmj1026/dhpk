@@ -151,9 +151,10 @@ function makeAdapter({ reviewGate, activation = 'ACTIVE', now = () => NOW_MS } =
   });
 }
 
-function expectRejected(call, label) {
+function expectRejected(call, expectedCode, label) {
   assert.throws(call, (error) => {
-    assert.ok(error, label);
+    assert.ok(error instanceof CodexReviewGateAdapterError, label);
+    assert.strictEqual(error.code, expectedCode, label);
     return true;
   }, label);
 }
@@ -184,7 +185,7 @@ test('adapter defaults to INACTIVE and refuses to record without explicit activa
   });
   assert.strictEqual(adapter.capabilities().activation, 'INACTIVE');
   assert.strictEqual(adapter.capabilities().effect, 'DISABLED');
-  expectRejected(() => adapter.record(submissionInput()), 'inactive adapter must reject record()');
+  expectRejected(() => adapter.record(submissionInput()), 'ADAPTER_INACTIVE', 'inactive adapter must reject record()');
   try {
     adapter.record(submissionInput());
     assert.ok(false, 'record() must throw while inactive');
@@ -275,23 +276,23 @@ test('rejects every foreign identity dimension across lifecycle and readiness ev
       lifecycleEvent('verdicted', { verdict: 'PASS', task_id: 'foreign-task' }),
     ],
   });
-  expectRejected(() => adapter.record(foreignLifecycle), 'foreign lifecycle identity must fail closed');
+  expectRejected(() => adapter.record(foreignLifecycle), 'FOREIGN_IDENTITY', 'foreign lifecycle identity must fail closed');
 
   const foreignReadiness = submissionInput({ readinessEvents: [readinessEvent({ session_id: 'foreign-session' })] });
-  expectRejected(() => adapter.record(foreignReadiness), 'foreign readiness identity must fail closed');
+  expectRejected(() => adapter.record(foreignReadiness), 'FOREIGN_IDENTITY', 'foreign readiness identity must fail closed');
 });
 
 test('fails closed when readiness for the exact identity is missing', () => {
   const adapter = makeAdapter({ reviewGate: { handle: () => { throw new Error('must not reach Review Gate'); } } });
-  expectRejected(() => adapter.record(submissionInput({ readinessEvents: [] })), 'missing readiness must fail closed');
+  expectRejected(() => adapter.record(submissionInput({ readinessEvents: [] })), 'MISSING_READINESS', 'missing readiness must fail closed');
 });
 
 test('requires canonical lifecycle event schema and a terminal verdict', () => {
   const adapter = makeAdapter({ reviewGate: { handle: () => { throw new Error('must not reach Review Gate'); } } });
-  expectRejected(() => adapter.record(submissionInput({ lifecycleEvents: [] })), 'empty lifecycle must fail closed');
+  expectRejected(() => adapter.record(submissionInput({ lifecycleEvents: [] })), 'MISSING_LIFECYCLE', 'empty lifecycle must fail closed');
   expectRejected(() => adapter.record(submissionInput({
     lifecycleEvents: [lifecycleEvent('planned'), lifecycleEvent('dispatched')],
-  })), 'lifecycle without a terminal verdict must fail closed');
+  })), 'MISSING_VERDICT', 'lifecycle without a terminal verdict must fail closed');
 });
 
 test('requires a canonical readiness artifact digest matching the review result evidence reference', () => {
@@ -303,7 +304,13 @@ test('requires a canonical readiness artifact digest matching the review result 
   });
   expectRejected(() => adapter.record(submissionInput({
     plan, reviewRequest, reviewResult: mismatchedResult,
-  })), 'mismatched artifact evidence must fail closed');
+  })), 'MISSING_ARTIFACT_EVIDENCE', 'mismatched artifact evidence must fail closed');
+});
+
+test('requires at least one executed command, matching the Claude adapter contract', () => {
+  const adapter = makeAdapter({ reviewGate: { handle: () => { throw new Error('must not reach Review Gate'); } } });
+  expectRejected(() => adapter.record(submissionInput({ executedCommands: undefined })), 'MALFORMED_COMMANDS', 'missing executedCommands must fail closed');
+  expectRejected(() => adapter.record(submissionInput({ executedCommands: [] })), 'MALFORMED_COMMANDS', 'empty executedCommands must fail closed');
 });
 
 test('fails closed when Review Gate rejects the structured result', () => {
