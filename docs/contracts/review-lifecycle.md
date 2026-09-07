@@ -214,11 +214,13 @@ never overstate local Implementation Complete as Delivery Complete.
 
 Separately, `reduce()` now also derives `authorizesPullRequest`: once a
 decision reaches `MERGE_READY`, this projection field reflects the decision's
-existing `deliveryAuthorized` flag. This changes no enforcement effect —
-`control.authority` stays `SENTINEL` and `control.allowsTargetProgress` stays
-`false` in every case, exactly as the Claude and Codex OBSERVE-phase
-adapters do; it is a derived read of already-validated decision evidence, not
-a new authority.
+existing `deliveryAuthorized` flag. In `BASELINE` and `OBSERVE`, the control
+projection remains `SENTINEL`/`allowsTargetProgress: false`, exactly as the
+legacy adapters require. A `DUAL_ENFORCE` control is explicitly
+`SENTINEL_AND_REVIEW_GATE` with `effect: 'ENFORCE'`; it still remains
+`EVIDENCE_PENDING` until the latest same-identity migration observation proves
+terminal PASS agreement from both authorities. The phase receipt is a
+maintainer-only transition record and never manufactures Sentinel clearance.
 
 ## Cross-platform differential conformance
 

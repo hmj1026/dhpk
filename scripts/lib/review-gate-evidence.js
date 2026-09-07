@@ -88,6 +88,8 @@ const AUTHORITY_PAYLOAD_FIELDS = Object.freeze([
 ]);
 const COMMAND_DIGEST = /^digest:sha256:[a-f0-9]{64}$/;
 const OBSERVE_ONLY = 'OBSERVE_ONLY';
+const ENFORCE = 'ENFORCE';
+const REVIEW_EFFECTS = Object.freeze([OBSERVE_ONLY, ENFORCE]);
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -318,7 +320,7 @@ const buildReceiptPayload = (event, plan, validated) => {
     evidenceReferences: result.evidenceReferences,
     executedCommands,
   };
-  if (event.effect === OBSERVE_ONLY) payload.effect = OBSERVE_ONLY;
+  if (REVIEW_EFFECTS.includes(event.effect)) payload.effect = event.effect;
   if (result.semanticVerdict !== undefined) payload.semanticVerdict = result.semanticVerdict;
   return payload;
 };
@@ -419,7 +421,7 @@ class ReviewGateEvidence {
     const eventFields = [...EVENT_FIELDS, 'obligationId', 'lane'];
     if (hasOwn(event, 'effect')) eventFields.push('effect');
     exactKeys(event, eventFields, 'REVIEW_RESULT_RECORDED event');
-    if (hasOwn(event, 'effect') && event.effect !== OBSERVE_ONLY) {
+    if (hasOwn(event, 'effect') && !REVIEW_EFFECTS.includes(event.effect)) {
       fail('MALFORMED_EVIDENCE', 'review event effect is unsupported');
     }
     exactKeys(event.payload, ['request', 'result', 'executedCommands'], 'REVIEW_RESULT_RECORDED payload');
