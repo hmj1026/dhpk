@@ -63,7 +63,7 @@ const IDENTITY_FIELDS = Object.freeze([
   'diffId',
 ]);
 const REVIEW_VERDICTS = new Set(['PASS', 'CHANGES_REQUIRED', 'BLOCKED']);
-const PHASES = new Set(['BASELINE', 'OBSERVE', 'DUAL_ENFORCE']);
+const PHASES = new Set(['BASELINE', 'OBSERVE', 'DUAL_ENFORCE', 'CUTOVER']);
 const LIFECYCLE_STATES = new Set([
   'planned',
   'dispatched',
@@ -355,6 +355,18 @@ const dualAllowsProgress = (context, gate, comparison) => (
   && gate.blockingReasons.length === 0
 );
 
+const cutoverAllowsProgress = (context, gate, comparison) => (
+  context.input.phase === 'CUTOVER'
+  && comparison !== 'DISAGREE'
+  && gate.accepted === true
+  && gate.allowsProgress === true
+  && gate.lifecycleStatus === 'RESOLVED'
+  && gate.executionStatus === 'COMPLETE'
+  && gate.applicability === 'REQUIRED'
+  && gate.semanticVerdict === 'PASS'
+  && gate.blockingReasons.length === 0
+);
+
 const identityDigest = (
   identity,
   phase,
@@ -516,7 +528,7 @@ function buildReviewGateEvent(adapter, context, executedCommands) {
       comparison: 'pending',
     }, adapter.producer, adapter.adapter),
     eventType: REVIEW_RESULT_RECORDED,
-    effect: input.phase === 'DUAL_ENFORCE' ? 'ENFORCE' : 'OBSERVE_ONLY',
+    effect: ['DUAL_ENFORCE', 'CUTOVER'].includes(input.phase) ? 'ENFORCE' : 'OBSERVE_ONLY',
     workId: plan.workId,
     waveId: plan.waveId,
     planId: plan.planId,
@@ -551,7 +563,7 @@ function invokeReviewGate(adapter, context, event) {
 }
 
 function recordReviewGateObservation(adapter, context) {
-  if (!['OBSERVE', 'DUAL_ENFORCE'].includes(context.input.phase)) {
+  if (!['OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'].includes(context.input.phase)) {
     return { gateResult: null, gate: normalizeGate(null) };
   }
   const { input, artifactDigest } = context;
@@ -563,10 +575,10 @@ function recordReviewGateObservation(adapter, context) {
     const gateResult = invokeReviewGate(adapter, context, event);
     return { gateResult, gate: normalizeGate(gateResult, event.eventId), reasonCodes: [] };
   } catch (error) {
-    // DUAL_ENFORCE must leave a durable, fail-closed diagnostic when the
-    // enforcement authority cannot produce a trusted result. OBSERVE retains
-    // its historical rejection behavior.
-    if (context.input.phase !== 'DUAL_ENFORCE') throw error;
+    // Enforcement phases must leave a durable, fail-closed diagnostic when
+    // the authority cannot produce a trusted result. OBSERVE retains its
+    // historical rejection behavior.
+    if (!['DUAL_ENFORCE', 'CUTOVER'].includes(context.input.phase)) throw error;
     return {
       gateResult: null,
       gate: normalizeGate(null, event.eventId),
@@ -614,8 +626,10 @@ function observationHeader(context, comparison) {
     schema: OBSERVATION_SCHEMA,
     phase: input.phase,
     comparison,
-    authority: input.phase === 'DUAL_ENFORCE' ? 'SENTINEL_AND_REVIEW_GATE' : 'SENTINEL',
-    effect: input.phase === 'BASELINE' ? 'DISABLED' : input.phase === 'DUAL_ENFORCE' ? 'ENFORCE' : 'OBSERVE_ONLY',
+    authority: input.phase === 'DUAL_ENFORCE'
+      ? 'SENTINEL_AND_REVIEW_GATE' : input.phase === 'CUTOVER' ? 'REVIEW_GATE' : 'SENTINEL',
+    effect: input.phase === 'BASELINE'
+      ? 'DISABLED' : ['DUAL_ENFORCE', 'CUTOVER'].includes(input.phase) ? 'ENFORCE' : 'OBSERVE_ONLY',
     automaticPromotion: false,
     retirementEligible: false,
   };
@@ -683,7 +697,9 @@ function buildMigrationObservation(adapter, context, gate, comparison, provenanc
     authorizesApproval: false,
     clearsSentinel: false,
     blocksSentinel: false,
-    allowsTargetProgress: dualAllowsProgress(context, gate, comparison),
+    allowsTargetProgress: context.input.phase === 'CUTOVER'
+      ? cutoverAllowsProgress(context, gate, comparison)
+      : dualAllowsProgress(context, gate, comparison),
     ...(reasonCodes.length > 0 ? { reasonCodes: [...new Set(reasonCodes)] } : {}),
     liveness: 'COMPATIBILITY_ONLY',
     processLivenessRole: 'COMPATIBILITY_ONLY',
@@ -695,10 +711,10 @@ function persistMigrationObservation(adapter, context, observation, gateResult) 
   const { input } = context;
   const expectedRevision = input.expectedRevision === undefined ? 0 : assertExpectedRevision(input.expectedRevision);
   const expectedChainDigest = input.expectedChainDigest === undefined ? null : input.expectedChainDigest;
-  const coordinatorRevision = ['OBSERVE', 'DUAL_ENFORCE'].includes(input.phase)
+  const coordinatorRevision = ['OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'].includes(input.phase)
     && gateResult && Number.isSafeInteger(gateResult.revision) && gateResult.revision >= 0
     ? gateResult.revision : expectedRevision;
-  const coordinatorChainDigest = ['OBSERVE', 'DUAL_ENFORCE'].includes(input.phase)
+  const coordinatorChainDigest = ['OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'].includes(input.phase)
     && gateResult && typeof gateResult.chainDigest === 'string'
     ? gateResult.chainDigest : expectedChainDigest;
   let recording;
@@ -743,14 +759,17 @@ class ClaudeReviewGateAdapter {
       storeEventSchema: STORE_EVENT_SCHEMA,
       migrationObservationReceiptKind: MIGRATION_RECEIPT_KIND,
       reviewerContractVersion: REVIEWER_CONTRACT_VERSION,
-      phases: ['BASELINE', 'OBSERVE', 'DUAL_ENFORCE'],
+      phases: ['BASELINE', 'OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'],
       authority: 'SENTINEL',
       authorities: {
         BASELINE: 'SENTINEL',
         OBSERVE: 'SENTINEL',
         DUAL_ENFORCE: 'SENTINEL_AND_REVIEW_GATE',
+        CUTOVER: 'REVIEW_GATE',
       },
-      effects: { BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY', DUAL_ENFORCE: 'ENFORCE' },
+      effects: {
+        BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY', DUAL_ENFORCE: 'ENFORCE', CUTOVER: 'ENFORCE',
+      },
       explicitInvocationOnly: true,
       processLivenessRole: 'COMPATIBILITY_ONLY',
     });
@@ -779,9 +798,10 @@ class ClaudeReviewGateAdapter {
     }, this.producer, this.adapter);
     const recordedAt = normalizeTimestamp(this.now);
     const provenance = buildObservationProvenance(this, context, gate, eventId, recordedAt);
-    const diagnosticReasons = context.input.phase === 'DUAL_ENFORCE' && comparison !== 'AGREE'
-      ? [...reasonCodes, 'DUAL_ENFORCEMENT_DISAGREEMENT']
-      : reasonCodes;
+    const diagnosticReasons = (
+      (context.input.phase === 'DUAL_ENFORCE' && comparison !== 'AGREE')
+      || (context.input.phase === 'CUTOVER' && comparison === 'DISAGREE')
+    ) ? [...reasonCodes, 'DUAL_ENFORCEMENT_DISAGREEMENT'] : reasonCodes;
     const observation = buildMigrationObservation(
       this,
       context,

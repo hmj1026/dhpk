@@ -222,6 +222,9 @@ test('capabilities are immutable and advertise the Claude Review Gate contract',
   assert.strictEqual(capabilities.storeEventSchema, STORE_EVENT_SCHEMA);
   assert.strictEqual(capabilities.migrationObservationReceiptKind, 'migration-observation');
   assert.strictEqual(capabilities.reviewerContractVersion, REVIEWER_CONTRACT_VERSION);
+  assert.deepStrictEqual(capabilities.phases, ['BASELINE', 'OBSERVE', 'DUAL_ENFORCE', 'CUTOVER']);
+  assert.strictEqual(capabilities.authorities.CUTOVER, 'REVIEW_GATE');
+  assert.strictEqual(capabilities.effects.CUTOVER, 'ENFORCE');
   assert.ok(deepFrozen(capabilities), 'capabilities must be deeply immutable');
   assert.throws(() => { capabilities.adapter = 'foreign-adapter'; });
 });
@@ -949,6 +952,93 @@ test('DUAL_ENFORCE invokes Review Gate as an enforcement authority and only allo
   assert.strictEqual(observation.effect, 'ENFORCE');
   assert.strictEqual(observation.comparison, 'AGREE');
   assert.strictEqual(observation.allowsTargetProgress, true);
+});
+
+test('CUTOVER makes Review Gate the enforcement authority while Sentinel remains a compatibility projection', () => {
+  let gateEvent;
+  let observation;
+  const input = observeInput({ phase: 'CUTOVER' });
+  input.lifecycleEvents = input.lifecycleEvents.map((event) => (
+    event.state === 'verdicted' ? { ...event, verdict: 'BLOCKED' } : event
+  ));
+  input.sentinelOutcome = {
+    // The legacy Sentinel has stopped participating; its durable lifecycle
+    // identity remains available, but it has no semantic verdict to compare.
+    status: 'UNKNOWN',
+    lifecycleEventId: 'verdicted-event-369',
+  };
+  input.acceptedOutcomeCost = canonicalAcceptedOutcomeCost({ acceptedOutcome: false });
+  const adapter = makeAdapter({
+    reviewGate: {
+      handle: ({ event }) => {
+        gateEvent = event;
+        return {
+          accepted: true,
+          revision: 1,
+          chainDigest: DIGEST,
+          decision: {
+            lifecycleStatus: 'RESOLVED',
+            executionStatus: 'COMPLETE',
+            applicability: 'REQUIRED',
+            semanticVerdict: 'PASS',
+            allowsProgress: true,
+            blockingReasons: [],
+          },
+        };
+      },
+    },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(input);
+
+  assert.strictEqual(gateEvent.effect, 'ENFORCE');
+  assert.strictEqual(observation.phase, 'CUTOVER');
+  assert.strictEqual(observation.authority, 'REVIEW_GATE');
+  assert.strictEqual(observation.effect, 'ENFORCE');
+  assert.strictEqual(observation.comparison, 'INDETERMINATE');
+  assert.strictEqual(observation.allowsTargetProgress, true);
+  assert.strictEqual(observation.authorizesApproval, false);
+  assert.strictEqual(observation.clearsSentinel, false);
+  assert.strictEqual(observation.blocksSentinel, false);
+  assert.deepStrictEqual(observation.reasonCodes || [], []);
+});
+
+test('CUTOVER records a redacted fail-closed diagnostic when Review Gate cannot produce a result', () => {
+  let observation;
+  const input = observeInput({ phase: 'CUTOVER' });
+  input.lifecycleEvents = input.lifecycleEvents.map((event) => (
+    event.state === 'verdicted' ? { ...event, verdict: 'BLOCKED' } : event
+  ));
+  input.sentinelOutcome = {
+    status: 'UNKNOWN',
+    lifecycleEventId: 'verdicted-event-369',
+  };
+  input.acceptedOutcomeCost = canonicalAcceptedOutcomeCost({ acceptedOutcome: false });
+  const adapter = makeAdapter({
+    reviewGate: { handle: () => { throw new Error('private validation detail'); } },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(input);
+
+  assert.strictEqual(observation.phase, 'CUTOVER');
+  assert.strictEqual(observation.authority, 'REVIEW_GATE');
+  assert.strictEqual(observation.comparison, 'INDETERMINATE');
+  assert.strictEqual(observation.allowsTargetProgress, false);
+  assert.ok(observation.reasonCodes.includes('REVIEW_GATE_FAILED'));
+  assert.ok(!observation.reasonCodes.includes('DUAL_ENFORCEMENT_DISAGREEMENT'));
+  assert.doesNotMatch(JSON.stringify(observation), /private validation detail/);
 });
 
 test('DUAL_ENFORCE records a disagreement without granting progress', () => {

@@ -754,7 +754,7 @@ class WorkflowCoordinatorEvidence {
       validatePhaseTransitionPayload(item.payload, () => recordedAt);
     }
     for (const item of evidence.migrationObservations) {
-      if (item.payload.phase === 'DUAL_ENFORCE'
+      if (['DUAL_ENFORCE', 'CUTOVER'].includes(item.payload.phase)
         && Date.parse(item.receipt.recordedAt) > latestAllowed) {
         fail('STALE_EVIDENCE');
       }

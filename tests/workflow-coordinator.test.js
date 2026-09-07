@@ -190,7 +190,7 @@ test('rejects unsupported feature controls', () => {
     { enabled: true, phase: 'BASELINE' },
     { enabled: false, phase: 'OBSERVE' },
     { enabled: 'true', phase: 'OBSERVE' },
-    { enabled: true, phase: 'CUTOVER' },
+    { enabled: true, phase: 'RETIRE' },
     null,
   ]) {
     assert.throws(

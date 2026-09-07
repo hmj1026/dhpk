@@ -98,11 +98,14 @@ receipt. Its stable Review Gate event ID is bound into that observation; during
 interrupted comparison write cannot leave an enforceable orphan. Workflow
 Coordinator ignores only receipts carrying that Review Gate-validated effect;
 a migration observation cannot suppress a normal review. The phase control and
-exact identity binding keep Sentinel authoritative. In
-both phases the Migration Coordinator fixes authority to `SENTINEL`, fixes
-target progress and all clearance/blocking effects to false, and provides no
-automatic phase-promotion operation. An agreement or disagreement is
-diagnostic only.
+exact identity binding keep Sentinel authoritative in `BASELINE` and `OBSERVE`.
+`DUAL_ENFORCE` fixes authority to `SENTINEL_AND_REVIEW_GATE` and requires
+same-identity agreement before target progress. `CUTOVER` fixes authority to
+`REVIEW_GATE`; Sentinel remains a compatibility projection, and a valid Review
+Gate result may allow progress even when Sentinel is `INDETERMINATE`, while a
+`DISAGREE` comparison fails closed and returns one phase to `DUAL_ENFORCE`.
+Neither enforcing phase manufactures Sentinel clearance or promotes a phase
+automatically; maintainer phase receipts and fresh evidence remain required.
 
 Persisted observation provenance is limited to stable identities, enum values,
 digests, bounded symbolic references, timestamps, and counters. Absolute
@@ -217,10 +220,15 @@ decision reaches `MERGE_READY`, this projection field reflects the decision's
 existing `deliveryAuthorized` flag. In `BASELINE` and `OBSERVE`, the control
 projection remains `SENTINEL`/`allowsTargetProgress: false`, exactly as the
 legacy adapters require. A `DUAL_ENFORCE` control is explicitly
-`SENTINEL_AND_REVIEW_GATE` with `effect: 'ENFORCE'`; it still remains
+`SENTINEL_AND_REVIEW_GATE` with `effect: 'ENFORCE'`; it remains
 `EVIDENCE_PENDING` until the latest same-identity migration observation proves
-terminal PASS agreement from both authorities. The phase receipt is a
-maintainer-only transition record and never manufactures Sentinel clearance.
+terminal PASS agreement from both authorities. A `CUTOVER` control is
+explicitly `REVIEW_GATE`/`effect: 'ENFORCE'`; the latest same-identity Review
+Gate observation is authoritative while Sentinel remains projection-only. A
+phase receipt is a maintainer-only transition record and never manufactures
+Sentinel clearance. A CUTOVER safety disagreement emits a durable rollback
+diagnostic, returns control to `DUAL_ENFORCE`, and requires a fresh dual epoch
+before merge readiness can be derived.
 
 ## Cross-platform differential conformance
 

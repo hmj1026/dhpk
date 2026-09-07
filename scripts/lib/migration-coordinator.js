@@ -19,12 +19,15 @@ const {
 const OBSERVATION_SCHEMA = 'dhpk.review-gate.migration-observation.v1';
 const PROJECTION_SCHEMA = 'dhpk.review-gate-migration-projection.v1';
 const EVENT_TYPE = 'MIGRATION_OBSERVATION_RECORDED';
-const PHASES = Object.freeze(['BASELINE', 'OBSERVE', 'DUAL_ENFORCE']);
-const EFFECTS = Object.freeze({ BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY', DUAL_ENFORCE: 'ENFORCE' });
+const PHASES = Object.freeze(['BASELINE', 'OBSERVE', 'DUAL_ENFORCE', 'CUTOVER']);
+const EFFECTS = Object.freeze({
+  BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY', DUAL_ENFORCE: 'ENFORCE', CUTOVER: 'ENFORCE',
+});
 const AUTHORITIES = Object.freeze({
   BASELINE: 'SENTINEL',
   OBSERVE: 'SENTINEL',
   DUAL_ENFORCE: 'SENTINEL_AND_REVIEW_GATE',
+  CUTOVER: 'REVIEW_GATE',
 });
 const COMPARISONS = Object.freeze(['AGREE', 'DISAGREE', 'INDETERMINATE']);
 const PHASE_TRANSITION_SCHEMA = 'dhpk.review-gate.phase-transition-authority.v1';
@@ -427,7 +430,7 @@ function validateObservationPhaseAuthority(normalized) {
   requireVocabulary(normalized.comparison, COMPARISONS);
   if (normalized.authority !== AUTHORITIES[normalized.phase]) fail('MALFORMED_RECEIPT');
   if (normalized.effect !== EFFECTS[normalized.phase]) fail('MALFORMED_RECEIPT');
-  if (normalized.phase === 'DUAL_ENFORCE') {
+  if (normalized.phase === 'DUAL_ENFORCE' || normalized.phase === 'CUTOVER') {
     if (!hasOwn(normalized.reviewGate, 'blockingReasons')
       || !Array.isArray(normalized.reviewGate.blockingReasons)) {
       fail('MALFORMED_RECEIPT');
@@ -455,8 +458,15 @@ function comparisonForDual(normalized) {
   return sentinel === reviewGate ? 'AGREE' : 'DISAGREE';
 }
 
+function isRollbackDiagnostic(normalized) {
+  return Array.isArray(normalized.reasonCodes)
+    && normalized.reasonCodes.includes('MIGRATION_ROLLBACK');
+}
+
 function dualAllowsProgress(normalized) {
-  if (normalized.phase !== 'DUAL_ENFORCE' || comparisonForDual(normalized) !== 'AGREE') return false;
+  if (normalized.phase !== 'DUAL_ENFORCE'
+    || isRollbackDiagnostic(normalized)
+    || comparisonForDual(normalized) !== 'AGREE') return false;
   const sentinelPass = legacyVerdict(normalized.sentinelOutcome) === 'PASS'
     && ['PASS', 'CLEARED'].includes(normalized.sentinelStatus);
   const gate = normalized.reviewGate;
@@ -470,6 +480,28 @@ function dualAllowsProgress(normalized) {
     && Array.isArray(gate.blockingReasons)
     && gate.blockingReasons.length === 0;
   return sentinelPass && reviewPass;
+}
+
+function cutoverAllowsProgress(normalized) {
+  // At CUTOVER, Review Gate alone is the completion authority (AC: "Sentinel
+  // continues only as a compatibility projection and cannot independently
+  // manufacture target workflow completion"). Sentinel's outcome is still
+  // compared for safety-disagreement detection, which is what triggers the
+  // automatic rollback to DUAL_ENFORCE, but a Sentinel PASS is not required
+  // for progress the way it is at DUAL_ENFORCE.
+  if (normalized.phase !== 'CUTOVER'
+    || isRollbackDiagnostic(normalized)
+    || comparisonForDual(normalized) === 'DISAGREE') return false;
+  const gate = normalized.reviewGate;
+  return isRecord(gate)
+    && gate.accepted === true
+    && gate.allowsProgress === true
+    && gate.lifecycleStatus === 'RESOLVED'
+    && gate.executionStatus === 'COMPLETE'
+    && gate.applicability === 'REQUIRED'
+    && gate.semanticVerdict === 'PASS'
+    && Array.isArray(gate.blockingReasons)
+    && gate.blockingReasons.length === 0;
 }
 
 function validateObservationEvidenceBinding(normalized) {
@@ -542,7 +574,7 @@ function validateObservationCostCoherence(normalized, sentinelStatus) {
 }
 
 function validateObservationPhaseEvidence(normalized) {
-  if (normalized.phase === 'OBSERVE' || normalized.phase === 'DUAL_ENFORCE') {
+  if (normalized.phase === 'OBSERVE' || normalized.phase === 'DUAL_ENFORCE' || normalized.phase === 'CUTOVER') {
     if (!hasOwn(normalized.reviewGate, 'eventId') || !hasOwn(normalized.sentinelOutcome, 'lifecycleEventId')
       || !hasOwn(normalized.provenance, 'lifecycleEventId')) fail('MALFORMED_RECEIPT');
     return;
@@ -562,6 +594,10 @@ function validateObservationLiveness(normalized) {
     if (!hasOwn(normalized, field)) fail('MALFORMED_RECEIPT');
     if (field === 'allowsTargetProgress' && normalized.phase === 'DUAL_ENFORCE') {
       if (normalized[field] !== dualAllowsProgress(normalized)) fail('MIXED_IDENTITY');
+      continue;
+    }
+    if (field === 'allowsTargetProgress' && normalized.phase === 'CUTOVER') {
+      if (normalized[field] !== cutoverAllowsProgress(normalized)) fail('MIXED_IDENTITY');
       continue;
     }
     if (normalized[field] !== false) fail('MALFORMED_RECEIPT');
@@ -794,10 +830,15 @@ function validatePhaseTransitionPayload(payload, now = null) {
   requireVocabulary(normalized.action, PHASE_TRANSITION_ACTIONS);
   if (!PHASES.includes(normalized.currentPhase)) fail('STALE_EVIDENCE', 'current phase is unsupported');
   if (!PHASES.includes(normalized.targetPhase)) fail('STALE_EVIDENCE', 'target phase is unsupported');
+  // Legal edges are exactly one phase forward (PROMOTE) or back (ROLLBACK),
+  // and BASELINE never participates in a maintainer-authorized transition: a
+  // merged, non-enforcing configuration starts directly at OBSERVE (ADR-0016).
+  const currentIndex = PHASES.indexOf(normalized.currentPhase);
+  const targetIndex = PHASES.indexOf(normalized.targetPhase);
   const legalPromotion = normalized.action === 'PROMOTE'
-    && normalized.currentPhase === 'OBSERVE' && normalized.targetPhase === 'DUAL_ENFORCE';
+    && normalized.currentPhase !== 'BASELINE' && targetIndex === currentIndex + 1;
   const legalRollback = normalized.action === 'ROLLBACK'
-    && normalized.currentPhase === 'DUAL_ENFORCE' && normalized.targetPhase === 'OBSERVE';
+    && normalized.targetPhase !== 'BASELINE' && targetIndex === currentIndex - 1;
   if (!legalPromotion && !legalRollback) fail('STALE_EVIDENCE', 'phase transition is not a legal one-phase edge');
   requireClosedRecord(normalized.evidenceBundle, PHASE_TRANSITION_EVIDENCE_FIELDS, PHASE_TRANSITION_EVIDENCE_FIELDS);
   requireDigest(normalized.evidenceBundle.digest);
@@ -929,8 +970,8 @@ function effectivePhase(history) {
 function assertCoordinatorPhase(history, phase) {
   validateTransitionHistory(history);
   if (history.receipts.filter((candidate) => candidate.kind === 'migration-observation').length === 0) {
-    if (phase === 'DUAL_ENFORCE') {
-      fail('STALE_EVIDENCE', 'DUAL_ENFORCE requires an active promotion receipt');
+    if (PHASES.indexOf(phase) > PHASES.indexOf('OBSERVE')) {
+      fail('STALE_EVIDENCE', `${phase} requires an active promotion receipt`);
     }
     return;
   }
@@ -1004,10 +1045,11 @@ function validateTransitionAgainstObservation(transition, receipt, observation, 
   if (transition.currentPhase !== currentPhase || transition.currentPhase !== observation.payload.phase) {
     fail('STALE_EVIDENCE', 'phase transition current phase is stale');
   }
-  if (transition.action === 'PROMOTE' && transition.targetPhase !== 'DUAL_ENFORCE') {
+  const currentIndex = PHASES.indexOf(transition.currentPhase);
+  if (transition.action === 'PROMOTE' && transition.targetPhase !== PHASES[currentIndex + 1]) {
     fail('STALE_EVIDENCE');
   }
-  if (transition.action === 'ROLLBACK' && transition.targetPhase !== 'OBSERVE') {
+  if (transition.action === 'ROLLBACK' && transition.targetPhase !== PHASES[currentIndex - 1]) {
     fail('STALE_EVIDENCE');
   }
   for (const field of PHASE_TRANSITION_IDENTITY_FIELDS) {
@@ -1027,6 +1069,7 @@ function validateTransitionAgainstObservation(transition, receipt, observation, 
 
 function diagnosticRollbackObservation(source, reasonCodes, now, sessionId = null) {
   const normalized = immutable(source.payload);
+  const targetPhase = PHASES[PHASES.indexOf(normalized.phase) - 1];
   const eventId = `migration-rollback-${sha256(canonicalJson({
     sourceEventId: normalized.eventId,
     reasonCodes,
@@ -1041,16 +1084,24 @@ function diagnosticRollbackObservation(source, reasonCodes, now, sessionId = nul
   const identity = sessionId
     ? { ...normalized.identity, sessionId }
     : normalized.identity;
+  // A rollback landing on DUAL_ENFORCE or CUTOVER still carries the same
+  // Sentinel/Review Gate verdicts that triggered it, so the diagnostic must
+  // report their real comparison rather than INDETERMINATE — otherwise it
+  // would falsely claim the disagreement was resolved by rolling back.
+  const targetRequiresComparison = targetPhase === 'DUAL_ENFORCE' || targetPhase === 'CUTOVER';
+  const comparison = targetRequiresComparison
+    ? comparisonForDual({ ...normalized, reviewGate })
+    : 'INDETERMINATE';
   return {
     ...normalized,
-    phase: 'OBSERVE',
-    authority: AUTHORITIES.OBSERVE,
-    effect: EFFECTS.OBSERVE,
-    comparison: 'INDETERMINATE',
+    phase: targetPhase,
+    authority: AUTHORITIES[targetPhase],
+    effect: EFFECTS[targetPhase],
+    comparison,
     reviewGate,
     sessionId: sessionId || normalized.sessionId,
     identity,
-    reasonCodes: [...new Set([...(normalized.reasonCodes || []), ...reasonCodes])],
+    reasonCodes: [...new Set(['MIGRATION_ROLLBACK', ...(normalized.reasonCodes || []), ...reasonCodes])],
     authorizesApproval: false,
     clearsSentinel: false,
     blocksSentinel: false,
@@ -1081,7 +1132,8 @@ function projectionFrom(payload, history, phaseOverride = null) {
     acceptedOutcomeCost: normalized.acceptedOutcomeCost,
     reviewGateStatus: normalized.reviewGateStatus || statusFrom(normalized.reviewGate),
     liveness: 'COMPATIBILITY_ONLY',
-    allowsTargetProgress: phase === 'DUAL_ENFORCE' ? dualAllowsProgress(normalized) : false,
+    allowsTargetProgress: phase === 'DUAL_ENFORCE' ? dualAllowsProgress(normalized)
+      : phase === 'CUTOVER' ? cutoverAllowsProgress(normalized) : false,
     automaticPromotion: false,
     retirementEligible: false,
     authorizesApproval: false,
@@ -1156,12 +1208,22 @@ class MigrationCoordinator {
     const input = observation === undefined ? { event, receipt } : { observation };
     const canonical = canonicalInput(input, this.now);
     if (canonical.payload.phase !== this.phase) fail('STALE_EVIDENCE', 'observation phase does not match coordinator phase');
-    return appendCanonicalObservation({
+    const projection = appendCanonicalObservation({
       receiptStore: this.receiptStore,
       canonical,
       expectedRevision,
       expectedChainDigest,
     });
+    if (this.phase === 'CUTOVER' && canonical.payload.comparison === 'DISAGREE') {
+      return this.rollback({
+        workId: canonical.event.workId,
+        expectedRevision: projection.revision,
+        expectedChainDigest: projection.chainDigest,
+        automatic: true,
+        reasonCodes: ['CUTOVER_DISAGREEMENT'],
+      });
+    }
+    return projection;
   }
 
   transition({ expectedRevision, expectedChainDigest = null, event, receipt, authorityReceipt } = {}) {
@@ -1189,8 +1251,8 @@ class MigrationCoordinator {
     reasonCodes = ['HARD_INVARIANT_ROLLBACK'],
   } = {}) {
     if (automatic) {
-      if (this.phase !== 'DUAL_ENFORCE' || event || receipt || authorityReceipt) {
-        fail('STALE_EVIDENCE', 'automatic rollback is only available from DUAL_ENFORCE');
+      if (!['DUAL_ENFORCE', 'CUTOVER'].includes(this.phase) || event || receipt || authorityReceipt) {
+        fail('STALE_EVIDENCE', 'automatic rollback is only available from DUAL_ENFORCE or CUTOVER');
       }
       if (!Array.isArray(reasonCodes) || reasonCodes.length === 0 || reasonCodes.length > 64) {
         fail('MALFORMED_RECEIPT');
@@ -1219,9 +1281,10 @@ class MigrationCoordinator {
           expectedChainDigest: current.chainDigest,
         });
       }
+      const rollbackTargetPhase = PHASES[PHASES.indexOf(this.phase) - 1];
       const dualSources = history.receipts
         .filter((candidate) => candidate.kind === 'migration-observation'
-          && candidate.payload && candidate.payload.phase === 'DUAL_ENFORCE')
+          && candidate.payload && candidate.payload.phase === this.phase)
         .slice()
         .reverse();
       const source = dualSources[0];
@@ -1235,7 +1298,7 @@ class MigrationCoordinator {
             ));
             return transitionIndex > eventIndex;
           });
-          if (superseded || effectivePhase(history) !== 'OBSERVE') {
+          if (superseded || effectivePhase(history) !== rollbackTargetPhase) {
             fail('STALE_EVIDENCE', 'automatic rollback has been superseded');
           }
           const stored = sequenceReceipts(this.receiptStore, history, eventIndex)

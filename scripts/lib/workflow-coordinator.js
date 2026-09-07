@@ -34,6 +34,23 @@ const DUAL_ENFORCE_CONTROL = Object.freeze({
   effect: 'ENFORCE',
   allowsTargetProgress: true,
 });
+const CUTOVER_CONTROL = Object.freeze({
+  enabled: true,
+  phase: 'CUTOVER',
+  authority: 'REVIEW_GATE',
+  effect: 'ENFORCE',
+  allowsTargetProgress: true,
+});
+// Enforcement-gated phases: the source phase a promotion into this phase must
+// be bound to, and the authority/effect every observation in this phase must
+// carry. DUAL_ENFORCE requires both Sentinel and Review Gate; CUTOVER makes
+// Review Gate the sole authority while Sentinel remains a compatibility
+// projection (see docs/adr/0016-phase-and-roll-back-review-gate-migration.md).
+const DUAL_ENFORCEMENT_CONFIG = Object.freeze({
+  DUAL_ENFORCE: Object.freeze({ sourcePhase: 'OBSERVE', authority: 'SENTINEL_AND_REVIEW_GATE', effect: 'ENFORCE' }),
+  CUTOVER: Object.freeze({ sourcePhase: 'DUAL_ENFORCE', authority: 'REVIEW_GATE', effect: 'ENFORCE' }),
+});
+const MIGRATION_PHASE_ORDER = Object.freeze(['BASELINE', 'OBSERVE', 'DUAL_ENFORCE', 'CUTOVER']);
 const FEATURE_KEYS = Object.freeze(['enabled', 'phase']);
 const REVIEW_PASS = 'PASS';
 const IMPLEMENTATION = 'IMPLEMENTATION';
@@ -51,13 +68,15 @@ function assertFeatureControl(featureControl) {
     throw new TypeError('Workflow Coordinator feature control has unsupported fields');
   }
   const valid = (featureControl.enabled === false && featureControl.phase === 'BASELINE')
-    || (featureControl.enabled === true && ['OBSERVE', 'DUAL_ENFORCE'].includes(featureControl.phase));
+    || (featureControl.enabled === true && ['OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'].includes(featureControl.phase));
   if (!valid) throw new TypeError('Workflow Coordinator feature control is unsupported');
 }
 
 function controlFor(featureControl) {
   if (featureControl.phase === 'BASELINE') return BASELINE_CONTROL;
-  return featureControl.phase === 'DUAL_ENFORCE' ? DUAL_ENFORCE_CONTROL : OBSERVE_CONTROL;
+  if (featureControl.phase === 'DUAL_ENFORCE') return DUAL_ENFORCE_CONTROL;
+  if (featureControl.phase === 'CUTOVER') return CUTOVER_CONTROL;
+  return OBSERVE_CONTROL;
 }
 
 function parseTime(value) {
@@ -150,77 +169,127 @@ function allRequirementsPass(reviewRequirements, verificationRequirements, lates
 }
 
 function dualEnforcementStatus(evidence, control, evaluatedAt) {
-  if (control.phase !== 'DUAL_ENFORCE') return { ready: true, reason: null };
+  const config = DUAL_ENFORCEMENT_CONFIG[control.phase];
+  if (!config) return { ready: true, reason: null };
+  const targetPhase = control.phase;
+  const { sourcePhase, authority, effect } = config;
   const migrationObservations = evidence.migrationObservations || [];
-  const allObservations = migrationObservations
-    .filter((item) => item.payload && item.payload.phase === 'DUAL_ENFORCE');
-  if (allObservations.length === 0) {
+  const records = evidence.records || [];
+  const recordIndex = (item) => records.indexOf(item);
+  const isRollbackDiagnostic = (item) => (
+    item && item.payload && Array.isArray(item.payload.reasonCodes)
+      && item.payload.reasonCodes.includes('MIGRATION_ROLLBACK')
+  );
+  const bundleMatches = (item, bundle) => (
+    item && item.payload && item.payload.provenance && bundle
+      && item.payload.provenance.digest === bundle.digest
+      && item.payload.provenance.reference === bundle.reference
+  );
+  if (!migrationObservations.some((item) => (
+    item.payload && item.payload.phase === targetPhase && !isRollbackDiagnostic(item)
+  ))) {
     return { ready: false, reason: 'DUAL_ENFORCEMENT_UNOBSERVED' };
   }
   const transitions = evidence.phaseTransitions || [];
-  // A rollback receipt must be chronologically anchored to the DUAL evidence
-  // it is rolling back. This prevents a caller from backdating a rollback
-  // before the promotion and having the reducer silently ignore it.
+  // A rollback receipt must be chronologically anchored to the source-phase
+  // evidence it is rolling back. Binding to the target phase would allow a
+  // CUTOVER -> DUAL_ENFORCE rollback to reuse an older DUAL observation and
+  // would make the rollback boundary ambiguous.
   for (const transition of transitions.filter((item) => item.payload.action === 'ROLLBACK')) {
+    const rollbackIndex = recordIndex(transition);
     const rollbackRecordedAt = parseTime(transition.receipt.recordedAt);
     const bundle = transition.payload.evidenceBundle;
     const anchored = migrationObservations
-      .filter((item) => item.payload && item.payload.phase === 'DUAL_ENFORCE')
-      .filter((item) => item.payload.provenance
-        && item.payload.provenance.digest === bundle.digest
-        && item.payload.provenance.reference === bundle.reference)
+      .filter((item) => item.payload && item.payload.phase === transition.payload.currentPhase)
+      .filter((item) => recordIndex(item) < rollbackIndex)
       .filter((item) => parseTime(item.receipt.recordedAt) <= rollbackRecordedAt)
+      .filter((item) => bundleMatches(item, bundle))
       .at(-1);
     if (!anchored) return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
   }
+
   const latestTransition = transitions[transitions.length - 1];
-  if (!latestTransition || latestTransition.payload.action !== 'PROMOTE') {
-    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
-  }
-  // A promotion receipt is bound to the OBSERVE evidence that the maintainer
-  // actually reviewed.  The first DUAL observation is a new observation and
-  // therefore has a different provenance digest (the adapter includes phase
-  // and gate outcome in that digest); requiring the DUAL digest here would
-  // make every valid promotion unreachable.
-  const promotionBundle = latestTransition.payload.evidenceBundle;
-  const promotionRecordedAt = parseTime(latestTransition.receipt.recordedAt);
-  const source = (evidence.migrationObservations || [])
-    .filter((item) => item.payload && item.payload.phase === 'OBSERVE')
-    .filter((item) => item.payload.provenance
-      && item.payload.provenance.digest === promotionBundle.digest
-      && item.payload.provenance.reference === promotionBundle.reference)
-    .filter((item) => parseTime(item.receipt.recordedAt) <= promotionRecordedAt)
+
+  // Automatic rollback appends a diagnostic observation in the target phase
+  // without a phase-transition authority receipt. That diagnostic is the new
+  // epoch boundary; a later target-phase observation must be fresh evidence.
+  const latestTransitionIndex = latestTransition ? recordIndex(latestTransition) : -1;
+  const latestTransitionIsTargetRollback = latestTransition
+    && latestTransition.payload.action === 'ROLLBACK'
+    && latestTransition.payload.targetPhase === targetPhase;
+  const automaticBoundary = latestTransitionIsTargetRollback ? null : migrationObservations
+    .filter((item) => item.payload && item.payload.phase === targetPhase)
+    .filter((item) => recordIndex(item) > latestTransitionIndex)
+    .filter(isRollbackDiagnostic)
     .at(-1);
-  if (!source) {
-    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+
+  let boundary = automaticBoundary;
+  let boundaryTransition = null;
+  let source = null;
+  if (boundary) {
+    const targetIndex = MIGRATION_PHASE_ORDER.indexOf(targetPhase);
+    const rollbackSourcePhase = MIGRATION_PHASE_ORDER[targetIndex + 1];
+    source = migrationObservations
+      .filter((item) => item.payload && item.payload.phase === rollbackSourcePhase)
+      .filter((item) => recordIndex(item) < recordIndex(boundary))
+      .at(-1);
+    if (!source) return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+  } else {
+    // The latest transition must enter the requested phase. A historical
+    // promotion cannot authorize an epoch after a later CUTOVER transition.
+    if (!latestTransition || latestTransition.payload.targetPhase !== targetPhase) {
+      return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+    }
+    boundaryTransition = latestTransition;
+    boundary = latestTransition;
+    const transitionSourcePhase = latestTransition.payload.currentPhase;
+    source = migrationObservations
+      .filter((item) => item.payload && item.payload.phase === transitionSourcePhase)
+      .filter((item) => recordIndex(item) < recordIndex(boundary))
+      .at(-1);
+    // The authority receipt must bind the latest source observation, not any
+    // older observation carrying the same historical evidence bundle.
+    if (!source || !bundleMatches(source, latestTransition.payload.evidenceBundle)) {
+      return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+    }
   }
-  const transitionIndex = evidence.records.lastIndexOf(latestTransition);
-  const postPromotionObservations = migrationObservations
-    .filter((item) => evidence.records.indexOf(item) > transitionIndex);
-  if (postPromotionObservations.length === 0) {
+
+  const boundaryIndex = recordIndex(boundary);
+  const postBoundaryObservations = migrationObservations
+    .filter((item) => recordIndex(item) > boundaryIndex);
+  if (postBoundaryObservations.length === 0) {
     return { ready: false, reason: 'DUAL_ENFORCEMENT_UNOBSERVED' };
   }
-  // A rollback diagnostic is an OBSERVE observation without a transition
-  // receipt of its own. Any post-promotion OBSERVE record therefore ends the
-  // active DUAL epoch; an old agreeing DUAL receipt cannot be reused.
-  if (postPromotionObservations.some((item) => item.payload.phase !== 'DUAL_ENFORCE')) {
+  // A diagnostic in a lower phase is evidence that the active target epoch
+  // was rolled back. It cannot be ignored merely because it is a diagnostic.
+  if (postBoundaryObservations.some((item) => item.payload.phase !== targetPhase)) {
     return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
   }
-  const observations = postPromotionObservations.filter((item) => (
-    item.payload && item.payload.phase === 'DUAL_ENFORCE'
+  const observations = postBoundaryObservations.filter((item) => (
+    item.payload && item.payload.phase === targetPhase && !isRollbackDiagnostic(item)
   ));
-  const issuedAt = parseTime(latestTransition.payload.issuedAt);
-  const expiresAt = parseTime(latestTransition.payload.expiresAt);
-  if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)
-    || evaluatedAt < issuedAt || evaluatedAt >= expiresAt) {
-    return { ready: false, reason: 'STALE_EVIDENCE' };
+  if (observations.length === 0) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNOBSERVED' };
   }
+
+  if (boundaryTransition) {
+    const transitionSourcePhase = boundaryTransition.payload.currentPhase;
+    if (boundaryTransition.payload.targetPhase !== targetPhase
+      || !transitionSourcePhase
+      || transitionSourcePhase !== source.payload.phase
+      || (boundaryTransition.payload.action === 'PROMOTE' && transitionSourcePhase !== sourcePhase)) {
+      return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
+    }
+    const issuedAt = parseTime(boundaryTransition.payload.issuedAt);
+    const expiresAt = parseTime(boundaryTransition.payload.expiresAt);
+    if (!Number.isFinite(issuedAt) || !Number.isFinite(expiresAt)
+      || evaluatedAt < issuedAt || evaluatedAt >= expiresAt) {
+      return { ready: false, reason: 'STALE_EVIDENCE' };
+    }
+  }
+
   const latest = observations[observations.length - 1];
   const payload = latest.payload;
-  if (latestTransition.payload.currentPhase !== 'OBSERVE'
-    || latestTransition.payload.targetPhase !== 'DUAL_ENFORCE') {
-    return { ready: false, reason: 'DUAL_ENFORCEMENT_UNAUTHORIZED' };
-  }
   const boundIdentityFields = [
     'workId', 'waveId', 'planId', 'decisionId', 'obligationId', 'lane',
     'taskId', 'attemptId', 'attempt', 'sessionId', 'dispatchId', 'scopeId', 'diffId',
@@ -230,30 +299,38 @@ function dualEnforcementStatus(evidence, control, evaluatedAt) {
     'dispatchId', 'scopeId', 'diffId',
   ];
   if (boundIdentityFields.some((field) => payload[field] !== source.payload[field])
-    || transitionIdentityFields.some((field) => latestTransition.receipt[field] !== source.payload[field])
-    || latestTransition.receipt.sourceCommit !== source.payload.sourceCommit
-    || latestTransition.receipt.sourceTree !== source.payload.sourceTree
-    || latestTransition.receipt.policyVersion !== source.payload.policyVersion
-    || latestTransition.receipt.contractVersion !== source.payload.contractVersion
     || payload.scope.digest !== source.payload.scope.digest
     || payload.diff.digest !== source.payload.diff.digest
     || payload.diff.reference !== source.payload.diff.reference) {
     return { ready: false, reason: 'DUAL_ENFORCEMENT_IDENTITY_MISMATCH' };
   }
+  if (boundaryTransition && (
+    transitionIdentityFields.some((field) => boundaryTransition.receipt[field] !== source.payload[field])
+    || boundaryTransition.receipt.sourceCommit !== source.payload.sourceCommit
+    || boundaryTransition.receipt.sourceTree !== source.payload.sourceTree
+    || boundaryTransition.receipt.policyVersion !== source.payload.policyVersion
+    || boundaryTransition.receipt.contractVersion !== source.payload.contractVersion
+  )) {
+    return { ready: false, reason: 'DUAL_ENFORCEMENT_IDENTITY_MISMATCH' };
+  }
   if (observations.some((item) => (
-    item.payload.authority !== 'SENTINEL_AND_REVIEW_GATE'
-    || item.payload.effect !== 'ENFORCE'
+    item.payload.authority !== authority
+    || item.payload.effect !== effect
   ))) {
     return { ready: false, reason: 'DUAL_ENFORCEMENT_AUTHORITY_MISMATCH' };
   }
-  if (observations.some((item) => (
-    item.payload.comparison !== 'AGREE' || item.payload.allowsTargetProgress !== true
-  ))) {
+  // allowsTargetProgress is already validated upstream (migration-coordinator.js
+  // dualAllowsProgress / cutoverAllowsProgress) to encode each phase's own
+  // agreement rule — DUAL_ENFORCE requires literal AGREE, CUTOVER also accepts
+  // INDETERMINATE (Sentinel as a non-participating compatibility projection).
+  // A separate literal 'AGREE' check here would re-impose DUAL_ENFORCE's
+  // stricter rule on CUTOVER and block legitimate CUTOVER completions.
+  if (observations.some((item) => item.payload.allowsTargetProgress !== true)) {
     return { ready: false, reason: 'DUAL_ENFORCEMENT_DISAGREEMENT' };
   }
   const review = (evidence.reviews || []).find((item) => (
     item.payload
-      && item.payload.effect === 'ENFORCE'
+      && item.payload.effect === effect
       && item.receipt.obligationId === payload.obligationId
       && item.receipt.lane === payload.lane
       && item.payload.eventId === payload.reviewGate.eventId
