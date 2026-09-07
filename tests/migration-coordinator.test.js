@@ -67,8 +67,10 @@ function makeObservationPayload({
   reviewGateStatus = 'PASS',
   workId = 'work-369',
 } = {}) {
-  const observationEventId = phase === 'DUAL_ENFORCE' ? 'migration-event-369-dual-1' : OBSERVATION_EVENT_ID;
-  const observationReceiptId = phase === 'DUAL_ENFORCE' ? 'migration-receipt-369-dual-1' : OBSERVATION_RECEIPT_ID;
+  const observationEventId = phase === 'DUAL_ENFORCE' ? 'migration-event-369-dual-1'
+    : phase === 'CUTOVER' ? 'migration-event-374-cutover-1' : OBSERVATION_EVENT_ID;
+  const observationReceiptId = phase === 'DUAL_ENFORCE' ? 'migration-receipt-369-dual-1'
+    : phase === 'CUTOVER' ? 'migration-receipt-374-cutover-1' : OBSERVATION_RECEIPT_ID;
   return {
     schema: OBSERVATION_SCHEMA,
     producer: OBSERVATION_PRODUCER,
@@ -82,8 +84,10 @@ function makeObservationPayload({
     contractVersion: OBSERVATION_CONTRACT_VERSION,
     recordedAt: NOW,
     phase,
-    authority: phase === 'DUAL_ENFORCE' ? 'SENTINEL_AND_REVIEW_GATE' : 'SENTINEL',
-    effect: phase === 'BASELINE' ? 'DISABLED' : phase === 'DUAL_ENFORCE' ? 'ENFORCE' : 'OBSERVE_ONLY',
+    authority: phase === 'DUAL_ENFORCE' ? 'SENTINEL_AND_REVIEW_GATE'
+      : phase === 'CUTOVER' ? 'REVIEW_GATE' : 'SENTINEL',
+    effect: phase === 'BASELINE' ? 'DISABLED'
+      : (phase === 'DUAL_ENFORCE' || phase === 'CUTOVER') ? 'ENFORCE' : 'OBSERVE_ONLY',
     comparison,
     workId,
     decisionId: 'decision-369',
@@ -125,8 +129,8 @@ function makeObservationPayload({
     },
     reviewGate: {
       status: reviewGateStatus,
-      ...(phase === 'OBSERVE' || phase === 'DUAL_ENFORCE' ? { eventId: 'diagnostic-review-event-369' } : {}),
-      ...(phase === 'DUAL_ENFORCE' ? {
+      ...(phase === 'OBSERVE' || phase === 'DUAL_ENFORCE' || phase === 'CUTOVER' ? { eventId: 'diagnostic-review-event-369' } : {}),
+      ...(phase === 'DUAL_ENFORCE' || phase === 'CUTOVER' ? {
         accepted: reviewGateStatus === 'PASS',
         allowsProgress: reviewGateStatus === 'PASS',
         lifecycleStatus: reviewGateStatus === 'PASS' ? 'RESOLVED' : 'PENDING',
@@ -159,8 +163,10 @@ function makeObservationPayload({
     clearsSentinel: false,
     blocksSentinel: false,
     allowsTargetProgress: phase === 'DUAL_ENFORCE'
-      && sentinelStatus === 'PASS'
-      && reviewGateStatus === 'PASS',
+      ? sentinelStatus === 'PASS' && reviewGateStatus === 'PASS'
+      : phase === 'CUTOVER'
+        ? comparison !== 'DISAGREE' && reviewGateStatus === 'PASS'
+        : false,
     automaticPromotion: false,
     retirementEligible: false,
     liveness: 'COMPATIBILITY_ONLY',
@@ -709,7 +715,7 @@ test('rejects provenance fields outside the bounded observation allowlist', () =
 
 test('rejects unsupported migration phases at construction', () => {
   withFixture(({ root, store }) => {
-    for (const phase of ['CUTOVER', 'RETIRE', 'CLEANUP', 'baseline', null]) {
+    for (const phase of ['RETIRE', 'CLEANUP', 'baseline', null]) {
       assert.throws(
         () => new MigrationCoordinator({
           receiptStore: store,
@@ -764,6 +770,25 @@ test('DUAL_ENFORCE observations require a recorded promotion and stale coordinat
         observation: stalePayload,
       }),
       /phase|stale/i,
+    );
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('CUTOVER observations also require a recorded promotion, not just DUAL_ENFORCE', () => {
+  withFixture(({ store }) => {
+    const cutoverCoordinator = new MigrationCoordinator({
+      receiptStore: store,
+      phase: 'CUTOVER',
+      now: () => Date.parse(NOW),
+    });
+    assert.throws(
+      () => cutoverCoordinator.record({
+        expectedRevision: 0,
+        expectedChainDigest: null,
+        observation: makeObservationPayload({ phase: 'CUTOVER', comparison: 'AGREE' }),
+      }),
+      /promotion|phase|stale/i,
+      'a first-ever observation must not be recordable directly at CUTOVER with no OBSERVE/DUAL_ENFORCE history',
     );
   }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
 });
@@ -1057,6 +1082,225 @@ test('automatic rollback retries remain idempotent with the original trusted hea
       expectedChainDigest: first.chainDigest,
     });
     assert.strictEqual(history.events.length, first.revision);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+function promoteToCutover(coordinator, store) {
+  const observed = coordinator.record(recordInput({ phase: 'OBSERVE', comparison: 'AGREE' }));
+  const dualReceipt = makePhaseTransitionReceipt(observed, {
+    currentPhase: 'OBSERVE',
+    targetPhase: 'DUAL_ENFORCE',
+  });
+  const dualTransition = coordinator.transition({
+    expectedRevision: observed.revision,
+    expectedChainDigest: observed.chainDigest,
+    event: makePhaseTransitionEvent(dualReceipt),
+    receipt: dualReceipt,
+  });
+  const dualCoordinator = new MigrationCoordinator({
+    receiptStore: store,
+    phase: 'DUAL_ENFORCE',
+    now: () => Date.parse(NOW),
+  });
+  const dual = dualCoordinator.record({
+    expectedRevision: dualTransition.revision,
+    expectedChainDigest: dualTransition.chainDigest,
+    observation: makeObservationPayload({ phase: 'DUAL_ENFORCE', comparison: 'AGREE' }),
+  });
+  const cutoverReceipt = makePhaseTransitionReceipt(dual, {
+    currentPhase: 'DUAL_ENFORCE',
+    targetPhase: 'CUTOVER',
+    transitionId: 'transition-374-cutover-1',
+    eventId: 'phase-transition-event-374-cutover-1',
+    receiptId: 'phase-transition-receipt-374-cutover-1',
+  });
+  const cutoverTransition = dualCoordinator.transition({
+    expectedRevision: dual.revision,
+    expectedChainDigest: dual.chainDigest,
+    event: makePhaseTransitionEvent(cutoverReceipt),
+    receipt: cutoverReceipt,
+  });
+  const cutoverCoordinator = new MigrationCoordinator({
+    receiptStore: store,
+    phase: 'CUTOVER',
+    now: () => Date.parse(NOW),
+  });
+  return { cutoverCoordinator, cutoverTransition };
+}
+
+test('promotes DUAL_ENFORCE to CUTOVER only through a bound maintainer transition receipt', () => {
+  withFixture(({ coordinator, store }) => {
+    const { cutoverTransition } = promoteToCutover(coordinator, store);
+
+    assert.strictEqual(cutoverTransition.phase, 'CUTOVER');
+    assert.strictEqual(cutoverTransition.authority, 'REVIEW_GATE');
+    assert.strictEqual(cutoverTransition.effect, 'ENFORCE');
+    assert.strictEqual(cutoverTransition.allowsTargetProgress, false);
+    assert.strictEqual(cutoverTransition.automaticPromotion, false);
+    assert.strictEqual(cutoverTransition.authorizesApproval, false);
+    assert.strictEqual(cutoverTransition.clearsSentinel, false);
+    assertDeepFrozen(cutoverTransition);
+
+    const history = store.inspect({
+      workId: cutoverTransition.workId,
+      expectedRevision: cutoverTransition.revision,
+      expectedChainDigest: cutoverTransition.chainDigest,
+    });
+    assert.strictEqual(history.receipts.filter((receipt) => receipt.kind === 'authority').length, 2);
+    assert.strictEqual(
+      history.receipts.filter((receipt) => receipt.kind === 'migration-observation').length,
+      2,
+    );
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('CUTOVER allows progress from Review Gate alone once Sentinel and Review Gate agree', () => {
+  withFixture(({ coordinator, store }) => {
+    const { cutoverCoordinator, cutoverTransition } = promoteToCutover(coordinator, store);
+    const cutover = cutoverCoordinator.record({
+      expectedRevision: cutoverTransition.revision,
+      expectedChainDigest: cutoverTransition.chainDigest,
+      observation: makeObservationPayload({ phase: 'CUTOVER', comparison: 'AGREE' }),
+    });
+
+    assert.strictEqual(cutover.phase, 'CUTOVER');
+    assert.strictEqual(cutover.authority, 'REVIEW_GATE');
+    assert.strictEqual(cutover.effect, 'ENFORCE');
+    assert.strictEqual(cutover.comparison, 'AGREE');
+    assert.strictEqual(cutover.allowsTargetProgress, true);
+    assert.strictEqual(cutover.authorizesApproval, false);
+    assert.strictEqual(cutover.clearsSentinel, false);
+    assert.strictEqual(cutover.blocksSentinel, false);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('CUTOVER allows Review Gate progress when Sentinel is an indeterminate compatibility projection', () => {
+  withFixture(({ coordinator, store }) => {
+    const { cutoverCoordinator, cutoverTransition } = promoteToCutover(coordinator, store);
+    const observation = makeObservationPayload({
+      phase: 'CUTOVER',
+      comparison: 'INDETERMINATE',
+      sentinelStatus: 'UNKNOWN',
+      reviewGateStatus: 'PASS',
+    });
+    observation.sentinelOutcome = {
+      status: 'UNKNOWN',
+      lifecycleEventId: observation.sentinelOutcome.lifecycleEventId,
+    };
+    const cutover = cutoverCoordinator.record({
+      expectedRevision: cutoverTransition.revision,
+      expectedChainDigest: cutoverTransition.chainDigest,
+      observation,
+    });
+
+    assert.strictEqual(cutover.comparison, 'INDETERMINATE');
+    assert.strictEqual(cutover.authority, 'REVIEW_GATE');
+    assert.strictEqual(cutover.allowsTargetProgress, true);
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('CUTOVER disagreement fails closed and automatically returns to DUAL_ENFORCE', () => {
+  withFixture(({ coordinator, store }) => {
+    const { cutoverCoordinator, cutoverTransition } = promoteToCutover(coordinator, store);
+    const rollback = cutoverCoordinator.record({
+      expectedRevision: cutoverTransition.revision,
+      expectedChainDigest: cutoverTransition.chainDigest,
+      observation: makeObservationPayload({ phase: 'CUTOVER', comparison: 'DISAGREE', reviewGateStatus: 'CHANGES_REQUIRED' }),
+    });
+
+    assert.strictEqual(rollback.phase, 'DUAL_ENFORCE');
+    assert.strictEqual(rollback.authority, 'SENTINEL_AND_REVIEW_GATE');
+    assert.strictEqual(rollback.effect, 'ENFORCE');
+    assert.strictEqual(rollback.comparison, 'DISAGREE');
+    assert.strictEqual(rollback.allowsTargetProgress, false);
+    assert.strictEqual(rollback.automaticPromotion, false);
+    assert.strictEqual(rollback.clearsSentinel, false);
+    assert.strictEqual(rollback.revision, cutoverTransition.revision + 2);
+    const history = store.inspect({
+      workId: rollback.workId,
+      expectedRevision: rollback.revision,
+      expectedChainDigest: rollback.chainDigest,
+    });
+    const observations = history.receipts.filter((receipt) => receipt.kind === 'migration-observation');
+    assert.strictEqual(observations.length, 4);
+    assert.ok(observations.at(-1).payload.reasonCodes.includes('MIGRATION_ROLLBACK'));
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('manual rollback from a passing CUTOVER remains fail-closed without synthetic Sentinel clearance', () => {
+  withFixture(({ coordinator, store }) => {
+    const { cutoverCoordinator, cutoverTransition } = promoteToCutover(coordinator, store);
+    const cutover = cutoverCoordinator.record({
+      expectedRevision: cutoverTransition.revision,
+      expectedChainDigest: cutoverTransition.chainDigest,
+      observation: makeObservationPayload({ phase: 'CUTOVER', comparison: 'AGREE' }),
+    });
+    const rollbackReceipt = makePhaseTransitionReceipt(cutover, {
+      action: 'ROLLBACK',
+      currentPhase: 'CUTOVER',
+      targetPhase: 'DUAL_ENFORCE',
+      transitionId: 'transition-374-rollback-pass-1',
+      eventId: 'phase-transition-event-374-rollback-pass-1',
+      receiptId: 'phase-transition-receipt-374-rollback-pass-1',
+    });
+    const rollback = cutoverCoordinator.rollback({
+      expectedRevision: cutover.revision,
+      expectedChainDigest: cutover.chainDigest,
+      event: makePhaseTransitionEvent(rollbackReceipt),
+      receipt: rollbackReceipt,
+    });
+
+    assert.strictEqual(rollback.phase, 'DUAL_ENFORCE');
+    assert.strictEqual(rollback.authority, 'SENTINEL_AND_REVIEW_GATE');
+    assert.strictEqual(rollback.effect, 'ENFORCE');
+    assert.strictEqual(rollback.comparison, 'AGREE');
+    assert.strictEqual(rollback.allowsTargetProgress, false);
+    assert.strictEqual(rollback.clearsSentinel, false);
+    assert.strictEqual(rollback.revision, cutover.revision + 1);
+    assert.strictEqual(rollback.authorizesApproval, false);
+    const history = store.inspect({
+      workId: cutover.workId,
+      expectedRevision: rollback.revision,
+      expectedChainDigest: rollback.chainDigest,
+    });
+    const latest = history.receipts.filter((receipt) => receipt.kind === 'migration-observation').at(-1);
+    assert.ok(latest.payload.reasonCodes.includes('MIGRATION_ROLLBACK'));
+    assert.strictEqual(latest.payload.phase, 'DUAL_ENFORCE');
+    assert.strictEqual(latest.payload.comparison, 'AGREE');
+  }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
+});
+
+test('automatic rollback from a passing CUTOVER is idempotent and preserves the source comparison', () => {
+  withFixture(({ coordinator, store }) => {
+    const { cutoverCoordinator, cutoverTransition } = promoteToCutover(coordinator, store);
+    const cutover = cutoverCoordinator.record({
+      expectedRevision: cutoverTransition.revision,
+      expectedChainDigest: cutoverTransition.chainDigest,
+      observation: makeObservationPayload({ phase: 'CUTOVER', comparison: 'AGREE' }),
+    });
+    const rollbackInput = {
+      workId: cutover.workId,
+      expectedRevision: cutover.revision,
+      expectedChainDigest: cutover.chainDigest,
+      automatic: true,
+      reasonCodes: ['HARD_INVARIANT_ROLLBACK'],
+    };
+    const rollback = cutoverCoordinator.rollback(rollbackInput);
+
+    assert.strictEqual(rollback.phase, 'DUAL_ENFORCE');
+    assert.strictEqual(rollback.comparison, 'AGREE');
+    assert.strictEqual(rollback.allowsTargetProgress, false);
+    assert.strictEqual(rollback.revision, cutover.revision + 1);
+    const duplicate = cutoverCoordinator.rollback(rollbackInput);
+    assert.deepStrictEqual(duplicate, rollback);
+    const history = store.inspect({
+      workId: rollback.workId,
+      expectedRevision: rollback.revision,
+      expectedChainDigest: rollback.chainDigest,
+    });
+    const latest = history.receipts.filter((receipt) => receipt.kind === 'migration-observation').at(-1);
+    assert.ok(latest.payload.reasonCodes.includes('MIGRATION_ROLLBACK'));
+    assert.strictEqual(latest.payload.comparison, 'AGREE');
   }, { phase: 'OBSERVE', trustPolicy: DUAL_TRUST_POLICY });
 });
 
