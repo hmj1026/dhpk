@@ -76,6 +76,12 @@ const LIFECYCLE_VERDICTS = new Set([
   'FAIL',
   'WARNING',
 ]);
+const LIFECYCLE_EXCEPTION_STATES = new Set([
+  'failed-start',
+  'quota-blocked',
+  'blocked',
+  'incomplete',
+]);
 const ACTIVATION_STATES = new Set(['INACTIVE', 'ACTIVE']);
 const ACTIVATION_EFFECTS = Object.freeze({ INACTIVE: 'DISABLED', ACTIVE: 'OBSERVE_ONLY' });
 
@@ -204,10 +210,14 @@ const assertSameIdentity = (expected, actual) => {
   }
 };
 
-const validateEvidenceEvents = (events, identity, { readiness = false } = {}) => {
+const validateEvidenceEvents = (events, identity, {
+  readiness = false,
+  required = true,
+  terminal = 'VERDICT',
+} = {}) => {
   if (!Array.isArray(events) || events.length > MAX_EVENTS) fail('BOUNDED_INPUT');
   let readyDigest = null;
-  let terminalVerdict = false;
+  let terminalEvent = false;
   for (const event of events) {
     assertRecord(event, readiness ? 'MALFORMED_READINESS' : 'MALFORMED_LIFECYCLE');
     if (event.schema_version !== 1) fail(readiness ? 'MALFORMED_READINESS' : 'MALFORMED_LIFECYCLE');
@@ -219,7 +229,9 @@ const validateEvidenceEvents = (events, identity, { readiness = false } = {}) =>
       if (!LIFECYCLE_STATES.has(event.state)) fail('MALFORMED_LIFECYCLE');
       if (event.state === 'verdicted') {
         if (!LIFECYCLE_VERDICTS.has(event.verdict)) fail('MALFORMED_LIFECYCLE');
-        terminalVerdict = true;
+        if (terminal === 'VERDICT') terminalEvent = true;
+      } else if (terminal === 'EXCEPTION' && LIFECYCLE_EXCEPTION_STATES.has(event.state)) {
+        terminalEvent = true;
       }
     }
     const eventIds = eventIdentity(event);
@@ -230,9 +242,9 @@ const validateEvidenceEvents = (events, identity, { readiness = false } = {}) =>
       readyDigest = digest;
     }
   }
-  if (readiness && !readyDigest) fail('MISSING_READINESS');
-  if (!readiness && !terminalVerdict) fail('MISSING_VERDICT');
-  return readiness ? readyDigest : terminalVerdict;
+  if (readiness && required && !readyDigest) fail('MISSING_READINESS');
+  if (!readiness && !terminalEvent) fail('MISSING_VERDICT');
+  return readiness ? readyDigest : terminalEvent;
 };
 
 const normalizeScope = (plan) => {
@@ -387,8 +399,15 @@ function normalizeSubmissionContext(rawInput) {
   const lifecycleEvents = evidenceCollection(input, 'lifecycleEvents', 'MALFORMED_LIFECYCLE');
   const readinessEvents = evidenceCollection(input, 'readinessEvents', 'MALFORMED_READINESS');
   if (lifecycleEvents.length === 0) fail('MISSING_LIFECYCLE');
-  validateEvidenceEvents(lifecycleEvents, identity);
-  validateEvidenceEvents(readinessEvents, identity, { readiness: true });
+  const artifactBacked = input.reviewResult.executionStatus === 'COMPLETE'
+    && input.reviewResult.applicability === 'REQUIRED';
+  validateEvidenceEvents(lifecycleEvents, identity, {
+    terminal: artifactBacked ? 'VERDICT' : 'EXCEPTION',
+  });
+  validateEvidenceEvents(readinessEvents, identity, {
+    readiness: true,
+    required: artifactBacked,
+  });
   const artifactDigest = readinessArtifactDigest(readinessEvents);
   return {
     input, identity, plan, scope, diff, obligation, lifecycleEvents, readinessEvents, artifactDigest,
@@ -526,7 +545,11 @@ class CodexReviewGateAdapter {
   record(input = {}) {
     if (this.activation !== 'ACTIVE') fail('ADAPTER_INACTIVE');
     const context = normalizeSubmissionContext(input);
-    requireArtifactEvidence(context.input.reviewResult, context.artifactDigest);
+    const reviewResult = context.input.reviewResult;
+    if (reviewResult.executionStatus === 'COMPLETE'
+      && reviewResult.applicability === 'REQUIRED') {
+      requireArtifactEvidence(reviewResult, context.artifactDigest);
+    }
     const event = buildReviewGateEvent(this, context, normalizeCommands(context.input.executedCommands));
     const gateResult = invokeReviewGate(this, context, event);
     const gate = normalizeGate(gateResult, event.eventId);

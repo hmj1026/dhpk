@@ -337,9 +337,11 @@ test('the returned receipt excludes raw artifact paths, prompts, and secrets', (
   assert.ok(!serialized.includes('node tests/reviewer-contract-v2.test.js'), 'raw command text must not leak into the receipt');
 });
 
-// AC #4 -- the five reviewer-contract v2 outcome shapes must reach the
+// AC #4 -- adapter-submittable reviewer-contract v2 outcome shapes reach the
 // adapter's caller with the same {executionStatus, applicability,
 // semanticVerdict} triple the shared Review Gate produced, unmodified.
+// Canonical NOT_APPLICABLE is an empty-plan registration outcome and is
+// covered by the real Review Gate journey in codex-review-gate-e2e.test.js.
 const CONFORMANCE_CASES = [
   {
     name: 'normal PASS',
@@ -364,13 +366,6 @@ const CONFORMANCE_CASES = [
     decision: { allowsProgress: false, executionStatus: 'UNAVAILABLE', applicability: 'REQUIRED' },
     expect: {
       status: 'NOT_RUN', executionStatus: 'UNAVAILABLE', applicability: 'REQUIRED',
-    },
-  },
-  {
-    name: 'not-applicable',
-    decision: { allowsProgress: true, executionStatus: 'COMPLETE', applicability: 'NOT_APPLICABLE' },
-    expect: {
-      status: 'NOT_RUN', executionStatus: 'COMPLETE', applicability: 'NOT_APPLICABLE',
     },
   },
   {
@@ -431,6 +426,56 @@ test('the Codex adapter source contains no Claude hook-mechanics dependency', ()
   }
   assert.ok(!source.includes('claude-review-gate-legacy-observation'));
   assert.ok(!source.includes('migration-coordinator'));
+});
+
+test('accepts an UNAVAILABLE reviewer result without artifact-sha evidence and preserves its gate axes', () => {
+  const adapter = makeAdapter({
+    reviewGate: {
+      handle: () => ({
+        revision: 1,
+        chainDigest: null,
+        decision: {
+          accepted: true,
+          allowsProgress: false,
+          executionStatus: 'UNAVAILABLE',
+          applicability: 'REQUIRED',
+        },
+      }),
+    },
+  });
+  const { plan, obligation, reviewRequest } = planAndReview();
+  const reviewResult = makeReviewResult(plan, obligation, {
+    executionStatus: 'UNAVAILABLE',
+    evidenceReferences: ['capability:reviewer-unavailable'],
+  });
+  const { receipt } = adapter.record(submissionInput({
+    plan,
+    reviewRequest,
+    reviewResult,
+    lifecycleEvents: [lifecycleEvent('failed-start')],
+    readinessEvents: [],
+  }));
+
+  assert.strictEqual(receipt.reviewGateStatus, 'NOT_RUN');
+  assert.strictEqual(receipt.reviewGate.status, 'NOT_RUN');
+  assert.strictEqual(receipt.reviewGate.accepted, true);
+  assert.strictEqual(receipt.reviewGate.allowsProgress, false);
+  assert.strictEqual(receipt.reviewGate.executionStatus, 'UNAVAILABLE');
+  assert.strictEqual(receipt.reviewGate.applicability, 'REQUIRED');
+  assert.ok(!Object.prototype.hasOwnProperty.call(receipt.reviewGate, 'semanticVerdict'));
+});
+
+test('requires artifact-sha evidence for a normal PASS result', () => {
+  const adapter = makeAdapter({
+    reviewGate: { handle: () => { throw new Error('PASS without artifact evidence reached Review Gate'); } },
+  });
+  const { plan, obligation, reviewRequest } = planAndReview();
+  const reviewResult = makeReviewResult(plan, obligation, {
+    semanticVerdict: 'PASS',
+    evidenceReferences: [],
+  });
+
+  expectRejected(() => adapter.record(submissionInput({ plan, reviewRequest, reviewResult })), 'MISSING_ARTIFACT_EVIDENCE', 'PASS without artifact evidence must fail closed');
 });
 
 run();

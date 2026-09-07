@@ -125,10 +125,13 @@ reconcile against, so none of that comparison vocabulary applies. Given an
 already-registered plan (the `PLAN_REGISTERED` event `scripts/lib/review-gate.js`
 projects before any `REVIEW_RESULT_RECORDED` event for the same wave is
 accepted), a reviewer-contract v2
-Review Request and Review Result, durable lifecycle/readiness events for the
-exact same identity, and artifact evidence bound to the readiness digest, it
-submits the same `REVIEW_RESULT_RECORDED` event shape the Claude adapter uses
-directly to that shared `ReviewGate.handle()`/`ReceiptStore`.
+Review Request and Review Result, and durable lifecycle/readiness events for the
+exact same identity, it submits the same `REVIEW_RESULT_RECORDED` event shape
+the Claude adapter uses directly to that shared
+`ReviewGate.handle()`/`ReceiptStore`. For a `COMPLETE` + `REQUIRED` result, the
+adapter additionally requires an `artifact-sha256:` reference bound to the
+readiness digest; incomplete or `NOT_APPLICABLE` results keep their contract
+axes without manufacturing that artifact binding.
 
 The adapter is inert until explicitly activated. Its `activation` constructor
 option defaults to `INACTIVE`, in which state `record()` refuses to run and
@@ -143,13 +146,15 @@ and `allowsTargetProgress: false` regardless of the Review Gate outcome —
 Sentinel remains authoritative until a separately approved, measured cutover
 changes it. The adapter never registers a plan, selects a lane, or chooses an
 obligation; it binds to the `obligationId`/`lane` the caller's Review Result
-already names, exactly as the Claude adapter does. The five reviewer-contract
-v2 outcome shapes — a normal `PASS`, `CHANGES_REQUIRED`, an `UNAVAILABLE`
-reviewer, a `NOT_APPLICABLE` obligation, and reused unchanged evidence — reach
-the caller as the same `{executionStatus, applicability, semanticVerdict}`
-triple the shared Review Gate produced, because both the Claude and Codex
-adapters delegate to the identical injected `ReviewGate` rather than
-re-deriving that judgment.
+already names, exactly as the Claude adapter does. Normal `PASS`,
+`CHANGES_REQUIRED`, `UNAVAILABLE`, and receipt-reuse submissions therefore
+reach the caller with the same `{executionStatus, applicability,
+semanticVerdict}` triple the shared Review Gate produced. Canonical
+`NOT_APPLICABLE` is the empty-plan registration path: `ReviewGate` accepts that
+plan with `EMPTY_DIFF`, no obligation, no review request, and no receipt, so it
+does not enter `record()` as a synthetic obligation/result. Both adapters
+delegate applicable submissions to the identical injected `ReviewGate` rather
+than re-deriving its judgment.
 
 ## Orchestration and Sentinel ownership
 

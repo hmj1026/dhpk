@@ -139,6 +139,89 @@ test('a Codex PASS submission reaches the real Review Gate and is durably record
   }
 });
 
+test('a Codex UNAVAILABLE result reaches the real Review Gate without artifact result binding', () => {
+  const fixture = createReviewGateFixture({ trustPolicy: TRUST_POLICY, now: NOW_MS });
+  try {
+    const plan = makePlan();
+    const obligation = plan.obligations[0];
+    const registration = registerPlan(fixture.gate, plan, 'plan-registered-unavailable');
+    const reviewRequest = createReviewRequest({
+      decisionId: plan.decisionId,
+      waveId: plan.waveId,
+      obligationId: obligation.obligationId,
+      lane: obligation.lane,
+      scope: plan.scope,
+      baseIdentity: plan.baseIdentity,
+      headIdentity: plan.headIdentity,
+      diff: plan.diff,
+      materialRisks: plan.materialRisks,
+      governingInputs: plan.governingInputs,
+      exclusions: [],
+      priorFindings: [],
+      contractVersion: REVIEWER_CONTRACT_VERSION,
+    });
+    const reviewResult = makeReviewResult(plan, obligation, {
+      executionStatus: 'UNAVAILABLE',
+      evidenceReferences: ['capability:reviewer-unavailable'],
+    });
+    const ids = identity({
+      taskId: 'task-370-e2e-unavailable',
+      attemptId: 'task-370-e2e-unavailable:attempt:1',
+      sessionId: 'session-370-e2e-unavailable',
+    });
+    const lifecycleEvents = [
+      lifecycleEvent('planned', ids),
+      lifecycleEvent('dispatched', ids),
+      lifecycleEvent('started', ids),
+      lifecycleEvent('failed-start', ids),
+    ];
+    const readinessEvents = [];
+
+    const adapter = makeAdapter(fixture.gate);
+    const { receipt, reviewGate } = adapter.record({
+      plan,
+      identity: ids,
+      lifecycleEvents,
+      readinessEvents,
+      reviewRequest,
+      reviewResult,
+      executedCommands: [{ command: 'codex review --bounded', outcome: 'UNAVAILABLE' }],
+      expectedRevision: registration.revision,
+      expectedChainDigest: registration.chainDigest,
+    });
+
+    assert.strictEqual(receipt.reviewGateStatus, 'NOT_RUN');
+    assert.strictEqual(reviewGate.decision.accepted, true);
+    assert.strictEqual(reviewGate.decision.executionStatus, 'UNAVAILABLE');
+    assert.strictEqual(reviewGate.decision.applicability, 'REQUIRED');
+    assert.strictEqual(reviewGate.decision.semanticVerdict, undefined);
+    assert.strictEqual(reviewGate.receipts.length, 1);
+    assert.strictEqual(reviewGate.receipts[0].kind, 'review');
+    assert.strictEqual(reviewGate.receipts[0].payload.executionStatus, 'UNAVAILABLE');
+    assert.deepStrictEqual(reviewGate.receipts[0].payload.evidenceReferences, ['capability:reviewer-unavailable']);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
+test('a canonical empty Codex plan is NOT_APPLICABLE at registration without review evidence', () => {
+  const fixture = createReviewGateFixture({ trustPolicy: TRUST_POLICY, now: NOW_MS });
+  try {
+    const plan = makePlan({ empty: true });
+    const registration = registerPlan(fixture.gate, plan, 'plan-registered-empty-codex');
+
+    assert.strictEqual(registration.decision.accepted, true);
+    assert.strictEqual(registration.decision.allowsProgress, true);
+    assert.strictEqual(registration.decision.lifecycleStatus, 'NOT_APPLICABLE');
+    assert.strictEqual(registration.decision.semanticVerdict, undefined);
+    assert.strictEqual(registration.decision.resolution, 'EMPTY_DIFF');
+    assert.deepStrictEqual(registration.reviewRequests, []);
+    assert.deepStrictEqual(registration.receipts, []);
+  } finally {
+    fixture.cleanup();
+  }
+});
+
 test('a Codex CHANGES_REQUIRED submission is recorded without being treated as approval', () => {
   const fixture = createReviewGateFixture({ trustPolicy: TRUST_POLICY, now: NOW_MS });
   try {
