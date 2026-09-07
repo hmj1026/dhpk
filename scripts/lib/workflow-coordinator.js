@@ -10,6 +10,9 @@ const {
 } = require('./receipt-primitives');
 
 const PROJECTION_SCHEMA = 'dhpk.workflow-projection.v1';
+const DELIVERY_PROJECTION_SCHEMA = 'dhpk.workflow-delivery-projection.v1';
+const PROVIDER_MERGE = 'PROVIDER_MERGE';
+const DELIVERY_VERIFICATION_OUTCOMES = Object.freeze(['PASS', 'COMPLETE']);
 const BASELINE_CONTROL = Object.freeze({
   enabled: false,
   phase: 'BASELINE',
@@ -198,6 +201,7 @@ function baseProjection(context, control, evidenceAccepted, evidenceReceiptIds =
     refreshLanes: [],
     evidenceReceiptIds: [...evidenceReceiptIds],
     decisionPacket: null,
+    authorizesPullRequest: false,
     completion: {
       implementation: 'PENDING',
       delivery: 'PENDING',
@@ -358,6 +362,7 @@ function reduceAccepted(evidence, control, evaluatedAt) {
   } else if (allRequirementsPass(requiredReviews, requiredVerifications, latestReviews, latestVerifications, authorities, evaluatedAt)) {
     result.state = 'MERGE_READY';
     result.completion.implementation = 'COMPLETE';
+    result.authorizesPullRequest = decision.payload.deliveryAuthorized === true;
   } else {
     result.state = 'EVIDENCE_PENDING';
   }
@@ -370,6 +375,47 @@ function reduceAccepted(evidence, control, evaluatedAt) {
     evaluatedAt,
     blockedLanes,
   });
+  return result;
+}
+
+function baseDeliveryProjection(context, control) {
+  const identity = identityDefaults(context);
+  return {
+    schema: DELIVERY_PROJECTION_SCHEMA,
+    state: 'POST_MERGE_PENDING',
+    condition: null,
+    ...identity,
+    completion: { delivery: 'PENDING', workflow: 'PENDING' },
+    control: cloneProjection(control),
+  };
+}
+
+function blockedDeliveryProjection(error, control) {
+  const context = error && isRecord(error.context) ? error.context : {};
+  const result = baseDeliveryProjection(context, control);
+  result.condition = {
+    type: 'BLOCKED',
+    resumeState: 'POST_MERGE_PENDING',
+    reasonCodes: [typeof error.code === 'string' ? error.code : 'MALFORMED_RECEIPT'],
+  };
+  return result;
+}
+
+function reduceDeliveryAccepted(evidence, control) {
+  const result = baseDeliveryProjection(evidence.identity, control);
+  const merge = evidence.verifications.find((item) => item.payload.evidenceType === PROVIDER_MERGE);
+  const postMergeCi = evidence.verifications.find((item) => item.payload.evidenceType === 'LOCAL_GATE');
+  const mergeObserved = Boolean(merge) && DELIVERY_VERIFICATION_OUTCOMES.includes(merge.payload.outcome);
+  const ciObserved = Boolean(postMergeCi) && DELIVERY_VERIFICATION_OUTCOMES.includes(postMergeCi.payload.outcome);
+  if (mergeObserved && ciObserved) {
+    result.state = 'ARCHIVE_READY';
+    result.completion.delivery = 'COMPLETE';
+    return result;
+  }
+  const reasonCodes = [];
+  if (!mergeObserved) reasonCodes.push('MERGE_UNOBSERVED');
+  if (!ciObserved) reasonCodes.push('POST_MERGE_CI_UNOBSERVED');
+  result.condition = { type: 'BLOCKED', resumeState: 'POST_MERGE_PENDING', reasonCodes };
   return result;
 }
 
@@ -394,6 +440,15 @@ class WorkflowCoordinator {
       return immutableProjection(reduceAccepted(evidence, this.control, this.evaluatedAt));
     } catch (error) {
       return immutableProjection(blockedProjection(error, this.control));
+    }
+  }
+
+  reduceDelivery(receipts) {
+    try {
+      const evidence = this.evidence.evaluate(receipts);
+      return immutableProjection(reduceDeliveryAccepted(evidence, this.control));
+    } catch (error) {
+      return immutableProjection(blockedDeliveryProjection(error, this.control));
     }
   }
 }
