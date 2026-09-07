@@ -165,11 +165,18 @@ already-validated evidence set: every receipt is redacted with the shared
 commit/tree, policy/contract versions, and a `sha256` digest over the redacted
 receipts. Importing a bundle re-validates every receipt through the same
 `evaluateReceipts` trust and schema checks, rejects an unsupported major
-schema, recomputes and compares the digest before trusting bundle contents,
-and — when the caller supplies an `expectedIdentity` — rejects a bundle bound
-to a foreign commit or tree. A bundle is never trusted before all three checks
-pass; without a configured transport, there is simply nothing to import, and
-delivery evidence stays absent rather than assumed.
+schema, and recomputes and compares the digest before trusting bundle
+contents. Because `digest` covers only `receipts` and not the envelope, the
+envelope's declared `sourceCommit`/`sourceTree` are independently checked
+against `evidence.bindings` — the identity `evaluateReceipts` derives from
+the digest-protected receipts themselves — and any mismatch fails
+`MALFORMED_BUNDLE` unconditionally, even with no `expectedIdentity` supplied.
+When the caller does supply an `expectedIdentity`, it is checked against that
+same receipt-derived `evidence.bindings`, never the raw envelope fields, so a
+forged envelope identity cannot pass by matching a forged expectation. A
+bundle is never trusted before all of these checks pass; without a
+configured transport, there is simply nothing to import, and delivery
+evidence stays absent rather than assumed.
 
 CI and Git-provider observations translate only into `verification` receipts,
 never `review`: `scripts/lib/ci-review-gate-adapter.js` emits a `LOCAL_GATE`
@@ -194,9 +201,16 @@ verification bound to the same merge commit, both observed as `PASS` or
 `COMPLETE`, `reduceDelivery()` reports `ARCHIVE_READY` with
 `completion.delivery: 'COMPLETE'`; either missing or unobserved keeps
 `POST_MERGE_PENDING` with a `MERGE_UNOBSERVED` or `POST_MERGE_CI_UNOBSERVED`
-reason code. `reduce()`'s own `completion.implementation` is unaffected by
-`reduceDelivery()` running at all, so a missing transport can never overstate
-local Implementation Complete as Delivery Complete.
+reason code. For each evidence type, `reduceDelivery()` takes the latest
+observation by `recordedAt` rather than the first, so a corrected rerun
+supersedes an earlier failure and a later regression is never masked by an
+earlier pass; if two receipts of the same evidence type carry distinct
+`verificationId`s, that is a genuine disagreement with no decision-declared
+list to resolve it against, so it fails closed as `POST_MERGE_PENDING` with
+`AMBIGUOUS_MERGE_OBSERVATION` or `AMBIGUOUS_POST_MERGE_CI` rather than
+picking one arbitrarily. `reduce()`'s own `completion.implementation` is
+unaffected by `reduceDelivery()` running at all, so a missing transport can
+never overstate local Implementation Complete as Delivery Complete.
 
 Separately, `reduce()` now also derives `authorizesPullRequest`: once a
 decision reaches `MERGE_READY`, this projection field reflects the decision's
