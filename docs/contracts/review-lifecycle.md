@@ -111,6 +111,41 @@ credentials, and session transcripts are excluded. A migration observation is
 never converted into synthetic Sentinel clearance and cannot itself satisfy a
 required review or change-control gate.
 
+## Codex Review Gate submission
+
+Codex has no legacy Sentinel, hook-based dispatch, or pending-file/SubagentStop
+mechanism to observe or compare against, so the Codex Review Gate adapter
+(`scripts/lib/codex-review-gate-adapter.js`) is not a migration-observation
+bridge and shares no code, receipt kind, or persistence path with the Claude
+Review Gate observation above. It is a native contract participant: given an
+already-registered plan, a reviewer-contract v2 Review Request and Review
+Result, durable lifecycle/readiness events for the exact same identity, and
+artifact evidence bound to the readiness digest, it submits the same
+`REVIEW_RESULT_RECORDED` event shape directly to the same `ReviewGate.handle()`
+and `ReceiptStore` that every other trusted producer uses. There is no
+`sentinelOutcome`, no `comparison` (`AGREE`/`DISAGREE`/`INDETERMINATE`), no
+`migration-observation` receipt, and no `MigrationCoordinator` involvement:
+Codex has nothing legacy to reconcile against, so none of that vocabulary
+applies.
+
+The adapter is inert until explicitly activated. Its `activation` constructor
+option defaults to `INACTIVE`, in which state `record()` refuses to run and
+`capabilities()` reports `effect: 'DISABLED'`. Constructing it with
+`activation: 'ACTIVE'` reports `effect: 'OBSERVE_ONLY'` and allows submission,
+but the returned receipt always fixes `authority: 'SENTINEL'`,
+`authorizesApproval: false`, `clearsSentinel: false`, `blocksSentinel: false`,
+and `allowsTargetProgress: false` regardless of the Review Gate outcome —
+Sentinel remains authoritative until a separately approved, measured cutover
+changes it. The adapter never registers a plan, selects a lane, or chooses an
+obligation; it binds to the `obligationId`/`lane` the caller's Review Result
+already names, exactly as the Claude adapter does. The five reviewer-contract
+v2 outcome shapes — a normal `PASS`, `CHANGES_REQUIRED`, an `UNAVAILABLE`
+reviewer, a `NOT_APPLICABLE` obligation, and reused unchanged evidence — reach
+the caller as the same `{executionStatus, applicability, semanticVerdict}`
+triple the shared Review Gate produced, because both the Claude and Codex
+adapters delegate to the identical injected `ReviewGate` rather than
+re-deriving that judgment.
+
 ## Orchestration and Sentinel ownership
 
 Orchestration owns worker selection, dispatch, handoff, retry linkage, and
