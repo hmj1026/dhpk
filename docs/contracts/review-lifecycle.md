@@ -156,6 +156,70 @@ does not enter `record()` as a synthetic obligation/result. Both adapters
 delegate applicable submissions to the identical injected `ReviewGate` rather
 than re-deriving its judgment.
 
+## Receipt Bundle transport and post-merge delivery evidence
+
+Runtime receipts are never committed. `scripts/lib/review-gate-receipt-bundle.js`
+exports a provider-neutral, redacted, content-addressed Receipt Bundle from an
+already-validated evidence set: every receipt is redacted with the shared
+`redactEvidence` primitive, and the bundle carries the evidence's bound source
+commit/tree, policy/contract versions, and a `sha256` digest over the redacted
+receipts. Importing a bundle re-validates every receipt through the same
+`evaluateReceipts` trust and schema checks, rejects an unsupported major
+schema, and recomputes and compares the digest before trusting bundle
+contents. Because `digest` covers only `receipts` and not the envelope, the
+envelope's declared `sourceCommit`/`sourceTree` are independently checked
+against `evidence.bindings` — the identity `evaluateReceipts` derives from
+the digest-protected receipts themselves — and any mismatch fails
+`MALFORMED_BUNDLE` unconditionally, even with no `expectedIdentity` supplied.
+When the caller does supply an `expectedIdentity`, it is checked against that
+same receipt-derived `evidence.bindings`, never the raw envelope fields, so a
+forged envelope identity cannot pass by matching a forged expectation. A
+bundle is never trusted before all of these checks pass; without a
+configured transport, there is simply nothing to import, and delivery
+evidence stays absent rather than assumed.
+
+CI and Git-provider observations translate only into `verification` receipts,
+never `review`: `scripts/lib/ci-review-gate-adapter.js` emits a `LOCAL_GATE`
+verification for a CI run, bound to whatever commit its caller names (a
+pull-request head commit or, reused unchanged, a post-merge commit). Because
+review and verification are independent lanes in `WorkflowCoordinator`, a
+CI-emitted verification receipt can satisfy only its own verification lane
+and can never substitute for semantic review. `scripts/lib/git-provider-review-gate-adapter.js`
+emits a `PROVIDER_MERGE` verification observing that a commit was merged;
+this is deliberately not an `authority` receipt, whose fixed shape
+(`reason`/`risk`/`approver`/`skippedGate`/`remediation`) is reserved for a
+scope-bound Override Authority Receipt and does not fit a routine merge
+observation.
+
+A merge commit is a different Git identity from the reviewed head commit that
+`WorkflowCoordinator.reduce()` evaluates, and `evaluateReceipts` fails closed
+(`STALE_EVIDENCE`) on any receipt set spanning two source commits. Post-merge
+delivery evidence is therefore evaluated as a second, independent receipt set
+through `WorkflowCoordinator.reduceDelivery()`, never folded into `reduce()`.
+Given a `PROVIDER_MERGE` verification and a post-merge `LOCAL_GATE`
+verification bound to the same merge commit, both observed as `PASS` or
+`COMPLETE`, `reduceDelivery()` reports `ARCHIVE_READY` with
+`completion.delivery: 'COMPLETE'`; either missing or unobserved keeps
+`POST_MERGE_PENDING` with a `MERGE_UNOBSERVED` or `POST_MERGE_CI_UNOBSERVED`
+reason code. For each evidence type, `reduceDelivery()` takes the latest
+observation by `recordedAt` rather than the first, so a corrected rerun
+supersedes an earlier failure and a later regression is never masked by an
+earlier pass; if two receipts of the same evidence type carry distinct
+`verificationId`s, that is a genuine disagreement with no decision-declared
+list to resolve it against, so it fails closed as `POST_MERGE_PENDING` with
+`AMBIGUOUS_MERGE_OBSERVATION` or `AMBIGUOUS_POST_MERGE_CI` rather than
+picking one arbitrarily. `reduce()`'s own `completion.implementation` is
+unaffected by `reduceDelivery()` running at all, so a missing transport can
+never overstate local Implementation Complete as Delivery Complete.
+
+Separately, `reduce()` now also derives `authorizesPullRequest`: once a
+decision reaches `MERGE_READY`, this projection field reflects the decision's
+existing `deliveryAuthorized` flag. This changes no enforcement effect —
+`control.authority` stays `SENTINEL` and `control.allowsTargetProgress` stays
+`false` in every case, exactly as the Claude and Codex OBSERVE-phase
+adapters do; it is a derived read of already-validated decision evidence, not
+a new authority.
+
 ## Orchestration and Sentinel ownership
 
 Orchestration owns worker selection, dispatch, handoff, retry linkage, and

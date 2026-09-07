@@ -121,10 +121,10 @@ for (const [controlName, featureControl] of Object.entries(FIXTURE.featureContro
   }
 }
 
-test('only constructor and reduce are public coordinator operations', () => {
+test('only constructor, reduce, and reduceDelivery are public coordinator operations', () => {
   assert.deepStrictEqual(
     Object.getOwnPropertyNames(WorkflowCoordinator.prototype).sort(),
-    ['constructor', 'reduce'],
+    ['constructor', 'reduce', 'reduceDelivery'],
   );
 });
 
