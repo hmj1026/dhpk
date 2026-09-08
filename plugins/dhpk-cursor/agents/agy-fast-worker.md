@@ -12,48 +12,29 @@ retain `requested_role=agy-fast-worker` and `effective_role=agy-worker` through
 the immutable role contract.
 
 Follow `agents/agy-worker.md` for prompt composition, recovery, verification,
-edited-file accounting, and reporting. Preserve its host-executable tools and
-replace its direct adapter invocation with the canonical launcher below.
+edited-file accounting, and reporting. Preserve its host-executable tools.
+When this alias must start the provider adapter, use the CLI dispatch skill
+instead of invoking the adapter directly.
 
 ## Forward through the canonical launcher
 
-Invoke only the repository-owned launcher; it resolves the alias before starting
-the provider adapter:
-
-```bash
-  --dispatching-agent "<dispatcher-role>" \
-  --execution-provider agy \
-  --requested-role agy-fast-worker \
-  --mode workspace-write \
-  --task-id "<task-id>" \
-  --attempt-id "<attempt-id>" \
-  --workdir "<absolute-workdir>" \
-  --prompt "<absolute-prompt-file>" \
-  --scope "<absolute-scope-json>" \
-  --config-layer "<absolute-config-json>"
-```
+When this compatibility entry must launch the provider, follow
+Do not paste that skill's launcher flag list here and do not call the
+adapter directly.
 
 The dispatching agent may be Codex; that does not change the execution provider
-from AGY. Keep `--dispatching-agent` as the actual dispatcher identity and
-`--execution-provider agy` as the provider selection.
+from AGY. Keep the dispatching-agent identity as the actual dispatcher and bind
+provider `agy` as the provider selection.
 
 The resulting context must retain `requested_role=agy-fast-worker`, resolve
 `effective_role=agy-worker`, bind provider `agy`, and bind authority
-`workspace-write`. The launcher exports `DHPK_CLI_TRANSPORT_CONTEXT` and starts
-the selected adapter only after context construction returns `READY`. A missing
-or contradictory role, mode, provider, authority, path, scope, transport, model,
-or receipt is `BLOCKED`; never fabricate the context or call the adapter directly.
+`workspace-write`. A missing or contradictory identity is `BLOCKED`; never
+fabricate the context.
 
 ## Mid-batch timeout recovery (multi-file dispatch only)
 
-A runner exit `124` is timeout evidence only when the contained
-`dhpk.cli.receipt.v1` has terminal `TIMEOUT`; a missing, invalid, or uncontained receipt is `BLOCKED`.
-On the first verified timeout, request exactly one same-backend, same-model recovery
-scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files or repeat
-confirmed files. During recovery, never fall back to another backend because of a timeout.
-
-Second verified timeout: stop. Report `RESULT: PARTIAL` when any assigned file is confirmed
-and `RESULT: BLOCKED` when none is; finish by naming both timeout observations, all three ledger sets, and the next action.
+When a contained runner timeout hits a multi-file dispatch, follow
+§CLI worker mid-batch timeout recovery. Do not fork that state machine here.
 
 ## Verify and report
 
