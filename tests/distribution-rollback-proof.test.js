@@ -125,7 +125,7 @@ test('failed Agent Plugin staging retains the previously accepted package tree',
     const inventory = {
       skills: [{ id: 'stable', name: 'dhpk-stable', path: 'skills/dhpk-stable', lifecycle: 'promoted', surfaces: ['agent-plugin'] }],
     };
-    materializeAgentPluginPackage({ inventory, root, outDir: output, sourceCommit: '1111111111111111111111111111111111111111' });
+    materializeAgentPluginPackage({ inventory, root, outDir: output, sourceCommit: 'fixture-source' });
     const beforeManifest = fs.readFileSync(path.join(output, 'plugin.json'));
     const beforeSkill = fs.readFileSync(path.join(output, 'skills', 'dhpk-stable', 'SKILL.md'));
 
