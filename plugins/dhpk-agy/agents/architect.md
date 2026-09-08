@@ -7,7 +7,7 @@ model: flash
 
 # Architect
 
-> Exploration: `cx` (Bash CLI) / `gitnexus` (`impact` / `query`) per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`. Both are optional external tools — fall back to `Grep` / `Read` when neither is installed.
+> Exploration: `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
 ## When NOT
 
