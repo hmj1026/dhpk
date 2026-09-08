@@ -770,6 +770,8 @@ module.exports = {
   WorkflowCoordinatorEvidence,
   WorkflowCoordinatorEvidenceError,
   evaluateReceipts,
+  isTrusted,
+  MAX_FUTURE_EVIDENCE_SKEW_MS,
   RECEIPT_SCHEMA,
   DECISION_SCHEMA,
   VERIFICATION_SCHEMA,
