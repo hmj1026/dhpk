@@ -61,7 +61,9 @@ its reason must be recorded.
 ## Migration Observation Checkpoint — explicit session orchestration
 
 The migration-observation checkpoint is an opt-in composition path, not a
-hook bridge. When enabled, the [Application Session] owns this exact order:
+hook bridge. When enabled, the Application Session—the Claude Code session applying
+an Approved Change through its Implementation Tasks under the Generated Goal
+Condition—owns this exact order:
 
 1. **Prepare before dispatch.** Invoke the runtime `prepare` operation with
    the canonical Work Request. It runs the Risk Router, registers the Review
