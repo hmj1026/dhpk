@@ -7,6 +7,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   AGENT_PLUGIN_SCHEMA,
@@ -338,6 +339,136 @@ test('repeated generation has stable files, fingerprints, and provenance', () =>
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(outA, { recursive: true, force: true });
     fs.rmSync(outB, { recursive: true, force: true });
+  }
+});
+
+test('untracked non-source CONTEXT.md does not change generated package bytes', () => {
+  const absentRoot = tmpDir('dhpk-agent-context-absent-');
+  const presentRoot = tmpDir('dhpk-agent-context-present-');
+  const absentOut = tmpDir('dhpk-agent-context-absent-out-');
+  const presentOut = tmpDir('dhpk-agent-context-present-out-');
+  try {
+    const frontmatter = 'name: dhpk-flow-guide\ndescription: Flow guide';
+    const reference = '[Application Session](../../../CONTEXT.md#application-session)\n';
+    for (const sourceRoot of [absentRoot, presentRoot]) {
+      writeSkill(sourceRoot, 'dhpk-flow-guide', frontmatter, '# Flow guide\n', {
+        'references/review-gate-mechanics.md': reference,
+      });
+    }
+    fs.writeFileSync(path.join(presentRoot, 'CONTEXT.md'), 'ignored local context\n');
+
+    const inventory = inventoryFor({
+      id: 'flow-guide',
+      name: 'dhpk-flow-guide',
+      path: 'skills/dhpk-flow-guide',
+      lifecycle: 'promoted',
+      surfaces: ['agent-plugin'],
+    });
+    const absent = materializeAgentPluginPackage({
+      inventory,
+      root: absentRoot,
+      outDir: absentOut,
+      version: '1.0.0',
+      sourceCommit: 'same-source',
+    });
+    const present = materializeAgentPluginPackage({
+      inventory,
+      root: presentRoot,
+      outDir: presentOut,
+      version: '1.0.0',
+      sourceCommit: 'same-source',
+    });
+
+    assert.deepStrictEqual(present.fingerprints, absent.fingerprints);
+    assert.deepStrictEqual(present.provenance, absent.provenance);
+    assert.strictEqual(fingerprintDir(presentOut), fingerprintDir(absentOut));
+    assertPackageFilesEquivalent(packageFiles(presentOut), packageFiles(absentOut));
+  } finally {
+    fs.rmSync(absentRoot, { recursive: true, force: true });
+    fs.rmSync(presentRoot, { recursive: true, force: true });
+    fs.rmSync(absentOut, { recursive: true, force: true });
+    fs.rmSync(presentOut, { recursive: true, force: true });
+  }
+});
+
+test('provenance-bound links ignore untracked files while preserving tracked targets', () => {
+  const root = tmpDir('dhpk-agent-provenance-source-');
+  const out = tmpDir('dhpk-agent-provenance-out-');
+  try {
+    writeSkill(root, 'dhpk-flow-guide', 'name: dhpk-flow-guide\ndescription: Flow guide', '# Flow guide\n', {
+      'references/review-gate-mechanics.md': [
+        '[Application Session](../../../CONTEXT.md#application-session)',
+        '[Published guide](../../../docs/guide.md#guide)',
+        '',
+      ].join('\n'),
+    });
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), '# Published guide\n');
+
+    execFileSync('git', ['init', '--quiet'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync('git', ['config', 'user.email', 'fixture@example.test'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync('git', ['config', 'user.name', 'dhpk fixture'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync('git', ['add', '--', 'docs/guide.md', 'skills/dhpk-flow-guide/SKILL.md', 'skills/dhpk-flow-guide/references/review-gate-mechanics.md'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync('git', ['commit', '--quiet', '-m', 'fixture'], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] });
+    const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+
+    fs.writeFileSync(path.join(root, 'CONTEXT.md'), 'ignored local context\n');
+    const status = execFileSync('git', ['status', '--short', '--', 'CONTEXT.md'], { cwd: root, encoding: 'utf8' }).trim();
+    assert.strictEqual(status, '?? CONTEXT.md');
+
+    materializeAgentPluginPackage({
+      inventory: inventoryFor({
+        id: 'flow-guide',
+        name: 'dhpk-flow-guide',
+        path: 'skills/dhpk-flow-guide',
+        lifecycle: 'promoted',
+        surfaces: ['agent-plugin'],
+      }),
+      root,
+      outDir: out,
+      version: '1.0.0',
+      sourceCommit,
+    });
+
+    const reference = fs.readFileSync(path.join(out, 'skills', 'dhpk-flow-guide', 'references', 'review-gate-mechanics.md'), 'utf8');
+    assert.match(reference, /^\[Application Session\]$/m);
+    assert.doesNotMatch(reference, /CONTEXT\.md/);
+    assert.match(reference, /^\[Published guide\]\(https:\/\/github\.com\/hmj1026\/dhpk\/blob\/main\/docs\/guide\.md#guide\)$/m);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('unresolvable provenance commit fails closed instead of using physical source fallback', () => {
+  const root = tmpDir('dhpk-agent-unresolvable-commit-source-');
+  const out = tmpDir('dhpk-agent-unresolvable-commit-out-');
+  try {
+    writeSkill(root, 'dhpk-flow-guide', 'name: dhpk-flow-guide\ndescription: Flow guide', '# Flow guide\n', {
+      'references/review-gate-mechanics.md': '[Local context](../../../CONTEXT.md)\n',
+    });
+    fs.writeFileSync(path.join(root, 'CONTEXT.md'), 'physical fallback must not be used\n');
+    const inventory = inventoryFor({
+      id: 'flow-guide',
+      name: 'dhpk-flow-guide',
+      path: 'skills/dhpk-flow-guide',
+      lifecycle: 'promoted',
+      surfaces: ['agent-plugin'],
+    });
+
+    assert.throws(
+      () => materializeAgentPluginPackage({
+        inventory,
+        root,
+        outDir: out,
+        version: '1.0.0',
+        sourceCommit: '0'.repeat(40),
+      }),
+      /provenance|source commit|published|git|resolve/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
   }
 });
 

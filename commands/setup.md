@@ -1,7 +1,7 @@
 ---
 description: 'Interactive (re)configuration and installation of dhpk plugin options and assets.'
-argument-hint: '[--show] [--install hooks|rules|scripts|all] [--dry-run] [--force]'
-allowed-tools: 'Read, Write, Edit, Bash(bash:*), Bash(git rev-parse:*), Bash(ls:*), Bash(mkdir:*), Bash(cp:*), Bash(chmod:*), AskUserQuestion'
+argument-hint: '[--show] [--review-gate] [--install hooks|rules|scripts|all] [--dry-run] [--force]'
+allowed-tools: 'Read, Write, Edit, Bash(bash:*), Bash(node:*), Bash(git rev-parse:*), Bash(ls:*), Bash(mkdir:*), Bash(cp:*), Bash(chmod:*), AskUserQuestion'
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
@@ -39,6 +39,25 @@ installer before any configuration questions. This replaces the retired
    copy cannot escape `<project>/.claude/dhpk`.
 3. Report the installer's copy/skip/conflict result and stop. Do not combine an
    asset installation with interactive plugin reconfiguration in the same run.
+
+When invoked with `--review-gate`, explicitly opt the consumer into the local
+Review Gate migration-observation checkpoint. Resolve the consumer root first,
+then run the dependency-free runtime setup operation:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/review-gate-runtime.js" \
+  init --repo-root "<project-root>"
+```
+
+Require exit `0` and a JSON result with
+`schema: "dhpk.review-gate.runtime.v1"` and `command: "init"`. Setup creates
+`.dhpk/review-gate/v1/integrity.key` as a regular `0600` file inside a private
+state directory. An existing regular key is retained and reported as already
+initialized; setup never overwrites it. A missing, non-regular, or unsafe key
+is a setup error. Do not generate the key lazily from `prepare`, `observe`, or
+`status`, and do not print its contents. This flag performs setup only; the
+Application Session still owns the later prepare, reviewer dispatch, and
+observe calls.
 
 Walk the user through configuring (or reconfiguring) the dhpk plugin **after**
 it is installed. The first install is typically done with the shell wrapper
@@ -99,6 +118,7 @@ $ARGUMENTS
 | Argument | Description |
 |----------|-------------|
 | `--show` | Skip the questions; just print the current effective configuration. |
+| `--review-gate` | Explicitly initialize the opt-in local Review Gate migration-observation checkpoint; does not dispatch reviewers or change Sentinel authority. |
 | `--install hooks\|rules\|scripts\|all` | Install selected assets into `<project>/.claude/dhpk`; accepts `--dry-run` and `--force`. |
 
 ## Use AskUserQuestion
@@ -126,6 +146,7 @@ Updated plugin options:
   docker_containers : <csv or empty>   (was: <csv>)
   review_agents     : <csv>            (was: <csv>)
   hook_profile      : <minimal|standard|strict>   (was: <…>)
+  review_gate       : <enabled|not configured>     (was: <…>)
 
 Next steps:
   • Module changes take effect after:
@@ -142,4 +163,5 @@ Next steps:
 ```
 /dhpk:setup            # full interactive flow
 /dhpk:setup --show     # print current config and exit
+/dhpk:setup --review-gate  # explicit local migration-observation setup
 ```

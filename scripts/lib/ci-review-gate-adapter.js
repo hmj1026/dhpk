@@ -1,0 +1,210 @@
+'use strict';
+
+// CI -> Review Gate verification adapter (issue #371, ADR-0017 "Platform
+// Adapters may translate only: ... CI results to verification receipts.").
+//
+// This adapter never submits a `review` receipt: a passing CI run is a
+// `verification`/LOCAL_GATE evidence lane, and WorkflowCoordinator treats
+// review and verification lanes as independent requirements (ADR-0013 "a
+// passing test cannot satisfy semantic review"). The adapter cannot select
+// lanes or clear obligations; it appends exactly the verification receipt
+// its caller supplies the outcome for, straight to the shared ReceiptStore.
+
+const {
+  canonicalJson,
+  sha256,
+  SAFE_ID,
+  COMMIT,
+  TREE,
+} = require('./receipt-primitives');
+const {
+  STORE_EVENT_SCHEMA,
+  EVIDENCE_RECEIPT_SCHEMA,
+} = require('./review-gate-receipt-store');
+const {
+  VERIFICATION_SCHEMA,
+  VERIFICATION_OUTCOMES,
+} = require('./workflow-coordinator-evidence');
+
+const ADAPTER_NAME = 'ci-review-gate';
+const EVENT_TYPE = 'CI_VERIFICATION_RECORDED';
+const EVIDENCE_TYPE = 'LOCAL_GATE';
+const ACTIVATION_STATES = new Set(['INACTIVE', 'ACTIVE']);
+const ACTIVATION_EFFECTS = Object.freeze({ INACTIVE: 'DISABLED', ACTIVE: 'OBSERVE_ONLY' });
+const IDENTITY_FIELDS = Object.freeze(['workId', 'waveId', 'planId', 'decisionId', 'sessionId']);
+const MAX_REASON_CODES = 32;
+
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isSafeId = (value) => typeof value === 'string' && SAFE_ID.test(value);
+
+class CiReviewGateAdapterError extends Error {
+  constructor(code) {
+    super(code);
+    this.name = 'CiReviewGateAdapterError';
+    this.code = code;
+  }
+}
+
+const fail = (code) => {
+  throw new CiReviewGateAdapterError(code);
+};
+
+const requireRecord = (value, code = 'MALFORMED_INPUT') => {
+  if (!isRecord(value)) fail(code);
+};
+
+const requireSafe = (value, code = 'MALFORMED_INPUT') => {
+  if (!isSafeId(value)) fail(code);
+};
+
+const requireVersionText = (value, code = 'MALFORMED_INPUT') => {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 128) fail(code);
+};
+
+const requireGitIdentity = (value, code = 'MALFORMED_INPUT') => {
+  requireRecord(value, code);
+  if (!COMMIT.test(value.commit || '') || !TREE.test(value.tree || '')) fail(code);
+};
+
+const requireIdentity = (value, code = 'MALFORMED_INPUT') => {
+  requireRecord(value, code);
+  IDENTITY_FIELDS.forEach((field) => requireSafe(value[field], code));
+};
+
+const normalizeTimestamp = (now) => {
+  let value;
+  try {
+    value = now();
+  } catch (_) {
+    fail('INVALID_CLOCK');
+  }
+  const timestamp = value instanceof Date
+    ? value.getTime()
+    : typeof value === 'string' ? Date.parse(value) : Number(value);
+  if (!Number.isFinite(timestamp)) fail('INVALID_CLOCK');
+  return new Date(timestamp).toISOString();
+};
+
+const normalizeReasonCodes = (reasonCodes) => {
+  if (reasonCodes === undefined) return undefined;
+  if (!Array.isArray(reasonCodes) || reasonCodes.length === 0 || reasonCodes.length > MAX_REASON_CODES) {
+    fail('MALFORMED_INPUT');
+  }
+  reasonCodes.forEach((code) => requireSafe(code));
+  return [...reasonCodes];
+};
+
+function makeEventId(producer, adapter, identity, headIdentity, verificationId, lane) {
+  return `ci-review-gate-${sha256(canonicalJson({
+    producer, adapter, ...identity, commit: headIdentity.commit, tree: headIdentity.tree, verificationId, lane,
+  }))}`;
+}
+
+class CiReviewGateAdapter {
+  constructor({
+    store,
+    producer = 'ci-review-gate',
+    adapter = 'review-gate-adapter',
+    adapterVersion = 'ci-review-gate.v1',
+    activation = 'INACTIVE',
+    now = () => Date.now(),
+  } = {}) {
+    if (!store || typeof store.append !== 'function') fail('CONFIGURATION');
+    if (!ACTIVATION_STATES.has(activation)) fail('CONFIGURATION');
+    if (typeof now !== 'function') fail('CONFIGURATION');
+    requireSafe(producer, 'CONFIGURATION');
+    requireSafe(adapter, 'CONFIGURATION');
+    requireVersionText(adapterVersion, 'CONFIGURATION');
+    this.store = store;
+    this.producer = producer;
+    this.adapter = adapter;
+    this.adapterVersion = adapterVersion;
+    this.activation = activation;
+    this.now = now;
+    this._capabilities = Object.freeze({
+      adapter: ADAPTER_NAME,
+      version: adapterVersion,
+      storeEventSchema: STORE_EVENT_SCHEMA,
+      receiptSchema: EVIDENCE_RECEIPT_SCHEMA,
+      evidenceType: EVIDENCE_TYPE,
+      activation,
+      effect: ACTIVATION_EFFECTS[activation],
+      authority: 'SENTINEL',
+      allowsTargetProgress: false,
+    });
+  }
+
+  capabilities() {
+    return this._capabilities;
+  }
+
+  record({
+    identity,
+    headIdentity,
+    policyVersion,
+    contractVersion,
+    verificationId,
+    lane,
+    outcome,
+    reasonCodes,
+    expectedRevision = 0,
+  } = {}) {
+    if (this.activation !== 'ACTIVE') fail('ADAPTER_INACTIVE');
+    requireIdentity(identity);
+    requireGitIdentity(headIdentity);
+    requireVersionText(policyVersion);
+    requireVersionText(contractVersion);
+    requireSafe(verificationId);
+    requireSafe(lane);
+    if (!VERIFICATION_OUTCOMES.includes(outcome)) fail('MALFORMED_INPUT');
+    const normalizedReasonCodes = normalizeReasonCodes(reasonCodes);
+
+    const recordedAt = normalizeTimestamp(this.now);
+    const eventId = makeEventId(this.producer, this.adapter, identity, headIdentity, verificationId, lane);
+    const payload = {
+      schema: VERIFICATION_SCHEMA,
+      verificationId,
+      lane,
+      evidenceType: EVIDENCE_TYPE,
+      outcome,
+      ...(normalizedReasonCodes ? { reasonCodes: normalizedReasonCodes } : {}),
+    };
+    const shared = {
+      workId: identity.workId,
+      waveId: identity.waveId,
+      producer: this.producer,
+      adapter: this.adapter,
+      sessionId: identity.sessionId,
+      sourceCommit: headIdentity.commit,
+      sourceTree: headIdentity.tree,
+      policyVersion,
+      contractVersion,
+      recordedAt,
+    };
+    const event = {
+      schema: STORE_EVENT_SCHEMA,
+      eventId,
+      eventType: EVENT_TYPE,
+      ...shared,
+      payload,
+    };
+    const receipt = {
+      schema: EVIDENCE_RECEIPT_SCHEMA,
+      receiptId: `${eventId}:receipt`,
+      kind: 'verification',
+      planId: identity.planId,
+      decisionId: identity.decisionId,
+      ...shared,
+      payload,
+    };
+
+    const storeResult = this.store.append({ expectedRevision, event, receipts: [receipt] });
+    return { receipt, event, storeResult };
+  }
+}
+
+module.exports = {
+  ADAPTER_NAME,
+  CiReviewGateAdapter,
+  CiReviewGateAdapterError,
+};

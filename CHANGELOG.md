@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 0.55.0 — 2026-09-08 — Add Review Gate runtime observation checkpoint
+
+**feat(review-gate)** — Add bounded Claude reviewer observations for BASELINE and OBSERVE while preserving Sentinel as the sole enforcement authority.
+**feat(review-gate)** — Add a Codex Review Gate submission adapter that runs Codex review waves through the shared Reviewer Contract and Review Gate, inert until explicitly activated and never authoritative over Sentinel.
+**feat(review-gate)** — Add a shared black-box differential corpus and a pure PASS/BLOCKED/UNAVAILABLE/NOT_RUN conformance report that drives Claude, Codex, CI, and Git-provider Review Gate adapters through the same scenarios, carries every focused Sentinel case forward, and cannot itself promote a migration phase.
+**feat(review-gate)** — Add maintainer-authorized `DUAL_ENFORCE` migration with fail-closed Sentinel/Review Gate agreement checks and scoped one-phase diagnostic rollback to Sentinel-authoritative `OBSERVE`.
+**feat(review-gate)** — Add a replay-backed Review Gate lifecycle with trusted lane evidence, scoped receipt reuse, remediation continuity, and expiring authority overrides.
+**feat(review-gate)** — Add an authenticated append-only Receipt Store with trusted-head replay, fenced lease journals, producer trust, and redacted content-addressed evidence.
+**feat(review-gate)** — Add a deterministic Risk Router that produces immutable Work Records and named-risk Review Plans without dispatch or workflow authority.
+**feat(review-gate)** — Add an opt-in migration-observation checkpoint with explicit setup, risk-routed reviewer requests, structured companion validation, durable observation receipts, and redacted status without changing Sentinel authority.
+**feat(review-gate)** — Add a provider-neutral Receipt Bundle transport plus CI and Git-provider verification adapters, and derive PR-creation authorization and Delivery Complete/archive eligibility from typed post-merge evidence, all inert observation with no change to Sentinel authority.
+**feat(review-gate)** — Add a risk-adaptive local Workflow Coordinator that derives immutable workflow state from trusted receipts while Sentinel remains authoritative.
+**feat(review-gate)** — Add the versioned platform-neutral reviewer request, result, finding, and legacy compatibility contract.
+
 ## 0.54.2 — 2026-09-05 — Correct consumer validation and installation diagnostics
 
 **fix(consumers)** — Correct Claude checkout validation guidance and expose stale receipt diagnostics when a native Codex plugin blocks project-local updates.

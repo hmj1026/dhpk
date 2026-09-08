@@ -1,4 +1,164 @@
-# Shared reviewer dispatch contract
+# Reviewer Contract v2
+
+Contract version: `dhpk.reviewer-contract.v2`
+
+This is the platform-neutral contract for reviewer requests, findings, and
+results. It can be exercised during the Review Gate migration, but it does not
+change current runtime authority: Sentinel remains authoritative until the
+approved migration phase changes it. Compatibility translation is an
+observation of existing evidence, never a new approval or lifecycle clearance.
+
+The executable definitions live in `scripts/lib/reviewer-contract.js`, and the
+shared conformance example lives in
+`tests/fixtures/review-gate/reviewer-contract-v2.json`.
+
+## Review Request
+
+A Review Request is immutable and binds these fields:
+
+- `decisionId`, `waveId`, and `obligationId` identify the decision, implementation
+  wave, and review debt;
+- `lane` identifies the applicable specialist responsibility;
+- `scope` binds the exact changed paths and its digest;
+- `baseIdentity` and `headIdentity` bind commit and tree identity;
+- `diff` binds a digest and a read-only reference instead of repeating the patch;
+- `materialRisks` records the named routing inputs;
+- `governingInputs` binds applicable specifications, decisions, and policies;
+- `exclusions` states deliberately excluded scope and the reason;
+- `priorFindings` carries the findings that a remediation review must revisit;
+  and
+- `contractVersion` must be `dhpk.reviewer-contract.v2`.
+
+A reviewer may inspect additional dependencies read-only, but may not silently
+expand the obligation. Missing material scope produces a completed `BLOCKED`
+result rather than a guess.
+
+## Review Result
+
+Review Results keep three axes independent:
+
+- `executionStatus`: `COMPLETE`, `NOT_RUN`, `INTERRUPTED`, or `UNAVAILABLE`;
+- `applicability`: `REQUIRED` or `NOT_APPLICABLE`; and
+- `semanticVerdict`: `PASS`, `CHANGES_REQUIRED`, or `BLOCKED`.
+
+`semanticVerdict` is required only when execution is `COMPLETE` and applicability
+is `REQUIRED`. It is absent when execution did not complete or applicability is
+`NOT_APPLICABLE`; those states must not manufacture a `PASS`. A completed
+`BLOCKED` result means that no reliable semantic judgment could be formed. A
+defect that requires remediation is `CHANGES_REQUIRED`; `FAIL` is not a v2
+semantic verdict.
+
+Every result also binds `contractVersion`, `obligationId`, and `lane`, and records
+`findings`, `inspectedScope`, and `evidenceReferences`. A `PASS` result cannot
+contain a `MUST_FIX` finding.
+
+## Structured migration companion
+
+When the opt-in production migration-observation checkpoint is active, the
+reviewer emits two sibling artifacts for each lane: the normal Markdown report
+and a same-stem `<review-artifact-stem>.result.json` companion. The Markdown is
+for human reading. The companion is the machine contract and is validated
+without parsing or translating the Markdown. The same shape applies to all
+seven Sentinel lanes; lane-specific checks remain in the lane charter, not in
+this schema.
+
+The companion schema is `dhpk.claude-review-result.v1`:
+
+```json
+{
+  "schema": "dhpk.claude-review-result.v1",
+  "requestDigest": "sha256:<hex>",
+  "reviewResult": { "<dhpk.reviewer-contract.v2 fields>": "..." },
+  "artifact": {
+    "sha256": "sha256:<hex>",
+    "identity": { "<lifecycle/readiness identity>": "..." }
+  },
+  "command": {
+    "sha256": "sha256:<hex>",
+    "outcome": "<bounded command outcome>"
+  }
+}
+```
+
+`requestDigest` is the digest of the exact immutable Review Request supplied to
+the lane. `reviewResult` is the complete v2 Review Result and must pass this
+contract's validator; the companion cannot add a second verdict vocabulary or
+change the meaning of execution status, applicability, semantic verdict, or
+finding disposition. `artifact.sha256` and `artifact.identity` bind the
+companion to the durable lifecycle/readiness evidence for the same task,
+attempt, session, dispatch, scope, and diff. `command` records only a digest
+and one canonical bounded outcome: `PASS`, `FAIL`, `NOT_RUN`,
+`NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, or `UNAVAILABLE`. Command
+`BLOCKED` and `UNAVAILABLE` states are independent from
+`reviewResult.semanticVerdict`; `CHANGES_REQUIRED` remains a review semantic
+verdict, while command `BLOCKED` and `UNAVAILABLE` report execution
+availability. The command object does not persist the command line or output.
+
+The companion contains no prompts, chain-of-thought, source text, credentials,
+environment values, raw logs, session transcripts, or absolute paths. The
+Review Result's `inspectedScope` and `evidenceReferences` are bounded
+repository-relative references; the companion's `requestDigest`,
+`artifact.sha256`, `artifact.identity`, and `command.sha256` provide the
+content and identity binding. Unknown major schemas, missing identity, foreign
+or stale identity, extra raw-evidence fields, and a `PASS` result containing
+`MUST_FIX` findings fail closed. A valid companion is review evidence for the
+caller to submit; it is not by itself a Sentinel-clearance signal or a
+migration-phase transition.
+
+## Findings
+
+Severity and disposition are separate fields:
+
+- severity: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `INFO`;
+- disposition: `MUST_FIX`, `FOLLOW_UP`, or `NOTE`.
+
+`CRITICAL` and `HIGH` findings are always `MUST_FIX`. `MEDIUM` defaults to
+`MUST_FIX`; changing it to `FOLLOW_UP` requires a Judgment Owner Decision Receipt
+(the durable record naming the accountable owner and downgrade decision), and it
+cannot be a `NOTE`. The producer materializes that default explicitly in the
+`disposition` field. `LOW` and `INFO` may use any disposition. Each finding records
+an id, summary, and bounded evidence references; evidence references do not embed
+full source or logs.
+
+## Reviewer behavior and output
+
+Reviewers are read-only: the Implementation Owner remediates findings. A
+remediation review covers both prior findings and the complete updated scope.
+Output is findings-first. A passing result stays compact and records inspected
+scope, evidence references, and the verdict. Do not emit chain-of-thought,
+repeat full inputs, restate the full diff, or copy complete test logs and generic
+checklists.
+
+## Legacy verdict compatibility
+
+The compatibility adapter translates the same completed legacy judgment; it
+does not invoke a reviewer, issue an approval receipt, create a new approval, or
+clear Sentinel.
+
+| Legacy verdict | v2 semantic candidate | Constraint |
+|---|---|---|
+| `APPROVE` | `PASS` | Only the original passing evidence can support this candidate. |
+| `PASS` | `PASS` | Only the original passing evidence can support this candidate. |
+| `WARNING` | `PASS` or `CHANGES_REQUIRED` | Any `MUST_FIX`, missing disposition, or invalid finding fails closed to `CHANGES_REQUIRED`; otherwise non-blocking findings may remain `PASS`. |
+| `BLOCK` | `CHANGES_REQUIRED` | A reported defect is not execution failure. |
+| `FAIL` | `CHANGES_REQUIRED` | `FAIL` is normalized; it is never a v2 verdict. |
+
+Missing, interrupted, unavailable, or malformed non-`WARNING` legacy output
+records its execution status and no semantic verdict. A parseable `WARNING` with
+an invalid or missing finding disposition is the explicit exception: it fails
+closed to `CHANGES_REQUIRED`. Compatibility output is a `MIGRATION_OBSERVATION`
+with `authorizesApproval: false` and `clearsSentinel: false`. Empty diffs are
+`NOT_APPLICABLE`; unchanged valid evidence is reused as lifecycle evidence without
+inventing another `PASS`.
+
+## Legacy Sentinel dispatch compatibility
+
+The remainder of this document preserves the currently deployed dispatch and
+artifact behavior. These rules remain authoritative during BASELINE (the phase
+in which Sentinel alone remains authoritative) and are not redefined by the v2
+contract above.
+
+### Shared reviewer dispatch fields
 
 Every reviewer prompt is composed from these fields, in this order:
 
@@ -15,7 +175,7 @@ then is replaced or left pending with a recorded reason. A third
 identical retry is prohibited. Specialist prompts reference this contract once;
 they retain only their unique checks and output vocabulary.
 
-## Resumed reviewer result
+### Resumed reviewer result
 
 When an existing sentinel-backed reviewer is reused through `SendMessage`, the
 orchestrator records one session-scoped `.resumed-review-obligations` record
@@ -51,7 +211,7 @@ session-scoped `.review-dispatch-attempts` row and then require matching
 artifact `session_id`, `dispatch_attempt`, and `dispatch_id` fields; legacy
 artifacts without that tuple remain armed.
 
-## Single-run verdict
+### Single-run verdict
 
 The final verdict MUST be emitted within the same run that performed the review. Stopping for advisory or intermediary input before the final verdict is written is forbidden; advisory work is folded into the same run, and post-verdict escalation is permitted. A run that stops without valid delimited frontmatter and a parseable verdict is not a valid intermediate state and leaves the sentinel armed. A warning, failure, unparseable verdict, noncanonical filename, or malformed artifact likewise leaves the sentinel armed; only `APPROVE` or `PASS` evidence satisfies hook-owned clearance.
 
