@@ -19,6 +19,7 @@ instead of invoking the adapter directly.
 ## Forward through the canonical launcher
 
 When this compatibility entry must launch the provider, follow
+`skills/dhpk-cli-dispatch-context/SKILL.md`.
 Do not paste that skill's launcher flag list here and do not call the
 adapter directly.
 

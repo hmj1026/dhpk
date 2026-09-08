@@ -85,6 +85,7 @@ approximate the backend or fall back to editing the files yourself.
 ## Mid-batch timeout recovery (multi-file dispatch only)
 
 When a contained runner timeout hits a multi-file dispatch, follow
+`skills/flow-guide/references/implementation-dispatch.md`
 §CLI worker mid-batch timeout recovery. Do not fork that state machine here.
 
 Agent-only deltas: a runner-reported timeout is `run-agy.sh` exit `124` with a
