@@ -99,4 +99,4 @@ Passed: <items>
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Sentinel clearance is hook-owned: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears `.pending-security-review`; warning, fail, or malformed evidence leaves it armed. This reviewer's job ends at writing the artifact.
+Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, retention, degradation, and hook-owned sentinel clearance: [`docs/contracts/artifact-contract.md`](../docs/contracts/artifact-contract.md) §Sentinel clearance and [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Single-run verdict. Agent-only: sentinel `.pending-security-review`. This reviewer's job ends at writing the artifact.

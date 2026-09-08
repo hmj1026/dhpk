@@ -50,12 +50,12 @@ test('worker and alias prompts point at mid-batch timeout recovery instead of fo
     ['codex-worker.md', CODEX_CANONICAL],
     ['agy-worker.md', AGY_CANONICAL],
   ]) {
-    assert.ok(/## Mid-batch timeout recovery \(multi-file dispatch only\)/.test(doc),
-      `${name} must define the Mid-batch timeout recovery section`);
-    assert.ok(doc.includes('skills/flow-guide/references/implementation-dispatch.md'),
-      `${name} must point at implementation-dispatch timeout guidance`);
     assert.ok(/CLI worker mid-batch timeout recovery/.test(doc),
       `${name} must name the timeout-recovery section`);
+    assert.ok(
+      /Mid-batch timeout recovery/.test(doc),
+      `${name} must identify mid-batch timeout recovery without freezing one heading spelling`,
+    );
     const cursorCopy = fs.readFileSync(path.join(ROOT, 'cursor', 'agents', name), 'utf8');
     assert.ok(
       cursorCopy.includes('skills/flow-guide/references/implementation-dispatch.md'),

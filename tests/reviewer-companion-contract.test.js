@@ -64,11 +64,22 @@ test('canonical reviewer prompts define the opt-in structured companion contract
 });
 
 test('the companion contract covers every Sentinel reviewer lane exactly once', () => {
-  const headings = REVIEWER_FILES.map((relative) => {
+  const findings = [];
+  for (const relative of REVIEWER_FILES) {
     const text = readReviewer(relative);
-    return (text.match(/^## Structured Review Gate Companion$/gm) || []).length;
-  });
-  assert.deepStrictEqual(headings, REVIEWER_FILES.map(() => 1));
+    if (!teachesCompanion(text)) {
+      findings.push(`${relative}: neither companion pointer nor inline companion contract`);
+      continue;
+    }
+    const headingCount = (text.match(/^## Structured Review Gate Companion$/gm) || []).length;
+    if (headingCount > 1) {
+      findings.push(`${relative}: companion taught ${headingCount} times`);
+    }
+    if (!isPointerCompanion(text) && headingCount !== 1) {
+      findings.push(`${relative}: inline companion must keep the Structured Review Gate Companion heading`);
+    }
+  }
+  assert.deepStrictEqual(findings, [], findings.join('\n'));
 });
 
 test('canonical prompts advertise exact command outcomes and keep CHANGES_REQUIRED semantic-only', () => {
