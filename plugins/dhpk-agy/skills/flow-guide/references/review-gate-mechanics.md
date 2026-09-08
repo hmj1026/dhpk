@@ -58,6 +58,49 @@ its reason must be recorded.
 
 `.claude/artifacts/**` is exempt from ALL 7 slots via an unconditional early hook exit that runs before any slot logic (self-edits by review agents would otherwise re-trigger themselves). For doc-review specifically, a `.md` file is skipped UNLESS it is under `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/`, `openspec/`, or `docs/`, or is named `CLAUDE.md` / `AGENTS.md` (any depth), or is a top-level `README*.md` (nested READMEs excluded) — so `.claude/{memory,worktrees}/**` and any other `.md` file outside that list is skipped for doc-review. This does NOT exempt `.claude/{memory,worktrees}/**` from every slot: the hook's generic extension/keyword defaults (code-reviewer on `*.php`/`*.js`/etc., db-reviewer on `*.sql`, security-reviewer on `*Auth*`/`*Login*`/etc.) match on filename alone with no path restriction, so e.g. a `.php` file under `.claude/worktrees/` (a real git-worktree-checkout location) still routes normally. See your hook source for the exact list.
 
+## Migration Observation Checkpoint — explicit session orchestration
+
+The migration-observation checkpoint is an opt-in composition path, not a
+hook bridge. When enabled, the [Application Session](../../../CONTEXT.md#application-session) owns this exact order:
+
+1. **Prepare before dispatch.** Invoke the runtime `prepare` operation with
+   the canonical Work Request. It runs the Risk Router, registers the Review
+   Plan, and returns one immutable Review Request for each applicable
+   obligation/lane. A reviewer, adapter, or wrapper must not invent a plan or
+   select a lane.
+2. **One consolidated parallel reviewer batch.** After `prepare` succeeds,
+   dispatch all applicable Sentinel lanes together. The Session owns reviewer
+   selection, dispatch identity, batching, retry linkage, and collection.
+   Reviewers produce their normal Markdown artifact and structured companion;
+   neither the reviewer nor a wrapper dispatches another reviewer.
+3. **Durable evidence barrier.** Wait until every selected lane has reached a
+   terminal lifecycle result and the matching lifecycle, readiness, and
+   Accepted-Outcome Cost evidence is durable. A readiness marker, mtime, file
+   existence, or reviewer message alone is not sufficient.
+4. **Serial observation.** Invoke `observe` once per obligation/lane in
+   deterministic serial order, using the prepared plan and the exact
+   structured companion/evidence identities. The Claude Platform Adapter and
+   Migration Coordinator translate and record the observation; they do not own
+   dispatch, invoke reviewers, or decide lane applicability.
+
+The checkpoint does not clear, arm, or otherwise change Sentinel authority.
+During `BASELINE` and `OBSERVE`, Sentinel remains authoritative even when the
+target comparison disagrees. The caller cannot override versioned phase/trust
+configuration to enter `DUAL_ENFORCE` or `CUTOVER`, and no checkpoint command
+promotes a phase automatically. An enforcing phase handles absent, foreign,
+stale, malformed, or failed observations as unresolved and fails closed.
+
+If `prepare` or any serial `observe` operation fails, the runtime exits
+nonzero and writes a bounded, redacted diagnostic sidecar. The Application
+Session reports the named failure and continues the existing Sentinel path in
+`OBSERVE`; it must not treat the failure as approval, clearance, or a reason
+to bypass a pending reviewer. Raw prompts, commands, logs, source, secrets,
+session transcripts, and absolute paths do not appear in the diagnostic or
+persisted observation. Missing telemetry counters remain `null` with named
+failure reasons and set `retirementEligible: false`; this checkpoint keeps the
+per-obligation/lane grain and leaves wave-level aggregation and retirement
+deduplication to #375.
+
 ## Reviewer dispatch — full triage → parallel → merge
 
 At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch in parallel → merge**:
