@@ -20,7 +20,7 @@ instead of invoking the adapter directly.
 ## Forward through the canonical launcher
 
 When this compatibility entry must launch the provider, follow
-`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-cli-dispatch-context/SKILL.md`.
+`skills/dhpk-cli-dispatch-context/SKILL.md`.
 Do not paste that skill's launcher flag list here and do not call the
 adapter directly.
 
@@ -36,7 +36,7 @@ fabricate the context.
 ## Mid-batch timeout recovery (multi-file dispatch only)
 
 When a contained runner timeout hits a multi-file dispatch, follow
-`${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md`
+`skills/flow-guide/references/implementation-dispatch.md`
 §CLI worker mid-batch timeout recovery. Do not fork that state machine here.
 
 ## Verify and report
