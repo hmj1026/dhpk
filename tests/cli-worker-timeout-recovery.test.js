@@ -29,6 +29,8 @@ const DISPATCH_DOC = fs.readFileSync(
 );
 const CODEX_WORKER = fs.readFileSync(path.join(ROOT, 'agents', 'codex-fast-worker.md'), 'utf8');
 const AGY_WORKER = fs.readFileSync(path.join(ROOT, 'agents', 'agy-fast-worker.md'), 'utf8');
+const CODEX_CANONICAL = fs.readFileSync(path.join(ROOT, 'agents', 'codex-worker.md'), 'utf8');
+const AGY_CANONICAL = fs.readFileSync(path.join(ROOT, 'agents', 'agy-worker.md'), 'utf8');
 const CODEX_DEEP_REASONER = fs.readFileSync(path.join(ROOT, 'agents', 'codex-deep-reasoner.md'), 'utf8');
 const CODEX_BRIDGE_AGENT = fs.readFileSync(path.join(ROOT, 'agents', 'codex-bridge.md'), 'utf8');
 const CODEX_BRIDGE_SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'SKILL.md'), 'utf8');
@@ -38,40 +40,50 @@ const MODEL_CONFIG_SPEC = fs.readFileSync(path.join(ROOT, 'openspec', 'specs', '
 const REAP_SCRIPT = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', 'reap-stale-sentinels.sh'), 'utf8');
 const PAYLOAD_LIB = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', '_lib', 'payload.sh'), 'utf8');
 
-// 3.1 — both CLI worker contracts define the same timeout-recovery state
-// machine: exactly one same-backend retry scoped to remaining ∪ unconfirmed,
-// no self-edit, no backend fallback on timeout.
-test('both worker contracts define first-timeout scoped same-backend retry with no self-edit / no fallback', () => {
-  for (const [name, doc] of [['codex-fast-worker.md', CODEX_WORKER], ['agy-fast-worker.md', AGY_WORKER]]) {
+// 3.1 — CLI worker and alias prompts point at the dispatch SSOT; that SSOT
+// owns the timeout-recovery state machine (exactly one same-backend retry
+// scoped to remaining ∪ unconfirmed, no self-edit, no backend fallback).
+test('worker and alias prompts point at mid-batch timeout recovery instead of forking it', () => {
+  for (const [name, doc] of [
+    ['codex-fast-worker.md', CODEX_WORKER],
+    ['agy-fast-worker.md', AGY_WORKER],
+    ['codex-worker.md', CODEX_CANONICAL],
+    ['agy-worker.md', AGY_CANONICAL],
+  ]) {
     assert.ok(/## Mid-batch timeout recovery \(multi-file dispatch only\)/.test(doc),
       `${name} must define the Mid-batch timeout recovery section`);
-    assert.ok(/exactly one same-backend, same-model/.test(doc),
-      `${name} must bound recovery to exactly one same-backend retry`);
-    assert.ok(doc.includes('remaining ∪ unconfirmed'),
-      `${name} must scope the retry to remaining ∪ unconfirmed, never repeating confirmed files`);
-    assert.ok(/[Nn]ever self-edit the unresolved files/.test(doc),
-      `${name} must forbid self-editing unresolved files during recovery`);
-    assert.ok(/never fall back to another backend because of a timeout/.test(doc),
-      `${name} must forbid backend fallback triggered by a timeout`);
+    assert.ok(doc.includes('skills/flow-guide/references/implementation-dispatch.md'),
+      `${name} must point at implementation-dispatch timeout guidance`);
+    assert.ok(/CLI worker mid-batch timeout recovery/.test(doc),
+      `${name} must name the timeout-recovery section`);
   }
+});
+
+test('the dispatch SSOT defines first-timeout scoped same-backend retry with no self-edit / no fallback', () => {
+  assert.ok(/exactly one recovery invocation: same backend, same model\/effort/.test(DISPATCH_DOC),
+    'dispatch SSOT must bound recovery to exactly one same-backend retry');
+  assert.ok(DISPATCH_DOC.includes('remaining ∪ unconfirmed'),
+    'dispatch SSOT must scope the retry to remaining ∪ unconfirmed, never repeating confirmed files');
+  assert.ok(/never edits the unresolved files inline/.test(DISPATCH_DOC),
+    'dispatch SSOT must forbid self-editing unresolved files during recovery');
+  assert.ok(/never falls back to another backend because of a timeout/.test(DISPATCH_DOC),
+    'dispatch SSOT must forbid backend fallback triggered by a timeout');
 });
 
 // 3.1 — an immutable runner receipt is the only timeout evidence; ordinary
 // failures and a bare exit code are never classified speculatively.
 test('timeout recovery is gated on contained runner evidence, never a bare exit code', () => {
-  for (const [name, doc] of [['codex-fast-worker.md', CODEX_WORKER], ['agy-fast-worker.md', AGY_WORKER]]) {
-    assert.ok(doc.includes('dhpk.cli.receipt.v1') && doc.includes('terminal `TIMEOUT`'),
-      `${name} must require a terminal runner receipt as timeout evidence`);
-    assert.ok(doc.includes('uncontained receipt is `BLOCKED`') || doc.includes('receipt evidence as `BLOCKED`'),
-      `${name} must fail closed when receipt evidence is unavailable`);
-  }
+  assert.ok(DISPATCH_DOC.includes('dhpk.cli.receipt.v1') && DISPATCH_DOC.includes('TIMEOUT'),
+    'dispatch SSOT must require a terminal runner receipt as timeout evidence');
+  assert.ok(DISPATCH_DOC.includes('uncontained receipt is `BLOCKED`'),
+    'dispatch SSOT must fail closed when receipt evidence is unavailable');
 });
 
 test('all Codex callers use a contained receipt, not the retired timeout envelope', () => {
   assert.ok(DISPATCH_DOC.includes('dhpk.cli.receipt.v1'), 'dispatch policy must name the terminal receipt');
   assert.ok(!DISPATCH_DOC.includes('dhpk.codex.timeout.v1'), 'dispatch policy must not require the retired timeout envelope');
   for (const [name, doc] of [
-    ['codex-fast-worker.md', CODEX_WORKER],
+    ['codex-worker.md', CODEX_CANONICAL],
     ['codex-deep-reasoner.md', CODEX_DEEP_REASONER],
     ['codex-bridge.md', CODEX_BRIDGE_AGENT],
     ['codex-bridge/SKILL.md', CODEX_BRIDGE_SKILL],
@@ -83,6 +95,8 @@ test('all Codex callers use a contained receipt, not the retired timeout envelop
     assert.ok(/not[\s\S]{0,120}(?:DONE|success)|never[\s\S]{0,120}(?:DONE|success)/i.test(doc),
       `${name} must not treat a salvaged report as success`);
   }
+  assert.ok(CODEX_WORKER.includes('skills/flow-guide/references/implementation-dispatch.md'),
+    'codex-fast-worker.md must point at the dispatch timeout SSOT rather than restating the receipt machine');
 });
 
 test('single-file Codex callers surface TIMEOUT_SALVAGED or BLOCKED without retry or fallback', () => {
@@ -144,16 +158,14 @@ test('sibling out-of-scope edits remain non-cleanup observations under the new c
 // 3.2 — second timeout is terminal: PARTIAL (any confirmed) vs BLOCKED (none
 // confirmed), both timeout observations, all three ledger sets, next action.
 test('second verified timeout is terminal with PARTIAL/BLOCKED split on confirmed-file evidence', () => {
-  for (const [name, doc] of [['codex-fast-worker.md', CODEX_WORKER], ['agy-fast-worker.md', AGY_WORKER]]) {
-    assert.ok(/Second verified timeout.*stop/.test(doc),
-      `${name} must make a second verified timeout terminal`);
-    assert.ok(/RESULT: PARTIAL.*any assigned file is confirmed/.test(doc),
-      `${name} must define PARTIAL as at-least-one-confirmed`);
-    assert.ok(/RESULT: BLOCKED.*when none is/.test(doc),
-      `${name} must define BLOCKED as none-confirmed`);
-    assert.ok(/naming both timeout observations, all three ledger sets, and the next action/.test(doc),
-      `${name} must require both timeout observations, all three ledger sets, and next action in the terminal report`);
-  }
+  assert.ok(/verified runner timeout, the worker stops/.test(DISPATCH_DOC),
+    'dispatch SSOT must make a second verified timeout terminal');
+  assert.ok(/RESULT: PARTIAL` \(at least one assigned file confirmed\)/.test(DISPATCH_DOC),
+    'dispatch SSOT must define PARTIAL as at-least-one-confirmed');
+  assert.ok(/RESULT: BLOCKED` \(none confirmed\)/.test(DISPATCH_DOC),
+    'dispatch SSOT must define BLOCKED as none-confirmed');
+  assert.ok(/naming both timeout observations/.test(DISPATCH_DOC),
+    'dispatch SSOT must require both timeout observations, ledger sets, and next action in the terminal report');
 });
 
 // 3.2 — marker durability: the marker's naming convention can never be matched

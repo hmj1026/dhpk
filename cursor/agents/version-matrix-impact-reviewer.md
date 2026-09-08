@@ -6,7 +6,9 @@ readonly: true
 ---
 # Version Matrix Impact Reviewer
 
-> Beyond path matching: confirm the *real* blast radius with `gitnexus_impact({target, direction:"upstream"})` (or `cx references --name X`) — a file in `src/Laravel/` called only from a Core-tier symbol narrows the affected cells. Optional external tools; fall back to `Grep` / path heuristics when absent. See `.cursor/rules/tool-routing.mdc`.
+> When path matching is not enough, confirm blast radius per
+> `.cursor/rules/tool-routing.mdc`. Agent-only: a file in
+> `src/Laravel/` called only from a Core-tier symbol narrows the affected cells.
 
 For PHP packages whose composer constraint spans multiple major versions
 of a key dependency (Laravel 6–11, Monolog 2/3, PHPUnit 8–11). The

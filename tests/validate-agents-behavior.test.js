@@ -87,6 +87,53 @@ test('fable is an accepted model tier (agents/architect.md ships on it)', () => 
     'validate-agents.js VALID_MODELS must include fable so agents/architect.md (model: fable) validates');
 });
 
+test('inherit is an accepted official model alias', () => {
+  const src = fs.readFileSync(VALIDATOR, 'utf8');
+  assert.ok(/VALID_MODELS\s*=\s*\[[^\]]*'inherit'/.test(src),
+    'validate-agents.js VALID_MODELS must include inherit from official subagent schema');
+});
+
+test('name that does not match the agent basename fails', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeAgent(tmp, [
+      '---',
+      'name: not-architect',
+      'description: architecture guidance',
+      'model: fable',
+      'tools: Read',
+      '---',
+      'body',
+      '',
+    ].join('\n'));
+    const result = runValidator(tmp);
+    assert.strictEqual(result.status, 1, result.out);
+    assert.match(result.out, /architect\.md — name 'not-architect' does not match basename 'architect'/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('missing tools fails as local policy', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeAgent(tmp, [
+      '---',
+      'name: architect',
+      'description: architecture guidance',
+      'model: fable',
+      '---',
+      'body',
+      '',
+    ].join('\n'));
+    const result = runValidator(tmp);
+    assert.strictEqual(result.status, 1, result.out);
+    assert.match(result.out, /architect\.md — missing\/empty 'tools'/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('the validator covers root and module agents', () => {
   const result = spawnSync(process.execPath, [VALIDATOR], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout || ''}${result.stderr || ''}`);

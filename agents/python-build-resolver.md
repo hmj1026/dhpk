@@ -11,9 +11,8 @@ effort: medium
 Get a failing Python toolchain command green with **surgical** changes. Read the
 error, fix the root cause, re-run, repeat — never silence a check to make it pass.
 
-> Before a fix that changes a signature or a public name, gauge its blast radius
-> with `gitnexus_impact` (or `cx references --name X`) — optional tools, fall back
-> to `Grep` when absent. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+> Before a fix that changes a signature or a public name, gauge blast radius
+> per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 >
 > Detect the runner first: a `uv.lock` ⇒ `uv run <tool>`; a `poetry.lock` ⇒
 > `poetry run <tool>`; an already-activated venv ⇒ the bare tool on PATH. Find

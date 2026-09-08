@@ -95,25 +95,16 @@ approximate the backend or fall back to editing the files yourself.
 
 ## Mid-batch timeout recovery (multi-file dispatch only)
 
-A runner-reported timeout is `run-codex.sh` exit `124` with a contained
-`dhpk.cli.receipt.v1` terminal `TIMEOUT` status; it does not rely on a shell
-timeout binary. On a **multi-file** dispatch it triggers timeout recovery
-instead of the ordinary failure path in "Verify and report" below. Build the
-path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`,
-disjoint, covering the assigned list) per
+When a contained runner timeout hits a multi-file dispatch, follow
 `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md`
-§CLI worker mid-batch timeout recovery, then:
+§CLI worker mid-batch timeout recovery. Do not fork that state machine here.
 
-Read the contained receipt before classifying exit `124`. A non-empty report is
-never independent verification or `RESULT: DONE`; a missing, invalid, or
-uncontained receipt is `BLOCKED`, never fabricated salvage evidence.
-
-1. **First verified timeout** — request exactly one same-backend, same-model/effort recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.
-2. **Second verified timeout** — stop. Report `RESULT: PARTIAL` when any assigned file is confirmed, `RESULT: BLOCKED` when none is, naming both timeout observations, all three ledger sets, and the next action. Write the PARTIAL marker (control-plane JSON, not a product edit — see the policy reference above for the path and required fields) before returning `RESULT: PARTIAL`.
-3. **Missing receipt evidence** — classify missing, invalid, or uncontained
-   receipt evidence as `BLOCKED`; never fabricate a timeout classification.
-
-A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified runner timeout on a multi-file batch. For a single-file Codex timeout, retain the contained receipt and report `TIMEOUT_SALVAGED` only when independent path-scoped diff verification confirms attributable edits; otherwise report `BLOCKED` and request explicit reconciliation.
+Agent-only deltas: a runner-reported timeout is `run-codex.sh` exit `124` with a
+contained `dhpk.cli.receipt.v1` terminal `TIMEOUT` (not a shell timeout binary).
+A single-file Codex timeout keeps existing semantics — retain the contained
+receipt and report `TIMEOUT_SALVAGED` only when independent path-scoped diff
+verification confirms attributable edits; otherwise report `BLOCKED` and request
+explicit reconciliation.
 
 ## Verify and report (the agent owns this, not the CLI)
 

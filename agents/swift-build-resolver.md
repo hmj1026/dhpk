@@ -11,7 +11,7 @@ effort: medium
 Get a broken Swift build green with **surgical** changes. Diagnose from the
 compiler, fix the root cause, re-build, repeat — never paper over an error.
 
-> Before applying a fix, gauge its blast radius with `cx references --name X` (or `gitnexus_impact`): if a type must become `Sendable` and it's captured across many call sites, prefer actor-wrapping over a local conformance. Optional external tools — fall back to `Grep` when absent. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+> Before applying a fix, gauge blast radius per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`. Agent-only: if a type must become `Sendable` and it's captured across many call sites, prefer actor-wrapping over a local conformance.
 >
 > Detect the build unit first: an `*.xcodeproj`/`*.xcworkspace` + scheme ⇒
 > `xcodebuild`; a `Package.swift` ⇒ `swift build`/`swift test`. A pure-logic SPM
