@@ -166,6 +166,12 @@ const COVERAGE_MAP = {
   'scripts/lib/harness-result.js': 'harness-release-aggregation.test.js',
   'scripts/lib/harness-surfaces.js': 'harness-surfaces.test.js',
   'scripts/dhpk-harness.js': 'harness-facade-cli.test.js',
+  'scripts/lib/review-gate-runtime-checkpoint.js': 'review-gate-runtime-observe-states.test.js',
+  'scripts/lib/review-gate-runtime-composition.js': 'review-gate-runtime-observe-cli.test.js',
+  'scripts/lib/review-gate-runtime-errors.js': 'review-gate-runtime-observe-security.test.js',
+  'scripts/lib/review-gate-runtime-evidence.js': 'review-gate-runtime-observe-security.test.js',
+  'scripts/lib/review-gate-runtime-provenance.js': 'review-gate-runtime-observe-security.test.js',
+  'scripts/lib/review-gate-runtime-storage.js': 'review-gate-runtime-init-security.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);

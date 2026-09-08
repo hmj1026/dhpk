@@ -146,6 +146,55 @@ test('immutable writes never replace an existing claim', () => {
   }
 });
 
+test('physical-root immutable writes reject an ancestor swap before opening the temporary file', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-receipt-primitives-physical-root-'));
+  const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-receipt-primitives-outside-'));
+  const directory = path.join(root, 'claims');
+  const outsideDirectory = path.join(outsideRoot, 'claims');
+  const file = path.join(directory, 'claim.json');
+  const backup = `${directory}.security-test-backup`;
+  fs.mkdirSync(directory, { mode: 0o700 });
+  fs.mkdirSync(outsideDirectory, { mode: 0o700 });
+  const originalOpenSync = fs.openSync;
+  let swapped = false;
+  let thrown = null;
+  fs.openSync = (target, ...args) => {
+    if (!swapped && typeof target === 'string'
+      && path.resolve(path.dirname(target)) === path.resolve(directory)
+      && path.basename(target).startsWith(`${path.basename(file)}.`)
+      && path.basename(target).endsWith('.tmp')) {
+      fs.renameSync(directory, backup);
+      fs.symlinkSync(outsideDirectory, directory, 'dir');
+      swapped = true;
+    }
+    return originalOpenSync(target, ...args);
+  };
+  try {
+    try {
+      primitives.writeImmutable(file, 'must-stay-inside\n', { physicalRoot: root });
+    } catch (error) {
+      thrown = error;
+    }
+  } finally {
+    fs.openSync = originalOpenSync;
+    if (swapped) {
+      fs.unlinkSync(directory);
+      fs.renameSync(backup, directory);
+    }
+  }
+  try {
+    assert.ok(swapped, 'the pre-link ancestor swap seam was not exercised');
+    assert.ok(thrown, 'a physical-root ancestor swap must fail closed');
+    assert.strictEqual(fs.existsSync(path.join(outsideDirectory, 'claim.json')), false);
+    assert.strictEqual(fs.existsSync(file), false);
+    assert.strictEqual(fs.readdirSync(outsideDirectory).length, 0);
+    assert.strictEqual(fs.lstatSync(directory).isSymbolicLink(), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outsideRoot, { recursive: true, force: true });
+  }
+});
+
 test('sequenced JSON replay owns ordering, digest, and predecessor verification', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-receipt-replay-'));
   const issues = [];
@@ -269,6 +318,163 @@ test('lease journals preserve claims and releases without deleting successor own
     );
     assert.strictEqual(primitives.assertLeaseJournalOwnership({ ...options, expected: second }), true);
     assert.strictEqual(fs.readFileSync(claimPath, 'utf8'), firstBytes);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('lease journal claim enumeration rejects entries beyond the bounded 20000-entry budget', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-receipt-lease-claim-budget-'));
+  const directory = path.join(root, 'journal');
+  const claimsDirectory = path.join(directory, 'claims');
+  fs.mkdirSync(claimsDirectory, { recursive: true, mode: 0o700 });
+  const names = Array.from({ length: 20001 }, (_, index) => (
+    `${String(index + 1).padStart(12, '0')}.json`
+  ));
+  const originalReaddirSync = fs.readdirSync;
+  let reads = 0;
+  fs.readdirSync = (target, ...args) => (
+    path.resolve(target) === path.resolve(claimsDirectory)
+      ? names
+      : originalReaddirSync(target, ...args)
+  );
+  const boundedError = () => {
+    const error = new Error('lease claim enumeration exceeds the bounded entry budget');
+    error.code = 'LEASE_ENUMERATION_LIMIT';
+    return error;
+  };
+  const lease = (generation) => ({ generation, token: 'a'.repeat(32), expired: false });
+  try {
+    let thrown = null;
+    try {
+      primitives.acquireLeaseJournal({
+        directory,
+        create: () => lease(20002),
+        encode: (value) => `${primitives.canonicalJson(value)}\n`,
+        decode: (bytes) => JSON.parse(bytes),
+        generationFor: (value) => value.generation,
+        tokenFor: (value) => value.token,
+        isStale: () => false,
+        matches: (left, right) => left.token === right.token,
+        conflictError: () => Object.assign(new Error('active lease'), { code: 'LEASE_ACTIVE' }),
+        unavailableError: boundedError,
+        invalidError: boundedError,
+        readFile: (file) => {
+          reads += 1;
+          const generation = Number(path.basename(file, '.json'));
+          return JSON.stringify(lease(generation));
+        },
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    assert.ok(thrown, 'oversized claim enumeration must fail closed');
+    assert.strictEqual(thrown.code, 'LEASE_ENUMERATION_LIMIT');
+    assert.ok(reads <= 20000, `claim enumeration read ${reads} records before rejecting`);
+  } finally {
+    fs.readdirSync = originalReaddirSync;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('lease journal release enumeration rejects entries beyond the bounded 20000-entry budget', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-receipt-lease-release-budget-'));
+  const directory = path.join(root, 'journal');
+  const claimsDirectory = path.join(directory, 'claims');
+  const releasesDirectory = path.join(directory, 'releases');
+  fs.mkdirSync(claimsDirectory, { recursive: true, mode: 0o700 });
+  fs.mkdirSync(releasesDirectory, { recursive: true, mode: 0o700 });
+  const current = { generation: 1, token: 'b'.repeat(32), expired: false };
+  fs.writeFileSync(
+    path.join(claimsDirectory, '000000000001.json'),
+    `${primitives.canonicalJson(current)}\n`,
+    { mode: 0o600 },
+  );
+  const names = Array.from({ length: 20001 }, (_, index) => (
+    `${primitives.sha256(`release-${index}`)}.json`
+  ));
+  const originalReaddirSync = fs.readdirSync;
+  fs.readdirSync = (target, ...args) => {
+    const resolved = path.resolve(target);
+    if (resolved === path.resolve(claimsDirectory)) return ['000000000001.json'];
+    if (resolved === path.resolve(releasesDirectory)) return names;
+    return originalReaddirSync(target, ...args);
+  };
+  const boundedError = () => {
+    const error = new Error('lease release enumeration exceeds the bounded entry budget');
+    error.code = 'LEASE_ENUMERATION_LIMIT';
+    return error;
+  };
+  try {
+    let thrown = null;
+    try {
+      primitives.releaseLeaseJournal({
+        directory,
+        expected: current,
+        encode: (value) => `${primitives.canonicalJson(value)}\n`,
+        decode: (bytes) => JSON.parse(bytes),
+        generationFor: (value) => value.generation,
+        tokenFor: (value) => value.token,
+        matches: (left, right) => left.token === right.token,
+        ownershipError: () => Object.assign(new Error('foreign lease'), { code: 'LEASE_OWNERSHIP' }),
+        invalidError: boundedError,
+        readFile: () => JSON.stringify(current),
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    assert.ok(thrown, 'oversized release enumeration must fail closed');
+    assert.strictEqual(thrown.code, 'LEASE_ENUMERATION_LIMIT');
+    assert.strictEqual(fs.readdirSync(releasesDirectory), names);
+  } finally {
+    fs.readdirSync = originalReaddirSync;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('lease journal rejects a claim record above the bounded 4 KiB record budget before decode', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-receipt-lease-record-budget-'));
+  const directory = path.join(root, 'journal');
+  const claimsDirectory = path.join(directory, 'claims');
+  fs.mkdirSync(claimsDirectory, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(claimsDirectory, '000000000001.json'), '{}\n', { mode: 0o600 });
+  const oversized = JSON.stringify({
+    generation: 1,
+    token: 'c'.repeat(32),
+    expired: false,
+    padding: 'x'.repeat(4096),
+  });
+  let decodeCalls = 0;
+  const boundedError = () => {
+    const error = new Error('lease record exceeds the bounded 4 KiB record budget');
+    error.code = 'LEASE_RECORD_LIMIT';
+    return error;
+  };
+  try {
+    let thrown = null;
+    try {
+      primitives.acquireLeaseJournal({
+        directory,
+        create: () => ({ generation: 2, token: 'd'.repeat(32), expired: false }),
+        encode: (value) => `${primitives.canonicalJson(value)}\n`,
+        decode: (bytes) => {
+          decodeCalls += 1;
+          return JSON.parse(bytes);
+        },
+        generationFor: (value) => value.generation,
+        tokenFor: (value) => value.token,
+        isStale: () => false,
+        matches: (left, right) => left.token === right.token,
+        conflictError: () => Object.assign(new Error('active lease'), { code: 'LEASE_ACTIVE' }),
+        invalidError: boundedError,
+        readFile: () => oversized,
+      });
+    } catch (error) {
+      thrown = error;
+    }
+    assert.ok(thrown, 'oversized lease records must fail closed');
+    assert.strictEqual(thrown.code, 'LEASE_RECORD_LIMIT');
+    assert.strictEqual(decodeCalls, 0);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

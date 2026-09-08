@@ -19,6 +19,12 @@ const {
   releaseLeaseJournal,
   assertLeaseJournalOwnership,
 } = require('./receipt-primitives');
+const {
+  LIMITS: STORE_LIMITS,
+  addAccounting,
+  emptyAccounting,
+} = require('./review-gate-store-budget');
+const { readPhysicalFile } = require('./physical-file');
 
 const STORE_EVENT_SCHEMA = 'dhpk.review-gate.store-event.v1';
 const EVIDENCE_RECEIPT_SCHEMA = 'dhpk.review-gate.evidence-receipt.v1';
@@ -34,6 +40,8 @@ const RECEIPT_KINDS = Object.freeze([
 const INTEGRITY_MAC = /^hmac-sha256:[a-f0-9]{64}$/;
 const FORBIDDEN_KEY = /(?:prompt|message|chainofthought|thought|reasoning|transcript|fullsource|sourcecode|fulllog|rawlog|stdout|stderr)/;
 const INTEGRITY_KEYS = new WeakMap();
+const MAX_STORE_BYTES = 1024 * 1024;
+const MAX_STORE_ENTRIES = STORE_LIMITS.revisions;
 const STALE_IDENTITY_FIELDS = new Set([
   'sourceCommit',
   'sourceTree',
@@ -55,6 +63,117 @@ class ReceiptStoreError extends Error {
 
 const fail = (code, message) => {
   throw new ReceiptStoreError(code, message);
+};
+
+const account = (current, increments) => {
+  try {
+    return addAccounting(current, increments);
+  } catch (error) {
+    const code = error && error.code ? error.code : 'MALFORMED_EVIDENCE';
+    fail(code, 'store budget exceeded');
+  }
+};
+
+const assertStorePath = (root, target) => {
+  try {
+    return assertPhysicalContainment(root, target);
+  } catch (_) {
+    const error = new Error('store path is not physically contained');
+    error.code = 'ESECURITY';
+    throw error;
+  }
+};
+
+const assertEvidencePath = (root, target, code = 'MALFORMED_EVIDENCE', message = 'store path is invalid') => {
+  try {
+    return assertStorePath(root, target);
+  } catch (_) {
+    fail(code, message);
+  }
+};
+
+const readPhysicalPrivateFile = (root, file, maxBytes = MAX_STORE_BYTES) => {
+  try {
+    return readPhysicalFile(root, file, maxBytes);
+  } catch (error) {
+    throw error;
+  }
+};
+
+const readPrivateLeaseFile = (root, file) => {
+  try {
+    return readPhysicalPrivateFile(root, file).toString('utf8');
+  } catch (error) {
+    if (error && error.code === 'ENOENT') throw error;
+    throw new ReceiptStoreError('LEASE_CONFLICT', 'the active lease record is malformed');
+  }
+};
+
+const listPhysicalNames = (
+  root,
+  directory,
+  maxEntries = MAX_STORE_ENTRIES,
+  code = 'MALFORMED_EVIDENCE',
+  message = 'store sequence directory is not physical',
+) => {
+  assertEvidencePath(root, directory, code, message);
+  let stat;
+  try {
+    stat = fs.lstatSync(directory);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return [];
+    fail(code, 'store sequence directory is unreadable');
+  }
+  if (!stat.isDirectory() || stat.isSymbolicLink()) {
+    fail(code, message);
+  }
+  let handle;
+  const names = [];
+  try {
+    handle = fs.opendirSync(directory);
+    while (true) {
+      const entry = handle.readSync();
+      if (entry === null) break;
+      if (names.length >= maxEntries) {
+        fail(code, 'store sequence directory exceeds the bounded entry budget');
+      }
+      names.push(entry.name);
+    }
+  } catch (error) {
+    if (error instanceof ReceiptStoreError) throw error;
+    fail(code, 'store sequence directory is unreadable');
+  } finally {
+    if (handle !== undefined) {
+      try { handle.closeSync(); } catch (_) { /* preserve the bounded enumeration error */ }
+    }
+  }
+  assertEvidencePath(root, directory, code, message);
+  return names;
+};
+
+const listPhysicalLeaseNames = (root, directory) => {
+  const leaf = path.basename(directory);
+  const limit = leaf === 'releases' ? STORE_LIMITS.leaseReleases : STORE_LIMITS.leaseClaims;
+  return listPhysicalNames(
+    root,
+    directory,
+    limit,
+    'LEASE_CONFLICT',
+    'lease journal directory is not physical',
+  );
+};
+
+const serializeBoundedEvidence = (value) => {
+  let content;
+  try {
+    content = `${canonicalJson(value)}\n`;
+  } catch (_) {
+    fail('MALFORMED_EVIDENCE', 'evidence serialization failed');
+  }
+  if (Buffer.byteLength(content, 'utf8') > MAX_STORE_BYTES) {
+    fail('MALFORMED_EVIDENCE', 'evidence exceeds the bounded persisted byte budget');
+  }
+  return content;
 };
 
 const isForbiddenKey = (key) => FORBIDDEN_KEY.test(String(key).replace(/[^A-Za-z0-9]/g, '').toLowerCase())
@@ -249,6 +368,9 @@ class ReceiptStore {
       unavailableError: () => new ReceiptStoreError('LEASE_CONFLICT', 'the work lease could not be acquired'),
       invalidError: () => new ReceiptStoreError('LEASE_CONFLICT', 'the active lease record is malformed'),
       physicalRoot: this.root,
+      listNames: (directory) => listPhysicalLeaseNames(this.root, directory),
+      readFile: (file) => readPrivateLeaseFile(this.root, file),
+      writeFile: (file, content, options) => writeImmutable(file, content, options),
     });
     return deepFreeze(lease);
   }
@@ -272,6 +394,9 @@ class ReceiptStore {
       ownershipError: () => new ReceiptStoreError('LEASE_OWNERSHIP', 'lease ownership does not match the active lease'),
       invalidError: () => new ReceiptStoreError('LEASE_CONFLICT', 'the active lease record is malformed'),
       physicalRoot: this.root,
+      listNames: (directory) => listPhysicalLeaseNames(this.root, directory),
+      readFile: (file) => readPrivateLeaseFile(this.root, file),
+      writeFile: (file, content, options) => writeImmutable(file, content, options),
     });
   }
 
@@ -283,7 +408,12 @@ class ReceiptStore {
     const cleanReceipts = immutableEvidence(receipts);
     this._validateEvent(cleanEvent);
     if (!Array.isArray(cleanReceipts)) fail('MALFORMED_EVIDENCE', 'receipts must be an array');
+    // Enforce the per-sequence ceiling before walking, serializing, or
+    // acquiring the lease for any receipt candidate.
+    account(emptyAccounting(), { receiptsPerSequence: cleanReceipts.length });
     for (const receipt of cleanReceipts) this._validateReceipt(receipt, cleanEvent);
+    const eventContent = serializeBoundedEvidence(cleanEvent);
+    const receiptContents = cleanReceipts.map(serializeBoundedEvidence);
 
     const lease = this.acquireLease(cleanEvent.workId, { ownerId: `append-${process.pid}` });
     try {
@@ -309,9 +439,10 @@ class ReceiptStore {
         fail('REVISION_CONFLICT', 'expected revision does not match the stored revision');
       }
 
-      this._writeObject(cleanEvent, eventDigest);
-      cleanReceipts.forEach((receipt, index) => this._writeObject(receipt, receiptDigests[index]));
-      this._assertLeaseOwnership(lease);
+      if (current.revision >= STORE_LIMITS.revisions) {
+        fail('MALFORMED_EVIDENCE', 'store sequence history exceeds the bounded entry budget');
+      }
+      const revisionAccounting = current.accounting || emptyAccounting();
       const revision = expectedRevision + 1;
       const record = {
         schema: SEQUENCE_SCHEMA,
@@ -327,8 +458,20 @@ class ReceiptStore {
         ...authenticated,
         integrityMac: integrityMacFor(INTEGRITY_KEYS.get(this), authenticated),
       };
+      const sequenceContent = serializeBoundedEvidence(persisted);
+      account(revisionAccounting, {
+        revisions: 1,
+        receiptsPerWork: cleanReceipts.length,
+        replayBytesPerWork: Buffer.byteLength(eventContent, 'utf8')
+          + receiptContents.reduce((total, content) => total + Buffer.byteLength(content, 'utf8'), 0)
+          + Buffer.byteLength(sequenceContent, 'utf8'),
+      });
       const sequencePath = path.join(this._eventsPath(cleanEvent.workId), `${String(revision).padStart(12, '0')}.json`);
-      writeImmutable(sequencePath, `${canonicalJson(persisted)}\n`, { physicalRoot: this.root });
+      this._assertLeaseOwnership(lease);
+      this._writeObject(cleanEvent, eventDigest);
+      cleanReceipts.forEach((receipt, index) => this._writeObject(receipt, receiptDigests[index]));
+      this._assertLeaseOwnership(lease);
+      writeImmutable(sequencePath, sequenceContent, { physicalRoot: this.root });
       return deepFreeze({ status: 'APPENDED', revision, eventDigest, receiptDigests, chainDigest });
     } finally {
       this.releaseLease(lease);
@@ -411,16 +554,20 @@ class ReceiptStore {
   _replay(workId, expectedIdentity = null) {
     assertSafeId(workId, 'workId');
     const eventsPath = this._eventsPath(workId);
-    assertPhysicalContainment(this.root, eventsPath);
-    if (!fs.existsSync(eventsPath)) {
-      return { revision: 0, chainDigest: null, events: [], receipts: [], sequences: [] };
-    }
+    assertEvidencePath(this.root, eventsPath, 'MALFORMED_EVIDENCE', 'store sequence directory is not physical');
     const events = [];
     const receipts = [];
     const sequences = [];
     const eventIds = new Set();
+    let accounting = emptyAccounting();
     const replayed = replayJsonSequence({
       directory: eventsPath,
+      listNames: (directory) => listPhysicalNames(this.root, directory),
+      readFile: (file) => {
+        const bytes = readPhysicalPrivateFile(this.root, file);
+        accounting = account(accounting, { replayBytesPerWork: bytes.length });
+        return bytes.toString('utf8');
+      },
       expectedName: (revision) => `${String(revision).padStart(12, '0')}.json`,
       initialChain: null,
       validateRecord: (sequence, { sequence: revision, report }) => {
@@ -457,13 +604,20 @@ class ReceiptStore {
         fail('MALFORMED_EVIDENCE', 'sequence evidence is invalid');
       },
       onRecord: (sequence) => {
-        const event = this._readObject(sequence.eventDigest);
+        accounting = account(accounting, { revisions: 1 });
+        account(emptyAccounting(), { receiptsPerSequence: sequence.receiptDigests.length });
+        accounting = account(accounting, { receiptsPerWork: sequence.receiptDigests.length });
+        const event = this._readObject(sequence.eventDigest, (bytes) => {
+          accounting = account(accounting, { replayBytesPerWork: bytes.length });
+        });
         this._validateEvent(event);
         if (event.workId !== workId) fail('FOREIGN_EVIDENCE', 'event belongs to a different work item');
         if (eventIds.has(event.eventId)) fail('IDEMPOTENCY_CONFLICT', 'event identity appears more than once');
         eventIds.add(event.eventId);
         this._validateExpectedIdentity(expectedIdentity, event);
-        const loadedReceipts = sequence.receiptDigests.map((digest) => this._readObject(digest));
+        const loadedReceipts = sequence.receiptDigests.map((digest) => this._readObject(digest, (bytes) => {
+          accounting = account(accounting, { replayBytesPerWork: bytes.length });
+        }));
         for (const receipt of loadedReceipts) {
           this._validateReceipt(receipt, event);
           this._validateExpectedIdentity(expectedIdentity, receipt);
@@ -479,6 +633,7 @@ class ReceiptStore {
       events,
       receipts,
       sequences,
+      accounting,
     };
   }
 
@@ -497,34 +652,61 @@ class ReceiptStore {
 
   _writeObject(value, digest) {
     const objectPath = this._objectPath(digest);
-    assertPhysicalContainment(this.root, objectPath);
-    const content = `${canonicalJson(value)}\n`;
-    if (fs.existsSync(objectPath)) {
-      if (fs.readFileSync(objectPath, 'utf8') !== content) fail('TAMPERED_EVIDENCE', 'content-addressed object bytes do not match');
+    assertEvidencePath(this.root, objectPath, 'TAMPERED_EVIDENCE', 'content-addressed object path is invalid');
+    const content = serializeBoundedEvidence(value);
+    let existing;
+    try {
+      existing = fs.lstatSync(objectPath);
+    } catch (error) {
+      if (!error || error.code !== 'ENOENT') fail('TAMPERED_EVIDENCE', 'content-addressed object path is invalid');
+      existing = null;
+    }
+    if (existing) {
+      if (!existing.isFile() || existing.isSymbolicLink() || (existing.mode & 0o777) !== 0o600) {
+        fail('TAMPERED_EVIDENCE', 'content-addressed object path is invalid');
+      }
+      let existingContent;
+      try {
+        existingContent = readPhysicalPrivateFile(this.root, objectPath).toString('utf8');
+      } catch (error) {
+        if (error && error.code === 'ENOENT') throw error;
+        fail('TAMPERED_EVIDENCE', 'content-addressed object bytes are unreadable');
+      }
+      if (existingContent !== content) fail('TAMPERED_EVIDENCE', 'content-addressed object bytes do not match');
       return;
     }
     try {
       writeImmutable(objectPath, content, { physicalRoot: this.root });
     } catch (error) {
-      if (!/refusing to overwrite/.test(error.message)
-        || fs.readFileSync(objectPath, 'utf8') !== content) throw error;
+      if (!/refusing to overwrite/.test(error.message)) throw error;
+      let existingContent;
+      try {
+        existingContent = readPhysicalPrivateFile(this.root, objectPath).toString('utf8');
+      } catch (readError) {
+        if (readError && readError.code === 'ENOENT') throw error;
+        fail('TAMPERED_EVIDENCE', 'content-addressed object bytes are unreadable');
+      }
+      if (existingContent !== content) fail('TAMPERED_EVIDENCE', 'content-addressed object bytes do not match');
     }
   }
 
-  _readObject(digest) {
+  _readObject(digest, onBytes = null) {
     const body = digestBody(digest);
     if (!/^[a-f0-9]{64}$/.test(body)) fail('MALFORMED_EVIDENCE', 'object digest is invalid');
     const objectPath = this._objectPath(digest);
-    assertPhysicalContainment(this.root, objectPath);
     let bytes;
     try {
-      bytes = fs.readFileSync(objectPath, 'utf8');
-    } catch (_) {
-      fail('MISSING_SEQUENCE', 'referenced evidence object is missing');
+      bytes = readPhysicalPrivateFile(this.root, objectPath);
+    } catch (error) {
+      if (error && error.code === 'ENOENT') {
+        fail('MISSING_SEQUENCE', 'referenced evidence object is missing');
+      }
+      fail('MALFORMED_EVIDENCE', 'evidence object is unreadable');
     }
+    if (typeof onBytes === 'function') onBytes(bytes);
     let value;
     try {
-      value = JSON.parse(bytes);
+      value = JSON.parse(bytes.toString('utf8'));
     } catch (_) {
       fail('MALFORMED_EVIDENCE', 'evidence object is unreadable');
     }
@@ -555,6 +737,8 @@ class ReceiptStore {
       ownershipError: () => new ReceiptStoreError('LEASE_OWNERSHIP', 'lease ownership does not match the active lease'),
       invalidError: () => new ReceiptStoreError('LEASE_CONFLICT', 'the active lease record is malformed'),
       physicalRoot: this.root,
+      listNames: (directory) => listPhysicalLeaseNames(this.root, directory),
+      readFile: (file) => readPrivateLeaseFile(this.root, file),
     });
   }
 

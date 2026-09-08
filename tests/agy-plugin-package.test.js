@@ -129,6 +129,32 @@ test('copies selected skill reference assets so relative links stay reachable', 
   }
 });
 
+test('AGY projection preserves the complete execution-policy mechanics reference', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    const inventory = writeFixture(root);
+    fs.writeFileSync(path.join(root, 'rules', 'sample.md'), [
+      '# Execution policy fixture',
+      '',
+      'Full checkpoint mechanics and envelope rules live in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.',
+      '',
+    ].join('\n'));
+    materializeAgyPluginPackage({
+      root,
+      inventory,
+      outDir,
+      version: '0.39.0',
+      sourceVersion: '0.39.0',
+      sourceCommit: COMMIT,
+    });
+    const policy = fs.readFileSync(path.join(outDir, 'rules', 'sample.md'), 'utf8');
+    assert.match(policy, /Full checkpoint mechanics\s+and envelope rules live in `?\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/flow-guide\/references\/review-gate-mechanics\.md`?\./);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('minimal AGY profile carries declared transport runtime support without widening receipt selection', () => {
   const root = tempRoot();
   const outDir = path.join(root, 'package');

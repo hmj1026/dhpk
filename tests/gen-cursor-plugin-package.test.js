@@ -297,6 +297,51 @@ test('Cursor frontmatter adaptation keeps identity while removing client-only po
   }
 });
 
+test('Cursor projection omits Claude-only Review Gate setup and preserves the complete mechanics reference', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-review-gate-projection-');
+  try {
+    write(path.join(root, 'commands', 'setup.md'), [
+      '---',
+      "description: 'Setup fixture.'",
+      '---',
+      'argument-hint: \'[--show] [--review-gate]\'',
+      '',
+      'When invoked with `--review-gate`, initialize the local checkpoint.',
+      '',
+      '```bash',
+      'node "${CLAUDE_PLUGIN_ROOT}/scripts/review-gate-runtime.js" init --repo-root "<project-root>"',
+      '```',
+      '',
+    ].join('\n'));
+    write(path.join(root, 'rules', 'execution-policy.md'), [
+      '# Execution policy fixture',
+      '',
+      'Full checkpoint mechanics and envelope rules live in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.',
+      '',
+    ].join('\n'));
+
+    materializeCursorPackage({
+      inventory: fixtureInventory(),
+      root,
+      outDir: out,
+      version: '1.2.3',
+      sourceCommit: 'abc123',
+    });
+
+    const setup = fs.readFileSync(path.join(out, 'commands', 'setup.md'), 'utf8');
+    assert.doesNotMatch(setup, /--review-gate/);
+    assert.doesNotMatch(setup, /review-gate-runtime\.js/);
+    assert.doesNotMatch(setup, /init --repo-root/);
+
+    const policy = fs.readFileSync(path.join(out, 'rules', 'execution-policy.mdc'), 'utf8');
+    assert.match(policy, /Full checkpoint mechanics\s+and envelope rules live in [^\n]*review-gate-mechanics\.md`?\./);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('invalid sibling skill is reported and skipped without disabling valid siblings', () => {
   const root = makeFixture();
   const out = tmpDir('dhpk-cursor-invalid-skill-');

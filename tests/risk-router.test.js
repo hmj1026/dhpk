@@ -87,7 +87,7 @@ test('a bounded routine request produces one stable immutable code-review plan',
   assert.deepStrictEqual(record.outcomeReferences, input.outcomeReferences);
   assert.match(record.scope.digest, SHA256);
 
-  assert.strictEqual(plan.policyVersion, 'dhpk.risk-policy.initial.v1');
+  assert.strictEqual(plan.policyVersion, 'dhpk.risk-policy.initial.v2');
   assert.strictEqual(plan.applicability, 'REQUIRED');
   assert.match(plan.planId, STABLE_ID);
   assert.strictEqual(plan.obligations.length, 1);
@@ -137,6 +137,7 @@ test('named risks and scope kinds select deterministic specialist lanes', () => 
     'IRREVERSIBLE_ACTION', 'EXTERNAL_ACTION', 'SECURITY', 'PRIVACY', 'AUTHENTICATION', 'MONEY',
     'DATABASE', 'SCHEMA', 'MIGRATION', 'RELEASE', 'COMPATIBILITY', 'CROSS_DOMAIN', 'SHARED_STATE',
     'MULTI_WRITER', 'HIGH_UNCERTAINTY', 'UNKNOWN_ROOT_CAUSE', 'FAILED_VERIFICATION',
+    'RUNTIME_VERSION_GUARD',
   ]);
   assert.deepStrictEqual(SCOPE_KINDS, ['SOURCE', 'FRONTEND', 'DATABASE', 'MIGRATION', 'DOCUMENTATION']);
 
@@ -158,6 +159,39 @@ test('named risks and scope kinds select deterministic specialist lanes', () => 
     const plan = new RiskRouter().plan(createWorkRecord(request), INITIAL_RISK_POLICY);
     assert.deepStrictEqual(plan.obligations.map(({ lane }) => lane), item.lanes);
   }
+});
+
+test('runtime version guard appends the polyfill obligation after existing lanes', () => {
+  const request = routineRequest();
+  request.scope.kinds = ['SOURCE', 'FRONTEND', 'DATABASE', 'MIGRATION', 'DOCUMENTATION'];
+  request.materialRisks = ['SECURITY', 'SCHEMA', 'RUNTIME_VERSION_GUARD'];
+
+  const record = createWorkRecord(request);
+  const plan = new RiskRouter().plan(record, INITIAL_RISK_POLICY);
+
+  assert.strictEqual(request.schemaVersion, 'dhpk.work-request.v1');
+  assert.strictEqual(record.schemaVersion, 'dhpk.work-record.v1');
+  assert.strictEqual(plan.schemaVersion, 'dhpk.review-plan.v1');
+  assert.strictEqual(plan.policyVersion, 'dhpk.risk-policy.initial.v2');
+  assert.deepStrictEqual(plan.obligations.map(({ lane }) => lane), [
+    'code-reviewer',
+    'security-reviewer',
+    'database-reviewer',
+    'migration-reviewer',
+    'frontend-reviewer',
+    'doc-reviewer',
+    'polyfill-reviewer',
+  ]);
+  assert.deepStrictEqual(
+    plan.obligations
+      .filter(({ reasonSignals }) => reasonSignals.includes('RUNTIME_VERSION_GUARD'))
+      .map(({ lane }) => lane),
+    ['polyfill-reviewer'],
+  );
+  assert.deepStrictEqual(
+    plan.obligations.find(({ lane }) => lane === 'polyfill-reviewer').reasonSignals,
+    ['RUNTIME_VERSION_GUARD'],
+  );
 });
 
 test('counts are observations and cannot change identities, routing, or obligations', () => {
@@ -207,7 +241,7 @@ test('contract versions, vocabularies, and the registered policy fail closed', (
   );
   assert.throws(
     () => router.plan(record, { ...INITIAL_RISK_POLICY, scopeLanes: {} }),
-    /registered dhpk\.risk-policy\.initial\.v1 policy/
+    /registered dhpk\.risk-policy\.initial\.v2 policy/
   );
   assert.throws(
     () => router.plan({ ...record, materialRisks: ['LOW_SCORE'] }, INITIAL_RISK_POLICY),
