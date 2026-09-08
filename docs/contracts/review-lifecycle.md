@@ -124,7 +124,9 @@ The production composition boundary is the explicit, dependency-free
 not opted in has no migration-observation runtime state.
 
 The CLI owns transport and durable-state lookup, not workflow authority. The
-[Application Session](../../CONTEXT.md#application-session) owns reviewer selection, the parallel seven-lane dispatch,
+Application Session—the Claude Code session applying an Approved Change through
+its Implementation Tasks under the Generated Goal Condition—owns reviewer selection,
+the parallel seven-lane dispatch,
 retry policy, and the call to the CLI. `prepare` receives the canonical Work
 Request JSON, runs Work Record and Risk Router processing, registers the Review
 Plan, and returns immutable per-obligation Review Requests. It does not invoke

@@ -13,7 +13,9 @@ canonical Work Request, the risk-routed review plan, reviewer output, and the
 existing lifecycle evidence. Wiring that boundary into deterministic hooks
 would give migration telemetry an unintended authority over Sentinel. Asking
 the adapter to dispatch reviewers would also blur the ownership boundary
-between the [Application Session](../../CONTEXT.md#application-session) and a Platform Adapter.
+between the Application Session—the Claude Code session that applies an Approved
+Change through its Implementation Tasks under the Generated Goal Condition—and a
+Platform Adapter.
 
 Migration evidence must therefore be collected at a deliberate checkpoint
 after the review lifecycle has produced durable evidence. The checkpoint must
