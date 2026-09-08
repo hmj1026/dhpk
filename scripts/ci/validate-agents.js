@@ -3,9 +3,11 @@
 
 // Validate agents/*.md frontmatter.
 //   FAIL: missing frontmatter, missing/empty name or description, duplicate
-//         keys, invalid model / effort / maxTurns value.
-//   WARN: missing model / tools / effort / maxTurns (promoted to FAIL under
+//         keys, name/basename mismatch, missing/empty tools, invalid model /
+//         effort / maxTurns value.
+//   WARN: missing model / effort / maxTurns (promoted to FAIL under
 //         --strict for fields that are explicitly present but empty).
+//   Local policy (not official schema): tools required; name matches basename.
 // INDEX.md is a navigation file, not an agent — skipped.
 
 const fs = require('fs');
@@ -15,7 +17,7 @@ const { createReporter } = require('./_lib/report');
 const { collectCodexCoverageErrors, collectCodexRuntimeErrors } = require('./_lib/codex-runtime');
 
 const ROOT = path.join(__dirname, '..', '..');
-const VALID_MODELS = ['haiku', 'sonnet', 'opus', 'fable'];
+const VALID_MODELS = ['haiku', 'sonnet', 'opus', 'fable', 'inherit'];
 const VALID_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
 function parseRoot(argv) {
@@ -83,12 +85,18 @@ for (const fullPath of files) {
     r.err(`${file} — duplicate frontmatter keys: ${[...new Set(fm.duplicates)].join(', ')}`);
   }
   if (isEmpty(fm.values.name)) r.err(`${file} — missing/empty 'name'`);
+  else {
+    const basename = path.basename(fullPath, '.md');
+    if (basename !== fm.values.name) {
+      r.err(`${file} — name '${fm.values.name}' does not match basename '${basename}'`);
+    }
+  }
   if (isEmpty(fm.values.description)) r.err(`${file} — missing/empty 'description'`);
   if (isEmpty(fm.values.model)) r.warn(`${file} — missing 'model'`);
   else if (!VALID_MODELS.includes(fm.values.model)) {
     r.err(`${file} — invalid model '${fm.values.model}' (expected: ${VALID_MODELS.join(', ')})`);
   }
-  if (isEmpty(fm.values.tools)) r.warn(`${file} — missing 'tools'`);
+  if (isEmpty(fm.values.tools)) r.err(`${file} — missing/empty 'tools'`);
   if (isEmpty(fm.values.effort)) {
     if (hasFrontmatterKey(fm.values, 'effort')) r.warn(`${file} — missing/empty 'effort'`);
     else warnOptional(`${file} — missing 'effort'`);

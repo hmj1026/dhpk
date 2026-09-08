@@ -133,4 +133,21 @@ test('GitHub issue guidance streams shell-sensitive bodies through stdin', () =>
   assert.doesNotMatch(text, /gh issue close[^\n]*--comment/);
 });
 
+test('doc-reviewer cites the frontmatter schema reference instead of a stale model enum', () => {
+  const schemaPath = path.join(ROOT, 'docs/agent-guidance/frontmatter-schema.md');
+  assert.ok(fs.existsSync(schemaPath), 'docs/agent-guidance/frontmatter-schema.md must exist');
+  const schema = fs.readFileSync(schemaPath, 'utf8');
+  assert.match(schema, /## Official agent fields/);
+  assert.match(schema, /## Official skill fields/);
+  assert.match(schema, /## Local policy/);
+  assert.match(schema, /code\.claude\.com\/docs\/en\/sub-agents/);
+  assert.match(schema, /code\.claude\.com\/docs\/en\/skills/);
+  assert.match(schema, /inherit/);
+  const index = fs.readFileSync(path.join(ROOT, 'docs/agent-guidance/README.md'), 'utf8');
+  assert.match(index, /frontmatter-schema\.md/);
+  const reviewer = fs.readFileSync(path.join(ROOT, 'agents/doc-reviewer.md'), 'utf8');
+  assert.match(reviewer, /docs\/agent-guidance\/frontmatter-schema\.md/);
+  assert.doesNotMatch(reviewer, /model`? ∈ \{haiku, sonnet, opus\}/);
+});
+
 run('agent-facing-contract');

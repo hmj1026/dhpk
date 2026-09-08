@@ -20,28 +20,44 @@ const REVIEWER_FILES = [
 
 const readReviewer = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 
+const INLINE_COMPANION = [
+  /Structured Review Gate Companion/,
+  /only when the dispatch request explicitly contains .*Review Gate opt-in.*envelope/i,
+  /ordinary invocation.*no companion/i,
+  /same stem.*\.result\.json/i,
+  /dhpk\.claude-review-result\.v1/,
+  /requestDigest/,
+  /reviewResult/,
+  /dhpk\.reviewer-contract\.v2/,
+  /artifact.*(?:sha256|digest).*identity/is,
+  /command.*(?:sha256|digest).*outcome/is,
+  /digest-only/i,
+  /raw logs.*prompts.*secrets/is,
+  /does not.*(?:clear|affect).*Sentinel.*clearance/is,
+  /structured JSON.*directly|directly.*structured JSON/is,
+];
+
+function isPointerCompanion(text) {
+  return /docs\/contracts\/reviewer-contract\.md/.test(text)
+    && /Structured (migration )?companion/i.test(text)
+    && /Review Gate opt-in/i.test(text)
+    && /ordinary invocation.*no companion/i.test(text);
+}
+
+function isInlineCompanion(text) {
+  return INLINE_COMPANION.every((pattern) => pattern.test(text));
+}
+
+function teachesCompanion(text) {
+  return isPointerCompanion(text) || isInlineCompanion(text);
+}
+
 test('canonical reviewer prompts define the opt-in structured companion contract', () => {
   const findings = [];
   for (const relative of REVIEWER_FILES) {
     const text = readReviewer(relative);
-    const required = [
-      /Structured Review Gate Companion/,
-      /only when the dispatch request explicitly contains .*Review Gate opt-in.*envelope/i,
-      /ordinary invocation.*no companion/i,
-      /same stem.*\.result\.json/i,
-      /dhpk\.claude-review-result\.v1/,
-      /requestDigest/,
-      /reviewResult/,
-      /dhpk\.reviewer-contract\.v2/,
-      /artifact.*(?:sha256|digest).*identity/is,
-      /command.*(?:sha256|digest).*outcome/is,
-      /digest-only/i,
-      /raw logs.*prompts.*secrets/is,
-      /does not.*(?:clear|affect).*Sentinel.*clearance/is,
-      /structured JSON.*directly|directly.*structured JSON/is,
-    ];
-    for (const pattern of required) {
-      if (!pattern.test(text)) findings.push(`${relative}: missing ${pattern}`);
+    if (!teachesCompanion(text)) {
+      findings.push(`${relative}: neither companion pointer nor inline companion contract`);
     }
   }
   assert.deepStrictEqual(findings, [], findings.join('\n'));
@@ -68,6 +84,19 @@ test('canonical prompts advertise exact command outcomes and keep CHANGES_REQUIR
   const findings = [];
   for (const relative of REVIEWER_FILES) {
     const text = readReviewer(relative);
+    if (isPointerCompanion(text)) {
+      const contract = readReviewer('docs/contracts/reviewer-contract.md');
+      for (const name of expectedOutcomes) {
+        if (!contract.includes(name)) {
+          findings.push(`${relative}: contract SSOT missing command outcome ${name}`);
+        }
+      }
+      if (!/CHANGES_REQUIRED[\s\S]{0,160}reviewResult\.semanticVerdict|reviewResult\.semanticVerdict[\s\S]{0,160}CHANGES_REQUIRED/i.test(text)
+        && !/CHANGES_REQUIRED[\s\S]{0,160}reviewResult\.semanticVerdict|reviewResult\.semanticVerdict[\s\S]{0,160}CHANGES_REQUIRED/i.test(contract)) {
+        findings.push(`${relative}: CHANGES_REQUIRED is not identified as reviewResult.semanticVerdict-only`);
+      }
+      continue;
+    }
     const heading = text.indexOf('## Structured Review Gate Companion');
     const nextHeading = text.indexOf('\n## ', heading + 1);
     const section = text.slice(heading, nextHeading === -1 ? text.length : nextHeading);

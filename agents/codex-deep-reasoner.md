@@ -14,35 +14,21 @@ This one-release compatibility entry point resolves to `codex-reasoner` in
 through the immutable role contract.
 
 Follow `agents/codex-reasoner.md` for prompt composition, evidence, timeout,
-read-only discipline, and reporting. Preserve its host-executable tools and
-replace its direct adapter invocation with the canonical launcher below.
+read-only discipline, and reporting. Preserve its host-executable tools.
+When this alias must start the provider adapter, use the CLI dispatch skill
+instead of invoking the adapter directly.
 
 ## Forward through the canonical launcher
 
-Invoke only the repository-owned launcher; it resolves the alias before starting
-the provider adapter:
-
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js" \
-  --dispatching-agent "<dispatcher-role>" \
-  --execution-provider codex \
-  --requested-role codex-deep-reasoner \
-  --mode read-only \
-  --task-id "<task-id>" \
-  --attempt-id "<attempt-id>" \
-  --workdir "<absolute-workdir>" \
-  --prompt "<absolute-prompt-file>" \
-  --scope "<absolute-scope-json>" \
-  --config-layer "<absolute-config-json>"
-```
+When this compatibility entry must launch the provider, follow
+`skills/dhpk-cli-dispatch-context/SKILL.md`.
+Do not paste that skill's launcher flag list here and do not call the
+adapter directly.
 
 The resulting context must retain `requested_role=codex-deep-reasoner`, resolve
 `effective_role=codex-reasoner`, bind provider `codex`, and bind authority
-`read-only`. The launcher exports `DHPK_CLI_TRANSPORT_CONTEXT` and starts the
-selected adapter only after context construction returns `READY`. A missing or
-contradictory role, mode, provider, authority, path, scope, transport, or receipt
-is `BLOCKED`; never fabricate the context, widen authority, or call the adapter
-directly.
+`read-only`. A missing or contradictory identity is `BLOCKED`; never fabricate
+the context or widen authority.
 
 The backend report is not reasoning evidence. Independently verify every cited
 file:line against the working tree and confirm the run produced no working-tree

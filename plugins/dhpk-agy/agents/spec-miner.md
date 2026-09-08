@@ -9,7 +9,7 @@ model: pro
 
 Extract behavioral specifications from a codebase that has no OpenSpec specs yet. Your output becomes the baseline truth that delta specs reference in future changes.
 
-> Exploration: trace call chains with `cx references` / `gitnexus_impact` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`; fall back to `Grep` / `Read` when neither is installed.
+> Exploration: trace call chains per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
 ## When NOT
 

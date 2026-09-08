@@ -10,6 +10,8 @@ current branch of work.
   validation gates, generated artifacts, and sentinel lifecycle.
 - [Writing for agents](writing-for-agents.md) — context pointers, disclosure,
   SSOT ownership, completion evidence, and document-class contracts.
+- [Frontmatter schema](frontmatter-schema.md) — official Claude Code agent and
+  skill fields, plugin-ignored fields, and labeled dhpk local policy.
 - [Trap-sheet disposition](trap-sheet-disposition.md) — canonical
   `agent-traps/` inventory for the trap-sheet document class.
 - [Command contract](command-contract.md) — invocation, failure boundaries,

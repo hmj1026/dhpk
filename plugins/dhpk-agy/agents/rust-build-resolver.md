@@ -11,9 +11,8 @@ Get a broken Cargo build green with **surgical** changes. rustc's diagnostics ar
 precise — read the error and its `help:` line, fix the root cause, re-run, repeat.
 Never paper over a borrow / lifetime error with a stray `.clone()` or `unsafe`.
 
-> Before a fix that changes a signature or a public name, gauge its blast radius
-> with `gitnexus_impact` (or `cx references --name X`) — optional tools, fall back
-> to `Grep` when absent. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+> Before a fix that changes a signature or a public name, gauge blast radius
+> per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 >
 > Build unit: a `Cargo.toml` ⇒ `cargo build` / `cargo test`. Use
 > `cargo build --message-format=short 2>&1` for a dense error list, then drill
