@@ -9,7 +9,6 @@ const {
   COMMIT,
   TREE,
   SAFE_ID,
-  FINGERPRINT,
   canonicalJson,
   deepFreeze,
   sha256,
@@ -17,11 +16,22 @@ const {
 const { importBundle } = require('./review-gate-receipt-bundle');
 const { WorkflowCoordinator } = require('./workflow-coordinator');
 const { isTrusted, MAX_FUTURE_EVIDENCE_SKEW_MS } = require('./workflow-coordinator-evidence');
-const { groupCostByCohort } = require('./review-gate-conformance');
+const { COST_FIELDS, aggregate } = require('./review-gate-retirement-cost');
 const {
   PHASE_TRANSITION_SCHEMA,
   validatePhaseTransitionPayload,
 } = require('./migration-coordinator');
+const {
+  RetirementReportError,
+  fail,
+  isRecord,
+  requireRecord,
+  requireArray,
+  requireText,
+  requireId,
+  requireDigest,
+  requireTimestamp,
+} = require('./review-gate-retirement-guards');
 
 const LEDGER_SCHEMA = 'dhpk.review-gate.retirement-ledger.v1';
 const REPORT_SCHEMA = 'dhpk.review-gate.retirement-report.v1';
@@ -36,52 +46,6 @@ const SINGLE_MAINTAINER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const CI_VERIFICATION_SCHEMA = 'dhpk.workflow.verification.v1';
 const MAX_BUNDLES = 1000;
 const MAX_DISAGREEMENTS = 1000;
-const COST_FIELDS = Object.freeze([
-  'modelTokens', 'dispatchCount', 'semanticReviewCount', 'remediationRounds',
-  'humanTurns', 'elapsedMs', 'falseBlockCount', 'receiptReuseCount',
-]);
-
-class RetirementReportError extends Error {
-  constructor(code) {
-    super(code);
-    this.name = 'RetirementReportError';
-    this.code = code;
-  }
-}
-
-const fail = (code) => { throw new RetirementReportError(code); };
-
-const isRecord = (value) => value !== null
-  && typeof value === 'object'
-  && !Array.isArray(value)
-  && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
-
-function requireRecord(value, code = 'MALFORMED_LEDGER') {
-  if (!isRecord(value)) fail(code);
-}
-
-function requireArray(value, code = 'MALFORMED_LEDGER', max = MAX_BUNDLES) {
-  if (!Array.isArray(value) || value.length > max) fail(code);
-}
-
-function requireText(value, code = 'MALFORMED_LEDGER', maxBytes = 4096) {
-  if (typeof value !== 'string' || value.trim() === ''
-    || /[\u0000-\u001f\u007f]/.test(value)
-    || Buffer.byteLength(value, 'utf8') > maxBytes) fail(code);
-}
-
-function requireId(value, code = 'MALFORMED_LEDGER') {
-  if (typeof value !== 'string' || !SAFE_ID.test(value)) fail(code);
-}
-
-function requireDigest(value, code = 'MALFORMED_LEDGER') {
-  if (typeof value !== 'string' || !FINGERPRINT.test(value)) fail(code);
-}
-
-function requireTimestamp(value, code = 'MALFORMED_LEDGER') {
-  requireText(value, code, 128);
-  if (!Number.isFinite(Date.parse(value))) fail(code);
-}
 
 function validateEvidenceLocation(location, ledger) {
   if (location === undefined || location === null) return false;
@@ -622,77 +586,12 @@ function validateRollbackDrill(drill, trustPolicy, generatedAt) {
   };
 }
 
-function aggregate(entries) {
-  const baseline = groupCostByCohort(entries.filter((entry) => entry.phase !== 'CUTOVER')
-    .filter((entry) => entry.cost.retirementEligible)
-    .map((entry) => ({ cohort: entry.cohort, cost: entry.cost })));
-  const cutover = groupCostByCohort(entries.filter((entry) => entry.phase === 'CUTOVER')
-    .filter((entry) => entry.cost.retirementEligible)
-    .map((entry) => ({ cohort: entry.cohort, cost: entry.cost })));
-  const cohorts = {};
-  const comparable = [];
-  const unmatched = [];
-  const regressions = [];
-  let strictImprovement = false;
-  const exactMetrics = (items) => {
-    const result = {};
-    for (const entry of items.filter((item) => item.cost.retirementEligible)) {
-      if (!result[entry.cohort]) result[entry.cohort] = {};
-      for (const field of COST_FIELDS) {
-        const value = entry.cost.metrics[field];
-        if (value === null) continue;
-        if (!result[entry.cohort][field]) result[entry.cohort][field] = { sum: 0n, count: 0 };
-        result[entry.cohort][field].sum += BigInt(value);
-        result[entry.cohort][field].count += 1;
-      }
-    }
-    return result;
-  };
-  const exactBaseline = exactMetrics(entries.filter((entry) => entry.phase !== 'CUTOVER'));
-  const exactCutover = exactMetrics(entries.filter((entry) => entry.phase === 'CUTOVER'));
-  for (const cohort of Object.keys(cutover)) {
-    const current = cutover[cohort];
-    const previous = baseline[cohort];
-    const metrics = {};
-    if (!previous) {
-      unmatched.push(cohort);
-      cohorts[cohort] = { baseline: null, cutover: current, metrics };
-      continue;
-    }
-    comparable.push(cohort);
-    for (const field of COST_FIELDS) {
-      const before = exactBaseline[cohort] && exactBaseline[cohort][field];
-      const after = exactCutover[cohort] && exactCutover[cohort][field];
-      if (!before || !after || before.count === 0 || after.count === 0) {
-        metrics[field] = 'NOT_COMPARABLE';
-        continue;
-      }
-      const left = after.sum * before.count;
-      const right = before.sum * after.count;
-      const direction = left < right ? 'IMPROVED' : left > right ? 'REGRESSED' : 'UNCHANGED';
-      metrics[field] = direction;
-      if (direction === 'IMPROVED') strictImprovement = true;
-      if (direction === 'REGRESSED') regressions.push({ cohort, field });
-    }
-    cohorts[cohort] = { baseline: previous, cutover: current, metrics };
-  }
-  return {
-    baseline,
-    cutover,
-    cohorts,
-    comparableCohorts: comparable,
-    unmatchedCutoverCohorts: unmatched,
-    regressions,
-    strictImprovement,
-  };
-}
-
 function buildRetirementReport({ ledger, trustPolicy, generatedAt } = {}) {
   requireTimestamp(generatedAt, 'MALFORMED_TIMESTAMP');
   requireRecord(ledger);
   if (ledger.schema !== LEDGER_SCHEMA) fail('UNSUPPORTED_SCHEMA');
-  requireArray(ledger.baselineBundles);
-  requireArray(ledger.cutoverBundles);
+  requireArray(ledger.baselineBundles, 'MALFORMED_LEDGER', MAX_BUNDLES);
+  requireArray(ledger.cutoverBundles, 'MALFORMED_LEDGER', MAX_BUNDLES);
   if (!isRecord(trustPolicy)) fail('MALFORMED_TRUST_POLICY');
   const evidenceLocation = validateEvidenceLocation(ledger.evidenceLocation, ledger);
 
