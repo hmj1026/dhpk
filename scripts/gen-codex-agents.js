@@ -51,6 +51,11 @@ const AGENTS = [
 
 const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
 
+// Codex has no hook-owned sentinel clearance. Both the pointer-style Closing
+// sentence and the older inline restatement rewrite to this manual lifecycle.
+const CODEX_MANUAL_REVIEW_LIFECYCLE =
+  "The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.";
+
 function readJson(file, label) {
   if (!fs.existsSync(file)) {
     throw new Error(`${label} is missing: ${file}`);
@@ -298,6 +303,10 @@ function adaptCodexBody(agentName, body) {
     .replaceAll('rules/execution-policy.md', '.codex/dhpk/policies/execution-policy.md')
     .replaceAll('.claude/', '.codex/')
     .replaceAll('CLAUDE.md', 'AGENTS.md')
+    .replace(
+      /Path, frontmatter, retention, degradation, and hook-owned sentinel clearance:[^\n]+§Sentinel clearance[^\n]+§Single-run verdict\. Agent-only: sentinel .{1,2}\.pending-[a-z-]+.{1,3} This reviewer's job ends at writing the artifact\./g,
+      CODEX_MANUAL_REVIEW_LIFECYCLE,
+    )
     .replaceAll(/Trigger: sentinel `\.pending-[^`]+`/g, 'Trigger: an explicit review request')
     .replaceAll(/sentinel = `\.pending-[^`]+`/g, 'without an automatic marker')
     .replaceAll(/`\.pending-[^`]+`/g, 'the matching review request')
@@ -315,8 +324,10 @@ function adaptCodexBody(agentName, body) {
     .replaceAll(/clear-sentinel\.sh/g, 'a host-specific lifecycle helper')
     .replaceAll(/post-edit-remind\.sh/g, 'the parent review flow')
     .replaceAll(/, sentinel = [^\n.]+\./g, '.')
-    .replace(/the parent flow owns lifecycle: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears the matching review request; warning, fail, or malformed evidence leaves it armed\. This reviewer\'s job ends at writing the artifact\./g,
-      'The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role\'s required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.')
+    .replace(
+      /the parent flow owns lifecycle: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears the matching review request; warning, fail, or malformed evidence leaves it armed\. This reviewer's job ends at writing the artifact\./g,
+      CODEX_MANUAL_REVIEW_LIFECYCLE,
+    )
     .replaceAll('`/dhpk:do --plan`', 'Codex plan mode')
     .replaceAll('`/dhpk:do`', 'the Codex orchestrator')
     // Repo-relative skill paths do not exist in the .codex/ install layout, and
