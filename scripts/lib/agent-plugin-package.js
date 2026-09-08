@@ -11,6 +11,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { execFileSync } = require('node:child_process');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
@@ -27,6 +28,9 @@ const AGENT_PLUGIN_VERSION = '1.0.0';
 const AGENT_PLUGIN_SCHEMA = `https://agent-plugins.org/schemas/${AGENT_PLUGIN_VERSION}/plugin.schema.json`;
 const MCP_SCHEMA = `https://agent-plugins.org/schemas/${AGENT_PLUGIN_VERSION}/mcp.schema.json`;
 const GENERATOR_VERSION = '1.0.0';
+const GIT_COMMIT = /^[a-f0-9]{40}$/i;
+const MAX_PUBLISHED_SOURCE_PATH_BYTES = 16 * 1024 * 1024;
+const MAX_PUBLISHED_SOURCE_PATHS = 100000;
 
 const MANIFEST_FIELDS = new Set([
   '$schema', 'name', 'version', 'description', 'author', 'homepage',
@@ -205,15 +209,60 @@ function assertSourceTreeContained(sourceDir, root) {
   walk(sourceDir);
 }
 
-function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
+function loadPublishedSourcePaths(root, sourceCommit) {
+  if (typeof sourceCommit !== 'string' || !GIT_COMMIT.test(sourceCommit)) return null;
+  let listing;
+  try {
+    listing = execFileSync('git', ['ls-tree', '-r', '-z', '--name-only', sourceCommit, '--'], {
+      cwd: root,
+      maxBuffer: MAX_PUBLISHED_SOURCE_PATH_BYTES,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch (_) {
+    // A provenance-shaped commit must resolve in the source checkout. Keep
+    // the failure stable and free of command diagnostics or local paths.
+    throw new Error('provenance source commit cannot be resolved safely');
+  }
+  const published = new Set();
+  let start = 0;
+  let pathCount = 0;
+  const recordPath = (end) => {
+    if (end === start) return;
+    pathCount += 1;
+    if (pathCount > MAX_PUBLISHED_SOURCE_PATHS) {
+      throw new Error('provenance source commit cannot be resolved safely');
+    }
+    const sourcePath = listing.toString('utf8', start, end);
+    if (safeRelative(sourcePath)) published.add(sourcePath);
+  };
+  for (let index = 0; index < listing.length; index += 1) {
+    if (listing[index] !== 0) continue;
+    recordPath(index);
+    start = index + 1;
+  }
+  recordPath(listing.length);
+  return published;
+}
+
+function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot, options = {}) {
+  const { publishedSourcePaths = null, sourceScope = null } = options;
   return String(content).replace(/(\[[^\]]*\])\(([^)]+)\)/g, (whole, label, rawTarget) => {
     const target = rawTarget.trim();
     if (!target || target.startsWith('#') || /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/)/.test(target)) return whole;
     const pathPart = target.split('#', 1)[0].trim();
     if (!pathPart) return whole;
     const resolved = path.resolve(path.dirname(sourceFile), pathPart);
-    if (!isInside(canonicalRoot, resolved) || !fs.existsSync(resolved)) return label;
+    if (!isInside(canonicalRoot, resolved)) return label;
     const relative = path.relative(canonicalRoot, resolved).split(path.sep).join('/');
+    if (publishedSourcePaths instanceof Set) {
+      if (!publishedSourcePaths.has(relative)) return label;
+    } else if (!sourceScope || !isInside(sourceScope, resolved)) {
+      return label;
+    } else {
+      let stat;
+      try { stat = fs.statSync(resolved); } catch (_) { return label; }
+      if (!stat.isFile()) return label;
+    }
     const fragment = target.includes('#') ? `#${target.split('#').slice(1).join('#')}` : '';
     return `${label}(${CANONICAL_REPOSITORY_URL}${relative}${fragment})`;
   });
@@ -657,6 +706,8 @@ function collectProjectedFiles(
 ) {
   const visited = options.visited || new Set();
   const depth = options.depth || 0;
+  const sourceScope = options.sourceScope || sourceDir;
+  const publishedSourcePaths = options.publishedSourcePaths || null;
   const budget = options.budget || {
     files: 0,
     bytes: 0,
@@ -703,7 +754,10 @@ function collectProjectedFiles(
       content = Buffer.from(overrideText);
     }
     if (override === null && path.extname(sourceFile).toLowerCase() === '.md') {
-      content = Buffer.from(sanitizeMarkdownLinks(content.toString('utf8'), sourceFile, canonicalRoot));
+      content = Buffer.from(sanitizeMarkdownLinks(content.toString('utf8'), sourceFile, canonicalRoot, {
+        publishedSourcePaths,
+        sourceScope,
+      }));
     }
     budget.bytes += content.length;
     if (budget.bytes > budget.maxBytes) {
@@ -712,7 +766,13 @@ function collectProjectedFiles(
     files.push({ relative: destinationRelative, source: sourceFile, content });
   };
 
-  const nextOptions = { visited, depth: depth + 1, budget };
+  const nextOptions = {
+    visited,
+    depth: depth + 1,
+    budget,
+    sourceScope,
+    publishedSourcePaths,
+  };
 
   const entryBudget = {
     accountEntry: () => {
@@ -825,6 +885,7 @@ function buildAgentPluginProjection(options = {}) {
     maxDepth: 64,
     ...projectionLimits,
   };
+  const publishedSourcePaths = loadPublishedSourcePaths(resolvedRoot, sourceCommit);
   for (const entry of selected) {
     const publicName = entry.name || entry.id;
     const sourcePath = entry.path;
@@ -855,7 +916,11 @@ function buildAgentPluginProjection(options = {}) {
       continue;
     }
     assertSourceTreeContained(sourceDir, resolvedRoot);
-    const skillFiles = collectProjectedFiles(sourceDir, resolvedRoot, '', { 'SKILL.md': normalized.output }, { budget: projectionBudget });
+    const skillFiles = collectProjectedFiles(sourceDir, resolvedRoot, '', { 'SKILL.md': normalized.output }, {
+      budget: projectionBudget,
+      sourceScope: sourceDir,
+      publishedSourcePaths,
+    });
     fingerprints[publicName] = fingerprintProjectedFiles(skillFiles);
     const skillTransform = { id: 'agent-plugin-skill', version: generatorVersion };
     const skillMetadata = skillProjectionMetadata(entry, {

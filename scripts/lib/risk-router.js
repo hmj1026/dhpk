@@ -9,7 +9,7 @@ const { REVIEWER_CONTRACT_VERSION } = require('./reviewer-contract');
 const WORK_REQUEST_VERSION = 'dhpk.work-request.v1';
 const WORK_RECORD_VERSION = 'dhpk.work-record.v1';
 const REVIEW_PLAN_VERSION = 'dhpk.review-plan.v1';
-const RISK_POLICY_VERSION = 'dhpk.risk-policy.initial.v1';
+const RISK_POLICY_VERSION = 'dhpk.risk-policy.initial.v2';
 const EMPTY_DIFF_DIGEST = `sha256:${sha256(Buffer.alloc(0))}`;
 
 const MATERIAL_RISK_SIGNALS = Object.freeze([
@@ -35,6 +35,7 @@ const MATERIAL_RISK_SIGNALS = Object.freeze([
   'HIGH_UNCERTAINTY',
   'UNKNOWN_ROOT_CAUSE',
   'FAILED_VERIFICATION',
+  'RUNTIME_VERSION_GUARD',
 ]);
 const SCOPE_KINDS = Object.freeze(['SOURCE', 'FRONTEND', 'DATABASE', 'MIGRATION', 'DOCUMENTATION']);
 const LANE_ORDER = Object.freeze([
@@ -44,6 +45,7 @@ const LANE_ORDER = Object.freeze([
   'migration-reviewer',
   'frontend-reviewer',
   'doc-reviewer',
+  'polyfill-reviewer',
 ]);
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -78,6 +80,7 @@ const INITIAL_RISK_POLICY = freeze({
     DATABASE: ['database-reviewer'],
     SCHEMA: ['database-reviewer', 'migration-reviewer'],
     MIGRATION: ['database-reviewer', 'migration-reviewer'],
+    RUNTIME_VERSION_GUARD: ['polyfill-reviewer'],
   },
 });
 

@@ -12,6 +12,8 @@ const {
   deepFreeze,
   immutableJson,
 } = require('./receipt-json-primitives');
+const { LIMITS: STORE_BUDGET_LIMITS, assertLeaseRecordBytes } = require('./review-gate-store-budget');
+const { writePhysicalImmutable } = require('./physical-file');
 
 const SHA256 = /^[a-f0-9]{64}$/i;
 const COMMIT = /^[a-f0-9]{40}$/i;
@@ -332,11 +334,9 @@ function assertPhysicalContainment(root, target) {
   }
   return resolvedTarget;
 }
-
 function writeImmutable(file, content, { physicalRoot = null } = {}) {
-  if (physicalRoot) assertPhysicalContainment(physicalRoot, file);
+  if (physicalRoot) return writePhysicalImmutable(physicalRoot, file, content);
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-  if (physicalRoot) assertPhysicalContainment(physicalRoot, path.dirname(file));
   const temporary = `${file}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
   const fd = fs.openSync(temporary, 'wx', 0o600);
   try {
@@ -360,10 +360,11 @@ function writeImmutable(file, content, { physicalRoot = null } = {}) {
   const directoryFd = fs.openSync(path.dirname(file), 'r');
   try { fs.fsyncSync(directoryFd); } finally { fs.closeSync(directoryFd); }
 }
-
 function replayJsonSequence({
   directory,
   includeName = () => true,
+  listNames = (target) => (fs.existsSync(target) ? fs.readdirSync(target) : []),
+  readFile = (file) => fs.readFileSync(file, 'utf8'),
   expectedName = null,
   initialChain = null,
   validateRecord = null,
@@ -376,9 +377,7 @@ function replayJsonSequence({
   onRecord = () => {},
   onIssue = () => {},
 }) {
-  const names = fs.existsSync(directory)
-    ? fs.readdirSync(directory).filter(includeName).sort()
-    : [];
+  const names = listNames(directory).filter(includeName).sort();
   const records = [];
   let chainDigest = initialChain;
   names.forEach((name, index) => {
@@ -388,7 +387,7 @@ function replayJsonSequence({
     if (expectedName && name !== expectedName(sequence)) report({ type: 'ORDER' });
     let record;
     try {
-      record = JSON.parse(fs.readFileSync(file, 'utf8'));
+      record = JSON.parse(readFile(file));
     } catch (error) {
       report({ type: 'UNREADABLE', error });
       return;
@@ -411,7 +410,6 @@ function replayJsonSequence({
     chainDigest,
   };
 }
-
 function readFileLease(file) {
   let bytes;
   try {
@@ -422,7 +420,6 @@ function readFileLease(file) {
   }
   return { exists: true, value: Number.parseInt(bytes.trim(), 10) };
 }
-
 function acquireProcessLock({
   file,
   pid = process.pid,
@@ -460,7 +457,6 @@ function acquireProcessLock({
   }
   throw unavailableError();
 }
-
 function releaseProcessLock({
   file,
   pid = process.pid,
@@ -482,7 +478,6 @@ function releaseProcessLock({
   }
   return true;
 }
-
 function leaseJournalState({
   directory,
   decode,
@@ -491,29 +486,51 @@ function leaseJournalState({
   matches,
   invalidError,
   physicalRoot = null,
+  listNames = (target) => {
+    try {
+      return fs.readdirSync(target);
+    } catch (error) {
+      if (error && error.code === 'ENOENT') return [];
+      throw error;
+    }
+  },
+  readFile = (file) => fs.readFileSync(file, 'utf8'),
 }) {
   const claimsDirectory = path.join(directory, 'claims');
   if (physicalRoot) assertPhysicalContainment(physicalRoot, claimsDirectory);
-  const names = fs.existsSync(claimsDirectory) ? fs.readdirSync(claimsDirectory).sort() : [];
-  const claims = names.map((name, index) => {
-    const generation = index + 1;
-    if (name !== `${String(generation).padStart(12, '0')}.json`) throw invalidError();
+  const names = listNames(claimsDirectory);
+  if (!Array.isArray(names) || names.length > STORE_BUDGET_LIMITS.leaseClaims) throw invalidError();
+  const sortedNames = names.slice().sort();
+  let current = null;
+  let generation = 0;
+  sortedNames.forEach((name, index) => {
+    const claimGeneration = index + 1;
+    if (name !== `${String(claimGeneration).padStart(12, '0')}.json`) throw invalidError();
     const claimPath = path.join(claimsDirectory, name);
     if (physicalRoot) assertPhysicalContainment(physicalRoot, claimPath);
-    const value = decode(fs.readFileSync(claimPath, 'utf8'));
-    if (generationFor(value) !== generation || typeof tokenFor(value) !== 'string') throw invalidError();
-    return value;
+    const encoded = readFile(claimPath);
+    assertLeaseRecordBytes(encoded, null, invalidError);
+    const value = decode(encoded);
+    if (generationFor(value) !== claimGeneration || typeof tokenFor(value) !== 'string') throw invalidError();
+    current = value;
+    generation = index + 1;
   });
-  const current = claims.length > 0 ? claims[claims.length - 1] : null;
-  if (!current) return { claims, current: null, released: false };
+  if (!current) return { generation, current: null, released: false };
   const releasePath = path.join(directory, 'releases', `${sha256(tokenFor(current))}.json`);
+  const releasesDirectory = path.dirname(releasePath);
+  if (physicalRoot) assertPhysicalContainment(physicalRoot, releasesDirectory);
+  const releaseNames = listNames(releasesDirectory);
+  if (!Array.isArray(releaseNames) || releaseNames.length > STORE_BUDGET_LIMITS.leaseReleases) {
+    throw invalidError();
+  }
+  if (!releaseNames.includes(path.basename(releasePath))) return { generation, current, released: false };
   if (physicalRoot) assertPhysicalContainment(physicalRoot, releasePath);
-  if (!fs.existsSync(releasePath)) return { claims, current, released: false };
-  const released = decode(fs.readFileSync(releasePath, 'utf8'));
+  const encoded = readFile(releasePath);
+  assertLeaseRecordBytes(encoded, null, invalidError);
+  const released = decode(encoded);
   if (!matches(current, released)) throw invalidError();
-  return { claims, current, released: true };
+  return { generation, current, released: true };
 }
-
 function acquireLeaseJournal({
   directory,
   create,
@@ -528,18 +545,32 @@ function acquireLeaseJournal({
   unavailableError = () => new Error('lease journal could not be acquired'),
   invalidError = conflictError,
   physicalRoot = null,
+  listNames = undefined,
+  readFile = (file) => fs.readFileSync(file, 'utf8'),
+  writeFile = (file, content, options) => writeImmutable(file, content, options),
 }) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     const state = leaseJournalState({
-      directory, decode, generationFor, tokenFor, matches, invalidError, physicalRoot,
+      directory,
+      decode,
+      generationFor,
+      tokenFor,
+      matches,
+      invalidError,
+      physicalRoot,
+      ...(listNames ? { listNames } : {}),
+      readFile,
     });
     if (state.current && !state.released && !isStale(state.current)) throw conflictError();
-    const generation = state.claims.length + 1;
+    const generation = state.generation + 1;
+    if (generation > STORE_BUDGET_LIMITS.leaseClaims) throw invalidError();
     const candidate = create(generation);
     if (generationFor(candidate) !== generation || typeof tokenFor(candidate) !== 'string') throw invalidError();
     const claimPath = path.join(directory, 'claims', `${String(generation).padStart(12, '0')}.json`);
     try {
-      writeImmutable(claimPath, encode(candidate), { physicalRoot });
+      const encoded = encode(candidate);
+      assertLeaseRecordBytes(encoded, null, invalidError);
+      writeFile(claimPath, encoded, { physicalRoot });
       return candidate;
     } catch (error) {
       if (!error || (error.code !== 'EEXIST' && !/refusing to overwrite/.test(error.message))) throw error;
@@ -547,7 +578,6 @@ function acquireLeaseJournal({
   }
   throw unavailableError();
 }
-
 function releaseLeaseJournal({
   directory,
   expected,
@@ -559,22 +589,36 @@ function releaseLeaseJournal({
   ownershipError = () => new Error('lease journal ownership does not match'),
   invalidError = ownershipError,
   physicalRoot = null,
+  listNames = undefined,
+  readFile = (file) => fs.readFileSync(file, 'utf8'),
+  writeFile = (file, content, options) => writeImmutable(file, content, options),
 }) {
   const state = leaseJournalState({
-    directory, decode, generationFor, tokenFor, matches, invalidError, physicalRoot,
+    directory,
+    decode,
+    generationFor,
+    tokenFor,
+    matches,
+    invalidError,
+    physicalRoot,
+    ...(listNames ? { listNames } : {}),
+    readFile,
   });
   if (!state.current || state.released || !matches(expected, state.current)) throw ownershipError();
   const releasePath = path.join(directory, 'releases', `${sha256(tokenFor(state.current))}.json`);
   try {
-    writeImmutable(releasePath, encode(state.current), { physicalRoot });
+    const encoded = encode(state.current);
+    assertLeaseRecordBytes(encoded, null, invalidError);
+    writeFile(releasePath, encoded, { physicalRoot });
   } catch (error) {
     if (!error || (error.code !== 'EEXIST' && !/refusing to overwrite/.test(error.message))) throw error;
-    const released = decode(fs.readFileSync(releasePath, 'utf8'));
+    const encoded = readFile(releasePath);
+    assertLeaseRecordBytes(encoded, null, invalidError);
+    const released = decode(encoded);
     if (!matches(state.current, released)) throw ownershipError();
   }
   return true;
 }
-
 function assertLeaseJournalOwnership({
   directory,
   expected,
@@ -586,9 +630,19 @@ function assertLeaseJournalOwnership({
   ownershipError = () => new Error('lease journal ownership does not match'),
   invalidError = ownershipError,
   physicalRoot = null,
+  listNames = undefined,
+  readFile = (file) => fs.readFileSync(file, 'utf8'),
 }) {
   const state = leaseJournalState({
-    directory, decode, generationFor, tokenFor, matches, invalidError, physicalRoot,
+    directory,
+    decode,
+    generationFor,
+    tokenFor,
+    matches,
+    invalidError,
+    physicalRoot,
+    ...(listNames ? { listNames } : {}),
+    readFile,
   });
   if (!state.current || state.released || isStale(state.current)
     || !matches(expected, state.current)) throw ownershipError();

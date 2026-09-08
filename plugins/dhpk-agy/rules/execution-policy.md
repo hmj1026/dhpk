@@ -111,6 +111,23 @@ Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runti
 
 **Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation; the existing runtime hook/reconcile path owns Sentinel clearance. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Before a resumed `SendMessage`, capture and forward the complete `RESUMED_REVIEW_IDENTITY` envelope printed by `record-resumed-obligation.sh` (including any non-empty optional fingerprints); the reviewer must reproduce every declared field in the canonical artifact frontmatter. Legacy scope/diff-only evidence remains readable, but a new obligation with declared identity fails closed on missing or foreign fields. Completion requires both a terminal lifecycle result and every applicable matching Sentinel gate resolved through the hook-owned contract; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md` and `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table or clearance implementation.
 
+**Migration Observation Checkpoint order (explicit opt-in):** when the local
+Review Gate migration-observation checkpoint is enabled, the Application
+Session runs `prepare` before the consolidated reviewer batch. `prepare`
+consumes the canonical Work Request, creates the risk-routed plan, and returns
+the per-obligation Review Requests; it does not dispatch a reviewer. The
+Application Session then dispatches every applicable reviewer lane in one
+consolidated parallel batch. Only after the entire batch completes and the
+matching lifecycle, readiness, and Accepted-Outcome Cost evidence is durable
+may the Session call `observe`, once per obligation in deterministic serial
+order. Reviewer agents and wrapper scripts produce/return evidence; neither
+owns dispatch, invokes another reviewer, clears or arms a Sentinel, or changes
+Sentinel authority. A failed `prepare` or `observe` exits nonzero and emits
+only a redacted diagnostic; the Session continues the existing Sentinel path
+during `OBSERVE`, while an enforcing phase treats missing or invalid
+observation evidence as unresolved and fails closed. Full checkpoint mechanics
+and envelope rules live in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+
 ### Context tiers and dispatch packet
 
 Select the smallest context tier that preserves the settled decision:

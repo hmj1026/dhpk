@@ -52,6 +52,59 @@ Every result also binds `contractVersion`, `obligationId`, and `lane`, and recor
 `findings`, `inspectedScope`, and `evidenceReferences`. A `PASS` result cannot
 contain a `MUST_FIX` finding.
 
+## Structured migration companion
+
+When the opt-in production migration-observation checkpoint is active, the
+reviewer emits two sibling artifacts for each lane: the normal Markdown report
+and a same-stem `<review-artifact-stem>.result.json` companion. The Markdown is
+for human reading. The companion is the machine contract and is validated
+without parsing or translating the Markdown. The same shape applies to all
+seven Sentinel lanes; lane-specific checks remain in the lane charter, not in
+this schema.
+
+The companion schema is `dhpk.claude-review-result.v1`:
+
+```json
+{
+  "schema": "dhpk.claude-review-result.v1",
+  "requestDigest": "sha256:<hex>",
+  "reviewResult": { "<dhpk.reviewer-contract.v2 fields>": "..." },
+  "artifact": {
+    "sha256": "sha256:<hex>",
+    "identity": { "<lifecycle/readiness identity>": "..." }
+  },
+  "command": {
+    "sha256": "sha256:<hex>",
+    "outcome": "<bounded command outcome>"
+  }
+}
+```
+
+`requestDigest` is the digest of the exact immutable Review Request supplied to
+the lane. `reviewResult` is the complete v2 Review Result and must pass this
+contract's validator; the companion cannot add a second verdict vocabulary or
+change the meaning of execution status, applicability, semantic verdict, or
+finding disposition. `artifact.sha256` and `artifact.identity` bind the
+companion to the durable lifecycle/readiness evidence for the same task,
+attempt, session, dispatch, scope, and diff. `command` records only a digest
+and one canonical bounded outcome: `PASS`, `FAIL`, `NOT_RUN`,
+`NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, or `UNAVAILABLE`. Command
+`BLOCKED` and `UNAVAILABLE` states are independent from
+`reviewResult.semanticVerdict`; `CHANGES_REQUIRED` remains a review semantic
+verdict, while command `BLOCKED` and `UNAVAILABLE` report execution
+availability. The command object does not persist the command line or output.
+
+The companion contains no prompts, chain-of-thought, source text, credentials,
+environment values, raw logs, session transcripts, or absolute paths. The
+Review Result's `inspectedScope` and `evidenceReferences` are bounded
+repository-relative references; the companion's `requestDigest`,
+`artifact.sha256`, `artifact.identity`, and `command.sha256` provide the
+content and identity binding. Unknown major schemas, missing identity, foreign
+or stale identity, extra raw-evidence fields, and a `PASS` result containing
+`MUST_FIX` findings fail closed. A valid companion is review evidence for the
+caller to submit; it is not by itself a Sentinel-clearance signal or a
+migration-phase transition.
+
 ## Findings
 
 Severity and disposition are separate fields:

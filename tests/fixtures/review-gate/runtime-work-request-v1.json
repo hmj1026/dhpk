@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "dhpk.work-request.v1",
+  "requestId": "github:issue:390",
+  "decisionKey": "production-migration-observation-checkpoint",
+  "scope": {
+    "paths": [
+      "scripts/review-gate-runtime.js"
+    ],
+    "kinds": [
+      "SOURCE"
+    ],
+    "baseIdentity": {
+      "commit": "1111111111111111111111111111111111111111",
+      "tree": "2222222222222222222222222222222222222222"
+    },
+    "headIdentity": {
+      "commit": "3333333333333333333333333333333333333333",
+      "tree": "4444444444444444444444444444444444444444"
+    },
+    "diff": {
+      "digest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "reference": "git-diff:issue-390"
+    }
+  },
+  "ownership": {
+    "judgmentOwner": "architect",
+    "implementationOwner": "worker:issue-390"
+  },
+  "materialRisks": [],
+  "governingInputs": [
+    {
+      "reference": "docs/adr/0018-production-migration-observation-checkpoint.md",
+      "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    }
+  ],
+  "outcomeReferences": [
+    {
+      "kind": "ISSUE",
+      "reference": "github:issue:390"
+    }
+  ],
+  "observations": {
+    "fileCount": 1,
+    "lineCount": 1,
+    "taskCount": 1,
+    "availableAgentCount": 1
+  },
+  "extensions": {}
+}

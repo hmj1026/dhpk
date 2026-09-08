@@ -21,8 +21,10 @@ const {
   normalizeBaselineLegacyObservation,
   normalizeLegacyObservation,
 } = require('./claude-review-gate-legacy-observation');
+const { createRuntimeProvenance } = require('./review-gate-runtime-provenance');
 
 const ADAPTER_NAME = 'claude-review-gate';
+const ADAPTER_VERSION = 'claude-review-gate.v1';
 const OBSERVATION_SCHEMA = 'dhpk.review-gate.migration-observation.v1';
 const MIGRATION_POLICY_VERSION = 'dhpk.migration-policy.v1';
 const MIGRATION_CONTRACT_VERSION = 'dhpk.review-gate.migration.v1';
@@ -458,6 +460,8 @@ function normalizeObservationContext(rawInput) {
   assertRecord(rawInput, 'MALFORMED_INPUT');
   const input = assertBoundedInput(rawInput);
   if (!PHASES.has(input.phase)) fail('UNSUPPORTED_PHASE');
+  const artifactReference = hasOwn(input, 'artifactReference')
+    ? runtimeProvenance.normalizeArtifactReference(input.artifactReference) : undefined;
   const identity = assertIdentity(input.identity);
   const plan = input.plan;
   assertRecord(plan, 'MALFORMED_PLAN');
@@ -502,6 +506,7 @@ function normalizeObservationContext(rawInput) {
     lifecycleEvents,
     readinessEvents,
     artifactDigest,
+    artifactReference,
     sentinel: legacyObservation.sentinelOutcome,
     acceptedOutcomeCost: legacyObservation.acceptedOutcomeCost,
     lifecycleEventId: legacyObservation.lifecycleEventId,
@@ -509,6 +514,15 @@ function normalizeObservationContext(rawInput) {
     legacyCost: legacyObservation.legacyCost,
   };
 }
+
+const runtimeProvenance = createRuntimeProvenance({
+  normalizeObservationContext,
+  normalizeCommands,
+  identityDigest,
+  fail,
+});
+
+const runtimeObservationProvenanceDigest = (input) => runtimeProvenance.digest(input);
 
 function buildReviewGateEvent(adapter, context, executedCommands) {
   const { input, plan, identity, obligation } = context;
@@ -562,18 +576,24 @@ function invokeReviewGate(adapter, context, event) {
   return gateResult;
 }
 
-function recordReviewGateObservation(adapter, context) {
+function recordReviewGateObservation(adapter, context, normalizedCommands = null) {
   if (!['OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'].includes(context.input.phase)) {
-    return { gateResult: null, gate: normalizeGate(null) };
+    return { gateResult: null, gate: normalizeGate(null), executedCommands: null };
   }
   const { input, artifactDigest } = context;
   assertRecord(input.reviewRequest, 'MALFORMED_REVIEW');
   assertRecord(input.reviewResult, 'MALFORMED_REVIEW');
   requireArtifactEvidence(input.reviewResult, artifactDigest);
-  const event = buildReviewGateEvent(adapter, context, normalizeCommands(input.executedCommands));
+  const commands = normalizedCommands || normalizeCommands(input.executedCommands);
+  const event = buildReviewGateEvent(adapter, context, commands);
   try {
     const gateResult = invokeReviewGate(adapter, context, event);
-    return { gateResult, gate: normalizeGate(gateResult, event.eventId), reasonCodes: [] };
+    return {
+      gateResult,
+      gate: normalizeGate(gateResult, event.eventId),
+      reasonCodes: [],
+      executedCommands: commands,
+    };
   } catch (error) {
     // Enforcement phases must leave a durable, fail-closed diagnostic when
     // the authority cannot produce a trusted result. OBSERVE retains its
@@ -583,23 +603,27 @@ function recordReviewGateObservation(adapter, context) {
       gateResult: null,
       gate: normalizeGate(null, event.eventId),
       reasonCodes: [error && SAFE_CODE.test(error.code) ? error.code : 'REVIEW_GATE_FAILED'],
+      executedCommands: commands,
     };
   }
 }
 
-function buildObservationProvenance(adapter, context, gate, eventId, recordedAt) {
+function buildObservationProvenance(
+  adapter,
+  context,
+  gate,
+  eventId,
+  recordedAt,
+  normalizedCommands = null,
+) {
   const provenance = {
-    digest: identityDigest(
-      context.identity,
-      context.input.phase,
-      adapter.adapter,
-      adapter.adapterVersion,
-      context.lifecycleEvents,
-      context.readinessEvents,
+    digest: runtimeProvenance.digestFromContext({
+      context,
       gate,
-      context.sentinel,
-      context.acceptedOutcomeCost,
-    ),
+      adapter: adapter.adapter,
+      adapterVersion: adapter.adapterVersion,
+      normalizedCommands,
+    }),
     reference: `adapter:${ADAPTER_NAME}`,
     producer: adapter.producer,
     adapter: adapter.adapter,
@@ -738,7 +762,7 @@ class ClaudeReviewGateAdapter {
     migrationCoordinator,
     producer = 'claude-migration',
     adapter = 'review-gate-adapter',
-    adapterVersion = 'claude-review-gate.v1',
+    adapterVersion = ADAPTER_VERSION,
     now = () => Date.now(),
   } = {}) {
     if (!reviewGate || typeof reviewGate.handle !== 'function') fail('CONFIGURATION');
@@ -781,7 +805,7 @@ class ClaudeReviewGateAdapter {
 
   observe(input = {}) {
     const context = normalizeObservationContext(input);
-    const { gateResult, gate, reasonCodes } = recordReviewGateObservation(this, context);
+    const { gateResult, gate, reasonCodes, executedCommands } = recordReviewGateObservation(this, context);
     const comparison = context.input.phase === 'BASELINE' ? 'INDETERMINATE' : comparisonFor(context.sentinel, gate);
     const eventId = makeEventId({
       phase: context.input.phase,
@@ -797,7 +821,14 @@ class ClaudeReviewGateAdapter {
       comparison,
     }, this.producer, this.adapter);
     const recordedAt = normalizeTimestamp(this.now);
-    const provenance = buildObservationProvenance(this, context, gate, eventId, recordedAt);
+    const provenance = buildObservationProvenance(
+      this,
+      context,
+      gate,
+      eventId,
+      recordedAt,
+      executedCommands,
+    );
     const diagnosticReasons = (
       (context.input.phase === 'DUAL_ENFORCE' && comparison !== 'AGREE')
       || (context.input.phase === 'CUTOVER' && comparison === 'DISAGREE')
@@ -818,11 +849,13 @@ class ClaudeReviewGateAdapter {
 
 module.exports = {
   ADAPTER_NAME,
+  ADAPTER_VERSION,
   OBSERVATION_SCHEMA,
   MIGRATION_POLICY_VERSION,
   MIGRATION_CONTRACT_VERSION,
   MIGRATION_EVENT_TYPE,
   MIGRATION_RECEIPT_KIND,
+  runtimeObservationProvenanceDigest,
   ClaudeReviewGateAdapter,
   ClaudeReviewGateAdapterError,
 };

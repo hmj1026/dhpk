@@ -114,6 +114,88 @@ credentials, and session transcripts are excluded. A migration observation is
 never converted into synthetic Sentinel clearance and cannot itself satisfy a
 required review or change-control gate.
 
+## Production migration-observation checkpoint
+
+The production composition boundary is the explicit, dependency-free
+`scripts/review-gate-runtime.js` CLI. It is inactive until an operator runs
+`/dhpk:setup --review-gate`; setup creates the local
+`.dhpk/review-gate/v1/integrity.key` once with private permissions. `prepare`,
+`observe`, and `status` never create or replace that key. A consumer that has
+not opted in has no migration-observation runtime state.
+
+The CLI owns transport and durable-state lookup, not workflow authority. The
+Application Session—the Claude Code session applying an Approved Change through
+its Implementation Tasks under the Generated Goal Condition—owns reviewer selection,
+the parallel seven-lane dispatch,
+retry policy, and the call to the CLI. `prepare` receives the canonical Work
+Request JSON, runs Work Record and Risk Router processing, registers the Review
+Plan, and returns immutable per-obligation Review Requests. It does not invoke
+a reviewer. After the reviewer batch and its lifecycle/readiness evidence are
+durable, the Session calls `observe` once for each selected obligation/lane in
+deterministic order. The existing Claude Platform Adapter then translates the
+validated evidence to Migration Coordinator; the adapter never dispatches a
+reviewer or changes a Sentinel.
+
+Every command result uses the `dhpk.review-gate.runtime.v1` envelope. The
+stable fields are:
+
+| Field | Contract |
+| --- | --- |
+| `schema` | Exactly `dhpk.review-gate.runtime.v1`. Unknown major versions fail closed. |
+| `command` | `init`, `prepare`, `observe`, or `status`. |
+| `status` | A command-specific bounded outcome; it is not a reviewer verdict or Sentinel clearance. |
+| `planId` / `obligationId` / `lane` | Present when the command addresses a prepared obligation; each is identity-bound and never inferred from a filename. |
+| `diagnostics` | Optional bounded codes and redacted references only; never raw exception text, paths, prompts, or logs. |
+
+`prepare` additionally returns the registered plan identity and the exact
+Reviewer Requests. `observe` accepts a plan/obligation selector plus the
+structured companion and references to the durable lifecycle, readiness, and
+Accepted-Outcome Cost evidence. It returns the migration observation identity,
+comparison/effect, and telemetry status. A successful return is observation
+evidence only; it does not imply a `PASS`, approval, lifecycle completion, or
+target progress.
+
+The reviewer companion is the only machine input for the reviewer result. One
+Markdown artifact and one same-stem `<review-artifact-stem>.result.json` are
+produced per lane. The JSON has schema `dhpk.claude-review-result.v1` and the
+following bounded shape:
+
+```json
+{
+  "schema": "dhpk.claude-review-result.v1",
+  "requestDigest": "sha256:<hex>",
+  "reviewResult": { "<dhpk.reviewer-contract.v2 fields>": "..." },
+  "artifact": {
+    "sha256": "sha256:<hex>",
+    "identity": { "<lifecycle/readiness identity>": "..." }
+  },
+  "command": {
+    "sha256": "sha256:<hex>",
+    "outcome": "<bounded command outcome>"
+  }
+}
+```
+
+`reviewResult` must pass the unchanged Reviewer Contract v2 validator. The
+artifact digest and identity must match readiness evidence; the command object
+contains only a digest and bounded outcome, never the command line or output.
+The CLI does not parse Markdown and does not translate prose with a model.
+Absolute paths, prompts, source text, environment values, credentials, raw
+logs, and session transcripts are rejected rather than redacted into a new
+semantic result. The persisted observation keeps only stable identities,
+digests, enum values, timestamps, bounded symbolic references, and counters.
+
+An invalid or unavailable checkpoint operation exits nonzero and writes a
+redacted diagnostic sidecar. The Application Session continues the existing
+Sentinel lifecycle and must report the observation as unavailable or failed;
+the failure cannot clear, arm, or alter Sentinel. In an enforcing migration
+phase, missing, foreign, stale, malformed, or failed observation evidence is
+unresolved and fails closed. Partial Accepted-Outcome Cost data uses `null`
+for unavailable counters plus named failure reasons, remains visible for
+diagnosis, and always sets `retirementEligible: false`. This v1 records the
+current per-obligation/lane observations; wave-level aggregation and
+retirement deduplication remain deferred to #375.
+
 ## Codex Review Gate submission
 
 Codex has no legacy Sentinel, hook-based dispatch, or pending-file/SubagentStop

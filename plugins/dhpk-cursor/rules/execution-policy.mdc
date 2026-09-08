@@ -93,6 +93,8 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Diff-scope mandate (all reviewers)**: reviewers audit the UNCOMMITTED working tree (`git diff --staged` + `git diff HEAD`), never committed history (`git diff <base>...HEAD` / merge-base diff). Under the no-auto-commit workflow the change-under-review sits uncommitted; a base-relative diff reviews the whole branch (often hundreds of files) — wasting tokens/time and misreporting committed-but-superseded code as unfixed. Orchestrators dispatching a reviewer MUST NOT instruct it to diff against a base branch unless an explicit full-branch/PR review is the intent.
 
+**File-state ground truth**: re-verify live before reporting a file-state defect. Full mechanics: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+
 **Sentinel-scoped precedence**: when a reviewer's own sentinel exists (`.claude/artifacts/sessions/.pending-{review,db-review,security-review,frontend-review,doc-review,polyfill-review,migration-review}`), its listed paths are the SOLE authoritative scope — not the full uncommitted tree above. Parse each line's path via the field-3 convention (`cut -d' ' -f3-`; see `scripts/hooks/_lib/payload.sh` SENTINEL LINE FORMAT). Diff each listed path individually: `git diff --staged -- <path>` + `git diff HEAD -- <path>`. Skip every other uncommitted/staged file not on the list, even same extension/glob — it belongs to a different session's change. Fall back to the unfiltered mandate above only when (a) no sentinel exists for this slot (back-stop invocation — e.g. `performance-analyzer`, which has no slot), or (b) the user/orchestrator explicitly requests a full working-tree/PR review — that explicit request wins over sentinel-scoping.
 
 **Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `.cursor/rules/model-economics.mdc`.
@@ -108,6 +110,25 @@ The CLI-backed Codex/AGY roles use the same normalized project-over-global confi
 SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream routes (`flow-guide`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind the safety kernel and the selected route reference during orientation; the emitted `/goal` condition carries only the compact roster line and self-locating pointers, never these elaborations.
 
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
+
+**Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation; the existing runtime hook/reconcile path owns Sentinel clearance. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Before a resumed `SendMessage`, capture and forward the complete `RESUMED_REVIEW_IDENTITY` envelope printed by `record-resumed-obligation.sh` (including any non-empty optional fingerprints); the reviewer must reproduce every declared field in the canonical artifact frontmatter. Legacy scope/diff-only evidence remains readable, but a new obligation with declared identity fails closed on missing or foreign fields. Completion requires both a terminal lifecycle result and every applicable matching Sentinel gate resolved through the hook-owned contract; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `.cursor/skills/flow-guide/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table or clearance implementation.
+
+**Migration Observation Checkpoint order (explicit opt-in):** when the local
+Review Gate migration-observation checkpoint is enabled, the Application
+Session runs `prepare` before the consolidated reviewer batch. `prepare`
+consumes the canonical Work Request, creates the risk-routed plan, and returns
+the per-obligation Review Requests; it does not dispatch a reviewer. The
+Application Session then dispatches every applicable reviewer lane in one
+consolidated parallel batch. Only after the entire batch completes and the
+matching lifecycle, readiness, and Accepted-Outcome Cost evidence is durable
+may the Session call `observe`, once per obligation in deterministic serial
+order. Reviewer agents and wrapper scripts produce/return evidence; neither
+owns dispatch, invokes another reviewer, clears or arms a Sentinel, or changes
+Sentinel authority. A failed `prepare` or `observe` exits nonzero and emits
+only a redacted diagnostic; the Session continues the existing Sentinel path
+during `OBSERVE`, while an enforcing phase treats missing or invalid
+observation evidence as unresolved and fails closed. Full checkpoint mechanics
+and envelope rules live in `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ### Context tiers and dispatch packet
 
@@ -335,6 +356,12 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 ### Hook-enforced (sentinels)
 
+A subagent must never paste the literal the plugin-root interpolation token into a Bash command — it is a markdown-interpolation token, unset in a subagent's shell. Full caveat (SSOT): `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+
+**Auto-clear + fallback**: a successful reviewer with a fresh matching canonical timestamp/slug artifact, valid leading delimited frontmatter, all required reviewer fields, and an `APPROVE or PASS` verdict auto-clears only its own slot; absent, stale, unparseable, malformed, warning, or failing output stays armed. A resumed fallback additionally requires a matching `.resumed-review-obligations` record, conclusive final response, resume-relative freshness, and proven session/agent ownership. Exact fallback and fail-loud rules: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+
+**Resumed-reviewer fallback**: a reviewer resumed through `SendMessage` may never fire a native `SubagentStop`; clearance there is a session-scoped, artifact-backed reconcile — never approval. Full contract: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|
 <!-- BEGIN GENERATED sentinel-slots:sentinel-table -->
@@ -348,7 +375,11 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 | `.pending-migration-review` | `migration-reviewer` | Module-owned migration: triggers or mig: extra paths only |
 <!-- END GENERATED sentinel-slots:sentinel-table -->
 
+**Skipped paths**: follow the self-edit and per-slot path exclusions in `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+
 ### Reviewer dispatch (when multiple sentinels coexist)
+
+For each contiguous implementation wave, dispatch each applicable reviewer once as **triage → ONE consolidated parallel reviewer batch → merge**; CRITICAL blocks, and pure research skips. Known findings receive at most one confirm-only re-review; new substantive scope starts a new review decision. A missing or invalid reviewer result gets one corrected retry, then replacement or a pending gate with a recorded reason. `codex-bridge` remains escalation-only and runs at most once per change. Full batching, reminder, retry, and escalation mechanics: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
 
 **Reviewer economy**: hold the review dispatch until the wave's edit batch is edit-complete — do not dispatch mid-batch and then re-review each micro-fix as its own round. The bounded fix loop batches a repair scope, runs worker verification, and rechecks diff scope. A findings set that is LOW/WARNING-only (no BLOCK/CRITICAL/HIGH) may close there without a dedicated confirm-only reviewer; BLOCK/CRITICAL/HIGH findings require that dedicated re-review. Batch any post-confirm micro-edits together before a single confirm dispatch. Split waves and confirm-only rounds are the dominant reviewer overspend — batching before dispatch is the primary lever.
 
@@ -368,6 +399,8 @@ and heuristic quality work remain available only through explicit opt-in setup.
 | `SubagentStop` → `subagent-stop-verify.sh` | sentinel/liveness gate | enabled; reconcile only fresh canonical artifacts with a parseable passing verdict |
 | `SessionStart` → `session-start.sh` | module activation only | enabled; validate and activate configured modules |
 | Prompt hints, stop reminders, snapshots, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
+
+**Reviewer liveness**: a no-op reviewer is a failed gate. Corrected-retry and replacement rules: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ### Review output gate
 
@@ -391,6 +424,8 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 - `ruff` / `mypy` / `pytest-asyncio` (and `pyright` / `pytest` / `uv sync`) error appears in Bash output → `python-build-resolver` (python / fastapi / pytest module active).
 - `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
 - Editing version-specific dirs (`src/Laravel/`, `src/Symfony/`), composer version constraints, or `.github/workflows` CI matrices, or before tagging a release → `version-matrix-impact-reviewer` (library-author module).
+
+> **Notes** — why view-layer `<script>` uses a back-stop not a hook · when to upgrade a back-stop to a hook · why `tdd-guide` has no sentinel and how the coverage gate enforces tests-first for unattended `opsx-apply-goal` runs: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ## Edit tool discipline
 
