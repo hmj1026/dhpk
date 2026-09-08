@@ -56,6 +56,16 @@ test('worker and alias prompts point at mid-batch timeout recovery instead of fo
       `${name} must point at implementation-dispatch timeout guidance`);
     assert.ok(/CLI worker mid-batch timeout recovery/.test(doc),
       `${name} must name the timeout-recovery section`);
+    const cursorCopy = fs.readFileSync(path.join(ROOT, 'cursor', 'agents', name), 'utf8');
+    assert.ok(
+      cursorCopy.includes('skills/flow-guide/references/implementation-dispatch.md'),
+      `cursor/agents/${name} dropped the timeout-guidance pointer`,
+    );
+    assert.doesNotMatch(
+      cursorCopy,
+      /multi-file dispatch, follow\n§CLI worker/i,
+      `cursor/agents/${name} must not leave an orphan follow line`,
+    );
   }
 });
 

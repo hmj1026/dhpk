@@ -88,9 +88,27 @@ test('fable is an accepted model tier (agents/architect.md ships on it)', () => 
 });
 
 test('inherit is an accepted official model alias', () => {
-  const src = fs.readFileSync(VALIDATOR, 'utf8');
-  assert.ok(/VALID_MODELS\s*=\s*\[[^\]]*'inherit'/.test(src),
-    'validate-agents.js VALID_MODELS must include inherit from official subagent schema');
+  const tmp = makeTempRepo();
+  try {
+    writeAgent(tmp, agentFrontmatter({}));
+    fs.writeFileSync(path.join(tmp, 'agents', 'architect.md'), [
+      '---',
+      'name: architect',
+      'description: architecture guidance',
+      'model: inherit',
+      'tools: Read',
+      'effort: low',
+      'maxTurns: 1',
+      '---',
+      'body',
+      '',
+    ].join('\n'));
+    const result = runValidator(tmp);
+    assert.strictEqual(result.status, 0, result.out);
+    assert.doesNotMatch(result.out, /invalid model 'inherit'/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('name that does not match the agent basename fails', () => {
@@ -138,6 +156,25 @@ test('the validator covers root and module agents', () => {
   const result = spawnSync(process.execPath, [VALIDATOR], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout || ''}${result.stderr || ''}`);
   assert.match(`${result.stdout || ''}${result.stderr || ''}`, /36 agent files/);
+});
+
+test('INDEX.md is skipped even without tools or a matching name', () => {
+  const tmp = makeTempRepo();
+  try {
+    fs.writeFileSync(path.join(tmp, 'agents', 'INDEX.md'), [
+      '---',
+      'name: not-index',
+      'description: roster',
+      '---',
+      'body',
+      '',
+    ].join('\n'));
+    const result = runValidator(tmp);
+    assert.strictEqual(result.status, 0, result.out);
+    assert.doesNotMatch(result.out, /INDEX\.md/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('official effort values pass in a validator fixture', () => {

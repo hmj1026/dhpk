@@ -38,6 +38,10 @@ function readAgent(file) {
   return fs.readFileSync(path.join(ROOT, 'agents', file), 'utf8');
 }
 
+function readCursorAgent(file) {
+  return fs.readFileSync(path.join(ROOT, 'cursor', 'agents', file), 'utf8');
+}
+
 function metadata(prompt, field) {
   const match = prompt.match(new RegExp(`^${field}: (.+)$`, 'm'));
   assert.ok(match, `${field} metadata missing`);
@@ -79,6 +83,16 @@ test('legacy role aliases forward explicit identity and mode through the dispatc
       alias,
       /launch-cli-dispatch\.js \\\s*\n\s*--dispatching-agent/,
       `${contract.alias} must not paste the launcher flag block`,
+    );
+    const cursorCopy = readCursorAgent(contract.alias);
+    assert.ok(
+      cursorCopy.includes(DISPATCH_SKILL),
+      `cursor/agents/${contract.alias} dropped the dispatch-skill pointer`,
+    );
+    assert.doesNotMatch(
+      cursorCopy,
+      /launch the provider, follow\nDo not paste/i,
+      `cursor/agents/${contract.alias} must not leave an orphan follow line`,
     );
   }
 });

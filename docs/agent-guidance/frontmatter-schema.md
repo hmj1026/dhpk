@@ -71,8 +71,8 @@ when to load the skill.
 | `compatibility` | Agent Skills spec field; accepted, unused by Claude Code. |
 
 Command files under `commands/` support the same frontmatter except `name`
-and `paths`, which Claude Code ignores there. This rewrite does not change
-SKILL.md bodies.
+and `paths`, which Claude Code ignores there. Skill `SKILL.md` bodies are
+out of scope for this schema page.
 
 ## Local policy
 
@@ -93,8 +93,8 @@ role prompts.
   currently accepts the named aliases including `inherit` and `fable`; it
   does not invent a second model stack.
 
-The module-shipped polyfill reviewer is off the agent-definition rewrite map;
-leave its inline companion copy until a later change.
+The module-shipped polyfill reviewer keeps an inline companion copy until a
+later change. Do not replace that copy from this schema page.
 
 ## Plugin and marketplace manifests
 
