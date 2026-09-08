@@ -18,6 +18,15 @@ const reviewers = [
   ['polyfill-reviewer', path.join('modules', 'library-author', 'agents')],
 ];
 
+function teachesHookOwnedClearance(text) {
+  const inline = /fresh canonical artifact[^\n]*delimited frontmatter[^\n]*(?:APPROVE|PASS)/i.test(text);
+  const pointer = /docs\/contracts\/artifact-contract\.md/.test(text)
+    && /Sentinel clearance/i.test(text)
+    && /docs\/contracts\/reviewer-contract\.md/.test(text)
+    && /Single-run verdict/i.test(text);
+  return inline || pointer;
+}
+
 test('shared reviewer contract defines compact prompt and artifact/verdict fields', () => {
   for (const token of ['Scope', 'Specialist charter', 'Evidence commands', 'Artifact path', 'Verdict', 'Confirm-only', 'one corrected retry']) {
     assert.ok(contract.includes(token), `reviewer contract missing ${token}`);
@@ -42,17 +51,20 @@ test('reviewer contract requires a single-run verdict', () => {
   }
   for (const [name, directory] of reviewers) {
     const text = fs.readFileSync(path.join(ROOT, directory, `${name}.md`), 'utf8');
-    assert.ok(
-      text.includes('Single-run verdict: emit the final verdict in this same run'),
-      `${name} missing single-run verdict clause`
+    assert.match(
+      text,
+      /Single-run verdict: emit the final verdict in this same run/,
+      `${name} missing single-run verdict clause`,
     );
     assert.doesNotMatch(
       text,
       /(?:clear the sentinel|clear-sentinel\.sh)/i,
       `${name} still instructs the reviewer to clear its own sentinel`
     );
-    assert.match(text, /fresh canonical artifact[^\n]*delimited frontmatter[^\n]*(?:APPROVE|PASS)/i,
-      `${name} must describe the strict hook-owned sentinel-clear contract`);
+    assert.ok(
+      teachesHookOwnedClearance(text),
+      `${name} must teach hook-owned sentinel clearance by pointer or the inline contract`,
+    );
     assert.doesNotMatch(text, /regardless of verdict parseability/i,
       `${name} must not allow malformed review evidence to clear a sentinel`);
   }
