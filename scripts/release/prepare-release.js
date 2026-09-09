@@ -144,7 +144,7 @@ function isCanonicalReleaseTarget(root, target) {
   if (canonicalFiles.has(resolvedTarget) || canonicalDirectories.has(resolvedTarget)) return true;
   const fragmentDirectory = path.join(resolvedRoot, 'changelog.d');
   return path.dirname(resolvedTarget) === fragmentDirectory
-    && /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\.[a-z0-9]+(?:-[a-z0-9]+)*\.md|[a-z0-9]+(?:-[a-z0-9]+)*\.none)$/i.test(path.basename(resolvedTarget));
+    && /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\.[a-z0-9]+(?:-[a-z0-9]+)*\.md|(?:[a-z0-9]+(?:-[a-z0-9]+)*\.)*[a-z0-9]+(?:-[a-z0-9]+)*\.none)$/i.test(path.basename(resolvedTarget));
 }
 
 function assertCanonicalReleaseTarget(root, target) {
