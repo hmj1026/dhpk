@@ -37,8 +37,6 @@ const CODEX_BRIDGE_SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-codex
 const EXECUTION_POLICY = fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8');
 const MODEL_ECONOMICS = fs.readFileSync(path.join(ROOT, 'rules', 'model-economics.md'), 'utf8');
 const MODEL_CONFIG_SPEC = fs.readFileSync(path.join(ROOT, 'openspec', 'specs', 'orchestration-model-config', 'spec.md'), 'utf8');
-const REAP_SCRIPT = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', 'reap-stale-sentinels.sh'), 'utf8');
-const PAYLOAD_LIB = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', '_lib', 'payload.sh'), 'utf8');
 
 // 3.1 — CLI worker and alias prompts point at the dispatch SSOT; that SSOT
 // owns the timeout-recovery state machine (exactly one same-backend retry
@@ -178,26 +176,18 @@ test('second verified timeout is terminal with PARTIAL/BLOCKED split on confirme
     'dispatch SSOT must require both timeout observations, ledger sets, and next action in the terminal report');
 });
 
-// 3.2 — marker durability: the marker's naming convention can never be matched
-// by the `.pending-*` sentinel sweep (proven against the sweep's actual glob,
-// not just asserted in prose) and is documented as never auto-cleared.
-test('the PARTIAL marker filename can never be matched by the .pending-* sentinel sweep', () => {
+// 3.2 — marker durability: the marker's naming convention historically had to
+// avoid collision with the `.pending-*` Review Sentinel sweep. That sweep
+// (reap-stale-sentinels.sh) and its SENTINEL_NAMES registry were retired with
+// the rest of Sentinel (#376/#377) — there is no remaining mechanism that
+// could discover or clear an unrecognized file in the sessions dir by prefix,
+// so the collision this test used to guard against can no longer occur. The
+// one property still worth asserting (the marker's own naming convention)
+// stays documented in the next test below.
+test('the PARTIAL marker filename does not use the retired .pending- prefix', () => {
   const markerNameSample = '.partial-cli-batch-codex-sess123-dispatch1.json';
   assert.ok(!markerNameSample.startsWith('.pending-'),
-    'marker filename must not start with .pending- (the sentinel-lifecycle prefix)');
-
-  // The sweep's unknown-stray pass is the only mechanism that could otherwise
-  // discover and clear an unrecognized file in the sessions dir — confirm its
-  // glob is exactly `.pending-*`, so a `.partial-cli-batch-*` marker is
-  // invisible to it by construction, not by convention alone.
-  assert.ok(REAP_SCRIPT.includes("-name '.pending-*'"),
-    'reap-stale-sentinels.sh unknown-stray sweep must glob only .pending-*, proving a .partial-cli-batch-* marker is never swept');
-
-  // The known SENTINEL_NAMES registry (whitelist consumed by clear-sentinel.sh
-  // and the reap loop) must not itself contain any partial-cli-batch entry —
-  // confirms the marker was never folded into the reviewer-sentinel SSOT.
-  assert.ok(!/partial-cli-batch/.test(PAYLOAD_LIB),
-    'SENTINEL_NAMES (payload.sh) must not include a partial-cli-batch entry — the marker stays outside the .pending-* reviewer-sentinel lifecycle');
+    'marker filename must not start with .pending- (the retired sentinel-lifecycle prefix)');
 });
 
 test('the marker path, required fields, and reconciliation/no-auto-clear rule are documented', () => {

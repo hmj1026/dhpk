@@ -7,7 +7,6 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const contract = fs.readFileSync(path.join(ROOT, 'docs', 'contracts', 'reviewer-contract.md'), 'utf8');
 const policy = fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8');
-const reminder = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', 'stop-review-reminder.sh'), 'utf8');
 const reviewers = [
   ['code-reviewer', 'agents'],
   ['database-reviewer', 'agents'],
@@ -78,18 +77,6 @@ test('reviewer frequency contract batches waves and bounds recovery', () => {
     'new substantive scope starts a new review decision',
   ]) {
     assert.ok(policy.includes(token), `frequency policy missing ${token}`);
-  }
-  // Active-marker + debounce literals live in _lib/session-env.sh (the
-  // session-environment SSOT); the reminder consumes them via its helpers.
-  const sessionEnv = fs.readFileSync(
-    path.join(ROOT, 'scripts', 'hooks', '_lib', 'session-env.sh'),
-    'utf8'
-  );
-  for (const token of ['dhpk_active_marker', 'stop_hook_active', 'DHPK_SIDECAR_REVIEW_BACKOFF']) {
-    assert.ok(reminder.includes(token), `active/debounce behavior missing ${token}`);
-  }
-  for (const token of ['.active-', '.review-reminder-backoff']) {
-    assert.ok(sessionEnv.includes(token), `session-env SSOT missing ${token}`);
   }
   assert.ok(contract.includes('one corrected retry'));
   assert.ok(contract.includes('identical retry is prohibited'));

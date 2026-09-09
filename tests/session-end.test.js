@@ -1,13 +1,11 @@
 'use strict';
 
 // Smoke coverage for session-end.sh (SessionEnd hook: teardown cleanup —
-// opt-in orphaned gitnexus MCP process reap + stale sentinel sweep).
+// opt-in orphaned gitnexus MCP process reap).
 //   1. bash -n syntax check.
 //   2. Default invocation (reap_stale_mcp_processes unset → false) against a
 //      scratch project dir is a safe no-op with respect to the host: no
-//      process is targeted (the pgrep branch is skipped entirely), and the
-//      only filesystem effect is the sentinel sweep confined to the scratch
-//      dir's own .claude/artifacts/sessions/.
+//      process is targeted (the pgrep branch is skipped entirely).
 
 const fs = require('node:fs');
 const os = require('node:os');

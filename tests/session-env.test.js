@@ -1,9 +1,8 @@
 'use strict';
 
 // Coverage for scripts/hooks/_lib/session-env.sh: the canonical project-root /
-// sessions-dir / payload-read / active-marker resolution every hook sources,
-// replacing the three divergent inline fallback chains that previously forced
-// subagent-stop-verify.sh to distrust clear-sentinel.sh's root (double-clear).
+// sessions-dir / payload-read resolution every hook sources, replacing three
+// divergent inline fallback chains.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -79,28 +78,13 @@ test('dhpk_read_payload echoes stdin and never fails', () => {
   assert.strictEqual(res.stdout, '{"tool_input":{"file_path":"a.php"}}');
 });
 
-test('dhpk_active_marker maps .pending-* basenames to .active-* companions', () => {
-  const res = sh(
-    'dhpk_active_marker .pending-review; echo; dhpk_active_marker .pending-db-review',
-    {}
-  );
-  assert.strictEqual(res.status, 0, res.stderr);
-  const [a, b] = res.stdout.split('\n');
-  assert.strictEqual(a, '.active-review');
-  assert.strictEqual(b, '.active-db-review');
-});
-
 test('sidecar basename registry constants are defined', () => {
   const res = sh(
-    'printf "%s\\n%s\\n%s\\n%s" ' +
-      '"$DHPK_SIDECAR_UNRESOLVED_VERDICT" "$DHPK_SIDECAR_REVIEW_BACKOFF" ' +
-      '"$DHPK_SIDECAR_MODULE_FINDINGS" "$DHPK_SIDECAR_FAST_WORKER_ACTIVE"',
+    'printf "%s\\n%s" "$DHPK_SIDECAR_MODULE_FINDINGS" "$DHPK_SIDECAR_FAST_WORKER_ACTIVE"',
     {}
   );
   assert.strictEqual(res.status, 0, res.stderr);
   assert.deepStrictEqual(res.stdout.split('\n'), [
-    '.unresolved-verdict',
-    '.review-reminder-backoff',
     '.module-findings',
     '.active-fast-worker',
   ]);

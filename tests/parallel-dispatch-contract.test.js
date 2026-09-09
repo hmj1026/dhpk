@@ -121,46 +121,4 @@ test('the shared-state contract requires reporting a missing scoped validator ra
 // 4.2 — reviewer sentinel derivation for an assigned edited-file list matches
 // normal hook-driven sentinel arming, and a sibling's own sentinel neither
 // suppresses nor is conflated with it.
-test('sentinel derivation for one worker\'s assigned files is unaffected by a sibling\'s own armed sentinel', () => {
-  const repo = mkRepo({ prefix: 'dhpk-pdc-' });
-  try {
-    // Worker A is assigned Foo.php only.
-    const phpFile = path.join(repo, 'Foo.php');
-    fs.writeFileSync(phpFile, '<?php class Foo {}\n');
-    const resA = runHook('post-edit-dispatch.sh', {
-      payload: { tool_input: { file_path: phpFile } },
-      cwd: repo,
-      projectDir: repo,
-      deleteEnv: ['DHPK_ACTIVE_MODULES'],
-    });
-    assert.strictEqual(resA.status, 0, `expected exit 0 for worker A: ${resA.stderr}`);
-
-    // Sibling worker B is assigned README.md, in the same shared checkout.
-    const mdFile = path.join(repo, 'README.md');
-    fs.writeFileSync(mdFile, '# hi\n');
-    const resB = runHook('post-edit-dispatch.sh', {
-      payload: { tool_input: { file_path: mdFile } },
-      cwd: repo,
-      projectDir: repo,
-      deleteEnv: ['DHPK_ACTIVE_MODULES'],
-    });
-    assert.strictEqual(resB.status, 0, `expected exit 0 for worker B: ${resB.stderr}`);
-
-    const dir = sessionsDir(repo);
-    const entries = fs.readdirSync(dir).filter((e) => e.startsWith('.pending-'));
-
-    // Both the code-reviewer sentinel (worker A's assigned scope) and the
-    // doc-reviewer sentinel (worker B's assigned scope) are present — the
-    // normal post-implementation reviewer gates still ran for each worker's
-    // own assigned-file type, and neither worker's derivation was suppressed
-    // or contaminated by the other's sibling edit.
-    assert.ok(entries.includes('.pending-review'),
-      'worker A\'s assigned-file (.php) sentinel must be armed, derived from its own assigned edit');
-    assert.ok(entries.includes('.pending-doc-review'),
-      'worker B\'s assigned-file (.md) sentinel must be armed, derived from its own assigned edit');
-  } finally {
-    rmRepo(repo);
-  }
-});
-
 run('parallel-dispatch-contract');

@@ -3,32 +3,11 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const baseline = require('../scripts/lib/review-gate-baseline');
 
-const ROOT = path.join(__dirname, '..');
 const CORPUS_PATH = path.join(__dirname, 'fixtures', 'review-gate', 'sentinel-differential-v1.json');
 const CORPUS = JSON.parse(fs.readFileSync(CORPUS_PATH, 'utf8'));
-const REQUIRED_CASES = [
-  'no-op-not-applicable',
-  'fresh-pass',
-  'missing-artifact',
-  'stale-artifact',
-  'malformed-native-artifact',
-  'misplaced-artifact',
-  'foreign-identity',
-  'concurrent-session',
-  'resumed-pass',
-  'resumed-intermediate',
-  'resumed-malformed',
-  'interrupted-reviewer',
-  'retry-allowed',
-  'retry-exhausted',
-  'unresolved-fail',
-  'unresolved-resumed-block',
-  'unresolved-clean-follow-up',
-];
 const COMPLETE_METRICS = {
   modelTokens: 1200,
   dispatchCount: 2,
@@ -61,29 +40,14 @@ function assertDeepFrozen(value) {
   }
 }
 
-test('corpus names every required legacy scenario and stays platform-neutral', () => {
-  assert.strictEqual(CORPUS.schema, 'dhpk.sentinel-differential-corpus.v1');
-  assert.strictEqual(CORPUS.authority, 'SENTINEL');
-  assert.deepStrictEqual(CORPUS.cases.map(({ input }) => input.caseId), REQUIRED_CASES);
-  assert.doesNotMatch(JSON.stringify(CORPUS.cases.map(({ input }) => input)), /\.claude|\/home\/|\\Users\\/);
-});
-
-test('every corpus case is bound to an executable legacy characterization', () => {
-  const proofFiles = new Set();
-  for (const entry of [...CORPUS.cases, ...CORPUS.deterministicProtections]) {
-    const proofFile = entry.proof?.file || entry.file;
-    const source = fs.readFileSync(path.join(ROOT, proofFile), 'utf8');
-    assert.ok(source.includes(`test('${entry.proof?.test || entry.test}'`), `${entry.input?.caseId || entry.kind} proof is missing`);
-    proofFiles.add(proofFile);
-  }
-  for (const proofFile of proofFiles) {
-    const proof = spawnSync(process.execPath, [path.join(ROOT, proofFile)], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    });
-    assert.strictEqual(proof.status, 0, `${proofFile} failed:\n${proof.stdout}\n${proof.stderr}`);
-  }
-});
+// The two corpus/proof-binding characterization tests that used to live here
+// were retired with Sentinel itself (#376/#377): they proved this corpus's
+// cases matched behavior in tests/post-edit-remind-scope.test.js,
+// tests/subagent-stop-verify-autoclear.test.js, tests/review-lifecycle*.test.js,
+// and tests/resumed-review-reconcile.test.js — all now deleted, since that
+// behavior no longer exists. The corpus's `cases[].input` fixtures remain
+// useful below purely as normalization-logic test data for
+// baseline.normalizeSentinelOutcome, independent of the retired proof files.
 
 test('normalizes lifecycle clearance separately from semantic approval', () => {
   for (const { input } of CORPUS.cases) {

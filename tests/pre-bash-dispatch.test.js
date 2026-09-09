@@ -64,16 +64,4 @@ test('combined dispatcher preserves protected-branch commit block', () => {
   } finally { rmRepo(repo); }
 });
 
-test('combined dispatcher preserves pending-review commit and push blocks', () => {
-  const repo = repoOnMainWithPendingReview();
-  try {
-    const commit = runHook('git commit -m guarded', repo, { DHPK_SENTINEL_COMMIT_GATE: 'block' });
-    assert.strictEqual(commit.status, 2, commit.stderr);
-    assert.match(commit.stderr, /sentinel-gate|pending-review/i);
-    const push = runHook('git push origin main', repo, { DHPK_SENTINEL_COMMIT_GATE: 'block' });
-    assert.strictEqual(push.status, 2, push.stderr);
-    assert.match(push.stderr, /pending-review|sentinel/i);
-  } finally { rmRepo(repo); }
-});
-
 run('pre-bash-dispatch');
