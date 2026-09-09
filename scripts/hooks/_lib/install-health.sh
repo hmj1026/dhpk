@@ -31,19 +31,22 @@ DHPK_PLUGIN_NAME="${DHPK_PLUGIN_NAME:-dhpk}"
 # dhpk_version_state — prints one line of key=value pairs, or nothing at all
 # when the state cannot be resolved:
 #   installed=<v> available=<v> gap=<none|patch|minor|major|ahead>
-#   ask=<0|1> source=<github|directory|...> age_days=<n>
+#   ask=<0|1> scope=<user|project|local|managed> source=<github|directory|...>
+#   age_days=<n>
 #
 # `ask` reflects only whether the version gap itself warrants a question
 # (design D6: minor or major, never patch; design D4: never for a
 # directory-source marketplace). Project-level pin policy is applied by
 # dhpk_version_message, not here.
 dhpk_version_state() {
+    local project_root="${CLAUDE_PROJECT_DIR:-$PWD}"
     command -v python3 >/dev/null 2>&1 || return 0
     [ -d "$DHPK_PLUGINS_DIR" ] || return 0
 
     DHPK_PLUGINS_DIR="$DHPK_PLUGINS_DIR" \
     DHPK_PLUGIN_KEY="$DHPK_PLUGIN_KEY" \
     DHPK_PLUGIN_NAME="$DHPK_PLUGIN_NAME" \
+    DHPK_PROJECT_DIR="$project_root" \
     python3 <<'PY' 2>/dev/null || return 0
 import json, os, sys
 from datetime import datetime, timezone
@@ -51,6 +54,7 @@ from datetime import datetime, timezone
 root = os.environ["DHPK_PLUGINS_DIR"]
 key = os.environ["DHPK_PLUGIN_KEY"]
 name = os.environ["DHPK_PLUGIN_NAME"]
+project_root = os.environ.get("DHPK_PROJECT_DIR") or os.getcwd()
 
 
 def load(path):
@@ -71,9 +75,53 @@ except Exception:
 records = (installed_state.get("plugins") or {}).get(key)
 if not isinstance(records, list) or not records:
     bail()
-installed = (records[0] or {}).get("version") or ""
+
+
+def normalized_path(path):
+    try:
+        return os.path.normcase(os.path.realpath(os.path.abspath(str(path))))
+    except Exception:
+        return ""
+
+
+current_project = normalized_path(project_root)
+selected = None
+for record in records:
+    if not isinstance(record, dict):
+        continue
+    scope = record.get("scope") or "user"
+    record_project = record.get("projectPath") or record.get("project_path")
+    if scope != "user" and record_project and normalized_path(record_project) == current_project:
+        selected = record
+        break
+
+if selected is None:
+    for record in records:
+        if isinstance(record, dict) and (record.get("scope") or "user") == "user":
+            selected = record
+            break
+
+if selected is None:
+    # A project record with an explicit path belongs to that project only. Do
+    # not silently advise updating another project's installation when there
+    # is no user-scoped fallback. Legacy records without a path remain usable.
+    selected = next(
+        (
+            record
+            for record in records
+            if isinstance(record, dict)
+            and (record.get("scope") or "user") != "user"
+            and not (record.get("projectPath") or record.get("project_path"))
+        ),
+        None,
+    )
+if selected is None:
+    bail()
+
+installed = selected.get("version") or ""
 if not installed or installed == "unknown":
     bail()
+scope = selected.get("scope") or "user"
 
 # The marketplace is the part of the key after "@"; fall back to the plugin name.
 marketplace_name = key.split("@", 1)[1] if "@" in key else name
@@ -157,8 +205,8 @@ if stamp:
         age_days = -1
 
 print(
-    "installed=%s available=%s gap=%s ask=%d source=%s age_days=%d"
-    % (installed, available, gap, ask, source, age_days)
+    "installed=%s available=%s gap=%s ask=%d scope=%s source=%s age_days=%d"
+    % (installed, available, gap, ask, scope, source, age_days)
 )
 PY
 }
@@ -211,6 +259,17 @@ dhpk__version_covered() {
     return 1
 }
 
+# dhpk__version_update_command <scope> — render the non-interactive update
+# command for the installation selected by dhpk_version_state. Claude defaults
+# to user scope, so project/local/managed installations must carry their scope
+# explicitly or the CLI updates a different installation.
+dhpk__version_update_command() {
+    case "${1:-user}" in
+        project|local|managed) printf 'claude plugin update --scope %s -y dhpk@dhpk' "$1" ;;
+        *) printf 'claude plugin update -y dhpk@dhpk' ;;
+    esac
+}
+
 # dhpk_version_message — the human-facing freshness text, or nothing.
 #
 # Composes the message only; it does not decide when the session shows it. A
@@ -228,7 +287,7 @@ dhpk__version_covered() {
 # keeps the function usable on its own.
 dhpk_version_message() {
     local root="${CLAUDE_PROJECT_DIR:-$PWD}"
-    local line="$1" installed available gap age phrase ranges
+    local line="$1" installed available gap scope age phrase ranges update_cmd
 
     [ -n "$line" ] || line="$(dhpk_version_state)"
     [ -n "$line" ] || return 0
@@ -236,8 +295,10 @@ dhpk_version_message() {
     installed="$(dhpk__version_field "$line" installed)"
     available="$(dhpk__version_field "$line" available)"
     gap="$(dhpk__version_field "$line" gap)"
+    scope="$(dhpk__version_field "$line" scope)"
     age="$(dhpk__version_field "$line" age_days)"
     phrase="$(dhpk__fetch_age_phrase "$age")"
+    update_cmd="$(dhpk__version_update_command "$scope")"
 
     case "$gap" in
         none)
@@ -254,8 +315,8 @@ dhpk_version_message() {
             # only" scenario requires the drift to APPEAR in the advisory
             # output. Advisory-only means unasked, not unsaid — folding this
             # into the `ahead` branch dropped it entirely.
-            printf 'dhpk %s installed; patch release %s available (marketplace last fetched %s). Advisory only — no question raised. Run `claude plugin update dhpk@dhpk` when convenient; a hook cannot run it, and it only takes effect in a fresh session.' \
-                "$installed" "$available" "$phrase"
+            printf 'dhpk %s installed; patch release %s available (marketplace last fetched %s). Advisory only — no question raised. Run `%s` when convenient; a hook cannot run it, and it only takes effect in a fresh session.' \
+                "$installed" "$available" "$phrase" "$update_cmd"
             return 0 ;;
     esac
 
@@ -264,8 +325,8 @@ dhpk_version_message() {
         # A policy exists. Only an already-blessed version may be recommended.
         if printf '%s\n' "$ranges" | dhpk__version_covered "$installed"; then
             if printf '%s\n' "$ranges" | dhpk__version_covered "$available"; then
-                printf 'dhpk %s installed; %s available and covered by this project'"'"'s verified ranges (marketplace last fetched %s). Run `claude plugin update dhpk@dhpk` — a hook cannot run it, and it only takes effect in a fresh session. For the full configuration audit, use `$harness-govern health`.' \
-                    "$installed" "$available" "$phrase"
+                printf 'dhpk %s installed; %s available and covered by this project'"'"'s verified ranges (marketplace last fetched %s). Run `%s` — a hook cannot run it, and it only takes effect in a fresh session. For the full configuration audit, use `$harness-govern health`.' \
+                    "$installed" "$available" "$phrase" "$update_cmd"
             else
                 printf 'dhpk %s installed and %s is available (marketplace last fetched %s), but .claude/dhpk-versions.json does not list %s among this project'"'"'s verified ranges — the upgrade is not recommended until the pin file blesses it. For the full configuration audit, use `$harness-govern health`.' \
                     "$installed" "$available" "$phrase" "$available"
@@ -276,8 +337,8 @@ dhpk_version_message() {
         return 0
     fi
 
-    printf 'dhpk %s installed; %s available (marketplace last fetched %s). Run `claude plugin update dhpk@dhpk` — a hook cannot run it, and it only takes effect in a fresh session. For the full configuration audit, use `$harness-govern health`.' \
-        "$installed" "$available" "$phrase"
+    printf 'dhpk %s installed; %s available (marketplace last fetched %s). Run `%s` — a hook cannot run it, and it only takes effect in a fresh session. For the full configuration audit, use `$harness-govern health`.' \
+        "$installed" "$available" "$phrase" "$update_cmd"
 }
 
 # dhpk__hash <string> — short stable digest, with fallbacks for machines
@@ -312,13 +373,14 @@ dhpk__hash() {
 # entirely absent third argument triggers a fresh computation.
 dhpk_install_health_report() {
     local root="$1" modules="$2"
-    local vline installed available gap vask vmsg="" mismatch digest
+    local vline installed available gap scope vask vmsg="" mismatch digest update_cmd
     local version_news=0 raise_question=0 has_pin=0
 
     vline="$(dhpk_version_state)"
     installed="$(dhpk__version_field "$vline" installed)"
     available="$(dhpk__version_field "$vline" available)"
     gap="$(dhpk__version_field "$vline" gap)"
+    scope="$(dhpk__version_field "$vline" scope)"
     vask="$(dhpk__version_field "$vline" ask)"
 
     [ -f "$root/.claude/dhpk-versions.json" ] && has_pin=1
@@ -359,7 +421,7 @@ dhpk_install_health_report() {
     # that have independently verified the mechanism.
     [ "${DHPK_INSTALL_HEALTH_ASK:-0}" = "1" ] || raise_question=0
 
-    digest="$(dhpk__hash "${installed}|${available}|${modules}")"
+    digest="$(dhpk__hash "${installed}|${available}|${scope}|${modules}")"
     DHPK_ADVISE_SESSION_ID="$digest" dhpk_advise_once install-health || return 0
 
     printf '[dhpk install health]\n'
@@ -378,7 +440,8 @@ dhpk_install_health_report() {
     # Only when there is actually a newer version. A currency line carries no
     # upgrade to recommend.
     if [ "$version_news" -eq 1 ]; then
-        printf -- '- version: `claude plugin update dhpk@dhpk`. A hook cannot run it, and it only takes effect in a fresh session.\n'
+        update_cmd="$(dhpk__version_update_command "$scope")"
+        printf -- '- version: `%s`. A hook cannot run it, and it only takes effect in a fresh session.\n' "$update_cmd"
     fi
     printf -- '- For the deep configuration audit, use `$harness-govern health` rather than re-deriving it here.\n'
 }

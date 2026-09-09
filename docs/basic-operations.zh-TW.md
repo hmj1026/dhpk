@@ -150,10 +150,17 @@ CLI 不可用時記錄 `NOT RUN`，不要宣稱 official PASS。Release consumer
 ### 更新／移除
 
 ```bash
-claude plugin update dhpk@dhpk         # 從 marketplace 取得最新版本
+# user scope 安裝（CLI 預設）
+claude plugin update -y dhpk@dhpk
+# project scope 安裝
+claude plugin update --scope project -y dhpk@dhpk
 claude plugin uninstall dhpk@dhpk      # 移除 plugin
 claude plugin marketplace remove dhpk  # 移除 marketplace 設定
 ```
+
+請使用安裝 plugin 時相同的 scope。更新指令預設使用 user scope，因此
+project scope 安裝必須加上 `--scope project`；在非 TTY 或 CI 環境請使用
+`-y`／`--yes` 跳過確認提示。
 
 在 Claude Code 內也可使用 `/plugin update dhpk@dhpk`、`/plugin uninstall dhpk@dhpk`、
 `/plugin marketplace remove dhpk`。
@@ -164,7 +171,7 @@ claude plugin marketplace remove dhpk  # 移除 marketplace 設定
 不要把 ephemeral marketplace cache path 寫進 project command。
 
 ```bash
-claude plugin update dhpk@dhpk
+claude plugin update -y dhpk@dhpk
 DHPK_ROOT=/absolute/path/to/dhpk
 bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --update
 ```
@@ -519,4 +526,5 @@ claude --plugin-dir ~/projects/dhpk
 
 Marketplace install path（`claude plugin install`）會將 plugin 複製到
 `~/.claude/plugins/cache/`；source repository 的修改要等到
-`claude plugin update dhpk@dhpk` 才會反映。
+`claude plugin update -y dhpk@dhpk` 才會反映（project scope 安裝則使用加上
+`--scope project` 的對應指令）。

@@ -149,10 +149,18 @@ For live source edits during plugin development (no reinstall loop), see [§ Dev
 ### Update / Uninstall
 
 ```bash
-claude plugin update dhpk@dhpk         # pull the latest version from the marketplace
+# User-scoped install (the CLI default)
+claude plugin update -y dhpk@dhpk
+# Project-scoped install
+claude plugin update --scope project -y dhpk@dhpk
 claude plugin uninstall dhpk@dhpk      # remove the plugin
 claude plugin marketplace remove dhpk  # forget the marketplace entry
 ```
+
+Use the same scope that was used to install the plugin. The update command
+defaults to the user scope, so a project-scoped install requires
+`--scope project`; `-y`/`--yes` avoids the confirmation prompt in non-TTY or CI
+environments.
 
 The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall dhpk@dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
 
@@ -167,7 +175,7 @@ checkout instead, for example `DHPK_ROOT=/absolute/path/to/dhpk` and run
 an ephemeral marketplace cache path.
 
 ```bash
-claude plugin update dhpk@dhpk
+claude plugin update -y dhpk@dhpk
 DHPK_ROOT=/absolute/path/to/dhpk
 bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --update
 ```
@@ -578,4 +586,4 @@ claude --plugin-dir ~/projects/dhpk
 
 Edits to plugin files take effect after `/reload-plugins` (hooks, MCP, LSP) or session restart (monitors, skill listings).
 
-The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update dhpk@dhpk`.
+The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update -y dhpk@dhpk` (or the equivalent command with `--scope project` for a project-scoped install).

@@ -27,6 +27,7 @@ function daysAgo(n) {
 
 // Build a fixture ~/.claude/plugins tree.
 //   installed   — installed dhpk version (null to omit the plugin entry)
+//   installedRecords — explicit installed plugin records, for scope-selection cases
 //   available   — version in the marketplace's plugin manifest
 //   source      — marketplace source object
 //   fetchedDays — age of the marketplace's lastUpdated
@@ -38,15 +39,22 @@ function mkPluginsDir({
   fetchedDays = 40,
   extraPlugins = [],
   pluginSource = './',
+  installedRecords = null,
 } = {}) {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-plugins-')));
   const mktLocation = path.join(dir, 'marketplaces', 'dhpk');
 
   const plugins = {};
   if (installed !== null) {
-    plugins['dhpk@dhpk'] = [
-      { scope: 'user', installPath: path.join(dir, 'cache', 'dhpk', 'dhpk', installed), version: installed },
-    ];
+    const defaultRecord = {
+      scope: 'user',
+      installPath: path.join(dir, 'cache', 'dhpk', 'dhpk', installed),
+      version: installed,
+    };
+    plugins['dhpk@dhpk'] = (installedRecords || [defaultRecord]).map((record) => ({
+      ...defaultRecord,
+      ...record,
+    }));
   }
   writeJson(path.join(dir, 'installed_plugins.json'), { version: 2, plugins });
   writeJson(path.join(dir, 'known_marketplaces.json'), {
@@ -75,8 +83,8 @@ function callLib(fn, { pluginsDir, projectDir, env = {} } = {}) {
   });
 }
 
-function state(pluginsDir) {
-  const res = callLib('dhpk_version_state', { pluginsDir });
+function state(pluginsDir, projectDir) {
+  const res = callLib('dhpk_version_state', { pluginsDir, projectDir });
   assert.strictEqual(res.status, 0, res.stderr);
   const out = {};
   for (const kv of res.stdout.trim().split(/\s+/).filter(Boolean)) {
@@ -257,9 +265,66 @@ test('the stale message also carries the fetch age', () => {
 test('the stale message carries the exact update command and the fresh-session caveat', () => {
   withPlugins({ installed: '0.28.17', available: '0.29.0' }, (dir) => {
     const msg = message(dir);
-    assert.ok(msg.includes('claude plugin update dhpk@dhpk'), `exact update command missing: ${msg}`);
+    assert.ok(msg.includes('claude plugin update -y dhpk@dhpk'), `exact update command missing: ${msg}`);
     assert.ok(/fresh session/i.test(msg), `fresh-session caveat missing: ${msg}`);
   });
+});
+
+test('a project-scoped installation is selected for the current project and gets a scoped non-interactive command', () => {
+  const project = tempProject();
+  try {
+    withPlugins({
+      available: '0.29.0',
+      installedRecords: [
+        { scope: 'user', version: '0.28.17' },
+        { scope: 'project', version: '0.28.17', projectPath: project },
+      ],
+    }, (dir) => {
+      const s = state(dir, project);
+      assert.strictEqual(s.scope, 'project', `wrong installation selected: ${JSON.stringify(s)}`);
+      const msg = message(dir, project);
+      assert.ok(msg.includes('claude plugin update --scope project -y dhpk@dhpk'), `scoped update command missing: ${msg}`);
+    });
+  } finally {
+    cleanup(project);
+  }
+});
+
+test('a project installation for another project does not override the user installation', () => {
+  const project = tempProject();
+  try {
+    withPlugins({
+      available: '0.29.0',
+      installedRecords: [
+        { scope: 'project', version: '0.28.17', projectPath: `${project}-other` },
+        { scope: 'user', version: '0.28.17' },
+      ],
+    }, (dir) => {
+      const s = state(dir);
+      assert.strictEqual(s.scope, 'user', `wrong fallback installation selected: ${JSON.stringify(s)}`);
+      const msg = message(dir, project);
+      assert.ok(msg.includes('claude plugin update -y dhpk@dhpk'), `user update command missing: ${msg}`);
+      assert.ok(!msg.includes('--scope project'), `foreign project scope leaked into: ${msg}`);
+    });
+  } finally {
+    cleanup(project);
+  }
+});
+
+test('a project installation for another project is ignored without a user fallback', () => {
+  const project = tempProject();
+  try {
+    withPlugins({
+      available: '0.29.0',
+      installedRecords: [
+        { scope: 'project', version: '0.28.17', projectPath: `${project}-other` },
+      ],
+    }, (dir) => {
+      assert.deepStrictEqual(state(dir, project), {}, 'foreign project installation must not be selected');
+    });
+  } finally {
+    cleanup(project);
+  }
 });
 
 test('the stale message points at harness-govern health rather than duplicating its audit', () => {
