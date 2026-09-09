@@ -126,6 +126,10 @@ bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.
 bin/dhpk distribution agy-plugin validate --json
 ```
 
+These generation commands are maintainer/distribution preparation. Consumers
+installing from a clone should use the prepared package in the platform section
+below instead of regenerating a tracked package in place.
+
 ## Codex project-local sync (Supported)
 
 Prerequisites: the Codex project-local loader, a POSIX shell, and the
@@ -633,12 +637,37 @@ delete the whole `.cursor/` directory. `dhpk-install cursor` writes remain
 ## AGY / Antigravity CLI plugin (Experimental)
 
 The AGY projection is a separate owner-scoped package. It adapts canonical
-agent frontmatter and never rewrites `agents/`. Generate and validate it from
-the dhpk checkout:
+agent frontmatter and never rewrites `agents/`. The tracked
+`plugins/dhpk-agy/` directory is already a prepared distribution package for
+consumers installing from a clone. Install that package directly; do not
+regenerate it into the tracked path as part of a consumer install, because
+generation rewrites provenance metadata and dirties the checkout:
+
+```bash
+node scripts/ci/install-agy-plugin.js install \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+```
+
+Maintainers preparing a new distribution may generate and validate the tracked
+package from a clean checkout:
 
 ```bash
 bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.56.0 --json
 bin/dhpk distribution agy-plugin validate --json
+```
+
+For local generation that must not change the checkout, use an external staging
+path and validate/install that same package:
+
+```bash
+bin/dhpk distribution agy-plugin generate \
+  --output /tmp/dhpk-agy-staging --version=0.56.0 --json
+bin/dhpk distribution agy-plugin validate \
+  --output /tmp/dhpk-agy-staging --json
+node scripts/ci/install-agy-plugin.js install \
+  --source /tmp/dhpk-agy-staging \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
 ```
 
 Install, update, and remove only the receipt-owned package at the documented

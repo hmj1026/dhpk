@@ -130,6 +130,21 @@ test('bilingual SSOT pins the unified AGY generator to the current plugin versio
   }
 });
 
+test('AGY installation docs separate consumer install from maintainer generation', () => {
+  const sections = [
+    section(read('docs/platform-installation.md'), '## AGY / Antigravity CLI plugin (Experimental)'),
+    section(read('docs/platform-installation.zh-TW.md'), '## AGY／Antigravity CLI plugin（Experimental）'),
+  ];
+  for (const agy of sections) {
+    const compact = agy.replace(/\s+/g, ' ');
+    assert.ok(compact.includes('install-agy-plugin.js install'), 'AGY docs must show direct consumer installation');
+    assert.ok(compact.includes('--source plugins/dhpk-agy'), 'consumer install must use the checked-in package');
+    assert.ok(compact.includes('/tmp/dhpk-agy-staging'), 'local generation must use an external staging path');
+    assert.ok(/maintainer/i.test(compact) || /維護/.test(compact), 'AGY docs must identify generation as maintainer work');
+    assert.ok(/tracked|追蹤/.test(compact), 'AGY docs must warn about the tracked package path');
+  }
+});
+
 test('Cursor CLI documentation keeps authentication, launch scope, and UI routes distinct', () => {
   const english = read('docs/platform-installation.md');
   const chinese = read('docs/platform-installation.zh-TW.md');
