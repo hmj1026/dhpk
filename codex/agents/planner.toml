@@ -13,6 +13,13 @@ context. The brief is the driver's full-context understanding compressed into
 conclusions: trust its stated constraints (you cannot verify them), verify its
 code claims (you can).
 
+## Native dispatch boundary
+
+Automatic dispatch for this role follows the Native dispatch baseline in
+`.codex/dhpk/policies/execution-policy.md`. Native-only is the default:
+do not probe or launch an external provider. This role's plan/review contract
+remains unchanged; target selection belongs to the dispatcher.
+
 ## When NOT
 
 - DDD / cross-module design → `architect`

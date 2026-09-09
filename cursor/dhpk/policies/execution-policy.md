@@ -60,6 +60,17 @@ partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 `UNAVAILABLE` is non-terminal and cannot count as completed CI. The external
 `/opsx:apply` flow remains unchanged.
 
+## Native dispatch baseline
+
+Planner, reasoner, worker, and reviewer share one native-only dispatch baseline.
+Automatic dispatch considers only the native Claude candidate by default and
+MUST NOT probe, authenticate, launch, or otherwise discover an external CLI
+when cross-provider dispatch is disabled. An explicitly requested external
+target remains directional; public cross-provider configuration and precedence
+are deferred to the owning change. Reviewer routing remains on the current
+Review Gate / Reviewer Contract path and never creates a retired Sentinel
+state.
+
 ## Orchestration lifecycle acceptance
 
 The orchestrator owns dispatch and handoff identity, retries, and evidence

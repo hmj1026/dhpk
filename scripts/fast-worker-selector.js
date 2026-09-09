@@ -2,9 +2,13 @@
 'use strict';
 
 const { spawnSync } = require('node:child_process');
+const {
+  VALID_BACKENDS,
+  resolveDispatchPlan,
+} = require('./lib/native-dispatch-policy');
 
-const BACKENDS = ['claude', 'codex', 'agy'];
-const DEFAULT_ORDER = ['claude', 'codex', 'agy'];
+const BACKENDS = VALID_BACKENDS;
+const DEFAULT_ORDER = Object.freeze([...BACKENDS]);
 const AGENTS = {
   claude: 'dhpk:fast-worker',
   codex: 'dhpk:codex-worker',
@@ -33,48 +37,60 @@ const availability = (backend) => {
     : { available: false, reason: `missing executable: ${executable}` };
 };
 
-const blocked = (requested, selected, reason) => ({
+const blocked = (requested, selected, reason, metadata = {}) => ({
   status: 'blocked',
   requested_backend: requested,
   selected_backend: selected,
   selected_agent: AGENTS[selected] || `dhpk:${selected}-fast-worker`,
   reason,
   fallback: 'none',
+  ...metadata,
 });
 
-const select = (options) => {
+const select = (options, dependencies = {}) => {
   const requested = ['auto', ...BACKENDS].includes(options.backend) ? options.backend : 'claude';
   const fallback = ['none', 'claude'].includes(options.fallback) ? options.fallback : 'none';
   const configuredOrder = String(options.order).split(',').map((item) => item.trim()).filter(Boolean);
   const order = configuredOrder.length > 0 && configuredOrder.every((item) => BACKENDS.includes(item))
     ? configuredOrder
     : DEFAULT_ORDER;
-  if (options.failure) return blocked(requested, requested, `execution ${options.failure} failure; fallback is not permitted`);
+  const plan = resolveDispatchPlan({
+    role: 'worker',
+    requestedBackend: requested,
+    configuredOrder: order,
+    crossProvider: options.cross_provider === true,
+  });
+  const metadata = {
+    candidate_scope: plan.candidate_scope,
+    suppressed_candidates: plan.suppressed_candidates,
+  };
+  const checkAvailability = dependencies.availability || availability;
+  if (options.failure) return blocked(requested, requested, `execution ${options.failure} failure; fallback is not permitted`, metadata);
 
   if (requested !== 'auto') {
-    const result = availability(requested);
+    const result = checkAvailability(plan.candidates[0]);
     if (result.available) {
-      return { status: 'selected', requested_backend: requested, selected_backend: requested, selected_agent: AGENTS[requested], reason: requested === 'claude' ? 'shipped default' : result.reason, fallback: 'none' };
+      return { status: 'selected', requested_backend: requested, selected_backend: requested, selected_agent: AGENTS[requested], reason: requested === 'claude' ? 'shipped default' : result.reason, fallback: 'none', ...metadata };
     }
     if (result.reason.startsWith('missing executable') && fallback === 'claude') {
-      return { status: 'selected', requested_backend: requested, selected_backend: 'claude', selected_agent: AGENTS.claude, reason: `${result.reason}; configured fallback=claude`, fallback: 'claude' };
+      return { status: 'selected', requested_backend: requested, selected_backend: 'claude', selected_agent: AGENTS.claude, reason: `${result.reason}; configured fallback=claude`, fallback: 'claude', ...metadata };
     }
-    return blocked(requested, requested, result.reason);
+    return blocked(requested, requested, result.reason, metadata);
   }
 
   const rejected = [];
-  for (const candidate of order) {
+  for (const candidate of plan.candidates) {
     if (!BACKENDS.includes(candidate)) {
       rejected.push({ backend: candidate, reason: 'invalid backend in order' });
       continue;
     }
-    const result = availability(candidate);
+    const result = checkAvailability(candidate);
     if (result.available) {
-      return { status: 'selected', requested_backend: 'auto', selected_backend: candidate, selected_agent: AGENTS[candidate], reason: result.reason, fallback: 'none', rejected_candidates: rejected };
+      return { status: 'selected', requested_backend: 'auto', selected_backend: candidate, selected_agent: AGENTS[candidate], reason: result.reason, fallback: 'none', rejected_candidates: rejected, ...metadata };
     }
     rejected.push({ backend: candidate, reason: result.reason });
   }
-  return { ...blocked('auto', 'auto', 'no backend available'), rejected_candidates: rejected };
+  return { ...blocked('auto', 'auto', 'no backend available', metadata), rejected_candidates: rejected };
 };
 
 if (require.main === module) {
