@@ -84,12 +84,6 @@ function claimSpecs(counts, scoped) {
     { label: 'opt-in stack modules', re: /(\d+)(\s+opt-in stack modules)/g, expected: counts.modules },
     { label: '個角色導向 agent (ZH total)', re: /(\d+)(\s*個角色導向 agent)/g, expected: counts.agentsTotal },
     { label: 'root-level agents', re: /(\d+)(\s+root-level agent)/g, expected: counts.agentsRoot },
-    // `-slot` is intentionally broader than the phrase-anchored specs above: in these
-    // claim files "N-slot" is reserved vocabulary for the sentinel review slots and appears
-    // in several phrasings ("N-slot sentinel", "N-slot reviewer dispatch", "N-slot 預設 agent").
-    // Anchoring to "-slot sentinel" would silently drop the non-"sentinel" phrasings from
-    // enforcement — the drift this guard exists to catch. Keep it broad on purpose.
-    { label: 'sentinel slots', re: /(\d+)(-slot)/g, expected: counts.slotCount },
     // Codex surface counts. Anchored to the full README phrasings so the table's
     // bare "5 skills" / "7 commands" cells and the "~51 other skills" approx are
     // never matched — only the prerequisite-row claims that spell out the surface.
@@ -148,7 +142,7 @@ function retiredCodexMcpErrors(counts, inventory) {
 // feature name rather than a name/name-aspect derived from the script's own
 // basename (so the naming-convention check below can't find them automatically).
 const COVERAGE_MAP = {
-  'scripts/hooks/_lib/payload.sh': 'sentinel-slots.test.js',
+  'scripts/hooks/_lib/payload.sh': 'subagent-stop-quality.test.js',
   'scripts/ci/catalog.js': 'catalog-claims.test.js',
   'scripts/ci/reconcile-skill-mirrors.js': 'gen-cursor-sync.test.js',
   'scripts/ci/_lib/report.js': 'ci-report.test.js',
@@ -156,9 +150,6 @@ const COVERAGE_MAP = {
   'scripts/hooks/pretool-git-gate.sh': 'pretool-branch-safety-dedup.test.js',
   'scripts/hooks/_lib/install-health.sh': 'session-install-health-version.test.js',
   'scripts/validate/test-hooks.sh': 'validate-test-hooks.test.js',
-  'scripts/hooks/_lib/resumed-review-obligation.sh': 'resumed-review-reconcile.test.js',
-  'scripts/hooks/record-resumed-obligation.sh': 'resumed-review-reconcile.test.js',
-  'scripts/hooks/reconcile-resumed-review.sh': 'resumed-review-reconcile.test.js',
   'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
   'skills/flow-guide/scripts/route-result.js': 'reference-route-policy.test.js',
   'skills/flow-guide/scripts/usage-card.js': 'flow-guide-usage-help.test.js',
@@ -278,7 +269,6 @@ function printTable() {
   console.log(`  skills:   ${c.skillsTotal}  (base ${c.skillsBase} + module ${c.skillsModule})`);
   console.log(`  commands: ${c.commands}`);
   console.log(`  modules:  ${c.modules}`);
-  console.log(`  slots:    ${c.slotCount}  (sentinel review slots from payload.sh)`);
   console.log(`  codex:    ${c.mcpCodexSkills} MCP-backed skills + ${c.codexCommands} commands`);
   console.log(`  hooks:    ${c.hookEvents} events (hooks/hooks.json)`);
 

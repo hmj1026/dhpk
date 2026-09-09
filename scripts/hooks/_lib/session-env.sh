@@ -5,13 +5,8 @@
 # Why this exists
 # ---------------
 # Before this lib, every hook re-derived the project root and the sessions dir
-# inline, with three divergent fallback chains in the tree:
-#   ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel … || pwd)}"
-#   ROOT="$(git rev-parse --show-toplevel … || pwd)"          (ignores env)
-#   repo_root="${CLAUDE_PROJECT_DIR:-$(pwd)}"                 (ignores git)
-# The divergence was load-bearing: subagent-stop-verify.sh could not trust
-# clear-sentinel.sh's root resolution and defensively cleared the sentinel a
-# second time by hand. One resolution order, defined once, sourced everywhere.
+# inline, with three divergent fallback chains in the tree. One resolution
+# order, defined once, sourced everywhere.
 #
 # Resolution order (matches what Claude Code guarantees for hooks):
 #   1. CLAUDE_PROJECT_DIR — set by Claude Code for every hook invocation;
@@ -25,65 +20,20 @@
 #                               dhpk_root itself when no arg is given.
 #   dhpk_read_payload         — stdin, empty string on any error. Call before
 #                               anything else consumes stdin.
-#   dhpk_active_marker <pending-basename>
-#                             — the ".active-*" liveness companion for a
-#                               ".pending-*" sentinel basename.
 #
-# Session-state sidecar basenames (registry — keeps hooks off bare literals;
-# sentinel basenames themselves stay in payload.sh SENTINEL_NAMES, the SSOT):
-#   DHPK_SIDECAR_UNRESOLVED_VERDICT    — subagent-stop-verify verdict escalation
-#   DHPK_SIDECAR_REVIEW_BACKOFF        — stop-review-reminder debounce stamp
+# Session-state sidecar basenames (registry — keeps hooks off bare literals):
 #   DHPK_SIDECAR_MODULE_FINDINGS       — post-edit-dispatch / stop-advisory-dispatch accumulator
 #   DHPK_SIDECAR_FAST_WORKER_ACTIVE    — shared fast-worker liveness marker
-#   DHPK_SIDECAR_RESUMED_OBLIGATIONS   — resumed-review (SendMessage) obligation ledger
-#   DHPK_SIDECAR_REVIEW_DISPATCH       — reviewer dispatch-attempt baselines and provenance
-#   DHPK_SIDECAR_LIFECYCLE_EVENTS       — append-only lifecycle transition events
-#   DHPK_SIDECAR_ARTIFACT_READY         — producer completion markers
-#   DHPK_SIDECAR_REVIEW_TELEMETRY       — append-only lifecycle counters
-#   DHPK_SIDECAR_ACCEPTED_OUTCOME_COST   — observe-only accepted-outcome cost observations
-#   DHPK_SIDECAR_RETRY_STATE            — one-corrected-retry keyed state
-#   DHPK_SIDECAR_QUOTA_STATE            — resumable quota-blocked task identity
-#   DHPK_SIDECAR_AUDIT_READY            — audit-report producer completion markers
+#
+# The Review Sentinel `.pending-*`/`.active-*` mechanism and its sidecars
+# (unresolved-verdict escalation, review-reminder backoff, resumed-review
+# obligations, dispatch-attempt baselines, lifecycle events, producer-ready
+# markers, review telemetry, accepted-outcome cost, retry/quota/audit state)
+# were retired with the rest of Sentinel (#376/#377) — see
+# docs/adr/0018-production-migration-observation-checkpoint.md.
 
-DHPK_SIDECAR_UNRESOLVED_VERDICT=".unresolved-verdict"
-DHPK_SIDECAR_REVIEW_BACKOFF=".review-reminder-backoff"
 DHPK_SIDECAR_MODULE_FINDINGS=".module-findings"
 DHPK_SIDECAR_FAST_WORKER_ACTIVE=".active-fast-worker"
-DHPK_SIDECAR_RESUMED_OBLIGATIONS=".resumed-review-obligations"
-DHPK_SIDECAR_REVIEW_DISPATCH=".review-dispatch-attempts"
-DHPK_SIDECAR_LIFECYCLE_EVENTS=".lifecycle-events.jsonl"
-DHPK_SIDECAR_ARTIFACT_READY=".producer-ready.jsonl"
-DHPK_SIDECAR_REVIEW_TELEMETRY=".review-telemetry.jsonl"
-DHPK_SIDECAR_ACCEPTED_OUTCOME_COST=".accepted-outcome-cost.jsonl"
-DHPK_SIDECAR_RETRY_STATE=".review-retry.jsonl"
-DHPK_SIDECAR_QUOTA_STATE=".quota-resume.jsonl"
-DHPK_SIDECAR_AUDIT_READY=".audit-ready.jsonl"
-
-# dhpk_reset_review_backoff <sessions_dir> <sentinel_name>
-#
-# Drop stop-review-reminder's escalation rows for one slot. Call this wherever a
-# sentinel is legitimately cleared.
-#
-# The "this gate has been ignored N times" counter is keyed on
-# (sentinel, session, fingerprint-of-sentinel-contents). Clearing the sentinel
-# does not touch that row, so when later edits re-arm the same slot with the same
-# file list the fingerprint matches again and the counter resumes climbing —
-# escalating to a HARD DIRECTIVE across rounds in which a reviewer ran every
-# time. Rows for every session are dropped, not just the caller's: once the
-# sentinel is gone, no session's fingerprint for it refers to anything.
-dhpk_reset_review_backoff() {
-    local sess="$1" name="$2" file tmp
-    [ -n "$sess" ] && [ -n "$name" ] || return 0
-    file="$sess/$DHPK_SIDECAR_REVIEW_BACKOFF"
-    [ -f "$file" ] || return 0
-    tmp="$(mktemp 2>/dev/null || printf '%s.reset.%s' "$file" "$$")"
-    if awk -F '\t' -v n="$name" '$1 != n' "$file" > "$tmp" 2>/dev/null; then
-        mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp"
-    else
-        rm -f "$tmp"
-    fi
-    return 0
-}
 
 dhpk_root() {
     if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
@@ -103,11 +53,6 @@ dhpk_sessions_dir() {
 
 dhpk_read_payload() {
     cat 2>/dev/null || true
-    return 0
-}
-
-dhpk_active_marker() {
-    printf '%s' "${1/.pending-/.active-}"
     return 0
 }
 

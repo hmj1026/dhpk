@@ -5,10 +5,9 @@
 # for dhpk (no bun dependency; the source's `HOOK_HOST=codex` gate is
 # dhpk-inapplicable and dropped, not translated — see design.md Decision d).
 #
-# Blocks-and-continues a subagent whose final report is thin/evidence-free,
-# so `subagent-stop-verify.sh` (wired AFTER this hook in hooks.json) never
-# auto-clears a reviewer's sentinel on a no-op reply. Default OFF via
-# CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE — must be explicitly enabled.
+# Blocks-and-continues a subagent whose final report is thin/evidence-free.
+# Default OFF via CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE — must be
+# explicitly enabled.
 #
 # Trigger: SubagentStop event (wired in hooks/hooks.json, BEFORE
 # subagent-stop-verify.sh).
@@ -22,7 +21,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/session-env.sh"
 ROOT="$(dhpk_root)"
 # Project overrides must be loaded before the gate decision. payload.sh supplies
-# the reviewer roster used to scope this advisory to reviewer sentinels only.
+# the reviewer roster used to scope this advisory to reviewer agents only.
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 
@@ -61,7 +60,7 @@ SUBAGENT="$(printf '%s' "$PAYLOAD" | jq -r '
 SUBAGENT_BARE="${SUBAGENT##*:}"
 
 IS_REVIEWER=0
-for _reviewer in "${SENTINEL_AGENTS[@]}"; do
+for _reviewer in "${REVIEWER_AGENTS[@]}"; do
     [ "${_reviewer##*:}" = "$SUBAGENT_BARE" ] && IS_REVIEWER=1 && break
 done
 [ "$IS_REVIEWER" -eq 1 ] || exit 0

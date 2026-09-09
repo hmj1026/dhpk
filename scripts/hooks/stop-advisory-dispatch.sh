@@ -56,13 +56,6 @@ printf '%s' "$_advisory_payload" | (
     [ -z "$TRANSCRIPT" ] && exit 0
     [ -f "$TRANSCRIPT" ] || exit 0
 
-    # Active sentinels → stop-review-reminder.sh already owns the reminder.
-    for name in "${SENTINEL_NAMES[@]}"; do
-        if [ -f "$SESS/$name" ]; then
-            exit 0
-        fi
-    done
-
     # Grab the text of the last N transcript lines' assistant messages.
     TAIL_LINES=80
     recent_assistant_text=""
