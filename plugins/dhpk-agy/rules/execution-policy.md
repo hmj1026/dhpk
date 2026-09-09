@@ -273,8 +273,11 @@ Planner, reasoner, worker, and reviewer use the same native-only baseline:
 Automatic dispatch considers only the native candidate by default. With
 cross-provider dispatch disabled, it MUST NOT probe, authenticate, launch, or
 otherwise discover an external provider CLI. An explicitly requested external
-target remains directional and may be checked by its adapter; public
-cross-provider configuration and precedence are owned by #418. Reviewer
+target remains directional and may be checked by its adapter. The public
+`cross_provider` option is `false` by default and resolves as
+`--cross-provider` (one-shot enable) > project pluginConfig > installed user
+pluginConfig > `false`; `.claude/settings.local.json` is preferred over
+`.claude/settings.json`. Reviewer
 routing remains on the current Review Gate / Reviewer Contract path, and
 dispatch selection never creates a review PASS or a retired Sentinel state.
 
@@ -293,6 +296,12 @@ keys in `userConfig`:
 | `claude` (default) | `dhpk:fast-worker`; deterministic in-process default. |
 | `codex` / `agy` | Check the requested executable before dispatch; missing executable blocks unless `fast_worker_fallback=claude` was explicitly configured. |
 | `auto` | Use the native Claude candidate by default; only an explicit cross-provider opt-in may check `fast_worker_backend_order` and record rejected candidates plus reasons. |
+
+The existing `fast_worker_backend`, `fast_worker_backend_order`, and
+`fast_worker_fallback` settings remain valid. An explicit backend remains a
+directional selection; `auto` continues to honor the configured order only
+after `cross_provider` is enabled. This migration preserves old settings
+without turning an old `auto` configuration into an implicit external probe.
 
 Only a missing executable may use the configured `claude` fallback. Authentication,
 authorization, model, task, execution, and verification failures remain

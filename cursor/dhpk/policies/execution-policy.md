@@ -66,10 +66,12 @@ Planner, reasoner, worker, and reviewer share one native-only dispatch baseline.
 Automatic dispatch considers only the native Claude candidate by default and
 MUST NOT probe, authenticate, launch, or otherwise discover an external CLI
 when cross-provider dispatch is disabled. An explicitly requested external
-target remains directional; public cross-provider configuration and precedence
-are deferred to the owning change. Reviewer routing remains on the current
-Review Gate / Reviewer Contract path and never creates a retired Sentinel
-state.
+target remains directional. The public `cross_provider` option is `false` by
+default and resolves as `--cross-provider` (one-shot enable) > project
+pluginConfig > installed user pluginConfig > `false`; workspace-local settings
+are preferred over the global settings file. Reviewer routing remains on the
+current Review Gate / Reviewer Contract path and never creates a retired
+Sentinel state.
 
 ## Orchestration lifecycle acceptance
 

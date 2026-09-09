@@ -70,7 +70,8 @@ It prints a `# schema=v1` KEY=VALUE block. Act on `STATUS`:
   `SMOKE_FLAG`, `DRY_RUN`, `MAX_DURATION`, `MIN_COVERAGE`,
   `FAST_WORKER_REQUESTED`, `FAST_WORKER_SELECTED`, `FAST_WORKER_AGENT`,
   `FAST_WORKER_ORDER`, `FAST_WORKER_FALLBACK`, `FAST_WORKER_REJECTED`,
-  `FAST_WORKER_CLAUSE`, `HAS_E2E`, and `TASK_DIGEST`.
+  `FAST_WORKER_CROSS_PROVIDER`, `FAST_WORKER_SCOPE`, `FAST_WORKER_CLAUSE`,
+  `HAS_E2E`, and `TASK_DIGEST`.
 
 `analyze-change.sh` invokes the sibling `goal-context.js` helper after the
 deterministic fields. The helper accepts `--tasks=<path>`, `--proposal=<path>`,
@@ -85,6 +86,12 @@ normalization contract as its other invocation flags. Resolve the effective back
 precedence **flag > userConfig > shipped default** (`claude`). An invalid flag
 prints one warning line and falls back to the configured userConfig/default
 resolution; it never fails change analysis.
+
+The optional `--cross-provider` flag is a one-shot enable with precedence over
+the `cross_provider` userConfig option. It allows `auto` to inspect the
+configured external candidates; without it, `auto` remains native-only. An
+explicit external `--worker=<target>` is directional and does not broaden the
+candidate set.
 
 The analyzer computes the turn budget as
 `max(20, min(120, OPEN_TASKS × 4 + 20))` unless `--turns N` overrides it. Each

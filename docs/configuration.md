@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./configuration.zh-TW.md)
 
-dhpk exposes **59 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
+dhpk exposes **70 active `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
 
 The default Claude discovery artifact is the materialized `minimal` profile,
 derived from `manifests/distribution-inventory.json`; it is not an unfiltered
@@ -48,6 +48,11 @@ Reconfigure or inspect the effective config at any time from inside Claude Code:
 
 A handful of boolean/mode knobs additionally support a **one-shot environment-variable override** for a single session — see the "Env override" column below.
 
+For automatic fast-worker dispatch, the one-shot `--cross-provider` flag has
+the highest precedence and enables external candidates only for that
+invocation. Without the flag, project configuration wins over the installed
+user setting, and the shipped default is `false`.
+
 ## Core dispatch & review
 
 | Key | Type | Default | Options | Purpose |
@@ -74,8 +79,9 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes, plus `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
+| `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for external candidates during automatic fast-worker selection. `false` keeps `auto` native-only and prevents external probing; `true` allows the configured `fast_worker_backend_order` to be checked. An explicit `--worker=<target>` remains directional and does not open other providers. |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:flow-drive --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
-| `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used only by `auto`; rejected candidates and reasons are recorded. Invalid values warn once per session and use the shipped order. |
+| `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used by `auto` when `cross_provider=true`; rejected candidates and reasons are recorded. With the opt-in disabled, external entries are suppressed and not probed. Invalid values warn once per session and use the shipped order. |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
 

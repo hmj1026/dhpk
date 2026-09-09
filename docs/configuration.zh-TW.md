@@ -2,7 +2,7 @@
 
 > **語言**: [English](./configuration.md) · **繁體中文**
 
-dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
+dhpk 在 `.claude-plugin/plugin.json` 中暴露 **70 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
 Claude 的預設 discovery artifact 是由
 `manifests/distribution-inventory.json` 產生的實體化 `minimal` profile，並非
@@ -47,6 +47,10 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 
 部分布林/模式類旋鈕額外支援**單次環境變數覆寫**（僅限當次 session）——見下表「Env 覆寫」欄。
 
+對自動 fast-worker 派發而言，單次 `--cross-provider` flag 的優先序最高，
+只在該次呼叫開放外部候選。沒有 flag 時，專案設定優先於安裝後的使用者設定，
+而 shipped 預設為 `false`。
+
 ## 核心派發與 Review
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
@@ -73,8 +77,9 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode，以及 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示，但多任務 OpenSpec 的 mandatory planner 與 verification gates 仍然有效。 |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用性。`/dhpk:flow-drive --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
-| `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | 僅供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。值無效時每個 session 警告一次並使用 shipped 順序。 |
+| `cross_provider` | boolean | `false` | `true` \| `false` | 自動 fast-worker 選擇時開放外部候選的 opt-in。`false` 讓 `auto` 僅使用 native 並禁止外部探查；`true` 才依 `fast_worker_backend_order` 檢查。明確的 `--worker=<target>` 仍是定向選取，不會連帶開放其他 provider。 |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 只有在 `cross_provider=true` 時才依 `fast_worker_backend_order` 檢查外部可用性。`/dhpk:flow-drive --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
+| `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | `cross_provider=true` 時供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。未 opt-in 時會抑制外部項目且不探查。值無效時每個 session 警告一次並使用 shipped 順序。 |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對明確註冊的 reviewer quality advisory 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 unresolved obligation。預設 `off`（無作用，不做啟發式評估）。 |
 
