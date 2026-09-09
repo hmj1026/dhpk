@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.54.0",
-  "description": "Reusable Claude Code harness with role-based agents, routed commands, sentinel-driven review hooks, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
+  "version": "0.56.0",
+  "description": "Reusable Claude Code harness with role-based agents, routed commands, Review Gate dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -79,7 +79,7 @@
       "type": "string",
       "multiple": true,
       "title": "Review agent names",
-      "description": "Seven agents invoked by sentinel reminders (slots: code, database, security, frontend, doc, polyfill, migration). Override to point at project-specific agents. Shorter overrides are padded with the defaults for the remaining slots.",
+      "description": "Seven reviewer agents selected by the Review Gate (roles: code, database, security, frontend, doc, polyfill, migration). Override to point at project-specific agents. Shorter overrides are padded with the defaults for the remaining roles.",
       "default": [
         "code-reviewer",
         "database-reviewer",
@@ -293,7 +293,7 @@
       "type": "string",
       "multiple": true,
       "title": "Stack modules to enable",
-      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-5.4, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js, vue-2, laravel-mix, nextjs-15.5, nextjs-16, react-18, react-19, library-author, python, fastapi, pytest, swift, swiftui, ios-platform, swift-testing, xcode-tooling. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate; enabling 'python' wires a post-edit ruff hook (batched at Stop) + a pre-commit ruff-check/ruff-format/type-check (pyright|mypy) gate — project root auto-detected by walking up to pyproject.toml (set python_project_roots=backend for a subdir backend); 'fastapi' / 'pytest' are skills+references only (fastapi adds db/sec path triggers) and each `requires: python`; enabling 'library-author' wires the sixth-color `polyfill-reviewer` sentinel for multi-major PHP libraries spanning Laravel 6-11 / Monolog 2-3 / PHPUnit 8-11 / Flysystem 1-3 (see modules/library-author/module.yaml for guard_patterns / skip_paths config). iOS suite: enabling 'xcode-tooling' wires the SwiftLint post-edit hook + pre-commit xcodebuild/SPM build+test gate (both self-skip when swiftlint/xcodebuild are absent); swift / swiftui / ios-platform / swift-testing are skills+references only (no hooks). The iOS suite is dependency-chained — swiftui / ios-platform / swift-testing / xcode-tooling each `requires: swift`. Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-5.4, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js, vue-2, laravel-mix, nextjs-15.5, nextjs-16, react-18, react-19, library-author, python, fastapi, pytest, swift, swiftui, ios-platform, swift-testing, xcode-tooling. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate; enabling 'python' wires a post-edit ruff hook (batched at Stop) + a pre-commit ruff-check/ruff-format/type-check (pyright|mypy) gate — project root auto-detected by walking up to pyproject.toml (set python_project_roots=backend for a subdir backend); 'fastapi' / 'pytest' are skills+references only (fastapi adds db/sec path triggers) and each `requires: python`; enabling 'library-author' makes the polyfill-reviewer available to the Review Gate for multi-major PHP libraries spanning Laravel 6-11 / Monolog 2-3 / PHPUnit 8-11 / Flysystem 1-3. iOS suite: enabling 'xcode-tooling' wires the SwiftLint post-edit hook + pre-commit xcodebuild/SPM build+test gate (both self-skip when swiftlint/xcodebuild are absent); swift / swiftui / ios-platform / swift-testing are skills+references only (no hooks). The iOS suite is dependency-chained — swiftui / ios-platform / swift-testing / xcode-tooling each `requires: swift`. Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
       "default": []
     },
     "review_trigger_extra_paths": {
@@ -415,8 +415,8 @@
     },
     "sentinel_commit_gate": {
       "type": "string",
-      "title": "Sentinel commit gate mode",
-      "description": "Behaviour when `git commit/merge/rebase/cherry-pick` runs while reviewer sentinels are pending: warn (stderr reminder, exit 0) | block (reject the tool call, exit 2) | off (silent). Default 'warn'. Env DHPK_SENTINEL_COMMIT_GATE overrides this for one-shot toggles. Companion to pre-bash-guard's git-push hard block.",
+      "title": "Retired review-commit mode (compatibility)",
+      "description": "Retained as a compatibility key for older configurations; no active hook reads this option after the Review Gate migration. Review completion is recorded by the orchestrator, while protected history mutations remain governed by branch_safety. Default 'warn' is ignored; DHPK_SENTINEL_COMMIT_GATE is retained only for legacy configuration parsing.",
       "default": "warn"
     },
     "branch_safety": {
@@ -447,7 +447,7 @@
     "learning_db_enabled": {
       "type": "boolean",
       "title": "Enable cross-session learning DB",
-      "description": "When true, hooks append signals (reviewer pass via clear-sentinel, subagent failure, abnormal stop) to an append-only .claude/artifacts/learning.jsonl, and SessionStart surfaces the top recurring signatures as a [learned-context] block (capped at 5 lines). Confidence is derived per signature with recency decay; the log self-rotates past 50MB. Default false (opt-in) — zero behaviour change until a project turns it on. Env DHPK_LEARNING_DB=1/0 overrides for one-shot toggles.",
+      "description": "When true, hooks append signals (reviewer result, subagent failure, abnormal stop) to an append-only .claude/artifacts/learning.jsonl, and SessionStart surfaces the top recurring signatures as a [learned-context] block (capped at 5 lines). Confidence is derived per signature with recency decay; the log self-rotates past 50MB. Default false (opt-in) — zero behaviour change until a project turns it on. Env DHPK_LEARNING_DB=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "graduation_scan_enabled": {
@@ -472,13 +472,13 @@
     "completion_evidence_enabled": {
       "type": "boolean",
       "title": "Enable completion-evidence Stop advisory",
-      "description": "When true, a Stop hook warns when the assistant claims completion while the working tree has source-code changes with no matching test changes (doc-only / harness-only changes are exempt; active review sentinels defer to the sentinel reminder). Advisory only — never blocks Stop. Default false (opt-in). Env DHPK_COMPLETION_EVIDENCE=1/0 overrides for one-shot toggles.",
+      "description": "When true, a Stop hook warns when the assistant claims completion while the working tree has source-code changes with no matching test changes (doc-only / harness-only changes are exempt; the Review Gate result remains a separate obligation). Advisory only — never blocks Stop. Default false (opt-in). Env DHPK_COMPLETION_EVIDENCE=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "agent_warmstart_enabled": {
       "type": "boolean",
       "title": "Enable subagent warmstart context",
-      "description": "When true, a PreToolUse (Task|Agent) hook injects role-filtered parent context: reviewers receive sentinel scope, workers/TDD receive the supplied handoff plus bounded task context, explorers receive routing, and monitors receive process identity. Each role has its own cap; the hook remains default false (opt-in) because every injection costs tokens. Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
+      "description": "When true, a PreToolUse (Task|Agent) hook injects role-filtered parent context: reviewers receive the Review Request scope, workers/TDD receive the supplied handoff plus bounded task context, explorers receive routing, and monitors receive process identity. Each role has its own cap; the hook remains default false (opt-in) because every injection costs tokens. Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "harness_restore_hint": {

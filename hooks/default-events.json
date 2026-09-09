@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.hooks.default-events.v1",
-  "events": ["PreToolUse", "PostToolUse", "SessionStart", "SubagentStop"],
+  "events": ["PreToolUse", "SessionStart", "SubagentStop"],
   "optionalEvents": [
     "UserPromptSubmit", "Stop", "StopFailure", "SessionEnd", "PreCompact",
     "PostCompact", "Notification"

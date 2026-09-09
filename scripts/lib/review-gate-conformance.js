@@ -5,9 +5,8 @@
 // observations (produced by driving the real Claude/Codex/CI/Git-provider
 // adapters against the shared corpus in
 // tests/fixtures/review-gate/cross-platform-differential-v1.json) into one
-// PASS/BLOCKED/UNAVAILABLE/NOT_RUN report. It never touches ReceiptStore,
-// ReviewGate, or MigrationCoordinator, so it structurally cannot promote a
-// migration phase -- it can only report on runs the caller already performed.
+// PASS/BLOCKED/UNAVAILABLE/NOT_RUN report. It never touches ReceiptStore or
+// ReviewGate, so it can only report on runs the caller already performed.
 
 const SCENARIO_KINDS = Object.freeze(['REQUEST', 'RESULT', 'RECEIPT', 'REPLAY', 'WORKFLOW', 'PROVIDER', 'FAILURE']);
 const ADAPTER_KEYS = Object.freeze(['CLAUDE', 'CODEX', 'CI', 'GIT_PROVIDER', 'CORE']);

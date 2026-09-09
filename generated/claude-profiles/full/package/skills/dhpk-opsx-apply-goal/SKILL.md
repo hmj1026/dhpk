@@ -24,10 +24,11 @@ command for a fresh session to run the change unattended.
 > `/goal` step followed by a separate `/opsx:apply` step — that leaves no
 > input window for the second command.
 >
-> **Sentinel strategy:** the goal always checks `ls .claude/artifacts/sessions/.pending-*`
-> rather than enumerating specific reviewers — self-calibrating across all 7 dhpk
-> sentinel slots regardless of which files were edited. See
-> `references/detection.md` for the rationale and detection-flag table.
+> **Review Gate strategy:** the goal records one identity-bound Review Gate
+> obligation check after implementation. It accepts only a durable resolved
+> verdict for every applicable reviewer obligation (or `NOT_APPLICABLE`), not a
+> message or a file-presence claim. See `references/detection.md` for the
+> obligation rationale and detection-flag table.
 
 ## References
 
@@ -35,7 +36,7 @@ command for a fresh session to run the change unattended.
 |------|-----------|
 | `scripts/analyze-change.sh` | Step 1 — deterministic argument normalization, change-dir location, checkbox counts, and turn budget |
 | `scripts/goal-context.js` | Step 1 — helper I/O for fast-worker selection, E2E detection, and the task digest |
-| `references/detection.md` | Step 2 — test/build/lint/coverage/smoke signal tables, non-automatable-task signals, and sentinel rationale |
+| `references/detection.md` | Step 2 — test/build/lint/coverage/smoke signal tables, non-automatable-task signals, and Review Gate rationale |
 | `references/gate-contracts.md` | Step 3 — compact evidence contracts that every emitted gate must preserve |
 | `references/goal-templates.md` | Steps 3–4 — verbatim Part 0–4 `/goal` condition templates, including the single full variant |
 | `references/output-blocks.md` | Output — complete Block A/B/C/C2 contract, hard-stop branch, and session handoff |
@@ -90,9 +91,9 @@ resolution; it never fails change analysis.
 
 The analyzer computes the turn budget as
 `max(20, min(120, OPEN_TASKS × 4 + 20))` unless `--turns N` overrides it. Each
-open task averages 2–4 turns; the +20 buffer covers reviewer invocations and
-sentinel-clearance turns. Gate detection follows because it needs judgment the
-analyzer deliberately does not attempt.
+open task averages 2–4 turns; the +20 buffer covers reviewer dispatch,
+artifact collection, and lifecycle-recording turns. Gate detection follows
+because it needs judgment the analyzer deliberately does not attempt.
 
 **Completion criterion:** exactly one analyzer status is handled; `missing`,
 `archived`, `error`, and exit-2 stop with their reported message, while only an
@@ -154,8 +155,8 @@ Compose `GOAL_CONDITION` from the verbatim templates in
   `<E2E_ROSTER_CLAUSE>` below — see `references/goal-templates.md` for why.
   Substitute `<E2E_ROSTER_CLAUSE>` with `RED/E2E Playwright → dhpk:e2e-runner;`
   only when `HAS_E2E=true`; otherwise substitute the empty string.
-- **Parts 1, 2, 2b** — always (tasks-done, universal `.pending-*` sentinel check,
-  `.unresolved-verdict` sidecar check).
+- **Parts 1, 2, 2b** — always (tasks-done, identity-bound Review Gate status,
+  and explicit unresolved-obligation check).
 - **Part 3** — one line per detected gate (test runners per their flags, coverage,
   build, lint, smoke). Omit Part 3 entirely only when test / build / lint are all
   absent AND `HAS_SMOKE=false`; a lone `HAS_SMOKE=true` keeps Part 3 with just the
@@ -211,7 +212,7 @@ Block C/C2 material from `output-blocks.md`, with `--dry-run` ending after C2.
 - [ ] Part 0 does NOT restate the relocated elaborations (dispatch-verify procedure, premise-verification routing, in-flight doubt cycle, explicit second-opinion triggers, session-end self-check) — the kernel binds safety and the selected route reference binds these sections during orientation
 - [ ] Retired `CODEX=on`/`--codex` is documented as a blocking `DEPRECATED_CODEX_FLAG` outcome with exact replacements (`--worker=codex` or a named owner's `--second-opinion=codex-exec`), never as a peer or backend selector
 - [ ] Part 0 says "without stopping for confirmation" covers ordinary implementation judgment calls only and never an explicit project hard-rule conflict
-- [ ] Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names); Part 2b checks `.unresolved-verdict` and requires `NONE`
+- [ ] Part 2 records Review Gate status for the current task identity and requires every applicable obligation to be resolved (or `NOT_APPLICABLE`); Part 2b rejects missing, foreign, stale, or message-only evidence
 - [ ] Non-automatable tasks appear in the Block A warning, NOT in Part 3
 - [ ] Part 3 emits build/lint lines only when detected; a coverage gate when `HAS_COVERAGE=true` OR `--min-coverage N` set (with `HAS_TEST=true`); the smoke line iff `HAS_SMOKE=true`
 - [ ] `--no-smoke` suppresses the smoke line regardless of signal; Block A `Smoke gate` row is exactly one of `on (signal)` / `on (--smoke)` / `off (--no-smoke)` / `off (no strong signal, hint emitted)`

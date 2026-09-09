@@ -8,9 +8,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.md#codex-project-local-sync-supported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.md#cursor-project-local-sync-supported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.md#surface-matrix)
 
-A generic, install-and-go Claude Code harness. It ships **36 role-based agents** (35 root-level agents plus one module-scoped reviewer), registered dhpk commands, nine task-shaped capability families, a cross-session learning DB (opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. It ships **36 role-based agents** (35 root-level agents plus one module-scoped reviewer), registered dhpk commands, nine task-shaped capability families, a cross-session learning DB (opt-in), Review Gate-driven reviewer dispatch (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
 
-> **Harness engineering over prompt engineering.** dhpk treats the agent's operating environment — hooks, sentinel review gates, routing rules, and stack-aware modules — as the unit of leverage. Rather than hand-tuning one-off prompts, you install a reusable harness that makes the right checks fire automatically and keeps the model on the rails across sessions.
+> **Harness engineering over prompt engineering.** dhpk treats the agent's operating environment — hooks, Review Gate dispatch, routing rules, and stack-aware modules — as the unit of leverage. Rather than hand-tuning one-off prompts, you install a reusable harness that makes the right checks fire automatically and keeps the model on the rails across sessions.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -21,7 +21,7 @@ If you are not sure which skill or command to start with, use the **[Skill & Sla
 | Tool | Status | Why |
 |------|--------|-----|
 | `bash` | Required | All hook and helper scripts |
-| `git` | Required | Sentinel/artifact path resolution; `git rev-parse --show-toplevel` |
+| `git` | Required | Review Gate/artifact path resolution; `git rev-parse --show-toplevel` |
 | `python3` | Required IF you enable `modules` | Parses `module.yaml` for opt-in module activation and routing |
 | `jq` | Optional (python3 fallback exists) | Faster JSON payload extraction |
 | `docker` | Optional | Used only by an explicitly registered Docker workflow with `userConfig.docker_containers` |
@@ -57,12 +57,12 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 
 | Component | Count | Notes |
 |-----------|------:|-------|
-| Agents | Role-based agents | Sentinel-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
+| Agents | Role-based agents | Trigger-table-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
 | Commands | dhpk's 29 commands | `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:review-pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:harness-audit`, `/dhpk:harness-govern`, `/dhpk:ui-ux-verify`, etc. |
 | Canonical skills | 65 flat packages | One named package per capability, rooted at `skills/<public-name>/`; non-family packages retain the `skills/dhpk-*/` contract; nine portable families (`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, `code-trace`, `laravel`, `phpunit`, `harness-govern`) own the consolidated interfaces. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
-| Hooks | 4 events | PreToolUse (Edit guard and combined Bash safety/Git gate), PostToolUse (sentinel routing), SessionStart (module activation), SubagentStop (strict reviewer reconciliation) |
-| Hook dispatchers | 2 | `post-edit-dispatch.sh` routes sentinels; `pre-bash-dispatch.sh` combines deterministic shell and Git/review-debt gates |
+| Hooks | 3 events | PreToolUse (Edit guard and combined Bash safety/Git branch-safety gate), SessionStart (module activation), SubagentStop (fast-worker liveness cleanup) |
+| Hook dispatchers | 1 | `pre-bash-dispatch.sh` combines deterministic shell and Git branch-safety gates |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
 | Codex dual-track | 15 entries (13 invokable) | Project sync uses receipt-owned projections; the experimental native package publishes the same invokable set plus internal transport and dispatch-context runtimes as physical files. |
 
@@ -139,7 +139,7 @@ tree.
 
 ## Codex integration surfaces
 
-dhpk's core — hooks, sentinel reviewers, the Smart Router, and the workflow
+dhpk's core — hooks, Review Gate reviewers, the Smart Router, and the workflow
 skills — runs without a Codex MCP server. Optional Codex integrations are
 separate surfaces with explicit ownership:
 
@@ -225,7 +225,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`react-19`** — React 19 (December 2024). Actions + async transitions, new hooks (`useActionState`/`useOptimistic`/`useFormStatus`, `use()`), `ref` as a prop (no `forwardRef`), `<Context>` as provider, document metadata hoisting, resource preloading (`preload`/`preinit`), stable Server Components. Removes `ReactDOM.render`/`hydrate`, `propTypes`/`defaultProps` on function components, legacy Context, and string refs. Recommended (not required) for Next.js 16.
 
 **Cross-cutting**:
-- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (sentinel-driven via `.pending-polyfill-review`), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:dhpk-matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-fires on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
+- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (selected by the Review Gate trigger table), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:dhpk-matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-selects the reviewer on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
 
 **iOS / Swift** (dependency-chained — each `requires: swift`; enable the whole set via the `ios-app` install profile):
 - **`swift`** — Swift 6 strict-concurrency baseline + Swift 5.10 / iOS 17 compatibility + Swift 6.2 approachable-concurrency. The foundation the rest of the suite requires.
@@ -236,7 +236,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 
 When enabled, a module:
 - Makes its skills invocable as `dhpk:<skill-name>` (e.g. `dhpk:dhpk-php-runtime-router`, `dhpk:dhpk-yii1-security-audit`, `dhpk:dhpk-js-lint-config`). *(Skill **descriptions** are listed for every shipped module regardless of `modules` — see the budget note below.)*
-- Contributes path triggers to deterministic post-edit sentinel routing for framework-specific paths.
+- Contributes path triggers to Review Gate dispatch for framework-specific paths.
 - May ship optional hook scripts under `modules/<m>/hooks/`; a consumer registers them explicitly. See [`docs/hook-extension.md`](./docs/hook-extension.md).
 - Prints a SessionStart activation line so Claude knows the module is in scope.
 
@@ -315,7 +315,7 @@ The plugin spec has no statusline component; opt in manually by adding to your p
 }
 ```
 
-The statusline renders `[branch] +staged ~modified | docker:status | profile=<p> | mod=<active> | ⚠ <pending-sentinels>` and falls back to the global `~/.claude/statusline.sh` for tokens/model/rate-limit lines. Sentinel badges are generated from the shared `SENTINEL_SHORT_NAMES` map, so the seven review slots stay in SSOT order (including `⚠ mig` for migration review).
+The statusline renders `[branch] +staged ~modified | docker:status | profile=<p> | mod=<active>` and falls back to the global `~/.claude/statusline.sh` for tokens/model/rate-limit lines. Review Gate verdicts and unresolved obligations are tracked in durable evidence records, not statusline sentinel badges.
 
 ## Sync Codex CLI content
 
@@ -367,9 +367,9 @@ dhpk/
 │   ├── react-18/, react-19/             # React library (per-major)
 │   ├── library-author/{module.yaml, agents/, skills/, hooks/, references/}
 │   └── swift/, swiftui/, ios-platform/, swift-testing/, xcode-tooling/  # iOS/Swift suite (xcode-tooling adds hooks/ + skill scripts)
-├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / SubagentStop wiring
+├── hooks/hooks.json              # PreToolUse / SessionStart / SubagentStop wiring
 ├── scripts/
-│   ├── hooks/                    # core hooks incl. post-edit-dispatch.sh, pre-bash-dispatch.sh, reap-stale-sentinels.sh, _lib/{payload,portable-sed,portable-timeout}.sh
+│   ├── hooks/                    # core hooks incl. pre-edit-guard.sh, pre-bash-dispatch.sh, session-start.sh, subagent-stop-verify.sh, _lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
 │   ├── codemaps/, lib/, opsx-apply-resume/, validate/
 │   └── (harness-audit, precommit-runner, verify-runner, agy-adapt-agents, dep-audit)

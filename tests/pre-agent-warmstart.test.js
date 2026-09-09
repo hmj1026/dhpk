@@ -43,7 +43,7 @@ test('default (opt-out) invocation is a safe no-op: prints "{}" and exits 0', ()
 test('opt-in warmstart is role-aware and bounded by packet class', () => {
   const source = fs.readFileSync(HOOK, 'utf8');
   assert.match(source, /extract_tool_input subagent_type/);
-  assert.match(source, /SENTINEL_AGENTS=/);
+  assert.match(source, /REVIEWER_AGENTS=/);
   assert.match(source, /reviewer_roles\.update\(agent for agent in agents/);
   assert.match(source, /reviewer_roles/);
   assert.match(source, /worker_roles/);

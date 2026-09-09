@@ -173,8 +173,9 @@ test('capabilities are immutable, advertise the Codex Review Gate contract, and 
   assert.strictEqual(capabilities.reviewerContractVersion, REVIEWER_CONTRACT_VERSION);
   assert.strictEqual(capabilities.activation, 'INACTIVE');
   assert.strictEqual(capabilities.effect, 'DISABLED');
-  assert.strictEqual(capabilities.authority, 'SENTINEL');
-  assert.strictEqual(capabilities.allowsTargetProgress, false);
+  assert.strictEqual(capabilities.authority, 'REVIEW_GATE');
+  assert.strictEqual(capabilities.effect, 'DISABLED');
+  assert.ok(!Object.prototype.hasOwnProperty.call(capabilities, 'allowsTargetProgress'));
   assert.ok(deepFrozen(capabilities), 'capabilities must be deeply immutable');
   assert.throws(() => { capabilities.adapter = 'foreign-adapter'; });
 });
@@ -195,18 +196,16 @@ test('adapter defaults to INACTIVE and refuses to record without explicit activa
   }
 });
 
-test('an ACTIVE adapter never authorizes approval, clears, blocks, or advances Sentinel', () => {
+test('an ACTIVE adapter submits directly to the authoritative Review Gate', () => {
   const adapter = makeAdapter({
     reviewGate: { handle: () => ({ revision: 1, chainDigest: `sha256:${'b'.repeat(64)}`, decision: { accepted: true, semanticVerdict: 'PASS', allowsProgress: true, lifecycleStatus: 'CLEARED', executionStatus: 'COMPLETE', applicability: 'REQUIRED' } }) },
   });
   const { receipt } = adapter.record(submissionInput());
 
-  assert.strictEqual(receipt.authority, 'SENTINEL');
-  assert.strictEqual(receipt.authorizesApproval, false);
-  assert.strictEqual(receipt.clearsSentinel, false);
-  assert.strictEqual(receipt.blocksSentinel, false);
-  assert.strictEqual(receipt.allowsTargetProgress, false);
-  assert.strictEqual(receipt.effect, 'OBSERVE_ONLY');
+  assert.strictEqual(receipt.schema, SUBMISSION_SCHEMA);
+  for (const field of ['authority', 'authorizesApproval', 'clearsSentinel', 'blocksSentinel', 'allowsTargetProgress', 'effect']) {
+    assert.ok(!Object.prototype.hasOwnProperty.call(receipt, field), `${field} is a retired compatibility field`);
+  }
 });
 
 test('the adapter selects lane and obligation from the caller plan rather than choosing them', () => {
@@ -403,9 +402,10 @@ for (const testCase of CONFORMANCE_CASES) {
     if (testCase.expect.lifecycleStatus) {
       assert.strictEqual(receipt.reviewGate.lifecycleStatus, testCase.expect.lifecycleStatus);
     }
-    // Never authoritative, regardless of outcome.
-    assert.strictEqual(receipt.authorizesApproval, false);
-    assert.strictEqual(receipt.clearsSentinel, false);
+    assert.strictEqual(receipt.schema, SUBMISSION_SCHEMA);
+    for (const field of ['authorizesApproval', 'clearsSentinel', 'blocksSentinel', 'allowsTargetProgress']) {
+      assert.ok(!Object.prototype.hasOwnProperty.call(receipt, field), `${field} is a retired compatibility field`);
+    }
   });
 }
 

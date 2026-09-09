@@ -83,7 +83,7 @@ const LIFECYCLE_EXCEPTION_STATES = new Set([
   'incomplete',
 ]);
 const ACTIVATION_STATES = new Set(['INACTIVE', 'ACTIVE']);
-const ACTIVATION_EFFECTS = Object.freeze({ INACTIVE: 'DISABLED', ACTIVE: 'OBSERVE_ONLY' });
+const ACTIVATION_EFFECTS = Object.freeze({ INACTIVE: 'DISABLED', ACTIVE: 'ENFORCE' });
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -473,9 +473,6 @@ function buildSubmissionReceipt(adapter, context, gate, eventId, recordedAt) {
     producer: adapter.producer,
     adapter: adapter.adapter,
     adapterVersion: adapter.adapterVersion,
-    activation: adapter.activation,
-    effect: ACTIVATION_EFFECTS[adapter.activation],
-    authority: 'SENTINEL',
     reviewerContractVersion: REVIEWER_CONTRACT_VERSION,
     eventId,
     receiptId: `${eventId}:receipt`,
@@ -496,10 +493,6 @@ function buildSubmissionReceipt(adapter, context, gate, eventId, recordedAt) {
     lifecycleEventIds: boundedEventIds(context.lifecycleEvents),
     readinessEventIds: boundedEventIds(context.readinessEvents),
     artifactDigest: context.artifactDigest,
-    authorizesApproval: false,
-    clearsSentinel: false,
-    blocksSentinel: false,
-    allowsTargetProgress: false,
   });
 }
 
@@ -532,9 +525,8 @@ class CodexReviewGateAdapter {
       reviewerContractVersion: REVIEWER_CONTRACT_VERSION,
       activation,
       effect: ACTIVATION_EFFECTS[activation],
-      authority: 'SENTINEL',
+      authority: 'REVIEW_GATE',
       explicitInvocationOnly: true,
-      allowsTargetProgress: false,
     });
   }
 

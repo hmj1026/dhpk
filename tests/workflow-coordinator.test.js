@@ -52,20 +52,11 @@ const EXPECTED_REFRESH_LANES = {
 };
 
 const EXPECTED_CONTROL = {
-  baseline: {
-    enabled: false,
-    phase: 'BASELINE',
-    authority: 'SENTINEL',
-    effect: 'DISABLED',
-    allowsTargetProgress: false,
-  },
-  observe: {
-    enabled: true,
-    phase: 'OBSERVE',
-    authority: 'SENTINEL',
-    effect: 'OBSERVE_ONLY',
-    allowsTargetProgress: false,
-  },
+  enabled: true,
+  phase: 'DIRECT',
+  authority: 'REVIEW_GATE',
+  effect: 'ENFORCE',
+  allowsTargetProgress: true,
 };
 
 function assertDeepFrozen(value) {
@@ -94,31 +85,29 @@ function assertBlocked(result, reasonCode) {
     resumeState: 'EVIDENCE_PENDING',
     reasonCodes: [reasonCode],
   });
-  assert.strictEqual(result.control.authority, 'SENTINEL');
-  assert.strictEqual(result.control.allowsTargetProgress, false);
+  assert.strictEqual(result.control.authority, 'REVIEW_GATE');
+  assert.strictEqual(result.control.allowsTargetProgress, true);
 }
 
-for (const [controlName, featureControl] of Object.entries(FIXTURE.featureControl)) {
-  for (const history of FIXTURE.histories) {
-    test(`${controlName} reduces ${history.name} history`, () => {
-      const receipts = receiptsFor(history);
-      const before = cloneJson(receipts);
-      const result = coordinator(featureControl).reduce(receipts);
-      const expected = cloneJson(history.expected);
-      expected.schema = 'dhpk.workflow-projection.v1';
-      expected.evidenceAccepted = true;
-      expected.workId = 'work-368';
-      expected.decisionId = 'decision-368';
-      expected.waveId = 'wave-368';
-      expected.refreshLanes = EXPECTED_REFRESH_LANES[history.name];
-      expected.evidenceReceiptIds = history.receiptIds;
-      expected.control = EXPECTED_CONTROL[controlName];
+for (const history of FIXTURE.histories) {
+  test(`direct reduces ${history.name} history`, () => {
+    const receipts = receiptsFor(history);
+    const before = cloneJson(receipts);
+    const result = coordinator(FIXTURE.featureControl).reduce(receipts);
+    const expected = cloneJson(history.expected);
+    expected.schema = 'dhpk.workflow-projection.v1';
+    expected.evidenceAccepted = true;
+    expected.workId = 'work-368';
+    expected.decisionId = 'decision-368';
+    expected.waveId = 'wave-368';
+    expected.refreshLanes = EXPECTED_REFRESH_LANES[history.name];
+    expected.evidenceReceiptIds = history.receiptIds;
+    expected.control = EXPECTED_CONTROL;
 
-      assert.deepStrictEqual(observable(result), expected);
-      assert.deepStrictEqual(receipts, before, 'reduce must not mutate receipts');
-      assertDeepFrozen(result);
-    });
-  }
+    assert.deepStrictEqual(observable(result), expected);
+    assert.deepStrictEqual(receipts, before, 'reduce must not mutate receipts');
+    assertDeepFrozen(result);
+  });
 }
 
 test('only constructor, reduce, and reduceDelivery are public coordinator operations', () => {
@@ -132,15 +121,15 @@ test('receipt ordering is canonical and exact duplicates collapse', () => {
   const receipts = receiptsFor(FIXTURE.histories.find(({ name }) => name === 'merge-ready'));
   const reordered = [...receipts].reverse();
   const duplicated = [...receipts, cloneJson(receipts[receipts.length - 1])];
-  const expected = observable(coordinator(FIXTURE.featureControl.observe).reduce(receipts));
+  const expected = observable(coordinator(FIXTURE.featureControl).reduce(receipts));
 
-  assert.deepStrictEqual(observable(coordinator(FIXTURE.featureControl.observe).reduce(reordered)), expected);
-  assert.deepStrictEqual(observable(coordinator(FIXTURE.featureControl.observe).reduce(duplicated)), expected);
+  assert.deepStrictEqual(observable(coordinator(FIXTURE.featureControl).reduce(reordered)), expected);
+  assert.deepStrictEqual(observable(coordinator(FIXTURE.featureControl).reduce(duplicated)), expected);
 });
 
 test('sorts batchable authority requests into one decision packet', () => {
   const receipts = receiptsFor(FIXTURE.histories.find(({ name }) => name === 'decision-pending'));
-  const result = coordinator(FIXTURE.featureControl.observe).reduce(receipts);
+  const result = coordinator(FIXTURE.featureControl).reduce(receipts);
 
   assert.deepStrictEqual(
     result.decisionPacket.items.map(({ requestId }) => requestId),
@@ -151,7 +140,7 @@ test('sorts batchable authority requests into one decision packet', () => {
 test('deep-freezes the output while preserving the caller input', () => {
   const receipts = receiptsFor(FIXTURE.histories.find(({ name }) => name === 'merge-ready'));
   const before = cloneJson(receipts);
-  const result = coordinator(FIXTURE.featureControl.observe).reduce(receipts);
+  const result = coordinator(FIXTURE.featureControl).reduce(receipts);
 
   assert.deepStrictEqual(receipts, before);
   assertDeepFrozen(result);
@@ -162,7 +151,7 @@ test('rejects a conflicting duplicate receipt', () => {
   const conflicting = cloneJson(receipts[receipts.length - 1]);
   conflicting.payload.outcome = 'FAIL';
 
-  const result = coordinator(FIXTURE.featureControl.observe).reduce([...receipts, conflicting]);
+  const result = coordinator(FIXTURE.featureControl).reduce([...receipts, conflicting]);
   assertBlocked(result, 'CONFLICTING_DUPLICATE_RECEIPT');
 });
 
@@ -170,7 +159,7 @@ test('returns a blocked projection for malformed evidence', () => {
   const receipts = receiptsFor(FIXTURE.histories.find(({ name }) => name === 'ready'));
   delete receipts[0].payload.schema;
 
-  const result = coordinator(FIXTURE.featureControl.observe).reduce(receipts);
+  const result = coordinator(FIXTURE.featureControl).reduce(receipts);
   assertBlocked(result, 'MALFORMED_RECEIPT');
 });
 
@@ -181,17 +170,16 @@ test('rejects mixed work, decision, or wave identity', () => {
   foreign.workId = 'work-foreign';
   foreign.payload.workId = 'work-foreign';
 
-  const result = coordinator(FIXTURE.featureControl.observe).reduce([...receipts, foreign]);
+  const result = coordinator(FIXTURE.featureControl).reduce([...receipts, foreign]);
   assertBlocked(result, 'MIXED_IDENTITY');
 });
 
 test('rejects unsupported feature controls', () => {
   for (const featureControl of [
-    { enabled: true, phase: 'BASELINE' },
-    { enabled: false, phase: 'OBSERVE' },
-    { enabled: 'true', phase: 'OBSERVE' },
+    { enabled: false, phase: 'DIRECT' },
+    { enabled: true, phase: 'OBSERVE' },
+    { enabled: 'true', phase: 'DIRECT' },
     { enabled: true, phase: 'RETIRE' },
-    null,
   ]) {
     assert.throws(
       () => new WorkflowCoordinator({
@@ -215,7 +203,7 @@ test('fails closed on a decision sequence gap', () => {
   const receipts = malformedDecisionHistory((resolved) => {
     resolved.payload.sequence = 4;
   });
-  const result = coordinator(FIXTURE.featureControl.observe).reduce(receipts);
+  const result = coordinator(FIXTURE.featureControl).reduce(receipts);
   assertBlocked(result, 'DECISION_CHAIN_GAP');
 });
 
@@ -226,7 +214,7 @@ test('fails closed on a decision chain fork', () => {
   fork.payload.supersedesReceiptId = 'receipt-work-recorded';
   receipts.push(fork);
 
-  const result = coordinator(FIXTURE.featureControl.observe).reduce(receipts);
+  const result = coordinator(FIXTURE.featureControl).reduce(receipts);
   assertBlocked(result, 'DECISION_CHAIN_FORK');
 });
 
@@ -239,7 +227,7 @@ test('fails closed on stale decision resurrection after invalidation', () => {
   stale.payload.supersedesReceiptId = 'receipt-decision-resolved';
   receipts.push(stale);
 
-  const result = coordinator(FIXTURE.featureControl.observe).reduce(receipts);
+  const result = coordinator(FIXTURE.featureControl).reduce(receipts);
   assertBlocked(result, 'STALE_DECISION_RESURRECTION');
 });
 

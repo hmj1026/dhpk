@@ -2,7 +2,7 @@
 
 This compact policy is the Codex projection of dhpk's execution rules. It
 preserves the safety and review contract without relying on Claude lifecycle
-hooks, sentinels, or Claude plugin-root interpolation.
+hooks or Claude plugin-root interpolation.
 The always-visible execution kernel is loaded first; this file remains the
 conditional routing and review reference selected by the active route.
 
@@ -66,13 +66,9 @@ The orchestrator owns dispatch and handoff identity, retries, and evidence
 presentation; the host integration owns review-gate lifecycle completion. Each
 handoff uses one stable `task_id` and an attempt-specific `attempt_id`, with
 optional producer, wave, `scope_id`, adapter/stage, and plan/artifact
-fingerprints. Before resuming a reviewer, forward the complete
-`RESUMED_REVIEW_IDENTITY` envelope, including any declared fingerprints; the
-reviewer must reproduce every declared identity field in the canonical artifact
-frontmatter. Legacy scope/diff-only evidence remains readable, but missing or
-foreign identity fails closed. A terminal lifecycle result plus all applicable
-host review gates is required; a message, aggregate verdict, or lifecycle event
-alone is not completion.
+fingerprints. A terminal lifecycle result plus all applicable host review
+gates is required; a message, aggregate verdict, or lifecycle event alone is
+not completion.
 
 ## Context tiers and named specialist dispatch
 

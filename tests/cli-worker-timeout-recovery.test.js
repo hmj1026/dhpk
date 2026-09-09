@@ -4,7 +4,7 @@
 // content-level contract checks — the actual ledger derivation, retry
 // dispatch, and marker write are LLM-agent behavior, not scriptable logic, so
 // these tests prove the *documented contract* is present, consistent, and
-// does not collide with existing sentinel/cleanup mechanics, mirroring the
+// does not collide with retired sentinel/cleanup mechanics, mirroring the
 // style of tests/parallel-dispatch-contract.test.js and
 // tests/reviewer-contract.test.js):
 // - 3.1 wrapper signal classification (cross-referenced; see run-codex.test.js
@@ -37,8 +37,6 @@ const CODEX_BRIDGE_SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-codex
 const EXECUTION_POLICY = fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8');
 const MODEL_ECONOMICS = fs.readFileSync(path.join(ROOT, 'rules', 'model-economics.md'), 'utf8');
 const MODEL_CONFIG_SPEC = fs.readFileSync(path.join(ROOT, 'openspec', 'specs', 'orchestration-model-config', 'spec.md'), 'utf8');
-const REAP_SCRIPT = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', 'reap-stale-sentinels.sh'), 'utf8');
-const PAYLOAD_LIB = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', '_lib', 'payload.sh'), 'utf8');
 
 // 3.1 — CLI worker and alias prompts point at the dispatch SSOT; that SSOT
 // owns the timeout-recovery state machine (exactly one same-backend retry
@@ -178,41 +176,32 @@ test('second verified timeout is terminal with PARTIAL/BLOCKED split on confirme
     'dispatch SSOT must require both timeout observations, ledger sets, and next action in the terminal report');
 });
 
-// 3.2 — marker durability: the marker's naming convention can never be matched
-// by the `.pending-*` sentinel sweep (proven against the sweep's actual glob,
-// not just asserted in prose) and is documented as never auto-cleared.
-test('the PARTIAL marker filename can never be matched by the .pending-* sentinel sweep', () => {
+// 3.2 — marker durability: the marker's naming convention historically had to
+// avoid collision with the legacy `.pending-*` cleanup sweep. That sweep and
+// its registry were retired with the legacy sentinel lifecycle (#376/#377) —
+// there is no remaining mechanism that could discover or clear an unrecognized
+// file in the sessions dir by prefix, so the collision this test used to guard
+// against can no longer occur. The one property still worth asserting (the
+// marker's own naming convention) stays documented in the next test below.
+test('the PARTIAL marker filename does not use the retired .pending- prefix', () => {
   const markerNameSample = '.partial-cli-batch-codex-sess123-dispatch1.json';
   assert.ok(!markerNameSample.startsWith('.pending-'),
-    'marker filename must not start with .pending- (the sentinel-lifecycle prefix)');
-
-  // The sweep's unknown-stray pass is the only mechanism that could otherwise
-  // discover and clear an unrecognized file in the sessions dir — confirm its
-  // glob is exactly `.pending-*`, so a `.partial-cli-batch-*` marker is
-  // invisible to it by construction, not by convention alone.
-  assert.ok(REAP_SCRIPT.includes("-name '.pending-*'"),
-    'reap-stale-sentinels.sh unknown-stray sweep must glob only .pending-*, proving a .partial-cli-batch-* marker is never swept');
-
-  // The known SENTINEL_NAMES registry (whitelist consumed by clear-sentinel.sh
-  // and the reap loop) must not itself contain any partial-cli-batch entry —
-  // confirms the marker was never folded into the reviewer-sentinel SSOT.
-  assert.ok(!/partial-cli-batch/.test(PAYLOAD_LIB),
-    'SENTINEL_NAMES (payload.sh) must not include a partial-cli-batch entry — the marker stays outside the .pending-* reviewer-sentinel lifecycle');
+    'marker filename must not start with .pending- (the retired sentinel-lifecycle prefix)');
 });
 
-test('the marker path, required fields, and reconciliation/no-auto-clear rule are documented', () => {
+test('the marker path, required fields, and reconciliation/no-auto-resolve rule are documented', () => {
   assert.ok(DISPATCH_DOC.includes(
     '.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json',
   ), 'the exact control-plane marker path must be documented verbatim');
   for (const field of ['backend', 'session/dispatch identity', 'assigned', 'confirmed', 'remaining', 'unconfirmed', 'next action']) {
     assert.ok(DISPATCH_DOC.includes(field), `marker required-field list must name '${field}'`);
   }
-  assert.ok(/never auto-cleared by the worker or by a reviewer sweep/.test(DISPATCH_DOC),
-    'marker must be documented as never auto-cleared (no cleanup authority)');
+  assert.ok(/is not automatically resolved by the worker or by a reviewer/.test(DISPATCH_DOC),
+    'marker must be documented as not automatically resolved (no cleanup authority)');
   assert.ok(/until a human or the orchestrator explicitly reconciles it/.test(DISPATCH_DOC),
     'marker must require explicit human/orchestrator reconciliation');
-  assert.ok(/not itself a reviewer sentinel and does not gate on reviewer approval/.test(DISPATCH_DOC),
-    'marker must be explicitly distinguished from the reviewer-sentinel gate');
+  assert.ok(/not itself a Review Gate verdict or approval/.test(DISPATCH_DOC),
+    'marker must be explicitly distinguished from Review Gate approval');
 });
 
 // 3.3 — six-file starting guideline with a documented override, and no

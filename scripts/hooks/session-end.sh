@@ -2,15 +2,17 @@
 # session-end.sh — SessionEnd hook
 #
 # Session-teardown cleanup — the correct lifecycle point for work that used to
-# run on every SessionStart (gitnexus reap) or every Stop (sentinel sweep):
-#   1. Reap ORPHANED `gitnexus mcp` processes (opt-in: reap_stale_mcp_processes).
-#      Moved from session-start.sh; reaping at teardown removes per-start overhead.
-#   2. Sweep stale reviewer sentinels once (moved off the per-turn Stop hook).
+# run on every SessionStart: reap ORPHANED `gitnexus mcp` processes (opt-in:
+# reap_stale_mcp_processes). Moved from session-start.sh; reaping at teardown
+# removes per-start overhead.
+#
+# This hook used to also sweep stale Review Sentinel `.pending-*` files.
+# Sentinel was retired (#376/#377); that sweep is gone with it.
 #
 # SessionEnd is non-blockable; always exit 0. Output is advisory only.
 #
 # Trigger: SessionEnd event (wired once in hooks/hooks.json).
-# Cost: opt-in pgrep/ps scan + one reap-stale-sentinels.sh stat sweep.
+# Cost: opt-in pgrep/ps scan.
 
 set -o pipefail
 
@@ -35,10 +37,5 @@ if [ "${CLAUDE_PLUGIN_OPTION_REAP_STALE_MCP_PROCESSES:-false}" = "true" ] \
     [ "$_gn_reaped" -gt 0 ] && echo "[session-end] reaped $_gn_reaped orphaned gitnexus mcp processes" >&2
     unset _gn_pid _gn_ppid _gn_reaped
 fi
-
-# ---- Stale reviewer sentinel sweep (warn-only; was a per-turn Stop hook) ----
-# Default 24h threshold, warn-only — fresh pending reviews are preserved for the
-# next session; the push-time hard-clear lives in pre-bash-guard.sh.
-bash "$PLUGIN_ROOT/scripts/hooks/reap-stale-sentinels.sh" || true
 
 exit 0

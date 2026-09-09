@@ -96,7 +96,7 @@ Success: [ ] <criterion incl. tests pass>
 
 ## Closing — Artifact Output
 
-Two categories (not the standard single `reviews/`): plan → `.claude/artifacts/plans/architect-{yyyymmdd}-{slug}.md`; ADR → `.claude/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Frontmatter: `agent / generated_at / commit / scope[] / verdict`, no `severity_summary` (see `docs/contracts/artifact-contract.md` non-reviewer extensions). Retention/degradation: same doc. No sentinel — not in the review chain.
+Two categories (not the standard single `reviews/`): plan → `.claude/artifacts/plans/architect-{yyyymmdd}-{slug}.md`; ADR → `.claude/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Frontmatter: `agent / generated_at / commit / scope[] / verdict`, no `severity_summary` (see `docs/contracts/artifact-contract.md` non-reviewer extensions). Retention/degradation: same doc. No consolidated Review Gate obligation; invoke this role for design decisions before implementation dispatch.
 
 ## Output
 

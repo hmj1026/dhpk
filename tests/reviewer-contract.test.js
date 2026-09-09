@@ -7,7 +7,6 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const contract = fs.readFileSync(path.join(ROOT, 'docs', 'contracts', 'reviewer-contract.md'), 'utf8');
 const policy = fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8');
-const reminder = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', 'stop-review-reminder.sh'), 'utf8');
 const reviewers = [
   ['code-reviewer', 'agents'],
   ['database-reviewer', 'agents'],
@@ -18,13 +17,9 @@ const reviewers = [
   ['polyfill-reviewer', path.join('modules', 'library-author', 'agents')],
 ];
 
-function teachesHookOwnedClearance(text) {
-  const inline = /fresh canonical artifact[^\n]*delimited frontmatter[^\n]*(?:APPROVE|PASS)/i.test(text);
-  const pointer = /docs\/contracts\/artifact-contract\.md/.test(text)
-    && /Sentinel clearance/i.test(text)
-    && /docs\/contracts\/reviewer-contract\.md/.test(text)
-    && /Single-run verdict/i.test(text);
-  return inline || pointer;
+function teachesReviewGateOwnership(text) {
+  return /orchestrator owns Review Gate dispatch and obligation status/i.test(text)
+    && /reviewer writes evidence only/i.test(text);
 }
 
 test('shared reviewer contract defines compact prompt and artifact/verdict fields', () => {
@@ -44,10 +39,10 @@ test('reviewer prompts reference the shared contract while retaining specialist 
   }
 });
 
-test('reviewer contract requires a single-run verdict', () => {
+test('reviewer contract requires a single-run Review Gate evidence result', () => {
   assert.ok(contract.toLowerCase().includes('single-run verdict'), 'shared reviewer contract missing single-run verdict marker');
-  for (const token of ['canonical filename', 'delimited frontmatter', 'APPROVE or PASS', 'leaves the sentinel armed']) {
-    assert.ok(contract.includes(token), `shared reviewer contract missing strict-clear token: ${token}`);
+  for (const token of ['canonical filename', 'delimited frontmatter', 'APPROVE or PASS']) {
+    assert.ok(contract.includes(token), `shared reviewer contract missing artifact-output token: ${token}`);
   }
   for (const [name, directory] of reviewers) {
     const text = fs.readFileSync(path.join(ROOT, directory, `${name}.md`), 'utf8');
@@ -58,15 +53,13 @@ test('reviewer contract requires a single-run verdict', () => {
     );
     assert.doesNotMatch(
       text,
-      /(?:clear the sentinel|clear-sentinel\.sh)/i,
-      `${name} still instructs the reviewer to clear its own sentinel`
+      /(?:clear the sentinel|clear-sentinel\.sh|\.pending-(?:review|security-review))/i,
+      `${name} still instructs the reviewer to use the retired Sentinel workflow`,
     );
     assert.ok(
-      teachesHookOwnedClearance(text),
-      `${name} must teach hook-owned sentinel clearance by pointer or the inline contract`,
+      teachesReviewGateOwnership(text),
+      `${name} must leave Review Gate dispatch and obligation status to the orchestrator`,
     );
-    assert.doesNotMatch(text, /regardless of verdict parseability/i,
-      `${name} must not allow malformed review evidence to clear a sentinel`);
   }
 });
 
@@ -78,18 +71,6 @@ test('reviewer frequency contract batches waves and bounds recovery', () => {
     'new substantive scope starts a new review decision',
   ]) {
     assert.ok(policy.includes(token), `frequency policy missing ${token}`);
-  }
-  // Active-marker + debounce literals live in _lib/session-env.sh (the
-  // session-environment SSOT); the reminder consumes them via its helpers.
-  const sessionEnv = fs.readFileSync(
-    path.join(ROOT, 'scripts', 'hooks', '_lib', 'session-env.sh'),
-    'utf8'
-  );
-  for (const token of ['dhpk_active_marker', 'stop_hook_active', 'DHPK_SIDECAR_REVIEW_BACKOFF']) {
-    assert.ok(reminder.includes(token), `active/debounce behavior missing ${token}`);
-  }
-  for (const token of ['.active-', '.review-reminder-backoff']) {
-    assert.ok(sessionEnv.includes(token), `session-env SSOT missing ${token}`);
   }
   assert.ok(contract.includes('one corrected retry'));
   assert.ok(contract.includes('identical retry is prohibited'));

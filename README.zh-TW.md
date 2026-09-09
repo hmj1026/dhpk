@@ -8,9 +8,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.zh-TW.md#codex-project-local-syncsupported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.zh-TW.md#cursor-project-local-syncsupported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.zh-TW.md#surface-matrix)
 
-通用、安裝即用的 Claude Code harness。內含 **36 個角色導向 agent**（35 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、九個 task-shaped capability family、跨 session 學習 DB（預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **36 個角色導向 agent**（35 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、九個 task-shaped capability family、跨 session 學習 DB（預設關閉）、Review Gate 驅動的 reviewer 派工（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
 
-> **Harness engineering 重於 prompt engineering。** dhpk 把 agent 的運作環境——hooks、sentinel review gate、路由規則、技術棧感知模組——當作施力點。你安裝的不是逐次微調的 one-off prompt，而是一套可重用的 harness，讓正確的檢查自動觸發，並讓模型跨 session 維持在軌道上。
+> **Harness engineering 重於 prompt engineering。** dhpk 把 agent 的運作環境——hooks、Review Gate 派工、路由規則、技術棧感知模組——當作施力點。你安裝的不是逐次微調的 one-off prompt，而是一套可重用的 harness，讓正確的檢查自動觸發，並讓模型跨 session 維持在軌道上。
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
@@ -21,7 +21,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | 工具 | 狀態 | 用途 |
 |------|------|------|
 | `bash` | 必要 | 所有 hook 與輔助腳本 |
-| `git` | 必要 | Sentinel／artifact 路徑解析；`git rev-parse --show-toplevel` |
+| `git` | 必要 | Review Gate／artifact 路徑解析；`git rev-parse --show-toplevel` |
 | `python3` | 啟用 `modules` 時為必要 | 為選用模組啟用與路由解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
 | `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
@@ -58,12 +58,12 @@ Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整�
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
-| Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
+| Agents | Role-based agents | Trigger table 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
 | Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
 | Canonical skills | 65 個扁平 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract；九個 portable family（`skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、`laravel`、`phpunit`、`harness-govern`）負責整併介面。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
-| Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
-| Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
+| Hooks | 3 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git branch-safety gate）、SessionStart（module activation）、SubagentStop（fast-worker liveness cleanup） |
+| Hook dispatchers | 1 | `pre-bash-dispatch.sh` 合併 deterministic shell 與 Git branch-safety gate |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
 | Codex 雙軌 | 15 筆項目（13 個可呼叫） | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能與內部 transport 與 dispatch-context runtime。 |
 
@@ -135,7 +135,7 @@ Claude 的預設 discovery artifact 是由 distribution inventory 產生的實�
 
 ## Codex 整合面
 
-dhpk 的核心——hooks、sentinel reviewers、Smart Router 與 workflow
+dhpk 的核心——hooks、Review Gate reviewers、Smart Router 與 workflow
 skill——不需要 Codex MCP server。選用的 Codex 整合是彼此分離、責任清楚的
 surface：
 
@@ -215,7 +215,7 @@ OnePassword 驗證是 operator action，不是可 discovery 的 skill：需要 c
 - **`react-19`** — React 19（2024 年 12 月）。Actions 與 async transitions、新 hooks（`useActionState`/`useOptimistic`/`useFormStatus`、`use()`）、`ref` 作為一般 prop（免 `forwardRef`）、`<Context>` 直接當 provider、document metadata 自動 hoist、資源預載（`preload`/`preinit`）、穩定的 Server Components。移除 `ReactDOM.render`/`hydrate`、function component 的 `propTypes`/`defaultProps`、legacy Context 與 string refs。Next.js 16 建議但非必需。
 
 **跨版本**：
-- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（透過 `.pending-polyfill-review` sentinel 驅動）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:dhpk-matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動觸發。
+- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（由 Review Gate trigger table 選取）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:dhpk-matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動選取。
 
 **iOS / Swift**（依賴鏈式——每個都 `requires: swift`；可用 `ios-app` 安裝 profile 一次啟用整套）：
 - **`swift`** — Swift 6 strict-concurrency 基線 + Swift 5.10 / iOS 17 相容性 + Swift 6.2 approachable-concurrency。整套套件的基礎。
@@ -226,7 +226,7 @@ OnePassword 驗證是 operator action，不是可 discovery 的 skill：需要 c
 
 啟用後，模組會：
 - 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:dhpk-php-runtime-router`、`dhpk:dhpk-yii1-security-audit`、`dhpk:dhpk-js-lint-config`）。
-- 為 deterministic post-edit sentinel routing 貢獻路徑觸發規則，讓 reviewer 在框架特定路徑上觸發。
+- 為 Review Gate 派工貢獻框架特定路徑的觸發規則。
 - 可在 `modules/<m>/hooks/` 提供選用 hook 腳本；由 consumer 明確註冊。詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)。
 - 在 SessionStart 印出一行模組啟用訊息，讓 Claude 知道該模組已生效。
 
@@ -300,7 +300,7 @@ Dispatcher 契約與 `js` 模組的完整範例詳見 [`docs/hook-extension.zh-T
 }
 ```
 
-Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> | mod=<active> | ⚠ <pending-sentinels>`，並退回到全域 `~/.claude/statusline.sh` 取得 token/模型/rate-limit 行。Sentinel badge 直接取用共用的 `SENTINEL_SHORT_NAMES` map，因此七個 review slot 永遠遵循 SSOT 順序（包含 migration review 的 `⚠ mig`）。
+Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> | mod=<active>`，並退回到全域 `~/.claude/statusline.sh` 取得 token/模型/rate-limit 行。Review Gate verdict 與 unresolved obligation 由 durable evidence record 追蹤，不再使用 statusline sentinel badge。
 
 ## 同步 Codex CLI 內容
 
@@ -350,9 +350,9 @@ dhpk/
 │   ├── react-18/, react-19/             # React 函式庫（各主版本）
 │   ├── library-author/{module.yaml, agents/, skills/, hooks/, references/}
 │   └── swift/, swiftui/, ios-platform/, swift-testing/, xcode-tooling/  # iOS/Swift 套件（xcode-tooling 另含 hooks/ 與 skill 腳本）
-├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / SubagentStop 連線設定
+├── hooks/hooks.json              # PreToolUse / SessionStart / SubagentStop 連線設定
 ├── scripts/
-│   ├── hooks/                    # 核心 hook，含 post-edit-dispatch.sh、pre-bash-dispatch.sh、reap-stale-sentinels.sh、_lib/{payload,portable-sed,portable-timeout}.sh
+│   ├── hooks/                    # 核心 hook，含 pre-edit-guard.sh、pre-bash-dispatch.sh、session-start.sh、subagent-stop-verify.sh、_lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
 │   ├── codemaps/、lib/、opsx-apply-resume/、validate/
 │   └── （harness-audit、precommit-runner、verify-runner、agy-adapt-agents、dep-audit）

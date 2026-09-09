@@ -53,7 +53,7 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of active deterministic hook output. Retired Stop reminders are not default-wired. |
-| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by sentinel routing, in slot order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
+| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by Review Gate dispatch, in role order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus` (whatever the running Claude Code version supports) | Model tier for `dhpk:deep-reasoner` Agent-call dispatches (reasoning-heavy implementation work). Applied per dispatch via the Agent call's `model` param when it differs from the agent's frontmatter default. Invalid value warns once per session and falls back to the frontmatter default — never fails the dispatch. |
 | `fast_worker_model` | string | `sonnet` | same as above | Model tier for `dhpk:fast-worker` Agent-call dispatches (mechanical implementation work). Same validation/fallback behavior as `deep_reasoner_model`. |
 | `planner_model` | string | `opus` | same as above | Model tier for `dhpk:planner` Agent-call dispatches (the opt-in `/dhpk:flow-drive --plan` pre-implementation critique / post-implementation warm review). Same validation/fallback behavior as `deep_reasoner_model`. |
@@ -155,7 +155,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
 | `docker_containers` | string[] | `[]` | container name(s) | Retained for explicitly registered Docker tooling; default SessionStart does not probe containers or export container variables. |
-| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences sentinel routing and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
+| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences Review Gate triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
 
 ## Review triggers & risk heuristics
 
@@ -168,7 +168,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Env override | Purpose |
 |-----|------|---------|---------|--------------|---------|
-| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | Behavior when `git commit/merge/rebase/cherry-pick` runs while reviewer sentinels are pending. `warn` = stderr reminder (exit 0); `block` = reject the tool call (exit 2); `off` = silent. Companion to the pre-bash-guard's hard `git push` block. |
+| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | Retained legacy setting; current Review Gate obligations are evaluated by the orchestrator. `warn` = stderr reminder (exit 0); `block` = reject the tool call (exit 2); `off` = silent. |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | Behavior when a history-mutating git verb (`commit/merge/rebase/cherry-pick/reset/push`) runs on a protected branch. |
 | `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | branch name(s) / bash `case` globs | — | Branches the `branch_safety` gate checks against. Set to `[]` to disable per-branch gating without setting `branch_safety=off`. |
 
@@ -188,7 +188,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Retained for explicitly registered manifest/lockfile advisory tooling; default PostToolUse only routes review sentinels. |
+| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Retained for explicitly registered manifest/lockfile advisory tooling; no default PostToolUse reviewer routing remains. |
 
 ## `js` module
 

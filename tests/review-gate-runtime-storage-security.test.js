@@ -15,6 +15,10 @@ const runtime = require('../scripts/lib/review-gate-runtime');
 const storage = require('../scripts/lib/review-gate-runtime-storage');
 const evidence = require('../scripts/lib/review-gate-runtime-evidence');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  getOrCreateHostKey,
+  hostInitArgs,
+} = require('./_lib/review-gate-host-attestation-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'review-gate-runtime.js');
@@ -45,7 +49,7 @@ function statePath(repoRoot, relative) {
   return path.join(repoRoot, stateRelative, relative);
 }
 
-function createState(repoRoot, { key = Buffer.alloc(32, 0x4b), config = storage.defaultConfig() } = {}) {
+function createState(repoRoot, { key = Buffer.alloc(32, 0x4b), config = storage.defaultConfig(null) } = {}) {
   const stateRoot = path.join(repoRoot, stateRelative);
   fs.mkdirSync(path.join(stateRoot, 'plans'), { recursive: true, mode: 0o700 });
   writePrivate(path.join(stateRoot, 'config.json'), `${canonicalJson(config)}\n`);
@@ -53,7 +57,7 @@ function createState(repoRoot, { key = Buffer.alloc(32, 0x4b), config = storage.
   return stateRoot;
 }
 
-function createConfigOnlyState(repoRoot, config = storage.defaultConfig()) {
+function createConfigOnlyState(repoRoot, config = storage.defaultConfig(null)) {
   const stateRoot = path.join(repoRoot, stateRelative);
   fs.mkdirSync(stateRoot, { recursive: true, mode: 0o700 });
   writePrivate(path.join(stateRoot, 'config.json'), `${canonicalJson(config)}\n`);
@@ -146,6 +150,10 @@ function runCli(repoRoot, args = [], input = undefined) {
   });
 }
 
+function initArgs(repoRoot) {
+  return hostInitArgs(getOrCreateHostKey(repoRoot, 'storage-security'));
+}
+
 function runBoundedCli(repoRoot, args = [], input = undefined) {
   return spawnSync(process.execPath, [CLI, ...args, '--repo-root', repoRoot], {
     cwd: repoRoot,
@@ -170,7 +178,7 @@ function assertBoundedFailure(result, label) {
 }
 
 function prepareRuntime(repoRoot) {
-  const initialized = runCli(repoRoot, ['init']);
+  const initialized = runCli(repoRoot, initArgs(repoRoot));
   assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
   const preparedResult = runCli(
     repoRoot,
@@ -340,7 +348,7 @@ test('runtime readers fail closed when physical open flags are unavailable', () 
 test('first init rejects an existing config with an untrusted producer entry', () => {
   const repoRoot = temporaryDirectory('dhpk-runtime-storage-init-config-');
   try {
-    const config = storage.defaultConfig();
+    const config = storage.defaultConfig(null);
     config.trustPolicy.producers.push({
       producer: 'attacker-producer',
       adapter: 'attacker-adapter',
@@ -349,7 +357,13 @@ test('first init rejects an existing config with an untrusted producer entry', (
       lanes: [],
     });
     createConfigOnlyState(repoRoot, config);
-    assertCode(() => storage.createIntegrityKey(repoRoot), 'CONFIG_INVALID');
+    assertCode(
+      () => storage.createIntegrityKey(
+        repoRoot,
+        getOrCreateHostKey(repoRoot, 'storage-security').trust,
+      ),
+      'CONFIG_INVALID',
+    );
     assert.strictEqual(fs.existsSync(statePath(repoRoot, 'integrity.key')), false);
   } finally {
     cleanup(repoRoot);
@@ -384,7 +398,7 @@ test('config read rejects bytes above its bounded storage limit', () => {
 test('prepare rejects an open stdin stream after the 1 MiB bound', () => {
   const repoRoot = temporaryDirectory('dhpk-runtime-storage-stdin-bound-');
   try {
-    const initialized = runCli(repoRoot, ['init']);
+    const initialized = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
     const producer = [
       'const chunk=Buffer.alloc(65536,120);',
@@ -418,7 +432,7 @@ test('prepare rejects an open stdin stream after the 1 MiB bound', () => {
 test('status exposes a bounded receipt summary instead of raw receipts', () => {
   const repoRoot = temporaryDirectory('dhpk-runtime-storage-status-bound-');
   try {
-    const initialized = runCli(repoRoot, ['init']);
+    const initialized = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
     const preparedResult = runCli(
       repoRoot,
@@ -436,7 +450,7 @@ test('status exposes a bounded receipt summary instead of raw receipts', () => {
     const status = JSON.parse(statusResult.stdout);
     assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'receipts'), false);
     assert.deepStrictEqual(status.receiptSummary, { total: 0, byKind: {} });
-    assert.strictEqual(status.migrationObservation, null);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'migrationObservation'), false);
     assert.ok(Buffer.byteLength(statusResult.stdout, 'utf8') < 32 * 1024);
   } finally {
     cleanup(repoRoot);
@@ -663,7 +677,7 @@ test('status rejects a symlinked latest sequence without leaking external eviden
   const repoRoot = temporaryDirectory('dhpk-runtime-storage-sequence-symlink-repo-');
   const outsideRoot = temporaryDirectory('dhpk-runtime-storage-sequence-symlink-outside-');
   try {
-    const initialized = runCli(repoRoot, ['init']);
+    const initialized = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
     const preparedResult = runCli(
       repoRoot,

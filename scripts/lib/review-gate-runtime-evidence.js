@@ -8,10 +8,6 @@ const {
   SAFE_ID,
 } = require('./receipt-primitives');
 const {
-  COST_FIELDS,
-  normalizeAcceptedOutcomeCost,
-} = require('./review-gate-baseline');
-const {
   MAX_EVIDENCE_BYTES,
   MAX_EVIDENCE_EVENTS,
   MAX_STDIN_BYTES,
@@ -266,55 +262,6 @@ const readCompanion = (repoRoot, artifact, companionValue) => {
   return normalized;
 };
 
-const terminalAcceptedOutcome = (lifecycleEvents) => {
-  const terminal = lifecycleEvents.filter((event) => event && event.state === 'verdicted');
-  if (terminal.length !== 1 || typeof terminal[0].verdict !== 'string') fail('MISSING_VERDICT');
-  return ['PASS', 'APPROVE'].includes(terminal[0].verdict);
-};
-
-const fallbackAcceptedOutcomeCost = (identity, lifecycleEvents, failureCodes) => {
-  const telemetryFailures = failureCodes.map((code) => ({ code, detail: '<redacted>' }));
-  return normalizeAcceptedOutcomeCost({
-    observationId: `legacy-${sha256(identity.taskId).slice(0, 32)}`,
-    acceptedOutcome: terminalAcceptedOutcome(lifecycleEvents),
-    metrics: Object.fromEntries(COST_FIELDS.map((field) => [field, null])),
-    telemetryFailures,
-  });
-};
-
-const normalizeCostSidecar = (identity, lifecycleEvents, sidecar) => {
-  const expectedObservationId = `legacy-${sha256(identity.taskId).slice(0, 32)}`;
-  if (!sidecar || sidecar.length === 0) {
-    return fallbackAcceptedOutcomeCost(identity, lifecycleEvents, ['COLLECTOR_UNAVAILABLE']);
-  }
-  const candidates = sidecar.filter((value) => isRecord(value)
-    && value.observationId === expectedObservationId);
-  if (candidates.length === 0) fail('FOREIGN_COST_OBSERVATION');
-  const source = candidates[candidates.length - 1];
-  const sourceMetrics = isRecord(source.metrics) ? source.metrics : {};
-  const missingMetrics = COST_FIELDS.filter((field) => !Object.prototype.hasOwnProperty.call(sourceMetrics, field));
-  const sourceFailures = Array.isArray(source.telemetryFailures) ? source.telemetryFailures : [];
-  const telemetryFailures = [
-    ...sourceFailures,
-    ...missingMetrics.map(() => ({ code: 'COLLECTOR_UNAVAILABLE', detail: '<redacted>' })),
-  ];
-  let normalized;
-  try {
-    normalized = normalizeAcceptedOutcomeCost({
-      ...source,
-      observationId: expectedObservationId,
-      telemetryFailures,
-    });
-  } catch (_) {
-    fail('MALFORMED_ACCEPTED_OUTCOME_COST');
-  }
-  if (normalized.observationId !== expectedObservationId) fail('FOREIGN_COST_OBSERVATION');
-  if (normalized.acceptedOutcome !== terminalAcceptedOutcome(lifecycleEvents)) {
-    fail('CONTRADICTORY_COST_OUTCOME');
-  }
-  return normalized;
-};
-
 const readStdinWorkRequest = (input) => {
   if (typeof input !== 'string' && !Buffer.isBuffer(input)) fail('BOUNDED_INPUT');
   const bytes = Buffer.isBuffer(input) ? Buffer.from(input) : Buffer.from(input, 'utf8');
@@ -330,7 +277,6 @@ module.exports = {
   assertSameIdentity,
   digestJson: (value) => `sha256:${sha256(canonicalJson(value))}`,
   eventIdentity,
-  normalizeCostSidecar,
   normalizeIdentity,
   observationIdentityFields: IDENTITY_FIELDS,
   readCompanion,
@@ -341,5 +287,4 @@ module.exports = {
   readOptionalEvidenceFile,
   readStdinWorkRequest,
   resolveEvidencePath,
-  terminalAcceptedOutcome,
 };

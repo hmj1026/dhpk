@@ -22,6 +22,7 @@ PASS; a non-zero official result blocks readiness.
 
 The physical Codex-native package is generated from canonical sources. After a
 native skill changes, regenerate `plugins/dhpk/` and verify fingerprints and
-membership; never hand-edit a mirror. Post-edit hooks arm `.pending-*` review
-sentinels under `.claude/artifacts/sessions/`; the reviewer records evidence and
-verdict, then the runtime hook clears the sentinel only after a fresh pass.
+membership; never hand-edit a mirror. The Review Gate selects applicable
+reviewer obligations from the changed scope; the reviewer records identity-
+bound evidence and a verdict, and the orchestrator records lifecycle completion
+only after the required obligations are resolved.

@@ -68,10 +68,11 @@ In parallel mode, derive before/after edits only from path-scoped status/diff fo
 ## Edited-file list (mandatory)
 
 Every report — pass, fail, or escalation — includes the complete list of files
-touched so far, even a partial/failed attempt. This is the gate-enforcement
-back-stop: if the orchestrator's post-edit hooks did not fire for this
-subagent's tool calls, it derives the applicable reviewer gates from this list
-alone. Omitting it (or reporting it incompletely) breaks that back-stop.
+touched so far, even a partial/failed attempt. The orchestrator uses this list
+as the Review Gate accounting back-stop when provider or out-of-band writes
+bypass normal tool events, deriving applicable reviewer obligations from the
+actual edited paths. Omitting it (or reporting it incompletely) breaks that
+back-stop.
 
 Every report also identifies `Requested backend: claude` and
 `Selected backend: claude`. CLI-backed selection and missing-executable fallback
@@ -111,6 +112,6 @@ at the point of escalation.
 
 **No artifact** — fast-worker reports inline to its dispatcher (orchestrator or
 `deep-reasoner`'s handoff); its deliverable is the applied diff plus the report
-above, not a persisted `.claude/artifacts/` file. Its edits still flow through
-the normal post-edit hook / sentinel machinery like any other Edit/Write, and
-remain subject to the full post-implementation review gate.
+above, not a persisted `.claude/artifacts/` file. Its edits remain subject to
+the Review Gate; the orchestrator dispatches applicable reviewer obligations
+from the returned edited-file list.

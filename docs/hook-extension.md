@@ -5,32 +5,26 @@
 dhpk registers a deliberately small default lifecycle. The complete default
 mapping is [`hooks/hooks.json`](../hooks/hooks.json). The machine-readable
 default event manifest is [`hooks/default-events.json`](../hooks/default-events.json):
-the four events listed there are wired by default. Events listed under
+the three event groups listed there are wired by default. Events listed under
 `optionalEvents` remain source assets until a consumer explicitly registers
 them; optional events are not registered by default and are not silently active.
 
 | Event | Script | Deterministic responsibility |
 |---|---|---|
 | `PreToolUse(Edit|Write|MultiEdit)` | `pre-edit-guard.sh` | protected-path and secret safety |
-| `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety plus Git/review-debt gates |
-| `PostToolUse(Edit|Write|MultiEdit)` | `post-edit-dispatch.sh` | review-sentinel creation and routing |
+| `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety plus Git branch-safety gates |
 | `SessionStart` | `session-start.sh` | validate and activate configured modules |
-| `SubagentStop` | `subagent-stop-verify.sh` | reconcile a reviewer sentinel only after valid evidence |
+| `SubagentStop` | `subagent-stop-verify.sh` | clean up stopped fast-worker liveness state |
 
-`post-edit-dispatch.sh` invokes only `post-edit-remind.sh`; it does not run
-module lint, formatting, CRLF, lockfile, or transcript work by default.
 `session-start.sh` activates modules only; it does not create snapshots, probe
 Docker, inspect install health, inject prompt hints, or emit orchestration
 advice.
 
 ## Reviewer evidence
 
-`SubagentStop` is intentionally strict. A reviewer clears only its own sentinel
-when the artifact is fresh, canonical, and has a filename of the form
-`<agent>-YYYYMMDD-HHMMSS-<slug>.md`. The file must start with delimited YAML
-frontmatter and include `agent`, `generated_at`, `commit`, `scope`,
-`severity_summary`, and `verdict`; only `APPROVE` or `PASS` clears the sentinel.
-Missing, malformed, warning, or failing evidence leaves review debt armed.
+Reviewer dispatch is orchestrator-owned. A reviewer records a durable,
+identity-compatible Review Gate result; missing, malformed, warning, or failing
+evidence leaves the obligation unresolved.
 
 ## Optional extensions
 

@@ -9,19 +9,13 @@ const {
   deepFreeze,
 } = require('./receipt-primitives');
 const { createFinding } = require('./reviewer-contract');
-const {
-  validateMigrationObservationPayload,
-  validatePhaseTransitionPayload,
-  PHASE_TRANSITION_SCHEMA,
-} = require('./migration-coordinator');
 const RECEIPT_SCHEMA = 'dhpk.review-gate.evidence-receipt.v1';
 const DECISION_SCHEMA = 'dhpk.workflow.decision.v1';
 const VERIFICATION_SCHEMA = 'dhpk.workflow.verification.v1';
-const RECEIPT_KINDS = Object.freeze(['decision', 'review', 'verification', 'authority', 'migration-observation']);
+const RECEIPT_KINDS = Object.freeze(['decision', 'review', 'verification', 'authority']);
 const DECISION_FACTS = Object.freeze(['WORK_RECORDED', 'DECISION_REQUIRED', 'DECISION_RESOLVED', 'DECISION_INVALIDATED']);
 const VERIFICATION_TYPES = Object.freeze(['IMPLEMENTATION', 'LOCAL_GATE', 'FRESHNESS', 'PROVIDER_MERGE']);
 const VERIFICATION_OUTCOMES = Object.freeze(['STARTED', 'COMPLETE', 'PASS', 'FAIL', 'CHANGES_REQUIRED', 'BLOCKED', 'EXPIRED', 'NOT_RUN', 'UNAVAILABLE']);
-const ACCEPTED_OUTCOME_COST_SCHEMA = 'dhpk.accepted-outcome-cost.v1';
 const COMMAND_OUTCOMES = Object.freeze(['PASS', 'FAIL', 'NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE', 'BLOCKED', 'UNAVAILABLE']);
 const REVIEW_EXECUTION_STATUSES = Object.freeze(['COMPLETE', 'NOT_RUN', 'INTERRUPTED', 'UNAVAILABLE']);
 const REVIEW_APPLICABILITIES = Object.freeze(['REQUIRED', 'NOT_APPLICABLE']);
@@ -46,14 +40,11 @@ const isRecord = (value) => value !== null && typeof value === 'object' && !Arra
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const isSafeId = (value) => typeof value === 'string' && SAFE_ID.test(value);
 const isFingerprint = (value) => typeof value === 'string' && FINGERPRINT.test(value);
-function rejectKey(key, path = [], value, costSchema = null) {
+function rejectKey(key) {
   const normalized = String(key);
   if (normalized === '__proto__' || normalized === 'prototype' || normalized === 'constructor') return true;
   const compact = normalized.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
-  const canonicalMetric = path.slice(-3).join('.') === 'acceptedOutcomeCost.metrics.modelTokens'
-    && costSchema === ACCEPTED_OUTCOME_COST_SCHEMA
-    && (value === null || (Number.isSafeInteger(value) && value >= 0));
-  return compact === 'modeltokens' ? !canonicalMetric : FORBIDDEN_KEY.test(compact);
+  return FORBIDDEN_KEY.test(compact);
 }
 
 const WORKFLOW_JSON_LIMITS = Object.freeze({
@@ -67,18 +58,8 @@ const WORKFLOW_JSON_LIMITS = Object.freeze({
   maxArrayLength: 200,
 });
 
-function workflowContextPolicy({ path, descriptors, policyContext }) {
-  if (path[path.length - 1] !== 'acceptedOutcomeCost') return policyContext;
-  const schema = descriptors.schema;
-  return {
-    ...(policyContext || {}),
-    costSchema: schema && hasOwn(schema, 'value') ? schema.value : null,
-  };
-}
-
-function workflowPropertyPolicy({ key, path, descriptor, policyContext }) {
-  const value = descriptor && hasOwn(descriptor, 'value') ? descriptor.value : undefined;
-  if (rejectKey(key, path, value, policyContext && policyContext.costSchema)) {
+function workflowPropertyPolicy({ key }) {
+  if (rejectKey(key)) {
     fail('SENSITIVE_EVIDENCE');
   }
   return true;
@@ -91,8 +72,6 @@ function workflowReject() {
 function cloneJson(value) {
   return cloneBoundedJson(value, {
     limits: WORKFLOW_JSON_LIMITS,
-    context: { costSchema: null },
-    contextPolicy: workflowContextPolicy,
     propertyPolicy: workflowPropertyPolicy,
     onReject: workflowReject,
   });
@@ -362,7 +341,7 @@ function validateReview(receipt) {
   requireSafe(receipt.obligationId);
   requireSafe(receipt.lane);
   const payload = receipt.payload;
-  if (hasOwn(payload, 'effect') && !['OBSERVE_ONLY', 'ENFORCE'].includes(payload.effect)) fail('MALFORMED_RECEIPT');
+  if (hasOwn(payload, 'effect') && payload.effect !== 'ENFORCE') fail('MALFORMED_RECEIPT');
   const required = [
     'eventId', 'decisionId', 'planId', 'obligationId', 'lane', 'scopeDigest',
     'baseIdentity', 'headIdentity', 'diff', 'materialRisks', 'materialRisksHash',
@@ -459,32 +438,13 @@ function validateAuthority(receipt) {
   }
   return { receipt, payload, type: 'authority' };
 }
-function validateMigrationObservation(receipt) {
-  const payload = validateMigrationObservationPayload(receipt.payload, receipt);
-  return { receipt, payload, type: 'migration-observation' };
-}
-
-function validatePhaseTransitionAuthority(receipt) {
-  const payload = validatePhaseTransitionPayload(receipt.payload);
-  for (const field of [
-    'taskId', 'attemptId', 'dispatchId', 'scopeId', 'diffId',
-  ]) requireSafe(receipt[field]);
-  if (!Number.isSafeInteger(receipt.attempt) || receipt.attempt < 1) fail('MALFORMED_RECEIPT');
-  requireText(receipt.adapterVersion);
-  if (receipt.receiptId === payload.eventId) fail('MIXED_IDENTITY');
-  return { receipt, payload, type: 'phase-transition-authority' };
-}
 function validateTypedReceipt(receipt, policy) {
   validateEnvelope(receipt, policy);
   switch (receipt.kind) {
     case 'decision': return validateDecision(receipt);
     case 'verification': return validateVerification(receipt);
     case 'review': return validateReview(receipt);
-    case 'authority':
-      return receipt.payload && receipt.payload.schema === PHASE_TRANSITION_SCHEMA
-        ? validatePhaseTransitionAuthority(receipt)
-        : validateAuthority(receipt);
-    case 'migration-observation': return validateMigrationObservation(receipt);
+    case 'authority': return validateAuthority(receipt);
     default: fail('MALFORMED_RECEIPT');
   }
 }
@@ -718,9 +678,6 @@ function evaluateReceipts(input, policy) {
       reviews: records.filter((item) => item.kind === 'review'),
       verifications: records.filter((item) => item.kind === 'verification'),
       authorities: records.filter((item) => item.kind === 'authority'),
-      phaseTransitions: records.filter((item) => item.kind === 'authority'
-        && item.payload && item.payload.schema === PHASE_TRANSITION_SCHEMA),
-      migrationObservations: records.filter((item) => item.kind === 'migration-observation'),
     };
   } catch (error) {
     throw attachContext(error, context);
@@ -748,20 +705,9 @@ class WorkflowCoordinatorEvidence {
       ? Date.parse(this.evaluatedAt)
       : this.evaluatedAt;
     const latestAllowed = evaluatedAt + MAX_FUTURE_EVIDENCE_SKEW_MS;
-    for (const item of evidence.phaseTransitions) {
-      const recordedAt = Date.parse(item.receipt.recordedAt);
-      if (recordedAt > latestAllowed) fail('STALE_EVIDENCE');
-      validatePhaseTransitionPayload(item.payload, () => recordedAt);
-    }
-    for (const item of evidence.migrationObservations) {
-      if (['DUAL_ENFORCE', 'CUTOVER'].includes(item.payload.phase)
-        && Date.parse(item.receipt.recordedAt) > latestAllowed) {
-        fail('STALE_EVIDENCE');
-      }
-    }
     return {
       ...evidence,
-      reviews: evidence.reviews.filter((item) => item.payload.effect !== 'OBSERVE_ONLY'),
+      reviews: evidence.reviews,
     };
   }
 }

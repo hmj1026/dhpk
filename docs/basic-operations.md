@@ -349,11 +349,11 @@ Queued or partial CI is not completion.
 
 ### Review, verify, and handoff
 
-After an Edit/Write/MultiEdit, the default hooks create only the applicable
-`.pending-*` review sentinels and keep review debt visible. They do not silently
-run formatting, lint, lockfile, or Stop advisory scripts. `/dhpk:review-pending`
-starts the pending reviewers immediately; `sentinel_commit_gate` controls whether
-open sentinels warn or block a commit.
+After an Edit/Write/MultiEdit, the orchestrator derives the applicable Review
+Gate obligations from the completed wave. It does not silently run formatting,
+lint, lockfile, or Stop advisory scripts. `/dhpk:review-pending` dispatches the
+reviewer for the selected paths; the legacy `sentinel_commit_gate` setting is
+retained for compatibility and does not replace Review Gate verdict tracking.
 
 ```text
 /dhpk:review-pending
@@ -554,12 +554,14 @@ See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 
 ## Migrating an existing project
 
-If the project already has its own `.claude/` harness, follow the phased plan:
+If the project already has its own `.claude/` harness, the following is a
+legacy migration plan for hook compatibility. New review work uses the Review
+Gate trigger table and durable obligations described above.
 
 1. **Phase A — baseline**: snapshot pre-install hook outputs and test results.
 2. **Phase B — install (parallel)**: install the plugin with `userConfig.review_agents` pointing at the project's existing agents. Both sets of hooks fire side-by-side.
 3. **Phase C — discovery**: confirm `/agents` and `/plugin details dhpk@dhpk` show expected components.
-4. **Phase D — hook parity**: diff plugin-side sentinels vs project-side. Document any expected differences.
+4. **Phase D — hook parity**: diff plugin-side safety hooks vs project-side. Document any expected differences; do not add a legacy sentinel route.
 5. **Phase E — cutover**: disable the project's in-tree hooks via `.claude/settings.local.json` (`"hooks": {}`); run regression tests.
 6. **Phase F — cleanup**: delete project files now provided by the plugin; keep project-specific overrides.
 

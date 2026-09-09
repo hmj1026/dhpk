@@ -60,7 +60,6 @@ function fixture() {
   fs.mkdirSync(path.join(root, 'modules/second'), { recursive: true });
   fs.writeFileSync(path.join(root, 'hooks/hooks.json'), JSON.stringify({ hooks: { A: [], B: [] } }));
   fs.writeFileSync(path.join(root, 'manifests/module-catalog.json'), JSON.stringify({ version: 7, stacks: [] }));
-  fs.writeFileSync(path.join(root, 'scripts/lib/sentinel-slots.json'), JSON.stringify({ schema: 'dhpk.sentinel-slots.v1', slots: [{ id: 'code' }, { id: 'doc' }] }));
   fs.mkdirSync(path.join(root, '.claude-plugin'), { recursive: true });
   fs.writeFileSync(path.join(root, '.claude-plugin/plugin.json'), JSON.stringify({ version: '1.2.3', agents: ['agents/root.md'] }));
   return root;
@@ -79,14 +78,12 @@ test('inventory counts source trees and consumes the four SSOT manifests', () =>
     commands: 3,
     mcpCodexCommands: 2,
     modules: 2,
-    slotCount: 2,
     mcpCodexSkills: 2,
     codexCommands: 2,
     hookEvents: 2,
   });
   assert.strictEqual(inventory.sources.claudePlugin.version, '1.2.3');
   assert.strictEqual(inventory.sources.moduleCatalog.version, 7);
-  assert.strictEqual(inventory.sources.sentinelRegistry.schema, 'dhpk.sentinel-slots.v1');
   assert.deepStrictEqual(inventory.sources.hooks.events, ['A', 'B']);
 });
 
@@ -99,11 +96,8 @@ test('agent path inventory matches validator registration semantics', () => {
 test('missing or malformed optional manifests degrade to empty facts', () => {
   const root = fixture();
   fs.writeFileSync(path.join(root, 'hooks/hooks.json'), '{broken');
-  fs.rmSync(path.join(root, 'scripts/lib/sentinel-slots.json'));
   const inventory = collectInventory(root);
   assert.deepStrictEqual(inventory.sources.hooks.events, []);
-  assert.deepStrictEqual(inventory.sources.sentinelRegistry, null);
-  assert.strictEqual(inventory.counts.slotCount, 0);
 });
 
 test('inventory traversal rejects a caller-supplied file-count budget before growing output', () => {

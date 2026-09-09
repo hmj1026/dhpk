@@ -39,6 +39,17 @@ Each result also binds `contractVersion`, `obligationId`, and `lane`, and record
 `findings`, `inspectedScope`, and `evidenceReferences`. A `PASS` cannot contain a
 `MUST_FIX` finding.
 
+For the public filesystem-backed `review-gate-runtime observe` boundary, the
+caller must supply a separate host-issued cross-trust attestation envelope in
+addition to the Review Gate result. The host verifies the envelope with its
+configured key; it binds the prepared plan and the four evidence-file digests.
+`evidenceReferences` may reference those evidence digests but is not a
+substitute for the envelope. Programmatic ReviewGate, adapter, and
+WorkflowCoordinator calls are trusted in-process ports and do not require this
+filesystem transport attestation. Reviewers and local receipt writers cannot
+self-issue or substitute the envelope; malformed, foreign, or mismatched
+envelope evidence cannot authorize target progress.
+
 ## Findings
 
 Severity is independent from disposition. Severity is `CRITICAL`, `HIGH`,

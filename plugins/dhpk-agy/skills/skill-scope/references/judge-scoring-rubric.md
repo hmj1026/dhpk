@@ -264,7 +264,7 @@ Loading too little ◄───────────────────�
 ### Creating New Document
 
 **MANDATORY - READ ENTIRE FILE**: Before proceeding, you MUST read
-[`docx-js.md`](docx-js.md) (~500 lines) completely from start to finish.
+[`docx-js.md`] (~500 lines) completely from start to finish.
 **NEVER set any range limits when reading this file.**
 
 **Do NOT load** `ooxml.md` or `redlining.md` for this task.

@@ -33,7 +33,7 @@ const INLINE_COMPANION = [
   /command.*(?:sha256|digest).*outcome/is,
   /digest-only/i,
   /raw logs.*prompts.*secrets/is,
-  /does not.*(?:clear|affect).*Sentinel.*clearance/is,
+  /does not alter Review Gate obligation\s+status.*obligation status remains orchestrator-owned/is,
   /structured JSON.*directly|directly.*structured JSON/is,
 ];
 
@@ -63,7 +63,7 @@ test('canonical reviewer prompts define the opt-in structured companion contract
   assert.deepStrictEqual(findings, [], findings.join('\n'));
 });
 
-test('the companion contract covers every Sentinel reviewer lane exactly once', () => {
+test('the companion contract covers every Review Gate reviewer lane exactly once', () => {
   const findings = [];
   for (const relative of REVIEWER_FILES) {
     const text = readReviewer(relative);

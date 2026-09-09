@@ -1,6 +1,6 @@
 ---
 name: deep-reasoner
-description: "Read-only deep-reasoning worker. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase — dispatched per the Implementation dispatch table when the work is reasoning-heavy rather than mechanical. Returns a conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture decisions to `architect`. Not a reviewer, not sentinel-driven."
+description: "Read-only deep-reasoning worker. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase — dispatched per the Implementation dispatch table when the work is reasoning-heavy rather than mechanical. Returns a conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture decisions to `architect`. Not a reviewer and not a Review Gate lane."
 model: "cursor-grok-4.6-high"
 readonly: true
 ---
@@ -70,4 +70,4 @@ This agent has no Edit/Write tool by design — it cannot patch even when the fi
 
 ## Closing — Artifact Output
 
-**No artifact** — deep-reasoner is a read-only reasoning worker; its deliverable is the inline conclusion contract, consumed directly by the orchestrator or handed to `fast-worker` as a task spec. Not in the sentinel review chain.
+**No artifact** — deep-reasoner is a read-only reasoning worker; its deliverable is the inline conclusion contract, consumed directly by the orchestrator or handed to `fast-worker` as a task spec. Not part of the consolidated Review Gate reviewer batch.

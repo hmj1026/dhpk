@@ -128,9 +128,9 @@ test('a Codex PASS submission reaches the real Review Gate and is durably record
     });
 
     assert.strictEqual(receipt.reviewGateStatus, 'PASS');
-    assert.strictEqual(receipt.authorizesApproval, false);
-    assert.strictEqual(receipt.clearsSentinel, false);
-    assert.strictEqual(receipt.authority, 'SENTINEL');
+    for (const field of ['authorizesApproval', 'clearsSentinel', 'blocksSentinel', 'allowsTargetProgress', 'authority', 'effect']) {
+      assert.ok(!Object.prototype.hasOwnProperty.call(receipt, field), `${field} is a retired compatibility field`);
+    }
     assert.ok(reviewGate.decision.accepted, 'real Review Gate must accept a well-formed Codex PASS submission');
     assert.strictEqual(reviewGate.decision.semanticVerdict, 'PASS');
     assert.ok(reviewGate.revision > state.revision, 'the receipt store head must advance');
@@ -292,8 +292,9 @@ test('a Codex CHANGES_REQUIRED submission is recorded without being treated as a
     });
 
     assert.strictEqual(receipt.reviewGateStatus, 'CHANGES_REQUIRED');
-    assert.strictEqual(receipt.authorizesApproval, false);
-    assert.strictEqual(receipt.allowsTargetProgress, false);
+    for (const field of ['authorizesApproval', 'clearsSentinel', 'blocksSentinel', 'allowsTargetProgress', 'authority', 'effect']) {
+      assert.ok(!Object.prototype.hasOwnProperty.call(receipt, field), `${field} is a retired compatibility field`);
+    }
   } finally {
     fixture.cleanup();
   }

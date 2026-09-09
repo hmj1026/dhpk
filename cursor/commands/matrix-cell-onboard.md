@@ -32,8 +32,8 @@ versions from the Laravel ↔ Testbench ↔ PHPUnit mapping table.
 | `composer.json` uses `\|\|` across majors | `grep '\|\|' composer.json` returns hits in `require` |
 | `.github/workflows/` has a matrix definition | `ls .github/workflows/` shows `tests.yml` or similar |
 
-If `library-author` is not enabled, the skill still runs but cannot
-auto-trigger the `polyfill-reviewer` sentinel on the resulting edits.
+If `library-author` is not enabled, the skill still runs but the
+`polyfill-reviewer` Review Gate lane is unavailable for the resulting edits.
 Enable it first via `/dhpk:setup` or by editing
 `.claude/settings.local.json`.
 

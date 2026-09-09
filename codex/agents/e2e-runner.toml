@@ -100,5 +100,7 @@ artifact_paths:
 - <trace/screenshot/report path>
 ```
 
-Test files (`tests/**/*.spec.ts`, POM helpers) are the primary deliverable — write them in the project's existing test layout. For a substantive session report, category `reviews/`, path `e2e-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `.codex/dhpk/contracts/artifact-contract.md` non-reviewer extensions (`pass_rate` + PASS/WARNING/FAIL). No review marker — not in the review chain.
+Test files (`tests/**/*.spec.ts`, POM helpers) are the primary deliverable — write them in the project's existing test layout. For a substantive session report, category `reviews/`, path `e2e-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `.codex/dhpk/contracts/artifact-contract.md` non-reviewer extensions (`pass_rate` + PASS/WARNING/FAIL). No consolidated Review Gate obligation; invoke this role only for its implementation or acceptance journey contract.
+
+The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
 """

@@ -3,6 +3,9 @@
 ## Purpose
 TBD - created by archiving change dhpk-advice-20260707-fixes. Update Purpose after archive.
 ## Requirements
+> Retired compatibility note: the sentinel-arming requirements below describe
+> the former plugin-source hook workflow. Current plugin-source edits are
+> covered by orchestrator-selected Review Gate obligations.
 ### Requirement: Plugin-source self-edits arm the applicable review sentinel
 
 When the working repository IS the dhpk plugin source (rather than a consumer project that installs dhpk under `.claude/`), an edit to the plugin's own harness files at their repo-root locations — `agents/`, `rules/`, `skills/`, `agent-traps/`, `commands/` `*.md` — SHALL arm the applicable review sentinel (`.pending-doc-review` for these markdown harness files), the same way a consumer project's `.claude/{agents,rules,skills,…}/**/*.md` edit does today. The current post-edit doc-review trigger matches only `.claude/{…}/`, `openspec/`, and `docs/`, so plugin-source self-edits to `agents/…`, `rules/…`, `skills/…` arm nothing and their review gate is AI-judgment-only. Coverage MAY be delivered as an added trigger branch (repo-root harness dirs) active in plugin-source mode, or as a dedicated plugin-dev hook profile — either way a plugin-source harness edit is no longer review-gate-blind. `.claude/artifacts/**` remains exempt (the self-edit re-trigger guard), and non-harness repo-root files (e.g. `README.md`, `tests/`, `scripts/`) are unaffected by this branch.

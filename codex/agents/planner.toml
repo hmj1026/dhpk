@@ -184,5 +184,7 @@ review after that, and never RECONSULT to see a fix.
 **No artifact** — planner is a read-only reasoning worker; its deliverable is
 the inline VERDICT-first reply contract above, consumed directly by
 `$flow-drive` (or, for a mid-task/warm-review resume, by the orchestrator that
-resumed it). Not in the review chain.
+resumed it). Not part of the consolidated Review Gate reviewer batch.
+
+The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
 """

@@ -108,8 +108,6 @@ test('capabilities report DISABLED while inactive and OBSERVE_ONLY once active',
   assert.strictEqual(inactive.capabilities().effect, 'DISABLED');
   const active = makeAdapter();
   assert.strictEqual(active.capabilities().effect, 'OBSERVE_ONLY');
-  assert.strictEqual(active.capabilities().authority, 'SENTINEL');
-  assert.strictEqual(active.capabilities().allowsTargetProgress, false);
 });
 
 test('refuses to record while inactive', () => {
@@ -164,7 +162,7 @@ test('a CI-emitted verification receipt satisfies the verification lane and reac
     .concat([receipt]);
   const projection = new WorkflowCoordinator({
     trustPolicy: workflowTrustPolicyWithCi(),
-    featureControl: FIXTURE.featureControl.observe,
+    featureControl: FIXTURE.featureControl,
     evaluatedAt: FIXTURE.evaluatedAt,
   }).reduce(receipts);
   assert.strictEqual(projection.state, 'MERGE_READY');
@@ -179,7 +177,7 @@ test('a CI-emitted verification receipt cannot substitute for the required seman
     .concat([receipt]);
   const projection = new WorkflowCoordinator({
     trustPolicy: workflowTrustPolicyWithCi(),
-    featureControl: FIXTURE.featureControl.observe,
+    featureControl: FIXTURE.featureControl,
     evaluatedAt: FIXTURE.evaluatedAt,
   }).reduce(receipts);
   assert.notStrictEqual(projection.state, 'MERGE_READY');
@@ -211,7 +209,7 @@ test('a CI-emitted verification lane refreshes independently when governing inpu
     .concat([receipt, freshness]);
   const projection = new WorkflowCoordinator({
     trustPolicy: workflowTrustPolicyWithCi(),
-    featureControl: FIXTURE.featureControl.observe,
+    featureControl: FIXTURE.featureControl,
     evaluatedAt: FIXTURE.evaluatedAt,
   }).reduce(receipts);
   assert.notStrictEqual(projection.state, 'MERGE_READY');

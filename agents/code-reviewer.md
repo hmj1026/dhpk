@@ -29,7 +29,13 @@ Final quality gate after every Edit/Write. Stack-aware: detect the project's sta
    - Frameworks: presence of `require.laravel/*`, `require.yiisoft/*`, `dependencies.next`, `dependencies.react`, etc.
    - Swift/iOS: `ls *.xcodeproj *.xcworkspace **/Package.swift 2>/dev/null` — presence ⇒ load the `swift` trap sheet.
    - Active dhpk modules: `printf '%s' "${DHPK_ACTIVE_MODULES:-}"` — feeds the trap-sheet loader below.
-2. **Pin scope.** Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-review`. Only if BOTH fallback diffs are empty (clean tree), fall back to `git log --oneline -5` for context — do not review those commits.
+2. **Pin scope.** The orchestrator supplies an immutable Review Request and exact
+   obligation scope. Apply the Review Gate dispatch rules in
+   `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`; audit the uncommitted
+   working tree (`git diff --staged` + `git diff HEAD`). If scope or identity is
+   missing, return a completed `BLOCKED` result. Only if BOTH fallback diffs are
+   empty (clean tree), fall back to `git log --oneline -5` for context — do not
+   review those commits.
 3. Read full files; trace callers via `cx references --name X`.
 4. Three perspectives: **Reuse → Quality → Efficiency**.
 5. Report only >80%-confidence findings (apply the **Confidence gate** below); merge similar; skip style nits. A zero-finding review is valid.
@@ -106,7 +112,7 @@ Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.
 
 The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
 
-Follow [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Sentinel-clearance independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
+Follow [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
@@ -126,4 +132,4 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, degradation, and hook-owned sentinel clearance: [`docs/contracts/artifact-contract.md`](../docs/contracts/artifact-contract.md) §Sentinel clearance and [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Single-run verdict. Agent-only: sentinel `.pending-review`. This reviewer's job ends at writing the artifact.
+Category: `reviews/`. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, and degradation: [`docs/contracts/artifact-contract.md`](../docs/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.

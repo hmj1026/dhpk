@@ -259,13 +259,16 @@ delete that file on the operator's behalf. Future access uses an interactive
 
 ## Hooks and commands after consolidation
 
-The default hook surface now has five focused responsibilities:
+The default hook surface now has four focused responsibilities:
 
 1. Protect edits to sensitive paths.
 2. Combine shell safety and Git/review-debt checks before Bash.
-3. Route post-edit review sentinels.
-4. Validate and activate configured modules at session start.
-5. Reconcile reviewer evidence at subagent stop.
+3. Validate and activate configured modules at session start.
+4. Clean up stopped fast-worker liveness state at subagent stop.
+
+Reviewer selection, identity binding, artifact/result recording, and obligation
+resolution belong to the orchestrator-owned Review Gate and its durable evidence
+store. Completion is based on that identity-bound evidence, not hook side effects.
 
 Formatting, lint, Docker probes, prompt hints, session snapshots, and other
 advisory work are explicit consumer extensions rather than default hooks.

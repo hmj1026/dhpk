@@ -58,7 +58,7 @@
     {"key":"phpstan_bin","purpose":"Name the PHPStan executable.","trigger":"when PHPStan is not in vendor bin","boundary":"does not install PHPStan","pointer":"docs/configuration.md"},
     {"key":"psalm_bin","purpose":"Name the Psalm executable.","trigger":"when Psalm is not in vendor bin","boundary":"does not install Psalm","pointer":"docs/configuration.md"},
     {"key":"reap_stale_mcp_processes","purpose":"Control stale MCP cleanup.","trigger":"when enabling SessionStart cleanup","boundary":"does not kill live parallel sessions","pointer":"docs/configuration.md"},
-    {"key":"sentinel_commit_gate","purpose":"Set pending-review commit behavior.","trigger":"when configuring sentinel commit handling","boundary":"does not replace reviewer evidence","pointer":"docs/configuration.md"},
+    {"key":"sentinel_commit_gate","purpose":"Retain a retired review-commit compatibility key.","trigger":"when parsing older sentinel commit settings","boundary":"does not enable an active hook or replace Review Gate evidence","pointer":"docs/configuration.md"},
     {"key":"branch_safety","purpose":"Set protected branch behavior.","trigger":"when configuring branch mutation handling","boundary":"does not authorize a protected push","pointer":"docs/configuration.md"},
     {"key":"protected_branches","purpose":"Declare protected branch names.","trigger":"when adding protected branch patterns","boundary":"does not change repository permissions","pointer":"docs/configuration.md"},
     {"key":"skill_hint_enabled","purpose":"Control prompt skill hints.","trigger":"when showing or hiding routing hints","boundary":"does not change command routing","pointer":"docs/configuration.md"},

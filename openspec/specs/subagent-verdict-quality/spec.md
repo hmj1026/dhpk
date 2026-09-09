@@ -3,6 +3,11 @@
 ## Purpose
 TBD - created by archiving change consolidate-hooks-delegation-verdicts. Update Purpose after archive.
 ## Requirements
+
+> Retired compatibility specification: Sentinel auto-clear and hook-ordering
+> requirements below describe the pre-Review-Gate implementation. They remain
+> for historical traceability and are not active requirements after direct
+> Sentinel retirement.
 ### Requirement: SubagentStop quality gate is default-off and controlled by a userConfig key
 `scripts/hooks/subagent-stop-quality.sh` SHALL be wired on the `SubagentStop` matcher but SHALL be a no-op (immediate exit 0, no heuristic evaluation) unless the `userConfig.subagent_quality_gate` key is explicitly set to an enabling value. The default value of `subagent_quality_gate` SHALL be off.
 

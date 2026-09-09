@@ -28,14 +28,14 @@ verification and human confirmation.
    single day; `--from/--to` is an inclusive range. Preserve source timestamps
    in UTC and use the machine timezone only for filtering.
 2. Run the bundled collector with the requested `--agent` filters. It scans
-   only the allowlist described in [source-adapters.md](references/source-adapters.md)
+   only the allowlist described in [source-adapters.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-session-usage-audit/references/source-adapters.md)
    and reports unsupported or skipped sources instead of guessing. Claude and
    native/project Codex JSONL plus known Orca NDJSON traces are parsed; private
    SQLite and aggregate usage stores remain explicitly omitted.
 3. Read the JSON report. Separate installed agents, observed agents, strong
    dhpk evidence, weak text-only evidence, malformed records, and partial
    scans. Raw transcripts must never be copied into the report or prompt.
-4. Use [finding-taxonomy.md](references/finding-taxonomy.md) to classify
+4. Use [finding-taxonomy.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-session-usage-audit/references/finding-taxonomy.md) to classify
    deterministic candidates. Use `/dhpk:dhpk-agent-architecture-audit` for wrapper,
    hook, memory, or agent-quality diagnosis when the evidence points there.
 5. Reproduce the candidate against the relevant current dhpk consumer path.
@@ -48,7 +48,7 @@ verification and human confirmation.
    `verifyFinding` set `verified`. Without an executed receipt, keep status
    `needs-verification`.
 6. Search existing issues by fingerprint, component, and symptom before
-   drafting. Follow [issue-template.md](references/issue-template.md). Use
+   drafting. Follow [issue-template.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-session-usage-audit/references/issue-template.md). Use
    `/dhpk:dhpk-issue-analyze` only when an existing issue needs deeper triage.
 7. Show the sanitized draft and its `confirmationDigest` and gate reasons.
    `--create-issues` is still blocked until the user explicitly confirms the
@@ -114,9 +114,9 @@ JSON and Markdown artifacts are the detailed evidence record.
 
 ## References
 
-- [source-adapters.md](references/source-adapters.md) — local roots, evidence
+- [source-adapters.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-session-usage-audit/references/source-adapters.md) — local roots, evidence
   strength, and unsupported-source behavior.
-- [finding-taxonomy.md](references/finding-taxonomy.md) — deterministic rules,
+- [finding-taxonomy.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-session-usage-audit/references/finding-taxonomy.md) — deterministic rules,
   fingerprints, verification states, and false-positive handling.
-- [issue-template.md](references/issue-template.md) — redaction and GitHub
+- [issue-template.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-session-usage-audit/references/issue-template.md) — redaction and GitHub
   duplicate/create contract.

@@ -22,7 +22,7 @@ const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PAT
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
 const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 69;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = 'e49a3b8d1241f4b8f720287eac052d0e6ea8c09d29012a513e158df6aa25756c';
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '27d5318cc73a698e759b5757540fd120bf78f0baa838177072bdd30eb411980c';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'codex_worker_model',
   'codex_worker_effort',

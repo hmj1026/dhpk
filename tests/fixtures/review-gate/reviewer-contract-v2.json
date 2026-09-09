@@ -37,7 +37,7 @@
     "exclusions": [
       {
         "scope": "scripts/hooks/**",
-        "reason": "Sentinel remains authoritative during BASELINE"
+        "reason": "Hook implementation is outside the reviewer contract scope"
       }
     ],
     "priorFindings": []
@@ -157,27 +157,5 @@
         "lifecycle:reviewer-interrupted"
       ]
     }
-  },
-  "legacyMappings": [
-    {
-      "legacyVerdict": "APPROVE",
-      "semanticVerdict": "PASS"
-    },
-    {
-      "legacyVerdict": "PASS",
-      "semanticVerdict": "PASS"
-    },
-    {
-      "legacyVerdict": "WARNING",
-      "semanticVerdict": "CHANGES_REQUIRED"
-    },
-    {
-      "legacyVerdict": "BLOCK",
-      "semanticVerdict": "CHANGES_REQUIRED"
-    },
-    {
-      "legacyVerdict": "FAIL",
-      "semanticVerdict": "CHANGES_REQUIRED"
-    }
-  ]
+  }
 }

@@ -6,7 +6,6 @@
 # consumers must ask for it explicitly.
 #
 # Role-filtered sections (default-off; each packet is capped separately):
-#   reviewer  — active sentinel/scope only
 #   worker/TDD — supplied handoff prompt plus bounded OpenSpec/project context
 #   explorer  — routing reminder only
 #   monitor   — process identity only
@@ -44,9 +43,7 @@ command -v python3 >/dev/null 2>&1 || { printf '{}'; exit 0; }
 
 out="$(
     CLAUDE_PROJECT_DIR="$ROOT" \
-    SENTINEL_NAMES="${SENTINEL_NAMES[*]}" \
-    SENTINEL_LABELS="${SENTINEL_LABELS[*]}" \
-    SENTINEL_AGENTS="${SENTINEL_AGENTS[*]}" \
+    REVIEWER_AGENTS="${REVIEWER_AGENTS[*]}" \
     SUBAGENT_TYPE="$SUBAGENT_TYPE" \
     HANDOFF_PACKET="$HANDOFF_PACKET" \
     python3 <<'PY' 2>/dev/null || printf '{}'
@@ -54,9 +51,7 @@ import json, os
 from pathlib import Path
 
 ROOT = Path(os.environ["CLAUDE_PROJECT_DIR"]).resolve()
-sentinels = os.environ.get("SENTINEL_NAMES", "").split()
-labels = os.environ.get("SENTINEL_LABELS", "").split()
-agents = [entry.split(":")[-1].strip().lower() for entry in os.environ.get("SENTINEL_AGENTS", "").split()]
+agents = [entry.split(":")[-1].strip().lower() for entry in os.environ.get("REVIEWER_AGENTS", "").split()]
 role = os.environ.get("SUBAGENT_TYPE", "").split(":")[-1].strip().lower()
 handoff = os.environ.get("HANDOFF_PACKET", "").strip()
 reviewer_roles = {
@@ -75,22 +70,6 @@ def read_text_safe(p, max_chars=400):
         return ""
 
 lines = []
-
-# === Section 1: Active sentinels + chain order ===
-sess_dir = ROOT / ".claude" / "artifacts" / "sessions"
-active = []
-if sess_dir.is_dir():
-    for s in sentinels:
-        if (sess_dir / s).is_file():
-            active.append(s)
-if role in reviewer_roles:
-    matching = [s for s, agent in zip(sentinels, agents) if agent == role and s in active]
-    if matching:
-        lines.append("Active review sentinel: " + ", ".join(matching))
-    else:
-        lines.append("Reviewer role: " + role + "; no matching active sentinel")
-elif active:
-    lines.append("Active review sentinels: " + ", ".join(active))
 
 # === Role-specific early exits ===
 if role == "monitor":

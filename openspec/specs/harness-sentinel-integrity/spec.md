@@ -3,6 +3,11 @@
 ## Purpose
 TBD - created by archiving change dhpk-harness-integrity-guards. Update Purpose after archive.
 ## Requirements
+
+> Retired compatibility specification: these Sentinel-slot and hook-lifecycle
+> requirements describe the pre-Review-Gate implementation. They remain for
+> historical traceability and are not active requirements after direct
+> Sentinel retirement.
 ### Requirement: Sentinel-slot arrays stay aligned under static test
 
 A regression test SHALL assert that the four lockstep sentinel arrays in

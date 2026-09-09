@@ -86,6 +86,32 @@ function materializeFixture(root, outDir, options) {
   });
 }
 
+function brokenRelativeMarkdownLinks(packageRoot) {
+  const broken = [];
+  const walk = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        walk(absolute);
+        continue;
+      }
+      if (!entry.name.endsWith('.md')) continue;
+      const relative = path.relative(packageRoot, absolute).split(path.sep).join('/');
+      const content = fs.readFileSync(absolute, 'utf8');
+      for (const match of content.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+        const target = match[1].trim();
+        if (!target || target.startsWith('#') || /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/)/.test(target)) continue;
+        const pathPart = target.split('#', 1)[0].trim();
+        if (pathPart && !fs.existsSync(path.resolve(path.dirname(absolute), pathPart))) {
+          broken.push(`${relative} -> ${target}`);
+        }
+      }
+    }
+  };
+  walk(packageRoot);
+  return broken;
+}
+
 test('materializes and validates a contained AGY package', () => {
   const root = tempRoot();
   const outDir = path.join(root, 'package');
@@ -124,6 +150,46 @@ test('copies selected skill reference assets so relative links stay reachable', 
       fs.readFileSync(path.join(outDir, 'skills', 'dhpk-sample', 'references', 'guide.md'), 'utf8'),
       '# Guide\n',
     );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY projection rewrites canonical documentation links instead of emitting broken relative paths', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  const canonicalUrl = 'https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md';
+  try {
+    const inventory = writeFixture(root);
+    fs.mkdirSync(path.join(root, 'docs', 'contracts'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'contracts', 'reviewer-contract.md'), '# Reviewer contract\n');
+    fs.writeFileSync(path.join(root, 'agents', 'sample.md'), [
+      '---',
+      'name: sample',
+      'description: Sample agent',
+      'tools: Read, Bash',
+      'model: sonnet',
+      '---',
+      '',
+      '# Sample',
+      '',
+      '[Reviewer contract](../docs/contracts/reviewer-contract.md)',
+      '',
+    ].join('\n'));
+
+    materializeAgyPluginPackage({
+      root,
+      inventory,
+      outDir,
+      version: '0.39.0',
+      sourceVersion: '0.39.0',
+      sourceCommit: COMMIT,
+    });
+
+    const projected = fs.readFileSync(path.join(outDir, 'agents', 'sample.md'), 'utf8');
+    assert.match(projected, new RegExp(`\\(${canonicalUrl.replace(/[.*+?^${}()|[\\]\\]/g, '\\\\$&')}\\)`));
+    assert.doesNotMatch(projected, /\]\(\.\.\/docs\//);
+    assert.deepStrictEqual(brokenRelativeMarkdownLinks(outDir), []);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

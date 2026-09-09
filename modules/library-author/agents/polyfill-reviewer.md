@@ -1,6 +1,6 @@
 ---
 name: polyfill-reviewer
-description: 'Sentinel-driven reviewer for multi-major-version polyfill code. MANDATORY final step before replying after editing any .php file containing a runtime version guard (`version_compare`, `class_exists`, `interface_exists`, `method_exists`, `InstalledVersions::satisfies`, `PHP_VERSION_ID`). Trigger: sentinel `.pending-polyfill-review`. Audits whether each guard branch has a matrix cell that enters it AND a test that proves it. Companion to (not replacement for) the manual-invoke `polyfill-version-matrix-audit` skill and the diff-scope `version-matrix-impact-reviewer` agent. Do NOT skip when: change seems small, the symmetric branch "obviously works", task feels complete. Asymmetric polyfill edits are the most common source of multi-major regression in this codebase.'
+description: 'Review Gate reviewer for multi-major-version polyfill code. MANDATORY lane after editing any .php file containing a runtime version guard (`version_compare`, `class_exists`, `interface_exists`, `method_exists`, `InstalledVersions::satisfies`, `PHP_VERSION_ID`). Review Gate trigger: a library-author polyfill guard path. Audits whether each guard branch has a matrix cell that enters it AND a test that proves it. Companion to (not replacement for) the manual-invoke `polyfill-version-matrix-audit` skill and the diff-scope `version-matrix-impact-reviewer` agent. Do NOT skip when: change seems small, the symmetric branch "obviously works", task feels complete. Asymmetric polyfill edits are the most common source of multi-major regression in this codebase.'
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
@@ -9,23 +9,19 @@ maxTurns: 12
 
 # Polyfill Reviewer
 
-Auto-triggered review of polyfill branches after every guard-bearing edit.
-The five-color sentinel (code / db / sec / frontend / doc) doesn't reason
-about version trees; this is the sixth color filling that gap.
+Review Gate-triggered review of polyfill branches after every guard-bearing
+change. The standard code / db / sec / frontend / doc lanes do not reason about
+version trees; this is the sixth lane filling that gap.
 
 > Use `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`, not bulk `Read`.
 
 ## Trigger
 
-Fires when `.claude/artifacts/sessions/.pending-polyfill-review` exists.
-The sentinel was written by `modules/library-author/hooks/post-edit-polyfill-sentinel.sh`
-on a PostToolUse Edit/Write/MultiEdit of a `.php` file whose body matched
-the `guard_patterns` regex from `module.yaml`.
-
-The sentinel file contains one line per edited file:
-```
-<unix-ts> <tool> <relative-path>
-```
+The orchestrator dispatches this lane when the Review Gate obligation covers a
+`.php` file whose body matches the `guard_patterns` regex from `module.yaml`.
+The immutable Review Request `scope` and `scopeDigest` are authoritative; do
+not infer the path set from hooks or marker files. Missing scope or identity is
+a completed `BLOCKED` result.
 
 ## When NOT
 
@@ -35,7 +31,7 @@ The sentinel file contains one line per edited file:
 ## Process
 
 1. **Read inputs (in order):**
-   - The sentinel file → list of edited paths.
+   - Review Request `scope` → list of edited paths.
    - `composer.json` → `require` constraints for deps with `||` across majors.
      This is the **declared matrix**.
    - `.github/workflows/*.yml` → `strategy.matrix` block. This is the
@@ -115,7 +111,8 @@ The normal Markdown report remains the human-readable artifact. Only when the di
 - `requestDigest` covers the exact immutable Review Request in the envelope. `reviewResult` is the complete, unchanged `dhpk.reviewer-contract.v2` Review Result; preserve its execution status, applicability, semantic verdict, findings, and evidence semantics. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`.
 - `artifact.sha256` and `artifact.identity` bind to the durable lifecycle/readiness evidence for the same task, attempt, session, dispatch, scope, and diff. `command` contains only a digest and bounded outcome, never the command line or output.
 - Keep the companion digest-only: no raw logs, prompts, secrets, chain-of-thought, source text, environment values, credentials, session transcripts, or absolute paths.
-- This companion is evidence only. It does not clear, arm, or change Sentinel clearance; Sentinel clearance remains hook-owned by the existing artifact rules.
+- This companion is evidence only. It does not alter Review Gate obligation
+  status; obligation status remains orchestrator-owned.
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
@@ -128,8 +125,8 @@ This file retains the version-guard branch and matrix-cell checks unique to
 
 | Trigger | Agent |
 |---------|-------|
-| Diff touches SQL / schema | `database-reviewer` (different sentinel) |
-| Diff touches auth / crypto | `security-reviewer` (different sentinel) |
+| Diff touches SQL / schema | `database-reviewer` (separate Review Gate obligation) |
+| Diff touches auth / crypto | `security-reviewer` (separate Review Gate obligation) |
 | Need deep audit of one guard | suggest manual `/dhpk:dhpk-polyfill-version-matrix-audit` |
 | Need cross-cell blast-radius | suggest `version-matrix-impact-reviewer` agent |
 
@@ -162,4 +159,4 @@ confirmations.
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`, plus this agent's own `guards_reviewed: <N>` field. Sentinel clearance is hook-owned: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears `.pending-polyfill-review`; warning, fail, or malformed evidence leaves it armed. This reviewer's job ends at writing the artifact.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md` §Reviewer-family extension and §Degradation, plus this agent's own `guards_reviewed: <N>` field. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.

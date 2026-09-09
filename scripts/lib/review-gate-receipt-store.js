@@ -35,7 +35,6 @@ const RECEIPT_KINDS = Object.freeze([
   'review',
   'verification',
   'authority',
-  'migration-observation',
 ]);
 const INTEGRITY_MAC = /^hmac-sha256:[a-f0-9]{64}$/;
 const FORBIDDEN_KEY = /(?:prompt|message|chainofthought|thought|reasoning|transcript|fullsource|sourcecode|fulllog|rawlog|stdout|stderr)/;

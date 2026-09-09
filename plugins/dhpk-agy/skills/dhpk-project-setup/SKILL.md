@@ -174,8 +174,8 @@ A configured project harness plus a final report. Deliverables:
 
 ## References
 
-- [detection-rules.md](./references/detection-rules.md) — read when detecting ecosystem, package manager, framework, database, entrypoints, or scripts (Phase 1)
-- [install-rules-phase.md](./references/install-rules-phase.md) — read when installing rules: locate logic, 4-rule list, conflict strategy, manifest schema, CLAUDE.md backfill, report (Phase 5)
-- [install-hooks-scripts.md](./references/install-hooks-scripts.md) — read when installing hooks or scripts: hook/script tables, settings.json JSON mapping, merge strategy, manifest, reports (Phases 6 & 6.5)
-- [env-config-phase.md](./references/env-config-phase.md) — read when configuring env vars: catalog, legacy-value upgrade table, 1M-model detection, interactive flow, merge strategy, report (Phase 6.7)
-- [final-phase.md](./references/final-phase.md) — read when writing the final report: closed-loop check, full output block, status variants, `--detect-only` / `--lite` shapes (Phase 7)
+- [detection-rules.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-project-setup/references/detection-rules.md) — read when detecting ecosystem, package manager, framework, database, entrypoints, or scripts (Phase 1)
+- [install-rules-phase.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-project-setup/references/install-rules-phase.md) — read when installing rules: locate logic, 4-rule list, conflict strategy, manifest schema, CLAUDE.md backfill, report (Phase 5)
+- [install-hooks-scripts.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-project-setup/references/install-hooks-scripts.md) — read when installing hooks or scripts: hook/script tables, settings.json JSON mapping, merge strategy, manifest, reports (Phases 6 & 6.5)
+- [env-config-phase.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-project-setup/references/env-config-phase.md) — read when configuring env vars: catalog, legacy-value upgrade table, 1M-model detection, interactive flow, merge strategy, report (Phase 6.7)
+- [final-phase.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-project-setup/references/final-phase.md) — read when writing the final report: closed-loop check, full output block, status variants, `--detect-only` / `--lite` shapes (Phase 7)

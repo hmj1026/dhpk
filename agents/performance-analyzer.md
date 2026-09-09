@@ -67,7 +67,7 @@ Suggestion: ...
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. No sentinel — back-stop-only agent, not in the review chain.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. No consolidated Review Gate obligation by default; this is a back-stop-only agent selected by the orchestrator for matching performance risk.
 
 ## References
 

@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.56.0",
-  "sourceCommit": "0593842b701d8c8916ce35ac879c059da81cde30",
-  "generatedFromCommit": "0593842b701d8c8916ce35ac879c059da81cde30",
-  "generatedFromTree": "03ebee31d55eac283f09b25d06eb5a1d3acf431f",
-  "inventoryDigest": "dec2e029be9a166c64b06a36cedfe1ce94b6e6a5a4a8f876ccb0dfd38ef82195",
-  "inventoryRevision": "sha256:4756eee3549939b75e4c05b07eed970017559ff3f85d98e33ae888478550b2b0",
+  "sourceCommit": "b3c9fdee5548fbef7b09668884afbe210dfc9bd9",
+  "generatedFromCommit": "b3c9fdee5548fbef7b09668884afbe210dfc9bd9",
+  "generatedFromTree": "b3fa8a3d9cab80c668e509ecf75eca11245c44e2",
+  "inventoryDigest": "ffe709a73000c4f0014eed1369781c09dcde1f9285971681e110aa60d5dbf7f5",
+  "inventoryRevision": "sha256:473e769a3e55cc9873af7ad136fa69b2918f183f7c09a33fe23bad532e105be3",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "agy-fast-worker",
@@ -278,11 +278,6 @@
       "transform": "cursor-agents-frontmatter"
     },
     {
-      "source": "hooks/hooks.json#PostToolUse",
-      "destination": null,
-      "transform": "SKIP_INCOMPATIBLE: unsupported Cursor hook event or shape"
-    },
-    {
       "source": "hooks/hooks.json#PreToolUse",
       "destination": null,
       "transform": "SKIP_INCOMPATIBLE: unsupported Cursor hook event or shape"
@@ -544,9 +539,9 @@
   ],
   "fingerprints": {
     "skills": "e6d53c94c54ce44d6c89ef71255f7a1168c6986e6a4a7c3cdd34f8b7c7dc3148",
-    "rules": "434bf6db8043814dd4622ca66bba7a7ab4bb27c9190e4e6f35123f8d30edfac1",
-    "agents": "db422f1d2e5b0f0341c4d8d5364d2084506ca0c2cc1ff68d68c6f33c73dfa36c",
-    "commands": "d2e66bf0da4715a38fd9f096f1948b5cab471cad2ae6efb2af0b7c9b6e305497",
+    "rules": "56d6f8eb9aef92c5a5955fe18c314cc15c2fb75e61883e7d034b2b9c208c2253",
+    "agents": "13e94fa8c2ffe0d7aa959466aa181736d1a19a204512c6c5bf9a50150959554e",
+    "commands": "3b4b45144b3fad14f8bdff1db00b5006ac74a85269b3619cf22a56796d46a1a4",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
   "usageSchema": "dhpk.skill-usage.v1",
@@ -1064,5 +1059,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "13f0575cc3ecbf6f26969c6da5c0913b7034ce01f7da6ce0caf281c70ac46a23"
+  "planFingerprint": "66b3117318e11f3ab3a29f4ae5ed5085a22d4066525f62a143b625da0ae9dfb5"
 }

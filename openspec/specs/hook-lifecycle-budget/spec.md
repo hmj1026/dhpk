@@ -3,6 +3,10 @@
 ## Purpose
 TBD - created by archiving change refine-opsx-orchestration-governance. Update Purpose after archive.
 ## Requirements
+> Retired compatibility note: sentinel/liveness and post-edit routing clauses
+> below describe the former hook-backed workflow. Current lifecycle hooks cover
+> safety, module activation, and fast-worker liveness cleanup; Review Gate
+> obligations are orchestrator-owned.
 ### Requirement: Hook triggers are classified by safety purpose
 Hook configuration SHALL classify each hook as a blocking safety gate, sentinel/liveness gate, lifecycle bookkeeping, or opt-in advisory. Blocking and sentinel gates SHALL remain enabled for their scoped events; expensive transcript scans and duplicate completion advisories SHALL remain disabled unless explicitly enabled. The subagent quality gate SHALL default to off globally and SHALL apply to reviewer-sentinel subagents, bounded by the no-op recovery rule owned by `reviewer-wave-economy`.
 
