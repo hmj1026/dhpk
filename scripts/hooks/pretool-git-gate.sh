@@ -1,35 +1,28 @@
 #!/usr/bin/env bash
 # pretool-git-gate.sh — PreToolUse (Bash) hook
 #
-# Merges pretool-sentinel-gate.sh + pretool-branch-safety.sh into one script
-# that parses the Bash tool payload once and evaluates two independent
-# warn-only checks against the shared parsed command:
+# protected-branch slot — warns (or optionally blocks) on `git commit` /
+#   `git merge` / `git rebase` / `git cherry-pick` / `git reset` / `git push`
+#   while on a protected branch (main / master / develop / release/* / ...).
+#   Mode: DHPK_BRANCH_SAFETY (warn|block|off).
 #
-#   sentinel-commit slot — warns (or optionally blocks) on `git commit` /
-#     `git merge` / `git rebase` / `git cherry-pick` while reviewer sentinels
-#     are still pending. Mode: DHPK_SENTINEL_COMMIT_GATE (warn|block|off).
-#
-#   protected-branch slot — warns (or optionally blocks) on `git commit` /
-#     `git merge` / `git rebase` / `git cherry-pick` / `git reset` / `git push`
-#     while on a protected branch (main / master / develop / release/* / ...).
-#     Mode: DHPK_BRANCH_SAFETY (warn|block|off).
-#
-# The two verb families intentionally differ (branch-safety additionally
-# gates reset/push) — this is preserved, not unified.
+# The legacy sentinel-commit slot (Review Sentinel `.pending-*` gate) was
+# retired with the rest of the Sentinel mechanism (#376/#377) — Review Gate
+# obligations are enforced at reviewer-dispatch time, not at the bash-command
+# level, and no equivalent obligation query exists for a PreToolUse hook to
+# check. See docs/adr/0018-production-migration-observation-checkpoint.md.
 #
 # Companion to pre-bash-guard.sh (hard-block surface for rm -rf / curl|sh /
-# chmod 777 / git push --force). This script's warn-only paths are kept
+# chmod 777 / git push --force). This script's warn-only path is kept
 # separate from that stable hard-block surface by design.
 #
 # Resolution:
-#   - If either slot fires in block mode: one combined stderr message naming
-#     every fired slot, exit 2 (never deduped).
-#   - Else if any slot fires in warn mode: one combined systemMessage
-#     covering every fired warn slot, exit 0.
+#   - If the slot fires in block mode: stderr message, exit 2.
+#   - Else if it fires in warn mode: systemMessage, exit 0.
 #   - Else: silent exit 0.
 #
-# Trigger: PreToolUse Bash matcher. Cost: two regex passes + one
-# `git branch --show-current` + array iteration, <30ms. timeout: 5.
+# Trigger: PreToolUse Bash matcher. Cost: one regex pass + one
+# `git branch --show-current`, <20ms. timeout: 5.
 
 set -o pipefail
 
@@ -41,13 +34,11 @@ fi
 . "$(dirname "$0")/_lib/json-out.sh"
 
 # Mode resolution: env override (DHPK_*) wins for one-shot toggles; otherwise
-# read from userConfig via load-project-config.sh-populated env. Independence
-# is load-bearing — one may be set without the other.
-SENTINEL_MODE="$(dhpk_config_get sentinel_commit_gate warn DHPK_SENTINEL_COMMIT_GATE)"
+# read from userConfig via load-project-config.sh-populated env.
 BRANCH_MODE="$(dhpk_config_get branch_safety warn DHPK_BRANCH_SAFETY)"
 
-# If both are off, nothing to do — skip the parse entirely.
-if [ "$SENTINEL_MODE" = "off" ] && [ "$BRANCH_MODE" = "off" ]; then
+# If off, nothing to do — skip the parse entirely.
+if [ "$BRANCH_MODE" = "off" ]; then
     exit 0
 fi
 
@@ -58,48 +49,9 @@ CMD="$(extract_tool_input command "$PAYLOAD")"
 # Strip shell comments once to avoid matching text after `#`.
 CMD_STRIPPED="$(printf '%s' "$CMD" | sed 's/[[:space:]]*#.*//')"
 
-# Slot state: fired flags, modes, and detail strings.
-SENTINEL_FIRED=0
-SENTINEL_DETAIL=""
+# Slot state: fired flag, mode, and detail string.
 BRANCH_FIRED=0
 BRANCH_DETAIL=""
-
-# ---------------------------------------------------------------------------
-# sentinel-commit slot — ported unchanged from pretool-sentinel-gate.sh
-# ---------------------------------------------------------------------------
-if [ "$SENTINEL_MODE" != "off" ]; then
-    if printf '%s' "$CMD_STRIPPED" | grep -Eq \
-        '(^|[[:space:]])git[[:space:]]+(commit|merge|rebase|cherry-pick)([[:space:]]|$)' \
-        && ! printf '%s' "$CMD_STRIPPED" | grep -Eq \
-        '(--help|[[:space:]]-h([[:space:]]|$)|--dry-run|--abort|--continue|--skip|--quit)'; then
-
-        ROOT="$(dhpk_root)"
-        SESS="$(dhpk_sessions_dir "$ROOT")"
-
-        active_names=()
-        active_agents=()
-        for i in "${!SENTINEL_NAMES[@]}"; do
-            f="$SESS/${SENTINEL_NAMES[$i]}"
-            if [ -f "$f" ]; then
-                active_names+=("${SENTINEL_NAMES[$i]}")
-                active_agents+=("${SENTINEL_AGENTS[$i]}")
-            fi
-        done
-
-        if [ "${#active_names[@]}" -gt 0 ]; then
-            verb="$(printf '%s' "$CMD_STRIPPED" | grep -oE 'git[[:space:]]+(commit|merge|rebase|cherry-pick)' | head -1 | tr -s ' ' | sed 's/^git //')"
-            [ -z "$verb" ] && verb="git op"
-            names_csv="$(IFS=,; printf '%s' "${active_names[*]}")"
-            agents_csv="$(IFS=,; printf '%s' "${active_agents[*]}")"
-
-            SENTINEL_FIRED=1
-            SENTINEL_DETAIL="REMINDER: $verb attempted while reviewer chain is pending.
-Active sentinels: $names_csv
-Pending reviewers: $agents_csv
-Run each reviewer first, or bypass by setting DHPK_SENTINEL_COMMIT_GATE=off"
-        fi
-    fi
-fi
 
 # ---------------------------------------------------------------------------
 # protected-branch slot — ported unchanged from pretool-branch-safety.sh
@@ -170,29 +122,12 @@ fi
 # Combined resolution — respects the one-JSON-object-per-invocation constraint
 # ---------------------------------------------------------------------------
 BLOCK_MSG=""
-if [ "$SENTINEL_FIRED" -eq 1 ] && [ "$SENTINEL_MODE" = "block" ]; then
-    BLOCK_MSG="${BLOCK_MSG}✗  BLOCKED [sentinel-gate]: ${SENTINEL_DETAIL}
-"
-fi
 if [ "$BRANCH_FIRED" -eq 1 ] && [ "$BRANCH_MODE" = "block" ]; then
     BLOCK_MSG="${BLOCK_MSG}✗  BLOCKED [branch-safety]: ${BRANCH_DETAIL}
 "
 fi
 
 if [ -n "$BLOCK_MSG" ]; then
-    # A slot firing in warn mode alongside a block-mode slot must still
-    # surface its detail in this single combined stderr block (spec:
-    # design.md Decision (a) step 5) — labeled distinctly from BLOCKED so
-    # it reads as a reminder, not a second block.
-    if [ "$SENTINEL_FIRED" -eq 1 ] && [ "$SENTINEL_MODE" = "warn" ]; then
-        BLOCK_MSG="${BLOCK_MSG}⚠  reminder [sentinel-gate]: ${SENTINEL_DETAIL}
-"
-    fi
-    if [ "$BRANCH_FIRED" -eq 1 ] && [ "$BRANCH_MODE" = "warn" ]; then
-        BLOCK_MSG="${BLOCK_MSG}⚠  reminder [branch-safety]: ${BRANCH_DETAIL}
-"
-    fi
-
     # exit 2 + stderr is the documented PreToolUse block path (stderr → Claude).
     {
         echo ""
@@ -204,10 +139,6 @@ if [ -n "$BLOCK_MSG" ]; then
 fi
 
 WARN_MSG=""
-if [ "$SENTINEL_FIRED" -eq 1 ] && [ "$SENTINEL_MODE" = "warn" ]; then
-    WARN_MSG="${WARN_MSG}[sentinel-gate] ${SENTINEL_DETAIL}
-"
-fi
 if [ "$BRANCH_FIRED" -eq 1 ] && [ "$BRANCH_MODE" = "warn" ]; then
     WARN_MSG="${WARN_MSG}[branch-safety] ${BRANCH_DETAIL}
 "
