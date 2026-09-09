@@ -304,7 +304,7 @@ test('package paths and marketplace entries are inventory-visible and exact', ()
 });
 
 test('generated package Markdown has no broken relative links', () => {
-  for (const packageRoot of ['plugins/dhpk-agent', 'plugins/dhpk-cursor']) {
+  for (const packageRoot of ['plugins/dhpk-agent', 'plugins/dhpk-cursor', 'plugins/dhpk-agy']) {
     const broken = [];
     const walk = (directory) => {
       for (const entry of fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true })) {
