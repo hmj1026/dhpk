@@ -296,8 +296,15 @@ one of these names.
 ## Upgrade a Claude marketplace installation
 
 ```bash
-claude plugin update dhpk@dhpk
+# User-scoped install (the CLI default)
+claude plugin update -y dhpk@dhpk
+# Project-scoped install
+claude plugin update --scope project -y dhpk@dhpk
 ```
+
+Use the command matching the scope used to install the plugin. The CLI defaults
+to the user scope, and `-y`/`--yes` is required when the update runs without a
+TTY (for example in CI).
 
 Start a fresh Claude session or run `/reload-plugins`. Confirm that
 `/dhpk:setup`, `/dhpk:flow-guide`, `/dhpk:flow-drive`, and `/dhpk:harness-govern` resolve. Project-local

@@ -25,12 +25,18 @@ function daysAgo(n) {
   return new Date(Date.now() - n * 86400 * 1000).toISOString();
 }
 
-function mkPluginsDir({ installed = '0.28.17', available = '0.29.0' } = {}) {
+function mkPluginsDir({ installed = '0.28.17', available = '0.29.0', installedRecords = null } = {}) {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ask-plugins-')));
   const mkt = path.join(dir, 'marketplaces', 'dhpk');
+  const defaultRecord = { scope: 'user', version: installed };
   writeJson(path.join(dir, 'installed_plugins.json'), {
     version: 2,
-    plugins: { 'dhpk@dhpk': [{ scope: 'user', version: installed }] },
+    plugins: {
+      'dhpk@dhpk': (installedRecords || [defaultRecord]).map((record) => ({
+        ...defaultRecord,
+        ...record,
+      })),
+    },
   });
   writeJson(path.join(dir, 'known_marketplaces.json'), {
     dhpk: {
@@ -139,6 +145,22 @@ test('a version finding alone still produces exactly one question', () => {
     const out = report(repo, 'js', { pluginsDir: plugins, ask: '1' });
     assert.strictEqual(countOccurrences(out, 'AskUserQuestion'), 1, out);
     assert.ok(!out.includes('php-5.6'), out);
+  } finally {
+    rm(repo, plugins);
+  }
+});
+
+test('project-scoped remediation names the project scope and non-interactive flag', () => {
+  const repo = mkProject();
+  const plugins = mkPluginsDir({
+    installedRecords: [
+      { scope: 'user', version: '0.28.17' },
+      { scope: 'project', version: '0.28.17', projectPath: repo },
+    ],
+  });
+  try {
+    const out = report(repo, 'js', { pluginsDir: plugins, ask: '1' });
+    assert.ok(out.includes('claude plugin update --scope project -y dhpk@dhpk'), out);
   } finally {
     rm(repo, plugins);
   }

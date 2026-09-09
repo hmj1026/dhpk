@@ -182,7 +182,7 @@ The gate SHALL NOT modify project or user configuration on its own. A module ove
 #### Scenario: Version remediation is a command, not an action
 
 - **WHEN** the gate reports a stale version
-- **THEN** it surfaces the exact `claude plugin update dhpk@dhpk` command and states that the update requires a fresh session to take effect
+- **THEN** it surfaces the exact non-interactive update command for the selected installation scope (for example, `claude plugin update -y dhpk@dhpk` for user scope or `claude plugin update --scope project -y dhpk@dhpk` for project scope) and states that the update requires a fresh session to take effect
 
 ### Requirement: The gate routes into the existing audit rather than replacing it
 

@@ -279,8 +279,14 @@ discovery 或 compatibility alias。若另有文件化的相容期限而保留�
 ## 升級 Claude marketplace 安裝
 
 ```bash
-claude plugin update dhpk@dhpk
+# user scope 安裝（CLI 預設）
+claude plugin update -y dhpk@dhpk
+# project scope 安裝
+claude plugin update --scope project -y dhpk@dhpk
 ```
+
+請使用與 plugin 安裝時相同 scope 的指令。CLI 預設使用 user scope；在沒有
+TTY 的環境（例如 CI）執行更新時，請加上 `-y`／`--yes`。
 
 啟動新的 Claude session 或執行 `/reload-plugins`。確認 `/dhpk:setup`、
 `/dhpk:flow-guide`、`/dhpk:flow-drive` 與 `/dhpk:harness-govern` 都能解析。Marketplace 不會更新專案本地複製的
