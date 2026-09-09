@@ -186,15 +186,28 @@ authorized change.
 - [ADR-0016 — Phase and roll back Review Gate migration](0016-phase-and-roll-back-review-gate-migration.md)
 - [ADR-0017 — Implement Review Gate as a local event module](0017-implement-review-gate-as-a-local-event-module.md)
 
-## Amendment: single-maintainer authorization track (#375 Option B)
+## Amendment: retirement evidence gate removed, direct maintainer retirement (#375)
 
-A single-maintainer project cannot obtain the distinct-party CUTOVER
-collection authority this ADR assumes. `openspec/changes/
-adjust-review-gate-retirement-threshold/` adds an opt-in
-`SINGLE_MAINTAINER` track (`scripts/lib/review-gate-retirement.js`,
-`docs/contracts/review-lifecycle.md` — Retirement evidence intake) that
-substitutes a time-separated (24h cool-down, distinct session/identity),
-externally CI-corroborated self-authorization for the distinct-party
-receipt. This is a materially weaker independence guarantee, applies only to
-the collection-authority requirement, and does not change the 20-outcome
-minimum, the safety checks, or the rollback-drill requirement above.
+This ADR originally assumed a production service with independent
+reviewers: Sentinel retirement (issue #375) required a Decision Packet
+built from 20 accepted CUTOVER outcomes plus distinct-party collection
+authority. A single-maintainer project never has a second reviewer to
+supply that authority, so the bar was structurally unreachable — confirmed
+in practice after #375 stayed blocked through repeated evidence-gathering
+attempts, including an interim `SINGLE_MAINTAINER` authorization track
+(`openspec/changes/archive/2026-09-08-adjust-review-gate-retirement-threshold/`)
+that still required the same 20-outcome sample and was never satisfied.
+
+Decision: for this project, Sentinel retirement is authorized directly by
+maintainer decision rather than by a pre-collection evidence gate. The
+20-outcome minimum, the `SINGLE_MAINTAINER` track, and
+`scripts/lib/review-gate-retirement.js` are removed as dead requirements —
+`MigrationCoordinator`'s `PHASES` never implemented a `RETIRE`/`CLEANUP`
+transition that consulted them, so nothing enforced this gate at runtime;
+it was documentation and unused report-building code, not a live control.
+
+This is a materially weaker independence guarantee than a distinct
+reviewer, and that trade-off is accepted explicitly here rather than
+worked around with self-authorization machinery. Going forward, the
+correctness of removing Sentinel is judged by rolling usage feedback after
+the change ships, not by evidence collected before it ships.

@@ -193,108 +193,15 @@ phase, missing, foreign, stale, malformed, or failed observation evidence is
 unresolved and fails closed. Partial Accepted-Outcome Cost data uses `null`
 for unavailable counters plus named failure reasons, remains visible for
 diagnosis, and always sets `retirementEligible: false`. This v1 records the
-current per-obligation/lane observations. Issue #375 consumes those records
-through the read-only `scripts/lib/review-gate-retirement.js` boundary; it does
-not discover a local store or infer missing production evidence.
+current per-obligation/lane observations.
 
-### Retirement evidence intake (#375)
-
-The retirement report accepts an explicit, bounded ledger with schema
-`dhpk.review-gate.retirement-ledger.v1`:
-
-```json
-{
-  "schema": "dhpk.review-gate.retirement-ledger.v1",
-  "evidenceLocation": {
-    "reference": "artifact:review-gate/retirement-ledger-2026-09",
-    "digest": "sha256:<64-hex>"
-  },
-  "baselineBundles": [{
-    "bundle": "<dhpk.review-gate.receipt-bundle.v1>",
-    "expectedIdentity": { "commit": "<40-hex>", "tree": "<40-hex>" }
-  }],
-  "cutoverBundles": [{
-    "bundle": "<dhpk.review-gate.receipt-bundle.v1>",
-    "expectedIdentity": { "commit": "<40-hex>", "tree": "<40-hex>" },
-    "disagreements": []
-  }],
-  "collectionAuthority": {
-    "receipt": "<trusted DUAL_ENFORCE→CUTOVER receipt>",
-    "track": "SINGLE_MAINTAINER (optional; see below)",
-    "ciVerification": "<verification receipt, required only for the SINGLE_MAINTAINER track>"
-  },
-  "rollbackDrill": {
-    "bundle": "<bundle containing CUTOVER, rollback authority, and DUAL diagnostic>",
-    "expectedIdentity": { "commit": "<40-hex>", "tree": "<40-hex>" },
-    "isolationReference": "drill:<bounded-reference>"
-  }
-}
-```
-
-The values in angle brackets are placeholders for the redacted objects, not
-strings that satisfy the contract. Each bundle is imported through the same
-digest, source commit/tree, schema, identity, and producer-trust checks as the
-normal receipt transport. `evidenceLocation` is a bounded, content-addressed
-reference to the access-controlled durable ledger; its digest is the SHA-256
-of the canonical ledger object with `evidenceLocation` omitted. Omitting the
-field blocks the report; a digest for another ledger is rejected fail-closed. A
-bundle may contain several lane observations; the
-report counts one outcome for each distinct Accepted-Outcome Cost
-`observationId`. Exact duplicates are ignored, while reuse under another
-identity fails closed. `BASELINE`/`OBSERVE` entries supply the like-for-like
-cost comparator; `CUTOVER` entries must be non-diagnostic, complete, accepted
-outcomes. Partial or failed telemetry stays in the excluded list and cannot
-contribute to the 20-outcome exit minimum. The collection authority must be
-present in a submitted CUTOVER bundle and its identity plus evidence-bundle
-digest/reference must bind the DUAL_ENFORCE source that authorized those
-outcomes; an unrelated historical promotion receipt is insufficient.
-
-**Single-maintainer authorization track (#375 Option B).** A project with no
-second independent reviewer available may mark `collectionAuthority.track`
-as `SINGLE_MAINTAINER`. This substitutes a weaker independence guarantee for
-the distinct-party authority above and is labeled as such in the Decision
-Packet (`decisionPacket.authorizationTrack`); it does not relax the sample
-size, safety, or rollback-drill requirements. It requires both: (1) the
-authorizing receipt's `sessionId`/`recordedAt` must be distinct from, and
-recorded at least `SINGLE_MAINTAINER_COOLDOWN_MS` (24h) after, the
-`sessionId`/`recordedAt` of every CUTOVER outcome it authorizes; and (2) a
-`ciVerification` receipt (`dhpk.workflow.verification.v1`, `outcome: PASS`)
-independently recorded outside the reviewed obligation chain, whose
-`evidenceBundle` digest/reference matches the same outcome's provenance.
-`ciVerification` is passed as a raw receipt rather than through the bundle
-producer-trust boundary (`importBundle`), since it is external corroboration
-rather than part of the reviewed evidence bundle, but it is still required to
-pass `isTrusted(trustPolicy, ciReceipt)` directly. Missing either condition
-fails the same way as a missing authority: `CUTOVER_COLLECTION_AUTHORITY_REQUIRED`.
-
-This track is a mitigation, not a full substitute for a distinct reviewer:
-`sessionId` is an unauthenticated, producer-declared string with no
-cryptographic binding to a real party anywhere in this receipt system, so
-session-distinctness is a proxy, not proof, of a different person acting. It
-also inherits the pre-existing `validateCollectionAuthority` behavior that a
-single bound outcome satisfies the authority-binding check; the 20-outcome
-minimum is a separate, unaffected requirement, but only the outcomes actually
-bound to an authority receipt benefit from that authority's coverage.
-
-The collector derives the Material Risk cohort from the validated decision,
-requires zero unsafe clearance, cross-identity reuse, missed required review,
-and unresolved disagreement, and compares each available metric by exact
-cross-multiplied means. It also requires a trusted maintainer collection
-authority bound to the DUAL_ENFORCE source that precedes the CUTOVER outcomes,
-and a rollback drill whose authority receipt is bound to the CUTOVER source and
-followed by a same-identity `MIGRATION_ROLLBACK` diagnostic.
-The resulting Decision Packet is `DO_NOT_RETIRE` until every exit condition is
-met. Even a `RETIRE_CANDIDATE` report is non-promoting and carries
-`retireAuthority: REQUIRED_SEPARATELY`; only a separately authorized Migration
-Coordinator transition can enter `RETIRE` or `CLEANUP`.
-
-The report builder itself does not install a package, invoke a consumer, write
-the filesystem, or mutate a phase. To obtain admissible external data, a
-maintainer must run the exact release/commit in a disposable consumer, opt in
-with `init`, execute the real `prepare`/reviewer/`observe` flow, and export the
-durable Receipt Bundle and authority/rollback receipts to an access-controlled
-location. Package installation and consumer probes are acquisition evidence
-only; they never substitute for the complete CUTOVER ledger.
+Retirement of Sentinel is a direct maintainer decision on this project, not a
+pre-collection evidence gate — see
+`docs/adr/0018-production-migration-observation-checkpoint.md` for the
+rationale. There is no `review-gate-retirement.js` evidence boundary or
+20-outcome ledger requirement; Sentinel removal proceeds directly per
+issues #375-#378, with adjustments driven by rolling usage feedback rather
+than a pre-collected sample.
 
 ## Codex Review Gate submission
 
