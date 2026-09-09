@@ -9,6 +9,7 @@
     {"key":"fast_worker_model","purpose":"Select the fast worker model.","trigger":"when tuning mechanical dispatch","boundary":"does not guarantee model availability","pointer":"docs/configuration.md"},
     {"key":"planner_model","purpose":"Select the planner model.","trigger":"when tuning planning dispatch","boundary":"does not guarantee model availability","pointer":"docs/configuration.md"},
     {"key":"orchestration_dispatch","purpose":"Control implementation dispatch.","trigger":"when enabling or disabling orchestration","boundary":"does not bypass verification","pointer":"docs/configuration.md"},
+    {"key":"cross_provider","purpose":"Enable automatic cross-provider candidates.","trigger":"when allowing auto worker selection to inspect external providers","boundary":"does not broaden explicit worker targets or change the default native-only policy","pointer":"docs/configuration.md"},
     {"key":"fast_worker_backend","purpose":"Select the fast worker backend.","trigger":"when choosing a mechanical backend","boundary":"does not provide missing credentials","pointer":"docs/configuration.md"},
     {"key":"fast_worker_backend_order","purpose":"Order automatic backend selection.","trigger":"when configuring backend fallback order","boundary":"does not force unavailable backends","pointer":"docs/configuration.md"},
     {"key":"fast_worker_fallback","purpose":"Choose missing executable fallback.","trigger":"when configuring backend failure handling","boundary":"does not fallback authentication failures","pointer":"docs/configuration.md"},

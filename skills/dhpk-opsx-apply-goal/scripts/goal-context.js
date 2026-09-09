@@ -153,7 +153,11 @@ function buildContext(options) {
   // naming which agent to dispatch. footprint.inconclusive still gates the
   // warning above; eligible is retained only as scanFootprint's own
   // classification, asserted directly by tests — nothing here reads it.
-  const selected = selector.select(selector.parseArgs(['--backend', requested, '--order', order, '--fallback', fallback]));
+  const selectorArgs = ['--backend', requested, '--order', order, '--fallback', fallback];
+  const crossProviderFlag = options.crossProvider === true || options.crossProvider === 'true';
+  if (crossProviderFlag) selectorArgs.push('--cross-provider');
+  const parsed = selector.parseArgs(selectorArgs);
+  const selected = selector.select(parsed);
   const rejected = (selected.rejected_candidates || []).map((item) => `${item.backend}:${item.reason}`).join('|');
   const clause = selected.status === 'blocked'
     ? `BLOCKED fast-worker requested=${selected.requested_backend}; reason=${selected.reason}; fallback=${fallback}; action=STOP and report BLOCKED; dispatch sanctioned selected fallback only${rejected ? `; rejected=${rejected}` : ''}`
@@ -165,6 +169,8 @@ function buildContext(options) {
     FAST_WORKER_AGENT: selected.selected_agent,
     FAST_WORKER_ORDER: order,
     FAST_WORKER_FALLBACK: fallback,
+    FAST_WORKER_CROSS_PROVIDER: String(parsed.cross_provider),
+    FAST_WORKER_SCOPE: selected.candidate_scope,
     FAST_WORKER_REJECTED: rejected,
     FAST_WORKER_CLAUSE: clause,
   };
@@ -182,7 +188,12 @@ function main(argv) {
   }));
   const tasks = fs.readFileSync(options['--tasks'], 'utf8');
   const proposal = fs.readFileSync(options['--proposal'], 'utf8');
-  const { warning, fields } = buildContext({ tasks, proposal, fastWorker: options['--worker'] });
+  const { warning, fields } = buildContext({
+    tasks,
+    proposal,
+    fastWorker: options['--worker'],
+    crossProvider: options['--cross-provider'],
+  });
   if (warning) process.stderr.write(`${warning}\n`);
   for (const [key, value] of Object.entries(fields)) process.stdout.write(`${key}=${clean(value)}\n`);
 }

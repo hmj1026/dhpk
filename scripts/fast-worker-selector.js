@@ -15,14 +15,31 @@ const AGENTS = {
   agy: 'dhpk:agy-worker',
 };
 
+const parseBoolean = (value, fallback = false) => {
+  if (['1', 'true', 'TRUE', 'yes', 'YES', 'on', 'ON'].includes(String(value))) return true;
+  if (['0', 'false', 'FALSE', 'no', 'NO', 'off', 'OFF'].includes(String(value))) return false;
+  return fallback;
+};
+
+const configuredCrossProvider = () => {
+  if (Object.prototype.hasOwnProperty.call(process.env, 'DHPK_PROJECT_OPTION_CROSS_PROVIDER')) {
+    return parseBoolean(process.env.DHPK_PROJECT_OPTION_CROSS_PROVIDER);
+  }
+  if (Object.prototype.hasOwnProperty.call(process.env, 'CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER')) {
+    return parseBoolean(process.env.CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER);
+  }
+  return false;
+};
+
 const parseArgs = (argv) => {
-  const out = { backend: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND || 'claude', order: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER || DEFAULT_ORDER.join(','), fallback: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK || 'none', failure: '' };
+  const out = { backend: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND || 'claude', order: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER || DEFAULT_ORDER.join(','), fallback: process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK || 'none', failure: '', cross_provider: configuredCrossProvider() };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--backend') out.backend = argv[++i] || '';
     else if (arg === '--order') out.order = argv[++i] || '';
     else if (arg === '--fallback') out.fallback = argv[++i] || '';
     else if (arg === '--failure') out.failure = argv[++i] || '';
+    else if (arg === '--cross-provider') out.cross_provider = true;
   }
   return out;
 };

@@ -10,6 +10,7 @@
 # Usage:
 #   analyze-change.sh <change-id> [--turns N] [--max-duration <Nm|Nh>] \
 #                     [--min-coverage N] [--worker=<backend>] \
+#                     [--cross-provider] \
 #                     [--smoke|--no-smoke] [--dry-run]
 #
 # Output: a `# schema=v1` block on stdout (KEY=VALUE, one per line). On a fatal
@@ -27,6 +28,7 @@ MIN_COVERAGE=""
 DEPRECATED_CODEX_FLAG="false"
 DRY_RUN="false"
 FAST_WORKER_OVERRIDE=""
+CROSS_PROVIDER_OVERRIDE="false"
 SAW_SMOKE="false"
 SAW_NO_SMOKE="false"
 
@@ -37,6 +39,7 @@ while [ "$#" -gt 0 ]; do
     --min-coverage) MIN_COVERAGE="${2:-}"; shift 2 ;;
     --codex)        DEPRECATED_CODEX_FLAG="true"; shift ;;
     --worker=*) FAST_WORKER_OVERRIDE="${1#--worker=}"; shift ;;
+    --cross-provider) CROSS_PROVIDER_OVERRIDE="true"; shift ;;
     --smoke)        SAW_SMOKE="true";    shift ;;
     --no-smoke)     SAW_NO_SMOKE="true"; shift ;;
     --dry-run)      DRY_RUN="true";      shift ;;
@@ -63,7 +66,7 @@ else
 fi
 
 if [ -z "$CHANGE_ID" ]; then
-  echo "Usage: /dhpk:dhpk-opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--worker=<claude|codex|agy|auto>] [--smoke|--no-smoke] [--dry-run]" >&2
+  echo "Usage: /dhpk:dhpk-opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--worker=<claude|codex|agy|auto>] [--cross-provider] [--smoke|--no-smoke] [--dry-run]" >&2
   echo "Example: /dhpk:dhpk-opsx-apply-goal fix-spec-select-empty-gplist-overflow" >&2
   exit 2
 fi
@@ -151,4 +154,5 @@ echo "MIN_COVERAGE=${MIN_COVERAGE:-}"
 node "$(cd "$(dirname "$0")" && pwd)/goal-context.js" \
   "--tasks=$TASKS" \
   "--proposal=$PROPOSAL" \
-  "--worker=$FAST_WORKER_OVERRIDE"
+  "--worker=$FAST_WORKER_OVERRIDE" \
+  "--cross-provider=$CROSS_PROVIDER_OVERRIDE"

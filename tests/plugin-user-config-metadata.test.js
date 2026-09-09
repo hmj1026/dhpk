@@ -21,9 +21,10 @@ const legacyManifest = JSON.parse(fs.readFileSync(LEGACY_MANIFEST_PATH, 'utf8'))
 const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PATH, 'utf8'));
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
-const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 69;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '27d5318cc73a698e759b5757540fd120bf78f0baa838177072bdd30eb411980c';
+const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 70;
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '7239af5dada08b32f328c82ef7bbed6bad77a52afc2f70d15aeccb64a523c830';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
+  'cross_provider',
   'codex_worker_model',
   'codex_worker_effort',
   'codex_reasoner_model',
@@ -127,7 +128,7 @@ test('legacy userConfig fixture contains exactly 59 options and preserves the le
   }
 });
 
-test('active userConfig preserves the canonical 69-key contract and metadata coverage', () => {
+test('active userConfig preserves the canonical 70-key contract and metadata coverage', () => {
   const activeEntries = contractEntries(activeManifest);
   const legacyKeys = Object.keys(legacyManifest.userConfig || {});
   const activeKeys = Object.keys(activeManifest.userConfig || {});
@@ -154,6 +155,14 @@ test('active userConfig preserves the canonical 69-key contract and metadata cov
   const value = valueOf(result);
   assert.strictEqual(value.entries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
   assert.deepStrictEqual(value.entries.map((entry) => entry.key), activeKeys);
+});
+
+test('active userConfig exposes cross_provider as a disabled-by-default opt-in', () => {
+  const option = activeManifest.userConfig.cross_provider;
+  assert.ok(option, 'cross_provider userConfig entry is required');
+  assert.strictEqual(option.type, 'boolean');
+  assert.strictEqual(option.default, false);
+  assert.match(option.description, /auto|external|provider/i);
 });
 
 test('compact metadata source validates purpose, trigger, boundary, pointer, and schema compatibility', () => {
