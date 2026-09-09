@@ -329,10 +329,10 @@ merge gate。queued 或 partial CI 都不是 completion。
 
 ### Review、驗證與交接
 
-每次 Edit／Write／MultiEdit 後，default hooks 只建立適用的 `.pending-*` review sentinel
-並保持 review debt 可見，不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
-`/dhpk:review-pending` 可立即啟動 pending reviewer；`sentinel_commit_gate` 決定 open
-sentinel 對 commit 是 warn 或 block。
+每次 Edit／Write／MultiEdit 後，orchestrator 會從完成的 wave 推導適用的 Review Gate
+obligation。不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
+`/dhpk:review-pending` 會為指定路徑派工 reviewer；legacy `sentinel_commit_gate` 僅為
+相容性保留，不能取代 Review Gate verdict tracking。
 
 ```text
 /dhpk:review-pending
@@ -493,12 +493,13 @@ native plugin 已 enabled，會在寫入前阻擋，`--force` 不能繞過；`--
 
 ## 遷移現有專案
 
-如果 project 已有自己的 `.claude/` harness，請依分階段計畫：
+如果 project 已有自己的 `.claude/` harness，以下是 legacy hook 相容性遷移計畫；
+新的 review 工作使用上方所述的 Review Gate trigger table 與 durable obligation：
 
 1. **Phase A — baseline**：先保存安裝前 hook output 與測試結果。
 2. **Phase B — install (parallel)**：設定 `userConfig.review_agents` 指向既有 agent 後安裝 plugin，兩組 hook 並行。
 3. **Phase C — discovery**：確認 `/agents` 與 `/plugin details dhpk@dhpk` 顯示預期元件。
-4. **Phase D — hook parity**：比較 plugin-side sentinel 與 project-side sentinel，記錄預期差異。
+4. **Phase D — hook parity**：比較 plugin-side safety hook 與 project-side hook，記錄預期差異；不要新增 legacy sentinel route。
 5. **Phase E — cutover**：透過 `.claude/settings.local.json`（`"hooks": {}`）停用 project hook，執行 regression test。
 6. **Phase F — cleanup**：刪除 plugin 已提供的 project file，保留 project-specific override。
 

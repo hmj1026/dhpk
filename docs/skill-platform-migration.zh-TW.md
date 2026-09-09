@@ -245,13 +245,16 @@ vault scope。
 
 ## 整併後的 hooks 與 commands
 
-預設 hook surface 現在只有五項明確責任：
+預設 hook surface 現在只有四項明確責任：
 
 1. 保護敏感路徑的編輯。
 2. Bash 前合併 shell safety 與 Git/review-debt 檢查。
-3. 路由 post-edit review sentinel。
-4. Session start 時驗證並啟用設定的 module。
-5. Subagent stop 時核對 reviewer evidence。
+3. Session start 時驗證並啟用設定的 module。
+4. Subagent stop 時清理已停止 fast-worker 的 liveness state。
+
+Reviewer 的選擇、identity binding、artifact/result 記錄與 obligation resolution
+屬於 orchestrator-owned 的 Review Gate 與其 durable evidence store。完成判定依據
+identity-bound evidence，不依賴 hook side effect。
 
 Formatting、lint、Docker probe、prompt hint、session snapshot
 與其他 advisory 工作都改為 consumer 明確啟用的 extension，而非預設 hook。見

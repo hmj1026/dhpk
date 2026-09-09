@@ -51,8 +51,14 @@ which configured adapter may contribute each receipt kind. Unknown producers
 and unknown major schemas fail closed; compatible additional fields are
 preserved. Policy and Reviewer Contract versions participate in freshness, and
 schema migrations append conversion events rather than rewriting history.
-Digital signatures or CI attestations remain optional extensions until a real
-cross-trust requirement justifies key infrastructure.
+For the public filesystem-backed `review-gate-runtime observe` boundary, require
+a host-issued cross-trust attestation envelope before a direct `ENFORCE`
+observation can authorize target progress. The envelope is verified using the
+configured host key and binds the prepared plan plus the four evidence-file
+digests. Programmatic `ReviewGate`, adapter, and `WorkflowCoordinator` calls
+are trusted in-process ports and do not require this filesystem transport
+attestation. The envelope is not a reviewer-issued approval or a replacement
+for the Review Gate result.
 
 Platform Adapters may translate only:
 
@@ -115,9 +121,10 @@ carry forward the current focused Sentinel cases into the differential corpus.
   Gate: rejected as a god object with overlapping authority.
 - Replace Sentinel files with a mutable JSON or SQLite status record: rejected
   because it hides transitions and adds concurrency or packaging complexity.
-- Require receipt signatures immediately: rejected because content integrity
-  and configured producer trust cover the initial local boundary without key
-  lifecycle overhead.
+- Require signatures on every receipt immediately: rejected because the
+  filesystem-backed `observe` boundary has its separate host attestation, while
+  trusted in-process ports use configured producer trust; signing every local
+  receipt would add a second key lifecycle without strengthening those paths.
 - Commit receipts to the implementation branch: rejected because runtime state,
   logs, and provider evidence do not belong in source history.
 - Keep a manual clear command: rejected because an unaudited bypass recreates

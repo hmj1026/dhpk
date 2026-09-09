@@ -13,7 +13,6 @@ const {
   ReviewGate,
 } = require('./review-gate');
 const {
-  MIGRATION_EVENT,
   PLAN_CHECKPOINT_SCHEMA,
   PLAN_DIRECTORY,
   SCHEMA,
@@ -105,16 +104,10 @@ const createPlanRegisteredEvent = (plan, config, now = () => Date.now()) => {
   };
 };
 
-const reviewHistory = (history) => ({
-  ...history,
-  events: history.events.filter((event) => event.eventType !== MIGRATION_EVENT),
-  receipts: history.receipts.filter((receipt) => receipt.kind !== 'migration-observation'),
-});
-
 const createReviewGateStoreView = (store) => ({
   append: (input) => store.append(input),
-  replay: (input) => reviewHistory(store.replay(input)),
-  inspect: (input) => reviewHistory(store.inspect(input)),
+  replay: (input) => store.replay(input),
+  inspect: (input) => store.inspect(input),
 });
 
 const createReviewGateFacade = (gate) => ({
@@ -280,17 +273,49 @@ const registeredPlanFromHistory = (history, checkpoint) => {
   return plan;
 };
 
-const reviewRequestFor = (plan, history, obligation) => {
-  const priorReceipt = [...history.receipts].reverse().find((receipt) => (
-    receipt.kind === 'review'
-      && receipt.workId === plan.workId
-      && receipt.waveId === plan.waveId
-      && receipt.obligationId === obligation.obligationId
-      && receipt.lane === obligation.lane
-      && receipt.payload
-      && isRecord(receipt.payload.request)
+const unresolvedFindings = (findings) => (
+  Array.isArray(findings)
+    ? findings.filter((finding) => isRecord(finding) && finding.disposition === 'MUST_FIX')
+    : []
+);
+
+const accumulatedFindingsFor = (history, lane) => {
+  const findings = new Map();
+  for (const event of history.events) {
+    if (event.eventType !== 'REVIEW_RESULT_RECORDED' || event.lane !== lane) continue;
+    const payload = event.payload;
+    const result = payload && payload.result;
+    if (!isRecord(result)) continue;
+    const clearsFindings = result.executionStatus === 'COMPLETE'
+      && result.applicability === 'REQUIRED'
+      && result.semanticVerdict === 'PASS';
+    if (clearsFindings) {
+      findings.clear();
+      continue;
+    }
+    for (const finding of unresolvedFindings(result.findings)) {
+      findings.set(`${finding.id}:${canonicalJson(finding)}`, finding);
+    }
+  }
+  return [...findings.values()].sort((left, right) => (
+    `${left.id}:${canonicalJson(left)}`.localeCompare(`${right.id}:${canonicalJson(right)}`)
   ));
-  if (priorReceipt) return clone(priorReceipt.payload.request);
+};
+
+const reviewRequestFor = (plan, history, obligation, expectedDigest = null) => {
+  const priorEvent = [...history.events].reverse().find((event) => (
+    event.eventType === 'REVIEW_RESULT_RECORDED'
+      && event.workId === plan.workId
+      && event.waveId === plan.waveId
+      && event.obligationId === obligation.obligationId
+      && event.lane === obligation.lane
+      && event.payload
+      && isRecord(event.payload.request)
+  ));
+  if (priorEvent && (expectedDigest === null
+    || digestJson(priorEvent.payload.request) === expectedDigest)) {
+    return clone(priorEvent.payload.request);
+  }
   try {
     return createReviewRequest({
       decisionId: plan.decisionId,
@@ -304,7 +329,7 @@ const reviewRequestFor = (plan, history, obligation) => {
       materialRisks: plan.materialRisks,
       governingInputs: plan.governingInputs,
       exclusions: [],
-      priorFindings: [],
+      priorFindings: accumulatedFindingsFor(history, obligation.lane),
       contractVersion: plan.contractVersion,
     });
   } catch (_) {
@@ -312,37 +337,35 @@ const reviewRequestFor = (plan, history, obligation) => {
   }
 };
 
-const observationMatches = (observation, plan, obligation, identity) => (
-  isRecord(observation)
-    && observation.workId === plan.workId
-    && observation.waveId === plan.waveId
-    && observation.obligationId === obligation.obligationId
-    && observation.lane === obligation.lane
-    && IDENTITY_FIELDS.every((field) => observation[field] === identity[field])
-);
-
-const observeResultFromObservation = (observation, state, revision, chainDigest) => ({
+const observeResultFromProjection = (
+  projection,
+  state,
+  revision,
+  chainDigest,
+  { plan = null, obligation = null, receipt = null } = {},
+) => ({
   schema: SCHEMA,
   command: 'observe',
   status: 'OBSERVED',
-  phase: state.config.phase,
-  workId: observation.workId,
-  waveId: observation.waveId,
-  decisionId: observation.decisionId,
-  planId: observation.planId,
-  obligationId: observation.obligationId,
-  lane: observation.lane,
-  comparison: observation.comparison,
-  effect: observation.effect,
-  authority: observation.authority,
-  telemetryStatus: observation.acceptedOutcomeCost.telemetryStatus,
-  retirementEligible: false,
-  clearsSentinel: false,
+  workId: projection.workId,
+  waveId: projection.waveId,
+  ...(plan ? { decisionId: plan.decisionId, planId: plan.planId } : {}),
+  ...(obligation ? {
+    obligationId: obligation.obligationId,
+    lane: obligation.lane,
+  } : {}),
+  semanticVerdict: projection.semanticVerdict,
+  executionStatus: projection.executionStatus,
+  applicability: projection.applicability,
+  lifecycleStatus: projection.lifecycleStatus,
+  resolution: projection.resolution,
   revision,
   chainDigest,
-  eventId: observation.eventId,
-  receiptId: observation.receiptId,
-  diagnostics: observation.reasonCodes || [],
+  ...(receipt && receipt.eventId ? { eventId: receipt.eventId } : {}),
+  ...(receipt && receipt.receiptId ? { receiptId: receipt.receiptId } : {}),
+  ...(receipt && receipt.provenance ? { provenance: clone(receipt.provenance) } : {}),
+  diagnostics: projection.condition && projection.condition.reasonCodes
+    ? projection.condition.reasonCodes : [],
 });
 
 const reviewProjectionFromHistory = ({ history, state, workId, waveId, now }) => {
@@ -370,12 +393,10 @@ module.exports = {
   createStoreAndGate,
   currentStoreHistory,
   digestJson,
-  observationMatches,
-  observeResultFromObservation,
+  observeResultFromProjection,
   planDigest,
   readPlanCheckpoint,
   registeredPlanFromHistory,
-  reviewHistory,
   reviewProjectionFromHistory,
   reviewRequestFor,
   writePlanCheckpoint,

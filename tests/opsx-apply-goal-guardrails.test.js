@@ -174,10 +174,17 @@ test('Part 0 and verification checklist carve hard-rule conflicts out of unatten
     'missing inline design-snapshot hard-rule guardrail');
 });
 
-test('Part 2 and Part 4 include unresolved verdict and hard-rule escalation gates', () => {
-  assert.ok(skill.includes('.unresolved-verdict'), 'missing unresolved verdict sidecar gate');
-  assert.ok(skill.includes('confirmed the output is NONE in conversation (no unresolved reviewer verdict sidecar entries)'),
-    'missing unresolved-verdict NONE wording');
+test('Part 2 and Part 4 include unresolved Review Gate and hard-rule escalation gates', () => {
+  assert.ok(goalTemplates.includes('Claude checked the Review Gate status for `<CHANGE_ID>`'),
+    'missing identity-bound Review Gate status gate');
+  assert.ok(goalTemplates.includes('confirmed every applicable reviewer obligation is resolved'),
+    'missing resolved-obligation wording');
+  assert.ok(goalTemplates.includes('Claude confirmed no applicable Review Gate obligation is pending, foreign, stale, malformed, or message-only'),
+    'missing unresolved-obligation gate');
+  assert.ok(goalTemplates.includes('status is `RESOLVED` or `NOT_APPLICABLE`'),
+    'missing resolved/NOT_APPLICABLE status wording');
+  assert.ok(!skill.includes('.unresolved-verdict'),
+    'retired unresolved-verdict sidecar wording remains');
   assert.ok(skill.includes('openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md'),
     'missing hard-rule escalation artifact path');
   assert.ok(skill.includes('rule, conflicting decision with file:line evidence, and why compliance is blocked'),

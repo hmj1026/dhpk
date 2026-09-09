@@ -87,9 +87,8 @@ const AUTHORITY_PAYLOAD_FIELDS = Object.freeze([
   'expiresAt',
 ]);
 const COMMAND_DIGEST = /^digest:sha256:[a-f0-9]{64}$/;
-const OBSERVE_ONLY = 'OBSERVE_ONLY';
 const ENFORCE = 'ENFORCE';
-const REVIEW_EFFECTS = Object.freeze([OBSERVE_ONLY, ENFORCE]);
+const REVIEW_EFFECTS = Object.freeze([ENFORCE]);
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);

@@ -11,6 +11,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  createHostKey,
+  hostInitArgs,
+  writeHostAttestation,
+} = require('./_lib/review-gate-host-attestation-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const WORK_REQUEST_PATH = path.join(
@@ -23,7 +28,6 @@ const WORK_REQUEST_PATH = path.join(
 const RUNTIME_SCHEMA = 'dhpk.review-gate.runtime.v1';
 const REVIEWER_CONTRACT_VERSION = 'dhpk.reviewer-contract.v2';
 const COMPANION_SCHEMA = 'dhpk.claude-review-result.v1';
-const ACCEPTED_OUTCOME_COST_SCHEMA = 'dhpk.accepted-outcome-cost.v1';
 const FIXTURE_TIME = '2026-09-07T00:00:02.000Z';
 
 function sha256(value) {
@@ -167,7 +171,7 @@ function writeReviewerEvidence(consumerRoot, request) {
     'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
     'verdict: PASS',
     '---',
-    'The packaged consumer runtime is observable and Sentinel remains authoritative.',
+    'The packaged consumer runtime records a direct review observation.',
     '',
   ].join('\n');
   writeFile(consumerRoot, artifactRelativePath, artifactContent);
@@ -223,44 +227,11 @@ function writeReviewerEvidence(consumerRoot, request) {
   writeJsonLines(consumerRoot, lifecycleRelativePath, lifecycleEvents);
   writeJsonLines(consumerRoot, readinessRelativePath, readinessEvents);
 
-  // Keep the optional counters explicitly null.  This is a truthful partial
-  // sample: the runtime retains known counters and excludes it from
-  // retirement without changing Sentinel evidence.
-  const costRelativePath = '.claude/artifacts/sessions/.accepted-outcome-cost.jsonl';
-  writeJsonLines(consumerRoot, costRelativePath, [{
-    schema: ACCEPTED_OUTCOME_COST_SCHEMA,
-    observationId: `legacy-${sha256(identity.taskId).slice(0, 32)}`,
-    acceptedOutcome: true,
-    metrics: {
-      modelTokens: null,
-      dispatchCount: 1,
-      semanticReviewCount: 1,
-      remediationRounds: 0,
-      humanTurns: null,
-      elapsedMs: 42,
-      falseBlockCount: null,
-      receiptReuseCount: null,
-    },
-    telemetryFailures: [],
-  }]);
-
-  const sentinelRelativePath = '.claude/artifacts/sessions/.sentinel-outcome.json';
-  const sentinelOutcome = {
-    status: 'CLEARED',
-    verdict: 'PASS',
-    outcome: 'PASS',
-    lifecycleEventId: lifecycleEvents[lifecycleEvents.length - 1].event_id,
-  };
-  writeJson(consumerRoot, sentinelRelativePath, sentinelOutcome);
-
   return {
     artifactRelativePath,
     companionRelativePath,
     lifecycleRelativePath,
     readinessRelativePath,
-    costRelativePath,
-    sentinelRelativePath,
-    sentinelBytes: fs.readFileSync(path.join(consumerRoot, sentinelRelativePath)),
   };
 }
 
@@ -268,7 +239,7 @@ function assertNoHostWrites(home) {
   assert.deepStrictEqual(fs.readdirSync(home), [], 'consumer flow must not write host-global state');
 }
 
-test('materialized package records a partial migration observation in an isolated consumer', () => {
+test('materialized package records a direct review observation in an isolated consumer', () => {
   const sandbox = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-390-consumer-e2e-')));
   const consumerRoot = path.join(sandbox, 'consumer');
   const hostHome = path.join(sandbox, 'host-home');
@@ -294,7 +265,8 @@ test('materialized package records a partial migration observation in an isolate
       'prepare must not lazily create opt-in state',
     );
 
-    const initialized = runConsumerCli(consumerRoot, ['init'], undefined, hostHome);
+    const host = createHostKey(consumerRoot, 'consumer-single');
+    const initialized = runConsumerCli(consumerRoot, hostInitArgs(host), undefined, hostHome);
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
     const initOutput = JSON.parse(initialized.stdout);
     assert.deepStrictEqual(
@@ -319,6 +291,7 @@ test('materialized package records a partial migration observation in an isolate
     assert.strictEqual(request.lane, 'code-reviewer');
 
     const evidence = writeReviewerEvidence(consumerRoot, request);
+    writeHostAttestation(consumerRoot, prepared, evidence, host, { label: 'consumer-single' });
     const observedResult = runConsumerCli(consumerRoot, [
       'observe',
       '--work-id', prepared.workId,
@@ -327,8 +300,7 @@ test('materialized package records a partial migration observation in an isolate
       '--companion', evidence.companionRelativePath,
       '--lifecycle-events', evidence.lifecycleRelativePath,
       '--readiness-events', evidence.readinessRelativePath,
-      '--accepted-outcome-cost', evidence.costRelativePath,
-      '--sentinel-outcome', evidence.sentinelRelativePath,
+      '--host-attestation', evidence.hostAttestationRelativePath,
     ], undefined, hostHome);
     assert.strictEqual(observedResult.status, 0, `${observedResult.stdout}\n${observedResult.stderr}`);
     const observed = JSON.parse(observedResult.stdout);
@@ -337,21 +309,21 @@ test('materialized package records a partial migration observation in an isolate
         schema: observed.schema,
         command: observed.command,
         status: observed.status,
-        effect: observed.effect,
-        authority: observed.authority,
-        telemetryStatus: observed.telemetryStatus,
-        retirementEligible: observed.retirementEligible,
-        clearsSentinel: observed.clearsSentinel,
+        semanticVerdict: observed.semanticVerdict,
+        executionStatus: observed.executionStatus,
+        applicability: observed.applicability,
+        lifecycleStatus: observed.lifecycleStatus,
+        resolution: observed.resolution,
       },
       {
         schema: RUNTIME_SCHEMA,
         command: 'observe',
         status: 'OBSERVED',
-        effect: 'OBSERVE_ONLY',
-        authority: 'SENTINEL',
-        telemetryStatus: 'PARTIAL',
-        retirementEligible: false,
-        clearsSentinel: false,
+        semanticVerdict: 'PASS',
+        executionStatus: 'COMPLETE',
+        applicability: 'REQUIRED',
+        lifecycleStatus: 'RESOLVED',
+        resolution: 'REVIEW_PASS',
       },
     );
 
@@ -366,28 +338,15 @@ test('materialized package records a partial migration observation in an isolate
     assert.strictEqual(status.semanticVerdict, 'PASS');
     assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'receipts'), false);
     assert.deepStrictEqual(status.receiptSummary, {
-      total: 2,
-      byKind: {
-        review: 1,
-        'migration-observation': 1,
-      },
+      total: 1,
+      byKind: { review: 1 },
     });
-    assert.ok(status.migrationObservation, 'consumer status must expose a bounded migration projection');
-    assert.strictEqual(
-      status.migrationObservation.acceptedOutcomeCost.telemetryStatus,
-      'PARTIAL',
-    );
-    assert.strictEqual(status.migrationObservation.retirementEligible, false);
+    assert.ok(!Object.prototype.hasOwnProperty.call(status, 'migrationObservation'));
 
     const eventDirectory = path.join(storeRoot, 'works', prepared.workId, 'events');
     assert.ok(fs.statSync(eventDirectory).isDirectory(), 'consumer receipt event history must be durable');
     assert.ok(fs.readdirSync(eventDirectory).some((name) => name.endsWith('.json')));
     assert.ok(fs.existsSync(path.join(storeRoot, 'objects', 'sha256')), 'consumer receipt objects must be content-addressed');
-    assert.deepStrictEqual(
-      fs.readFileSync(path.join(consumerRoot, evidence.sentinelRelativePath)),
-      evidence.sentinelBytes,
-      'observe must preserve Sentinel evidence bytes',
-    );
     assertNoHostWrites(hostHome);
   } finally {
     fs.rmSync(sandbox, { recursive: true, force: true });
@@ -417,7 +376,7 @@ function writeLaneReviewerEvidence(consumerRoot, request, suffix) {
     'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
     'verdict: PASS',
     '---',
-    `The ${request.lane} packaged-consumer observation is non-authoritative.`,
+    `The ${request.lane} packaged-consumer review result is bounded Review Gate evidence.`,
     '',
   ].join('\n');
   writeFile(consumerRoot, artifactRelativePath, artifactContent);
@@ -471,39 +430,11 @@ function writeLaneReviewerEvidence(consumerRoot, request, suffix) {
   writeJsonLines(consumerRoot, lifecycleRelativePath, lifecycleEvents);
   writeJsonLines(consumerRoot, readinessRelativePath, readinessEvents);
 
-  const costRelativePath = `.claude/artifacts/sessions/${suffix}.accepted-outcome-cost.jsonl`;
-  writeJsonLines(consumerRoot, costRelativePath, [{
-    schema: ACCEPTED_OUTCOME_COST_SCHEMA,
-    observationId: `legacy-${sha256(identity.taskId).slice(0, 32)}`,
-    acceptedOutcome: true,
-    metrics: {
-      modelTokens: null,
-      dispatchCount: 1,
-      semanticReviewCount: 1,
-      remediationRounds: 0,
-      humanTurns: null,
-      elapsedMs: 42,
-      falseBlockCount: null,
-      receiptReuseCount: null,
-    },
-    telemetryFailures: [],
-  }]);
-
-  const sentinelRelativePath = `.claude/artifacts/sessions/${suffix}.sentinel-outcome.json`;
-  writeJson(consumerRoot, sentinelRelativePath, {
-    status: 'CLEARED',
-    verdict: 'PASS',
-    outcome: 'PASS',
-    lifecycleEventId: lifecycleEvents[lifecycleEvents.length - 1].event_id,
-  });
   return {
     artifactRelativePath,
     companionRelativePath,
     lifecycleRelativePath,
     readinessRelativePath,
-    costRelativePath,
-    sentinelRelativePath,
-    sentinelBytes: fs.readFileSync(path.join(consumerRoot, sentinelRelativePath)),
   };
 }
 
@@ -516,12 +447,11 @@ function observeConsumerLane(consumerRoot, prepared, evidence, home) {
     '--companion', evidence.companionRelativePath,
     '--lifecycle-events', evidence.lifecycleRelativePath,
     '--readiness-events', evidence.readinessRelativePath,
-    '--accepted-outcome-cost', evidence.costRelativePath,
-    '--sentinel-outcome', evidence.sentinelRelativePath,
+    '--host-attestation', evidence.hostAttestationRelativePath,
   ], undefined, home);
 }
 
-test('installed consumer observes every Sentinel lane durably and idempotently', () => {
+test('installed consumer observes every reviewer lane durably and idempotently', () => {
   const sandbox = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-390-consumer-e2e-')));
   const consumerRoot = path.join(sandbox, 'consumer');
   const hostHome = path.join(sandbox, 'host-home');
@@ -540,7 +470,8 @@ test('installed consumer observes every Sentinel lane durably and idempotently',
   try {
     const packageRoot = materializePackage(sandbox);
     installPackage(packageRoot, consumerRoot, hostHome);
-    const initialized = runConsumerCli(consumerRoot, ['init'], undefined, hostHome);
+    const host = createHostKey(consumerRoot, 'consumer-all-lanes');
+    const initialized = runConsumerCli(consumerRoot, hostInitArgs(host), undefined, hostHome);
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
 
     const workRequest = JSON.parse(fs.readFileSync(WORK_REQUEST_PATH, 'utf8'));
@@ -560,16 +491,36 @@ test('installed consumer observes every Sentinel lane durably and idempotently',
     const evidences = prepared.reviewRequests.map((request, index) => (
       writeLaneReviewerEvidence(consumerRoot, request, `consumer-all-lanes-${index}`)
     ));
+    prepared.reviewRequests.forEach((request, index) => {
+      writeHostAttestation(
+        consumerRoot,
+        prepared,
+        evidences[index],
+        host,
+        { label: `consumer-all-lanes-${index}` },
+      );
+    });
     let firstObservation = null;
     for (const [index, request] of prepared.reviewRequests.entries()) {
       const result = observeConsumerLane(consumerRoot, prepared, evidences[index], hostHome);
       assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
       const observed = JSON.parse(result.stdout);
       assert.strictEqual(observed.lane, request.lane);
-      assert.strictEqual(observed.effect, 'OBSERVE_ONLY');
-      assert.strictEqual(observed.authority, 'SENTINEL');
-      assert.strictEqual(observed.clearsSentinel, false);
-      assert.strictEqual(observed.telemetryStatus, 'PARTIAL');
+      assert.strictEqual(observed.schema, RUNTIME_SCHEMA);
+      assert.strictEqual(observed.command, 'observe');
+      assert.strictEqual(observed.status, 'OBSERVED');
+      assert.strictEqual(observed.applicability, 'REQUIRED');
+      if (index === prepared.reviewRequests.length - 1) {
+        assert.strictEqual(observed.semanticVerdict, 'PASS');
+        assert.strictEqual(observed.executionStatus, 'COMPLETE');
+        assert.strictEqual(observed.lifecycleStatus, 'RESOLVED');
+        assert.strictEqual(observed.resolution, 'REVIEW_PASS');
+      } else {
+        assert.strictEqual(observed.semanticVerdict, undefined);
+        assert.strictEqual(observed.executionStatus, 'NOT_RUN');
+        assert.strictEqual(observed.lifecycleStatus, 'PENDING');
+        assert.strictEqual(observed.resolution, undefined);
+      }
 
       if (index === 0) {
         firstObservation = observed;
@@ -594,19 +545,10 @@ test('installed consumer observes every Sentinel lane durably and idempotently',
     assert.strictEqual(status.semanticVerdict, 'PASS');
     assert.deepStrictEqual(status.reviewRequests, []);
     assert.deepStrictEqual(status.receiptSummary, {
-      total: expectedLanes.length * 2,
-      byKind: {
-        review: expectedLanes.length,
-        'migration-observation': expectedLanes.length,
-      },
+      total: expectedLanes.length,
+      byKind: { review: expectedLanes.length },
     });
-    for (const evidence of evidences) {
-      assert.deepStrictEqual(
-        fs.readFileSync(path.join(consumerRoot, evidence.sentinelRelativePath)),
-        evidence.sentinelBytes,
-        'observe must preserve every Sentinel evidence file byte-for-byte',
-      );
-    }
+    assert.ok(!Object.prototype.hasOwnProperty.call(status, 'migrationObservation'));
     assertNoHostWrites(hostHome);
   } finally {
     fs.rmSync(sandbox, { recursive: true, force: true });

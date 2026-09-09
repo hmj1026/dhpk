@@ -40,24 +40,31 @@ installer before any configuration questions. This replaces the retired
 3. Report the installer's copy/skip/conflict result and stop. Do not combine an
    asset installation with interactive plugin reconfiguration in the same run.
 
-When invoked with `--review-gate`, explicitly opt the consumer into the local
-Review Gate migration-observation checkpoint. Resolve the consumer root first,
-then run the dependency-free runtime setup operation:
+When invoked with `--review-gate`, explicitly initialize the consumer's local
+Review Gate runtime. Resolve the consumer root first, then run the
+dependency-free runtime setup operation:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/scripts/review-gate-runtime.js" \
-  init --repo-root "<project-root>"
+  init --repo-root "<project-root>" \
+  --host-public-key "<operator-supplied-public-key-path>" \
+  --host-key-id "sha256:<64-lowercase-hex>"
 ```
 
 Require exit `0` and a JSON result with
 `schema: "dhpk.review-gate.runtime.v1"` and `command: "init"`. Setup creates
 `.dhpk/review-gate/v1/integrity.key` as a regular `0600` file inside a private
 state directory. An existing regular key is retained and reported as already
-initialized; setup never overwrites it. A missing, non-regular, or unsafe key
-is a setup error. Do not generate the key lazily from `prepare`, `observe`, or
-`status`, and do not print its contents. This flag performs setup only; the
-Application Session still owns the later prepare, reviewer dispatch, and
-observe calls.
+initialized; setup never overwrites it. The host public key and its
+`sha256:` fingerprint must be supplied as a pair. Obtain the fingerprint
+through an independent operator-controlled channel; do not trust a fingerprint
+derived by the same untrusted process that selects the key path. The public-key
+file must be a regular private (`0600`) file with no symlinked path component,
+and its bytes must match the supplied fingerprint. Missing, malformed, unsafe,
+or mismatched host trust is a setup error. Do not generate a host key or the
+runtime integrity key lazily from `prepare`, `observe`, or `status`, and do not
+print private key material. This flag performs setup only; the Application
+Session still owns the later prepare, reviewer dispatch, and observe calls.
 
 Walk the user through configuring (or reconfiguring) the dhpk plugin **after**
 it is installed. The first install is typically done with the shell wrapper
@@ -86,7 +93,7 @@ The flow mirrors the wrapper so the user sees the same questions:
    `docs/docker-setup.md` for prerequisites and record the comma-separated
    names for that workflow if requested. `/dhpk:setup` does not register a
    Docker SessionStart check.
-4. **Review agents** — offer to override the seven slot defaults
+4. **Review agents** — offer to override the seven role defaults
    (`code-reviewer`, `database-reviewer`, `security-reviewer`,
    `frontend-reviewer`, `doc-reviewer`, `polyfill-reviewer`,
    `migration-reviewer`). Useful for projects whose agents live under different
@@ -118,7 +125,7 @@ $ARGUMENTS
 | Argument | Description |
 |----------|-------------|
 | `--show` | Skip the questions; just print the current effective configuration. |
-| `--review-gate` | Explicitly initialize the opt-in local Review Gate migration-observation checkpoint; does not dispatch reviewers or change Sentinel authority. |
+| `--review-gate` | Explicitly initialize the opt-in local Review Gate checkpoint; it does not dispatch reviewers or alter the current Review Gate authority. |
 | `--install hooks\|rules\|scripts\|all` | Install selected assets into `<project>/.claude/dhpk`; accepts `--dry-run` and `--force`. |
 
 ## Use AskUserQuestion
@@ -163,5 +170,5 @@ Next steps:
 ```
 /dhpk:setup            # full interactive flow
 /dhpk:setup --show     # print current config and exit
-/dhpk:setup --review-gate  # explicit local migration-observation setup
+/dhpk:setup --review-gate  # initialize local Review Gate runtime
 ```

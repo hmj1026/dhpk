@@ -3,10 +3,9 @@
 Contract version: `dhpk.reviewer-contract.v2`
 
 This is the platform-neutral contract for reviewer requests, findings, and
-results. It can be exercised during the Review Gate migration, but it does not
-change current runtime authority: Sentinel remains authoritative until the
-approved migration phase changes it. Compatibility translation is an
-observation of existing evidence, never a new approval or lifecycle clearance.
+results. The Review Gate is current runtime authority. Compatibility
+translation is an observation of legacy evidence only; it is never a new
+approval, lifecycle clearance, or active dispatch path.
 
 The executable definitions live in `scripts/lib/reviewer-contract.js`, and the
 shared conformance example lives in
@@ -52,14 +51,25 @@ Every result also binds `contractVersion`, `obligationId`, and `lane`, and recor
 `findings`, `inspectedScope`, and `evidenceReferences`. A `PASS` result cannot
 contain a `MUST_FIX` finding.
 
-## Structured migration companion
+For the public filesystem-backed `review-gate-runtime observe` boundary, the
+caller must supply a separate host-issued cross-trust attestation envelope in
+addition to the Review Gate result. The host verifies the envelope with its
+configured key; it binds the prepared plan and the four evidence-file digests.
+`evidenceReferences` may reference those evidence digests but is not a
+substitute for the envelope. Programmatic `ReviewGate`, adapter, and
+`WorkflowCoordinator` calls are trusted in-process ports and do not require
+this filesystem transport attestation. Reviewers and local receipt writers
+cannot self-issue or substitute the envelope; malformed, foreign, or
+mismatched envelope evidence cannot authorize target progress.
+
+## Historical structured migration companion
 
 When the opt-in production migration-observation checkpoint is active, the
 reviewer emits two sibling artifacts for each lane: the normal Markdown report
 and a same-stem `<review-artifact-stem>.result.json` companion. The Markdown is
 for human reading. The companion is the machine contract and is validated
 without parsing or translating the Markdown. The same shape applies to all
-seven Sentinel lanes; lane-specific checks remain in the lane charter, not in
+seven reviewer lanes; lane-specific checks remain in the lane charter, not in
 this schema.
 
 The companion schema is `dhpk.claude-review-result.v1`:
@@ -102,7 +112,7 @@ repository-relative references; the companion's `requestDigest`,
 content and identity binding. Unknown major schemas, missing identity, foreign
 or stale identity, extra raw-evidence fields, and a `PASS` result containing
 `MUST_FIX` findings fail closed. A valid companion is review evidence for the
-caller to submit; it is not by itself a Sentinel-clearance signal or a
+caller to submit; it is not by itself a lifecycle transition or
 migration-phase transition.
 
 ## Findings
@@ -129,7 +139,7 @@ scope, evidence references, and the verdict. Do not emit chain-of-thought,
 repeat full inputs, restate the full diff, or copy complete test logs and generic
 checklists.
 
-## Legacy verdict compatibility
+## Historical legacy verdict compatibility
 
 The compatibility adapter translates the same completed legacy judgment; it
 does not invoke a reviewer, issue an approval receipt, create a new approval, or
@@ -151,12 +161,12 @@ with `authorizesApproval: false` and `clearsSentinel: false`. Empty diffs are
 `NOT_APPLICABLE`; unchanged valid evidence is reused as lifecycle evidence without
 inventing another `PASS`.
 
-## Legacy Sentinel dispatch compatibility
+## Legacy Sentinel dispatch compatibility (historical only)
 
-The remainder of this document preserves the currently deployed dispatch and
-artifact behavior. These rules remain authoritative during BASELINE (the phase
-in which Sentinel alone remains authoritative) and are not redefined by the v2
-contract above.
+The remainder of this document preserves the pre-retirement dispatch and
+artifact behavior for historical migration evidence. It is not authoritative
+for current Review Gate dispatch and is not redefined as an active `.pending-*`
+workflow by the v2 contract above.
 
 ### Shared reviewer dispatch fields
 

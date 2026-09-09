@@ -129,8 +129,6 @@ class CiReviewGateAdapter {
       evidenceType: EVIDENCE_TYPE,
       activation,
       effect: ACTIVATION_EFFECTS[activation],
-      authority: 'SENTINEL',
-      allowsTargetProgress: false,
     });
   }
 

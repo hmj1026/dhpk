@@ -57,33 +57,33 @@ For example, a package may be `PASS` while a required runtime probe is
 platform matrix: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`,
 `cursor-plugin`, `agent-plugin`, and `agy-plugin`.
 
-## Review Gate migration-observation checkpoint
+## Review Gate runtime checkpoint
 
-Review Gate migration observation is a separate, explicit execution path; it
-is not a harness phase and is not bridged from deterministic hooks. A consumer
-must first opt in with `/dhpk:setup --review-gate`, which creates the private
-local integrity key. The Application Session then runs the single
-`scripts/review-gate-runtime.js` CLI in this order:
+The Review Gate runtime is an explicit, dependency-free composition path for
+durable reviewer obligations. A consumer opts in with `/dhpk:setup
+--review-gate`, which creates the private local integrity key. The Application
+Session then runs the single `scripts/review-gate-runtime.js` CLI in this
+order:
 
 ```text
 init (setup) -> prepare (Work Request and plan) -> reviewer batch
-  -> lifecycle/readiness/cost evidence -> observe (one obligation/lane at a time)
+  -> lifecycle/readiness evidence -> observe (one obligation/lane at a time)
 ```
 
 `prepare` consumes the canonical Work Request JSON, runs the Risk Router, and
 returns the registered Review Plan plus one immutable Review Request for each
 applicable lane. It does not invoke reviewers. The Session owns the parallel
-seven-lane dispatch and invokes `observe` only after every selected lane has
-written its Markdown artifact and structured companion. The Claude adapter and
-Migration Coordinator translate and record the observation; they do not select
-lanes, dispatch reviewers, clear Sentinel, or promote a migration phase.
+reviewer dispatch and invokes `observe` only after every selected lane has
+written its Markdown artifact and structured companion. The Claude adapter
+records the validated Review Gate result; it does not select lanes or dispatch
+reviewers.
 
 The CLI result envelope is `dhpk.review-gate.runtime.v1`. It reports the
 command, bounded status, plan/obligation identity when applicable, and
-redacted diagnostic codes. `observe` returns the migration comparison/effect,
-observation identity, and telemetry status. A successful envelope is
-diagnostic migration evidence, not a reviewer verdict, lifecycle clearance,
-Implementation Complete, or target progress.
+redacted diagnostic codes. `observe` returns the durable Review Gate result,
+obligation identity, and receipt summary. A successful envelope is lifecycle
+evidence; it does not replace the review contract or infer completion for a
+different obligation.
 
 Each lane's machine companion is a same-stem
 `<review-artifact-stem>.result.json` with schema
@@ -96,14 +96,11 @@ rejects unknown major schemas and missing, foreign, stale, malformed, or
 extra raw-evidence fields; it does not parse Markdown to recover a verdict.
 
 An invalid or unavailable `prepare`/`observe` operation exits nonzero and
-writes a redacted diagnostic sidecar. The current Sentinel lifecycle continues
-and remains authoritative in `BASELINE`/`OBSERVE`; the failure cannot arm or
-clear Sentinel. In an enforcing phase the missing or invalid observation is
-unresolved and fails closed. Accepted-Outcome Cost counters that are missing
-or unavailable remain `null` with named failure reasons. Partial or failed
-telemetry remains diagnostic and sets `retirementEligible: false`; this v1
-keeps the current per-obligation/lane grain and defers wave-level aggregation
-and retirement deduplication to #375.
+writes a redacted diagnostic sidecar. The obligation remains unresolved until
+the orchestrator receives a matching identity-bound result; no hook or file
+marker can satisfy it. Missing, foreign, stale, malformed, or failed evidence
+fails closed. Runtime evidence is diagnostic until the normal Review Gate
+completion rules record every applicable reviewer verdict.
 
 ## Receipts and resume
 

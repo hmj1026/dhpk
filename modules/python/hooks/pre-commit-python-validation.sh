@@ -39,7 +39,7 @@ case "$cmd" in
 esac
 
 if echo "$cmd" | grep -Fq '[skip-python-lint]'; then
-    echo "[pre-commit-py] [skip-python-lint] sentinel found in command; bypassing" >&2
+    echo "[pre-commit-py] [skip-python-lint] skip marker found in command; bypassing" >&2
     exit 0
 fi
 

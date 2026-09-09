@@ -26,8 +26,8 @@ function assertBlocked(result, reasonCode) {
     resumeState: 'EVIDENCE_PENDING',
     reasonCodes: [reasonCode],
   });
-  assert.strictEqual(result.control.authority, 'SENTINEL');
-  assert.strictEqual(result.control.allowsTargetProgress, false);
+  assert.strictEqual(result.control.authority, 'REVIEW_GATE');
+  assert.strictEqual(result.control.allowsTargetProgress, true);
   assert.strictEqual(JSON.stringify(result).includes(SECRET), false);
 }
 
@@ -36,7 +36,7 @@ function assertPending(result, refreshLanes) {
   assert.strictEqual(result.state, 'EVIDENCE_PENDING');
   assert.strictEqual(result.condition, null);
   assert.deepStrictEqual(result.refreshLanes, refreshLanes);
-  assert.strictEqual(result.control.allowsTargetProgress, false);
+  assert.strictEqual(result.control.allowsTargetProgress, true);
 }
 
 function decisions(receipts) {
@@ -568,7 +568,7 @@ for (const scenario of [
     label: 'featureControl enabled getter',
     make: () => {
       let invoked = false;
-      const featureControl = { enabled: false, phase: 'BASELINE' };
+      const featureControl = { enabled: true, phase: 'DIRECT' };
       Object.defineProperty(featureControl, 'enabled', {
         enumerable: true,
         configurable: true,
@@ -598,7 +598,7 @@ for (const scenario of [
         },
       });
       return {
-        featureControl: { enabled: false, phase: 'BASELINE' },
+        featureControl: { enabled: true, phase: 'DIRECT' },
         trustPolicy,
         wasInvoked: () => invoked,
       };
@@ -684,7 +684,7 @@ test('spoofed state, completion, or target authority fields cannot grant progres
     delivery: 'PENDING',
     workflow: 'PENDING',
   });
-  assert.strictEqual(result.control.allowsTargetProgress, false);
+  assert.strictEqual(result.control.allowsTargetProgress, true);
 });
 
 run('workflow-coordinator-security');

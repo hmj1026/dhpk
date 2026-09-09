@@ -3,6 +3,10 @@
 ## Purpose
 TBD - created by archiving change dhpk-orchestration-workers. Update Purpose after archive.
 ## Requirements
+> Retired compatibility note: sentinel-specific dispatch and clearance clauses
+> below describe the former compatibility workflow. Current implementation
+> review is selected from the Review Gate trigger table and completed by a
+> durable reviewer obligation.
 ### Requirement: Dispatch decision table in execution-policy (SSOT)
 
 `rules/execution-policy.md` SHALL define an "Implementation dispatch" section — the single source of truth for implement-phase routing while `orchestration_dispatch=on`:

@@ -17,19 +17,10 @@ const {
 const {
   REVIEW_RESULT_RECORDED,
 } = require('./review-gate');
-const {
-  normalizeBaselineLegacyObservation,
-  normalizeLegacyObservation,
-} = require('./claude-review-gate-legacy-observation');
-const { createRuntimeProvenance } = require('./review-gate-runtime-provenance');
 
 const ADAPTER_NAME = 'claude-review-gate';
 const ADAPTER_VERSION = 'claude-review-gate.v1';
-const OBSERVATION_SCHEMA = 'dhpk.review-gate.migration-observation.v1';
-const MIGRATION_POLICY_VERSION = 'dhpk.migration-policy.v1';
-const MIGRATION_CONTRACT_VERSION = 'dhpk.review-gate.migration.v1';
-const MIGRATION_EVENT_TYPE = 'MIGRATION_OBSERVATION_RECORDED';
-const MIGRATION_RECEIPT_KIND = 'migration-observation';
+const SUBMISSION_SCHEMA = 'dhpk.review-gate.claude-submission.v1';
 const MAX_EVENTS = 10000;
 const MAX_STRING_BYTES = 4096;
 const MAX_ID_LENGTH = 128;
@@ -65,7 +56,6 @@ const IDENTITY_FIELDS = Object.freeze([
   'diffId',
 ]);
 const REVIEW_VERDICTS = new Set(['PASS', 'CHANGES_REQUIRED', 'BLOCKED']);
-const PHASES = new Set(['BASELINE', 'OBSERVE', 'DUAL_ENFORCE', 'CUTOVER']);
 const LIFECYCLE_STATES = new Set([
   'planned',
   'dispatched',
@@ -86,6 +76,12 @@ const LIFECYCLE_VERDICTS = new Set([
   'BLOCK',
   'FAIL',
   'WARNING',
+]);
+const LIFECYCLE_EXCEPTION_STATES = new Set([
+  'failed-start',
+  'quota-blocked',
+  'blocked',
+  'incomplete',
 ]);
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -213,10 +209,14 @@ const assertSameIdentity = (expected, actual) => {
   }
 };
 
-const validateEvidenceEvents = (events, identity, { readiness = false } = {}) => {
+const validateEvidenceEvents = (events, identity, {
+  readiness = false,
+  required = true,
+  terminal = 'VERDICT',
+} = {}) => {
   if (!Array.isArray(events) || events.length > MAX_EVENTS) fail('BOUNDED_INPUT');
   let readyDigest = null;
-  let terminalVerdict = false;
+  const terminalEvents = [];
   for (const event of events) {
     assertRecord(event, readiness ? 'MALFORMED_READINESS' : 'MALFORMED_LIFECYCLE');
     if (event.schema_version !== 1) fail(readiness ? 'MALFORMED_READINESS' : 'MALFORMED_LIFECYCLE');
@@ -228,7 +228,17 @@ const validateEvidenceEvents = (events, identity, { readiness = false } = {}) =>
       if (!LIFECYCLE_STATES.has(event.state)) fail('MALFORMED_LIFECYCLE');
       if (event.state === 'verdicted') {
         if (!LIFECYCLE_VERDICTS.has(event.verdict)) fail('MALFORMED_LIFECYCLE');
-        terminalVerdict = true;
+        terminalEvents.push({
+          event,
+          state: event.state,
+          verdict: canonicalVerdict(event.verdict),
+        });
+      } else if (LIFECYCLE_EXCEPTION_STATES.has(event.state)) {
+        terminalEvents.push({
+          event,
+          state: event.state,
+          verdict: null,
+        });
       }
     }
     const eventIds = eventIdentity(event);
@@ -239,9 +249,33 @@ const validateEvidenceEvents = (events, identity, { readiness = false } = {}) =>
       readyDigest = digest;
     }
   }
-  if (readiness && !readyDigest) fail('MISSING_READINESS');
-  if (!readiness && !terminalVerdict) fail('MISSING_VERDICT');
-  return readiness ? readyDigest : terminalVerdict;
+  if (readiness && required && !readyDigest) fail('MISSING_READINESS');
+  if (readiness) return readyDigest;
+  const verdictEvents = terminalEvents.filter(({ state }) => state === 'verdicted');
+  const exceptionEvents = terminalEvents.filter(({ state }) => state !== 'verdicted');
+  if (terminal === 'VERDICT') {
+    if (verdictEvents.length === 0) fail('MISSING_VERDICT');
+    if (verdictEvents.length !== 1 || exceptionEvents.length > 0) {
+      fail('CONTRADICTORY_VERDICT');
+    }
+    const terminalEvent = verdictEvents[0];
+    if (!terminalEvent.verdict) fail('MALFORMED_LIFECYCLE');
+    return {
+      eventId: normalizeStatus(readAlias(terminalEvent.event, ['event_id', 'eventId'])) || null,
+      state: terminalEvent.state,
+      verdict: terminalEvent.verdict,
+    };
+  }
+  if (verdictEvents.length > 0 || exceptionEvents.length !== 1) {
+    if (exceptionEvents.length === 0) fail('MISSING_VERDICT');
+    fail('CONTRADICTORY_VERDICT');
+  }
+  const terminalEvent = exceptionEvents[0];
+  return {
+    eventId: normalizeStatus(readAlias(terminalEvent.event, ['event_id', 'eventId'])) || null,
+    state: terminalEvent.state,
+    verdict: null,
+  };
 };
 
 const normalizeScope = (plan) => {
@@ -336,83 +370,13 @@ const normalizeCommands = (commands) => {
   });
 };
 
-const comparisonFor = (sentinel, gate) => {
-  const sentinelVerdict = canonicalVerdict(sentinel.verdict || sentinel.outcome || sentinel.status);
-  const gateVerdict = canonicalVerdict(gate.semanticVerdict);
-  if (!sentinelVerdict || !gateVerdict) return 'INDETERMINATE';
-  return sentinelVerdict === gateVerdict ? 'AGREE' : 'DISAGREE';
-};
-
-const dualAllowsProgress = (context, gate, comparison) => (
-  context.input.phase === 'DUAL_ENFORCE'
-  && comparison === 'AGREE'
-  && canonicalVerdict(context.sentinel.verdict || context.sentinel.outcome || context.sentinel.status) === 'PASS'
-  && ['PASS', 'CLEARED'].includes(context.sentinel.status)
-  && gate.accepted === true
-  && gate.allowsProgress === true
-  && gate.lifecycleStatus === 'RESOLVED'
-  && gate.executionStatus === 'COMPLETE'
-  && gate.applicability === 'REQUIRED'
-  && gate.semanticVerdict === 'PASS'
-  && gate.blockingReasons.length === 0
-);
-
-const cutoverAllowsProgress = (context, gate, comparison) => (
-  context.input.phase === 'CUTOVER'
-  && comparison !== 'DISAGREE'
-  && gate.accepted === true
-  && gate.allowsProgress === true
-  && gate.lifecycleStatus === 'RESOLVED'
-  && gate.executionStatus === 'COMPLETE'
-  && gate.applicability === 'REQUIRED'
-  && gate.semanticVerdict === 'PASS'
-  && gate.blockingReasons.length === 0
-);
-
-const identityDigest = (
-  identity,
-  phase,
-  adapter,
-  version,
-  lifecycleEvents,
-  readinessEvents,
-  gate,
-  sentinel,
-  acceptedOutcomeCost,
-) => {
-  const compact = {
-    identity,
-    phase,
-    adapter,
-    version,
-    lifecycleEventIds: lifecycleEvents.map((event) => normalizeStatus(readAlias(event, ['event_id', 'eventId'])) || 'unknown'),
-    readinessEventIds: readinessEvents.map((event) => normalizeStatus(readAlias(event, ['event_id', 'eventId'])) || 'unknown'),
-    gate: {
-      accepted: gate.accepted,
-      semanticVerdict: gate.semanticVerdict || null,
-      lifecycleStatus: gate.lifecycleStatus,
-    },
-    sentinel: {
-      status: sentinel.status || null,
-      verdict: sentinel.verdict || null,
-      outcome: sentinel.outcome || null,
-      lifecycleEventId: sentinel.lifecycleEventId || null,
-    },
-    acceptedOutcomeCost: {
-      observationId: acceptedOutcomeCost.observationId,
-      acceptedOutcome: acceptedOutcomeCost.acceptedOutcome,
-      metrics: acceptedOutcomeCost.metrics,
-      telemetryStatus: acceptedOutcomeCost.telemetryStatus,
-      telemetryFailureCount: acceptedOutcomeCost.telemetryFailureCount,
-    },
-  };
-  return `sha256:${sha256(canonicalJson(compact))}`;
-};
-
 const boundedEventIds = (events) => events
   .slice(0, 200)
   .map((event) => normalizeStatus(readAlias(event, ['event_id', 'eventId'])))
   .filter(Boolean);
+
+const evidenceDigest = (events) => `sha256:${sha256(canonicalJson(events))}`;
+const valueDigest = (value) => `sha256:${sha256(canonicalJson(value))}`;
 
 const readinessArtifactDigest = (events) => {
   let digest = null;
@@ -438,30 +402,62 @@ const requireArtifactEvidence = (reviewResult, artifactDigest) => {
   if (!matches) fail('MISSING_ARTIFACT_EVIDENCE');
 };
 
-const makeEventId = (observation, producer, adapter) => (
-  `migration-observation-${sha256(canonicalJson({
-    phase: observation.phase,
-    workId: observation.workId,
-    planId: observation.planId,
-    waveId: observation.waveId,
-    taskId: observation.taskId,
-    attemptId: observation.attemptId,
-    sessionId: observation.sessionId,
-    dispatchId: observation.dispatchId,
-    obligationId: observation.obligationId,
-    lane: observation.lane,
-    comparison: observation.comparison,
+const makeEventId = (submission, producer, adapter) => (
+  `claude-review-gate-${sha256(canonicalJson({
+    workId: submission.workId,
+    planId: submission.planId,
+    waveId: submission.waveId,
+    taskId: submission.taskId,
+    attemptId: submission.attemptId,
+    sessionId: submission.sessionId,
+    dispatchId: submission.dispatchId,
+    obligationId: submission.obligationId,
+    lane: submission.lane,
+    lifecycleDigest: submission.lifecycleDigest,
+    readinessDigest: submission.readinessDigest,
+    artifactDigest: submission.artifactDigest,
+    terminalLifecycleEventId: submission.terminalLifecycleEventId,
+    terminalLifecycleVerdict: submission.terminalLifecycleVerdict,
+    requestDigest: submission.requestDigest,
+    resultDigest: submission.resultDigest,
+    executedCommandsDigest: submission.executedCommandsDigest,
     producer,
     adapter,
   }))}`
 );
 
-function normalizeObservationContext(rawInput) {
+const eventIdForContext = (adapter, context, executedCommands) => makeEventId({
+  workId: context.plan.workId,
+  planId: context.plan.planId,
+  waveId: context.plan.waveId,
+  taskId: context.identity.taskId,
+  attemptId: context.identity.attemptId,
+  sessionId: context.identity.sessionId,
+  dispatchId: context.identity.dispatchId,
+  obligationId: context.obligation.obligationId,
+  lane: context.obligation.lane,
+  lifecycleDigest: context.lifecycleDigest,
+  readinessDigest: context.readinessDigest,
+  artifactDigest: context.artifactDigest,
+  terminalLifecycleEventId: context.lifecycleTerminal.eventId,
+  terminalLifecycleVerdict: context.lifecycleTerminal.verdict,
+  requestDigest: context.requestDigest,
+  resultDigest: context.resultDigest,
+  executedCommandsDigest: valueDigest(executedCommands),
+}, adapter.producer, adapter.adapter);
+
+const submissionEventId = (input, {
+  producer = 'claude-review-gate',
+  adapter = 'review-gate-adapter',
+} = {}) => {
+  const context = normalizeSubmissionContext(input);
+  const executedCommands = normalizeCommands(context.input.executedCommands);
+  return eventIdForContext({ producer, adapter }, context, executedCommands);
+};
+
+function normalizeSubmissionContext(rawInput) {
   assertRecord(rawInput, 'MALFORMED_INPUT');
   const input = assertBoundedInput(rawInput);
-  if (!PHASES.has(input.phase)) fail('UNSUPPORTED_PHASE');
-  const artifactReference = hasOwn(input, 'artifactReference')
-    ? runtimeProvenance.normalizeArtifactReference(input.artifactReference) : undefined;
   const identity = assertIdentity(input.identity);
   const plan = input.plan;
   assertRecord(plan, 'MALFORMED_PLAN');
@@ -469,33 +465,28 @@ function normalizeObservationContext(rawInput) {
   const scope = normalizeScope(plan);
   const diff = normalizeDiff(plan);
   if (!Array.isArray(plan.obligations) || plan.obligations.length === 0) fail('MALFORMED_PLAN');
+  assertRecord(input.reviewRequest, 'MALFORMED_REVIEW');
+  assertRecord(input.reviewResult, 'MALFORMED_REVIEW');
   const obligation = selectObligation(plan, input.reviewResult);
   assertRecord(obligation, 'MALFORMED_PLAN');
   safeId(obligation.obligationId, 'MALFORMED_PLAN');
   safeId(obligation.lane, 'MALFORMED_PLAN');
   const lifecycleEvents = evidenceCollection(input, 'lifecycleEvents', 'MALFORMED_LIFECYCLE');
   const readinessEvents = evidenceCollection(input, 'readinessEvents', 'MALFORMED_READINESS');
-  const legacyBaseline = input.phase === 'BASELINE'
-    && lifecycleEvents.length === 0 && readinessEvents.length === 0;
-  if (legacyBaseline && input.acceptedOutcomeCost !== undefined) fail('MALFORMED_INPUT');
-  if (!legacyBaseline) {
-    if (lifecycleEvents.length === 0) fail('MISSING_LIFECYCLE');
-    validateEvidenceEvents(lifecycleEvents, identity);
-    validateEvidenceEvents(readinessEvents, identity, { readiness: true });
+  if (lifecycleEvents.length === 0) fail('MISSING_LIFECYCLE');
+  const artifactBacked = input.reviewResult.executionStatus === 'COMPLETE'
+    && input.reviewResult.applicability === 'REQUIRED';
+  const lifecycleTerminal = validateEvidenceEvents(lifecycleEvents, identity, {
+    terminal: artifactBacked ? 'VERDICT' : 'EXCEPTION',
+  });
+  const readinessDigest = validateEvidenceEvents(readinessEvents, identity, {
+    readiness: true,
+    required: artifactBacked,
+  });
+  const artifactDigest = readinessArtifactDigest(readinessEvents);
+  if (artifactBacked && lifecycleTerminal.verdict !== input.reviewResult.semanticVerdict) {
+    fail('VERDICT_MISMATCH');
   }
-  const artifactDigest = legacyBaseline ? null : readinessArtifactDigest(readinessEvents);
-  const legacyObservation = legacyBaseline
-    ? normalizeBaselineLegacyObservation({
-      identity,
-      lifecycleEvents,
-      sentinelOutcome: input.sentinelOutcome,
-    })
-    : normalizeLegacyObservation({
-      identity,
-      lifecycleEvents,
-      sentinelOutcome: input.sentinelOutcome,
-      acceptedOutcomeCost: input.acceptedOutcomeCost,
-    });
   return {
     input,
     identity,
@@ -506,43 +497,22 @@ function normalizeObservationContext(rawInput) {
     lifecycleEvents,
     readinessEvents,
     artifactDigest,
-    artifactReference,
-    sentinel: legacyObservation.sentinelOutcome,
-    acceptedOutcomeCost: legacyObservation.acceptedOutcomeCost,
-    lifecycleEventId: legacyObservation.lifecycleEventId,
-    costObservationId: legacyObservation.costObservationId,
-    legacyCost: legacyObservation.legacyCost,
+    lifecycleTerminal,
+    lifecycleDigest: evidenceDigest(lifecycleEvents),
+    readinessDigest: evidenceDigest(readinessEvents),
+    requestDigest: valueDigest(input.reviewRequest),
+    resultDigest: valueDigest(input.reviewResult),
   };
 }
 
-const runtimeProvenance = createRuntimeProvenance({
-  normalizeObservationContext,
-  normalizeCommands,
-  identityDigest,
-  fail,
-});
-
-const runtimeObservationProvenanceDigest = (input) => runtimeProvenance.digest(input);
-
 function buildReviewGateEvent(adapter, context, executedCommands) {
   const { input, plan, identity, obligation } = context;
+  const eventId = eventIdForContext(adapter, context, executedCommands);
   return {
     schema: STORE_EVENT_SCHEMA,
-    eventId: makeEventId({
-      phase: input.phase,
-      workId: plan.workId,
-      planId: plan.planId,
-      waveId: plan.waveId,
-      taskId: identity.taskId,
-      attemptId: identity.attemptId,
-      sessionId: identity.sessionId,
-      dispatchId: identity.dispatchId,
-      obligationId: obligation.obligationId,
-      lane: obligation.lane,
-      comparison: 'pending',
-    }, adapter.producer, adapter.adapter),
+    eventId,
     eventType: REVIEW_RESULT_RECORDED,
-    effect: ['DUAL_ENFORCE', 'CUTOVER'].includes(input.phase) ? 'ENFORCE' : 'OBSERVE_ONLY',
+    effect: 'ENFORCE',
     workId: plan.workId,
     waveId: plan.waveId,
     planId: plan.planId,
@@ -576,203 +546,67 @@ function invokeReviewGate(adapter, context, event) {
   return gateResult;
 }
 
-function recordReviewGateObservation(adapter, context, normalizedCommands = null) {
-  if (!['OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'].includes(context.input.phase)) {
-    return { gateResult: null, gate: normalizeGate(null), executedCommands: null };
-  }
-  const { input, artifactDigest } = context;
-  assertRecord(input.reviewRequest, 'MALFORMED_REVIEW');
-  assertRecord(input.reviewResult, 'MALFORMED_REVIEW');
-  requireArtifactEvidence(input.reviewResult, artifactDigest);
-  const commands = normalizedCommands || normalizeCommands(input.executedCommands);
-  const event = buildReviewGateEvent(adapter, context, commands);
-  try {
-    const gateResult = invokeReviewGate(adapter, context, event);
-    return {
-      gateResult,
-      gate: normalizeGate(gateResult, event.eventId),
-      reasonCodes: [],
-      executedCommands: commands,
-    };
-  } catch (error) {
-    // Enforcement phases must leave a durable, fail-closed diagnostic when
-    // the authority cannot produce a trusted result. OBSERVE retains its
-    // historical rejection behavior.
-    if (!['DUAL_ENFORCE', 'CUTOVER'].includes(context.input.phase)) throw error;
-    return {
-      gateResult: null,
-      gate: normalizeGate(null, event.eventId),
-      reasonCodes: [error && SAFE_CODE.test(error.code) ? error.code : 'REVIEW_GATE_FAILED'],
-      executedCommands: commands,
-    };
-  }
-}
-
-function buildObservationProvenance(
-  adapter,
-  context,
-  gate,
-  eventId,
-  recordedAt,
-  normalizedCommands = null,
-) {
-  const provenance = {
-    digest: runtimeProvenance.digestFromContext({
-      context,
-      gate,
-      adapter: adapter.adapter,
-      adapterVersion: adapter.adapterVersion,
-      normalizedCommands,
-    }),
-    reference: `adapter:${ADAPTER_NAME}`,
+function buildSubmissionReceipt(adapter, context, gate, eventId, recordedAt, executedCommands) {
+  const { plan, identity, obligation } = context;
+  const lifecycleEventIds = boundedEventIds(context.lifecycleEvents);
+  const readinessEventIds = boundedEventIds(context.readinessEvents);
+  const receiptId = `${eventId}:receipt`;
+  return immutable({
+    schema: SUBMISSION_SCHEMA,
     producer: adapter.producer,
     adapter: adapter.adapter,
     adapterVersion: adapter.adapterVersion,
+    reviewerContractVersion: REVIEWER_CONTRACT_VERSION,
     eventId,
-    receiptId: `${eventId}:receipt`,
-    policyVersion: MIGRATION_POLICY_VERSION,
-    contractVersion: MIGRATION_CONTRACT_VERSION,
-    sourceCommit: context.plan.headIdentity && context.plan.headIdentity.commit,
-    sourceTree: context.plan.headIdentity && context.plan.headIdentity.tree,
+    receiptId,
     recordedAt,
-    lifecycleEventIds: boundedEventIds(context.lifecycleEvents),
-    readinessEventIds: boundedEventIds(context.readinessEvents),
-    costObservationId: context.costObservationId,
-  };
-  if (context.lifecycleEventId) provenance.lifecycleEventId = context.lifecycleEventId;
-  if (context.artifactDigest) provenance.artifactDigest = context.artifactDigest;
-  return provenance;
-}
-
-function observationHeader(context, comparison) {
-  const { input } = context;
-  return {
-    schema: OBSERVATION_SCHEMA,
-    phase: input.phase,
-    comparison,
-    authority: input.phase === 'DUAL_ENFORCE'
-      ? 'SENTINEL_AND_REVIEW_GATE' : input.phase === 'CUTOVER' ? 'REVIEW_GATE' : 'SENTINEL',
-    effect: input.phase === 'BASELINE'
-      ? 'DISABLED' : ['DUAL_ENFORCE', 'CUTOVER'].includes(input.phase) ? 'ENFORCE' : 'OBSERVE_ONLY',
-    automaticPromotion: false,
-    retirementEligible: false,
-  };
-}
-
-function observationMetadata(adapter, context, eventId, recordedAt) {
-  const { input, plan } = context;
-  return {
-    producer: adapter.producer,
-    adapter: adapter.adapter,
-    adapterVersion: adapter.adapterVersion,
-    policyVersion: MIGRATION_POLICY_VERSION,
-    contractVersion: MIGRATION_CONTRACT_VERSION,
     sourceCommit: plan.headIdentity && plan.headIdentity.commit,
     sourceTree: plan.headIdentity && plan.headIdentity.tree,
-    recordedAt,
-    eventId,
-    receiptId: `${eventId}:receipt`,
-  };
-}
-
-function observationIdentity(context) {
-  const { plan, identity, obligation } = context;
-  return {
     workId: plan.workId,
     decisionId: plan.decisionId,
     planId: plan.planId,
     waveId: plan.waveId,
     obligationId: obligation.obligationId,
     lane: obligation.lane,
-    taskId: identity.taskId,
-    attemptId: identity.attemptId,
-    attempt: identity.attempt,
-    sessionId: identity.sessionId,
-    dispatchId: identity.dispatchId,
-    scopeId: identity.scopeId,
-    diffId: identity.diffId,
     identity,
-  };
-}
-
-function observationEvidence(context, gate) {
-  const { scope, diff, sentinel, acceptedOutcomeCost } = context;
-  const evidence = {
-    scope,
-    diff,
-    sentinelStatus: normalizeStatus(sentinel.status || sentinel.outcome || sentinel.verdict)
-      || canonicalVerdict(sentinel.verdict || sentinel.outcome || sentinel.status)
-      || 'UNKNOWN',
+    scope: context.scope,
+    diff: context.diff,
     reviewGateStatus: gate.status || 'NOT_RUN',
-    sentinelOutcome: sentinel,
     reviewGate: gate,
-    acceptedOutcomeCost,
-  };
-  if (context.legacyCost) evidence.cost = context.legacyCost;
-  return evidence;
-}
-
-function buildMigrationObservation(adapter, context, gate, comparison, provenance, eventId, recordedAt, reasonCodes = []) {
-  return immutable({
-    ...observationHeader(context, comparison),
-    ...observationMetadata(adapter, context, eventId, recordedAt),
-    ...observationIdentity(context),
-    ...observationEvidence(context, gate),
-    authorizesApproval: false,
-    clearsSentinel: false,
-    blocksSentinel: false,
-    allowsTargetProgress: context.input.phase === 'CUTOVER'
-      ? cutoverAllowsProgress(context, gate, comparison)
-      : dualAllowsProgress(context, gate, comparison),
-    ...(reasonCodes.length > 0 ? { reasonCodes: [...new Set(reasonCodes)] } : {}),
-    liveness: 'COMPATIBILITY_ONLY',
-    processLivenessRole: 'COMPATIBILITY_ONLY',
-    provenance,
+    lifecycleEventIds,
+    readinessEventIds,
+    artifactDigest: context.artifactDigest,
+    provenance: {
+      eventId,
+      receiptId,
+      lifecycleEventIds,
+      readinessEventIds,
+      lifecycleDigest: context.lifecycleDigest,
+      readinessDigest: context.readinessDigest,
+      artifactDigest: context.artifactDigest,
+      terminalLifecycleEventId: context.lifecycleTerminal.eventId,
+      terminalLifecycleVerdict: context.lifecycleTerminal.verdict,
+      requestDigest: context.requestDigest,
+      resultDigest: context.resultDigest,
+      executedCommandsDigest: valueDigest(executedCommands),
+    },
   });
-}
-
-function persistMigrationObservation(adapter, context, observation, gateResult) {
-  const { input } = context;
-  const expectedRevision = input.expectedRevision === undefined ? 0 : assertExpectedRevision(input.expectedRevision);
-  const expectedChainDigest = input.expectedChainDigest === undefined ? null : input.expectedChainDigest;
-  const coordinatorRevision = ['OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'].includes(input.phase)
-    && gateResult && Number.isSafeInteger(gateResult.revision) && gateResult.revision >= 0
-    ? gateResult.revision : expectedRevision;
-  const coordinatorChainDigest = ['OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'].includes(input.phase)
-    && gateResult && typeof gateResult.chainDigest === 'string'
-    ? gateResult.chainDigest : expectedChainDigest;
-  let recording;
-  try {
-    recording = adapter.migrationCoordinator.record({
-      expectedRevision: coordinatorRevision,
-      expectedChainDigest: coordinatorChainDigest,
-      observation,
-    });
-  } catch (_) {
-    fail('RECORDING_FAILED');
-  }
-  return isRecord(recording)
-    ? { ...recording, observation, reviewGate: gateResult }
-    : { status: 'RECORDED', observation, reviewGate: gateResult };
 }
 
 class ClaudeReviewGateAdapter {
   constructor({
     reviewGate,
-    migrationCoordinator,
-    producer = 'claude-migration',
+    producer = 'claude-review-gate',
     adapter = 'review-gate-adapter',
     adapterVersion = ADAPTER_VERSION,
     now = () => Date.now(),
   } = {}) {
     if (!reviewGate || typeof reviewGate.handle !== 'function') fail('CONFIGURATION');
-    if (!migrationCoordinator || typeof migrationCoordinator.record !== 'function') fail('CONFIGURATION');
     if (typeof now !== 'function') fail('CONFIGURATION');
     safeId(producer, 'CONFIGURATION');
     safeId(adapter, 'CONFIGURATION');
     assertText(adapterVersion, { code: 'CONFIGURATION' });
     this.reviewGate = reviewGate;
-    this.migrationCoordinator = migrationCoordinator;
     this.producer = producer;
     this.adapter = adapter;
     this.adapterVersion = adapterVersion;
@@ -781,21 +615,11 @@ class ClaudeReviewGateAdapter {
       adapter: ADAPTER_NAME,
       version: adapterVersion,
       storeEventSchema: STORE_EVENT_SCHEMA,
-      migrationObservationReceiptKind: MIGRATION_RECEIPT_KIND,
+      submissionReceiptSchema: SUBMISSION_SCHEMA,
       reviewerContractVersion: REVIEWER_CONTRACT_VERSION,
-      phases: ['BASELINE', 'OBSERVE', 'DUAL_ENFORCE', 'CUTOVER'],
-      authority: 'SENTINEL',
-      authorities: {
-        BASELINE: 'SENTINEL',
-        OBSERVE: 'SENTINEL',
-        DUAL_ENFORCE: 'SENTINEL_AND_REVIEW_GATE',
-        CUTOVER: 'REVIEW_GATE',
-      },
-      effects: {
-        BASELINE: 'DISABLED', OBSERVE: 'OBSERVE_ONLY', DUAL_ENFORCE: 'ENFORCE', CUTOVER: 'ENFORCE',
-      },
       explicitInvocationOnly: true,
-      processLivenessRole: 'COMPATIBILITY_ONLY',
+      authority: 'REVIEW_GATE',
+      effect: 'ENFORCE',
     });
   }
 
@@ -803,59 +627,35 @@ class ClaudeReviewGateAdapter {
     return this._capabilities;
   }
 
-  observe(input = {}) {
-    const context = normalizeObservationContext(input);
-    const { gateResult, gate, reasonCodes, executedCommands } = recordReviewGateObservation(this, context);
-    const comparison = context.input.phase === 'BASELINE' ? 'INDETERMINATE' : comparisonFor(context.sentinel, gate);
-    const eventId = makeEventId({
-      phase: context.input.phase,
-      workId: context.plan.workId,
-      planId: context.plan.planId,
-      waveId: context.plan.waveId,
-      taskId: context.identity.taskId,
-      attemptId: context.identity.attemptId,
-      sessionId: context.identity.sessionId,
-      dispatchId: context.identity.dispatchId,
-      obligationId: context.obligation.obligationId,
-      lane: context.obligation.lane,
-      comparison,
-    }, this.producer, this.adapter);
+  record(input = {}) {
+    const context = normalizeSubmissionContext(input);
+    const reviewResult = context.input.reviewResult;
+    if (reviewResult.executionStatus === 'COMPLETE'
+      && reviewResult.applicability === 'REQUIRED') {
+      requireArtifactEvidence(reviewResult, context.artifactDigest);
+    }
+    const executedCommands = normalizeCommands(context.input.executedCommands);
+    const event = buildReviewGateEvent(this, context, executedCommands);
+    const gateResult = invokeReviewGate(this, context, event);
+    const gate = normalizeGate(gateResult, event.eventId);
     const recordedAt = normalizeTimestamp(this.now);
-    const provenance = buildObservationProvenance(
+    const receipt = buildSubmissionReceipt(
       this,
       context,
       gate,
-      eventId,
+      event.eventId,
       recordedAt,
       executedCommands,
     );
-    const diagnosticReasons = (
-      (context.input.phase === 'DUAL_ENFORCE' && comparison !== 'AGREE')
-      || (context.input.phase === 'CUTOVER' && comparison === 'DISAGREE')
-    ) ? [...reasonCodes, 'DUAL_ENFORCEMENT_DISAGREEMENT'] : reasonCodes;
-    const observation = buildMigrationObservation(
-      this,
-      context,
-      gate,
-      comparison,
-      provenance,
-      eventId,
-      recordedAt,
-      diagnosticReasons,
-    );
-    return persistMigrationObservation(this, context, observation, gateResult);
+    return { receipt, reviewGate: gateResult };
   }
 }
 
 module.exports = {
   ADAPTER_NAME,
   ADAPTER_VERSION,
-  OBSERVATION_SCHEMA,
-  MIGRATION_POLICY_VERSION,
-  MIGRATION_CONTRACT_VERSION,
-  MIGRATION_EVENT_TYPE,
-  MIGRATION_RECEIPT_KIND,
-  runtimeObservationProvenanceDigest,
+  SUBMISSION_SCHEMA,
   ClaudeReviewGateAdapter,
   ClaudeReviewGateAdapterError,
+  submissionEventId,
 };

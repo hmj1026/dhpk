@@ -2,7 +2,7 @@
 
 // Unit tests for the pure, I/O-free cross-platform conformance report
 // builder (issue #372). scripts/lib/review-gate-conformance.js never touches
-// ReceiptStore, ReviewGate, or MigrationCoordinator, so it structurally
+// ReceiptStore or ReviewGate, so it structurally
 // cannot promote a migration phase -- these tests prove that in isolation
 // from the live-adapter integration proofs in
 // tests/review-gate-cross-platform-differential.test.js.
@@ -11,7 +11,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const baseline = require('../scripts/lib/review-gate-baseline');
 const conformance = require('../scripts/lib/review-gate-conformance');
 
 const ROOT = path.join(__dirname, '..');
@@ -214,7 +213,7 @@ test('report clones a JSON __proto__ key as data without changing the result pro
   assert.strictEqual({}.polluted, undefined);
 });
 
-test('the conformance report is pure: no filesystem writes and no MigrationCoordinator access', () => {
+test('the conformance report is pure: no filesystem writes or workflow-state access', () => {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-conformance-purity-'));
   const previous = process.cwd();
   try {
@@ -226,8 +225,8 @@ test('the conformance report is pure: no filesystem writes and no MigrationCoord
     fs.rmSync(temporary, { recursive: true, force: true });
   }
   assert.ok(
-    !fs.readFileSync(path.join(ROOT, 'scripts', 'lib', 'review-gate-conformance.js'), 'utf8').includes('migration-coordinator'),
-    'the report builder must never import MigrationCoordinator',
+    !fs.readFileSync(path.join(ROOT, 'scripts', 'lib', 'review-gate-conformance.js'), 'utf8').includes('workflow-coordinator'),
+    'the report builder must never import workflow state',
   );
 });
 
@@ -242,20 +241,28 @@ const COMPLETE_METRICS = {
   receiptReuseCount: 0,
 };
 
+const costRecord = ({ observationId, acceptedOutcome, metrics }) => ({
+  schema: 'dhpk.accepted-outcome-cost.v1',
+  observationId,
+  acceptedOutcome,
+  metrics,
+  retirementEligible: acceptedOutcome && Object.keys(metrics).length === Object.keys(COMPLETE_METRICS).length,
+});
+
 test('groupCostByCohort distinguishes Accepted-Outcome Cost by risk cohort', () => {
-  const lowRisk = baseline.normalizeAcceptedOutcomeCost({
+  const lowRisk = costRecord({
     observationId: 'accepted-outcome-372-low',
     acceptedOutcome: true,
     metrics: { ...COMPLETE_METRICS, modelTokens: 400 },
   });
-  const highRiskA = baseline.normalizeAcceptedOutcomeCost({
+  const highRiskA = costRecord({
     observationId: 'accepted-outcome-372-high-a',
     acceptedOutcome: true,
     metrics: { ...COMPLETE_METRICS, modelTokens: 4000 },
   });
-  const highRiskB = baseline.normalizeAcceptedOutcomeCost({
+  const highRiskB = costRecord({
     observationId: 'accepted-outcome-372-high-b',
-    acceptedOutcome: true,
+    acceptedOutcome: false,
     metrics: { dispatchCount: 1, semanticReviewCount: 1 },
   });
 

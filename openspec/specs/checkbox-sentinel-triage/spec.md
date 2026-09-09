@@ -3,6 +3,9 @@
 ## Purpose
 TBD - created by archiving change harvest-advice-20260711. Update Purpose after archive.
 ## Requirements
+> Retired compatibility note: the `.pending-doc-review` arming and triage
+> clauses below describe the former hook-backed workflow. Current review scope
+> is an orchestrator-owned Review Gate obligation.
 ### Requirement: Checkbox-only classification uses the per-edit delta, not the cumulative diff
 The post-edit sentinel triage SHALL classify a tasks.md edit as checkbox-only from the edit's own
 old/new payload when available (Edit tool old_string/new_string), falling back to the cumulative

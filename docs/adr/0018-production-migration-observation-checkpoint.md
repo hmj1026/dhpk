@@ -2,8 +2,11 @@
 
 Status: accepted
 
-Implementation status: target design accepted; the checkpoint is opt-in and
-does not change Sentinel authority until an ADR-0016 phase transition.
+Implementation status: superseded by the accepted direct-retirement decision
+for this project. The Review Gate is current authority; the former Sentinel
+checkpoint is retired and no `.pending-*`, hook-clearance, or migration-phase
+transition is required. The checkpoint design below is retained as historical
+context only.
 
 ## Context
 
@@ -22,7 +25,7 @@ after the review lifecycle has produced durable evidence. The checkpoint must
 remain useful when telemetry is incomplete, while preventing partial samples
 from satisfying the ADR-0016 retirement gate.
 
-## Decision
+## Historical Decision (superseded)
 
 Provide one dependency-free Node CLI, `scripts/review-gate-runtime.js`, as the
 production composition boundary. It has four explicit operations:
@@ -92,16 +95,16 @@ is exactly one of `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`,
 Reviewer Contract v2 `reviewResult.semanticVerdict`; command execution state
 must not be translated into that semantic verdict. Markdown is not parsed into
 a verdict, and a post-hoc model translation is not accepted. All seven
-configured Sentinel reviewer lanes may produce this companion shape; the lanes
+configured reviewer lanes may produce this companion shape; the lanes
 remain parallel at dispatch time and observations remain at the current
 per-obligation/lane grain.
 
 The migration phase and trust policy are versioned configuration inputs. A
 caller cannot override them to enter `DUAL_ENFORCE` or `CUTOVER`, and the CLI
 never promotes a phase automatically. The companion and migration observation
-are diagnostic and do not clear, arm, or otherwise alter Sentinel. If a CLI
+are diagnostic and do not alter Review Gate authority. If a CLI
 operation fails, it exits nonzero and writes a redacted diagnostic sidecar;
-the Application Session continues the Sentinel lifecycle. A later enforcing
+the Application Session reports the Review Gate lifecycle result. A later enforcing
 phase treats an absent, foreign, stale, malformed, or failed observation as
 unresolved and fails closed.
 
@@ -149,11 +152,10 @@ silently truncated. Orphaned content-addressed objects left after a failed
 append are retained; garbage collection is deferred to a separately
 authorized change.
 
-## Consequences
+## Historical Consequences (superseded)
 
-- Sentinel remains the sole authority while the checkpoint is enabled in
-  `BASELINE` or `OBSERVE`, so telemetry can be deployed without an implicit
-  cutover.
+- Sentinel remained the sole authority while the checkpoint was enabled in
+  `BASELINE` or `OBSERVE`; this is no longer current policy.
 - Application Session ownership keeps dispatch policy, batching, retries, and
   lifecycle completion outside the adapter; the adapter remains a translation
   boundary.
@@ -162,9 +164,8 @@ authorized change.
   logs, source, secrets, or absolute paths from becoming runtime state.
 - Explicit setup and a non-overwritten local integrity key make activation
   auditable, but require an operator to opt in before any observation exists.
-- Partial telemetry is honest and non-blocking for the current Sentinel path,
-  but cannot contribute to Sentinel retirement until the required sample is
-  complete.
+- Partial telemetry was honest and non-blocking for the then-current Sentinel
+  path; it no longer gates direct retirement.
 
 ## Alternatives considered
 
@@ -186,7 +187,7 @@ authorized change.
 - [ADR-0016 — Phase and roll back Review Gate migration](0016-phase-and-roll-back-review-gate-migration.md)
 - [ADR-0017 — Implement Review Gate as a local event module](0017-implement-review-gate-as-a-local-event-module.md)
 
-## Amendment: retirement evidence gate removed, direct maintainer retirement (#375)
+## Current Decision: retirement evidence gate removed, direct maintainer retirement (#375)
 
 This ADR originally assumed a production service with independent
 reviewers: Sentinel retirement (issue #375) required a Decision Packet
@@ -201,10 +202,13 @@ that still required the same 20-outcome sample and was never satisfied.
 Decision: for this project, Sentinel retirement is authorized directly by
 maintainer decision rather than by a pre-collection evidence gate. The
 20-outcome minimum, the `SINGLE_MAINTAINER` track, and
-`scripts/lib/review-gate-retirement.js` are removed as dead requirements —
-`MigrationCoordinator`'s `PHASES` never implemented a `RETIRE`/`CLEANUP`
-transition that consulted them, so nothing enforced this gate at runtime;
-it was documentation and unused report-building code, not a live control.
+`scripts/lib/review-gate-retirement.js` are removed as dead requirements.
+The migration coordinator, Sentinel baseline/runtime-provenance and
+legacy-observation modules, migration-observation receipt kind, and their
+compatibility tests are also removed. The former
+`dhpk.sentinel-outcome.v1`/`dhpk.accepted-outcome-cost.v1` checkpoint schemas
+are historical documentation only; they are not accepted by the active
+Review Gate receipt contract.
 
 This is a materially weaker independence guarantee than a distinct
 reviewer, and that trade-off is accepted explicitly here rather than

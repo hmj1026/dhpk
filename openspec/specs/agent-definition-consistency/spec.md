@@ -3,6 +3,10 @@
 ## Purpose
 TBD - created by archiving change script-test-backfill-and-harness-fixes. Update Purpose after archive.
 ## Requirements
+
+> Historical specification: the Sentinel-driven reviewer requirements below
+> describe the pre-Review-Gate workflow and are retained for migration history;
+> they are not active requirements after direct Sentinel retirement.
 ### Requirement: The INDEX opus rollup lists every opus-model agent
 
 `agents/INDEX.md`'s model-tier summary SHALL list every agent whose frontmatter declares `model: opus`. No opus-tier agent that appears in the roster tables SHALL be omitted from the opus rollup line.

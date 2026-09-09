@@ -14,7 +14,6 @@ const {
   createReviewRequest,
   createFinding,
   createReviewResult,
-  mapLegacyReviewResult,
 } = require('../scripts/lib/reviewer-contract');
 
 const ROOT = path.join(__dirname, '..');
@@ -157,88 +156,6 @@ test('v2 keeps execution, applicability, and semantic verdict axes distinct', ()
   );
 });
 
-test('legacy mappings are observations and never synthesize approval or Sentinel clearance', () => {
-  for (const mapping of fixture.legacyMappings) {
-    const findings = mapping.legacyVerdict === 'WARNING' ? [fixture.findings.mustFix] : [];
-    const result = mapLegacyReviewResult({
-      ...hydrateResult('pass'),
-      legacyVerdict: mapping.legacyVerdict,
-      findings,
-    });
-    assert.strictEqual(result.semanticVerdict, mapping.semanticVerdict);
-    assert.strictEqual(result.kind, 'MIGRATION_OBSERVATION');
-    assert.strictEqual(result.authorizesApproval, false);
-    assert.strictEqual(result.clearsSentinel, false);
-    assert.ok(deepFrozen(result));
-  }
-
-  const followUpWarning = mapLegacyReviewResult({
-    ...hydrateResult('pass'),
-    legacyVerdict: 'WARNING',
-    findings: [fixture.findings.note],
-  });
-  assert.strictEqual(followUpWarning.semanticVerdict, 'PASS');
-
-  const unavailable = mapLegacyReviewResult({
-    ...hydrateResult('unavailable'),
-    legacyVerdict: null,
-  });
-  assert.strictEqual(unavailable.semanticVerdict, undefined);
-  assert.strictEqual(unavailable.authorizesApproval, false);
-
-  const interrupted = mapLegacyReviewResult({
-    ...hydrateResult('interrupted'),
-    legacyVerdict: 'PASS',
-  });
-  assert.strictEqual(interrupted.executionStatus, 'INTERRUPTED');
-  assert.strictEqual(interrupted.semanticVerdict, undefined);
-
-  const missingVerdict = mapLegacyReviewResult({
-    ...hydrateResult('pass'),
-    legacyVerdict: null,
-  });
-  assert.strictEqual(missingVerdict.executionStatus, 'NOT_RUN');
-  assert.strictEqual(missingVerdict.semanticVerdict, undefined);
-
-  const missingDisposition = { ...fixture.findings.mustFix };
-  delete missingDisposition.disposition;
-  const malformedWarning = mapLegacyReviewResult({
-    ...hydrateResult('pass'),
-    legacyVerdict: 'WARNING',
-    findings: [missingDisposition],
-  });
-  assert.strictEqual(malformedWarning.semanticVerdict, 'CHANGES_REQUIRED');
-  assert.match(malformedWarning.mappingDiagnostics.join('\n'), /missing finding disposition/);
-
-  for (const legacyVerdict of ['APPROVE', 'PASS', 'BLOCK', 'FAIL']) {
-    const malformed = mapLegacyReviewResult({
-      ...hydrateResult('pass'),
-      legacyVerdict,
-      findings: [missingDisposition],
-    });
-    assert.strictEqual(malformed.executionStatus, 'INTERRUPTED');
-    assert.strictEqual(malformed.semanticVerdict, undefined);
-    assert.deepStrictEqual(malformed.findings, []);
-    assert.match(malformed.mappingDiagnostics.join('\n'), /malformed legacy findings/);
-    assert.strictEqual(malformed.authorizesApproval, false);
-    assert.strictEqual(malformed.clearsSentinel, false);
-  }
-
-  const malformedFindingsCollection = mapLegacyReviewResult({
-    ...hydrateResult('pass'),
-    legacyVerdict: 'PASS',
-    findings: 'not-an-array',
-  });
-  assert.strictEqual(malformedFindingsCollection.executionStatus, 'INTERRUPTED');
-  assert.strictEqual(malformedFindingsCollection.semanticVerdict, undefined);
-  assert.deepStrictEqual(malformedFindingsCollection.findings, []);
-
-  assert.throws(
-    () => mapLegacyReviewResult({ ...hydrateResult('pass'), legacyVerdict: 'ACCEPT' }),
-    /legacyVerdict/
-  );
-});
-
 test('canonical and projected reviewer definitions conform to the same v2 fixture', () => {
   const contractPaths = [
     'docs/contracts/reviewer-contract.md',
@@ -253,7 +170,6 @@ test('canonical and projected reviewer definitions conform to the same v2 fixtur
     ...SEMANTIC_VERDICTS,
     ...FINDING_SEVERITIES,
     ...FINDING_DISPOSITIONS,
-    ...fixture.legacyMappings.map(({ legacyVerdict }) => legacyVerdict),
     'read-only',
     'findings-first',
     'chain-of-thought',
@@ -267,16 +183,11 @@ test('canonical and projected reviewer definitions conform to the same v2 fixtur
     }
   }
 
-  const reviewerVocabularies = {
-    'code-reviewer': ['APPROVE', 'WARNING', 'BLOCK'],
-    'database-reviewer': ['PASS', 'WARNING', 'FAIL'],
-    'security-reviewer': ['PASS', 'WARNING', 'FAIL'],
-    'frontend-reviewer': ['APPROVE', 'WARNING', 'BLOCK'],
-    'doc-reviewer': ['APPROVE', 'WARNING', 'BLOCK'],
-    'migration-reviewer': ['PASS', 'WARNING', 'FAIL'],
-  };
-  const mappedLegacyVerdicts = new Set(fixture.legacyMappings.map(({ legacyVerdict }) => legacyVerdict));
-  for (const [reviewer, vocabulary] of Object.entries(reviewerVocabularies)) {
+  const reviewers = [
+    'code-reviewer', 'database-reviewer', 'security-reviewer',
+    'frontend-reviewer', 'doc-reviewer', 'migration-reviewer',
+  ];
+  for (const reviewer of reviewers) {
     const definitions = [
       [`agents/${reviewer}.md`, 'docs/contracts/reviewer-contract.md'],
       [`codex/agents/${reviewer}.toml`, '.codex/dhpk/contracts/reviewer-contract.md'],
@@ -285,10 +196,6 @@ test('canonical and projected reviewer definitions conform to the same v2 fixtur
     for (const [relativePath, contractReference] of definitions) {
       const text = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
       assert.ok(text.includes(contractReference), `${relativePath} missing contract reference`);
-      for (const verdict of vocabulary) {
-        assert.ok(mappedLegacyVerdicts.has(verdict), `${relativePath} has unmapped legacy verdict ${verdict}`);
-        assert.ok(text.includes(verdict), `${relativePath} missing declared legacy verdict ${verdict}`);
-      }
     }
   }
 });

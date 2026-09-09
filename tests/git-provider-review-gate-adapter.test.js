@@ -85,14 +85,14 @@ function expectRejected(fn, code, message) {
   throw new Error(`${message}: expected rejection ${code}`);
 }
 
-test('capabilities report DISABLED while inactive and OBSERVE_ONLY once active', () => {
+test('capabilities report disabled while inactive and observe-only while active', () => {
   const inactive = makeAdapter({ activation: 'INACTIVE' });
   assert.strictEqual(inactive.capabilities().adapter, ADAPTER_NAME);
   assert.strictEqual(inactive.capabilities().effect, 'DISABLED');
   const active = makeAdapter();
   assert.strictEqual(active.capabilities().effect, 'OBSERVE_ONLY');
-  assert.strictEqual(active.capabilities().authority, 'SENTINEL');
-  assert.strictEqual(active.capabilities().allowsTargetProgress, false);
+  assert.ok(!Object.prototype.hasOwnProperty.call(active.capabilities(), 'authority'));
+  assert.ok(!Object.prototype.hasOwnProperty.call(active.capabilities(), 'allowsTargetProgress'));
 });
 
 test('refuses to record while inactive', () => {

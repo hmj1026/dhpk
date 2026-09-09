@@ -3,7 +3,7 @@
 // Security HIGH coverage for the structured Claude companion boundary.  The
 // tests use only the public runtime CLI: a reviewer may emit data, but the
 // runtime is the sole producer of the sibling .result.json file and the sole
-// reader that can turn it into a migration observation.
+// reader that can turn it into a durable review receipt.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -11,6 +11,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  createHostKey,
+  getOrCreateHostKey,
+  hostInitArgs,
+  writeHostAttestation,
+} = require('./_lib/review-gate-host-attestation-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'review-gate-runtime.js');
@@ -35,6 +41,10 @@ function runCli(repoRoot, args = [], input = undefined) {
     encoding: 'utf8',
     input,
   });
+}
+
+function initArgs(repoRoot) {
+  return hostInitArgs(getOrCreateHostKey(repoRoot, 'companion-security'));
 }
 
 function temporaryDirectory(prefix) {
@@ -161,7 +171,8 @@ function buildCompanion(request, artifactContent, observationIdentity, reviewRes
 
 function makeObserveFixture() {
   const repoRoot = temporaryDirectory('dhpk-runtime-companion-security-');
-  const initialized = runCli(repoRoot, ['init']);
+  const host = createHostKey(repoRoot, 'companion-security');
+  const initialized = runCli(repoRoot, hostInitArgs(host));
   assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
 
   const preparedResult = runCli(
@@ -231,16 +242,9 @@ function makeObserveFixture() {
   }];
   const lifecycleFile = writeJsonLinesFixture(repoRoot, lifecycleRelativePath, lifecycle);
   const readinessFile = writeJsonLinesFixture(repoRoot, readinessRelativePath, readiness);
-  const sentinelRelativePath = '.claude/artifacts/sessions/companion.sentinel-outcome.json';
-  const sentinelFile = writeJsonFixture(repoRoot, sentinelRelativePath, {
-    status: 'CLEARED',
-    verdict: 'PASS',
-    outcome: 'PASS',
-    lifecycleEventId: lifecycle[lifecycle.length - 1].event_id,
-  });
-
-  return {
+  const fixture = {
     repoRoot,
+    host,
     prepared,
     request,
     observationIdentity,
@@ -252,9 +256,9 @@ function makeObserveFixture() {
     lifecycleRelativePath,
     readinessFile,
     readinessRelativePath,
-    sentinelFile,
-    sentinelRelativePath,
   };
+  writeHostAttestation(repoRoot, prepared, fixture, host, { label: 'companion-security' });
+  return fixture;
 }
 
 function observeArgs(fixture) {
@@ -266,7 +270,7 @@ function observeArgs(fixture) {
     '--companion', fixture.companionRelativePath,
     '--lifecycle-events', fixture.lifecycleRelativePath,
     '--readiness-events', fixture.readinessRelativePath,
-    '--sentinel-outcome', fixture.sentinelRelativePath,
+    '--host-attestation', fixture.hostAttestationRelativePath,
   ];
 }
 
@@ -317,9 +321,7 @@ function assertNoDurableObservation(fixture, marker = SECRET_MARKER) {
   const status = JSON.parse(statusResult.stdout);
   assert.strictEqual(status.status, 'PENDING');
   if (Object.prototype.hasOwnProperty.call(status, 'receipts')) assert.deepStrictEqual(status.receipts, []);
-  if (Object.prototype.hasOwnProperty.call(status, 'migrationObservation')) {
-    assert.strictEqual(status.migrationObservation, null);
-  }
+  assert.ok(!Object.prototype.hasOwnProperty.call(status, 'migrationObservation'));
   for (const file of stateFiles(fixture.repoRoot)) {
     const content = fs.readFileSync(file, 'utf8');
     assert.doesNotMatch(content, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
@@ -578,31 +580,54 @@ test('observe accepts bounded repo-relative, digest, and symbolic test/command r
         'command:node-tests',
       ];
     });
+    writeHostAttestation(
+      fixture.repoRoot,
+      fixture.prepared,
+      fixture,
+      fixture.host,
+      { label: 'companion-security-bounded' },
+    );
     const result = runCli(fixture.repoRoot, observeArgs(fixture));
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     const observed = JSON.parse(result.stdout);
-    assert.strictEqual(observed.status, 'OBSERVED');
-    assert.strictEqual(observed.clearsSentinel, false);
+    assert.deepStrictEqual(
+      {
+        status: observed.status,
+        semanticVerdict: observed.semanticVerdict,
+        executionStatus: observed.executionStatus,
+        applicability: observed.applicability,
+        lifecycleStatus: observed.lifecycleStatus,
+        resolution: observed.resolution,
+      },
+      {
+        status: 'OBSERVED',
+        semanticVerdict: 'PASS',
+        executionStatus: 'COMPLETE',
+        applicability: 'REQUIRED',
+        lifecycleStatus: 'RESOLVED',
+        resolution: 'REVIEW_PASS',
+      },
+    );
   });
 });
 
 test('init rejects an additional attacker producer trust entry under an exact allowlist', () => {
   const repoRoot = temporaryDirectory('dhpk-runtime-companion-config-producer-');
   try {
-    const initialized = runCli(repoRoot, ['init']);
+    const initialized = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
     const configPath = path.join(repoRoot, CONFIG_RELATIVE_PATH);
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     config.trustPolicy.producers.push({
       producer: 'attacker-producer-390',
       adapter: 'review-gate-adapter',
-      eventTypes: ['MIGRATION_OBSERVATION_RECORDED'],
-      receiptKinds: ['migration-observation'],
+      eventTypes: ['REVIEW_RESULT_RECORDED'],
+      receiptKinds: ['review'],
       lanes: ['code-reviewer'],
     });
     writeJsonFixture(repoRoot, CONFIG_RELATIVE_PATH, config);
     const tamperedBytes = fs.readFileSync(configPath);
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericWriterFailure({ repoRoot }, result, 'attacker-producer-390');
     assert.deepStrictEqual(fs.readFileSync(configPath), tamperedBytes);
   } finally {
@@ -613,20 +638,20 @@ test('init rejects an additional attacker producer trust entry under an exact al
 test('init rejects an additional attacker adapter trust entry under an exact allowlist', () => {
   const repoRoot = temporaryDirectory('dhpk-runtime-companion-config-adapter-');
   try {
-    const initialized = runCli(repoRoot, ['init']);
+    const initialized = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
     const configPath = path.join(repoRoot, CONFIG_RELATIVE_PATH);
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     config.trustPolicy.producers.push({
-      producer: 'claude-migration',
+      producer: 'claude-review-gate',
       adapter: 'attacker-adapter-390',
-      eventTypes: ['MIGRATION_OBSERVATION_RECORDED'],
-      receiptKinds: ['migration-observation'],
+      eventTypes: ['REVIEW_RESULT_RECORDED'],
+      receiptKinds: ['review'],
       lanes: ['code-reviewer'],
     });
     writeJsonFixture(repoRoot, CONFIG_RELATIVE_PATH, config);
     const tamperedBytes = fs.readFileSync(configPath);
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericWriterFailure({ repoRoot }, result, 'attacker-adapter-390');
     assert.deepStrictEqual(fs.readFileSync(configPath), tamperedBytes);
   } finally {
@@ -658,12 +683,12 @@ test('status is a minimum bounded projection and never exposes raw receipt paylo
         assert.ok(!Object.prototype.hasOwnProperty.call(receipt, 'result'));
       }
     }
-    if (status.migrationObservation !== null && status.migrationObservation !== undefined) {
-      assert.ok(!Object.prototype.hasOwnProperty.call(status.migrationObservation, 'reviewGate'));
-      assert.ok(!Object.prototype.hasOwnProperty.call(status.migrationObservation, 'sentinelOutcome'));
-      assert.ok(!Object.prototype.hasOwnProperty.call(status.migrationObservation, 'scope'));
-      assert.ok(!Object.prototype.hasOwnProperty.call(status.migrationObservation, 'diff'));
-    }
+    assert.ok(!Object.prototype.hasOwnProperty.call(status, 'migrationObservation'));
+    assert.ok(!Object.prototype.hasOwnProperty.call(status, 'clearsSentinel'));
+    assert.deepStrictEqual(status.receiptSummary, {
+      total: 1,
+      byKind: { review: 1 },
+    });
   });
 });
 
@@ -671,7 +696,7 @@ test('write-companion is unsupported and cannot write a sibling or alter Markdow
   const repoRoot = temporaryDirectory('dhpk-runtime-companion-unsupported-');
   const artifactRelativePath = '.claude/artifacts/reviews/code-reviewer-390-unsupported.md';
   const artifactContent = '# unchanged review artifact\n';
-  const initialized = runCli(repoRoot, ['init']);
+  const initialized = runCli(repoRoot, initArgs(repoRoot));
   assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
   const artifactFile = writeFixture(repoRoot, artifactRelativePath, artifactContent);
   const resultPath = path.join(repoRoot, artifactRelativePath.replace(/\.md$/, '.result.json'));

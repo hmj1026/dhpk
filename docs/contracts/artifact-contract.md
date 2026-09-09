@@ -2,9 +2,10 @@
 
 Reviewer dispatch prompt fields and bounded no-op recovery are defined in
 [`reviewer-contract.md`](./reviewer-contract.md); this file remains the SSOT for
-persisted artifact paths, frontmatter, verdict vocabulary, and sentinel clearance.
+persisted artifact paths, frontmatter, and verdict vocabulary. Current Review
+Gate dispatch does not use sentinel clearance.
 
-SSOT for the write-to-disk conventions shared across dhpk agents that persist a report, review, or plan under `.claude/artifacts/`. Extracted from what was previously copy-pasted (and drifting) inline across 18 agent files. Referenced from each agent's own "Closing — Artifact Output" section, which keeps only what's genuinely agent-specific: its own path category, its own extra frontmatter fields, and whether it's sentinel-driven.
+SSOT for the write-to-disk conventions shared across dhpk agents that persist a report, review, or plan under `.claude/artifacts/`. Extracted from what was previously copy-pasted (and drifting) inline across 18 agent files. Referenced from each agent's own "Closing — Artifact Output" section, which keeps only what's genuinely agent-specific: its own path category, its own extra frontmatter fields, and whether it participates in Review Gate dispatch.
 
 ## Does this output belong here at all?
 
@@ -59,7 +60,8 @@ scope: [path/a, path/b]
 ---
 ```
 
-For reviewer sentinel clearance, this frontmatter must be the leading,
+For the retired reviewer-sentinel compatibility path, this frontmatter had to
+be the leading,
 delimited block of a canonical filename
 `<agent>-YYYYMMDD-HHMMSS-<slug>.md`. Body text that merely resembles YAML is
 not evidence; `subagent-stop-verify.sh` accepts only `APPROVE` or `PASS` after
@@ -126,7 +128,11 @@ suspected cost here, and do not restate a threshold that nothing enforces.
 
 If `.claude/artifacts/` (or the specific category subdirectory) does not exist, emit the report to stdout only — do not error.
 
-## Sentinel clearance (sentinel-driven agents only)
+## Legacy Sentinel clearance (historical compatibility only)
+
+The following section documents the retired hook-backed compatibility path. It
+does not apply to current Review Gate obligations, which are cleared by a
+durable identity-compatible verdict rather than by deleting a marker.
 
 Reviewer agent definitions do NOT self-run a closing `clear-sentinel.sh` step.
 Clearance is owned by the runtime hook `scripts/hooks/subagent-stop-verify.sh`:

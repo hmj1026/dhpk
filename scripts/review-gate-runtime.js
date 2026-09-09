@@ -23,8 +23,9 @@ const parseArgs = (argv) => {
     companion: null,
     lifecycleEvents: null,
     readinessEvents: null,
-    acceptedOutcomeCost: null,
-    sentinelOutcome: null,
+    hostAttestation: null,
+    hostPublicKey: null,
+    hostKeyId: null,
   };
   let command = null;
   const seen = new Set();
@@ -38,8 +39,10 @@ const parseArgs = (argv) => {
       ['--companion', 'companion'],
       ['--lifecycle-events', 'lifecycleEvents'],
       ['--readiness-events', 'readinessEvents'],
-      ['--accepted-outcome-cost', 'acceptedOutcomeCost'],
-      ['--sentinel-outcome', 'sentinelOutcome'],
+      ['--host-attestation', 'hostAttestation'],
+      ['--host-public-key', 'hostPublicKey'],
+      ['--host-attestation-public-key', 'hostPublicKey'],
+      ['--host-key-id', 'hostKeyId'],
     ]);
     if (fields.has(arg)) {
       const value = argv[index + 1];
@@ -63,27 +66,41 @@ const parseArgs = (argv) => {
     'companion',
     'lifecycleEvents',
     'readinessEvents',
-    'acceptedOutcomeCost',
-    'sentinelOutcome',
   ];
   if (command === 'status') {
-    if (!args.workId || observationFields.some((field) => args[field] !== null)) {
+    if (!args.workId || observationFields.some((field) => args[field] !== null)
+      || args.hostAttestation !== null || args.hostPublicKey !== null || args.hostKeyId !== null) {
       throw new CliError('INVALID_ARGUMENTS');
     }
   } else if (command === 'observe') {
     if (!args.workId || !args.waveId
-      || observationFields.some((field) => ['acceptedOutcomeCost'].includes(field)
-        ? false : !args[field])) {
+      || observationFields.some((field) => !args[field])
+      || args.hostPublicKey !== null || args.hostKeyId !== null) {
       throw new CliError('INVALID_ARGUMENTS');
     }
-  } else if (args.workId || args.waveId || observationFields.some((field) => args[field] !== null)) {
+  } else if (command === 'init') {
+    if (args.workId || args.waveId || observationFields.some((field) => args[field] !== null)
+      || args.hostAttestation !== null) {
+      throw new CliError('INVALID_ARGUMENTS');
+    }
+    if (args.hostPublicKey === null || args.hostKeyId === null) {
+      throw new CliError('HOST_TRUST_REQUIRED');
+    }
+  } else if (args.workId || args.waveId || observationFields.some((field) => args[field] !== null)
+    || args.hostAttestation !== null || args.hostPublicKey !== null || args.hostKeyId !== null) {
     throw new CliError('INVALID_ARGUMENTS');
   }
   return { ...args, command };
 };
 
 const execute = (args, input) => {
-  if (args.command === 'init') return runtime.init({ repoRoot: args.repoRoot });
+  if (args.command === 'init') {
+    return runtime.init({
+      repoRoot: args.repoRoot,
+      hostPublicKey: args.hostPublicKey,
+      hostKeyId: args.hostKeyId,
+    });
+  }
   if (args.command === 'prepare') return runtime.prepare({ repoRoot: args.repoRoot, input });
   if (args.command === 'observe') {
     return runtime.observe({
@@ -94,8 +111,7 @@ const execute = (args, input) => {
       companion: args.companion,
       lifecycleEvents: args.lifecycleEvents,
       readinessEvents: args.readinessEvents,
-      acceptedOutcomeCost: args.acceptedOutcomeCost,
-      sentinelOutcome: args.sentinelOutcome,
+      hostAttestation: args.hostAttestation,
     });
   }
   return runtime.status({ repoRoot: args.repoRoot, workId: args.workId, waveId: args.waveId });
@@ -133,7 +149,8 @@ const main = (argv = process.argv.slice(2), io = {}) => {
     stdout.write(`${JSON.stringify(execute(args, input))}\n`);
     return 0;
   } catch (error) {
-    runtime.writeDiagnostic({ repoRoot, command, code: error && error.code ? error.code : 'RUNTIME_ERROR' });
+    const code = error && error.code ? error.code : 'RUNTIME_ERROR';
+    if (code !== 'HOST_TRUST_REQUIRED') runtime.writeDiagnostic({ repoRoot, command, code });
     stderr.write('review-gate-runtime: ERROR\n');
     return 1;
   }

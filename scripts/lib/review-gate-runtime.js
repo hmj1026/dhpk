@@ -9,12 +9,17 @@ const storage = require('./review-gate-runtime-storage');
 const evidence = require('./review-gate-runtime-evidence');
 const checkpoint = require('./review-gate-runtime-checkpoint');
 const composition = require('./review-gate-runtime-composition');
+const attestation = require('./review-gate-runtime-attestation');
 
 module.exports = {
   ADAPTER: storage.ADAPTER,
+  ALGORITHM: attestation.ALGORITHM,
   CONFIG_RELATIVE_PATH: storage.CONFIG_RELATIVE_PATH,
   CONFIG_SCHEMA: storage.CONFIG_SCHEMA,
   KEY_RELATIVE_PATH: storage.KEY_RELATIVE_PATH,
+  HOST_ATTESTATION_SCHEMA: attestation.HOST_ATTESTATION_SCHEMA,
+  HOST_SUBJECT_SCHEMA: attestation.HOST_SUBJECT_SCHEMA,
+  HOST_TRUST_SCHEMA: attestation.HOST_TRUST_SCHEMA,
   MAX_STDIN_BYTES: storage.MAX_STDIN_BYTES,
   PLAN_CHECKPOINT_SCHEMA: storage.PLAN_CHECKPOINT_SCHEMA,
   PRODUCER: storage.PRODUCER,
@@ -22,6 +27,7 @@ module.exports = {
   STORE_RELATIVE_PATH: storage.STORE_RELATIVE_PATH,
   RuntimeError: errors.RuntimeError,
   createIntegrityKey: storage.createIntegrityKey,
+  buildObserveSubject: attestation.buildObserveSubject,
   createPlanRegisteredEvent: checkpoint.createPlanRegisteredEvent,
   defaultConfig: storage.defaultConfig,
   init: composition.init,

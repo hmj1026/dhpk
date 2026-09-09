@@ -8,23 +8,18 @@ dhpk 刻意只註冊精簡的預設 lifecycle。完整 mapping 以
 | Event | Script | 確定性責任 |
 |---|---|---|
 | `PreToolUse(Edit|Write|MultiEdit)` | `pre-edit-guard.sh` | 受保護路徑與 secret safety |
-| `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety 加 Git/review-debt gate |
-| `PostToolUse(Edit|Write|MultiEdit)` | `post-edit-dispatch.sh` | 建立與路由 review sentinel |
+| `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety 加 Git branch-safety gate |
 | `SessionStart` | `session-start.sh` | 驗證並啟用設定的 module |
-| `SubagentStop` | `subagent-stop-verify.sh` | 只有證據有效時才核銷 reviewer sentinel |
+| `SubagentStop` | `subagent-stop-verify.sh` | 清理已停止 fast-worker 的 liveness state |
 
-`post-edit-dispatch.sh` 預設只呼叫 `post-edit-remind.sh`，不執行 module lint、
-formatting、CRLF、lockfile 或 transcript 工作。`session-start.sh` 只啟用 module；
+`session-start.sh` 只啟用 module；
 不建立 snapshot、不探測 Docker、不檢查安裝健康、不注入 prompt hint，也不輸出
 orchestration 建議。
 
 ## Reviewer evidence
 
-`SubagentStop` 是嚴格 gate。Reviewer 只能在 artifact 為 fresh、canonical，且檔名
-符合 `<agent>-YYYYMMDD-HHMMSS-<slug>.md` 時清除自己的 sentinel。檔案必須以有
-delimiter 的 YAML frontmatter 開頭，並包含 `agent`、`generated_at`、`commit`、
-`scope`、`severity_summary` 與 `verdict`；只有 `APPROVE` 或 `PASS` 能清除
-sentinel。缺失、格式錯誤、warning 或 failure 都會讓 review debt 保持 armed。
+Reviewer 派工由 orchestrator 負責。Reviewer 會記錄具有 identity binding 的
+Review Gate result；缺失、格式錯誤、warning 或 failure 都會讓 obligation 保持 unresolved。
 
 ## 選用 extensions
 
