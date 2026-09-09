@@ -145,4 +145,6 @@ The deliverable IS `openspec/specs/<capability>/spec.md` (the Write whitelist ab
 - Confirm the path, capability name, and the commit hash stamped in `Last verified`.
 - If files were deferred, surface the `<!-- deferred: -->` list so the user can schedule a follow-up pass.
 - Directory absent / not an OpenSpec project → stop and ask before creating `openspec/`; never scatter spec files elsewhere.
+
+The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
 """

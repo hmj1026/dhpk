@@ -71,4 +71,4 @@ Stack-specific references (PHPUnit API, framework testing rules, TESTING_STANDAR
 
 ## Closing — Artifact Output
 
-When producing a substantive TDD session report (not a one-shot helper response): category `reviews/`, path `tdd-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`coverage_pct` + PASS/WARNING/FAIL). No sentinel — not in the review chain; `.php`/`.js` edits trigger `code-reviewer` separately via `post-edit-remind.sh`.
+When producing a substantive TDD session report (not a one-shot helper response): category `reviews/`, path `tdd-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`coverage_pct` + PASS/WARNING/FAIL). No consolidated Review Gate obligation by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.

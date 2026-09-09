@@ -33,10 +33,10 @@ local tests use the repository verification route; for changes use
 
 Read these at the indicated phase:
 
-- P0/P3: [safety-rules.md](references/safety-rules.md) and [environments.md](references/environments.md)
-- P1/P2/P4/P5: [blackbox-testing.md](references/blackbox-testing.md)
-- P0/P2/P5: [verification-playbook.md](references/verification-playbook.md)
-- Report: [output-template.md](references/output-template.md)
+- P0/P3: [safety-rules.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/safety-rules.md) and [environments.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/environments.md)
+- P1/P2/P4/P5: [blackbox-testing.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/blackbox-testing.md)
+- P0/P2/P5: [verification-playbook.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/verification-playbook.md)
+- Report: [output-template.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/output-template.md)
 
 `Bash` is permitted only for read-only curl and observation queries reviewed against the safety rules. Missing endpoint allowlist means P3 is skipped.
 
@@ -52,11 +52,11 @@ API unreachable with logs gives L2-OBS; without logs gives L1. At L1 skip P3/P4.
 
 ## P1 — Diff-Lite Scope
 
-Follow [blackbox-testing.md § P1](references/blackbox-testing.md#p1-diff-lite-scoping). Map `git diff main...HEAD --name-only` to affected endpoints, dependency chains, active triggers, and passive targets. This phase scopes behavior; it does not judge code quality. If no diff exists, build scope from the user's feature description.
+Follow [blackbox-testing.md § P1](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/blackbox-testing.md#p1-diff-lite-scoping). Map `git diff main...HEAD --name-only` to affected endpoints, dependency chains, active triggers, and passive targets. This phase scopes behavior; it does not judge code quality. If no diff exists, build scope from the user's feature description.
 
 ## P2 — Test Charter and Approval
 
-Follow [blackbox-testing.md § P2](references/blackbox-testing.md#p2-test-charter-design). Generate only cases supported by the detected level: L1 regression, L2 active trigger, L3 passive observation, and M1 metrics. Present the charter and wait for user approval before any P3 request.
+Follow [blackbox-testing.md § P2](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/blackbox-testing.md#p2-test-charter-design). Generate only cases supported by the detected level: L1 regression, L2 active trigger, L3 passive observation, and M1 metrics. Present the charter and wait for user approval before any P3 request.
 
 ## P3 — API Execution
 
@@ -71,7 +71,7 @@ The script rejects methods other than GET and POST; the operator must separately
 
 ## P4 — Observation Correlation
 
-Follow [blackbox-testing.md § P4](references/blackbox-testing.md#p4-log-verification-flow).
+Follow [blackbox-testing.md § P4](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/blackbox-testing.md#p4-log-verification-flow).
 
 - L3/L4: correlate each request ID, then fall back to alternate fields and endpoint/time window.
 - L2-OBS/L3/L4: scan the observation window for related errors and warnings.
@@ -95,7 +95,7 @@ For L2-OBS use deploy time → now, a user-provided window, or the last 30 minut
    primary result as independently verified.
 4. Integrate available conclusions using the verdict/confidence rules in the
    playbook, keeping a skipped or unavailable reviewer visible.
-5. Render [output-template.md](references/output-template.md).
+5. Render [output-template.md](https://github.com/hmj1026/dhpk/blob/main/skills/dhpk-feature-verify/references/output-template.md).
 
 The report may recommend another skill, but must not auto-invoke it.
 

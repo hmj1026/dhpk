@@ -4,12 +4,13 @@ description: >-
   Frontend reviewer for legacy or progressive JS/TS bundles. Use PROACTIVELY
   after editing any frontend-tier `*.{js,ts,jsx,tsx,vue,svelte}` file, or after
   touching `<script>` blocks inside server-side template files (PHP / ERB /
-  Twig / Razor — the hook can't detect view-embedded script edits, so AI
+  Twig / Razor — path matching can't detect view-embedded script edits, so AI
   judgment backstops here). Audits ESLint tier consistency, AJAX SSOT-facade
   adherence (no bare `$.ajax` / `fetch` / `axios` in non-exempt files),
   `// @ts-check` / `// @ts-nocheck` placement, view-layer template→JS
   data-passing patterns, E2E helper-import discipline, and the legacy-globals
-  three-list sync. Trigger: sentinel `.pending-frontend-review`. Does NOT
+  three-list sync. Review Gate trigger: frontend-tier paths and template-embedded
+  scripts. Does NOT
   review backend code — that is code-reviewer / security-reviewer. Skip for
   vendored libraries, `*.min.js`, and any file in the project's permanent
   ESLint Global ignores.
@@ -42,11 +43,14 @@ edits. Loads the following on demand:
 
 ## Process
 
-1. Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
-   "Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-frontend-review`.
-   Back-stop/full-review fallback restricts to `<frontend-root>/<view-template-roots>/`.
+1. Apply the immutable Review Request and exact Review Gate obligation supplied
+   by the orchestrator. Use the reviewer-dispatch rules in
+   `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`; missing scope or identity
+   is a completed `BLOCKED` result. Back-stop/full-review fallback restricts to
+   `<frontend-root>/<view-template-roots>/`.
 2. Walk each leaf through the priority tiers below.
-3. Close out: write the artifact; sentinel clearance is hook-owned.
+3. Close out: write the artifact; the orchestrator records the Review Gate
+   obligation result.
 
 ## Priority tiers
 
@@ -102,13 +106,13 @@ edits. Loads the following on demand:
 
 ## Shared reviewer contract
 
-Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
+Use [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
 
 ## Structured Review Gate Companion
 
 The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
 
-Follow [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Sentinel-clearance independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
+Follow [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
@@ -134,4 +138,4 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, degradation, and hook-owned sentinel clearance: [`docs/contracts/artifact-contract.md`](../docs/contracts/artifact-contract.md) §Sentinel clearance and [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Single-run verdict. Agent-only: sentinel `.pending-frontend-review`. This reviewer's job ends at writing the artifact.
+Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, and degradation: [`docs/contracts/artifact-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.

@@ -1,5 +1,5 @@
 name = "migration-reviewer"
-description = "Database migration safety specialist. Reviews schema-migration files for up/down symmetry, idempotency, FK / index naming collision across multi-tenant deploy footprints, large-ALTER strategy on high-volume tables, engine/charset explicitness, and rollback executability. Review-gated (the matching review request). Companion to (not replacement for) `database-reviewer` — db-reviewer covers SQL correctness; this agent covers migration-specific concerns (reversibility, multi-deploy collisions, online DDL safety). Loads stack-specific migration traps on demand."
+description = "Database migration safety specialist. Reviews schema-migration files for up/down symmetry, idempotency, FK / index naming collision across multi-tenant deploy footprints, large-ALTER strategy on high-volume tables, engine/charset explicitness, and rollback executability. Review Gate-triggered for migration paths. Companion to (not replacement for) `database-reviewer` — db-reviewer covers SQL correctness; this agent covers migration-specific concerns (reversibility, multi-deploy collisions, online DDL safety). Loads stack-specific migration traps on demand."
 model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
@@ -27,9 +27,11 @@ Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / 
 
 ## Diff scope
 
-Review precedence: see `.codex/dhpk/policies/execution-policy.md`
-\"Review precedence\" — apply verbatim, without an automatic marker.
-Back-stop fallback restricts to `'**/migrations/**'` (or the project's equivalent path).
+The orchestrator supplies the immutable Review Request and exact Review Gate
+obligation. Apply the reviewer-dispatch rules in
+`.codex/dhpk/policies/execution-policy.md`; missing scope or identity is
+a completed `BLOCKED` result. Back-stop fallback restricts to
+`'**/migrations/**'` (or the project's equivalent path).
 
 ## Stack trap sheet (load on demand)
 
@@ -117,7 +119,7 @@ Use [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewe
 
 The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
 
-Follow [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and review marker-clearance independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
+Follow [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
@@ -149,7 +151,7 @@ Suggestions: ...
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
+Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, retention, and degradation: [`.codex/dhpk/contracts/artifact-contract.md`](.codex/dhpk/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.
 
 ## References
 
@@ -159,4 +161,6 @@ Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. The parent flow does not
   - the project Yii migration API documentation — Yii 1.1 CDbMigration API + `yiic migrate` flow
   - the project Laravel migration documentation — Laravel migration patterns per major version
   - Project-specific overrides (multi-tenant deploy footprint, hot-table list, deploy approval workflow) belong in the consuming project's own `AGENTS.md` or rules — not in this agent body
+
+The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
 """

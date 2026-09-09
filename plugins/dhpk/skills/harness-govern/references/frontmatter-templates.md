@@ -63,7 +63,7 @@ model: haiku                       # haiku (frequent lightweight reviews) / sonn
 - Process (step list)
 - Checklist (`- [ ]` format)
 - Output format (artifact output path and frontmatter format)
-- Sentinel clearance note: a reviewer agent does NOT self-run a closing `clear-sentinel.sh` step — clearance is owned by the runtime hook `subagent-stop-verify.sh`, which auto-clears the reviewer's own sentinel on a successful stop once a fresh review artifact with a parseable `verdict:` exists; the reviewer's job ends at writing that artifact. (`clear-sentinel.sh <name> <label>` remains the orchestrator's tool for a triage-drop or a stale-sentinel back-stop.)
+- Review Gate completion note: a reviewer agent ends by writing a bounded artifact with a parseable `verdict:` and evidence references. The runtime records the result against the applicable obligation; there is no manual clearance step or hook-owned marker to remove.
 
 ### Length limit
 
@@ -72,8 +72,8 @@ model: haiku                       # haiku (frequent lightweight reviews) / sonn
 ### After adding an agent, must sync
 
 1. `.claude/agents/INDEX.md`: add row to the Mandatory Chain or Situational table
-2. Execution-policy rule (project's own or cross-ref to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`): Agent dispatch table → add trigger; if it has a sentinel, add a Mandatory post-steps entry
-3. Post-edit hook: if the agent is sentinel-triggered, add path pattern → sentinel mapping
+2. Execution-policy rule (project's own or cross-ref to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`): Agent dispatch table → add the applicable Review Gate obligation trigger
+3. Post-edit routing: ensure the obligation's file-pattern mapping is represented in the Review Gate dispatch contract
 
 ---
 
@@ -125,7 +125,7 @@ No frontmatter, pure Markdown.
 3. Communication (reply language / code comment language / domain terms)
 4. Core rules: SSOT / Read-before-write (cx > gitnexus > Read) / No auto-commit / language version constraints
 5. Key references table (Topic → File) at minimum including:
-   - Execution strategy + sentinel review gates → `.claude/rules/execution-policy.md` (or `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` if dhpk-installed)
+   - Execution strategy + Review Gate obligations → `.claude/rules/execution-policy.md` (or `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` if dhpk-installed)
    - Tool routing → `.claude/rules/tool-routing.md`
    - Sub-agent prompt template → `.claude/docs/subagent-prompt-template.md` (or dhpk's `${CLAUDE_PLUGIN_ROOT}/docs/subagent-prompt-template.md`)
    - Agent roster → `.claude/agents/INDEX.md`

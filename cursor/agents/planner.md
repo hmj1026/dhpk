@@ -181,4 +181,4 @@ review after that, and never RECONSULT to see a fix.
 **No artifact** — planner is a read-only reasoning worker; its deliverable is
 the inline VERDICT-first reply contract above, consumed directly by
 `$flow-drive` (or, for a mid-task/warm-review resume, by the orchestrator that
-resumed it). Not in the sentinel review chain.
+resumed it). Not part of the consolidated Review Gate reviewer batch.

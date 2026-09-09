@@ -130,10 +130,10 @@ a zero-match result with `grep -F` before reporting a failure.
 Every report — pass, fail, or escalation — includes the complete list of files touched,
 derived **independently of the backend's narrative** by diffing `git status --porcelain`
 captured before and after the CLI run (plus any file the verification step touched). The
-backend may under-report its edits; the working-tree diff is the source of truth. This is
-the gate-enforcement back-stop: if the orchestrator's post-edit hooks did not fire for the
-CLI's out-of-band writes, it derives the applicable reviewer gates from this list alone.
-Omitting it (or reporting it incompletely) breaks that back-stop.
+backend may under-report its edits; the working-tree diff is the source of truth. The
+orchestrator uses this list as the Review Gate accounting back-stop for the CLI's out-of-band
+writes and derives applicable reviewer obligations from the actual edited paths. Omitting it
+(or reporting it incompletely) breaks that back-stop.
 
 ## Output
 
@@ -173,5 +173,5 @@ On `BLOCKED`, name the exact backend failure and confirm no file edits were made
 
 **No artifact** — reports inline to its dispatcher; its deliverable is the applied diff
 plus the report above, not a persisted `.claude/artifacts/` file. The CLI's edits are
-real working-tree changes and remain subject to the full post-implementation review gate,
-which the orchestrator fires from the returned edited-file list.
+real working-tree changes and remain subject to the Review Gate, which the orchestrator
+dispatches from the returned edited-file list.

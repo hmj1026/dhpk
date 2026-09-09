@@ -107,18 +107,20 @@ peer/backend. Use `--worker=codex` for CLI work or named owner
 All openspec/changes/<CHANGE_ID>/tasks.md checkboxes [x]; Claude confirmed in conversation
 ```
 
-## Part 2 (always — universal sentinel check)
+## Part 2 (always — Review Gate status)
 
 ```
-Claude ran `ls .claude/artifacts/sessions/.pending-* 2>/dev/null||echo NONE`
-and confirmed NONE in conversation (reviewer sentinels cleared)
+Claude checked the Review Gate status for `<CHANGE_ID>` and confirmed every
+applicable reviewer obligation is resolved (or the plan is `NOT_APPLICABLE`)
+for the current task, attempt, dispatch, scope, and diff identity
 ```
 
-## Part 2b (always — unresolved reviewer verdict sidecar check)
+## Part 2b (always — unresolved Review Gate obligation check)
 
 ```
-Claude ran `[ ! -s .claude/artifacts/sessions/.unresolved-verdict ]&&echo NONE||cat .claude/artifacts/sessions/.unresolved-verdict`
-and confirmed the output is NONE in conversation (no unresolved reviewer verdict sidecar entries)
+Claude confirmed no applicable Review Gate obligation is pending, foreign,
+stale, malformed, or message-only; status is `RESOLVED` or
+`NOT_APPLICABLE`
 ```
 
 ## Part 3 (verification gates)
@@ -209,7 +211,7 @@ conflicting decision with file:line evidence, and why compliance is blocked; end
 turn; do not continue/wait
 List, then copy to .resume-note.md:
 (1) unchecked tasks
-(2) output of ls .claude/artifacts/sessions/.pending-*
+(2) Review Gate status and any unresolved obligation identity
 (3) one-line next-focus hint
 ```
 The `openspec/changes/<CHANGE_ID>/.resume-note.md` carry-forward lets a

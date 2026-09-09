@@ -2,7 +2,7 @@
 
 This is the short, always-visible safety kernel. Read it before loading a
 conditional stack, version, review, or OpenSpec reference. The full policy in
-[`execution-policy.md`](./execution-policy.md) remains the single source of
+[`execution-policy.md`](https://github.com/hmj1026/dhpk/blob/main/rules/execution-policy.md) remains the single source of
 truth for routing precedence, dispatch selection, and reviewer closure; this
 file does not duplicate its tables.
 

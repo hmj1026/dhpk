@@ -28,7 +28,7 @@ review gate。
 
 ## Post-Implementation Agent Gates
 
-回覆必須列出 `@rules/execution-policy.md` → *Post-implementation agent gate (SSOT)* 定義的 implementation specialist 與 sentinel reviewer。每個 implementation wave 的適用 reviewer 合併成一批 parallel batch；`tdd-guide` 與 `e2e-runner` 不是無條件 post-edit gate。
+回覆必須列出 `@rules/execution-policy.md` → *Post-implementation agent gate (SSOT)* 定義的 implementation specialist 與 Review Gate reviewer obligations。每個 implementation wave 的適用 reviewer 合併成一批 parallel batch；`tdd-guide` 與 `e2e-runner` 不是無條件 post-edit gate。
 
 Gate 失敗時：findings 合併成一份 fix-spec；超過 inline bound 才交給 selector-resolved fast worker；已知 findings 只做一次 confirm-only 複查；TDD/E2E 修正回到原 specialist 的驗證命令。
 
@@ -41,7 +41,7 @@ Gate 失敗時：findings 合併成一份 fix-spec；超過 inline bound 才交�
 | Feature Delivery（一般） | — | `/opsx:new` 或 brief plan | profile + work-item + legacy-ref + RED |
 | Lightweight Maintenance | — | Read → Edit | targeted verification only |
 
-若輸入含有已退休的 `--codex`，依 [codex-mode](codex-mode.md) 回報
+若輸入含有已退休的 `--codex`，依 [codex-mode](https://github.com/hmj1026/dhpk/blob/main/skills/flow-guide/references/codex-mode.md) 回報
 `DEPRECATED_CODEX_FLAG` 並停止，不得把它轉譯成 `codex exec`、worker、
 reasoner 或 app-server。新流程預設使用 Codex-free route；CLI 後端與第二
 意見都必須由 caller 以明確選項指定。
@@ -73,5 +73,5 @@ code-trace /opsx:new 或 brief plan tdd-guide (conditional) Edit  applicable rev
 Inspect → Patch → Review
    │        │        │
    ▼        ▼        ▼
-  Read    Edit    applicable sentinel reviewer(s)
+  Read    Edit    applicable Review Gate reviewer(s)
 ```

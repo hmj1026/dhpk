@@ -5,9 +5,9 @@ alwaysApply: false
 ---
 # Anti-Rationalization Patterns
 
-Self-talk stop-loss reference for the rationalization phrasings that precede skipping a mandatory reviewer / TDD / sentinel step. Not always-on; referenced from `.cursor/dhpk/policies/execution-policy.md` "Anti-rationalization" section.
+Self-talk stop-loss reference for the rationalization phrasings that precede skipping a mandatory reviewer or TDD step. Not always-on; referenced from `.cursor/dhpk/policies/execution-policy.md` "Anti-rationalization" section.
 
-> **Load when**: feeling hesitant about skipping any one of reviewer / TDD / sentinel mandatory steps; self-reference before acting.
+> **Load when**: feeling hesitant about skipping a reviewer or TDD obligation; self-reference before acting.
 
 ## Why list them out
 
@@ -21,8 +21,8 @@ The most dangerous moment for a rationalization phrase is the instant it **genui
 
 | Self-persuasion phrasing | Counter-argument / fact to return to |
 |---|---|
-| "This change is small, no reviewer needed" | The sentinel system is **designed for the cumulative risk of small changes**, not large-change-only. Three-line changes have historically tripped CSRF / SQL injection / silent truncation traps. |
-| "Sentinel auto-reaps, just commit first" | The reap script's 24h threshold is a **safety net**, not a rationalisation for skipping the reviewer. Reap firing means "the previous review was missed" — it's a trap, not a feature. |
+| "This change is small, no reviewer needed" | Review Gate obligations are **derived from the cumulative risk of every change**, not only large changes. Three-line changes can still trip CSRF / SQL injection / silent truncation traps. |
+| "The runtime will catch it, just commit first" | Durable Review Gate evidence is a completion contract, not a reason to skip the reviewer. If a required lane has not returned a parseable result, the obligation remains unresolved. |
 | "Bug is obvious, skip tdd-guide and just fix" | "Obvious" is **the single largest source of known bias**. RED test forces the symptom into a reproducible failure, which is the only guarantee that you fix the root cause and not just the symptom. Historical record: bug fixes that skip RED have an average regression rate > 30%. |
 | "Append-only exemption should apply here" | Definition: `.cursor/dhpk/policies/execution-policy.md` Glossary. It applies only to pure additions — any line entering an existing method body, parameter reorder, or docblock edit means it does NOT apply. Before invoking it, first check the diff is actually 100% inside "new file / new method appended to end". |
 | "Commit first, write tests after" | The TDD workflow is **RED → GREEN → REFACTOR**, not `GREEN → commit → RED`. Tests written after the implementation naturally hug the implementation, not the requirement — and cannot detect "what was fixed wrong". Once committed, the psychological priority of writing those follow-up tests drops, every time. |
@@ -43,7 +43,7 @@ Per any of the situations below, **proactively load this file** (don't wait for 
 | Signal | Counter-action |
 |---|---|
 | Task mode classified "Small change" but diff exceeds 30 lines | Load this file → re-evaluate whether small mode still applies |
-| Wanting to skip any sentinel-driven reviewer | Load this file → consult the table for the counter-argument; if no counter is available, the reviewer MUST run |
+| Wanting to skip any required reviewer obligation | Load this file → consult the table for the counter-argument; if no counter is available, the reviewer MUST run |
 | Wanting to invoke the append-only exemption (Glossary, `.cursor/dhpk/policies/execution-policy.md`) | Load row 4 of the table → enforce the "100% pure addition" check |
 | Wanting to claim completion via "verify skill passed" without a corresponding test diff | Load this file → completion claims must accompany a verifiable artifact |
 | Three consecutive entries in your project's judgment-retrospective notes (`memory/skill-retrospective.md` or equivalent) flag the same type of bias | Load this file + the matching `memory/feedback_*.md` (or equivalent project notes) |

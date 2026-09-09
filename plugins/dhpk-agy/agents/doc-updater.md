@@ -22,8 +22,8 @@ Use `/dhpk:update-codemaps` for codemap generation. Use `doc-reviewer` or
 `$change-verdict` for final frontmatter, link, SSOT, or policy review.
 Use `docs-lookup` for external library/framework research. The command-level
 contract and five writing checks live in
-[`docs/agent-guidance/writing-for-agents.md`](../docs/agent-guidance/writing-for-agents.md)
-and [`commands/update-docs.md`](../commands/update-docs.md); do not duplicate
+[`docs/agent-guidance/writing-for-agents.md`](https://github.com/hmj1026/dhpk/blob/main/docs/agent-guidance/writing-for-agents.md)
+and [`commands/update-docs.md`](https://github.com/hmj1026/dhpk/blob/main/commands/update-docs.md); do not duplicate
 their implementation policy here.
 
 ## Authority map

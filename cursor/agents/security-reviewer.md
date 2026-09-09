@@ -1,6 +1,6 @@
 ---
 name: security-reviewer
-description: "Security review specialist (web + mobile, framework-agnostic). MANDATORY final step after writing any controller action, form handler, SQL query, authentication logic, file upload, or platform secure-storage / encryption / privacy / biometric code. Checks OWASP Top 10 patterns. Do NOT skip when: the change seems small, manual verification was done, task feels complete. Trigger: sentinel `.pending-security-review`. Detects the stack at runtime and loads the matching trap sheet on demand."
+description: "Security review specialist (web + mobile, framework-agnostic). MANDATORY Review Gate lane after writing any controller action, form handler, SQL query, authentication logic, file upload, or platform secure-storage / encryption / privacy / biometric code. Checks OWASP Top 10 patterns. Do NOT skip when: the change seems small, manual verification was done, task feels complete. Review Gate trigger: auth, authorization, crypto, money, and file-upload changes. Detects the stack at runtime and loads the matching trap sheet on demand."
 model: "cursor-grok-4.6-high"
 readonly: true
 ---
@@ -12,14 +12,16 @@ Run after any input handling, authn/authz, file upload, or money path.
 
 ## When NOT
 
-- User-invoked OWASP audit → skill `change-verdict` (`skills/change-verdict/SKILL.md`). This agent is the review gate armed by `.pending-security-review`, not that workflow.
+- User-invoked OWASP audit → skill `change-verdict` (`skills/change-verdict/SKILL.md`). This agent is the security Review Gate lane, not that workflow.
 - General code quality / maintainability → `code-reviewer`
 - Empty catch / swallowed exceptions / hidden fallbacks → `silent-failure-hunter`
 
 ## Scope
 
-Sentinel-scoped precedence: see `.cursor/dhpk/policies/execution-policy.md`
-"Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-security-review`.
+The orchestrator supplies the immutable Review Request and exact Review Gate
+obligation. Apply the dispatch rules in
+`.cursor/dhpk/policies/execution-policy.md`; missing scope or identity is
+a completed `BLOCKED` result.
 
 ## Stack trap sheet (load on demand)
 
@@ -73,7 +75,7 @@ Use [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob
 
 The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
 
-Follow [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Sentinel-clearance independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
+Follow [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
@@ -95,4 +97,4 @@ Passed: <items>
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, retention, degradation, and hook-owned sentinel clearance: [`docs/contracts/artifact-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/artifact-contract.md) §Sentinel clearance and [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Single-run verdict. Agent-only: sentinel `.pending-security-review`. This reviewer's job ends at writing the artifact.
+Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, retention, and degradation: [`docs/contracts/artifact-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.
