@@ -95,12 +95,12 @@ test('blocked selector status renders stop guidance instead of an actionable wor
     'blocked backend must not be rendered as an actionable agent');
 });
 
-test('auto reports rejected candidates and UTF-8-safe digest plus conditional E2E', () => {
+test('auto stays native-only and preserves UTF-8-safe digest plus conditional E2E', () => {
   const cli = fakeCli('codex');
   try {
     const result = withEnv({ PATH: `${cli.bin}:/usr/bin:/bin`, DHPK_CLAUDE_BACKEND_AVAILABLE: '0', CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'agy,codex,claude' }, () => context.buildContext({ tasks: `- [ ] ${'測'.repeat(100)}\n- [ ] checkout.spec.ts browser journey\n`, proposal: '', fastWorker: 'auto' }));
-    assert.strictEqual(result.fields.FAST_WORKER_SELECTED, 'codex');
-    assert.ok(result.fields.FAST_WORKER_REJECTED.includes('agy:missing executable: agy'));
+    assert.strictEqual(result.fields.FAST_WORKER_SELECTED, 'auto');
+    assert.ok(result.fields.FAST_WORKER_REJECTED.includes('claude:in-process backend'));
     assert.strictEqual(result.fields.HAS_E2E, 'true');
     assert.ok(Buffer.byteLength(result.fields.TASK_DIGEST, 'utf8') <= 200);
     assert.ok(!result.fields.TASK_DIGEST.includes('\uFFFD'));

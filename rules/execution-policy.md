@@ -254,6 +254,34 @@ When a validator reads or modifies shared ratchet/configuration state, workers M
 
 `Judgment-Dense Standardizable Batch` is a default fast-worker route, not a forced route. The orchestrator may override it only with a recorded reason. The route requires at least three files, bounded repeatable intent, and known verification; open-ended design, unresolved root cause, and architecture decisions remain orchestrator/deep-reasoner work. The policy does not require durable telemetry yet; the acceptance report records the selected tier, override reason if any, and result.
 
+### Native dispatch baseline
+
+`rules/execution-policy.md` is the normative policy owner for delegated
+dispatch. The side-effect-free `scripts/lib/native-dispatch-policy.js` is the
+executable decision seam consumed by dispatch adapters; it is not a central
+orchestrator and must not grow orchestration state.
+
+Planner, reasoner, worker, and reviewer use the same native-only baseline:
+
+| Role | Native agent | Automatic default |
+|---|---|---|
+| planner | `dhpk:planner` | native Claude planner |
+| reasoner | `dhpk:deep-reasoner` | native Claude reasoner |
+| worker | `dhpk:fast-worker` | native Claude worker |
+| reviewer | `dhpk:code-reviewer` | native Review Gate reviewer |
+
+Automatic dispatch considers only the native candidate by default. With
+cross-provider dispatch disabled, it MUST NOT probe, authenticate, launch, or
+otherwise discover an external provider CLI. An explicitly requested external
+target remains directional and may be checked by its adapter; public
+cross-provider configuration and precedence are owned by #418. Reviewer
+routing remains on the current Review Gate / Reviewer Contract path, and
+dispatch selection never creates a review PASS or a retired Sentinel state.
+
+The fast-worker adapter below enforces this baseline for automatic selection;
+other adapters consume the same role contract without duplicating candidate
+selection logic.
+
 ### Fast-worker backend selector
 
 Mechanical implementation waves resolve through
@@ -264,7 +292,7 @@ keys in `userConfig`:
 |---|---|
 | `claude` (default) | `dhpk:fast-worker`; deterministic in-process default. |
 | `codex` / `agy` | Check the requested executable before dispatch; missing executable blocks unless `fast_worker_fallback=claude` was explicitly configured. |
-| `auto` | Check `fast_worker_backend_order` in order and record rejected candidates plus reasons. |
+| `auto` | Use the native Claude candidate by default; only an explicit cross-provider opt-in may check `fast_worker_backend_order` and record rejected candidates plus reasons. |
 
 Only a missing executable may use the configured `claude` fallback. Authentication,
 authorization, model, task, execution, and verification failures remain

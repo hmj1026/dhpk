@@ -59,10 +59,12 @@ test('default selector maps to the in-process fast-worker', () => {
     selected_agent: 'dhpk:fast-worker',
     reason: 'shipped default',
     fallback: 'none',
+    candidate_scope: 'explicit',
+    suppressed_candidates: [],
   });
 });
 
-test('explicit and auto selection honor availability and configured order', () => {
+test('explicit selection can use an external backend while auto selection stays native-only', () => {
   const dir = tempDir('dhpk-selector-');
   try {
     const bin = fakeCli(dir, 'codex');
@@ -70,11 +72,55 @@ test('explicit and auto selection honor availability and configured order', () =
     assert.strictEqual(explicit.value.selected_backend, 'codex');
     assert.strictEqual(explicit.value.selected_agent, 'dhpk:codex-worker');
     const auto = select(['--backend', 'auto', '--order', 'agy,codex,claude'], { PATH: `${bin}:/usr/bin:/bin`, CODEX: 'on' });
-    assert.strictEqual(auto.value.selected_backend, 'codex');
-    assert.ok(auto.value.rejected_candidates.some((item) => item.backend === 'agy'));
+    assert.strictEqual(auto.value.selected_backend, 'claude');
+    assert.strictEqual(auto.value.candidate_scope, 'native-only');
+    assert.deepStrictEqual(auto.value.suppressed_candidates, [
+      { backend: 'agy', reason: 'cross-provider disabled' },
+      { backend: 'codex', reason: 'cross-provider disabled' },
+    ]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('native-only auto selection does not probe external executables', () => {
+  const probed = [];
+  const result = selector.select({
+    backend: 'auto',
+    order: 'codex,agy,claude',
+    fallback: 'none',
+    failure: '',
+  }, {
+    availability(backend) {
+      probed.push(backend);
+      return { available: backend === 'claude', reason: `${backend} fixture` };
+    },
+  });
+
+  assert.strictEqual(result.status, 'selected');
+  assert.strictEqual(result.selected_backend, 'claude');
+  assert.deepStrictEqual(probed, ['claude']);
+});
+
+test('cross-provider auto selection probes configured external candidates only when opted in', () => {
+  const probed = [];
+  const result = selector.select({
+    backend: 'auto',
+    order: 'codex,agy,claude',
+    fallback: 'none',
+    failure: '',
+    cross_provider: true,
+  }, {
+    availability(backend) {
+      probed.push(backend);
+      return { available: backend === 'codex', reason: `${backend} fixture` };
+    },
+  });
+
+  assert.strictEqual(result.status, 'selected');
+  assert.strictEqual(result.selected_backend, 'codex');
+  assert.strictEqual(result.candidate_scope, 'cross-provider');
+  assert.deepStrictEqual(probed, ['codex']);
 });
 
 test('missing executable blocks unless the configured fallback is claude', () => {
