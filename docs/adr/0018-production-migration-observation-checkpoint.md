@@ -185,3 +185,16 @@ authorized change.
 - [ADR-0015 — Derive workflow state from typed receipts](0015-derive-workflow-state-from-typed-receipts.md)
 - [ADR-0016 — Phase and roll back Review Gate migration](0016-phase-and-roll-back-review-gate-migration.md)
 - [ADR-0017 — Implement Review Gate as a local event module](0017-implement-review-gate-as-a-local-event-module.md)
+
+## Amendment: single-maintainer authorization track (#375 Option B)
+
+A single-maintainer project cannot obtain the distinct-party CUTOVER
+collection authority this ADR assumes. `openspec/changes/
+adjust-review-gate-retirement-threshold/` adds an opt-in
+`SINGLE_MAINTAINER` track (`scripts/lib/review-gate-retirement.js`,
+`docs/contracts/review-lifecycle.md` — Retirement evidence intake) that
+substitutes a time-separated (24h cool-down, distinct session/identity),
+externally CI-corroborated self-authorization for the distinct-party
+receipt. This is a materially weaker independence guarantee, applies only to
+the collection-authority requirement, and does not change the 20-outcome
+minimum, the safety checks, or the rollback-drill requirement above.

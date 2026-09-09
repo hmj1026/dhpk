@@ -87,23 +87,16 @@ approximate the backend or fall back to editing the files yourself.
 
 ## Mid-batch timeout recovery (multi-file dispatch only)
 
-A runner-reported timeout is `run-agy.sh` exit `124` with a contained
-`dhpk.cli.receipt.v1` terminal `TIMEOUT` status; it does not rely on a shell
-timeout binary. On a **multi-file** dispatch it triggers timeout recovery
-instead of the ordinary failure path in "Verify and report" below. Build the
-path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`,
-disjoint, covering the assigned list) per
-`${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md`
-§CLI worker mid-batch timeout recovery, then:
+When a contained runner timeout hits a multi-file dispatch, follow
+`skills/flow-guide/references/implementation-dispatch.md`
+§CLI worker mid-batch timeout recovery. Do not fork that state machine here.
 
-1. **First verified timeout** — request exactly one same-backend, same-model recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.
-2. **Second verified timeout** — stop. Report `RESULT: PARTIAL` when any assigned file is confirmed, `RESULT: BLOCKED` when none is, naming both timeout observations, all three ledger sets, and the next action. Write the PARTIAL marker (control-plane JSON, not a product edit — see the policy reference above for the path and required fields) before returning `RESULT: PARTIAL`.
-3. **Missing receipt evidence** — classify missing, invalid, or uncontained
-   receipt evidence as `BLOCKED`; never fabricate a timeout classification.
-
-This mid-batch timeout retry is separate from, and does not extend, the internal verification-retry carve-out below — that carve-out counts only agy's self-run verification iterations inside a single dispatch, never a timeout classification or an extra timeout retry.
-
-A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified runner timeout on a multi-file batch.
+Agent-only deltas: a runner-reported timeout is `run-agy.sh` exit `124` with a
+contained `dhpk.cli.receipt.v1` terminal `TIMEOUT` (not a shell timeout binary).
+This mid-batch timeout retry is separate from, and does not extend, the internal
+verification-retry carve-out below — that carve-out counts only agy's self-run
+verification iterations inside a single dispatch, never a timeout classification
+or an extra timeout retry.
 
 ## Verify and report (the agent owns this, not the CLI)
 

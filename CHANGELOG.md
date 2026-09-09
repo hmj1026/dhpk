@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.56.0 — 2026-09-09 — Single-maintainer Sentinel retirement track and agent schema deduplication
+
+**feat(review-gate)** — Add a single-maintainer authorization track for Sentinel retirement evidence (issue #375), letting a solo maintainer's time-separated, CI-corroborated self-authorization substitute for a distinct-party reviewer.
+**fix(review-gate)** — Fix a TypeError in the retirement Accepted-Outcome Cost comparator when a CUTOVER cohort has a matching baseline cohort, and split review-gate-retirement.js under the file-size guideline.
+**refactor(agents)** — Point sentinel reviewer closing clearance at the artifact and reviewer contracts instead of restating hook-owned sentinel rules. Codex projection rewrites that pointer into `.codex/artifacts` manual-review semantics.
+**refactor(agents)** — Point canonical agent prompts at official Claude Code schema and existing policy SSOTs instead of restating harness copies, and enforce labeled local policy in the agent validator.
+
 ## 0.55.0 — 2026-09-08 — Add Review Gate runtime observation checkpoint
 
 **feat(review-gate)** — Add bounded Claude reviewer observations for BASELINE and OBSERVE while preserving Sentinel as the sole enforcement authority.

@@ -157,3 +157,32 @@ transaction behavior and SHALL not claim success after an incomplete update.
 - **WHEN** an operator requests a JSON plan for a stale projection
 - **THEN** the report includes the complete evidence needed for an owner
   decision and the projection and receipt hashes remain unchanged
+
+### Requirement: Project-local materialization resolves managed entries portably
+
+The shared project-local installer SHALL resolve a managed entry beneath an already-open directory on every documented supported operating system without assuming that a descriptor pseudo-filesystem supports child-path traversal. The resolved entry MUST remain bound to the intended open directory, and an unsupported or unverifiable resolution MUST fail closed without publishing a new receipt or replacing the previously accepted projection.
+
+#### Scenario: Darwin copy materialization succeeds
+
+- **WHEN** a user installs or updates either the Codex or Cursor project-local projection in copy mode on Darwin with a valid source and writable project root
+- **THEN** every selected managed entry is materialized beneath the intended project-local destination, its fingerprint is verified, and the installer completes with a current schema-v3 receipt
+
+#### Scenario: Darwin symlink materialization succeeds
+
+- **WHEN** a user installs or updates either the Codex or Cursor project-local projection in symlink mode on Darwin with a valid source and writable project root
+- **THEN** every selected managed link is created beneath the intended project-local destination, its materialization fingerprint is verified, and the installer completes without reporting a false materialization-change error
+
+#### Scenario: Public parent path changes after it is opened
+
+- **WHEN** an installer has opened a destination parent and that parent's public pathname is renamed or replaced before staging, verification, syncing, or cleanup completes
+- **THEN** the installer continues only against the pinned directory identity or fails closed, writes nothing through the replacement path or outside the project root, and does not publish a success receipt for a different identity
+
+#### Scenario: Descriptor-backed resolution cannot be verified
+
+- **WHEN** the installer cannot resolve or verify that a managed entry path belongs to the intended open directory
+- **THEN** it exits non-zero with an actionable descriptor-resolution diagnostic, preserves the previous projection and receipt, and does not fall back to an unverified path
+
+#### Scenario: Existing descriptor traversal remains compatible
+
+- **WHEN** the host provides a descriptor-backed filesystem path that safely supports child traversal
+- **THEN** copy, symlink, update, adoption, backup, rollback, and uninstall flows retain their existing observable results and ownership protections, including copy-mode source-link dereferencing and ignored Python-bytecode filtering

@@ -16,7 +16,10 @@ precedence, and dispatch behavior.
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
-Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-reviewer` / `code-reviewer` / `doc-reviewer` / `polyfill-reviewer` / `migration-reviewer` — dispatch as **one consolidated parallel batch per implementation wave** (one message, multiple Agent calls); only triggered items run, and code/doc are not mutually exclusive. Findings are deduplicated into one fix batch; a known-finding re-review is confirm-only rather than another broad review. `tdd-guide` and `e2e-runner` are implementation specialists, not part of the unconditional post-edit batch. Triggered reviewers are armed automatically by `post-edit-dispatch` → `post-edit-remind` and reminded at Stop by `stop-review-reminder`.
+Roster and trigger navigation only. Dispatch, batching, confirm-only re-review,
+and sentinel arming live in `rules/execution-policy.md` (sentinel-scoped
+precedence, reviewer dispatch, and the AI-judgment back-stop list). Do not
+restate those tables here.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|
@@ -35,7 +38,9 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 
 ## Implementation workers
 
-Not sentinel-driven — dispatched during the implement phase per the `rules/execution-policy.md` §Implementation dispatch decision table (SSOT; not restated here), while `userConfig.orchestration_dispatch=on` (default). Their edits still flow through the normal post-edit hook / sentinel machinery and remain subject to the full post-implementation review gate above.
+Not sentinel-driven. Implement-phase routing is owned by
+`rules/execution-policy.md` §Implementation dispatch (SSOT). This table is
+roster navigation for the shipped worker/reasoner roles.
 
 | Agent | Model (default) | Role |
 |-------|-------|----------------|
@@ -52,15 +57,9 @@ Not sentinel-driven — dispatched during the implement phase per the `rules/exe
 
 Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
 
-Mechanical waves resolve through `fast_worker_backend` / `fast_worker_backend_order` /
-`fast_worker_fallback` (or a workflow's explicit backend override) to
-`fast-worker`, `codex-worker`, or `agy-worker`; the one-release
-`codex-fast-worker` and `agy-fast-worker` aliases forward to their canonical
-roles. Deep-reasoner selection uses `deep-reasoner` or the canonical
-`codex-reasoner`; `codex-deep-reasoner` remains a one-release compatibility
-forwarder. The retired `CODEX=on`/`--codex` flags are blocked and do not control
-worker, reasoner, or review-peer selection. An independent opinion uses an
-explicit `--second-opinion=codex-exec` or `codex-bridge` route.
+Selector, alias forwarding, and retired `CODEX=on`/`--codex` flags: see
+`rules/execution-policy.md` §Implementation dispatch and §Agent dispatch.
+This index only lists the shipped roles above.
 
 **Component-addition-gate justification** (why neither existing agent covers this need, per the "Component-addition gate" rule in `rules/execution-policy.md`):
 - `general-purpose` cannot cover it: no dhpk policy context, inherits the main-session model (cost misallocation when the orchestrator is a top-tier model and the task is mechanical), no defined input/output contract for gate enforcement.
@@ -92,7 +91,10 @@ explicit `--second-opinion=codex-exec` or `codex-bridge` route.
 | [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize Playwright journeys, helpers, fixtures, and artifacts. Application-code failures return a fast-worker-ready fix-spec; after the fix, this agent re-runs the originating journey as acceptance. Distinct from ui-ux-verifier (page-vs-spec audit) |
 | [smoke-tester](smoke-tester.md) | sonnet | Read-only live-runtime probe: drives the real running system with one orchestrator-supplied concrete scenario and asserts on observed values (`Verdict:`-first-line contract). Distinct from e2e-runner (authors/runs Playwright specs, write-capable, web-scoped) and the feature-verify skill (main-context P0-P5, not a dispatchable isolated agent) |
 
-> **How situational agents are reached** (none are sentinel-driven — the trigger SSOT is the AI-judgment back-stop list in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`):
+> **How situational agents are reached** (none are sentinel-driven). Trigger
+> ownership is the AI-judgment back-stop list in
+> `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. This list is navigation
+> only:
 > - `architect` ← `flow-guide` classification / architecture handoff
 > - `refactor-cleaner` ← `/simplify` (back-stop for >800-line splits / cross-file dedup / multi-module dead-code sweep)
 > - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the `.pending-review` flow in both `change-verdict` and `opsx-apply-goal`

@@ -19,7 +19,7 @@ journeys; route those journeys to `e2e-runner`.
 - User/skill TDD guidance → skill `dhpk-tdd-workflow`. This agent is the dispatched RED/GREEN specialist.
 - Playwright journeys → `e2e-runner`
 
-> Before mocking: trace the unit's collaborators with `cx references --name X` (or `gitnexus_impact`) so you mock the *real* dependencies, not guesses. Optional external tools — fall back to `Grep` when neither is installed. See `.cursor/rules/tool-routing.mdc`.
+> Before mocking: trace the unit's collaborators per `.cursor/rules/tool-routing.mdc` so you mock the *real* dependencies, not guesses.
 
 ## Stack trap sheet (load on demand)
 

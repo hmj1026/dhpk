@@ -57,30 +57,7 @@ Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.
 
 The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
 
-- Use the canonical Markdown artifact's same stem and append `.result.json`.
-- Write structured JSON directly; do not parse Markdown or translate prose with a model.
-- Use exactly this top-level shape:
-
-```json
-{
-  "schema": "dhpk.claude-review-result.v1",
-  "requestDigest": "sha256:<hex>",
-  "reviewResult": { "<unchanged dhpk.reviewer-contract.v2 ReviewResult fields>": "..." },
-  "artifact": {
-    "sha256": "sha256:<hex>",
-    "identity": { "<lifecycle/readiness identity from the envelope>": "..." }
-  },
-  "command": {
-    "sha256": "sha256:<hex>",
-    "outcome": "PASS | FAIL | NOT_RUN | NOT_CONFIGURED | SKIP_INCOMPATIBLE | BLOCKED | UNAVAILABLE"
-  }
-}
-```
-
-- `requestDigest` covers the exact immutable Review Request in the envelope. `reviewResult` is the complete, unchanged `dhpk.reviewer-contract.v2` Review Result; preserve its execution status, applicability, semantic verdict, findings, and evidence semantics. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`.
-- `artifact.sha256` and `artifact.identity` bind to the durable lifecycle/readiness evidence for the same task, attempt, session, dispatch, scope, and diff. The companion command field contains only a digest and bounded outcome, never the command line or output.
-- Keep the companion digest-only: no raw logs, prompts, secrets, chain-of-thought, source text, environment values, credentials, session transcripts, or absolute paths.
-- This companion is evidence only. It does not clear, arm, or change Sentinel clearance; Sentinel clearance remains hook-owned by the existing artifact rules.
+Follow [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Sentinel-clearance independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
@@ -103,7 +80,7 @@ Suggestions: ...
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Sentinel clearance is hook-owned: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears `.pending-db-review`; warning, fail, or malformed evidence leaves it armed. This reviewer's job ends at writing the artifact.
+Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, retention, degradation, and hook-owned sentinel clearance: [`docs/contracts/artifact-contract.md`](../docs/contracts/artifact-contract.md) §Sentinel clearance and [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Single-run verdict. Agent-only: sentinel `.pending-db-review`. This reviewer's job ends at writing the artifact.
 
 ## References
 
