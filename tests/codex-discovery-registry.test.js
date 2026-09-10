@@ -223,4 +223,54 @@ test('default surface labels are applied consistently to the report providers', 
   assert.strictEqual(result.providers.project[0].surface, 'project-local');
 });
 
+test('inactive native providers do not raise a runtime duplicate', () => {
+  const result = inspectCodexActivation({
+    project: [provider()],
+    native: [provider({
+      surface: 'native-experimental',
+      sourcePath: 'plugins/dhpk/skills/dhpk-demo',
+      experimental: true,
+      active: false,
+    })],
+    precedence: ['project-local'],
+  });
+  assert.strictEqual(result.verdict, 'PASS');
+  assert.strictEqual(result.reasonCode, null);
+  assert.deepStrictEqual(result.duplicateInvokableNames, []);
+  assert.deepStrictEqual(result.inactiveDuplicateInvokableNames, ['dhpk-demo']);
+  assert.strictEqual(result.providers.native[0].active, false);
+});
+
+test('active native providers still raise a runtime duplicate', () => {
+  const result = inspectCodexActivation({
+    project: [provider()],
+    native: [provider({
+      surface: 'native-experimental',
+      sourcePath: 'plugins/dhpk/skills/dhpk-demo',
+      experimental: true,
+      active: true,
+    })],
+    precedence: ['project-local'],
+  });
+  assert.strictEqual(result.verdict, 'BLOCKED');
+  assert.strictEqual(result.reasonCode, 'DUPLICATE_CODEX_PROVIDER');
+  assert.deepStrictEqual(result.duplicateInvokableNames, ['dhpk-demo']);
+  assert.deepStrictEqual(result.inactiveDuplicateInvokableNames, []);
+});
+
+test('active defaults to true when unspecified', () => {
+  const result = inspectCodexActivation({
+    project: [provider()],
+    native: [provider({
+      surface: 'native-experimental',
+      sourcePath: 'plugins/dhpk/skills/dhpk-demo',
+      experimental: true,
+    })],
+    precedence: ['project-local'],
+  });
+  assert.strictEqual(result.verdict, 'BLOCKED');
+  assert.strictEqual(result.reasonCode, 'DUPLICATE_CODEX_PROVIDER');
+  assert.deepStrictEqual(result.duplicateInvokableNames, ['dhpk-demo']);
+});
+
 run('codex-discovery-registry');

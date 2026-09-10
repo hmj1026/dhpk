@@ -50,6 +50,7 @@ function normalizeProvider(provider) {
     current: provider.current === true,
     owned: provider.owned === true,
     experimental: provider.experimental === true,
+    active: provider.active !== false,
   });
 }
 
@@ -96,6 +97,7 @@ function compactProvider(provider) {
     current: provider.current,
     owned: provider.owned,
     experimental: provider.experimental,
+    active: provider.active,
   };
   if (provider.fingerprintError) compact.fingerprintError = provider.fingerprintError;
   if (provider.provenance) compact.provenance = { ...provider.provenance };
@@ -208,7 +210,7 @@ function inspectCodexDiscovery({ project = [], native = [], precedence = [], rec
     }
 
     const fallbackIsExperimental = providers.some((provider) => (
-      provider !== winner && provider.experimental === true
+      provider !== winner && provider.experimental === true && provider.active !== false
     ));
     if (fallbackIsExperimental && verdict === VERDICTS.PASS) verdict = VERDICTS.WARN;
     const conflict = {
@@ -264,15 +266,21 @@ function inspectCodexActivation({
       .filter((provider) => provider.kind === 'skills' && !provider.fingerprintError)
       .map((provider) => provider.name),
   );
+  const overlapping = integrity.providers.native.filter((provider) => (
+    provider.kind === 'skills'
+    && !provider.fingerprintError
+    && projectSkillNames.has(provider.name)
+    && !nonInvokable.has(provider.name)
+  ));
+  // Only an actually-active native provider participates in the runtime
+  // duplicate judgment; a source-tree/artifact provider that is not enabled
+  // in Codex is package/provenance evidence, not a live conflicting runtime
+  // (issue #437).
   const duplicateInvokableNames = [...new Set(
-    integrity.providers.native
-      .filter((provider) => (
-        provider.kind === 'skills'
-        && !provider.fingerprintError
-        && projectSkillNames.has(provider.name)
-        && !nonInvokable.has(provider.name)
-      ))
-      .map((provider) => provider.name),
+    overlapping.filter((provider) => provider.active !== false).map((provider) => provider.name),
+  )].sort((left, right) => left.localeCompare(right));
+  const inactiveDuplicateInvokableNames = [...new Set(
+    overlapping.filter((provider) => provider.active === false).map((provider) => provider.name),
   )].sort((left, right) => left.localeCompare(right));
   const blockedByDuplicate = duplicateInvokableNames.length > 0;
   return Object.freeze({
@@ -281,6 +289,7 @@ function inspectCodexActivation({
     verdict: blockedByDuplicate ? VERDICTS.BLOCKED : integrity.verdict,
     reasonCode: integrity.reasonCode || (blockedByDuplicate ? 'DUPLICATE_CODEX_PROVIDER' : null),
     duplicateInvokableNames,
+    inactiveDuplicateInvokableNames,
     integrityVerdict: integrity.verdict,
   });
 }

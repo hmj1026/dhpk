@@ -328,11 +328,14 @@ and runtime activation are separate judgments: the release integrity matrix
 returns `PASS` for identical fingerprints with valid provenance, while stale,
 unowned, conflicting, or precedence-invalid content follows its existing
 integrity rules. Independently, `check-codex-discovery` returns runtime
-`BLOCKED` with `reasonCode: DUPLICATE_CODEX_PROVIDER` for any overlapping
-invokable public name across project and native surfaces, even when the
-fingerprints match. It reports those names as `duplicateInvokableNames` and
-excludes non-invokable support packages. Precedence cannot make an overlapping
-invokable runtime `WARN` or `PASS`.
+`BLOCKED` with `reasonCode: DUPLICATE_CODEX_PROVIDER` for an overlapping
+invokable public name across project and native surfaces only when the native
+Codex plugin (`dhpk@dhpk`) is actually enabled, even when the fingerprints
+match — package/artifact presence under `--native-root` alone is not treated
+as an active runtime provider. It reports those names as
+`duplicateInvokableNames`; an overlapping-but-inactive name is reported
+separately as `inactiveDuplicateInvokableNames` and does not block. Precedence
+cannot make an overlapping invokable runtime `WARN` or `PASS`.
 
 For the executable duplicate-discovery check and its read-only remediation
 steps, use [Check for duplicate Codex discovery](./platform-installation.md#check-for-duplicate-codex-discovery)
