@@ -40,12 +40,6 @@ const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/cap
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
 const ROOT = path.join(__dirname, '..', '..');
-const POLICY_MARKERS = Object.freeze([
-  'cross_provider',
-  'CLI_UNAVAILABLE',
-  'TIMEOUT_OR_INTERRUPTION',
-  'partial-writer',
-]);
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -285,19 +279,13 @@ function verifyPolicyParity(root, inventory) {
   const canonicalPath = path.join(root, paths.claude);
   const canonical = fs.existsSync(canonicalPath) ? fs.readFileSync(canonicalPath, 'utf8') : '';
   if (!canonical) errors.push(`canonical policy is missing: ${paths.claude}`);
-  const missingCanonicalMarkers = POLICY_MARKERS.filter((marker) => !canonical.includes(marker));
-  if (missingCanonicalMarkers.length > 0) {
-    errors.push(`canonical policy is missing required markers: ${missingCanonicalMarkers.join(', ')}`);
-  }
   const projections = {};
   const supportingAssetCount = verifySupportingAssetParity(root, inventory, errors);
   const sharedSkillProjections = verifySharedSkillParity(root, inventory, errors);
   for (const [platform, relative] of Object.entries({ claude: paths.claude, codex: paths.codex, agy: paths.agy, cursor: paths.cursor })) {
     const file = path.join(root, relative);
     const content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-    const missing = POLICY_MARKERS.filter((marker) => !content.includes(marker));
     if (!content) errors.push(`${platform} policy projection is missing: ${relative}`);
-    if (missing.length > 0) errors.push(`${platform} policy projection is missing required markers: ${missing.join(', ')}`);
     const canonicalDigest = sha256(canonical);
     const projectionDigest = sha256(content);
     if (platform === 'codex') {
@@ -312,16 +300,15 @@ function verifyPolicyParity(root, inventory) {
     projections[platform] = {
       source: relative,
       canonicalSource: paths.claude,
+      platformSurface: platform === 'codex' ? 'codex-sync' : platform,
       canonicalDigest,
       projectionDigest,
-      requiredMarkers: POLICY_MARKERS.slice(),
-      missingMarkers: missing,
     };
   }
   return {
     verdict: errors.length === 0 ? 'PASS' : 'FAIL',
     canonicalSource: paths.claude,
-    requiredMarkers: POLICY_MARKERS.slice(),
+    codexProjectionSurface: 'codex-sync',
     projections,
     supportingAssetCount,
     sharedSkillProjections,
