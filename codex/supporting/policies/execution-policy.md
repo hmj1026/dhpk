@@ -73,6 +73,39 @@ are preferred over the global settings file. Reviewer routing remains on the
 current Review Gate / Reviewer Contract path and never creates a retired
 Sentinel state.
 
+## Failure classification and fallback chain
+
+After a selected target has been dispatched, transport reports only the
+terminal result and one canonical failure class. It never chooses a new
+provider or silently retries. The dispatcher owns this policy for planner,
+reasoner, worker, and reviewer roles:
+
+| Failure class | Fallback policy | Required evidence/action |
+|---|---|---|
+| `CLI_UNAVAILABLE` | Continue to the native candidate after confirming the selected CLI is unavailable; use the next configured candidate only with cross-provider opt-in. | Confirm no provider side effect. |
+| `AUTHENTICATION_OR_MODEL_UNAVAILABLE` | Same native-first rule as CLI unavailability when the failed target is confirmed unavailable without side effects. | Preserve the exact auth/model evidence. |
+| `QUOTA_OR_RATE_LIMIT` | Avoid the affected model/account/pool; select an explicitly different authorized pool only with cross-provider opt-in. | Do not infer that every provider is exhausted. |
+| `SAFETY_OR_USER_DENIAL` | Do not switch providers to evade the restriction or denial. | Stop and use the existing authorization/user-action path. |
+| `TASK_OR_SEMANTIC_FAILURE` | Do not switch providers. | Return to the existing repair and acceptance path. |
+| `TIMEOUT_OR_INTERRUPTION` | Do not switch providers as a timeout retry. | Stop the old writer, reconcile assigned scope and diff, then use the partial-writer handoff contract. |
+
+The order is selected target → confirmed-unavailable native target → next
+valid configured candidate only when `cross_provider` is enabled → explicit
+`BLOCKED`. A session records `attempted_backends` and `unavailable_backends`
+and decrements one shared `retry_budget` for every fallback; switching
+providers does not reset that budget and a candidate is never revisited. The
+fallback preserves the role, task scope, read/write authority, model contract
+where applicable, and reviewer contract. There is no hidden coordinator or
+silent provider switch.
+
+For a timed-out or interrupted multi-file writer, stop the old writer before
+continuing. Verify the assigned scope and path-scoped diff, separate confirmed,
+unconfirmed, remaining, and out-of-scope files, and preserve dirty work. A
+partial result writes one control-plane marker under
+`.codex/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`;
+the marker is not a product edit or Review Gate verdict and remains until
+explicit reconciliation.
+
 ## Orchestration lifecycle acceptance
 
 The orchestrator owns dispatch and handoff identity, retries, and evidence

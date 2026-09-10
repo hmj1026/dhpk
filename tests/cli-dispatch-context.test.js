@@ -78,6 +78,20 @@ test('Codex alias context keeps requested identity, uses canonical configuration
   assert.strictEqual(second.status, 'READY');
 });
 
+test('attested failure classification is optional, canonical, and carried to transport', () => {
+  const valid = buildContext(dispatchInput({ failure_class: 'AUTHENTICATION_OR_MODEL_UNAVAILABLE' }));
+  assert.strictEqual(valid.status, 'READY');
+  assert.strictEqual(valid.context.failure_class, 'AUTHENTICATION_OR_MODEL_UNAVAILABLE');
+
+  const absent = buildContext(dispatchInput());
+  assert.strictEqual(absent.status, 'READY');
+  assert.strictEqual(absent.context.failure_class, null);
+
+  const invalid = buildContext(dispatchInput({ failure_class: 'PROVIDER_EXHAUSTED' }));
+  assert.strictEqual(invalid.status, 'BLOCKED');
+  assert.match(invalid.reason, /failure_class/i);
+});
+
 test('cross-provider identity is BLOCKED without a write', () => {
   const writes = [];
   const result = buildContext(dispatchInput({ execution_provider: 'agy' }), {
