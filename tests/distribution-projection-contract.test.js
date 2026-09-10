@@ -145,6 +145,36 @@ test('compiler fails closed when AGY selection policy is omitted', () => {
   assert.strictEqual(compiled.error.code, 'INVALID_SELECTION_POLICY');
 });
 
+test('profile compilation keeps only surface entries while retaining canonical profile identity', () => {
+  const source = inventory();
+  source.skills = [
+    { id: 'agy-selected', path: 'skills/agy-selected', surfaces: ['agy-plugin'] },
+    { id: 'other-surface', path: 'skills/other-surface', surfaces: ['agent-plugin'] },
+  ];
+  source.surface_membership = { 'agy-plugin': ['agy-selected'] };
+  source.projection_contract.surfaces['agy-plugin'] = {
+    adapter: 'agy-plugin',
+    owner: 'agy-plugin',
+    symlink_policy: 'forbid',
+    verification_stages: ['structural'],
+    selection_policy: { source: 'surface_membership', precedence: ['surface_membership'] },
+  };
+  const compiled = compileDistribution({
+    inventory: source,
+    surface: 'agy-plugin',
+    profileSelection: {
+      profileId: 'minimal',
+      selectedStableIds: ['agy-selected', 'other-surface'],
+      selectionFingerprint: 'a'.repeat(64),
+      compatibilityMode: 'profile',
+      selectionPolicyVersion: 'fixture-v1',
+    },
+  });
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.deepStrictEqual(compiled.value.selectedStableIds, ['agy-selected', 'other-surface']);
+  assert.deepStrictEqual(compiled.value.entries.map((entry) => entry.stableId), ['agy-selected']);
+});
+
 test('compiler preserves Native Codex entry allowlist over other membership maps', () => {
   const source = {
     skills: [

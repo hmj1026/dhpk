@@ -257,7 +257,7 @@ test('minimal AGY profile carries declared transport runtime support without wid
   const root = tempRoot();
   const outDir = path.join(root, 'package');
   try {
-    const inventory = writeFixture(root);
+    const inventory = writeFixture(root, { withProjectionContract: true });
     fs.mkdirSync(path.join(root, 'skills', 'dhpk-runtime'), { recursive: true });
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-runtime', 'SKILL.md'), [
       '---',
@@ -291,6 +291,8 @@ test('minimal AGY profile carries declared transport runtime support without wid
     });
     assert.deepStrictEqual(result.receipt.selectedStableIds, ['sample']);
     assert.deepStrictEqual(result.receipt.selectedIds.skills, ['sample', 'runtime']);
+    assert.deepStrictEqual(result.receipt.selection.selectedStableIds, ['sample']);
+    assert.strictEqual(result.receipt.selection.selectionPolicy.source, 'surface_membership');
     assert.ok(fs.existsSync(path.join(outDir, 'skills', 'dhpk-runtime', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(outDir, 'skills', 'dhpk-runtime', 'scripts', 'run-runtime.sh')));
     assert.ok(fs.existsSync(path.join(outDir, 'skills', 'dhpk-runtime', 'scripts', 'report-schema.json')));

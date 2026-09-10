@@ -7,13 +7,14 @@
 // real client is explicitly invoked.
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const {
   materializeAgentPluginPackage,
   validateAgentPluginPackage,
-  fingerprintDir: fingerprintAgent,
+  fingerprintDir: fingerprintDirectory,
 } = require('../lib/agent-plugin-package');
 const {
   materializeCursorPackage,
@@ -29,16 +30,11 @@ const {
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
 } = require('../lib/agy-plugin-package');
-const { validateSurfaceReceipt, resolveGeneratedFromTree } = require('../lib/platform-provenance');
+const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheckout } = require('../lib/platform-provenance');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
+const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
 const ROOT = path.join(__dirname, '..', '..');
-const POLICY_PROJECTIONS = Object.freeze({
-  claude: 'rules/execution-policy.md',
-  codex: 'codex/supporting/policies/execution-policy.md',
-  agy: 'plugins/dhpk-agy/rules/execution-policy.md',
-  cursor: 'plugins/dhpk-cursor/rules/execution-policy.mdc',
-});
 const POLICY_MARKERS = Object.freeze([
   'cross_provider',
   'CLI_UNAVAILABLE',
@@ -106,7 +102,7 @@ function verifyAgent({ root, targetCommit, targetTree, inventory, profiles, modu
   });
   const structural = validateAgentPluginPackage(temp);
   const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'agent-plugin', { root, targetCommit, targetTree });
-  const fingerprintMatches = fingerprintAgent(temp) === fingerprintAgent(tracked);
+  const fingerprintMatches = fingerprintDirectory(temp) === fingerprintDirectory(tracked);
   return {
     structural: structural.ok ? 'PASS' : 'FAIL',
     receipt: receipt.ok ? 'PASS' : 'FAIL',
@@ -183,7 +179,7 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, version, tracked
     'agy-plugin',
     { root, targetCommit, targetTree },
   );
-  const fingerprintMatches = fingerprintAgent(temp) === fingerprintAgent(tracked);
+  const fingerprintMatches = fingerprintDirectory(temp) === fingerprintDirectory(tracked);
   return {
     structural: structural.ok ? 'PASS' : 'FAIL',
     receipt: receipt.ok ? 'PASS' : 'FAIL',
@@ -194,32 +190,72 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, version, tracked
   };
 }
 
-function verifyPolicyParity(root) {
-  const canonicalPath = path.join(root, POLICY_PROJECTIONS.claude);
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+function stripFrontmatter(content) {
+  const match = String(content).match(/^---\r?\n[\s\S]*?\r?\n---\r?\n/);
+  return match ? String(content).slice(match[0].length) : String(content);
+}
+
+function policyProjectionPaths(inventory) {
+  const contractSurfaces = inventory.projection_contract && inventory.projection_contract.surfaces || {};
+  const codex = (inventory.supporting_assets || []).find((entry) => entry.id === 'codex-supporting-policies-execution-policy-md');
+  const agyRule = inventory.agy_plugin && (inventory.agy_plugin.rules || []).find((entry) => path.basename(entry) === 'execution-policy.md');
+  const agyOwner = contractSurfaces['agy-plugin'] && contractSurfaces['agy-plugin'].owner;
+  const cursorOwner = contractSurfaces['cursor-plugin'] && contractSurfaces['cursor-plugin'].owner;
+  if (!codex || !codex.canonical_source || !agyRule || !agyOwner || !cursorOwner) return null;
+  return {
+    claude: codex.canonical_source,
+    codex: codex.source,
+    agy: path.posix.join(agyOwner, agyRule),
+    cursor: path.posix.join(cursorOwner, 'rules', cursorDocumentDestinationName('rules', path.basename(codex.canonical_source))),
+    codexEntry: codex,
+  };
+}
+
+function verifyPolicyParity(root, inventory) {
+  const paths = policyProjectionPaths(inventory);
   const errors = [];
+  if (!paths) return { verdict: 'FAIL', errors: ['inventory is missing canonical policy projection metadata'] };
+  const canonicalPath = path.join(root, paths.claude);
   const canonical = fs.existsSync(canonicalPath) ? fs.readFileSync(canonicalPath, 'utf8') : '';
-  if (!canonical) errors.push(`canonical policy is missing: ${POLICY_PROJECTIONS.claude}`);
+  if (!canonical) errors.push(`canonical policy is missing: ${paths.claude}`);
   const missingCanonicalMarkers = POLICY_MARKERS.filter((marker) => !canonical.includes(marker));
   if (missingCanonicalMarkers.length > 0) {
     errors.push(`canonical policy is missing required markers: ${missingCanonicalMarkers.join(', ')}`);
   }
   const projections = {};
-  for (const [platform, relative] of Object.entries(POLICY_PROJECTIONS)) {
+  for (const [platform, relative] of Object.entries({ claude: paths.claude, codex: paths.codex, agy: paths.agy, cursor: paths.cursor })) {
     const file = path.join(root, relative);
     const content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
     const missing = POLICY_MARKERS.filter((marker) => !content.includes(marker));
     if (!content) errors.push(`${platform} policy projection is missing: ${relative}`);
     if (missing.length > 0) errors.push(`${platform} policy projection is missing required markers: ${missing.join(', ')}`);
+    const canonicalDigest = sha256(canonical);
+    const projectionDigest = sha256(content);
+    if (platform === 'codex') {
+      if (paths.codexEntry.canonical_digest !== canonicalDigest) errors.push('Codex policy canonical digest is stale');
+      if (paths.codexEntry.projection_digest !== projectionDigest) errors.push('Codex policy projection digest is stale');
+    } else if (platform === 'agy' && content !== canonical) {
+      errors.push('AGY policy projection drifted from the canonical policy');
+    } else if (platform === 'cursor') {
+      const expectedBody = rewriteCursorHarnessBody(canonical).trim();
+      if (stripFrontmatter(content).trim() !== expectedBody) errors.push('Cursor policy projection drifted from the canonical transform');
+    }
     projections[platform] = {
       source: relative,
-      canonicalSource: POLICY_PROJECTIONS.claude,
+      canonicalSource: paths.claude,
+      canonicalDigest,
+      projectionDigest,
       requiredMarkers: POLICY_MARKERS.slice(),
       missingMarkers: missing,
     };
   }
   return {
     verdict: errors.length === 0 ? 'PASS' : 'FAIL',
-    canonicalSource: POLICY_PROJECTIONS.claude,
+    canonicalSource: paths.claude,
     requiredMarkers: POLICY_MARKERS.slice(),
     projections,
     errors,
@@ -256,6 +292,7 @@ function reportFromSurfaces(surfaces, policyParity = null) {
 }
 
 function main() {
+  assertCleanSourceCheckout(ROOT);
   const inventory = readJson(path.join(ROOT, 'manifests', 'distribution-inventory.json'));
   const profiles = readJson(path.join(ROOT, 'manifests', 'install-profiles.json'));
   const moduleCatalog = readJson(path.join(ROOT, 'manifests', 'module-catalog.json'));
@@ -278,7 +315,7 @@ function main() {
       'codex-native': verifyCodex({ root: ROOT, targetCommit, targetTree, inventory, version, tracked: path.join(ROOT, 'plugins/dhpk'), temp: tempCodex }),
       'agy-plugin': verifyAgy({ root: ROOT, targetCommit, targetTree, inventory, version, tracked: path.join(ROOT, 'plugins/dhpk-agy'), temp: tempAgy }),
     };
-    report = reportFromSurfaces(surfaces, verifyPolicyParity(ROOT));
+    report = reportFromSurfaces(surfaces, verifyPolicyParity(ROOT, inventory));
   } catch (error) {
     report = { verdict: 'FAIL', surfaces: {}, errors: [error.message] };
   } finally {

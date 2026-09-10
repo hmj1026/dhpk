@@ -257,7 +257,7 @@ function compileDistribution(inputs = {}) {
     };
     if (profileSelection && Array.isArray(profileSelection.selectedStableIds)) {
       const selected = new Set(profileSelection.emittedStableIds || profileSelection.selectedStableIds);
-      entries = entries.filter((entry) => selected.has(entry.stableId));
+      entries = entries.filter((entry) => selected.has(entry.stableId || entry.id));
     }
   }
   if (!inputs.entries && (!inputs.inventory || typeof inputs.inventory !== 'object')) {
