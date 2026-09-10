@@ -110,6 +110,41 @@ test('compiler fails closed when a migrated surface lacks a valid selection poli
   assert.strictEqual(unknown.error.code, 'INVALID_SELECTION_POLICY');
 });
 
+test('compiler uses the inventory-owned AGY selection policy', () => {
+  const source = inventory();
+  source.skills = [
+    { id: 'agy-selected', path: 'skills/agy-selected', surfaces: ['agy-plugin'] },
+    { id: 'agy-unselected', path: 'skills/agy-unselected', surfaces: ['agy-plugin'] },
+  ];
+  source.surface_membership = { 'agy-plugin': ['agy-selected'] };
+  source.projection_contract.surfaces['agy-plugin'] = {
+    adapter: 'agy-plugin',
+    owner: 'agy-plugin',
+    symlink_policy: 'forbid',
+    verification_stages: ['structural'],
+    selection_policy: { source: 'surface_membership', precedence: ['surface_membership', 'entry_surfaces'] },
+  };
+
+  const compiled = compileDistribution({ inventory: source, surface: 'agy-plugin' });
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.deepStrictEqual(compiled.value.selectedStableIds, ['agy-selected']);
+  assert.deepStrictEqual(compiled.value.entries.map((entry) => entry.stableId), ['agy-selected']);
+});
+
+test('compiler fails closed when AGY selection policy is omitted', () => {
+  const source = inventory();
+  source.projection_contract.surfaces['agy-plugin'] = {
+    adapter: 'agy-plugin',
+    owner: 'agy-plugin',
+    symlink_policy: 'forbid',
+    verification_stages: ['structural'],
+  };
+  source.surface_membership = { 'agy-plugin': ['a'] };
+  const compiled = compileDistribution({ inventory: source, surface: 'agy-plugin' });
+  assert.strictEqual(compiled.ok, false);
+  assert.strictEqual(compiled.error.code, 'INVALID_SELECTION_POLICY');
+});
+
 test('compiler preserves Native Codex entry allowlist over other membership maps', () => {
   const source = {
     skills: [

@@ -16,6 +16,7 @@ const {
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const {
   externalSkillPackagesFingerprint,
@@ -224,12 +225,17 @@ function selectedConfiguration(inventory, profileSelection = null) {
   if (!configuration || typeof configuration !== 'object') throw new Error('inventory.agy_plugin is required');
   const membershipIds = inventory.surface_membership && inventory.surface_membership[SURFACE];
   if (!Array.isArray(membershipIds)) throw new Error(`inventory.surface_membership.${SURFACE} must be a string array`);
-  const selectedSet = profileSelection && Array.isArray(profileSelection.selectedStableIds)
-    ? new Set(profileSelection.selectedStableIds)
-    : null;
-  const profileSkillIds = selectedSet ? membershipIds.filter((id) => selectedSet.has(id)) : membershipIds;
+  const compiled = compileDistribution({
+    inventory,
+    surface: SURFACE,
+    profileSelection,
+  });
+  if (!compiled.ok) throw new Error(compiled.error.message);
+  const selectedIds = Array.isArray(compiled.value.selectedStableIds)
+    ? compiled.value.selectedStableIds
+    : compiled.value.entries.map((entry) => entry.stableId);
   const runtimeSkillIds = runtimeSupportSkillIds(inventory, SURFACE);
-  const skillIds = [...new Set([...profileSkillIds, ...runtimeSkillIds])];
+  const skillIds = [...new Set([...selectedIds, ...runtimeSkillIds])];
   if (!Array.isArray(configuration.agents) || !Array.isArray(configuration.rules)) {
     throw new Error('inventory.agy_plugin agents and rules must be arrays');
   }

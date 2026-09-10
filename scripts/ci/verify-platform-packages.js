@@ -20,10 +20,31 @@ const {
   validateCursorPackage,
   fingerprintDir: fingerprintCursor,
 } = require('../lib/cursor-plugin-package');
-const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheckout } = require('../lib/platform-provenance');
+const {
+  materializeNativePackage,
+  verifyNativePackage,
+  fingerprintDir: fingerprintNative,
+} = require('../lib/codex-native-package');
+const {
+  materializeAgyPluginPackage,
+  validateAgyPluginPackage,
+} = require('../lib/agy-plugin-package');
+const { validateSurfaceReceipt, resolveGeneratedFromTree } = require('../lib/platform-provenance');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 
 const ROOT = path.join(__dirname, '..', '..');
+const POLICY_PROJECTIONS = Object.freeze({
+  claude: 'rules/execution-policy.md',
+  codex: 'codex/supporting/policies/execution-policy.md',
+  agy: 'plugins/dhpk-agy/rules/execution-policy.md',
+  cursor: 'plugins/dhpk-cursor/rules/execution-policy.mdc',
+});
+const POLICY_MARKERS = Object.freeze([
+  'cross_provider',
+  'CLI_UNAVAILABLE',
+  'TIMEOUT_OR_INTERRUPTION',
+  'partial-writer',
+]);
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -123,8 +144,91 @@ function verifyCursor({ root, targetCommit, targetTree, inventory, profiles, mod
   };
 }
 
-function reportFromSurfaces(surfaces) {
+function verifyCodex({ root, targetCommit, targetTree, inventory, version, tracked, temp }) {
+  const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
+  const generated = materializeNativePackage({
+    inventory,
+    root,
+    outDir: temp,
+    name: 'dhpk',
+    version,
+    sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
+  });
+  const structural = verifyNativePackage({ packageRoot: temp, inventory, stage: 'structural' });
+  const receipt = validateSurfaceReceipt(trackedProvenance, 'codex-native', { root, targetCommit, targetTree });
+  const fingerprintMatches = fingerprintNative(temp) === fingerprintNative(tracked);
+  return {
+    structural: structural.ok ? 'PASS' : 'FAIL',
+    receipt: receipt.ok ? 'PASS' : 'FAIL',
+    deterministic: fingerprintMatches ? 'PASS' : 'FAIL',
+    selectedSkills: generated.skillIds.length,
+    selectedSkillIds: generated.skillIds,
+    errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked Codex native package fingerprint drifted'])],
+  };
+}
+
+function verifyAgy({ root, targetCommit, targetTree, inventory, version, tracked, temp }) {
+  const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
+  const generated = materializeAgyPluginPackage({
+    inventory,
+    root,
+    outDir: temp,
+    version,
+    sourceVersion: version,
+    sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
+  });
+  const structural = validateAgyPluginPackage(temp, { inventory, expectedVersion: version });
+  const receipt = validateSurfaceReceipt(
+    { ...trackedProvenance, schema: trackedProvenance.provenanceSchema },
+    'agy-plugin',
+    { root, targetCommit, targetTree },
+  );
+  const fingerprintMatches = fingerprintAgent(temp) === fingerprintAgent(tracked);
+  return {
+    structural: structural.ok ? 'PASS' : 'FAIL',
+    receipt: receipt.ok ? 'PASS' : 'FAIL',
+    deterministic: fingerprintMatches ? 'PASS' : 'FAIL',
+    selectedSkills: generated.selected.skills.length,
+    selectedSkillIds: generated.selected.skills.map((skill) => skill.id),
+    errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked AGY package fingerprint drifted'])],
+  };
+}
+
+function verifyPolicyParity(root) {
+  const canonicalPath = path.join(root, POLICY_PROJECTIONS.claude);
+  const errors = [];
+  const canonical = fs.existsSync(canonicalPath) ? fs.readFileSync(canonicalPath, 'utf8') : '';
+  if (!canonical) errors.push(`canonical policy is missing: ${POLICY_PROJECTIONS.claude}`);
+  const missingCanonicalMarkers = POLICY_MARKERS.filter((marker) => !canonical.includes(marker));
+  if (missingCanonicalMarkers.length > 0) {
+    errors.push(`canonical policy is missing required markers: ${missingCanonicalMarkers.join(', ')}`);
+  }
+  const projections = {};
+  for (const [platform, relative] of Object.entries(POLICY_PROJECTIONS)) {
+    const file = path.join(root, relative);
+    const content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+    const missing = POLICY_MARKERS.filter((marker) => !content.includes(marker));
+    if (!content) errors.push(`${platform} policy projection is missing: ${relative}`);
+    if (missing.length > 0) errors.push(`${platform} policy projection is missing required markers: ${missing.join(', ')}`);
+    projections[platform] = {
+      source: relative,
+      canonicalSource: POLICY_PROJECTIONS.claude,
+      requiredMarkers: POLICY_MARKERS.slice(),
+      missingMarkers: missing,
+    };
+  }
+  return {
+    verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+    canonicalSource: POLICY_PROJECTIONS.claude,
+    requiredMarkers: POLICY_MARKERS.slice(),
+    projections,
+    errors,
+  };
+}
+
+function reportFromSurfaces(surfaces, policyParity = null) {
   const errors = Object.values(surfaces).flatMap((surface) => surface.errors);
+  if (policyParity) errors.push(...policyParity.errors);
   const agentIds = surfaces['agent-plugin'].selectedSkillIds || [];
   const cursor = surfaces['cursor-plugin'];
   if (cursor.sharedSkillSurface === 'agent-plugin') {
@@ -143,31 +247,45 @@ function reportFromSurfaces(surfaces) {
       errors.push(`Cursor overlay repeats shared skill IDs without a declared runtime-support exception: ${overlap.sort().join(', ')}`);
     }
   }
-  return { verdict: errors.length === 0 ? 'PASS' : 'FAIL', surfaces, errors };
+  return {
+    verdict: errors.length === 0 ? 'PASS' : 'FAIL',
+    surfaces,
+    ...(policyParity ? { policyParity } : {}),
+    errors,
+  };
 }
 
 function main() {
-  assertCleanSourceCheckout(ROOT);
   const inventory = readJson(path.join(ROOT, 'manifests', 'distribution-inventory.json'));
   const profiles = readJson(path.join(ROOT, 'manifests', 'install-profiles.json'));
   const moduleCatalog = readJson(path.join(ROOT, 'manifests', 'module-catalog.json'));
   const version = readJson(path.join(ROOT, '.claude-plugin', 'plugin.json')).version;
   const targetCommit = sourceCommit(ROOT, 'unknown');
   const targetTree = resolveGeneratedFromTree(ROOT, targetCommit);
-  const tempAgent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-package-verify-'));
-  const tempCursor = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-package-verify-'));
+  const tempRoot = fs.realpathSync(os.tmpdir());
+  const tempAgent = fs.mkdtempSync(path.join(tempRoot, 'dhpk-agent-package-verify-'));
+  const tempCursor = fs.mkdtempSync(path.join(tempRoot, 'dhpk-cursor-package-verify-'));
+  const tempCodex = fs.mkdtempSync(path.join(tempRoot, 'dhpk-codex-package-verify-'));
+  const tempAgy = fs.mkdtempSync(path.join(tempRoot, 'dhpk-agy-package-verify-'));
+  // AGY's atomic publisher accepts a missing destination or an owned package,
+  // not an empty pre-created directory.
+  fs.rmSync(tempAgy, { recursive: true, force: true });
   let report;
   try {
     const surfaces = {
       'agent-plugin': verifyAgent({ root: ROOT, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-agent'), temp: tempAgent }),
       'cursor-plugin': verifyCursor({ root: ROOT, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-cursor'), temp: tempCursor }),
+      'codex-native': verifyCodex({ root: ROOT, targetCommit, targetTree, inventory, version, tracked: path.join(ROOT, 'plugins/dhpk'), temp: tempCodex }),
+      'agy-plugin': verifyAgy({ root: ROOT, targetCommit, targetTree, inventory, version, tracked: path.join(ROOT, 'plugins/dhpk-agy'), temp: tempAgy }),
     };
-    report = reportFromSurfaces(surfaces);
+    report = reportFromSurfaces(surfaces, verifyPolicyParity(ROOT));
   } catch (error) {
     report = { verdict: 'FAIL', surfaces: {}, errors: [error.message] };
   } finally {
     fs.rmSync(tempAgent, { recursive: true, force: true });
     fs.rmSync(tempCursor, { recursive: true, force: true });
+    fs.rmSync(tempCodex, { recursive: true, force: true });
+    fs.rmSync(tempAgy, { recursive: true, force: true });
   }
   console.log(JSON.stringify(report, null, 2));
   process.exit(report.verdict === 'PASS' ? 0 : 1);

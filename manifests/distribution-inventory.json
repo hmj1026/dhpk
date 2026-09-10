@@ -213,7 +213,15 @@
           "package",
           "consumer-runtime"
         ],
-        "symlink_policy": "forbid"
+        "symlink_policy": "forbid",
+        "selection_policy": {
+          "source": "surface_membership",
+          "precedence": [
+            "surface_membership",
+            "platform_matrix",
+            "entry_surfaces"
+          ]
+        }
       },
       "cursor-sync": {
         "adapter": "cursor-sync",

@@ -144,7 +144,7 @@ const CLIENT_METADATA_BOUNDARY = {
 const PROJECTION_CONTRACT_SCHEMA = 'dhpk.distribution-projection-contract.v1';
 const PROJECTION_SYMLINK_POLICIES = ['forbid', 'contained-relative', 'declared-source-relative'];
 const PROJECTION_STAGES = ['structural', 'package', 'consumer-runtime'];
-const MIGRATED_SELECTION_SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native'];
+const MIGRATED_SELECTION_SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin'];
 const SELECTION_POLICY_SOURCES = ['surface_membership', 'projection', 'platform_matrix', 'entry_surfaces'];
 
 function skillIdFromPath(relPath) {

@@ -12,10 +12,10 @@ const {
 const COMMIT = 'a'.repeat(40);
 
 function tempRoot() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'agy-package-test-'));
+  return fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-package-test-'));
 }
 
-function writeFixture(root, { includeHarnessReference = false } = {}) {
+function writeFixture(root, { includeHarnessReference = false, withProjectionContract = false, omitSelectionPolicy = false } = {}) {
   fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
   fs.mkdirSync(path.join(root, 'rules'), { recursive: true });
   fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample'), { recursive: true });
@@ -57,7 +57,7 @@ function writeFixture(root, { includeHarnessReference = false } = {}) {
     skillLines.push('Use @skills/harness-govern/references/harness-directory-contract.md when resolving a harness.');
   }
   fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), `${skillLines.join('\n')}\n`);
-  return {
+  const inventory = {
     schema: 'dhpk.distribution-inventory.v2',
     surfaces: ['agy-plugin'],
     skills: [
@@ -73,6 +73,25 @@ function writeFixture(root, { includeHarnessReference = false } = {}) {
       rules: ['rules/sample.md'],
     },
   };
+  if (withProjectionContract) {
+    inventory.projection_contract = {
+      schema: 'dhpk.distribution-projection-contract.v1',
+      compiler: { id: 'distribution-compiler', version: '1' },
+      symlink_policies: ['forbid'],
+      surfaces: {
+        'agy-plugin': {
+          adapter: 'agy-plugin',
+          owner: 'agy-plugin',
+          symlink_policy: 'forbid',
+          verification_stages: ['structural'],
+          ...(omitSelectionPolicy ? {} : {
+            selection_policy: { source: 'surface_membership', precedence: ['surface_membership'] },
+          }),
+        },
+      },
+    };
+  }
+  return inventory;
 }
 
 function materializeFixture(root, outDir, options) {
@@ -122,6 +141,19 @@ test('materializes and validates a contained AGY package', () => {
     assert.ok(result.files.includes('agents/sample.md'));
     assert.ok(result.files.includes('skills/dhpk-sample/SKILL.md'));
     assert.ok(!fs.readFileSync(path.join(root, 'agents', 'sample.md'), 'utf8').includes('model: pro'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY generation requires the inventory-owned selection policy', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    assert.throws(
+      () => materializeFixture(root, outDir, { withProjectionContract: true, omitSelectionPolicy: true }),
+      /selection policy/,
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

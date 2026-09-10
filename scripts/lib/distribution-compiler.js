@@ -72,7 +72,7 @@ function validateEmissionMetadata(emission, planned) {
   return null;
 }
 
-const MIGRATED_SELECTION_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native']);
+const MIGRATED_SELECTION_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 const SELECTION_POLICY_SOURCES = Object.freeze(['surface_membership', 'projection', 'platform_matrix', 'entry_surfaces']);
 
 function selectionPolicyError(message, details = {}) {
