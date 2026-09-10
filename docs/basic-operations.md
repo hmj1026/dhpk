@@ -252,7 +252,7 @@ Use the skill groups below as a reusable decision ladder:
 | Skill | Common invocation pattern |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
 | `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
@@ -316,11 +316,15 @@ Use these invocation-only modifiers when they change the decision for this run:
 |---|---|
 | `--plan[=<model>[:<effort>]]` | Adds a planner critique to confirmed implementation work. |
 | `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; it does not persist configuration. |
+| `--cross-provider` | One-shot opt-in for configured external candidates when `--worker=auto`; it does not persist configuration or broaden an explicit worker target. |
 | `--reasoner=<backend>:<model>:<effort>` | Requests a bounded reasoning pass for confirmed implementation work. |
 | `--architect` / `--no-architect` | Enables or disables the architecture pass for this invocation. |
 | `--codex` | Retired compatibility flag. The parser emits a deprecation diagnostic and does not select a peer or backend; use an explicit worker, reasoner, or owner second-opinion option instead. |
 
-`--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex`
+`--worker=auto --cross-provider` allows the configured external candidates to
+participate in automatic selection for this invocation. Without the flag,
+automatic selection remains native-only; `--worker=codex` or `--worker=agy`
+remains a directional explicit choice. `--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex`
 chooses a Codex CLI reasoning pass. `CODEX=on` and `--codex` are
 retired compatibility flags: they emit a deprecation diagnostic and never
 select a peer, worker, reasoner, or hidden backend. Only a missing selected

@@ -83,6 +83,29 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對明確註冊的 reviewer quality advisory 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 unresolved obligation。預設 `off`（無作用，不做啟發式評估）。 |
 
+### 遷移既有的 automatic worker 設定
+
+既有的 `fast_worker_backend`、`fast_worker_backend_order` 與
+`fast_worker_fallback` 設定仍然有效。這次遷移只改變 automatic external
+discovery 的語意：`fast_worker_backend=auto` 在明確啟用跨家派發前，維持
+native-only。
+
+| 既有設定 | 目前行為 | 遷移動作 |
+|---|---|---|
+| `fast_worker_backend=claude` | 使用 native Claude worker。 | 不需要變更。 |
+| `fast_worker_backend=codex` 或 `agy` | 本次 invocation 定向選取該 external worker。 | 保留設定，另外確認選定的 CLI／authentication；不會連帶開放其他 provider。 |
+| `fast_worker_backend=auto` | `cross_provider=false` 時使用 native Claude candidate，不探查 external CLI。 | 若要維持 native-only 就保留 `auto`；若要讓設定的 external order 成為候選，請設定 `cross_provider=true`。 |
+| `fast_worker_backend_order` | 保留設定順序，但跨家派發關閉時會抑制 external entry。 | 保留原順序，不需重寫。 |
+| `fast_worker_fallback=claude` | 只有明確選定的 CLI executable 缺少時才 fallback。 | 只有需要這個狹義的 missing-executable fallback 時才保留；不涵蓋 auth、quota、task、execution 或 verification failure。 |
+
+要對單一專案 opt-in，請在 `.claude/settings.local.json`（或 project
+`settings.json`）的 `pluginConfigs.dhpk@dhpk.options` 下加入設定。只對單次
+automatic selection opt-in 則使用 `--worker=auto --cross-provider`。單次 flag
+優先於 project 與 installed-user 設定。將 project 值設為 `false` 可回到
+native-only automatic selection；移除 project override 則會重新暴露 installed-user
+值，因此只有在該值也未設定或為 `false` 時，才能把移除視為 rollback。已退休的
+`CODEX=on` 與 `--codex` 不是遷移 alias。
+
 dispatcher 在建立 `0600` immutable transport context 前，會將解析後的 deadline 驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`；只有不需要 portable runner deadline 時才明確設定 `0`。Python transport runner 而非 `timeout`/`gtimeout` 會強制執行已證明的 deadline，並寫入 contained terminal receipt。agy 的獨立設定也同樣是已證明的 dispatch input。
 
 <a id="codex-mcp-dependency-not-a-userconfig-knob"></a>

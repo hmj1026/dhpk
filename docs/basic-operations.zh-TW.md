@@ -242,7 +242,7 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | Skill | 常用參數 |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
 | `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
@@ -301,11 +301,14 @@ navigation fallback。
 |---|---|
 | `--plan[=<model>[:<effort>]]` | 為已確認的 implementation work 加入 planner critique。 |
 | `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker，不會持久化設定。 |
+| `--cross-provider` | 當使用 `--worker=auto` 時，僅對本次 invocation 開放設定的 external candidate；不會持久化，也不會擴大明確選定的 worker target。 |
 | `--reasoner=<backend>:<model>:<effort>` | 為已確認 implementation work 要求 bounded reasoning pass。 |
 | `--architect` / `--no-architect` | 控制本次 invocation 的 architecture pass。 |
 | `--codex` | 已退休的相容性旗標。Parser 會產生 deprecation diagnostic，不會選擇 peer 或 backend；請改用明確的 worker、reasoner 或 owner 第二意見選項。 |
 
-`--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex` 是選 Codex CLI
+`--worker=auto --cross-provider` 只會讓設定的 external candidate 參與本次 automatic
+selection。沒有這個 flag 時，automatic selection 維持 native-only；`--worker=codex` 或
+`--worker=agy` 仍是定向的明確選擇。`--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex` 是選 Codex CLI
 reasoning pass。`CODEX=on` 與 `--codex` 是已退休的相容性旗標：會產生
 deprecation diagnostic，絕不選擇 peer、worker、reasoner 或 hidden backend。只有選定
 executable 缺少時才允許 configured Claude fallback；authentication、task、execution 與
