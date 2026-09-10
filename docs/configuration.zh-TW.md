@@ -2,7 +2,7 @@
 
 > **語言**: [English](./configuration.md) · **繁體中文**
 
-dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
+dhpk 在 `.claude-plugin/plugin.json` 中暴露 **70 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
 Claude 的預設 discovery artifact 是由
 `manifests/distribution-inventory.json` 產生的實體化 `minimal` profile，並非
@@ -47,12 +47,16 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 
 部分布林/模式類旋鈕額外支援**單次環境變數覆寫**（僅限當次 session）——見下表「Env 覆寫」欄。
 
+對自動 fast-worker 派發而言，單次 `--cross-provider` flag 的優先序最高，
+只在該次呼叫開放外部候選。沒有 flag 時，專案設定優先於安裝後的使用者設定，
+而 shipped 預設為 `false`。
+
 ## 核心派發與 Review
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Hook 輸出的詳細程度。`minimal` 抑制 Stop 提醒；`strict` 增加額外警告。 |
-| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 slot 順序（code、db、sec、frontend、doc、polyfill、migration）被 sentinel 提醒呼叫的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 slot。Slot 5–6（polyfill、migration）僅在 opt-in 時觸發——polyfill 經由 `library-author` 模組，migration 經由模組 triggers 或 `mig:` 額外路徑。 |
+| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 role 順序（code、db、sec、frontend、doc、polyfill、migration）由 Review Gate 派工的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 role。Slot 5–6（polyfill、migration）僅在 opt-in trigger 時選取。 |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus`（依當前 Claude Code 版本支援的模型而定） | `dhpk:deep-reasoner` Agent-call 派發（推理密集的實作工作）使用的模型層級。當與 agent frontmatter 預設值不同時，透過 Agent call 的 `model` 參數套用。設定值無效時每個 session 只警告一次並退回 frontmatter 預設值——絕不會讓派發失敗。 |
 | `fast_worker_model` | string | `sonnet` | 同上 | `dhpk:fast-worker` Agent-call 派發（機械式實作工作）使用的模型層級。驗證/退回行為與 `deep_reasoner_model` 相同。 |
 | `planner_model` | string | `opus` | 同上 | `dhpk:planner` Agent-call 派發使用的模型層級（`/dhpk:flow-drive --plan` opt-in 的實作前批判 / 實作後 warm review）。驗證/退回行為與 `deep_reasoner_model` 相同。 |
@@ -73,10 +77,34 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode，以及 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示，但多任務 OpenSpec 的 mandatory planner 與 verification gates 仍然有效。 |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用性。`/dhpk:flow-drive --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
-| `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | 僅供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。值無效時每個 session 警告一次並使用 shipped 順序。 |
+| `cross_provider` | boolean | `false` | `true` \| `false` | 自動 fast-worker 選擇時開放外部候選的 opt-in。`false` 讓 `auto` 僅使用 native 並禁止外部探查；`true` 才依 `fast_worker_backend_order` 檢查。明確的 `--worker=<target>` 仍是定向選取，不會連帶開放其他 provider。 |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 只有在 `cross_provider=true` 時才依 `fast_worker_backend_order` 檢查外部可用性。`/dhpk:flow-drive --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
+| `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | `cross_provider=true` 時供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。未 opt-in 時會抑制外部項目且不探查。值無效時每個 session 警告一次並使用 shipped 順序。 |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
-| `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對 reviewer sentinel subagent 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；此 hook 排在 `subagent-stop-verify.sh` 之前，避免被攔截的 reviewer sentinel 被自動清除。界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 pending gate。預設 `off`（無作用，不做啟發式評估）。命中/未命中的擷取結果會記錄到 `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json`。 |
+| `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對明確註冊的 reviewer quality advisory 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 unresolved obligation。預設 `off`（無作用，不做啟發式評估）。 |
+
+### 遷移既有的 automatic worker 設定
+
+既有的 `fast_worker_backend`、`fast_worker_backend_order` 與
+`fast_worker_fallback` 設定仍然有效。這次遷移只改變 automatic external
+discovery 的語意：`fast_worker_backend=auto` 在明確啟用跨家派發前，維持
+native-only。
+
+| 既有設定 | 目前行為 | 遷移動作 |
+|---|---|---|
+| `fast_worker_backend=claude` | 使用 native Claude worker。 | 不需要變更。 |
+| `fast_worker_backend=codex` 或 `agy` | 本次 invocation 定向選取該 external worker。 | 保留設定，另外確認選定的 CLI／authentication；不會連帶開放其他 provider。 |
+| `fast_worker_backend=auto` | `cross_provider=false` 時使用 native Claude candidate，不探查 external CLI。 | 若要維持 native-only 就保留 `auto`；若要讓設定的 external order 成為候選，請設定 `cross_provider=true`。 |
+| `fast_worker_backend_order` | 保留設定順序，但跨家派發關閉時會抑制 external entry。 | 保留原順序，不需重寫。 |
+| `fast_worker_fallback=claude` | 只有明確選定的 CLI executable 缺少時才 fallback。 | 只有需要這個狹義的 missing-executable fallback 時才保留；不涵蓋 auth、quota、task、execution 或 verification failure。 |
+
+要對單一專案 opt-in，請在 `.claude/settings.local.json`（或 project
+`settings.json`）的 `pluginConfigs.dhpk@dhpk.options` 下加入設定。只對單次
+automatic selection opt-in 則使用 `--worker=auto --cross-provider`。單次 flag
+優先於 project 與 installed-user 設定。將 project 值設為 `false` 可回到
+native-only automatic selection；移除 project override 則會重新暴露 installed-user
+值，因此只有在該值也未設定或為 `false` 時，才能把移除視為 rollback。已退休的
+`CODEX=on` 與 `--codex` 不是遷移 alias。
 
 dispatcher 在建立 `0600` immutable transport context 前，會將解析後的 deadline 驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`；只有不需要 portable runner deadline 時才明確設定 `0`。Python transport runner 而非 `timeout`/`gtimeout` 會強制執行已證明的 deadline，並寫入 contained terminal receipt。agy 的獨立設定也同樣是已證明的 dispatch input。
 
@@ -144,7 +172,7 @@ role，並以具名 `codex exec` opt-in 請求第二意見。
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
 | `docker_containers` | string[] | `[]` | container 名稱 | 保留給明確註冊的 Docker tooling；預設 SessionStart 不會檢查 container 或輸出 container 變數。 |
-| `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 sentinel routing 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
+| `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 Review Gate trigger 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
 
 ## Review 觸發與風險啟發式
 
@@ -157,7 +185,7 @@ role，並以具名 `codex exec` opt-in 請求第二意見。
 
 | Key | 型別 | 預設值 | 選項 | Env 覆寫 | 用途 |
 |-----|------|--------|------|----------|------|
-| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | reviewer sentinel 存在時執行 `git commit/merge/rebase/cherry-pick` 的行為。`warn` = stderr 提醒（exit 0）；`block` = 拒絕該工具呼叫（exit 2）；`off` = 靜默。與 pre-bash-guard 對 `git push` 的硬性封鎖互補。 |
+| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | 保留的 legacy 設定；目前 Review Gate obligation 由 orchestrator 評估。`warn` = stderr 提醒（exit 0）；`block` = 拒絕該工具呼叫（exit 2）；`off` = 靜默。 |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | 在受保護分支上執行破壞歷史的 git 動詞（`commit/merge/rebase/cherry-pick/reset/push`）時的行為。 |
 | `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | 分支名稱／bash `case` glob | — | `branch_safety` 閘門檢查的分支清單。設為 `[]` 可在不將 `branch_safety` 設為 `off` 的情況下停用逐分支檢查。 |
 
@@ -177,7 +205,7 @@ role，並以具名 `codex exec` opt-in 請求第二意見。
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`，指令不可含逗號 | 保留給明確註冊的 manifest/lockfile advisory tooling；預設 PostToolUse 只做 review sentinel routing。 |
+| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`，指令不可含逗號 | 保留給明確註冊的 manifest/lockfile advisory tooling；預設不再有 PostToolUse reviewer routing。 |
 
 ## `js` 模組
 

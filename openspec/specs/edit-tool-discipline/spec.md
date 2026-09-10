@@ -3,6 +3,9 @@
 ## Purpose
 TBD - created by archiving change dhpk-advice-fe13512c-fixes. Update Purpose after archive.
 ## Requirements
+> Retired compatibility note: sentinel-arming and hook-fallback clauses below
+> describe the former workflow. Current Bash-write exceptions self-dispatch the
+> applicable Review Gate reviewer and record its obligation directly.
 ### Requirement: Repo file edits use Edit/Write; Bash is last-resort and self-triggers review
 
 Repo file edits SHALL be made with the Edit or Write tools, not with Bash-based file writes (python heredocs, `tee`, shell redirection). A Bash-written file does not pass through the project's `PostToolUse` Edit/Write hooks, so the review sentinel that would normally arm for that file type never arms, and the file can silently skip its mandatory reviewer gate. Bash-based file writes SHALL be used only as a last resort (e.g. the Edit/Write tools cannot express the needed operation), and whenever one is used, the writer SHALL self-trigger the review gate that would have applied had the file been Edit/Write-written — dispatching the appropriate reviewer (or, absent a project's post-edit hooks having fired, at minimum checking for and handling the applicable `.pending-*` sentinel manually per the existing AI-judgment back-stop convention).

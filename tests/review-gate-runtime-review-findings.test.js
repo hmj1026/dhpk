@@ -10,6 +10,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  createHostKey,
+  hostInitArgs,
+  writeHostAttestation,
+} = require('./_lib/review-gate-host-attestation-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'review-gate-runtime.js');
@@ -23,18 +28,7 @@ const WORK_REQUEST_PATH = path.join(
 const RUNTIME_SCHEMA = 'dhpk.review-gate.runtime.v1';
 const REVIEWER_CONTRACT_VERSION = 'dhpk.reviewer-contract.v2';
 const COMPANION_SCHEMA = 'dhpk.claude-review-result.v1';
-const ACCEPTED_OUTCOME_COST_SCHEMA = 'dhpk.accepted-outcome-cost.v1';
 const FIXTURE_TIME = '2026-09-07T00:00:02.000Z';
-const COST_FIELDS = [
-  'modelTokens',
-  'dispatchCount',
-  'semanticReviewCount',
-  'remediationRounds',
-  'humanTurns',
-  'elapsedMs',
-  'falseBlockCount',
-  'receiptReuseCount',
-];
 
 function runCli(repoRoot, args = [], input = undefined, options = {}) {
   return spawnSync(process.execPath, [CLI, ...args, '--repo-root', repoRoot], {
@@ -112,11 +106,12 @@ function prepareRepo(request) {
   const repoRoot = fs.realpathSync(
     fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-review-gate-runtime-review-')),
   );
-  const initialized = runCli(repoRoot, ['init']);
+  const host = createHostKey(repoRoot, `review-findings-${request.requestId.replace(/[^a-z0-9-]/gi, '-')}`);
+  const initialized = runCli(repoRoot, hostInitArgs(host));
   assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
   const preparedResult = runCli(repoRoot, ['prepare'], `${JSON.stringify(request)}\n`);
   assert.strictEqual(preparedResult.status, 0, `${preparedResult.stdout}\n${preparedResult.stderr}`);
-  return { repoRoot, prepared: JSON.parse(preparedResult.stdout), request };
+  return { repoRoot, prepared: JSON.parse(preparedResult.stdout), request, host };
 }
 
 function identityFor(suffix) {
@@ -216,41 +211,11 @@ function writeObserveEvidence(repoRoot, prepared, request, {
   writeJsonLines(repoRoot, lifecycleRelativePath, lifecycleEvents);
   writeJsonLines(repoRoot, readinessRelativePath, readinessEvents);
 
-  const costRelativePath = `.claude/artifacts/sessions/${suffix}.accepted-outcome-cost.jsonl`;
-  writeJsonLines(repoRoot, costRelativePath, [{
-    schema: ACCEPTED_OUTCOME_COST_SCHEMA,
-    observationId: `legacy-${sha256(identity.taskId).slice(0, 32)}`,
-    acceptedOutcome: true,
-    metrics: {
-      modelTokens: null,
-      dispatchCount: 1,
-      semanticReviewCount: 1,
-      remediationRounds: 0,
-      humanTurns: null,
-      elapsedMs: 42,
-      falseBlockCount: null,
-      receiptReuseCount: null,
-    },
-    telemetryFailures: [],
-    telemetryFailureCount: 0,
-    telemetryStatus: 'PARTIAL',
-    retirementEligible: false,
-  }]);
-
-  const sentinelRelativePath = `.claude/artifacts/sessions/${suffix}.sentinel-outcome.json`;
-  writeJson(repoRoot, sentinelRelativePath, {
-    status: 'CLEARED',
-    verdict: 'PASS',
-    outcome: 'PASS',
-    lifecycleEventId: lifecycleEvents[lifecycleEvents.length - 1].event_id,
-  });
   return {
     artifactRelativePath,
     companionRelativePath,
     lifecycleRelativePath,
     readinessRelativePath,
-    costRelativePath,
-    sentinelRelativePath,
     artifactFile,
     companionFile,
   };
@@ -265,8 +230,7 @@ function observeArgs(prepared, evidence) {
     '--companion', evidence.companionRelativePath,
     '--lifecycle-events', evidence.lifecycleRelativePath,
     '--readiness-events', evidence.readinessRelativePath,
-    '--accepted-outcome-cost', evidence.costRelativePath,
-    '--sentinel-outcome', evidence.sentinelRelativePath,
+    '--host-attestation', evidence.hostAttestationRelativePath,
   ];
 }
 
@@ -306,11 +270,12 @@ function diagnosticFiles(repoRoot) {
 }
 
 test('observe rejects CHANGES_REQUIRED as a command outcome because it belongs to semantic verdicts', () => {
-  withPreparedRepo(cloneWorkRequest(), ({ repoRoot, prepared, request }) => {
+  withPreparedRepo(cloneWorkRequest(), ({ repoRoot, prepared, request, host }) => {
     const evidence = writeObserveEvidence(repoRoot, prepared, prepared.reviewRequests[0], {
       suffix: 'command-changes-required',
       commandOutcome: 'CHANGES_REQUIRED',
     });
+    writeHostAttestation(repoRoot, prepared, evidence, host, { label: 'command-changes-required' });
     const result = runObserve(repoRoot, prepared, evidence);
     assert.notStrictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.strictEqual(result.stdout, '');
@@ -329,16 +294,17 @@ test('observe rejects CHANGES_REQUIRED as a command outcome because it belongs t
     const status = readStatus(repoRoot, prepared);
     assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'receipts'), false);
     assert.deepStrictEqual(status.receiptSummary, { total: 0, byKind: {} });
-    assert.strictEqual(status.migrationObservation, null);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'migrationObservation'), false);
   });
 });
 
 test('observe accepts documented BLOCKED command outcome as bounded companion data', () => {
-  withPreparedRepo(cloneWorkRequest({ requestId: 'github:issue:390-command-blocked' }), ({ repoRoot, prepared, request }) => {
+  withPreparedRepo(cloneWorkRequest({ requestId: 'github:issue:390-command-blocked' }), ({ repoRoot, prepared, request, host }) => {
     const evidence = writeObserveEvidence(repoRoot, prepared, prepared.reviewRequests[0], {
       suffix: 'command-blocked',
       commandOutcome: 'BLOCKED',
     });
+    writeHostAttestation(repoRoot, prepared, evidence, host, { label: 'command-blocked' });
     const result = runObserve(repoRoot, prepared, evidence);
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.strictEqual(JSON.parse(result.stdout).status, 'OBSERVED');
@@ -346,11 +312,12 @@ test('observe accepts documented BLOCKED command outcome as bounded companion da
 });
 
 test('observe accepts documented UNAVAILABLE command outcome as bounded companion data', () => {
-  withPreparedRepo(cloneWorkRequest({ requestId: 'github:issue:390-command-unavailable' }), ({ repoRoot, prepared, request }) => {
+  withPreparedRepo(cloneWorkRequest({ requestId: 'github:issue:390-command-unavailable' }), ({ repoRoot, prepared, request, host }) => {
     const evidence = writeObserveEvidence(repoRoot, prepared, prepared.reviewRequests[0], {
       suffix: 'command-unavailable',
       commandOutcome: 'UNAVAILABLE',
     });
+    writeHostAttestation(repoRoot, prepared, evidence, host, { label: 'command-unavailable' });
     const result = runObserve(repoRoot, prepared, evidence);
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.strictEqual(JSON.parse(result.stdout).status, 'OBSERVED');
@@ -358,8 +325,9 @@ test('observe accepts documented UNAVAILABLE command outcome as bounded companio
 });
 
 test('prepare retries the same request after observe without adding a plan receipt or revision', () => {
-  withPreparedRepo(cloneWorkRequest({ requestId: 'github:issue:390-prepare-retry' }), ({ repoRoot, prepared, request }) => {
+  withPreparedRepo(cloneWorkRequest({ requestId: 'github:issue:390-prepare-retry' }), ({ repoRoot, prepared, request, host }) => {
     const evidence = writeObserveEvidence(repoRoot, prepared, prepared.reviewRequests[0], { suffix: 'prepare-retry' });
+    writeHostAttestation(repoRoot, prepared, evidence, host, { label: 'prepare-retry' });
     const observed = runObserve(repoRoot, prepared, evidence);
     assert.strictEqual(observed.status, 0, `${observed.stdout}\n${observed.stderr}`);
     const observedEnvelope = JSON.parse(observed.stdout);
@@ -381,11 +349,8 @@ test('prepare retries the same request after observe without adding a plan recei
     assert.strictEqual(Object.prototype.hasOwnProperty.call(afterRetry, 'receipts'), false);
     assert.deepStrictEqual(afterRetry.receiptSummary, beforeRetry.receiptSummary);
     assert.deepStrictEqual(afterRetry.receiptSummary, {
-      total: 2,
-      byKind: {
-        review: 1,
-        'migration-observation': 1,
-      },
+      total: 1,
+      byKind: { review: 1 },
     });
   });
 });
@@ -395,7 +360,8 @@ test('prepare rejects an open stdin stream after the 1 MiB bound without waiting
     fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-review-gate-runtime-bounded-stdin-')),
   );
   try {
-    const initialized = runCli(repoRoot, ['init']);
+    const host = createHostKey(repoRoot, 'review-findings-bounded');
+    const initialized = runCli(repoRoot, hostInitArgs(host));
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
     const producer = [
       "const chunk=Buffer.alloc(65536,120);",
@@ -428,12 +394,13 @@ test('prepare rejects an open stdin stream after the 1 MiB bound without waiting
 });
 
 test('status returns bounded receipt counts and summary instead of full receipt payloads', () => {
-  withPreparedRepo(cloneWorkRequest({ requestId: 'github:issue:390-status-summary' }), ({ repoRoot, prepared, request }) => {
+  withPreparedRepo(cloneWorkRequest({ requestId: 'github:issue:390-status-summary' }), ({ repoRoot, prepared, request, host }) => {
     const payloadMarker = 'review-payload-marker-390-status-summary';
     const evidence = writeObserveEvidence(repoRoot, prepared, prepared.reviewRequests[0], {
       suffix: 'status-summary',
       extraEvidenceReferences: [payloadMarker],
     });
+    writeHostAttestation(repoRoot, prepared, evidence, host, { label: 'status-summary' });
     const observed = runObserve(repoRoot, prepared, evidence);
     assert.strictEqual(observed.status, 0, `${observed.stdout}\n${observed.stderr}`);
 
@@ -448,14 +415,10 @@ test('status returns bounded receipt counts and summary instead of full receipt 
     assert.strictEqual(status.command, 'status');
     assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'receipts'), false);
     assert.deepStrictEqual(status.receiptSummary, {
-      total: 2,
-      byKind: {
-        review: 1,
-        'migration-observation': 1,
-      },
+      total: 1,
+      byKind: { review: 1 },
     });
-    assert.ok(status.migrationObservation, 'status keeps a bounded migration summary');
-    assert.strictEqual(Object.prototype.hasOwnProperty.call(status.migrationObservation, 'payload'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'migrationObservation'), false);
     assert.doesNotMatch(result.stdout, new RegExp(payloadMarker));
     assert.ok(Buffer.byteLength(result.stdout, 'utf8') < 32 * 1024, 'status must remain bounded');
   });

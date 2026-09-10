@@ -7,11 +7,9 @@ const {
 } = require('./risk-router');
 const { sha256 } = require('./receipt-primitives');
 const {
-  ADAPTER_VERSION: CLAUDE_ADAPTER_VERSION,
   ClaudeReviewGateAdapter,
-  runtimeObservationProvenanceDigest,
+  submissionEventId,
 } = require('./claude-review-gate-adapter');
-const { MigrationCoordinator } = require('./migration-coordinator');
 const { RuntimeError, fail } = require('./review-gate-runtime-errors');
 const {
   CLAUDE_ADAPTER,
@@ -22,26 +20,30 @@ const {
   clone,
   createIntegrityKey,
   defaultConfig,
+  parseJson,
   runtimeState,
   writeDiagnostic,
 } = require('./review-gate-runtime-storage');
 const {
+  buildHostTrust,
+  buildObserveSubject,
+  MAX_ATTESTATION_BYTES,
+  verifyHostAttestation,
+} = require('./review-gate-runtime-attestation');
+const {
   assertSameIdentity,
   digestJson,
   eventIdentity,
-  normalizeCostSidecar,
   readCompanion,
   readEvidenceFile,
   readJsonLinesSidecar,
-  readJsonSidecar,
   readStdinWorkRequest,
 } = require('./review-gate-runtime-evidence');
 const {
   createPlanRegisteredEvent,
   createStoreAndGate,
   currentStoreHistory,
-  observationMatches,
-  observeResultFromObservation,
+  observeResultFromProjection,
   planDigest,
   readPlanCheckpoint,
   registeredPlanFromHistory,
@@ -50,13 +52,30 @@ const {
   writePlanCheckpoint,
 } = require('./review-gate-runtime-checkpoint');
 
-const init = ({ repoRoot } = {}) => {
-  const initialized = createIntegrityKey(repoRoot);
+const parseHostAttestation = (content) => {
+  try {
+    return parseJson(content, 'MALFORMED_HOST_ATTESTATION');
+  } catch (error) {
+    if (error instanceof RuntimeError && error.code === 'BOUNDED_INPUT') {
+      fail('MALFORMED_HOST_ATTESTATION');
+    }
+    throw error;
+  }
+};
+
+const init = ({ repoRoot, hostPublicKey = null, hostKeyId = null } = {}) => {
+  if (hostPublicKey === null || hostPublicKey === undefined
+    || hostKeyId === null || hostKeyId === undefined) {
+    fail('HOST_TRUST_REQUIRED');
+  }
+  const hostTrust = buildHostTrust(hostPublicKey, hostKeyId, repoRoot);
+  const initialized = createIntegrityKey(repoRoot, hostTrust);
   return {
     command: 'init',
     schema: SCHEMA,
     status: initialized ? 'INITIALIZED' : 'ALREADY_INITIALIZED',
     initialized,
+    hostKeyId: hostTrust.keyId,
   };
 };
 
@@ -68,8 +87,7 @@ const observe = ({
   companion,
   lifecycleEvents,
   readinessEvents,
-  acceptedOutcomeCost,
-  sentinelOutcome,
+  hostAttestation,
   now = () => Date.now(),
 } = {}) => {
   assertSafeId(workId, 'workId');
@@ -109,22 +127,17 @@ const observe = ({
   });
   if (readinessDigests.some((digest) => digest !== artifactDigest)) fail('STALE_ARTIFACT');
 
-  const sentinel = readJsonSidecar(repoRoot, sentinelOutcome, 'MALFORMED_SENTINEL');
-  if (!sentinel || typeof sentinel !== 'object' || Array.isArray(sentinel)) fail('MALFORMED_SENTINEL');
-  const costSidecar = readJsonLinesSidecar(
-    repoRoot,
-    acceptedOutcomeCost,
-    'MALFORMED_ACCEPTED_OUTCOME_COST',
-    true,
-  );
-  const cost = normalizeCostSidecar(identity, lifecycle, costSidecar);
-
   const obligation = plan.obligations.find((candidate) => (
     candidate.obligationId === companionEvidence.reviewResult.obligationId
       && candidate.lane === companionEvidence.reviewResult.lane
   ));
   if (!obligation) fail('FOREIGN_EVIDENCE');
-  const reviewRequest = reviewRequestFor(plan, history, obligation);
+  const reviewRequest = reviewRequestFor(
+    plan,
+    history,
+    obligation,
+    companionEvidence.requestDigest,
+  );
   if (digestJson(reviewRequest) !== companionEvidence.requestDigest) fail('STALE_EVIDENCE');
   if (reviewRequest.obligationId !== companionEvidence.reviewResult.obligationId
     || reviewRequest.lane !== companionEvidence.reviewResult.lane) {
@@ -143,81 +156,107 @@ const observe = ({
       || previousReview.payload.resultDigest !== digestJson(companionEvidence.reviewResult))) {
     fail('IDEMPOTENCY_CONFLICT');
   }
+  const executedCommands = [{
+    command: `digest:${companionEvidence.command.sha256}`,
+    outcome: companionEvidence.command.outcome,
+  }];
   const adapterInput = {
-    phase: state.config.phase,
     plan,
     identity,
-    artifactReference: artifactFile.relative,
     lifecycleEvents: lifecycle,
     readinessEvents: readiness,
     reviewRequest,
     reviewResult: companionEvidence.reviewResult,
-    executedCommands: [{
-      command: `digest:${companionEvidence.command.sha256}`,
-      outcome: companionEvidence.command.outcome,
-    }],
-    sentinelOutcome: sentinel,
-    acceptedOutcomeCost: cost,
+    executedCommands,
     expectedRevision: history.revision,
     expectedChainDigest: history.chainDigest,
   };
-  const previousObservation = [...history.receipts].reverse().find((receipt) => (
-    receipt.kind === 'migration-observation'
-      && observationMatches(receipt.payload, plan, obligation, identity)
-  ));
-  if (previousObservation) {
-    const previousArtifactDigest = previousObservation.payload.provenance
-      && previousObservation.payload.provenance.artifactDigest;
-    if (previousArtifactDigest !== artifactDigest) fail('STALE_ARTIFACT');
-    let currentProvenanceDigest;
-    try {
-      currentProvenanceDigest = runtimeObservationProvenanceDigest({
-        input: adapterInput,
-        gate: previousObservation.payload.reviewGate,
-        adapter: CLAUDE_ADAPTER,
-        adapterVersion: CLAUDE_ADAPTER_VERSION,
-      });
-    } catch (_) {
-      fail('IDEMPOTENCY_CONFLICT');
-    }
-    if (!previousObservation.payload.provenance
-      || previousObservation.payload.provenance.digest !== currentProvenanceDigest) {
-      fail('IDEMPOTENCY_CONFLICT');
-    }
-    return observeResultFromObservation(
-      previousObservation.payload,
-      state,
-      history.revision,
-      history.chainDigest,
-    );
-  }
-
-  const migrationCoordinator = new MigrationCoordinator({
-    receiptStore: store,
-    phase: state.config.phase,
-    now,
+  const expectedSubject = buildObserveSubject({
+    plan,
+    obligation,
+    identity,
+    reviewRequest,
+    reviewResult: companionEvidence.reviewResult,
+    artifactDigest,
+    lifecycleEvents: lifecycle,
+    readinessEvents: readiness,
+    executedCommands,
   });
+  const attestationFile = hostAttestation === undefined || hostAttestation === null
+    || hostAttestation === ''
+    ? null
+    : readEvidenceFile(
+      repoRoot,
+      hostAttestation,
+      MAX_ATTESTATION_BYTES,
+      'MISSING_HOST_ATTESTATION',
+    );
+  const attestation = verifyHostAttestation({
+    envelope: attestationFile
+      ? parseHostAttestation(attestationFile.content.toString('utf8'))
+      : undefined,
+    content: attestationFile && attestationFile.content,
+    trust: state.config.hostTrust,
+    expectedSubject,
+  });
+  let expectedEventId;
+  try {
+    expectedEventId = submissionEventId(adapterInput, {
+      producer: CLAUDE_PRODUCER,
+      adapter: CLAUDE_ADAPTER,
+    });
+  } catch (error) {
+    fail(error && error.code ? error.code : 'OBSERVATION_FAILED');
+  }
+  if (previousReview && previousReview.payload
+    && previousReview.payload.eventId !== expectedEventId) {
+    fail('IDEMPOTENCY_CONFLICT');
+  }
+  const previousReviewEvent = history.events.find((event) => event.eventId === expectedEventId);
   const adapter = new ClaudeReviewGateAdapter({
     reviewGate,
-    migrationCoordinator,
     producer: CLAUDE_PRODUCER,
     adapter: CLAUDE_ADAPTER,
-    now,
+    now: previousReviewEvent ? () => previousReviewEvent.recordedAt : now,
   });
   let recorded;
   try {
-    recorded = adapter.observe(adapterInput);
+    recorded = adapter.record(adapterInput);
   } catch (error) {
     if (error instanceof RuntimeError) throw error;
     fail(error && error.code ? error.code : 'OBSERVATION_FAILED');
   }
   if (!recorded || typeof recorded !== 'object' || Array.isArray(recorded)
-    || !recorded.observation || typeof recorded.observation !== 'object') {
+    || !recorded.reviewGate || typeof recorded.reviewGate !== 'object'
+    || !recorded.receipt || typeof recorded.receipt !== 'object'
+    || Array.isArray(recorded.receipt)) {
     fail('OBSERVATION_FAILED');
   }
-  if (recorded.reviewGate && recorded.reviewGate.accepted === false) fail('REVIEW_GATE_FAILED');
-  const observation = recorded.observation;
-  return observeResultFromObservation(observation, state, recorded.revision, recorded.chainDigest);
+  if (recorded.reviewGate.accepted === false) fail('REVIEW_GATE_FAILED');
+  const receipt = {
+    ...recorded.receipt,
+    provenance: {
+      ...recorded.receipt.provenance,
+      hostAttestation: {
+        keyId: attestation.keyId,
+        digest: attestation.digest,
+      },
+    },
+  };
+  const projection = reviewProjectionFromHistory({
+    history: currentStoreHistory(store, state.storeRoot, workId),
+    state,
+    workId,
+    waveId,
+    now,
+  });
+  return observeResultFromProjection(
+    projection,
+    state,
+    projection.revision,
+    projection.chainDigest,
+    { plan, obligation, receipt },
+  );
 };
 
 const prepare = ({ repoRoot, input, now = () => Date.now() } = {}) => {
@@ -253,7 +292,6 @@ const prepare = ({ repoRoot, input, now = () => Date.now() } = {}) => {
       schema: SCHEMA,
       command: 'prepare',
       status: 'PREPARED',
-      phase: state.config.phase,
       workId: checkpoint.workId,
       waveId: checkpoint.waveId,
       decisionId: checkpoint.decisionId,
@@ -283,7 +321,6 @@ const prepare = ({ repoRoot, input, now = () => Date.now() } = {}) => {
     schema: SCHEMA,
     command: 'prepare',
     status: 'PREPARED',
-    phase: state.config.phase,
     workId: plan.workId,
     waveId: plan.waveId,
     decisionId: plan.decisionId,
@@ -331,28 +368,10 @@ const status = ({ repoRoot, workId, waveId = null, now = () => Date.now() } = {}
       left < right ? -1 : left > right ? 1 : 0
     ))),
   };
-  let migrationObservation = null;
-  if (history.receipts.some((receipt) => receipt.kind === 'migration-observation')) {
-    try {
-      migrationObservation = new MigrationCoordinator({
-        receiptStore: store,
-        phase: state.config.phase,
-        now,
-      }).inspect({
-        workId,
-        waveId: waveId || checkpoint.waveId,
-        expectedRevision: history.revision,
-        expectedChainDigest: history.chainDigest,
-      });
-    } catch (_) {
-      fail('STATUS_UNAVAILABLE');
-    }
-  }
   return {
     schema: SCHEMA,
     command: 'status',
     status: projection.lifecycleStatus,
-    phase: state.config.phase,
     workId: checkpoint.workId,
     waveId: checkpoint.waveId,
     decisionId: checkpoint.decisionId,
@@ -364,7 +383,6 @@ const status = ({ repoRoot, workId, waveId = null, now = () => Date.now() } = {}
     applicability: projection.applicability,
     reviewRequests: clone(projection.reviewRequests),
     receiptSummary,
-    migrationObservation: migrationObservation ? clone(migrationObservation) : null,
   };
 };
 

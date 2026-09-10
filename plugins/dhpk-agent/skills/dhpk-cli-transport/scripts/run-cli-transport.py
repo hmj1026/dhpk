@@ -24,12 +24,18 @@ import time
 import uuid
 
 TERMINAL_STATUSES = frozenset(("SUCCEEDED", "FAILED", "BLOCKED", "TIMEOUT"))
+FAILURE_CLASSES = frozenset((
+    "CLI_UNAVAILABLE", "AUTHENTICATION_OR_MODEL_UNAVAILABLE",
+    "QUOTA_OR_RATE_LIMIT", "SAFETY_OR_USER_DENIAL",
+    "TASK_OR_SEMANTIC_FAILURE", "TIMEOUT_OR_INTERRUPTION",
+))
 TRANSPORT_PLACEHOLDERS = frozenset(("{prompt}", "{transport_output}"))
 CONTEXT_FIELDS = (
     "requested_role", "effective_role", "role_contract", "mode", "workdir",
     "prompt_file", "artifact_root", "receipt_path", "assigned_files",
     "report_only", "timeout_secs", "task_id", "attempt_id",
     "transport", "requested_model", "requested_effort", "prompt_evidence",
+    "failure_class",
 )
 MAX_AUTHORITY = {
     "codex-worker": "workspace-write",
@@ -610,6 +616,8 @@ def validate(request):
         raise Blocked("requested_model is invalid")
     if request.get("requested_effort") not in (None, "low", "medium", "high", "xhigh", "ultra"):
         raise Blocked("requested_effort is invalid")
+    if request.get("failure_class") is not None and request.get("failure_class") not in FAILURE_CLASSES:
+        raise Blocked("failure_class is invalid")
     reject_reserved_transport_placeholders(request)
     if not isinstance(request.get("adapter_metadata") or {}, dict):
         raise Blocked("adapter_metadata is invalid")
@@ -664,6 +672,7 @@ def receipt(request, status, **extra):
         "transport": request.get("transport"), "mode": request.get("mode"), "task_id": request.get("task_id"),
         "attempt_id": request.get("attempt_id"), "launch_id": uuid.uuid4().hex,
         "requested_model": request.get("requested_model"), "requested_effort": request.get("requested_effort"),
+        "failure_class": request.get("failure_class") or ("TIMEOUT_OR_INTERRUPTION" if status == "TIMEOUT" else None),
         "effective_model": "unknown", "effective_effort": "unknown", "model_evidence": "unavailable",
         "verification": "not-run", "verified_timeout": False,
         "exit_code": None, "timeout_secs": request.get("timeout_secs"), "enforced_timeout": False,

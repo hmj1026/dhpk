@@ -9,8 +9,7 @@ description: >-
   for `.md` DSL artifacts (agent / skill / command / rule files carrying a
   `---` frontmatter block) — name kebab-case, required per-kind fields,
   model value; (2) cross-file SSOT / link-validity checks for all in-scope
-  docs. Does NOT review code quality — that's code-reviewer's job. Trigger:
-  sentinel `.pending-doc-review`. Skip for `.claude/{memory,artifacts,
+  docs. Does NOT review code quality — that's code-reviewer's job. Review Gate
   worktrees}/**` (auto / transient content) and any `.sh` / source file in
   the diff. Do NOT skip when the change seems small, the doc looks
   self-contained, or a manual scan was done — the agent's value is the
@@ -56,11 +55,14 @@ Out of scope:
 
 ## Process
 
-1. Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
-   "Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-doc-review`.
-   Back-stop/full-review fallback restricts to `.claude/ docs/ openspec/`.
+1. Apply the immutable Review Request and exact Review Gate obligation supplied
+   by the orchestrator. Use the reviewer-dispatch rules in
+   `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`; missing scope or identity
+   is a completed `BLOCKED` result. Back-stop/full-review fallback restricts to
+   `.claude/ docs/ openspec/`.
 2. Walk each file through the six-quadrant checklist below.
-3. Close out: write the artifact; sentinel clearance is hook-owned.
+3. Close out: write the artifact; the orchestrator records the Review Gate
+   obligation result.
 
 ## Checklist — six quadrants (only report actual hits)
 
@@ -69,7 +71,7 @@ Out of scope:
 Skip this entire section if the file has no YAML frontmatter delimiter on line 1.
 
 When reviewing agent or skill frontmatter, use
-[`docs/agent-guidance/frontmatter-schema.md`](../docs/agent-guidance/frontmatter-schema.md)
+[`docs/agent-guidance/frontmatter-schema.md`](https://github.com/hmj1026/dhpk/blob/main/docs/agent-guidance/frontmatter-schema.md)
 plus the official docs it cites
 ([sub-agents](https://code.claude.com/docs/en/sub-agents),
 [skills](https://code.claude.com/docs/en/skills)). Do not invent a second field
@@ -137,14 +139,14 @@ Illegitimate (**report**):
 
 - Two files give contradictory directives for the same trigger
   (A says `MUST X`, B says `禁止 X`, neither claims extension / override).
-- Two files map the same sentinel name to different agents.
+- Two files map the same Review Gate trigger to different agents.
 - An agent listed in `INDEX.md` but the file does not exist (or vice
   versa).
 
 ### 4. Jargon discoverability
 
 For every newly introduced abbreviation / domain term / internal name in
-the diff (sentinel, append-only exemption, reviewer dispatch, three-list sync,
+the diff (Review Gate obligation, append-only exemption, reviewer dispatch, three-list sync,
 tier 1.5, SSOT, etc.):
 
 - The file either explains the term inline, OR
@@ -184,13 +186,13 @@ paired file for the same finding pattern already identified above:
 
 ## Shared reviewer contract
 
-Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
+Use [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
 
 ## Structured Review Gate Companion
 
 The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
 
-Follow [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Sentinel-clearance independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
+Follow [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
@@ -218,4 +220,4 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`, scope holds doc paths (e.g. `.claude/rules/foo.md`). Verdict shape: APPROVE/WARNING/BLOCK — `severity_summary` here omits `critical` (doc findings top out at HIGH). Path, frontmatter, retention, degradation, and hook-owned sentinel clearance: [`docs/contracts/artifact-contract.md`](../docs/contracts/artifact-contract.md) §Sentinel clearance and [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Single-run verdict. Agent-only: sentinel `.pending-doc-review`. This reviewer's job ends at writing the artifact.
+Category: `reviews/`, scope holds doc paths (e.g. `.claude/rules/foo.md`). Verdict shape: APPROVE/WARNING/BLOCK — `severity_summary` here omits the critical field (doc findings top out at HIGH). Path, frontmatter, retention, and degradation: [`docs/contracts/artifact-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.

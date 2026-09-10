@@ -3,6 +3,11 @@
 ## Purpose
 TBD - created by archiving change dhpk-advice-20260707-fixes. Update Purpose after archive.
 ## Requirements
+
+> Retired compatibility specification: these pending-sentinel and hook
+> reconciliation requirements describe the pre-Review-Gate implementation.
+> They remain for historical traceability and are not active requirements after
+> direct Sentinel retirement.
 ### Requirement: A no-op reviewer return is a failed gate, not a satisfied one
 
 When the orchestrator dispatches a reviewer agent (e.g. `doc-reviewer`, `code-reviewer`) to satisfy a review gate and the agent returns having performed no review work — no `Read`/`Grep`/`Bash` tool calls (`tool_uses = 0`), or a body that merely echoes injected `<system-reminder>` / agent-roster content instead of a findings-plus-verdict report — the orchestrator SHALL treat the gate as FAILED, not satisfied. It SHALL NOT mark the review complete, and SHALL NOT clear or accept a cleared sentinel, on such a return. It SHALL re-dispatch the review to a reviewer able to actually run it — substituting a stronger reviewer (e.g. `code-reviewer`, chartered for `.claude/`-style agents/rules/skills markdown) for a misfiring Haiku `doc-reviewer` — rather than retrying the same agent a third identical time (anti-loop), and SHALL record the substitution and its reason in the conversation.

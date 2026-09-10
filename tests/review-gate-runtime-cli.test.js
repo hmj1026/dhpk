@@ -9,6 +9,10 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  getOrCreateHostKey,
+  hostInitArgs,
+} = require('./_lib/review-gate-host-attestation-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'review-gate-runtime.js');
@@ -22,6 +26,10 @@ function runCli(repoRoot, args = [], input = undefined) {
     encoding: 'utf8',
     input,
   });
+}
+
+function initArgs(repoRoot) {
+  return hostInitArgs(getOrCreateHostKey(repoRoot, 'runtime-cli'));
 }
 
 function escapedRegExp(value) {
@@ -45,7 +53,7 @@ function cleanupCheckout({ repoRoot, outsideRoot }) {
 test('init creates a private review-gate integrity key in the repository store', () => {
   const repoRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-review-gate-runtime-')));
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
 
     const output = JSON.parse(result.stdout);
@@ -66,7 +74,7 @@ test('init creates a private review-gate integrity key in the repository store',
 test('init rejects a .dhpk symlink without creating an integrity key outside the checkout', () => {
   const fixture = makeSymlinkCheckout('dhpk-review-gate-runtime-dhpk-link', '.dhpk');
   try {
-    const result = runCli(fixture.repoRoot, ['init']);
+    const result = runCli(fixture.repoRoot, initArgs(fixture.repoRoot));
     assert.notStrictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.deepStrictEqual(fs.readdirSync(fixture.outsideRoot), []);
     assert.doesNotMatch(result.stderr, escapedRegExp(fixture.repoRoot));
@@ -78,7 +86,7 @@ test('init rejects a .dhpk symlink without creating an integrity key outside the
 test('init rejects a review-gate symlink without creating an integrity key outside the checkout', () => {
   const fixture = makeSymlinkCheckout('dhpk-review-gate-runtime-review-link', path.join('.dhpk', 'review-gate'));
   try {
-    const result = runCli(fixture.repoRoot, ['init']);
+    const result = runCli(fixture.repoRoot, initArgs(fixture.repoRoot));
     assert.notStrictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     assert.deepStrictEqual(fs.readdirSync(fixture.outsideRoot), []);
     assert.doesNotMatch(result.stderr, escapedRegExp(fixture.repoRoot));
@@ -95,7 +103,7 @@ test('init preserves an existing regular integrity key instead of overwriting it
     fs.mkdirSync(path.dirname(keyPath), { recursive: true, mode: 0o700 });
     fs.writeFileSync(keyPath, existingKey, { mode: 0o600 });
 
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     const output = JSON.parse(result.stdout);
     assert.strictEqual(output.initialized, false);
@@ -108,7 +116,7 @@ test('init preserves an existing regular integrity key instead of overwriting it
 test('prepare reads a bounded Work Request from stdin and status returns its bounded projection', () => {
   const repoRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-review-gate-runtime-prepare-')));
   try {
-    const initialized = runCli(repoRoot, ['init']);
+    const initialized = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
 
     const prepare = runCli(repoRoot, ['prepare'], fs.readFileSync(WORK_REQUEST_PATH, 'utf8'));
@@ -137,7 +145,7 @@ test('prepare reads a bounded Work Request from stdin and status returns its bou
     assert.strictEqual(Object.prototype.hasOwnProperty.call(persisted, 'receipts'), false);
     assert.deepStrictEqual(persisted.receiptSummary, { total: 0, byKind: {} });
     assert.deepStrictEqual(persisted.reviewRequests, prepared.reviewRequests);
-    assert.strictEqual(persisted.migrationObservation, null);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(persisted, 'migrationObservation'), false);
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });
   }
@@ -146,11 +154,11 @@ test('prepare reads a bounded Work Request from stdin and status returns its bou
 test('init reports distinct first and repeat setup statuses', () => {
   const repoRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-review-gate-runtime-init-status-')));
   try {
-    const first = runCli(repoRoot, ['init']);
+    const first = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     assert.strictEqual(JSON.parse(first.stdout).status, 'INITIALIZED');
 
-    const repeat = runCli(repoRoot, ['init']);
+    const repeat = runCli(repoRoot, initArgs(repoRoot));
     assert.strictEqual(repeat.status, 0, `${repeat.stdout}\n${repeat.stderr}`);
     assert.strictEqual(JSON.parse(repeat.stdout).status, 'ALREADY_INITIALIZED');
   } finally {

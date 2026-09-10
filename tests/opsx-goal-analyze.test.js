@@ -72,6 +72,38 @@ test('flag overrides config and output carries availability, fallback, and order
   } finally { fs.rmSync(cli.root, { recursive: true, force: true }); }
 });
 
+test('cross-provider resolution preserves project-over-user precedence and one-shot opt-in', () => {
+  const cli = fakeCli('codex');
+  try {
+    const configured = withEnv({
+      PATH: `${cli.bin}:${process.env.PATH}`,
+      CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'auto',
+      CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'codex,claude',
+      CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'false',
+      DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'true',
+    }, () => context.buildContext({ tasks: '- [ ] backend\n', proposal: '', fastWorker: 'auto' }));
+    assert.strictEqual(configured.fields.FAST_WORKER_CROSS_PROVIDER, 'true');
+    assert.strictEqual(configured.fields.FAST_WORKER_SCOPE, 'cross-provider');
+    assert.strictEqual(configured.fields.FAST_WORKER_SELECTED, 'codex');
+
+    const oneShot = withEnv({
+      PATH: `${cli.bin}:${process.env.PATH}`,
+      CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'auto',
+      CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'codex,claude',
+      CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'false',
+      DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'false',
+    }, () => context.buildContext({
+      tasks: '- [ ] backend\n',
+      proposal: '',
+      fastWorker: 'auto',
+      crossProvider: true,
+    }));
+    assert.strictEqual(oneShot.fields.FAST_WORKER_CROSS_PROVIDER, 'true');
+    assert.strictEqual(oneShot.fields.FAST_WORKER_SCOPE, 'cross-provider');
+    assert.strictEqual(oneShot.fields.FAST_WORKER_SELECTED, 'codex');
+  } finally { fs.rmSync(cli.root, { recursive: true, force: true }); }
+});
+
 test('invalid worker flag warns and falls back to the configured resolution', () => {
   const cli = fakeCli('codex');
   try {
@@ -95,12 +127,12 @@ test('blocked selector status renders stop guidance instead of an actionable wor
     'blocked backend must not be rendered as an actionable agent');
 });
 
-test('auto reports rejected candidates and UTF-8-safe digest plus conditional E2E', () => {
+test('auto stays native-only and preserves UTF-8-safe digest plus conditional E2E', () => {
   const cli = fakeCli('codex');
   try {
     const result = withEnv({ PATH: `${cli.bin}:/usr/bin:/bin`, DHPK_CLAUDE_BACKEND_AVAILABLE: '0', CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'agy,codex,claude' }, () => context.buildContext({ tasks: `- [ ] ${'測'.repeat(100)}\n- [ ] checkout.spec.ts browser journey\n`, proposal: '', fastWorker: 'auto' }));
-    assert.strictEqual(result.fields.FAST_WORKER_SELECTED, 'codex');
-    assert.ok(result.fields.FAST_WORKER_REJECTED.includes('agy:missing executable: agy'));
+    assert.strictEqual(result.fields.FAST_WORKER_SELECTED, 'auto');
+    assert.ok(result.fields.FAST_WORKER_REJECTED.includes('claude:in-process backend'));
     assert.strictEqual(result.fields.HAS_E2E, 'true');
     assert.ok(Buffer.byteLength(result.fields.TASK_DIGEST, 'utf8') <= 200);
     assert.ok(!result.fields.TASK_DIGEST.includes('\uFFFD'));
@@ -163,6 +195,41 @@ test('analyzer emits the full block when CLAUDE_PLUGIN_ROOT is unset (its real i
       assert.ok(key in fields, `${key} missing — the goal-context tail was truncated:\n${res.stdout}`);
     }
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('analyzer forwards --cross-provider as a one-shot auto-selection opt-in', () => {
+  const { spawnSync } = require('node:child_process');
+  const cli = fakeCli('codex');
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-analyze-cross-provider-')));
+  try {
+    const change = path.join(repo, 'openspec', 'changes', 'demo-change');
+    fs.mkdirSync(change, { recursive: true });
+    fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] 1.1 do the thing\n');
+    fs.writeFileSync(path.join(change, 'proposal.md'), '# Demo\n');
+
+    const env = {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: repo,
+      PATH: `${cli.bin}:${process.env.PATH}`,
+      CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'auto',
+      CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'codex,claude',
+      CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'false',
+      DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'false',
+    };
+    delete env.CLAUDE_PLUGIN_ROOT;
+    const res = spawnSync('bash', [
+      path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'),
+      'demo-change', '--worker=auto', '--cross-provider',
+    ], { cwd: repo, env, encoding: 'utf8' });
+
+    assert.strictEqual(res.status, 0, `analyzer exited ${res.status}:\n${res.stderr}`);
+    assert.ok(res.stdout.includes('FAST_WORKER_CROSS_PROVIDER=true'), res.stdout);
+    assert.ok(res.stdout.includes('FAST_WORKER_SCOPE=cross-provider'), res.stdout);
+    assert.ok(res.stdout.includes('FAST_WORKER_SELECTED=codex'), res.stdout);
+  } finally {
+    fs.rmSync(cli.root, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });
 
 run('opsx-goal-analyze');

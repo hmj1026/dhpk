@@ -99,7 +99,7 @@ function postMergeCiReceipt(store, overrides = {}) {
 function deliveryCoordinator(trustPolicy = providerTrustPolicy()) {
   return new WorkflowCoordinator({
     trustPolicy,
-    featureControl: FIXTURE.featureControl.observe,
+    featureControl: FIXTURE.featureControl,
     evaluatedAt: FIXTURE.evaluatedAt,
   });
 }
@@ -122,8 +122,8 @@ test('MERGE_READY with an authorized Work Record authorizes PR creation without 
   const projection = deliveryCoordinator(FIXTURE.trustPolicy).reduce(deliveryAuthorizedMergeReadyReceipts());
   assert.strictEqual(projection.state, 'MERGE_READY');
   assert.strictEqual(projection.authorizesPullRequest, true);
-  assert.strictEqual(projection.control.authority, 'SENTINEL');
-  assert.strictEqual(projection.control.allowsTargetProgress, false);
+  assert.strictEqual(projection.control.authority, 'REVIEW_GATE');
+  assert.strictEqual(projection.control.allowsTargetProgress, true);
 });
 
 test('authorizesPullRequest stays false before MERGE_READY even when delivery is authorized', () => {

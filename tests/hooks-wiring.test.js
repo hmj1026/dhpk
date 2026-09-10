@@ -38,14 +38,13 @@ test('every referenced hook script is executable', () => {
   }
 });
 
-test('default lifecycle wiring is the four deterministic hook events only', () => {
+test('default lifecycle wiring is the three deterministic hook events only', () => {
   const parsed = JSON.parse(raw);
   assert.deepStrictEqual(Object.keys(parsed.hooks).sort(), [
-    'PostToolUse', 'PreToolUse', 'SessionStart', 'SubagentStop',
+    'PreToolUse', 'SessionStart', 'SubagentStop',
   ]);
   assert.strictEqual(parsed.hooks.PreToolUse.length, 2, 'only edit and Bash gates are default PreToolUse hooks');
-  assert.strictEqual(parsed.hooks.PostToolUse.length, 1, 'only sentinel routing is default PostToolUse');
-  assert.strictEqual(parsed.hooks.SubagentStop.length, 1, 'only strict reviewer reconciliation is default SubagentStop');
+  assert.strictEqual(parsed.hooks.SubagentStop.length, 1, 'only fast-worker liveness cleanup is default SubagentStop');
 });
 
 test('Edit|Write|MultiEdit wires only the protected-path guard', () => {

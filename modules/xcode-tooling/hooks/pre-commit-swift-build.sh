@@ -44,7 +44,7 @@ case "$cmd" in
 esac
 
 if echo "$cmd" | grep -Fq '[skip-swift-build]'; then
-    echo "[pre-commit-swift] [skip-swift-build] sentinel found; bypassing build gate" >&2
+    echo "[pre-commit-swift] [skip-swift-build] skip marker found; bypassing build gate" >&2
     exit 0
 fi
 

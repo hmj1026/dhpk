@@ -61,7 +61,7 @@ The flow mirrors the wrapper so the user sees the same questions:
    `docs/docker-setup.md` for prerequisites and record the comma-separated
    names for that workflow if requested. `/dhpk:setup` does not register a
    Docker SessionStart check.
-4. **Review agents** — offer to override the seven slot defaults
+4. **Review agents** — offer to override the seven role defaults
    (`code-reviewer`, `database-reviewer`, `security-reviewer`,
    `frontend-reviewer`, `doc-reviewer`, `polyfill-reviewer`,
    `migration-reviewer`). Useful for projects whose agents live under different

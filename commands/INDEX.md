@@ -24,7 +24,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/dhpk:check-coverage` | Explicit-only legacy alias for test coverage；不屬於 frozen eight-command family，也不計入其數字。 |
 | `/dhpk:precommit` / `/dhpk:precommit-fast` / `/dhpk:verify` | 提交前或完整驗證。 |
 | `/dhpk:dep-audit` | 依賴安全風險稽核。 |
-| `/dhpk:review-pending` | 完成 pending-review sentinel 對應的 review。 |
+| `/dhpk:review-pending` | 針對指定路徑或目前 diff 建立並完成 Review Gate reviewer obligation。 |
 
 ## Git、發布與工作區
 

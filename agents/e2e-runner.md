@@ -99,4 +99,4 @@ artifact_paths:
 - <trace/screenshot/report path>
 ```
 
-Test files (`tests/**/*.spec.ts`, POM helpers) are the primary deliverable — write them in the project's existing test layout. For a substantive session report, category `reviews/`, path `e2e-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`pass_rate` + PASS/WARNING/FAIL). No sentinel — not in the review chain.
+Test files (`tests/**/*.spec.ts`, POM helpers) are the primary deliverable — write them in the project's existing test layout. For a substantive session report, category `reviews/`, path `e2e-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`pass_rate` + PASS/WARNING/FAIL). No consolidated Review Gate obligation; invoke this role only for its implementation or acceptance journey contract.

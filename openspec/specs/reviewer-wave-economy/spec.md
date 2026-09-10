@@ -3,6 +3,9 @@
 ## Purpose
 TBD - created by archiving change refine-opsx-orchestration-governance. Update Purpose after archive.
 ## Requirements
+> Retired compatibility note: references to sentinel-armed specialists below
+> describe the former dispatch mechanism. Current waves use one consolidated
+> Review Gate reviewer batch keyed to the changed-file obligation set.
 ### Requirement: Reviewers run once per implementation wave
 The orchestrator SHALL define an implementation wave as the contiguous edit batch completed before a review gate and SHALL dispatch the applicable reviewer set once for that wave. Reviewer applicability SHALL be derived from changed-file scope, not from every individual edit event.
 

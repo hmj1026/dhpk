@@ -11,6 +11,8 @@ const {
   assignShard,
   partitionFiles,
   fileTimeoutMs,
+  createTimingReport,
+  parseTimingPayload,
 } = require('./run-all');
 
 test('default options preserve the complete sequential runner contract', () => {
@@ -92,6 +94,40 @@ test('worker mode accepts an explicit file list without rediscovering the tree',
     files: ['/repo/tests/a.test.js', '/repo/tests/b.test.js'],
   });
   assert.throws(() => parseOptions(['--worker']), /requires at least one test file/i);
+});
+
+test('timing reports preserve per-file and worker evidence without changing scheduling options', () => {
+  const report = createTimingReport({
+    options: parseOptions(['--jobs', '2']),
+    result: {
+      failed: 1,
+      total: 2,
+      fileTimings: [
+        { file: 'alpha.test.js', duration_ms: 12, status: 'PASS' },
+        { file: 'beta.test.js', duration_ms: 34, status: 'FAIL' },
+      ],
+      jobTimings: [{ worker_index: 0, duration_ms: 35, files: [] }],
+    },
+    durationMs: 42,
+    sourceEnv: { DHPK_TEST_SOURCE_COMMIT: 'abc123' },
+  });
+
+  assert.strictEqual(report.schema, 'dhpk.test-timing.v1');
+  assert.strictEqual(report.source_commit, 'abc123');
+  assert.strictEqual(report.runner.jobs, 2);
+  assert.strictEqual(report.totals.failed, 1);
+  assert.deepStrictEqual(report.files.map((entry) => entry.file), ['alpha.test.js', 'beta.test.js']);
+  assert.strictEqual(report.jobs[0].duration_ms, 35);
+});
+
+test('worker timing payloads are machine-readable and tolerate ordinary test output', () => {
+  const payload = { duration_ms: 17, file_timings: [{ file: 'a.test.js', duration_ms: 17, status: 'PASS' }] };
+  assert.deepStrictEqual(
+    parseTimingPayload(`ordinary output\nDHPK_TEST_TIMING_PAYLOAD=${JSON.stringify(payload)}\n`),
+    payload,
+  );
+  assert.strictEqual(parseTimingPayload('ordinary output\n'), null);
+  assert.strictEqual(parseTimingPayload('DHPK_TEST_TIMING_PAYLOAD={invalid}\n'), null);
 });
 
 run('run-all');

@@ -2,7 +2,7 @@
 
 // Black-box security regression coverage for the public observe checkpoint.
 // Every case uses a fresh consumer checkout and verifies that rejected evidence
-// cannot create durable Review Gate receipts or alter the legacy Sentinel.
+// cannot create durable Review Gate receipts or alter unrelated checkout data.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -10,6 +10,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  createHostKey,
+  hostInitArgs,
+  writeHostAttestation,
+} = require('./_lib/review-gate-host-attestation-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'review-gate-runtime.js');
@@ -23,7 +28,6 @@ const WORK_REQUEST_PATH = path.join(
 const RUNTIME_SCHEMA = 'dhpk.review-gate.runtime.v1';
 const REVIEWER_CONTRACT_VERSION = 'dhpk.reviewer-contract.v2';
 const COMPANION_SCHEMA = 'dhpk.claude-review-result.v1';
-const ACCEPTED_OUTCOME_COST_SCHEMA = 'dhpk.accepted-outcome-cost.v1';
 const FIXTURE_TIME = '2026-09-07T00:00:02.000Z';
 
 function runCli(repoRoot, args = [], input = undefined) {
@@ -191,45 +195,6 @@ function buildEvidence(repoRoot, prepared) {
   const lifecycleFile = writeJsonLinesFixture(repoRoot, lifecycleRelativePath, lifecycleEvents);
   const readinessFile = writeJsonLinesFixture(repoRoot, readinessRelativePath, readinessEvents);
 
-  const acceptedOutcomeCost = {
-    schema: ACCEPTED_OUTCOME_COST_SCHEMA,
-    observationId: `legacy-${sha256(identity.taskId).slice(0, 32)}`,
-    acceptedOutcome: true,
-    metrics: {
-      modelTokens: null,
-      dispatchCount: 1,
-      semanticReviewCount: 1,
-      remediationRounds: 0,
-      humanTurns: null,
-      elapsedMs: 42,
-      falseBlockCount: null,
-      receiptReuseCount: null,
-    },
-    telemetryFailures: [],
-    telemetryFailureCount: 0,
-    telemetryStatus: 'PARTIAL',
-    retirementEligible: false,
-  };
-  const costRelativePath = '.claude/artifacts/sessions/.accepted-outcome-cost.jsonl';
-  const costFile = writeJsonLinesFixture(repoRoot, costRelativePath, [acceptedOutcomeCost]);
-
-  const sentinelOutcome = {
-    status: 'CLEARED',
-    verdict: 'PASS',
-    outcome: 'PASS',
-    lifecycleEventId: lifecycleEvents[lifecycleEvents.length - 1].event_id,
-  };
-  const sentinelRelativePath = '.claude/artifacts/sessions/.sentinel-outcome.json';
-  const sentinelFile = writeJsonFixture(repoRoot, sentinelRelativePath, sentinelOutcome);
-  const sentinelMarker = path.join(
-    repoRoot,
-    '.claude',
-    'artifacts',
-    'sessions',
-    '.pending-review',
-  );
-  writeFixture(repoRoot, '.claude/artifacts/sessions/.pending-review', 'review pending\n');
-
   return {
     prepared,
     request,
@@ -242,25 +207,20 @@ function buildEvidence(repoRoot, prepared) {
     lifecycleRelativePath,
     readinessFile,
     readinessRelativePath,
-    costFile,
-    costRelativePath,
-    sentinelFile,
-    sentinelRelativePath,
-    sentinelMarker,
-    sentinelBytes: fs.readFileSync(sentinelFile, 'utf8'),
-    markerBytes: fs.readFileSync(sentinelMarker, 'utf8'),
   };
 }
 
 function makeFixture() {
   const repoRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-review-gate-runtime-security-')));
-  const initialized = runCli(repoRoot, ['init']);
+  const host = createHostKey(repoRoot, 'observe-security');
+  const initialized = runCli(repoRoot, hostInitArgs(host));
   assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
   const preparedResult = runCli(repoRoot, ['prepare'], fs.readFileSync(WORK_REQUEST_PATH, 'utf8'));
   assert.strictEqual(preparedResult.status, 0, `${preparedResult.stdout}\n${preparedResult.stderr}`);
   const prepared = JSON.parse(preparedResult.stdout);
   const evidence = buildEvidence(repoRoot, prepared);
-  return { repoRoot, ...evidence };
+  writeHostAttestation(repoRoot, prepared, evidence, host, { label: 'observe-security' });
+  return { repoRoot, host, ...evidence };
 }
 
 function observeArgs(fixture, overrides = {}) {
@@ -272,8 +232,7 @@ function observeArgs(fixture, overrides = {}) {
     '--companion', overrides.companion || fixture.companionRelativePath,
     '--lifecycle-events', overrides.lifecycleEvents || fixture.lifecycleRelativePath,
     '--readiness-events', overrides.readinessEvents || fixture.readinessRelativePath,
-    '--accepted-outcome-cost', overrides.acceptedOutcomeCost || fixture.costRelativePath,
-    '--sentinel-outcome', overrides.sentinelOutcome || fixture.sentinelRelativePath,
+    '--host-attestation', overrides.hostAttestation || fixture.hostAttestationRelativePath,
   ];
 }
 
@@ -314,9 +273,7 @@ function assertNoDurableObservation(fixture) {
   assert.strictEqual(status.status, 'PENDING');
   assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'receipts'), false);
   assert.deepStrictEqual(status.receiptSummary, { total: 0, byKind: {} });
-  assert.strictEqual(status.migrationObservation, null);
-  assert.strictEqual(fs.readFileSync(fixture.sentinelFile, 'utf8'), fixture.sentinelBytes);
-  assert.strictEqual(fs.readFileSync(fixture.sentinelMarker, 'utf8'), fixture.markerBytes);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'migrationObservation'), false);
 }
 
 function readStatus(fixture) {
@@ -329,7 +286,7 @@ function readStatus(fixture) {
   return JSON.parse(result.stdout);
 }
 
-function assertRetryIntegrityFailure(fixture, retry, beforeStatus, sentinelBytesBeforeRetry) {
+function assertRetryIntegrityFailure(fixture, retry, beforeStatus) {
   assertRedactedFailure(fixture, retry, 'IDEMPOTENCY_CONFLICT', 'retry-integrity-390');
 
   const afterStatus = readStatus(fixture);
@@ -338,18 +295,13 @@ function assertRetryIntegrityFailure(fixture, retry, beforeStatus, sentinelBytes
   assert.strictEqual(Object.prototype.hasOwnProperty.call(beforeStatus, 'receipts'), false);
   assert.strictEqual(Object.prototype.hasOwnProperty.call(afterStatus, 'receipts'), false);
   assert.deepStrictEqual(afterStatus.receiptSummary, beforeStatus.receiptSummary);
-  assert.strictEqual(
-    fs.readFileSync(fixture.sentinelFile, 'utf8'),
-    sentinelBytesBeforeRetry,
-  );
-  assert.strictEqual(fs.readFileSync(fixture.sentinelMarker, 'utf8'), fixture.markerBytes);
 }
 
 // Public retry identity contract: an identical work/wave/obligation retry is
 // idempotent only when every normalized evidence dimension remains identical.
 // The existing review-request/result checks cover the request and result axes;
-// this matrix covers the remaining command, lifecycle, readiness, Sentinel,
-// cost, and artifact-provenance axes through the public CLI.
+// this matrix covers the remaining command, lifecycle, readiness, and
+// evidence axes through the public CLI.
 const RETRY_INTEGRITY_VARIANTS = Object.freeze([
   {
     name: 'command digest',
@@ -378,46 +330,6 @@ const RETRY_INTEGRITY_VARIANTS = Object.freeze([
     },
     args: () => ({}),
   },
-  {
-    name: 'Sentinel outcome',
-    mutate(fixture) {
-      const sentinel = JSON.parse(fs.readFileSync(fixture.sentinelFile, 'utf8'));
-      sentinel.status = 'PENDING';
-      writeJsonFixture(fixture.repoRoot, fixture.sentinelRelativePath, sentinel);
-    },
-    args: () => ({}),
-  },
-  {
-    name: 'accepted-outcome cost',
-    mutate(fixture) {
-      const cost = readJsonLines(fixture.costFile);
-      cost[0].metrics.elapsedMs = 43;
-      writeJsonLinesFixture(fixture.repoRoot, fixture.costRelativePath, cost);
-    },
-    args: () => ({}),
-  },
-  {
-    name: 'artifact provenance path',
-    mutate(fixture) {
-      const artifactRelativePath = '.claude/artifacts/reviews/code-reviewer-390-security-retry-integrity-390.md';
-      const companionRelativePath = artifactRelativePath.replace(/\.md$/, '.result.json');
-      writeFixture(
-        fixture.repoRoot,
-        artifactRelativePath,
-        fs.readFileSync(fixture.artifactFile, 'utf8'),
-      );
-      writeFixture(
-        fixture.repoRoot,
-        companionRelativePath,
-        fs.readFileSync(fixture.companionFile, 'utf8'),
-      );
-      fixture.retryArgs = {
-        artifact: artifactRelativePath,
-        companion: companionRelativePath,
-      };
-    },
-    args: (fixture) => fixture.retryArgs || {},
-  },
 ]);
 
 function withFixture(callback) {
@@ -442,7 +354,7 @@ test('observe rejects a malformed companion with a redacted diagnostic and no re
   });
 });
 
-test('observe rejects a tampered artifact digest without changing Sentinel state', () => {
+test('observe rejects a tampered artifact digest without creating a receipt', () => {
   withFixture((fixture) => {
     const payloadMarker = 'tampered-artifact-payload-390';
     fs.appendFileSync(fixture.artifactFile, `${payloadMarker}\n`);
@@ -453,7 +365,7 @@ test('observe rejects a tampered artifact digest without changing Sentinel state
   });
 });
 
-test('observe rejects stale readiness digest before recording a review or migration receipt', () => {
+test('observe rejects stale readiness digest before recording a review receipt', () => {
   withFixture((fixture) => {
     const payloadMarker = 'stale-readiness-payload-390';
     const readiness = readJsonLines(fixture.readinessFile);
@@ -517,7 +429,7 @@ test('observe rejects a foreign obligation identity without recording evidence',
   });
 });
 
-test('observe rejects a sidecar identity mismatch without altering the Sentinel marker', () => {
+test('observe rejects a sidecar identity mismatch without recording evidence', () => {
   withFixture((fixture) => {
     const payloadMarker = 'foreign-sidecar-identity-390';
     const lifecycle = readJsonLines(fixture.lifecycleFile);
@@ -538,14 +450,19 @@ for (const variant of RETRY_INTEGRITY_VARIANTS) {
       const beforeStatus = readStatus(fixture);
 
       variant.mutate(fixture);
-      const sentinelBytesBeforeRetry = fs.readFileSync(fixture.sentinelFile, 'utf8');
+      writeHostAttestation(
+        fixture.repoRoot,
+        fixture.prepared,
+        fixture,
+        fixture.host,
+        { label: `observe-security-retry-${variant.name.replace(/[^a-z0-9-]/gi, '-')}` },
+      );
       const retry = runCli(fixture.repoRoot, observeArgs(fixture, variant.args(fixture)));
 
       assertRetryIntegrityFailure(
         fixture,
         retry,
         beforeStatus,
-        sentinelBytesBeforeRetry,
       );
     });
   });

@@ -46,10 +46,12 @@ probe or substitute an ambient `PATH` entry.
 
 On a missing CLI, an authentication failure (`401` → `codex login`), or a rejected model
 name, return `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for
-a model rejection — do not retry with a guessed model). A configured fallback may select
-`dhpk:fast-worker` only for the deterministic missing-executable case; authentication,
-authorization, model, task, and verification failures never fall back. **Never**
-approximate the backend or fall back to editing the files yourself.
+a model rejection — do not retry with a guessed model). The dispatcher may then apply
+the shared native-first fallback for `CLI_UNAVAILABLE` or
+`AUTHENTICATION_OR_MODEL_UNAVAILABLE` only after confirming no provider side effect;
+cross-provider candidates require explicit opt-in. Quota/rate-limit, safety/user denial,
+task/semantic, and timeout/interruption failures stay on their existing policy paths.
+**Never** approximate the backend or fall back to editing the files yourself.
 
 ## Execute via the codex wrapper (workspace-write)
 
@@ -133,10 +135,10 @@ derived **independently of the backend's narrative** by diffing `git status --po
 (single-worker mode) or the path-scoped `git status --porcelain -- <assigned files>`
 (parallel mode) captured before and after the CLI run (plus any file the verification
 step touched). The backend may under-report its edits; the working-tree diff is the
-source of truth. This is the gate-enforcement back-stop: if the orchestrator's post-edit
-hooks did not fire for the CLI's out-of-band writes, it derives the applicable reviewer
-gates from this list alone. Omitting it (or reporting it incompletely) breaks that
-back-stop. In parallel mode, a file appearing outside the assigned scope is an
+   source of truth. The orchestrator uses this list as the Review Gate accounting
+   back-stop for the CLI's out-of-band writes and derives applicable reviewer
+   obligations from the actual edited paths. Omitting it (or reporting it incompletely)
+   breaks that back-stop. In parallel mode, a file appearing outside the assigned scope is an
 out-of-scope observation for the report, never part of this edited-file list.
 
 ## Output
@@ -146,9 +148,9 @@ RESULT: DONE | PARTIAL | BLOCKED
 ## Codex Fast Worker Report
 Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (workspace-write)
 Requested backend: codex
-Selected backend: codex | claude (only with configured missing-executable fallback)
+Selected backend: codex | claude (only with dispatcher-approved fallback)
 Availability: <codex executable available | missing executable: codex>
-Fallback reason: <none | missing executable: codex; configured fallback=claude>
+Fallback reason: <none | canonical failure class and dispatcher decision>
 Model/effort: <model> / <effort>
 Timeout budget: <attested seconds>; receipt=<contained 0600 path>
 Verify: <command> → PASS | FAIL (N attempts)
@@ -178,5 +180,5 @@ On `BLOCKED`, name the exact backend failure and confirm no file edits were made
 
 **No artifact** — reports inline to its dispatcher; its deliverable is the applied diff
 plus the report above, not a persisted `.claude/artifacts/` file. The CLI's edits are
-real working-tree changes and remain subject to the full post-implementation review gate,
-which the orchestrator fires from the returned edited-file list.
+real working-tree changes and remain subject to the Review Gate, which the orchestrator
+dispatches from the returned edited-file list.

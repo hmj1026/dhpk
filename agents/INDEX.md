@@ -14,12 +14,11 @@ handoff in its own file. This index owns roster and trigger navigation; the
 frontmatter and `rules/execution-policy.md` remain the SSOT for registration,
 precedence, and dispatch behavior.
 
-## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
+## Review Gate-driven reviewer dispatch (7 reviewer roles, default)
 
-Roster and trigger navigation only. Dispatch, batching, confirm-only re-review,
-and sentinel arming live in `rules/execution-policy.md` (sentinel-scoped
-precedence, reviewer dispatch, and the AI-judgment back-stop list). Do not
-restate those tables here.
+Roster and trigger navigation only. Dispatch, batching, and confirm-only
+re-review live in `rules/execution-policy.md`. Do not restate those tables
+here.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|
@@ -30,15 +29,15 @@ restate those tables here.
 | [code-reviewer](code-reviewer.md) | sonnet | **Mandatory after any source-code Edit/Write** |
 | [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity checks |
 
-Agent names are overridable via `userConfig.review_agents` — a project can point sentinels at its own `code-reviewer-<project>` and friends instead of the plugin defaults. All 7 slots are wired into the default `review_agents` array (`scripts/hooks/_lib/payload.sh`, shipped v0.10.0); reduce by passing a shorter override.
+Agent names are overridable via `userConfig.review_agents` — a project can point the Review Gate at its own `code-reviewer-<project>` and friends instead of the plugin defaults. All seven reviewer roles are available by default; reduce or replace the list through configuration.
 
-**Opt-in triggers, not opt-in slots:** [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) (module-shipped, below) and [migration-reviewer](migration-reviewer.md) are both default `review_agents` slots, but — like `frontend-reviewer` — their sentinel only fires when a trigger is separately wired (polyfill: `library-author` module hook; migration: a project's `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:`). See [migration-reviewer](migration-reviewer.md) and the Module-shipped agents section below for detail.
+**Opt-in triggers, not opt-in roles:** [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) (module-shipped, below) and [migration-reviewer](migration-reviewer.md) are available roles whose Review Gate selection depends on a separately configured trigger (polyfill: `library-author` module trigger; migration: a project's `module.yaml` `migration:` trigger or `review_trigger_extra_paths` `mig:`). See [migration-reviewer](migration-reviewer.md) and the Module-shipped agents section below for detail.
 
-**Doc slot (always-on):** `doc-reviewer` covers both frontmatter schema validation and cross-file SSOT / link-validity checks via a single `.pending-doc-review` sentinel — no separate artifact slot needed.
+**Documentation role (always-on):** `doc-reviewer` covers both frontmatter schema validation and cross-file SSOT / link-validity checks in one Review Gate obligation; no separate artifact slot is needed.
 
 ## Implementation workers
 
-Not sentinel-driven. Implement-phase routing is owned by
+Not a post-edit hook. Implement-phase routing is owned by
 `rules/execution-policy.md` §Implementation dispatch (SSOT). This table is
 roster navigation for the shipped worker/reasoner roles.
 
@@ -84,20 +83,20 @@ This index only lists the shipped roles above.
 | [swift-build-resolver](swift-build-resolver.md) | sonnet | Swift / Xcode / SwiftPM build-error resolution (compile, Sendable/actor isolation, Codable, package-version conflicts, signing) |
 | [python-build-resolver](python-build-resolver.md) | sonnet | Python build-error resolution (ruff / mypy / pyright / pytest incl. pytest-asyncio scope, uv / pip / poetry install) — 3-attempt-then-escalate, re-runs to verify |
 | [rust-build-resolver](rust-build-resolver.md) | sonnet | Rust / Cargo build-error resolution (rustc type / borrow / lifetime, Send / Sync, tokio, Cargo.toml conflicts) — 3-attempt-then-escalate, re-runs to verify |
-| [silent-failure-hunter](silent-failure-hunter.md) | sonnet | Deep error-handling audit — empty catch / swallowed exceptions / error-hiding fallbacks / lost stack traces / missing rollback. Situational delegate of code-reviewer (not a sentinel) |
+| [silent-failure-hunter](silent-failure-hunter.md) | sonnet | Deep error-handling audit — empty catch / swallowed exceptions / error-hiding fallbacks / lost stack traces / missing rollback. Situational delegate of code-reviewer (not an unconditional post-edit role) |
 | [spec-miner](spec-miner.md) | opus | Extract behavioral specs from a brownfield codebase into `openspec/specs/<capability>/spec.md` (flat Requirement / Invariant blocks). Onboarding to spec-driven development |
 | [type-design-analyzer](type-design-analyzer.md) | sonnet | Score a type's design on encapsulation / invariant expression / usefulness / enforcement ("make illegal states unrepresentable"). Read-only |
 | [agent-evaluator](agent-evaluator.md) | sonnet | 5-axis output-quality scorecard (accuracy / completeness / clarity / actionability / conciseness) with grep-verified evidence. Scores run output, not the code |
 | [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize Playwright journeys, helpers, fixtures, and artifacts. Application-code failures return a fast-worker-ready fix-spec; after the fix, this agent re-runs the originating journey as acceptance. Distinct from ui-ux-verifier (page-vs-spec audit) |
 | [smoke-tester](smoke-tester.md) | sonnet | Read-only live-runtime probe: drives the real running system with one orchestrator-supplied concrete scenario and asserts on observed values (`Verdict:`-first-line contract). Distinct from e2e-runner (authors/runs Playwright specs, write-capable, web-scoped) and the feature-verify skill (main-context P0-P5, not a dispatchable isolated agent) |
 
-> **How situational agents are reached** (none are sentinel-driven). Trigger
+> **How situational agents are reached** (none are unconditional post-edit roles). Trigger
 > ownership is the AI-judgment back-stop list in
 > `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. This list is navigation
 > only:
 > - `architect` ← `flow-guide` classification / architecture handoff
 > - `refactor-cleaner` ← `/simplify` (back-stop for >800-line splits / cross-file dedup / multi-module dead-code sweep)
-> - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the `.pending-review` flow in both `change-verdict` and `opsx-apply-goal`
+> - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the code-review obligation in both `change-verdict` and `opsx-apply-goal`
 > - `doc-updater` ← execution-policy back-stop on structural change (it runs `/update-codemaps` + `/update-docs`)
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
 > - `spec-miner` ← `/spec-mine` + route-table entry (and the `opsx-apply-goal` pre-flight note when `openspec/specs/` is empty)
@@ -106,13 +105,13 @@ This index only lists the shipped roles above.
 > - `smoke-tester` ← `opsx-apply-goal` Part 3 conditional gate (HAS_SMOKE) + `rules/execution-policy.md` §Implementation dispatch table
 > - `agent-evaluator` ← harness-quality family (`skill-scope` judge mode / `harness-govern` listing) — deliberately **out** of `flow-drive` / `opsx-apply-goal` dev routing
 > - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
-> - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `flow-guide`, which does **not** itself name these agents — so there is no deterministic (route-table/sentinel) dispatch; they fire purely on the AI-judgment back-stop
+> - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `flow-guide`, which does **not** itself name these agents — so there is no deterministic route-table dispatch; they fire purely on the AI-judgment back-stop
 
 ## Module-shipped agents
 
 | Agent | Ships with | When it fires |
 |-------|-----------|----------------|
-| [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) | `library-author` module | Sentinel-driven (`.pending-polyfill-review`) after editing `.php` files with multi-major-version runtime guards (`version_compare`, `class_exists`, `PHP_VERSION_ID`, …). Only available when the `library-author` module is enabled. |
+| [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) | `library-author` module | Review Gate-triggered after editing `.php` files with multi-major-version runtime guards (`version_compare`, `class_exists`, `PHP_VERSION_ID`, …). Only available when the `library-author` module is enabled. |
 
 ## Models
 
@@ -136,14 +135,14 @@ comment-free.
 | Agent | maxTurns | Rationale |
 |---|---|---|
 | `docs-lookup` | 8 | Self-capped at 3 resolve+query pairs (see agent body) |
-| `polyfill-reviewer` | 12 | Bounded input set (sentinel + composer.json + workflow YAML + phpunit.xml + per-file git log) — no cx/multi-file traversal |
+| `polyfill-reviewer` | 12 | Bounded input set (triggered paths + composer.json + workflow YAML + phpunit.xml + per-file git log) — no cx/multi-file traversal |
 | `type-design-analyzer` | 12 | Read-only, no Bash/gitnexus — single/few-type scoring against a fixed rubric |
 | `doc-updater` | 15 | Bounded to `/update-codemaps` + `/update-docs` runs, pre-existing cap |
 | `database-reviewer` | 20 | Trap-sheet load + `cx references` tracing across Repository/migration files |
 | `performance-analyzer` | 20 | Same shape as `database-reviewer` + optional EXPLAIN sampling |
 | `silent-failure-hunter` | 20 | Pattern-hunt across the diff's full blast radius, pre-existing cap |
-| `doc-reviewer` | 15 | Bounded doc-only scope, pinned by `.pending-doc-review` sentinel list |
-| `frontend-reviewer` | 15 | Bounded frontend-tier scope, pinned by `.pending-frontend-review` sentinel list |
+| `doc-reviewer` | 15 | Bounded doc-only scope, pinned by the Review Gate obligation |
+| `frontend-reviewer` | 15 | Bounded frontend-tier scope, pinned by the Review Gate obligation |
 | `migration-reviewer` | 15 | Migration files only, typically a handful per PR |
 | `version-matrix-impact-reviewer` | 15 | Single detect-once pass + one risk table, no per-file loop |
 | `code-reviewer` | 25 | Broadest scope — any file/language + delegate table + `cx references` tracing |

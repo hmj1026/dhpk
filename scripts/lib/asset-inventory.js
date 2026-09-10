@@ -144,7 +144,6 @@ function collectInventory(root) {
     .filter((name) => CODEX_MCP_COMMAND_NAMES.includes(name))
     .sort();
 
-  const sentinelRegistry = readJson(repoRoot, 'scripts/lib/sentinel-slots.json');
   const hooksManifest = readJson(repoRoot, 'hooks/hooks.json');
   const moduleCatalog = readJson(repoRoot, 'manifests/module-catalog.json');
 
@@ -164,7 +163,6 @@ function collectInventory(root) {
       claudePlugin: readJson(repoRoot, '.claude-plugin/plugin.json'),
       codexPlugin: readJson(repoRoot, '.codex-plugin/plugin.json'),
       moduleCatalog,
-      sentinelRegistry,
       hooks: {
         events: hooksManifest && hooksManifest.hooks && typeof hooksManifest.hooks === 'object'
           ? Object.keys(hooksManifest.hooks).sort()
@@ -181,9 +179,6 @@ function collectInventory(root) {
       commands: commandFiles.length,
       mcpCodexCommands: mcpCodexCommandFiles.length,
       modules: moduleDirs.length,
-      slotCount: sentinelRegistry && sentinelRegistry.schema === 'dhpk.sentinel-slots.v1' && Array.isArray(sentinelRegistry.slots)
-        ? sentinelRegistry.slots.length
-        : 0,
       mcpCodexSkills: mcpCodexSkills.length,
       codexCommands: codexCommandFiles.length,
       hookEvents: hooksManifest && hooksManifest.hooks && typeof hooksManifest.hooks === 'object'

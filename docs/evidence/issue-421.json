@@ -1,0 +1,107 @@
+{
+  "schema": "dhpk.issue-421.evidence.v1",
+  "issue": 421,
+  "source_commit": "4796c410004b9095f639027e6132907dc83ed0f9",
+  "timing": {
+    "schema": "dhpk.test-timing.v1",
+    "same_runner": true,
+    "workload": "DHPK_TEST_JOBS=4 node tests/run-all.js",
+    "runner": {
+      "platform": "darwin",
+      "node": "v26.8.2",
+      "jobs": 4
+    },
+    "baseline": {
+      "phase": "pre-change",
+      "files": 299,
+      "failed_files": 60,
+      "exit_code": 1,
+      "wall_time_seconds": 124.41,
+      "capture": "/usr/bin/time -p"
+    },
+    "post_change": {
+      "phase": "post-change",
+      "files": 300,
+      "failed_files": 60,
+      "exit_code": 1,
+      "wall_time_seconds": 149.67,
+      "timing_report_duration_ms": 149627,
+      "new_test_files": [
+        "platform-conformance.test.js"
+      ],
+      "capture": "DHPK_TEST_TIMING_FILE"
+    },
+    "bottleneck": {
+      "file": "install-codex-skills.test.js",
+      "duration_ms": 105954,
+      "worker_index": 0,
+      "worker_duration_ms": 149570,
+      "next_action": "Revisit installer fixture cost for issue #422/#416 closeout; no second scheduler added by #421."
+    }
+  },
+  "runtime_smoke": {
+    "observed_on": "2026-09-10",
+    "runner": "clean disposable clone",
+    "command": "DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE=1 bin/dhpk harness release --json --task-id issue-421 --attempt-id <isolated-attempt>",
+    "all_four_executables_detected": true,
+    "results": [
+      {
+        "host": "claude",
+        "version": "2.1.267 (Claude Code)",
+        "surface": "claude-core",
+        "status": "FAIL",
+        "evidence": "Real strict validation, project marketplace add/install/list, and teardown ran; project-scoped installed identity was not reported by claude plugin list."
+      },
+      {
+        "host": "codex",
+        "version": "codex-cli 0.153.4",
+        "surface": "codex-sync",
+        "status": "FAIL",
+        "evidence": "Real installer and project-local named-role probe ran; the named-role probe did not produce the required role evidence."
+      },
+      {
+        "host": "codex",
+        "version": "codex-cli 0.153.4",
+        "surface": "codex-native",
+        "status": "FAIL",
+        "evidence": "Real Codex marketplace install smoke ran; the installed-cache identity assertion failed on the macOS temporary-path normalization."
+      },
+      {
+        "host": "cursor-agent",
+        "version": "2026.09.02-c22c1a3",
+        "surface": "cursor-sync",
+        "status": "NOT_RUN",
+        "evidence": "Project-local sync receipt was verified, but the Cursor loader was intentionally not invoked."
+      },
+      {
+        "host": "cursor-agent",
+        "version": "2026.09.02-c22c1a3",
+        "surface": "agent-plugin",
+        "status": "BLOCKED",
+        "evidence": "Real consumer probe was attempted and stopped by the macOS physical-package-root guard for the /var temporary path."
+      },
+      {
+        "host": "cursor-agent",
+        "version": "2026.09.02-c22c1a3",
+        "surface": "cursor-plugin",
+        "status": "BLOCKED",
+        "evidence": "Real consumer probe was attempted and stopped by the macOS physical-package-root guard for the /var temporary path."
+      },
+      {
+        "host": "agy",
+        "version": "1.1.28",
+        "surface": "agy-plugin",
+        "status": "UNAVAILABLE",
+        "evidence": "AGY runtime probe was attempted; its read-only bwrap sandbox prerequisite is not installed on this runner."
+      }
+    ],
+    "interpretation": "Fixture and structural conformance are green where reported, but this evidence does not claim all-platform runtime support."
+  },
+  "scope": {
+    "shared_fallback_suite": "tests/native-fallback-contract.test.js",
+    "platform_conformance_suite": "tests/platform-conformance.test.js",
+    "new_scheduler": false,
+    "new_dependency_graph": false,
+    "always_on_telemetry": false
+  }
+}

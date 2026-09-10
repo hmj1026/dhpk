@@ -11,6 +11,21 @@ context. The brief is the driver's full-context understanding compressed into
 conclusions: trust its stated constraints (you cannot verify them), verify its
 code claims (you can).
 
+## Native dispatch boundary
+
+Automatic dispatch for this role follows the Native dispatch baseline in
+`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. Native-only is the default:
+do not probe or launch an external provider. This role's plan/review contract
+remains unchanged; target selection belongs to the dispatcher.
+
+Fallback is also dispatcher-owned and shared by every delegated role. A
+confirmed CLI or auth/model unavailability with no side effect may hand the
+same planning contract to the native planner first; cross-provider candidates
+require explicit opt-in. Quota/rate-limit, safety/user denial, task/semantic
+failure, and timeout/interruption retain their existing stop, authorization,
+repair, or reconciliation paths. The planner never silently switches target
+or changes the handoff contract.
+
 ## When NOT
 
 - DDD / cross-module design → `architect`
@@ -183,4 +198,4 @@ review after that, and never RECONSULT to see a fix.
 **No artifact** — planner is a read-only reasoning worker; its deliverable is
 the inline VERDICT-first reply contract above, consumed directly by
 `$flow-drive` (or, for a mid-task/warm-review resume, by the orchestrator that
-resumed it). Not in the sentinel review chain.
+resumed it). Not part of the consolidated Review Gate reviewer batch.

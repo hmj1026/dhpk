@@ -22,7 +22,6 @@ const APPLICABILITIES = Object.freeze(['REQUIRED', 'NOT_APPLICABLE']);
 const SEMANTIC_VERDICTS = Object.freeze(['PASS', 'CHANGES_REQUIRED', 'BLOCKED']);
 const FINDING_SEVERITIES = Object.freeze(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']);
 const FINDING_DISPOSITIONS = Object.freeze(['MUST_FIX', 'FOLLOW_UP', 'NOTE']);
-const LEGACY_VERDICTS = Object.freeze(['APPROVE', 'PASS', 'WARNING', 'BLOCK', 'FAIL']);
 
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -151,54 +150,6 @@ const createReviewResult = (input) => {
   return freeze(result);
 };
 
-const mapLegacyReviewResult = (input) => {
-  requireRecord(input, 'legacy result');
-  const legacyVerdict = input.legacyVerdict;
-  if (legacyVerdict !== undefined && legacyVerdict !== null) {
-    requireMember(legacyVerdict, LEGACY_VERDICTS, 'legacyVerdict');
-  }
-
-  const observation = clone(input);
-  observation.kind = 'MIGRATION_OBSERVATION';
-  observation.authorizesApproval = false;
-  observation.clearsSentinel = false;
-
-  const executedRequired = observation.executionStatus === 'COMPLETE'
-    && observation.applicability === 'REQUIRED';
-  if (!executedRequired || legacyVerdict === undefined || legacyVerdict === null) {
-    if (executedRequired) observation.executionStatus = 'NOT_RUN';
-    delete observation.semanticVerdict;
-    return createReviewResult(observation);
-  }
-
-  let normalizedFindings;
-  try {
-    normalizedFindings = observation.findings.map(createFinding);
-  } catch (error) {
-    if (legacyVerdict === 'WARNING') {
-      normalizedFindings = [];
-      observation.mappingDiagnostics = ['WARNING contained an invalid or missing finding disposition'];
-    } else {
-      observation.executionStatus = 'INTERRUPTED';
-      delete observation.semanticVerdict;
-      observation.findings = [];
-      observation.mappingDiagnostics = [`malformed legacy findings: ${error.message}`];
-      return createReviewResult(observation);
-    }
-  }
-  const hasMustFix = normalizedFindings.length === 0 && legacyVerdict === 'WARNING'
-    ? true
-    : normalizedFindings.some((finding) => finding.disposition === 'MUST_FIX');
-  const passingLegacyVerdict = legacyVerdict === 'APPROVE' || legacyVerdict === 'PASS';
-  observation.semanticVerdict = passingLegacyVerdict && !hasMustFix
-    ? 'PASS'
-    : legacyVerdict === 'WARNING' && !hasMustFix
-      ? 'PASS'
-      : 'CHANGES_REQUIRED';
-  observation.findings = normalizedFindings;
-  return createReviewResult(observation);
-};
-
 module.exports = {
   REVIEWER_CONTRACT_VERSION,
   REVIEW_REQUEST_FIELDS,
@@ -210,5 +161,4 @@ module.exports = {
   createReviewRequest,
   createFinding,
   createReviewResult,
-  mapLegacyReviewResult,
 };

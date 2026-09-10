@@ -2,7 +2,7 @@
 
 This compact policy is the Codex projection of dhpk's execution rules. It
 preserves the safety and review contract without relying on Claude lifecycle
-hooks, sentinels, or Claude plugin-root interpolation.
+hooks or Claude plugin-root interpolation.
 The always-visible execution kernel is loaded first; this file remains the
 conditional routing and review reference selected by the active route.
 
@@ -60,19 +60,61 @@ partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 `UNAVAILABLE` is non-terminal and cannot count as completed CI. The external
 `/opsx:apply` flow remains unchanged.
 
+## Native dispatch baseline
+
+Planner, reasoner, worker, and reviewer share one native-only dispatch baseline.
+Automatic dispatch considers only the native Claude candidate by default and
+MUST NOT probe, authenticate, launch, or otherwise discover an external CLI
+when cross-provider dispatch is disabled. An explicitly requested external
+target remains directional. The public `cross_provider` option is `false` by
+default and resolves as `--cross-provider` (one-shot enable) > project
+pluginConfig > installed user pluginConfig > `false`; workspace-local settings
+are preferred over the global settings file. Reviewer routing remains on the
+current Review Gate / Reviewer Contract path and never creates a retired
+Sentinel state.
+
+## Failure classification and fallback chain
+
+After a selected target has been dispatched, transport reports only the
+terminal result and one canonical failure class. It never chooses a new
+provider or silently retries. The dispatcher owns this policy for planner,
+reasoner, worker, and reviewer roles:
+
+| Failure class | Fallback policy | Required evidence/action |
+|---|---|---|
+| `CLI_UNAVAILABLE` | Continue to the native candidate after confirming the selected CLI is unavailable; use the next configured candidate only with cross-provider opt-in. | Confirm no provider side effect. |
+| `AUTHENTICATION_OR_MODEL_UNAVAILABLE` | Same native-first rule as CLI unavailability when the failed target is confirmed unavailable without side effects. | Preserve the exact auth/model evidence. |
+| `QUOTA_OR_RATE_LIMIT` | Avoid the affected model/account/pool; select an explicitly different authorized pool only with cross-provider opt-in. | Do not infer that every provider is exhausted. |
+| `SAFETY_OR_USER_DENIAL` | Do not switch providers to evade the restriction or denial. | Stop and use the existing authorization/user-action path. |
+| `TASK_OR_SEMANTIC_FAILURE` | Do not switch providers. | Return to the existing repair and acceptance path. |
+| `TIMEOUT_OR_INTERRUPTION` | Do not switch providers as a timeout retry. | Stop the old writer, reconcile assigned scope and diff, then use the partial-writer handoff contract. |
+
+The order is selected target → confirmed-unavailable native target → next
+valid configured candidate only when `cross_provider` is enabled → explicit
+`BLOCKED`. A session records `attempted_backends` and `unavailable_backends`
+and decrements one shared `retry_budget` for every fallback; switching
+providers does not reset that budget and a candidate is never revisited. The
+fallback preserves the role, task scope, read/write authority, model contract
+where applicable, and reviewer contract. There is no hidden coordinator or
+silent provider switch.
+
+For a timed-out or interrupted multi-file writer, stop the old writer before
+continuing. Verify the assigned scope and path-scoped diff, separate confirmed,
+unconfirmed, remaining, and out-of-scope files, and preserve dirty work. A
+partial result writes one control-plane marker under
+`.cursor/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`;
+the marker is not a product edit or Review Gate verdict and remains until
+explicit reconciliation.
+
 ## Orchestration lifecycle acceptance
 
 The orchestrator owns dispatch and handoff identity, retries, and evidence
 presentation; the host integration owns review-gate lifecycle completion. Each
 handoff uses one stable `task_id` and an attempt-specific `attempt_id`, with
 optional producer, wave, `scope_id`, adapter/stage, and plan/artifact
-fingerprints. Before resuming a reviewer, forward the complete
-`RESUMED_REVIEW_IDENTITY` envelope, including any declared fingerprints; the
-reviewer must reproduce every declared identity field in the canonical artifact
-frontmatter. Legacy scope/diff-only evidence remains readable, but missing or
-foreign identity fails closed. A terminal lifecycle result plus all applicable
-host review gates is required; a message, aggregate verdict, or lifecycle event
-alone is not completion.
+fingerprints. A terminal lifecycle result plus all applicable host review
+gates is required; a message, aggregate verdict, or lifecycle event alone is
+not completion.
 
 ## Context tiers and named specialist dispatch
 

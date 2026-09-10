@@ -99,6 +99,15 @@ test('project settings.local.json overrides global settings.json for a CLI-worke
   assert.strictEqual(res.stdout.trim(), 'gpt-5.6-sol');
 });
 
+test('cross_provider keeps the project-scope marker for precedence resolution', () => {
+  const root = tmpRoot();
+  writeSettings(root, 'settings.json', { cross_provider: false });
+  writeSettings(root, 'settings.local.json', { cross_provider: true });
+  const res = sh(root, 'echo "$CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER|$DHPK_PROJECT_OPTION_CROSS_PROVIDER"');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout.trim(), 'true|true');
+});
+
 test('DHPK_HOOK_PROFILE env one-shot override wins over settings file', () => {
   const root = tmpRoot();
   writeSettings(root, 'settings.local.json', { hook_profile: 'full' });

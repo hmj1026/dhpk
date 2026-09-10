@@ -149,10 +149,18 @@ For live source edits during plugin development (no reinstall loop), see [§ Dev
 ### Update / Uninstall
 
 ```bash
-claude plugin update dhpk@dhpk         # pull the latest version from the marketplace
+# User-scoped install (the CLI default)
+claude plugin update -y dhpk@dhpk
+# Project-scoped install
+claude plugin update --scope project -y dhpk@dhpk
 claude plugin uninstall dhpk@dhpk      # remove the plugin
 claude plugin marketplace remove dhpk  # forget the marketplace entry
 ```
+
+Use the same scope that was used to install the plugin. The update command
+defaults to the user scope, so a project-scoped install requires
+`--scope project`; `-y`/`--yes` avoids the confirmation prompt in non-TTY or CI
+environments.
 
 The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall dhpk@dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
 
@@ -167,7 +175,7 @@ checkout instead, for example `DHPK_ROOT=/absolute/path/to/dhpk` and run
 an ephemeral marketplace cache path.
 
 ```bash
-claude plugin update dhpk@dhpk
+claude plugin update -y dhpk@dhpk
 DHPK_ROOT=/absolute/path/to/dhpk
 bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --update
 ```
@@ -244,7 +252,7 @@ Use the skill groups below as a reusable decision ladder:
 | Skill | Common invocation pattern |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
 | `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
@@ -308,11 +316,15 @@ Use these invocation-only modifiers when they change the decision for this run:
 |---|---|
 | `--plan[=<model>[:<effort>]]` | Adds a planner critique to confirmed implementation work. |
 | `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; it does not persist configuration. |
+| `--cross-provider` | One-shot opt-in for configured external candidates when `--worker=auto`; it does not persist configuration or broaden an explicit worker target. |
 | `--reasoner=<backend>:<model>:<effort>` | Requests a bounded reasoning pass for confirmed implementation work. |
 | `--architect` / `--no-architect` | Enables or disables the architecture pass for this invocation. |
 | `--codex` | Retired compatibility flag. The parser emits a deprecation diagnostic and does not select a peer or backend; use an explicit worker, reasoner, or owner second-opinion option instead. |
 
-`--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex`
+`--worker=auto --cross-provider` allows the configured external candidates to
+participate in automatic selection for this invocation. Without the flag,
+automatic selection remains native-only; `--worker=codex` or `--worker=agy`
+remains a directional explicit choice. `--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex`
 chooses a Codex CLI reasoning pass. `CODEX=on` and `--codex` are
 retired compatibility flags: they emit a deprecation diagnostic and never
 select a peer, worker, reasoner, or hidden backend. Only a missing selected
@@ -349,11 +361,11 @@ Queued or partial CI is not completion.
 
 ### Review, verify, and handoff
 
-After an Edit/Write/MultiEdit, the default hooks create only the applicable
-`.pending-*` review sentinels and keep review debt visible. They do not silently
-run formatting, lint, lockfile, or Stop advisory scripts. `/dhpk:review-pending`
-starts the pending reviewers immediately; `sentinel_commit_gate` controls whether
-open sentinels warn or block a commit.
+After an Edit/Write/MultiEdit, the orchestrator derives the applicable Review
+Gate obligations from the completed wave. It does not silently run formatting,
+lint, lockfile, or Stop advisory scripts. `/dhpk:review-pending` dispatches the
+reviewer for the selected paths; the legacy `sentinel_commit_gate` setting is
+retained for compatibility and does not replace Review Gate verdict tracking.
 
 ```text
 /dhpk:review-pending
@@ -554,12 +566,14 @@ See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 
 ## Migrating an existing project
 
-If the project already has its own `.claude/` harness, follow the phased plan:
+If the project already has its own `.claude/` harness, the following is a
+legacy migration plan for hook compatibility. New review work uses the Review
+Gate trigger table and durable obligations described above.
 
 1. **Phase A — baseline**: snapshot pre-install hook outputs and test results.
 2. **Phase B — install (parallel)**: install the plugin with `userConfig.review_agents` pointing at the project's existing agents. Both sets of hooks fire side-by-side.
 3. **Phase C — discovery**: confirm `/agents` and `/plugin details dhpk@dhpk` show expected components.
-4. **Phase D — hook parity**: diff plugin-side sentinels vs project-side. Document any expected differences.
+4. **Phase D — hook parity**: diff plugin-side safety hooks vs project-side. Document any expected differences; do not add a legacy sentinel route.
 5. **Phase E — cutover**: disable the project's in-tree hooks via `.claude/settings.local.json` (`"hooks": {}`); run regression tests.
 6. **Phase F — cleanup**: delete project files now provided by the plugin; keep project-specific overrides.
 
@@ -576,4 +590,4 @@ claude --plugin-dir ~/projects/dhpk
 
 Edits to plugin files take effect after `/reload-plugins` (hooks, MCP, LSP) or session restart (monitors, skill listings).
 
-The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update dhpk@dhpk`.
+The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update -y dhpk@dhpk` (or the equivalent command with `--scope project` for a project-scoped install).

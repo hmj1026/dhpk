@@ -56,7 +56,7 @@ plugin_hash    = git hash-object --no-filters <plugin-path>  # source of truth
 | Category | Local Path | Plugin Source | Files |
 |----------|-----------|--------------|-------|
 | Rules | `.claude/rules/*.md` | `rules/*.md` | `auto-loop.md`, `codex-invocation.md`, `fix-all-issues.md`, `framework.md`, `testing.md`, `security.md`, `git-workflow.md`, `logging.md`, `docs-writing.md`, `docs-numbering.md`, `self-improvement.md`, `context-management.md` |
-| Hooks | `.claude/hooks/*.sh` | `scripts/hooks/*.sh` | `pre-edit-guard.sh`, `pre-edit-batch-gate.sh`, `post-edit-dispatch.sh`, `post-edit-advisory.sh`, `stop-review-reminder.sh` |
+| Hooks | `.claude/hooks/*.sh` | `scripts/hooks/*.sh` | `pre-edit-guard.sh`, `pre-edit-batch-gate.sh`, `post-edit-advisory.sh`, `stop-advisory-dispatch.sh` |
 | Scripts | `.claude/scripts/` | `scripts/` | `precommit-runner.js`, `verify-runner.js`, `dep-audit.sh`, `commit-msg-guard.sh`, `pre-push-gate.sh`, `lib/utils.js` |
 
 ## S2.5: Override Safeguard Checks
@@ -66,12 +66,12 @@ plugin_hash    = git hash-object --no-filters <plugin-path>  # source of truth
 | # | Check | Severity | Detection | Recommendation |
 |---|-------|----------|-----------|----------------|
 | 1 | Override drift | P2 | `based_on` hash comment in project file vs current base file hash | "Base auto-loop updated since override authored; review your overrides" |
-| 2 | Policy contradiction | P1 | Override's Auto-Trigger table omits a review command required by `stop-review-reminder.sh` | "Override conflicts with review reminder enforcement" |
+| 2 | Policy contradiction | P1 | Override's Auto-Trigger table omits a review command required by the Review Gate dispatch contract | "Override conflicts with Review Gate obligation routing" |
 | 3 | Missing reference | P1 | `.claude/CLAUDE.md` has `@rules/auto-loop-project.md` but file missing, OR file exists but not referenced | `/install-rules` to recreate or add reference |
 | 4 | Wrong-layer edit | P2 | Base `auto-loop.md` has `LOCAL_MODIFIED`, `CONFLICT`, or `LEGACY` state while project override exists | "Move customization to auto-loop-project.md" |
 | 5 | Duplicate heading | P2 | Override file has multiple active `## <heading>` with same text | "Keep one, remove duplicates. Last occurrence takes effect." |
 
-**Policy contradiction detection**: Parse the project override's Auto-Trigger table for required check commands. Cross-reference against hook-enforced sentinels: if override omits `/dhpk:change-verdict --mode code` for code changes or `/dhpk:change-verdict --mode docs` for `.md` changes, flag as P1.
+**Policy contradiction detection**: Parse the project override's Auto-Trigger table for required check commands. Cross-reference against the Review Gate obligation contract: if the override omits `/dhpk:change-verdict --mode code` for code changes or `/dhpk:change-verdict --mode docs` for `.md` changes, flag as P1.
 
 **Override drift detection**: Read the `<!-- Based on: auto-loop.md @ <hash> -->` comment from the project file. Compare against `git hash-object --no-filters .claude/rules/auto-loop.md | cut -c1-7`. If different, the base has been updated since the override was authored. Uses blob hash for content-level comparison; accepts legacy commit-style hashes (any 7+ hex chars) during backward-compat transition.
 

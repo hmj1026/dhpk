@@ -51,8 +51,8 @@ const AGENTS = [
 
 const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
 
-// Codex has no hook-owned sentinel clearance. Both the pointer-style Closing
-// sentence and the older inline restatement rewrite to this manual lifecycle.
+// Codex has no host hook lifecycle. The generated role points to the manual
+// Codex artifact handoff used by its parent flow.
 const CODEX_MANUAL_REVIEW_LIFECYCLE =
   "The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.";
 
@@ -303,31 +303,6 @@ function adaptCodexBody(agentName, body) {
     .replaceAll('rules/execution-policy.md', '.codex/dhpk/policies/execution-policy.md')
     .replaceAll('.claude/', '.codex/')
     .replaceAll('CLAUDE.md', 'AGENTS.md')
-    .replace(
-      /Path, frontmatter, retention, degradation, and hook-owned sentinel clearance:[^\n]+§Sentinel clearance[^\n]+§Single-run verdict\. Agent-only: sentinel .{1,2}\.pending-[a-z-]+.{1,3} This reviewer's job ends at writing the artifact\./g,
-      CODEX_MANUAL_REVIEW_LIFECYCLE,
-    )
-    .replaceAll(/Trigger: sentinel `\.pending-[^`]+`/g, 'Trigger: an explicit review request')
-    .replaceAll(/sentinel = `\.pending-[^`]+`/g, 'without an automatic marker')
-    .replaceAll(/`\.pending-[^`]+`/g, 'the matching review request')
-    .replaceAll(/Sentinel-scoped precedence/g, 'Review precedence')
-    // Case-preserving: a sentence-initial "Sentinel-driven" must not fall
-    // through to the bare /sentinel/gi rule and become "review marker-driven".
-    .replaceAll(/([Ss])entinel-driven/g, (_match, initial) => (initial === 'S' ? 'Review-gated' : 'review-gated'))
-    .replaceAll(/sentinel review chain/g, 'review chain')
-    .replaceAll(/sentinel/gi, 'review marker')
-    .replaceAll(/No sentinel/g, 'No automatic marker')
-    .replaceAll(/sentinel clearance is hook-owned/g, 'the parent flow owns lifecycle')
-    .replaceAll(/review marker clearance is hook-owned/g, 'the parent flow owns lifecycle')
-    .replaceAll(/sentinel clearance/g, 'review lifecycle')
-    .replaceAll(/subagent-stop-verify\.sh/g, 'the parent review flow')
-    .replaceAll(/clear-sentinel\.sh/g, 'a host-specific lifecycle helper')
-    .replaceAll(/post-edit-remind\.sh/g, 'the parent review flow')
-    .replaceAll(/, sentinel = [^\n.]+\./g, '.')
-    .replace(
-      /the parent flow owns lifecycle: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears the matching review request; warning, fail, or malformed evidence leaves it armed\. This reviewer's job ends at writing the artifact\./g,
-      CODEX_MANUAL_REVIEW_LIFECYCLE,
-    )
     .replaceAll('`/dhpk:do --plan`', 'Codex plan mode')
     .replaceAll('`/dhpk:do`', 'the Codex orchestrator')
     // Repo-relative skill paths do not exist in the .codex/ install layout, and
@@ -444,6 +419,8 @@ function buildToml(agent, frontmatter, body) {
     'Use the supplied scoped task packet and load only references required by the route.',
     '',
     adaptCodexBody(agent.name, cleanBody(body)),
+    '',
+    CODEX_MANUAL_REVIEW_LIFECYCLE,
   ]
     .join('\n')
     .trim();

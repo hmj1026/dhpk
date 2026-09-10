@@ -1,6 +1,6 @@
 ---
 name: codex-reasoner
-description: 'CLI-backed read-only deep-reasoning worker — the codex variant of `deep-reasoner`. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase when the `--reasoner=codex` backend is selected (default `gpt-5.6-sol` @ `high`) instead of the in-process opus deep-reasoner. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Runs `codex exec` in a read-only sandbox (never modifies the working tree), then returns the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture to `architect`. BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected. Not a reviewer, not sentinel-driven.'
+description: 'CLI-backed read-only deep-reasoning worker — the codex variant of `deep-reasoner`. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase when the `--reasoner=codex` backend is selected (default `gpt-5.6-sol` @ `high`) instead of the in-process opus deep-reasoner. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Runs `codex exec` in a read-only sandbox (never modifies the working tree), then returns the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture to `architect`. BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected. Not a reviewer and not a Review Gate lane.'
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact, mcp__gitnexus__query
 model: sonnet
 effort: low
@@ -42,11 +42,12 @@ probe or substitute an ambient `PATH` entry.
 
 On a missing CLI, an authentication failure (`401` → `codex login`), or a rejected model
 name, return `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for
-a model rejection — do not retry with a guessed model). The missing-executable case is the
-only one where the dispatcher's `--reasoner` fallback may re-route to the in-process
-`dhpk:deep-reasoner`; authentication, authorization, model, and task failures never fall
-back and never get simulated. **Never** approximate the backend or produce a reasoning
-result from your own analysis when the CLI is unavailable.
+a model rejection — do not retry with a guessed model). The dispatcher may then apply
+the shared native-first fallback for `CLI_UNAVAILABLE` or
+`AUTHENTICATION_OR_MODEL_UNAVAILABLE` only after confirming no provider side effect;
+cross-provider candidates require explicit opt-in. Safety/user denial, task/semantic,
+and timeout/interruption failures never switch target. **Never** approximate the
+backend or produce a reasoning result from your own analysis when the CLI is unavailable.
 
 ## Execute via the codex wrapper (read-only)
 
@@ -83,7 +84,8 @@ result from your own analysis when the CLI is unavailable.
 When the wrapper exits `124`, read the `dhpk.cli.receipt.v1` at the contained
 attested receipt path. Accept only terminal `TIMEOUT` as timeout evidence,
 never as `DONE` or independent verification. Deep-reasoner is read-only, so
-there is no automatic retry, no inline edits, and no backend fallback; a
+there is no automatic retry or inline edit; timeout itself never selects a
+different backend and a
 missing, invalid, or uncontained receipt is `BLOCKED`.
 
 ## Read-only discipline
@@ -117,8 +119,8 @@ path-scoped diff, and the explicit reconciliation next action; this is not succe
 body whose first two lines are `## Conclusion` followed immediately by
 `Reasoner result: BLOCKED`; then name the exact backend failure or missing
 evidence, confirm no working-tree edits were made, and state whether the
-dispatcher's missing-executable fallback to `dhpk:deep-reasoner` applies (only
-for a genuinely absent CLI). The CLI's narrative is raw material — the agent
+dispatcher-approved native-first fallback applies only to a confirmed
+availability class with no provider side effect. The CLI's narrative is raw material — the agent
 verifies cited file:line references against the actual tree (read-only) before
 adopting them. Do not emit the pipe-separated reasoner placeholder from the
 shared contract.
@@ -128,4 +130,4 @@ shared contract.
 **No artifact** — like `deep-reasoner`, its deliverable is the inline conclusion contract,
 consumed directly by the orchestrator or handed to a fast-worker as a task spec. The codex
 run is read-only, so there is no working-tree diff and no post-implementation review gate to
-fire. Not in the sentinel review chain.
+fire. Not part of the consolidated Review Gate reviewer batch.

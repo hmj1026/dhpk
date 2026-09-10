@@ -150,10 +150,17 @@ CLI 不可用時記錄 `NOT RUN`，不要宣稱 official PASS。Release consumer
 ### 更新／移除
 
 ```bash
-claude plugin update dhpk@dhpk         # 從 marketplace 取得最新版本
+# user scope 安裝（CLI 預設）
+claude plugin update -y dhpk@dhpk
+# project scope 安裝
+claude plugin update --scope project -y dhpk@dhpk
 claude plugin uninstall dhpk@dhpk      # 移除 plugin
 claude plugin marketplace remove dhpk  # 移除 marketplace 設定
 ```
+
+請使用安裝 plugin 時相同的 scope。更新指令預設使用 user scope，因此
+project scope 安裝必須加上 `--scope project`；在非 TTY 或 CI 環境請使用
+`-y`／`--yes` 跳過確認提示。
 
 在 Claude Code 內也可使用 `/plugin update dhpk@dhpk`、`/plugin uninstall dhpk@dhpk`、
 `/plugin marketplace remove dhpk`。
@@ -164,7 +171,7 @@ claude plugin marketplace remove dhpk  # 移除 marketplace 設定
 不要把 ephemeral marketplace cache path 寫進 project command。
 
 ```bash
-claude plugin update dhpk@dhpk
+claude plugin update -y dhpk@dhpk
 DHPK_ROOT=/absolute/path/to/dhpk
 bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --update
 ```
@@ -235,7 +242,7 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | Skill | 常用參數 |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
 | `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
@@ -294,11 +301,14 @@ navigation fallback。
 |---|---|
 | `--plan[=<model>[:<effort>]]` | 為已確認的 implementation work 加入 planner critique。 |
 | `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker，不會持久化設定。 |
+| `--cross-provider` | 當使用 `--worker=auto` 時，僅對本次 invocation 開放設定的 external candidate；不會持久化，也不會擴大明確選定的 worker target。 |
 | `--reasoner=<backend>:<model>:<effort>` | 為已確認 implementation work 要求 bounded reasoning pass。 |
 | `--architect` / `--no-architect` | 控制本次 invocation 的 architecture pass。 |
 | `--codex` | 已退休的相容性旗標。Parser 會產生 deprecation diagnostic，不會選擇 peer 或 backend；請改用明確的 worker、reasoner 或 owner 第二意見選項。 |
 
-`--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex` 是選 Codex CLI
+`--worker=auto --cross-provider` 只會讓設定的 external candidate 參與本次 automatic
+selection。沒有這個 flag 時，automatic selection 維持 native-only；`--worker=codex` 或
+`--worker=agy` 仍是定向的明確選擇。`--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex` 是選 Codex CLI
 reasoning pass。`CODEX=on` 與 `--codex` 是已退休的相容性旗標：會產生
 deprecation diagnostic，絕不選擇 peer、worker、reasoner 或 hidden backend。只有選定
 executable 缺少時才允許 configured Claude fallback；authentication、task、execution 與
@@ -329,10 +339,10 @@ merge gate。queued 或 partial CI 都不是 completion。
 
 ### Review、驗證與交接
 
-每次 Edit／Write／MultiEdit 後，default hooks 只建立適用的 `.pending-*` review sentinel
-並保持 review debt 可見，不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
-`/dhpk:review-pending` 可立即啟動 pending reviewer；`sentinel_commit_gate` 決定 open
-sentinel 對 commit 是 warn 或 block。
+每次 Edit／Write／MultiEdit 後，orchestrator 會從完成的 wave 推導適用的 Review Gate
+obligation。不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
+`/dhpk:review-pending` 會為指定路徑派工 reviewer；legacy `sentinel_commit_gate` 僅為
+相容性保留，不能取代 Review Gate verdict tracking。
 
 ```text
 /dhpk:review-pending
@@ -493,12 +503,13 @@ native plugin 已 enabled，會在寫入前阻擋，`--force` 不能繞過；`--
 
 ## 遷移現有專案
 
-如果 project 已有自己的 `.claude/` harness，請依分階段計畫：
+如果 project 已有自己的 `.claude/` harness，以下是 legacy hook 相容性遷移計畫；
+新的 review 工作使用上方所述的 Review Gate trigger table 與 durable obligation：
 
 1. **Phase A — baseline**：先保存安裝前 hook output 與測試結果。
 2. **Phase B — install (parallel)**：設定 `userConfig.review_agents` 指向既有 agent 後安裝 plugin，兩組 hook 並行。
 3. **Phase C — discovery**：確認 `/agents` 與 `/plugin details dhpk@dhpk` 顯示預期元件。
-4. **Phase D — hook parity**：比較 plugin-side sentinel 與 project-side sentinel，記錄預期差異。
+4. **Phase D — hook parity**：比較 plugin-side safety hook 與 project-side hook，記錄預期差異；不要新增 legacy sentinel route。
 5. **Phase E — cutover**：透過 `.claude/settings.local.json`（`"hooks": {}`）停用 project hook，執行 regression test。
 6. **Phase F — cleanup**：刪除 plugin 已提供的 project file，保留 project-specific override。
 
@@ -518,4 +529,5 @@ claude --plugin-dir ~/projects/dhpk
 
 Marketplace install path（`claude plugin install`）會將 plugin 複製到
 `~/.claude/plugins/cache/`；source repository 的修改要等到
-`claude plugin update dhpk@dhpk` 才會反映。
+`claude plugin update -y dhpk@dhpk` 才會反映（project scope 安裝則使用加上
+`--scope project` 的對應指令）。

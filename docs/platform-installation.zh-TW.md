@@ -122,6 +122,10 @@ bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.
 bin/dhpk distribution agy-plugin validate --json
 ```
 
+上述 generate 指令是 maintainer／distribution preparation。從 clone 安裝的
+consumer 應使用下方 platform section 的 prepared package，不要在原地重新
+generate tracked package。
+
 ## Codex project-local sync（Supported）
 
 Prerequisites：Codex project-local loader、POSIX shell，以及上表第一列的
@@ -585,11 +589,36 @@ write path 是此 bash installer。
 ## AGY／Antigravity CLI plugin（Experimental）
 
 AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
-frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
+frontmatter，不會改寫 `agents/`。已追蹤的 `plugins/dhpk-agy/` 目錄已是可供
+consumer 從 clone 直接安裝的 prepared distribution package。請直接安裝該
+package；consumer 安裝流程不要在 tracked path 重新 generate，因為 generate
+會改寫 provenance metadata 並弄髒 checkout：
+
+```bash
+node scripts/ci/install-agy-plugin.js install \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+```
+
+Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗證 tracked
+package：
 
 ```bash
 bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.56.0 --json
 bin/dhpk distribution agy-plugin validate --json
+```
+
+若要在本機產生但不修改 checkout，請使用外部 staging path，並對同一份
+package 執行 validate 與 install：
+
+```bash
+bin/dhpk distribution agy-plugin generate \
+  --output /tmp/dhpk-agy-staging --version=0.56.0 --json
+bin/dhpk distribution agy-plugin validate \
+  --output /tmp/dhpk-agy-staging --json
+node scripts/ci/install-agy-plugin.js install \
+  --source /tmp/dhpk-agy-staging \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
 ```
 
 只在文件化的 user path 安裝、更新與移除 receipt-owned package。若 target

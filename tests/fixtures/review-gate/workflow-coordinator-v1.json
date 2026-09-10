@@ -2,14 +2,8 @@
   "schema": "dhpk.workflow-coordinator-fixture.v1",
   "evaluatedAt": "2026-09-06T04:00:00.000Z",
   "featureControl": {
-    "baseline": {
-      "enabled": false,
-      "phase": "BASELINE"
-    },
-    "observe": {
-      "enabled": true,
-      "phase": "OBSERVE"
-    }
+    "enabled": true,
+    "phase": "DIRECT"
   },
   "trustPolicy": {
     "producers": [
@@ -20,8 +14,7 @@
           "decision",
           "review",
           "verification",
-          "authority",
-          "migration-observation"
+          "authority"
         ]
       }
     ]

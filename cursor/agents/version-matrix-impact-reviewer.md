@@ -171,4 +171,4 @@ Don't produce a per-cell table when one row would do.
 
 ## Closing — Artifact Output
 
-Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). No sentinel — not in the review chain. Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.
+Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). No consolidated Review Gate obligation by default; invoke this role as the orchestrator's version-matrix back-stop. Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.

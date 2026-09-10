@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./configuration.zh-TW.md)
 
-dhpk exposes **59 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
+dhpk exposes **70 active `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
 
 The default Claude discovery artifact is the materialized `minimal` profile,
 derived from `manifests/distribution-inventory.json`; it is not an unfiltered
@@ -48,12 +48,17 @@ Reconfigure or inspect the effective config at any time from inside Claude Code:
 
 A handful of boolean/mode knobs additionally support a **one-shot environment-variable override** for a single session — see the "Env override" column below.
 
+For automatic fast-worker dispatch, the one-shot `--cross-provider` flag has
+the highest precedence and enables external candidates only for that
+invocation. Without the flag, project configuration wins over the installed
+user setting, and the shipped default is `false`.
+
 ## Core dispatch & review
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of active deterministic hook output. Retired Stop reminders are not default-wired. |
-| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by sentinel routing, in slot order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
+| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by Review Gate dispatch, in role order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus` (whatever the running Claude Code version supports) | Model tier for `dhpk:deep-reasoner` Agent-call dispatches (reasoning-heavy implementation work). Applied per dispatch via the Agent call's `model` param when it differs from the agent's frontmatter default. Invalid value warns once per session and falls back to the frontmatter default — never fails the dispatch. |
 | `fast_worker_model` | string | `sonnet` | same as above | Model tier for `dhpk:fast-worker` Agent-call dispatches (mechanical implementation work). Same validation/fallback behavior as `deep_reasoner_model`. |
 | `planner_model` | string | `opus` | same as above | Model tier for `dhpk:planner` Agent-call dispatches (the opt-in `/dhpk:flow-drive --plan` pre-implementation critique / post-implementation warm review). Same validation/fallback behavior as `deep_reasoner_model`. |
@@ -74,10 +79,36 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes, plus `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
+| `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for external candidates during automatic fast-worker selection. `false` keeps `auto` native-only and prevents external probing; `true` allows the configured `fast_worker_backend_order` to be checked. An explicit `--worker=<target>` remains directional and does not open other providers. |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:flow-drive --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
-| `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used only by `auto`; rejected candidates and reasons are recorded. Invalid values warn once per session and use the shipped order. |
+| `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used by `auto` when `cross_provider=true`; rejected candidates and reasons are recorded. With the opt-in disabled, external entries are suppressed and not probed. Invalid values warn once per session and use the shipped order. |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
+
+### Migrating existing automatic worker settings
+
+The existing `fast_worker_backend`, `fast_worker_backend_order`, and
+`fast_worker_fallback` settings remain valid. The migration changes only the
+meaning of automatic external discovery: `fast_worker_backend=auto` is now
+native-only unless cross-provider dispatch is explicitly enabled.
+
+| Existing configuration | Current behavior | Migration action |
+|---|---|---|
+| `fast_worker_backend=claude` | Uses the native Claude worker. | No change required. |
+| `fast_worker_backend=codex` or `agy` | Directionally selects that external worker for the invocation. | Keep the setting, and verify the selected CLI/authentication separately. It does not open other providers. |
+| `fast_worker_backend=auto` | Uses the native Claude candidate and does not probe external CLIs while `cross_provider=false`. | Keep `auto` for the native-only default, or set `cross_provider=true` if the configured external order should be eligible. |
+| `fast_worker_backend_order` | Preserves the configured order, but external entries are suppressed while cross-provider dispatch is disabled. | Keep the order; no rewrite is needed. |
+| `fast_worker_fallback=claude` | Falls back only when an explicitly selected CLI executable is missing. | Keep it only if that narrow missing-executable fallback is intended; it does not cover auth, quota, task, execution, or verification failures. |
+
+To opt in for a project, add the setting under
+`pluginConfigs.dhpk@dhpk.options` in `.claude/settings.local.json` (or the
+project `settings.json`). To opt in for one automatic selection only, use
+`--worker=auto --cross-provider`. The one-shot flag has precedence over project
+and installed-user configuration. Setting the project value to `false` rolls
+back to native-only automatic selection; removing the project override instead
+re-exposes the installed-user value, so verify that value is also unset or
+`false` before treating removal as a rollback. The retired `CODEX=on` and
+`--codex` flags are not migration aliases.
 
 The dispatcher validates the resolved deadline as unsigned decimal seconds
 before it creates the `0600` immutable transport context. Empty, fractional,
@@ -155,7 +186,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
 | `docker_containers` | string[] | `[]` | container name(s) | Retained for explicitly registered Docker tooling; default SessionStart does not probe containers or export container variables. |
-| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences sentinel routing and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
+| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences Review Gate triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
 
 ## Review triggers & risk heuristics
 
@@ -168,7 +199,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Env override | Purpose |
 |-----|------|---------|---------|--------------|---------|
-| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | Behavior when `git commit/merge/rebase/cherry-pick` runs while reviewer sentinels are pending. `warn` = stderr reminder (exit 0); `block` = reject the tool call (exit 2); `off` = silent. Companion to the pre-bash-guard's hard `git push` block. |
+| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | Retained legacy setting; current Review Gate obligations are evaluated by the orchestrator. `warn` = stderr reminder (exit 0); `block` = reject the tool call (exit 2); `off` = silent. |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | Behavior when a history-mutating git verb (`commit/merge/rebase/cherry-pick/reset/push`) runs on a protected branch. |
 | `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | branch name(s) / bash `case` globs | — | Branches the `branch_safety` gate checks against. Set to `[]` to disable per-branch gating without setting `branch_safety=off`. |
 
@@ -188,7 +219,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Retained for explicitly registered manifest/lockfile advisory tooling; default PostToolUse only routes review sentinels. |
+| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Retained for explicitly registered manifest/lockfile advisory tooling; no default PostToolUse reviewer routing remains. |
 
 ## `js` module
 

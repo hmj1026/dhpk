@@ -7,8 +7,8 @@ description: |
   Adds the cross-cutting glue that the per-major php-*/laravel-*/phpunit-*
   modules don't supply:
 
-    - polyfill-edit sentinel routing (sixth-color reviewer auto-fires when an
-      edited .php file contains a version guard)
+    - polyfill-reviewer guidance selected by the Review Gate when an edited
+      .php file contains a version guard
     - OpenSpec workflow guard (specs vs spec-delta naming enforcement,
       tasks.md vs git log drift detection)
     - matrix-cell onboarding skill (checklist for adding a new
@@ -18,7 +18,8 @@ description: |
   Pairs with — not duplicates — the polyfill-version-matrix-audit skill at
   dhpk root (which is the manual-invoke deep audit) and the
   version-matrix-impact-reviewer agent (which is the blast-radius assessor).
-  This module is the **automatic surface** that wakes those up.
+  The Review Gate is the dispatch surface for those reviews; this module
+  supplies the role and its multi-major guidance.
 
   Activate when ALL of:
     - composer.json `require` has `||` across majors of a runtime dep
@@ -44,14 +45,3 @@ provides:
   references:
     - polyfill-patterns.md
     - openspec-naming-gotchas.md
-# ---- library-author tool wiring (read by hooks/post-edit-polyfill-sentinel.sh) ----
-# All keys optional; defaults match a standard multi-major library layout.
-#
-# - guard_patterns: extended-regex alternation matched against the file
-#   *body* (not name) to decide whether an edit warrants polyfill review.
-#   Override when your codebase uses a different version-detection idiom.
-# - skip_paths: path prefixes (relative to repo root) where guard edits
-#   should NOT trigger the sentinel. vendor/ is always hardcoded skip.
-library_author:
-  guard_patterns: "version_compare|class_exists|interface_exists|method_exists|InstalledVersions::satisfies|PHP_VERSION_ID"
-  skip_paths: []

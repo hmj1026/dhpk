@@ -55,7 +55,7 @@ function withAuthorityTrustPolicy() {
 }
 
 function coordinator({
-  featureControl = FIXTURE.featureControl.observe,
+  featureControl = FIXTURE.featureControl,
   trustPolicy = FIXTURE.trustPolicy,
   evaluatedAt = FIXTURE.evaluatedAt,
 } = {}) {

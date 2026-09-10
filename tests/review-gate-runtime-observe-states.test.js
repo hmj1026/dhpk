@@ -10,6 +10,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  createHostKey,
+  hostInitArgs,
+  writeHostAttestation,
+} = require('./_lib/review-gate-host-attestation-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'review-gate-runtime.js');
@@ -23,18 +28,7 @@ const WORK_REQUEST_PATH = path.join(
 const RUNTIME_SCHEMA = 'dhpk.review-gate.runtime.v1';
 const REVIEWER_CONTRACT_VERSION = 'dhpk.reviewer-contract.v2';
 const COMPANION_SCHEMA = 'dhpk.claude-review-result.v1';
-const ACCEPTED_OUTCOME_COST_SCHEMA = 'dhpk.accepted-outcome-cost.v1';
 const FIXTURE_TIME = '2026-09-07T00:00:02.000Z';
-const COST_FIELDS = [
-  'modelTokens',
-  'dispatchCount',
-  'semanticReviewCount',
-  'remediationRounds',
-  'humanTurns',
-  'elapsedMs',
-  'falseBlockCount',
-  'receiptReuseCount',
-];
 
 function runCli(repoRoot, args = [], input = undefined) {
   return spawnSync(process.execPath, [CLI, ...args, '--repo-root', repoRoot], {
@@ -115,7 +109,8 @@ function prepareRepo(workRequest) {
   const repoRoot = fs.realpathSync(
     fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-review-gate-runtime-observe-states-')),
   );
-  const initialized = runCli(repoRoot, ['init']);
+  const host = createHostKey(repoRoot, `observe-states-${workRequest.requestId.replace(/[^a-z0-9-]/gi, '-')}`);
+  const initialized = runCli(repoRoot, hostInitArgs(host));
   assert.strictEqual(initialized.status, 0, `${initialized.stdout}\n${initialized.stderr}`);
   const preparedResult = runCli(
     repoRoot,
@@ -123,7 +118,7 @@ function prepareRepo(workRequest) {
     `${JSON.stringify(workRequest)}\n`,
   );
   assert.strictEqual(preparedResult.status, 0, `${preparedResult.stdout}\n${preparedResult.stderr}`);
-  return { repoRoot, prepared: JSON.parse(preparedResult.stdout) };
+  return { repoRoot, prepared: JSON.parse(preparedResult.stdout), host };
 }
 
 function makeIdentity(request, suffix) {
@@ -141,7 +136,6 @@ function makeIdentity(request, suffix) {
 function writeObserveEvidence(repoRoot, prepared, request, {
   verdict = 'PASS',
   suffix = request.lane,
-  collector = 'missing',
 } = {}) {
   const identity = makeIdentity(request, suffix);
   const artifactRelativePath = `.claude/artifacts/reviews/${request.lane}-390-${suffix}.md`;
@@ -180,7 +174,7 @@ function writeObserveEvidence(repoRoot, prepared, request, {
       id: `finding-390-${suffix}`,
       severity: 'HIGH',
       disposition: 'MUST_FIX',
-      summary: 'The migration observation still requires a named remediation.',
+      summary: 'The review still requires a named remediation.',
       evidence: [artifactRelativePath],
     }] : [],
     inspectedScope: request.scope.paths,
@@ -231,42 +225,11 @@ function writeObserveEvidence(repoRoot, prepared, request, {
   writeJsonLinesFixture(repoRoot, lifecycleRelativePath, lifecycleEvents);
   writeJsonLinesFixture(repoRoot, readinessRelativePath, readinessEvents);
 
-  const sentinelRelativePath = `.claude/artifacts/sessions/${suffix}.sentinel-outcome.json`;
-  writeJsonFixture(repoRoot, sentinelRelativePath, {
-    status: verdict === 'PASS' ? 'CLEARED' : 'PENDING',
-    verdict,
-    outcome: verdict,
-    lifecycleEventId: lifecycleEvents[lifecycleEvents.length - 1].event_id,
-  });
-
-  let costRelativePath = null;
-  if (collector === 'empty') {
-    costRelativePath = `.claude/artifacts/sessions/${suffix}.accepted-outcome-cost.jsonl`;
-    writeJsonLinesFixture(repoRoot, costRelativePath, []);
-  }
-  if (collector === 'complete') {
-    costRelativePath = `.claude/artifacts/sessions/${suffix}.accepted-outcome-cost.jsonl`;
-    const acceptedOutcome = verdict === 'PASS';
-    const cost = {
-      schema: ACCEPTED_OUTCOME_COST_SCHEMA,
-      observationId: `legacy-${sha256(identity.taskId).slice(0, 32)}`,
-      acceptedOutcome,
-      metrics: Object.fromEntries(COST_FIELDS.map((field) => [field, 1])),
-      telemetryFailures: [],
-      telemetryFailureCount: 0,
-      telemetryStatus: 'COMPLETE',
-      retirementEligible: acceptedOutcome,
-    };
-    writeJsonLinesFixture(repoRoot, costRelativePath, [cost]);
-  }
-
   return {
     artifactRelativePath,
     companionRelativePath,
     lifecycleRelativePath,
     readinessRelativePath,
-    costRelativePath,
-    sentinelRelativePath,
     identity,
   };
 }
@@ -280,9 +243,8 @@ function observeArgs(prepared, evidence) {
     '--companion', evidence.companionRelativePath,
     '--lifecycle-events', evidence.lifecycleRelativePath,
     '--readiness-events', evidence.readinessRelativePath,
-    '--sentinel-outcome', evidence.sentinelRelativePath,
+    '--host-attestation', evidence.hostAttestationRelativePath,
   ];
-  if (evidence.costRelativePath) args.push('--accepted-outcome-cost', evidence.costRelativePath);
   return args;
 }
 
@@ -330,164 +292,85 @@ function assertBoundedReceiptSummary(status, expected) {
   assert.deepStrictEqual(status.receiptSummary, expected);
 }
 
-function assertCommonObservation(observeResult, expected, expectedComparison = 'AGREE') {
+function assertCommonObservation(observeResult, expected) {
   assert.strictEqual(observeResult.status, 0, `${observeResult.stdout}\n${observeResult.stderr}`);
   const observed = JSON.parse(observeResult.stdout);
   assert.strictEqual(observed.schema, RUNTIME_SCHEMA);
   assert.strictEqual(observed.command, 'observe');
   assert.strictEqual(observed.status, 'OBSERVED');
-  assert.strictEqual(observed.phase, 'OBSERVE');
-  assert.strictEqual(observed.comparison, expectedComparison);
-  assert.strictEqual(observed.effect, 'OBSERVE_ONLY');
-  assert.strictEqual(observed.authority, 'SENTINEL');
-  assert.strictEqual(observed.clearsSentinel, false);
-  assert.strictEqual(observed.retirementEligible, false);
   assert.strictEqual(observed.lane, expected.lane);
   assert.strictEqual(observed.obligationId, expected.obligationId);
   return observed;
 }
 
-test('observe records CHANGES_REQUIRED as an OBSERVE-only migration observation', () => {
-  const { repoRoot, prepared } = prepareRepo(cloneWorkRequest());
+test('observe records CHANGES_REQUIRED as a Review Gate result', () => {
+  const { repoRoot, prepared, host } = prepareRepo(cloneWorkRequest());
   try {
     const request = prepared.reviewRequests[0];
     const evidence = writeObserveEvidence(repoRoot, prepared, request, {
       verdict: 'CHANGES_REQUIRED',
       suffix: 'changes-required',
-      collector: 'complete',
     });
+    evidence.hostAttestationRelativePath = writeHostAttestation(
+      repoRoot, prepared, evidence, host, { label: 'changes-required' },
+    );
     const observed = assertCommonObservation(runObserve(repoRoot, prepared, evidence), request);
-    assert.strictEqual(observed.telemetryStatus, 'COMPLETE');
+    assert.strictEqual(observed.semanticVerdict, 'CHANGES_REQUIRED');
+    assert.strictEqual(observed.executionStatus, 'COMPLETE');
 
     const status = readStatus(repoRoot, prepared);
     assert.strictEqual(status.semanticVerdict, 'CHANGES_REQUIRED');
     assert.strictEqual(status.executionStatus, 'COMPLETE');
     assert.strictEqual(status.reviewRequests.length, 1);
     assertBoundedReceiptSummary(status, {
-      total: 2,
-      byKind: {
-        review: 1,
-        'migration-observation': 1,
-      },
+      total: 1,
+      byKind: { review: 1 },
     });
-    assert.ok(status.migrationObservation, 'CHANGES_REQUIRED must expose a migration projection');
-    assert.strictEqual(status.migrationObservation.comparison, 'AGREE');
-    assert.strictEqual(status.migrationObservation.reviewGateStatus, 'CHANGES_REQUIRED');
-    assert.strictEqual(status.migrationObservation.sentinelStatus, 'PENDING');
-    assert.strictEqual(status.migrationObservation.retirementEligible, false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'migrationObservation'), false);
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });
   }
 });
 
-test('observe records BLOCKED as an OBSERVE-only migration observation', () => {
-  const { repoRoot, prepared } = prepareRepo(cloneWorkRequest({ requestId: 'github:issue:390-blocked' }));
+test('observe records BLOCKED as a Review Gate result', () => {
+  const { repoRoot, prepared, host } = prepareRepo(cloneWorkRequest({ requestId: 'github:issue:390-blocked' }));
   try {
     const request = prepared.reviewRequests[0];
     const evidence = writeObserveEvidence(repoRoot, prepared, request, {
       verdict: 'BLOCKED',
       suffix: 'blocked',
-      collector: 'complete',
     });
+    evidence.hostAttestationRelativePath = writeHostAttestation(
+      repoRoot, prepared, evidence, host, { label: 'blocked' },
+    );
     const observed = assertCommonObservation(runObserve(repoRoot, prepared, evidence), request);
-    assert.strictEqual(observed.telemetryStatus, 'COMPLETE');
+    assert.strictEqual(observed.semanticVerdict, 'BLOCKED');
+    assert.strictEqual(observed.executionStatus, 'COMPLETE');
 
     const status = readStatus(repoRoot, prepared);
     assert.strictEqual(status.semanticVerdict, 'BLOCKED');
     assert.strictEqual(status.executionStatus, 'COMPLETE');
     assert.strictEqual(status.reviewRequests.length, 1);
     assertBoundedReceiptSummary(status, {
-      total: 2,
-      byKind: {
-        review: 1,
-        'migration-observation': 1,
-      },
+      total: 1,
+      byKind: { review: 1 },
     });
-    assert.ok(status.migrationObservation, 'BLOCKED must expose a migration projection');
-    assert.strictEqual(status.migrationObservation.comparison, 'AGREE');
-    assert.strictEqual(status.migrationObservation.reviewGateStatus, 'BLOCKED');
-    assert.strictEqual(status.migrationObservation.sentinelStatus, 'PENDING');
-    assert.strictEqual(status.migrationObservation.retirementEligible, false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'migrationObservation'), false);
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });
   }
 });
 
-test('missing collector yields nullable partial telemetry, named failure, and no retirement eligibility', () => {
-  const { repoRoot, prepared } = prepareRepo(cloneWorkRequest({ requestId: 'github:issue:390-missing-collector' }));
-  try {
-    const request = prepared.reviewRequests[0];
-    const evidence = writeObserveEvidence(repoRoot, prepared, request, {
-      suffix: 'missing-collector',
-      collector: 'missing',
-    });
-    const observed = assertCommonObservation(runObserve(repoRoot, prepared, evidence), request);
-    assert.strictEqual(observed.telemetryStatus, 'FAILED');
-    assert.strictEqual(observed.retirementEligible, false);
-
-    const status = readStatus(repoRoot, prepared);
-    assertBoundedReceiptSummary(status, {
-      total: 2,
-      byKind: {
-        review: 1,
-        'migration-observation': 1,
-      },
-    });
-    assert.ok(status.migrationObservation, 'missing collector must still expose a migration projection');
-    const cost = status.migrationObservation.acceptedOutcomeCost;
-    assert.strictEqual(cost.acceptedOutcome, true);
-    assert.strictEqual(cost.telemetryStatus, 'FAILED');
-    assert.strictEqual(cost.retirementEligible, false);
-    assert.deepStrictEqual(cost.telemetryFailures.map((failure) => failure.code), [
-      'COLLECTOR_UNAVAILABLE',
-    ]);
-    assert.deepStrictEqual(cost.metrics, Object.fromEntries(COST_FIELDS.map((field) => [field, null])));
-  } finally {
-    fs.rmSync(repoRoot, { recursive: true, force: true });
-  }
-});
-
-test('empty collector yields the same truthful partial telemetry contract as an unavailable collector', () => {
-  const { repoRoot, prepared } = prepareRepo(cloneWorkRequest({ requestId: 'github:issue:390-empty-collector' }));
-  try {
-    const request = prepared.reviewRequests[0];
-    const evidence = writeObserveEvidence(repoRoot, prepared, request, {
-      suffix: 'empty-collector',
-      collector: 'empty',
-    });
-    const observed = assertCommonObservation(runObserve(repoRoot, prepared, evidence), request);
-    assert.strictEqual(observed.telemetryStatus, 'FAILED');
-    assert.strictEqual(observed.retirementEligible, false);
-
-    const status = readStatus(repoRoot, prepared);
-    assertBoundedReceiptSummary(status, {
-      total: 2,
-      byKind: {
-        review: 1,
-        'migration-observation': 1,
-      },
-    });
-    assert.ok(status.migrationObservation, 'empty collector must still expose a migration projection');
-    const cost = status.migrationObservation.acceptedOutcomeCost;
-    assert.strictEqual(cost.telemetryStatus, 'FAILED');
-    assert.strictEqual(cost.retirementEligible, false);
-    assert.deepStrictEqual(cost.telemetryFailures.map((failure) => failure.code), [
-      'COLLECTOR_UNAVAILABLE',
-    ]);
-    assert.deepStrictEqual(cost.metrics, Object.fromEntries(COST_FIELDS.map((field) => [field, null])));
-  } finally {
-    fs.rmSync(repoRoot, { recursive: true, force: true });
-  }
-});
-
-test('repeating the same observation is idempotent and does not add a second migration receipt', () => {
-  const { repoRoot, prepared } = prepareRepo(cloneWorkRequest({ requestId: 'github:issue:390-retry' }));
+test('repeating the same observation is idempotent and does not add a second review receipt', () => {
+  const { repoRoot, prepared, host } = prepareRepo(cloneWorkRequest({ requestId: 'github:issue:390-retry' }));
   try {
     const request = prepared.reviewRequests[0];
     const evidence = writeObserveEvidence(repoRoot, prepared, request, {
       suffix: 'retry',
-      collector: 'complete',
     });
+    evidence.hostAttestationRelativePath = writeHostAttestation(
+      repoRoot, prepared, evidence, host, { label: 'retry' },
+    );
     const first = assertCommonObservation(runObserve(repoRoot, prepared, evidence), request);
     const second = assertCommonObservation(runObserve(repoRoot, prepared, evidence), request);
     assert.strictEqual(second.eventId, first.eventId);
@@ -497,11 +380,8 @@ test('repeating the same observation is idempotent and does not add a second mig
 
     const status = readStatus(repoRoot, prepared);
     assertBoundedReceiptSummary(status, {
-      total: 2,
-      byKind: {
-        review: 1,
-        'migration-observation': 1,
-      },
+      total: 1,
+      byKind: { review: 1 },
     });
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });
@@ -509,7 +389,7 @@ test('repeating the same observation is idempotent and does not add a second mig
 });
 
 test('multi-lane observe follows the prepared plan order one obligation at a time', () => {
-  const { repoRoot, prepared } = prepareRepo(cloneWorkRequest({
+  const { repoRoot, prepared, host } = prepareRepo(cloneWorkRequest({
     requestId: 'github:issue:390-multilane',
     kinds: ['MIGRATION'],
   }));
@@ -520,12 +400,17 @@ test('multi-lane observe follows the prepared plan order one obligation at a tim
     for (const [index, request] of prepared.reviewRequests.entries()) {
       const evidence = writeObserveEvidence(repoRoot, prepared, request, {
         suffix: `multilane-${index}-${request.lane}`,
-        collector: 'complete',
       });
+      evidence.hostAttestationRelativePath = writeHostAttestation(
+        repoRoot,
+        prepared,
+        evidence,
+        host,
+        { label: `multilane-${index}-${request.lane}` },
+      );
       const observed = assertCommonObservation(
         runObserve(repoRoot, prepared, evidence),
         request,
-        index === prepared.reviewRequests.length - 1 ? 'AGREE' : 'INDETERMINATE',
       );
       assert.strictEqual(observed.lane, expectedLanes[index]);
     }
@@ -534,11 +419,8 @@ test('multi-lane observe follows the prepared plan order one obligation at a tim
     assert.strictEqual(status.reviewRequests.length, 0);
     assert.strictEqual(status.semanticVerdict, 'PASS');
     assertBoundedReceiptSummary(status, {
-      total: expectedLanes.length * 2,
-      byKind: {
-        review: expectedLanes.length,
-        'migration-observation': expectedLanes.length,
-      },
+      total: expectedLanes.length,
+      byKind: { review: expectedLanes.length },
     });
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });
@@ -546,15 +428,21 @@ test('multi-lane observe follows the prepared plan order one obligation at a tim
 });
 
 test('tampered trust policy rejects observe and status without changing durable evidence', () => {
-  const { repoRoot, prepared } = prepareRepo(cloneWorkRequest({
+  const { repoRoot, prepared, host } = prepareRepo(cloneWorkRequest({
     requestId: 'github:issue:390-review-gate-rejection',
   }));
   try {
     const request = prepared.reviewRequests[0];
     const evidence = writeObserveEvidence(repoRoot, prepared, request, {
       suffix: 'review-gate-rejection',
-      collector: 'complete',
     });
+    evidence.hostAttestationRelativePath = writeHostAttestation(
+      repoRoot,
+      prepared,
+      evidence,
+      host,
+      { label: 'review-gate-rejection' },
+    );
     const eventsDirectory = path.join(
       repoRoot,
       '.dhpk',
@@ -569,12 +457,10 @@ test('tampered trust policy rejects observe and status without changing durable 
       name,
       fs.readFileSync(path.join(eventsDirectory, name)),
     ]));
-    const sentinelPath = path.join(repoRoot, evidence.sentinelRelativePath);
-    const sentinelBytes = fs.readFileSync(sentinelPath);
     const configPath = path.join(repoRoot, '.dhpk', 'review-gate', 'v1', 'config.json');
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     config.trustPolicy.producers = config.trustPolicy.producers.map((entry) => (
-      entry.producer === 'claude-migration'
+      entry.producer === 'claude-review-gate'
         ? {
           ...entry,
           eventTypes: entry.eventTypes.filter((eventType) => eventType !== 'REVIEW_RESULT_RECORDED'),
@@ -599,7 +485,6 @@ test('tampered trust policy rejects observe and status without changing durable 
     for (const name of eventNames) {
       assert.deepStrictEqual(fs.readFileSync(path.join(eventsDirectory, name)), eventBytes.get(name));
     }
-    assert.deepStrictEqual(fs.readFileSync(sentinelPath), sentinelBytes);
     assert.deepStrictEqual(fs.readFileSync(configPath), tamperedConfigBytes);
   } finally {
     fs.rmSync(repoRoot, { recursive: true, force: true });

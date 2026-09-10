@@ -1,9 +1,11 @@
 # Phase and roll back Review Gate migration
 
-Status: accepted
+Status: superseded
 
-Implementation status: target design accepted; the current Sentinel and hook
-policy remains authoritative until the migration reaches its applicable phase.
+Implementation status: historical migration design. It is superseded for this
+project by the direct-retirement decision recorded in ADR-0018: the Review Gate
+is current authority and the former Sentinel/migration compatibility surfaces
+are removed.
 
 ## Context
 
@@ -12,7 +14,7 @@ foreign, stale, or concurrent evidence failures hard to distinguish from
 migration defects. Keeping two permanent authorities would instead preserve the
 cost and drift the redesign is intended to remove.
 
-## Decision
+## Historical Decision (superseded)
 
 Migrate through six explicit authority phases:
 
@@ -86,3 +88,13 @@ percentage target is calibrated from larger samples.
 - [ADR-0013 — Migrate Sentinel to evidence receipts](0013-migrate-sentinel-to-evidence-receipts.md)
 - [ADR-0015 — Derive workflow state from typed receipts](0015-derive-workflow-state-from-typed-receipts.md)
 - [ADR-0017 — Implement Review Gate as a local event module](0017-implement-review-gate-as-a-local-event-module.md)
+
+## Current Decision: direct retirement and schema cleanup
+
+This phased migration is not an active runtime contract for this project.
+Sentinel retirement is authorized directly by the maintainer under ADR-0018;
+there is no phase transition, rollback coordinator, or dual-authority path.
+The retired migration coordinator, Sentinel baseline/runtime-provenance and
+legacy-observation modules, migration-observation receipt kind, and associated
+compatibility tests are removed. Review Gate review, verification, and
+authority receipts remain the current typed evidence contract.

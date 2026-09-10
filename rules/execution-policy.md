@@ -7,18 +7,16 @@ Resource-layer markdown — referenced from the `flow-guide` skill and
 consumable directly by a project's own `CLAUDE.md` via the
 `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` path. Not auto-loaded; opt-in.
 
-> Project overrides: projects that adopt this policy should keep their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section) that only encodes deltas — e.g. extra sentinels, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
+> Project overrides: projects that adopt this policy should keep their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section) that only encodes deltas — e.g. extra reviewer trigger paths, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
 >
-> Resolution order for any reference to this file: use the project's `.claude/rules/execution-policy.md` first if present (it carries only deltas — extra sentinels, hot tables, hook profile), otherwise resolve to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (the plugin SSOT). Projects should keep their local copy short and cross-link rather than copying the body wholesale.
+> Resolution order for any reference to this file: use the project's `.claude/rules/execution-policy.md` first if present (it carries only deltas — extra reviewer trigger paths, hot tables, hook profile), otherwise resolve to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (the plugin SSOT). Projects should keep their local copy short and cross-link rather than copying the body wholesale.
 
 ## Glossary (inline)
 
-- **sentinel**: `.claude/artifacts/sessions/.pending-*` marker file (written by a post-edit hook; cleared by the runtime hook `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-verify.sh` on a successful reviewer stop — the sanctioned path — or by the orchestrator via `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh` for a triage-drop or a stale-sentinel back-stop; reviewer agents no longer self-clear). Existence check: `find -maxdepth 1 -name '.pending-*' -print 2>/dev/null` (avoids shell-specific `nomatch` behaviour with bare globs). Unrecognized `.pending-*` strays (not in the SSOT — a typo or abandoned custom sentinel) have no clearing agent and would block the opsx-apply-goal `NONE` gate forever; `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/reap-stale-sentinels.sh` surfaces them always and, with `--clear`, removes ones older than the threshold.
-- **back-stop**: hook pattern did not match but the AI semantically recognises the trigger should fire → AI proactively invokes the matching reviewer (and still clears the sentinel if present).
+- **reviewer trigger**: a file-path/extension pattern (built-in defaults, active-module triggers, or `userConfig.review_trigger_extra_paths`) that identifies which reviewer role(s) apply to a diff. Trigger matching is AI judgment at dispatch time — there is no hook-armed marker file; see "Post-implementation agent gate" and the trigger table under "Reviewer dispatch."
+- **back-stop**: a trigger pattern did not obviously match but the AI semantically recognises the review should still fire → AI proactively invokes the matching reviewer.
 - **append-only exemption**: pure additions may skip `gitnexus_impact` only when they add a new function/method/class, change no existing body/signature/docblock/typehint, and change no module-level state (imports or top-level constants); label the change `append-only — gitnexus_impact skipped`.
-- **reviewer dispatch**: when multiple sentinels coexist, triage out false positives → dispatch the rest **in parallel** → `code-reviewer` merges/dedups (see "Reviewer dispatch").
-- **resumed review obligation**: a session-scoped record created before reusing an existing sentinel-backed reviewer through `SendMessage`; it binds the final result to one generated reviewer slot, exact sentinel basename, session, dispatch, and freshness baseline.
-- **lifecycle clearance**: reconciliation and removal of a review sentinel after its lifecycle evidence is satisfied; it is not reviewer approval or completion.
+- **reviewer dispatch**: when multiple reviewer roles are triggered, triage out false positives → dispatch the rest **in parallel** → `code-reviewer` merges/dedups (see "Reviewer dispatch").
 - **Parallel Dispatch**: two or more workers operating in one checkout under explicit, non-overlapping assigned scopes.
 - **Assigned Scope**: the exact repo-relative file list a worker may write, diff, and verify; it is not the whole working tree and cannot be expanded by the worker.
 - **Worker-Owned Edit**: a change within the assigned scope attributable to that worker's dispatch.
@@ -73,16 +71,13 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID, legacy alias: `agy-fast-worker`; see §Implementation dispatch | — |
 | `codex-bridge` | **Explicit CLI `codex exec` path, not the legacy MCP peer** — outsource a self-contained clear-spec task, or a blind second opinion, to the GPT-5.6 family; output isolated in the subagent, relayed verbatim; mode-qualified alias (read-only → `codex-reviewer` → `gpt-5.6-sol`/`high`, workspace-write → `codex-worker` → `gpt-5.6-luna`/`xhigh`); `codex-reviewer` is internal-only in this rollout; see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
-<!-- BEGIN GENERATED sentinel-slots:agent-table -->
-<!-- Generated by scripts/ci/gen-slots.js from scripts/lib/sentinel-slots.json. -->
-| `code-reviewer` | Code review — sentinel .pending-review | consolidated wave |
-| `database-reviewer` | SQL / Repository / migration (SQL correctness) — sentinel .pending-db-review or back-stop | consolidated wave |
-| `security-reviewer` | Auth / crypto / money / file upload — sentinel .pending-security-review or back-stop | consolidated wave |
-| `frontend-reviewer` | JS / TS / view-layer JS — sentinel .pending-frontend-review or back-stop | consolidated wave |
-| `doc-reviewer` | Documentation review — sentinel .pending-doc-review | consolidated wave |
-| `polyfill-reviewer` | .php edits with a runtime version guard — sentinel .pending-polyfill-review (library-author module) | consolidated wave |
-| `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel .pending-migration-review | consolidated wave |
-<!-- END GENERATED sentinel-slots:agent-table -->
+| `code-reviewer` | Code review — triggered by source-file edits | consolidated wave |
+| `database-reviewer` | SQL / Repository / migration (SQL correctness) — triggered or back-stop | consolidated wave |
+| `security-reviewer` | Auth / crypto / money / file upload — triggered or back-stop | consolidated wave |
+| `frontend-reviewer` | JS / TS / view-layer JS — triggered or back-stop | consolidated wave |
+| `doc-reviewer` | Documentation review — triggered by doc-path edits | consolidated wave |
+| `polyfill-reviewer` | .php edits with a runtime version guard — triggered (library-author module) | consolidated wave |
+| `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — triggered | consolidated wave |
 | `performance-analyzer` | Repository methods on high-volume tables — back-stop only | — |
 
 `consolidated wave` means every triggered reviewer is dispatched together once per implementation wave. `specialist` denotes implementation/acceptance ownership rather than an unconditional post-edit reviewer; `—` denotes planning, worker, or back-stop-only roles.
@@ -92,8 +87,6 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 **Diff-scope mandate (all reviewers)**: reviewers audit the UNCOMMITTED working tree (`git diff --staged` + `git diff HEAD`), never committed history (`git diff <base>...HEAD` / merge-base diff). Under the no-auto-commit workflow the change-under-review sits uncommitted; a base-relative diff reviews the whole branch (often hundreds of files) — wasting tokens/time and misreporting committed-but-superseded code as unfixed. Orchestrators dispatching a reviewer MUST NOT instruct it to diff against a base branch unless an explicit full-branch/PR review is the intent.
 
 **File-state ground truth**: re-verify live before reporting a file-state defect. Full mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
-
-**Sentinel-scoped precedence**: when a reviewer's own sentinel exists (`.claude/artifacts/sessions/.pending-{review,db-review,security-review,frontend-review,doc-review,polyfill-review,migration-review}`), its listed paths are the SOLE authoritative scope — not the full uncommitted tree above. Parse each line's path via the field-3 convention (`cut -d' ' -f3-`; see `scripts/hooks/_lib/payload.sh` SENTINEL LINE FORMAT). Diff each listed path individually: `git diff --staged -- <path>` + `git diff HEAD -- <path>`. Skip every other uncommitted/staged file not on the list, even same extension/glob — it belongs to a different session's change. Fall back to the unfiltered mandate above only when (a) no sentinel exists for this slot (back-stop invocation — e.g. `performance-analyzer`, which has no slot), or (b) the user/orchestrator explicitly requests a full working-tree/PR review — that explicit request wins over sentinel-scoping.
 
 **Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `${CLAUDE_PLUGIN_ROOT}/rules/model-economics.md`.
 
@@ -109,24 +102,25 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
 
-**Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation; the existing runtime hook/reconcile path owns Sentinel clearance. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Before a resumed `SendMessage`, capture and forward the complete `RESUMED_REVIEW_IDENTITY` envelope printed by `record-resumed-obligation.sh` (including any non-empty optional fingerprints); the reviewer must reproduce every declared field in the canonical artifact frontmatter. Legacy scope/diff-only evidence remains readable, but a new obligation with declared identity fails closed on missing or foreign fields. Completion requires both a terminal lifecycle result and every applicable matching Sentinel gate resolved through the hook-owned contract; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md` and `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table or clearance implementation.
+**Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Completion requires both a terminal lifecycle result and every applicable reviewer's verdict recorded; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md` and `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table.
 
-**Migration Observation Checkpoint order (explicit opt-in):** when the local
-Review Gate migration-observation checkpoint is enabled, the Application
-Session runs `prepare` before the consolidated reviewer batch. `prepare`
-consumes the canonical Work Request, creates the risk-routed plan, and returns
-the per-obligation Review Requests; it does not dispatch a reviewer. The
-Application Session then dispatches every applicable reviewer lane in one
-consolidated parallel batch. Only after the entire batch completes and the
-matching lifecycle, readiness, and Accepted-Outcome Cost evidence is durable
-may the Session call `observe`, once per obligation in deterministic serial
-order. Reviewer agents and wrapper scripts produce/return evidence; neither
-owns dispatch, invokes another reviewer, clears or arms a Sentinel, or changes
-Sentinel authority. A failed `prepare` or `observe` exits nonzero and emits
-only a redacted diagnostic; the Session continues the existing Sentinel path
-during `OBSERVE`, while an enforcing phase treats missing or invalid
-observation evidence as unresolved and fails closed. Full checkpoint mechanics
-and envelope rules live in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+**Review Gate obligation order (current):** after each implementation wave, the
+orchestrator derives the applicable reviewer obligations from the complete
+changed-file scope, creates one immutable Review Request per lane, and dispatches
+the selected reviewers in one consolidated parallel batch. Each reviewer
+produces a durable artifact and identity-bound Review Result; the orchestrator
+records lifecycle, readiness, and semantic verdict evidence in the Review Gate
+store. Completion requires every applicable obligation to be resolved or
+explicitly `NOT_APPLICABLE`; a message, artifact path, aggregate result, or
+lifecycle event alone is not completion. Missing, foreign, stale, malformed, or
+failed evidence remains unresolved and fails closed. Full identity, retry, and
+batching mechanics live in
+`${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+
+Historical migration-observation composition and phase vocabulary remain in
+`docs/contracts/review-lifecycle.md` and the associated ADRs for compatibility
+and audit only. They are not an active dispatch or completion path and must not
+be enabled or inferred by the current implementation route.
 
 ### Context tiers and dispatch packet
 
@@ -235,7 +229,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | Work shape | Dispatch |
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
-| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Missing-executable fallback to `deep-reasoner` is the only silent substitution — auth/model/task failures stay `RESULT: BLOCKED`. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
 | Judgment-dense but standardizable work touching more than two files (bounded documentation migration, bilingual restructuring, or a known review-fix batch) | In-process `fast-worker` by default |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; the retired `CODEX=on`/`--codex` review-peer flags cannot select it. | `codex-worker` (canonical role ID; legacy alias: `codex-fast-worker`) |
@@ -260,6 +254,63 @@ When a validator reads or modifies shared ratchet/configuration state, workers M
 
 `Judgment-Dense Standardizable Batch` is a default fast-worker route, not a forced route. The orchestrator may override it only with a recorded reason. The route requires at least three files, bounded repeatable intent, and known verification; open-ended design, unresolved root cause, and architecture decisions remain orchestrator/deep-reasoner work. The policy does not require durable telemetry yet; the acceptance report records the selected tier, override reason if any, and result.
 
+### Native dispatch baseline
+
+`rules/execution-policy.md` is the normative policy owner for delegated
+dispatch. The side-effect-free `scripts/lib/native-dispatch-policy.js` is the
+executable decision seam consumed by dispatch adapters; it is not a central
+orchestrator and must not grow orchestration state.
+
+Planner, reasoner, worker, and reviewer use the same native-only baseline:
+
+| Role | Native agent | Automatic default |
+|---|---|---|
+| planner | `dhpk:planner` | native Claude planner |
+| reasoner | `dhpk:deep-reasoner` | native Claude reasoner |
+| worker | `dhpk:fast-worker` | native Claude worker |
+| reviewer | `dhpk:code-reviewer` | native Review Gate reviewer |
+
+Automatic dispatch considers only the native candidate by default. With
+cross-provider dispatch disabled, it MUST NOT probe, authenticate, launch, or
+otherwise discover an external provider CLI. An explicitly requested external
+target remains directional and may be checked by its adapter. The public
+`cross_provider` option is `false` by default and resolves as
+`--cross-provider` (one-shot enable) > project pluginConfig > installed user
+pluginConfig > `false`; `.claude/settings.local.json` is preferred over
+`.claude/settings.json`. Reviewer
+routing remains on the current Review Gate / Reviewer Contract path, and
+dispatch selection never creates a review PASS or a retired Sentinel state.
+
+The fast-worker adapter below enforces this baseline for automatic selection;
+other adapters consume the same role contract without duplicating candidate
+selection logic.
+
+### Failure classification and fallback chain
+
+After a selected target has been dispatched, transport reports only the
+terminal result and one canonical failure class. It never chooses a new
+provider or silently retries. The dispatcher owns the following policy for
+all four delegated roles:
+
+| Failure class | Fallback policy | Required evidence/action |
+|---|---|---|
+| `CLI_UNAVAILABLE` | Continue to the native candidate after confirming the selected CLI is unavailable; use the next configured candidate only with cross-provider opt-in. | Confirm no provider side effect. |
+| `AUTHENTICATION_OR_MODEL_UNAVAILABLE` | Same native-first rule as CLI unavailability when the failed target is confirmed unavailable without side effects. | Preserve the exact auth/model evidence. |
+| `QUOTA_OR_RATE_LIMIT` | Avoid the affected model/account/pool; select an explicitly different authorized pool only with cross-provider opt-in. | Do not infer that every provider is exhausted. |
+| `SAFETY_OR_USER_DENIAL` | Do not switch providers to evade the restriction or denial. | Stop and use the existing authorization/user-action path. |
+| `TASK_OR_SEMANTIC_FAILURE` | Do not switch providers. | Return to the existing repair and acceptance path. |
+| `TIMEOUT_OR_INTERRUPTION` | Do not switch providers as a timeout retry. | Stop the old writer, reconcile assigned scope and diff, then use the partial-writer handoff contract. |
+
+The order is selected target → confirmed-unavailable native target → next
+valid configured candidate only when `cross_provider` is enabled → explicit
+`BLOCKED`. A session records `attempted_backends` and `unavailable_backends` and
+decrements one shared `retry_budget` for every fallback; switching providers
+does not reset that budget and a candidate is never revisited. The fallback
+preserves the role, task scope, read/write authority, model contract where
+applicable, and reviewer contract. The executable decision seam is the
+side-effect-free `scripts/lib/native-dispatch-policy.js`; it is policy state,
+not a coordinator.
+
 ### Fast-worker backend selector
 
 Mechanical implementation waves resolve through
@@ -270,11 +321,21 @@ keys in `userConfig`:
 |---|---|
 | `claude` (default) | `dhpk:fast-worker`; deterministic in-process default. |
 | `codex` / `agy` | Check the requested executable before dispatch; missing executable blocks unless `fast_worker_fallback=claude` was explicitly configured. |
-| `auto` | Check `fast_worker_backend_order` in order and record rejected candidates plus reasons. |
+| `auto` | Use the native Claude candidate by default; only an explicit cross-provider opt-in may check `fast_worker_backend_order` and record rejected candidates plus reasons. |
 
-Only a missing executable may use the configured `claude` fallback. Authentication,
-authorization, model, task, execution, and verification failures remain
-`RESULT: BLOCKED` on the selected backend and never silently switch semantics.
+The existing `fast_worker_backend`, `fast_worker_backend_order`, and
+`fast_worker_fallback` settings remain valid. An explicit backend remains a
+directional selection; `auto` continues to honor the configured order only
+after `cross_provider` is enabled. This migration preserves old settings
+without turning an old `auto` configuration into an implicit external probe.
+
+The configured `claude` selector fallback remains the pre-dispatch escape hatch
+for a missing executable. Post-dispatch availability and auth/model failures
+use the shared failure-class contract above only after confirmed no-side-effect
+unavailability; quota/rate-limit fallback requires an explicitly different
+authorized pool and cross-provider opt-in. Safety/user denial, task/semantic
+failure, and timeout/interruption remain on their existing stop, repair, or
+reconciliation paths and never silently switch semantics.
 Every fast-worker report includes requested backend, selected backend, any
 fallback reason, model/effort, effective Codex timeout budget/source when the
 Codex backend is selected, verification result, and the complete edited-file
@@ -294,9 +355,11 @@ picks the backend for that invocation: `claude` → `dhpk:deep-reasoner`; `codex
 Both backends receive the **same** reasoning brief and return the canonical
 reasoner contract above (`## Conclusion` + file-and-line evidence + `## Next actions`). `agy` has no
 reasoning tier and is unsupported. Model/effort resolve flag > backend-specific userConfig
-(`deep_reasoner_*` for claude; `codex_reasoner_*` for codex) > built-in default. Only a
-missing codex executable falls back to `deep-reasoner`; authentication, model, and task
-failures remain `RESULT: BLOCKED` on the selected backend — never silently switched.
+(`deep_reasoner_*` for claude; `codex_reasoner_*` for codex) > built-in default. A
+post-dispatch Codex CLI or auth/model unavailability may use the shared
+native-first fallback contract after confirmed no side effects; safety, task,
+and timeout failures remain `RESULT: BLOCKED` or on their existing recovery
+path — never silently switched.
 
 **Orchestrator posture**: implement-phase work defaults to **decide → dispatch → verify**; inline work is the narrow exception. Measure the **whole implement-step footprint**, so multi-file doc-consistency work is one batch; when unsure between inline and a worker, dispatch. Verify runtime premises with the applicable E2E lane or a scratch executable probe. The orientation step binds unattended goals to the kernel and selected route reference. Full routing, premise, verification, waiting, and plan-brief rules: `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
 
@@ -344,7 +407,7 @@ Independent-perspective rules, the bounded adversarial doubt cycle, and premise-
 
 ### Post-implementation agent gate (SSOT)
 
-After each implementation wave, dispatch every applicable sentinel reviewer as
+After each implementation wave, dispatch every applicable reviewer as
 **ONE consolidated parallel reviewer batch**. Only triggered lanes run; mixed diffs may
 run code, database, security, frontend, documentation, polyfill, and migration
 reviewers together. `tdd-guide` and `e2e-runner` are implementation specialists,
@@ -362,32 +425,30 @@ that specialist's scoped verification command or originating journey. A new
 implementation wave receives a new consolidated review batch. The prompt/output
 shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
-### Hook-enforced (sentinels)
+### Reviewer trigger table
 
-Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` routes edits to the 7-slot default sentinel set (code, db, security, frontend, doc, polyfill, migration). Each sentinel is cleared by `subagent-stop-verify.sh` only when its matching reviewer stops successfully with fresh canonical timestamp/slug evidence, valid leading delimited frontmatter, all required reviewer fields, and a parseable passing verdict (`APPROVE or PASS`). A reviewer never self-clears. The orchestrator uses `clear-sentinel.sh <name> <label>` only through a known-slot reconcile, triage-drop, or stale-sentinel back-stop.
+The orchestrator judges which reviewer(s) apply from the diff, using this
+default trigger table (project can extend via
+`userConfig.review_trigger_extra_paths`) plus the AI-judgment back-stop below
+for a semantic match the table misses. There is no hook-armed marker file or
+auto-clear step — dispatch and verdict tracking are the orchestrator's
+responsibility for the current implementation wave.
 
 A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — it is a markdown-interpolation token, unset in a subagent's shell. Full caveat (SSOT): `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
-**Auto-clear + fallback**: a successful reviewer with a fresh matching canonical timestamp/slug artifact, valid leading delimited frontmatter, all required reviewer fields, and an `APPROVE or PASS` verdict auto-clears only its own slot; absent, stale, unparseable, malformed, warning, or failing output stays armed. A resumed fallback additionally requires a matching `.resumed-review-obligations` record, conclusive final response, resume-relative freshness, and proven session/agent ownership. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+| Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
+|---|---|
+| `code-reviewer` | `*.php` / `*.js` / `**/CLAUDE.md` |
+| `database-reviewer` | Repository / migration / model / `*.sql` |
+| `security-reviewer` | Controllers / config / `*{Auth,Login,Acl,Upload,File}*` source files |
+| `frontend-reviewer` | No built-in default; opt in through module triggers or fe: extra paths |
+| `doc-reviewer` | `.md` files under approved harness / OpenSpec / docs paths; `CLAUDE.md`, `AGENTS.md`, top-level `README*.md` |
+| `polyfill-reviewer` | Module-owned trigger only |
+| `migration-reviewer` | Module-owned migration: triggers or mig: extra paths only |
 
-**Resumed-reviewer fallback**: a reviewer resumed through `SendMessage` may never fire a native `SubagentStop`; clearance there is a session-scoped, artifact-backed reconcile — never approval. Full contract: `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+**Skipped paths**: follow the self-edit and per-role path exclusions in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
-| Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
-|---|---|---|
-<!-- BEGIN GENERATED sentinel-slots:sentinel-table -->
-<!-- Generated by scripts/ci/gen-slots.js from scripts/lib/sentinel-slots.json. -->
-| `.pending-review` | `code-reviewer` | `*.php` / `*.js` / `**/CLAUDE.md` |
-| `.pending-db-review` | `database-reviewer` | Repository / migration / model / `*.sql` |
-| `.pending-security-review` | `security-reviewer` | Controllers / config / `*{Auth,Login,Acl,Upload,File}*` source files |
-| `.pending-frontend-review` | `frontend-reviewer` | No built-in default; opt in through module triggers or fe: extra paths |
-| `.pending-doc-review` | `doc-reviewer` | `.md` files under approved harness / OpenSpec / docs paths; `CLAUDE.md`, `AGENTS.md`, top-level `README*.md` |
-| `.pending-polyfill-review` | `polyfill-reviewer` | Module-owned trigger only |
-| `.pending-migration-review` | `migration-reviewer` | Module-owned migration: triggers or mig: extra paths only |
-<!-- END GENERATED sentinel-slots:sentinel-table -->
-
-**Skipped paths**: follow the self-edit and per-slot path exclusions in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
-
-### Reviewer dispatch (when multiple sentinels coexist)
+### Reviewer dispatch (when multiple roles are triggered)
 
 For each contiguous implementation wave, dispatch each applicable reviewer once as **triage → ONE consolidated parallel reviewer batch → merge**; CRITICAL blocks, and pure research skips. Known findings receive at most one confirm-only re-review; new substantive scope starts a new review decision. A missing or invalid reviewer result gets one corrected retry, then replacement or a pending gate with a recorded reason. `codex-bridge` remains escalation-only and runs at most once per change. Full batching, reminder, retry, and escalation mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
@@ -395,20 +456,20 @@ For each contiguous implementation wave, dispatch each applicable reviewer once 
 
 ### Hook lifecycle classes
 
-Hooks are classified as a blocking safety gate, a sentinel/liveness gate,
+Hooks are classified as a blocking safety gate, liveness cleanup,
 module activation only, or opt-in advisory. The default lifecycle registers
-only deterministic safety, review-debt routing, reviewer reconciliation, and
-module activation. Completion inference, prompt routing, lifecycle snapshots,
-and heuristic quality work remain available only through explicit opt-in setup.
+only deterministic safety, fast-worker liveness cleanup, and module
+activation. Prompt routing, precompact/postcompact handoff, and heuristic
+quality work remain available only through explicit opt-in setup or run as
+optional events.
 
 | Hook surface | Lifecycle class | Default behavior |
 |---|---|---|
 | `PreToolUse(Edit\|Write\|MultiEdit)` → `pre-edit-guard.sh` | blocking safety gate | enabled; reject protected-path and secret-unsafe edits |
-| `PreToolUse(Bash)` → `pre-bash-dispatch.sh` | blocking safety gate | enabled; preserve shell safety plus Git/review-debt checks |
-| `PostToolUse(Edit\|Write\|MultiEdit)` → `post-edit-dispatch.sh` | sentinel/liveness gate | enabled; create and route review-debt sentinels only |
-| `SubagentStop` → `subagent-stop-verify.sh` | sentinel/liveness gate | enabled; reconcile only fresh canonical artifacts with a parseable passing verdict |
+| `PreToolUse(Bash)` → `pre-bash-dispatch.sh` | blocking safety gate | enabled; preserve shell safety plus protected-branch checks |
+| `SubagentStop` → `subagent-stop-verify.sh` | liveness cleanup | enabled; clear a stopped fast-worker's active-liveness marker |
 | `SessionStart` → `session-start.sh` | module activation only | enabled; validate and activate configured modules |
-| Prompt hints, stop reminders, snapshots, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
+| Prompt hints, precompact/postcompact handoff, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
 
 **Reviewer liveness**: a no-op reviewer is a failed gate. Corrected-retry and replacement rules: `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
@@ -418,7 +479,7 @@ Every quality-gate reply (code / doc / test / security review, audit, or risk mo
 
 ### AI-judgment back-stop (self-trigger)
 
-Semantically matches but path pattern did not trigger a sentinel → self-trigger:
+Semantically matches but path pattern did not trigger a reviewer role → self-trigger:
 
 - New feature / bugfix in business layer → `tdd-guide` **before** writing implementation.
 - Money / crypto / cert / token paths not matched by hook patterns → `security-reviewer`.
@@ -435,11 +496,11 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 - `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
 - Editing version-specific dirs (`src/Laravel/`, `src/Symfony/`), composer version constraints, or `.github/workflows` CI matrices, or before tagging a release → `version-matrix-impact-reviewer` (library-author module).
 
-> **Notes** — why view-layer `<script>` uses a back-stop not a hook · when to upgrade a back-stop to a hook · why `tdd-guide` has no sentinel and how the coverage gate enforces tests-first for unattended `opsx-apply-goal` runs: `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+> **Notes** — why view-layer `<script>` uses a back-stop not a hook · when to upgrade a back-stop to a hook · why `tdd-guide` is not in the trigger table and how the coverage gate enforces tests-first for unattended `opsx-apply-goal` runs: `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ## Edit tool discipline
 
-**Edit/Write, not Bash writes.** Repo file edits MUST use the Edit or Write tool, not Bash-based writes (python heredoc, `tee`, shell redirection). A Bash-written file never passes through the `PostToolUse` Edit/Write hooks, so the review sentinel that file type would arm never arms and the file silently skips its mandatory reviewer gate. Use a Bash write only as a last resort (the Edit/Write tools cannot express the operation); whenever you do, self-trigger the review gate that would have applied — dispatch the matching reviewer (or, if the post-edit hook did not fire, manually check for and handle the applicable `.pending-*` sentinel per the AI-judgment back-stop convention above).
+**Edit/Write, not Bash writes.** Repo file edits MUST use the Edit or Write tool, not Bash-based writes (python heredoc, `tee`, shell redirection). A Bash-written file never passes through the `PostToolUse` Edit/Write hooks, so it is easy to forget its mandatory reviewer gate. Use a Bash write only as a last resort (the Edit/Write tools cannot express the operation); whenever you do, self-trigger the review gate that would have applied — dispatch the matching reviewer per the trigger table or the AI-judgment back-stop convention above.
 
 **Symlink-safe writes.** Before using Write on an existing target, check whether
 it is a symlink. Resolve it with `realpath <target>` and Write to the resolved
@@ -467,7 +528,7 @@ Any applicable NO → fix first, then reply.
 
 ## Anti-rationalization
 
-Before skipping any sentinel / TDD / reviewer mandated step, load `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` for self-rebuttal. On-demand load, not always-on. Trigger conditions: see that file's "When to load" table (SSOT).
+Before skipping any TDD / reviewer mandated step, load `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` for self-rebuttal. On-demand load, not always-on. Trigger conditions: see that file's "When to load" table (SSOT).
 
 ## Git pipeline
 
@@ -492,7 +553,7 @@ The `change-verdict` skill's `pr` mode includes an optional
 
 **Before any autonomous / repeated loop**, confirm the safety floor exists: a quality gate is active (lint/test), a known-good baseline to diff against, a rollback path (clean git state / revert), and branch or worktree isolation. Missing any → set it up first or do the work non-autonomously.
 
-**Review-loop ceiling (Codex auto-loop skills only)**: distinct from the general "same failure 3×" stop above — this is a hard per-sentinel counter for skills that auto-loop fix→re-review via Codex (`change-verdict` modes `docs`, `tests`, and `security`), capped at **3 rounds per sentinel**. On round 4, stop and report the blocker for human review — do not retry the same finding.
+**Review-loop ceiling (Codex auto-loop skills only)**: distinct from the general "same failure 3×" stop above — this is a hard per-finding-class counter for skills that auto-loop fix→re-review via Codex (`change-verdict` modes `docs`, `tests`, and `security`), capped at **3 rounds per finding class**. On round 4, stop and report the blocker for human review — do not retry the same finding.
 
 Output: `Conclusion → Changed files → Verification → Risks/Open questions`. Blocked: `Blocker → Tried → Next viable option`.
 

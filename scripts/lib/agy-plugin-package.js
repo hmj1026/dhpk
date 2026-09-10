@@ -16,6 +16,7 @@ const {
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const {
   externalSkillPackagesFingerprint,
@@ -26,6 +27,7 @@ const {
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
 const PACKAGE_SCHEMA = 'dhpk.agy-plugin.v1';
+const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const SHA256 = /^[a-f0-9]{64}$/i;
 const COMMIT = /^[a-f0-9]{40}$/i;
@@ -148,13 +150,32 @@ function assertContainedPhysical(root, candidate, label) {
   }
 }
 
-function copyFileContained(source, destination, sourceRoot, outputRoot) {
+function copyFileContained(source, destination, sourceRoot, outputRoot, { transform = null } = {}) {
   assertContainedPhysical(sourceRoot, source, 'source file');
   assertContainedPhysical(outputRoot, destination, 'output path');
   const sourceStat = assertNoSymlink(source, 'source file');
   if (!sourceStat || !sourceStat.isFile()) throw new Error(`source file is missing: ${source}`);
   ensureDirectory(path.dirname(destination), 'package parent');
+  if (typeof transform === 'function' && path.extname(source).toLowerCase() === '.md') {
+    const content = transform(readFileBounded(source).toString('utf8'), source);
+    fs.writeFileSync(destination, content, { mode: sourceStat.mode & 0o777 });
+    return;
+  }
   fs.copyFileSync(source, destination);
+}
+
+function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
+  return String(content).replace(/(\[[^\]]*\])\(([^)]+)\)/g, (whole, label, rawTarget) => {
+    const target = rawTarget.trim();
+    if (!target || target.startsWith('#') || /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/)/.test(target)) return whole;
+    const pathPart = target.split('#', 1)[0].trim();
+    if (!pathPart) return whole;
+    const resolved = path.resolve(path.dirname(sourceFile), pathPart);
+    if (!isInside(canonicalRoot, resolved) || !fs.existsSync(resolved)) return label;
+    const relative = path.relative(canonicalRoot, resolved).split(path.sep).join('/');
+    const fragment = target.includes('#') ? `#${target.split('#').slice(1).join('#')}` : '';
+    return `${label}(${CANONICAL_REPOSITORY_URL}${relative}${fragment})`;
+  });
 }
 
 function adaptAgySkillContent(content, selectedSkillIds) {
@@ -170,7 +191,7 @@ function adaptAgySkillContent(content, selectedSkillIds) {
   );
 }
 
-function copyDirectory(source, destination, sourceRoot, outputRoot) {
+function copyDirectory(source, destination, sourceRoot, outputRoot, options = {}) {
   assertContainedPhysical(sourceRoot, source, 'source directory');
   assertContainedPhysical(outputRoot, destination, 'output directory');
   const sourceStat = assertNoSymlink(source, 'source directory');
@@ -181,8 +202,8 @@ function copyDirectory(source, destination, sourceRoot, outputRoot) {
     const childSource = path.join(source, entry.name);
     const childDestination = path.join(destination, entry.name);
     if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in source component: ${childSource}`);
-    if (entry.isDirectory()) copyDirectory(childSource, childDestination, sourceRoot, outputRoot);
-    else if (entry.isFile()) copyFileContained(childSource, childDestination, sourceRoot, outputRoot);
+    if (entry.isDirectory()) copyDirectory(childSource, childDestination, sourceRoot, outputRoot, options);
+    else if (entry.isFile()) copyFileContained(childSource, childDestination, sourceRoot, outputRoot, options);
     else throw new Error(`unsupported source entry: ${childSource}`);
   }
 }
@@ -202,14 +223,21 @@ function inventorySkillMap(inventory) {
 function selectedConfiguration(inventory, profileSelection = null) {
   const configuration = inventory && inventory.agy_plugin;
   if (!configuration || typeof configuration !== 'object') throw new Error('inventory.agy_plugin is required');
-  const membershipIds = inventory.surface_membership && inventory.surface_membership[SURFACE];
-  if (!Array.isArray(membershipIds)) throw new Error(`inventory.surface_membership.${SURFACE} must be a string array`);
-  const selectedSet = profileSelection && Array.isArray(profileSelection.selectedStableIds)
-    ? new Set(profileSelection.selectedStableIds)
-    : null;
-  const profileSkillIds = selectedSet ? membershipIds.filter((id) => selectedSet.has(id)) : membershipIds;
+  const compiled = compileDistribution({
+    inventory,
+    surface: SURFACE,
+    profileSelection,
+  });
+  if (!compiled.ok) throw new Error(compiled.error.message);
+  const selectedIds = compiled.value.entries.map((entry) => entry.stableId);
+  const surfaceRule = inventory.projection_contract
+    && inventory.projection_contract.surfaces
+    && inventory.projection_contract.surfaces[SURFACE];
+  const selectionPolicy = surfaceRule && surfaceRule.selection_policy
+    ? surfaceRule.selection_policy
+    : compiled.value.selectionPolicy;
   const runtimeSkillIds = runtimeSupportSkillIds(inventory, SURFACE);
-  const skillIds = [...new Set([...profileSkillIds, ...runtimeSkillIds])];
+  const skillIds = [...new Set([...selectedIds, ...runtimeSkillIds])];
   if (!Array.isArray(configuration.agents) || !Array.isArray(configuration.rules)) {
     throw new Error('inventory.agy_plugin agents and rules must be arrays');
   }
@@ -224,7 +252,19 @@ function selectedConfiguration(inventory, profileSelection = null) {
   });
   const agents = [...new Set(configuration.agents)].sort();
   const rules = [...new Set(configuration.rules)].sort();
-  return { agents, rules, skills, runtimeSkillIds };
+  return {
+    agents,
+    rules,
+    skills,
+    runtimeSkillIds,
+    selection: {
+      compiler: { id: 'distribution-compiler', version: compiled.value.compilerVersion },
+      surface: SURFACE,
+      selectedStableIds: selectedIds,
+      selectionPolicy,
+      planFingerprint: compiled.value.planFingerprint,
+    },
+  };
 }
 
 function outputFiles(packageRoot, options = {}) {
@@ -379,7 +419,7 @@ function materializeAgyPluginPackage({
     ensureDirectory(path.dirname(target), 'AGY agent parent');
     const sourceContent = readFileBounded(source).toString('utf8');
     const adapted = adaptFrontmatter(sourceContent, { filePath: source });
-    fs.writeFileSync(target, adapted.text, { mode: 0o644 });
+    fs.writeFileSync(target, sanitizeMarkdownLinks(adapted.text, source, sourceRoot), { mode: 0o644 });
   }
 
   const rulesDestination = ensureDirectory(path.join(outputRoot, 'rules'), 'AGY rules directory');
@@ -388,7 +428,9 @@ function materializeAgyPluginPackage({
     const source = path.join(sourceRoot, relative);
     const target = path.join(outputRoot, relative);
     if (!relative.startsWith('rules/') || path.extname(relative) !== '.md') throw new Error(`invalid AGY rule selection: ${relative}`);
-    copyFileContained(source, target, sourceRoot, outputRoot);
+    copyFileContained(source, target, sourceRoot, outputRoot, {
+      transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+    });
   }
 
   const skillsDestination = ensureDirectory(path.join(outputRoot, 'skills'), 'AGY skills directory');
@@ -404,16 +446,24 @@ function materializeAgyPluginPackage({
     if (!sourceStat || !sourceStat.isFile()) throw new Error(`source skill is missing: ${source}`);
     ensureDirectory(path.dirname(target), 'AGY skill parent');
     const sourceContent = readFileBounded(source).toString('utf8');
-    fs.writeFileSync(target, adaptAgySkillContent(sourceContent, selectedSkillIds), { mode: 0o644 });
+    fs.writeFileSync(
+      target,
+      sanitizeMarkdownLinks(adaptAgySkillContent(sourceContent, selectedSkillIds), source, sourceRoot),
+      { mode: 0o644 },
+    );
     const referencesSource = path.join(sourceRoot, skill.path, 'references');
     if (lstatOrNull(referencesSource)) {
       const referencesTarget = path.join(skillsDestination, skillPath, 'references');
-      copyDirectory(referencesSource, referencesTarget, sourceRoot, outputRoot);
+      copyDirectory(referencesSource, referencesTarget, sourceRoot, outputRoot, {
+        transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+      });
     }
     if (runtimeSkillIds.has(skill.id)) {
       const scriptsSource = path.join(sourceRoot, skill.path, 'scripts');
       const scriptsTarget = path.join(skillsDestination, skillPath, 'scripts');
-      copyDirectory(scriptsSource, scriptsTarget, sourceRoot, outputRoot);
+      copyDirectory(scriptsSource, scriptsTarget, sourceRoot, outputRoot, {
+        transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+      });
     }
   }
 
@@ -478,6 +528,7 @@ function materializeAgyPluginPackage({
   }
   receipt.transform = { id: 'agy-agent-frontmatter-v1', version: '1' };
   receipt.packageRoot = 'plugins/dhpk-agy';
+  receipt.selection = selected.selection;
   writeJson(path.join(outputRoot, 'fingerprints.json'), { schema: PACKAGE_SCHEMA, files: fingerprints });
   writeJson(path.join(outputRoot, 'provenance.json'), receipt);
   const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory, profileSelection });

@@ -1,15 +1,20 @@
 # Evidence-backed review lifecycle
 
-The Claude review chain keeps its durable lifecycle state in the current
-project's `.claude/artifacts/sessions/` directory. These files are session
-evidence, not tracked deliverables:
+This contract describes the current direct Review Gate lifecycle. Reviewer
+selection is an orchestrator decision recorded against a Review Obligation;
+there is no hook-armed `.pending-*` marker, sentinel slot, or automatic
+sentinel clearance in the active workflow. References below to Sentinel,
+legacy adapters, or migration phases are retained only as historical
+compatibility vocabulary and do not define current authority.
+
+The review chain keeps its durable lifecycle state in the current project's
+Review Gate evidence store. Session evidence is not a tracked deliverable:
 
 | File | Purpose |
 | --- | --- |
 | `.lifecycle-events.jsonl` | One versioned transition record per task identity |
 | `.producer-ready.jsonl` | Producer marker written after a report is durable |
 | `.review-telemetry.jsonl` | Monotonic attempts, starts, verdicts, artifacts, retries, and unresolved-obligation counters |
-| `.accepted-outcome-cost.jsonl` | Observe-only, redacted cost observations emitted after a semantic verdict |
 | `.review-retry.jsonl` | Keyed one-corrected-retry budget (`max_retries: 1`) |
 | `.quota-resume.jsonl` | Quota-blocked task identity and its explicit resume transition |
 
@@ -26,40 +31,49 @@ with terminal or exceptional states `failed-start`, `quota-blocked`,
 and remains keyed to the same task/scope/diff identity. The transition library
 rejects impossible edges rather than manufacturing a successful completion.
 
-`scope_id` is a digest of the complete pending review set. `diff_id` is a
+`scope_id` is a digest of the complete Review Obligation set. `diff_id` is a
 digest of the current worktree diff/status. When a report supplies
 `scope_id` and `diff_id` frontmatter, both must match the dispatch identity;
 missing, stale, foreign, or mismatched identity never closes that review.
-The Stop-time background-reconcile fallback additionally requires the exact
-session-scoped `.review-dispatch-attempts` row and matching artifact
-`session_id`, `dispatch_attempt`, and `dispatch_id` provenance; a legacy report
-without that tuple fails closed rather than satisfying a concurrent session's
-shared canonical review glob.
+Review evidence additionally requires the exact dispatch-attempt identity and
+matching artifact `session_id`, `dispatch_attempt`, and `dispatch_id`
+provenance; missing, stale, or foreign identity fails closed.
 
 ## Producer and consumer boundary
 
 The producer fsyncs the canonical review artifact and then appends an
 `artifact-ready` marker containing its path and content digest. A consumer
 must find that marker and the still-present artifact before consuming it. No
-fixed sleep is a readiness proof. The Stop-time reconciliation safety net may
-materialize a marker for a legacy/manual sentinel only after it has independently
-proved that the canonical artifact is fresh.
+fixed sleep is a readiness proof. No stop-time hook materializes or clears a
+review marker; the orchestrator records the artifact-ready evidence directly.
 
-Lifecycle clearance and approval remain separate: a `WARNING`, `BLOCK`,
-`FAIL`, malformed verdict, or actionable severity can finish the lifecycle
-event sequence but leaves the sentinel and/or `.unresolved-verdict` obligation
-visible. Only the existing parseable `APPROVE`/`PASS` gate clears the sentinel.
+Recording a lifecycle result and semantic approval remain separate: a
+`WARNING`, `BLOCK`, `FAIL`, malformed verdict, or actionable severity leaves
+the Review Obligation unresolved. A valid Review Gate result is evaluated by
+the orchestrator; no hook clears a sentinel.
 
-The Accepted-Outcome Cost collector observes the already-appended lifecycle
-event stream after a `verdicted` transition. It records derived dispatch,
-semantic-review, remediation, and elapsed counters plus optional model-token,
-human-turn, false-block, and receipt-reuse measurements. Unavailable counters
-remain `null`; malformed or unavailable telemetry is explicit, and partial or
-failed observations are excluded from retirement decisions. Collection is
-best-effort and cannot clear a Sentinel, change a verdict, or block the existing
-lifecycle path.
+## Host-issued cross-trust attestation
 
-## Claude Review Gate observation
+The public filesystem-backed `review-gate-runtime observe` boundary requires a
+host-issued cross-trust attestation envelope in addition to the matching Review
+Gate result. The host verifies the envelope with its configured key; it binds
+the prepared plan and the four evidence-file digests. Programmatic `ReviewGate`,
+adapter, and `WorkflowCoordinator` calls are trusted in-process ports and do
+not require this filesystem transport attestation. A reviewer, adapter, or
+local receipt writer cannot self-issue or replace the envelope with a passing
+message, local receipt, or lifecycle event. Missing, malformed, foreign, or
+mismatched envelope evidence leaves the public observation blocked.
+
+Accepted-Outcome Cost collection belonged to the retired migration checkpoint;
+it is not a current lifecycle file, runtime requirement, or Review Gate
+decision input. The former telemetry was diagnostic only and could not change a
+verdict or block the lifecycle path.
+
+## Historical Claude migration compatibility
+
+The following adapter and phase vocabulary documents the retired migration
+bridge only. It is not the active reviewer lifecycle and must not be used to
+infer a pending-file, hook, or Sentinel gate in a current session.
 
 During the canonical `BASELINE` and `OBSERVE` paths, Claude review evidence is
 translated only after the existing hook-owned lifecycle has completed. The
@@ -114,7 +128,10 @@ credentials, and session transcripts are excluded. A migration observation is
 never converted into synthetic Sentinel clearance and cannot itself satisfy a
 required review or change-control gate.
 
-## Production migration-observation checkpoint
+## Historical production migration-observation checkpoint
+
+This migration-observation section is retained as a record of the retired
+checkpoint contract. It does not gate current Review Gate dispatch or delivery.
 
 The production composition boundary is the explicit, dependency-free
 `scripts/review-gate-runtime.js` CLI. It is inactive until an operator runs
@@ -186,117 +203,24 @@ semantic result. The persisted observation keeps only stable identities,
 digests, enum values, timestamps, bounded symbolic references, and counters.
 
 An invalid or unavailable checkpoint operation exits nonzero and writes a
-redacted diagnostic sidecar. The Application Session continues the existing
-Sentinel lifecycle and must report the observation as unavailable or failed;
-the failure cannot clear, arm, or alter Sentinel. In an enforcing migration
+redacted diagnostic sidecar. The Application Session continues the Review Gate
+lifecycle and must report the observation as unavailable or failed; the failure
+cannot alter Review Gate authority. In an enforcing migration
 phase, missing, foreign, stale, malformed, or failed observation evidence is
 unresolved and fails closed. Partial Accepted-Outcome Cost data uses `null`
 for unavailable counters plus named failure reasons, remains visible for
 diagnosis, and always sets `retirementEligible: false`. This v1 records the
-current per-obligation/lane observations. Issue #375 consumes those records
-through the read-only `scripts/lib/review-gate-retirement.js` boundary; it does
-not discover a local store or infer missing production evidence.
+current per-obligation/lane observations.
 
-### Retirement evidence intake (#375)
+Retirement of Sentinel is a direct maintainer decision on this project, not a
+pre-collection evidence gate — see
+`docs/adr/0018-production-migration-observation-checkpoint.md` for the
+rationale. There is no `review-gate-retirement.js` evidence boundary or
+20-outcome ledger requirement; Sentinel removal proceeds directly per
+issues #375-#378, with adjustments driven by rolling usage feedback rather
+than a pre-collected sample.
 
-The retirement report accepts an explicit, bounded ledger with schema
-`dhpk.review-gate.retirement-ledger.v1`:
-
-```json
-{
-  "schema": "dhpk.review-gate.retirement-ledger.v1",
-  "evidenceLocation": {
-    "reference": "artifact:review-gate/retirement-ledger-2026-09",
-    "digest": "sha256:<64-hex>"
-  },
-  "baselineBundles": [{
-    "bundle": "<dhpk.review-gate.receipt-bundle.v1>",
-    "expectedIdentity": { "commit": "<40-hex>", "tree": "<40-hex>" }
-  }],
-  "cutoverBundles": [{
-    "bundle": "<dhpk.review-gate.receipt-bundle.v1>",
-    "expectedIdentity": { "commit": "<40-hex>", "tree": "<40-hex>" },
-    "disagreements": []
-  }],
-  "collectionAuthority": {
-    "receipt": "<trusted DUAL_ENFORCE→CUTOVER receipt>",
-    "track": "SINGLE_MAINTAINER (optional; see below)",
-    "ciVerification": "<verification receipt, required only for the SINGLE_MAINTAINER track>"
-  },
-  "rollbackDrill": {
-    "bundle": "<bundle containing CUTOVER, rollback authority, and DUAL diagnostic>",
-    "expectedIdentity": { "commit": "<40-hex>", "tree": "<40-hex>" },
-    "isolationReference": "drill:<bounded-reference>"
-  }
-}
-```
-
-The values in angle brackets are placeholders for the redacted objects, not
-strings that satisfy the contract. Each bundle is imported through the same
-digest, source commit/tree, schema, identity, and producer-trust checks as the
-normal receipt transport. `evidenceLocation` is a bounded, content-addressed
-reference to the access-controlled durable ledger; its digest is the SHA-256
-of the canonical ledger object with `evidenceLocation` omitted. Omitting the
-field blocks the report; a digest for another ledger is rejected fail-closed. A
-bundle may contain several lane observations; the
-report counts one outcome for each distinct Accepted-Outcome Cost
-`observationId`. Exact duplicates are ignored, while reuse under another
-identity fails closed. `BASELINE`/`OBSERVE` entries supply the like-for-like
-cost comparator; `CUTOVER` entries must be non-diagnostic, complete, accepted
-outcomes. Partial or failed telemetry stays in the excluded list and cannot
-contribute to the 20-outcome exit minimum. The collection authority must be
-present in a submitted CUTOVER bundle and its identity plus evidence-bundle
-digest/reference must bind the DUAL_ENFORCE source that authorized those
-outcomes; an unrelated historical promotion receipt is insufficient.
-
-**Single-maintainer authorization track (#375 Option B).** A project with no
-second independent reviewer available may mark `collectionAuthority.track`
-as `SINGLE_MAINTAINER`. This substitutes a weaker independence guarantee for
-the distinct-party authority above and is labeled as such in the Decision
-Packet (`decisionPacket.authorizationTrack`); it does not relax the sample
-size, safety, or rollback-drill requirements. It requires both: (1) the
-authorizing receipt's `sessionId`/`recordedAt` must be distinct from, and
-recorded at least `SINGLE_MAINTAINER_COOLDOWN_MS` (24h) after, the
-`sessionId`/`recordedAt` of every CUTOVER outcome it authorizes; and (2) a
-`ciVerification` receipt (`dhpk.workflow.verification.v1`, `outcome: PASS`)
-independently recorded outside the reviewed obligation chain, whose
-`evidenceBundle` digest/reference matches the same outcome's provenance.
-`ciVerification` is passed as a raw receipt rather than through the bundle
-producer-trust boundary (`importBundle`), since it is external corroboration
-rather than part of the reviewed evidence bundle, but it is still required to
-pass `isTrusted(trustPolicy, ciReceipt)` directly. Missing either condition
-fails the same way as a missing authority: `CUTOVER_COLLECTION_AUTHORITY_REQUIRED`.
-
-This track is a mitigation, not a full substitute for a distinct reviewer:
-`sessionId` is an unauthenticated, producer-declared string with no
-cryptographic binding to a real party anywhere in this receipt system, so
-session-distinctness is a proxy, not proof, of a different person acting. It
-also inherits the pre-existing `validateCollectionAuthority` behavior that a
-single bound outcome satisfies the authority-binding check; the 20-outcome
-minimum is a separate, unaffected requirement, but only the outcomes actually
-bound to an authority receipt benefit from that authority's coverage.
-
-The collector derives the Material Risk cohort from the validated decision,
-requires zero unsafe clearance, cross-identity reuse, missed required review,
-and unresolved disagreement, and compares each available metric by exact
-cross-multiplied means. It also requires a trusted maintainer collection
-authority bound to the DUAL_ENFORCE source that precedes the CUTOVER outcomes,
-and a rollback drill whose authority receipt is bound to the CUTOVER source and
-followed by a same-identity `MIGRATION_ROLLBACK` diagnostic.
-The resulting Decision Packet is `DO_NOT_RETIRE` until every exit condition is
-met. Even a `RETIRE_CANDIDATE` report is non-promoting and carries
-`retireAuthority: REQUIRED_SEPARATELY`; only a separately authorized Migration
-Coordinator transition can enter `RETIRE` or `CLEANUP`.
-
-The report builder itself does not install a package, invoke a consumer, write
-the filesystem, or mutate a phase. To obtain admissible external data, a
-maintainer must run the exact release/commit in a disposable consumer, opt in
-with `init`, execute the real `prepare`/reviewer/`observe` flow, and export the
-durable Receipt Bundle and authority/rollback receipts to an access-controlled
-location. Package installation and consumer probes are acquisition evidence
-only; they never substitute for the complete CUTOVER ledger.
-
-## Codex Review Gate submission
+## Historical Codex migration compatibility
 
 Codex has no legacy Sentinel, hook-based dispatch, or pending-file/SubagentStop
 mechanism to observe or compare against, so the Codex Review Gate adapter
@@ -460,14 +384,13 @@ corpus documents the ADR-0016 exit-gate counters (at least 20 accepted
 outcomes, zero unsafe clearance, zero cross-identity receipt reuse, zero
 missed required review) without ever asserting they have been met.
 
-## Orchestration and Sentinel ownership
+## Orchestration and Review Gate ownership
 
 Orchestration owns worker selection, dispatch, handoff, retry linkage, and
-collection of lifecycle results. Sentinel hooks exclusively own review debt,
-slot lookup, evidence eligibility, and sanctioned clearance through the
-existing hook-owned path. A passing message or a terminal orchestration state
-does not remove a sentinel. Terminal orchestration plus an armed Sentinel is
-therefore **incomplete**, not delivery-ready.
+collection of lifecycle results. The Review Gate owns obligation lookup,
+evidence eligibility, and verdict recording. A passing message or a terminal
+orchestration state alone is not completion; the matching Review Gate result
+must be durable and identity-compatible.
 
 Projection evidence follows the same identity discipline without changing the
 reviewer verdict contract. A consumed `EvidenceResult` binds task and
@@ -479,8 +402,8 @@ stage evidence remains unresolved.
 Projection `EvidenceResult.verdict` is limited to `PASS`, `FAIL`, `NOT_RUN`,
 `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, and `UNAVAILABLE`. Reviewer
 artifact labels such as `APPROVE`, `WARNING`, `BLOCK`, or `PASS`/`FAIL` are a
-separate lifecycle vocabulary; lifecycle summary codes must never be passed to
-Sentinel clearance.
+separate lifecycle vocabulary; lifecycle summary codes must never be treated as
+a semantic Review Gate verdict.
 
 See the [reviewer contract](reviewer-contract.md),
 [ADR-0005](../adr/0005-resumed-review-lifecycle-clearance.md),

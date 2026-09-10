@@ -40,6 +40,23 @@ function select(args, env = {}) {
   }
 }
 
+function parseWithEnvironment(args, env = {}) {
+  const keys = ['CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER', 'DHPK_PROJECT_OPTION_CROSS_PROVIDER'];
+  const previous = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
+  try {
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(env, key)) process.env[key] = env[key];
+      else delete process.env[key];
+    }
+    return selector.parseArgs(args);
+  } finally {
+    for (const key of keys) {
+      if (previous[key] === undefined) delete process.env[key];
+      else process.env[key] = previous[key];
+    }
+  }
+}
+
 function sessionStart(repo, env = {}, payload = { source: 'startup', session_id: 'selection-test' }) {
   const childEnv = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT, CLAUDE_PROJECT_DIR: repo, ...env };
   return spawnSync('bash', ['-c', 'printf %s "$DHPK_PAYLOAD" | bash "$DHPK_SESSION_START"'], {
@@ -59,10 +76,50 @@ test('default selector maps to the in-process fast-worker', () => {
     selected_agent: 'dhpk:fast-worker',
     reason: 'shipped default',
     fallback: 'none',
+    candidate_scope: 'explicit',
+    suppressed_candidates: [],
   });
 });
 
-test('explicit and auto selection honor availability and configured order', () => {
+test('cross-provider config resolves project over user settings and the one-shot flag wins', () => {
+  assert.strictEqual(parseWithEnvironment([], {
+    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'true',
+    DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'false',
+  }).cross_provider, false);
+  assert.strictEqual(parseWithEnvironment([], {
+    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'false',
+    DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'true',
+  }).cross_provider, true);
+  assert.strictEqual(parseWithEnvironment(['--cross-provider'], {
+    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'false',
+    DHPK_PROJECT_OPTION_CROSS_PROVIDER: 'false',
+  }).cross_provider, true);
+});
+
+test('configured cross-provider opt-in expands auto selection without changing explicit targeting', () => {
+  const probed = [];
+  const result = selector.select(parseWithEnvironment(['--backend', 'auto', '--order', 'codex,agy,claude'], {
+    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'true',
+  }), {
+    availability(backend) {
+      probed.push(backend);
+      return { available: backend === 'codex', reason: `${backend} fixture` };
+    },
+  });
+  assert.strictEqual(result.selected_backend, 'codex');
+  assert.strictEqual(result.candidate_scope, 'cross-provider');
+  assert.deepStrictEqual(probed, ['codex']);
+
+  const explicit = selector.select(parseWithEnvironment(['--backend', 'agy'], {
+    CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER: 'true',
+  }), {
+    availability: (backend) => ({ available: backend === 'agy', reason: `${backend} fixture` }),
+  });
+  assert.strictEqual(explicit.selected_backend, 'agy');
+  assert.strictEqual(explicit.candidate_scope, 'explicit');
+});
+
+test('explicit selection can use an external backend while auto selection stays native-only', () => {
   const dir = tempDir('dhpk-selector-');
   try {
     const bin = fakeCli(dir, 'codex');
@@ -70,11 +127,55 @@ test('explicit and auto selection honor availability and configured order', () =
     assert.strictEqual(explicit.value.selected_backend, 'codex');
     assert.strictEqual(explicit.value.selected_agent, 'dhpk:codex-worker');
     const auto = select(['--backend', 'auto', '--order', 'agy,codex,claude'], { PATH: `${bin}:/usr/bin:/bin`, CODEX: 'on' });
-    assert.strictEqual(auto.value.selected_backend, 'codex');
-    assert.ok(auto.value.rejected_candidates.some((item) => item.backend === 'agy'));
+    assert.strictEqual(auto.value.selected_backend, 'claude');
+    assert.strictEqual(auto.value.candidate_scope, 'native-only');
+    assert.deepStrictEqual(auto.value.suppressed_candidates, [
+      { backend: 'agy', reason: 'cross-provider disabled' },
+      { backend: 'codex', reason: 'cross-provider disabled' },
+    ]);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('native-only auto selection does not probe external executables', () => {
+  const probed = [];
+  const result = selector.select({
+    backend: 'auto',
+    order: 'codex,agy,claude',
+    fallback: 'none',
+    failure: '',
+  }, {
+    availability(backend) {
+      probed.push(backend);
+      return { available: backend === 'claude', reason: `${backend} fixture` };
+    },
+  });
+
+  assert.strictEqual(result.status, 'selected');
+  assert.strictEqual(result.selected_backend, 'claude');
+  assert.deepStrictEqual(probed, ['claude']);
+});
+
+test('cross-provider auto selection probes configured external candidates only when opted in', () => {
+  const probed = [];
+  const result = selector.select({
+    backend: 'auto',
+    order: 'codex,agy,claude',
+    fallback: 'none',
+    failure: '',
+    cross_provider: true,
+  }, {
+    availability(backend) {
+      probed.push(backend);
+      return { available: backend === 'codex', reason: `${backend} fixture` };
+    },
+  });
+
+  assert.strictEqual(result.status, 'selected');
+  assert.strictEqual(result.selected_backend, 'codex');
+  assert.strictEqual(result.candidate_scope, 'cross-provider');
+  assert.deepStrictEqual(probed, ['codex']);
 });
 
 test('missing executable blocks unless the configured fallback is claude', () => {

@@ -17,7 +17,7 @@ The installer copies from `${CLAUDE_PLUGIN_ROOT}` to
 It never edits `.claude/settings.json` or `.claude/settings.local.json`.
 Consumers register any copied hook explicitly, using their own desired policy.
 The default plugin lifecycle remains the five deterministic surfaces described
-in [`docs/hook-extension.md`](../../../docs/hook-extension.md).
+in [`docs/hook-extension.md`](https://github.com/hmj1026/dhpk/blob/main/docs/hook-extension.md).
 
 Run with `--dry-run` to print source and target actions without writing. An
 identical target is skipped; a different target is a conflict and the selected

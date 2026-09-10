@@ -128,7 +128,7 @@
     {
       "id": "library-author",
       "name": "Multi-version PHP Library Author",
-      "description": "Cross-cutting glue for PHP libraries whose composer constraints span multiple majors of a key dependency (Laravel 6-11, Monolog 2/3, PHPUnit 8/9/10/11, Flysystem 1/2/3): polyfill-edit sentinel routing (auto-fires the polyfill-reviewer when an edited .php file contains a version guard), an OpenSpec workflow guard (specs vs spec-delta naming, tasks.md vs git log drift detection), a matrix-cell onboarding skill, and a dual-testsuite (Core vs Laravel) review boundary helper. Pairs with the polyfill-version-matrix-audit skill and version-matrix-impact-reviewer agent at dhpk root.",
+      "description": "Cross-cutting glue for PHP libraries whose composer constraints span multiple majors of a key dependency (Laravel 6-11, Monolog 2/3, PHPUnit 8/9/10/11, Flysystem 1/2/3): Review Gate polyfill-reviewer guidance for edited .php files containing a version guard, an OpenSpec workflow guard (specs vs spec-delta naming, tasks.md vs git log drift detection), a matrix-cell onboarding skill, and a dual-testsuite (Core vs Laravel) review boundary helper. Pairs with the polyfill-version-matrix-audit skill and version-matrix-impact-reviewer agent at dhpk root.",
       "versions": [
         {
           "id": "0.1",
@@ -327,7 +327,7 @@
     },
     {
       "id": "standard",
-      "description": "Default profile. Sentinel-driven review reminders fire on relevant edits."
+      "description": "Default profile. Review Gate reviewers are selected for relevant edits."
     },
     {
       "id": "strict",
@@ -340,7 +340,7 @@
     { "id": "sec",  "default_agent": "security-reviewer" },
     { "id": "fe",   "default_agent": "frontend-reviewer" },
     { "id": "doc",  "default_agent": "doc-reviewer" },
-    { "id": "polyfill",  "default_agent": "polyfill-reviewer",  "notes": "No built-in trigger — written by the library-author module's post-edit hook." },
+    { "id": "polyfill",  "default_agent": "polyfill-reviewer",  "notes": "No built-in trigger — selected by the library-author module's Review Gate trigger." },
     { "id": "migration", "default_agent": "migration-reviewer", "notes": "No built-in trigger — opt in via a module.yaml `migration:` triggers block (yii-1.1 ships one for protected/migrations/) or review_trigger_extra_paths 'mig:<prefix>'." }
   ],
   "docker": {

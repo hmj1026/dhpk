@@ -6,7 +6,11 @@
 #   1. rm -rf on root/system dirs (whitelist of known-dangerous top-level dirs)
 #   2. Curl/wget piped to shell (typical supply-chain attack)
 #   3. chmod 777/666 (almost always a mistake)
-#   4. git push while review sentinels exist (enforces review-before-push policy)
+#   4. (retired) git push while review sentinels exist — the Review Sentinel
+#      mechanism was retired (#376/#377); review-before-push is enforced
+#      through reviewer dispatch, not a bash-level file check.
+#   5. git commit/push with --no-verify
+#   6. shell writes into .env files
 #
 # Project-extensible:
 #   - Add patterns by editing this file or via a downstream hook.
@@ -51,103 +55,6 @@ fi
 if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:];&|])chmod[[:space:]]+(-[a-zA-Z]*[[:space:]]*)?[0-7]?(777|666)([[:space:]]|$)'; then
     echo "[bash-guard] blocked: chmod 777/666. Use stricter perms (750/640) or narrower paths." >&2
     exit 2
-fi
-
-# Pattern 4: git push with pending review sentinels — only block when at
-# least one sentinel-listed path is actually uncommitted-or-staged. Stale
-# sentinels from already-committed work do NOT block: once HEAD moves past
-# them, `git diff --name-only HEAD` no longer reports those paths.
-#
-# 60-min TTL auto-clear runs first (delegated to reap-stale-sentinels.sh
-# --clear) so leaked sentinels from crashed reviewers don't accumulate.
-# Global options may sit between `git` and `push` (`git -C <path> push`,
-# `git --no-pager push`, `git -c k=v push`). Matching only `git push` left those
-# spellings undetected, so the gate never evaluated and `git -C . push` walked
-# past a fully-armed sentinel set.
-#
-# Only tokens starting with `-` are allowed in between, which is what keeps a
-# real subcommand from being skipped over: `git config --global alias.p push`
-# and `git log --grep push` both stop at the non-flag token and do not match.
-# `-c`/`-C` additionally take a detached value, hence the first alternative.
-GIT_GLOBAL_OPT='(-[cC][[:space:]]+[^[:space:]]+|-[^[:space:]]+)'
-if printf '%s' "$CMD_STRIPPED" | grep -Eq "(^|[[:space:]])git([[:space:]]+${GIT_GLOBAL_OPT})*[[:space:]]+push([[:space:]]|$)" && \
-   ! printf '%s' "$CMD_STRIPPED" | grep -Eq '(--help|[[:space:]]-h([[:space:]]|$)|--dry-run)'; then
-    HOOK_ROOT="$(dhpk_root)"
-    SENTINEL_DIR="$(dhpk_sessions_dir "$HOOK_ROOT")"
-
-    # The gate only means anything for the repo whose sentinels we hold. A push
-    # from a checkout of some *other* repository (working on a dependency, a
-    # sibling project, the plugin itself) has no sentinel state here, and
-    # blocking it on this project's review debt is a false positive with no
-    # available remedy — the pending reviewers named have nothing to do with the
-    # diff being pushed.
-    #
-    # Resolve what the command actually targets: an explicit `git -C <path>`,
-    # else a leading `cd <path> &&`, else the session project.
-    PUSH_TARGET="$HOOK_ROOT"
-    _tgt=""
-    _q="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
-    if [[ "$CMD_STRIPPED" =~ git[[:space:]]+-C[[:space:]]+$_q ]]; then
-        _tgt="${BASH_REMATCH[1]}"
-    elif [[ "$CMD_STRIPPED" =~ ^[[:space:]]*cd[[:space:]]+$_q[[:space:]]*(\&\&|\;) ]]; then
-        _tgt="${BASH_REMATCH[1]}"
-    fi
-    _tgt="${_tgt#[\"\']}"; _tgt="${_tgt%[\"\']}"
-    if [ -n "$_tgt" ]; then
-        case "$_tgt" in "~/"*) _tgt="$HOME/${_tgt#\~/}" ;; "~") _tgt="$HOME" ;; esac
-        case "$_tgt" in /*) : ;; *) _tgt="$HOOK_ROOT/$_tgt" ;; esac
-        [ -d "$_tgt" ] && PUSH_TARGET="$_tgt"
-    fi
-    # Compare repository roots, not raw paths: a subdirectory of HOOK_ROOT is
-    # still the same repo and must stay gated.
-    _target_repo="$(git -C "$PUSH_TARGET" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PUSH_TARGET")"
-    _hook_repo="$(git -C "$HOOK_ROOT" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$HOOK_ROOT")"
-    if [ "$_target_repo" != "$_hook_repo" ]; then
-        exit 0
-    fi
-
-    # Auto-clear sentinels older than 60 min (delegated; see reap-stale-sentinels.sh).
-    CLAUDE_PROJECT_DIR="$HOOK_ROOT" bash "$(dirname "$0")/reap-stale-sentinels.sh" \
-        --threshold-minutes 60 --clear 2>/dev/null || true
-
-    # Build the set of paths git considers locally-changed against HEAD.
-    # Includes both unstaged (`diff HEAD`) and staged-not-yet-committed
-    # (`diff --cached`). After commit, files drop out — sentinel intersection
-    # comes up empty, push is allowed.
-    UNCOMMITTED="$(
-        { git -C "$HOOK_ROOT" diff --name-only HEAD 2>/dev/null
-          git -C "$HOOK_ROOT" diff --name-only --cached 2>/dev/null
-        } | sort -u
-    )"
-
-    FOUND_NAMES=""
-    FOUND_AGENTS=""
-    for i in "${!SENTINEL_NAMES[@]}"; do
-        _s="${SENTINEL_NAMES[$i]}"
-        _sf="$SENTINEL_DIR/$_s"
-        [ -f "$_sf" ] || continue
-        # cut -d' ' -f3- drops the "YYYY-MM-DD HH:MM:SS " prefix; sort -u
-        # dedupes in case of pre-fix legacy sentinels with duplicate lines.
-        _sentinel_paths="$(cut -d' ' -f3- "$_sf" 2>/dev/null | grep -Fvx '[arm-on-dispatch]' | sort -u)"
-        [ -z "$_sentinel_paths" ] && continue
-        _match=0
-        while IFS= read -r _p; do
-            [ -z "$_p" ] && continue
-            if printf '%s\n' "$UNCOMMITTED" | grep -Fxq -- "$_p"; then
-                _match=1
-                break
-            fi
-        done <<< "$_sentinel_paths"
-        if [ "$_match" -eq 1 ]; then
-            FOUND_NAMES="$FOUND_NAMES $_s"
-            FOUND_AGENTS="$FOUND_AGENTS ${SENTINEL_AGENTS[$i]}"
-        fi
-    done
-    if [ -n "$FOUND_NAMES" ]; then
-        echo "[bash-guard] blocked: git push while uncommitted edits await review:$FOUND_NAMES" >&2
-        echo "[bash-guard] Pending reviewer(s):$FOUND_AGENTS — run each before pushing." >&2
-        exit 2
-    fi
 fi
 
 # Pattern 5: git commit / push with --no-verify — bypasses the pre-commit /

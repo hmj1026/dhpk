@@ -7,15 +7,38 @@ const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const CLI = path.join(ROOT, 'bin', 'dhpk');
 const SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin'];
 
-function invoke(args) {
-  return spawnSync('bash', [CLI, 'distribution', ...args], {
-    cwd: ROOT,
+function invoke(args, cwd = ROOT) {
+  return spawnSync('bash', [path.join(cwd, 'bin', 'dhpk'), 'distribution', ...args], {
+    cwd,
     encoding: 'utf8',
     timeout: 30000,
   });
+}
+
+function withCleanWorktree(callback) {
+  const worktreeParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-clean-'));
+  const worktreeRoot = path.join(worktreeParent, 'checkout');
+  let worktreeAdded = false;
+  try {
+    execFileSync('git', ['worktree', 'add', '--detach', worktreeRoot, 'HEAD'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    worktreeAdded = true;
+    return callback(worktreeRoot);
+  } finally {
+    if (worktreeAdded) {
+      execFileSync('git', ['worktree', 'remove', '--force', worktreeRoot], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    }
+    fs.rmSync(worktreeParent, { recursive: true, force: true });
+  }
 }
 
 function report(result) {
@@ -55,14 +78,16 @@ test('generates a disposable AGY package and validates that exact output', () =>
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-cli-'));
   const outDir = path.join(temporaryRoot, 'agy-package');
   try {
-    const generated = invoke(['agy-plugin', 'generate', '--output', outDir, '--version', '0.42.2', '--json']);
-    assert.strictEqual(generated.status, 0, generated.stderr);
-    assert.strictEqual(report(generated).verdict, 'PASS');
-    assert.ok(fs.existsSync(path.join(outDir, 'plugin.json')));
+    withCleanWorktree((worktreeRoot) => {
+      const generated = invoke(['agy-plugin', 'generate', '--output', outDir, '--version', '0.42.2', '--json'], worktreeRoot);
+      assert.strictEqual(generated.status, 0, generated.stderr);
+      assert.strictEqual(report(generated).verdict, 'PASS');
+      assert.ok(fs.existsSync(path.join(outDir, 'plugin.json')));
 
-    const validated = invoke(['agy-plugin', 'validate', '--output', outDir, '--version', '0.42.2', '--json']);
-    assert.strictEqual(validated.status, 0, validated.stderr);
-    assert.strictEqual(report(validated).verdict, 'PASS');
+      const validated = invoke(['agy-plugin', 'validate', '--output', outDir, '--version', '0.42.2', '--json'], worktreeRoot);
+      assert.strictEqual(validated.status, 0, validated.stderr);
+      assert.strictEqual(report(validated).verdict, 'PASS');
+    });
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
@@ -151,25 +176,29 @@ test('refuses to replace a foreign output directory before package materializati
   const sentinel = path.join(outDir, 'user-owned.txt');
   fs.writeFileSync(sentinel, 'preserve me');
   try {
-    const result = invoke(['agent-plugin', 'generate', '--output', outDir, '--json']);
-    assert.strictEqual(result.status, 1, result.stderr);
-    assert.match(result.stderr, /owner receipt|foreign output/i);
-    assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), 'preserve me');
+    withCleanWorktree((worktreeRoot) => {
+      const result = invoke(['agent-plugin', 'generate', '--output', outDir, '--json'], worktreeRoot);
+      assert.strictEqual(result.status, 1, result.stderr);
+      assert.match(result.stderr, /owner receipt|foreign output/i);
+      assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), 'preserve me');
+    });
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
 });
 
 test('keeps structural validation separate from evidence-bound verification', () => {
-  for (const surface of SURFACES) {
-    const result = invoke([surface, 'verify', '--json']);
-    assert.strictEqual(result.status, 0, `${surface}: ${result.stderr}`);
-    const payload = report(result);
-    assert.strictEqual(payload.operation, 'verify');
-    assert.strictEqual(payload.verdict, 'PASS', JSON.stringify(payload));
-    assert.ok(payload.evidence, `${surface} must return verification evidence`);
-    if (surface === 'codex-native') assert.strictEqual(payload.deterministic, 'PASS', JSON.stringify(payload));
-  }
+  withCleanWorktree((worktreeRoot) => {
+    for (const surface of SURFACES) {
+      const result = invoke([surface, 'verify', '--json'], worktreeRoot);
+      assert.strictEqual(result.status, 0, `${surface}: ${result.stderr}`);
+      const payload = report(result);
+      assert.strictEqual(payload.operation, 'verify');
+      assert.strictEqual(payload.verdict, 'PASS', JSON.stringify(payload));
+      assert.ok(payload.evidence, `${surface} must return verification evidence`);
+      if (surface === 'codex-native') assert.strictEqual(payload.deterministic, 'PASS', JSON.stringify(payload));
+    }
+  });
 });
 
 // v1 GREEN contract (tests above): distribution CLI validate/generate/verify

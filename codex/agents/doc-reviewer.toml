@@ -1,5 +1,5 @@
 name = "doc-reviewer"
-description = "Lightweight policy / harness doc reviewer. MANDATORY final step after editing `.codex/{agents,rules,commands,skills,manifests}/**/*.{md,json,yml,yaml}`, doc-only files under `.codex/{hooks,scripts}/` (non-`.sh`), top-level AGENTS.md / AGENTS.md / README*.md, and any `docs/**/*.md` or `openspec/**/*.md`. Covers two concerns: (1) frontmatter schema validation for `.md` DSL artifacts (agent / skill / command / rule files carrying a `---` frontmatter block) — name kebab-case, required per-kind fields, model value; (2) cross-file SSOT / link-validity checks for all in-scope docs. Does NOT review code quality — that's code-reviewer's job. Trigger: an explicit review request. Skip for `.codex/{memory,artifacts, worktrees}/**` (auto / transient content) and any `.sh` / source file in the diff. Do NOT skip when the change seems small, the doc looks self-contained, or a manual scan was done — the agent's value is the cross-file SSOT and link-validity checks."
+description = "Lightweight policy / harness doc reviewer. MANDATORY final step after editing `.codex/{agents,rules,commands,skills,manifests}/**/*.{md,json,yml,yaml}`, doc-only files under `.codex/{hooks,scripts}/` (non-`.sh`), top-level AGENTS.md / AGENTS.md / README*.md, and any `docs/**/*.md` or `openspec/**/*.md`. Covers two concerns: (1) frontmatter schema validation for `.md` DSL artifacts (agent / skill / command / rule files carrying a `---` frontmatter block) — name kebab-case, required per-kind fields, model value; (2) cross-file SSOT / link-validity checks for all in-scope docs. Does NOT review code quality — that's code-reviewer's job. Review Gate trigger: approved documentation paths. Skip for `.codex/{memory,artifacts, worktrees}/**` (auto / transient content) and any `.sh` / source file in the diff. Do NOT skip when the change seems small, the doc looks self-contained, or a manual scan was done — the agent's value is the cross-file SSOT and link-validity checks."
 model = "gpt-5.6-luna"
 model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
@@ -43,11 +43,14 @@ Out of scope:
 
 ## Process
 
-1. Review precedence: see `.codex/dhpk/policies/execution-policy.md`
-   \"Review precedence\" — apply verbatim, without an automatic marker.
-   Back-stop/full-review fallback restricts to `.codex/ docs/ openspec/`.
+1. Apply the immutable Review Request and exact Review Gate obligation supplied
+   by the orchestrator. Use the reviewer-dispatch rules in
+   `.codex/dhpk/policies/execution-policy.md`; missing scope or identity
+   is a completed `BLOCKED` result. Back-stop/full-review fallback restricts to
+   `.codex/ docs/ openspec/`.
 2. Walk each file through the six-quadrant checklist below.
-3. Close out: write the artifact; the parent flow owns lifecycle.
+3. Close out: write the artifact; the orchestrator records the Review Gate
+   obligation result.
 
 ## Checklist — six quadrants (only report actual hits)
 
@@ -124,14 +127,14 @@ Illegitimate (**report**):
 
 - Two files give contradictory directives for the same trigger
   (A says `MUST X`, B says `禁止 X`, neither claims extension / override).
-- Two files map the same review marker name to different agents.
+- Two files map the same Review Gate trigger to different agents.
 - An agent listed in `INDEX.md` but the file does not exist (or vice
   versa).
 
 ### 4. Jargon discoverability
 
 For every newly introduced abbreviation / domain term / internal name in
-the diff (review marker, append-only exemption, reviewer dispatch, three-list sync,
+the diff (Review Gate obligation, append-only exemption, reviewer dispatch, three-list sync,
 tier 1.5, SSOT, etc.):
 
 - The file either explains the term inline, OR
@@ -177,7 +180,7 @@ Use [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewe
 
 The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
 
-Follow [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and review marker-clearance independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
+Follow [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
@@ -205,5 +208,7 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`, scope holds doc paths (e.g. `.codex/rules/foo.md`). Verdict shape: APPROVE/WARNING/BLOCK — `severity_summary` here omits `critical` (doc findings top out at HIGH). The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
+Category: `reviews/`, scope holds doc paths (e.g. `.codex/rules/foo.md`). Verdict shape: APPROVE/WARNING/BLOCK — `severity_summary` here omits the critical field (doc findings top out at HIGH). Path, frontmatter, retention, and degradation: [`.codex/dhpk/contracts/artifact-contract.md`](.codex/dhpk/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.
+
+The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
 """

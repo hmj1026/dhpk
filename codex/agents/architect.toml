@@ -100,7 +100,7 @@ Success: [ ] <criterion incl. tests pass>
 
 ## Closing — Artifact Output
 
-Two categories (not the standard single `reviews/`): plan → `.codex/artifacts/plans/architect-{yyyymmdd}-{slug}.md`; ADR → `.codex/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Frontmatter: `agent / generated_at / commit / scope[] / verdict`, no `severity_summary` (see `.codex/dhpk/contracts/artifact-contract.md` non-reviewer extensions). Retention/degradation: same doc. No review marker — not in the review chain.
+Two categories (not the standard single `reviews/`): plan → `.codex/artifacts/plans/architect-{yyyymmdd}-{slug}.md`; ADR → `.codex/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Frontmatter: `agent / generated_at / commit / scope[] / verdict`, no `severity_summary` (see `.codex/dhpk/contracts/artifact-contract.md` non-reviewer extensions). Retention/degradation: same doc. No consolidated Review Gate obligation; invoke this role for design decisions before implementation dispatch.
 
 ## Output
 
@@ -114,4 +114,6 @@ Tech debt: | Item | Priority | Suggestion |
 ## References
 
 - Stack-specific layering conventions, code examples, and language limits are loaded on demand via the matching **Stack trap sheet** above (`.codex/dhpk/agent-traps/architect/<stack>.md`).
+
+The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
 """

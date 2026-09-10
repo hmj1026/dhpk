@@ -3,6 +3,11 @@
 ## Purpose
 TBD - created by archiving change dhpk-add-meta-toolkit-agents. Update Purpose after archive.
 ## Requirements
+
+> Retired compatibility specification: the pending-artifact Sentinel and hook
+> lifecycle requirements below describe the pre-Review-Gate implementation.
+> They remain for historical traceability and are not active requirements after
+> direct Sentinel retirement.
 ### Requirement: Sentinel fires when DSL artifact is edited
 The system SHALL write `.pending-artifact-review` to `.claude/artifacts/sessions/` whenever a `.md` file containing a YAML frontmatter block (`---` delimiter) is edited via `Edit` or `Write` tool. The sentinel SHALL NOT fire for plain markdown files without frontmatter (e.g., README.md, CODEMAPS).
 

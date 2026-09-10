@@ -147,6 +147,29 @@ test('trusted same-lane PASS persists a typed receipt and replay derives RESOLVE
   });
 });
 
+test('semantic review events reject the retired OBSERVE_ONLY effect', () => {
+  withGate(({ gate }) => {
+    const plan = makePlan();
+    const obligation = plan.obligations[0];
+    const registration = registerPlan(gate, plan, 'plan-registered-retired-effect');
+    const event = {
+      ...makeReviewEvent(plan, obligation, registration.reviewRequests[0], {
+        eventId: 'review-result-retired-effect',
+        semanticVerdict: 'PASS',
+      }),
+      effect: 'OBSERVE_ONLY',
+    };
+
+    const rejected = gate.handle({
+      expectedRevision: registration.revision,
+      expectedChainDigest: registration.chainDigest,
+      event,
+    });
+    assert.strictEqual(rejected.decision.accepted, false);
+    assert.deepStrictEqual(rejected.decision.blockingReasons, ['MALFORMED_EVIDENCE']);
+  });
+});
+
 test('identical CHANGES_REQUIRED MUST_FIX results are idempotent without a new revision or receipt', () => {
   withGate(({ gate, store }) => {
     const plan = makePlan();

@@ -10,6 +10,11 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const runtime = require('../scripts/lib/review-gate-runtime');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  createHostKey,
+  getOrCreateHostKey,
+  hostInitArgs,
+} = require('./_lib/review-gate-host-attestation-fixture');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'review-gate-runtime.js');
@@ -69,9 +74,13 @@ function assertRedactedDiagnostics(repoRoot, forbidden = []) {
 }
 
 function init(repoRoot) {
-  const result = runCli(repoRoot, ['init']);
+  const result = runCli(repoRoot, hostInitArgs(getOrCreateHostKey(repoRoot, 'init-security')));
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   return JSON.parse(result.stdout);
+}
+
+function initArgs(repoRoot) {
+  return hostInitArgs(getOrCreateHostKey(repoRoot, 'init-security'));
 }
 
 function cleanupPath(file) {
@@ -123,7 +132,10 @@ function assertInitRejectsDirectoryAncestorSwap({
   };
 
   try {
-    runtime.createIntegrityKey(repoRoot);
+    runtime.createIntegrityKey(
+      repoRoot,
+      getOrCreateHostKey(repoRoot, 'init-security').trust,
+    );
   } catch (error) {
     thrown = error;
   } finally {
@@ -198,8 +210,13 @@ test('init rejects a repository-root symlink without writing through it', () => 
   const linkParent = temporaryDirectory('dhpk-runtime-init-root-link-parent-');
   const repoRoot = path.join(linkParent, 'checkout-link');
   fs.symlinkSync(target, repoRoot, 'dir');
+  const host = createHostKey(linkParent, 'init-root-link');
   try {
-    const result = runCli(repoRoot, ['init'], undefined, target);
+    const result = runCli(repoRoot, [
+      'init',
+      '--host-public-key', path.join(linkParent, host.publicKeyPath),
+      '--host-key-id', host.keyId,
+    ], undefined, target);
     assertGenericFailure(result, [repoRoot, target]);
     assert.deepStrictEqual(fs.readdirSync(target), []);
     assert.strictEqual(fs.existsSync(path.join(target, '.dhpk')), false);
@@ -215,8 +232,13 @@ test('init rejects a non-directory repository root without creating state', () =
   const parent = temporaryDirectory('dhpk-runtime-init-root-file-parent-');
   const repoRoot = path.join(parent, 'checkout-file');
   fs.writeFileSync(repoRoot, SECRET, { mode: 0o600 });
+  const host = createHostKey(parent, 'init-root-file');
   try {
-    const result = runCli(repoRoot, ['init'], undefined, ROOT);
+    const result = runCli(repoRoot, [
+      'init',
+      '--host-public-key', path.join(parent, host.publicKeyPath),
+      '--host-key-id', host.keyId,
+    ], undefined, ROOT);
     assertGenericFailure(result, [repoRoot, SECRET]);
     assert.strictEqual(fs.readFileSync(repoRoot, 'utf8'), SECRET);
     assert.strictEqual(fs.lstatSync(repoRoot).isFile(), true);
@@ -235,7 +257,7 @@ test('init rejects an existing integrity-key symlink without writing outside the
   fs.writeFileSync(outsideKey, SECRET, { mode: 0o600 });
   fs.symlinkSync(outsideKey, keyPath);
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot, outsideRoot, SECRET]);
     assert.strictEqual(fs.readFileSync(outsideKey, 'utf8'), SECRET);
     assert.strictEqual(fs.lstatSync(keyPath).isSymbolicLink(), true);
@@ -253,7 +275,7 @@ test('init rejects a non-regular integrity key without replacing it or creating 
   fs.mkdirSync(path.dirname(keyPath), { recursive: true, mode: 0o700 });
   fs.mkdirSync(keyPath, { mode: 0o700 });
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot]);
     assert.strictEqual(fs.lstatSync(keyPath).isDirectory(), true);
     assert.strictEqual(fs.existsSync(repoPath(repoRoot, CONFIG_RELATIVE_PATH)), false);
@@ -271,7 +293,7 @@ test('init rejects an existing integrity key with unsafe permissions', () => {
   fs.writeFileSync(keyPath, key, { mode: 0o640 });
   fs.chmodSync(keyPath, 0o640);
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot]);
     assert.deepStrictEqual(fs.readFileSync(keyPath), key);
     assert.strictEqual(fs.statSync(keyPath).mode & 0o777, 0o640);
@@ -294,7 +316,7 @@ test('init rejects a config symlink without following or modifying its outside t
   fs.symlinkSync(outsideConfig, configPath);
   const outsideBefore = fs.readdirSync(outsideRoot).sort();
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot, outsideRoot]);
     assert.deepStrictEqual(fs.readdirSync(outsideRoot).sort(), outsideBefore);
     assert.deepStrictEqual(fs.readFileSync(outsideConfig), configBytes);
@@ -316,7 +338,7 @@ test('init rejects a config symlink before creating a missing integrity key', ()
   fs.symlinkSync(outsideConfig, configPath);
   const outsideBefore = fs.readdirSync(outsideRoot).sort();
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot, outsideRoot, SECRET]);
     assert.strictEqual(fs.existsSync(repoPath(repoRoot, KEY_RELATIVE_PATH)), false);
     assert.deepStrictEqual(fs.readdirSync(outsideRoot).sort(), outsideBefore);
@@ -338,7 +360,7 @@ test('init rejects a structurally tampered config without overwriting it', () =>
   writePrivateJson(configPath, config);
   const tamperedBytes = fs.readFileSync(configPath);
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot, 'attacker-controlled-producer']);
     assert.deepStrictEqual(fs.readFileSync(configPath), tamperedBytes);
     assertRedactedDiagnostics(repoRoot, [repoRoot, 'attacker-controlled-producer']);
@@ -364,7 +386,7 @@ test('init rejects a structurally tampered config before creating a missing inte
   writePrivateJson(configPath, tamperedConfig);
   const tamperedBytes = fs.readFileSync(configPath);
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot, 'attacker-controlled-producer']);
     assert.strictEqual(fs.existsSync(repoPath(repoRoot, KEY_RELATIVE_PATH)), false);
     assert.deepStrictEqual(fs.readFileSync(configPath), tamperedBytes);
@@ -383,7 +405,7 @@ test('init rejects a config with an unsupported phase and leaves the phase uncha
   writePrivateJson(configPath, config);
   const phaseBytes = fs.readFileSync(configPath);
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot, 'CUTOVER']);
     assert.deepStrictEqual(fs.readFileSync(configPath), phaseBytes);
     assertRedactedDiagnostics(repoRoot, [repoRoot, 'CUTOVER']);
@@ -409,7 +431,7 @@ test('init rejects an unsupported phase before creating a missing integrity key'
   writePrivateJson(configPath, invalidConfig);
   const invalidBytes = fs.readFileSync(configPath);
   try {
-    const result = runCli(repoRoot, ['init']);
+    const result = runCli(repoRoot, initArgs(repoRoot));
     assertGenericFailure(result, [repoRoot, 'CUTOVER']);
     assert.strictEqual(fs.existsSync(repoPath(repoRoot, KEY_RELATIVE_PATH)), false);
     assert.deepStrictEqual(fs.readFileSync(configPath), invalidBytes);
@@ -435,7 +457,6 @@ test('runtime commands reject caller phase overrides instead of entering an enfo
         '--companion', 'artifact.result.json',
         '--lifecycle-events', 'lifecycle.jsonl',
         '--readiness-events', 'readiness.jsonl',
-        '--sentinel-outcome', 'sentinel.json',
         '--phase', 'CUTOVER',
       ],
     },

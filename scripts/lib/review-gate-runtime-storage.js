@@ -17,15 +17,11 @@ const SCHEMA = 'dhpk.review-gate.runtime.v1';
 const CONFIG_SCHEMA = 'dhpk.review-gate.runtime-config.v1';
 const PLAN_CHECKPOINT_SCHEMA = 'dhpk.review-gate.runtime-plan.v1';
 const CONFIG_VERSION = 'v1';
-const PHASE_VERSION = 'dhpk.review-gate.phase.v1';
 const TRUST_POLICY_VERSION = 'dhpk.review-gate.trust-policy.v1';
-const DEFAULT_PHASE = 'OBSERVE';
-const ALLOWED_PHASES = Object.freeze(['BASELINE', 'OBSERVE']);
 const PRODUCER = 'dhpk-review-gate-runtime';
 const ADAPTER = 'dhpk-review-gate-runtime';
-const CLAUDE_PRODUCER = 'claude-migration';
+const CLAUDE_PRODUCER = 'claude-review-gate';
 const CLAUDE_ADAPTER = 'review-gate-adapter';
-const MIGRATION_EVENT = 'MIGRATION_OBSERVATION_RECORDED';
 const KEY_RELATIVE_PATH = path.join('.dhpk', 'review-gate', 'v1', 'integrity.key');
 const CONFIG_RELATIVE_PATH = path.join('.dhpk', 'review-gate', 'v1', 'config.json');
 const STORE_RELATIVE_PATH = path.join('.dhpk', 'review-gate', 'v1');
@@ -36,6 +32,20 @@ const MAX_JSON_DEPTH = 32;
 const MAX_DIAGNOSTIC_BYTES = 4096;
 const MAX_EVIDENCE_BYTES = 1024 * 1024;
 const MAX_EVIDENCE_EVENTS = 10000;
+const CONFIG_FIELDS = Object.freeze([
+  'schema',
+  'configVersion',
+  'trustPolicyVersion',
+  'trustPolicy',
+  'hostTrust',
+  'producer',
+  'adapter',
+]);
+const LEGACY_CONFIG_FIELDS = Object.freeze([
+  ...CONFIG_FIELDS,
+  'phaseVersion',
+  'phase',
+]);
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -161,8 +171,8 @@ const defaultTrustPolicy = () => ({
     {
       producer: CLAUDE_PRODUCER,
       adapter: CLAUDE_ADAPTER,
-      eventTypes: ['REVIEW_RESULT_RECORDED', MIGRATION_EVENT],
-      receiptKinds: ['review', 'migration-observation'],
+      eventTypes: ['REVIEW_RESULT_RECORDED'],
+      receiptKinds: ['review'],
       lanes: [
         'code-reviewer',
         'security-reviewer',
@@ -176,16 +186,18 @@ const defaultTrustPolicy = () => ({
   ],
 });
 
-const defaultConfig = () => ({
-  schema: CONFIG_SCHEMA,
-  configVersion: CONFIG_VERSION,
-  phaseVersion: PHASE_VERSION,
-  phase: DEFAULT_PHASE,
-  trustPolicyVersion: TRUST_POLICY_VERSION,
-  trustPolicy: defaultTrustPolicy(),
-  producer: PRODUCER,
-  adapter: ADAPTER,
-});
+const defaultConfig = (hostTrust) => {
+  if (hostTrust === undefined) fail('HOST_TRUST_REQUIRED');
+  return {
+    schema: CONFIG_SCHEMA,
+    configVersion: CONFIG_VERSION,
+    trustPolicyVersion: TRUST_POLICY_VERSION,
+    trustPolicy: defaultTrustPolicy(),
+    hostTrust,
+    producer: PRODUCER,
+    adapter: ADAPTER,
+  };
+};
 
 const sameFileIdentity = (left, right) => (
   left && right
@@ -302,23 +314,42 @@ const readPhysicalFile = (file, maxBytes, code = 'MALFORMED_EVIDENCE', options =
 const expectedTrustPolicy = () => canonicalJson(defaultTrustPolicy());
 
 const validateConfig = (config) => {
-  exactKeys(
-    config,
-    ['schema', 'configVersion', 'phaseVersion', 'phase', 'trustPolicyVersion', 'trustPolicy', 'producer', 'adapter'],
-    [],
-    'CONFIG_INVALID',
-  );
+  if (!isRecord(config)) fail('CONFIG_INVALID');
+  const keys = Object.keys(config).sort();
+  const currentKeys = [...CONFIG_FIELDS].sort();
+  const legacyKeys = [...LEGACY_CONFIG_FIELDS].sort();
+  const currentShape = canonicalJson(keys) === canonicalJson(currentKeys);
+  const legacyShape = canonicalJson(keys) === canonicalJson(legacyKeys)
+    && config.phaseVersion === 'dhpk.review-gate.phase.v1'
+    && config.phase === 'OBSERVE';
+  if (!currentShape && !legacyShape) fail('CONFIG_INVALID');
   if (config.schema !== CONFIG_SCHEMA
     || config.configVersion !== CONFIG_VERSION
-    || config.phaseVersion !== PHASE_VERSION
-    || !ALLOWED_PHASES.includes(config.phase)
     || config.trustPolicyVersion !== TRUST_POLICY_VERSION
     || config.producer !== PRODUCER
     || config.adapter !== ADAPTER
     || canonicalJson(config.trustPolicy) !== expectedTrustPolicy()) {
     fail('CONFIG_INVALID');
   }
-  return config;
+  if (config.hostTrust !== null && config.hostTrust !== undefined) {
+    try {
+      const { normalizeHostTrust } = require('./review-gate-runtime-attestation');
+      normalizeHostTrust(config.hostTrust, 'CONFIG_INVALID');
+    } catch (error) {
+      if (error instanceof Error && error.name === 'ReviewGateRuntimeError') throw error;
+      fail('CONFIG_INVALID');
+    }
+  }
+  config = { ...config, hostTrust: config.hostTrust || null };
+  return {
+    schema: config.schema,
+    configVersion: config.configVersion,
+    trustPolicyVersion: config.trustPolicyVersion,
+    trustPolicy: config.trustPolicy,
+    hostTrust: config.hostTrust,
+    producer: config.producer,
+    adapter: config.adapter,
+  };
 };
 
 const validateJsonTree = (value, depth = 0, state = { nodes: 0 }) => {
@@ -389,8 +420,17 @@ const runtimeState = (repoRoot) => {
   return { root, storeRoot, config, integrityKey };
 };
 
-const createIntegrityKey = (repoRoot) => {
+const createIntegrityKey = (repoRoot, hostTrust = null) => {
+  if (hostTrust === null || hostTrust === undefined) fail('HOST_TRUST_REQUIRED');
   const root = path.resolve(repoRoot);
+  let enrolledTrust;
+  try {
+    const { normalizeHostTrust } = require('./review-gate-runtime-attestation');
+    enrolledTrust = normalizeHostTrust(hostTrust, 'MALFORMED_HOST_TRUST');
+  } catch (error) {
+    if (error instanceof Error && error.name === 'ReviewGateRuntimeError') throw error;
+    fail('MALFORMED_HOST_TRUST');
+  }
   const stateRoot = ensurePrivateDirectory(root, ['.dhpk', 'review-gate', 'v1']);
   const keyPath = path.join(stateRoot, 'integrity.key');
   const configPath = path.join(stateRoot, 'config.json');
@@ -401,7 +441,16 @@ const createIntegrityKey = (repoRoot) => {
   } catch (error) {
     if (!error || error.code !== 'ENOENT') fail('SETUP_FAILED');
   }
-  if (configExists) readConfig(root);
+  let existingConfig = null;
+  if (configExists) existingConfig = readConfig(root);
+  const assertEnrolledTrust = (config) => {
+    const configuredTrust = config && config.hostTrust;
+    if (configuredTrust === null || configuredTrust === undefined
+      || canonicalJson(configuredTrust) !== canonicalJson(enrolledTrust)) {
+      fail('HOST_TRUST_MISMATCH');
+    }
+  };
+  if (existingConfig) assertEnrolledTrust(existingConfig);
 
   let initialized = false;
   let keyExists = false;
@@ -440,8 +489,13 @@ const createIntegrityKey = (repoRoot) => {
     assertRegularPrivateFile(keyPath, 'SETUP_FAILED');
   }
 
-  const configCreated = writePrivateImmutable(configPath, defaultConfig(), 'SETUP_FAILED', root);
-  if (!configCreated) readConfig(root);
+  const configCreated = writePrivateImmutable(
+    configPath,
+    defaultConfig(enrolledTrust),
+    'SETUP_FAILED',
+    root,
+  );
+  if (!configCreated) assertEnrolledTrust(readConfig(root));
   ensurePrivateDirectory(stateRoot, [PLAN_DIRECTORY]);
   return initialized;
 };
@@ -472,20 +526,16 @@ const writeDiagnostic = ({ repoRoot, command, code }) => {
 
 module.exports = {
   ADAPTER,
-  ALLOWED_PHASES,
   CLAUDE_ADAPTER,
   CLAUDE_PRODUCER,
   CONFIG_RELATIVE_PATH,
   CONFIG_SCHEMA,
   CONFIG_VERSION,
-  DEFAULT_PHASE,
   KEY_RELATIVE_PATH,
   MAX_DIAGNOSTIC_BYTES,
   MAX_EVIDENCE_BYTES,
   MAX_EVIDENCE_EVENTS,
   MAX_STDIN_BYTES,
-  MIGRATION_EVENT,
-  PHASE_VERSION,
   PLAN_CHECKPOINT_SCHEMA,
   PLAN_DIRECTORY,
   PRODUCER,

@@ -9,10 +9,10 @@
     "modules": [],
     "profileFingerprint": "f53fe6bf916d2edaba5ced145211c8ba5a3d56a87a4ce71f8915597e68a6345d",
     "profileId": "minimal",
-    "selectionFingerprint": "c336d9d8b1885e91ee8ec59e441d74b8b3b024df2a8bc2c1dda083d905236008",
+    "selectionFingerprint": "d1f616faff7b4fdf442bae73eb726be528e46919b34910d6d95436fbc9659fee",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "ea7efcd56ab1b4bf7e3df10ea0b4642cbb9e2d3ec3e40443302aa0a2914d661c",
-    "surfaceSelectionFingerprint": "33119ff3af64392361181b26ab274bda5f2fb52f882f572c49ea3ea8e6d82458",
+    "sourceFingerprint": "7c017d05ff8d30ec7e8dd7d73dcd3d268626e06d6201f00a19a85a9990bd554c",
+    "surfaceSelectionFingerprint": "ba43fc0dd2bfa4eed02346e8a6ce3a581a2362cfab72094ae1bfa0de4bd8dd88",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -139,5 +139,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "a0803b68bbfa2743af48b2d6041f225481800b4bb348e2062ae1663918c13bd2"
+  "planFingerprint": "fb2fa2717525d51794928bf3f9d911e580ec9c7407ca357e2542b78e6f982c53"
 }

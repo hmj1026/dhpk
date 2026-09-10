@@ -1,7 +1,7 @@
 'use strict';
 
 // Guards the broadened claim specs in scripts/ci/catalog.js: for each enforced
-// numeric claim (EN total agents, root agents, modules, sentinel slots, ZH total
+// numeric claim (EN total agents, root agents, modules, ZH total
 // agents), planting a wrong digit must make `catalog.js --check` fail. Runs
 // against a faithful temp copy of the subtrees catalog.js reads, so the real
 // repo files are never mutated.
@@ -101,10 +101,7 @@ const DRIFTS = [
   { file: 'README.md', find: /(\d+)(\s+role-based agents)/, label: 'EN total agents' },
   { file: 'README.md', find: /(\d+)(\s+root-level agents)/, label: 'root-level agents' },
   { file: 'README.md', find: /(\d+)(\s+opt-in stack modules)/, label: 'modules' },
-  { file: 'README.md', find: /(\d+)(-slot)/, label: 'sentinel slots' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個角色導向 agent)/, label: 'ZH total agents' },
-  { file: 'rules/execution-policy.md', find: /(\d+)(-slot default sentinel)/, label: 'sentinel slots (execution-policy)' },
-  { file: 'agents/INDEX.md', find: /(\d+)(-slot)/, label: 'sentinel slots (INDEX)' },
   { file: 'README.md', find: /(?<=dhpk's )(\d+)(\s+commands)/, label: 'commands (README)' },
   { file: 'README.md', find: /(\d+)(\s+events)/, label: 'hook events (EN)' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個事件)/, label: 'hook events (ZH)' },
