@@ -378,6 +378,7 @@ test('receipt is 0600, immutable, and embeds its follow-up record atomically', (
 });
 
 test('process-group liveness treats an unreaped zombie member as terminated', () => {
+  if (process.platform !== 'linux' || !fs.existsSync('/proc')) return;
   const script = [
     'import importlib.util, os, signal, subprocess, sys, time',
     `spec = importlib.util.spec_from_file_location('cli_transport_zombie_test', ${JSON.stringify(RUNNER)})`,
@@ -421,6 +422,27 @@ test('transport receipts classify timeout without changing the requested provide
     assert.strictEqual(receipt.failure_class, 'TIMEOUT_OR_INTERRUPTION');
     assert.strictEqual(receipt.requested_provider, 'codex');
     assert.strictEqual(receipt.effective_provider, 'codex');
+  });
+});
+
+test('provider report falls back when Python lacks descriptor-relative mkfifo', () => {
+  withRequest(({ root, request, writeProvider }) => {
+    request.assigned_files.push('output-transport-kind.txt');
+    writeProvider(`#!/bin/sh
+out=""; previous=""
+for value in "$@"; do [ "$previous" = "--output-last-message" ] && out="$value"; previous="$value"; done
+if [ -p "$out" ]; then printf pipe > output-transport-kind.txt; else printf regular > output-transport-kind.txt; fi
+printf 'ok\\n' > "$out"
+printf approved > allowed.txt
+`);
+    const result = invokeWithRunnerPatch(root, request, [
+      'def unsupported_mkfifo(*args, **kwargs):',
+      '    raise NotImplementedError("forced dir_fd unsupported")',
+      'module.os.mkfifo = unsupported_mkfifo',
+    ].join('\n'));
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(fs.readFileSync(path.join(root, 'output-transport-kind.txt'), 'utf8'), 'pipe');
+    assert.strictEqual(JSON.parse(fs.readFileSync(request.receipt_path, 'utf8')).status, 'SUCCEEDED');
   });
 });
 
