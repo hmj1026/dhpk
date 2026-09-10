@@ -16,6 +16,7 @@ const {
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const {
   externalSkillPackagesFingerprint,
@@ -222,14 +223,21 @@ function inventorySkillMap(inventory) {
 function selectedConfiguration(inventory, profileSelection = null) {
   const configuration = inventory && inventory.agy_plugin;
   if (!configuration || typeof configuration !== 'object') throw new Error('inventory.agy_plugin is required');
-  const membershipIds = inventory.surface_membership && inventory.surface_membership[SURFACE];
-  if (!Array.isArray(membershipIds)) throw new Error(`inventory.surface_membership.${SURFACE} must be a string array`);
-  const selectedSet = profileSelection && Array.isArray(profileSelection.selectedStableIds)
-    ? new Set(profileSelection.selectedStableIds)
-    : null;
-  const profileSkillIds = selectedSet ? membershipIds.filter((id) => selectedSet.has(id)) : membershipIds;
+  const compiled = compileDistribution({
+    inventory,
+    surface: SURFACE,
+    profileSelection,
+  });
+  if (!compiled.ok) throw new Error(compiled.error.message);
+  const selectedIds = compiled.value.entries.map((entry) => entry.stableId);
+  const surfaceRule = inventory.projection_contract
+    && inventory.projection_contract.surfaces
+    && inventory.projection_contract.surfaces[SURFACE];
+  const selectionPolicy = surfaceRule && surfaceRule.selection_policy
+    ? surfaceRule.selection_policy
+    : compiled.value.selectionPolicy;
   const runtimeSkillIds = runtimeSupportSkillIds(inventory, SURFACE);
-  const skillIds = [...new Set([...profileSkillIds, ...runtimeSkillIds])];
+  const skillIds = [...new Set([...selectedIds, ...runtimeSkillIds])];
   if (!Array.isArray(configuration.agents) || !Array.isArray(configuration.rules)) {
     throw new Error('inventory.agy_plugin agents and rules must be arrays');
   }
@@ -244,7 +252,19 @@ function selectedConfiguration(inventory, profileSelection = null) {
   });
   const agents = [...new Set(configuration.agents)].sort();
   const rules = [...new Set(configuration.rules)].sort();
-  return { agents, rules, skills, runtimeSkillIds };
+  return {
+    agents,
+    rules,
+    skills,
+    runtimeSkillIds,
+    selection: {
+      compiler: { id: 'distribution-compiler', version: compiled.value.compilerVersion },
+      surface: SURFACE,
+      selectedStableIds: selectedIds,
+      selectionPolicy,
+      planFingerprint: compiled.value.planFingerprint,
+    },
+  };
 }
 
 function outputFiles(packageRoot, options = {}) {
@@ -508,6 +528,7 @@ function materializeAgyPluginPackage({
   }
   receipt.transform = { id: 'agy-agent-frontmatter-v1', version: '1' };
   receipt.packageRoot = 'plugins/dhpk-agy';
+  receipt.selection = selected.selection;
   writeJson(path.join(outputRoot, 'fingerprints.json'), { schema: PACKAGE_SCHEMA, files: fingerprints });
   writeJson(path.join(outputRoot, 'provenance.json'), receipt);
   const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory, profileSelection });

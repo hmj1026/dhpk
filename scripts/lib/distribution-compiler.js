@@ -72,7 +72,7 @@ function validateEmissionMetadata(emission, planned) {
   return null;
 }
 
-const MIGRATED_SELECTION_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native']);
+const MIGRATED_SELECTION_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 const SELECTION_POLICY_SOURCES = Object.freeze(['surface_membership', 'projection', 'platform_matrix', 'entry_surfaces']);
 
 function selectionPolicyError(message, details = {}) {
@@ -257,7 +257,7 @@ function compileDistribution(inputs = {}) {
     };
     if (profileSelection && Array.isArray(profileSelection.selectedStableIds)) {
       const selected = new Set(profileSelection.emittedStableIds || profileSelection.selectedStableIds);
-      entries = entries.filter((entry) => selected.has(entry.stableId));
+      entries = entries.filter((entry) => selected.has(entry.stableId || entry.id));
     }
   }
   if (!inputs.entries && (!inputs.inventory || typeof inputs.inventory !== 'object')) {

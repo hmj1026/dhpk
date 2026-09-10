@@ -28,15 +28,20 @@ test('an unprofiled generation preserves legacy package membership while adding 
   }
 });
 
-test('platform package verifier reports deterministic Agent Plugin and Cursor outputs', () => {
+test('platform package verifier reports deterministic four-platform outputs', () => {
   const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js')], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, result.stdout + result.stderr);
   const report = JSON.parse(result.stdout);
   assert.strictEqual(report.verdict, 'PASS');
   assert.strictEqual(report.surfaces['agent-plugin'].structural, 'PASS');
   assert.strictEqual(report.surfaces['cursor-plugin'].structural, 'PASS');
+  assert.strictEqual(report.surfaces['codex-native'].structural, 'PASS');
+  assert.strictEqual(report.surfaces['agy-plugin'].structural, 'PASS');
   assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 37);
   assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 4);
+  assert.strictEqual(report.surfaces['codex-native'].selectedSkills, 15);
+  assert.strictEqual(report.surfaces['agy-plugin'].selectedSkills, 37);
+  assert.strictEqual(report.policyParity.verdict, 'PASS');
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSurface, 'agent-plugin');
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSource, 'plugins/dhpk-agent/skills/');
   const cursorLocal = report.surfaces['cursor-plugin'].selectedSkillIds;

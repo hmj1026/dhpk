@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:d7e37cf2850b080d32ef2b84d64ced759ce1ad0c8690d49dfab40db76258a14d",
+  "sourceInventoryRevision": "sha256:3326f40b08f7a4559678186023f0e4f5025dfd37308f4f7fe5c7c3e26bb21775",
   "entries": [
     {
       "id": "code-trace",
