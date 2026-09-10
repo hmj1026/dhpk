@@ -22,6 +22,14 @@ do not probe or launch an external provider. Review routing remains on the
 current Review Gate / Reviewer Contract path; target selection belongs to the
 dispatcher.
 
+Fallback is dispatcher-owned and shared by every delegated role. A confirmed
+CLI or auth/model unavailability with no side effect may hand the same Review
+Gate / Reviewer Contract to the native reviewer first; cross-provider
+candidates require explicit opt-in. Quota/rate-limit, safety/user denial,
+task/semantic failure, and timeout/interruption retain their existing stop,
+authorization, repair, or reconciliation paths. The reviewer never silently
+switches target or turns fallback evidence into a PASS.
+
 ## When NOT / Defers
 
 - Auth / authz / crypto / OWASP depth → `security-reviewer`

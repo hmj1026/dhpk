@@ -64,7 +64,7 @@ function withRequest(fn) {
 
 function writeRequest(root, request, { attested = true } = {}) {
   if (attested) {
-    const fields = ['requested_role', 'effective_role', 'role_contract', 'mode', 'workdir', 'prompt_file', 'artifact_root', 'receipt_path', 'assigned_files', 'report_only', 'timeout_secs', 'task_id', 'attempt_id', 'transport', 'requested_model', 'requested_effort', 'prompt_evidence'];
+    const fields = ['requested_role', 'effective_role', 'role_contract', 'mode', 'workdir', 'prompt_file', 'artifact_root', 'receipt_path', 'assigned_files', 'report_only', 'timeout_secs', 'task_id', 'attempt_id', 'transport', 'requested_model', 'requested_effort', 'prompt_evidence', 'failure_class'];
     const context = { schema: 'dhpk.cli.context.v1', provider: request.provider };
     for (const field of fields) context[field] = request[field];
     context.runtime_path = request.runtime_source_path;
@@ -408,6 +408,19 @@ test('runner timeout is terminal and quoted JSON-like secrets are redacted', () 
     const text = fs.readFileSync(request.receipt_path, 'utf8');
     assert.ok(!text.includes('secret-value'), text);
     assert.strictEqual(JSON.parse(text).status, 'TIMEOUT');
+  });
+});
+
+test('transport receipts classify timeout without changing the requested provider', () => {
+  withRequest(({ root, request, writeProvider }) => {
+    request.timeout_secs = 1;
+    writeProvider(SUCCESS.replace("printf 'approved' > allowed.txt", 'sleep 4'));
+    const result = invoke(root, request);
+    assert.strictEqual(result.status, 124, result.stderr);
+    const receipt = JSON.parse(fs.readFileSync(request.receipt_path, 'utf8'));
+    assert.strictEqual(receipt.failure_class, 'TIMEOUT_OR_INTERRUPTION');
+    assert.strictEqual(receipt.requested_provider, 'codex');
+    assert.strictEqual(receipt.effective_provider, 'codex');
   });
 });
 

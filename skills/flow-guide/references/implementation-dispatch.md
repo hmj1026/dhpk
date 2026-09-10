@@ -53,6 +53,34 @@ Every dispatch and handoff records one durable `task_id`. A retry of that task k
 
 The orchestrator presents the producer artifact and its identity envelope to the Review Gate runtime in this order: dispatch/handoff identity, durable artifact-ready evidence, lifecycle result, then the matching semantic verdict. A message, aggregate `EvidenceResult`, or terminal lifecycle event alone is not completion and must never be copied into the identity fields as a verdict. Only the Review Gate runtime may resolve the matching obligation; unresolved or foreign evidence remains debt.
 
+## Native-first fallback
+
+Planner, reasoner, worker, and reviewer use one fallback contract. The
+selected target runs first. If the dispatcher confirms `CLI_UNAVAILABLE` or
+`AUTHENTICATION_OR_MODEL_UNAVAILABLE` with no provider side effect, it hands
+the same role contract to the native target. A next configured candidate is
+eligible only when `cross_provider` is explicitly enabled. If no valid target
+remains, return explicit `RESULT: BLOCKED`.
+
+Transport does not perform this selection, retry, or provider switch. It
+returns one of these canonical classes: `CLI_UNAVAILABLE`,
+`AUTHENTICATION_OR_MODEL_UNAVAILABLE`, `QUOTA_OR_RATE_LIMIT`,
+`SAFETY_OR_USER_DENIAL`, `TASK_OR_SEMANTIC_FAILURE`, or
+`TIMEOUT_OR_INTERRUPTION`. Quota/rate-limit evidence avoids the affected
+model, account, or pool and may select an explicitly different authorized pool
+only with cross-provider opt-in. Safety or user denial stays on the existing
+authorization path; task or semantic failure stays on repair; timeout or
+interruption enters the reconciliation contract below.
+
+The session carries `attempted_backends`, `unavailable_backends`, and one
+shared `retry_budget`. Every fallback consumes one unit, switching providers
+does not reset it, and unavailable candidates are not probed again. The
+handoff retains the original role, assigned scope, read/write authority,
+model/effort contract, and reviewer contract. The pure decision seam is
+`scripts/lib/native-dispatch-policy.js`; it is not a coordinator. Partial
+writer reconciliation is isolated in
+`scripts/lib/partial-writer-handoff.js`.
+
 ## Parallel dispatch contract
 
 Use `Parallel: yes` only when two or more workers will operate in the same checkout. The dispatcher must provide each worker with:
@@ -76,7 +104,7 @@ If a validator reads or updates shared ratchet/configuration state, the worker u
 
 ## CLI worker mid-batch timeout recovery
 
-Applies only to a CLI-backed multi-file dispatch (`codex-worker` / `agy-worker`, canonical role IDs; legacy aliases `codex-fast-worker` / `agy-fast-worker`) that reports a contained runner timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which keep their existing semantics unchanged.
+Applies only to a CLI-backed multi-file dispatch (`codex-worker` / `agy-worker`, canonical role IDs; legacy aliases `codex-fast-worker` / `agy-fast-worker`) that reports a contained runner timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which use the shared native-first fallback contract above.
 
 The portable runner returns exit `124` only with the dispatcher-selected,
 contained `0600` `dhpk.cli.receipt.v1` terminal `TIMEOUT` receipt. The
@@ -93,7 +121,7 @@ success without independent path-scoped diff verification.
 
 A global (non-path-scoped) `git status` is never completion or ownership evidence in parallel mode.
 
-**One scoped same-backend retry.** After the first verified runner timeout on a multi-file dispatch, the orchestrator may dispatch exactly one recovery invocation: same backend, same model/effort, same original intent, and write scope limited to `remaining ∪ unconfirmed` — confirmed files are not repeated. The worker never edits the unresolved files inline and never falls back to another backend because of a timeout (the existing missing-executable fallback carve-out is unrelated and unaffected).
+**One scoped same-backend retry.** After the first verified runner timeout on a multi-file dispatch, the orchestrator may dispatch exactly one recovery invocation: same backend, same model/effort, same original intent, and write scope limited to `remaining ∪ unconfirmed` — confirmed files are not repeated. The worker never edits the unresolved files inline and never falls back to another backend because of a timeout (availability fallback is a separate, pre-reconciliation policy path).
 
 **Second timeout is terminal.** If the recovery invocation also has a verified runner timeout, the worker stops and reports `RESULT: PARTIAL` (at least one assigned file confirmed) or `RESULT: BLOCKED` (none confirmed), naming both timeout observations, the backend identity, all three ledger sets, and the next action.
 
