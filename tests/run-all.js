@@ -206,18 +206,44 @@ function readTimeoutMs(env) {
   return timeoutMs;
 }
 
+function elapsedMilliseconds(startedAt) {
+  return Number(process.hrtime.bigint() - startedAt) / 1e6;
+}
+
+function relativeTestFile(file) {
+  return path.relative(TESTS_DIR, file) || path.basename(file);
+}
+
+function createFileTiming(file, result, durationMs) {
+  return {
+    file: relativeTestFile(file),
+    duration_ms: Math.round(durationMs),
+    status: result.error || result.status !== 0 ? 'FAIL' : 'PASS',
+  };
+}
+
 function runSequential(files, env, timeoutMs) {
   let failed = 0;
+  const fileTimings = [];
+  const startedAt = process.hrtime.bigint();
   for (const file of files) {
     const relative = path.relative(TESTS_DIR, file);
     console.log(`\n# ${relative}`);
+    const fileStartedAt = process.hrtime.bigint();
     const result = runNodeTest(file, { env, timeoutMs: fileTimeoutMs(file, timeoutMs) });
+    fileTimings.push(createFileTiming(file, result, elapsedMilliseconds(fileStartedAt)));
     if (result.status !== 0 || result.error) {
       failed += 1;
       if (result.error) console.error(`ERROR in ${relative}: ${result.error.message}`);
     }
   }
-  return { failed, total: files.length };
+  return {
+    failed,
+    total: files.length,
+    durationMs: elapsedMilliseconds(startedAt),
+    fileTimings,
+    jobTimings: [{ worker_index: 0, duration_ms: Math.round(elapsedMilliseconds(startedAt)), files: fileTimings }],
+  };
 }
 
 function parseWorkerSummary(output, fallbackTotal) {
@@ -229,9 +255,26 @@ function parseWorkerSummary(output, fallbackTotal) {
   };
 }
 
+function parseTimingPayload(output) {
+  const lines = String(output).split('\n');
+  const line = lines.find((entry) => entry.startsWith('DHPK_TEST_TIMING_PAYLOAD='));
+  if (!line) return null;
+  try {
+    return JSON.parse(line.slice('DHPK_TEST_TIMING_PAYLOAD='.length));
+  } catch (_error) {
+    return null;
+  }
+}
+
 function runWorker(files, workerIndex, workerCount, env) {
   return new Promise((resolve) => {
-    const childEnv = { ...env, DHPK_TEST_JOBS: '1' };
+    const timingRequested = Boolean(env.DHPK_TEST_TIMING_FILE);
+    const childEnv = {
+      ...env,
+      DHPK_TEST_JOBS: '1',
+      ...(timingRequested ? { DHPK_TEST_TIMING_CHILD: '1' } : {}),
+    };
+    const startedAt = process.hrtime.bigint();
     const child = spawn(process.execPath, [__filename, '--worker', ...files], {
       cwd: process.cwd(),
       env: childEnv,
@@ -244,7 +287,16 @@ function runWorker(files, workerIndex, workerCount, env) {
     const finish = (result) => {
       if (settled) return;
       settled = true;
-      resolve({ workerIndex, workerCount, files, stdout, stderr, ...result });
+      resolve({
+        workerIndex,
+        workerCount,
+        files,
+        stdout,
+        stderr,
+        durationMs: elapsedMilliseconds(startedAt),
+        timing: timingRequested ? parseTimingPayload(stdout) : null,
+        ...result,
+      });
     };
     child.stdout.on('data', (chunk) => { stdout += chunk; });
     child.stderr.on('data', (chunk) => { stderr += chunk; });
@@ -254,7 +306,10 @@ function runWorker(files, workerIndex, workerCount, env) {
 }
 
 async function runParallel(files, jobs, env) {
-  if (files.length === 0) return { failed: 0, total: 0 };
+  if (files.length === 0) {
+    return { failed: 0, total: 0, durationMs: 0, fileTimings: [], jobTimings: [] };
+  }
+  const startedAt = process.hrtime.bigint();
   const workerCount = Math.min(jobs, files.length);
   const buckets = partitionFiles(files, workerCount);
   const results = await Promise.all(
@@ -262,9 +317,14 @@ async function runParallel(files, jobs, env) {
   );
   let failed = 0;
   let total = 0;
+  const fileTimings = [];
+  const jobTimings = [];
   for (const result of results.sort((left, right) => left.workerIndex - right.workerIndex)) {
     console.log(`\n# worker ${result.workerIndex + 1}/${result.workerCount}`);
-    if (result.stdout) process.stdout.write(result.stdout);
+    const visibleStdout = result.stdout
+      ? result.stdout.replace(/^DHPK_TEST_TIMING_PAYLOAD=.*\n?/m, '')
+      : '';
+    if (visibleStdout) process.stdout.write(visibleStdout);
     if (result.stderr) process.stderr.write(result.stderr);
     const summary = parseWorkerSummary(
       `${result.stdout}\n${result.stderr}`,
@@ -272,11 +332,56 @@ async function runParallel(files, jobs, env) {
     );
     failed += summary.failed;
     total += summary.total;
+    const workerFiles = result.timing && Array.isArray(result.timing.file_timings)
+      ? result.timing.file_timings
+      : result.files.map((file) => ({ file: relativeTestFile(file), duration_ms: null, status: result.status === 0 ? 'PASS' : 'FAIL' }));
+    fileTimings.push(...workerFiles);
+    jobTimings.push({
+      worker_index: result.workerIndex,
+      duration_ms: Math.round(result.timing && Number.isFinite(result.timing.duration_ms)
+        ? result.timing.duration_ms
+        : result.durationMs),
+      status: result.status === 0 && !result.error ? 'PASS' : 'FAIL',
+      files: workerFiles,
+    });
     if (result.error) {
       console.error(`ERROR in worker ${result.workerIndex + 1}: ${result.error.message}`);
     }
   }
-  return { failed, total };
+  return {
+    failed,
+    total,
+    durationMs: elapsedMilliseconds(startedAt),
+    fileTimings,
+    jobTimings,
+  };
+}
+
+function createTimingReport({ options, result, durationMs, sourceEnv }) {
+  return {
+    schema: 'dhpk.test-timing.v1',
+    generated_at: new Date().toISOString(),
+    source_commit: sourceEnv.DHPK_TEST_SOURCE_COMMIT || null,
+    runner: {
+      command: 'node tests/run-all.js',
+      node: process.version,
+      platform: process.platform,
+      jobs: options.jobs,
+      mode: options.worker ? 'worker' : options.jobs === 1 ? 'sequential' : 'parallel',
+      shard_index: options.shardIndex,
+      shard_count: options.shardCount,
+    },
+    duration_ms: Math.round(durationMs),
+    totals: { files: result.total, failed: result.failed },
+    files: result.fileTimings || [],
+    jobs: result.jobTimings || [],
+  };
+}
+
+function writeTimingReport(file, report) {
+  const target = path.resolve(process.cwd(), file);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
 }
 
 async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
@@ -291,6 +396,22 @@ async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
   const result = options.worker || options.jobs === 1
     ? runSequential(files, env, timeoutMs)
     : await runParallel(files, options.jobs, env);
+
+  const timingFile = sourceEnv.DHPK_TEST_TIMING_FILE;
+  if (timingFile && sourceEnv.DHPK_TEST_TIMING_CHILD === '1') {
+    console.log(`DHPK_TEST_TIMING_PAYLOAD=${JSON.stringify({
+      duration_ms: Math.round(result.durationMs),
+      file_timings: result.fileTimings || [],
+      job_timings: result.jobTimings || [],
+    })}`);
+  } else if (timingFile) {
+    writeTimingReport(timingFile, createTimingReport({
+      options,
+      result,
+      durationMs: result.durationMs,
+      sourceEnv,
+    }));
+  }
 
   console.log('\n========================================');
   if (result.failed > 0) {
@@ -314,4 +435,6 @@ module.exports = {
   parseOptions,
   partitionFiles,
   fileTimeoutMs,
+  createTimingReport,
+  parseTimingPayload,
 };

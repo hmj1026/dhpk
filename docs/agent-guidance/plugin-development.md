@@ -13,6 +13,11 @@ Run the smallest focused gate first, then the complete set before handoff:
 - `bash scripts/validate/validate-harness.sh`
 - `node tests/run-all.js`
 
+For reproducible pre/post test timing, run the same workload with
+`DHPK_TEST_TIMING_FILE=/path/to/timing.json`; the bounded runner writes a
+redacted JSON report containing aggregate, per-file, and worker durations. This
+is opt-in evidence, not a second scheduler or an always-on telemetry channel.
+
 For release-shaped work also run distribution, OpenAI metadata, strict skill,
 native-package, changelog, consumer, and official Claude validation gates as
 available. A missing official consumer CLI is `NOT RUN`, never an official
