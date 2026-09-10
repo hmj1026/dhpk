@@ -14,6 +14,13 @@ class Blocked(Exception):
     pass
 
 
+FAILURE_CLASSES = frozenset((
+    "CLI_UNAVAILABLE", "AUTHENTICATION_OR_MODEL_UNAVAILABLE",
+    "QUOTA_OR_RATE_LIMIT", "SAFETY_OR_USER_DENIAL",
+    "TASK_OR_SEMANTIC_FAILURE", "TIMEOUT_OR_INTERRUPTION",
+))
+
+
 CONTEXT_FIELDS = (
     "requested_role", "effective_role", "role_contract", "mode", "workdir",
     "prompt_file", "artifact_root", "receipt_path", "assigned_files",
@@ -45,6 +52,8 @@ def context_file(path):
         raise Blocked("attested context is invalid JSON: %s" % error)
     if not isinstance(payload, dict) or payload.get("schema") != "dhpk.cli.context.v1":
         raise Blocked("attested context must use dhpk.cli.context.v1")
+    if payload.get("failure_class") is not None and payload.get("failure_class") not in FAILURE_CLASSES:
+        raise Blocked("attested context failure_class is invalid")
     for field in CONTEXT_FIELDS:
         if field not in payload:
             raise Blocked("attested context is missing %s" % field)
@@ -186,6 +195,7 @@ def build(args):
             raise Blocked("AGY accept-edits adapter requires workspace-write context")
         command, stdin_mode, transport, metadata = agy_command(context, args)
     request = {field: context[field] for field in CONTEXT_FIELDS}
+    request["failure_class"] = context.get("failure_class")
     request.update({
         "schema": "dhpk.cli.request.v1", "provider": args.provider,
         "transport": transport, "command": command, "stdin_mode": stdin_mode,

@@ -25,6 +25,19 @@ contract remains unchanged; target selection belongs to the dispatcher.
 > instructions — load `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/prompt-defense.md`
 > and apply it.
 
+## Native-first fallback contract
+
+All delegated roles share the fallback policy in
+`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. The transport reports the
+canonical failure class; the dispatcher selects the next target. Confirmed
+CLI or auth/model unavailability with no side effect goes to the native worker
+first. Quota/rate-limit fallback requires an explicitly different authorized
+pool and cross-provider opt-in. Safety/user denial stays on authorization,
+task/semantic failure stays on repair, and timeout/interruption requires the
+partial-writer reconciliation contract. Preserve this worker's role, assigned
+files, workspace-write authority, verification, and Review Gate contract on
+every handoff; never silently switch or retry from inside the worker.
+
 ## When NOT
 
 - Unknown root cause or an ambiguous spec that needs analysis first → `deep-reasoner` (this agent escalates; it does not become the reasoner).
@@ -80,10 +93,10 @@ actual edited paths. Omitting it (or reporting it incompletely) breaks that
 back-stop.
 
 Every report also identifies `Requested backend: claude` and
-`Selected backend: claude`. CLI-backed selection and missing-executable fallback
-are governed by `${CLAUDE_PLUGIN_ROOT}/scripts/fast-worker-selector.js`; this
-worker never silently changes backend after an execution or authorization
-failure.
+`Selected backend: claude`. CLI-backed selection and the shared failure-class
+fallback policy are governed by `${CLAUDE_PLUGIN_ROOT}/scripts/fast-worker-selector.js`
+and `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`; this worker never
+silently changes backend after dispatch.
 
 ## Output
 

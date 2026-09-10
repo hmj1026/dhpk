@@ -19,6 +19,14 @@ Automatic dispatch for this role follows the Native dispatch baseline in
 do not probe or launch an external provider. This role's read-only conclusion
 contract remains unchanged; target selection belongs to the dispatcher.
 
+Fallback is dispatcher-owned and shared by every delegated role. A confirmed
+CLI or auth/model unavailability with no side effect may hand the same
+read-only reasoning contract to the native reasoner first; cross-provider
+candidates require explicit opt-in. Quota/rate-limit, safety/user denial,
+task/semantic failure, and timeout/interruption retain their existing stop,
+authorization, repair, or reconciliation paths. The reasoner never silently
+switches target or changes its conclusion contract.
+
 ## When NOT
 
 - DDD-layer placement / cross-module architecture → `architect` (see Defers below).

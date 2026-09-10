@@ -46,10 +46,12 @@ probe or substitute an ambient `PATH` entry.
 
 On a missing CLI, an authentication failure (`401` → `codex login`), or a rejected model
 name, return `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for
-a model rejection — do not retry with a guessed model). A configured fallback may select
-`dhpk:fast-worker` only for the deterministic missing-executable case; authentication,
-authorization, model, task, and verification failures never fall back. **Never**
-approximate the backend or fall back to editing the files yourself.
+a model rejection — do not retry with a guessed model). The dispatcher may then apply
+the shared native-first fallback for `CLI_UNAVAILABLE` or
+`AUTHENTICATION_OR_MODEL_UNAVAILABLE` only after confirming no provider side effect;
+cross-provider candidates require explicit opt-in. Quota/rate-limit, safety/user denial,
+task/semantic, and timeout/interruption failures stay on their existing policy paths.
+**Never** approximate the backend or fall back to editing the files yourself.
 
 ## Execute via the codex wrapper (workspace-write)
 
@@ -146,9 +148,9 @@ RESULT: DONE | PARTIAL | BLOCKED
 ## Codex Fast Worker Report
 Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (workspace-write)
 Requested backend: codex
-Selected backend: codex | claude (only with configured missing-executable fallback)
+Selected backend: codex | claude (only with dispatcher-approved fallback)
 Availability: <codex executable available | missing executable: codex>
-Fallback reason: <none | missing executable: codex; configured fallback=claude>
+Fallback reason: <none | canonical failure class and dispatcher decision>
 Model/effort: <model> / <effort>
 Timeout budget: <attested seconds>; receipt=<contained 0600 path>
 Verify: <command> → PASS | FAIL (N attempts)

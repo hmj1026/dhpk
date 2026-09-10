@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.56.0",
-  "sourceCommit": "8f920283e94bde2ee7ee316a32939373c2595628",
-  "generatedFromCommit": "8f920283e94bde2ee7ee316a32939373c2595628",
-  "generatedFromTree": "e0a4d1724ae833676a4e8aaca675658aa338ee81",
-  "inventoryDigest": "0153af3bb26ea4c77cf25fd885c783aed49a7bfc47a81e0406347fdfd9d0c206",
-  "inventoryRevision": "sha256:51cb9281f360e77df6517a7587ba7d74ff66634037bfdf101d5680b1cf1403c1",
+  "sourceCommit": "ad381204bdc7cd007e3171bc09490260ae97d826",
+  "generatedFromCommit": "ad381204bdc7cd007e3171bc09490260ae97d826",
+  "generatedFromTree": "692ab2bcb700a0ae8af10ba1a4c196e35f8e66a8",
+  "inventoryDigest": "b63574710f062c2e3645bf15bd31f8b57844b4638df44d4e736ce2c2b42af92a",
+  "inventoryRevision": "sha256:d7e37cf2850b080d32ef2b84d64ced759ce1ad0c8690d49dfab40db76258a14d",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "code-trace",
@@ -83,7 +83,7 @@
     "dhpk-legacy-characterization-tests": "2a2df71423e54c8e24f10c645b917eb070aa728905171da6783dd23af16f8cf6",
     "dhpk-yii1-php56-development": "8af02d34fca4f9eaee43d4ceb72851dfe494462955af1b08f7cb74a2f703f2bc",
     "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
-    "flow-guide": "c6dd4295836e638b1c174f27c80a8ece4331d2e0847af22cb8a5afb686543ad8",
+    "flow-guide": "06d22fa49255c6cd0a4d8acc61c0f13fa7a67c08f46f5023f6df1b92760e82db",
     "code-trace": "f97e720f358a8320b62977c04c0e1dd59a0277ee49e65500aa6c4aae32a7b3e6",
     "flow-drive": "5e14d33872aeb4934cd39c655e69b6bab8517dd164099fb8627e62b4c1e5deb8",
     "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
@@ -92,8 +92,8 @@
     "skill-scope": "7eebca48fb7b447ba9ab07d2694eeab7f6b2ec12d5b416eff716e9117228e3ca",
     "dhpk-tdd-workflow": "c6d6327c4bd982149e05006d7cedf98a7596a9c1df2117968f6a219e164c1d0a",
     "harness-govern": "70712b34e0223b9ddcfcea1944b4867865af0fcb08674e86c944d16e91523178",
-    "dhpk-cli-dispatch-context": "534a0b35130d26100e20888bbcd6c32e1c712a09c7e0d362532fd7c39b6788b4",
-    "dhpk-cli-transport": "b8cdca4a0c4376baaf36dac7b45892e049cfe8a93def15d50011fb00e7d14b6d"
+    "dhpk-cli-dispatch-context": "fe7aeb69c2a12283c0512a81101bc909050d573dbeb76eafef901acbed9d27a4",
+    "dhpk-cli-transport": "b493940d6530c92c9a22f3bec846f9e8b5f335e0424712fbd2cfee5ad1f0de2a"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
