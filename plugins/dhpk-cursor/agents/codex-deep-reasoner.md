@@ -30,9 +30,11 @@ the context or widen authority.
 
 The backend report is not reasoning evidence. Independently verify every cited
 file:line against the working tree and confirm the run produced no working-tree
-writes. Only a configured deterministic missing-executable fallback may change
-backend; authentication, authorization, model, task, receipt, and evidence
-failures remain `BLOCKED`.
+writes. The dispatcher may apply the shared native-first fallback for confirmed
+CLI or auth/model unavailability with no provider side effect; cross-provider candidates
+require explicit opt-in. Safety/user denial, task/semantic, timeout,
+receipt, and evidence failures remain `BLOCKED` or on their existing recovery
+path.
 
 ### Contained timeout result
 
@@ -55,9 +57,9 @@ RESULT: DONE | TIMEOUT_SALVAGED | BLOCKED
 ## Codex Deep Reasoner Report
 Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (read-only)
 Requested backend: codex
-Selected backend: codex | deep-reasoner (only with configured missing-executable fallback)
+Selected backend: codex | deep-reasoner (only with dispatcher-approved fallback)
 Availability: <codex executable available | missing executable: codex>
-Fallback reason: <none | missing executable: codex; configured fallback=deep-reasoner>
+Fallback reason: <none | canonical failure class and dispatcher decision>
 Model/effort: <model> / <effort>
 Parallel: yes | no
 Verify: file:line evidence -> PASS | FAIL

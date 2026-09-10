@@ -18,6 +18,15 @@ follow-up record embedded atomically. It intentionally does not select a provide
 provider through a different transport. Direct legacy wrapper calls without
 `DHPK_CLI_TRANSPORT_CONTEXT` are `BLOCKED`; provider commands never start.
 
+The dispatcher may attest one `failure_class` on a request. It is transport
+evidence, not a switching instruction, and must be one of
+`CLI_UNAVAILABLE`, `AUTHENTICATION_OR_MODEL_UNAVAILABLE`,
+`QUOTA_OR_RATE_LIMIT`, `SAFETY_OR_USER_DENIAL`, `TASK_OR_SEMANTIC_FAILURE`, or
+`TIMEOUT_OR_INTERRUPTION`. A contained timeout is classified as
+`TIMEOUT_OR_INTERRUPTION` in the terminal receipt. Requested and effective
+provider fields remain unchanged; the canonical dispatcher policy decides any
+subsequent handoff.
+
 The wrapper bootstrap is the fixed Linux/WSL system path `/usr/bin/python3`.
 The context must attest that same named `python3` entry in its restricted
 runtime allowlist. It never uses a Python path from the environment or falls
@@ -52,7 +61,9 @@ The only terminal output is a `dhpk.cli.receipt.v1` at the context-attested
 receipt path. It is created as a regular, contained `0600` file, redacts
 provider material, retains the validated role contract, and records terminal
 `SUCCEEDED`, `FAILED`, `TIMEOUT`, or fail-closed `BLOCKED` without starting an
-unauthorised provider.
+unauthorised provider. When present, the receipt preserves the attested
+`failure_class`; timeout receipts always carry
+`TIMEOUT_OR_INTERRUPTION`. The transport never emits a silent provider switch.
 
 Verify a transport change with the focused adapter and transport contracts:
 

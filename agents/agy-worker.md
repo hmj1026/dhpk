@@ -50,10 +50,12 @@ test -n "${DHPK_CLI_TRANSPORT_CONTEXT:-}" || { echo "missing attested AGY contex
 
 On a missing CLI, an authentication failure, or a rejected model name, return
 `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for a model
-rejection — do not retry with a guessed model). A configured fallback may select
-`dhpk:fast-worker` only for the deterministic missing-executable case; authentication,
-authorization, model, task, and verification failures never fall back. **Never**
-approximate the backend or fall back to editing the files yourself.
+rejection — do not retry with a guessed model). The dispatcher may then apply the
+shared native-first fallback for `CLI_UNAVAILABLE` or
+`AUTHENTICATION_OR_MODEL_UNAVAILABLE` only after confirming no provider side effect;
+cross-provider candidates require explicit opt-in. Quota/rate-limit, safety/user denial,
+task/semantic, and timeout/interruption failures stay on their existing policy paths.
+**Never** approximate the backend or fall back to editing the files yourself.
 
 ## Execute via the agy wrapper
 
@@ -144,9 +146,9 @@ RESULT: DONE | PARTIAL | BLOCKED
 ## Agy Fast Worker Report
 Backend: agy --model "<model>" --mode accept-edits -p (non-interactive)
 Requested backend: agy
-Selected backend: agy | claude (only with configured missing-executable fallback)
+Selected backend: agy | claude (only with dispatcher-approved fallback)
 Availability: <agy executable available | missing executable: agy>
-Fallback reason: <none | missing executable: agy; configured fallback=claude>
+Fallback reason: <none | canonical failure class and dispatcher decision>
 Model/effort: <model> / baked into model name
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>

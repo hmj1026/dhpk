@@ -43,9 +43,11 @@ When a contained runner timeout hits a multi-file dispatch, follow
 
 The selected backend is not completion evidence. After the contained backend
 returns, independently run the assigned verification command and derive the
-edited-file list from the assigned paths. Only a configured deterministic
-missing-executable fallback may change backend; authentication, authorization,
-model, task, receipt, and verification failures remain `BLOCKED`.
+edited-file list from the assigned paths. Only a dispatcher-approved fallback
+under the shared failure-class policy may change backend; authentication,
+authorization, model, task, receipt, and verification failures remain
+`BLOCKED` unless the dispatcher has confirmed the specific availability class
+and no provider side effect.
 
 In parallel mode, treat sibling changes as observations. Never run `git checkout`,
 `git restore`, `git reset`, or `git clean` against out-of-scope paths, and never
@@ -58,9 +60,9 @@ RESULT: DONE | PARTIAL | BLOCKED
 ## Agy Fast Worker Report
 Backend: agy --model "<model>" --mode accept-edits -p (non-interactive)
 Requested backend: agy
-Selected backend: agy | claude (only with configured missing-executable fallback)
+Selected backend: agy | claude (only with dispatcher-approved fallback)
 Availability: <agy executable available | missing executable: agy>
-Fallback reason: <none | missing executable: agy; configured fallback=claude>
+Fallback reason: <none | canonical failure class and dispatcher decision>
 Model/effort: <model> / baked into model name
 Parallel: yes | no
 Verify: <command> -> PASS | FAIL (N attempts)

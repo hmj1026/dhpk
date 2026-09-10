@@ -8,6 +8,14 @@ const TRANSPORTS = Object.freeze({
   codex: Object.freeze({ transport: 'codex-exec', stdin_mode: 'prompt' }),
   agy: Object.freeze({ transport: 'agy-print', stdin_mode: 'agy-confirmation' }),
 });
+const FAILURE_CLASSES = Object.freeze([
+  'CLI_UNAVAILABLE',
+  'AUTHENTICATION_OR_MODEL_UNAVAILABLE',
+  'QUOTA_OR_RATE_LIMIT',
+  'SAFETY_OR_USER_DENIAL',
+  'TASK_OR_SEMANTIC_FAILURE',
+  'TIMEOUT_OR_INTERRUPTION',
+]);
 
 const SCOPE_PATHS = Object.freeze(['workdir', 'prompt_file', 'artifact_root', 'receipt_path', 'runtime_path']);
 const PROMPT_EVIDENCE_KEYS = Object.freeze(['path', 'dev', 'ino', 'sha256']);
@@ -157,6 +165,10 @@ function buildContext(input = {}, { writeFile, diagnostics } = {}) {
   if (input.stdin_mode !== undefined && input.stdin_mode !== transport.stdin_mode) {
     return blocked('stdin_mode contradicts provider', legacyReport(input, resolved, undefined, transport));
   }
+  if (input.failure_class !== undefined && input.failure_class !== null
+    && !FAILURE_CLASSES.includes(input.failure_class)) {
+    return blocked('failure_class must use the canonical failure class', legacyReport(input, resolved, undefined, transport));
+  }
 
   const scopeFailure = scopeError(input);
   if (scopeFailure) return blocked(scopeFailure, legacyReport(input, resolved, undefined, transport));
@@ -190,6 +202,7 @@ function buildContext(input = {}, { writeFile, diagnostics } = {}) {
     requested_model: config.model.value === undefined ? null : config.model.value,
     requested_effort: config.effort.value === undefined ? null : config.effort.value,
     prompt_evidence: clone(input.prompt_evidence),
+    failure_class: input.failure_class === undefined ? null : input.failure_class,
     runtime_path: input.runtime_path,
   });
 
