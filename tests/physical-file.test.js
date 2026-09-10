@@ -110,6 +110,85 @@ test('writePhysicalImmutable persists exact private bytes', () => {
   }
 });
 
+test('writePhysicalImmutable tolerates directory entry-count nlink changes', () => {
+  const root = temporaryDirectory('dhpk-physical-directory-nlink-');
+  const file = path.join(root, 'nested', 'payload.bin');
+  const unrelated = path.join(root, 'nested', 'unrelated.tmp');
+  const payload = Buffer.from('directory nlink changes are not identity changes\n');
+  const originalLstatSync = fs.lstatSync;
+  const originalOpenSync = fs.openSync;
+  const originalFsyncSync = fs.fsyncSync;
+  let unrelatedAdded = false;
+  let unrelatedRemoved = false;
+  fs.lstatSync = (target, ...args) => {
+    const stat = originalLstatSync(target, ...args);
+    if (stat.isDirectory()) {
+      // APFS changes directory nlink as entries are created and removed. Model
+      // that portable filesystem behavior while leaving regular-file stats
+      // untouched, so the public writer is tested at its real seam.
+      stat.nlink = 2 + fs.readdirSync(target).length;
+    }
+    return stat;
+  };
+  fs.openSync = (target, ...args) => {
+    const descriptor = originalOpenSync(target, ...args);
+    if (!unrelatedAdded && typeof target === 'string' && target.startsWith(`${file}.`)) {
+      const sibling = originalOpenSync(
+        unrelated,
+        fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL,
+        0o600,
+      );
+      try {
+        fs.writeSync(sibling, Buffer.from('unrelated activity\n'));
+      } finally {
+        fs.closeSync(sibling);
+      }
+      unrelatedAdded = true;
+    }
+    return descriptor;
+  };
+  fs.fsyncSync = (descriptor) => {
+    originalFsyncSync(descriptor);
+    if (unrelatedAdded && !unrelatedRemoved) {
+      fs.unlinkSync(unrelated);
+      unrelatedRemoved = true;
+    }
+  };
+  try {
+    physicalFile.writePhysicalImmutable(root, file, payload);
+    assert.strictEqual(unrelatedAdded, true);
+    assert.strictEqual(unrelatedRemoved, true);
+    assert.deepStrictEqual(fs.readFileSync(file), payload);
+    assert.strictEqual(fs.statSync(file).mode & 0o777, 0o600);
+    assert.deepStrictEqual(fs.readdirSync(path.dirname(file)), ['payload.bin']);
+  } finally {
+    fs.fsyncSync = originalFsyncSync;
+    fs.openSync = originalOpenSync;
+    fs.lstatSync = originalLstatSync;
+    removePath(root);
+  }
+});
+
+test('writePhysicalImmutable keeps regular-file nlink identity checks', () => {
+  const root = temporaryDirectory('dhpk-physical-file-nlink-');
+  const file = path.join(root, 'payload.bin');
+  const originalFstatSync = fs.fstatSync;
+  let descriptor;
+  fs.fstatSync = (target, ...args) => {
+    const stat = originalFstatSync(target, ...args);
+    if (descriptor === undefined) descriptor = target;
+    else if (target === descriptor && stat.isFile()) stat.nlink += 1;
+    return stat;
+  };
+  try {
+    assertSecurityFailure(() => physicalFile.writePhysicalImmutable(root, file, 'must reject'));
+    assert.strictEqual(fs.existsSync(file), false);
+  } finally {
+    fs.fstatSync = originalFstatSync;
+    removePath(root);
+  }
+});
+
 test('writePhysicalImmutable refuses EEXIST without overwriting the existing file', () => {
   const root = temporaryDirectory('dhpk-physical-existing-');
   const file = path.join(root, 'payload.bin');

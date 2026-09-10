@@ -18,6 +18,7 @@ const STABLE_STAT_FIELDS = Object.freeze([
   'ctimeMs',
 ]);
 const STABLE_IDENTITY_FIELDS = Object.freeze(['mode', 'nlink', 'uid', 'gid']);
+const DIRECTORY_IDENTITY_FIELDS = Object.freeze(['mode', 'uid', 'gid']);
 
 const securityError = (message) => {
   const error = new Error(message);
@@ -41,7 +42,13 @@ const samePathSnapshot = (left, right) => Boolean(left && right)
     // temporary or final entry is created.  Ancestor binding therefore uses
     // identity and security-relevant metadata; regular-file data stability is
     // checked separately by the descriptor read/write paths.
-    && sameStableStats(entry.stat, right.entries[index].stat, STABLE_IDENTITY_FIELDS));
+    && sameStableStats(
+      entry.stat,
+      right.entries[index].stat,
+      entry.stat.isDirectory() && right.entries[index].stat.isDirectory()
+        ? DIRECTORY_IDENTITY_FIELDS
+        : STABLE_IDENTITY_FIELDS,
+    ));
 
 const resolvedPath = (value, name) => {
   if (typeof value !== 'string' || value.length === 0) {
