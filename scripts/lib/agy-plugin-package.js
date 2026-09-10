@@ -223,8 +223,6 @@ function inventorySkillMap(inventory) {
 function selectedConfiguration(inventory, profileSelection = null) {
   const configuration = inventory && inventory.agy_plugin;
   if (!configuration || typeof configuration !== 'object') throw new Error('inventory.agy_plugin is required');
-  const membershipIds = inventory.surface_membership && inventory.surface_membership[SURFACE];
-  if (!Array.isArray(membershipIds)) throw new Error(`inventory.surface_membership.${SURFACE} must be a string array`);
   const compiled = compileDistribution({
     inventory,
     surface: SURFACE,

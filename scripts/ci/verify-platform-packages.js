@@ -222,6 +222,62 @@ function policyProjectionPaths(inventory) {
   };
 }
 
+function verifySupportingAssetParity(root, inventory, errors) {
+  const assets = Array.isArray(inventory.supporting_assets) ? inventory.supporting_assets : [];
+  let checked = 0;
+  for (const asset of assets) {
+    if (!asset || !asset.canonical_source || !asset.canonical_digest || !asset.projection_digest) continue;
+    const canonical = path.join(root, asset.canonical_source);
+    const projection = path.join(root, asset.source);
+    if (!fs.existsSync(canonical) || !fs.existsSync(projection)) {
+      errors.push(`supporting asset is missing for parity check: ${asset.id || asset.source}`);
+      continue;
+    }
+    checked += 1;
+    if (sha256(fs.readFileSync(canonical)) !== asset.canonical_digest) {
+      errors.push(`supporting asset canonical digest is stale: ${asset.id || asset.source}`);
+    }
+    if (sha256(fs.readFileSync(projection)) !== asset.projection_digest) {
+      errors.push(`supporting asset projection digest is stale: ${asset.id || asset.source}`);
+    }
+  }
+  return checked;
+}
+
+function verifySharedSkillParity(root, inventory, errors) {
+  const flowGuide = (inventory.skills || []).find((entry) => entry && entry.id === 'flow-guide');
+  if (!flowGuide || typeof flowGuide.path !== 'string') {
+    errors.push('inventory is missing the canonical flow-guide skill for fallback parity');
+    return [];
+  }
+  const reference = path.posix.join(flowGuide.path, 'references', 'implementation-dispatch.md');
+  const canonical = path.join(root, reference);
+  if (!fs.existsSync(canonical)) {
+    errors.push(`canonical fallback reference is missing: ${reference}`);
+    return [];
+  }
+  const canonicalContent = fs.readFileSync(canonical);
+  const roots = {
+    'agent-plugin': SURFACE_OWNERS['agent-plugin'],
+    'codex-native': SURFACE_OWNERS['codex-native'],
+    'agy-plugin': SURFACE_OWNERS['agy-plugin'],
+    // Cursor intentionally consumes the Agent Plugin-owned shared skill tree.
+    'cursor-plugin': SURFACE_OWNERS['agent-plugin'],
+  };
+  const checked = [];
+  for (const [surface, owner] of Object.entries(roots)) {
+    const target = path.join(root, owner, reference);
+    if (!fs.existsSync(target)) {
+      errors.push(`${surface} fallback reference is missing: ${path.relative(root, target)}`);
+      continue;
+    }
+    const targetContent = fs.readFileSync(target);
+    if (!targetContent.equals(canonicalContent)) errors.push(`${surface} fallback reference drifted from the canonical skill`);
+    checked.push({ surface, source: path.relative(root, target), canonicalSource: reference, digest: sha256(targetContent) });
+  }
+  return checked;
+}
+
 function verifyPolicyParity(root, inventory) {
   const paths = policyProjectionPaths(inventory);
   const errors = [];
@@ -234,6 +290,8 @@ function verifyPolicyParity(root, inventory) {
     errors.push(`canonical policy is missing required markers: ${missingCanonicalMarkers.join(', ')}`);
   }
   const projections = {};
+  const supportingAssetCount = verifySupportingAssetParity(root, inventory, errors);
+  const sharedSkillProjections = verifySharedSkillParity(root, inventory, errors);
   for (const [platform, relative] of Object.entries({ claude: paths.claude, codex: paths.codex, agy: paths.agy, cursor: paths.cursor })) {
     const file = path.join(root, relative);
     const content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
@@ -265,6 +323,8 @@ function verifyPolicyParity(root, inventory) {
     canonicalSource: paths.claude,
     requiredMarkers: POLICY_MARKERS.slice(),
     projections,
+    supportingAssetCount,
+    sharedSkillProjections,
     errors,
   };
 }

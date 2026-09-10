@@ -159,6 +159,30 @@ test('AGY generation requires the inventory-owned selection policy', () => {
   }
 });
 
+test('AGY selection policy can use entry surfaces without a duplicate membership map', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    const inventory = writeFixture(root, { withProjectionContract: true });
+    delete inventory.surface_membership['agy-plugin'];
+    inventory.projection_contract.surfaces['agy-plugin'].selection_policy = {
+      source: 'entry_surfaces',
+      precedence: ['entry_surfaces'],
+    };
+    const result = materializeAgyPluginPackage({
+      root,
+      inventory,
+      outDir,
+      version: '0.39.0',
+      sourceVersion: '0.39.0',
+      sourceCommit: COMMIT,
+    });
+    assert.deepStrictEqual(result.receipt.selection.selectedStableIds, ['sample']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('rewrites source-tree harness references to an AGY skill target', () => {
   const root = tempRoot();
   const outDir = path.join(root, 'package');
