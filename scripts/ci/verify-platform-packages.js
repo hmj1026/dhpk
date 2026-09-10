@@ -30,7 +30,12 @@ const {
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
 } = require('../lib/agy-plugin-package');
-const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheckout } = require('../lib/platform-provenance');
+const {
+  SURFACE_OWNERS,
+  validateSurfaceReceipt,
+  resolveGeneratedFromTree,
+  assertCleanSourceCheckout,
+} = require('../lib/platform-provenance');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
@@ -203,14 +208,16 @@ function policyProjectionPaths(inventory) {
   const contractSurfaces = inventory.projection_contract && inventory.projection_contract.surfaces || {};
   const codex = (inventory.supporting_assets || []).find((entry) => entry.id === 'codex-supporting-policies-execution-policy-md');
   const agyRule = inventory.agy_plugin && (inventory.agy_plugin.rules || []).find((entry) => path.basename(entry) === 'execution-policy.md');
-  const agyOwner = contractSurfaces['agy-plugin'] && contractSurfaces['agy-plugin'].owner;
-  const cursorOwner = contractSurfaces['cursor-plugin'] && contractSurfaces['cursor-plugin'].owner;
-  if (!codex || !codex.canonical_source || !agyRule || !agyOwner || !cursorOwner) return null;
+  const agyContract = contractSurfaces['agy-plugin'];
+  const cursorContract = contractSurfaces['cursor-plugin'];
+  if (!codex || !codex.canonical_source || !agyRule
+    || !agyContract || agyContract.owner !== 'agy-plugin'
+    || !cursorContract || cursorContract.owner !== 'cursor-plugin') return null;
   return {
     claude: codex.canonical_source,
     codex: codex.source,
-    agy: path.posix.join(agyOwner, agyRule),
-    cursor: path.posix.join(cursorOwner, 'rules', cursorDocumentDestinationName('rules', path.basename(codex.canonical_source))),
+    agy: path.posix.join(SURFACE_OWNERS['agy-plugin'], agyRule),
+    cursor: path.posix.join(SURFACE_OWNERS['cursor-plugin'], 'rules', cursorDocumentDestinationName('rules', path.basename(codex.canonical_source))),
     codexEntry: codex,
   };
 }
