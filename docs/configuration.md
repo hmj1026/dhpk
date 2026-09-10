@@ -85,6 +85,31 @@ user setting, and the shipped default is `false`.
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
 
+### Migrating existing automatic worker settings
+
+The existing `fast_worker_backend`, `fast_worker_backend_order`, and
+`fast_worker_fallback` settings remain valid. The migration changes only the
+meaning of automatic external discovery: `fast_worker_backend=auto` is now
+native-only unless cross-provider dispatch is explicitly enabled.
+
+| Existing configuration | Current behavior | Migration action |
+|---|---|---|
+| `fast_worker_backend=claude` | Uses the native Claude worker. | No change required. |
+| `fast_worker_backend=codex` or `agy` | Directionally selects that external worker for the invocation. | Keep the setting, and verify the selected CLI/authentication separately. It does not open other providers. |
+| `fast_worker_backend=auto` | Uses the native Claude candidate and does not probe external CLIs while `cross_provider=false`. | Keep `auto` for the native-only default, or set `cross_provider=true` if the configured external order should be eligible. |
+| `fast_worker_backend_order` | Preserves the configured order, but external entries are suppressed while cross-provider dispatch is disabled. | Keep the order; no rewrite is needed. |
+| `fast_worker_fallback=claude` | Falls back only when an explicitly selected CLI executable is missing. | Keep it only if that narrow missing-executable fallback is intended; it does not cover auth, quota, task, execution, or verification failures. |
+
+To opt in for a project, add the setting under
+`pluginConfigs.dhpk@dhpk.options` in `.claude/settings.local.json` (or the
+project `settings.json`). To opt in for one automatic selection only, use
+`--worker=auto --cross-provider`. The one-shot flag has precedence over project
+and installed-user configuration. Setting the project value to `false` rolls
+back to native-only automatic selection; removing the project override instead
+re-exposes the installed-user value, so verify that value is also unset or
+`false` before treating removal as a rollback. The retired `CODEX=on` and
+`--codex` flags are not migration aliases.
+
 The dispatcher validates the resolved deadline as unsigned decimal seconds
 before it creates the `0600` immutable transport context. Empty, fractional,
 negative, or otherwise malformed values block the dispatch instead of silently
