@@ -31,12 +31,16 @@ evidence, not a switching instruction, and must be one of
 provider fields remain unchanged; the canonical dispatcher policy decides any
 subsequent handoff.
 
-The wrapper bootstrap is the fixed Linux/WSL system path `/usr/bin/python3`.
-The context must attest that same named `python3` entry in its restricted
-runtime allowlist. It never uses a Python path from the environment or falls
-back to `timeout` or `gtimeout`; a host without that system runtime is
-`BLOCKED`. Codex gets its bounded prompt through stdin. AGY keeps its supported
-`-p` prompt and receives only `Y\n` as its bounded confirmation stdin mode.
+The wrapper bootstrap is the fixed system path `/usr/bin/python3` on
+Linux/WSL and macOS. The context must attest that same named `python3` entry in
+its restricted runtime allowlist. On macOS system Python builds that do not
+expose descriptor-relative `os.mkfifo`, the runner uses libc `mkfifoat` against
+the already-pinned directory descriptor; it never falls back to a path-based
+or cwd-based FIFO creation. It never uses a Python path from the environment or
+falls back to `timeout` or `gtimeout`; a host without that system runtime or
+descriptor-safe FIFO capability is `BLOCKED`. Codex gets its bounded prompt
+through stdin. AGY keeps its supported `-p` prompt and receives only `Y\n` as
+its bounded confirmation stdin mode.
 
 ## When NOT to Use
 
