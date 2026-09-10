@@ -51,7 +51,7 @@ if [ -z "${DHPK_CLI_TRANSPORT_CONTEXT:-}" ]; then
   exit 65
 fi
 if [ ! -x "$SYSTEM_PYTHON3" ]; then
-  echo "run-codex.sh: BLOCKED: the Linux/WSL system python3 transport runtime is unavailable." >&2
+  echo "run-codex.sh: BLOCKED: the fixed system python3 transport runtime is unavailable." >&2
   exit 65
 fi
 if [ ! -f "$PREPARE" ] || [ ! -f "$RUNNER" ]; then
