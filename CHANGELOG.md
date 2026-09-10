@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.57.0 — 2026-09-10 — Native-first dispatch and Sentinel retirement
+
+**BREAKING(review-gate)** — Remove the legacy Review Sentinel mechanism (`.pending-*` marker files, resumed-review-obligation reconciliation, and the PostToolUse edit-arming hook); reviewer dispatch is now an orchestrator/AI judgment call against the trigger table in `rules/execution-policy.md`, not a hook-armed marker file.
+**feat(execution-policy)** — Add native-first fallback classification and partial-writer handoff safeguards without silently switching providers or dropping dirty work.
+**feat(execution-policy)** — Make automatic delegated dispatch native-only by default so external provider CLIs are not probed unless explicitly selected.
+**chore(review-gate)** — Remove the unused Sentinel-retirement evidence gate (20-outcome ledger, single-maintainer authorization track); Sentinel retirement is now a direct maintainer decision recorded in ADR-0018.
+
 ## 0.56.0 — 2026-09-09 — Single-maintainer Sentinel retirement track and agent schema deduplication
 
 **feat(review-gate)** — Add a single-maintainer authorization track for Sentinel retirement evidence (issue #375), letting a solo maintainer's time-separated, CI-corroborated self-authorization substitute for a distinct-party reviewer.
