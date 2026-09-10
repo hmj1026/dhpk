@@ -110,8 +110,12 @@ test('the CLI reports an installed cache root distinct from the staged source, i
   // assert it is actually inside our sandbox, not just "not the deleted stage
   // dir", so a broken sandbox fails loudly here instead of quietly installing
   // into the user's real Codex state.
+  // Compare canonical spellings: the CLI may report the installed root
+  // through its realpath while codexHome still carries the OS alias (e.g.
+  // macOS's /var -> /private/var), which otherwise misclassifies a genuinely
+  // contained path as outside the sandbox (issue #436).
   assert.ok(
-    path.resolve(installedRoot).startsWith(`${path.resolve(codexHome)}${path.sep}`),
+    fs.realpathSync(installedRoot).startsWith(`${fs.realpathSync(codexHome)}${path.sep}`),
     `installed root '${installedRoot}' is not inside the sandboxed CODEX_HOME '${codexHome}'`
   );
 });

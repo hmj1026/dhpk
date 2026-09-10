@@ -178,8 +178,11 @@ function packageManifest(platform, root) {
 }
 
 function runCodexProbe(root, execute = false) {
-  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-home-'));
-  const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-package-'));
+  // Canonicalize immediately (issue #436): an OS temp alias (e.g. macOS's
+  // /var) in these path strings would otherwise fail the physical-ancestor
+  // and private-writable-path checks below for an entirely legitimate root.
+  const tempHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-home-')));
+  const stagingRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-package-')));
   const stagedPackage = path.join(stagingRoot, 'package');
   const workspace = path.join(stagingRoot, 'workspace');
   const env = probeEnvironment(tempHome);
@@ -263,7 +266,10 @@ function runCursorProbe(root, execute = false) {
 
   const command = 'cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package> --mode ask --trust -p <smoke-prompt> --output-format stream-json --stream-partial-output';
   const agentRoot = path.join(path.dirname(root), 'dhpk-agent');
-  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-consumer-'));
+  // Canonicalize immediately (issue #436): staged*/assertPhysicalPackageRoot
+  // below walk ancestor symlinks, and an OS temp alias (e.g. macOS's /var)
+  // would otherwise reject a legitimate staged package.
+  const sandbox = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-consumer-')));
   const stagedAgent = path.join(sandbox, 'agent-plugin');
   const stagedCursor = path.join(sandbox, 'cursor-plugin');
   const workspace = path.join(sandbox, 'workspace');
@@ -336,7 +342,8 @@ function runAgentPluginProbe(root, execute = false) {
   }
 
   const command = 'cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format stream-json --stream-partial-output';
-  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-consumer-'));
+  // Canonicalize immediately (issue #436): same reasoning as runCursorProbe.
+  const sandbox = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-consumer-')));
   const stagedRoot = path.join(sandbox, 'agent-plugin');
   const workspace = path.join(sandbox, 'workspace');
   try {

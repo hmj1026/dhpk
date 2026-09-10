@@ -47,9 +47,20 @@ function main() {
   }
   const agentPackage = path.resolve(args.agentPackage);
   const cursorPackage = path.resolve(args.cursorPackage);
-  const tempRoot = path.resolve(os.tmpdir());
+  // os.tmpdir() can return a path through an OS-level alias (e.g. macOS's
+  // /var -> /private/var symlink). Resolve it once so both the staging root
+  // created below and every containment comparison land on the canonical
+  // spelling — otherwise a legitimate package under the same physical
+  // directory is misclassified as outside tempRoot, or the staged copy is
+  // misclassified as having a symlinked ancestor (issue #436).
+  const tempRoot = fs.realpathSync(path.resolve(os.tmpdir()));
   const privateTempPath = (value) => {
-    const resolved = path.resolve(value);
+    let resolved;
+    try {
+      resolved = fs.realpathSync(path.resolve(value));
+    } catch (_) {
+      return false;
+    }
     return resolved === tempRoot || resolved.startsWith(`${tempRoot}${path.sep}`);
   };
   let stagingRoot = null;
