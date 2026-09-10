@@ -22,8 +22,11 @@ function fileFingerprint(file) {
 
 function mkRepo({ branch = 'develop' } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-')));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/dhpk-tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules']) {
+  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/dhpk-tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package']) {
     fs.mkdirSync(path.join(root, rel), { recursive: true });
+  }
+  for (const profile of ['minimal', 'full', 'compat-v1']) {
+    fs.writeFileSync(path.join(root, 'generated/claude-profiles', profile, 'package', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
   }
   fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
   fs.writeFileSync(path.join(root, '.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));

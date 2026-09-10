@@ -4,9 +4,11 @@
 // surface: the Claude plugin manifest, root Codex manifest, thin Codex
 // wrapper manifest, standard Agent Plugin, native AGY plugin, and Cursor
 // Plugin manifests plus owner-scoped receipts, marketplace descriptor, the
-// CHANGELOG.md release heading, and the bilingual AGY generator pin in
-// platform-installation SSOT. Composes (does not replace) the pairwise
-// manifest parity already covered by tests/codex-plugin-manifest.test.js.
+// three tracked generated Claude profile package manifests (minimal, full,
+// compat-v1), the CHANGELOG.md release heading, and the bilingual AGY
+// generator pin in platform-installation SSOT. Composes (does not replace)
+// the pairwise manifest parity already covered by
+// tests/codex-plugin-manifest.test.js.
 
 const fs = require('fs');
 const path = require('path');
@@ -25,6 +27,9 @@ const MANIFEST_PATHS = [
   'plugins/dhpk-agy/provenance.json',
   'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
   'plugins/dhpk-cursor/provenance.json',
+  'generated/claude-profiles/minimal/package/plugin.json',
+  'generated/claude-profiles/full/package/plugin.json',
+  'generated/claude-profiles/compat-v1/package/plugin.json',
 ];
 
 const AGY_GENERATOR_DOC_PATHS = [
