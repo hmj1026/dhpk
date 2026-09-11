@@ -18,6 +18,7 @@ const receipts = require('./harness-receipt');
 const inventoryApi = require('./distribution-inventory');
 const { normalizeConsumerEvidence } = require('./release-evidence');
 const runtimePreflight = require('./consumer-runtime-preflight');
+const releaseArtifactManifest = require('./release-artifact-manifest');
 
 const PHASES = Object.freeze(['preflight', 'plan', 'generate', 'validate', 'test', 'probe', 'verify', 'release']);
 const PHASE_INDEX = new Map(PHASES.map((phase, index) => [phase, index]));
@@ -861,12 +862,73 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
     const checked = runtimePreflight.comparePreflightIdentity(options.expectedIdentity, preflightIdentity);
     if (!checked.ok) identityErrors.push(...checked.errors.map((error) => `foreign or stale preflight: ${error}`));
   }
+  let batch = null;
+  const requestedConcurrency = options && options.probeConcurrency !== undefined
+    ? Number(options.probeConcurrency)
+    : 1;
+  if (probeExecutor === runConsumerProbe && Number.isSafeInteger(requestedConcurrency) && requestedConcurrency > 1) {
+    const batchScript = path.join(root, 'scripts', 'release', 'parallel-consumer-probes.js');
+    const batchArgs = [
+      batchScript,
+      '--repo-root', root,
+      '--surfaces', requiredSurfaces.join(','),
+      '--concurrency', String(requestedConcurrency),
+      '--timeout-ms', String(options.probeTimeoutMs || 120000),
+      '--task-id', options.taskId || 'release',
+      '--attempt-id', options.attemptId || 'attempt',
+    ];
+    const child = spawnSync(process.execPath, batchArgs, {
+      cwd: root,
+      env: options.runtimeEnv || process.env,
+      encoding: 'utf8',
+      timeout: (Number(options.probeTimeoutMs) || 120000) * requiredSurfaces.length,
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    try { batch = JSON.parse(child.stdout || '{}'); } catch (_) { batch = null; }
+    if (!batch || !Array.isArray(batch.results)) {
+      const reason = child.error && child.error.code === 'ETIMEDOUT'
+        ? 'bounded consumer probe coordinator timed out'
+        : `bounded consumer probe coordinator emitted invalid JSON (exit ${child.status === null ? 127 : child.status})`;
+      batch = {
+        schema: 'dhpk.release-consumer-probe-batch.v1',
+        concurrency: requestedConcurrency,
+        wallTimeMs: null,
+        results: requiredSurfaces.map((surface) => ({
+          surface,
+          namespace: null,
+          execution: {
+            outcome: 'BLOCKED',
+            surfaceResults: [failedProbeRow(surface, 'BLOCKED', reason, root, [], 'parallel-consumer-probes', 'parallel-consumer-probes')],
+          },
+        })),
+      };
+    }
+  }
+  const batchBySurface = new Map((batch && Array.isArray(batch.results) ? batch.results : [])
+    .filter((entry) => entry && typeof entry.surface === 'string')
+    .map((entry) => [entry.surface, entry]));
+  const artifactBySurface = new Map((options.artifactManifest && Array.isArray(options.artifactManifest.packages)
+    ? options.artifactManifest.packages
+    : []).map((entry) => [entry.surface, entry]));
   const surfaceResults = requiredSurfaces.map((surface) => {
     let execution;
-    try {
-      execution = probeExecutor(root, { surface });
-    } catch (error) {
-      return failedProbeRow(surface, 'FAIL', `consumer probe failed before emitting evidence: ${error.message}`, root);
+    let probeNamespace = null;
+    if (batch) {
+      const entry = batchBySurface.get(surface);
+      execution = entry && entry.execution;
+      probeNamespace = entry && entry.namespace;
+      if (!execution) {
+        execution = {
+          outcome: 'BLOCKED',
+          surfaceResults: [failedProbeRow(surface, 'BLOCKED', 'bounded consumer probe coordinator omitted a required surface', root, [], 'parallel-consumer-probes', 'parallel-consumer-probes')],
+        };
+      }
+    } else {
+      try {
+        execution = probeExecutor(root, { surface });
+      } catch (error) {
+        return failedProbeRow(surface, 'FAIL', `consumer probe failed before emitting evidence: ${error.message}`, root);
+      }
     }
     const normalized = normalizeReleaseProbeResult(root, surface, execution);
     const rowIdentity = normalized.preflightIdentity
@@ -876,9 +938,13 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
       const checked = runtimePreflight.comparePreflightIdentity(preflightIdentity, rowIdentity);
       if (!checked.ok) identityErrors.push(...checked.errors.map((error) => `consumer row '${surface}' has foreign preflight: ${error}`));
     }
-    return preflightIdentity
-      ? { ...normalized, preflightIdentity: rowIdentity || preflightIdentity }
-      : normalized;
+    const artifactBinding = artifactBySurface.get(surface);
+    return {
+      ...normalized,
+      ...(probeNamespace ? { probeNamespace } : {}),
+      ...(artifactBinding ? { artifactBinding } : {}),
+      ...(preflightIdentity ? { preflightIdentity: rowIdentity || preflightIdentity } : {}),
+    };
   });
   const aggregate = aggregateRequiredSurfaces({
     requiredSurfaces,
@@ -901,6 +967,16 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
     outcome,
     exitCode: exitCodeForOutcome(outcome),
     ...(preflight ? { preflight, runnerCapabilities: preflight.runner } : {}),
+    ...(batch ? {
+      probeExecution: {
+        mode: 'bounded-child-processes',
+        concurrency: batch.concurrency,
+        timeoutMs: batch.timeoutMs,
+        wallTimeMs: batch.wallTimeMs,
+        namespaces: surfaceResults.map((entry) => entry.probeNamespace || null),
+      },
+    } : {}),
+    ...(options.artifactManifest ? { artifactManifestFingerprint: options.artifactManifest.manifestFingerprint } : {}),
     diagnostics: allDiagnostics,
   };
 }
@@ -927,9 +1003,35 @@ function phaseExecution(root, parsed, inventory, binding, runtimeEnv = process.e
         requiredRuntimeSurfaces: required.requiredRuntimeSurfaces,
       },
     });
+    let artifactManifest = null;
+    const artifactManifestPath = runtimeEnv.DHPK_RELEASE_ARTIFACT_MANIFEST;
+    if (artifactManifestPath) {
+      try {
+        artifactManifest = JSON.parse(fs.readFileSync(path.resolve(artifactManifestPath), 'utf8'));
+      } catch (error) {
+        return { outcome: 'BLOCKED', diagnostics: [`release artifact manifest is unreadable: ${error.message}`] };
+      }
+      const checkedManifest = releaseArtifactManifest.validateReleaseArtifactManifest(artifactManifest, {
+        root,
+        targetCommit: binding.targetCommit,
+        targetTree: binding.targetTree,
+        expectedRunId: runtimeEnv.GITHUB_RUN_ID || null,
+        expectedVersion: releaseVersion(root),
+      });
+      if (!checkedManifest.ok) {
+        return { outcome: 'BLOCKED', diagnostics: checkedManifest.errors.slice(0, 20) };
+      }
+      artifactManifest = checkedManifest.manifest;
+    }
     const release = runReleaseProbes(root, required.requiredSurfaces, required.requiredRuntimeSurfaces, runConsumerProbe, {
       preflight,
       expectedIdentity: preflight.identity,
+      artifactManifest,
+      probeConcurrency: runtimeEnv.DHPK_HARNESS_RELEASE_PROBE_CONCURRENCY || 1,
+      probeTimeoutMs: runtimeEnv.DHPK_HARNESS_RELEASE_PROBE_TIMEOUT_MS || 120000,
+      taskId: parsed.taskId,
+      attemptId: parsed.attemptId,
+      runtimeEnv,
     });
     const blockedByPreflight = preflight.status === 'BLOCKED' || preflight.status === 'UNAVAILABLE' || preflight.status === 'FAIL';
     const outcome = blockedByPreflight && release.outcome === 'COMPLETE'
@@ -941,6 +1043,8 @@ function phaseExecution(root, parsed, inventory, binding, runtimeEnv = process.e
       preflight,
       runnerCapabilities: preflight.runner,
       identity: preflight.identity,
+      ...(release.probeExecution ? { probeExecution: release.probeExecution } : {}),
+      ...(release.artifactManifestFingerprint ? { artifactManifestFingerprint: release.artifactManifestFingerprint } : {}),
       diagnostics: [
         ...(Array.isArray(release.diagnostics) ? release.diagnostics : []),
         ...(Array.isArray(preflight.diagnostics) ? preflight.diagnostics : []),
@@ -1278,6 +1382,7 @@ function execute(argv = [], {
         operationIntent: operationIntent(parsed),
         preflight: execution.preflight || null,
         runnerCapabilities: execution.runnerCapabilities || null,
+        ...(execution.artifactManifestFingerprint ? { artifactManifestFingerprint: execution.artifactManifestFingerprint } : {}),
       },
       retryOf: parsed.retryOf && previousReceipt ? previousReceipt.identity : null,
       previousReceipt: parsed.previousReceipt && previousReceipt ? previousReceipt.identity : null,
@@ -1301,6 +1406,8 @@ function execute(argv = [], {
       ...(Array.isArray(execution.surfaceResults) ? { surfaceResults: execution.surfaceResults } : {}),
       ...(execution.preflight ? { preflight: execution.preflight } : {}),
       ...(execution.runnerCapabilities ? { runnerCapabilities: execution.runnerCapabilities } : {}),
+      ...(execution.probeExecution ? { probeExecution: execution.probeExecution } : {}),
+      ...(execution.artifactManifestFingerprint ? { artifactManifestFingerprint: execution.artifactManifestFingerprint } : {}),
     });
     receipts.appendEvent(attempt, {
       command: result.resumeCommand,
@@ -1337,4 +1444,5 @@ module.exports = {
   lifecyclePhaseForOutcome,
   exitCodeForOutcome,
   runReleaseProbes,
+  runConsumerProbe,
 };

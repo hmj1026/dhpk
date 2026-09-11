@@ -587,7 +587,14 @@ function runCodexNamedRoleProbe(project, {
   }
 
   const cliVersion = (version.stdout || version.stderr || '').trim();
-  const sourceCodexHome = path.resolve(env.CODEX_HOME || path.join(os.homedir(), '.codex'));
+  // A parallel release probe runs with a private HOME/CODEX_HOME. When a
+  // named-role runtime needs credentials, the coordinator supplies an
+  // explicit read-only host source; never infer it from the private HOME.
+  const sourceCodexHome = path.resolve(
+    env.DHPK_CONSUMER_PROBE_HOST_CODEX_HOME
+      || env.CODEX_HOME
+      || path.join(os.homedir(), '.codex'),
+  );
   const sourceAuth = path.join(sourceCodexHome, 'auth.json');
   let sourceAuthStat;
   try { sourceAuthStat = fs.statSync(sourceAuth); } catch (_) {
