@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -109,14 +110,19 @@ test('baseline rejects a source tree that is not bound to the source commit', ()
     () => buildBaseline({ root: ROOT, sourceCommit: 'not-a-real-commit', provenanceRoot: ROOT }),
     /cannot be resolved in provenance root/i,
   );
-  assert.throws(
-    () => buildBaseline({ root: ROOT, sourceCommit: SOURCE_COMMIT, provenanceRoot: ROOT }),
-    /collection root does not match source commit|collection root file .* does not match source commit/i,
-  );
-  assert.throws(
-    () => buildBaseline({ root: ROOT, sourceCommit: SOURCE_COMMIT }),
-    /collection root does not match source commit|collection root file .* does not match source commit/i,
-  );
+  const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-baseline-root-'));
+  try {
+    assert.throws(
+      () => buildBaseline({ root: scratchRoot, sourceCommit: SOURCE_COMMIT, provenanceRoot: ROOT }),
+      /collection root does not match source commit|collection root file .* does not match source commit/i,
+    );
+    assert.throws(
+      () => buildBaseline({ root: scratchRoot, sourceCommit: SOURCE_COMMIT, provenanceRoot: ROOT }),
+      /collection root does not match source commit|collection root file .* does not match source commit/i,
+    );
+  } finally {
+    fs.rmSync(scratchRoot, { recursive: true, force: true });
+  }
 });
 
 run('skill-baseline');
