@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.57.1",
-  "sourceCommit": "9e7c931ac34125b88d1dae428214ab7c26a271ec",
-  "generatedFromCommit": "9e7c931ac34125b88d1dae428214ab7c26a271ec",
-  "generatedFromTree": "403608d3e99a9faf5691ff85b49de19a54993101",
+  "sourceCommit": "4bf79b27c610f84032365fc0d6e6935cbb4b28b8",
+  "generatedFromCommit": "4bf79b27c610f84032365fc0d6e6935cbb4b28b8",
+  "generatedFromTree": "4f3994371b7f336c5e91fa32fe9eca28c12c98d8",
   "inventoryDigest": "c022eb987db4a0da380e394e4ca27d5c4e443d0c16b68f667dc1d3d1cdc875a7",
   "inventoryRevision": "sha256:2e98589c85e81e6f7ae559c8e6fdbecbf7b5c626a30c8568f5f565ce717043fc",
   "generatorVersion": "2.3.0",
@@ -92,7 +92,7 @@
     "skill-scope": "7eebca48fb7b447ba9ab07d2694eeab7f6b2ec12d5b416eff716e9117228e3ca",
     "dhpk-tdd-workflow": "e6c686704db2c5c5385a2b6c28ac4c1099e76b7f51f5708a69eaf7b31b5722c6",
     "harness-govern": "9417d421c34c76df11cb53b69a5262edeba7965e43d0736828d78bbf1ccda777",
-    "dhpk-cli-dispatch-context": "17ef030aaa3fbd7e4328855e89dfcead6058f8dcd3a620f397309fb7c05297e6",
+    "dhpk-cli-dispatch-context": "ebbac24048a7f4784f150d087144e95dc532b157feeee41fb57497516572672e",
     "dhpk-cli-transport": "12926e258a9c40c274f4ea1789d0fb8b69cf45c2d4f329aa0b359eb611aa6502"
   },
   "routingProjection": {
