@@ -4,9 +4,7 @@
 Define Claude source validation and target applicability for cross-platform
 harness checks, with explicit failure, configuration, compatibility, and runtime
 evidence statuses for source checkouts and consumer repositories.
-
 ## Requirements
-
 ### Requirement: Validation derives the configured target set before checking parity
 
 `multi-ai-sync validate` SHALL validate the canonical Claude source first and
@@ -281,3 +279,49 @@ MUST NOT expose session contents.
 
 - **WHEN** an allowlisted session is cloned but the bounded Subagent invocation reports DNS, transport, or timeout failure inside the controlled shared-network sandbox
 - **THEN** the runtime capability is `UNAVAILABLE` with a connectivity reason code and the release remains non-complete
+
+### Requirement: Configured platform validation covers resolved execution targets
+
+The configured-platform validator SHALL validate Host × Provider × Model × Role
+× Effort × Transport capability rows separately from package discovery. It SHALL
+distinguish static catalog evidence, Host access evidence, runtime availability,
+and actual execution evidence using `PASS`, `NOT_RUN`, `UNAVAILABLE`, and
+`BLOCKED` statuses as applicable.
+
+#### Scenario: Cursor external target is configured
+
+- **WHEN** a project configures Cursor to use Claude Code Opus5
+- **THEN** validation checks the Cursor Host policy, Claude Code access, Model,
+  Effort, Transport, and runtime evidence independently
+
+#### Scenario: Codex target is unavailable
+
+- **WHEN** a project configures Codex CLI Sol5.6 but the CLI is missing
+- **THEN** the target row is `UNAVAILABLE` or `BLOCKED` with exact evidence and
+  does not become a package `PASS`
+
+#### Scenario: Static parity does not imply execution
+
+- **WHEN** all generated projections are byte-consistent but no Provider was
+  launched
+- **THEN** projection parity may pass while execution evidence remains
+  `NOT_RUN`
+
+### Requirement: Platform validation proves Host-native fallback identity
+
+The validator SHALL verify that each configured Host declares one Native
+Provider and that automatic fallback resolves to that Host-native target. A
+Claude-specific native default SHALL fail validation for Cursor, Codex CLI, or
+AGY Hosts.
+
+#### Scenario: Cursor fallback identity is correct
+
+- **WHEN** Cursor is configured as a Host with Cursor native fallback
+- **THEN** the validation report records Cursor native as the fallback target
+
+#### Scenario: Hard-coded Claude fallback is rejected
+
+- **WHEN** a non-Claude Host resolves automatic fallback to Claude without an
+  explicit policy selection
+- **THEN** validation returns `BLOCKED` and identifies the native identity
+  mismatch

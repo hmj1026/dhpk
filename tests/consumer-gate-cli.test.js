@@ -108,7 +108,8 @@ printf '%s\n' "$*" >> ${JSON.stringify(log)}
 if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
 printf '%s\n' "$CODEX_HOME" > ${JSON.stringify(homeLog)}
 cat "$CODEX_HOME/config.toml" > ${JSON.stringify(configLog)}
-stat -c '%a' "$CODEX_HOME/config.toml" > ${JSON.stringify(configModeLog)}
+mode=$(stat -c '%a' "$CODEX_HOME/config.toml" 2>/dev/null || stat -f '%Lp' "$CODEX_HOME/config.toml")
+printf '%s\n' "$mode" > ${JSON.stringify(configModeLog)}
 readlink "$CODEX_HOME/auth.json" > ${JSON.stringify(authTargetLog)}
 SESS="$CODEX_HOME/sessions/2026/01/01"
 mkdir -p "$SESS"
