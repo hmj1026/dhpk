@@ -1,5 +1,10 @@
 'use strict';
 
+const {
+  decideFallback: decideProviderFallback,
+  resolveTarget: resolveProviderTarget,
+} = require('./dispatch-engine');
+
 const VALID_BACKENDS = Object.freeze(['claude', 'codex', 'agy']);
 const DEFAULT_CROSS_PROVIDER = false;
 
@@ -32,12 +37,18 @@ const FAILURE_ACTIONS = Object.freeze({
 });
 
 function resolveDispatchPlan({
+  request,
+  catalog,
+  preferenceOrder,
   role,
   requestedBackend = 'auto',
   configuredOrder = VALID_BACKENDS,
   nativeBackend = 'claude',
   crossProvider = DEFAULT_CROSS_PROVIDER,
 } = {}) {
+  if (request !== undefined) {
+    return resolveProviderTarget(request, { catalog, preferenceOrder });
+  }
   const definition = ROLE_POLICY[role];
   if (!definition) throw new Error(`unknown delegated role: ${role}`);
   if (!VALID_BACKENDS.includes(nativeBackend)) throw new Error(`unknown native backend: ${nativeBackend}`);
@@ -103,6 +114,9 @@ function createFallbackState({
 }
 
 function resolveFallbackDecision({
+  request,
+  resolution,
+  catalog,
   role,
   selectedBackend,
   nativeBackend = 'claude',
@@ -115,6 +129,9 @@ function resolveFallbackDecision({
   state = createFallbackState(),
   handoff = null,
 } = {}) {
+  if (request !== undefined) {
+    return decideProviderFallback({ request, resolution, failureClass, sideEffects, catalog });
+  }
   if (!ROLE_POLICY[role]) throw new Error(`unknown delegated role: ${role}`);
   if (!VALID_BACKENDS.includes(selectedBackend)) throw new Error(`unknown selected backend: ${selectedBackend}`);
   if (!VALID_BACKENDS.includes(nativeBackend)) throw new Error(`unknown native backend: ${nativeBackend}`);
