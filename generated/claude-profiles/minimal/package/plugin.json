@@ -119,6 +119,43 @@
       "description": "Opt in to external provider candidates for automatic fast-worker selection. Default false keeps auto native-only; explicit --worker=<target> remains directional and does not enable other providers.",
       "default": false
     },
+    "worker_target": {
+      "type": "string",
+      "title": "Provider-neutral worker target",
+      "description": "Optional Provider/Model/Effort target for worker dispatch, using provider/model[:effort]. 'auto' uses the current Host-native target and configured preference order; legacy backend keys remain compatibility inputs.",
+      "default": "auto"
+    },
+    "reasoner_target": {
+      "type": "string",
+      "title": "Provider-neutral reasoner target",
+      "description": "Optional Provider/Model/Effort target for reasoner dispatch, using provider/model[:effort]. 'auto' uses the current Host-native target; the target does not grant write authority.",
+      "default": "auto"
+    },
+    "planner_target": {
+      "type": "string",
+      "title": "Provider-neutral planner target",
+      "description": "Optional Provider/Model/Effort target for planner dispatch, using provider/model[:effort]. 'auto' uses the current Host-native target; planner authority remains read-only.",
+      "default": "auto"
+    },
+    "reviewer_target": {
+      "type": "string",
+      "title": "Provider-neutral reviewer target",
+      "description": "Optional Provider/Model/Effort target for reviewer dispatch, using provider/model[:effort]. 'auto' uses the current Host-native target; reviewer authority remains read-only.",
+      "default": "auto"
+    },
+    "preference_order": {
+      "type": "string",
+      "multiple": true,
+      "title": "Provider-neutral preference order",
+      "description": "Ordered Provider or Provider/Model candidates for automatic dispatch. External candidates are eligible only when the Host policy and explicit cross-provider opt-in permit them.",
+      "default": []
+    },
+    "fallback_allow": {
+      "type": "boolean",
+      "title": "Allow pre-side-effect fallback",
+      "description": "Allow the Dispatch Engine to use the current Host-native target after confirmed availability failure before side effects; safety, semantic, timeout, and post-write failures never silently switch Providers.",
+      "default": true
+    },
     "fast_worker_backend": {
       "type": "string",
       "title": "Fast-worker backend",
@@ -272,14 +309,14 @@
     "agy_fast_worker_model": {
       "type": "string",
       "title": "agy-fast-worker model",
-      "description": "Model display string passed to the agy CLI backend when the agy-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). agy bakes the thinking level into the model name, so there is no separate effort key. Override here when a default is deprecated (check `agy models`). Default 'Gemini 3.6 Flash (High)' (live-probe-verified against agy 1.1.8).",
-      "default": "Gemini 3.6 Flash (High)"
+      "description": "Model display string passed to the agy CLI backend when the agy-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). agy bakes the thinking level into the model name, so there is no separate effort key. Override here when a default is deprecated (check `agy models`). Default 'Gemini 3.8 Flash (High)'.",
+      "default": "Gemini 3.8 Flash (High)"
     },
     "agy_worker_model": {
       "type": "string",
       "title": "agy-worker model",
       "description": "Canonical model key for agy-worker; it takes precedence over the one-release agy_fast_worker_model alias.",
-      "default": "Gemini 3.6 Flash (High)"
+      "default": "Gemini 3.8 Flash (High)"
     },
     "planner_effort": {
       "type": "string",

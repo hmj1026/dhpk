@@ -21,10 +21,16 @@ const legacyManifest = JSON.parse(fs.readFileSync(LEGACY_MANIFEST_PATH, 'utf8'))
 const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PATH, 'utf8'));
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
-const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 70;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '7239af5dada08b32f328c82ef7bbed6bad77a52afc2f70d15aeccb64a523c830';
+const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 76;
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = 'effc506185fec3fa1c3d44e6907742670255b7b61778f4030ec83cd6a52703ba';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'cross_provider',
+  'worker_target',
+  'reasoner_target',
+  'planner_target',
+  'reviewer_target',
+  'preference_order',
+  'fallback_allow',
   'codex_worker_model',
   'codex_worker_effort',
   'codex_reasoner_model',
@@ -128,7 +134,7 @@ test('legacy userConfig fixture contains exactly 59 options and preserves the le
   }
 });
 
-test('active userConfig preserves the canonical 70-key contract and metadata coverage', () => {
+test('active userConfig preserves the canonical 76-key contract and metadata coverage', () => {
   const activeEntries = contractEntries(activeManifest);
   const legacyKeys = Object.keys(legacyManifest.userConfig || {});
   const activeKeys = Object.keys(activeManifest.userConfig || {});
@@ -163,6 +169,11 @@ test('active userConfig exposes cross_provider as a disabled-by-default opt-in',
   assert.strictEqual(option.type, 'boolean');
   assert.strictEqual(option.default, false);
   assert.match(option.description, /auto|external|provider/i);
+});
+
+test('active userConfig ships Gemini 3.8 Flash High for both AGY model keys', () => {
+  assert.strictEqual(activeManifest.userConfig.agy_worker_model.default, 'Gemini 3.8 Flash (High)');
+  assert.strictEqual(activeManifest.userConfig.agy_fast_worker_model.default, 'Gemini 3.8 Flash (High)');
 });
 
 test('compact metadata source validates purpose, trigger, boundary, pointer, and schema compatibility', () => {
