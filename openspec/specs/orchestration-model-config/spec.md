@@ -108,7 +108,9 @@ keys such as `codex_fast_worker_*`, `codex_deep_reasoner_*`, `codex_bridge_*`,
 and `agy_fast_worker_model` MAY be read as aliases for one release; canonical
 keys take precedence and diagnostics identify legacy use. The configuration
 contract SHALL not assume that a CLI-backed target is always external or that
-Claude is always native.
+Claude is always native. Timeout budgets SHALL be enforced by the attested
+portable transport runner, which reports the effective deadline and never
+delegates containment to a shell timeout backstop.
 
 #### Scenario: Canonical target key wins
 
