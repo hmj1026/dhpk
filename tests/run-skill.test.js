@@ -64,6 +64,28 @@ test('resolves and execs a real .js skill script (read-only repo-intake scan)', 
   assert.doesNotThrow(() => JSON.parse(res.stdout));
 });
 
+test('missing canonical skills root fails closed before script lookup', () => {
+  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-run-skill-no-skills-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'scripts'), path.join(scratch, 'scripts'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(scratch, 'manifests'), { recursive: true });
+    fs.copyFileSync(
+      path.join(ROOT, 'manifests', 'distribution-inventory.json'),
+      path.join(scratch, 'manifests', 'distribution-inventory.json'),
+    );
+    const res = spawnSync('bash', [path.join(scratch, 'scripts', 'run-skill.sh'), 'dhpk-repo-intake', 'scan_repo.js'], {
+      cwd: scratch,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.strictEqual(res.status, 2, res.stderr);
+    assert.match(res.stderr, /canonical skills root is unavailable/i);
+    assert.strictEqual(res.stdout, '');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('rejects a skill-name argument containing a path component', () => {
   const res = runScript(['../etc', 'scan_repo.js']);
   assert.strictEqual(res.status, 2);
@@ -114,7 +136,7 @@ test('rejects a script symlink that resolves outside the canonical skills root',
   const { result, scratch, outside } = isolatedRunSkill({ inventory, helper, target: 'symlink' });
   try {
     assert.strictEqual(result.status, 2, result.stderr);
-    assert.match(result.stderr, /(symlink|canonical|outside|containment)/i);
+    assert.match(result.stderr, /script target escapes the canonical skills root|symlinked script targets are not executable/i);
     assert.strictEqual(result.stdout, '');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
