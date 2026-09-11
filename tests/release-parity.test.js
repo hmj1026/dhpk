@@ -31,6 +31,13 @@ function mkRepo({ versions, changelogHeading, agyDocVersion = '1.0.0' } = {}) {
     'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.0.0',
   };
   const merged = { ...defaults, ...(versions || {}) };
+  for (const rel of [
+    'generated/claude-profiles/minimal/package/plugin.json',
+    'generated/claude-profiles/full/package/plugin.json',
+    'generated/claude-profiles/compat-v1/package/plugin.json',
+  ]) {
+    if (merged[rel] === undefined) merged[rel] = merged['.claude-plugin/plugin.json'];
+  }
   for (const [rel, version] of Object.entries(merged)) {
     const abs = path.join(root, rel);
     fs.mkdirSync(path.dirname(abs), { recursive: true });
@@ -67,6 +74,42 @@ function mkRepo({ versions, changelogHeading, agyDocVersion = '1.0.0' } = {}) {
   return root;
 }
 
+function allAtVersion(version) {
+  return {
+    '.claude-plugin/plugin.json': version,
+    '.codex-plugin/plugin.json': version,
+    'plugins/dhpk/.codex-plugin/plugin.json': version,
+    '.agents/plugins/marketplace.json': version,
+    'plugins/dhpk/provenance.json': version,
+    'plugins/dhpk-agent/plugin.json': version,
+    'plugins/dhpk-agent/provenance.json': version,
+    'plugins/dhpk-agy/plugin.json': version,
+    'plugins/dhpk-agy/provenance.json': version,
+    'plugins/dhpk-cursor/.cursor-plugin/plugin.json': version,
+    'plugins/dhpk-cursor/provenance.json': version,
+    'generated/claude-profiles/minimal/package/plugin.json': version,
+    'generated/claude-profiles/full/package/plugin.json': version,
+    'generated/claude-profiles/compat-v1/package/plugin.json': version,
+  };
+}
+
+test('checkParity fails when a tracked Claude profile manifest lags the target', () => {
+  for (const rel of [
+    'generated/claude-profiles/minimal/package/plugin.json',
+    'generated/claude-profiles/full/package/plugin.json',
+    'generated/claude-profiles/compat-v1/package/plugin.json',
+  ]) {
+    const root = mkRepo({
+      versions: { ...allAtVersion('1.2.3'), [rel]: '1.2.2' },
+      changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
+      agyDocVersion: '1.2.3',
+    });
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes(rel) && e.includes('1.2.2') && e.includes('1.2.3')));
+  }
+});
+
 test('MANIFEST_PATHS lists every version-bearing manifest, including native package provenance', () => {
   assert.deepStrictEqual(MANIFEST_PATHS.sort(), [
     '.agents/plugins/marketplace.json',
@@ -80,6 +123,9 @@ test('MANIFEST_PATHS lists every version-bearing manifest, including native pack
     'plugins/dhpk-agy/provenance.json',
     'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
     'plugins/dhpk-cursor/provenance.json',
+    'generated/claude-profiles/minimal/package/plugin.json',
+    'generated/claude-profiles/full/package/plugin.json',
+    'generated/claude-profiles/compat-v1/package/plugin.json',
   ].sort());
 });
 

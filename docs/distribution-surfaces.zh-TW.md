@@ -194,11 +194,14 @@ disposable isolated `CODEX_HOME` 測試。兩者雖分開發布與取得，runti
 仍互斥。
 
 Artifact integrity 與 runtime activation 是兩個獨立判定。相同 fingerprint 加上有效
-provenance 可讓 release integrity matrix 回傳 `PASS`；但 project 與 native surface
-若有任何相同的 invokable public name，`check-codex-discovery` 仍會以
+provenance 可讓 release integrity matrix 回傳 `PASS`；project 與 native surface
+若有相同的 invokable public name，只有在 native Codex plugin（`dhpk@dhpk`）
+確實已啟用時，`check-codex-discovery` 才會以
 `reasonCode: DUPLICATE_CODEX_PROVIDER` 回傳 runtime `BLOCKED`，即使 fingerprint
-相同也一樣。受影響名稱列在 `duplicateInvokableNames`，non-invokable support
-package 不列入；precedence 不能將這類 runtime 重疊降為 `WARN` 或 `PASS`。
+相同也一樣——單純在 `--native-root` 底下存在 package/artifact，不會被當成
+已啟用的 runtime provider。受影響名稱列在 `duplicateInvokableNames`；重疊但
+未啟用的名稱則另外列在 `inactiveDuplicateInvokableNames`，不會擋下；
+precedence 不能將這類 runtime 重疊降為 `WARN` 或 `PASS`。
 
 可執行的 duplicate-discovery 檢查與唯讀處理步驟，請以平台安裝 SSOT 的
 [檢查 Codex 重複 discovery](./platform-installation.zh-TW.md#檢查-codex-重複-discovery)

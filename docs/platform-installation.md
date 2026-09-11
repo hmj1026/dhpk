@@ -122,7 +122,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -274,15 +274,35 @@ node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
   --native-root "$DHPK_ROOT/plugins/dhpk"
 ```
 
-The report keeps artifact integrity separate from runtime activation. Identical
-fingerprints with valid provenance may produce `integrityVerdict: PASS`; stale,
-unowned, or conflicting artifacts follow the existing integrity rules. The
-runtime verdict is independently `BLOCKED` with
+The report keeps artifact integrity separate from runtime activation.
+`--native-root` supplies package/artifact evidence only — a source checkout
+or generated artifact found there is not, by itself, an active runtime
+provider. Identical fingerprints with valid provenance may produce
+`integrityVerdict: PASS`; stale, unowned, or conflicting artifacts follow the
+existing integrity rules. The runtime verdict is independently `BLOCKED` with
 `reasonCode: DUPLICATE_CODEX_PROVIDER` whenever project and native surfaces
-expose the same invokable public name, even when their fingerprints match.
+expose the same invokable public name AND `codex plugin list --json` reports
+`dhpk@dhpk` as enabled, even when their fingerprints match.
 `duplicateInvokableNames` lists the affected names; non-invokable support
 packages are excluded. Precedence does not turn an overlapping invokable name
 into a runtime `WARN` or `PASS`.
+
+The `activation` field reports how the native plugin's enabled state was
+determined: `status` is one of `NOT_INSTALLED`, `UNAVAILABLE`, `AVAILABLE`,
+`DISABLED`, `ENABLED`, or `INACTIVE` (the last only from an explicit
+`--native-activation inactive` override, never from the live probe), with
+`source` naming either `codex-plugin-list` (the
+default, live probe) or `override` (an explicit `--native-activation` value).
+When an overlapping name exists but the native plugin is not enabled, it is
+listed in `inactiveDuplicateInvokableNames` instead and the runtime verdict
+stays `PASS`. If activation cannot be determined (`activation.status:
+UNAVAILABLE`, e.g. Codex is unreachable or its `plugin list` output could not
+be parsed) and an inactive overlapping name exists, the command reports
+`verdict: WARN` and `reasonCode: CODEX_ACTIVATION_UNKNOWN` — a non-blocking
+signal to confirm activation manually rather than either a false block or a
+silent pass. Pass `--native-activation enabled|inactive` to select the
+runtime judgment explicitly (for example in CI, without invoking a live
+`codex` CLI); `--native-activation auto` (the default) runs the live probe.
 
 If the CLI cannot compute a provider fingerprint, it returns structured JSON
 with `verdict: BLOCKED`, `integrityVerdict: BLOCKED`, and
@@ -653,7 +673,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

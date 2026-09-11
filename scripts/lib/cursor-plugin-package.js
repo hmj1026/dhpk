@@ -1739,7 +1739,11 @@ function cursorProbeEnvironment(packageRoot, { probeHome } = {}) {
     if (['HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME'].includes(key)) continue;
     if (process.env[key] !== undefined) env[key] = process.env[key];
   }
-  const home = probeHome || fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-home-'));
+  // Canonicalize immediately: the created directory is physical, but its
+  // path string may still spell an OS temp alias (e.g. macOS's /var), which
+  // later containment checks compare against a canonicalized boundary
+  // (issue #436).
+  const home = probeHome || fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-home-')));
   env.HOME = home;
   env.USERPROFILE = home;
   env.APPDATA = path.join(home, 'AppData', 'Roaming');
@@ -1759,7 +1763,10 @@ function packageLoaderProbe(packageRoot, challenge, { addCursorManifest = false 
   // Cursor refuses to load plugins whose root is directly under the shared
   // system temporary directory. Keep both the container and staged package
   // private so the real CLI can execute the probe-owned hook.
-  const probeContainerRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-package-'));
+  // Canonicalize immediately (issue #436): assertPhysicalPackageRoot below
+  // walks ancestor symlinks, and an OS temp alias (e.g. macOS's /var) would
+  // otherwise fail that walk for an entirely legitimate staged package.
+  const probeContainerRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-package-')));
   const probePackageRoot = path.join(probeContainerRoot, 'package');
   try {
     fs.mkdirSync(probePackageRoot, { recursive: true, mode: 0o700 });
@@ -1929,7 +1936,16 @@ function existingAbsolutePaths(values) {
 function safeWritablePaths(values, privateRoot = null) {
   const paths = existingAbsolutePaths(values);
   if (!privateRoot) return paths;
-  const root = path.resolve(privateRoot);
+  // privateRoot is commonly os.tmpdir(), which on macOS returns the /var
+  // alias rather than its /private/var realpath. Canonicalize it here so a
+  // genuinely-contained writable path (already realpath'd below) is not
+  // misclassified as outside the boundary (issue #436).
+  let root;
+  try {
+    root = fs.realpathSync(path.resolve(privateRoot));
+  } catch (_) {
+    return null;
+  }
   const rootPrefix = `${root}${path.sep}`;
   for (const value of paths) {
     try {
@@ -2102,7 +2118,11 @@ function runCursorConsumerProbeRaw({
     challenge: crypto.randomBytes(18).toString('hex'),
     packageFingerprint: fingerprintDir(packageRoot),
   } : null;
-  const probeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-home-'));
+  // Canonicalize immediately: safeWritablePaths requires each writable path
+  // to already equal its own realpath, so a raw OS temp alias (e.g. macOS's
+  // /var) here would fail containment even though it is genuinely inside
+  // privateRoot (issue #436).
+  const probeHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-home-')));
   let session = { copiedFiles: [] };
   let loaderProbe = null;
   try {

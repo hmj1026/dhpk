@@ -11,7 +11,10 @@ const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'release', 'cursor-agent-probe.js');
 
 function temp(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  // Canonicalize: fixtures feed assertPhysicalPackageRoot, which walks
+  // ancestor symlinks and would otherwise reject a raw OS temp alias (e.g.
+  // macOS's /var) as if it were an attacker-planted symlink (issue #436).
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
 }
 
 function fixtureHome(args) {
@@ -208,6 +211,39 @@ test('Cursor CLI wrapper rejects symlinked package content before staging', () =
     assert.match(report.reason, /symlink/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor CLI wrapper stages under a symlinked temp root without a false physical-ancestor rejection (issue #436)', () => {
+  const realRoot = fs.realpathSync(temp('dhpk-cursor-cli-realroot-'));
+  const linkedTmp = `${realRoot}-alias`;
+  fs.symlinkSync(realRoot, linkedTmp);
+  const agent = path.join(realRoot, 'agent');
+  const cursor = path.join(realRoot, 'cursor');
+  const bin = path.join(realRoot, 'bin');
+  fs.mkdirSync(agent);
+  fs.mkdirSync(cursor);
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'cursor-agent'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  try {
+    // TMPDIR aliases the real staging root the same way macOS aliases /var
+    // to /private/var: os.tmpdir() in the child process returns the
+    // symlinked spelling, while the package roots above are already
+    // canonical. The wrapper must not misclassify the alias as a symlinked
+    // package ancestor when it stages through it.
+    const result = invoke([
+      '--agent-package', agent,
+      '--cursor-package', cursor,
+      '--timeout-ms', '1000',
+    ], { ...process.env, TMPDIR: linkedTmp, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` });
+    const report = JSON.parse(result.stdout);
+    // A real OS-sandbox limitation (no bubblewrap/unshare on this host) is a
+    // legitimate terminal state; only the /var-alias false positives are not.
+    assert.notStrictEqual(report.reason_code, 'PACKAGE_INVALID', result.stdout + result.stderr);
+    assert.notStrictEqual(report.reason_code, 'SANDBOX_PATH_UNSAFE', result.stdout + result.stderr);
+  } finally {
+    fs.unlinkSync(linkedTmp);
+    fs.rmSync(realRoot, { recursive: true, force: true });
   }
 });
 

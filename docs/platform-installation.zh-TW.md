@@ -118,7 +118,7 @@ transaction 遷移。
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -259,14 +259,31 @@ node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
   --native-root "$DHPK_ROOT/plugins/dhpk"
 ```
 
-Report 會把 artifact integrity 與 runtime activation 分開判定。fingerprint
+Report 會把 artifact integrity 與 runtime activation 分開判定。`--native-root`
+只提供 package/artifact 證據——單純出現在該路徑下的 source checkout 或
+generated artifact，本身並不代表已啟用的 runtime provider。fingerprint
 相同且 provenance 有效時，`integrityVerdict: PASS` 仍可能成立；stale、unowned
-或 conflicting artifact 則依既有 integrity 規則處理。另一方面，只要 project
-與 native surface 暴露相同的 invokable public name，runtime verdict 就會是
+或 conflicting artifact 則依既有 integrity 規則處理。另一方面，只有當 project
+與 native surface 暴露相同的 invokable public name **且** `codex plugin list
+--json` 回報 `dhpk@dhpk` 為 enabled 時，runtime verdict 才會是
 `BLOCKED`，並帶有 `reasonCode: DUPLICATE_CODEX_PROVIDER`，即使 fingerprint
 相同也一樣。`duplicateInvokableNames` 會列出受影響名稱；non-invokable
 support package 不列入。Precedence 不能把重疊的 invokable name 變成 runtime
 `WARN` 或 `PASS`。
+
+`activation` 欄位會回報 native plugin 啟用狀態的判定方式：`status` 為
+`NOT_INSTALLED`、`UNAVAILABLE`、`AVAILABLE`、`DISABLED`、`ENABLED`、
+`INACTIVE`（最後者僅在明確傳入 `--native-activation inactive` override 時出現，
+即時探測不會回傳此值）其中之一，
+`source` 則是 `codex-plugin-list`（預設，即時探測）或 `override`（明確傳入
+`--native-activation`）。若存在重疊名稱但 native plugin 未啟用，會改列在
+`inactiveDuplicateInvokableNames`，runtime verdict 維持 `PASS`。若無法判定
+activation（`activation.status: UNAVAILABLE`，例如 Codex 無法連線或
+`plugin list` 輸出無法解析）且存在 inactive 的重疊名稱，command 會回報
+`verdict: WARN` 與 `reasonCode: CODEX_ACTIVATION_UNKNOWN`——這是提醒手動確認
+activation 的非阻擋訊號，既不是誤擋、也不是靜默放行。可傳入
+`--native-activation enabled|inactive` 明確選擇 runtime 判定（例如在 CI 中
+不呼叫真實 `codex` CLI）；預設的 `--native-activation auto` 會執行即時探測。
 
 如果 CLI 無法計算某個 provider 的 fingerprint，會回傳結構化 JSON，且包含
 `verdict: BLOCKED`、`integrityVerdict: BLOCKED` 與
@@ -604,7 +621,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

@@ -9,6 +9,8 @@ receipt/follow-up persistence.
 from __future__ import print_function
 
 import argparse
+import ctypes
+import errno
 import hashlib
 import json
 import os
@@ -287,10 +289,37 @@ def remove_private_temporary(parent_fd, name, descriptor):
                 pass
 
 
+def mkfifo_at(directory_fd, name, mode):
+    """Create a FIFO relative to a pinned directory descriptor.
+
+    Older macOS system Python exposes the descriptor-relative filesystem APIs
+    except for ``os.mkfifo``.  Keep the same descriptor boundary by calling
+    libc's ``mkfifoat`` rather than falling back to a path-based or cwd-based
+    operation.
+    """
+    if os.mkfifo in getattr(os, "supports_dir_fd", ()):
+        try:
+            os.mkfifo(name, mode, dir_fd=directory_fd)
+            return
+        except NotImplementedError:
+            pass
+    try:
+        libc = ctypes.CDLL(None, use_errno=True)
+        mkfifoat = libc.mkfifoat
+    except (AttributeError, OSError) as error:
+        raise OSError(errno.ENOSYS, "mkfifoat is unavailable: %s" % error)
+    mkfifoat.argtypes = (ctypes.c_int, ctypes.c_char_p, ctypes.c_uint)
+    mkfifoat.restype = ctypes.c_int
+    result = mkfifoat(directory_fd, os.fsencode(name), mode)
+    if result != 0:
+        error_number = ctypes.get_errno() or errno.EIO
+        raise OSError(error_number, os.strerror(error_number))
+
+
 def report_pipe(directory_fd, directory_path):
     name = "provider-output"
     try:
-        os.mkfifo(name, 0o600, dir_fd=directory_fd)
+        mkfifo_at(directory_fd, name, 0o600)
         reader = os.open(name, os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0), dir_fd=directory_fd)
         os.set_blocking(reader, True)
         keepalive = os.open(name, os.O_WRONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0), dir_fd=directory_fd)

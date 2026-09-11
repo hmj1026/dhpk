@@ -70,9 +70,10 @@ another agent could execute it without seeing this conversation.
    - Omit optional model/effort overrides unless the dispatcher attests them.
      The portable runner enforces the attested timeout without `timeout` or
      `gtimeout`, under a restricted runtime PATH.
-   - The wrapper uses only Linux/WSL `/usr/bin/python3` as its bootstrap. The
-     dispatcher context must attest that same restricted runtime entry; a host
-     without it is `BLOCKED`.
+   - The wrapper uses only the fixed system `/usr/bin/python3` bootstrap on
+     Linux/WSL and macOS. The dispatcher context must attest that same
+     restricted runtime entry; a host without it or descriptor-safe FIFO
+     support is `BLOCKED`.
 3. The wrapper prints Codex's final message to stdout on success (exit 0), or fails loudly on error.
 
 ### Contained timeout receipt
