@@ -28,6 +28,48 @@
       }
     }
   },
+  "standalone_dependencies": {
+    "flow-guide": {
+      "files": [
+        {
+          "source": "rules/execution-policy.md",
+          "destination": "rules/execution-policy.md"
+        },
+        {
+          "source": "rules/execution-policy-kernel.md",
+          "destination": "rules/execution-policy-kernel.md"
+        },
+        {
+          "source": "scripts/lib/flow-handoff-contract.js",
+          "destination": "scripts/lib/flow-handoff-contract.js"
+        }
+      ]
+    },
+    "flow-drive": {
+      "files": [
+        {
+          "source": "rules/execution-policy.md",
+          "destination": "rules/execution-policy.md"
+        },
+        {
+          "source": "rules/execution-policy-kernel.md",
+          "destination": "rules/execution-policy-kernel.md"
+        },
+        {
+          "source": "scripts/lib/flow-handoff-contract.js",
+          "destination": "scripts/lib/flow-handoff-contract.js"
+        }
+      ]
+    },
+    "code-trace": {
+      "files": [
+        {
+          "source": "rules/tool-routing.md",
+          "destination": "rules/tool-routing.md"
+        }
+      ]
+    }
+  },
   "lifecycles": [
     "promoted",
     "optional",

@@ -23,6 +23,7 @@ const { compileDistribution, materializeDistribution, verifyDistribution } = req
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 
 const AGENT_PLUGIN_VERSION = '1.0.0';
 const AGENT_PLUGIN_SCHEMA = `https://agent-plugins.org/schemas/${AGENT_PLUGIN_VERSION}/plugin.schema.json`;
@@ -72,6 +73,7 @@ function digest(value) {
 function legacyInventoryDigest(inventory) {
   const source = { ...(inventory || {}) };
   delete source.profile_policy;
+  delete source.standalone_dependencies;
   return digest(stableStringify(source));
 }
 
@@ -942,6 +944,22 @@ function buildAgentPluginProjection(options = {}) {
     selectedEntries.push(entry);
   }
 
+  const standaloneAssets = collectStandalonePackageAssets({ root: resolvedRoot, inventory, profileSelection });
+  const existingDestinations = new Set(files.map((file) => file.destination));
+  for (const asset of standaloneAssets) {
+    if (existingDestinations.has(asset.destination)) {
+      throw new Error(`standalone dependency collides with Agent Plugin output: ${asset.destination}`);
+    }
+    existingDestinations.add(asset.destination);
+    files.push(outputRecord(
+      asset.stableId,
+      asset.destination,
+      asset.content,
+      asset.source,
+      { id: 'agent-plugin-standalone-dependency', version: generatorVersion },
+    ));
+  }
+
   const sourceManifest = readManifestMetadata(resolvedRoot, manifestMetadata);
   const manifest = portableManifest({
     name,
@@ -1010,6 +1028,12 @@ function buildAgentPluginProjection(options = {}) {
       selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
       selectionFingerprint: profileSelection.selectionFingerprint || null,
       surfaceSelectionFingerprint: profileSelection.surfaceSelectionFingerprint || null,
+    } : {}),
+    ...(profileSelection && profileSelection.selectionMode === 'standalone' ? {
+      selectionMode: 'standalone',
+      requestedStableIds: profileSelection.requestedStableIds || [],
+      dependencyClosure: profileSelection.dependencyClosure || null,
+      unavailableCapabilities: profileSelection.unavailableCapabilities || [],
     } : {}),
   };
   files.push(outputRecord('manifest:provenance', 'provenance.json', `${JSON.stringify(provenance, null, 2)}\n`));

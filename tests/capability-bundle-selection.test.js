@@ -186,8 +186,89 @@ test('surface identity shares canonical selection and Codex emits only supported
 test('distribution and installer flags parse profile plus repeatable skills', () => {
   const parsed = selection.parseSelectionArgs(['--profile', 'minimal', '--skill', 'core-01', '--skill=core-02']);
   assert.deepStrictEqual(parsed, { profileId: 'minimal', skillIds: ['core-01', 'core-02'] });
+  const standalone = selection.parseSelectionArgs(['--standalone', 'module-a-skill', '--standalone=core-01']);
+  assert.deepStrictEqual(standalone, {
+    profileId: null,
+    skillIds: [],
+    standaloneSkillIds: ['module-a-skill', 'core-01'],
+  });
   assert.throws(() => selection.parseSelectionArgs(['--profile']), /requires a value/);
   assert.throws(() => selection.parseSelectionArgs(['--unknown']), /unknown selection option/i);
+});
+
+test('standalone selection is explicit, deduplicated, and does not inject required core IDs', () => {
+  const source = fixture();
+  source.inventory.standalone_dependencies = {
+    'module-a-skill': { requires: ['core-01'], runtime_support: ['runtime-support'] },
+  };
+  const result = selection.resolveCapabilitySelection({
+    inventory: source.inventory,
+    profiles: source.profiles,
+    moduleCatalog: source.moduleCatalog,
+    surface: 'claude-profile',
+    standaloneSkillIds: ['dhpk-module-a', 'module-a-skill', 'module-a-skill'],
+  });
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.strictEqual(result.value.selectionMode, 'standalone');
+  assert.strictEqual(result.value.profileId, null);
+  assert.deepStrictEqual(result.value.requestedStableIds, ['module-a-skill']);
+  assert.deepStrictEqual(result.value.selectedStableIds, ['core-01', 'module-a-skill']);
+  assert.deepStrictEqual(result.value.emittedPublicNames, ['dhpk-core-01', 'dhpk-module-a']);
+  assert.deepStrictEqual(result.value.dependencyClosure.runtimeSupportIds, ['runtime-support']);
+  assert.strictEqual(result.value.selectedStableIds.length < CORE_IDS.length, true);
+});
+
+test('standalone missing auth or permission is explicit unavailable evidence, never privilege expansion', () => {
+  const source = fixture();
+  source.inventory.standalone_dependencies = {
+    'module-a-skill': {
+      capabilities: [{ id: 'provider-auth', available: false, reason: 'test auth is not configured' }],
+    },
+  };
+  const result = selection.resolveCapabilitySelection({
+    inventory: source.inventory,
+    profiles: source.profiles,
+    moduleCatalog: source.moduleCatalog,
+    surface: 'claude-profile',
+    standaloneSkillIds: ['module-a-skill'],
+  });
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.deepStrictEqual(result.value.selectedStableIds, ['module-a-skill']);
+  assert.deepStrictEqual(result.value.unavailableCapabilities, [{
+    id: 'provider-auth', reason: 'test auth is not configured', required: true,
+  }]);
+});
+
+test('standalone dependency errors fail closed without changing profile overlay semantics', () => {
+  const source = fixture();
+  const dependencyCases = [
+    { catalog: { 'module-a-skill': { requires: ['missing'] } }, code: 'UNKNOWN_STABLE_ID' },
+    { catalog: { 'module-a-skill': { requires: ['retired-id'] } }, code: 'RETIRED_STABLE_ID' },
+    { catalog: { 'module-a-skill': { requires: ['runtime-support'] } }, code: 'NON_INVOKABLE_STABLE_ID' },
+    { catalog: { 'module-a-skill': { requires: ['module-b-skill'] }, 'module-b-skill': { requires: ['module-a-skill'] } }, code: 'STANDALONE_DEPENDENCY_CYCLE' },
+  ];
+  for (const current of dependencyCases) {
+    const result = selection.resolveCapabilitySelection({
+      inventory: { ...source.inventory, standalone_dependencies: current.catalog },
+      profiles: source.profiles,
+      moduleCatalog: source.moduleCatalog,
+      surface: 'claude-profile',
+      standaloneSkillIds: ['module-a-skill'],
+    });
+    assert.strictEqual(result.ok, false, `${current.code} must fail closed`);
+    assert.strictEqual(result.error.code, current.code, `${current.code} diagnostic`);
+  }
+  const mixed = selection.resolveCapabilitySelection({
+    inventory: source.inventory,
+    profiles: source.profiles,
+    moduleCatalog: source.moduleCatalog,
+    profileId: 'minimal',
+    surface: 'agent-plugin',
+    skillIds: ['module-a-skill'],
+    standaloneSkillIds: ['module-a-skill'],
+  });
+  assert.strictEqual(mixed.ok, false);
+  assert.strictEqual(mixed.error.code, 'MIXED_SELECTION_MODES');
 });
 
 test('receipt selection preserves compat-v1 until explicit migration', () => {
@@ -207,6 +288,38 @@ test('receipt selection preserves compat-v1 until explicit migration', () => {
   assert.strictEqual(migration.ok, true, migration.error && migration.error.message);
   assert.strictEqual(migration.value.oldSelection.profileId, 'compat-v1');
   assert.strictEqual(migration.value.newSelection.profileId, 'minimal');
+});
+
+test('standalone receipts preserve their requested boundary during validation and update planning', () => {
+  const source = fixture();
+  source.inventory.standalone_dependencies = { 'module-a-skill': { requires: ['core-01'] } };
+  const existing = selection.resolveReceiptSelection({
+    receipt: {
+      selectionMode: 'standalone',
+      profileId: null,
+      requestedStableIds: ['module-a-skill'],
+      selectedStableIds: ['core-01', 'module-a-skill'],
+    },
+    inventory: source.inventory,
+    profiles: source.profiles,
+    moduleCatalog: source.moduleCatalog,
+    surface: 'claude-profile',
+  });
+  assert.strictEqual(existing.ok, true, existing.error && existing.error.message);
+  assert.strictEqual(existing.value.selectionMode, 'standalone');
+  assert.strictEqual(existing.value.preservedStandalone, true);
+  assert.deepStrictEqual(existing.value.requestedStableIds, ['module-a-skill']);
+  const migration = selection.planProfileMigration({
+    receipt: { selectionMode: 'standalone', requestedStableIds: ['module-a-skill'], selectedStableIds: ['core-01', 'module-a-skill'] },
+    targetStandaloneSkillIds: ['core-02'],
+    inventory: source.inventory,
+    profiles: source.profiles,
+    moduleCatalog: source.moduleCatalog,
+    surface: 'claude-profile',
+  });
+  assert.strictEqual(migration.ok, true, migration.error && migration.error.message);
+  assert.strictEqual(migration.value.migration.toSelectionMode, 'standalone');
+  assert.deepStrictEqual(migration.value.newSelection.requestedStableIds, ['core-02']);
 });
 
 test('activation gate requires every required runtime surface to PASS', () => {

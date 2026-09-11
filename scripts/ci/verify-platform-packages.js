@@ -51,7 +51,8 @@ function sourceCommit(root, fallback) {
 }
 
 function profileSelectionFromReceipt({ receipt, surface, inventory, profiles, moduleCatalog }) {
-  if (!receipt || !receipt.profileId) return null;
+  const standalone = receipt && (receipt.selectionMode === 'standalone' || receipt.profileId === 'standalone');
+  if (!receipt || (!receipt.profileId && !standalone)) return null;
   const required = ['selectedStableIds', 'selectionFingerprint', 'selectionPolicyVersion'];
   for (const field of required) {
     if (receipt[field] === undefined || receipt[field] === null) {
@@ -66,10 +67,11 @@ function profileSelectionFromReceipt({ receipt, surface, inventory, profiles, mo
     inventory,
     profiles,
     moduleCatalog,
-    profileId: receipt.profileId,
+    profileId: standalone ? null : receipt.profileId,
     skillIds: [],
+    standaloneSkillIds: standalone ? receipt.requestedStableIds : undefined,
     surface,
-    sourceInputs: { profileId: receipt.profileId, skillIds: [] },
+    sourceInputs: { profileId: standalone ? null : receipt.profileId, skillIds: [], standaloneSkillIds: standalone ? receipt.requestedStableIds : [] },
     policyVersion: inventory.profile_policy && inventory.profile_policy.version,
   });
   if (!resolved.ok) throw new Error(`${surface} profile selection cannot be resolved: ${resolved.error.message}`);
@@ -81,6 +83,7 @@ function profileSelectionFromReceipt({ receipt, surface, inventory, profiles, mo
   if (JSON.stringify(receipt.selectedStableIds) !== JSON.stringify(expected.selectedStableIds)
     || JSON.stringify(receiptEmitted) !== JSON.stringify(expected.emittedStableIds)
     || receipt.compatibilityMode !== expected.compatibilityMode
+    || (standalone && expected.selectionMode !== 'standalone')
     || receipt.selectionPolicyVersion !== expected.selectionPolicyVersion
     || receipt.selectionFingerprint !== expected.selectionFingerprint
     || (receipt.surfaceSelectionFingerprint && receipt.surfaceSelectionFingerprint !== expected.surfaceSelectionFingerprint)) {

@@ -52,6 +52,20 @@ test('unknown arguments fail before a plan or filesystem mutation', () => {
   } finally { fs.rmSync(project, { recursive: true, force: true }); }
 });
 
+test('standalone install selection is a separate normalized request boundary', () => {
+  const lifecycle = require('../scripts/lib/dhpk-install-lifecycle');
+  const request = lifecycle.parseRequest([
+    'cursor', 'plan', '--scope', 'project', '--standalone', 'flow-guide', '--standalone=flow-guide', '--json',
+  ]);
+  assert.deepStrictEqual(request.standaloneSkillIds, ['flow-guide']);
+  assert.strictEqual(request.profileId, undefined);
+  assert.strictEqual(request.skillIds, undefined);
+  assert.throws(
+    () => lifecycle.parseRequest(['cursor', 'plan', '--scope', 'project', '--standalone', 'flow-guide', '--skill', 'tdd']),
+    /cannot be combined/i,
+  );
+});
+
 test('write actions remain explicitly blocked while legacy Codex sync is preserved', () => {
   const result = invoke(['codex-sync', 'install', '--scope', 'project', '--json']);
   assert.strictEqual(result.status, 2, result.stderr);

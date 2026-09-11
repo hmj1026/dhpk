@@ -18,6 +18,7 @@ const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -68,6 +69,7 @@ function digest(value) {
 function legacyInventoryDigest(inventory) {
   const source = { ...(inventory || {}) };
   delete source.profile_policy;
+  delete source.standalone_dependencies;
   return digest(stableStringify(source));
 }
 
@@ -433,6 +435,13 @@ function materializeAgyPluginPackage({
     });
   }
 
+  const standaloneAssets = collectStandalonePackageAssets({ root: sourceRoot, inventory, profileSelection });
+  for (const asset of standaloneAssets) {
+    const target = path.join(outputRoot, asset.destination);
+    if (lstatOrNull(target)) continue;
+    copyFileContained(asset.path, target, sourceRoot, outputRoot);
+  }
+
   const skillsDestination = ensureDirectory(path.join(outputRoot, 'skills'), 'AGY skills directory');
   const selectedSkillIds = new Set(selected.skills.map((skill) => skill.id));
   const runtimeSkillIds = new Set(selected.runtimeSkillIds);
@@ -495,6 +504,12 @@ function materializeAgyPluginPackage({
     selectionPolicyVersion: profileSelection && profileSelection.selectionPolicyVersion,
     selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
     surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
+    ...(profileSelection && profileSelection.selectionMode === 'standalone' ? {
+      selectionMode: 'standalone',
+      requestedStableIds: profileSelection.requestedStableIds || [],
+      dependencyClosure: profileSelection.dependencyClosure || null,
+      unavailableCapabilities: profileSelection.unavailableCapabilities || [],
+    } : {}),
   });
   receipt.schema = PACKAGE_SCHEMA;
   receipt.provenanceSchema = 'dhpk.platform-provenance.v1';
@@ -581,19 +596,33 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const expectedComponentFiles = selected
     ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles])
     : null;
+  const expectedStandaloneFiles = profileSelection && profileSelection.selectionMode === 'standalone'
+    ? new Set([
+      ...(profileSelection.dependencyClosure && Array.isArray(profileSelection.dependencyClosure.files)
+        ? profileSelection.dependencyClosure.files.map((file) => file.destination) : []),
+      ...(profileSelection.dependencyClosure && Array.isArray(profileSelection.dependencyClosure.supportingAssetIds)
+        ? profileSelection.dependencyClosure.supportingAssetIds.map((id) => {
+          const asset = (inventory && Array.isArray(inventory.supporting_assets) ? inventory.supporting_assets : [])
+            .find((entry) => entry && entry.id === id);
+          return asset && asset.destination;
+        }).filter(Boolean) : []),
+    ])
+    : new Set();
 
   let files = [];
   try { files = outputFiles(root); } catch (error) { errors.push(error.message); }
   for (const relative of files) {
     assertSafeRelative(relative, 'AGY package file');
     const base = relative.split('/')[0];
-    if (!PACKAGE_FILES.has(relative) && !COMPONENT_ROOTS.has(base) && !OPTIONAL_FILES.has(relative)) {
+    if (!PACKAGE_FILES.has(relative) && !COMPONENT_ROOTS.has(base) && !OPTIONAL_FILES.has(relative)
+      && !expectedStandaloneFiles.has(relative)) {
       errors.push(`undeclared AGY package component: ${relative}`);
     }
     const isExpectedSkillReference = expectedSkillReferenceRoots.some((prefix) => relative.startsWith(prefix));
     const isExpectedRuntimeScript = expectedSkillRuntimeScriptRoots.some((prefix) => relative.startsWith(prefix));
     if (expectedComponentFiles && COMPONENT_ROOTS.has(base)
-      && !expectedComponentFiles.has(relative) && !isExpectedSkillReference && !isExpectedRuntimeScript) {
+      && !expectedComponentFiles.has(relative) && !expectedStandaloneFiles.has(relative)
+      && !isExpectedSkillReference && !isExpectedRuntimeScript) {
       errors.push(`undeclared AGY package file: ${relative}`);
     }
     const absolute = path.join(root, relative);

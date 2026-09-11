@@ -38,8 +38,12 @@ function createSurfaceReceipt({
   evidence = {},
   generatorVersion = null,
   profileId = null,
+  selectionMode = null,
+  requestedStableIds = null,
   selectedStableIds = null,
   emittedStableIds = null,
+  dependencyClosure = null,
+  unavailableCapabilities = null,
   compatibilityMode = null,
   selectionPolicyVersion = null,
   selectionFingerprint = null,
@@ -71,8 +75,12 @@ function createSurfaceReceipt({
     ...(route ? { route } : {}),
     ...(generatorVersion ? { generatorVersion } : {}),
     ...(profileId ? { profileId } : {}),
+    ...(selectionMode ? { selectionMode } : {}),
+    ...(Array.isArray(requestedStableIds) ? { requestedStableIds: [...requestedStableIds] } : {}),
     ...(Array.isArray(selectedStableIds) ? { selectedStableIds: [...selectedStableIds] } : {}),
     ...(Array.isArray(emittedStableIds) ? { emittedStableIds: [...emittedStableIds] } : {}),
+    ...(dependencyClosure ? { dependencyClosure } : {}),
+    ...(Array.isArray(unavailableCapabilities) ? { unavailableCapabilities } : {}),
     ...(compatibilityMode ? { compatibilityMode } : {}),
     ...(selectionPolicyVersion ? { selectionPolicyVersion } : {}),
     ...(selectionFingerprint ? { selectionFingerprint } : {}),
@@ -142,6 +150,7 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
     || receipt.selectedStableIds !== undefined
     || receipt.selectionFingerprint !== undefined;
   if (hasSelectionIdentity) {
+    const standalone = receipt.selectionMode === 'standalone' || receipt.profileId === 'standalone';
     if (typeof receipt.profileId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(receipt.profileId)) {
       errors.push('provenance profileId must be a safe non-empty profile alias');
     }
@@ -158,8 +167,17 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
         errors.push('provenance emittedStableIds must be a subset of selectedStableIds');
       }
     }
-    if (typeof receipt.compatibilityMode !== 'string' || !['profile', 'compat-v1', 'compatibility'].includes(receipt.compatibilityMode)) {
-      errors.push('provenance compatibilityMode must be profile or compat-v1');
+    if (typeof receipt.compatibilityMode !== 'string' || !['profile', 'compat-v1', 'compatibility', 'standalone'].includes(receipt.compatibilityMode)) {
+      errors.push('provenance compatibilityMode must be profile, compat-v1, compatibility, or standalone');
+    }
+    if (standalone) {
+      if (receipt.selectionMode !== 'standalone') errors.push('standalone provenance must declare selectionMode=standalone');
+      if (!Array.isArray(receipt.requestedStableIds) || receipt.requestedStableIds.length === 0) {
+        errors.push('standalone provenance requestedStableIds must be a non-empty string array');
+      }
+      if (!receipt.dependencyClosure || typeof receipt.dependencyClosure !== 'object' || Array.isArray(receipt.dependencyClosure)) {
+        errors.push('standalone provenance dependencyClosure must be an object');
+      }
     }
     if (typeof receipt.selectionPolicyVersion !== 'string' || receipt.selectionPolicyVersion.trim() === '') {
       errors.push('provenance selectionPolicyVersion must be a non-empty string');
