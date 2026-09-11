@@ -43,6 +43,8 @@ jobs:
         run: node scripts/ci/validate-plugin.js --strict
       - name: Validate distribution inventory
         run: node scripts/ci/validate-distribution.js --strict
+      - name: Validate skill purpose decisions
+        run: node scripts/ci/validate-skill-purpose-decisions.js --strict
       # Public facade smoke check. Exit 2 is an explicit non-pass evidence
       # state (for example an unavailable local consumer), not a shell error;
       # deterministic failures and usage errors still fail CI.
