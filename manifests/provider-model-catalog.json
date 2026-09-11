@@ -1,0 +1,63 @@
+{
+  "schema": "dhpk.provider.model-catalog.v1",
+  "version": "provider-catalog.v1",
+  "observed_at": "2026-09-11T00:00:00.000Z",
+  "providers": [
+    {
+      "provider": "claude-code",
+      "models": [
+        {
+          "id": "opus5",
+          "display_name": "Opus 5",
+          "roles": ["planner", "reasoner", "worker", "reviewer"],
+          "efforts": ["low", "medium", "high", "max"],
+          "transports": ["native-runtime", "local-cli"],
+          "authorities": ["read-only", "workspace-write"],
+          "effort_mapping": {"low": "low", "medium": "medium", "high": "high", "max": "max"}
+        }
+      ]
+    },
+    {
+      "provider": "codex-cli",
+      "models": [
+        {
+          "id": "sol5.6",
+          "display_name": "Sol 5.6",
+          "roles": ["planner", "reasoner", "worker", "reviewer"],
+          "efforts": ["low", "medium", "high", "max"],
+          "transports": ["local-cli", "native-runtime"],
+          "authorities": ["read-only", "workspace-write"],
+          "effort_mapping": {"low": "low", "medium": "medium", "high": "high", "max": "max"}
+        }
+      ]
+    },
+    {
+      "provider": "agy",
+      "models": [
+        {
+          "id": "gemini-3.8-flash-high",
+          "display_name": "Gemini 3.8 Flash (High)",
+          "roles": ["worker"],
+          "efforts": ["high"],
+          "transports": ["local-cli", "native-runtime"],
+          "authorities": ["workspace-write"],
+          "effort_mapping": {"high": "Gemini 3.8 Flash (High)"}
+        }
+      ]
+    },
+    {
+      "provider": "cursor-native",
+      "models": [
+        {
+          "id": "cursor-default",
+          "display_name": "Cursor native default",
+          "roles": ["planner", "reasoner", "worker", "reviewer"],
+          "efforts": ["low", "medium", "high", "max"],
+          "transports": ["native-runtime"],
+          "authorities": ["read-only", "workspace-write"],
+          "effort_mapping": {"low": "low", "medium": "medium", "high": "high", "max": "max"}
+        }
+      ]
+    }
+  ]
+}
