@@ -2,6 +2,8 @@
 
 const { spawnSync } = require('node:child_process');
 
+const MAX_CAPTURE_BYTES = 16 * 1024 * 1024;
+
 function terminateProcessGroup(pid, signal = 'SIGTERM') {
   if (process.platform === 'win32' || !Number.isInteger(pid) || pid <= 0) return false;
   try {
@@ -13,11 +15,12 @@ function terminateProcessGroup(pid, signal = 'SIGTERM') {
   }
 }
 
-function runNodeTest(file, { env = process.env, timeoutMs = 60000 } = {}) {
+function runNodeTest(file, { env = process.env, timeoutMs = 60000, captureOutput = false } = {}) {
   const detached = process.platform !== 'win32';
   const result = spawnSync(process.execPath, [file], {
-    stdio: 'inherit',
+    stdio: captureOutput ? ['ignore', 'pipe', 'pipe'] : 'inherit',
     env,
+    maxBuffer: captureOutput ? MAX_CAPTURE_BYTES : undefined,
     timeout: timeoutMs,
     killSignal: 'SIGKILL',
     detached,
@@ -33,6 +36,13 @@ function runNodeTest(file, { env = process.env, timeoutMs = 60000 } = {}) {
   if (detached && result.pid && timedOut) {
     terminateProcessGroup(result.pid, 'SIGTERM');
     terminateProcessGroup(result.pid, 'SIGKILL');
+  }
+  if (captureOutput) {
+    return {
+      ...result,
+      stdout: String(result.stdout || ''),
+      stderr: String(result.stderr || ''),
+    };
   }
   return result;
 }

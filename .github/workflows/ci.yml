@@ -99,7 +99,31 @@ jobs:
         env:
           DHPK_BOUNDED_REQUIRE_CGROUP: '1'
           DHPK_TEST_JOBS: '4'
+          DHPK_TEST_TIMING_FILE: ${{ runner.temp }}/dhpk-test-timing.json
+          DHPK_TEST_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          DHPK_TEST_RUN_ID: ${{ github.run_id }}
+          DHPK_TEST_RUN_ATTEMPT: ${{ github.run_attempt }}
+          DHPK_TEST_EVENT: ${{ github.event_name }}
+          DHPK_TEST_REF: ${{ github.ref }}
+          DHPK_TEST_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          DHPK_TEST_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          DHPK_TEST_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js
+
+      - name: Summarize test timing evidence
+        if: always()
+        env:
+          DHPK_TEST_TIMING_FILE: ${{ runner.temp }}/dhpk-test-timing.json
+        run: node scripts/ci/render-test-timing.js --file "$DHPK_TEST_TIMING_FILE" --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test timing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dhpk-test-timing.json
+          if-no-files-found: warn
+          retention-days: 14
 
   macos-installer:
     name: macOS installer harness
