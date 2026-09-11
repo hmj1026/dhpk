@@ -219,7 +219,7 @@ function preserveProjectionContract(generated, existing) {
     })
     : generated.skills;
   const contract = {};
-  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'renamed_skill_names', 'external_skill_packages', 'agent_roster']) {
+  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'renamed_skill_names', 'external_skill_packages', 'agent_roster', 'standalone_dependencies']) {
     if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = cloneInventoryValue(existing[key]);
   }
   return { ...generated, ...(Array.isArray(generated && generated.skills) ? { skills } : {}), ...contract };

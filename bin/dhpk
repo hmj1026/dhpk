@@ -12,7 +12,7 @@ case "${1:-}" in
     exec "$SCRIPT_DIR/dhpk-distribution" "$@"
     ;;
   *)
-    printf '%s\n' 'usage: dhpk distribution <surface> <generate|validate|verify> [--output <dir>] [--version <version>] [--json]' >&2
+    printf '%s\n' 'usage: dhpk distribution <surface> <generate|validate|verify> [--profile <id>|--standalone <skill-id-or-public-name>] [--skill <stable-id>] [--output <dir>] [--version <version>] [--json]' >&2
     exit 64
     ;;
 esac

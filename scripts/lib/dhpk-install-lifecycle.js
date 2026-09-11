@@ -50,6 +50,7 @@ function parseRequest(argv) {
     agents: [],
     profileId: null,
     skillIds: [],
+    standaloneSkillIds: [],
   };
   for (let index = 0; index < rest.length; index += 1) {
     const option = rest[index];
@@ -80,7 +81,19 @@ function parseRequest(argv) {
       const value = option.slice('--skill='.length);
       if (!value) throw failure('--skill requires a value');
       request.skillIds.push(value);
+    } else if (option === '--standalone') {
+      const value = rest[index + 1];
+      if (!value || value.startsWith('--')) throw failure('--standalone requires a value');
+      index += 1;
+      if (!request.standaloneSkillIds.includes(value)) request.standaloneSkillIds.push(value);
+    } else if (option.startsWith('--standalone=')) {
+      const value = option.slice('--standalone='.length);
+      if (!value) throw failure('--standalone requires a value');
+      if (!request.standaloneSkillIds.includes(value)) request.standaloneSkillIds.push(value);
     } else throw failure(`unknown option '${option}'`);
+  }
+  if (request.standaloneSkillIds.length > 0 && (request.profileId || request.skillIds.length > 0)) {
+    throw failure('--standalone cannot be combined with --profile or --skill');
   }
   request.scope = request.scope || defaultScope(surface);
   if (!request.scope) throw failure(`--scope is required for '${surface}'`);
@@ -97,10 +110,13 @@ function parseRequest(argv) {
   // Preserve repeated overlays so the centralized resolver can reject them
   // before planning or mutation instead of silently changing the request.
   request.skillIds = request.skillIds.slice().sort();
+  request.standaloneSkillIds = request.standaloneSkillIds.slice().sort();
   const normalized = { ...request };
   if (!normalized.profileId) delete normalized.profileId;
   if (normalized.skillIds.length === 0) delete normalized.skillIds;
   else normalized.skillIds = Object.freeze(normalized.skillIds);
+  if (normalized.standaloneSkillIds.length === 0) delete normalized.standaloneSkillIds;
+  else normalized.standaloneSkillIds = Object.freeze(normalized.standaloneSkillIds);
   return Object.freeze(normalized);
 }
 
@@ -142,8 +158,11 @@ function compileLifecyclePlan(request, inventory, { profiles = null, moduleCatal
     return { ok: false, error: { code: error.code || 'INVALID_INVENTORY', message: error.message } };
   }
   let profileSelection = null;
-  if (surface !== 'codex-sync' && profiles && moduleCatalog && inventory && inventory.profile_policy) {
-    const selectedProfileId = request.profileId || 'minimal';
+  const standaloneSkillIds = Array.isArray(request.standaloneSkillIds) ? request.standaloneSkillIds : [];
+  if ((surface !== 'codex-sync' || standaloneSkillIds.length > 0)
+    && profiles && moduleCatalog && inventory && inventory.profile_policy) {
+    const standalone = standaloneSkillIds.length > 0;
+    const selectedProfileId = request.profileId || (standalone ? null : 'minimal');
     const skillIds = Array.isArray(request.skillIds) ? request.skillIds : [];
     const resolved = resolveCapabilitySelection({
       inventory,
@@ -151,8 +170,9 @@ function compileLifecyclePlan(request, inventory, { profiles = null, moduleCatal
       moduleCatalog,
       profileId: selectedProfileId,
       skillIds,
+      standaloneSkillIds: standalone ? standaloneSkillIds : undefined,
       surface,
-      sourceInputs: { request: { profileId: selectedProfileId, skillIds } },
+      sourceInputs: { request: { profileId: selectedProfileId, skillIds, standaloneSkillIds } },
       policyVersion: inventory.profile_policy.version,
     });
     if (!resolved.ok) return resolved;

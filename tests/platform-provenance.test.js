@@ -78,6 +78,27 @@ test('surface receipts carry an owner that is independent per publication surfac
   assert.strictEqual(validateSurfaceReceipt(receipt, 'cursor-plugin').ok, false);
 });
 
+test('standalone surface receipts retain closure identity and validate as a distinct selection mode', () => {
+  const receipt = createSurfaceReceipt({
+    surface: 'agent-plugin',
+    sourceVersion: '1.2.3',
+    sourceCommit: 'a'.repeat(40),
+    inventoryDigest: 'b'.repeat(64),
+    fingerprints: { 'dhpk-example': 'c'.repeat(64) },
+    profileId: 'standalone',
+    selectionMode: 'standalone',
+    requestedStableIds: ['code-trace'],
+    selectedStableIds: ['code-trace'],
+    emittedStableIds: ['code-trace'],
+    compatibilityMode: 'standalone',
+    selectionPolicyVersion: 'dhpk.capability-bundle-selection.v1',
+    selectionFingerprint: 'd'.repeat(64),
+    dependencyClosure: { skillIds: ['code-trace'], supportingAssetIds: [], runtimeSupportIds: [], files: [] },
+  });
+  assert.strictEqual(validateSurfaceReceipt(receipt, 'agent-plugin').ok, true);
+  assert.deepStrictEqual(receipt.requestedStableIds, ['code-trace']);
+});
+
 test('surface receipts expose generated-input identity separately from the release target', () => {
   const receipt = createSurfaceReceipt({
     surface: 'agent-plugin',
