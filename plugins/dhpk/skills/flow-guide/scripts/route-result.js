@@ -2,9 +2,10 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { createFlowHandoff } = require('../../../scripts/lib/flow-handoff-contract');
 
 const SCHEMA = 'dhpk.route-result.v3';
-const HOSTS = Object.freeze(['claude', 'cursor', 'codex']);
+const HOSTS = Object.freeze(['claude-code', 'codex-cli', 'agy', 'cursor', 'claude', 'codex']);
 const AVAILABILITY = Object.freeze(['available', 'unavailable', 'not-configured']);
 const DISPOSITIONS = Object.freeze([
   'advice', 'ready', 'explicit-required', 'blocked', 'unavailable',
@@ -276,7 +277,21 @@ function createRouteResult(input = {}) {
     requiredEvidence,
     nextAction: nextActionFor({ parsed, target, disposition }),
   };
+  createRouteHandoff(result);
   return freezeDeep(result);
+}
+
+function createRouteHandoff(result) {
+  if (!result || typeof result !== 'object') throw new TypeError('route result is required');
+  const evidenceState = result.availability === 'not-configured' ? 'not-configured' : result.availability;
+  return createFlowHandoff({
+    handoff_id: `route-${result.action}-${result.target ? result.target.id : 'unmatched'}`,
+    owner: result.target ? result.target.id : 'flow-guide',
+    host: result.host,
+    disposition: result.disposition,
+    evidence: [{ kind: 'route-availability', state: evidenceState, detail: result.requiredEvidence[0] }],
+    next_action: result.nextAction,
+  });
 }
 
 function parseInvocationContext(argv, { host } = {}) {
@@ -337,5 +352,6 @@ function validateRouteResult(result) {
 module.exports = {
   parseInvocationContext,
   createRouteResult,
+  createRouteHandoff,
   validateRouteResult,
 };

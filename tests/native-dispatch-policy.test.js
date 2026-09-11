@@ -11,6 +11,8 @@ const {
   resolveFallbackDecision,
   resolveDispatchPlan,
 } = require('../scripts/lib/native-dispatch-policy');
+const { SCHEMAS } = require('../scripts/lib/dispatch-contract');
+const providerCatalog = require('../manifests/provider-model-catalog.json');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -234,6 +236,29 @@ test('the fallback contract exposes the six canonical failure classes', () => {
     'TASK_OR_SEMANTIC_FAILURE',
     'TIMEOUT_OR_INTERRUPTION',
   ]);
+});
+
+test('v2 requests use Host profile and Provider-scoped target resolution through the policy seam', () => {
+  const request = {
+    schema: SCHEMAS.REQUEST,
+    host_profile: {
+      schema: SCHEMAS.HOST_PROFILE, version: 'cursor-policy.v1', host: 'cursor', native_provider: 'cursor-native', native_model: 'cursor-default', native_transport: 'native-runtime',
+      allowed_providers: ['cursor-native', 'codex-cli'],
+      access: {
+        'cursor-native': { status: 'AVAILABLE', evidence: 'native ready' },
+        'codex-cli': { status: 'AVAILABLE', evidence: 'CLI ready' },
+      },
+      quota_pools: { 'cursor-native': 'native', 'codex-cli': 'codex' }, concurrency_limits: { native: 1, codex: 1 }, observed_at: '2026-09-11T00:00:00.000Z',
+    },
+    task_id: 'policy-v2-task', attempt_id: 'policy-v2-attempt', role: 'reasoner', authority: 'read-only',
+    task: { description_digest: 'a'.repeat(64) }, scope: { workdir: '/workspace', assigned_files: [], prompt_evidence: { path: '/workspace/prompt', dev: 1, ino: 2, sha256: 'b'.repeat(64) } },
+    target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' }, effort: 'high',
+    fallback: { allow: true, retry_budget: 1 }, parallelism: { dependencies: [], max_concurrency: 1 },
+  };
+  const plan = resolveDispatchPlan({ request, catalog: providerCatalog });
+  assert.strictEqual(plan.status, 'RESOLVED');
+  assert.strictEqual(plan.target.identity, 'codex-cli/sol5.6');
+  assert.strictEqual(plan.request.role, 'reasoner');
 });
 
 run('native-dispatch-policy');

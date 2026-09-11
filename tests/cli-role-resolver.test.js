@@ -87,6 +87,28 @@ test('legacy alias deprecation diagnostic is bounded to exactly once per session
   assert.ok(diagnostics[0].includes('deprecated role alias'));
 });
 
+test('provider-neutral roles resolve authority independently from an optional Provider constraint', () => {
+  const worker = resolveRole({ requestedRole: 'worker', mode: 'workspace-write', provider: 'codex-cli' });
+  assert.strictEqual(worker.status, 'RESOLVED');
+  assert.strictEqual(worker.effective_role, 'worker');
+  assert.strictEqual(worker.canonical_role, 'worker');
+  assert.strictEqual(worker.provider_constraint, 'codex-cli');
+  assert.strictEqual(worker.role_contract.authority, 'workspace-write');
+
+  const reviewer = resolveRole({ requestedRole: 'reviewer', mode: 'read-only', provider: 'agy' });
+  assert.strictEqual(reviewer.status, 'RESOLVED');
+  assert.strictEqual(reviewer.canonical_role, 'reviewer');
+  assert.strictEqual(reviewer.provider_constraint, 'agy');
+});
+
+test('legacy aliases expose canonical Role and compatibility Provider metadata', () => {
+  const result = resolveRole({ requestedRole: 'codex-fast-worker', mode: 'workspace-write' });
+  assert.strictEqual(result.canonical_role, 'worker');
+  assert.strictEqual(result.provider_constraint, 'codex-cli');
+  assert.strictEqual(result.compatibility_source, 'legacy-role-alias');
+  assert.ok(result.deprecation_evidence.includes('codex-fast-worker'));
+});
+
 test('canonical config wins over a legacy key and only declared aliases are considered', () => {
   const config = {
     codex_worker_model: 'canonical-model',

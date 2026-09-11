@@ -1,0 +1,74 @@
+{
+  "schema": "dhpk.host.profiles.v1",
+  "version": "host-profiles.v1",
+  "observed_at": "2026-09-11T00:00:00.000Z",
+  "profiles": [
+    {
+      "schema": "dhpk.host.profile.v1",
+      "version": "cursor.v1",
+      "host": "cursor",
+      "native_provider": "cursor-native",
+      "native_model": "cursor-default",
+      "native_transport": "native-runtime",
+      "allowed_providers": ["cursor-native", "claude-code", "codex-cli", "agy"],
+      "access": {
+        "cursor-native": {"status": "AVAILABLE", "evidence": "declared Host-native runtime"},
+        "claude-code": {"status": "NOT_RUN", "evidence": "bounded probe not run"},
+        "codex-cli": {"status": "NOT_RUN", "evidence": "bounded probe not run"},
+        "agy": {"status": "NOT_RUN", "evidence": "bounded probe not run"}
+      },
+      "quota_pools": {"cursor-native": "cursor", "claude-code": "claude", "codex-cli": "codex", "agy": "agy"},
+      "concurrency_limits": {"cursor": 1, "claude": 1, "codex": 1, "agy": 1},
+      "observed_at": "2026-09-11T00:00:00.000Z"
+    },
+    {
+      "schema": "dhpk.host.profile.v1",
+      "version": "claude-code.v1",
+      "host": "claude-code",
+      "native_provider": "claude-code",
+      "native_model": "opus5",
+      "native_transport": "native-runtime",
+      "allowed_providers": ["claude-code", "codex-cli"],
+      "access": {
+        "claude-code": {"status": "AVAILABLE", "evidence": "declared Host-native runtime"},
+        "codex-cli": {"status": "NOT_RUN", "evidence": "bounded probe not run"}
+      },
+      "quota_pools": {"claude-code": "claude", "codex-cli": "codex"},
+      "concurrency_limits": {"claude": 1, "codex": 1},
+      "observed_at": "2026-09-11T00:00:00.000Z"
+    },
+    {
+      "schema": "dhpk.host.profile.v1",
+      "version": "codex-cli.v1",
+      "host": "codex-cli",
+      "native_provider": "codex-cli",
+      "native_model": "sol5.6",
+      "native_transport": "native-runtime",
+      "allowed_providers": ["codex-cli", "claude-code"],
+      "access": {
+        "codex-cli": {"status": "AVAILABLE", "evidence": "declared Host-native runtime"},
+        "claude-code": {"status": "NOT_RUN", "evidence": "bounded probe not run"}
+      },
+      "quota_pools": {"codex-cli": "codex", "claude-code": "claude"},
+      "concurrency_limits": {"codex": 1, "claude": 1},
+      "observed_at": "2026-09-11T00:00:00.000Z"
+    },
+    {
+      "schema": "dhpk.host.profile.v1",
+      "version": "agy.v1",
+      "host": "agy",
+      "native_provider": "agy",
+      "native_model": "gemini-3.8-flash-high",
+      "native_transport": "native-runtime",
+      "allowed_providers": ["agy", "claude-code", "codex-cli"],
+      "access": {
+        "agy": {"status": "AVAILABLE", "evidence": "declared Host-native runtime"},
+        "claude-code": {"status": "NOT_RUN", "evidence": "bounded probe not run"},
+        "codex-cli": {"status": "NOT_RUN", "evidence": "bounded probe not run"}
+      },
+      "quota_pools": {"agy": "agy", "claude-code": "claude", "codex-cli": "codex"},
+      "concurrency_limits": {"agy": 1, "claude": 1, "codex": 1},
+      "observed_at": "2026-09-11T00:00:00.000Z"
+    }
+  ]
+}

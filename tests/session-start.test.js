@@ -53,6 +53,31 @@ test('no configured modules is a silent no-op with no lifecycle artifacts', () =
   }
 });
 
+test('explicit canonical dispatch targets are reported without runtime probing', () => {
+  const { scratch, res } = runInScratch('');
+  try {
+    const env = {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: ROOT,
+      CLAUDE_PROJECT_DIR: scratch,
+      CLAUDE_PLUGIN_OPTION_WORKER_TARGET: 'codex-cli/sol5.6:high',
+    };
+    const report = spawnSync('bash', ['-c', 'bash "$1"', '_', HOOK], {
+      cwd: scratch,
+      env,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.strictEqual(report.status, 0, report.stderr);
+    assert.match(report.stdout, /dispatch config/);
+    assert.match(report.stdout, /catalog_support":"NOT_RUN/);
+    assert.match(report.stdout, /fallback":"allowed/);
+    assert.strictEqual(res.status, 0);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('configured modules are validated and reported without lifecycle diagnostics', () => {
   const { scratch, res } = runInScratch('php-5.6,not-a-module,php-5.6');
   try {

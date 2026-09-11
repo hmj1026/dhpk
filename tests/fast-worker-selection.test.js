@@ -10,6 +10,8 @@ const ROOT = path.join(__dirname, '..');
 const SELECTOR = path.join(ROOT, 'scripts', 'fast-worker-selector.js');
 const SESSION_START = path.join(ROOT, 'scripts', 'hooks', 'session-start.sh');
 const selector = require(SELECTOR);
+const catalog = require('../manifests/provider-model-catalog.json');
+const hostProfiles = require('../manifests/host-profiles.json');
 
 function tempDir(prefix) {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
@@ -176,6 +178,49 @@ test('cross-provider auto selection probes configured external candidates only w
   assert.strictEqual(result.selected_backend, 'codex');
   assert.strictEqual(result.candidate_scope, 'cross-provider');
   assert.deepStrictEqual(probed, ['codex']);
+});
+
+test('canonical worker selection builds a neutral request and returns resolved target evidence', () => {
+  const cursor = hostProfiles.profiles.find((profile) => profile.host === 'cursor');
+  const hostProfile = {
+    ...cursor,
+    access: {
+      ...cursor.access,
+      'codex-cli': { status: 'AVAILABLE', evidence: 'bounded local-cli probe' },
+    },
+  };
+  const result = selector.select({
+    host_profile: hostProfile,
+    catalog,
+    target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' },
+    effort: 'high',
+    task_id: 'selector-task-1',
+    attempt_id: 'selector-attempt-1',
+    description_digest: 'a'.repeat(64),
+    workdir: '/workspace/project',
+    assigned_files: ['src/example.js'],
+    prompt_evidence: {
+      path: '/workspace/project/.dhpk/prompt.txt',
+      dev: 1,
+      ino: 2,
+      sha256: 'b'.repeat(64),
+    },
+  });
+
+  assert.strictEqual(result.status, 'selected');
+  assert.strictEqual(result.request.role, 'worker');
+  assert.strictEqual(result.request.authority, 'workspace-write');
+  assert.strictEqual(result.request.host_profile.host, 'cursor');
+  assert.deepStrictEqual(result.selected_target, {
+    provider: 'codex-cli',
+    model: 'sol5.6',
+    effort: 'high',
+    transport: 'local-cli',
+    native: false,
+    identity: 'codex-cli/sol5.6',
+  });
+  assert.strictEqual(result.capability.status, 'AVAILABLE');
+  assert.strictEqual(result.resolution_source, 'dispatch-engine');
 });
 
 test('missing executable blocks unless the configured fallback is claude', () => {
