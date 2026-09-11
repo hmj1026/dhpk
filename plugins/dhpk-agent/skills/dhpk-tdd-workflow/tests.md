@@ -61,8 +61,11 @@ test("createUser makes the user retrievable", async () => {
 });
 ```
 
-**Tautological tests**: Expected values restate the implementation, so the
-test passes by construction.
+**Tautological tests considered harmful**: Expected values restate the
+implementation, so the test passes by construction. The same smell appears
+when both sides use the same helper, or when a mock is configured to return the
+value that the test immediately asserts without checking caller-visible
+behavior.
 
 ```typescript
 // BAD: Recomputes the production algorithm for the expectation
