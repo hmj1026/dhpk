@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.57.1",
-  "sourceCommit": "fdb5d1cda64c311bad1f7b96d6bf1ae90a1bf002",
-  "generatedFromCommit": "fdb5d1cda64c311bad1f7b96d6bf1ae90a1bf002",
-  "generatedFromTree": "48ca73c72ea3498b9372c97c1818a22cfa3b7959",
-  "inventoryDigest": "46ab27d42eb9e394f5d4fb91cf1dca39a0308968512a2f4bb9e10ca6dd087456",
-  "inventoryRevision": "sha256:2e98589c85e81e6f7ae559c8e6fdbecbf7b5c626a30c8568f5f565ce717043fc",
+  "sourceCommit": "9139fd1c59ef36aaf202bd45da1b923b2f3049c2",
+  "generatedFromCommit": "9139fd1c59ef36aaf202bd45da1b923b2f3049c2",
+  "generatedFromTree": "570dc0debe40e43710a1b1267f65452646ccc734",
+  "inventoryDigest": "b32269d0321e22e96eea65e8a2fbc896b4df728e7545f85d21f6e7b6a3ecfaf9",
+  "inventoryRevision": "sha256:98b8b7f8bab37dc838e7d21c562bd2db02ec44cf3f3717c90e7d0ff53a3909f6",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -129,7 +129,7 @@
     "dhpk-session-usage-audit": "9c87600b97c9a9e49128b5e11d92c22a72d33b709d797b096899c79ef52b9833",
     "dhpk-tdd-workflow": "6f69203e035cfb2431f1b8bdb9ef75288e62212177c9812a0f882d984614dd4f",
     "flow-drive": "0a0a431128a28ba421c5e131fd7efb645b399a14c55deb715afedccfe78770f1",
-    "flow-guide": "188a13fffce0c616538157f17d0fa0d9557c866fe9659a6252001a5b504fb930",
+    "flow-guide": "ace4e26f97bdb183fc3e9cdd9804df3cce8f8c4aabcc5023df9e2dc04206dc92",
     "harness-govern": "ecf1497d401e0553be581c7a4f5cc3a33c5b742db3a48b945011329fe0de81cb",
     "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
     "skill-scope": "ec46bf749a61d9d33c20431d32d5b883455d7d5ec096cfcb7023547ad46cf421"
@@ -338,7 +338,7 @@
     "flow-drive": {
       "display_name": "Flow Drive",
       "summary": "Implement a confirmed specification with bounded evidence",
-      "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<backend>:<model>:<effort>] [--architect|--no-architect]",
+      "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
       "input_kind": "mixed",
       "invocation_class": "explicit-only",
       "effect_authority": "workspace-write",
@@ -380,7 +380,7 @@
         },
         {
           "id": "reasoner",
-          "syntax": "--reasoner=<backend>:<model>:<effort>",
+          "syntax": "--reasoner=<provider>/<model>[:<effort>]",
           "value_kind": "string",
           "required": false,
           "summary": "Request a bounded second opinion",
@@ -639,7 +639,7 @@
     "opsx-load-context": "3eab6d7996a5381f1795fb14f383cab5478bb4694f14b24ef3bbd213dde04df6",
     "opsx-post-obs": "bd654e16d8a0916d4607d339b02e16dd7a0d234c712fa7cf510baffd7b7e118e",
     "tdd": "1e17b743b2781626967944e01eed90504c0b26cc26cbe3801d7bd1d29783677a",
-    "flow-drive": "4c6bc399314e7a97110e103b8e3c085f1f15230a3356367f522bc5c554405dcd",
+    "flow-drive": "0e1933d7eafb08c55eed2fb3ce37548ae1c09ee01759cc72b785e693d702c737",
     "flow-guide": "ca43b1f5c7e2534d6f2f46455b9645dae154ba32caf154f58ae5813d322f3be5",
     "harness-govern": "c47d5c8f28a0fe0b40ebb879b2ac51ff9ac779a79d17c2b29dfd5d64dc6709ea",
     "skill-scope": "985e2fe599b212d44e0d3940485108288b157309944d9785108349efcdee5c6a"

@@ -32,7 +32,7 @@ switches target or changes its conclusion contract.
 - DDD-layer placement / cross-module architecture → `architect` (see Defers below).
 - Opt-in `$flow-drive --plan` critique or plan sketch → `planner`
 - Brownfield spec extraction into openspec → `spec-miner`
-- `--reasoner=codex` backend variant → `codex-deep-reasoner` (same reasoning role, different backend — not a duplicate role)
+- `--reasoner=codex-cli/<model>[:<effort>]` backend variant → `codex-deep-reasoner` (same reasoning role, different backend — not a duplicate role)
 
 ## Scope
 
