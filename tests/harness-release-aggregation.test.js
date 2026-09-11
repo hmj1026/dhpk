@@ -134,6 +134,26 @@ test('release execution aggregates the explicit runtime list separately from ide
   assert.deepStrictEqual(result.surfaceResults.map((entry) => entry.surface), REQUIRED);
 });
 
+test('release execution carries the trusted artifact binding onto matching package rows', () => {
+  const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, REQUIRED_RUNTIME, (root, parsed) => ({
+    outcome: 'PASS',
+    surfaceResults: [{
+      surface: parsed.surface,
+      status: 'PASS',
+      stage: 'CONSUMER',
+      producer: 'fixture-probe',
+    }],
+  }), {
+    artifactManifest: {
+      manifestFingerprint: 'sha256:' + 'a'.repeat(64),
+      packages: [{ surface: 'codex-native', bindingFingerprint: 'sha256:' + 'b'.repeat(64) }],
+    },
+  });
+  const native = result.surfaceResults.find((entry) => entry.surface === 'codex-native');
+  assert.strictEqual(native.artifactBinding.bindingFingerprint, 'sha256:' + 'b'.repeat(64));
+  assert.strictEqual(result.artifactManifestFingerprint, 'sha256:' + 'a'.repeat(64));
+});
+
 test('release execution rejects a non-canonical required runtime subset before COMPLETE', () => {
   assert.throws(() => harness.runReleaseProbes(
     '/tmp/dhpk-release-fixture',
