@@ -20,6 +20,29 @@ const BRIDGE_MODES = Object.freeze({
   'workspace-write': 'codex-worker',
 });
 
+const CANONICAL_ROLES = Object.freeze({
+  planner: Object.freeze({ authority: 'read-only' }),
+  reasoner: Object.freeze({ authority: 'read-only' }),
+  worker: Object.freeze({ authority: 'workspace-write' }),
+  reviewer: Object.freeze({ authority: 'read-only' }),
+});
+
+const PROVIDER_ALIASES = Object.freeze({
+  claude: 'claude-code',
+  codex: 'codex-cli',
+  agy: 'agy',
+  'claude-code': 'claude-code',
+  'codex-cli': 'codex-cli',
+  'cursor-native': 'cursor-native',
+});
+
+const LEGACY_PROVIDER_ROLES = Object.freeze({
+  'codex-worker': Object.freeze({ canonicalRole: 'worker', provider: 'codex-cli' }),
+  'codex-reasoner': Object.freeze({ canonicalRole: 'reasoner', provider: 'codex-cli' }),
+  'codex-reviewer': Object.freeze({ canonicalRole: 'reviewer', provider: 'codex-cli' }),
+  'agy-worker': Object.freeze({ canonicalRole: 'worker', provider: 'agy' }),
+});
+
 const LEGACY_CONFIG = Object.freeze({
   codex_worker: Object.freeze({
     model: 'codex_fast_worker_model', effort: 'codex_fast_worker_effort', timeout_secs: 'codex_fast_worker_timeout_secs',
@@ -50,22 +73,43 @@ function createSessionDiagnostics(emit = () => {}) {
 
 function resolveRole({ requestedRole, mode, provider, diagnostics } = {}) {
   if (typeof requestedRole !== 'string' || !requestedRole) return blocked('requested role is required');
-  if (mode !== 'read-only' && mode !== 'workspace-write') return blocked('mode is required and must be explicit');
 
   let effectiveRole = requestedRole;
+  let canonicalRole = requestedRole;
+  let providerConstraint;
   let deprecatedAlias = false;
+  let compatibilitySource = 'canonical-role';
   if (requestedRole === 'codex-bridge') {
+    if (mode !== 'read-only' && mode !== 'workspace-write') return blocked('mode is required and must be explicit');
     effectiveRole = BRIDGE_MODES[mode];
+    canonicalRole = mode === 'read-only' ? 'reviewer' : 'worker';
+    providerConstraint = 'codex-cli';
     deprecatedAlias = true;
+    compatibilitySource = 'legacy-role-alias';
   } else if (ALIASES[requestedRole]) {
     effectiveRole = ALIASES[requestedRole].effectiveRole;
+    canonicalRole = LEGACY_PROVIDER_ROLES[effectiveRole].canonicalRole;
+    providerConstraint = LEGACY_PROVIDER_ROLES[effectiveRole].provider;
     deprecatedAlias = true;
+    compatibilitySource = 'legacy-role-alias';
+  } else if (LEGACY_PROVIDER_ROLES[requestedRole]) {
+    canonicalRole = LEGACY_PROVIDER_ROLES[requestedRole].canonicalRole;
+    providerConstraint = LEGACY_PROVIDER_ROLES[requestedRole].provider;
+    compatibilitySource = 'legacy-provider-role';
+  } else if (!CANONICAL_ROLES[requestedRole]) {
+    return blocked(`unknown role: ${requestedRole}`);
   }
 
-  const definition = ROLE_MATRIX[effectiveRole];
-  if (!definition) return blocked(`unknown role: ${requestedRole}`);
+  const definition = ROLE_MATRIX[effectiveRole] || {
+    authority: CANONICAL_ROLES[canonicalRole].authority,
+  };
+  if (mode !== 'read-only' && mode !== 'workspace-write') return blocked('mode is required and must be explicit');
   if (definition.authority !== mode) return blocked(`role ${effectiveRole} contradicts mode ${mode}`);
-  if (provider !== undefined && provider !== definition.provider) {
+
+  const normalizedProvider = provider === undefined ? undefined : PROVIDER_ALIASES[provider];
+  if (provider !== undefined && !normalizedProvider) return blocked(`unknown provider: ${provider}`);
+  if (!providerConstraint && normalizedProvider !== undefined) providerConstraint = normalizedProvider;
+  if (providerConstraint && normalizedProvider !== undefined && normalizedProvider !== providerConstraint) {
     return blocked(`role ${effectiveRole} is not bound to provider ${provider}`);
   }
 
@@ -85,6 +129,10 @@ function resolveRole({ requestedRole, mode, provider, diagnostics } = {}) {
   }
   return Object.freeze({
     status: 'RESOLVED', requested_role: requestedRole, effective_role: effectiveRole,
+    canonical_role: canonicalRole,
+    provider_constraint: providerConstraint || null,
+    compatibility_source: compatibilitySource,
+    deprecation_evidence: deprecatedAlias ? `deprecated role alias: ${requestedRole}` : null,
     deprecated_alias: deprecatedAlias, role_contract: roleContract,
   });
 }
@@ -96,18 +144,22 @@ const configValue = (config, canonical, legacy) => {
 };
 
 function resolveConfig({ effectiveRole, config = {} } = {}) {
-  const definition = ROLE_MATRIX[effectiveRole];
+  const canonicalDefinition = CANONICAL_ROLES[effectiveRole];
+  const definition = ROLE_MATRIX[effectiveRole] || (canonicalDefinition ? {
+    config: effectiveRole === 'worker' ? 'codex_worker' : effectiveRole,
+  } : null);
   if (!definition) return Object.freeze({ status: 'BLOCKED', reason: `unknown role: ${effectiveRole}` });
   const legacy = LEGACY_CONFIG[definition.config] || {};
+  const canonicalConfig = ROLE_MATRIX[effectiveRole] ? definition.config : effectiveRole;
   return Object.freeze({
-    model: configValue(config, `${definition.config}_model`, legacy.model),
-    effort: configValue(config, `${definition.config}_effort`, legacy.effort),
-    timeout_secs: configValue(config, `${definition.config}_timeout_secs`, legacy.timeout_secs),
+    model: configValue(config, `${canonicalConfig}_model`, legacy.model || undefined),
+    effort: configValue(config, `${canonicalConfig}_effort`, legacy.effort || undefined),
+    timeout_secs: configValue(config, `${canonicalConfig}_timeout_secs`, legacy.timeout_secs || undefined),
   });
 }
 
 function resolvePublication({ role, target, capabilities = [] } = {}) {
-  if (!ROLE_MATRIX[role]) return Object.freeze({ status: 'UNAVAILABLE', reason: `unknown role: ${role}` });
+  if (!ROLE_MATRIX[role] && !CANONICAL_ROLES[role]) return Object.freeze({ status: 'UNAVAILABLE', reason: `unknown role: ${role}` });
   if (role === 'codex-reviewer' && target === 'codex-native' && !capabilities.includes('codex-native-read-only-reviewer')) {
     return Object.freeze({ status: 'UNAVAILABLE', reason: 'missing capability: codex-native-read-only-reviewer' });
   }

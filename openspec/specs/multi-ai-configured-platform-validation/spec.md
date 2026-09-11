@@ -1,6 +1,7 @@
 # multi-ai-configured-platform-validation Specification
 
 ## Purpose
+
 Define Claude source validation and target applicability for cross-platform
 harness checks, with explicit failure, configuration, compatibility, and runtime
 evidence statuses for source checkouts and consumer repositories.
@@ -100,50 +101,63 @@ follow-link behavior; this validation does not establish package containment.
 - **THEN** Claude validation follows those links and reports `PASS`
 
 ### Requirement: Per-check results use explicit applicability statuses
+
 Every platform check SHALL return one of `PASS`, `FAIL`, `NOT_CONFIGURED`, or `SKIP_INCOMPATIBLE`. `SKIP_INCOMPATIBLE` SHALL identify the source capability and a reason from an explicit compatibility policy; an unknown exception or unsupported assertion SHALL remain `FAIL`.
 
 #### Scenario: Configured platform lacks a documented capability
+
 - **WHEN** a configured target cannot represent a source feature listed as incompatible in the capability matrix
 - **THEN** that check reports `SKIP_INCOMPATIBLE` with the capability and reason
 
 #### Scenario: Unexpected target validation error
+
 - **WHEN** a configured applicable check raises an error not covered by the compatibility policy
 - **THEN** the check reports `FAIL` and does not downgrade itself to a skip
 
 ### Requirement: An explicitly requested but absent target is BLOCKED, not NOT_CONFIGURED
+
 `multi-ai-sync validate` SHALL accept an explicit `--targets` list or `--all-targets` flag (this requirement does not extend `plan`'s narrower pre-existing `--targets`-only flag, and `apply`/discovery have no such flag yet). A target named by `--targets` or implied by `--all-targets` that has no configuration marker SHALL report `BLOCKED`. A target absent from an unqualified (no-flag) auto-discovery run SHALL report `NOT_CONFIGURED`. Both remain visible report rows; `NOT_CONFIGURED` and `SKIP_INCOMPATIBLE` never move the gate off `PASS`, while `BLOCKED` does.
 
 #### Scenario: Explicit request names an absent platform
+
 - **WHEN** `--targets gemini` is passed and no Gemini configuration marker exists
 - **THEN** the Gemini row reports `BLOCKED` and the final gate is `BLOCKED` (or `FAIL` if any applicable check also fails)
 
 #### Scenario: Default auto-discovery omits an absent platform
+
 - **WHEN** no `--targets`/`--all-targets` flag is passed and Antigravity has no configuration marker
 - **THEN** the Antigravity row reports `NOT_CONFIGURED` and does not affect the final gate
 
 ### Requirement: Final gate aggregates configured applicable checks only
+
 The final validation gate SHALL be `FAIL` when any applicable check for a configured target fails, SHALL be `BLOCKED` when no check fails but at least one explicitly requested target is entirely absent, and SHALL otherwise be `PASS`. `FAIL` takes precedence over `BLOCKED` when both conditions hold. `NOT_CONFIGURED` and `SKIP_INCOMPATIBLE` rows SHALL remain visible in the report but SHALL NOT independently downgrade the final gate. The exit code SHALL be `0` for `PASS` and non-zero for `FAIL` or `BLOCKED`.
 
 #### Scenario: Only non-applicable rows accompany passing checks
+
 - **WHEN** every applicable configured check passes and other rows are only `NOT_CONFIGURED` or policy-backed `SKIP_INCOMPATIBLE`
 - **THEN** the final gate is `PASS` and the report retains the non-applicable rows and reasons
 
 #### Scenario: One configured target fails
+
 - **WHEN** any applicable check for a configured target reports `FAIL`
 - **THEN** the final gate is `FAIL` regardless of results from other targets
 
 #### Scenario: Explicit request absent, nothing else fails
+
 - **WHEN** an explicitly requested target is entirely absent and every other applicable check passes
 - **THEN** the final gate is `BLOCKED` and the process exits non-zero
 
 ### Requirement: Report exposes a deprecated PARTIAL-compatible field for one release
+
 The validation report SHALL include a `legacy_gate` field alongside `gate`, valued `FAIL` when `gate` is `FAIL` or `BLOCKED`, `PARTIAL` when `gate` is `PASS` and at least one applicable row is `SKIP_INCOMPATIBLE`, and `PASS` otherwise. `legacy_gate` SHALL be documented as removal-pending; canonical and mirrored consumers SHALL read `gate`, not `legacy_gate`.
 
 #### Scenario: Skip-incompatible row with an otherwise-passing run
+
 - **WHEN** `gate` is `PASS` and one applicable row is `SKIP_INCOMPATIBLE`
 - **THEN** `legacy_gate` reports `PARTIAL`
 
 #### Scenario: Blocked run reported to a legacy consumer
+
 - **WHEN** `gate` is `BLOCKED`
 - **THEN** `legacy_gate` reports `FAIL`
 
@@ -281,3 +295,49 @@ MUST NOT expose session contents.
 
 - **WHEN** an allowlisted session is cloned but the bounded Subagent invocation reports DNS, transport, or timeout failure inside the controlled shared-network sandbox
 - **THEN** the runtime capability is `UNAVAILABLE` with a connectivity reason code and the release remains non-complete
+
+### Requirement: Configured platform validation covers resolved execution targets
+
+The configured-platform validator SHALL validate Host × Provider × Model × Role
+× Effort × Transport capability rows separately from package discovery. It SHALL
+distinguish static catalog evidence, Host access evidence, runtime availability,
+and actual execution evidence using `PASS`, `NOT_RUN`, `UNAVAILABLE`, and
+`BLOCKED` statuses as applicable.
+
+#### Scenario: Cursor external target is configured
+
+- **WHEN** a project configures Cursor to use Claude Code Opus5
+- **THEN** validation checks the Cursor Host policy, Claude Code access, Model,
+  Effort, Transport, and runtime evidence independently
+
+#### Scenario: Codex target is unavailable
+
+- **WHEN** a project configures Codex CLI Sol5.6 but the CLI is missing
+- **THEN** the target row is `UNAVAILABLE` or `BLOCKED` with exact evidence and
+  does not become a package `PASS`
+
+#### Scenario: Static parity does not imply execution
+
+- **WHEN** all generated projections are byte-consistent but no Provider was
+  launched
+- **THEN** projection parity may pass while execution evidence remains
+  `NOT_RUN`
+
+### Requirement: Platform validation proves Host-native fallback identity
+
+The validator SHALL verify that each configured Host declares one Native
+Provider and that automatic fallback resolves to that Host-native target. A
+Claude-specific native default SHALL fail validation for Cursor, Codex CLI, or
+AGY Hosts.
+
+#### Scenario: Cursor fallback identity is correct
+
+- **WHEN** Cursor is configured as a Host with Cursor native fallback
+- **THEN** the validation report records Cursor native as the fallback target
+
+#### Scenario: Hard-coded Claude fallback is rejected
+
+- **WHEN** a non-Claude Host resolves automatic fallback to Claude without an
+  explicit policy selection
+- **THEN** validation returns `BLOCKED` and identifies the native identity
+  mismatch

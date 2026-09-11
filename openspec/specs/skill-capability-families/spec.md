@@ -1,6 +1,7 @@
 # skill-capability-families Specification
 
 ## Purpose
+
 Define a compact, ownership-aware skill interface that lets users and agents select a task-shaped capability without learning dhpk's former implementation-level skill names.
 
 ## Requirements
@@ -49,10 +50,12 @@ preserve the applicable predecessor's authorization boundary and terminal
 evidence.
 
 #### Scenario: Read-only verdict is selected
+
 - **WHEN** `change-verdict` selects any mode
 - **THEN** it reads and reports evidence without editing files, clearing sentinels, staging changes, invoking a writer, or producing an approval unsupported by the selected checks
 
 #### Scenario: Mutating family requires explicit invocation
+
 - **WHEN** work requires `skill-forge`, `flow-drive`, or `harness-govern`
 - **THEN** the family remains explicit-only and the model may recommend it
   without starting it absent direct human invocation or an already authorized
@@ -121,6 +124,7 @@ interfaces and the new Laravel, PHPUnit, and harness families:
 | `multi-ai-sync` | `harness-govern` | `sync` |
 
 #### Scenario: Consolidation input differs from the matrix
+
 - **WHEN** a retirement, profile replacement, source deletion, or generated projection adds, omits, or remaps a predecessor from this matrix
 - **THEN** validation fails with the predecessor, expected family, and expected mode or selector
 
@@ -129,10 +133,12 @@ interfaces and the new Laravel, PHPUnit, and harness families:
 A skill family SHALL be classified as external-package-owned when an upstream package publishes the same skill identity or primary workflow and owns its tool or lifecycle contract. External-package-owned stable IDs SHALL remain outside first-party consolidation, successor mapping, and alias-free retirement. A DHPK-owned adapter that merely calls an external tool SHALL remain first-party.
 
 #### Scenario: GitNexus skill is considered for consolidation
+
 - **WHEN** a consolidation candidate is one of `gitnexus-cli`, `gitnexus-debugging`, `gitnexus-exploring`, `gitnexus-guide`, `gitnexus-impact-analysis`, or `gitnexus-refactoring`
 - **THEN** the candidate is excluded and its canonical package, active identity, and publication membership remain unchanged
 
 #### Scenario: First-party router can use an external adapter
+
 - **WHEN** `code-trace` selects the DHPK-owned `select-tool` mode
 - **THEN** it may recommend an available external tool through the existing routing policy without copying or redefining that external package's skill contract
 
@@ -146,5 +152,6 @@ selector; copied predecessor prose and duplicate policy SSOTs SHALL fail
 review.
 
 #### Scenario: A family has multiple substantial modes
+
 - **WHEN** a family mode contains procedure or reference material not needed by every other mode
 - **THEN** the entrypoint links that material behind a mode-specific context pointer and does not preload sibling modes

@@ -7,7 +7,7 @@ dhpk 刻意只註冊精簡的預設 lifecycle。完整 mapping 以
 
 | Event | Script | 確定性責任 |
 |---|---|---|
-| `PreToolUse(Edit|Write|MultiEdit)` | `pre-edit-guard.sh` | 受保護路徑與 secret safety |
+| `PreToolUse(Edit\|Write\|MultiEdit)` | `pre-edit-guard.sh` | 受保護路徑與 secret safety |
 | `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety 加 Git branch-safety gate |
 | `SessionStart` | `session-start.sh` | 驗證並啟用設定的 module |
 | `SubagentStop` | `subagent-stop-verify.sh` | 清理已停止 fast-worker 的 liveness state |

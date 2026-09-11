@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change repair-open-issues-and-agent-guidance. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Official Claude strict validation is consumer evidence
 
 The consumer validation stage SHALL run `claude plugin validate <manifest> --strict` against the staged or installed Claude plugin when the official CLI is available. The result, version, command, exit code, bounded diagnostics, and normalized surface evidence SHALL be retained, and an official validation failure SHALL block consumer completion.

@@ -2,7 +2,7 @@
 
 > **語言**: [English](./configuration.md) · **繁體中文**
 
-dhpk 在 `.claude-plugin/plugin.json` 中暴露 **70 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
+dhpk 在 `.claude-plugin/plugin.json` 中暴露 **76 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
 Claude 的預設 discovery artifact 是由
 `manifests/distribution-inventory.json` 產生的實體化 `minimal` profile，並非
@@ -51,6 +51,28 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 只在該次呼叫開放外部候選。沒有 flag 時，專案設定優先於安裝後的使用者設定，
 而 shipped 預設為 `false`。
 
+### Provider-neutral 派發設定
+
+canonical 派發設定分開表示 Host、Provider、Model、Role、Effort 與
+Transport。target 格式為 `provider/model[:effort]`，不可只給裸 Model 名稱。
+`auto` 會依目前 Host-native target 選取；`preference_order` 只在 Host policy
+與明確的 `cross_provider` opt-in 都允許時才會採用外部候選。
+
+| Key | 型別 | 預設值 | 用途 |
+|-----|------|--------|------|
+| `worker_target` | string | `auto` | `worker` Role 的 Provider-scoped target。 |
+| `reasoner_target` | string | `auto` | 唯讀 `reasoner` Role 的 Provider-scoped target。 |
+| `planner_target` | string | `auto` | 唯讀 `planner` Role 的 Provider-scoped target。 |
+| `reviewer_target` | string | `auto` | 唯讀 `reviewer` Role 的 Provider-scoped target。 |
+| `preference_order` | string[] | `[]` | 自動解析時的 Provider 或 Provider/Model 順序。 |
+| `fallback_allow` | boolean | `true` | 只允許 side effect 前已確認的 availability failure fallback。 |
+
+專案設定優先於安裝後的使用者設定。欄位無效時只將該欄位標為
+`BLOCKED`，不會污染其他設定。diagnostics 分開記錄 catalog support、Host
+access、runtime availability 與 fallback permission；靜態 catalog 或 package
+discovery 絕不是 runtime proof。既有 `fast_worker_*`、Provider-specific Model
+key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保留證據。
+
 ## 核心派發與 Review
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
@@ -66,14 +88,14 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 | `codex_worker_model` | string | `gpt-5.6-luna` | codex CLI 接受的任何模型 | 規範角色 `codex-worker` 派發時傳給 codex CLI 後端的模型。依標準分層解析（專案 pluginConfigs > 全域 pluginConfigs > 出廠預設）後傳入 `run-codex.sh`。Codex 模型名稱汰換快速——預設值失效時在此覆寫，而非改原始碼（可用 `codex models` 查詢）。舊別名：`codex_fast_worker_model`。 |
 | `codex_worker_effort` | string | `xhigh` | codex CLI 接受的任何強度（如 `low` \| `medium` \| `high` \| `xhigh`） | `codex-worker` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`——強力機械層。舊別名：`codex_fast_worker_effort`。 |
 | `codex_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_fast_worker_timeout_secs`。 |
-| `codex_reasoner_model` | string | `gpt-5.6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex` 使用唯讀 sandbox。舊別名：`codex_deep_reasoner_model`。 |
+| `codex_reasoner_model` | string | `gpt-5.6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex-cli/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 是相容性 shorthand。舊別名：`codex_deep_reasoner_model`。 |
 | `codex_reasoner_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reasoner` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。舊別名：`codex_deep_reasoner_effort`。 |
 | `codex_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed。舊別名：`codex_deep_reasoner_timeout_secs`。 |
 | `codex_reviewer_model` | string | `gpt-5.6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reviewer` 派發時傳給 codex CLI 後端的模型（此版本內部只用，無法直接派發）。 |
 | `codex_reviewer_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reviewer` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。 |
 | `codex_reviewer_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reviewer` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_bridge_timeout_secs`。 |
 | `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 所有 Codex CLI 角色共用的 dispatcher deadline。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。解析後的值會寫入 immutable transport context，wrapper 不會從環境讀取它。 |
-| `agy_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
+| `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode，以及 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示，但多任務 OpenSpec 的 mandatory planner 與 verification gates 仍然有效。 |
@@ -117,7 +139,7 @@ dispatcher 在建立 `0600` immutable transport context 前，會將解析後的
 active skill 或 command 需要 Codex MCP server。現行 CLI-only review path 是
 `change-verdict --mode code --backend cli`；同族 CLI role 為
 `codex-worker`、`codex-reasoner`、`codex-reviewer` 與 `dhpk-codex-bridge`。需要
-Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex` 或
+Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]` 或
 `codex exec` 第二意見。
 
 ### 歷史：Codex MCP server（已退休）
@@ -157,7 +179,8 @@ docs/basic-operations.zh-TW.md）也與已退休的 MCP 機制
 
 `CODEX=on` 與 `/dhpk:do --codex` 曾是單次 session 的 legacy MCP-peer interface。
 兩者現在都已移除，不是持久化的 `userConfig` 值，也不會靜默重新解讀成
-`codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 plugin。請用
+`codex exec`、`--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]` 或外部 plugin。裸值
+`--reasoner=codex` 是相容性 shorthand。請用
 `/dhpk:flow-drive` 進行 current-model implementation，需要時明確選 CLI
 role，並以具名 `codex exec` opt-in 請求第二意見。
 

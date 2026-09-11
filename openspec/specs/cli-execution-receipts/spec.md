@@ -1,6 +1,7 @@
 # cli-execution-receipts Specification
 
 ## Purpose
+
 Define one fail-closed transport boundary for Codex and AGY CLI dispatches,
 including immutable caller authority, restricted named runtimes, exact provider
 argv/stdin shapes, and contained terminal evidence.
@@ -9,82 +10,79 @@ argv/stdin shapes, and contained terminal evidence.
 
 ### Requirement: External CLI dispatch uses one attested normalized request
 
-Every Codex or AGY external execution SHALL enter a provider-neutral runner
-through a validated `dhpk.cli.request.v1` request bound to a private,
-regular, non-symlink `dhpk.cli.context.v1` from the caller. The request SHALL identify
-provider, requested/effective role, mode, exact transport, model/effort,
-restricted named runtime path, workdir, immutable prompt path/device/inode/digest,
-assigned repository-relative files, explicit report-only mode, requested
-model/effort when supplied, timeout, task identity,
-attempt identity, a receipt path contained by an approved artifact root, and an
-immutable caller-resolved `dhpk.role-contract.v1`. That role envelope SHALL
-contain authority (`read-only` or `workspace-write`), source ID, and lowercase
-SHA-256 over canonical JSON for requested role, effective role, authority, and
-source ID. Positional compatibility wrappers MAY translate old arguments, but
-they SHALL not bypass validation or alter any attested field after validation. Direct
-runner or legacy wrapper calls without this context binding SHALL return
-`BLOCKED` before provider launch.
+Every supported external Provider execution SHALL enter a provider-neutral
+runner through a validated normalized request bound to a private, regular,
+non-symlink context from the caller. The request SHALL identify Host, Provider,
+requested/effective Role, authority mode, Transport, Provider-scoped Model,
+normalized Effort, restricted named runtime path, workdir, immutable prompt
+evidence, assigned repository-relative files, report-only mode, timeout, task
+identity, attempt identity, receipt path, and an immutable caller-resolved Role
+contract. Compatibility wrappers MAY translate old arguments, but SHALL not
+bypass validation or alter attested fields. Direct runner or wrapper calls
+without context binding SHALL return `BLOCKED` before Provider launch.
 
 #### Scenario: Complete request is accepted
 
-- **WHEN** a caller supplies a valid provider, role, mode, bounded assigned
-  scope, prompt, timeout, task id, attempt id, receipt path, and matching role
-  contract
+- **WHEN** a caller supplies a valid Host, Provider, Role, authority, bounded
+  scope, prompt, Model/Effort when applicable, timeout, task/attempt identity,
+  receipt path, and matching Role contract
 - **THEN** the runner normalizes one immutable request before launching the
-  provider
+  Provider
 
-#### Scenario: Invalid write request is blocked
+#### Scenario: Invalid authority or target is blocked
 
-- **WHEN** a read-only role is given workspace-write mode, or timeout/scope/
-  identity/role-contract validation fails
-- **THEN** the runner returns `BLOCKED` before starting the external CLI
+- **WHEN** Role, authority, scope, identity, Model, Effort, Transport, or
+  attestation validation fails
+- **THEN** the runner returns `BLOCKED` before starting the external Provider
 
 ### Requirement: Provider adapters do not own shared lifecycle policy
 
-Codex and AGY adapters SHALL translate only the fixed, attested provider shape
-into a request. The runner SHALL independently reconstruct and compare the
-restricted named runtime evidence and exact provider argv before launch;
-adapters SHALL not add mutable argv, structured-output, timeout, or environment
-overrides. Temporary files, redaction, timeout enforcement, output capture,
-status classification, receipt writing, and cleanup SHALL be owned by the
-shared runner. Existing wrapper scripts SHALL remain callable only as thin
-compatibility translators during migration.
+Claude Code, Codex CLI, AGY, and future external Adapters SHALL translate only
+the fixed, attested Provider shape into an execution request. The runner SHALL
+independently reconstruct and compare restricted runtime evidence and exact
+Provider invocation details before launch. Adapters SHALL not add mutable argv,
+structured-output, timeout, or environment overrides. Temporary files,
+redaction, timeout enforcement, output capture, status classification, receipt
+writing, and cleanup SHALL be owned by the shared runner.
 
-#### Scenario: Both providers share lifecycle evidence
+#### Scenario: All Providers share lifecycle evidence
 
-- **WHEN** equivalent Codex and AGY requests are launched
-- **THEN** both produce the same receipt shape and timeout/status semantics
-  while retaining provider-specific command flags
+- **WHEN** equivalent requests are launched through Claude Code, Codex CLI, and
+  AGY Adapters
+- **THEN** all produce the same receipt shape and timeout/status semantics while
+  retaining Provider-specific command details
 
 #### Scenario: Provider failure is not silently substituted
 
-- **WHEN** a provider rejects authentication, authorization, model, or command
-  execution
-- **THEN** the adapter returns the exact failure as `FAILED` or `BLOCKED` and
-  does not select another provider
+- **WHEN** an Adapter reports authentication, authorization, Model, or command
+  failure
+- **THEN** the runner records the exact failure and leaves any fallback decision
+  to the Dispatch Engine
 
 ### Requirement: Every launch emits an auditable receipt
 
-The runner SHALL emit a `dhpk.cli.receipt.v1` receipt with terminal status
-`SUCCEEDED`, `FAILED`, `BLOCKED`, or `TIMEOUT`, never `PARTIAL`; requested and
-effective provider, role, transport, model, and effort; task, attempt, and
-launch identities; process exit code; configured/enforced timeout and verified
-runner-timeout evidence; report presence and bounded digest; assigned-scope
-digest; the complete validated `dhpk.role-contract.v1`; and independent
-verification status. Unknown effective runtime values SHALL be represented as
-unknown rather than inferred from a request.
+The runner SHALL emit one receipt with terminal status `SUCCEEDED`, `FAILED`,
+`BLOCKED`, or `TIMEOUT`, never `PARTIAL`; requested and effective Host,
+Provider, Role, Transport, Provider-scoped Model, normalized Effort; task,
+attempt, and launch identities; process exit code; configured/enforced timeout;
+report presence and bounded digest; assigned-scope digest; the complete Role
+contract; fallback history; and independent verification status. Unknown
+effective runtime values SHALL be represented as unknown rather than inferred.
+The receipt SHALL also record catalog version, Host Profile version, Adapter
+version, capability evidence, and the source of requested/effective target
+resolution.
 
-#### Scenario: Explicit model is evidenced
+#### Scenario: Explicit Model is evidenced
 
-- **WHEN** a caller requests a model and the provider confirms the effective
-  model
-- **THEN** the receipt records both requested and effective model with the
+- **WHEN** a caller requests a Model and the Provider confirms the effective
+  Model
+- **THEN** the receipt records requested and effective Model with the
   confirmation source
 
-#### Scenario: Inherited model is not overclaimed
+#### Scenario: Inherited Model is not overclaimed
 
-- **WHEN** a provider inherits a model from external configuration and no
-  runtime evidence exposes it
+- **WHEN** a Provider inherits a Model from external configuration and no runtime
+  evidence exposes it
 - **THEN** the receipt records `effective_model=unknown` and
   `model_evidence=unavailable`
 
@@ -94,11 +92,12 @@ unknown rather than inferred from a request.
 - **THEN** the receipt is written atomically without prompt content, secrets,
   raw output, or unredacted private paths
 
-#### Scenario: Follow-up state is not a terminal receipt status
+#### Scenario: Target evidence is reproducible
 
-- **WHEN** a launch needs later task or ledger work
-- **THEN** the receipt contains an immutable follow-up record atomically
-- **AND** neither receipt nor follow-up uses `PARTIAL` as launch status
+- **WHEN** a dispatch completes, is blocked, or reaches a lifecycle failure
+- **THEN** the receipt identifies the catalog, Host Profile, and Adapter
+  versions used, the requested and effective targets, rejected or fallback
+  targets, and the evidence status without exposing secrets or raw output
 
 ### Requirement: Timeout status remains truthful
 
@@ -123,16 +122,16 @@ the provider status.
 
 ### Requirement: Execution mode and verification boundary are explicit
 
-The request SHALL declare `read-only` or `workspace-write` mode. Read-only
-role contracts SHALL not receive write mode; write-capable workers remain
-bounded by their assigned file list. Canonical role IDs and aliases SHALL be
-resolved outside the runner. The runner SHALL never treat a backend report,
-role label, installer receipt, or valid JSON shape as proof that the work was
-performed or verified.
+The request SHALL declare `read-only` or `workspace-write` authority. Role
+contracts SHALL not receive a wider mode than their maximum authority; workers
+remain bounded by their assigned file list. Canonical Roles and compatibility
+aliases SHALL be resolved outside the runner. The runner SHALL never treat a
+Provider report, Role label, installer receipt, or valid JSON shape as proof
+that work was performed or verified.
 
 #### Scenario: Review is read-only
 
-- **WHEN** a reviewer request is dispatched
+- **WHEN** a reviewer request is dispatched through any Provider
 - **THEN** the runner launches it in read-only mode and the receipt records that
   mode
 
@@ -140,24 +139,21 @@ performed or verified.
 
 - **WHEN** a write-capable worker returns a successful self-report
 - **THEN** its caller still derives assigned-file changes and runs the declared
-  verification command independently before accepting the task
+  verification independently before accepting the task
 
 ### Requirement: Maximum authority and runner containment are enforced
 
-The runner SHALL interpret authority as maximum capability:
-`codex-reasoner` is read-only; `codex-worker` and `agy-worker` are
-workspace-write (`codex-reviewer` is also read-only; `codex-bridge` is a
-mode-qualified alias). Requests may narrow but cannot widen it.
-The runner SHALL own timeout observation and use realpath/no-follow/atomic
-artifact-root containment with a pinned directory descriptor, `0600` temporary
-and receipt files, redaction before bounded capture, and fail-closed
-out-of-scope-write detection. Any workspace or transport temporary symlink,
-hardlink, or artifact-root replacement SHALL block normal receipt publication.
+The runner SHALL interpret Role authority as maximum capability and SHALL use
+the resolved Role contract rather than Provider-specific Role names. Requests
+may narrow but cannot widen authority. The runner SHALL own timeout observation
+and use realpath/no-follow/atomic artifact-root containment with pinned
+descriptors, private temporary and receipt files, redaction before bounded
+capture, and fail-closed out-of-scope-write detection.
 
 #### Scenario: Read-only authority cannot be widened
 
-- **WHEN** `codex-reasoner` requests workspace-write
-- **THEN** the runner returns `BLOCKED` before provider launch
+- **WHEN** a `reasoner` or `reviewer` request asks for workspace-write
+- **THEN** the runner returns `BLOCKED` before Provider launch
 
 ### Requirement: AGY prompt and confirmation transport are explicit
 

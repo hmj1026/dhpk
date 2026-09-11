@@ -406,11 +406,15 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
         ? crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex')
         : null;
       // Pre-profile packages deliberately bind the legacy inventory contract,
-      // which excludes profile_policy. Accept that digest while the package
-      // carries no selection identity; profile-aware packages use the same
-      // source digest and are checked against their selected/emitted IDs above.
+      // which excludes profile_policy and standalone_dependencies. Accept
+      // that digest while the package carries no selection identity;
+      // profile-aware packages use the same source digest and are checked
+      // against their selected/emitted IDs above.
       const legacyInventory = inventory ? { ...inventory } : null;
-      if (legacyInventory) delete legacyInventory.profile_policy;
+      if (legacyInventory) {
+        delete legacyInventory.profile_policy;
+        delete legacyInventory.standalone_dependencies;
+      }
       const legacyInventoryDigest = legacyInventory
         ? crypto.createHash('sha256').update(JSON.stringify(legacyInventory)).digest('hex')
         : null;
@@ -583,7 +587,14 @@ function runCodexNamedRoleProbe(project, {
   }
 
   const cliVersion = (version.stdout || version.stderr || '').trim();
-  const sourceCodexHome = path.resolve(env.CODEX_HOME || path.join(os.homedir(), '.codex'));
+  // A parallel release probe runs with a private HOME/CODEX_HOME. When a
+  // named-role runtime needs credentials, the coordinator supplies an
+  // explicit read-only host source; never infer it from the private HOME.
+  const sourceCodexHome = path.resolve(
+    env.DHPK_CONSUMER_PROBE_HOST_CODEX_HOME
+      || env.CODEX_HOME
+      || path.join(os.homedir(), '.codex'),
+  );
   const sourceAuth = path.join(sourceCodexHome, 'auth.json');
   let sourceAuthStat;
   try { sourceAuthStat = fs.statSync(sourceAuth); } catch (_) {

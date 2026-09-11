@@ -29,6 +29,7 @@ const {
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
@@ -434,6 +435,7 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
 function stableInventoryDigest(inventory) {
   const source = { ...(inventory || {}) };
   delete source.profile_policy;
+  delete source.standalone_dependencies;
   return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 }
 
@@ -886,6 +888,20 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   }
   const hooks = collectAdaptedCursorHooks(resolvedRoot, transformations, traversalBudget);
   files.push(...hooks.files);
+  const standaloneAssets = collectStandalonePackageAssets({ root: resolvedRoot, inventory, profileSelection });
+  const existingDestinations = new Set(files.map((file) => file.destination));
+  for (const asset of standaloneAssets) {
+    if (existingDestinations.has(asset.destination)) continue;
+    existingDestinations.add(asset.destination);
+    traversalBudget.accountBytes(asset.content.byteLength, asset.destination);
+    files.push({
+      source: asset.source,
+      destination: asset.destination,
+      content: asset.content,
+      mode: asset.mode,
+      transform: { id: 'cursor-standalone-dependency', version: generatorVersion },
+    });
+  }
   const cursorVariables = safeVariables(variables || inventory.cursor_variables || inventory.cursorVariables || inventory.variables);
   const manifest = buildManifest({ name, version, variables: cursorVariables, componentDirs: { ...componentDirs, skills: selectedNames.length > 0 }, hasHooks: true });
   const marketplace = {
@@ -948,6 +964,12 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
       selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
       selectionFingerprint: profileSelection.selectionFingerprint || null,
       surfaceSelectionFingerprint: profileSelection.surfaceSelectionFingerprint || null,
+    } : {}),
+    ...(profileSelection && profileSelection.selectionMode === 'standalone' ? {
+      selectionMode: 'standalone',
+      requestedStableIds: profileSelection.requestedStableIds || [],
+      dependencyClosure: profileSelection.dependencyClosure || null,
+      unavailableCapabilities: profileSelection.unavailableCapabilities || [],
     } : {}),
   };
   const fingerprintsOutput = { source: 'generated/fingerprints.json', destination: 'fingerprints.json', content: Buffer.from(`${JSON.stringify(fingerprints, null, 2)}\n`), mode: 0o644 };

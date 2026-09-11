@@ -10,8 +10,9 @@ workflow 的預設 discovery 使用實體化的 `minimal` profile；`full` 與
   自動產生第二意見。
 - `--worker=codex` 是明確選取的 Codex CLI mechanical worker，只能用於支援
   該選項的 implementation-class route。
-- `--reasoner=codex[:<model>[:<effort>]]` 是明確選取的 Codex CLI read-only
-  reasoning pass；它不會改變 primary implementation owner。
+- `--reasoner=codex-cli/<model>[:<effort>]` 是明確選取的 Codex CLI read-only
+  reasoning pass；裸值 `--reasoner=codex` 是相容性 shorthand，不會改變
+  primary implementation owner。
 - 支援獨立視角的 owner 可用 `--dual` 或其等價的 isolated reviewer dispatch，
   以 fresh、read-only subagent 產生不受 primary 結論影響的第二份證據。
 - `--second-opinion=codex-exec` 是明確選取的一次性 blind CLI second opinion。
@@ -39,7 +40,8 @@ second opinion 時，沿用 owner 的 option 並在輸出中標記 primary 與�
 ## Selection and degradation
 
 1. 先執行 default route，並記錄 scope、assumptions 與 primary evidence。
-2. 只有 caller 指定 `--worker=codex`、`--reasoner=codex`、isolated reviewer
+2. 只有 caller 指定 `--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]`，或明確使用
+   compatibility shorthand `--reasoner=codex`、isolated reviewer
    或 `--second-opinion=codex-exec` 時，才 dispatch 對應的附加路徑。
 3. Second opinion 必須收到自足 context，不能讀取 primary 結論後再假裝 blind。
 4. 沒有第二視角時，凡 owner 要求獨立驗證的結果都標記

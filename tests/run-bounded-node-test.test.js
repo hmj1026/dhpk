@@ -19,6 +19,19 @@ function runBounded(args, env = {}) {
   });
 }
 
+// The containment contract is Linux-only: Darwin has neither the verified
+// systemd user cgroup boundary nor the GNU `timeout` prerequisite. Keep the
+// runner itself fail-closed, but classify this test file explicitly so the
+// aggregate macOS result does not present an incompatible host as a product
+// failure. Linux registers the complete fail-closed suite below unchanged.
+if (process.platform === 'darwin') {
+  test('Linux-only bounded runner remains fail-closed on Darwin', () => {
+    const result = runBounded(['node', '-e', 'process.exit(0);']);
+    assert.notStrictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stderr, /systemd cgroup|timeout command/i);
+  });
+  console.log('SKIP_INCOMPATIBLE: run-bounded-node-test requires Linux systemd cgroup and timeout prerequisites');
+} else {
 test('command finishing successfully returns 0 and outputs stdout', () => {
   const res = runBounded(['node', '-e', 'console.log("hello bounded");']);
   assert.strictEqual(res.status, 0, res.stderr);
@@ -238,5 +251,6 @@ test('virtual-memory fallback rejects an unbounded or malformed size', () => {
     fs.rmSync(bin, { recursive: true, force: true });
   }
 });
+}
 
 run('run-bounded-node-test');

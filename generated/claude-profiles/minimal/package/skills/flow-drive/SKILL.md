@@ -1,6 +1,6 @@
 ---
 name: flow-drive
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<claude|codex|agy|auto>] [--reasoner=<backend>:<model>:<effort>] [--architect|--no-architect]'
+argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<provider>/<model>[:<effort>]] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
 description: 'Explicit-only implementation workflow for a confirmed specification or OpenSpec change whose target and acceptance contract are settled. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: ordered implementation and verification evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
@@ -10,13 +10,18 @@ metadata:
 # Flow Drive
 
 Use `$flow-drive <confirmed-spec-or-change-id> [implementation-options]` only
-after the specification, target, and acceptance boundary are confirmed. Use
-`flow-guide route` when ownership is unclear; use the external OpenSpec
-authoring owner when a proposal or artifact is still missing.
+after the specification, target, and acceptance boundary are confirmed. When
+ownership is unclear, return an explicit blocker or use the separately invoked
+route owner; use the external OpenSpec authoring owner when a proposal or
+artifact is still missing. Flow Drive consumes the shared neutral handoff
+contract and does not load a peer skill to validate its input.
 
 ## When NOT to Use
 
-- The route, target, or acceptance contract is unclear: use `$flow-guide route`.
+- The route, target, or acceptance contract is unclear: return a blocker with
+  the missing evidence; do not infer a route or load a peer skill. A separately
+  invoked `flow-guide route` may provide a handoff, but Flow Drive never calls
+  it as a prerequisite.
 - A proposal or OpenSpec artifact still needs authoring: use external `$openspec-propose`.
 - The task is review-only or diagnostic-only: use `change-verdict` or `code-trace`.
 - Commit, release, deployment, or archive authority has not been separately granted.
@@ -53,8 +58,11 @@ action.
 ## Implementation options
 
 - `--plan[=<model>:<effort>]` requests a planning pass.
-- `--worker=<claude|codex|agy|auto>` selects an explicitly requested worker.
-- `--reasoner=<backend>:<model>:<effort>` requests a bounded second opinion.
+- `--worker=<provider>/<model>[:<effort>]` selects an explicitly requested
+  Provider-scoped worker target; legacy backend values remain compatibility
+  inputs only.
+- `--reasoner=<provider>/<model>[:<effort>]` requests a bounded second opinion
+  with a Provider-scoped target; canonical Role remains `reasoner`.
 - `--architect` or `--no-architect` controls the architecture pass.
 - `--codex` is a retired diagnostic and produces a blocking report; it never
   grants a peer, backend, or execution shortcut.
@@ -73,8 +81,8 @@ states.
 
 - `rules/execution-policy.md` — invocation, planning, dispatch, and handoff
   policy.
-- `skills/flow-guide/SKILL.md` — route, rules, progression, closeout, and usage
-  discovery owner.
+- `scripts/lib/flow-handoff-contract.js` — shared neutral route handoff and
+  evidence boundary; it does not grant execution authority.
 - `docs/agent-guidance/writing-for-agents.md` — document boundaries when the
   confirmed change edits agent-facing instructions.
 

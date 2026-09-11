@@ -22,8 +22,8 @@ const { runClaudeProfileProbe } = require('../scripts/release/claude-profile-pro
 
 const ROOT = path.join(__dirname, '..');
 const RELEASE_VERSION_SENTINEL = '<release-version>';
-const EXPECTED_NORMALIZED_MANIFEST_BYTES = 33370;
-const EXPECTED_NORMALIZED_MANIFEST_SHA256 = 'bc30c40958472252bbbcd3692c1f670ba6a77c389c6a4ea73c25bee28493e64b';
+const EXPECTED_NORMALIZED_MANIFEST_BYTES = 35395;
+const EXPECTED_NORMALIZED_MANIFEST_SHA256 = '7bb196af3a6e6630ca1e29029ff1a306177cef02d7e4b2809ec9b0b81b914074';
 
 function normalizeReleaseVersion(pluginBytes) {
   const text = Buffer.from(pluginBytes).toString('utf8');
@@ -194,6 +194,16 @@ function compileProfile(fixture, profileId, root) {
   });
 }
 
+function compileStandalone(fixture, root, standaloneSkillIds) {
+  return bundleApi.compileClaudeCapabilityBundle({
+    root,
+    inventory: fixture.inventory,
+    profiles: fixture.installProfiles,
+    moduleCatalog: fixture.moduleCatalog,
+    standaloneSkillIds,
+  });
+}
+
 test('characterizes the current unscoped Claude manifest and CLI outcome', () => {
   const pluginPath = path.join(ROOT, '.claude-plugin', 'plugin.json');
   const pluginBytes = fs.readFileSync(pluginPath);
@@ -298,6 +308,29 @@ test('compiler resolves a profile module dependency closure and selects only its
   assert.deepStrictEqual(result.value.moduleClosure, ['php-5.6', 'yii-1.1']);
   assert.deepStrictEqual(result.value.selectedStableIds, ['core-review', 'php-runtime', 'yii-guidance']);
   assert.deepStrictEqual(result.value.excludedStableIds, ['js-guidance']);
+});
+
+test('standalone Claude bundle emits only the requested skill and its package-local closure', () => {
+  const fixture = profileFixture();
+  const root = makeFixtureRoot(fixture);
+  const selectedRoot = path.join(root, 'skills', 'php-runtime');
+  fs.mkdirSync(path.join(selectedRoot, 'references'), { recursive: true });
+  fs.writeFileSync(path.join(selectedRoot, 'references', 'runtime.md'), 'runtime reference\n');
+  const unselectedRoot = path.join(root, 'skills', 'yii-guidance');
+  fs.mkdirSync(path.join(unselectedRoot, 'references'), { recursive: true });
+  fs.writeFileSync(path.join(unselectedRoot, 'references', 'unselected.md'), 'must not be discovered\n');
+
+  const compiled = compileStandalone(fixture, root, ['dhpk-php-runtime', 'php-runtime']);
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.strictEqual(compiled.value.selection.selectionMode, 'standalone');
+  assert.strictEqual(compiled.value.selection.profileId, null);
+  assert.deepStrictEqual(compiled.value.selection.requestedStableIds, ['php-runtime']);
+  const destinations = compiled.value.outputs.map((entry) => entry.destination);
+  assert.ok(destinations.includes('skills/php-runtime/SKILL.md'));
+  assert.ok(destinations.includes('skills/php-runtime/references/runtime.md'));
+  assert.ok(!destinations.some((destination) => destination.includes('yii-guidance')));
+  assert.ok(!destinations.some((destination) => destination.includes('unselected.md')));
+  assert.strictEqual(compiled.value.plan.profile.selectionMode, 'standalone');
 });
 
 test('compiler rejects unknown profiles and does not fall back to ambient or unscoped membership', () => {

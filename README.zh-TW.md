@@ -151,9 +151,10 @@ route 使用過的 transport，以及 capability 現在移到哪個 backend-neut
 CLI、current-model 或 isolated-review 行為。
 
 `CODEX=on` 與 `/dhpk:do --codex` 是已移除的 legacy MCP-peer interface，不是
-`codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 app-server plugin 的 alias。
+`codex exec`、`--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]` 或外部 app-server plugin 的 alias。
 目前請使用明確的 `/dhpk:flow-drive` 走 current-model implementation；需要
-外部 CLI role 時明確選 `--worker=codex` 或 `--reasoner=codex`；支援的 migrated skill
+外部 CLI role 時明確選 `--worker=codex` 或 `--reasoner=codex-cli/<model>[:<effort>]`；裸值
+`--reasoner=codex` 只保留作為相容性 shorthand。支援的 migrated skill
 若需要第二意見，則明確指定 `codex exec`。legacy flag 只會產生 deprecation diagnostic，
 不會選到 hidden backend。
 

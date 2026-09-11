@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./configuration.zh-TW.md)
 
-dhpk exposes **70 active `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
+dhpk exposes **76 active `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
 
 The default Claude discovery artifact is the materialized `minimal` profile,
 derived from `manifests/distribution-inventory.json`; it is not an unfiltered
@@ -53,6 +53,31 @@ the highest precedence and enables external candidates only for that
 invocation. Without the flag, project configuration wins over the installed
 user setting, and the shipped default is `false`.
 
+### Provider-neutral dispatch settings
+
+The canonical dispatch settings use separate Host, Provider, Model, Role,
+Effort, and Transport concepts. A target uses `provider/model[:effort]`; a
+bare model name is not sufficient. `auto` selects the current Host-native
+target, subject to the ordered `preference_order` and the explicit
+`cross_provider` opt-in for external candidates.
+
+| Key | Type | Default | Purpose |
+|-----|------|---------|---------|
+| `worker_target` | string | `auto` | Provider-scoped target for the `worker` Role. |
+| `reasoner_target` | string | `auto` | Provider-scoped target for the read-only `reasoner` Role. |
+| `planner_target` | string | `auto` | Provider-scoped target for the read-only `planner` Role. |
+| `reviewer_target` | string | `auto` | Provider-scoped target for the read-only `reviewer` Role. |
+| `preference_order` | string[] | `[]` | Ordered Provider or Provider/Model candidates for automatic resolution. |
+| `fallback_allow` | boolean | `true` | Permit fallback only after confirmed pre-side-effect availability failure. |
+
+Project values take precedence over installed-user values. Invalid fields are
+reported as `BLOCKED` without invalidating unrelated settings. Diagnostics keep
+catalog support, Host access, runtime availability, and fallback permission
+separate; static catalog membership or package discovery is never runtime proof.
+Legacy `fast_worker_*`, provider-specific model keys, and provider-bound Role
+aliases remain accepted only at the compatibility boundary and are recorded as
+translation evidence.
+
 ## Core dispatch & review
 
 | Key | Type | Default | Options | Purpose |
@@ -68,14 +93,14 @@ user setting, and the shipped default is `false`.
 | `codex_worker_model` | string | `gpt-5.6-luna` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-worker` dispatches. Resolved via the standard layering (project pluginConfigs > global pluginConfigs > shipped default) and passed into `run-codex.sh`. Codex model names rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Legacy alias: `codex_fast_worker_model`. |
 | `codex_worker_effort` | string | `xhigh` | any effort the codex CLI accepts (e.g. `low` \| `medium` \| `high` \| `xhigh`) | `model_reasoning_effort` passed to the codex CLI backend for `codex-worker` dispatches — the strong mechanical tier. Legacy alias: `codex_fast_worker_effort`. |
 | `codex_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-worker`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_fast_worker_timeout_secs`. |
-| `codex_reasoner_model` | string | `gpt-5.6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex` in a read-only sandbox. Legacy alias: `codex_deep_reasoner_model`. |
+| `codex_reasoner_model` | string | `gpt-5.6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex-cli/<model>[:<effort>]` in a read-only sandbox. The bare `--reasoner=codex` value is a compatibility shorthand. Legacy alias: `codex_deep_reasoner_model`. |
 | `codex_reasoner_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reasoner` dispatches. Legacy alias: `codex_deep_reasoner_effort`. |
 | `codex_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed at dispatch time. Legacy alias: `codex_deep_reasoner_timeout_secs`. |
 | `codex_reviewer_model` | string | `gpt-5.6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reviewer` (internal-only in this rollout; not directly dispatchable). |
 | `codex_reviewer_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reviewer` dispatches. |
 | `codex_reviewer_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reviewer`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_bridge_timeout_secs`. |
 | `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared dispatcher deadline for all Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. The resolved value is copied into the immutable transport context, never read by a wrapper from its environment. |
-| `agy_worker_model` | string | `Gemini 3.6 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
+| `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes, plus `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
@@ -126,7 +151,7 @@ Current dhpk capabilities run with the in-process model or an explicit CLI
 backend. No active skill or command requires a Codex MCP server. The current
 CLI-only review path is `change-verdict --mode code --backend cli`;
 its sibling CLI roles are `codex-worker`, `codex-reasoner`, `codex-reviewer`,
-and `dhpk-codex-bridge`. Use `--worker=codex`, `--reasoner=codex`, or an
+and `dhpk-codex-bridge`. Use `--worker=codex`, `--reasoner=codex-cli/<model>[:<effort>]`, or an
 explicit `codex exec` second opinion when a Codex CLI transport is wanted.
 
 ### Historical: Codex MCP server (retired)
@@ -171,7 +196,8 @@ the retired MCP mechanism and needs no server registration.
 The `CODEX=on` and `/dhpk:do --codex` flags were legacy per-session MCP-peer
 interfaces. They are removed, are not persisted `userConfig` values, and are
 not silently reinterpreted as `codex exec`, `--worker=codex`,
-`--reasoner=codex`, or the external plugin. Use `/dhpk:flow-drive` for
+`--reasoner=codex-cli/<model>[:<effort>]`, or the external plugin. The bare
+`--reasoner=codex` value remains a compatibility shorthand. Use `/dhpk:flow-drive` for
 current-model implementation, select a CLI role explicitly when needed, and
 request a second opinion by its named `codex exec` opt-in.
 

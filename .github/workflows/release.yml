@@ -91,6 +91,25 @@ jobs:
           done
           node scripts/ci/verify-platform-packages.js
 
+      # Bind the exact tracked package bytes that passed the package gate to
+      # this workflow run. The post-publish job verifies this manifest against
+      # the immutable tag before it starts any consumer probe; it never
+      # regenerates a package or treats a generic cache hit as evidence.
+      - name: Write trusted release artifact manifest
+        run: |
+          node scripts/release/release-artifact-manifest.js \
+            --output "$RUNNER_TEMP/dhpk-release-artifact-manifest.json" \
+            --run-id "$GITHUB_RUN_ID" \
+            --version "${GITHUB_REF_NAME#v}"
+
+      - name: Upload trusted release artifact manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: dhpk-release-artifact-manifest-${{ github.run_id }}
+          path: ${{ runner.temp }}/dhpk-release-artifact-manifest.json
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Extract release notes from CHANGELOG.md
         id: notes
         run: |
@@ -137,6 +156,12 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Download trusted release artifact manifest
+        uses: actions/download-artifact@v4
+        with:
+          name: dhpk-release-artifact-manifest-${{ github.run_id }}
+          path: ${{ runner.temp }}/dhpk-release-artifact
+
       # Installs the real `claude` CLI so the supported Claude
       # marketplace-add/install/list check runs for real here (this ephemeral
       # runner is the only place that's safe — see the job comment above). If
@@ -147,6 +172,10 @@ jobs:
         continue-on-error: true
 
       - name: Run CONSUMER gate
+        env:
+          DHPK_RELEASE_ARTIFACT_MANIFEST: ${{ runner.temp }}/dhpk-release-artifact/dhpk-release-artifact-manifest.json
+          DHPK_HARNESS_RELEASE_PROBE_CONCURRENCY: '2'
+          DHPK_HARNESS_RELEASE_PROBE_TIMEOUT_MS: '120000'
         run: |
           set +e
           result_file="${RUNNER_TEMP:-/tmp}/harness-release-result.json"
@@ -162,6 +191,7 @@ jobs:
             echo "Outcome: \`$outcome\`"
             echo ""
             node -e "const result=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); for (const row of (result.surfaceResults || [])) console.log('- ' + row.surface + ': ' + row.status);" "$result_file" >> "$GITHUB_STEP_SUMMARY"
+            node -e "const result=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); const p=result.probeExecution; if (p) console.log('- Probe schedule: ' + p.mode + ', concurrency=' + p.concurrency + ', wallTimeMs=' + p.wallTimeMs);" "$result_file" >> "$GITHUB_STEP_SUMMARY"
             echo ""
             echo "Tag \`${GITHUB_REF_NAME}\` is PUBLISHED. Overall release status is COMPLETE only when all seven consumer rows are PASS; non-pass evidence keeps the release PUBLISHED/PENDING or PUBLISHED/UNHEALTHY and never edits the immutable tag."
           } >> "$GITHUB_STEP_SUMMARY"

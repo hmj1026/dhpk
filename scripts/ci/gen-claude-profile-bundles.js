@@ -20,11 +20,11 @@ function readJson(relative) {
 }
 
 function usage() {
-  console.error('usage: node scripts/ci/gen-claude-profile-bundles.js --profile <alias> [--skill <stable-id>] [--out <directory>] [--check]');
+  console.error('usage: node scripts/ci/gen-claude-profile-bundles.js (--profile <alias> [--skill <stable-id>] | --standalone <skill-id-or-public-name>) [--out <directory>] [--check]');
 }
 
 function parseArgs(argv) {
-  const result = { profile: null, skillIds: [], out: null, check: false };
+  const result = { profile: null, skillIds: [], standaloneSkillIds: [], out: null, check: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--check') result.check = true;
@@ -39,11 +39,24 @@ function parseArgs(argv) {
       if (!value) return { error: '--skill requires a value' };
       result.skillIds.push(value);
     }
+    else if (arg === '--standalone') {
+      const value = argv[++i];
+      if (!value || value.startsWith('--')) return { error: '--standalone requires a value' };
+      if (!result.standaloneSkillIds.includes(value)) result.standaloneSkillIds.push(value);
+    }
+    else if (arg.startsWith('--standalone=')) {
+      const value = arg.slice('--standalone='.length);
+      if (!value) return { error: '--standalone requires a value' };
+      if (!result.standaloneSkillIds.includes(value)) result.standaloneSkillIds.push(value);
+    }
     else if (arg === '--out' || arg === '-o') result.out = argv[++i] || null;
     else if (arg === '--help' || arg === '-h') return { help: true };
     else return { error: `unknown argument '${arg}'` };
   }
-  if (!result.profile) return { error: '--profile is required' };
+  if (result.standaloneSkillIds.length > 0 && (result.profile || result.skillIds.length > 0)) {
+    return { error: '--standalone cannot be combined with --profile or --skill' };
+  }
+  if (!result.profile && result.standaloneSkillIds.length === 0) return { error: '--profile or --standalone is required' };
   return result;
 }
 
@@ -58,6 +71,7 @@ function main(argv = process.argv.slice(2)) {
     moduleCatalog: readJson('manifests/module-catalog.json'),
     profileId: args.profile,
     skillIds: args.skillIds,
+    ...(args.standaloneSkillIds.length > 0 ? { standaloneSkillIds: args.standaloneSkillIds } : {}),
   });
   if (!compiled.ok) {
     console.error(`FAIL [gen-claude-profile-bundles]: ${compiled.error.message}`);
@@ -72,7 +86,8 @@ function main(argv = process.argv.slice(2)) {
     }, null, 2));
     return 0;
   }
-  const outputRoot = path.resolve(args.out || path.join(ROOT, 'generated', 'claude-profiles', args.profile));
+  const outputName = args.profile || `standalone-${args.standaloneSkillIds.join('-')}`;
+  const outputRoot = path.resolve(args.out || path.join(ROOT, 'generated', 'claude-profiles', outputName));
   const store = new ProjectionArtifactStore({
     root: outputRoot,
     sourceRoot: ROOT,
@@ -89,6 +104,8 @@ function main(argv = process.argv.slice(2)) {
   }
   console.log(JSON.stringify({
     profile: args.profile,
+    selectionMode: compiled.value.selection.selectionMode,
+    requestedStableIds: compiled.value.selection.requestedStableIds || [],
     outputRoot: path.join(outputRoot, 'package'),
     planFingerprint: artifact.value.planFingerprint,
     artifactFingerprint: artifact.value.artifactFingerprint,
@@ -96,7 +113,7 @@ function main(argv = process.argv.slice(2)) {
     selectedCount: compiled.value.plan.selectedStableIds.length,
     compatibilityMode: compiled.value.plan.compatibilityMode,
     consumerRuntime: 'NOT_CONFIGURED',
-    resumeCommand: `node scripts/ci/gen-claude-profile-bundles.js --profile ${args.profile} ${args.skillIds.map((id) => `--skill ${id}`).join(' ')} --out ${outputRoot}`.replace(/  +/g, ' ').trim(),
+    resumeCommand: `node scripts/ci/gen-claude-profile-bundles.js ${args.profile ? `--profile ${args.profile} ${args.skillIds.map((id) => `--skill ${id}`).join(' ')}` : args.standaloneSkillIds.map((id) => `--standalone ${id}`).join(' ')} --out ${outputRoot}`.replace(/  +/g, ' ').trim(),
   }, null, 2));
   return 0;
 }

@@ -1,6 +1,7 @@
 # distribution-surface-governance Specification
 
 ## Purpose
+
 Define the governed publication lifecycle for every consumer-reachable skill
 and module, including inventory ownership, generated surface projections,
 profile artifacts, and evidence that distinguishes structural availability
@@ -9,24 +10,30 @@ from runtime activation.
 ## Requirements
 
 ### Requirement: Every consumer-reachable package has a lifecycle
+
 The distribution inventory SHALL assign each consumer-reachable skill and module exactly one lifecycle state from `promoted`, `optional`, `experimental`, or `deprecated`, and SHALL identify every publication surface on which the package is permitted to appear.
 
 #### Scenario: A new skill has no lifecycle entry
+
 - **WHEN** a canonical skill can be reached by a plugin manifest, installer, generated package, or marketplace wrapper but is absent from the distribution inventory
 - **THEN** distribution validation fails with the missing skill path and no release artifact is accepted
 
 #### Scenario: Inventory and canonical packages agree
+
 - **WHEN** every consumer-reachable package has one valid lifecycle and its declared surfaces resolve
 - **THEN** distribution validation passes without deriving promotion from directory placement
 
 ### Requirement: Promoted surfaces are generated from the inventory
+
 The Claude plugin skill registrations and every generated Codex publication tree SHALL be derived deterministically from the distribution inventory. Generated output SHALL NOT become an independently authored source of skill behavior.
 
 #### Scenario: A generated manifest contains an undeclared skill
+
 - **WHEN** a generated publication surface contains a skill not permitted on that surface by the inventory
 - **THEN** the no-drift validation fails and identifies the extra entry
 
 #### Scenario: Generation is repeatable
+
 - **WHEN** generation runs twice against unchanged canonical sources and inventory
 - **THEN** both runs produce byte-identical publication metadata and package contents
 
@@ -65,32 +72,40 @@ The distribution model SHALL distinguish broadly applicable core workflow skills
 - **THEN** validation passes and reports budget totals by publication surface and selected profile artifact
 
 ### Requirement: Deprecation precedes source deletion
+
 A package SHALL normally be deprecated before source deletion: promoted surfaces omit it while canonical source, replacement guidance, and compatibility-window metadata remain. A reviewed breaking retirement MAY remove canonical source in one change only when an inventory-owned retirement record exists, unique behavior has migrated or is explicitly classified as model-default, all live references and generated projections are closed, receipt-owned reconciliation is fingerprint-safe, and rollback pins the last compatible release.
 
 #### Scenario: A promoted skill is deprecated
+
 - **WHEN** a skill lifecycle changes from `promoted` to `deprecated`
 - **THEN** generated promoted surfaces omit it while its canonical source and migration guidance remain available for the declared compatibility window
 
 #### Scenario: Deprecated source is deleted too early
+
 - **WHEN** a change deletes a deprecated canonical source before its compatibility window expires or while live references remain
 - **THEN** distribution validation fails with the blocking condition
 
 #### Scenario: Reviewed breaking retirement removes source atomically
+
 - **WHEN** a reviewed change declares an alias-free breaking retirement and all retirement identity, successor behavior, reference closure, ownership-safe reconciliation, deterministic projection, and rollback gates pass
 - **THEN** canonical source may be removed in that change and the former identity remains available only through the non-discovery-visible retirement ledger
 
 #### Scenario: Breaking retirement lacks a closure gate
+
 - **WHEN** any required migration, reference, ownership, projection, or rollback evidence is missing
 - **THEN** distribution validation rejects canonical deletion and names the missing gate
 
 ### Requirement: Always-visible and conditional context are distinguishable
+
 Publication and manifest generation SHALL expose which safety/routing contracts are always visible and which stack/version/review mechanics are conditional references. The generator SHALL not duplicate full description prose in developer instructions when a short trigger and pointer are sufficient.
 
 #### Scenario: A role repeats its full description in the body
+
 - **WHEN** an agent description and its developer instructions contain duplicated policy prose
 - **THEN** metadata health validation reports the duplication and suggests a pointer-based form
 
 #### Scenario: A safety contract is always visible
+
 - **WHEN** a role is published for discovery
 - **THEN** destructive-action, authorization, and completion-boundary constraints remain in its always-visible contract
 
@@ -325,14 +340,17 @@ Distribution inventory schema `dhpk.distribution-inventory.v2` SHALL accept an a
 The initial row SHALL be `id: gitnexus`, `owner: upstream`, `repository: https://github.com/abhigyanpatwari/GitNexus`, `policy: protect-existing`, `license_review: open`, and the six GitNexus stable IDs. The ledger protects their existing canonical and projected identities; it SHALL NOT create a new publication surface or cause raw upstream files to be copied.
 
 #### Scenario: GitNexus boundary is valid
+
 - **WHEN** the registry declares the `gitnexus` package and its six existing DHPK stable IDs
 - **THEN** validation confirms all six live entries and preserves their current names, paths, lifecycle, and surface membership
 
 #### Scenario: External package row is incomplete
+
 - **WHEN** a registry row lacks its repository, policy, stable IDs, or references a missing or retired identity
 - **THEN** distribution validation fails before any projection is compiled
 
 #### Scenario: V2 inventory is regenerated
+
 - **WHEN** regeneration or supporting-digest refresh reads an existing v2 inventory with the external-package ledger
 - **THEN** it preserves the normalized ledger byte-for-byte in semantic content and includes its normalized fingerprint in the inventory identity
 
@@ -341,5 +359,6 @@ The initial row SHALL be `id: gitnexus`, `owner: upstream`, `repository: https:/
 The inventory SHALL mark each reviewed unprefixed successor with `name_style: portable-family`; projection generators SHALL use that exact public name and SHALL continue enforcing prefixed names for unmarked skills.
 
 #### Scenario: Projection rewrites a portable name
+
 - **WHEN** a surface generator adds `dhpk-` to a portable-family skill or removes the plugin namespace used by its host
 - **THEN** projection validation fails with the stable ID and emitted name

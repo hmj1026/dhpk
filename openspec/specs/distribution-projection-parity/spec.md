@@ -1,6 +1,7 @@
 # distribution-projection-parity Specification
 
 ## Purpose
+
 Define the projection-parity capability that compares compiler-selected,
 provenance-bound consumer surfaces independently from discovery-budget
 accounting and reports stale identity or output drift with structured evidence.
@@ -108,10 +109,12 @@ cutover.
 Every generated surface SHALL derive successor-family and external-package membership from the same inventory revision. Parity evidence SHALL compare stable ID, emitted public name, invocation class, source ownership, usage contract/fingerprint, content fingerprint, and retirement state before reporting equivalence. For this inventory revision the canonical catalog SHALL contain exactly 65 skills, exactly 9 live `portable-family` entries, and exactly 56 live entries whose public name retains the `dhpk-` prefix. The shared Agent Plugin, Cursor Plugin, AGY Plugin, and Cursor Sync surfaces SHALL each contain exactly 37 selected stable IDs and retain all six protected GitNexus stable IDs without content or identity changes.
 
 #### Scenario: Shared surfaces project the consolidated inventory
+
 - **WHEN** Agent Plugin, Cursor Plugin, AGY Plugin, and Cursor Sync compile the approved inventory
 - **THEN** each contains exactly 37 selected stable IDs, reports the same inventory/usage/provenance fingerprints for equivalent entries, and retains the six GitNexus stable IDs unchanged
 
 #### Scenario: One surface adapts an external skill
+
 - **WHEN** a projection renames, rewrites, retires, substitutes, or changes the usage/provenance metadata of a protected external-package skill
 - **THEN** parity validation fails even if the total entry count, output bytes, or output fingerprints remain equal
 

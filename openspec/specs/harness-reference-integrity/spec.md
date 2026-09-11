@@ -1,8 +1,11 @@
 # harness-reference-integrity Specification
 
 ## Purpose
+
 TBD - created by archiving change harness-consistency-audit. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Rule-file references resolve
 
 Every `@rules/<file>` reference in shipped harness markdown (`skills/`, `commands/`, `agents/`, `rules/`, `modules/*/{skills,commands,agents}/`) SHALL resolve to an existing file under `rules/`. The reference-integrity check SHALL fail when a referenced rule file does not ship.

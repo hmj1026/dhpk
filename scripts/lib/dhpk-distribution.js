@@ -53,7 +53,7 @@ function resolveSourceCommit(root) {
 
 function parseRequest(argv) {
   const positional = [];
-  const options = { json: false, output: null, version: null, profileId: null, skillIds: [], profileExplicit: false };
+  const options = { json: false, output: null, version: null, profileId: null, skillIds: [], standaloneSkillIds: [], profileExplicit: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--json') options.json = true;
@@ -99,6 +99,16 @@ function parseRequest(argv) {
       if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
       options.skillIds.push(value);
     }
+    else if (arg === '--standalone') {
+      const value = argv[++index];
+      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
+      if (!options.standaloneSkillIds.includes(value)) options.standaloneSkillIds.push(value);
+    }
+    else if (arg.startsWith('--standalone=')) {
+      const value = arg.slice('--standalone='.length);
+      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
+      if (!options.standaloneSkillIds.includes(value)) options.standaloneSkillIds.push(value);
+    }
     else if (arg.startsWith('--')) return { ok: false, status: 64, error: `unknown option '${arg}'` };
     else positional.push(arg);
   }
@@ -106,7 +116,19 @@ function parseRequest(argv) {
   if (!SURFACES[surface]) return { ok: false, status: 64, error: `unknown surface '${surface || ''}'` };
   if (!OPERATIONS.includes(operation)) return { ok: false, status: 64, error: `unknown operation '${operation || ''}'` };
   if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|validate|verify> [--output <dir>] [--version <version>] [--json]' };
-  return { ok: true, surface, operation, options: Object.freeze({ ...options, skillIds: Object.freeze(options.skillIds.slice()) }) };
+  if (options.standaloneSkillIds.length > 0 && (options.profileId || options.skillIds.length > 0)) {
+    return { ok: false, status: 64, error: '--standalone cannot be combined with --profile or --skill' };
+  }
+  return {
+    ok: true,
+    surface,
+    operation,
+    options: Object.freeze({
+      ...options,
+      skillIds: Object.freeze(options.skillIds.slice()),
+      standaloneSkillIds: Object.freeze(options.standaloneSkillIds.slice()),
+    }),
+  };
 }
 
 function runtime(root, request) {
@@ -120,24 +142,33 @@ function runtime(root, request) {
   const moduleCatalog = readJson(path.join(root, 'manifests', 'module-catalog.json'));
   const output = path.resolve(root, request.options.output || SURFACES[request.surface].output);
   let receiptProfileId = null;
+  let receiptStandaloneSkillIds = [];
+  let receiptSelectionMode = null;
   if (request.operation !== 'generate') {
     try {
       const receipt = readJson(path.join(output, 'provenance.json'));
       receiptProfileId = typeof receipt.profileId === 'string' ? receipt.profileId : null;
+      receiptSelectionMode = receipt.selectionMode || null;
+      receiptStandaloneSkillIds = Array.isArray(receipt.requestedStableIds) ? receipt.requestedStableIds : [];
     } catch (_) { /* validation reports the missing/invalid receipt later */ }
   }
-  const profileId = request.options.profileId || receiptProfileId;
+  const standaloneSkillIds = request.options.standaloneSkillIds.length > 0
+    ? request.options.standaloneSkillIds
+    : (receiptSelectionMode === 'standalone' ? receiptStandaloneSkillIds : []);
+  const standalone = standaloneSkillIds.length > 0;
+  const profileId = standalone ? null : request.options.profileId || receiptProfileId;
   let profileSelection = null;
-  if (profileId || request.options.skillIds.length > 0) {
+  if (profileId || request.options.skillIds.length > 0 || standalone) {
     const selectionProfileId = profileId || 'minimal';
     const resolved = resolveCapabilitySelection({
       inventory,
       profiles,
       moduleCatalog,
-      profileId: selectionProfileId,
+      profileId: standalone ? null : selectionProfileId,
       skillIds: request.options.skillIds,
+      standaloneSkillIds: standaloneSkillIds.length > 0 ? standaloneSkillIds : undefined,
       surface: request.surface,
-      sourceInputs: { profileId: selectionProfileId, skillIds: request.options.skillIds },
+      sourceInputs: { profileId: standalone ? null : selectionProfileId, skillIds: request.options.skillIds, standaloneSkillIds },
       policyVersion: inventory.profile_policy && inventory.profile_policy.version,
     });
     if (!resolved.ok) throw new Error(resolved.error.message);
@@ -249,7 +280,7 @@ function runCodex(operation, context) {
     return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, errors: validation.errors } }, context);
   }
   if (operation === 'verify') {
-    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-native-verify-'));
+    const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-codex-native-verify-'));
     try {
       // A receipt records the commit that materialized this projection.  It is
       // provenance, not source content: comparing it to the command's current

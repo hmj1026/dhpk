@@ -14,4 +14,3 @@ FastAPI OWASP lanes for `security-reviewer`. Deeper SQLAlchemy correctness (sess
 | HIGH — `CORSMiddleware` with `allow_origins=["*"]` together with `allow_credentials=True` | explicit origin allow-list when credentials are sent | |
 | CRITICAL — `passlib` / bcrypt not used — plain or fast-hash password storage | `bcrypt`/`argon2` via passlib; verify with constant-time compare | |
 | MEDIUM — Background task / async path swallows an exception so the request still 200s | surface or log+alert; don't mask a failed write as success | |
-

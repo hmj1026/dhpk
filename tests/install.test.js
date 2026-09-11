@@ -36,8 +36,11 @@ function makeNoJqBin(claudeLog) {
   // Keep only the commands the installer needs in PATH. In particular, do not
   // include /usr/bin, where jq is available on the development host.
   const tools = ['bash', 'git', 'dirname', 'sed', 'cat', 'head', 'tail', 'tr', 'seq', 'awk', 'grep', 'cut'];
-  for (const name of tools) fs.symlinkSync(`/usr/bin/${name}`, path.join(bin, name));
-  fs.symlinkSync('/usr/bin/python3', path.join(bin, 'python3'));
+  const systemTool = (name) => ['/usr/bin', '/bin']
+    .map((directory) => path.join(directory, name))
+    .find((candidate) => fs.existsSync(candidate));
+  for (const name of tools) fs.symlinkSync(systemTool(name), path.join(bin, name));
+  fs.symlinkSync(systemTool('python3'), path.join(bin, 'python3'));
   const claudeBody = claudeLog
     ? `#!/bin/bash\nprintf 'called\\n' > "$DHPK_TEST_CLAUDE_LOG"\nexit 99\n`
     : '#!/bin/bash\nexit 0\n';

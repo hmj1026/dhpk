@@ -5,6 +5,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const distribution = require('../scripts/lib/dhpk-distribution');
+const { resolveCapabilitySelection } = require('../scripts/lib/capability-bundle-selection');
+const agentPackage = require('../scripts/lib/agent-plugin-package');
+const cursorPackage = require('../scripts/lib/cursor-plugin-package');
+const codexPackage = require('../scripts/lib/codex-native-package');
+const agyPackage = require('../scripts/lib/agy-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
 const SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin'];
@@ -61,6 +67,19 @@ test('rejects missing option values as usage instead of silently using defaults'
     assert.strictEqual(result.status, 64, result.stderr);
     assert.match(result.stderr, /option value is required/i);
   }
+});
+
+test('distribution parser keeps standalone selection separate from additive overlays', () => {
+  const parsed = distribution.parseRequest([
+    'agent-plugin', 'validate', '--standalone', 'flow-guide', '--standalone=flow-guide', '--json',
+  ]);
+  assert.strictEqual(parsed.ok, true, parsed.error);
+  assert.deepStrictEqual(parsed.options.standaloneSkillIds, ['flow-guide']);
+  assert.deepStrictEqual(parsed.options.skillIds, []);
+  assert.strictEqual(parsed.options.profileId, null);
+  const mixed = distribution.parseRequest(['agent-plugin', 'validate', '--standalone', 'flow-guide', '--skill', 'tdd']);
+  assert.strictEqual(mixed.ok, false);
+  assert.match(mixed.error, /cannot be combined/i);
 });
 
 test('validates every retained package surface through one JSON command contract', () => {
@@ -182,6 +201,55 @@ test('refuses to replace a foreign output directory before package materializati
       assert.match(result.stderr, /owner receipt|foreign output/i);
       assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), 'preserve me');
     });
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test('standalone flow-guide materializes its declared dependency closure on every native surface', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const expected = [
+    'rules/execution-policy-kernel.md',
+    'rules/execution-policy.md',
+    'scripts/lib/flow-handoff-contract.js',
+  ];
+  const physicalTmp = fs.realpathSync(os.tmpdir());
+  const temporaryRoot = fs.mkdtempSync(path.join(physicalTmp, 'dhpk-standalone-surfaces-'));
+  const sourceCommit = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  try {
+    const compileCases = [
+      ['agent-plugin', agentPackage.compileAgentPluginPackage],
+      ['cursor-plugin', cursorPackage.compileCursorPackage],
+      ['codex-native', codexPackage.compileNativePackage],
+    ];
+    for (const [surface, compile] of compileCases) {
+      const selection = resolveCapabilitySelection({ inventory, surface, standaloneSkillIds: ['flow-guide'] });
+      assert.strictEqual(selection.ok, true, `${surface}: ${selection.error && selection.error.message}`);
+      const compiled = compile({
+        root: ROOT,
+        outDir: path.join(temporaryRoot, surface),
+        inventory,
+        profileSelection: selection.value,
+      });
+      const destinations = new Set(compiled.plan.entries.map((entry) => entry.destination));
+      for (const relative of expected) assert.ok(destinations.has(relative), `${surface} is missing ${relative}`);
+    }
+
+    const agySelection = resolveCapabilitySelection({ inventory, surface: 'agy-plugin', standaloneSkillIds: ['flow-guide'] });
+    assert.strictEqual(agySelection.ok, true, agySelection.error && agySelection.error.message);
+    const agyRoot = path.join(temporaryRoot, 'agy-plugin');
+    const agy = agyPackage.materializeAgyPluginPackage({
+      root: ROOT,
+      inventory,
+      outDir: agyRoot,
+      sourceCommit,
+      profileSelection: agySelection.value,
+    });
+    for (const relative of expected) assert.ok(agy.files.includes(relative), `agy-plugin is missing ${relative}`);
+    assert.strictEqual(agyPackage.validateAgyPluginPackage(agyRoot, {
+      inventory,
+      profileSelection: agySelection.value,
+    }).ok, true);
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }

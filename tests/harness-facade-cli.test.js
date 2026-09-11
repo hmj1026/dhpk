@@ -141,7 +141,7 @@ function temporaryProbeFixture(payload, platform = 'cursor') {
 }
 
 function temporaryGateFixture(payload) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-gate-fixture-'));
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-gate-fixture-')));
   fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts', 'release'), { recursive: true });

@@ -1,8 +1,11 @@
 # cursor-plugin-projection Specification
 
 ## Purpose
+
 TBD - created by archiving change align-agent-plugin-platform-support. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Cursor can consume the portable Agent Plugin unchanged
 
 The generated `agent-plugin` package SHALL be documented and tested as the
@@ -129,3 +132,52 @@ manifest or marketplace listing SHALL not count as runtime discovery evidence.
   load was executed
 - **THEN** the result remains `NOT_RUN`/`UNAVAILABLE` and cannot graduate
   Cursor support
+
+### Requirement: Cursor projection exposes the Provider-neutral dispatch contract
+
+The Cursor portable and Cursor-native projections SHALL expose the same
+Provider-neutral Role, Host, Provider, Model, Effort, Transport, capability,
+fallback, and receipt contract as the canonical source. A Cursor projection MAY
+adapt invocation metadata required by Cursor, but SHALL not remove supported
+external Provider targets or replace them with Cursor-native Model selection.
+
+#### Scenario: Cursor invokes Claude Code Opus5
+
+- **WHEN** the Cursor projection receives an explicit Claude Code Opus5 target
+- **THEN** it preserves the target and invokes the Claude Code Adapter when the
+  Host access policy and runtime evidence allow it
+
+#### Scenario: Cursor invokes Codex Sol5.6
+
+- **WHEN** the Cursor projection receives an explicit Codex CLI Sol5.6 target
+- **THEN** it preserves the Provider-scoped Model, normalized Effort, and
+  assigned scope through the Codex Adapter
+
+#### Scenario: Cursor fallback is native and visible
+
+- **WHEN** an external target is unavailable before side effects and fallback is
+  allowed
+- **THEN** the projection selects Cursor native as fallback and records the
+  requested, failed, and selected targets
+
+### Requirement: Cursor runtime evidence distinguishes projection from execution
+
+The Cursor projection SHALL report package discovery, projection parity,
+Provider availability, and actual SubAgent execution as separate evidence
+classes. A valid
+Cursor manifest SHALL not be treated as proof that Claude Code, Codex CLI, AGY,
+or Cursor native execution is available.
+
+#### Scenario: Static projection without runtime probe
+
+- **WHEN** the Cursor package validates structurally but no Provider runtime
+  probe has run
+- **THEN** projection validation may pass structurally but execution remains
+  `NOT_RUN` or `UNAVAILABLE`
+
+#### Scenario: Missing external runtime is explicit
+
+- **WHEN** Cursor requests Codex CLI but the executable or authentication is
+  unavailable
+- **THEN** the report names the missing evidence and applies only the permitted
+  fallback policy

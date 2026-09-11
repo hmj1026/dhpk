@@ -1,8 +1,11 @@
 # session-install-health Specification
 
 ## Purpose
+
 TBD - created by archiving change add-session-install-health-gate. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Session-start install health gate is advisory and local
 
 A SessionStart install-health gate SHALL evaluate plugin version freshness and project module configuration using only locally available state. It SHALL NOT perform network calls, SHALL NOT block the session (never exit 2), and SHALL degrade silently to a no-op when the state it reads is absent, unreadable, or unparseable. A failure inside the gate SHALL NOT fail the SessionStart hook.

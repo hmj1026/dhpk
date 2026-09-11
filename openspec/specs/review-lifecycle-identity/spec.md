@@ -1,8 +1,11 @@
 # review-lifecycle-identity Specification
 
 ## Purpose
+
 TBD - created by archiving change deepen-review-lifecycle-identity. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Review lifecycle identity has one canonical record
 
 The review lifecycle SHALL construct, parse, canonicalize, serialize, and compare identity through one source-only record module. The canonical record MUST distinguish `task_id` from `attempt_id` and MUST represent the current scope, diff, session, dispatch identity tuple `(session_id, dispatch_attempt, dispatch_id)`, wave, producer, adapter, stage, plan fingerprint, and artifact fingerprint when those fields are available.

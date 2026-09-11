@@ -1,6 +1,7 @@
 # claude-capability-bundle Specification
 
 ## Purpose
+
 Define the inventory-bound, profile-scoped Claude publication artifact that
 reduces discovery-visible capability entries before Claude host discovery while
 preserving canonical sources and explicit routing compatibility.
@@ -16,26 +17,31 @@ that set rather than another numeric constant. Unknown/duplicate/retired IDs,
 cycles, missing requirements, and conflicts SHALL fail closed before a plan.
 
 #### Scenario: A known profile is selected
+
 - **WHEN** minimal is compiled with unchanged inputs and no override
 - **THEN** it returns exactly required-core including `do` and records selection identity
 - **AND** validation compares sets rather than a hard-coded count
 
 #### Scenario: A compatibility profile is selected
+
 - **WHEN** an existing receipt selects `compat-v1`
 - **THEN** all non-retired predecessor IDs are returned deterministically
 
 #### Scenario: An invalid profile or skill is selected
+
 - **WHEN** a selected skill ID is unknown, retired, conflicting, or outside the
   inventory-owned plan
 - **THEN** compilation returns a structured error naming the ID and no
   materialization intent
 
 #### Scenario: An invalid profile is selected
+
 - **WHEN** profile/module/dependency closure is invalid
 - **THEN** compilation returns a stable profile/dependency error and no
   materialization intent
 
 #### Scenario: A generator finds an unselected skill
+
 - **WHEN** output contains a skill outside the selected inventory plan
 - **THEN** validation reports it out of scope and excludes it
 

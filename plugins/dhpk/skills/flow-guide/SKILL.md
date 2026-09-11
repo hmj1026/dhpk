@@ -11,7 +11,8 @@ metadata:
 
 Use `$flow-guide <help|route|rules|next|close> [query]` to answer one workflow
 question. The guide is advisory: it records evidence and hands work to the
-owner; it does not acquire the owner's authority.
+owner through the shared neutral handoff contract; it does not acquire the
+owner's authority.
 
 ## When NOT to Use
 
@@ -97,6 +98,8 @@ execution and completion evidence.
 - `references/route-table.json`, `references/route-result.schema.json`,
   `scripts/pre-route.sh`, and `scripts/route-result.js` — deterministic route
   contract and matcher.
+- `scripts/lib/flow-handoff-contract.js` — shared neutral handoff and evidence
+  contract; it never grants execution authority.
 - `scripts/usage-card.js` and `references/codex-usage-catalog.json` —
   progressively disclosed Codex grammar.
 - `references/invocation-precedence.md` — competing-owner resolution.

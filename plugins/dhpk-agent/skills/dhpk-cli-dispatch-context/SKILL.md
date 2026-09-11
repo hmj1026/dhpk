@@ -1,6 +1,6 @@
 ---
 name: dhpk-cli-dispatch-context
-description: "Trigger: explicit provider-qualified CLI dispatch-context construction and launcher execution. Avoid: direct adapter invocation or implicit role, mode, path, or authority derivation. Output: immutable dhpk.cli.context.v1 evidence or BLOCKED diagnostics."
+description: "Trigger: explicit provider-qualified CLI dispatch-context construction and launcher execution. Avoid: direct adapter invocation or implicit role, mode, path, or authority derivation. Output: canonical dispatch evidence with an immutable dhpk.cli.context.v1 compatibility projection or BLOCKED diagnostics."
 metadata:
   dhpk-invocation-class: "explicit-only"
   dhpk-invokable: "false"
@@ -8,16 +8,23 @@ metadata:
 
 # Internal CLI dispatch context
 
-Build the `dhpk.cli.context.v1` descriptor before an adapter starts a provider.
-Use the canonical role resolver with the requested provider and mode; retain
-both requested and effective role identity, and preserve the resolver's
-one-per-session alias diagnostic.
+Build the canonical Provider-neutral dispatch request before an external
+adapter starts a Provider. The existing `dhpk.cli.context.v1` descriptor is a
+compatibility projection at the transport boundary. Use the canonical role
+resolver with the requested Provider and mode; retain both requested and
+effective Role identity, and preserve the resolver's one-per-session alias
+diagnostic.
 
 Accept canonical configuration ahead of its declared legacy key. Bind Codex to
 `codex-exec` plus prompt stdin, and AGY to `agy-print` plus bounded
 confirmation stdin. A missing or contradictory provider, role, mode,
 transport, path, or scope descriptor is `BLOCKED`; this builder never derives
 authority or supplies an implicit path.
+
+The canonical request/receipt pair is `dhpk.dispatch.request.v2` /
+`dhpk.dispatch.receipt.v2`; the v1 context and receipt remain explicit,
+observable compatibility formats until all external adapters consume v2
+directly.
 
 The builder returns an immutable value. It writes only through an explicit
 trusted writer with an explicit context path. That writer must atomically

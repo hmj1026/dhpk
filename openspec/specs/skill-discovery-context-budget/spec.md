@@ -218,6 +218,7 @@ Discovery-visible metadata SHALL expose one concise description for each capabil
 - **THEN** the reported canonical, naming-style, and profile counts match `65`, `9`, `56`, `8`, `55`, and `62`, and identify any unexpected entry by stable ID
 
 #### Scenario: Mode procedures leak into discovery metadata
+
 - **WHEN** a family description duplicates its mode steps, checklists, detailed reference content, or complete usage card
 - **THEN** context-budget or skill-health validation fails with the offending family and directs the detail behind a conditional pointer or explicit help request
 

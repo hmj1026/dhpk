@@ -49,8 +49,11 @@ case "$HARNESS_DIR" in
     *) echo "[error] --dir must be the repository-local .claude or .codex harness." >&2; exit 2 ;;
 esac
 [[ ! -L "$HARNESS_DIR" ]] || { echo "[error] harness root must not be a symlink." >&2; exit 2; }
-ROOT_REAL=$(realpath -e -- "$ROOT") || exit 2
-HARNESS_REAL=$(realpath -e -- "$HARNESS_DIR") || { echo "[error] harness root does not exist." >&2; exit 2; }
+# ROOT and HARNESS_DIR are existing paths after the checks above. Keep this
+# canonicalization compatible with both BSD and GNU realpath.
+[[ -d "$HARNESS_DIR" ]] || { echo "[error] harness root does not exist." >&2; exit 2; }
+ROOT_REAL=$(realpath "$ROOT") || exit 2
+HARNESS_REAL=$(realpath "$HARNESS_DIR") || { echo "[error] harness root does not exist." >&2; exit 2; }
 [[ "$HARNESS_REAL" == "$ROOT_REAL/$HARNESS_DIR" ]] || { echo "[error] harness root must remain inside the repository." >&2; exit 2; }
 
 if [[ "$HARNESS_DIR" == ".claude" ]]; then

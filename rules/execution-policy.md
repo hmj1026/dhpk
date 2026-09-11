@@ -23,6 +23,9 @@ consumable directly by a project's own `CLAUDE.md` via the
 - **Out-of-Scope Observation**: a sibling or unrelated change outside assigned scope that the worker reports but does not modify or clean.
 - **Shared-State Reconciliation**: the single sequential orchestrator pass that validates and updates shared ratchet/configuration state (a monotonic baseline file, e.g. a coverage or size-budget allowlist) after all parallel workers finish.
 - **Judgment-Dense Standardizable Batch**: a bounded, repeatable implementation step touching at least three files that requires consistent content judgment but has an exact file scope and verification contract; unresolved design and unknown root cause are excluded.
+- **Provider-neutral**: a dispatch request that keeps `Host`, `Provider`, `Model`, `Role`, `Effort`, and `Transport` as separate fields before an adapter executes it.
+- **Dispatch Engine**: the side-effect-free decision seam that resolves a dispatch request; adapters consume its result, and it does not own orchestration state.
+- **Host Profile**: the active host's native Provider/Model defaults and policy settings used when no explicit Provider-scoped target is supplied.
 
 ## Classification-first context loading
 
@@ -65,7 +68,7 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `tdd-guide` | RED / test-first specialist; GREEN stays inline only within its ≤2-production-file bound | specialist |
 | `architect` | Cross-module or DDD-layer design | — |
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
-| `codex-reasoner` | Selected by `--reasoner=codex` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); canonical role ID, legacy alias: `codex-deep-reasoner`; see §Implementation dispatch | — |
+| `codex-reasoner` | Selected by `--reasoner=codex-cli/<model>[:<effort>]` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); canonical role ID, legacy alias: `codex-deep-reasoner`; see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
 | `codex-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID, legacy alias: `codex-fast-worker`; see §Implementation dispatch | — |
 | `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID, legacy alias: `agy-fast-worker`; see §Implementation dispatch | — |
@@ -229,7 +232,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | Work shape | Dispatch |
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
-| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex-cli/<model>[:<effort>]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
 | Judgment-dense but standardizable work touching more than two files (bounded documentation migration, bilingual restructuring, or a known review-fix batch) | In-process `fast-worker` by default |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; the retired `CODEX=on`/`--codex` review-peer flags cannot select it. | `codex-worker` (canonical role ID; legacy alias: `codex-fast-worker`) |
@@ -254,25 +257,32 @@ When a validator reads or modifies shared ratchet/configuration state, workers M
 
 `Judgment-Dense Standardizable Batch` is a default fast-worker route, not a forced route. The orchestrator may override it only with a recorded reason. The route requires at least three files, bounded repeatable intent, and known verification; open-ended design, unresolved root cause, and architecture decisions remain orchestrator/deep-reasoner work. The policy does not require durable telemetry yet; the acceptance report records the selected tier, override reason if any, and result.
 
-### Native dispatch baseline
+### Provider-neutral dispatch baseline
 
 `rules/execution-policy.md` is the normative policy owner for delegated
-dispatch. The side-effect-free `scripts/lib/native-dispatch-policy.js` is the
-executable decision seam consumed by dispatch adapters; it is not a central
-orchestrator and must not grow orchestration state.
+dispatch. The policy-level Dispatch Engine is implemented by the side-effect-
+free `scripts/lib/native-dispatch-policy.js` decision seam consumed by dispatch
+adapters; it is not a central orchestrator and must not grow orchestration
+state. `Host`, `Provider`, `Model`, `Role`, `Effort`, and `Transport` remain
+separate fields throughout resolution and receipt creation.
 
 Planner, reasoner, worker, and reviewer use the same native-only baseline:
 
-| Role | Native agent | Automatic default |
+| Role | Canonical authority | Automatic default |
 |---|---|---|
-| planner | `dhpk:planner` | native Claude planner |
-| reasoner | `dhpk:deep-reasoner` | native Claude reasoner |
-| worker | `dhpk:fast-worker` | native Claude worker |
-| reviewer | `dhpk:code-reviewer` | native Review Gate reviewer |
+| `planner` | read-only | Host Profile's native Provider/Model at the requested Effort |
+| `reasoner` | read-only | Host Profile's native Provider/Model at the requested Effort |
+| `worker` | workspace-write | Host Profile's native Provider/Model at the requested Effort |
+| `reviewer` | read-only | Host Profile's native Provider/Model at the requested Effort |
 
-Automatic dispatch considers only the native candidate by default. With
+The legacy native agent IDs (`dhpk:planner`, `dhpk:deep-reasoner`,
+`dhpk:fast-worker`, and `dhpk:code-reviewer`) remain compatibility projection
+names for the corresponding canonical Roles. They do not define the native
+Provider or authorize a Provider switch.
+
+Automatic dispatch resolves the Host Profile's native target by default. With
 cross-provider dispatch disabled, it MUST NOT probe, authenticate, launch, or
-otherwise discover an external provider CLI. An explicitly requested external
+otherwise discover an external Provider CLI. An explicitly requested external
 target remains directional and may be checked by its adapter. The public
 `cross_provider` option is `false` by default and resolves as
 `--cross-provider` (one-shot enable) > project pluginConfig > installed user
@@ -281,9 +291,8 @@ pluginConfig > `false`; `.claude/settings.local.json` is preferred over
 routing remains on the current Review Gate / Reviewer Contract path, and
 dispatch selection never creates a review PASS or a retired Sentinel state.
 
-The fast-worker adapter below enforces this baseline for automatic selection;
-other adapters consume the same role contract without duplicating candidate
-selection logic.
+The Dispatch Engine enforces this baseline for all four Roles; adapters
+consume the same neutral request without duplicating candidate-selection logic.
 
 ### Failure classification and fallback chain
 
@@ -307,21 +316,22 @@ valid configured candidate only when `cross_provider` is enabled → explicit
 decrements one shared `retry_budget` for every fallback; switching providers
 does not reset that budget and a candidate is never revisited. The fallback
 preserves the role, task scope, read/write authority, model contract where
-applicable, and reviewer contract. The executable decision seam is the
-side-effect-free `scripts/lib/native-dispatch-policy.js`; it is policy state,
-not a coordinator.
+applicable, and reviewer contract. The module named above owns this policy
+resolution; it is policy state, not a coordinator.
 
-### Fast-worker backend selector
+### Fast-worker selector compatibility boundary
 
-Mechanical implementation waves resolve through
+Mechanical implementation waves resolve through the canonical `worker` Role
+request. The following legacy selector remains a compatibility boundary and
+translates its backend vocabulary before invoking the Dispatch Engine:
 `${CLAUDE_PLUGIN_ROOT}/scripts/fast-worker-selector.js` and the three selector
 keys in `userConfig`:
 
 | Requested value | Resolution |
 |---|---|
-| `claude` (default) | `dhpk:fast-worker`; deterministic in-process default. |
-| `codex` / `agy` | Check the requested executable before dispatch; missing executable blocks unless `fast_worker_fallback=claude` was explicitly configured. |
-| `auto` | Use the native Claude candidate by default; only an explicit cross-provider opt-in may check `fast_worker_backend_order` and record rejected candidates plus reasons. |
+| `provider/model[:effort]` | Explicit Provider-scoped `worker` target; Model and Effort remain visible in the request and receipt. |
+| `auto` | Resolve the current Host-native target; external Providers require explicit cross-provider opt-in. |
+| legacy `claude` / `codex` / `agy` | Translate to Provider-scoped compatibility targets; missing executable blocks unless `fast_worker_fallback=claude` was explicitly configured. |
 
 The existing `fast_worker_backend`, `fast_worker_backend_order`, and
 `fast_worker_fallback` settings remain valid. An explicit backend remains a
@@ -342,21 +352,25 @@ Codex backend is selected, verification result, and the complete edited-file
 list. Worker-backend selection is independent of the retired `CODEX` flag:
 `CODEX=on` and `CODEX=off` no longer select a review peer or alter worker
 selection. Use `--worker=codex` to select the retained Codex CLI worker, or use
-`--reasoner=codex` for a read-only reasoning pass. The explicit `codex-bridge`
+`--reasoner=codex-cli/<model>[:<effort>]` for a read-only reasoning pass. The
+bare `--reasoner=codex` value remains a compatibility shorthand. The explicit `codex-bridge`
 route remains a separate `codex exec` transport. An explicit backend request is
 blocked only by selector availability/fallback rules, never silently downgraded.
 
-### Reasoner backend selector
+### Reasoner target compatibility boundary
 
-Reasoning-heavy dispatches default to the in-process `deep-reasoner` (Claude). The
-`$flow-drive --reasoner=<claude|codex>[:<model>[:<effort>]]` flag (or its userConfig chain)
-picks the backend for that invocation: `claude` → `dhpk:deep-reasoner`; `codex` →
-`dhpk:codex-reasoner` (codex CLI, read-only sandbox, default `gpt-5.6-sol` @ `high`; canonical role ID, legacy alias `codex-deep-reasoner`).
-Both backends receive the **same** reasoning brief and return the canonical
+Reasoning-heavy dispatches use the canonical read-only `reasoner` Role and
+default to the current Host-native target. The
+`$flow-drive --reasoner=<provider>/<model>[:<effort>]` flag (or its userConfig
+chain) provides an explicit Provider-scoped target. Legacy `claude` and
+`codex` values remain bounded compatibility inputs: `claude` maps to the
+Host-native Claude projection when that is the current Host, while `codex`
+maps to `codex-cli` and the canonical `codex-reasoner` projection. Both
+targets receive the **same** reasoning brief and return the canonical
 reasoner contract above (`## Conclusion` + file-and-line evidence + `## Next actions`). `agy` has no
-reasoning tier and is unsupported. Model/effort resolve flag > backend-specific userConfig
-(`deep_reasoner_*` for claude; `codex_reasoner_*` for codex) > built-in default. A
-post-dispatch Codex CLI or auth/model unavailability may use the shared
+reasoning tier and is unsupported. Model/effort resolve flag > Provider-scoped
+target configuration > Host-native catalog default. A post-dispatch CLI or
+auth/model unavailability may use the shared
 native-first fallback contract after confirmed no side effects; safety, task,
 and timeout failures remain `RESULT: BLOCKED` or on their existing recovery
 path — never silently switched.
@@ -379,7 +393,7 @@ app-server plugin. There is no hidden fallback. Exact replacements are:
 - Use `$flow-drive <confirmed-spec-or-change-id>` for explicit implementation,
   with `--worker=codex` when a Codex CLI mechanical worker is deliberately
   selected.
-- Use `$flow-drive --reasoner=codex:<model>:<effort> <confirmed-spec-or-change-id>`
+- Use `$flow-drive --reasoner=codex-cli/<model>:<effort> <confirmed-spec-or-change-id>`
   for an explicitly selected Codex CLI reasoning pass.
 - Use a named owner's `--second-opinion=codex-exec` option, or the explicit
   `codex-bridge` route, for an additive one-shot `codex exec` second opinion.

@@ -124,7 +124,7 @@ function claudeEntry(entry) {
     && entry.lifecycle !== 'deprecated';
 }
 
-function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory, skillIds } = {}) {
+function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory, skillIds, standaloneSkillIds } = {}) {
   const inventoryResult = inventoryEntries(inventory);
   if (inventoryResult.error) return fail(inventoryResult.error.code, inventoryResult.error.message);
   const profileTable = profiles && profiles.profiles ? profiles.profiles : profiles;
@@ -144,7 +144,8 @@ function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory, s
   // metadata retain the module-only characterization below until they opt in.
   const canonicalProfile = profile && Array.isArray(profile.skillIds)
     && inventory && inventory.profile_policy;
-  if (canonicalProfile) {
+  const standaloneSelection = standaloneSkillIds !== undefined && standaloneSkillIds !== null;
+  if (canonicalProfile || standaloneSelection) {
     const normalized = resolveCapabilitySelection({
       inventory,
       profiles,
@@ -152,8 +153,9 @@ function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory, s
       profileId: requested,
       surface: CLAUDE_SURFACE,
       skillIds,
-      sourceInputs: { profileId: requested, profiles, moduleCatalog },
-      policyVersion: inventory.profile_policy.version,
+      standaloneSkillIds,
+      sourceInputs: { profileId: requested, standaloneSkillIds, profiles, moduleCatalog },
+      policyVersion: inventory.profile_policy && inventory.profile_policy.version,
     });
     if (!normalized.ok) return normalized;
     const bound = bindSurfaceSelection({ selection: normalized.value, surface: CLAUDE_SURFACE });
@@ -166,13 +168,15 @@ function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory, s
     const optionalIds = inventoryResult.entries
       .filter((entry) => (entry.lifecycle === 'optional' || entry.tier === 'optional') && entry.lifecycle !== 'deprecated')
       .map((entry) => entry.id);
+    const standalone = canonical.selectionMode === 'standalone';
     const identity = {
       version: BUNDLE_VERSION,
-      id: requested,
-      profileId: requested,
+      id: standalone ? 'standalone' : requested,
+      profileId: canonical.profileId,
       modules: canonical.moduleClosure,
-      excludes: Object.keys(profile.excludes || {}).sort(),
+      excludes: standalone ? [] : Object.keys(profile.excludes || {}).sort(),
       mode: canonical.compatibilityMode,
+      selectionMode: canonical.selectionMode,
       selectionPolicyVersion: canonical.selectionPolicyVersion,
       sourceFingerprint: canonical.sourceFingerprint,
       inventoryFingerprint: canonical.inventoryFingerprint,
@@ -386,7 +390,37 @@ function commandSources(selection, root) {
   return [];
 }
 
-function createBundleEntries(selection, root, metadataContext = {}) {
+function enumerateStandaloneSkillFiles(root, entry) {
+  const sourceResult = safeSourcePath(root, entry.path);
+  if (sourceResult.error) return { error: sourceResult.error };
+  const skillRoot = path.dirname(sourceResult.path);
+  const budget = createTraversalBudget({ maxDepth: 32, maxFiles: 4096, maxEntries: 8192 });
+  const files = [];
+  const walk = (directory, relative, depth) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const child of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
+        if (child.isSymbolicLink()) return { error: `standalone skill source contains a symlink: ${path.posix.join(relative, child.name)}` };
+        const absolute = path.join(directory, child.name);
+        const childRelative = path.posix.join(relative, child.name);
+        if (child.isDirectory()) {
+          const nested = walk(absolute, childRelative, depth + 1);
+          if (nested && nested.error) return nested;
+        } else if (child.isFile()) {
+          files.push({ absolute, relative: childRelative });
+        }
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+    return null;
+  };
+  const walked = walk(skillRoot, '', 0);
+  if (walked && walked.error) return walked;
+  return { files };
+}
+
+function createBundleEntries(selection, root, metadataContext = {}, supportingAssets = []) {
   const outputs = [{
     stableId: 'claude-profile:manifest',
     source: '.claude-plugin/plugin.json',
@@ -431,6 +465,82 @@ function createBundleEntries(selection, root, metadataContext = {}) {
         owner: 'claude-profile',
         ...metadataContext,
       }),
+    });
+    contentByStableId.set(stableId, content);
+    if (selection.selectionMode === 'standalone') {
+      const filesResult = enumerateStandaloneSkillFiles(root, entry);
+      if (filesResult.error) return { error: projectionError('UNSAFE_PATH', 'compile', `${filesResult.error}: '${entry.id}'`, { stableIds: [entry.id] }) };
+      for (const file of filesResult.files) {
+        if (file.relative === 'SKILL.md') continue;
+        const destination = `skills/${skillName}/${file.relative}`;
+        if (seenDestinations.has(destination)) return { error: projectionError('DUPLICATE_OUTPUT_PATH', 'compile', `standalone skill files collide at '${destination}'`) };
+        let fileContent;
+        try { fileContent = readFileBounded(file.absolute); } catch (error) {
+          return { error: projectionError('UNSAFE_PATH', 'compile', `standalone skill source cannot be read safely: '${entry.id}'`, { stableIds: [entry.id], details: { cause: error.message } }) };
+        }
+        const relative = file.relative;
+        const fileStableId = `claude-profile:skill:${entry.id}:${relative}`;
+        const fileDigest = crypto.createHash('sha256').update(fileContent).digest('hex');
+        seenDestinations.add(destination);
+        outputs.push({
+          stableId: fileStableId,
+          source: path.posix.join(entry.path, relative),
+          sourceFingerprint: fileDigest,
+          destination,
+          owner: 'claude-profile',
+          transform: { id: 'claude-profile-skill-asset', version: BUNDLE_VERSION },
+          expectedFingerprint: fileDigest,
+        });
+        contentByStableId.set(fileStableId, fileContent);
+      }
+    }
+  }
+  for (const file of selection.dependencyClosure && selection.dependencyClosure.files || []) {
+    const sourceResult = safeSourceFile(root, file.source);
+    if (sourceResult.error) return { error: projectionError('UNRESOLVABLE_STANDALONE_FILE', 'compile', `${sourceResult.error}: '${file.source}'`) };
+    const destination = file.destination;
+    if (seenDestinations.has(destination)) return { error: projectionError('DUPLICATE_OUTPUT_PATH', 'compile', `standalone dependency collides at '${destination}'`) };
+    let content;
+    try { content = readFileBounded(sourceResult.path); } catch (error) {
+      return { error: projectionError('UNRESOLVABLE_STANDALONE_FILE', 'compile', `standalone dependency cannot be read: '${file.source}'`, { details: { cause: error.message } }) };
+    }
+    const stableId = `claude-profile:dependency:${destination}`;
+    const digest = crypto.createHash('sha256').update(content).digest('hex');
+    seenDestinations.add(destination);
+    outputs.push({
+      stableId,
+      source: file.source,
+      sourceFingerprint: digest,
+      destination,
+      owner: 'claude-profile',
+      transform: { id: 'claude-profile-standalone-dependency', version: BUNDLE_VERSION },
+      expectedFingerprint: digest,
+    });
+    contentByStableId.set(stableId, content);
+  }
+  const supportingAssetMap = new Map((supportingAssets || []).map((asset) => [asset && asset.id, asset]));
+  for (const assetId of selection.dependencyClosure && selection.dependencyClosure.supportingAssetIds || []) {
+    const asset = supportingAssetMap.get(assetId);
+    if (!asset) return { error: projectionError('UNKNOWN_SUPPORTING_ASSET', 'compile', `standalone supporting asset is not present in inventory: '${assetId}'`) };
+    const sourceResult = safeSourceFile(root, asset.source);
+    if (sourceResult.error) return { error: projectionError('UNRESOLVABLE_SUPPORTING_ASSET', 'compile', `${sourceResult.error}: '${assetId}'`) };
+    const destination = asset.destination;
+    if (seenDestinations.has(destination)) return { error: projectionError('DUPLICATE_OUTPUT_PATH', 'compile', `standalone supporting asset collides at '${destination}'`) };
+    let content;
+    try { content = readFileBounded(sourceResult.path); } catch (error) {
+      return { error: projectionError('UNRESOLVABLE_SUPPORTING_ASSET', 'compile', `standalone supporting asset cannot be read: '${assetId}'`, { details: { cause: error.message } }) };
+    }
+    const stableId = `claude-profile:supporting-asset:${assetId}`;
+    const digest = crypto.createHash('sha256').update(content).digest('hex');
+    seenDestinations.add(destination);
+    outputs.push({
+      stableId,
+      source: asset.source,
+      sourceFingerprint: digest,
+      destination,
+      owner: 'claude-profile',
+      transform: { id: 'claude-profile-supporting-asset', version: BUNDLE_VERSION },
+      expectedFingerprint: digest,
     });
     contentByStableId.set(stableId, content);
   }
@@ -489,9 +599,19 @@ function readPlugin(root, commandRoots = []) {
   return { ...plugin, skills: ['./skills/'], commands: commandRoots };
 }
 
-function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalog, profileId, skillIds, compilerVersion = BUNDLE_VERSION } = {}) {
-  if (!inventory || !profiles || !moduleCatalog) return fail('INVALID_INPUT', 'inventory, install profiles, and module catalog are required');
-  const selection = resolveClaudeProfile({ profileId, skillIds, profiles, moduleCatalog, inventory });
+function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalog, profileId, skillIds, standaloneSkillIds, compilerVersion = BUNDLE_VERSION } = {}) {
+  const standalone = standaloneSkillIds !== undefined && standaloneSkillIds !== null;
+  if (!inventory || (!standalone && !profiles) || (!standalone && !moduleCatalog)) {
+    return fail('INVALID_INPUT', standalone ? 'inventory is required for standalone selection' : 'inventory, install profiles, and module catalog are required');
+  }
+  const selection = resolveClaudeProfile({
+    profileId,
+    skillIds,
+    standaloneSkillIds,
+    profiles: profiles || {},
+    moduleCatalog: moduleCatalog || {},
+    inventory,
+  });
   if (!selection.ok) return selection;
   const rootPath = root || process.cwd();
   const inventoryRevision = resolveInventoryRevision(inventory);
@@ -502,7 +622,7 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
     inventoryRevision,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
   };
-  const entryResult = createBundleEntries(selection.value, rootPath, metadataContext);
+  const entryResult = createBundleEntries(selection.value, rootPath, metadataContext, inventory.supporting_assets || []);
   if (entryResult.error) return { ok: false, error: entryResult.error };
   const selectionEntries = selection.value.selectedEntries.map((entry) => ({
     id: entry.id,
@@ -523,7 +643,7 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
     entries: entryResult.outputs,
     selectionEntries,
     selectedStableIds: selection.value.selectedStableIds,
-    selectionPolicy: { source: 'profile', version: BUNDLE_VERSION, profileId: selection.value.id },
+    selectionPolicy: { source: selection.value.selectionMode === 'standalone' ? 'standalone' : 'profile', version: BUNDLE_VERSION, profileId: selection.value.id },
     profileSelection: selection.value.identity,
     compatibilityMode: selection.value.mode,
     inventoryFingerprint: fingerprint(stableInput(inventory)),
@@ -558,7 +678,12 @@ function createClaudeCapabilityBundleAdapter({ root, compiled } = {}) {
     surface: CLAUDE_SURFACE,
     profile: compiled.plan.profile,
     compatibilityMode: compiled.plan.compatibilityMode,
+    selectionMode: compiled.selection && compiled.selection.selectionMode,
+    requestedStableIds: compiled.selection && compiled.selection.requestedStableIds || [],
     selectedStableIds: compiled.plan.selectedStableIds,
+    emittedPublicNames: compiled.selection && compiled.selection.emittedPublicNames || [],
+    dependencyClosure: compiled.selection && compiled.selection.dependencyClosure || null,
+    unavailableCapabilities: compiled.selection && compiled.selection.unavailableCapabilities || [],
     consumerPluginId: compiled.plan.profile && compiled.plan.profile.id === 'compatibility'
       ? 'dhpk@dhpk' : `dhpk@dhpk-profile-${compiled.plan.profile.id}`,
     outputs: compiled.outputs.map((entry) => ({ stableId: entry.stableId, destination: entry.destination })),

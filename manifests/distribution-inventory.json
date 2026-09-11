@@ -28,6 +28,48 @@
       }
     }
   },
+  "standalone_dependencies": {
+    "flow-guide": {
+      "files": [
+        {
+          "source": "rules/execution-policy.md",
+          "destination": "rules/execution-policy.md"
+        },
+        {
+          "source": "rules/execution-policy-kernel.md",
+          "destination": "rules/execution-policy-kernel.md"
+        },
+        {
+          "source": "scripts/lib/flow-handoff-contract.js",
+          "destination": "scripts/lib/flow-handoff-contract.js"
+        }
+      ]
+    },
+    "flow-drive": {
+      "files": [
+        {
+          "source": "rules/execution-policy.md",
+          "destination": "rules/execution-policy.md"
+        },
+        {
+          "source": "rules/execution-policy-kernel.md",
+          "destination": "rules/execution-policy-kernel.md"
+        },
+        {
+          "source": "scripts/lib/flow-handoff-contract.js",
+          "destination": "scripts/lib/flow-handoff-contract.js"
+        }
+      ]
+    },
+    "code-trace": {
+      "files": [
+        {
+          "source": "rules/tool-routing.md",
+          "destination": "rules/tool-routing.md"
+        }
+      ]
+    }
+  },
   "lifecycles": [
     "promoted",
     "optional",
@@ -442,7 +484,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "c55aa9765e8a798904af57ead77fe2080078edeb48768943cd1d46b920913e7e",
+      "canonical_digest": "7f5128dcd8b981d3e24c856e0e89148a2446a2858ae9d6c0e05de9a12d2bfacf",
       "projection_digest": "5f1b9f5b3817b657b9c945dfa2cc6c7c1d825f0776dd63729217928c82c31114",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -1420,7 +1462,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<backend>:<model>:<effort>] [--architect|--no-architect]",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
@@ -1462,7 +1504,7 @@
           },
           {
             "id": "reasoner",
-            "syntax": "--reasoner=<backend>:<model>:<effort>",
+            "syntax": "--reasoner=<provider>/<model>[:<effort>]",
             "value_kind": "string",
             "required": false,
             "summary": "Request a bounded second opinion",

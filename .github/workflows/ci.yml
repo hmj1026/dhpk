@@ -43,6 +43,8 @@ jobs:
         run: node scripts/ci/validate-plugin.js --strict
       - name: Validate distribution inventory
         run: node scripts/ci/validate-distribution.js --strict
+      - name: Validate skill purpose decisions
+        run: node scripts/ci/validate-skill-purpose-decisions.js --strict
       # Public facade smoke check. Exit 2 is an explicit non-pass evidence
       # state (for example an unavailable local consumer), not a shell error;
       # deterministic failures and usage errors still fail CI.
@@ -99,7 +101,31 @@ jobs:
         env:
           DHPK_BOUNDED_REQUIRE_CGROUP: '1'
           DHPK_TEST_JOBS: '4'
+          DHPK_TEST_TIMING_FILE: ${{ runner.temp }}/dhpk-test-timing.json
+          DHPK_TEST_SOURCE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          DHPK_TEST_RUN_ID: ${{ github.run_id }}
+          DHPK_TEST_RUN_ATTEMPT: ${{ github.run_attempt }}
+          DHPK_TEST_EVENT: ${{ github.event_name }}
+          DHPK_TEST_REF: ${{ github.ref }}
+          DHPK_TEST_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          DHPK_TEST_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
+          DHPK_TEST_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
         run: ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js
+
+      - name: Summarize test timing evidence
+        if: always()
+        env:
+          DHPK_TEST_TIMING_FILE: ${{ runner.temp }}/dhpk-test-timing.json
+        run: node scripts/ci/render-test-timing.js --file "$DHPK_TEST_TIMING_FILE" --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload test timing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dhpk-test-timing.json
+          if-no-files-found: warn
+          retention-days: 14
 
   macos-installer:
     name: macOS installer harness
@@ -116,6 +142,20 @@ jobs:
         run: node tests/install-codex-skills.test.js
       - name: Cursor installer tests
         run: node tests/install-cursor-harness.test.js
+      - name: CLI dispatch launcher tests
+        run: node tests/cli-dispatch-launcher.test.js
+      - name: Installer tests
+        run: node tests/install.test.js
+      - name: Session audit tests
+        run: TMPDIR=/private/tmp node tests/session-usage-audit.test.js
+      - name: Consumer gate tests
+        run: TMPDIR=/private/tmp node tests/consumer-gate-cli.test.js
+      - name: AGY platform tests
+        run: node tests/multi-ai-sync-agy-platform.test.js
+      # Linux-only cgroup/timeout cases are reported as SKIP_INCOMPATIBLE on
+      # Darwin; the required fail-closed suite runs in the Ubuntu validate job.
+      - name: Bounded runner platform classification
+        run: node tests/run-bounded-node-test.test.js
 
   lint:
     name: Markdown lint
@@ -127,8 +167,25 @@ jobs:
         uses: DavidAnson/markdownlint-cli2-action@v23
         with:
           globs: |
+            *.md
+            .codex-plugin/*.md
+            agent-traps/**/*.md
             agents/**/*.md
-            skills/**/*.md
+            changelog.d/**/*.md
+            codex/*.md
+            codex/supporting/**/*.md
+            # Lint installed Codex projections when present; runtime artifacts
+            # and transaction backups under .codex/ are intentionally excluded.
+            .codex/agents/**/*.md
+            .codex/dhpk/**/*.md
+            .codex/skills/**/*.md
             commands/**/*.md
+            docs/**/*.md
+            generated/**/*.md
             rules/**/*.md
             modules/**/*.md
+            openspec/**/*.md
+            plugins/**/*.md
+            skills/**/*.md
+            templates/**/*.md
+            cursor/**/*.md

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.58.0 — 2026-09-11 — Provider-neutral subagent orchestration, platform gates, and CLI context portability
+
+**fix(cli-dispatch-context)** — Make CLI context creation portable and race-safe on macOS by writing through a pinned parent descriptor.
+**fix(macos-portability)** — Make harness skill path checks compatible with BSD and GNU realpath implementations.
+**docs(markdown-format)** — Unify tracked Markdown formatting and tighten agent-facing documentation contracts across canonical and generated documentation surfaces.
+
 ## 0.57.1 — 2026-09-11 — Release parity fixes and macOS platform compatibility
 
 **fix(release)** — Claude profile packages (minimal, full, compat-v1) are now kept in version parity with the plugin release, and the release gate fails on drift.
@@ -1105,7 +1111,7 @@ findings across ~40 skills: added missing `When NOT to Use` / `Output` /
 **fix(skills) — latent loader bugs** — Three description classes that broke under
 strict YAML are now single-quoted: the 6 `gitnexus/*` descriptions
 (double-quote-wrapped with backslash escapes → literal quotes), and
-`swift-test-strategy` / `phpunit-10-notes` (unquoted ` #[…]` / ` #expect`
+`swift-test-strategy` / `phpunit-10-notes` (unquoted `#[…]` / `#expect`
 truncated the description at the `#`).
 
 **fix(skills) — content correctness** — Corrected version-fact errors found in
@@ -1176,7 +1182,7 @@ convention — stripped redundant prose while preserving every routing trigger
 trimming the module-skill description surface from **18,886 → 18,034 chars
 (−852)**. `/check-skill` per-skill status is byte-identical before/after (no
 routing regression). Also documented `skillListingBudgetFraction` (README Modules
-+ Troubleshooting, `harness-govern` caveat) as the file-level lever, and corrected
+\+ Troubleshooting, `harness-govern` caveat) as the file-level lever, and corrected
 the README / `harness-govern` wording that implied module-gating hides skills. The
 architectural fix (per-ecosystem plugin split / installer-driven per-project skill
 provisioning) remains tracked on #12.
@@ -1893,7 +1899,6 @@ zero behaviour change until they turn a knob on:
   (EN/CJK matches, the codex-security typo-fix, NO_MATCH, NO_QUERY,
   stdin path). `bash -n` clean on every changed script;
   `validate-harness.sh` and both JSON manifests parse green.
-
 
 ## 0.5.0 — 2026-05-28 — Lifecycle hook coverage + anti-rationalization gates + skill-hint router seed
 

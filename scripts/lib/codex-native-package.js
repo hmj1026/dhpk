@@ -29,6 +29,7 @@ const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
@@ -339,6 +340,7 @@ function nativeSkillFingerprint(files) {
 function legacyInventoryDigest(inventory) {
   const source = { ...(inventory || {}) };
   delete source.profile_policy;
+  delete source.standalone_dependencies;
   return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 }
 
@@ -436,6 +438,23 @@ function compileNativePackage({
     selectedEntries.push(skill);
   }
 
+  const standaloneAssets = collectStandalonePackageAssets({ root: resolvedRoot, inventory, profileSelection });
+  const existingDestinations = new Set(files.map((file) => file.destination));
+  for (const asset of standaloneAssets) {
+    if (existingDestinations.has(asset.destination)) {
+      throw new Error(`standalone dependency collides with Codex output: ${asset.destination}`);
+    }
+    existingDestinations.add(asset.destination);
+    files.push(nativeOutputRecord(
+      asset.stableId,
+      asset.source,
+      asset.destination,
+      asset.content,
+      { id: 'codex-native-standalone-dependency', version: generatorVersion },
+      asset.mode,
+    ));
+  }
+
   const manifest = nativeManifest({ outDir: resolvedOut, name, version, budget: traversalBudget });
   const manifestContent = `${JSON.stringify(manifest, null, 2)}\n`;
   traversalBudget.accountBytes(Buffer.byteLength(manifestContent), '.codex-plugin/plugin.json');
@@ -484,6 +503,12 @@ function compileNativePackage({
       selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
       selectionFingerprint: profileSelection.selectionFingerprint || null,
       surfaceSelectionFingerprint: profileSelection.surfaceSelectionFingerprint || null,
+    } : {}),
+    ...(profileSelection && profileSelection.selectionMode === 'standalone' ? {
+      selectionMode: 'standalone',
+      requestedStableIds: profileSelection.requestedStableIds || [],
+      dependencyClosure: profileSelection.dependencyClosure || null,
+      unavailableCapabilities: profileSelection.unavailableCapabilities || [],
     } : {}),
   };
   const fingerprintsContent = `${JSON.stringify(fingerprints, null, 2)}\n`;

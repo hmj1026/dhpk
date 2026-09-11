@@ -21,7 +21,7 @@ const {
 } = require('../scripts/lib/codex-native-package');
 
 function makeTempPackage() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-candidate-'));
+  const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-native-candidate-'));
   fs.mkdirSync(path.join(dir, 'skills', 'hello-skill'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'skills', 'hello-skill', 'SKILL.md'), '---\nname: hello-skill\n---\n');
   return dir;

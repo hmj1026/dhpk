@@ -27,7 +27,7 @@ remain documented here only as historical inputs and their deprecation boundary.
 `$flow-drive --codex` is stripped, emits `DEPRECATED_CODEX_FLAG`, and blocks before
 route selection; `CODEX=on` no longer selects a review peer or changes worker
 selection. Neither flag may be silently reinterpreted as this agent's CLI
-`codex exec` transport, `--worker=codex`, `--reasoner=codex`, or the external
+`codex exec` transport, `--worker=codex`, `--reasoner=codex-cli/<model>[:<effort>]`, or the external
 `openai/codex-plugin-cc` app-server plugin.
 The bridge itself remains the retained third path: when it is explicitly
 selected, its dispatcher-attested transport is CLI `codex exec`, with the

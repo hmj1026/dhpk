@@ -9,6 +9,30 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
 
+# Report explicitly configured canonical dispatch targets without probing a
+# Provider. The report is opt-in by value (or DHPK_DISPATCH_CONFIG_REPORT=1)
+# so the activation-only default remains silent.
+if command -v node >/dev/null 2>&1; then
+    _dhpk_dispatch_report=0
+    for _dhpk_target in \
+        "${CLAUDE_PLUGIN_OPTION_WORKER_TARGET:-}" \
+        "${CLAUDE_PLUGIN_OPTION_REASONER_TARGET:-}" \
+        "${CLAUDE_PLUGIN_OPTION_PLANNER_TARGET:-}" \
+        "${CLAUDE_PLUGIN_OPTION_REVIEWER_TARGET:-}"; do
+        if [ -n "$_dhpk_target" ] && [ "$_dhpk_target" != "auto" ]; then
+            _dhpk_dispatch_report=1
+            break
+        fi
+    done
+    if [ "${DHPK_DISPATCH_CONFIG_REPORT:-}" = "1" ]; then _dhpk_dispatch_report=1; fi
+    if [ "$_dhpk_dispatch_report" = "1" ]; then
+        DHPK_DISPATCH_CONFIG_REPORT=1 node "$PLUGIN_ROOT/scripts/dispatch-config-report.js" 2>/dev/null | while IFS= read -r report; do
+            echo "[session-start] dispatch config: $report"
+        done
+    fi
+    unset _dhpk_dispatch_report _dhpk_target
+fi
+
 MODULES="$(dhpk_config_csv modules '')"
 ACTIVE_MODULES=""
 [ -n "$MODULES" ] || exit 0

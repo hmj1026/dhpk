@@ -1,8 +1,11 @@
 # opsx-goal-policy-fallback-integrity Specification
 
 ## Purpose
+
 TBD - created by archiving change harden-opsx-goal-policy-fallbacks. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Goal orientation resolves a bounded policy candidate chain
 
 The generated `/goal` orientation command SHALL try a readable policy in this order: explicit `CLAUDE_PLUGIN_ROOT`, newest readable installed dhpk cache, the fixed source-checkout pair `./.claude-plugin/plugin.json` and `./rules/execution-policy.md`, then `POLICY-UNRESOLVED`.

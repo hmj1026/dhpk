@@ -12,11 +12,11 @@ function test(name, fn) {
   tests.push([name, fn]);
 }
 
-function run(suite) {
+async function run(suite) {
   let failed = 0;
   for (const [name, fn] of tests) {
     try {
-      fn();
+      await fn();
       console.log(`  ok   - ${name}`);
     } catch (e) {
       failed += 1;
@@ -25,7 +25,7 @@ function run(suite) {
   }
   const passed = tests.length - failed;
   console.log(`${suite}: ${passed}/${tests.length} passed`);
-  if (failed > 0) process.exit(1);
+  if (failed > 0) process.exitCode = 1;
 }
 
 module.exports = { test, run, assert };

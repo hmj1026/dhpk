@@ -1,8 +1,11 @@
 # platform-installation-documentation Specification
 
 ## Purpose
+
 TBD - created by archiving change align-agent-plugin-platform-support. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: One bilingual installation guide is the documentation SSOT
 
 The project SHALL maintain `docs/platform-installation.md` and

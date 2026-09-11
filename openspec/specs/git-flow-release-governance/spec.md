@@ -7,7 +7,9 @@ immutable `vX.Y.Z` tag, and reconciles `develop` with released `main` without
 dropping post-release work or rewriting published tags.
 
 ## Requirements
+
 ### Requirement: Standard releases preserve develop-to-main git-flow
+
 A standard release SHALL be prepared from `develop`, reviewed through a direct
 PR to `main`, merged with GitHub's **Create a merge commit** method, tagged only
 after the authorized merge, and reconciled with released `main` after
@@ -15,13 +17,16 @@ publication. Squash and rebase merges SHALL be rejected before tagging because
 they can sever generated-input provenance.
 
 #### Scenario: Release preparation starts from main
+
 - **WHEN** an operator attempts a standard release preparation directly on `main`
 - **THEN** the release tool refuses or reports the branch violation and does not prepare publication state
 
 ### Requirement: Human authorization boundaries remain intact
+
 Release tooling SHALL NOT automatically approve or merge the release PR, create or push the release tag, or bypass protected-branch policy. Those actions require the existing explicit human authorization or authorized CI trigger.
 
 #### Scenario: Preparation completes successfully
+
 - **WHEN** SOURCE and PACKAGE gates pass on the release branch
 - **THEN** the tool reports the exact next authorized actions without merging or tagging on its own
 
@@ -81,8 +86,10 @@ completion.
   not retry with a weaker force
 
 ### Requirement: Published tags remain immutable
+
 A consumer-validation failure after publication SHALL NOT move, replace, or delete the published tag. Recovery SHALL use a diagnosed patch or hotfix release.
 
 #### Scenario: Consumer verification fails after tag publication
+
 - **WHEN** the installed plugin cannot load the released surface
 - **THEN** the release is marked unhealthy and remediation proceeds through a new version rather than rewriting the tag

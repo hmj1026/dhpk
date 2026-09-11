@@ -1,8 +1,11 @@
 # cli-worker-timeout-recovery Specification
 
 ## Purpose
+
 Define controlled retry decisions from contained CLI transport timeout receipts.
+
 ## Requirements
+
 ### Requirement: CLI runners expose a guarded timeout signal
 
 Codex and AGY adapters SHALL delegate deadline enforcement to the portable

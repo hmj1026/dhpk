@@ -112,6 +112,26 @@ the supported `install-codex-skills.sh` route for Codex project-local writes and
 `install-cursor-harness.sh` for Cursor project-local writes until those adapters
 are migrated through the same ArtifactStore transaction.
 
+### Standalone selection and profile selection
+
+New installs without an explicit selection continue to use the inventory-owned
+`minimal` profile. A standalone request is a separate boundary:
+
+```bash
+dhpk-install codex-native plan --scope project --standalone flow-guide --json
+node scripts/ci/gen-claude-profile-bundles.js --standalone flow-guide --check
+```
+
+`--standalone` accepts a stable ID or public skill name and may be repeated;
+duplicates are normalized. It cannot be combined with `--profile` or the
+additive `--skill` overlay. Standalone plans record requested IDs, emitted
+public names, supporting/runtime closure, unavailable capabilities, and a
+selection fingerprint. `required_core_ids` applies only to profiles, so a
+standalone skill does not silently install the core set. Missing, retired,
+conflicting, cyclic, or unresolvable dependencies fail closed. Runtime-only
+support is recorded as support metadata and is never published as a public
+skill.
+
 ## Unified distribution CLI
 
 `bin/dhpk distribution <surface> <operation>` is the single deterministic
@@ -122,7 +142,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.58.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -673,7 +693,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.57.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.58.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
