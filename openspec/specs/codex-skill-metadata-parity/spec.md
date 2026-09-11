@@ -1,6 +1,7 @@
 # codex-skill-metadata-parity Specification
 
 ## Purpose
+
 Define the cross-harness metadata contract that keeps canonical skill
 classification, portable Agent Plugins projections, Claude restrictions, and
 Codex metadata aligned while reporting structural evidence separately from
@@ -9,13 +10,16 @@ runtime callability.
 ## Requirements
 
 ### Requirement: Claude and Codex invocation restrictions agree
+
 For every Distributed Skill available to both harnesses, an explicit-only classification SHALL produce Claude `disable-model-invocation: true` and Codex `policy.allow_implicit_invocation: false`. An implicit-eligible classification SHALL not retain either restrictive flag.
 
 #### Scenario: Claude is explicit-only but Codex is implicit
+
 - **WHEN** a shared skill is explicit-only in canonical and Claude metadata but Codex metadata permits implicit invocation
 - **THEN** metadata-parity validation fails with both metadata locations
 
 #### Scenario: Implicit-eligible skill retains stale restriction
+
 - **WHEN** a skill is classified implicit-eligible but one harness still disables implicit invocation
 - **THEN** metadata-parity validation fails until the stale restriction is removed
 
@@ -135,13 +139,16 @@ callability. Claims SHALL identify the surface and evidence state.
 A change to a shared skill's invocation class or public family identity SHALL update its canonical frontmatter, inventory name style, Claude metadata, Codex metadata, route documentation, selected profiles, generated projections, receipts, and parity tests in the same implementation change. A retired predecessor SHALL disappear from every generated harness in the same wave that its successor appears.
 
 #### Scenario: Only Claude metadata is updated
+
 - **WHEN** a classification or capability-family replacement modifies one harness but leaves another harness, profile, receipt, or route document stale
 - **THEN** the standard validation suite fails before release and identifies every divergent identity
 
 ### Requirement: Claude-only commands do not invent Codex parity
+
 An unpaired Distributed Command SHALL be validated against its own canonical class and Claude restriction. Validation SHALL NOT require fabricated Codex metadata unless a corresponding Codex skill is actually distributed.
 
 #### Scenario: Command has no Codex counterpart
+
 - **WHEN** an unpaired command-only entry is classified and no corresponding Codex skill exists
 - **THEN** Claude validation applies and Codex parity is reported as not applicable
 

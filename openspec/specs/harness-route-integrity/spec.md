@@ -1,14 +1,18 @@
 # harness-route-integrity Specification
 
 ## Purpose
+
 TBD - created by archiving change dhpk-harness-integrity-guards. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Every route-table pattern compiles as a regex
 
 Harness validation SHALL verify every canonical v2 route has a non-empty
 pattern compiled under matcher semantics before projections are accepted.
 
 #### Scenario: A rule has a malformed pattern
+
 - **WHEN** a route pattern has an unbalanced group
 - **THEN** validation names the rule and fails
 
@@ -18,6 +22,7 @@ The harness SHALL compare normalized target kind plus stable ID and fail an
 unwhitelisted duplicate independently of host-formatted invocation syntax.
 
 #### Scenario: Two rules target the same skill
+
 - **WHEN** two rules have the same skill kind/ID and are not whitelisted
 - **THEN** validation reports the typed duplicate and fails
 
@@ -40,13 +45,16 @@ distributed skill paired with the command. Kind SHALL NOT be inferred by
 probing similarly named files.
 
 #### Scenario: A rule points at a missing skill
+
 - **WHEN** kind is skill and its ID is absent from active inventory
 - **THEN** validation reports the missing typed target and fails
 
 #### Scenario: A command has an invalid portable mapping
+
 - **WHEN** a command's portable skill is absent or unpaired
 - **THEN** validation reports both IDs and fails
 
 #### Scenario: Target kind is unknown
+
 - **WHEN** kind is outside skill, command, and agent
 - **THEN** validation fails without guessing from the filesystem

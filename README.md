@@ -156,10 +156,12 @@ that server. The parity matrix records the retained CLI, current-model, or
 isolated-review behavior for every migrated capability.
 
 `CODEX=on` and `/dhpk:do --codex` are removed legacy MCP-peer interfaces. They
-are not aliases for `codex exec`, `--worker=codex`, `--reasoner=codex`, or the
+are not aliases for `codex exec`, `--worker=codex`, `--reasoner=codex-cli/<model>[:<effort>]`, or the
 external app-server plugin. Use the explicit `/dhpk:flow-drive` path
-for current-model implementation, `--worker=codex` or `--reasoner=codex` when
-an external CLI role is explicitly selected, and an explicitly named
+for current-model implementation, `--worker=codex` or
+`--reasoner=codex-cli/<model>[:<effort>]` when an external CLI role is explicitly
+selected. The bare `--reasoner=codex` value remains a compatibility shorthand;
+use an explicitly named
 `codex exec` second opinion where a migrated skill supports it. A deprecated
 legacy flag produces a deprecation diagnostic rather than selecting a hidden
 backend.

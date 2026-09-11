@@ -1,8 +1,11 @@
 # react-stack-modules Specification
 
 ## Purpose
+
 TBD - created by archiving change add-react-modules. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: React per-major modules exist with a consistent identity triple
 
 The plugin SHALL ship one opt-in module per supported React major

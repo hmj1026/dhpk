@@ -36,7 +36,7 @@ lifecycle、module 與 publication surface；validator 會將每個 projection �
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$change-verdict --mode code` |
 | Cursor generated command | 產生的 host adapter | Cursor `do` command（`host=cursor`） |
-| Codex guidance entry | discovery 後使用 `$flow-guide <help|route|rules|next|close> [--go] [query]` | `$flow-guide help flow-drive` |
+| Codex guidance entry | discovery 後使用 `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` | `$flow-guide help flow-drive` |
 | Codex implementation entry | discovery 後使用 `$flow-drive <confirmed-spec-or-change-id>` | `$flow-drive my-change-id --plan` |
 
 Codex 內建 command（`/hooks`、`/agent`）不是 dhpk 自訂 `/dhpk:*` command。

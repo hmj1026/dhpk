@@ -141,8 +141,25 @@ jobs:
         uses: DavidAnson/markdownlint-cli2-action@v23
         with:
           globs: |
+            *.md
+            .codex-plugin/*.md
+            agent-traps/**/*.md
             agents/**/*.md
-            skills/**/*.md
+            changelog.d/**/*.md
+            codex/*.md
+            codex/supporting/**/*.md
+            # Lint installed Codex projections when present; runtime artifacts
+            # and transaction backups under .codex/ are intentionally excluded.
+            .codex/agents/**/*.md
+            .codex/dhpk/**/*.md
+            .codex/skills/**/*.md
             commands/**/*.md
+            docs/**/*.md
+            generated/**/*.md
             rules/**/*.md
             modules/**/*.md
+            openspec/**/*.md
+            plugins/**/*.md
+            skills/**/*.md
+            templates/**/*.md
+            cursor/**/*.md

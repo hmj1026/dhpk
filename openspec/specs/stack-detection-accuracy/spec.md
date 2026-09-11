@@ -1,8 +1,11 @@
 # stack-detection-accuracy Specification
 
 ## Purpose
+
 TBD - created by archiving change tune-goal-fastworker-and-reviewer-integrity. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Reviewer runtime fallback stack detection is root-manifest-first
 
 Runtime fallback stack detection used by reviewer/trap-sheet loading SHALL be owned by `agent-traps/_common/trap-sheet-loader.md`, with duplicated reviewer prose synchronized to that contract. A root `package.json` SHALL emit the generic `js` signal. A `vue` key in `dependencies`, `devDependencies`, or `peerDependencies` SHALL additionally emit `vue`; `next` and `react` remain covered by `js` because versioned Next/React modules are explicitly configured, not inferred by this fallback. PHP SHALL emit only from a root `composer.json` or PHP files directly under the repository root (`./*.php`). Detection SHALL NOT recursively derive signals from `node_modules/`, `vendor/`, or other vendored trees. Explicit `DHPK_ACTIVE_MODULES` SHALL retain precedence.

@@ -1,8 +1,11 @@
 # graduation-scan-scope Specification
 
 ## Purpose
+
 TBD - created by archiving change harvest-advice-20260712. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: The graduation Stop hook only scans and regenerates the candidates report
 
 `scripts/hooks/stop-graduation-scan.sh` SHALL limit its writes to its two artifacts — `.claude/artifacts/memory-usage-counts.json` (cross-session count/confidence accrual) and the auto-generated region of `.claude/artifacts/graduation-candidates.md` — and SHALL NOT create directories or files under `openspec/changes/`. Turning a graduation candidate into an OpenSpec change remains a human / `dhpk:rules-distill` decision driven by the candidates report.

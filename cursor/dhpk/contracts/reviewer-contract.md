@@ -98,7 +98,7 @@ Every reviewer prompt is composed from these fields, in order:
 1. **Scope** — the implementation wave and exact changed paths.
 2. **Specialist charter** — the lane-specific checks owned by this reviewer.
 3. **Evidence commands** — commands run, or a clear note when unavailable.
-4. **Artifact path** — the fresh report location under `.codex/artifacts/`.
+4. **Artifact path** — the fresh report location under `.cursor/artifacts/`.
 5. **Verdict** — the role's existing `APPROVE|WARNING|BLOCK` or `PASS|WARNING|FAIL` vocabulary.
 6. **Confirm-only** — named findings to confirm for a bounded re-review; omit for a new wave.
 

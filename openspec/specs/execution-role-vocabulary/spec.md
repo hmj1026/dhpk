@@ -1,8 +1,11 @@
 # execution-role-vocabulary Specification
 
 ## Purpose
+
 TBD - created by archiving change canonicalize-cli-role-vocabulary. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Role, provider, execution class, and transport are distinct
 
 The repository SHALL maintain one canonical vocabulary in which Host, Provider,

@@ -1,8 +1,11 @@
 # fast-worker-selection-policy Specification
 
 ## Purpose
+
 TBD - created by archiving change refine-opsx-orchestration-governance. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Fast-worker backend selection is explicit and deterministic
 
 The orchestration layer SHALL resolve a mechanical `worker` through a
@@ -105,29 +108,42 @@ substitute for process or verification evidence.
   shared-state validator
 
 ### Requirement: Goal generation embeds the fast-worker clause only when an eligible batch exists
-`opsx-apply-goal` SHALL classify every unchecked top-level checkbox before a heading whose normalized text is `Verification` as an implementation task. Each SHALL use one exact, immediately-following metadata line: `  - **Mechanical:** yes|no; **Files:** path/a, path/b|none`. Only `Mechanical: yes` tasks are fast-worker candidates. The scanner SHALL normalize and count distinct repository-relative file paths, with `none` counting as zero. `goal-context.js` SHALL own `MAX_INLINE_FILES = 2` as the generator-side SSOT and derive eligibility as `count > MAX_INLINE_FILES`, without a separate `3` literal. The generator SHALL omit the FAST_WORKER_CLAUSE and skip worker-target resolution only when every implementation task has conclusive metadata and every mechanical task is within the inline limit. Missing or malformed metadata, invalid mechanical values, globs, directories, and placeholders are inconclusive: the generator SHALL fail open, embed the clause, and log the offending task id.
+
+`opsx-apply-goal` SHALL classify every unchecked top-level checkbox before a heading whose normalized text is `Verification` as an implementation task. Each SHALL use one exact, immediately-following metadata line:
+
+```text
+  - **Mechanical:** yes|no; **Files:** path/a, path/b|none
+```
+
+Only `Mechanical: yes` tasks are fast-worker candidates. The scanner SHALL normalize and count distinct repository-relative file paths, with `none` counting as zero. `goal-context.js` SHALL own `MAX_INLINE_FILES = 2` as the generator-side SSOT and derive eligibility as `count > MAX_INLINE_FILES`, without a separate `3` literal. The generator SHALL omit the FAST_WORKER_CLAUSE and skip worker-target resolution only when every implementation task has conclusive metadata and every mechanical task is within the inline limit. Missing or malformed metadata, invalid mechanical values, globs, directories, and placeholders are inconclusive: the generator SHALL fail open, embed the clause, and log the offending task id.
 
 #### Scenario: No eligible batch omits the clause
+
 - **WHEN** every implementation task has valid metadata and every `Mechanical: yes` task names 2 or fewer distinct files
 - **THEN** the emitted goal string contains no FAST_WORKER_CLAUSE and no Provider-neutral worker-target selection text
 
 #### Scenario: Eligible batch embeds the clause
+
 - **WHEN** at least one conclusively annotated `Mechanical: yes` implementation task names 3 or more distinct files
 - **THEN** the emitted goal string carries the FAST_WORKER_CLAUSE with the selected Provider-neutral worker target
 
 #### Scenario: Unparseable tasks.md fails open
+
 - **WHEN** the scanner encounters an implementation task with absent or invalid `Mechanical`/`Files` metadata
 - **THEN** the generator embeds the clause and logs that the footprint scan was inconclusive
 
 #### Scenario: Non-mechanical and verification tasks do not create eligibility
+
 - **WHEN** a conclusively annotated task has `Mechanical: no`, or a checkbox occurs under the `## Verification` heading
 - **THEN** that task does not cause the FAST_WORKER_CLAUSE to be embedded
 
 #### Scenario: No eligible work does not probe or block on a worker target
+
 - **WHEN** all implement steps are conclusively within the inline limit and configured worker-target evidence is unavailable
 - **THEN** worker-target resolution is skipped, the clause is omitted, and goal generation is not blocked by that unavailable target
 
 ### Requirement: Legacy backend override is compatibility-only at the dispatch edge
+
 The compatibility edge SHALL require an explicit compatibility-window decision
 before `/dhpk:do` and `dhpk:opsx-apply-goal` MAY accept the legacy
 `--worker=<claude|codex|agy|auto>` input during the compatibility window, parsed
@@ -140,18 +156,22 @@ back to canonical Host-aware resolution rather than failing the route. The
 preserved invocation context SHALL be named `WORKER_OVERRIDE`.
 
 #### Scenario: Flag overrides userConfig for one session
+
 - **WHEN** the compatibility alias sets `fast_worker_backend=claude` and the user invokes `/dhpk:do --worker=agy ...`
 - **THEN** this invocation records an AGY target constraint subject to Host policy and availability, while later sessions without the flag use canonical Host-native resolution
 
 #### Scenario: Goal generator embeds the override
+
 - **WHEN** `dhpk:opsx-apply-goal` runs with `--worker=codex`
 - **THEN** the emitted goal string carries the resolved compatibility target constraint so the unattended session invokes the Provider-neutral Dispatch Engine without reading userConfig
 
 #### Scenario: Invalid flag value
+
 - **WHEN** the flag value is not one of `claude|codex|agy|auto`
 - **THEN** a one-line warning is printed and resolution falls back to canonical Host-aware configuration; the route proceeds
 
 #### Scenario: Legacy spelling flows through as task text
+
 - **WHEN** an invocation contains `--fast-worker=codex`
 - **THEN** it is not parsed as a backend override and no deprecation shim intervenes
 
@@ -164,13 +184,16 @@ boundary for before/after accounting and SHALL never perform repository-wide
 cleanup based on sibling changes.
 
 #### Scenario: In-process worker receives parallel scope
+
 - **WHEN** the Dispatch Engine resolves a parallel batch to the provider-neutral in-process worker tier
 - **THEN** the worker receives the marker and exact assigned files and reports path-scoped verification
 
 #### Scenario: Legacy CLI adapter receives parallel scope
+
 - **WHEN** a compatibility alias resolves a parallel batch to the Codex CLI Adapter
 - **THEN** the wrapper passes the marker and assigned files to the CLI prompt and derives worker-owned changes only from assigned paths
 
 #### Scenario: Compatibility target remains observable
+
 - **WHEN** a parallel task carries a legacy `claude`, `codex`, `agy`, or `auto` override
 - **THEN** the compatibility edge records the requested alias while the Dispatch Engine applies current Host policy, capability checks, fallback, scope, and verification accounting

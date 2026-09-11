@@ -6,7 +6,7 @@ Claude lifecycle hooks or sentinel files.
 
 ## Does this output belong here?
 
-Use `.codex/artifacts/` for session-scoped evidence that should not enter a PR;
+Use `.cursor/artifacts/` for session-scoped evidence that should not enter a PR;
 use `docs/` for durable project deliverables that teammates need on a fresh
 clone. Review reports, audits, plans, and ADR fallbacks belong in the former;
 codemaps, feature specs, and knowledge-base pages belong in the latter.
@@ -14,7 +14,7 @@ codemaps, feature specs, and knowledge-base pages belong in the latter.
 ## Path template
 
 ```
-.codex/artifacts/<category>/<agent>-{yyyymmdd-HHMMSS}-{slug}.md
+.cursor/artifacts/<category>/<agent>-{yyyymmdd-HHMMSS}-{slug}.md
 ```
 
 - Timestamp uses the project's local timezone (dhpk defaults to Asia/Taipei).
@@ -60,7 +60,7 @@ document their own extra fields inline; do not invent a third verdict vocabulary
 ## Retention and degradation
 
 Retention is advisory: prune old reports for navigability, never as a runtime
-requirement. If `.codex/artifacts/` or its category directory is absent, emit
+requirement. If `.cursor/artifacts/` or its category directory is absent, emit
 the report to stdout and continue; do not fail only because the directory is
 missing.
 

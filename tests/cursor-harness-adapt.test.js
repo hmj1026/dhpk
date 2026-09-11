@@ -68,11 +68,15 @@ test('Cursor skill adaptation rewrites transport wrapper roots and rejects lefto
 
 test('rewriteCursorSupportingAssetBody rewrites Codex support roots', () => {
   const rewritten = rewriteCursorSupportingAssetBody(
-    'Read .codex/dhpk/agent-traps/_common/loader.md and ' + PLUGIN_ROOT_TOKEN + '/manifests/x.json',
+    'Read .codex/dhpk/agent-traps/_common/loader.md and ' +
+      'write .codex/artifacts/sessions/partial.json and ' +
+      PLUGIN_ROOT_TOKEN + '/manifests/x.json',
   );
   assert.match(rewritten, /\.cursor\/dhpk\/agent-traps\/_common\/loader\.md/);
+  assert.match(rewritten, /\.cursor\/artifacts\/sessions\/partial\.json/);
   assert.match(rewritten, /\.cursor\/dhpk\/manifests\/x\.json/);
   assert.ok(!rewritten.includes('.codex/dhpk'));
+  assert.ok(!rewritten.includes('.codex/artifacts'));
   assert.ok(!rewritten.includes(PLUGIN_ROOT_TOKEN));
 });
 

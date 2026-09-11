@@ -1,9 +1,12 @@
 # codex-operational-documentation Specification
 
 ## Purpose
+
 Define bilingual, consumer-safe Codex installation and operational guidance that
 keeps checkout-root validators separate from consumer-project verification.
+
 ## Requirements
+
 ### Requirement: Codex verification commands declare their working root
 
 Current Codex installation documentation SHALL distinguish checks that run in a

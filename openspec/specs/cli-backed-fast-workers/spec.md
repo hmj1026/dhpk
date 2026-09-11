@@ -4,7 +4,9 @@
 
 Define the Codex and AGY mechanical-worker contracts while routing all external
 CLI execution through one immutable, contained transport boundary.
+
 ## Requirements
+
 ### Requirement: CLI-backed fast-worker agents preserve the mechanical contract
 
 The plugin SHALL expose a mechanically equivalent `worker` contract for every

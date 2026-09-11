@@ -1,8 +1,11 @@
 # codex-native-publication Specification
 
 ## Purpose
+
 TBD - created by archiving change make-codex-plugin-distribution-install-safe. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Native publication uses an explicit inventory surface
 
 The native Codex package SHALL contain exactly the non-deprecated entries whose

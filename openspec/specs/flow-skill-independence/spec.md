@@ -1,8 +1,11 @@
 # flow-skill-independence Specification
 
 ## Purpose
+
 TBD - created by archiving change provider-neutral-subagent-orchestration. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Flow Guide operates without Flow Drive
 
 `flow-guide` SHALL provide its read-only help, route, rules, next, and close

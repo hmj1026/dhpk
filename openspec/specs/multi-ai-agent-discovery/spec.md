@@ -1,27 +1,36 @@
 # multi-ai-agent-discovery Specification
 
 ## Purpose
+
 TBD - created by archiving change scope-multi-ai-sync-validation-to-configured-platforms. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Agent discovery returns only invocable definitions
+
 `multi-ai-sync` SHALL count a file as an agent only when it has a supported agent-definition extension, is located on the active harness's declared agent surface, and satisfies that harness's required definition metadata.
 
 #### Scenario: Valid agent definition is present
+
 - **WHEN** a file is on the declared agent surface and contains the required definition metadata
 - **THEN** discovery includes it exactly once in parity comparison
 
 #### Scenario: Candidate file is malformed
+
 - **WHEN** a candidate definition has the correct extension and location but lacks required metadata
 - **THEN** discovery reports a validation failure and does not count it as an agent
 
 ### Requirement: Navigation and roster files are excluded from agent discovery
+
 Agent discovery SHALL exclude non-invocable navigation, roster, and explanatory documents, including `INDEX.md` and `README.md`, before definition parsing. The exclusion SHALL apply consistently to canonical and target inventories.
 
 #### Scenario: Agent directory contains INDEX.md
+
 - **WHEN** an agent directory contains valid definitions plus `INDEX.md`
 - **THEN** the index is absent from agent counts, parity diffs, plans, and generated target definitions
 
 #### Scenario: Navigation content resembles metadata
+
 - **WHEN** a navigation document contains examples or tables that resemble agent fields
 - **THEN** its excluded basename prevents it from being treated as an invocable definition
 

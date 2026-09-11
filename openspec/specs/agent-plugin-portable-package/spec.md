@@ -1,8 +1,11 @@
 # agent-plugin-portable-package Specification
 
 ## Purpose
+
 TBD - created by archiving change align-agent-plugin-platform-support. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Portable publication has a canonical Agent Plugins manifest
 
 The generated `agent-plugin` surface SHALL be a self-contained package whose

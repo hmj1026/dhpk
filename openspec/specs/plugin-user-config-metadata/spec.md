@@ -1,6 +1,7 @@
 # plugin-user-config-metadata Specification
 
 ## Purpose
+
 TBD - created by archiving change compact-plugin-user-config-metadata. Update Purpose after archive.
 
 ## Requirements

@@ -229,11 +229,11 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | 群組 | 代表技能 | 使用時機 | 最快路徑 |
 |---|---|---|---|
 | 路由/決策 | `flow-guide`、`flow-drive` | Discovery、提供建議，並只實作已確認工作 | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
-| 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore|diagnose|history` |
-| 只讀審閱 | `change-verdict`（`code|pr|security|tests|docs|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
+| 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore\|diagnose\|history` |
+| 只讀審閱 | `change-verdict`（`code\|pr\|security\|tests\|docs\|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
 | 交付前置 | `dhpk-tdd-workflow`、`dhpk-module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `dhpk-tdd-workflow` 做 RED |
 | OpenSpec 續作 | `dhpk-opsx-load-context`、`dhpk-opsx-post-observation`、`dhpk-opsx-apply-goal` | 續接 / 交付長時間 `/opsx:apply` 工作流 | 長跑用 `dhpk-opsx-apply-goal <change-id>`，續場景用 `dhpk-opsx-load-context` |
-| Harness / 平台 | `harness-govern`（`health|budget|fill|revise|sync`） | 同步跨 host 的 harness、plugin、版本與規格 | 先 `$harness-govern health --dry-run` |
+| Harness / 平台 | `harness-govern`（`health\|budget\|fill\|revise\|sync`） | 同步跨 host 的 harness、plugin、版本與規格 | 先 `$harness-govern health --dry-run` |
 | 技能治理 | `skill-forge`、`skill-scope` | 編寫、稽核、比較 skill 品質 | 快速盤點用 `skill-scope`，結構調整用 `skill-forge` |
 | Git / 發版準備 | `dhpk-git-smart-commit`、`dhpk-release-creator`、`dhpk-deploy-list`、`dhpk-project-setup` | 大量變更分群提交、發版、部署檔清單、專案初始化 | `dhpk-project-setup` 後接 `dhpk-git-smart-commit` / `dhpk-release-creator` |
 
@@ -242,12 +242,12 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | Skill | 常用參數 |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
-| `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
-| `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
+| `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
+| `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm|Nh>` `--min-coverage N` `--smoke|--no-smoke` |
-| `dhpk-repo-intake` | `save` `--mode auto|delta|full` `--top N` |
+| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
+| `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
 建議原則：先選對群組再補齊最少參數，路由與回呼會更穩定。
 
@@ -302,14 +302,14 @@ navigation fallback。
 | `--plan[=<model>[:<effort>]]` | 為已確認的 implementation work 加入 planner critique。 |
 | `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker，不會持久化設定。 |
 | `--cross-provider` | 當使用 `--worker=auto` 時，僅對本次 invocation 開放設定的 external candidate；不會持久化，也不會擴大明確選定的 worker target。 |
-| `--reasoner=<backend>:<model>:<effort>` | 為已確認 implementation work 要求 bounded reasoning pass。 |
+| `--reasoner=<provider>/<model>[:<effort>]` | 為已確認 implementation work 要求 bounded reasoning pass。 |
 | `--architect` / `--no-architect` | 控制本次 invocation 的 architecture pass。 |
 | `--codex` | 已退休的相容性旗標。Parser 會產生 deprecation diagnostic，不會選擇 peer 或 backend；請改用明確的 worker、reasoner 或 owner 第二意見選項。 |
 
 `--worker=auto --cross-provider` 只會讓設定的 external candidate 參與本次 automatic
 selection。沒有這個 flag 時，automatic selection 維持 native-only；`--worker=codex` 或
-`--worker=agy` 仍是定向的明確選擇。`--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex` 是選 Codex CLI
-reasoning pass。`CODEX=on` 與 `--codex` 是已退休的相容性旗標：會產生
+`--worker=agy` 仍是定向的明確選擇。`--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex-cli/<model>[:<effort>]` 是選 Codex CLI
+reasoning pass；裸值 `--reasoner=codex` 只保留作為相容性 shorthand。`CODEX=on` 與 `--codex` 是已退休的相容性旗標：會產生
 deprecation diagnostic，絕不選擇 peer、worker、reasoner 或 hidden backend。只有選定
 executable 缺少時才允許 configured Claude fallback；authentication、task、execution 與
 verification failure 都維持 blocked。
@@ -399,7 +399,8 @@ work 透過 shared selector 交給 `fast-worker`、`codex-fast-worker` 或 `agy-
 
 dhpk **預設不使用 Codex**。已退休的 `CODEX=on` 與 legacy `--codex` 旗標會產生
 `DEPRECATED_CODEX_FLAG`，不會加入 hidden peer 或 backend。需要明確選擇時，使用
-`--worker=codex` 走 CLI worker、`--reasoner=codex` 走 CLI reasoning pass，或在 migrated
+`--worker=codex` 走 CLI worker、`--reasoner=codex-cli/<model>[:<effort>]` 走 CLI reasoning pass（裸值
+`--reasoner=codex` 只是相容性 shorthand），或在 migrated
 owner 上使用 `--second-opinion=codex-exec` 取得 additive、one-shot 的 `codex exec` 意見。
 `change-verdict --mode code --backend cli` 是明確的 CLI review path；current-model path 仍是預設。
 缺少 CLI executable 時會回報 optional backend 不可用；authentication、task、execution 與

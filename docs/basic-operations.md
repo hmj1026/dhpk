@@ -239,11 +239,11 @@ Use the skill groups below as a reusable decision ladder:
 | Lane | Representative skills | What to use it for | Fast path |
 |---|---|---|---|
 | Routing/decision | `flow-guide`, `flow-drive` | Discover, advise, and execute only confirmed work. | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
-| Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore|diagnose|history` |
-| Read-only verdict | `change-verdict` (`code|pr|security|tests|docs|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
+| Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore\|diagnose\|history` |
+| Read-only verdict | `change-verdict` (`code\|pr\|security\|tests\|docs\|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
 | Delivery / implementation prep | `dhpk-tdd-workflow`, `dhpk-module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `dhpk-tdd-workflow` + scoped verification |
 | OpenSpec session control | `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`, `dhpk-opsx-apply-goal` | Resume / handoff an OpenSpec edit sequence. | `dhpk-opsx-apply-goal <change-id>` for long-run, `dhpk-opsx-load-context` for resume |
-| Harness and platform hygiene | `harness-govern` (`health|budget|fill|revise|sync`) | Keep plugin/sync state clean and repeatable across environments. | `$harness-govern health --dry-run` (read-first) |
+| Harness and platform hygiene | `harness-govern` (`health\|budget\|fill\|revise\|sync`) | Keep plugin/sync state clean and repeatable across environments. | `$harness-govern health --dry-run` (read-first) |
 | Skill governance | `skill-scope`, `skill-forge` | Author, audit, and compare skill quality or usage | `skill-scope` for quick checks, `skill-forge` when changing structure |
 | Git / release prep | `dhpk-git-smart-commit`, `dhpk-release-creator`, `dhpk-deploy-list`, `dhpk-project-setup` | Group commits, prepare release and deploy artifacts, set up repo policy. | `dhpk-project-setup` → `dhpk-git-smart-commit` / `dhpk-release-creator` |
 
@@ -252,12 +252,12 @@ Use the skill groups below as a reusable decision ladder:
 | Skill | Common invocation pattern |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
-| `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
-| `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
+| `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
+| `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm|Nh>` `--min-coverage N` `--smoke|--no-smoke` |
-| `dhpk-repo-intake` | `save` `--mode auto|delta|full` `--top N` |
+| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
+| `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
 Use the lane first, then reduce flags: fewer inputs -> fewer routing misses and cleaner outputs.
 
@@ -317,15 +317,15 @@ Use these invocation-only modifiers when they change the decision for this run:
 | `--plan[=<model>[:<effort>]]` | Adds a planner critique to confirmed implementation work. |
 | `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; it does not persist configuration. |
 | `--cross-provider` | One-shot opt-in for configured external candidates when `--worker=auto`; it does not persist configuration or broaden an explicit worker target. |
-| `--reasoner=<backend>:<model>:<effort>` | Requests a bounded reasoning pass for confirmed implementation work. |
+| `--reasoner=<provider>/<model>[:<effort>]` | Requests a bounded reasoning pass for confirmed implementation work. |
 | `--architect` / `--no-architect` | Enables or disables the architecture pass for this invocation. |
 | `--codex` | Retired compatibility flag. The parser emits a deprecation diagnostic and does not select a peer or backend; use an explicit worker, reasoner, or owner second-opinion option instead. |
 
 `--worker=auto --cross-provider` allows the configured external candidates to
 participate in automatic selection for this invocation. Without the flag,
 automatic selection remains native-only; `--worker=codex` or `--worker=agy`
-remains a directional explicit choice. `--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex`
-chooses a Codex CLI reasoning pass. `CODEX=on` and `--codex` are
+remains a directional explicit choice. `--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex-cli/<model>[:<effort>]`
+chooses a Codex CLI reasoning pass; bare `--reasoner=codex` is a compatibility shorthand. `CODEX=on` and `--codex` are
 retired compatibility flags: they emit a deprecation diagnostic and never
 select a peer, worker, reasoner, or hidden backend. Only a missing selected
 executable may use the configured Claude fallback; authentication, task,
@@ -431,7 +431,8 @@ rules live in [`rules/execution-policy.md`](../rules/execution-policy.md).
 dhpk is **Codex-free by default**. The retired `CODEX=on` and legacy
 `--codex` flags emit `DEPRECATED_CODEX_FLAG` and do not add a hidden
 peer or backend. Use `--worker=codex` for an explicitly selected CLI worker,
-`--reasoner=codex` for an explicitly selected CLI reasoning pass, or a
+`--reasoner=codex-cli/<model>[:<effort>]` for an explicitly selected CLI reasoning pass
+(`--reasoner=codex` is compatibility shorthand), or a
 migrated owner's `--second-opinion=codex-exec` option for an additive,
 one-shot `codex exec` opinion. `change-verdict --mode code --backend cli` is the
 explicit CLI review path; the current-model path remains the default. Missing

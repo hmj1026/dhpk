@@ -88,7 +88,7 @@ key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保�
 | `codex_worker_model` | string | `gpt-5.6-luna` | codex CLI 接受的任何模型 | 規範角色 `codex-worker` 派發時傳給 codex CLI 後端的模型。依標準分層解析（專案 pluginConfigs > 全域 pluginConfigs > 出廠預設）後傳入 `run-codex.sh`。Codex 模型名稱汰換快速——預設值失效時在此覆寫，而非改原始碼（可用 `codex models` 查詢）。舊別名：`codex_fast_worker_model`。 |
 | `codex_worker_effort` | string | `xhigh` | codex CLI 接受的任何強度（如 `low` \| `medium` \| `high` \| `xhigh`） | `codex-worker` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`——強力機械層。舊別名：`codex_fast_worker_effort`。 |
 | `codex_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_fast_worker_timeout_secs`。 |
-| `codex_reasoner_model` | string | `gpt-5.6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex` 使用唯讀 sandbox。舊別名：`codex_deep_reasoner_model`。 |
+| `codex_reasoner_model` | string | `gpt-5.6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex-cli/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 是相容性 shorthand。舊別名：`codex_deep_reasoner_model`。 |
 | `codex_reasoner_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reasoner` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。舊別名：`codex_deep_reasoner_effort`。 |
 | `codex_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed。舊別名：`codex_deep_reasoner_timeout_secs`。 |
 | `codex_reviewer_model` | string | `gpt-5.6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reviewer` 派發時傳給 codex CLI 後端的模型（此版本內部只用，無法直接派發）。 |
@@ -139,7 +139,7 @@ dispatcher 在建立 `0600` immutable transport context 前，會將解析後的
 active skill 或 command 需要 Codex MCP server。現行 CLI-only review path 是
 `change-verdict --mode code --backend cli`；同族 CLI role 為
 `codex-worker`、`codex-reasoner`、`codex-reviewer` 與 `dhpk-codex-bridge`。需要
-Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex` 或
+Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]` 或
 `codex exec` 第二意見。
 
 ### 歷史：Codex MCP server（已退休）
@@ -179,7 +179,8 @@ docs/basic-operations.zh-TW.md）也與已退休的 MCP 機制
 
 `CODEX=on` 與 `/dhpk:do --codex` 曾是單次 session 的 legacy MCP-peer interface。
 兩者現在都已移除，不是持久化的 `userConfig` 值，也不會靜默重新解讀成
-`codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 plugin。請用
+`codex exec`、`--worker=codex`、`--reasoner=codex-cli/<model>[:<effort>]` 或外部 plugin。裸值
+`--reasoner=codex` 是相容性 shorthand。請用
 `/dhpk:flow-drive` 進行 current-model implementation，需要時明確選 CLI
 role，並以具名 `codex exec` opt-in 請求第二意見。
 
