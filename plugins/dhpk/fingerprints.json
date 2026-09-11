@@ -3,15 +3,15 @@
   "dhpk-legacy-characterization-tests": "2a2df71423e54c8e24f10c645b917eb070aa728905171da6783dd23af16f8cf6",
   "dhpk-yii1-php56-development": "8af02d34fca4f9eaee43d4ceb72851dfe494462955af1b08f7cb74a2f703f2bc",
   "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
-  "flow-guide": "73f99a4907dde03d1e80e5c6dbd252d3776b9878899a74f2dc70132550783460",
+  "flow-guide": "79c0e539e2210653043336d05588889b72e55b0e78c2f2d6a6541b54bf7bfd5d",
   "code-trace": "f97e720f358a8320b62977c04c0e1dd59a0277ee49e65500aa6c4aae32a7b3e6",
-  "flow-drive": "5e14d33872aeb4934cd39c655e69b6bab8517dd164099fb8627e62b4c1e5deb8",
+  "flow-drive": "2e5d6c3a4323320fc1fdcd7b48658d751fce87aab3feb8f0bf44410eb0ebc316",
   "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
   "dhpk-opsx-load-context": "405884767ca4114a166db0e0e8e52c48e1ccc502d0b6ff5fbede2c8654b72ee1",
   "dhpk-opsx-post-observation": "cfb6322b54bac5536b4c76f42165095100fca25b45b0065a337b03a9c83b8c75",
   "skill-scope": "7eebca48fb7b447ba9ab07d2694eeab7f6b2ec12d5b416eff716e9117228e3ca",
   "dhpk-tdd-workflow": "c6d6327c4bd982149e05006d7cedf98a7596a9c1df2117968f6a219e164c1d0a",
   "harness-govern": "9417d421c34c76df11cb53b69a5262edeba7965e43d0736828d78bbf1ccda777",
-  "dhpk-cli-dispatch-context": "fe7aeb69c2a12283c0512a81101bc909050d573dbeb76eafef901acbed9d27a4",
-  "dhpk-cli-transport": "2711bef98056c5488ca78acbb21cbacd793b931d12662476b27ff6f156458601"
+  "dhpk-cli-dispatch-context": "17ef030aaa3fbd7e4328855e89dfcead6058f8dcd3a620f397309fb7c05297e6",
+  "dhpk-cli-transport": "12926e258a9c40c274f4ea1789d0fb8b69cf45c2d4f329aa0b359eb611aa6502"
 }
