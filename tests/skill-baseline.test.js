@@ -71,13 +71,12 @@ test('baseline separates static ownership/disposition from non-PASS runtime evid
   assert.ok(baseline.limitations.some((entry) => /login|HOME|client/i.test(entry)));
 });
 
-test('baseline records an evidence-backed duplicate test-entry candidate for issue 470', () => {
+test('baseline no longer reports the retired fast-worker forwarding wrapper', () => {
   const baseline = buildBaseline({ root: ROOT });
   assert.ok(baseline.analysis && Array.isArray(baseline.analysis.testReuseCandidates));
-  assert.ok(baseline.analysis.testReuseCandidates.some((candidate) => (
+  assert.ok(!baseline.analysis.testReuseCandidates.some((candidate) => (
     candidate.entrypoint === 'tests/fast-worker-selector.test.js'
-    && candidate.implementation === 'tests/fast-worker-selection.test.js'
-    && candidate.owner === 'issue-470'
+    || candidate.implementation === 'tests/fast-worker-selection.test.js'
   )));
 });
 
