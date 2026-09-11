@@ -8,18 +8,21 @@ metadata:
 
 # Internal CLI transport
 
-This is an internal support package. A dispatcher creates a `0600`, regular,
-non-symlink `dhpk.cli.context.v1` containing its already-validated identity,
-maximum role contract, scope, timeout, immutable prompt evidence, named runtime
-path, and contained artifact locations. The
-provider compatibility adapters translate that immutable context to
-`dhpk.cli.request.v1` and invoke `scripts/run-cli-transport.py`; they never
-derive authority, select a role, or inherit an unbounded `PATH`.
+This is an internal support package. The canonical dispatcher creates a
+`dhpk.dispatch.request.v2` with separate Host, Provider, Provider-scoped Model,
+canonical Role, Effort, Transport, authority, scope, timeout, task identity,
+and immutable prompt evidence. The Codex and AGY compatibility adapters
+translate that request to the existing `0600`, regular, non-symlink
+`dhpk.cli.context.v1` boundary and invoke `scripts/run-cli-transport.py`; they
+never derive authority, select a role, or inherit an unbounded `PATH`.
 
 The runner accepts only a request file, owns timeout observation and receipt
 containment, and emits one terminal `dhpk.cli.receipt.v1` with its immutable
-follow-up record embedded atomically. It intentionally does not select a provider or retry a
-provider through a different transport. Direct legacy wrapper calls without
+follow-up record embedded atomically. The adapter seam also normalizes the
+same outcome to `dhpk.dispatch.receipt.v2`, preserving Host, Provider, Model,
+Effort, Transport, fallback history, and independent verification. It
+intentionally does not select a Provider or retry a Provider through a
+different Transport. Direct legacy wrapper calls without
 `DHPK_CLI_TRANSPORT_CONTEXT` are `BLOCKED`; provider commands never start.
 
 The dispatcher may attest one `failure_class` on a request. It is transport
@@ -65,11 +68,12 @@ its bounded confirmation stdin mode.
 
 ## Output and verification
 
-The only terminal output is a `dhpk.cli.receipt.v1` at the context-attested
-receipt path. It is created as a regular, contained `0600` file, redacts
-provider material, retains the validated role contract, and records terminal
-`SUCCEEDED`, `FAILED`, `TIMEOUT`, or fail-closed `BLOCKED` without starting an
-unauthorised provider. When present, the receipt preserves the attested
+The compatibility runner writes one `dhpk.cli.receipt.v1` at the
+context-attested receipt path. The Adapter boundary exposes the corresponding
+canonical `dhpk.dispatch.receipt.v2` to the Dispatch Engine. Both are regular,
+contained `0600` artifacts, redact provider material, retain the validated Role
+contract, and record terminal `SUCCEEDED`, `FAILED`, `TIMEOUT`, or fail-closed
+`BLOCKED` without starting an unauthorised Provider. When present, the receipt preserves the attested
 `failure_class`; timeout receipts always carry
 `TIMEOUT_OR_INTERRUPTION`. The transport never emits a silent provider switch.
 
