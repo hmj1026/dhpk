@@ -2,7 +2,7 @@
 
 > **語言**: [English](./configuration.md) · **繁體中文**
 
-dhpk 在 `.claude-plugin/plugin.json` 中暴露 **70 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
+dhpk 在 `.claude-plugin/plugin.json` 中暴露 **76 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
 Claude 的預設 discovery artifact 是由
 `manifests/distribution-inventory.json` 產生的實體化 `minimal` profile，並非
@@ -51,6 +51,28 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 只在該次呼叫開放外部候選。沒有 flag 時，專案設定優先於安裝後的使用者設定，
 而 shipped 預設為 `false`。
 
+### Provider-neutral 派發設定
+
+canonical 派發設定分開表示 Host、Provider、Model、Role、Effort 與
+Transport。target 格式為 `provider/model[:effort]`，不可只給裸 Model 名稱。
+`auto` 會依目前 Host-native target 選取；`preference_order` 只在 Host policy
+與明確的 `cross_provider` opt-in 都允許時才會採用外部候選。
+
+| Key | 型別 | 預設值 | 用途 |
+|-----|------|--------|------|
+| `worker_target` | string | `auto` | `worker` Role 的 Provider-scoped target。 |
+| `reasoner_target` | string | `auto` | 唯讀 `reasoner` Role 的 Provider-scoped target。 |
+| `planner_target` | string | `auto` | 唯讀 `planner` Role 的 Provider-scoped target。 |
+| `reviewer_target` | string | `auto` | 唯讀 `reviewer` Role 的 Provider-scoped target。 |
+| `preference_order` | string[] | `[]` | 自動解析時的 Provider 或 Provider/Model 順序。 |
+| `fallback_allow` | boolean | `true` | 只允許 side effect 前已確認的 availability failure fallback。 |
+
+專案設定優先於安裝後的使用者設定。欄位無效時只將該欄位標為
+`BLOCKED`，不會污染其他設定。diagnostics 分開記錄 catalog support、Host
+access、runtime availability 與 fallback permission；靜態 catalog 或 package
+discovery 絕不是 runtime proof。既有 `fast_worker_*`、Provider-specific Model
+key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保留證據。
+
 ## 核心派發與 Review
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
@@ -73,7 +95,7 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 | `codex_reviewer_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reviewer` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。 |
 | `codex_reviewer_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reviewer` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_bridge_timeout_secs`。 |
 | `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 所有 Codex CLI 角色共用的 dispatcher deadline。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。解析後的值會寫入 immutable transport context，wrapper 不會從環境讀取它。 |
-| `agy_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
+| `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode，以及 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示，但多任務 OpenSpec 的 mandatory planner 與 verification gates 仍然有效。 |

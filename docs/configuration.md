@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./configuration.zh-TW.md)
 
-dhpk exposes **70 active `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
+dhpk exposes **76 active `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
 
 The default Claude discovery artifact is the materialized `minimal` profile,
 derived from `manifests/distribution-inventory.json`; it is not an unfiltered
@@ -53,6 +53,31 @@ the highest precedence and enables external candidates only for that
 invocation. Without the flag, project configuration wins over the installed
 user setting, and the shipped default is `false`.
 
+### Provider-neutral dispatch settings
+
+The canonical dispatch settings use separate Host, Provider, Model, Role,
+Effort, and Transport concepts. A target uses `provider/model[:effort]`; a
+bare model name is not sufficient. `auto` selects the current Host-native
+target, subject to the ordered `preference_order` and the explicit
+`cross_provider` opt-in for external candidates.
+
+| Key | Type | Default | Purpose |
+|-----|------|---------|---------|
+| `worker_target` | string | `auto` | Provider-scoped target for the `worker` Role. |
+| `reasoner_target` | string | `auto` | Provider-scoped target for the read-only `reasoner` Role. |
+| `planner_target` | string | `auto` | Provider-scoped target for the read-only `planner` Role. |
+| `reviewer_target` | string | `auto` | Provider-scoped target for the read-only `reviewer` Role. |
+| `preference_order` | string[] | `[]` | Ordered Provider or Provider/Model candidates for automatic resolution. |
+| `fallback_allow` | boolean | `true` | Permit fallback only after confirmed pre-side-effect availability failure. |
+
+Project values take precedence over installed-user values. Invalid fields are
+reported as `BLOCKED` without invalidating unrelated settings. Diagnostics keep
+catalog support, Host access, runtime availability, and fallback permission
+separate; static catalog membership or package discovery is never runtime proof.
+Legacy `fast_worker_*`, provider-specific model keys, and provider-bound Role
+aliases remain accepted only at the compatibility boundary and are recorded as
+translation evidence.
+
 ## Core dispatch & review
 
 | Key | Type | Default | Options | Purpose |
@@ -75,7 +100,7 @@ user setting, and the shipped default is `false`.
 | `codex_reviewer_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reviewer` dispatches. |
 | `codex_reviewer_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reviewer`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_bridge_timeout_secs`. |
 | `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared dispatcher deadline for all Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. The resolved value is copied into the immutable transport context, never read by a wrapper from its environment. |
-| `agy_worker_model` | string | `Gemini 3.6 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
+| `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes, plus `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
