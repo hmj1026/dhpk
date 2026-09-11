@@ -1,8 +1,11 @@
 # install-manifest-integrity Specification
 
 ## Purpose
+
 TBD - created by archiving change harness-consistency-audit. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Every shipped module is catalog-selectable
 
 Every module shipped under `modules/<id>/module.yaml` SHALL appear as a selectable entry (stack/version) in `manifests/module-catalog.json`, the interactive installer's single source of truth. The manifest-integrity check SHALL fail when a shipped module is absent from the catalog.
@@ -46,20 +49,25 @@ The manifest-integrity checks SHALL run as part of the repository's standard tes
 - **THEN** the suite fails with the manifest-integrity finding
 
 ### Requirement: Version-pin write guidance resolves symlinks
+
 Everywhere the plugin instructs a session to Write `.claude/dhpk-versions.json` or a consumer `CLAUDE.md` (version-diff draft entry, check-plugin-version advisory, claude-health plugin-sync fix delegation, install-rules, project-setup, and harness-fill), the guidance SHALL state that if the target is a symlink the session must resolve and Write the realpath, because the Write tool refuses symlinked targets.
 
 #### Scenario: Pin file is a symlink
+
 - **WHEN** a session follows the version-diff draft-entry instruction and `.claude/dhpk-versions.json` is a symlink
 - **THEN** the instruction directs it to Write to `realpath .claude/dhpk-versions.json`, avoiding the "Refusing to write through symlink" error
 
 ### Requirement: Installed-plugin resolvability of policy and goal scripts is tested
+
 The plugin validation suite SHALL assert that the packaged plugin layout resolves (a) `rules/execution-policy.md` at the path the goal orientation instruction references, and (b) every statically analyzable repository-relative `require()` or shell source edge reachable from scripts under `skills/opsx-apply-goal/scripts/`. Validation SHALL recurse through static local dependencies. `node:` built-ins require no packaged file. Bare external packages and dynamic paths SHALL be explicitly allow-listed by policy or fail with a diagnostic naming the owner file and unresolved reference. A missing or relocated local file SHALL fail validation before release, preventing consumer-side `Cannot find module` errors and POLICY-UNRESOLVED fallbacks.
 
 #### Scenario: Missing script dependency fails validation
+
 - **WHEN** a script under `skills/opsx-apply-goal/scripts/` references a module path absent from the packaged layout
 - **THEN** plugin validation fails with the unresolved path named
 
 #### Scenario: Execution-policy path resolves in the packaged layout
+
 - **WHEN** the packaged plugin is validated
 - **THEN** the orientation-referenced `rules/execution-policy.md` path resolves inside the package
 
@@ -97,8 +105,10 @@ The standard test entry point SHALL regenerate publication metadata in check mod
 - **THEN** the check observes identical selected IDs, provenance, fingerprints, and output bytes
 
 ### Requirement: Static and installed validations have distinct verdicts
+
 Plugin validation SHALL report repository path/manifest consistency separately from installed-package materialization. A static PASS SHALL NOT be emitted or documented as an installed-runtime PASS.
 
 #### Scenario: Repository paths resolve but installed cache is empty
+
 - **WHEN** static manifest validation passes and installed-cache discovery fails
 - **THEN** the combined report records static PASS, installed FAIL, and an overall native-support FAIL

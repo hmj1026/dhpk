@@ -1,8 +1,11 @@
 # provider-neutral-dispatch Specification
 
 ## Purpose
+
 TBD - created by archiving change provider-neutral-subagent-orchestration. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Canonical dispatch schemas are versioned and Provider-scoped
 
 The canonical Dispatch Engine Interface SHALL accept

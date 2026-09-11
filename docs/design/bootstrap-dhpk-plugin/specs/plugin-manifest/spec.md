@@ -37,7 +37,7 @@ The manifest SHALL define a `userConfig` block with these keys, in this exact sh
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `hook_profile` | string | `"standard"` | One of `minimal | standard | strict`; controls hook verbosity |
+| `hook_profile` | string | `"standard"` | One of `minimal \| standard \| strict`; controls hook verbosity |
 | `review_agents` | string (multiple) | `["code-reviewer", "database-reviewer", "security-reviewer", "frontend-reviewer", "doc-reviewer", "polyfill-reviewer", "migration-reviewer"]` | Seven slot-ordered agent names invoked by sentinel reminders; short overrides are padded from these defaults |
 | `docker_containers` | string (multiple) | `[]` | Container names checked at SessionStart; empty list disables the check |
 | `modules` | string (multiple) | `[]` | Activates per-stack-version modules from `modules/<name>/`; ships: `php-5.6`, `yii-1.1`, `phpunit-5.7`. See `modules-architecture` spec. |

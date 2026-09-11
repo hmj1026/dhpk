@@ -1,8 +1,11 @@
 # cursor-plugin-projection Specification
 
 ## Purpose
+
 TBD - created by archiving change align-agent-plugin-platform-support. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Cursor can consume the portable Agent Plugin unchanged
 
 The generated `agent-plugin` package SHALL be documented and tested as the

@@ -47,6 +47,7 @@ function isCursorBoilerplateLine(line) {
 function rewriteCursorSupportingAssetBody(body) {
   return String(body || '')
     .split(CODEX_SUPPORT_ROOT).join(CURSOR_SUPPORT_ROOT)
+    .split('.codex/artifacts').join('.cursor/artifacts')
     .split(CLAUDE_PLUGIN_ROOT_TOKEN + '/').join(CURSOR_SUPPORT_ROOT + '/')
     .split(CLAUDE_PLUGIN_ROOT_TOKEN).join(CURSOR_SUPPORT_ROOT);
 }

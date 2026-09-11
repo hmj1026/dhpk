@@ -1,6 +1,7 @@
 # harness-count-integrity Specification
 
 ## Purpose
+
 TBD - created by archiving change dhpk-harness-integrity-guards. Update Purpose after archive.
 
 ## Requirements
@@ -83,19 +84,24 @@ The count SSOT (`scripts/ci/catalog.js`) SHALL compute the number of MCP-backed 
 - **THEN** `node scripts/ci/catalog.js --check` prints PASS and exits zero
 
 ### Requirement: Inventory and publication counts are separate
+
 The count SSOT SHALL compute and label at least canonical, promoted-core, optional, experimental, deprecated, and per-host published skill counts. Documentation SHALL use the count whose scope matches the claim and SHALL NOT present canonical inventory as the default installed surface.
 
 #### Scenario: README claims all canonical skills are installed by default
+
 - **WHEN** the promoted-core count differs from the canonical skill count but README uses the canonical count for the default install
 - **THEN** catalog validation reports a scoped-count drift and exits non-zero
 
 #### Scenario: Lifecycle transition updates scoped counts
+
 - **WHEN** a skill moves from `promoted` to `deprecated`
 - **THEN** the canonical count remains unchanged, the promoted count decreases, and the deprecated count increases without manual arithmetic
 
 ### Requirement: Generated-package counts are verified from package contents
+
 Release validation SHALL compute the Claude and Codex published counts from the generated or staged package contents and reconcile them with the distribution inventory.
 
 #### Scenario: Generated Codex package omits a promoted skill
+
 - **WHEN** the inventory permits a promoted skill on the native Codex surface but the physical package lacks it
 - **THEN** the package count/content validation fails with the missing skill name

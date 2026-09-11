@@ -1,6 +1,7 @@
 # codex-dependency-docs Specification
 
 ## Purpose
+
 TBD - created by archiving change readme-doc-optimization. Update Purpose after archive.
 
 ## Requirements

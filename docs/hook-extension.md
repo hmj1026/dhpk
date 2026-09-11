@@ -11,7 +11,7 @@ them; optional events are not registered by default and are not silently active.
 
 | Event | Script | Deterministic responsibility |
 |---|---|---|
-| `PreToolUse(Edit|Write|MultiEdit)` | `pre-edit-guard.sh` | protected-path and secret safety |
+| `PreToolUse(Edit\|Write\|MultiEdit)` | `pre-edit-guard.sh` | protected-path and secret safety |
 | `PreToolUse(Bash)` | `pre-bash-dispatch.sh` | shell safety plus Git branch-safety gates |
 | `SessionStart` | `session-start.sh` | validate and activate configured modules |
 | `SubagentStop` | `subagent-stop-verify.sh` | clean up stopped fast-worker liveness state |

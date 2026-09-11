@@ -1,19 +1,25 @@
 # opsx-goal-stop-conditions Specification
 
 ## Purpose
+
 TBD - created by archiving change harvest-advice-20260711. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Blocked-on-human tasks satisfy the stop condition
+
 The goal template's exit-condition list SHALL include a clause allowing the session to stop when
 every remaining unchecked task is blocked on an action only a human can take (e.g. a PR awaiting
 human merge, credentials, deploy approval), provided each such task is annotated
 `[blocked: <reason>]` in tasks.md and a `.resume-note.md` is written.
 
 #### Scenario: All remaining work awaits a human PR merge
+
 - **WHEN** the session has completed every task it can and the only unchecked tasks depend on a human merging an open PR
 - **THEN** the session annotates those tasks as blocked, writes .resume-note.md, and ends the turn legally — the /goal evaluator accepts the stop instead of blocking it
 
 #### Scenario: A remaining task is actionable
+
 - **WHEN** at least one unchecked task is still actionable within the session
 - **THEN** the blocked-on-human clause does not apply and the session continues working
 

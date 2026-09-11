@@ -1,8 +1,11 @@
 # host-provider-capability-matrix Specification
 
 ## Purpose
+
 TBD - created by archiving change provider-neutral-subagent-orchestration. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Capability resolution combines Provider catalog and Host access
 
 The resolver SHALL combine a Provider Model Catalog with the current Host Access

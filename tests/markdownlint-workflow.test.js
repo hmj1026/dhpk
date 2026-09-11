@@ -30,6 +30,9 @@ test('Markdown lint job remains blocking and covers the intended asset globs', (
     'commands/**/*.md',
     'rules/**/*.md',
     'modules/**/*.md',
+    '.codex/agents/**/*.md',
+    '.codex/dhpk/**/*.md',
+    '.codex/skills/**/*.md',
   ]) {
     assert.ok(lintJob.includes(`            ${glob}`), `missing Markdown lint glob: ${glob}`);
   }

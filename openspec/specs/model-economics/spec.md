@@ -1,6 +1,7 @@
 # model-economics Specification
 
 ## Purpose
+
 TBD - created by archiving change orchestrator-token-economics. Update Purpose after archive.
 
 ## Requirements
@@ -16,6 +17,7 @@ quality-first exception, while the global default remains `gpt-5.6-luna` at
 `medium`.
 
 #### Scenario: Codex tier guidance resolves to one document
+
 - **WHEN** a reader needs the model or effort rationale for a Codex role
 - **THEN** the role projection and related guidance point to
   `rules/model-economics.md`
@@ -23,6 +25,7 @@ quality-first exception, while the global default remains `gpt-5.6-luna` at
   duplicated
 
 #### Scenario: Maximum-effort exception is documented
+
 - **WHEN** a reader compares `worker` or `tdd-guide` with other high-frequency
   roles
 - **THEN** the document explains the quality and retry-cost reason for `max`
@@ -39,14 +42,17 @@ quality-first exception, while the global default remains `gpt-5.6-luna` at
 These SHALL reuse the existing configured-role mechanism: the value is passed on the `Agent` call, agent frontmatter is never edited, an invalid value warns once per session and falls back to the frontmatter default (never failing the dispatch), and the effective values are announced at session start only when they differ from the shipped defaults. No `reviewer_model` or reviewer-effort key is added — reviewers keep the sonnet floor and the review gate is unchanged.
 
 #### Scenario: Effort override is applied per dispatch without editing frontmatter
+
 - **WHEN** `fast_worker_effort=low` is configured and a `fast-worker` dispatch occurs
 - **THEN** the orchestrator passes `effort=low` on that `Agent` call and the agent's frontmatter file is left unmodified
 
 #### Scenario: All-defaults path stays silent
+
 - **WHEN** none of the three keys differs from its shipped default
 - **THEN** session start emits no additional announcement for them (token discipline preserved)
 
 #### Scenario: Invalid effort value falls back, never fails
+
 - **WHEN** an effort key holds a value the running Claude Code does not support
 - **THEN** the dispatch warns once per session and falls back to the agent frontmatter's effort, and the dispatch still runs
 
@@ -55,10 +61,12 @@ These SHALL reuse the existing configured-role mechanism: the value is passed on
 `skills/harness-budget` SHALL include a tier-economics detection pass that, for each `agents/*.md`, reads the `model:` and `effort:` frontmatter and flags cost-posture mismatches — for example a read-only discovery role on opus, a mechanical role at `high` effort, or a high-frequency reviewer on an expensive tier. The pass SHALL complement, not replace, the existing token-size audit, and its output SHALL include a per-role tier/effort table with a cost-posture verdict.
 
 #### Scenario: Expensive-tier discovery role is flagged
+
 - **WHEN** `harness-budget` runs against an agent set containing a read-only discovery role pinned to opus
 - **THEN** the tier-economics pass flags it as a cost-posture mismatch in its per-role table
 
 #### Scenario: Size audit is preserved
+
 - **WHEN** the tier-economics pass runs
 - **THEN** the existing token-size audit (bloated descriptions, heavy files, MCP over-subscription) still runs and reports alongside it
 
@@ -117,11 +125,13 @@ map:
 | `monitor` | `gpt-5.6-luna` | `low` |
 
 #### Scenario: Role metadata matches the approved map
+
 - **WHEN** runtime contract tests inspect every direct role
 - **THEN** each role's model and effort equal the map above
 - **AND** every active Codex role uses the GPT-5.6 family
 
 #### Scenario: Global defaults do not erase role exceptions
+
 - **WHEN** a role file explicitly sets model or effort
 - **THEN** its explicit values take precedence over the global defaults
 - **AND** the global defaults are `gpt-5.6-luna` and `medium`
@@ -135,11 +145,13 @@ parallel subagent work) rather than sticker price alone. It SHALL NOT invent a
 Codex custom-agent token-limit field that the runtime does not support.
 
 #### Scenario: High-frequency review avoids unnecessary frontier cost
+
 - **WHEN** a normal code review has no high-risk escalation trigger
 - **THEN** it runs on the approved Terra/medium baseline
 - **AND** a higher-cost escalation is reserved for a documented risk condition
 
 #### Scenario: Quality-first implementation keeps max effort
+
 - **WHEN** `worker` or `tdd-guide` is dispatched for implementation/test-first
   work
 - **THEN** it uses Luna/max as the approved quality-first exception

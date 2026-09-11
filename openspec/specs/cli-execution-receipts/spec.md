@@ -1,10 +1,13 @@
 # cli-execution-receipts Specification
 
 ## Purpose
+
 Define one fail-closed transport boundary for Codex and AGY CLI dispatches,
 including immutable caller authority, restricted named runtimes, exact provider
 argv/stdin shapes, and contained terminal evidence.
+
 ## Requirements
+
 ### Requirement: External CLI dispatch uses one attested normalized request
 
 Every supported external Provider execution SHALL enter a provider-neutral

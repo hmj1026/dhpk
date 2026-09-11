@@ -1,8 +1,11 @@
 # harness-component-gate Specification
 
 ## Purpose
+
 TBD - created by archiving change dhpk-harness-integrity-guards. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Adding a component requires a documented justification
 
 `rules/execution-policy.md` SHALL require that any change adding a new reviewer agent, a new

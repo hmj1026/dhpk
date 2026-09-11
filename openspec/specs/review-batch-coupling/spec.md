@@ -1,8 +1,11 @@
 # review-batch-coupling Specification
 
 ## Purpose
+
 TBD - created by archiving change harden-opsx-goal-policy-fallbacks. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Documentation review checks normatively coupled documents
 
 The `doc-reviewer` SHALL inspect an already in-scope OpenSpec `spec.md` or `design.md` when it normatively governs an implementation or policy file in the same review batch and a finding pattern is identified.

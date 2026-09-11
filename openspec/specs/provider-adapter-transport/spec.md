@@ -1,8 +1,11 @@
 # provider-adapter-transport Specification
 
 ## Purpose
+
 TBD - created by archiving change provider-neutral-subagent-orchestration. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Every supported Provider fills one execution Adapter contract
 
 Each supported Provider SHALL expose an Adapter that accepts a resolved

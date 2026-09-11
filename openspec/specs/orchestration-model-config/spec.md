@@ -1,8 +1,11 @@
 # orchestration-model-config Specification
 
 ## Purpose
+
 TBD - created by archiving change dhpk-orchestration-workers. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: userConfig keys for role models and the dispatch switch
 
 The configuration contract SHALL support Host-aware Provider/Model/Effort
@@ -132,22 +135,27 @@ delegates containment to a shell timeout backstop.
   dispatch or applies the permitted Host-native fallback
 
 ### Requirement: CLI-backed worker model defaults are lockstep across all declaration sites
+
 A CLI-backed worker's default model string is declared in more than one file — the `userConfig` schema, the agent definition and its index entry, the wrapper script's usage text, the economics rule table, the configuration docs in every shipped language, the session-start default-detection expression, the test fixtures, **and any spec requirement that quotes the shipped default as normative text** (see the `model-economics` capability, whose tier-map requirement names the default inline). When that default changes, every declaration site SHALL be updated in the same change.
 
 The enumeration above SHALL be read as covering both shipped files and governing spec text. Treating it as a list of shipped files only is the failure mode that let a live spec requirement keep pinning a superseded default while the rule file it governs moved on. In particular, `scripts/hooks/session-start.sh` compares the effective value against the shipped default to decide whether to announce a non-default configuration; leaving a stale literal there SHALL be treated as a defect, because it makes every session report a non-default worker model that is in fact the default.
 
 #### Scenario: Default change updates every site
+
 - **WHEN** the shipped default for a CLI-backed worker model is changed
 - **THEN** the `userConfig` default, agent definition, agent index, wrapper usage text, economics table, all localized configuration docs, session-start comparison, test fixtures, and every spec requirement quoting that default as normative text all carry the new value
 
 #### Scenario: Stale session-start literal is a defect
+
 - **WHEN** the default model is changed but the session-start comparison still names the previous value
 - **THEN** the session announces a non-default worker model on every start, and this is treated as a defect rather than cosmetic drift
 
 #### Scenario: Spec text quoting a default is a declaration site
+
 - **WHEN** a live spec requirement names a shipped default inline as normative text
 - **THEN** that requirement is updated in the same change as the shipped files, so the governed file never contradicts the requirement governing it
 
 #### Scenario: Overrides continue to layer
+
 - **WHEN** a project or global config overrides the worker model after the default changes
 - **THEN** the override still wins over the new shipped default with unchanged layering semantics

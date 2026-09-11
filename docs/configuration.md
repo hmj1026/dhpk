@@ -93,7 +93,7 @@ translation evidence.
 | `codex_worker_model` | string | `gpt-5.6-luna` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-worker` dispatches. Resolved via the standard layering (project pluginConfigs > global pluginConfigs > shipped default) and passed into `run-codex.sh`. Codex model names rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Legacy alias: `codex_fast_worker_model`. |
 | `codex_worker_effort` | string | `xhigh` | any effort the codex CLI accepts (e.g. `low` \| `medium` \| `high` \| `xhigh`) | `model_reasoning_effort` passed to the codex CLI backend for `codex-worker` dispatches — the strong mechanical tier. Legacy alias: `codex_fast_worker_effort`. |
 | `codex_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-worker`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_fast_worker_timeout_secs`. |
-| `codex_reasoner_model` | string | `gpt-5.6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex` in a read-only sandbox. Legacy alias: `codex_deep_reasoner_model`. |
+| `codex_reasoner_model` | string | `gpt-5.6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex-cli/<model>[:<effort>]` in a read-only sandbox. The bare `--reasoner=codex` value is a compatibility shorthand. Legacy alias: `codex_deep_reasoner_model`. |
 | `codex_reasoner_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reasoner` dispatches. Legacy alias: `codex_deep_reasoner_effort`. |
 | `codex_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed at dispatch time. Legacy alias: `codex_deep_reasoner_timeout_secs`. |
 | `codex_reviewer_model` | string | `gpt-5.6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reviewer` (internal-only in this rollout; not directly dispatchable). |
@@ -151,7 +151,7 @@ Current dhpk capabilities run with the in-process model or an explicit CLI
 backend. No active skill or command requires a Codex MCP server. The current
 CLI-only review path is `change-verdict --mode code --backend cli`;
 its sibling CLI roles are `codex-worker`, `codex-reasoner`, `codex-reviewer`,
-and `dhpk-codex-bridge`. Use `--worker=codex`, `--reasoner=codex`, or an
+and `dhpk-codex-bridge`. Use `--worker=codex`, `--reasoner=codex-cli/<model>[:<effort>]`, or an
 explicit `codex exec` second opinion when a Codex CLI transport is wanted.
 
 ### Historical: Codex MCP server (retired)
@@ -196,7 +196,8 @@ the retired MCP mechanism and needs no server registration.
 The `CODEX=on` and `/dhpk:do --codex` flags were legacy per-session MCP-peer
 interfaces. They are removed, are not persisted `userConfig` values, and are
 not silently reinterpreted as `codex exec`, `--worker=codex`,
-`--reasoner=codex`, or the external plugin. Use `/dhpk:flow-drive` for
+`--reasoner=codex-cli/<model>[:<effort>]`, or the external plugin. The bare
+`--reasoner=codex` value remains a compatibility shorthand. Use `/dhpk:flow-drive` for
 current-model implementation, select a CLI role explicitly when needed, and
 request a second opinion by its named `codex exec` opt-in.
 

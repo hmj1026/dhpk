@@ -1,8 +1,11 @@
 # nextjs-stack-modules Specification
 
 ## Purpose
+
 TBD - created by archiving change add-nextjs-modules. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Each Next.js version module has a consistent name/skill/frontmatter triple
 
 Each `modules/nextjs-<version>/module.yaml` SHALL declare a `name` equal to its own directory name, and each entry in its `provides.skills` list SHALL equal both the skill's directory name under `modules/nextjs-<version>/skills/` and the `name` field in that skill's `SKILL.md` frontmatter. `scripts/ci/validate-modules.js` SHALL fail (or warn, per its existing FAIL/WARN split) when any of the three do not match.

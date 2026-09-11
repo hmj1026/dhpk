@@ -1,6 +1,7 @@
 # consumer-runtime-preflight Specification
 
 ## Purpose
+
 Provide a bounded, redacted preflight contract that proves an authenticated
 consumer runner is ready to execute exact-head runtime evidence without exposing
 credentials or promoting preflight success to release completion.

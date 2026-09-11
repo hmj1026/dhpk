@@ -39,7 +39,7 @@ Names are deliberately different across host surfaces:
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
 | Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
 | Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
-| Codex guidance entry | `$flow-guide <help|route|rules|next|close> [--go] [query]` after discovery | `$flow-guide help flow-drive` |
+| Codex guidance entry | `$flow-guide <help\|route\|rules\|next\|close> [--go] [query]` after discovery | `$flow-guide help flow-drive` |
 | Codex implementation entry | `$flow-drive <confirmed-spec-or-change-id>` after discovery | `$flow-drive my-change-id --plan` |
 
 Codex built-in commands (`/hooks`, `/agent`) are not dhpk custom `/dhpk:*`

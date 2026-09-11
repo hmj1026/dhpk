@@ -65,7 +65,7 @@ accepts only these options:
 $flow-drive <change-id> --plan
 $flow-drive <change-id> --plan=opus:xhigh
 $flow-drive <change-id> --worker=claude|codex|agy|auto
-$flow-drive <change-id> --reasoner=codex:gpt-5.6-sol:high
+$flow-drive <change-id> --reasoner=codex-cli/gpt-5.6-sol:high
 $flow-drive <change-id> --architect
 $flow-drive <change-id> --no-architect
 ```

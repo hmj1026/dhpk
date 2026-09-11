@@ -1,8 +1,11 @@
 # consumer-evidence-normalization Specification
 
 ## Purpose
+
 TBD - created by archiving change normalize-consumer-evidence. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Consumer evidence has one stage-bound per-surface contract
 
 The release evidence layer SHALL normalize every supported consumer result into a stage-bound record containing the surface, adapter identity/version when available, verdict/status, commands, environment, artifacts, diagnostics, failure reasons, and applicable `DistributionPlan` and `DistributionArtifact` fingerprints. Normalization MUST preserve the producer's positive and non-positive evidence rather than flattening it into an opaque reason string.

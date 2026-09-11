@@ -1,34 +1,45 @@
 # multi-ai-sync-manifest-provenance Specification
 
 ## Purpose
+
 TBD - created by archiving change scope-multi-ai-sync-validation-to-configured-platforms. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Codex sync manifest is required only for parity-managed agent output
+
 `multi-ai-sync` SHALL require `.codex/agents/sync-manifest.json` only when the requested operation or an existing managed-state marker establishes that multi-ai parity apply owns the Codex agent output. The manifest SHALL identify its owner and schema version.
 
 #### Scenario: Multi-ai parity apply owns Codex agents
+
 - **WHEN** validation inspects Codex agent output created or managed by multi-ai parity apply
 - **THEN** a missing, malformed, or ownership-mismatched sync manifest reports `FAIL`
 
 #### Scenario: Parity receipt is valid
+
 - **WHEN** parity-managed Codex agent output has a manifest with the expected owner, schema version, and managed entries
 - **THEN** validation uses the receipt to verify managed output
 
 ### Requirement: Standard Codex installation does not imply parity ownership
+
 A repository that uses the standard Codex skill installer without multi-ai parity apply SHALL validate its installed skill contract without requiring `.codex/agents/sync-manifest.json`.
 
 #### Scenario: Installer-only repository has no parity manifest
+
 - **WHEN** `install-codex-skills.sh` installed or updated skills and no parity ownership marker exists
 - **THEN** validation does not fail because `.codex/agents/sync-manifest.json` is absent
 
 #### Scenario: Standard installation and parity apply coexist
+
 - **WHEN** a repository uses the standard skill installer and separately applies parity-managed Codex agents
 - **THEN** skill installation follows the installer contract while agent output follows the parity manifest contract
 
 ### Requirement: Validation reports which installation contract was selected
+
 The validation report SHALL state whether Codex was checked as a standard installation, parity-managed output, both, or `NOT_CONFIGURED`, and SHALL list the evidence used to select that contract.
 
 #### Scenario: User investigates a missing manifest result
+
 - **WHEN** validation completes for a configured Codex target
 - **THEN** the report identifies the selected ownership contract and the marker or operation that selected it
 

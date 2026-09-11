@@ -224,6 +224,7 @@ manifest or discovery result SHALL NOT upgrade runtime support.
   package receipt, and redacted probe evidence
 
 ### Requirement: AGY prompt and confirmation channels stay compatible
+
 AGY SHALL retain the attested `-p` prompt argument because its supported stream
 prompt mode consumes stdin. It SHALL send only exact bounded `Y\n` confirmation
 on stdin, never inherit caller stdin, and never silently retry another transport.
