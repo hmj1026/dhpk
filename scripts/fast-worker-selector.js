@@ -6,6 +6,13 @@ const {
   VALID_BACKENDS,
   resolveDispatchPlan,
 } = require('./lib/native-dispatch-policy');
+const {
+  SCHEMAS,
+  createDispatchRequest,
+} = require('./lib/dispatch-contract');
+const { resolveTarget } = require('./lib/dispatch-engine');
+
+const DEFAULT_CATALOG = require('../manifests/provider-model-catalog.json');
 
 const BACKENDS = VALID_BACKENDS;
 const DEFAULT_ORDER = Object.freeze([...BACKENDS]);
@@ -64,7 +71,63 @@ const blocked = (requested, selected, reason, metadata = {}) => ({
   ...metadata,
 });
 
-const select = (options, dependencies = {}) => {
+const canonicalRequest = (options) => {
+  if (options.request !== undefined) return createDispatchRequest(options.request);
+  const hostProfile = options.host_profile || options.hostProfile;
+  if (!hostProfile) throw new TypeError('canonical worker selection requires host_profile');
+  const descriptionDigest = options.description_digest || '0'.repeat(64);
+  const promptEvidence = options.prompt_evidence || {
+    path: `${options.workdir || process.cwd()}/.dhpk/prompt.txt`,
+    dev: 0,
+    ino: 0,
+    sha256: '0'.repeat(64),
+  };
+  return createDispatchRequest({
+    schema: SCHEMAS.REQUEST,
+    host_profile: hostProfile,
+    task_id: options.task_id || 'fast-worker-task',
+    attempt_id: options.attempt_id || 'fast-worker-attempt',
+    role: 'worker',
+    authority: 'workspace-write',
+    task: options.task || { description_digest: descriptionDigest },
+    scope: options.scope || {
+      workdir: options.workdir || process.cwd(),
+      assigned_files: options.assigned_files || [],
+      prompt_evidence: promptEvidence,
+    },
+    ...(options.target === undefined ? {} : { target: options.target }),
+    effort: options.effort || 'medium',
+    fallback: options.fallback || { allow: false, retry_budget: 0 },
+    parallelism: options.parallelism || { dependencies: [], max_concurrency: 1 },
+  });
+};
+
+const selectCanonical = (options) => {
+  const request = canonicalRequest(options);
+  const resolution = resolveTarget(request, {
+    catalog: options.catalog || DEFAULT_CATALOG,
+    ...(options.preference_order === undefined ? {} : { preferenceOrder: options.preference_order }),
+  });
+  const selected = resolution.status === 'RESOLVED';
+  return {
+    status: selected ? 'selected' : 'blocked',
+    request: resolution.request,
+    requested_target: resolution.requested_target,
+    selected_target: resolution.target,
+    capability: resolution.capability,
+    capability_status: resolution.capability.status,
+    resolution_status: resolution.status,
+    resolution_source: 'dispatch-engine',
+    reason: resolution.reason || resolution.capability.evidence,
+    fallback: 'none',
+    rejected_candidates: resolution.rejected_candidates,
+  };
+};
+
+const select = (options = {}, dependencies = {}) => {
+  if (options.request !== undefined || options.host_profile !== undefined || options.hostProfile !== undefined) {
+    return selectCanonical(options);
+  }
   const requested = ['auto', ...BACKENDS].includes(options.backend) ? options.backend : 'claude';
   const fallback = ['none', 'claude'].includes(options.fallback) ? options.fallback : 'none';
   const configuredOrder = String(options.order).split(',').map((item) => item.trim()).filter(Boolean);
