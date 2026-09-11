@@ -71,7 +71,7 @@ function main(argv = process.argv.slice(2)) {
     moduleCatalog: readJson('manifests/module-catalog.json'),
     profileId: args.profile,
     skillIds: args.skillIds,
-    standaloneSkillIds: args.standaloneSkillIds,
+    ...(args.standaloneSkillIds.length > 0 ? { standaloneSkillIds: args.standaloneSkillIds } : {}),
   });
   if (!compiled.ok) {
     console.error(`FAIL [gen-claude-profile-bundles]: ${compiled.error.message}`);
