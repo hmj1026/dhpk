@@ -42,7 +42,7 @@ function promptEvidence(promptFile) {
 }
 
 function withStub(fn) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'run-agy-'));
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'run-agy-')));
   try {
     const binDir = path.join(dir, 'bin');
     fs.mkdirSync(binDir);
@@ -64,7 +64,7 @@ function writeContext(ctx, overrides = {}) {
   fs.mkdirSync(artifactRoot, { recursive: true, mode: 0o700 });
   fs.chmodSync(artifactRoot, 0o700);
   const sequence = (ctx.sequence = (ctx.sequence || 0) + 1);
-  const model = overrides.model === undefined ? 'Gemini 3.6 Flash (High)' : overrides.model;
+  const model = overrides.model === undefined ? 'Gemini 3.8 Flash (High)' : overrides.model;
   const requestedRole = overrides.role || 'agy-fast-worker';
   const effectiveRole = requestedRole === 'agy-fast-worker' ? 'agy-worker' : requestedRole;
   const context = {
@@ -95,7 +95,7 @@ function runWrapper(ctx, args, { contextPath, toolsDir, env = {} } = {}) {
 
 test('direct legacy AGY call without attested context is BLOCKED before provider execution', () => {
   withStub((ctx) => {
-    const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)']);
+    const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)']);
     assert.strictEqual(result.status, 65, result.stderr);
     assert.ok(/BLOCKED.*context/i.test(result.stderr), result.stderr);
     assert.ok(!fs.existsSync(ctx.argvOut));
@@ -107,7 +107,7 @@ test('restricted PATH explicitly supplies python3, omits timeout/gtimeout, and p
     const { contextPath, receiptPath } = writeContext(ctx);
     const toolsDir = buildToolsOnlyDir(REQUIRED_TOOLS);
     try {
-      const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'], { contextPath, toolsDir });
+      const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath, toolsDir });
       assert.strictEqual(result.status, 0, result.stderr);
       const argv = fs.readFileSync(ctx.argvOut, 'utf8');
       for (const flag of ['--dangerously-skip-permissions', '--mode', 'accept-edits', '--add-dir', '--model', '--print-timeout', '-p']) {
@@ -129,7 +129,7 @@ test('attested runtime path without named python3 blocks before AGY can execute'
     const toolsDir = buildToolsOnlyDir(REQUIRED_TOOLS.filter((name) => name !== 'python3'));
     try {
       const { contextPath } = writeContext(ctx, { runtimePath: `${ctx.binDir}:${toolsDir}` });
-      const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'], { contextPath, toolsDir });
+      const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath, toolsDir });
       assert.strictEqual(result.status, 65, result.stderr);
       assert.ok(!fs.existsSync(ctx.argvOut));
     } finally { fs.rmSync(toolsDir, { recursive: true, force: true }); }
@@ -142,7 +142,7 @@ test('external bootstrap-python override never executes', () => {
     const marker = path.join(ctx.dir, 'untrusted-bootstrap-ran');
     const evilPython = path.join(ctx.dir, 'evil-python3');
     fs.writeFileSync(evilPython, `#!/bin/sh\nprintf ran > '${marker}'\nexit 91\n`, { mode: 0o755 });
-    const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'], {
+    const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], {
       contextPath, env: { DHPK_CLI_TRANSPORT_PYTHON3: evilPython },
     });
     assert.strictEqual(result.status, 0, result.stderr);
@@ -158,7 +158,7 @@ test('Python startup paths cannot execute before AGY context validation', () => 
     const marker = path.join(ctx.dir, 'python-startup-ran');
     try {
       fs.writeFileSync(path.join(poison, 'sitecustomize.py'), `open(${JSON.stringify(marker)}, 'w').write('ran')\n`);
-      const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'], {
+      const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], {
         contextPath,
         env: { PYTHONPATH: poison },
       });
@@ -183,7 +183,7 @@ test('runner owns the bounded timeout and persists a contained 0600 TIMEOUT rece
   withStub((ctx) => {
     const { contextPath, receiptPath } = writeContext(ctx, { timeoutSecs: 1 });
     fs.writeFileSync(path.join(ctx.dir, 'agy-sleep-secs'), '4');
-    const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'], { contextPath });
+    const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath });
     assert.strictEqual(result.status, 124, result.stderr);
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     assert.strictEqual(receipt.status, 'TIMEOUT');
@@ -195,7 +195,7 @@ test('provider failure and an empty structured report remain terminal FAILED rec
   withStub((ctx) => {
     const failed = writeContext(ctx);
     fs.writeFileSync(path.join(ctx.dir, 'agy-exit-code'), '7');
-    const providerFailure = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'], {
+    const providerFailure = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], {
       contextPath: failed.contextPath,
     });
     assert.strictEqual(providerFailure.status, 7, providerFailure.stderr);
@@ -206,7 +206,7 @@ test('provider failure and an empty structured report remain terminal FAILED rec
     fs.unlinkSync(path.join(ctx.dir, 'agy-exit-code'));
     fs.writeFileSync(path.join(ctx.dir, 'agy-empty'), '');
     const empty = writeContext(ctx);
-    const emptyResult = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'], { contextPath: empty.contextPath });
+    const emptyResult = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath: empty.contextPath });
     assert.strictEqual(emptyResult.status, 1, emptyResult.stderr);
     assert.strictEqual(JSON.parse(fs.readFileSync(empty.receiptPath, 'utf8')).status, 'FAILED');
   });
