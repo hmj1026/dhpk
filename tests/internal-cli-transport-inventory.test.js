@@ -16,13 +16,15 @@ test('internal transport is registered everywhere but excluded from invokable ge
   assert.ok(!generated.generatedSkillIds.includes('cli-transport'));
 
   const expectedRuntimeSupport = ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge'];
-  for (const surface of ['agent-plugin', 'cursor-plugin', 'agy-plugin']) {
+  for (const surface of ['agent-plugin', 'cursor-plugin']) {
     assert.deepStrictEqual(
       inventory.internal_runtime_skills[surface],
       expectedRuntimeSupport,
       `${surface} must explicitly carry the non-invokable transport runtime`,
     );
   }
+  assert.deepStrictEqual(inventory.internal_runtime_skills['agy-plugin'], [...expectedRuntimeSupport, 'flow-guide'],
+    'AGY must explicitly carry the flow-guide runtime closure');
   assert.deepStrictEqual(inventory.internal_runtime_skills['codex-native'], ['cli-dispatch-context', 'cli-transport'],
     'Codex sync must materialize its transport runtime outside capability selection');
 

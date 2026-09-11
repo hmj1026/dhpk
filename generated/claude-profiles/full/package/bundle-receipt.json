@@ -2,6 +2,63 @@
   "schema": "dhpk.claude-capability-bundle.v1",
   "surface": "claude-profile",
   "profile": {
+    "emittedStableIds": [
+      "agent-architecture-audit",
+      "agy-fast-worker",
+      "change-verdict",
+      "code-trace",
+      "codex-bridge",
+      "composer-package-hygiene",
+      "deploy-list",
+      "fastapi-pro",
+      "feature-verify",
+      "flow-drive",
+      "flow-guide",
+      "git-smart-commit",
+      "gitnexus-cli",
+      "gitnexus-debugging",
+      "gitnexus-exploring",
+      "gitnexus-guide",
+      "gitnexus-impact-analysis",
+      "gitnexus-refactoring",
+      "harness-govern",
+      "ios-icon-gen",
+      "ios-platform",
+      "issue-analyze",
+      "js-lint-config",
+      "js-static-check-strategy",
+      "laravel-package-author",
+      "laravel-testbench-matrix",
+      "legacy-code-characterization",
+      "library-dual-testsuite-map",
+      "matrix-cell-onboard",
+      "openspec-artifact-guard",
+      "opsx-apply-goal",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "php-pro",
+      "php56-yii-dev",
+      "polyfill-version-matrix-audit",
+      "project-audit",
+      "project-setup",
+      "prompt-optimize",
+      "pytest-async",
+      "python-pro",
+      "python-static-checks",
+      "release-creator",
+      "repo-intake",
+      "session-usage-audit",
+      "skill-forge",
+      "skill-scope",
+      "software-architecture",
+      "swift-language",
+      "swift-test-strategy",
+      "swiftui-architecture",
+      "tdd",
+      "vue-2-notes",
+      "xcode-build-tooling",
+      "yii1-security-audit"
+    ],
     "excludes": [
       "laravel-10",
       "laravel-11",
@@ -22,7 +79,7 @@
       "react-19"
     ],
     "id": "full",
-    "inventoryFingerprint": "991fda431c44e3f8ab4470498480124da2f02ef51c295d44f3b83615f598ef22",
+    "inventoryFingerprint": "eb70993720beb4a2df0e527db911f228ff346214224e11f935c45ac8d67e06a6",
     "mode": "profile",
     "modules": [
       "fastapi",
@@ -42,10 +99,67 @@
     ],
     "profileFingerprint": "7415422214d9b959789b7ed6e34c4cef7d46476e82be0f389f476618a4ed73b4",
     "profileId": "full",
-    "selectionFingerprint": "2ca99575548e927d9167e085660b68761aaa16d2399999b2471e122755a4c1e7",
+    "selectedStableIds": [
+      "agent-architecture-audit",
+      "agy-fast-worker",
+      "change-verdict",
+      "code-trace",
+      "codex-bridge",
+      "composer-package-hygiene",
+      "deploy-list",
+      "fastapi-pro",
+      "feature-verify",
+      "flow-drive",
+      "flow-guide",
+      "git-smart-commit",
+      "gitnexus-cli",
+      "gitnexus-debugging",
+      "gitnexus-exploring",
+      "gitnexus-guide",
+      "gitnexus-impact-analysis",
+      "gitnexus-refactoring",
+      "harness-govern",
+      "ios-icon-gen",
+      "ios-platform",
+      "issue-analyze",
+      "js-lint-config",
+      "js-static-check-strategy",
+      "laravel-package-author",
+      "laravel-testbench-matrix",
+      "legacy-code-characterization",
+      "library-dual-testsuite-map",
+      "matrix-cell-onboard",
+      "openspec-artifact-guard",
+      "opsx-apply-goal",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "php-pro",
+      "php56-yii-dev",
+      "polyfill-version-matrix-audit",
+      "project-audit",
+      "project-setup",
+      "prompt-optimize",
+      "pytest-async",
+      "python-pro",
+      "python-static-checks",
+      "release-creator",
+      "repo-intake",
+      "session-usage-audit",
+      "skill-forge",
+      "skill-scope",
+      "software-architecture",
+      "swift-language",
+      "swift-test-strategy",
+      "swiftui-architecture",
+      "tdd",
+      "vue-2-notes",
+      "xcode-build-tooling",
+      "yii1-security-audit"
+    ],
+    "selectionFingerprint": "477ed4f41cce3028943710f7756d5956c06fb8631f7dee5532ffb68c43e006b7",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "79ab2fb294d2d69c0ca9e30f56fa63d588197a6d558ebebe11101bf5990f36b8",
-    "surfaceSelectionFingerprint": "9adcd1b87b02f4dc8c02f0d407e22388259e4568c597f37b265719a91514e553",
+    "surfaceSelectionFingerprint": "de80e7730cddc502d65ca05f4dcebc972cc86ce0606ed8db259b8b4a0d6ae9db",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -157,8 +271,204 @@
       "destination": "skills/flow-drive/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:flow-drive:scripts/invocation.js",
+      "destination": "skills/flow-drive/scripts/invocation.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:skill-package.json",
+      "destination": "skills/flow-drive/skill-package.json"
+    },
+    {
       "stableId": "claude-profile:skill:flow-guide",
       "destination": "skills/flow-guide/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/anti-loop.md",
+      "destination": "skills/flow-guide/references/anti-loop.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/codex-mode.md",
+      "destination": "skills/flow-guide/references/codex-mode.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/codex-usage-catalog.json",
+      "destination": "skills/flow-guide/references/codex-usage-catalog.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/component-addition-policy.md",
+      "destination": "skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/delivery-core.md",
+      "destination": "skills/flow-guide/references/delivery-core.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/delivery-loop-gate.md",
+      "destination": "skills/flow-guide/references/delivery-loop-gate.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/deterministic-first.md",
+      "destination": "skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/dispatch-and-gates.md",
+      "destination": "skills/flow-guide/references/dispatch-and-gates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/handoff-and-verification.md",
+      "destination": "skills/flow-guide/references/handoff-and-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/implementation-dispatch.md",
+      "destination": "skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/invocation-classification.md",
+      "destination": "skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/invocation-precedence.md",
+      "destination": "skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/output-shape.md",
+      "destination": "skills/flow-guide/references/output-shape.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/premise-verification.md",
+      "destination": "skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/profile-and-project-overrides.md",
+      "destination": "skills/flow-guide/references/profile-and-project-overrides.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/progression-tables.md",
+      "destination": "skills/flow-guide/references/progression-tables.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/projects-generic.md",
+      "destination": "skills/flow-guide/references/projects-generic.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/projects-index.md",
+      "destination": "skills/flow-guide/references/projects-index.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/review-gate-mechanics.md",
+      "destination": "skills/flow-guide/references/review-gate-mechanics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/route-result.schema.json",
+      "destination": "skills/flow-guide/references/route-result.schema.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/route-table.json",
+      "destination": "skills/flow-guide/references/route-table.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/script-operations.md",
+      "destination": "skills/flow-guide/references/script-operations.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/squash-merge-hygiene.md",
+      "destination": "skills/flow-guide/references/squash-merge-hygiene.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/task-modes.md",
+      "destination": "skills/flow-guide/references/task-modes.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/testing-policy.md",
+      "destination": "skills/flow-guide/references/testing-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/work-item-and-gates.md",
+      "destination": "skills/flow-guide/references/work-item-and-gates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-analysis.md",
+      "destination": "skills/flow-guide/references/workflow-analysis.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-bugfix.md",
+      "destination": "skills/flow-guide/references/workflow-bugfix.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-checklists.md",
+      "destination": "skills/flow-guide/references/workflow-checklists.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-feature-delivery.md",
+      "destination": "skills/flow-guide/references/workflow-feature-delivery.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-lightweight.md",
+      "destination": "skills/flow-guide/references/workflow-lightweight.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/runtime-loader.js",
+      "destination": "skills/flow-guide/scripts/_lib/runtime-loader.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/action-runner.js",
+      "destination": "skills/flow-guide/scripts/action-runner.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/analyze.js",
+      "destination": "skills/flow-guide/scripts/analyze.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/openspec_gate_check.py",
+      "destination": "skills/flow-guide/scripts/openspec_gate_check.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/pre-route.sh",
+      "destination": "skills/flow-guide/scripts/pre-route.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/prepare_dev_scope.py",
+      "destination": "skills/flow-guide/scripts/prepare_dev_scope.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/prepare_workflow_profile.py",
+      "destination": "skills/flow-guide/scripts/prepare_workflow_profile.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/route-result.js",
+      "destination": "skills/flow-guide/scripts/route-result.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/usage-card.js",
+      "destination": "skills/flow-guide/scripts/usage-card.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/workflow_gate_check.py",
+      "destination": "skills/flow-guide/scripts/workflow_gate_check.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:skill-package.json",
+      "destination": "skills/flow-guide/skill-package.json"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:references/execution-policy.md",
+      "destination": "skills/flow-guide/references/execution-policy.md"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:references/execution-policy-kernel.md",
+      "destination": "skills/flow-guide/references/execution-policy-kernel.md"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/skill-usage.js",
+      "destination": "skills/flow-guide/scripts/_lib/skill-usage.js"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/utils.js",
+      "destination": "skills/flow-guide/scripts/_lib/utils.js"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/feature-resolver.js",
+      "destination": "skills/flow-guide/scripts/_lib/feature-resolver.js"
     },
     {
       "stableId": "claude-profile:skill:git-smart-commit",
@@ -499,5 +809,15 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "2f371f2191173d977e4274d852e0260ec1dbc0d6ca05a9794c06d3d709216870"
+  "skillPackageClosure": [
+    {
+      "id": "flow-drive",
+      "version": "1.0.0"
+    },
+    {
+      "id": "flow-guide",
+      "version": "1.0.0"
+    }
+  ],
+  "planFingerprint": "b572b59be68c1a9915a713466aadafd985dcbb3b5926b36634956d098f8a5708"
 }

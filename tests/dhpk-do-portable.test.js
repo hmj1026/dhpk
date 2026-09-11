@@ -449,7 +449,7 @@ test('[3.3] missing observation remains not-configured and never guesses availab
   assertV3Shape(result);
   assert.strictEqual(result.target.id, 'flow-guide');
   assert.strictEqual(result.availability, 'not-configured');
-  assert.strictEqual(result.disposition, 'ready');
+  assert.strictEqual(result.disposition, 'blocked');
   assert.match(result.requiredEvidence.join(' '), /not configured|verify/i);
 });
 

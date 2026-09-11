@@ -20,9 +20,9 @@ test('resolves declared runtime support without making it an invokable selection
   assert.strictEqual(entry.discoveryVisible, false);
   assert.deepStrictEqual([...entry.surfaces].sort(), [...source.surfaces].sort());
   assert.deepStrictEqual(INTERNAL_RUNTIME_SURFACES, ['agent-plugin', 'cursor-plugin', 'agy-plugin', 'codex-native']);
-  for (const surface of ['agent-plugin', 'cursor-plugin', 'agy-plugin']) {
-    assert.deepStrictEqual(runtimeSupportSkillIds(source, surface), expected);
-  }
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'agent-plugin'), expected);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'cursor-plugin'), expected);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'agy-plugin'), [...expected, 'flow-guide']);
   assert.deepStrictEqual(runtimeSupportSkillIds(source, 'codex-native'), ['cli-dispatch-context', 'cli-transport']);
 });
 

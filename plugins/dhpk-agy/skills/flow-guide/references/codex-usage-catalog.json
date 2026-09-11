@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:3326f40b08f7a4559678186023f0e4f5025dfd37308f4f7fe5c7c3e26bb21775",
+  "sourceInventoryRevision": "sha256:fde361493550740e69dbe1b0d2eed5cbe953512fd0a0f13fa01003fad87f2769",
   "entries": [
     {
       "id": "code-trace",
@@ -359,7 +359,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<backend>:<model>:<effort>] [--architect|--no-architect]",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--cross-provider] [--reasoner=<backend>[:<model>[:<effort>]]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
@@ -400,8 +400,18 @@
             ]
           },
           {
+            "id": "cross-provider",
+            "syntax": "--cross-provider",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Permit configured external worker candidates for this invocation",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
             "id": "reasoner",
-            "syntax": "--reasoner=<backend>:<model>:<effort>",
+            "syntax": "--reasoner=<backend>[:<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
             "summary": "Request a bounded second opinion",
@@ -447,7 +457,7 @@
           }
         ]
       },
-      "usageFingerprint": "4c6bc399314e7a97110e103b8e3c085f1f15230a3356367f522bc5c554405dcd"
+      "usageFingerprint": "0bf149699c41a4d705af9b9f4a310ac22ba62a7dc525ca0c7fb466cc78098cba"
     },
     {
       "id": "flow-guide",

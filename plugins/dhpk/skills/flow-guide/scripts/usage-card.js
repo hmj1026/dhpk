@@ -7,11 +7,12 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { loadRuntimeModule } = require('./_lib/runtime-loader');
 const {
   CATALOG_SCHEMA,
   renderSkillUsageCard,
   validateSkillUsage,
-} = require('../../../scripts/lib/skill-usage');
+} = loadRuntimeModule('skill-usage');
 
 const DEFAULT_ROOT = path.resolve(__dirname, '../../..');
 

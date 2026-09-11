@@ -1,6 +1,6 @@
 ---
 name: flow-drive
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<claude|codex|agy|auto>] [--reasoner=<backend>:<model>:<effort>] [--architect|--no-architect]'
+argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<claude|codex|agy|auto>] [--cross-provider] [--reasoner=<backend>[:<model>[:<effort>]]] [--architect|--no-architect]'
 description: 'Explicit-only implementation workflow for a confirmed specification or OpenSpec change whose target and acceptance contract are settled. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: ordered implementation and verification evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
@@ -54,7 +54,8 @@ action.
 
 - `--plan[=<model>:<effort>]` requests a planning pass.
 - `--worker=<claude|codex|agy|auto>` selects an explicitly requested worker.
-- `--reasoner=<backend>:<model>:<effort>` requests a bounded second opinion.
+- `--cross-provider` permits configured external candidates for `--worker=auto` for this invocation only.
+- `--reasoner=<backend>[:<model>[:<effort>]]` requests a bounded second opinion.
 - `--architect` or `--no-architect` controls the architecture pass.
 - `--codex` is a retired diagnostic and produces a blocking report; it never
   grants a peer, backend, or execution shortcut.
@@ -71,12 +72,20 @@ states.
 
 ## References
 
-- `rules/execution-policy.md` — invocation, planning, dispatch, and handoff
-  policy.
+- `skill-package.json` — package-local invocation runtime and the declared
+  `flow-guide` dependency; projections must retain this closure without
+  duplicating editable authoring content.
+- `skills/flow-guide/references/execution-policy.md` — the package-local
+  dependency-closure projection of the invocation, planning, dispatch, and
+  handoff policy. It is sourced once from the canonical policy file; do not
+  infer it from an ambient checkout path.
 - `skills/flow-guide/SKILL.md` — route, rules, progression, closeout, and usage
   discovery owner.
-- `docs/agent-guidance/writing-for-agents.md` — document boundaries when the
-  confirmed change edits agent-facing instructions.
+- `docs/agent-guidance/writing-for-agents.md` — canonical-checkout-only
+  authoring guidance for changes to agent-facing instructions. Generated
+  packages do not promise this optional document; if it is requested outside
+  the canonical checkout, report `BLOCKED_RESOURCE_MISSING` rather than
+  traversing an ambient parent path.
 
 ## Verification
 

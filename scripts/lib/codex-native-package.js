@@ -29,6 +29,7 @@ const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const { resolveSkillPackageClosure, skillPackageClosureReceipt, runtimeAssetsForSkill } = require('./workflow-package-closure');
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
@@ -393,6 +394,11 @@ function compileNativePackage({
     inventory,
     selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
   );
+  const materializedSkills = resolveSkillPackageClosure(resolvedRoot, nativeSelection.materialized, {
+    availableEntries: inventory.skills,
+    surface: 'codex-native',
+  });
+  const skillPackageClosure = skillPackageClosureReceipt(resolvedRoot, materializedSkills);
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
@@ -400,7 +406,7 @@ function compileNativePackage({
   const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
     ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
     : undefined;
-  for (const skill of nativeSelection.materialized) {
+  for (const skill of materializedSkills) {
     const publicName = skill.name || skill.id;
     const sourcePath = skill.path;
     if (typeof sourcePath !== 'string' || !sourcePath || path.posix.normalize(sourcePath) !== sourcePath || path.posix.isAbsolute(sourcePath) || sourcePath.startsWith('../')) {
@@ -414,7 +420,13 @@ function compileNativePackage({
       throw new Error(`native skill '${publicName}' source SKILL.md frontmatter name '${sourceFrontmatterName || '(missing)'}' does not match public name '${publicName}'`);
     }
     const skillFiles = nativeSourceFiles(sourceDir, '', { budget: traversalBudget });
-    fingerprints[publicName] = nativeSkillFingerprint(skillFiles);
+    const runtimeAssets = runtimeAssetsForSkill(resolvedRoot, skill.id);
+    const fingerprintFiles = [...skillFiles];
+    for (const asset of runtimeAssets) {
+      const content = traversalBudget.readFile(asset.source, fs.statSync(asset.source)).toString('utf8');
+      fingerprintFiles.push({ destination: asset.destination, content });
+    }
+    fingerprints[publicName] = nativeSkillFingerprint(fingerprintFiles);
     const skillTransform = { id: 'codex-native-skill', version: generatorVersion };
     const skillMetadata = skillProjectionMetadata(skill, {
       transform: skillTransform,
@@ -430,6 +442,18 @@ function compileNativePackage({
         file.content,
         skillTransform,
         file.mode,
+        skillMetadata,
+      ));
+    }
+    for (const asset of runtimeAssets) {
+      const content = traversalBudget.readFile(asset.source, fs.statSync(asset.source)).toString('utf8');
+      files.push(nativeOutputRecord(
+        `runtime:${skill.id}:${asset.destination}`,
+        asset.source,
+        path.posix.join('skills', publicName, asset.destination),
+        content,
+        { id: 'codex-native-workflow-runtime', version: generatorVersion },
+        0o644,
         skillMetadata,
       ));
     }
@@ -463,6 +487,7 @@ function compileNativePackage({
     selectedSkillNames,
     materializedSkillIds,
     materializedSkillNames,
+    skillPackageClosure,
     runtimeSupportStableIds: nativeSelection.runtimeSupportStableIds,
     fingerprints,
     routingProjection,

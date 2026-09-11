@@ -112,7 +112,11 @@ test('route --go can produce one bounded handoff only for an implicit-eligible t
   const result = api.createRouteResult({
     host: 'claude',
     argv: ['--go', 'trace', 'how', 'this', 'code', 'works'],
-    observed: { invocationClasses: { 'code-trace': 'implicit-eligible' } },
+    observed: {
+      invocationClasses: { 'code-trace': 'implicit-eligible' },
+      published: ['code-trace'],
+      discovered: ['code-trace'],
+    },
   });
   assert.strictEqual(result.options.go, true);
   assert.ok(result.target, 'the fixture query must resolve a distinct trace owner');

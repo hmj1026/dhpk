@@ -51,6 +51,7 @@ function createSurfaceReceipt({
   usageFingerprints = null,
   usage = null,
   skillProvenance = null,
+  skillPackageClosure = null,
 } = {}) {
   if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) {
     throw new Error(`unknown provenance surface: ${surface}`);
@@ -84,6 +85,7 @@ function createSurfaceReceipt({
     ...(usageFingerprints ? { usageFingerprints } : {}),
     ...(usage ? { usage } : {}),
     ...(skillProvenance ? { skillProvenance } : {}),
+    ...(Array.isArray(skillPackageClosure) ? { skillPackageClosure: skillPackageClosure.map((entry) => ({ ...entry })) } : {}),
     evidence,
   };
 }
@@ -196,6 +198,23 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
   if (receipt.skillProvenance !== undefined
     && (!receipt.skillProvenance || typeof receipt.skillProvenance !== 'object' || Array.isArray(receipt.skillProvenance))) {
     errors.push('provenance skillProvenance must be an object when present');
+  }
+  if (receipt.skillPackageClosure !== undefined) {
+    if (!Array.isArray(receipt.skillPackageClosure)) errors.push('provenance skillPackageClosure must be an array when present');
+    else {
+      const seen = new Set();
+      for (const dependency of receipt.skillPackageClosure) {
+        if (!dependency || typeof dependency.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(dependency.id)) {
+          errors.push('provenance skillPackageClosure entries must have safe ids');
+          continue;
+        }
+        if (seen.has(dependency.id)) errors.push(`provenance skillPackageClosure contains duplicate id '${dependency.id}'`);
+        seen.add(dependency.id);
+        if (typeof dependency.version !== 'string' || !VERSION.test(dependency.version)) {
+          errors.push(`provenance skillPackageClosure version for '${dependency.id}' must be SemVer`);
+        }
+      }
+    }
   }
 
   const validationContext = context && typeof context === 'object' ? context : {};

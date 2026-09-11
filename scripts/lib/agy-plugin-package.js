@@ -18,6 +18,7 @@ const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const { readSkillPackageManifest, resolveSkillPackageClosure, skillPackageClosureReceipt, runtimeAssetsForSkill, validateSkillPackageManifest } = require('./workflow-package-closure');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -220,7 +221,7 @@ function inventorySkillMap(inventory) {
   return new Map([...(inventory && inventory.skills || []), ...(inventory && inventory.modules || [])].map((entry) => [entry.id, entry]));
 }
 
-function selectedConfiguration(inventory, profileSelection = null) {
+function selectedConfiguration(inventory, profileSelection = null, root = null) {
   const configuration = inventory && inventory.agy_plugin;
   if (!configuration || typeof configuration !== 'object') throw new Error('inventory.agy_plugin is required');
   const compiled = compileDistribution({
@@ -252,10 +253,16 @@ function selectedConfiguration(inventory, profileSelection = null) {
   });
   const agents = [...new Set(configuration.agents)].sort();
   const rules = [...new Set(configuration.rules)].sort();
+  const skillsWithClosure = root
+    ? resolveSkillPackageClosure(root, skills, {
+      availableEntries: inventory.skills,
+      surface: SURFACE,
+    })
+    : skills;
   return {
     agents,
     rules,
-    skills,
+    skills: skillsWithClosure,
     runtimeSkillIds,
     selection: {
       compiler: { id: 'distribution-compiler', version: compiled.value.compilerVersion },
@@ -384,7 +391,8 @@ function materializeAgyPluginPackage({
     profileSelection = bound.value;
   }
   const sourceRoot = assertPhysicalDirectory(root, 'canonical root');
-  const selected = selectedConfiguration(inventory, profileSelection);
+  const selected = selectedConfiguration(inventory, profileSelection, sourceRoot);
+  const skillPackageClosure = skillPackageClosureReceipt(sourceRoot, selected.skills);
   const inventoryRevision = resolveInventoryRevision(inventory);
   const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
     ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
@@ -451,19 +459,61 @@ function materializeAgyPluginPackage({
       sanitizeMarkdownLinks(adaptAgySkillContent(sourceContent, selectedSkillIds), source, sourceRoot),
       { mode: 0o644 },
     );
-    const referencesSource = path.join(sourceRoot, skill.path, 'references');
-    if (lstatOrNull(referencesSource)) {
-      const referencesTarget = path.join(skillsDestination, skillPath, 'references');
-      copyDirectory(referencesSource, referencesTarget, sourceRoot, outputRoot, {
-        transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
-      });
+    const packageManifest = path.join(sourceRoot, skill.path, 'skill-package.json');
+    let packageResourcesCopied = false;
+    if (lstatOrNull(packageManifest)) {
+      const packageValidation = validateSkillPackageManifest(sourceRoot, skill.id);
+      if (!packageValidation.ok) throw new Error(packageValidation.errors.join('; '));
+      copyFileContained(
+        packageManifest,
+        path.join(skillsDestination, skillPath, 'skill-package.json'),
+        sourceRoot,
+        outputRoot,
+      );
+      const packageManifestData = readSkillPackageManifest(sourceRoot, skill.id);
+      for (const resource of packageManifestData.resources || []) {
+        if (!resource || resource.path === 'SKILL.md') continue;
+        const resourceSource = path.join(sourceRoot, skill.path, resource.path);
+        const resourceTarget = path.join(skillsDestination, skillPath, resource.path);
+        const resourceStat = lstatOrNull(resourceSource);
+        if (!resourceStat) {
+          if (resource.required !== false) throw new Error(`required AGY skill package resource is missing: ${skill.id}/${resource.path}`);
+          continue;
+        }
+        packageResourcesCopied = true;
+        if (resourceStat.isDirectory()) {
+          copyDirectory(resourceSource, resourceTarget, sourceRoot, outputRoot, {
+            transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+          });
+        } else {
+          copyFileContained(resourceSource, resourceTarget, sourceRoot, outputRoot, {
+            transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+          });
+        }
+      }
     }
-    if (runtimeSkillIds.has(skill.id)) {
-      const scriptsSource = path.join(sourceRoot, skill.path, 'scripts');
-      const scriptsTarget = path.join(skillsDestination, skillPath, 'scripts');
-      copyDirectory(scriptsSource, scriptsTarget, sourceRoot, outputRoot, {
-        transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
-      });
+    if (!packageResourcesCopied) {
+      const referencesSource = path.join(sourceRoot, skill.path, 'references');
+      if (lstatOrNull(referencesSource)) {
+        const referencesTarget = path.join(skillsDestination, skillPath, 'references');
+        copyDirectory(referencesSource, referencesTarget, sourceRoot, outputRoot, {
+          transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+        });
+      }
+      if (runtimeSkillIds.has(skill.id)) {
+        const scriptsSource = path.join(sourceRoot, skill.path, 'scripts');
+        const scriptsTarget = path.join(skillsDestination, skillPath, 'scripts');
+        copyDirectory(scriptsSource, scriptsTarget, sourceRoot, outputRoot, {
+          transform: (content, sourceFile) => sanitizeMarkdownLinks(content, sourceFile, sourceRoot),
+        });
+      }
+    }
+    for (const asset of runtimeAssetsForSkill(sourceRoot, skill.id)) {
+      const runtimeTarget = path.join(skillsDestination, skillPath, asset.destination);
+      if (lstatOrNull(runtimeTarget)) {
+        throw new Error(`AGY runtime asset destination collides with an existing package file: ${skill.id}/${asset.destination}`);
+      }
+      copyFileContained(asset.source, runtimeTarget, sourceRoot, outputRoot);
     }
   }
 
@@ -485,6 +535,7 @@ function materializeAgyPluginPackage({
     inventoryDigest: legacyInventoryDigest(inventory),
     fingerprints,
     inventoryRevision,
+    skillPackageClosure,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     route: { sourceRoot: 'agents/, rules/, skills/', packageRoot: 'plugins/dhpk-agy/' },
     generatorVersion,
@@ -578,6 +629,28 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
       .filter((skill) => selected.runtimeSkillIds.includes(skill.id))
       .map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/scripts/`)
     : [];
+  const expectedSkillPackageFiles = selected
+    ? new Set(selected.skills.map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/skill-package.json`))
+    : new Set();
+  const expectedSkillPackageResourceFiles = new Set();
+  const expectedSkillPackageResourceRoots = [];
+  if (selected) {
+    for (const skill of selected.skills) {
+      const skillRoot = `skills/${skill.path.replace(/^skills\//, '')}`;
+      const manifestPath = path.join(root, skillRoot, 'skill-package.json');
+      if (!lstatOrNull(manifestPath)) continue;
+      let packageManifest;
+      try { packageManifest = readJson(manifestPath, `skill package manifest '${skill.id}'`); }
+      catch (error) { errors.push(error.message); continue; }
+      for (const resource of packageManifest.resources || []) {
+        if (!resource || resource.path === 'SKILL.md') continue;
+        const relative = `${skillRoot}/${resource.path}`;
+        const stat = lstatOrNull(path.join(root, relative));
+        if (stat && stat.isDirectory()) expectedSkillPackageResourceRoots.push(`${relative}/`);
+        else expectedSkillPackageResourceFiles.add(relative);
+      }
+    }
+  }
   const expectedComponentFiles = selected
     ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles])
     : null;
@@ -592,8 +665,11 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     }
     const isExpectedSkillReference = expectedSkillReferenceRoots.some((prefix) => relative.startsWith(prefix));
     const isExpectedRuntimeScript = expectedSkillRuntimeScriptRoots.some((prefix) => relative.startsWith(prefix));
+    const isExpectedSkillPackage = expectedSkillPackageFiles.has(relative);
+    const isExpectedSkillPackageResource = expectedSkillPackageResourceFiles.has(relative)
+      || expectedSkillPackageResourceRoots.some((prefix) => relative.startsWith(prefix));
     if (expectedComponentFiles && COMPONENT_ROOTS.has(base)
-      && !expectedComponentFiles.has(relative) && !isExpectedSkillReference && !isExpectedRuntimeScript) {
+      && !expectedComponentFiles.has(relative) && !isExpectedSkillReference && !isExpectedRuntimeScript && !isExpectedSkillPackage && !isExpectedSkillPackageResource) {
       errors.push(`undeclared AGY package file: ${relative}`);
     }
     const absolute = path.join(root, relative);

@@ -35,18 +35,21 @@ keep required, skipped, unavailable, and failed evidence distinct.
 
 ## `help`
 
-Run `node skills/flow-guide/scripts/usage-card.js` for the generated Codex
-catalog, or add one public skill name for a single usage card. Help is metadata
+Run `node skills/flow-guide/scripts/action-runner.js help` (or the underlying
+`usage-card.js`) for the generated Codex catalog, or add one public skill name
+for a single usage card. Help is metadata
 only: it never invokes the named skill, loads its procedural references, or
 grants workspace, Git, or external-write authority. An unknown name and a known
 non-Codex skill receive different diagnostics.
 
 ## `route`
 
-1. Parse the action query with `scripts/route-result.js`.
+1. Parse the action query with `scripts/action-runner.js`; its route branch
+   delegates to `scripts/route-result.js`.
 2. Match `references/route-table.json` through `scripts/pre-route.sh`; the
    first precise match wins. A miss remains a deliberate-classification case.
-3. Apply `rules/execution-policy.md` and the target's invocation class.
+3. Apply the package-local `references/execution-policy.md` projection and
+   the target's invocation class.
 4. Without `--go`, return advice only. With `--go`, produce at most one
    bounded handoff for an available implicit-eligible target. An explicit-only
    target is reported as `explicit-required`; it is never dispatched here.
@@ -61,14 +64,16 @@ The result has exactly `schema`, `action`, `host`, `cleanedQuery`, `options`,
 
 ## `rules`
 
-Read `rules/execution-policy.md` first. Use
+Read the package-local `references/execution-policy.md` projection first (its
+canonical authoring source is `rules/execution-policy.md`). Use
 `references/invocation-precedence.md` when more than one owner appears to
 match, and load the phase-specific delivery reference only after the phase is
 known. Return the source pointer, applicable gate, and one next handoff.
 
 ## `next`
 
-Run `node skills/flow-guide/scripts/analyze.js` and parse its JSON. Report the
+Run `node skills/flow-guide/scripts/action-runner.js next` (which delegates to
+the package-local analyzer) and parse its JSON. Report the
 current branch/worktree evidence, each required or unavailable gate, and one
 next route. If the script cannot run, record the fallback evidence and the
 reason instead of treating the missing check as a pass.
@@ -82,6 +87,9 @@ risks, and the next handoff. Use `references/handoff-and-verification.md` and
 needed. Never claim commit, merge, release, deployment, or archive completion
 from a local closeout report.
 
+The action runner emits a `manual-evidence-required` report for `rules` and
+`close`; this is a pointer and evidence boundary, not a gate PASS.
+
 ## Output
 
 ```text
@@ -94,9 +102,16 @@ execution and completion evidence.
 
 ## References
 
+`skill-package.json` is this skill's package boundary. Generated projections
+carry its declared resources/runtime assets; compilers materialize dependency
+closure and bind it to the surface receipt. Runtime lookup is fail-closed:
+package-local first; a canonical checkout marker permits `scripts/lib`, while
+an installed projection may use only explicit `DHPK_SOURCE_ROOT` or `PLUGIN_ROOT`.
+Ambient upward discovery and remote URLs are not fallbacks; missing resources report `BLOCKED_RESOURCE_MISSING`.
+
 - `references/route-table.json`, `references/route-result.schema.json`,
-  `scripts/pre-route.sh`, and `scripts/route-result.js` — deterministic route
-  contract and matcher.
+  `scripts/pre-route.sh`, `scripts/route-result.js`, and
+  `scripts/action-runner.js` — deterministic route contract and matcher.
 - `scripts/usage-card.js` and `references/codex-usage-catalog.json` —
   progressively disclosed Codex grammar.
 - `references/invocation-precedence.md` — competing-owner resolution.
@@ -130,8 +145,6 @@ execution and completion evidence.
 
 ## Verification
 
-- [ ] Exactly one action was selected and its completion criterion is met.
-- [ ] Only action-relevant references and scripts were loaded.
-- [ ] Required, skipped, unavailable, and failed gates are distinct.
-- [ ] A route report was validated as `dhpk.route-result.v3`.
+- [ ] Exactly one action was selected and its completion criterion is met; only action-relevant references and scripts were loaded.
+- [ ] Required, skipped, unavailable, and failed gates are distinct; a route report was validated as `dhpk.route-result.v3`.
 - [ ] No target was executed and no target authority was inherited.

@@ -21,7 +21,7 @@ file does not duplicate its tables.
 ## Invocation and route boundary
 
 Command entry points parse flags once through the immutable
-`skills/flow-drive/scripts/route-result.js` boundary. Downstream policy consumes that route
+`skills/flow-guide/scripts/route-result.js` boundary. Downstream policy consumes that route
 result and must not reconstruct precedence from the cleaned query. The target
 invocation class still applies: an `explicit-only` target is presented with
 its exact command form rather than called through a delegated Skill handoff.
