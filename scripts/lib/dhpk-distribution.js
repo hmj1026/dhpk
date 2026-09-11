@@ -280,7 +280,7 @@ function runCodex(operation, context) {
     return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, errors: validation.errors } }, context);
   }
   if (operation === 'verify') {
-    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-native-verify-'));
+    const temporary = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-codex-native-verify-'));
     try {
       // A receipt records the commit that materialized this projection.  It is
       // provenance, not source content: comparing it to the command's current

@@ -21,7 +21,7 @@ const {
 const ROOT = path.join(__dirname, '..');
 
 function tmpDir(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  return fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), prefix));
 }
 
 function packageFiles(root, relative = '') {

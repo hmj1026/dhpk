@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.58.0 — 2026-09-11 — Provider-neutral subagent orchestration, platform gates, and CLI context portability
+
+**fix(cli-dispatch-context)** — Make CLI context creation portable and race-safe on macOS by writing through a pinned parent descriptor.
+**fix(macos-portability)** — Make harness skill path checks compatible with BSD and GNU realpath implementations.
+**docs(markdown-format)** — Unify tracked Markdown formatting and tighten agent-facing documentation contracts across canonical and generated documentation surfaces.
+
 ## 0.57.1 — 2026-09-11 — Release parity fixes and macOS platform compatibility
 
 **fix(release)** — Claude profile packages (minimal, full, compat-v1) are now kept in version parity with the plugin release, and the release gate fails on drift.

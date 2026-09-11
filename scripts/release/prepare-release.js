@@ -548,7 +548,7 @@ function main() {
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: args.root, encoding: 'utf8' }).trim();
   const targetTree = resolveGeneratedFromTree(args.root, sourceCommit);
   if (!targetTree) throw new Error('unable to resolve release target source tree');
-  const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-packages-'));
+  const stagingRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-release-packages-'));
   const stagedNative = path.join(stagingRoot, 'dhpk');
   const stagedAgent = path.join(stagingRoot, 'dhpk-agent');
   const stagedCursor = path.join(stagingRoot, 'dhpk-cursor');
