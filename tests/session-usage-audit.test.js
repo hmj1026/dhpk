@@ -136,7 +136,8 @@ test('discoverSources only returns known agent roots and transcript files', () =
   }));
   fs.writeFileSync(path.join(home, '.claude', 'agents', 'code-reviewer.md'), '# agent\n');
   fs.writeFileSync(path.join(home, '.codex', 'agents', 'planner.md'), '# agent\n');
-  fs.writeFileSync(path.join(home, 'private', 'should-not-scan.jsonl'), '{}\n');
+  const excludedFixturePath = path.join(home, 'private', 'should-not-scan.jsonl');
+  fs.writeFileSync(excludedFixturePath, '{}\n');
 
   const result = audit.discoverSources(home);
   assert.ok(result.sources.some((source) => source.path.endsWith('/.claude/projects/demo/s.jsonl')));
@@ -149,7 +150,7 @@ test('discoverSources only returns known agent roots and transcript files', () =
   const report = audit.runAudit({ argv: ['--date', '2026-08-06'], home, timeZone: 'UTC', testFixtureHome: true });
   assert.ok(!JSON.stringify(report.coverage.installedAgents).includes(slackToken));
   assert.ok(result.omittedSources.some((source) => source.status === 'UNSUPPORTED' && source.path.endsWith('/.config/orca/orchestration.db')));
-  assert.ok(!result.sources.some((source) => source.path.includes('/private/')));
+  assert.ok(!result.sources.some((source) => source.path === excludedFixturePath));
 });
 
 test('discoverSources records unavailable adapter roots instead of silently claiming full coverage', () => {

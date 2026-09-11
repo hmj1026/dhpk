@@ -116,6 +116,20 @@ jobs:
         run: node tests/install-codex-skills.test.js
       - name: Cursor installer tests
         run: node tests/install-cursor-harness.test.js
+      - name: CLI dispatch launcher tests
+        run: node tests/cli-dispatch-launcher.test.js
+      - name: Installer tests
+        run: node tests/install.test.js
+      - name: Session audit tests
+        run: TMPDIR=/private/tmp node tests/session-usage-audit.test.js
+      - name: Consumer gate tests
+        run: TMPDIR=/private/tmp node tests/consumer-gate-cli.test.js
+      - name: AGY platform tests
+        run: node tests/multi-ai-sync-agy-platform.test.js
+      # Linux-only cgroup/timeout cases are reported as SKIP_INCOMPATIBLE on
+      # Darwin; the required fail-closed suite runs in the Ubuntu validate job.
+      - name: Bounded runner platform classification
+        run: node tests/run-bounded-node-test.test.js
 
   lint:
     name: Markdown lint
