@@ -75,7 +75,13 @@ else
   exit 2
 fi
 
-skills_root="$(realpath -e -- "$ROOT/skills" 2>/dev/null)" || {
+# Both paths are required to exist before canonicalization, so use the
+# portable BSD/GNU realpath form rather than GNU-only -e/-- options.
+if [ ! -d "$ROOT/skills" ]; then
+  echo "run-skill: canonical skills root is unavailable; refusing to execute" >&2
+  exit 2
+fi
+skills_root="$(realpath "$ROOT/skills" 2>/dev/null)" || {
   echo "run-skill: canonical skills root is unavailable; refusing to execute" >&2
   exit 2
 }
@@ -85,7 +91,7 @@ if [ ! -f "$target" ]; then
   exit 2
 fi
 
-canonical_target="$(realpath -e -- "$target" 2>/dev/null)" || {
+canonical_target="$(realpath "$target" 2>/dev/null)" || {
   echo "run-skill: script target is unavailable or cannot be canonicalized: $target" >&2
   exit 2
 }
