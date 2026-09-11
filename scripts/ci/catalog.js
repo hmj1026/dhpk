@@ -142,6 +142,7 @@ function retiredCodexMcpErrors(counts, inventory) {
 // feature name rather than a name/name-aspect derived from the script's own
 // basename (so the naming-convention check below can't find them automatically).
 const COVERAGE_MAP = {
+  'scripts/fast-worker-selector.js': 'fast-worker-selection.test.js',
   'scripts/hooks/_lib/payload.sh': 'subagent-stop-quality.test.js',
   'scripts/ci/catalog.js': 'catalog-claims.test.js',
   'scripts/ci/reconcile-skill-mirrors.js': 'gen-cursor-sync.test.js',
