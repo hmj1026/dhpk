@@ -2,117 +2,132 @@
 
 ## Purpose
 TBD - created by archiving change dhpk-orchestration-workers. Update Purpose after archive.
-
 ## Requirements
-
 ### Requirement: userConfig keys for role models and the dispatch switch
-`.claude-plugin/plugin.json` `userConfig` SHALL define three new keys: `deep_reasoner_model` (string, default `opus`), `fast_worker_model` (string, default `sonnet`), and `orchestration_dispatch` (string `on`/`off`, default `on`). The generic pass-through loader (`scripts/hooks/_lib/load-project-config.sh`) SHALL be verified — by test, not by code edit — to export the three keys with the standard layering: project pluginConfigs > global pluginConfigs > shipped default. Its known-keys comment SHALL be updated to mention them.
 
-#### Scenario: Project-level override wins
-- **WHEN** the global config sets `deep_reasoner_model=opus` and the project's `settings.local.json` pluginConfig sets `deep_reasoner_model=sonnet`
-- **THEN** the effective value is `sonnet`
+The configuration contract SHALL support Host-aware Provider/Model/Effort
+resolution for `planner`, `reasoner`, `worker`, and `reviewer`. Canonical
+configuration MAY select a Provider-scoped Model and normalized Effort per Role;
+the current Host profile and Capability Matrix SHALL determine whether the
+selection is available. Existing Claude role keys and
+`orchestration_dispatch` remain compatibility inputs during migration, with
+project configuration taking precedence over global configuration and shipped
+defaults.
+
+#### Scenario: Project-level Provider-scoped override wins
+
+- **WHEN** global configuration selects `claude-code/opus5` and the project's
+  Host policy selects `codex-cli/sol5.6` for `reasoner`
+- **THEN** the project value is the effective target, subject to capability and
+  authority validation
+
+#### Scenario: Host native default is contextual
+
+- **WHEN** no Provider/Model override is configured
+- **THEN** the effective default comes from the current Host profile rather than
+  a Claude-specific literal
 
 ### Requirement: Session-start surfacing of the effective configuration
-`scripts/hooks/session-start.sh` SHALL emit one line — `orchestration: deep=<model> worker=<model>` (plus `dispatch=off` when disabled) — only when at least one value differs from the shipped default or the switch is off. With all defaults, nothing is emitted (token discipline).
+
+Session-start diagnostics SHALL surface only non-default Provider, Model, Effort,
+fallback, or dispatch values and SHALL identify the current Host. With all
+defaults, no orchestration line is emitted. Diagnostics SHALL not claim a
+Provider is available merely because it appears in a static catalog.
 
 #### Scenario: Defaults produce no output
-- **WHEN** no orchestration key is overridden
+
+- **WHEN** no orchestration value differs from the current Host defaults
 - **THEN** session-start prints no orchestration line
 
-#### Scenario: Override announced
-- **WHEN** `fast_worker_model=haiku` is configured
-- **THEN** session start includes `orchestration: deep=opus worker=haiku`
+#### Scenario: External target is announced
+
+- **WHEN** Cursor selects Claude Code Opus5 for a reasoner pass
+- **THEN** session-start identifies the Host, Provider, Model, and normalized
+  Effort when the value is non-default
 
 ### Requirement: Per-dispatch application via the Agent model param
-The orchestrator SHALL apply configured role models by passing the `model` param on each worker Agent call when the configured value differs from the agent's frontmatter default. Frontmatter stays the shipped default; no frontmatter templating. Judgment-based single-dispatch escalation (the existing Model tier rule inside execution-policy §Agent dispatch, e.g. raising one HIGH-risk dispatch to opus) remains allowed and takes precedence for that dispatch.
 
-#### Scenario: Configured value applied
-- **WHEN** `deep_reasoner_model=sonnet` is announced at session start
-- **THEN** deep-reasoner dispatches carry `model: sonnet` on the Agent call
+The orchestrator SHALL apply a resolved Provider-scoped Model and normalized
+Effort through the selected Adapter or native invocation contract. It SHALL not
+pass Claude Agent model parameters to an external Provider Adapter. A one-off
+escalation MAY request a different target only when the dispatch policy records
+the reason and the Capability Matrix validates it.
 
-#### Scenario: One-off escalation still allowed
-- **WHEN** the worker task is a HIGH-risk diff per the Model tier rule (§Agent dispatch)
-- **THEN** the orchestrator may raise that single dispatch's model above the configured value, stating the reason
+#### Scenario: Configured external value is applied
+
+- **WHEN** `reasoner` resolves to Codex CLI `sol5.6` at `high`
+- **THEN** the Codex Adapter receives that Model and normalized Effort under
+  the same Role contract
+
+#### Scenario: One-off escalation is auditable
+
+- **WHEN** a high-risk task requests a stronger Model/Effort than the Host
+  default
+- **THEN** the receipt records the override and its policy reason
 
 ### Requirement: Validation and fallback for invalid values
-Valid model values are the Agent-call model names supported by the running Claude Code (at minimum `haiku`, `sonnet`, `opus`). On an invalid configured value, the orchestrator SHALL warn once per session and fall back to the agent's frontmatter default; it SHALL NOT fail the dispatch.
 
-#### Scenario: Invalid model string
-- **WHEN** `fast_worker_model=gpt5` is configured
-- **THEN** the session warns once and fast-worker dispatches run on the frontmatter default (sonnet)
+Invalid Provider, Model, Effort, or Host configuration SHALL warn once per
+session or return a bounded `BLOCKED` result according to the affected request
+class. Automatic delegation SHALL use the current Host native target as its
+fallback when unavailability is confirmed before side effects. An explicitly
+requested target SHALL not silently fallback unless its request policy allows
+it.
+
+#### Scenario: Invalid Model is blocked or safely defaulted
+
+- **WHEN** a configured Model is absent from the Provider catalog or cannot be
+  verified for the current Host
+- **THEN** the request reports the exact capability failure and uses Host-native
+  fallback only when automatic policy permits it
+
+#### Scenario: Explicit target does not silently change
+
+- **WHEN** a user explicitly selects an unavailable Model without allowing
+  fallback
+- **THEN** the dispatch returns `BLOCKED` and does not run another Provider
 
 ### Requirement: Kill switch restores pre-change behavior
-When `orchestration_dispatch=off`, all touched flows (adaptive-dev-workflow and opsx-apply-goal output) SHALL behave exactly as before this change: inline implementation, no worker dispatch prohibition, no opsx-apply-goal directive line.
+
+When `orchestration_dispatch=off`, touched flows SHALL not use the new
+Provider-neutral Dispatch Engine. They SHALL preserve the documented pre-change
+inline or caller-owned behavior and SHALL not emit a false capability or
+fallback success.
 
 #### Scenario: Off switch regression check
+
 - **WHEN** `orchestration_dispatch=off`
-- **THEN** adaptive-dev-workflow's Implement step is "write code directly (TDD)" and opsx-apply-goal `/goal` Part 0 matches pre-change output
+- **THEN** the affected flow follows its pre-change behavior and no new
+  Provider selection is performed
 
 ### Requirement: userConfig keys for CLI-backed fast-worker models
 
-The manifest and generic config loader SHALL expose canonical role-specific
-model, effort, and timeout keys for Codex worker/reasoner/reviewer and AGY
-worker, in addition to the stable shared `codex_timeout_secs` and
-`fast_worker_backend` keys. During one release, legacy keys
-`codex_fast_worker_*`, `codex_deep_reasoner_*`, `codex_bridge_*`, and
-`agy_fast_worker_model` MAY be read as aliases; canonical keys take precedence
-and diagnostics identify legacy use. Invalid values retain existing fail-closed
-or bounded-warning semantics for the affected role.
+The manifest and generic config loader SHALL expose canonical Host-aware
+Provider/Model/Effort and timeout settings for supported worker Roles. Legacy
+keys such as `codex_fast_worker_*`, `codex_deep_reasoner_*`, `codex_bridge_*`,
+and `agy_fast_worker_model` MAY be read as aliases for one release; canonical
+keys take precedence and diagnostics identify legacy use. The configuration
+contract SHALL not assume that a CLI-backed target is always external or that
+Claude is always native.
 
-#### Scenario: Canonical role key wins
+#### Scenario: Canonical target key wins
 
-- **WHEN** `codex_worker_timeout_secs` and
-  `codex_fast_worker_timeout_secs` are both configured
-- **THEN** the canonical key supplies the effective Codex worker timeout and
-  the legacy source is reported as deprecated
+- **WHEN** a canonical Codex target and a legacy Codex worker key are both
+  configured
+- **THEN** the canonical target supplies the effective Provider/Model/Effort
+  and the legacy source is reported as deprecated
 
 #### Scenario: Shared timeout remains stable
 
-- **WHEN** only `codex_timeout_secs` is configured
-- **THEN** every canonical Codex role inherits the shared value according to
-  the existing scope and role-specific precedence rules
+- **WHEN** only the shared timeout is configured
+- **THEN** every eligible external Adapter inherits it according to the existing
+  scope and Role precedence rules
 
-#### Scenario: Default selection is silent
+#### Scenario: Invalid target is safe
 
-- **WHEN** no selector or timeout key is overridden
-- **THEN** the effective backend is `claude`, fallback is `none`, the shared
-  Codex timeout is `360`, and no selector/timeout line is emitted
-
-#### Scenario: Project selector wins
-
-- **WHEN** global config selects Claude but project config sets
-  `fast_worker_backend=agy`
-- **THEN** the effective selector is `agy` and the non-default choice is
-  surfaced
-
-#### Scenario: Invalid selector is safe
-
-- **WHEN** a selector contains an unknown backend or fallback mode
-- **THEN** the session warns once and uses the shipped default without
-  dispatching an unknown worker
-
-#### Scenario: Project timeout wins
-
-- **WHEN** global config sets `codex_timeout_secs=900` and project config sets
-  `codex_timeout_secs=1200`
-- **THEN** the effective shared timeout is `1200`
-
-#### Scenario: Role timeout overrides shared timeout
-
-- **WHEN** `codex_timeout_secs=900` and a canonical role timeout is `1800`
-- **THEN** that role receives `1800` while other roles retain `900`
-
-#### Scenario: Invalid timeout fails closed
-
-- **WHEN** a Codex timeout key contains a malformed value
-- **THEN** configuration reports the key and accepted form and prevents that
-  Codex dispatch
-
-#### Scenario: Disabled timeout is explicit
-
-- **WHEN** a Codex timeout key is `0`
-- **THEN** the affected transport-runner deadline is intentionally disabled and the
-  effective diagnostic states that fact
+- **WHEN** a target contains an unknown Provider, Model, or Effort
+- **THEN** configuration reports the invalid value and prevents an unauthorized
+  dispatch or applies the permitted Host-native fallback
 
 ### Requirement: CLI-backed worker model defaults are lockstep across all declaration sites
 A CLI-backed worker's default model string is declared in more than one file — the `userConfig` schema, the agent definition and its index entry, the wrapper script's usage text, the economics rule table, the configuration docs in every shipped language, the session-start default-detection expression, the test fixtures, **and any spec requirement that quotes the shipped default as normative text** (see the `model-economics` capability, whose tier-map requirement names the default inline). When that default changes, every declaration site SHALL be updated in the same change.

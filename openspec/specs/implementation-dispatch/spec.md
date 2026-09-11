@@ -7,16 +7,17 @@ TBD - created by archiving change dhpk-orchestration-workers. Update Purpose aft
 > below describe the former compatibility workflow. Current implementation
 > review is selected from the Review Gate trigger table and completed by a
 > durable reviewer obligation.
+
 ### Requirement: Dispatch decision table in execution-policy (SSOT)
 
 `rules/execution-policy.md` SHALL define an "Implementation dispatch" section — the single source of truth for implement-phase routing while `orchestration_dispatch=on`:
 
 - Reasoning-heavy work (unknown root cause, algorithm design, cross-file complex analysis) → `deep-reasoner`
-- Purely mechanical work with a clear, spec-exact task (boilerplate, test scaffolds, rename sweeps, CLI-backed repetitive edits) → the selector-resolved fast-worker backend
-- Judgment-dense but standardizable work touching more than two files (bounded description migrations, bilingual documentation restructuring, or a batch of known review fixes) → in-process `fast-worker` by default
+- Purely mechanical work with a clear, spec-exact task (boilerplate, test scaffolds, rename sweeps, CLI-backed repetitive edits) → a Provider-neutral Dispatch Engine `worker` target
+- Judgment-dense but standardizable work touching more than two files (bounded description migrations, bilingual documentation restructuring, or a batch of known review fixes) → the Provider-neutral in-process `worker` tier by default
 - Small diffs (roughly ≤2 files with unambiguous intent) → inline in the main loop
-- Complex implementation → `deep-reasoner` produces the fix spec, then `fast-worker` applies it
-- RED PHPUnit unit/integration test that must be authored test-first and run against a live DB (e.g. Testbench / docker MySQL) → `tdd-guide` — distinct from `e2e-runner` (Playwright), read-only `deep-reasoner` (cannot run a test), and `fast-worker` (whose "make verification pass" contract conflicts with authoring a failing RED test)
+- Complex implementation → `deep-reasoner` produces the fix spec, then the resolved Provider-neutral `worker` tier applies it
+- RED PHPUnit unit/integration test that must be authored test-first and run against a live DB (e.g. Testbench / docker MySQL) → `tdd-guide` — distinct from `e2e-runner` (Playwright), read-only `deep-reasoner` (cannot run a test), and the `worker` tier (whose "make verification pass" contract conflicts with authoring a failing RED test)
 - Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end → `dhpk:planner`, opt-in via `/dhpk:do --plan` on the implementation-class routes (`dhpk:adaptive-dev-workflow`, `dhpk:opsx-apply-goal`)
 - Dispatching `general-purpose` for implementation is prohibited while `orchestration_dispatch=on`
 
@@ -32,11 +33,11 @@ Downstream skills SHALL reference this section, not restate it.
 
 #### Scenario: Mechanical task routed to fast-worker
 - **WHEN** adaptive-dev-workflow reaches Implement with an approved, precise plan
-- **THEN** the orchestrator dispatches the selector-resolved fast-worker, not `general-purpose`
+- **THEN** the orchestrator dispatches the Provider-neutral Dispatch Engine `worker` target, not `general-purpose`
 
 #### Scenario: Judgment-dense batch routes to the in-process fast-worker
 - **WHEN** an implement step has a bounded, standardizable intent touching three or more files but requires consistent wording or cross-file judgment
-- **THEN** the orchestrator dispatches `dhpk:fast-worker` with one fix-spec rather than authoring the batch inline
+- **THEN** the orchestrator dispatches the Provider-neutral in-process `worker` tier with one fix-spec rather than authoring the batch inline
 
 #### Scenario: Small diff stays inline
 - **WHEN** the change is a 1-file, unambiguous edit
@@ -48,7 +49,7 @@ Downstream skills SHALL reference this section, not restate it.
 
 #### Scenario: Ambiguous inline-vs-worker choice resolves to dispatch
 - **WHEN** the orchestrator is unsure whether a step qualifies as an inline small diff or worker work
-- **THEN** it dispatches `dhpk:fast-worker` rather than defaulting to inline
+- **THEN** it dispatches the Provider-neutral `worker` tier rather than defaulting to inline
 
 #### Scenario: Parallel task spec declares its safety boundary
 - **WHEN** a mechanical batch is dispatched to more than one worker in a shared checkout
@@ -91,7 +92,7 @@ SHALL restate worker/reasoner decision rows.
 
 ### Requirement: opsx-apply-goal emits the dispatch directive for unattended sessions
 
-When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condition emitted by `skills/opsx-apply-goal/SKILL.md` SHALL include a **compact** posture-first dispatch directive that (a) names the session as the orchestrator, (b) carries a one-line dispatch roster — mechanical/multi-file clear-spec work to `dhpk:fast-worker`, reasoning-heavy work to `dhpk:deep-reasoner`, RED PHPUnit unit/integration tests to `dhpk:tdd-guide`, Playwright RED/E2E specs to `dhpk:e2e-runner` — (c) restricts inline editing to a ≤2-file whole-implement-step footprint plus the orchestrator's own bookkeeping (tasks.md checkboxes, sentinel handling), (d) prohibits `general-purpose` for implementation, (e) states the retired CODEX interface and its blocking deprecation diagnostic explicitly on one line, without treating it as a peer, worker, or reasoner selector, and (f) carries the self-locating pointer to `rules/execution-policy.md` — resolved via `$CLAUDE_PLUGIN_ROOT` first, then the newest installed cache path, never a filesystem scan — which the orientation step reads. The behavioral elaborations that previously rode Part 0 — the dispatch-verify procedure, the doc-consistency example, "when unsure, dispatch", premise-verification routing (deep-reasoner vs e2e-runner/scratch-probe), and the explicit second-opinion path — reside in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §High-stakes second opinion after flag retirement) and SHALL NOT be restated in the emitted condition; they bind the session through the orientation-step policy read, with the condition's inline roster and gates as the fallback when the policy file is unresolvable. The Part 1–4 stop/verification conditions retain their semantics; worker-produced sentinels still converge through the universal `ls .pending-*` gate (Part 2). The skill's Verification checklist SHALL assert the compact directive's presence — orchestrator naming, the four-role roster, the inline bound, the `general-purpose` prohibition, the retired CODEX/deprecation line, and the policy pointer — when `DISPATCH_ON=true`, and SHALL assert the relocated elaborations are present in `rules/execution-policy.md` rather than in the template.
+When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condition emitted by `skills/opsx-apply-goal/SKILL.md` SHALL include a **compact** posture-first dispatch directive that (a) names the session as the orchestrator, (b) carries a one-line dispatch roster — mechanical/multi-file clear-spec work to the Provider-neutral `worker` tier (implemented by `dhpk:fast-worker` where applicable), reasoning-heavy work to the Provider-neutral `reasoner` tier (implemented by `dhpk:deep-reasoner` where applicable), RED PHPUnit unit/integration tests to `dhpk:tdd-guide`, Playwright RED/E2E specs to `dhpk:e2e-runner` — (c) restricts inline editing to a ≤2-file whole-implement-step footprint plus the orchestrator's own bookkeeping (tasks.md checkboxes, sentinel handling), (d) prohibits `general-purpose` for implementation, (e) states the retired CODEX interface and its blocking deprecation diagnostic explicitly on one line, without treating it as a peer, worker, or reasoner selector, and (f) carries the self-locating pointer to `rules/execution-policy.md` — resolved via `$CLAUDE_PLUGIN_ROOT` first, then the newest installed cache path, never a filesystem scan — which the orientation step reads. The behavioral elaborations that previously rode Part 0 — the dispatch-verify procedure, the doc-consistency example, "when unsure, dispatch", premise-verification routing (deep-reasoner vs e2e-runner/scratch-probe), and the explicit second-opinion path — reside in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §High-stakes second opinion after flag retirement) and SHALL NOT be restated in the emitted condition; they bind the session through the orientation-step policy read, with the condition's inline roster and gates as the fallback when the policy file is unresolvable. The Part 1–4 stop/verification conditions retain their semantics; worker-produced sentinels still converge through the universal `ls .pending-*` gate (Part 2). The skill's Verification checklist SHALL assert the compact directive's presence — orchestrator naming, the four-role roster, the inline bound, the `general-purpose` prohibition, the retired CODEX/deprecation line, and the policy pointer — when `DISPATCH_ON=true`, and SHALL assert the relocated elaborations are present in `rules/execution-policy.md` rather than in the template.
 
 #### Scenario: Dry-run output includes the compact directive
 
@@ -122,7 +123,7 @@ Worker edits SHALL remain subject to the full post-implementation agent gate and
 
 ### Requirement: High-stakes second opinions require explicit opt-in after CODEX retirement
 
-For a high-stakes design or diagnosis decision, the orchestrator MAY dispatch
+The orchestrator SHALL require explicit caller opt-in before it MAY dispatch
 `deep-reasoner` and an independent `codex-bridge` opinion in parallel, blind to
 each other's findings, only when the caller explicitly requests
 `--second-opinion=codex-exec`. The default path remains Codex-free, and the
@@ -460,26 +461,40 @@ The execution policy (or its implementation-dispatch reference) SHALL carry thes
 - **THEN** the post-edit advisory has already instructed running the reviewer first, so the push-gate block path is not exercised
 
 ### Requirement: Dispatch rows for CLI-backed fast-worker variants
-The execution-policy Implementation dispatch section SHALL define a deterministic selector for the three mechanical backends: `fast-worker` is the shipped default and maps to the Claude/default backend; `codex-worker` and `agy-worker` (legacy aliases `codex-fast-worker` and `agy-fast-worker`) are selected only by an explicit backend preference or by the configured `auto` availability order. The selector SHALL check prerequisites before dispatch, record the requested and selected backend, and apply only the configured missing-executable fallback. Authentication, authorization, model, and task failures SHALL remain `RESULT: BLOCKED` and SHALL never silently switch backends.
 
-#### Scenario: Default worker remains default
-- **WHEN** a mechanical batch is dispatched with no backend preference
-- **THEN** the table routes it to `fast-worker`
+The execution-policy Implementation dispatch section SHALL define a deterministic
+Provider-neutral selector for mechanical `worker` requests. The selector SHALL
+use the current Host profile, Capability Matrix, requested Provider/Model/Effort,
+and configured preference order. Host-native execution is the default target;
+Claude Code, Codex CLI, AGY, and other supported Providers are eligible when the
+Host policy and capability evidence allow them. The selector SHALL record the
+requested and selected target and SHALL apply only policy-approved fallback.
 
-#### Scenario: Explicit Codex preference
-- **WHEN** `fast_worker_backend=codex` and the Codex CLI is available
-- **THEN** the batch routes to `codex-worker` under the shared task-spec contract
+#### Scenario: Host-native worker remains default
 
-#### Scenario: Auto preference follows configured order
-- **WHEN** `fast_worker_backend=auto`, agy is first in the configured order but unavailable, and Codex is available
-- **THEN** the selector records agy as unavailable and routes to `codex-worker`
+- **WHEN** a mechanical batch has no target preference
+- **THEN** the table routes it to the current Host's native `worker` target
 
-#### Scenario: Backend execution failure is not silently substituted
-- **WHEN** the selected CLI rejects authentication or the requested model
-- **THEN** the worker reports `RESULT: BLOCKED` and does not silently run another backend
+#### Scenario: Cursor explicitly selects Claude Code
+
+- **WHEN** Cursor requests Claude Code Opus5 for a worker and the target is
+  available
+- **THEN** the table routes to the Claude Code Adapter with Role `worker`
+
+#### Scenario: Auto preference follows capability order
+
+- **WHEN** automatic selection lists AGY before Codex, AGY is unavailable, and
+  Codex is available for the requested task
+- **THEN** the selector records AGY as unavailable and routes to Codex
+
+#### Scenario: Execution failure is not silently substituted
+
+- **WHEN** the selected Provider rejects authentication or the requested Model
+- **THEN** the worker reports the exact failure and does not switch target unless
+  the request policy explicitly permits that failure class
 
 ### Requirement: Post-review fix application is a dispatch-table row
-The execution-policy dispatch decision table SHALL contain a row routing post-review fix application — reviewer findings forming a clear fix-spec whose whole batch exceeds the ≤2-file inline bound — to the fast-worker tier (in-process or CLI-backed per the backend selector). The inline exception SHALL be measured on the whole fix batch, not per finding.
+The execution-policy dispatch decision table SHALL contain a row routing post-review fix application — reviewer findings forming a clear fix-spec whose whole batch exceeds the ≤2-file inline bound — to the Provider-neutral `worker` tier (in-process or adapter-resolved by the Dispatch Engine). The inline exception SHALL be measured on the whole fix batch, not per finding.
 
 #### Scenario: Orchestrator receives multi-file review findings
 - **WHEN** consolidated review returns findings spanning more than two files
@@ -490,7 +505,7 @@ The execution-policy dispatch decision table SHALL contain a row routing post-re
 - **THEN** the inline exception applies and no dispatch is required
 
 ### Requirement: Specialist fix-spec handback is a dispatch-table row
-The dispatch decision table SHALL contain a row routing fix-specs handed back by planning/acceptance specialists (tdd-guide GREEN handback, e2e-runner application-bug reports) to the fast-worker tier resolved by the backend selector, with acceptance owned by the originating specialist's stated verification command.
+The dispatch decision table SHALL contain a row routing fix-specs handed back by planning/acceptance specialists (tdd-guide GREEN handback, e2e-runner application-bug reports) to the Provider-neutral `worker` tier resolved by the Dispatch Engine, with acceptance owned by the originating specialist's stated verification command.
 
 #### Scenario: tdd-guide hands back a GREEN fix-spec
 - **WHEN** tdd-guide returns RED tests plus a fix-spec exceeding the inline bound
@@ -508,15 +523,32 @@ The execution-policy Implementation dispatch table SHALL include a row for RED V
 - **THEN** the table permits inline handling, mirroring the PHPUnit row
 
 ### Requirement: Reasoner backend selection is a dispatch-table row
-The execution-policy Implementation dispatch section SHALL define the deep-reasoning backend selection: `deep-reasoner` (Claude, default) and `codex-reasoner` (codex CLI, default `gpt-5.6-sol` @ `high`; legacy alias: `codex-deep-reasoner`), selected per invocation by the `--reasoner` flag or its userConfig chain. Both backends SHALL receive the same reasoning task brief and return the conclusion contract. Missing-executable fallback (codex → claude) SHALL be the only silent substitution; authentication, model, and task failures SHALL remain `RESULT: BLOCKED`.
 
-#### Scenario: Default reasoning dispatch is unchanged
-- **WHEN** a reasoning-heavy task is dispatched with no `--reasoner` flag or codex userConfig preference
-- **THEN** the table routes it to `deep-reasoner` exactly as before this change
+The execution-policy Implementation dispatch section SHALL define reasoner
+selection through the same Provider-neutral target resolver used by workers.
+Any Provider with a verified `reasoner` capability MAY be selected by the
+`--reasoner` request or Host configuration; unsupported Providers remain
+explicitly unavailable. The current Host native reasoner is the default. The
+table SHALL record Provider, Model, Effort, Transport, and the same reasoning
+brief/conclusion contract for every eligible target.
 
-#### Scenario: Codex reasoning backend selected
-- **WHEN** `--reasoner=codex` is active and the codex CLI is available
-- **THEN** the reasoning task routes to `codex-reasoner` under the same conclusion contract
+#### Scenario: Default reasoning dispatch is contextual
+
+- **WHEN** a reasoning-heavy task is dispatched with no Provider preference
+- **THEN** the table routes it to the current Host's native `reasoner`
+
+#### Scenario: Codex reasoning target is selected
+
+- **WHEN** a Host explicitly selects Codex CLI Model `sol5.6` at `high` and the
+  capability is available
+- **THEN** the reasoning task routes to Codex CLI under the same conclusion
+  contract
+
+#### Scenario: Unsupported AGY reasoning is explicit
+
+- **WHEN** AGY has no verified `reasoner` capability in the matrix
+- **THEN** the request reports `UNAVAILABLE` and does not silently route to an
+  AGY worker or another Role
 
 ### Requirement: Shared validator state has one orchestrator-owned writer
 
@@ -578,3 +610,15 @@ Architecture migration SHALL reuse the current dispatch table, reviewer slots, s
 
 - **WHEN** a new coordinator attempts to clear review debt independently of the Sentinel core
 - **THEN** architecture validation rejects the duplicate enforcement path
+
+### Requirement: Flow-drive dispatch consumes the common Dispatch Engine
+
+The implementation workflow SHALL resolve planner, reasoner, worker, and
+reviewer SubAgents through the common Dispatch Engine and SHALL not maintain a
+second Provider selection policy in flow-drive.
+
+#### Scenario: Worker and reasoner share target semantics
+
+- **WHEN** flow-drive dispatches a worker and then a reasoner on the same Host
+- **THEN** both use the same Host profile, Capability Matrix, fallback policy,
+  receipt identity, and Provider-neutral Role vocabulary
