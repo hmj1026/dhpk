@@ -7,6 +7,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { buildContext } = require('./build-cli-dispatch-context');
 const { createSessionDiagnostics } = require('./cli-role-resolver');
+const { writePhysicalImmutable } = require('./physical-file');
 
 const SESSION_DIAGNOSTICS = createSessionDiagnostics((message) => {
   process.stderr.write(`launch-cli-dispatch: WARNING: ${message}\n`);
@@ -289,45 +290,13 @@ function trustedWriter(filePath, payload, options, expectedParent) {
     fs.closeSync(parentDescriptor);
     throw new Error('context parent changed while opening');
   }
-  const descriptorRoots = ['/proc/self/fd', '/dev/fd'];
-  const descriptorRoot = descriptorRoots.find((root) => {
-    try {
-      const pinned = fs.statSync(path.join(root, String(parentDescriptor)));
-      return pinned.dev === pinnedParent.dev && pinned.ino === pinnedParent.ino;
-    } catch (_error) {
-      return false;
-    }
-  });
-  if (!descriptorRoot) {
-    fs.closeSync(parentDescriptor);
-    throw new Error('context parent cannot be pinned for atomic creation');
-  }
-  const pinnedParentPath = path.join(descriptorRoot, String(parentDescriptor));
-  const pinnedFilePath = path.join(pinnedParentPath, path.basename(filePath));
-  const temporary = path.join(pinnedParentPath, `.${path.basename(filePath)}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`);
-  let descriptor;
   try {
-    try {
-      fs.lstatSync(pinnedFilePath);
-      throw new Error('context path already exists');
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
-    }
-    descriptor = fs.openSync(temporary,
-      fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | (fs.constants.O_NOFOLLOW || 0), 0o600);
-    fs.fchmodSync(descriptor, 0o600);
-    fs.writeFileSync(descriptor, payload, 'utf8');
-    fs.fsyncSync(descriptor);
-    fs.closeSync(descriptor);
-    descriptor = undefined;
-    fs.linkSync(temporary, pinnedFilePath);
-    const created = fs.lstatSync(pinnedFilePath);
-    if (!created.isFile() || created.isSymbolicLink() || (created.mode & 0o777) !== 0o600) {
-      throw new Error('created context is not a private regular non-symlink file');
-    }
+    // The writer receives the already-validated directory descriptor and
+    // performs every create/link/unlink operation relative to that descriptor.
+    // Darwin therefore does not depend on a traversable /proc/self/fd or
+    // /dev/fd path.
+    writePhysicalImmutable(parentDescriptor, path.basename(filePath), payload);
   } finally {
-    if (descriptor !== undefined) fs.closeSync(descriptor);
-    try { fs.unlinkSync(temporary); } catch (error) { if (error.code !== 'ENOENT') throw error; }
     fs.closeSync(parentDescriptor);
   }
 }

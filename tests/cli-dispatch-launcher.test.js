@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -17,11 +17,61 @@ function projectedPackage() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cli-dispatch-launcher-'));
   const scripts = path.join(root, 'skills', 'dhpk-cli-dispatch-context', 'scripts');
   fs.mkdirSync(scripts, { recursive: true });
-  for (const fileName of ['cli-role-resolver.js', 'build-cli-dispatch-context.js', 'launch-cli-dispatch.js']) {
+  for (const fileName of ['cli-role-resolver.js', 'build-cli-dispatch-context.js', 'launch-cli-dispatch.js', 'physical-file.js', 'physical-file.py']) {
     fs.copyFileSync(path.join(SOURCE_SCRIPTS, fileName), path.join(scripts, fileName));
   }
   return { root, scripts, launcher: path.join(scripts, 'launch-cli-dispatch.js') };
 }
+
+test('descriptor-relative context writer stays in the pinned parent during a parent swap', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cli-dispatch-race-'));
+  const parent = path.join(root, 'context');
+  const backup = path.join(root, 'context.backup');
+  const outside = path.join(root, 'outside');
+  const ready = path.join(root, 'ready');
+  const done = path.join(root, 'done');
+  fs.mkdirSync(parent);
+  fs.mkdirSync(outside);
+  const writerCode = `
+    const fs = require('node:fs');
+    const flags = fs.constants.O_RDONLY | fs.constants.O_DIRECTORY | fs.constants.O_NOFOLLOW;
+    const [parent, ready, done, modulePath] = process.argv.slice(1);
+    const descriptor = fs.openSync(parent, flags);
+    fs.writeFileSync(ready, 'ready');
+    try {
+      require(modulePath).writePhysicalImmutable(descriptor, 'context.json', Buffer.from('context payload'));
+      fs.writeFileSync(done, 'ok');
+    } catch (error) {
+      fs.writeFileSync(done, 'error:' + error.message);
+      process.exitCode = 1;
+    } finally {
+      fs.closeSync(descriptor);
+    }
+  `;
+  const writer = spawn(process.execPath, ['-e', writerCode, parent, ready, done, path.join(SOURCE_SCRIPTS, 'physical-file.js')], {
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  try {
+    const swapper = spawnSync('/bin/sh', ['-c', [
+      'set -eu',
+      'while [ ! -f "$1" ]; do sleep 0.001; done',
+      'mv "$2" "$3"',
+      'ln -s "$4" "$2"',
+      'while [ ! -f "$5" ]; do sleep 0.001; done',
+    ].join('\n'), 'swap', ready, parent, backup, outside, done], { encoding: 'utf8' });
+    assert.strictEqual(swapper.status, 0, swapper.stderr);
+    assert.strictEqual(fs.readFileSync(done, 'utf8'), 'ok');
+    assert.deepStrictEqual(fs.readdirSync(outside), []);
+    assert.strictEqual(fs.readFileSync(path.join(backup, 'context.json'), 'utf8'), 'context payload');
+    assert.strictEqual(fs.lstatSync(path.join(backup, 'context.json')).mode & 0o777, 0o600);
+  } finally {
+    if (writer.stderr) writer.stderr.destroy();
+    try { writer.kill(); } catch (_) { /* child already exited */ }
+    if (fs.existsSync(parent) && fs.lstatSync(parent).isSymbolicLink()) fs.unlinkSync(parent);
+    if (fs.existsSync(backup)) fs.renameSync(backup, parent);
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('public launcher keeps Codex dispatcher identity separate while AGY binds role and adapter execution', () => {
   const projected = projectedPackage();
