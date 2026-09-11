@@ -214,11 +214,36 @@ function relativeTestFile(file) {
   return path.relative(TESTS_DIR, file) || path.basename(file);
 }
 
+function summarizeTestOutput(output) {
+  const summaries = [];
+  for (const line of String(output || '').split('\n')) {
+    const match = line.match(/^\s*[^:\n]+:\s+(\d+)\/(\d+)\s+passed\b/i);
+    if (match) summaries.push({ passed: Number(match[1]), total: Number(match[2]) });
+  }
+  const skipped = String(output || '').split('\n').filter((line) => (
+    /^\s*(?:SKIP|SKIPPED)\b/i.test(line) || /\(skipped\)\s*$/i.test(line)
+  )).length;
+  if (summaries.length === 0 && skipped === 0) {
+    return { status: 'UNAVAILABLE', total: null, passed: null, failed: null, skipped: null };
+  }
+  const passed = summaries.reduce((total, summary) => total + summary.passed, 0);
+  const total = summaries.reduce((sum, summary) => sum + summary.total, 0);
+  return {
+    status: 'OBSERVED',
+    total,
+    passed,
+    failed: total - passed,
+    skipped,
+  };
+}
+
 function createFileTiming(file, result, durationMs) {
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`;
   return {
     file: relativeTestFile(file),
     duration_ms: Math.round(durationMs),
     status: result.error || result.status !== 0 ? 'FAIL' : 'PASS',
+    assertions: summarizeTestOutput(output),
   };
 }
 
@@ -230,7 +255,9 @@ function runSequential(files, env, timeoutMs) {
     const relative = path.relative(TESTS_DIR, file);
     console.log(`\n# ${relative}`);
     const fileStartedAt = process.hrtime.bigint();
-    const result = runNodeTest(file, { env, timeoutMs: fileTimeoutMs(file, timeoutMs) });
+    const result = runNodeTest(file, { env, timeoutMs: fileTimeoutMs(file, timeoutMs), captureOutput: true });
+    if (result.stdout) process.stdout.write(result.stdout);
+    if (result.stderr) process.stderr.write(result.stderr);
     fileTimings.push(createFileTiming(file, result, elapsedMilliseconds(fileStartedAt)));
     if (result.status !== 0 || result.error) {
       failed += 1;
@@ -334,7 +361,12 @@ async function runParallel(files, jobs, env) {
     total += summary.total;
     const workerFiles = result.timing && Array.isArray(result.timing.file_timings)
       ? result.timing.file_timings
-      : result.files.map((file) => ({ file: relativeTestFile(file), duration_ms: null, status: result.status === 0 ? 'PASS' : 'FAIL' }));
+      : result.files.map((file) => ({
+        file: relativeTestFile(file),
+        duration_ms: null,
+        status: result.status === 0 ? 'PASS' : 'FAIL',
+        assertions: { status: 'UNAVAILABLE', total: null, passed: null, failed: null, skipped: null },
+      }));
     fileTimings.push(...workerFiles);
     jobTimings.push({
       worker_index: result.workerIndex,
@@ -357,11 +389,40 @@ async function runParallel(files, jobs, env) {
   };
 }
 
+function summarizeSuite(fileTimings, predicate = () => true) {
+  const files = fileTimings.filter(predicate);
+  const observed = files.map((file) => file.assertions).filter((assertions) => assertions && assertions.status === 'OBSERVED');
+  const skipObserved = observed.some((assertions) => assertions.skipped != null);
+  return {
+    status: observed.length === files.length && skipObserved ? 'OBSERVED' : 'PARTIAL',
+    files: files.length,
+    assertions: {
+      total: observed.every((assertions) => assertions.total != null) ? observed.reduce((sum, assertions) => sum + assertions.total, 0) : null,
+      passed: observed.every((assertions) => assertions.passed != null) ? observed.reduce((sum, assertions) => sum + assertions.passed, 0) : null,
+      failed: observed.every((assertions) => assertions.failed != null) ? observed.reduce((sum, assertions) => sum + assertions.failed, 0) : null,
+      skipped: skipObserved ? observed.reduce((sum, assertions) => sum + (assertions.skipped || 0), 0) : null,
+    },
+  };
+}
+
+function isSmokeFile(file) {
+  return /(?:^|[-_.])smoke(?:[-_.]|$)/i.test(path.basename(file.file || ''));
+}
+
 function createTimingReport({ options, result, durationMs, sourceEnv }) {
   return {
     schema: 'dhpk.test-timing.v1',
     generated_at: new Date().toISOString(),
     source_commit: sourceEnv.DHPK_TEST_SOURCE_COMMIT || null,
+    ci: {
+      run_id: sourceEnv.DHPK_TEST_RUN_ID || null,
+      run_attempt: sourceEnv.DHPK_TEST_RUN_ATTEMPT || null,
+      event: sourceEnv.DHPK_TEST_EVENT || null,
+      ref: sourceEnv.DHPK_TEST_REF || null,
+      head_sha: sourceEnv.DHPK_TEST_HEAD_SHA || null,
+      base_ref: sourceEnv.DHPK_TEST_BASE_REF || null,
+      base_sha: sourceEnv.DHPK_TEST_BASE_SHA || null,
+    },
     runner: {
       command: 'node tests/run-all.js',
       node: process.version,
@@ -373,6 +434,10 @@ function createTimingReport({ options, result, durationMs, sourceEnv }) {
     },
     duration_ms: Math.round(durationMs),
     totals: { files: result.total, failed: result.failed },
+    suites: {
+      smoke: summarizeSuite(result.fileTimings || [], isSmokeFile),
+      full_suite: summarizeSuite(result.fileTimings || []),
+    },
     files: result.fileTimings || [],
     jobs: result.jobTimings || [],
   };
@@ -405,12 +470,18 @@ async function main(argv = process.argv.slice(2), sourceEnv = process.env) {
       job_timings: result.jobTimings || [],
     })}`);
   } else if (timingFile) {
-    writeTimingReport(timingFile, createTimingReport({
-      options,
-      result,
-      durationMs: result.durationMs,
-      sourceEnv,
-    }));
+    try {
+      writeTimingReport(timingFile, createTimingReport({
+        options,
+        result,
+        durationMs: result.durationMs,
+        sourceEnv,
+      }));
+    } catch (error) {
+      // Timing is diagnostic evidence. A broken artifact destination must not
+      // replace the authoritative aggregate test result.
+      console.error(`WARNING: unable to write test timing report: ${error.message}`);
+    }
   }
 
   console.log('\n========================================');
