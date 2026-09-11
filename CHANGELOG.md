@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.57.1 — 2026-09-11 — Release parity fixes and macOS platform compatibility
+
+**fix(release)** — Claude profile packages (minimal, full, compat-v1) are now kept in version parity with the plugin release, and the release gate fails on drift.
+**fix(codex-discovery)** — check-codex-discovery now consults real Codex activation, so a source-tree native package is no longer reported as a duplicate runtime provider.
+**fix(release)** — Fix consumer/release probes misreading macOS's /var -> /private/var temp-directory alias as an unsafe symlink, which could falsely block Cursor/Codex consumer verification.
+
 ## 0.57.0 — 2026-09-10 — Native-first dispatch and Sentinel retirement
 
 **BREAKING(review-gate)** — Remove the legacy Review Sentinel mechanism (`.pending-*` marker files, resumed-review-obligation reconciliation, and the PostToolUse edit-arming hook); reviewer dispatch is now an orchestrator/AI judgment call against the trigger table in `rules/execution-policy.md`, not a hook-armed marker file.
