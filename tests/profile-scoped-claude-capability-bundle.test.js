@@ -22,8 +22,8 @@ const { runClaudeProfileProbe } = require('../scripts/release/claude-profile-pro
 
 const ROOT = path.join(__dirname, '..');
 const RELEASE_VERSION_SENTINEL = '<release-version>';
-const EXPECTED_NORMALIZED_MANIFEST_BYTES = 33370;
-const EXPECTED_NORMALIZED_MANIFEST_SHA256 = 'bc30c40958472252bbbcd3692c1f670ba6a77c389c6a4ea73c25bee28493e64b';
+const EXPECTED_NORMALIZED_MANIFEST_BYTES = 35395;
+const EXPECTED_NORMALIZED_MANIFEST_SHA256 = '7bb196af3a6e6630ca1e29029ff1a306177cef02d7e4b2809ec9b0b81b914074';
 
 function normalizeReleaseVersion(pluginBytes) {
   const text = Buffer.from(pluginBytes).toString('utf8');
