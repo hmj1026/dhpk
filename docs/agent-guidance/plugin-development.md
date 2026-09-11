@@ -38,13 +38,16 @@ obligations are resolved.
 ## CI preflight for generated and release-shaped changes
 
 When a change touches the distribution inventory, canonical skills, profiles,
-plugin manifests, package generators, or generated package files, finish and
-commit the canonical source edits first. The provenance-bound generators then
-run from that clean commit, followed by the generated-output commit and the
+plugin manifests, package generators, or generated package files, first
+regenerate the usage catalog and include any resulting catalog diff in the
+canonical-source commit. The provenance-bound distribution generators then run
+from that clean commit, followed by the generated-output commit and the
 clean-checkout verifier. Do not stop after a single projection passes:
 
 ```bash
 node scripts/ci/gen-skill-usage.js --write
+git diff --check
+# Commit canonical sources and the regenerated usage catalog, then continue.
 bin/dhpk distribution agent-plugin generate --output plugins/dhpk-agent --version=<version> --json
 bin/dhpk distribution cursor-plugin generate --output plugins/dhpk-cursor --version=<version> --json
 bin/dhpk distribution codex-native generate --output plugins/dhpk --version=<version> --json
