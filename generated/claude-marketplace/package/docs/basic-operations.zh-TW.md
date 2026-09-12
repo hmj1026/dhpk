@@ -147,7 +147,7 @@ node scripts/ci/gen-claude-marketplace-package.js --check
 Claude CLI 可用時，release consumer gate 會驗證 staged package；如果
 `claude plugin list --json` 回傳 `installPath`，也會再執行
 `claude plugin validate <installed>/.claude-plugin/plugin.json --strict` 驗證 installed cache。
-installed-cache 檢查的非零結果會阻擋完成；若 CLI 沒有回傳 `installPath`，會記錄
+installed-cache 檢查的 official non-zero 結果會阻擋完成；若 CLI 沒有回傳 `installPath`，會記錄
 `NOT RUN` 警告並回傳 `FAIL`，阻擋完成，不得宣稱 official PASS。CLI 不可用時同樣記錄
 `NOT RUN`，不要宣稱 official PASS。
 
