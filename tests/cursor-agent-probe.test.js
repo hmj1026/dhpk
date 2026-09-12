@@ -214,6 +214,35 @@ test('Cursor CLI wrapper rejects symlinked package content before staging', () =
   }
 });
 
+test('Cursor CLI wrapper accepts symlinked package roots and stages their physical targets', () => {
+  const root = temp('dhpk-cursor-cli-symlink-root-');
+  const packageRoot = fs.mkdtempSync(path.join('/var/tmp', 'dhpk-cursor-cli-package-'));
+  const agent = path.join(packageRoot, 'agent');
+  const cursor = path.join(packageRoot, 'cursor');
+  const bin = path.join(root, 'bin');
+  fs.mkdirSync(agent);
+  fs.mkdirSync(cursor);
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'cursor-agent'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const agentLink = path.join(root, 'agent-link');
+  const cursorLink = path.join(root, 'cursor-link');
+  fs.symlinkSync(agent, agentLink);
+  fs.symlinkSync(cursor, cursorLink);
+  try {
+    const result = invoke([
+      '--agent-package', agentLink,
+      '--cursor-package', cursorLink,
+      '--timeout-ms', '1000',
+    ], { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` });
+    const report = JSON.parse(result.stdout);
+    assert.notStrictEqual(report.reason_code, 'PACKAGE_INVALID', result.stdout + result.stderr);
+    assert.notStrictEqual(report.reason_code, 'SANDBOX_PATH_UNSAFE', result.stdout + result.stderr);
+  } finally {
+    fs.rmSync(packageRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('Cursor CLI wrapper stages under a symlinked temp root without a false physical-ancestor rejection (issue #436)', () => {
   const realRoot = fs.realpathSync(temp('dhpk-cursor-cli-realroot-'));
   const linkedTmp = `${realRoot}-alias`;
