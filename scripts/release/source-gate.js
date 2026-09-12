@@ -33,13 +33,32 @@ function parseArgs(argv) {
   return args;
 }
 
-function defaultSteps(root, version) {
+function defaultSteps(root, version, releaseTargetBranch) {
+  const releaseParity = {
+    name: 'release-parity',
+    cmd: 'node',
+    args: [path.join(root, 'scripts/release/prepare-release.js'), 'check', '--version', version, '--repo-root', root],
+  };
+  if (releaseTargetBranch) releaseParity.env = { DHPK_RELEASE_TARGET_BRANCH: releaseTargetBranch };
   return [
     { name: 'changelog-fragments', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-changelog-fragments.js'), '--repo-root', root] },
-    { name: 'release-parity', cmd: 'node', args: [path.join(root, 'scripts/release/prepare-release.js'), 'check', '--version', version, '--repo-root', root] },
+    releaseParity,
     { name: 'repository-tests', cmd: path.join(root, 'scripts/ci/run-bounded-node-test.sh'), args: ['node', path.join(root, 'tests/run-all.js')] },
     { name: 'openspec-validate', cmd: 'openspec', args: ['validate', '--changes', '--strict', '--no-interactive'] },
   ];
+}
+
+function sourceGatePolicy() {
+  const env = { ...process.env };
+  const releaseTargetBranch = env.DHPK_RELEASE_TARGET_BRANCH;
+  delete env.DHPK_RELEASE_TARGET_BRANCH;
+  if (process.env.CI) return { environment: 'ci', env, releaseTargetBranch };
+  if (process.platform === 'darwin') {
+    env.DHPK_BOUNDED_REQUIRE_CGROUP = '0';
+    env.DHPK_BOUNDED_ALLOW_FALLBACK = '1';
+    return { environment: 'local-portable', env, releaseTargetBranch };
+  }
+  return { environment: 'local', env, releaseTargetBranch };
 }
 
 const args = parseArgs(process.argv.slice(2));
@@ -48,10 +67,11 @@ if (!args.stepsFile && !args.version) {
   process.exit(2);
 }
 
+const policy = sourceGatePolicy();
 const steps = args.stepsFile
   ? JSON.parse(readFileBounded(args.stepsFile).toString('utf8'))
-  : defaultSteps(args.root, args.version);
+  : defaultSteps(args.root, args.version, policy.releaseTargetBranch);
 
-const stage = runSteps(steps, { environment: process.env.CI ? 'ci' : 'local', cwd: args.root });
+const stage = runSteps(steps, { ...policy, cwd: args.root });
 console.log(JSON.stringify(stage, null, 2));
 process.exit(stage.verdict === 'PASS' ? 0 : 1);

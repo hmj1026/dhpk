@@ -105,6 +105,11 @@ Release gate 分三層：
 4. 在人工 merge gate 選擇 **Create a merge commit**；不可 squash/rebase。
 5. 合併 PR 後由 runner 自動執行 `node scripts/release/publish-gate.js --version X.Y.Z`，
    確認 SOURCE 與 PACKAGE 都 PASS；可先手動執行作為診斷，但不能取代 runner。
+   SOURCE gate 會依平台選擇執行 adapter：CI 與 Linux 維持
+   `DHPK_BOUNDED_REQUIRE_CGROUP=1` 的 systemd cgroup 強隔離；本機 macOS 使用
+   明確標記為 `local-portable` 的 Node heap + process-group wall-time fallback，並
+   清除 bounded-runner 控制環境變數。這個本機 PASS 不宣稱完整 descendant memory
+   containment，tag 觸發的 Linux Release workflow 仍是正式強隔離驗證。
 6. runner 會再確認 merged PR SHA、`main` HEAD 與雙親 merge topology，並在合併後
    的 `main` 驗證 SOURCE + PACKAGE（包含 provenance）；通過後才建立 annotated semver tag。
 7. Push tag，等待 release workflow 與 GitHub Release 完成。

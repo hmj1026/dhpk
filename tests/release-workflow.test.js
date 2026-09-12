@@ -44,6 +44,15 @@ test('release workflow verifies manifest/changelog parity for the tag version be
   assert.ok(parityIdx < createIdx, 'parity must be verified before creating the GitHub release');
 });
 
+test('release workflow reruns repository tests under the required Linux bounded runner', () => {
+  const boundedIdx = raw.indexOf('Verify bounded repository tests');
+  const resolveIdx = raw.indexOf('Resolve merged release PR head');
+  assert.ok(boundedIdx !== -1, 'missing bounded repository test step');
+  const boundedBlock = raw.slice(boundedIdx, resolveIdx);
+  assert.match(boundedBlock, /DHPK_BOUNDED_REQUIRE_CGROUP:\s*[\'\"]?1/);
+  assert.match(boundedBlock, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js/);
+});
+
 test('a post-publish consumer-verify job runs the full harness release probe and reports via the job summary, never editing the release', () => {
   assert.ok(raw.includes('consumer-verify:'), 'missing consumer-verify job');
   assert.ok(raw.includes('bin/dhpk harness release'), 'consumer-verify must run the public release facade');

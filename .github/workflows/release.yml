@@ -34,6 +34,15 @@ jobs:
         with:
           node-version: '20'
 
+      # Re-run the full source test suite on the immutable tag with the same
+      # strong containment contract as CI. Local macOS publish preflight may
+      # use the portable adapter, but release authority stays on Linux.
+      - name: Verify bounded repository tests
+        env:
+          DHPK_BOUNDED_REQUIRE_CGROUP: '1'
+          DHPK_TEST_JOBS: '4'
+        run: ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js
+
       - name: Resolve merged release PR head
         id: resolve-release-pr
         env:

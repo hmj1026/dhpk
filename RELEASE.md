@@ -222,6 +222,15 @@ a tag, or pushes anything itself:
 node scripts/release/publish-gate.js --version X.Y.Z
 ```
 
+The SOURCE gate selects its execution adapter by platform. CI and Linux
+release verification keep the required systemd cgroup boundary
+(`DHPK_BOUNDED_REQUIRE_CGROUP=1`). A local macOS preflight uses an explicit
+portable adapter with a Node heap cap, process-group wall-time bound, and
+scrubbed bounded-runner control variables; its evidence is labeled
+`local-portable` and does not claim aggregate descendant memory containment.
+The tag-triggered Linux Release workflow remains the authoritative strong
+containment verification before a release is considered complete.
+
 Once the checks pass, publish the tag:
 
 ```bash

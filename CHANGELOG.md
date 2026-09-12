@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.58.2 — 2026-09-12 — Dual-platform bounded release preflight
+
+**chore(release-gate)** — Support guarded release preflight on Linux cgroup and macOS portable bounded runners.
+
 ## 0.58.1 — 2026-09-12 — Accept symlinked Cursor local package roots in CLI probe
 
 **fix(cursor-cli)** — Allow the bounded Cursor CLI probe to accept documented symlink aliases for local package roots.
