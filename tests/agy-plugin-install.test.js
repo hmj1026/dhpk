@@ -18,7 +18,7 @@ const { createTraversalBudget } = require('../scripts/lib/bounded-filesystem');
 const COMMIT = 'b'.repeat(40);
 
 function tmp() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'agy-install-test-'));
+  return fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-install-test-'));
 }
 
 function fixture(root, body = '# Agent\n') {
