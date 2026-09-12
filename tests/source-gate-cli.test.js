@@ -43,11 +43,29 @@ test('uses strict cgroup policy for CI source-gate steps', () => {
     cmd: 'node',
     args: ['-e', "if (process.env.DHPK_BOUNDED_REQUIRE_CGROUP !== '1' || process.env.DHPK_BOUNDED_ALLOW_FALLBACK !== '0') process.exit(1)"],
   }]);
-  const env = { ...process.env, CI: 'true', DHPK_BOUNDED_REQUIRE_CGROUP: '1', DHPK_BOUNDED_ALLOW_FALLBACK: '0' };
+  const env = {
+    ...process.env,
+    CI: 'true',
+    DHPK_BOUNDED_REQUIRE_CGROUP: '1',
+    DHPK_BOUNDED_ALLOW_FALLBACK: '0',
+    DHPK_RELEASE_TARGET_BRANCH: 'main',
+  };
   const res = spawnSync('node', [CLI, '--version', '1.0.0', '--steps-file', stepsFile], { encoding: 'utf8', env });
   assert.strictEqual(res.status, 0, res.stderr);
   const stage = JSON.parse(res.stdout);
   assert.strictEqual(stage.environment, 'ci');
+});
+
+test('does not leak the release target context into generic source-gate steps', () => {
+  const stepsFile = mkStepsFile([{
+    name: 'policy',
+    cmd: 'node',
+    args: ['-e', "if (process.env.DHPK_RELEASE_TARGET_BRANCH) process.exit(1)"],
+  }]);
+  const env = { ...process.env, DHPK_RELEASE_TARGET_BRANCH: 'main' };
+  delete env.CI;
+  const res = spawnSync('node', [CLI, '--version', '1.0.0', '--steps-file', stepsFile], { encoding: 'utf8', env });
+  assert.strictEqual(res.status, 0, res.stderr);
 });
 
 test('uses the portable policy for local macOS source-gate steps', () => {

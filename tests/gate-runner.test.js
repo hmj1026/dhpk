@@ -49,4 +49,19 @@ test('passes an explicit environment to every step', () => {
   assert.strictEqual(stage.verdict, 'PASS');
 });
 
+test('merges per-step environment overrides without losing the gate environment', () => {
+  const stage = runSteps([
+    {
+      name: 'environment',
+      cmd: 'node',
+      args: ['-e', "if (process.env.DHPK_GATE_RUNNER_TEST !== 'present' || process.env.DHPK_STEP_TEST !== 'present') process.exit(1)"],
+      env: { DHPK_STEP_TEST: 'present' },
+    },
+  ], {
+    environment: 'test',
+    env: { ...process.env, DHPK_GATE_RUNNER_TEST: 'present' },
+  });
+  assert.strictEqual(stage.verdict, 'PASS');
+});
+
 run('gate-runner');

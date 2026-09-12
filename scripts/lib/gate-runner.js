@@ -12,7 +12,10 @@ function runSteps(steps, { environment, cwd, env } = {}) {
   const failureReasons = [];
 
   for (const step of steps) {
-    const res = spawnSync(step.cmd, step.args || [], { cwd, env, encoding: 'utf8' });
+    const stepEnv = step.env
+      ? { ...(env || process.env), ...step.env }
+      : env;
+    const res = spawnSync(step.cmd, step.args || [], { cwd, env: stepEnv, encoding: 'utf8' });
     const exitCode = res.status === null ? 127 : res.status;
     commands.push({ cmd: `${step.cmd} ${(step.args || []).join(' ')}`.trim(), exitCode });
     if (exitCode !== 0) {
