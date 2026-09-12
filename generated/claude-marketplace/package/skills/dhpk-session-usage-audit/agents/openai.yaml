@@ -1,0 +1,7 @@
+interface:
+  display_name: "Session Usage Audit"
+  short_description: "Audit local dhpk sessions and verify issues"
+  default_prompt: "Use $dhpk-session-usage-audit to audit local dhpk session usage and prepare verified issue evidence."
+
+policy:
+  allow_implicit_invocation: false

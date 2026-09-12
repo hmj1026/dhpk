@@ -1,0 +1,24 @@
+{
+  "schema_version": "v1",
+  "notes": [
+    "Single-suite test layout: synthetic git fixtures.",
+    "  - evals/generic/  — synthetic git fixtures, deterministic, runnable in any repo (CI gate, MUST pass).",
+    "",
+    "Runner: scripts/check-golden.sh",
+    "  - bash scripts/check-golden.sh             # run all fixtures",
+    "  - bash scripts/check-golden.sh --update    # regenerate expected outputs",
+    "",
+    "Custom presets MUST add a corresponding fixture under evals/generic/ covering their categorization rules.",
+    "",
+    "Projects that need historical SHA-bound goldens (asserting byte-identical output against frozen commits) can add their own evals/<projectname>/ suite + extend check-golden.sh. See references/presets.md."
+  ],
+  "suites": [
+    {
+      "name": "generic",
+      "path": "evals/generic/",
+      "kind": "synthetic-fixture",
+      "mandatory": true,
+      "description": "Self-contained fixtures: each fixture-NN.sh spins a tmp git repo, runs deploy-list with a known preset, diffs against expected-fixture-NN.txt. Covers php-yii, laravel, node, python, generic, and --anchor mode (rg-based)."
+    }
+  ]
+}

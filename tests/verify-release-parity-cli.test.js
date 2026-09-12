@@ -16,10 +16,10 @@ const CLI = path.join(ROOT, 'scripts', 'ci', 'verify-release-parity.js');
 
 function mkRepo(version) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-verify-parity-'));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', 'plugins/dhpk-agent', 'plugins/dhpk-agy', 'plugins/dhpk-cursor/.cursor-plugin', '.agents/plugins', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package']) {
+  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', 'plugins/dhpk-agent', 'plugins/dhpk-agy', 'plugins/dhpk-cursor/.cursor-plugin', '.agents/plugins', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package']) {
     fs.mkdirSync(path.join(root, rel), { recursive: true });
   }
-  for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-agy/plugin.json', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json', 'generated/claude-profiles/minimal/package/plugin.json', 'generated/claude-profiles/full/package/plugin.json', 'generated/claude-profiles/compat-v1/package/plugin.json']) {
+  for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-agy/plugin.json', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json', 'generated/claude-marketplace/package/.claude-plugin/plugin.json', 'generated/claude-profiles/minimal/package/plugin.json', 'generated/claude-profiles/full/package/plugin.json', 'generated/claude-profiles/compat-v1/package/plugin.json']) {
     fs.writeFileSync(path.join(root, rel), JSON.stringify({ name: 'dhpk', version }));
   }
   fs.writeFileSync(path.join(root, '.agents/plugins/marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version }] }));

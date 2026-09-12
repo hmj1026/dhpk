@@ -1,0 +1,47 @@
+name: library-author
+display_name: "Multi-version PHP library author"
+version: 0.1.0
+description: |
+  For PHP libraries whose composer constraints span multiple majors of a key
+  dependency (Laravel 6-11, Monolog 2/3, PHPUnit 8/9/10/11, Flysystem 1/2/3).
+  Adds the cross-cutting glue that the per-major php-*/laravel-*/phpunit-*
+  modules don't supply:
+
+    - polyfill-reviewer guidance selected by the Review Gate when an edited
+      .php file contains a version guard
+    - OpenSpec workflow guard (specs vs spec-delta naming enforcement,
+      tasks.md vs git log drift detection)
+    - matrix-cell onboarding skill (checklist for adding a new
+      PHP/Laravel/PHPUnit cell to composer.json + CI workflow)
+    - dual-testsuite (Core vs Laravel) review boundary helper
+
+  Pairs with — not duplicates — the polyfill-version-matrix-audit skill at
+  dhpk root (which is the manual-invoke deep audit) and the
+  version-matrix-impact-reviewer agent (which is the blast-radius assessor).
+  The Review Gate is the dispatch surface for those reviews; this module
+  supplies the role and its multi-major guidance.
+
+  Activate when ALL of:
+    - composer.json `require` has `||` across majors of a runtime dep
+    - repo has openspec/ directory
+    - tests split into core + laravel (or analogous) testsuites
+requires: []
+triggers:
+  code:
+    extensions: []
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  agents: [polyfill-reviewer]
+  skills:
+    - dhpk-matrix-cell-onboard
+    - dhpk-openspec-artifact-guard
+    - dhpk-library-dual-testsuite-map
+  references:
+    - polyfill-patterns.md
+    - openspec-naming-gotchas.md

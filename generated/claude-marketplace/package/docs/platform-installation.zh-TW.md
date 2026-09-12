@@ -1,0 +1,720 @@
+# 平台安裝指南
+
+> **Languages**: [English](./platform-installation.md) · **繁體中文**
+
+本文件是 dhpk 各 distribution surface 的安裝、驗證、支援層級與 rollback
+SSOT。package 或 manifest 只能證明結構；只有指定的 consumer probe 找到
+projection 內容後，才能宣稱 client 可呼叫。
+
+## Surface matrix
+
+| Surface | 安裝 | 更新／移除 | 驗證 | 支援邊界 |
+|---|---|---|---|---|
+| Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
+| Codex legacy/native | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
+| Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `plugins/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
+| Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
+| Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
+| Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
+| Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；release probe 使用隔離的 shared-network bubblewrap namespace，不得 unrestricted 執行 |
+| AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
+
+## Prerequisites 與版本假設
+
+以下各安裝段落使用對應表格列。此 repository 會記錄 package 與 schema
+版本，但尚未驗證任何 consumer client 的最低版本。release evidence 必須記錄
+實際 client version 與 probe result；不可由 package check 推導 runtime
+`PASS`。
+
+| Route | Client／版本假設 | OS 與 shell 假設 | 必要 tooling | Evidence gate |
+|---|---|---|---|---|
+| Codex project-local sync | Codex project-local loader；schema-v3 receipt；最低 Codex version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.codex/.dhpk-installed.json`，並執行列出的 metadata/test 命令 |
+| Codex legacy/native | 支援 marketplace/plugin 命令的 Codex CLI；執行 `codex --version`；最低 CLI version 尚未建立 | Linux、macOS 或 WSL shell；使用 disposable isolated `CODEX_HOME` | `codex`、marketplace access、`git` | 執行 marketplace route 並記錄 CLI 輸出；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
+| Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
+| Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
+| Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
+| Cursor project-local sync | Cursor project-local loader；schema-v3 receipt；最低 Cursor version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.cursor/.dhpk-installed.json`，並執行列出的 installer 測試；缺少 live Cursor client 不得視為 runtime `PASS` |
+| Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、已登入 Cursor session，以及 Linux 上已驗證的 bubblewrap；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI／sandbox 為 `UNAVAILABLE`／`BLOCKED`，discovery 另行記錄；只提供 API key 不接受 |
+| AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version` | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list` 只列 import，隔離 HOME 的 `agy agents` 才是 native load；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
+
+## Status vocabulary
+
+- `PASS`：適用證據已執行並驗證。
+- `FAIL`：適用檢查失敗。
+- `NOT_RUN`：規劃中的證據尚未執行。
+- `NOT_CONFIGURED`：未選取 surface，也沒有 marker。
+- `SKIP_INCOMPATIBLE`：指定 capability 沒有支援表示法，且已記錄 fallback。
+- `BLOCKED`：明確要求，但 prerequisite 或 route 缺失。
+- `UNAVAILABLE`：必要 client/tooling 未安裝或未提供。
+
+不可把 static manifest、marketplace entry、generated file 或 enabled flag
+直接轉成 runtime `PASS`。
+
+## 受控 authenticated runner preflight
+
+Issue #237 release evidence 必須從 exact merged commit 的 clean checkout 開始。
+任何 consumer probe 前先執行有界 preflight：
+
+```bash
+node scripts/release/consumer-runtime-preflight.js \
+  --root /absolute/path/to/dhpk \
+  --task-id issue-237-runtime \
+  --attempt-id attempt-<unique> --json
+```
+
+命令只記錄 task/attempt、source 與 target commit/tree、clean worktree、selected
+surfaces、tool versions、sandbox/network status，以及 allowlisted session
+file 名稱／數量。它不記錄 token、OAuth payload、cookie、private path 或任意
+HOME 檔案。`PASS` 只代表 runner ready，不是 consumer-runtime proof；缺少
+client 或 `bwrap` 為 `UNAVAILABLE`，缺少 allowlisted login 為 `BLOCKED`，
+foreign/stale identity 則以 `IDENTITY_INVALID` 或 `FOREIGN_PREFLIGHT` 的
+`BLOCKED` 表示。
+
+Runner 應使用 disposable workspace 與明確 session source
+（`DHPK_CURSOR_HOST_HOME` 或 `DHPK_AGY_HOST_HOME`）。執行前透過 provider
+login flow refresh session；不要複製 developer HOME，也不要把 credentials
+放進 command arguments、logs 或 receipts。Cursor 與 AGY probe 維持
+read-only package、disposable HOME，並要求受控 bubblewrap namespace。AGY
+runtime 先使用 `--unshare-all` 再使用 `--share-net`；DNS/proxy 失敗分類為
+`DNS_UNAVAILABLE` 或 `TRANSPORT_UNAVAILABLE`，有界 timeout output 維持
+non-PASS。
+
+受監督的順序是：先 preflight exact tree，再 deploy 同一棵 tree，執行七個
+identity rows，驗證六個 required-runtime rows，並保留 receipt。失敗時保留
+receipt，只移除 receipt-owned temporary files，透過 provider refresh/revoke
+session，再 rollback deployment 後重試。不可重用 dirty checkout，也不可把
+preflight `PASS` 升級成 `COMPLETE`。
+
+## Unified lifecycle CLI（唯讀 slice）
+
+`dhpk-install <surface> <action>` 是共同 lifecycle entrypoint。允許的 surface
+為 `claude`、`codex-sync`、`codex-native`、`agent-plugin`、`cursor`、`agy-plugin`；action 為
+`plan`、`install`、`verify`、`update`、`uninstall`、`rollback`、`status`。此初始
+slice 只啟用 deterministic、唯讀的 `plan`、`status` 與 `verify` result
+construction，例如：
+
+```bash
+dhpk-install cursor plan --scope project --json
+```
+
+從 source checkout 執行時，直接使用 bundled entrypoint：
+`bash /path/to/dhpk/bin/dhpk-install cursor plan --scope project --json`。
+
+JSON result 會將 normalized request 與 compiler plan 綁定，並將 closed
+projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
+CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。目前 write
+action 在任何 mutation 前都會回傳 `BLOCKED` 與 stable `NOT_IMPLEMENTED`
+diagnostic。尤其是 Codex project-local write 仍應使用既有
+`install-codex-skills.sh`，Cursor project-local write 應使用
+`install-cursor-harness.sh`，直到這些 adapter 透過相同的 ArtifactStore
+transaction 遷移。
+
+## Unified distribution CLI
+
+`bin/dhpk distribution <surface> <operation>` 是保留 native package surface
+的唯一 deterministic package boundary：`agent-plugin`、`cursor-plugin`、
+`codex-native` 與 `agy-plugin`。operation 為 `generate`、`validate` 與
+`verify`；每個 JSON result 都記錄 structural evidence，除非另行執行
+client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
+
+```bash
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.58.2 --json
+bin/dhpk distribution agy-plugin validate --json
+```
+
+上述 generate 指令是 maintainer／distribution preparation。從 clone 安裝的
+consumer 應使用下方 platform section 的 prepared package，不要在原地重新
+generate tracked package。
+
+## Codex project-local sync（Supported）
+
+Prerequisites：Codex project-local loader、POSIX shell，以及上表第一列的
+schema-v3 receipt contract。client version 必須等 release evidence 記錄後才算
+已建立。
+
+請從 project root 執行 checkout 版本：
+
+```bash
+bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
+```
+
+在 Claude plugin runtime 使用 `${CLAUDE_PLUGIN_ROOT}`。installer 會使用
+project-root heuristic，預設採 hybrid materialization：skill 與 supporting asset
+維持 relative symlink，但 `.codex/agents/*.toml` 一律為實體檔，供 Codex 作為
+configuration layer 載入。`--copy` 會把整個 projection 改為實體檔：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --copy
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
+```
+
+`codex-sync` 是支援且 canonical 的日常使用路徑。在 `install`、`update`、
+`migrate` 或 `plan` 操作前，installer 會查詢 `codex plugin list --json`。
+若明確回報 `dhpk@dhpk` 已 enabled，操作會在任何寫入前 `BLOCKED`；`--force`
+不能繞過這個 gate，但仍可使用 `--uninstall`。若 query 缺少或不受支援，JSON
+結果回報 `providerCheck: UNAVAILABLE`，project sync 仍可繼續。Installer 不會
+自動移除 global native plugin。
+
+Unified distribution/lifecycle installer 使用 inventory-owned `minimal` profile
+（inventory required_core_ids）。保留的 project-local Codex compatibility route 預設維持
+`compat-v1`；migration 時明確選 `minimal`，或加入 stable-ID overlay：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile full --skill git-smart-commit
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal --skill bug-investigation --skill tdd
+```
+
+沒有 profile metadata 的既有 receipt 維持 `compat-v1`；切換到較小 profile 必須
+使用 `--migrate --update`。Receipt 會記錄 canonical/surface-emitted IDs 與 selection
+fingerprint；無法使用的 consumer probe 維持 non-pass evidence。
+
+既有 schema-v3 symlink projection 執行普通 `--update` 時，未變更且
+receipt-owned 的 agent link 會轉為實體檔，skill link 保持不變。retargeted、edited
+或 unowned agent path 仍是 collision，不會被覆寫。
+
+`--force` 只繞過 project-root heuristic，不繞過 ownership 或 filesystem
+safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
+mode 與 fingerprint。edited、user-owned、retargeted、malformed、ambiguous
+或 collision 檔案必須保留並回報。未帶 `--adopt` 的 `--update` 在仍有
+collision 時以非零狀態結束，避免把 partial receipt 誤認為 current。
+
+若 projection stale 或有 unowned collision，先執行唯讀 plan：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+  --update --plan --json
+```
+
+只有 owner 明確批准一個 exact collision，才把 plan 回報的 destination 與
+source fingerprint 帶入 adoption。省略 `--copy`，installer 會沿用 receipt
+原本的 projection mode，避免重新 materialize 無關的 managed entries：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+  --update \
+  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
+```
+
+adoption 只作用於指定 path，並會在 promotion 前建立可 rollback 的 backup；不會
+授權其他 path 或其他 consumer surface。若 plan 後 fingerprint 已改變，command
+會在 mutation 前失敗，必須重新 plan。完成後檢查
+`.codex/.dhpk-installed.json` 的 `adopted`、`backups` 與 `evidence.paths`，才可
+判定 projection 已 current。
+
+先從 consumer project root 驗證已 materialize 的 projection：
+
+```bash
+test -f .codex/.dhpk-installed.json
+test -z "$(find .codex/agents -type l -print)"
+```
+
+上述檢查與 receipt 只證明安裝形態。named-role runtime 在 fresh Codex session
+實際派發 projected role 之前維持 `NOT_RUN`；unavailable 或 unknown custom role
+都是 non-pass evidence，不能由靜態 installer PASS 取代。派發本身不是 runtime
+`PASS`。
+
+Registry canary 必須使用非內建 custom role，並比較其 hyphenated 與 underscored
+兩種形式；內建 `explorer` 成功只證明 multi-agent tooling 可用。若 valid Git
+checkout 中由實體 TOML 支援的精確 ID 仍回報 `unknown agent_type`，應記錄
+`CUSTOM_AGENT_REGISTRY_UNAVAILABLE`、Codex CLI 版本與 bounded redacted
+diagnostics，consumer gate 保持 `FAIL`。改 role 名稱、替換 model 或重寫
+configuration 都不是 installation remediation。
+
+不能只因缺少 typed collaboration events 就推論
+`CUSTOM_AGENT_REGISTRY_UNAVAILABLE`。這個 diagnosis 必須有 fresh trusted
+disposable-home probe（由 gate 建立、全新隔離的暫時 `CODEX_HOME`，用來擷取
+dispatch）提供 affirmative unavailable-role evidence，或觀察到
+`untyped-fallback evidence`（fallback spawn 的觀察結果未帶 `agent_type`）。若
+兩者皆無（包括只有文字 `CODEX_DHPK_NAMED_ROLES=PASS` marker 單獨出現），保留
+bounded evidence 並回報 generic `FAIL`；collaboration-tool exposure/protocol
+另行調查。這個結果既不是 runtime `PASS`，也不是 unavailable-registry
+diagnosis。
+
+再從 dhpk checkout 執行 source-check validator。將 `DHPK_ROOT` 設為包含
+`scripts/` 與 `tests/` 的 checkout；這些檔案不會複製到 consumer project：
+
+```bash
+DHPK_ROOT=/absolute/path/to/dhpk
+node "$DHPK_ROOT/scripts/ci/validate-openai-metadata.js" --root "$DHPK_ROOT"
+node "$DHPK_ROOT/tests/install-codex-skills.test.js"
+```
+
+Rollback 使用 `--uninstall` 或還原已保存的 `.codex/` receipt；不要刪除整個
+`.codex/` 目錄。
+
+### 檢查 Codex 重複 discovery
+
+Project-local sync 與 experimental native package 是分開發布、分開取得的
+surface，但 runtime activation 互斥。使用 `codex-sync` 的 host 不可同時啟用
+`dhpk@dhpk`，否則同一個 public skill name 可能顯示兩次。先設定 `DHPK_ROOT`
+為 source checkout，再從 consumer project root 執行下列唯讀檢查：
+
+```bash
+node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
+  --repo-root "$DHPK_ROOT" \
+  --project-root "$PWD" \
+  --native-root "$DHPK_ROOT/plugins/dhpk"
+```
+
+Report 會把 artifact integrity 與 runtime activation 分開判定。`--native-root`
+只提供 package/artifact 證據——單純出現在該路徑下的 source checkout 或
+generated artifact，本身並不代表已啟用的 runtime provider。fingerprint
+相同且 provenance 有效時，`integrityVerdict: PASS` 仍可能成立；stale、unowned
+或 conflicting artifact 則依既有 integrity 規則處理。另一方面，只有當 project
+與 native surface 暴露相同的 invokable public name **且** `codex plugin list
+--json` 回報 `dhpk@dhpk` 為 enabled 時，runtime verdict 才會是
+`BLOCKED`，並帶有 `reasonCode: DUPLICATE_CODEX_PROVIDER`，即使 fingerprint
+相同也一樣。`duplicateInvokableNames` 會列出受影響名稱；non-invokable
+support package 不列入。Precedence 不能把重疊的 invokable name 變成 runtime
+`WARN` 或 `PASS`。
+
+`activation` 欄位會回報 native plugin 啟用狀態的判定方式：`status` 為
+`NOT_INSTALLED`、`UNAVAILABLE`、`AVAILABLE`、`DISABLED`、`ENABLED`、
+`INACTIVE`（最後者僅在明確傳入 `--native-activation inactive` override 時出現，
+即時探測不會回傳此值）其中之一，
+`source` 則是 `codex-plugin-list`（預設，即時探測）或 `override`（明確傳入
+`--native-activation`）。若存在重疊名稱但 native plugin 未啟用，會改列在
+`inactiveDuplicateInvokableNames`，runtime verdict 維持 `PASS`。若無法判定
+activation（`activation.status: UNAVAILABLE`，例如 Codex 無法連線或
+`plugin list` 輸出無法解析）且存在 inactive 的重疊名稱，command 會回報
+`verdict: WARN` 與 `reasonCode: CODEX_ACTIVATION_UNKNOWN`——這是提醒手動確認
+activation 的非阻擋訊號，既不是誤擋、也不是靜默放行。可傳入
+`--native-activation enabled|inactive` 明確選擇 runtime 判定（例如在 CI 中
+不呼叫真實 `codex` CLI）；預設的 `--native-activation auto` 會執行即時探測。
+
+如果 CLI 無法計算某個 provider 的 fingerprint，會回傳結構化 JSON，且包含
+`verdict: BLOCKED`、`integrityVerdict: BLOCKED` 與
+`reasonCode: CODEX_PROVIDER_FINGERPRINT_ERROR`。受影響的 provider 及其
+fingerprint error 會列在 `invalidProviders` 中；report 不會臆造 fingerprint。
+這是 policy failure，`exit 1`（status 1），不是 `exit 2` 的 usage/error 路徑。
+`nextAction` 欄位會說明 `--update` 只適用於 receipt-owned entries；unowned
+entries 必須人工檢查、修復或移除。這不表示 `--update` 會清理 unowned links。
+
+這個 command 只回報證據，不會刪除 projection、cache 或 host registration。
+Remediation 由人決定。若選擇支援的 project sync 路徑，請手動執行
+`codex plugin remove dhpk@dhpk`，再啟動新的 Codex session；不要刪除整個
+`.codex/` 目錄。若要做 native experiment，請使用全新的 disposable isolated
+`CODEX_HOME`，且不要建立 project-local projection。
+
+## Codex legacy/native package（Experimental）
+
+Prerequisites：具 marketplace route 的實際 `codex` CLI、POSIX shell，以及已
+記錄的 `codex --version`；本 repository 尚未驗證最低 CLI version。這條實驗性
+路徑只能使用 disposable isolated `CODEX_HOME`，不可與支援的 project-local
+sync 同時啟用。
+
+保留的 native artifact 在 `plugins/dhpk/`，使用 legacy
+`.codex-plugin/plugin.json`。真實 CLI 支援時：
+
+```bash
+codex plugin marketplace add <repo-or-path>
+codex plugin add dhpk@dhpk
+```
+
+consumer 必須先具備 local marketplace。檢查 physical package、
+`fingerprints.json`、`provenance.json` 與 client version。上述 repository
+command 取決於已安裝的 CLI；官方 Codex 文件不是這條 dhpk-specific route 的
+證明。若 `codex` 或 route 不存在，記錄 `UNAVAILABLE`／`BLOCKED`，並保留
+project-local sync。legacy manifest 不得視為 Agent Plugins conformance proof。
+
+## Standard Agent Plugin
+
+Prerequisites：實作 Agent Plugins 1.0.0 schema 且有已驗證 loader route 的
+client；本 repository 尚未驗證最低 client version。
+
+`plugins/dhpk-agent/` 具有 Agent Plugins 1.0.0 root `plugin.json`、
+immediate-child `skills/` 及 optional schema-versioned `mcp.json`。Claude/Codex
+invocation policy 留在 client-owned metadata；portable skill frontmatter 只含
+standard fields 與 nested metadata。
+
+```bash
+bin/dhpk distribution agent-plugin validate --json
+node scripts/ci/verify-platform-packages.js
+```
+
+這些檢查證明 package shape、containment、deterministic fingerprints 與
+provenance，不證明 Codex 或 Cursor runtime discovery。
+
+Cursor consumer-runtime evidence 只接受 `cursor-agent` CLI。portable Agent
+Plugin route 只允許一個 plugin directory：
+
+```bash
+cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format stream-json --stream-partial-output
+```
+
+這條 portable route 不得加入 Cursor-native directory、Codex marketplace
+命令或 agent-plugins.org 參數。
+
+authenticated release probe 只會在 disposable copy 內暫時加入通過 schema
+驗證、由 probe 擁有的 Cursor manifest 與 hook overlay，用來證明單一 package
+directory 確實被載入。已發布的 Agent Plugin 仍是 portable `plugin.json` 加上
+`skills/` tree，probe 結束時會移除 overlay。若 Agent package 另含 optional
+`mcp.json`，Cursor-only attestation copy 會省略這個 Agent-owned 檔案；因此
+probe 不宣稱 MCP runtime proof，也不會修改已發布 package。
+
+## Cursor standard Agent Plugin
+
+Prerequisites：具 local plugin loader 的 Cursor desktop client，以及已記錄的
+Cursor version；本 repository 尚未驗證最低版本。
+
+Cursor 可用 `plugins/dhpk-agent/` 取得 portable skills 與 optional MCP：
+
+1. 在 Cursor **Customize → Plugins** 選 reviewed local package，或複製到
+   `~/.cursor/plugins/local/dhpk-agent`。
+2. Reload window。
+3. 在 Cursor plugin view 驗證 discovered skill names 與 MCP entries。
+
+記錄 Cursor version 與 probe output。沒有 supported local loader 或 CLI 時，
+維持 `UNAVAILABLE`／`BLOCKED`；不可從此 package 宣稱 native rules、commands、
+agents 或 hooks。Cursor desktop GUI、**Customize → Plugins**、desktop
+`cursor` binary 與 project-local `.cursor/` 檔案是不同安裝路徑，不是
+`cursor-agent` runtime proof。
+
+## Cursor CLI（launch-scoped probe）
+
+Cursor CLI 是獨立於 Cursor desktop plugin loader 的 consumer surface。本指南
+中的 **launch-scoped** 是指 `--plugin-dir` 只把 package 傳給單次
+`cursor-agent` invocation；它不會安裝或註冊 persistent plugin。目前 CLI help
+提供 `--plugin-dir`，但官方 CLI 文件尚未建立 plugin component discovery，
+所以在有 versioned consumer probe 成功前，這條 route 是
+experimental/conditional。`plugin` subcommand 也沒有 non-interactive
+`plugin install` 命令。不可把 `cursor-agent plugin marketplace add` 說成
+dhpk 安裝；它只會加入或更新 marketplace index。
+
+Prerequisites：記錄 `cursor-agent --version`、已登入的 Cursor CLI session，
+以及本機可讀取兩個 dhpk package。只使用 API key 不構成 consumer-runtime
+proof。先確認 authentication：
+
+```bash
+cursor-agent --version
+cursor-agent status
+cursor-agent login  # 只有 status 顯示 Not logged in 時才執行
+```
+
+release `--execute` route 只會把 allowlisted Cursor login files 複製到
+disposable HOME，並在已驗證的 bubblewrap namespace 中執行有界 client；它在
+`--unshare-all` 後加上 `--share-net`，讓 `--mode ask` 能連線，同時隔離 filesystem、
+HOME 與 process。不得以 unrestricted execution 取代這條路徑；缺少 bubblewrap
+時為 `BLOCKED`，DNS／transport 失敗為 `UNAVAILABLE`，不可誤報成 product
+`FAIL`。offline fixture 可要求 `networkMode: disabled`，此時保持斷網，不能升格為
+live runtime `PASS`。
+若 client 安裝在 home 目錄下，namespace 只 bind 實體 executable directory；只有
+需要 absolute sibling library 的可信 Homebrew-style `.linuxbrew` prefix 可作明確例外，
+直接位於 home root 或 `.local` 的 executable 會被阻擋。
+
+執行 launch-scoped、read-only probe 時，使用有界 wrapper 並明確傳入兩個
+package directory。wrapper 會以有限 timeout 與 output cap 執行下列命令：
+
+```bash
+node scripts/release/cursor-agent-probe.js \
+  --agent-package "$HOME/.cursor/plugins/local/dhpk-agent" \
+  --cursor-package "$HOME/.cursor/plugins/local/dhpk-cursor" \
+  --timeout-ms 60000 \
+  --max-output-bytes 262144
+```
+
+wrapper 實際執行的 launch command 等同於：
+
+```bash
+cursor-agent \
+  --plugin-dir "$HOME/.cursor/plugins/local/dhpk-agent" \
+  --plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor" \
+  --mode ask \
+  --trust \
+  -p 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.' \
+  --output-format stream-json \
+  --stream-partial-output
+```
+
+`stream-json` 是 newline-delimited 的 machine-readable output。probe 只從 terminal
+response event 判定 discovery；prompt/tool frames 僅保留為有界且已 redacted 的
+timeout 診斷，不能單獨滿足 runtime `PASS`。
+
+portable Agent Plugin probe 只使用一個 directory：
+
+```bash
+cursor-agent \
+  --plugin-dir <agent-package> \
+  --mode ask \
+  --trust \
+  -p <smoke-prompt> \
+  --output-format stream-json \
+  --stream-partial-output
+```
+
+wrapper 也會傳 `--trust`，避免 launch-scoped probe 卡在互動式 workspace
+確認提示，並忽略 stdin，避免子行程繼承呼叫端 TTY。若要同等的不卡住證據，
+不要把等同的 `cursor-agent` argv 貼進互動式 shell。
+
+記錄 exact CLI version、authentication status、package paths 與 probe output。
+package validator 只證明 structure 與 provenance；runtime `PASS` 必須由已登入的
+`cursor-agent` CLI 實際 discover projection content；在此之前 CLI route 維持
+`NOT_RUN` 或 `BLOCKED`。若 CLI 回報 `Authentication required`，在完成 login
+前證據是 `BLOCKED`。若缺少 `cursor-agent`，記錄 `UNAVAILABLE`；desktop
+`cursor` binary、GUI discovery 與 project-local `.cursor/` installer 都不是
+替代證據。missing CLI（缺少 `cursor-agent`）記錄為 `UNAVAILABLE`。`cursor-sync` installer identity row 在未執行 installer runtime
+時預期為 `NOT_RUN`，不等於 Cursor consumer-runtime PASS，也不會單獨造成
+`NO-SHIP`。但 installer `FAIL` 仍代表 unhealthy，必須調查。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
+Cursor desktop GUI、Customize → Plugins、desktop `cursor` binary 與
+project-local `.cursor/` 安裝只屬於 setup 或 installer evidence，不能替代已登入
+`cursor-agent` 的 runtime proof。
+即使要求更大的值，probe 仍強制 5 分鐘 timeout 上限與 4 MiB output 上限。
+若 wrapper 回報 `SKIP_INCOMPATIBLE` 且 `timed_out: true`、`no_stdout: true`，
+代表 CLI 在期限內沒有任何輸出。目前 `cursor-agent` 沒有非 LLM 的 plugin
+list；`--plugin-dir` 加上 `--mode ask` 會啟動可能掛起的完整 session。這是
+CLI 限制，不是套件失敗。若 wrapper 回報 `BLOCKED` 且 `timed_out: true` 或
+`output_limited: true`，代表沒有產生 consumer result；保留有界、已 redact
+的 diagnostic，只能以另一組有限 limit 重試。
+wrapper 也會阻擋空白、無效或缺少 capability 的 response；只有包含要求的
+dhpk skills、commands、agents、rules 證據，才能記錄為完成的 probe。
+
+若要為 Cursor desktop 建立 persistent local setup，可在
+`~/.cursor/plugins/local/` 使用 symlink 或 copy；CLI probe 仍要明確傳入這些
+path，更新後重開 Cursor desktop/session：
+
+```bash
+mkdir -p ~/.cursor/plugins/local
+ln -s /absolute/path/to/dhpk/plugins/dhpk-agent ~/.cursor/plugins/local/dhpk-agent
+ln -s /absolute/path/to/dhpk/plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
+```
+
+建立 link 前先確認 target 不存在；不可覆蓋 user-owned plugin。Rollback 只移除
+這兩個 dhpk link。
+
+## Cursor Plugin（native components）
+
+Prerequisites：loader 支援 native manifest/components 的 Cursor desktop client，
+以及已記錄的 Cursor version；本 repository 尚未驗證最低版本。
+
+native projection 是 `plugins/dhpk-cursor/`，manifest 為
+`.cursor-plugin/plugin.json`。local 測試：
+
+```bash
+mkdir -p ~/.cursor/plugins/local
+cp -R plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
+```
+
+也可使用 reviewed `.cursor-plugin/marketplace.json` source。Reload Cursor，
+不要提交 credential 的 variables，並驗證選取的 `rules/`、`agents/`、
+`commands/` 與 `hooks/hooks.json`。portable skills 不會複製到這個 native
+package：請安裝 `plugins/dhpk-agent/` 作為專案唯一的 physical skill store，
+再以兩份 provenance 的 stable IDs 互相比對。不要手動建立第二份 `skills/`。
+只有明確的 environment-specific matrix overlay 可以加入 Cursor `skills/`，
+且該 overlay 必須記錄 transform 與獨立 fingerprint。不支援的 component
+為 `SKIP_INCOMPATIBLE` 並記錄 matrix fallback；缺少 Cursor tooling 為
+`UNAVAILABLE`。
+
+Rollback 只移除或還原 `~/.cursor/plugins/local/dhpk-cursor` 與其
+Cursor-owned receipt，不可刪除 Codex、Claude、project-owned Cursor files 或
+portable `dhpk-agent` package。
+
+## Cursor project-local sync（Supported）
+
+Prerequisites：Cursor project-local loader、POSIX shell，以及上表 Cursor
+project-local 列的 schema-v3 receipt contract。client version 必須等 release
+evidence 記錄後才算已建立。
+
+此路徑與 `plugins/dhpk-cursor/`（marketplace／user-scoped plugin）分開。
+project-local 檔案只在 installer 執行後出現於 consumer `.cursor/`。native
+`.cursor/hooks.json` mapping 不在 v1；此 installer 不會寫入 `hooks.json`。
+若 Third-party skills 開啟，Cursor 仍可能從 `.claude/settings.json` 載入
+Claude hooks——那是可選相容路徑，不是 v1 owner。
+
+支援路徑的版本 SSOT 是 local packages
+`~/.cursor/plugins/local/dhpk-agent` 與
+`~/.cursor/plugins/local/dhpk-cursor`，加上 project-local schema-v3
+receipt `.cursor/.dhpk-installed.json`。Cursor 也可能在
+`~/.cursor/plugins/cache/dhpk/dhpk/<hash>/` 留下 marketplace hash
+cache。local packages 更新後，該 cache 的 `plugin.json` 仍可能停在舊版；
+它不是 SSOT，不可當成已安裝版本。
+`install-cursor-harness.sh --update --plan --json` 在 cache manifest
+version 與 local packages 或 planned `plugin_version` 不一致時，會回報
+`warnings[].code = cursor_marketplace_hash_cache_drift`。請在 Cursor UI
+停用或移除 marketplace dhpk plugin，只保留 local packages 與
+project-local receipt。除非 Cursor 已卸載該 marketplace plugin，否則不要
+手刪 hash cache。
+
+請從 project root 執行 checkout 版本：
+
+```bash
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh
+```
+
+Claude plugin runtime 使用 `${CLAUDE_PLUGIN_ROOT}`。installer 使用
+project-root heuristic，預設建立相對 symlink，並支援 `--copy`：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --copy
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --update
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate --update
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
+```
+
+Cursor sync 同樣支援 profile 與 additive overlay flags。新安裝預設為 `minimal`；
+未標註舊 receipt 會維持 `compat-v1`，直到明確使用 `--migrate`。unknown、retired、
+deprecated、duplicate 或 surface 不相容 ID 會在修改 `.cursor/` 前拒絕。
+
+`--force` 只繞過 project-root heuristic，不會繞過 receipt ownership 或 path
+safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
+mode 與 fingerprint。已編輯、user-owned、retargeted、malformed、ambiguous 或
+colliding 的檔案會被保留並回報。未帶 `--adopt` 的 `--update` 在仍有
+collision 時以非零狀態結束，避免把 partial receipt 誤認為 current。
+
+對 stale 或 unowned projection，先檢查再變更：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+  --update --plan --json
+```
+
+Planning 是唯讀。若 owner 核准一個精確 collision，把兩份 fingerprint 複製到
+explicit adoption request。省略 `--copy`：installer 會保留 receipt 既有
+projection mode：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+  --update \
+  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
+```
+
+Adoption 以 path 為範圍，並在 promotion 前建立可 rollback 的 backup。fingerprint
+若已變更，命令會在 mutation 前失敗；請重新 plan。將 projection 視為 current
+前，先檢查 `.cursor/.dhpk-installed.json`。
+
+從 consumer project root 驗證：
+
+```bash
+test -f .cursor/.dhpk-installed.json
+```
+
+source-check validator 必須從 dhpk checkout 執行。將 `DHPK_ROOT` 設為擁有
+`scripts/` 與 `tests/` 的 checkout；這些檔案不會複製到 consumer project：
+
+```bash
+DHPK_ROOT=/absolute/path/to/dhpk
+node "$DHPK_ROOT/scripts/ci/validate-cursor-sync.js"
+node "$DHPK_ROOT/tests/install-cursor-harness.test.js"
+```
+
+Rollback 使用 `--uninstall` 或還原已儲存的 `.cursor/` receipt。不要刪除整個
+`.cursor/` 目錄。`dhpk-install cursor` write 仍為 `NOT_IMPLEMENTED`；支援的
+write path 是此 bash installer。
+
+## AGY／Antigravity CLI plugin（Experimental）
+
+AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
+frontmatter，不會改寫 `agents/`。已追蹤的 `plugins/dhpk-agy/` 目錄已是可供
+consumer 從 clone 直接安裝的 prepared distribution package。請直接安裝該
+package；consumer 安裝流程不要在 tracked path 重新 generate，因為 generate
+會改寫 provenance metadata 並弄髒 checkout：
+
+```bash
+node scripts/ci/install-agy-plugin.js install \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+```
+
+Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗證 tracked
+package：
+
+```bash
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.58.2 --json
+bin/dhpk distribution agy-plugin validate --json
+```
+
+若要在本機產生但不修改 checkout，請使用外部 staging path，並對同一份
+package 執行 validate 與 install：
+
+```bash
+bin/dhpk distribution agy-plugin generate \
+  --output /tmp/dhpk-agy-staging --version=0.56.0 --json
+bin/dhpk distribution agy-plugin validate \
+  --output /tmp/dhpk-agy-staging --json
+node scripts/ci/install-agy-plugin.js install \
+  --source /tmp/dhpk-agy-staging \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+```
+
+只在文件化的 user path 安裝、更新與移除 receipt-owned package。若 target
+有 foreign file 或 changed owned file，視為 collision 並保持原檔：
+
+```bash
+node scripts/ci/install-agy-plugin.js install \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js update \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js plan \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js status \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js rollback \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+```
+
+`plan` 與 `status` 都是唯讀操作，會回報 source／target version、receipt
+ownership、physical `.git` marker，以及有界的 same／changed／missing 檔案證據。
+若 physical Git checkout 沒有相符的 AGY receipt，分類為
+`FOREIGN_CHECKOUT` 並回傳 `BLOCKED`；owner 必須自行備份、移動或退役該
+checkout，之後才能 clean install。診斷不會自動 migration、adoption、覆寫或
+移除 foreign target。
+
+configured-platform validation 與 package validation 分開執行：
+
+```bash
+python3 skills/harness-govern/scripts/multi_ai_sync.py \
+  --root . validate --targets agy --format json
+agy --version
+agy plugins list
+agy agents
+```
+
+`agy plugins list` 只列出 import records。安裝在
+`~/.gemini/config/plugins/dhpk` 的 native receipt-owned package 是由
+隔離 HOME 的 `agy agents` 發現，不能用 import JSON 裡出現 `dhpk` 當證明。
+validator 會把 package bind 到 sandbox 內的這個 consumer path。
+AGY 1.1.13 沒有 native filesystem plugin loader，所以隔離 HOME 的
+`agy agents` 會是空的；這組結果是 `SKIP_INCOMPATIBLE`，不是 package-shape
+`FAIL`。不要對 receipt-owned target 跑 `agy plugin install`：那不是 native
+registration 步驟，而且可能把 `plugin.json` 截成空檔。
+
+AGY runtime prerequisites 是 `agy` CLI、目前支援的 `bwrap` POSIX sandbox
+backend，以及明確指定的 `DHPK_AGY_HOST_HOME`，其中必須有 allowlisted
+login file。runtime probe 只把 allowlisted files 複製到 disposable HOME，
+以 read-only 方式 mount package，並只在 runtime invocation 開啟 network。
+缺少 login 是 `BLOCKED`；缺少 `agy` 或 `bwrap` 是 `UNAVAILABLE`；未明確使用
+`--agy-runtime-probe` 時 runtime 是 `NOT_RUN`。runtime diagnostics 有界且已
+redact，不記錄 host credential 內容。AGY free-form client output 會收斂為
+固定的 reason-class placeholder，因此不會保存 private path、prompt、tool
+payload 或 host overlay marker。
+
+報告分開記錄 package structure、plugin/agent discovery 與 Subagent runtime。
+若 `agy` 不在 `PATH`，discovery 是 `UNAVAILABLE`；未使用
+`--agy-runtime-probe` 時 runtime 是 `NOT_RUN`。CLI 可用時，opt-in probe
+有界且唯讀：
+
+```bash
+python3 skills/harness-govern/scripts/multi_ai_sync.py \
+  --root . validate --targets agy --agy-runtime-probe --format json
+```
+
+不可把 static manifest、`agy agents` listing 或 foreign-checkout 診斷升級成
+runtime `PASS`。
+rollback／uninstall 只移除符合 AGY provenance receipt 的檔案，並保留 plugin
+directory 內的 user-owned files。
+
+## Maintainer evidence
+
+每個 generated surface 記錄 release version、source commit/tag、inventory
+digest、generator version、stable IDs、public names、transforms 與 physical
+fingerprints。release evidence 另記 client versions、install route、probe
+result 及所有未執行 gate。版本控管的規範見
+`openspec/specs/`（特別是 `agy-cli-subagent-plugin/spec.md` 與
+`platform-installation-documentation/spec.md`）與
+[distribution surface guide](./distribution-surfaces.zh-TW.md)。

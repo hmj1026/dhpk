@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Bridge"
+  short_description: "Explicitly delegate a Codex CLI bulk task or blind opinion"
+  default_prompt: "Use $dhpk-codex-bridge to apply the Codex Bridge workflow with its verification rules."
