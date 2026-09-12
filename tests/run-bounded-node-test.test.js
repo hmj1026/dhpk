@@ -19,6 +19,50 @@ function runBounded(args, env = {}) {
   });
 }
 
+function fakeSystemdPath() {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-portable-'));
+  fs.writeFileSync(path.join(bin, 'systemd-run'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+  return bin;
+}
+
+test('portable fallback bounds a command and scrubs runner control variables', () => {
+  const bin = fakeSystemdPath();
+  const child = [
+    "const names = ['DHPK_BOUNDED_REQUIRE_CGROUP', 'DHPK_BOUNDED_ALLOW_FALLBACK', 'DHPK_BOUNDED_EXPECT_MEMORY_MAX_BYTES', 'DHPK_BOUNDED_EXPECT_MEMORY_SWAP_MAX_BYTES', 'DHPK_BOUNDED_READY_FILE', 'DHPK_BOUNDED_HANDSHAKE_TIMEOUT_SECONDS'];",
+    "if (names.some((name) => process.env[name])) process.exit(17);",
+    "console.log('portable bounded');",
+  ].join('\n');
+  try {
+    const res = runBounded(['node', '-e', child], {
+      PATH: `${bin}:${process.env.PATH}`,
+      DHPK_BOUNDED_REQUIRE_CGROUP: '0',
+      DHPK_BOUNDED_ALLOW_FALLBACK: '1',
+    });
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(res.stderr, /portable fallback/i);
+    assert.match(res.stdout, /portable bounded/);
+  } finally {
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('portable fallback terminates a command after its wall-time bound', () => {
+  const bin = fakeSystemdPath();
+  try {
+    const res = runBounded(['node', '-e', 'setTimeout(() => {}, 5000);'], {
+      PATH: `${bin}:${process.env.PATH}`,
+      TIMEOUT_SECONDS: '1s',
+      DHPK_BOUNDED_REQUIRE_CGROUP: '0',
+      DHPK_BOUNDED_ALLOW_FALLBACK: '1',
+    });
+    assert.strictEqual(res.status, 124, `${res.stdout}\n${res.stderr}`);
+    assert.match(res.stderr, /portable fallback/i);
+    assert.match(res.stderr, /timed out/i);
+  } finally {
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 // The containment contract is Linux-only: Darwin has neither the verified
 // systemd user cgroup boundary nor the GNU `timeout` prerequisite. Keep the
 // runner itself fail-closed, but classify this test file explicitly so the
@@ -180,7 +224,7 @@ test('exits with code 2 if no command is provided', () => {
   assert.match(res.stderr, /Usage:/);
 });
 
-test('fallback is explicit and still applies a virtual-memory limit when user cgroups are unavailable', () => {
+test('fallback is explicit and applies a portable heap and wall-time bound when user cgroups are unavailable', () => {
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-no-systemd-'));
   try {
     fs.writeFileSync(path.join(bin, 'systemd-run'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
@@ -190,7 +234,7 @@ test('fallback is explicit and still applies a virtual-memory limit when user cg
       DHPK_BOUNDED_ALLOW_FALLBACK: '1',
     });
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.match(res.stderr, /virtual-memory fallback/i);
+    assert.match(res.stderr, /portable fallback/i);
     assert.match(res.stdout, /fallback bounded/);
   } finally {
     fs.rmSync(bin, { recursive: true, force: true });
@@ -237,16 +281,16 @@ test('zero or malformed timeout values fail closed instead of disabling the guar
   assert.match(malformed.stderr, /TIMEOUT_SECONDS|invalid/i);
 });
 
-test('virtual-memory fallback rejects an unbounded or malformed size', () => {
+test('portable fallback rejects an unbounded or malformed heap size', () => {
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-invalid-size-'));
   try {
     fs.writeFileSync(path.join(bin, 'systemd-run'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
     const res = runBounded(['node', '-e', 'process.exit(0);'], {
       PATH: `${bin}:/usr/bin:/bin`,
-      VIRTUAL_MEMORY_MAX: '0G',
+      DHPK_BOUNDED_PORTABLE_NODE_HEAP_MB: '0',
     });
     assert.strictEqual(res.status, 125, res.stderr);
-    assert.match(res.stderr, /VIRTUAL_MEMORY_MAX|positive|invalid/i);
+    assert.match(res.stderr, /DHPK_BOUNDED_PORTABLE_NODE_HEAP_MB|positive|invalid/i);
   } finally {
     fs.rmSync(bin, { recursive: true, force: true });
   }

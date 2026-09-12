@@ -10,9 +10,10 @@ MEMORY_SWAP_MAX="${MEMORY_SWAP_MAX:-1G}"
 # batch bound longer so one slow child is recorded as a failure instead of
 # terminating the whole aggregate before it can continue.
 TIMEOUT_SECONDS="${TIMEOUT_SECONDS:-900s}"
-VIRTUAL_MEMORY_MAX="${VIRTUAL_MEMORY_MAX:-4G}"
 REQUIRE_CGROUP="${DHPK_BOUNDED_REQUIRE_CGROUP:-1}"
 ALLOW_FALLBACK="${DHPK_BOUNDED_ALLOW_FALLBACK:-0}"
+PORTABLE_NODE_HEAP_MB="${DHPK_BOUNDED_PORTABLE_NODE_HEAP_MB:-2048}"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 
 if [ "$#" -eq 0 ]; then
   echo "Usage: $0 <command> [args...]" >&2
@@ -68,10 +69,10 @@ MEMORY_SWAP_MAX_BYTES="$(parse_size_bytes "$MEMORY_SWAP_MAX")" || {
   echo "[run-bounded-node-test] ERROR: MEMORY_SWAP_MAX must be a positive size <= 16G (for example 1G)" >&2
   exit 125
 }
-VIRTUAL_MEMORY_BYTES="$(parse_size_bytes "$VIRTUAL_MEMORY_MAX")" || {
-  echo "[run-bounded-node-test] ERROR: VIRTUAL_MEMORY_MAX must be a positive size <= 16G (for example 4G)" >&2
+if ! [[ "$PORTABLE_NODE_HEAP_MB" =~ ^[1-9][0-9]*$ ]] || [ "$PORTABLE_NODE_HEAP_MB" -lt 128 ] || [ "$PORTABLE_NODE_HEAP_MB" -gt 16384 ]; then
+  echo "[run-bounded-node-test] ERROR: DHPK_BOUNDED_PORTABLE_NODE_HEAP_MB must be between 128 and 16384" >&2
   exit 125
-}
+fi
 if [ "$REQUIRE_CGROUP" != '0' ] && [ "$REQUIRE_CGROUP" != '1' ]; then
   echo "[run-bounded-node-test] ERROR: DHPK_BOUNDED_REQUIRE_CGROUP must be 0 or 1" >&2
   exit 125
@@ -250,34 +251,24 @@ trap on_signal HUP INT TERM
 
 START_TS=$(date +%s)
 
-# A timeout binary is mandatory.  Running an unbounded command is not a safe
-# fallback for a script whose purpose is to contain memory failures.
-if ! command -v timeout >/dev/null 2>&1; then
-  echo "[run-bounded-node-test] ERROR: timeout command is unavailable; refusing to run unbounded" >&2
-  exit 127
-fi
-if ! command -v mktemp >/dev/null 2>&1; then
-  echo "[run-bounded-node-test] ERROR: mktemp command is unavailable; refusing to run an unverified scope" >&2
-  exit 127
-fi
-
 run_fallback() {
-  echo "[run-bounded-node-test] WARNING: explicit virtual-memory fallback (${VIRTUAL_MEMORY_MAX}); aggregate descendant containment is unavailable" >&2
-  export NODE_OPTIONS="--max-old-space-size=2048 ${NODE_OPTIONS:-}"
-  local virtual_memory_kib
-  virtual_memory_kib=$(( VIRTUAL_MEMORY_BYTES / 1024 ))
-  if command -v prlimit >/dev/null 2>&1; then
-    prlimit --as="${VIRTUAL_MEMORY_BYTES}" -- timeout --kill-after=5s "${TIMEOUT_SECONDS}" "$@"
-    return $?
-  fi
-  (
-    ulimit -v "${virtual_memory_kib}"
-    timeout --kill-after=5s "${TIMEOUT_SECONDS}" "$@"
-  )
+  echo "[run-bounded-node-test] WARNING: explicit portable fallback (Node heap ${PORTABLE_NODE_HEAP_MB}MB + process-group wall-time); aggregate descendant containment is unavailable" >&2
+  node "${SCRIPT_DIR}/run-portable-bounded-command.js" \
+    --timeout "${TIMEOUT_SECONDS}" \
+    --node-heap-mb "${PORTABLE_NODE_HEAP_MB}" \
+    -- "$@"
 }
 
 run_in_scope() {
   local scope_token scope_unit launcher_pid exit_code claimed=0 query_failed=0 handshake_root ready_file
+  if ! command -v timeout >/dev/null 2>&1; then
+    echo "[run-bounded-node-test] ERROR: timeout command is unavailable for the systemd cgroup adapter" >&2
+    return 127
+  fi
+  if ! command -v mktemp >/dev/null 2>&1; then
+    echo "[run-bounded-node-test] ERROR: mktemp command is unavailable for the systemd cgroup adapter" >&2
+    return 127
+  fi
   scope_token=$(cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '[:space:]-' || true)
   if [ -z "$scope_token" ]; then
     echo "[run-bounded-node-test] ERROR: cannot obtain a secure scope token" >&2
@@ -339,6 +330,7 @@ run_in_scope() {
         fi
         sleep 0.01
       done
+      for bounded_name in ${!DHPK_BOUNDED_@}; do unset "$bounded_name"; done
       exec "$@"
     ' -- timeout --kill-after=5s "${TIMEOUT_SECONDS}" "$@" &
   launcher_pid=$!
@@ -386,6 +378,7 @@ run_in_scope() {
 
 if command -v systemd-run >/dev/null 2>&1 \
   && command -v systemctl >/dev/null 2>&1 \
+  && command -v timeout >/dev/null 2>&1 \
   && systemd-run --user --scope true >/dev/null 2>&1; then
   set +e
   run_in_scope "$@"

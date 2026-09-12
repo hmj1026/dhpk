@@ -37,4 +37,31 @@ test('exits non-zero and reports failureReasons when a step fails', () => {
   assert.ok(stage.failureReasons.some((r) => r.includes('boom')));
 });
 
+test('uses strict cgroup policy for CI source-gate steps', () => {
+  const stepsFile = mkStepsFile([{
+    name: 'policy',
+    cmd: 'node',
+    args: ['-e', "if (process.env.DHPK_BOUNDED_REQUIRE_CGROUP !== '1' || process.env.DHPK_BOUNDED_ALLOW_FALLBACK !== '0') process.exit(1)"],
+  }]);
+  const env = { ...process.env, CI: 'true', DHPK_BOUNDED_REQUIRE_CGROUP: '1', DHPK_BOUNDED_ALLOW_FALLBACK: '0' };
+  const res = spawnSync('node', [CLI, '--version', '1.0.0', '--steps-file', stepsFile], { encoding: 'utf8', env });
+  assert.strictEqual(res.status, 0, res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.environment, 'ci');
+});
+
+test('uses the portable policy for local macOS source-gate steps', () => {
+  const stepsFile = mkStepsFile([{
+    name: 'policy',
+    cmd: 'node',
+    args: ['-e', "if (process.platform === 'darwin' && (process.env.DHPK_BOUNDED_REQUIRE_CGROUP !== '0' || process.env.DHPK_BOUNDED_ALLOW_FALLBACK !== '1')) process.exit(1)"],
+  }]);
+  const env = { ...process.env, DHPK_BOUNDED_REQUIRE_CGROUP: '1', DHPK_BOUNDED_ALLOW_FALLBACK: '0' };
+  delete env.CI;
+  const res = spawnSync('node', [CLI, '--version', '1.0.0', '--steps-file', stepsFile], { encoding: 'utf8', env });
+  assert.strictEqual(res.status, 0, res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.environment, process.platform === 'darwin' ? 'local-portable' : 'local');
+});
+
 run('source-gate-cli');

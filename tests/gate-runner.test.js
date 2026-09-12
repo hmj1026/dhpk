@@ -35,4 +35,18 @@ test('every step runs even after an earlier one fails (full evidence, not fail-f
   assert.strictEqual(stage.verdict, 'FAIL');
 });
 
+test('passes an explicit environment to every step', () => {
+  const stage = runSteps([
+    {
+      name: 'environment',
+      cmd: 'node',
+      args: ['-e', "if (process.env.DHPK_GATE_RUNNER_TEST !== 'present') process.exit(1)"],
+    },
+  ], {
+    environment: 'test',
+    env: { ...process.env, DHPK_GATE_RUNNER_TEST: 'present' },
+  });
+  assert.strictEqual(stage.verdict, 'PASS');
+});
+
 run('gate-runner');

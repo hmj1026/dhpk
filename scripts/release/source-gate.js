@@ -42,6 +42,17 @@ function defaultSteps(root, version) {
   ];
 }
 
+function sourceGatePolicy() {
+  const env = { ...process.env };
+  if (process.env.CI) return { environment: 'ci', env };
+  if (process.platform === 'darwin') {
+    env.DHPK_BOUNDED_REQUIRE_CGROUP = '0';
+    env.DHPK_BOUNDED_ALLOW_FALLBACK = '1';
+    return { environment: 'local-portable', env };
+  }
+  return { environment: 'local', env };
+}
+
 const args = parseArgs(process.argv.slice(2));
 if (!args.stepsFile && !args.version) {
   console.error('usage: source-gate.js --version X.Y.Z [--repo-root <path>]');
@@ -52,6 +63,7 @@ const steps = args.stepsFile
   ? JSON.parse(readFileBounded(args.stepsFile).toString('utf8'))
   : defaultSteps(args.root, args.version);
 
-const stage = runSteps(steps, { environment: process.env.CI ? 'ci' : 'local', cwd: args.root });
+const policy = sourceGatePolicy();
+const stage = runSteps(steps, { ...policy, cwd: args.root });
 console.log(JSON.stringify(stage, null, 2));
 process.exit(stage.verdict === 'PASS' ? 0 : 1);
