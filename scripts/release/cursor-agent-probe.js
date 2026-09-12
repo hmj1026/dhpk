@@ -68,14 +68,22 @@ function main() {
   let probeCursorPackage = cursorPackage;
   let result;
   try {
-    assertPhysicalPackageRoot(agentPackage, 'Agent package');
-    assertPhysicalPackageRoot(cursorPackage, 'Cursor package');
-    if (!privateTempPath(agentPackage) || !privateTempPath(cursorPackage)) {
+    // CLI package arguments may be documented symlink aliases (for example
+    // ~/.cursor/plugins/local/dhpk-agent). Validate the canonical targets so
+    // the package-root safety checks cover the physical package rather than
+    // rejecting the operator's symlink entrypoint (issues #479/#481).
+    const physicalAgentPackage = fs.realpathSync(agentPackage);
+    const physicalCursorPackage = fs.realpathSync(cursorPackage);
+    assertPhysicalPackageRoot(physicalAgentPackage, 'Agent package');
+    assertPhysicalPackageRoot(physicalCursorPackage, 'Cursor package');
+    probeAgentPackage = physicalAgentPackage;
+    probeCursorPackage = physicalCursorPackage;
+    if (!privateTempPath(physicalAgentPackage) || !privateTempPath(physicalCursorPackage)) {
       stagingRoot = fs.mkdtempSync(path.join(tempRoot, 'dhpk-cursor-cli-stage-'));
       probeAgentPackage = path.join(stagingRoot, 'agent-package');
       probeCursorPackage = path.join(stagingRoot, 'cursor-package');
-      fs.cpSync(agentPackage, probeAgentPackage, { recursive: true, dereference: false });
-      fs.cpSync(cursorPackage, probeCursorPackage, { recursive: true, dereference: false });
+      fs.cpSync(physicalAgentPackage, probeAgentPackage, { recursive: true, dereference: false });
+      fs.cpSync(physicalCursorPackage, probeCursorPackage, { recursive: true, dereference: false });
       assertPhysicalPackageRoot(probeAgentPackage, 'staged Agent package');
       assertPhysicalPackageRoot(probeCursorPackage, 'staged Cursor package');
     }
