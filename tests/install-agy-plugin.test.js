@@ -96,7 +96,7 @@ function snapshotFiles(root) {
 }
 
 test('CLI installs and rolls back the receipt-owned AGY package', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-cli-install-'));
+  const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-install-'));
   const target = path.join(temp, 'target');
   try {
     const installed = invoke('install', target);
@@ -112,7 +112,7 @@ test('CLI installs and rolls back the receipt-owned AGY package', () => {
 });
 
 test('CLI plan and status report a foreign checkout without mutation', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-cli-plan-'));
+  const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-plan-'));
   const target = path.join(temp, 'target');
   try {
     fs.mkdirSync(path.join(target, '.git'), { recursive: true });
@@ -132,7 +132,7 @@ test('CLI plan and status report a foreign checkout without mutation', () => {
 });
 
 test('CLI plan and status pass equivalently without mutating source or target', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-cli-current-'));
+  const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-current-'));
   const target = path.join(temp, 'target');
   try {
     const installed = invoke('install', target);
@@ -157,7 +157,7 @@ test('CLI plan and status pass equivalently without mutating source or target', 
 });
 
 test('CLI plan and status pass for a stale owned upgrade without mutation', () => {
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-cli-stale-'));
+  const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-stale-'));
   const target = path.join(temp, 'target');
   try {
     const sourceN = scratchPackage(temp, 'version-n', '0.39.0', '# Version N\n');
