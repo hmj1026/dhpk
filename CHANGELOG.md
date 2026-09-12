@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.58.1 — 2026-09-12 — Accept symlinked Cursor local package roots in CLI probe
+
+**fix(cursor-cli)** — Allow the bounded Cursor CLI probe to accept documented symlink aliases for local package roots.
+
 ## 0.58.0 — 2026-09-11 — Provider-neutral subagent orchestration, platform gates, and CLI context portability
 
 **fix(cli-dispatch-context)** — Make CLI context creation portable and race-safe on macOS by writing through a pinned parent descriptor.
