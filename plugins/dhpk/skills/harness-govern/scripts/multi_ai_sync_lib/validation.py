@@ -50,6 +50,14 @@ except Exception:  # pragma: no cover - py3.10 fallback
 
 
 CLAUDE_SOURCE_MANIFEST_MAX_BYTES = 1024 * 1024
+AGY_PATH_CONTRACT_SCHEMA = "dhpk.agy-install-path.v1"
+AGY_DEFAULT_PATH_CONTRACT = {
+    "schema": AGY_PATH_CONTRACT_SCHEMA,
+    "plugin_name": "dhpk",
+    "canonical_relative": ".gemini/antigravity-cli/plugins/dhpk",
+    "legacy_relatives": [".gemini/config/plugins/dhpk"],
+    "sandbox_home": "/home/agy",
+}
 
 
 def parse_toml_file(path):
@@ -446,11 +454,55 @@ def _agy_runtime_details(session_files, reason_code=None, diagnostic=None):
     return details
 
 
+def _agy_path_contract(repo_root):
+    manifest_path = os.path.join(repo_root, "manifests", "distribution-inventory.json")
+    if not safe_exists(manifest_path):
+        return dict(AGY_DEFAULT_PATH_CONTRACT), None
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as fh:
+            inventory = json.load(fh)
+    except (OSError, ValueError) as exc:
+        return None, "AGY distribution inventory is missing or invalid: %s" % exc
+    contract = (inventory.get("agy_plugin") or {}).get("install_paths") if isinstance(inventory, dict) else None
+    if not isinstance(contract, dict):
+        return None, "AGY install path contract is missing from distribution inventory"
+    normalized = {
+        "schema": contract.get("schema"),
+        "plugin_name": contract.get("plugin_name"),
+        "canonical_relative": contract.get("canonical_relative"),
+        "legacy_relatives": contract.get("legacy_relatives"),
+        "sandbox_home": contract.get("sandbox_home"),
+    }
+    errors = []
+    if normalized["schema"] != AGY_PATH_CONTRACT_SCHEMA:
+        errors.append("unsupported AGY path contract schema")
+    if normalized["plugin_name"] != "dhpk":
+        errors.append("AGY path contract plugin name must be dhpk")
+    relatives = [normalized["canonical_relative"]] + (normalized["legacy_relatives"] or [])
+    if not isinstance(normalized["canonical_relative"], str) or not normalized["canonical_relative"]:
+        errors.append("AGY canonical path is missing")
+    if not isinstance(normalized["legacy_relatives"], list) or not normalized["legacy_relatives"]:
+        errors.append("AGY legacy paths are missing")
+    if normalized["sandbox_home"] != "/home/agy":
+        errors.append("AGY sandbox home must be /home/agy")
+    for relative in relatives:
+        if not isinstance(relative, str) or not relative or os.path.isabs(relative) or ".." in relative.split("/"):
+            errors.append("AGY path contract contains an unsafe relative path")
+    if len(set(normalized["legacy_relatives"] or [])) != len(normalized["legacy_relatives"] or []):
+        errors.append("AGY path contract contains duplicate legacy paths")
+    if normalized["canonical_relative"] in (normalized["legacy_relatives"] or []):
+        errors.append("AGY canonical path is duplicated as a legacy path")
+    return (normalized, None) if not errors else (None, "; ".join(errors))
+
+
 def _agy_package_root(repo_root):
-    candidates = [
-        os.path.join(repo_root, "plugins", "dhpk-agy"),
-        os.path.join(repo_root, ".gemini", "config", "plugins", "dhpk"),
-    ]
+    contract, _ = _agy_path_contract(repo_root)
+    contract = contract or AGY_DEFAULT_PATH_CONTRACT
+    candidates = [os.path.join(repo_root, "plugins", "dhpk-agy")]
+    candidates.extend(os.path.join(repo_root, relative) for relative in [
+        contract["canonical_relative"],
+        *contract["legacy_relatives"],
+    ])
     return next((candidate for candidate in candidates if safe_exists(os.path.join(candidate, "plugin.json"))), None)
 
 
@@ -779,7 +831,11 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False, session_home=
     # visible.  --unshare-all also isolates PID/IPC/UTS/cgroup/network; the
     # explicit user namespace and capability drop prevent namespace escape via
     # a privileged probe process.
+    contract, contract_error = _agy_path_contract(repo_root)
+    if contract_error:
+        return None, contract_error
     package_root = _agy_package_root(repo_root)
+    consumer_path = os.path.join(contract["sandbox_home"], contract["canonical_relative"])
     command = [
         sandbox, "--unshare-user", "--unshare-all",
     ]
@@ -829,6 +885,10 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False, session_home=
         "--chdir", "/workspace",
         "/workspace/bin/agy",
     ])
+    for relative in [contract["canonical_relative"]] + list(contract["legacy_relatives"]):
+        parent = os.path.dirname(os.path.join(contract["sandbox_home"], relative))
+        if parent not in command:
+            command.extend(["--dir", parent])
     if session_home:
         for relative in AGY_SESSION_ALLOWLIST:
             source = os.path.join(session_home, relative)
@@ -837,12 +897,11 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False, session_home=
                 insert_at = command.index("--tmpfs")
                 command[insert_at:insert_at] = ["--ro-bind", source, target]
     if os.path.isdir(package_root) and not os.path.islink(package_root):
-        # Mount the structurally validated package at the documented consumer
-        # path. AGY discovers native plugins from ~/.gemini/config/plugins/<name>,
-        # not from a workspace copy, and `agy plugins list` only reports imports.
-        insert_at = command.index("/home/agy/.gemini/config/plugins") + 1
+        # Mount the structurally validated package at the inventory-owned
+        # consumer path. `agy plugins list` remains import evidence only.
+        insert_at = command.index(os.path.dirname(consumer_path)) + 1
         command[insert_at:insert_at] = [
-            "--ro-bind", os.path.realpath(package_root), "/home/agy/.gemini/config/plugins/dhpk",
+            "--ro-bind", os.path.realpath(package_root), consumer_path,
         ]
     command += list(args)
     try:
@@ -978,10 +1037,22 @@ def validate_agy(repo_root, membership=None, runtime_probe=False):
     if membership is not None and not membership.get("present"):
         requested = membership.get("requested")
         status = ROW_BLOCKED if requested else ROW_NOT_CONFIGURED
-        reason = "找不到 plugins/dhpk-agy/plugin.json 或 .gemini/config/plugins/dhpk/plugin.json（%s）" % (
+        reason = "找不到 plugins/dhpk-agy/plugin.json 或 inventory-owned AGY plugin target（%s）" % (
             "已明確以 --targets/--all-targets 指定" if requested else "未設定，屬 not-configured"
         )
         return not_participating_row("agy", status, reason)
+
+    path_contract, path_contract_error = _agy_path_contract(repo_root)
+    if path_contract_error:
+        row = result_row("agy", False, False, ROW_FAIL, ROW_FAIL, [path_contract_error])
+        row["path_contract"] = {"status": ROW_FAIL, "error": path_contract_error}
+        row["capabilities"] = [
+            {"id": "agy.package.structure", "status": ROW_FAIL, "fallback": "none", "reason": path_contract_error, "reason_code": "PATH_CONTRACT_INVALID"},
+            {"id": "agy.discovery.plugins", "status": ROW_NOT_RUN, "fallback": "package-structure", "reason": path_contract_error, "reason_code": "PATH_CONTRACT_INVALID"},
+            {"id": "agy.discovery.agents", "status": ROW_NOT_RUN, "fallback": "package-structure", "reason": path_contract_error, "reason_code": "PATH_CONTRACT_INVALID"},
+            {"id": "agy.runtime.subagent", "status": ROW_NOT_RUN, "fallback": "NOT_RUN", "reason": path_contract_error, "reason_code": "PATH_CONTRACT_INVALID", "session_files": [], "session_file_count": 0},
+        ]
+        return row
 
     notes = []
     structural_ok, structural_errors, agents = _validate_agy_package_structure(package_root)
@@ -1008,6 +1079,13 @@ def validate_agy(repo_root, membership=None, runtime_probe=False):
     multi_state = agent_status
     row = result_row("agy", True, bool(agents), hook_state, multi_state, notes,
                      hook_reason="agy plugins list discovery", multi_reason="agy agents discovery")
+    row["path_contract"] = {
+        "status": ROW_PASS,
+        "schema": path_contract["schema"],
+        "canonical_relative": path_contract["canonical_relative"],
+        "legacy_relatives": list(path_contract["legacy_relatives"]),
+        "consumer_path": os.path.join(path_contract["sandbox_home"], path_contract["canonical_relative"]),
+    }
     row["capabilities"] = [
         {"id": "agy.package.structure", "status": ROW_PASS if structural_ok else ROW_FAIL, "fallback": "none", "reason": "inventory-owned AGY package", "reason_code": "READY" if structural_ok else "PACKAGE_INVALID"},
         {"id": "agy.discovery.plugins", "status": plugin_status, "fallback": "package-structure", "reason": "agy plugins list", "reason_code": _agy_reason_code(plugin_status, "agy plugins list")},
