@@ -10,7 +10,8 @@ const { reportFromSurfaces } = require('../scripts/ci/verify-platform-packages')
 const ROOT = path.join(__dirname, '..');
 
 test('an unprofiled generation preserves legacy package membership while adding only declared runtime support', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-unprofiled-platform-'));
+  // Package generators reject symlinked ancestors; macOS exposes os.tmpdir() as /var.
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-platform-'));
   try {
     for (const surface of ['agent-plugin', 'agy-plugin']) {
       const output = path.join(root, surface);
