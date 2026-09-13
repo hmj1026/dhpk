@@ -28,6 +28,7 @@ const { REQUIRED_SURFACES, REQUIRED_RUNTIME_SURFACES } = require('./harness-surf
 const { validateInternalRuntimeSkills } = require('./internal-runtime-skills');
 const { assertCanonicalSkillPath } = require('./distribution-inventory-regeneration');
 const { validateSkillUsage, normalizeSkillUsage } = require('./skill-usage');
+const { validateAgyPathContract } = require('./agy-path-contract');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const INVOCATION_CLASSES = ['implicit-eligible', 'explicit-only'];
@@ -891,6 +892,15 @@ function validateDistributionInventoryV2(input = {}) {
   if (!Array.isArray(inventory.skills)) {
     errors.push('distribution inventory v2 requires a skills array');
     return { ok: false, errors };
+  }
+
+  if (inventory.agy_plugin !== undefined) {
+    const pathContract = inventory.agy_plugin && inventory.agy_plugin.install_paths;
+    if (!pathContract) {
+      errors.push('agy_plugin.install_paths is required when agy_plugin is present');
+    } else {
+      errors.push(...validateAgyPathContract(pathContract).errors.map((error) => `agy_plugin.install_paths: ${error}`));
+    }
   }
 
   const ids = new Set();

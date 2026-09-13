@@ -11,6 +11,10 @@ const crypto = require('node:crypto');
 const { PACKAGE_SCHEMA, validateAgyPluginPackage } = require('./agy-plugin-package');
 const { validateSurfaceReceipt } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  loadAgyPathContract,
+  resolveAgyInstallPaths,
+} = require('./agy-path-contract');
 
 const SURFACE = 'agy-plugin';
 const PACKAGE_METADATA = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
@@ -534,11 +538,99 @@ function removeReceiptOwned(root, receipt) {
   return removed.sort();
 }
 
-function resolveAgyInstallRoot(homeDirectory = os.homedir()) {
-  if (typeof homeDirectory !== 'string' || homeDirectory.length === 0 || !path.isAbsolute(homeDirectory)) {
-    throw new Error('homeDirectory must be an absolute path');
+function resolveAgyInstallRoot(homeDirectory = os.homedir(), contract = loadAgyPathContract()) {
+  return resolveAgyInstallPaths(homeDirectory, contract).canonical;
+}
+
+function resolveAgyInstallCandidates(homeDirectory = os.homedir(), contract = loadAgyPathContract()) {
+  return resolveAgyInstallPaths(homeDirectory, contract);
+}
+
+function existingTargets(paths) {
+  return [
+    { role: 'canonical', root: paths.canonical },
+    ...paths.legacy.map((root, index) => ({ role: `legacy-${index + 1}`, root })),
+  ].filter((candidate) => Boolean(lstatOrNull(candidate.root)));
+}
+
+function inspectAgyInstallTargets({ sourceRoot, targetRoot = null, homeDirectory = os.homedir(), contract = loadAgyPathContract() } = {}) {
+  if (targetRoot) {
+    return inspectAgyPlugin({ sourceRoot, targetRoot });
   }
-  return path.join(homeDirectory, '.gemini', 'config', 'plugins', 'dhpk');
+  const paths = resolveAgyInstallCandidates(homeDirectory, contract);
+  const candidates = [
+    { role: 'canonical', root: paths.canonical },
+    ...paths.legacy.map((root, index) => ({ role: `legacy-${index + 1}`, root })),
+  ];
+  const existing = existingTargets(paths);
+  if (existing.length > 1) {
+    return {
+      schema: DIAGNOSTIC_SCHEMA,
+      status: 'BLOCKED',
+      state: 'BLOCKED',
+      classification: 'AMBIGUOUS_TARGETS',
+      contract: paths.contract,
+      candidates: candidates.map((candidate) => ({ role: candidate.role, root: candidate.root, exists: Boolean(lstatOrNull(candidate.root)) })),
+      next_action: 'choose one owner-approved target and use --target explicitly, or run migrate after removing the ambiguity',
+      mutation: { performed: false },
+    };
+  }
+  const selected = existing[0] || { role: 'canonical', root: paths.canonical };
+  const report = inspectAgyPlugin({ sourceRoot, targetRoot: selected.root });
+  report.contract = paths.contract;
+  report.target_role = selected.role;
+  if (selected.role !== 'canonical' && report.status === 'PASS' && report.classification === 'AGY_OWNED') {
+    report.state = 'LEGACY';
+    report.classification = 'LEGACY_OWNED';
+    report.next_action = 'run install-agy-plugin.js migrate after reviewing the legacy receipt';
+  }
+  return report;
+}
+
+function resolveAgyInstallTarget({ targetRoot = null, homeDirectory = os.homedir(), contract = loadAgyPathContract() } = {}) {
+  if (targetRoot) return path.resolve(targetRoot);
+  const paths = resolveAgyInstallCandidates(homeDirectory, contract);
+  const existing = existingTargets(paths);
+  if (existing.length > 1) throw new Error(`AGY installation has ambiguous targets: ${existing.map((candidate) => candidate.root).join(', ')}`);
+  if (existing.some((candidate) => candidate.role !== 'canonical')) {
+    throw new Error(`AGY legacy installation detected at ${existing[0].root}; use the explicit migrate action before installing at the canonical path`);
+  }
+  return paths.canonical;
+}
+
+function migrateAgyPlugin({ sourceRoot, homeDirectory = os.homedir(), contract = loadAgyPathContract() } = {}) {
+  if (!sourceRoot) throw new Error('sourceRoot is required');
+  const paths = resolveAgyInstallCandidates(homeDirectory, contract);
+  const existing = existingTargets(paths);
+  if (existing.length !== 1 || existing[0].role === 'canonical') {
+    throw new Error(existing.length === 0
+      ? 'AGY legacy installation is absent'
+      : 'AGY migration requires exactly one receipt-owned legacy target');
+  }
+  const legacy = existing[0].root;
+  const inspected = inspectAgyPlugin({ sourceRoot, targetRoot: legacy });
+  if (inspected.status !== 'PASS' || !['AGY_OWNED', 'LEGACY_OWNED'].includes(inspected.classification)) {
+    throw new Error(`AGY migration is blocked for ${legacy}: ${inspected.classification || inspected.state}`);
+  }
+  const installed = installAgyPlugin({ sourceRoot, targetRoot: paths.canonical, mode: 'install' });
+  try {
+    const removed = rollbackAgyPlugin({ targetRoot: legacy });
+    return {
+      schema: DIAGNOSTIC_SCHEMA,
+      status: 'PASS',
+      state: 'MIGRATED',
+      classification: 'MIGRATED_LEGACY',
+      contract: paths.contract,
+      fromRoot: legacy,
+      targetRoot: paths.canonical,
+      removed: removed.removed,
+      receipt: installed.receipt,
+      mutation: { performed: true },
+    };
+  } catch (error) {
+    try { rollbackAgyPlugin({ targetRoot: paths.canonical }); } catch (rollbackError) { /* preserve original failure */ }
+    throw new Error(`AGY migration rollback restored the legacy target after failure: ${error.message}`);
+  }
 }
 
 function installAgyPlugin({ sourceRoot, targetRoot, mode = 'update' } = {}) {
@@ -655,6 +747,10 @@ function uninstallAgyPlugin(options = {}) {
 module.exports = {
   SURFACE,
   resolveAgyInstallRoot,
+  resolveAgyInstallCandidates,
+  inspectAgyInstallTargets,
+  resolveAgyInstallTarget,
+  migrateAgyPlugin,
   inspectAgyPlugin,
   sourceFileDigests,
   compareSourceInventory,

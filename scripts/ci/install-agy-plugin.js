@@ -7,10 +7,13 @@
 //   uninstall|rollback --target <dir>
 
 const path = require('node:path');
+const os = require('node:os');
 const {
   resolveAgyInstallRoot,
-  inspectAgyPlugin,
+  inspectAgyInstallTargets,
+  resolveAgyInstallTarget,
   installAgyPlugin,
+  migrateAgyPlugin,
   rollbackAgyPlugin,
   uninstallAgyPlugin,
 } = require('../lib/agy-plugin-install');
@@ -27,24 +30,27 @@ function option(name, fallback = null) {
   return index >= 0 ? args[index + 1] || fallback : fallback;
 }
 
-if (!['plan', 'status', 'install', 'update', 'uninstall', 'rollback'].includes(action)) {
-  console.error('usage: install-agy-plugin.js <plan|status|install|update|uninstall|rollback> [--source <package>] [--target <dir>] [--json]');
+if (!['plan', 'status', 'install', 'update', 'migrate', 'uninstall', 'rollback'].includes(action)) {
+  console.error('usage: install-agy-plugin.js <plan|status|install|update|migrate|uninstall|rollback> [--source <package>] [--target <dir>] [--json]');
   process.exit(2);
 }
 
-const targetRoot = path.resolve(option('target', resolveAgyInstallRoot()));
+const explicitTarget = option('target', null);
+const targetRoot = explicitTarget ? path.resolve(explicitTarget) : null;
 const sourceRoot = path.resolve(option('source', path.join(ROOT, 'plugins', 'dhpk-agy')));
 const json = args.includes('--json');
 
 try {
   const result = ['plan', 'status'].includes(action)
-    ? inspectAgyPlugin({ sourceRoot, targetRoot })
+    ? inspectAgyInstallTargets({ sourceRoot, targetRoot, homeDirectory: os.homedir() })
+    : action === 'migrate'
+    ? migrateAgyPlugin({ sourceRoot, homeDirectory: os.homedir() })
     : ['install', 'update'].includes(action)
-    ? installAgyPlugin({ sourceRoot, targetRoot, mode: action })
-    : (action === 'rollback' ? rollbackAgyPlugin({ targetRoot }) : uninstallAgyPlugin({ targetRoot }));
-  const report = { surface: 'agy-plugin', action, ...result };
+    ? installAgyPlugin({ sourceRoot, targetRoot: resolveAgyInstallTarget({ targetRoot, homeDirectory: os.homedir() }), mode: action })
+    : (action === 'rollback' ? rollbackAgyPlugin({ targetRoot: targetRoot || resolveAgyInstallRoot() }) : uninstallAgyPlugin({ targetRoot: targetRoot || resolveAgyInstallRoot() }));
+  const report = { surface: 'agy-plugin', action, ...(targetRoot ? { targetRoot } : {}), ...result };
   if (json) console.log(JSON.stringify(report, null, 2));
-  else console.log(`${report.status || 'PASS'} [install-agy-plugin]: ${action} ${targetRoot}${report.classification ? ` (${report.classification})` : ''}`);
+  else console.log(`${report.status || 'PASS'} [install-agy-plugin]: ${action} ${report.targetRoot || report.target?.root || ''}${report.classification ? ` (${report.classification})` : ''}`);
   if (['plan', 'status'].includes(action) && report.status !== 'PASS') process.exit(1);
 } catch (error) {
   if (json) console.log(JSON.stringify({ surface: 'agy-plugin', action, status: 'FAIL', error: error.message }, null, 2));
