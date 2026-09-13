@@ -355,6 +355,49 @@ directory 確實被載入。已發布的 Agent Plugin 仍是 portable `plugin.js
 `mcp.json`，Cursor-only attestation copy 會省略這個 Agent-owned 檔案；因此
 probe 不宣稱 MCP runtime proof，也不會修改已發布 package。
 
+## Project-local `.agents/skills` 相容投影
+
+Cursor 官方文件定義 `.agents/skills/<name>/SKILL.md`；Antigravity CLI 官方文件
+則定義在 `.agents/skills/` 直接放入 markdown skill file。dhpk 由唯一的
+canonical `skills/` source 產生兩種 shape。這個 generated tree 只負責 skills，
+不是通用的 agent 或 rule 設定根目錄。
+
+官方依據：[Cursor Skills](https://cursor.com/cn/docs/skills)、
+[Antigravity Plugins & skills](https://antigravity.google/docs/cli/plugins/)、
+[Codex project guidance](https://learn.chatgpt.com/docs/agent-configuration/agents-md)、
+[Codex rules](https://learn.chatgpt.com/docs/agent-configuration/rules) 與
+[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)。
+
+從 dhpk checkout 產生與驗證：
+
+```bash
+node scripts/ci/gen-agents-skills.js
+node scripts/ci/validate-agents-skills.js
+```
+
+若 canonical skill bytes 已變更，預設 generator 會在 stale projection 停止。檢視
+source diff 後，必須明確授權更新：
+
+```bash
+node scripts/ci/gen-agents-skills.js --update
+```
+
+generator 會寫入被忽略、由 receipt 管理的 `.agents/skills/`：Cursor 使用
+`<name>/SKILL.md` package，Antigravity discovery 使用 `<name>.md` shim。shim
+指向完整的 canonical `skills/<name>/SKILL.md`，不是第二份需要手動維護的 skill
+body。更新會保留非 dhpk 管理的 entry，若 receipt-owned file 被外部修改則拒絕
+覆寫。
+若先前投影的 skill 已從目前 inventory 移除，檔案會保留為明確的 stale content，
+直到處理該 stale projection 前 validation 會失敗；generator 不會靜默刪除它。
+
+結構 `PASS` 不等於 consumer runtime discovery；AGY 或 Cursor probe 必須另外記錄
+`PASS`、`NOT_RUN`、`UNAVAILABLE` 或 `NOT_CONFIGURED`。Codex 的官方位置仍是
+`.codex/agents/*.toml` 與 `.codex/rules/*.rules`（project guidance 使用
+`AGENTS.md`／設定的 fallback filename）。Cursor agent/rule 仍在
+`.cursor/agents/` 與 `.cursor/rules/`；AGY plugin agent/rule 仍在已安裝的 AGY
+plugin package 內。這些 platform-native projection 仍由 canonical `agents/` 與
+`rules/` 產生。
+
 ## Cursor standard Agent Plugin
 
 Prerequisites：具 local plugin loader 的 Cursor desktop client，以及已記錄的

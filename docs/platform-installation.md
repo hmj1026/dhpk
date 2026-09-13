@@ -402,6 +402,53 @@ is removed during probe cleanup. If the Agent package also has optional
 copy; the probe therefore makes no MCP runtime claim and never changes the
 published package.
 
+## Project-local `.agents/skills` compatibility projection
+
+Official Cursor guidance documents `.agents/skills/<name>/SKILL.md`; official
+Antigravity CLI guidance documents markdown skill files directly under
+`.agents/skills/`. dhpk supports both shapes from one canonical `skills/`
+source. The generated tree is skills-only and is not a universal agent or rule
+configuration root.
+
+Source references: [Cursor Skills](https://cursor.com/cn/docs/skills),
+[Antigravity Plugins & skills](https://antigravity.google/docs/cli/plugins/),
+and [Codex project guidance](https://learn.chatgpt.com/docs/agent-configuration/agents-md),
+[Codex rules](https://learn.chatgpt.com/docs/agent-configuration/rules), and
+[Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
+
+Generate and validate it from the dhpk checkout:
+
+```bash
+node scripts/ci/gen-agents-skills.js
+node scripts/ci/validate-agents-skills.js
+```
+
+If canonical skill bytes changed, the default generator stops on the stale
+projection. After reviewing the source diff, explicitly authorize that update:
+
+```bash
+node scripts/ci/gen-agents-skills.js --update
+```
+
+The generator writes an ignored, receipt-owned `.agents/skills/` tree with a
+Cursor package at `<name>/SKILL.md` and an Antigravity discovery shim at
+`<name>.md`. The shim points to the complete canonical
+`skills/<name>/SKILL.md`; it is not a second hand-maintained skill body.
+Updates preserve unmanaged entries and refuse changed receipt-owned files.
+If a previously projected skill is removed from the current inventory, its files
+remain as explicit stale content and validation fails until that stale projection
+is resolved; generation never silently deletes it.
+Structural `PASS` does not establish consumer runtime discovery: record AGY or
+Cursor probe results separately as `PASS`, `NOT_RUN`, `UNAVAILABLE`, or
+`NOT_CONFIGURED`.
+
+The official Codex locations remain `.codex/agents/*.toml` and
+`.codex/rules/*.rules` (with `AGENTS.md`/configured fallback filenames for
+project guidance). Cursor agents/rules remain `.cursor/agents/` and
+`.cursor/rules/`; AGY plugin agents/rules remain inside the installed AGY
+plugin package. Keep those platform-native projections generated from the
+canonical `agents/` and `rules/` trees.
+
 ## Cursor standard Agent Plugin
 
 Prerequisites: a Cursor desktop client with the local plugin loader and a
