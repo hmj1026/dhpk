@@ -895,10 +895,14 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False, session_home=
         "--chdir", "/workspace",
         "/workspace/bin/agy",
     ])
+    dynamic_dirs = []
     for relative in [contract["canonical_relative"]] + list(contract["legacy_relatives"]):
         parent = os.path.dirname(os.path.join(contract["sandbox_home"], relative))
-        if parent not in command:
-            command.extend(["--dir", parent])
+        if parent not in command and parent not in dynamic_dirs:
+            dynamic_dirs.extend(["--dir", parent])
+    if dynamic_dirs:
+        insert_at = command.index("--tmpfs")
+        command[insert_at:insert_at] = dynamic_dirs
     if session_home:
         for relative in AGY_SESSION_ALLOWLIST:
             source = os.path.join(session_home, relative)
