@@ -60,6 +60,15 @@ AGY_DEFAULT_PATH_CONTRACT = {
 }
 
 
+def _agy_safe_relative(value):
+    if not isinstance(value, str) or not value:
+        return False
+    if value.startswith(('/', '\\')) or re.match(r"^[A-Za-z]:[\\/]", value):
+        return False
+    parts = re.split(r"[/\\]+", value)
+    return all(part and part not in ('.', '..') for part in parts)
+
+
 def parse_toml_file(path):
     if tomllib is None:
         raise RuntimeError("沒有可用 TOML parser（tomllib/tomli）")
@@ -478,7 +487,8 @@ def _agy_path_contract(repo_root):
         errors.append("unsupported AGY path contract schema")
     if normalized["plugin_name"] != "dhpk":
         errors.append("AGY path contract plugin name must be dhpk")
-    relatives = [normalized["canonical_relative"]] + (normalized["legacy_relatives"] or [])
+    legacy_relatives = normalized["legacy_relatives"] if isinstance(normalized["legacy_relatives"], list) else []
+    relatives = [normalized["canonical_relative"]] + legacy_relatives
     if not isinstance(normalized["canonical_relative"], str) or not normalized["canonical_relative"]:
         errors.append("AGY canonical path is missing")
     if not isinstance(normalized["legacy_relatives"], list) or not normalized["legacy_relatives"]:
@@ -486,11 +496,11 @@ def _agy_path_contract(repo_root):
     if normalized["sandbox_home"] != "/home/agy":
         errors.append("AGY sandbox home must be /home/agy")
     for relative in relatives:
-        if not isinstance(relative, str) or not relative or os.path.isabs(relative) or ".." in relative.split("/"):
+        if not _agy_safe_relative(relative):
             errors.append("AGY path contract contains an unsafe relative path")
-    if len(set(normalized["legacy_relatives"] or [])) != len(normalized["legacy_relatives"] or []):
+    if isinstance(normalized["legacy_relatives"], list) and len(set(normalized["legacy_relatives"])) != len(normalized["legacy_relatives"]):
         errors.append("AGY path contract contains duplicate legacy paths")
-    if normalized["canonical_relative"] in (normalized["legacy_relatives"] or []):
+    if normalized["canonical_relative"] in legacy_relatives:
         errors.append("AGY canonical path is duplicated as a legacy path")
     return (normalized, None) if not errors else (None, "; ".join(errors))
 
