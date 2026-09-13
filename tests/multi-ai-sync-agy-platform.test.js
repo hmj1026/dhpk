@@ -466,6 +466,30 @@ test('AGY 1.2.x isolated fixture mounts the inventory-owned official consumer pa
   }
 });
 
+test('AGY validation fails closed for an unsafe inventory path contract', () => {
+  const root = tempRoot('agy-unsafe-path-contract');
+  try {
+    agyPackage(root);
+    write(path.join(root, 'manifests/distribution-inventory.json'), JSON.stringify({
+      agy_plugin: {
+        install_paths: {
+          schema: 'dhpk.agy-install-path.v1',
+          plugin_name: 'dhpk',
+          canonical_relative: '..\\outside\\dhpk',
+          legacy_relatives: '.gemini/config/plugins/dhpk',
+          sandbox_home: '/home/agy',
+        },
+      },
+    }));
+    const result = validate(root, [], { ...process.env, PATH: '/usr/bin:/bin' });
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.path_contract.status, 'FAIL', JSON.stringify(row));
+    assert.ok(row.capabilities.some((item) => item.reason_code === 'PATH_CONTRACT_INVALID'), JSON.stringify(row));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('AGY runtime clones only allowlisted session files at 0600 and shares network after unshare', () => {
   const root = tempRoot('agy-runtime-session');
   try {
