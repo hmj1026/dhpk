@@ -17,7 +17,7 @@ callable only after the named consumer probe discovers the projected content.
 | Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
 | Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
 | Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; release probes use an isolated shared-network bubblewrap namespace, never unrestricted execution |
-| AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
+| AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to the inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`, explicit `migrate`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
 
 ## Prerequisites and version assumptions
 
@@ -35,7 +35,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
 | Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, a logged-in Cursor session, and verified bubblewrap on Linux; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI/sandbox is `UNAVAILABLE`/`BLOCKED`, and discovery must be recorded separately; API-key-only auth is not accepted |
-| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` unless `--agy-runtime-probe` is explicitly used |
+| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available; AGY 1.2.2 has been observed loading the canonical path | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` unless `--agy-runtime-probe` is explicitly used |
 
 ## Status vocabulary
 
@@ -686,8 +686,42 @@ generation rewrites provenance metadata and dirties the checkout:
 ```bash
 node scripts/ci/install-agy-plugin.js install \
   --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --json
 ```
+
+### AGY install-path contract
+
+The path contract is versioned in `manifests/distribution-inventory.json`.
+The canonical AGY 1.2.x path is
+`$HOME/.gemini/antigravity-cli/plugins/dhpk/`; the earlier
+`$HOME/.gemini/config/plugins/dhpk/` path is retained as a legacy candidate for
+read-only detection and explicit migration. The observed AGY 1.2.2 probe
+loaded agents from both layouts, so the legacy path is not silently discarded,
+but new default installations always use the canonical path.
+
+Default `plan` and `status` are read-only. A receipt-owned legacy installation
+is reported as `LEGACY_OWNED`; if both canonical and legacy candidates exist,
+the result is `BLOCKED` with `AMBIGUOUS_TARGETS`. No read-only command adopts,
+deletes, or overwrites a target:
+
+```bash
+node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json
+node scripts/ci/install-agy-plugin.js status --source plugins/dhpk-agy --json
+```
+
+To move a receipt-owned legacy installation, use the explicit transactional
+migration action. It stages and verifies the canonical package before removing
+the legacy receipt-owned files; a promotion or removal failure rolls back the
+canonical target and preserves the legacy target:
+
+```bash
+node scripts/ci/install-agy-plugin.js migrate \
+  --source plugins/dhpk-agy --json
+```
+
+Use `--target <dir>` only when an owner intentionally operates on a specific
+target. Explicit targets are never inferred as canonical and still undergo the
+same receipt, collision, physical-path, and rollback checks.
 
 Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
@@ -707,7 +741,7 @@ bin/dhpk distribution agy-plugin validate \
   --output /tmp/dhpk-agy-staging --json
 node scripts/ci/install-agy-plugin.js install \
   --source /tmp/dhpk-agy-staging \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --json
 ```
 
 Install, update, and remove only the receipt-owned package at the documented
@@ -716,19 +750,15 @@ collision and is left untouched:
 
 ```bash
 node scripts/ci/install-agy-plugin.js install \
-  --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --source plugins/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js update \
-  --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --source plugins/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js plan \
-  --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --source plugins/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js status \
-  --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --source plugins/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js rollback \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --json
 ```
 
 `plan` and `status` are read-only. They report source/target versions, receipt
@@ -760,9 +790,10 @@ output is reduced to a fixed reason-class placeholder, so private paths,
 prompts, tool payloads, and host overlay markers are not persisted.
 
 `agy plugins list` reports import records only. A native receipt-owned package
-at `~/.gemini/config/plugins/dhpk` is discovered by isolated `agy agents`, not
-by matching `dhpk` in the import JSON. The validator mounts the package at that
-consumer path inside a read-only sandbox HOME. On AGY 1.1.13, isolated
+at the canonical `~/.gemini/antigravity-cli/plugins/dhpk` path is discovered by
+isolated `agy agents`, not by matching `dhpk` in the import JSON. The validator
+mounts the package at the inventory-owned consumer path inside a read-only
+sandbox HOME. On AGY 1.1.13, isolated
 `agy agents` stays empty because the CLI has no native filesystem plugin
 loader; that pair is `SKIP_INCOMPATIBLE`, not a package-shape `FAIL`. Do not
 run `agy plugin install` against a receipt-owned target: it is not a native

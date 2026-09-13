@@ -12,10 +12,13 @@ Subagent execution.
 
 The distribution inventory SHALL define an `agy-plugin` surface with a stable
 adapter identity, transform version, physical owner, selected component IDs,
-and verification stages. The generated package SHALL be derived from canonical
-agent, skill, rule, hook, and MCP sources and SHALL be materialized under the
-`plugins/dhpk-agy/` source package before installation at
-`~/.gemini/config/plugins/dhpk/`.
+verification stages, and a versioned install-path contract. The generated
+package SHALL be derived from canonical agent, skill, rule, hook, and MCP
+sources and SHALL be materialized under the `plugins/dhpk-agy/` source package
+before default installation at the contract's canonical path
+`~/.gemini/antigravity-cli/plugins/dhpk/`. The contract SHALL retain
+`~/.gemini/config/plugins/dhpk/` as a legacy candidate for detection and
+explicit migration.
 
 #### Scenario: Inventory selects a valid AGY package
 
@@ -124,15 +127,18 @@ normalized output and receipt fingerprints.
 
 ### Requirement: Installation and rollback preserve independent ownership
 
-Installation SHALL copy or link only the generated AGY package into
-`~/.gemini/config/plugins/dhpk/` and SHALL record ownership in an AGY receipt.
-The installer SHALL additionally expose read-only `plan` and `status` actions
-that classify the target and report bounded source/target evidence without
-mutation. Update, uninstall, and rollback SHALL remove or restore only files
-matching that receipt; user-owned files and other Claude, Codex, Cursor, or
-AGY surfaces SHALL be preserved. A collision without matching ownership SHALL
-fail closed, be distinguishable as a foreign checkout when a physical `.git`
-marker is present, and require an explicit owner decision.
+Installation SHALL copy or link only the generated AGY package into the
+contract's canonical path and SHALL record ownership in an AGY receipt. The
+installer SHALL additionally expose read-only `plan` and `status` actions that
+classify canonical and legacy candidates and report bounded source/target
+evidence without mutation. Default installation SHALL use the canonical path;
+an existing receipt-owned legacy target SHALL require an explicit transactional
+`migrate` action, and simultaneous canonical/legacy targets SHALL be
+ambiguous and blocked. Update, uninstall, and rollback SHALL remove or restore
+only files matching that receipt; user-owned files and other Claude, Codex,
+Cursor, or AGY surfaces SHALL be preserved. A collision without matching
+ownership SHALL fail closed, be distinguishable as a foreign checkout when a
+physical `.git` marker is present, and require an explicit owner decision.
 
 #### Scenario: AGY-owned package is rolled back
 
@@ -212,9 +218,10 @@ manifest or discovery result SHALL NOT upgrade runtime support.
 
 - **WHEN** the read-only AGY sandbox runs discovery against a structurally
   valid package
-- **THEN** the package is bound at `/home/agy/.gemini/config/plugins/dhpk`
-  rather than a workspace copy, so isolated `agy agents` can load the native
-  plugin if the CLI supports that loader
+- **THEN** the package is bound at the contract-declared
+  `/home/agy/.gemini/antigravity-cli/plugins/dhpk` consumer path rather than a
+  workspace copy, so isolated `agy agents` can load the native plugin if the
+  CLI supports that loader
 
 #### Scenario: Read-only Subagent probe passes
 

@@ -6,6 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { loadAgyPathContract, resolveAgyConsumerPath } = require('../scripts/lib/agy-path-contract');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync.py');
@@ -442,6 +443,58 @@ test('AGY sandbox projects resolver and CA bundle without reopening masked host 
   }
 });
 
+test('AGY 1.2.x isolated fixture mounts the inventory-owned official consumer path', () => {
+  const root = tempRoot('agy-official-path-contract');
+  try {
+    agyPackage(root);
+    const stub = writeBwrapStub(root);
+    const result = validate(root, [], {
+      ...process.env,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
+    });
+    assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
+    const invocations = bwrapInvocations(stub.log);
+    const consumerPath = resolveAgyConsumerPath(loadAgyPathContract());
+    assert.strictEqual(consumerPath, '/home/agy/.gemini/antigravity-cli/plugins/dhpk');
+    for (const invocation of invocations) {
+      assert.ok(invocation.includes(consumerPath), consumerPath);
+      const executableIndex = invocation.lastIndexOf('/workspace/bin/agy');
+      const parentIndex = invocation.indexOf('/home/agy/.gemini/antigravity-cli/plugins');
+      assert.ok(parentIndex > -1 && parentIndex < executableIndex, 'dynamic bwrap directories must precede the command');
+    }
+    const report = JSON.parse(result.stdout);
+    const row = report.results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.path_contract.canonical_relative, '.gemini/antigravity-cli/plugins/dhpk');
+    assert.deepStrictEqual(row.path_contract.legacy_relatives, ['.gemini/config/plugins/dhpk']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY validation fails closed for an unsafe inventory path contract', () => {
+  const root = tempRoot('agy-unsafe-path-contract');
+  try {
+    agyPackage(root);
+    write(path.join(root, 'manifests/distribution-inventory.json'), JSON.stringify({
+      agy_plugin: {
+        install_paths: {
+          schema: 'dhpk.agy-install-path.v1',
+          plugin_name: 'dhpk',
+          canonical_relative: '..\\outside\\dhpk',
+          legacy_relatives: '.gemini/config/plugins/dhpk',
+          sandbox_home: '/home/agy',
+        },
+      },
+    }));
+    const result = validate(root, [], { ...process.env, PATH: '/usr/bin:/bin' });
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.path_contract.status, 'FAIL', JSON.stringify(row));
+    assert.ok(row.capabilities.some((item) => item.reason_code === 'PATH_CONTRACT_INVALID'), JSON.stringify(row));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('AGY runtime clones only allowlisted session files at 0600 and shares network after unshare', () => {
   const root = tempRoot('agy-runtime-session');
   try {
@@ -676,10 +729,8 @@ test('AGY package structure rejects skill assets/ supporting files', () => {
 
 test('AGY sandbox binds the native package at the consumer plugin path', () => {
   const source = fs.readFileSync(path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync_lib/validation.py'), 'utf8');
-  assert.match(
-    source,
-    /"--ro-bind", os\.path\.realpath\(package_root\), "\/home\/agy\/\.gemini\/config\/plugins\/dhpk"/,
-  );
+  assert.match(source, /consumer_path = os\.path\.join\(contract\["sandbox_home"\], contract\["canonical_relative"\]\)/);
+  assert.match(source, /"--ro-bind", os\.path\.realpath\(package_root\), consumer_path/);
   assert.doesNotMatch(source, /--ro-bind.*\/workspace\/plugins\/dhpk-agy/);
 });
 

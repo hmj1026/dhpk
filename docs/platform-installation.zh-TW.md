@@ -17,7 +17,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
 | Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
 | Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；release probe 使用隔離的 shared-network bubblewrap namespace，不得 unrestricted 執行 |
-| AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
+| AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 inventory-owned canonical path `~/.gemini/antigravity-cli/plugins/dhpk/` | `install-agy-plugin.js update`、明確的 `migrate`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
 
 ## Prerequisites 與版本假設
 
@@ -35,7 +35,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
 | Cursor project-local sync | Cursor project-local loader；schema-v3 receipt；最低 Cursor version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.cursor/.dhpk-installed.json`，並執行列出的 installer 測試；缺少 live Cursor client 不得視為 runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、已登入 Cursor session，以及 Linux 上已驗證的 bubblewrap；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI／sandbox 為 `UNAVAILABLE`／`BLOCKED`，discovery 另行記錄；只提供 API key 不接受 |
-| AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version` | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list` 只列 import，隔離 HOME 的 `agy agents` 才是 native load；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
+| AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version`；已觀察 AGY 1.2.2 可從 canonical path 載入 | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list` 只列 import，隔離 HOME 的 `agy agents` 才是 native load；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
 
 ## Status vocabulary
 
@@ -614,8 +614,38 @@ package；consumer 安裝流程不要在 tracked path 重新 generate，因為 g
 ```bash
 node scripts/ci/install-agy-plugin.js install \
   --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --json
 ```
+
+### AGY install-path contract
+
+path contract 版本固定在 `manifests/distribution-inventory.json`。AGY 1.2.x
+的 canonical path 是 `$HOME/.gemini/antigravity-cli/plugins/dhpk/`；較早的
+`$HOME/.gemini/config/plugins/dhpk/` 仍保留為 legacy candidate，供唯讀偵測與
+明確 migration 使用。實測 AGY 1.2.2 可從兩種 layout 載入 agents，因此不會
+靜默丟棄 legacy path，但新的預設安裝一律使用 canonical path。
+
+預設的 `plan` 與 `status` 是唯讀操作。receipt-owned legacy installation 會
+回報 `LEGACY_OWNED`；canonical 與 legacy 同時存在時回報
+`BLOCKED`／`AMBIGUOUS_TARGETS`。唯讀命令不會 adoption、刪除或覆寫 target：
+
+```bash
+node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json
+node scripts/ci/install-agy-plugin.js status --source plugins/dhpk-agy --json
+```
+
+要搬移 receipt-owned legacy installation，必須明確使用 transactional
+`migrate`。它會先 staging／驗證 canonical package，再移除 legacy 的
+receipt-owned files；promotion 或移除失敗時會 rollback canonical，保留 legacy：
+
+```bash
+node scripts/ci/install-agy-plugin.js migrate \
+  --source plugins/dhpk-agy --json
+```
+
+只有 owner 明確操作特定 target 時才使用 `--target <dir>`。explicit target
+不會被推論為 canonical，仍會套用相同的 receipt、collision、physical path
+與 rollback 檢查。
 
 Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗證 tracked
 package：
@@ -635,7 +665,7 @@ bin/dhpk distribution agy-plugin validate \
   --output /tmp/dhpk-agy-staging --json
 node scripts/ci/install-agy-plugin.js install \
   --source /tmp/dhpk-agy-staging \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --json
 ```
 
 只在文件化的 user path 安裝、更新與移除 receipt-owned package。若 target
@@ -643,19 +673,15 @@ node scripts/ci/install-agy-plugin.js install \
 
 ```bash
 node scripts/ci/install-agy-plugin.js install \
-  --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --source plugins/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js update \
-  --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --source plugins/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js plan \
-  --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --source plugins/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js status \
-  --source plugins/dhpk-agy \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --source plugins/dhpk-agy --json
 node scripts/ci/install-agy-plugin.js rollback \
-  --target "$HOME/.gemini/config/plugins/dhpk" --json
+  --json
 ```
 
 `plan` 與 `status` 都是唯讀操作，會回報 source／target version、receipt
@@ -675,10 +701,10 @@ agy plugins list
 agy agents
 ```
 
-`agy plugins list` 只列出 import records。安裝在
-`~/.gemini/config/plugins/dhpk` 的 native receipt-owned package 是由
-隔離 HOME 的 `agy agents` 發現，不能用 import JSON 裡出現 `dhpk` 當證明。
-validator 會把 package bind 到 sandbox 內的這個 consumer path。
+`agy plugins list` 只列出 import records。安裝在 canonical
+`~/.gemini/antigravity-cli/plugins/dhpk` 的 native receipt-owned package
+是由隔離 HOME 的 `agy agents` 發現，不能用 import JSON 裡出現 `dhpk` 當證明。
+validator 會把 package bind 到 inventory-owned consumer path。
 AGY 1.1.13 沒有 native filesystem plugin loader，所以隔離 HOME 的
 `agy agents` 會是空的；這組結果是 `SKIP_INCOMPATIBLE`，不是 package-shape
 `FAIL`。不要對 receipt-owned target 跑 `agy plugin install`：那不是 native
