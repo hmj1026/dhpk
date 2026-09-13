@@ -1,0 +1,286 @@
+#!/bin/bash
+# validate-harness.sh — 檢查 harness 資產格式正確性
+#
+# Dual-mode: validates the PLUGIN SOURCE when run inside the dhpk repo
+# (assets live at repo-root agents/ skills/ commands/ rules/, hook scripts in
+# scripts/hooks/), and falls back to the INSTALLED layout (.claude/...) in a
+# consumer project. Detection keys off repo-root agents/ + .claude-plugin/.
+#
+# 檢查項：
+#   1. agents/*.md frontmatter 完整（name / description / model / tools）
+#   2. commands/**/*.md 有 frontmatter
+#   3. rules/*.md 無明顯 broken link（相對路徑 .md）
+#   4. skills/*/SKILL.md 存在
+#   5. hooks 腳本可執行
+#   6. artifacts 目錄結構（僅安裝模式）
+#
+# 退出碼：
+#   0 = 全通過
+#   1 = 有錯誤
+#   2 = 有警告（非阻塞）
+set -o pipefail
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT" || exit 1
+# Keep path checks anchored to the physical checkout. A symlinked checkout
+# path must not make an out-of-tree agent file appear to be inside this repo.
+ROOT="$(pwd -P)"
+
+# Mode detection: plugin source repo vs installed .claude/ tree.
+if [[ -d "$ROOT/agents" && -f "$ROOT/.claude-plugin/plugin.json" ]]; then
+    ASSET_ROOT="$ROOT"                  # plugin source: assets at repo-root
+    HOOKS_DIR="$ROOT/scripts/hooks"     # hook scripts live here, not hooks/
+    STATUSLINE="$ROOT/statusline.sh"
+    CHECK_ARTIFACTS=0                    # artifacts are runtime-only
+else
+    ASSET_ROOT="$ROOT/.claude"          # consumer: installed layout
+    HOOKS_DIR="$ROOT/.claude/hooks"
+    STATUSLINE="$ROOT/.claude/statusline.sh"
+    CHECK_ARTIFACTS=1
+fi
+
+ERR=0
+WARN=0
+
+say() { echo "  $*"; }
+fail() { echo "  [FAIL] $*"; ERR=$((ERR+1)); }
+warn() { echo "  [WARN] $*"; WARN=$((WARN+1)); }
+ok()   { echo "  [OK] $*"; }
+
+echo "== 1. Agents frontmatter =="
+for f in "$ASSET_ROOT"/agents/*.md; do
+    [[ -f "$f" ]] || continue
+    base="$(basename "$f")"
+    [[ "$base" == "INDEX.md" ]] && continue
+    head -20 "$f" | grep -q '^name:' || { fail "$base 缺 name:"; continue; }
+    head -20 "$f" | grep -q '^description:' || fail "$base 缺 description:"
+    head -20 "$f" | grep -q '^model:' || warn "$base 缺 model:"
+    head -20 "$f" | grep -q '^tools:' || warn "$base 缺 tools:"
+done
+[[ $ERR -eq 0 ]] && ok "agents 全部通過"
+
+echo ""
+echo "== 2. Commands frontmatter =="
+CMD_COUNT=0
+CMD_MISSING=0
+while IFS= read -r f; do
+    CMD_COUNT=$((CMD_COUNT+1))
+    base="$(basename "$f")"
+    [[ "$base" == "INDEX.md" ]] && continue
+    if ! head -5 "$f" | grep -q '^description:'; then
+        warn "${f#"$ASSET_ROOT"/commands/} 缺 description"
+        CMD_MISSING=$((CMD_MISSING+1))
+    fi
+done < <(find "$ASSET_ROOT/commands" -name '*.md' 2>/dev/null)
+ok "commands 檢查完 $CMD_COUNT 支，$CMD_MISSING 支缺 description"
+
+echo ""
+echo "== 3. Rules broken link 檢查 =="
+for f in "$ASSET_ROOT"/rules/*.md "$ASSET_ROOT"/rules/**/*.md; do
+    [[ -f "$f" ]] || continue
+    # 抓 `*.md` 相對路徑引用
+    while IFS= read -r link; do
+        target="$(echo "$link" | grep -oE '[A-Za-z0-9_./-]+\.md' | head -1)"
+        [[ -z "$target" ]] && continue
+        # 跳過絕對路徑 / URL / 範本（含 20YYMMDD 時間戳或 {...} 佔位符）
+        [[ "$target" == /* || "$target" == http* ]] && continue
+        [[ "$target" =~ 20[0-9]{6} ]] && continue
+        [[ "$target" =~ \{.*\} || "$target" == *latest.md ]] && continue
+        # Consumer/runtime-side references written in prose (e.g. "your project's
+        # memory/..." or the adopting project's CLAUDE.md) — never plugin files.
+        [[ "$target" == CLAUDE.md || "$target" == */CLAUDE.md ]] && continue
+        [[ "$target" == .claude/* || "$target" == memory/* ]] && continue
+        dir="$(dirname "$f")"
+        resolved="$dir/$target"
+        [[ -f "$resolved" || -f "$target" || -f "$ROOT/$target" ]] || warn "$f 引用不存在 $target"
+    done < <(grep -oE '`[^`]*\.md`' "$f" 2>/dev/null)
+done
+ok "rules broken link 檢查完"
+
+echo ""
+echo "== 4. Skills SKILL.md =="
+for d in "$ASSET_ROOT"/skills/*/; do
+    [[ -d "$d" ]] || continue
+    # A leaf skill has SKILL.md directly — its subdirs (references/, scripts/,
+    # agents/, evals/...) are support dirs, not skills. Skip descending.
+    [[ -f "$d/SKILL.md" ]] && continue
+    # No direct SKILL.md: a category container (e.g. gitnexus/) holds nested
+    # skill dirs that each have their own SKILL.md — validate those children.
+    if compgen -G "$d*/SKILL.md" >/dev/null; then
+        for sub in "$d"*/; do
+            [[ -d "$sub" ]] || continue
+            [[ -f "$sub/SKILL.md" ]] || warn "$sub 缺 SKILL.md"
+        done
+    else
+        warn "$d 缺 SKILL.md"
+    fi
+done
+ok "skills 檢查完"
+
+echo ""
+echo "== 5. Hook 腳本可執行 =="
+for s in "$HOOKS_DIR"/*.sh "$STATUSLINE"; do
+    [[ -f "$s" ]] || continue
+    [[ -x "$s" ]] || fail "$s 無執行權限（chmod +x）"
+done
+[[ $ERR -eq 0 ]] && ok "hook 腳本全可執行"
+
+echo ""
+echo "== 6. Artifacts 目錄 =="
+if [[ $CHECK_ARTIFACTS -eq 1 ]]; then
+    for d in reviews plans audits adr sessions; do
+        [[ -d ".claude/artifacts/$d" ]] || warn ".claude/artifacts/$d 不存在（session-start 未跑？）"
+    done
+    ok "artifacts 結構檢查完"
+else
+    ok "plugin source 模式 — artifacts 為 runtime 產物，跳過"
+fi
+
+echo ""
+echo "== 7. Route table SSOT =="
+# Validate skills/flow-guide/references/route-table.json (v2): every rule.target
+# resolves by kind — skill → skills/<id>/SKILL.md, command → commands/<id>.md,
+# agent → agents/<id>.md or codex/agents/<id>.toml. Plugin-repo only — in a
+# consumer project the route table is usually absent, so we skip gracefully
+# rather than warn. Whitelist = commands planned but not yet built.
+ROUTE_TABLE="$ROOT/skills/flow-guide/references/route-table.json"
+ROUTE_WHITELIST=""  # space-delimited; commands planned but not yet built (none — do.md shipped in 2.3)
+if [[ ! -f "$ROUTE_TABLE" ]]; then
+    if [[ $CHECK_ARTIFACTS -eq 0 ]]; then
+        fail "route-table.json 缺失（plugin source 必須提供 dhpk.route-table.v2 與 rules）"
+    else
+        ok "route-table.json 不在此 repo（consumer 專案）— 跳過"
+    fi
+elif ! command -v jq >/dev/null 2>&1; then
+    fail "jq 不存在，無法安全校驗 route-table.json（fail closed）"
+else
+    RT_TOTAL=0
+    ROUTE_TABLE_VALID=1
+    DUP_WHITELIST="flow-guide change-verdict"  # workflow/review routers: intent-specific variants may share one safe target
+
+    # Validate the closed route-table envelope before iterating. jq's default
+    # `.rules[]` expression silently yields no rows for malformed JSON, a
+    # missing field, or a non-array value; that would otherwise make an empty
+    # table look like a successful zero-rule validation.
+    if ! jq -e 'type == "object" and .schema == "dhpk.route-table.v2"' "$ROUTE_TABLE" >/dev/null 2>&1; then
+        fail "route-table.json schema 無效或缺失（expected dhpk.route-table.v2）"
+        ROUTE_TABLE_VALID=0
+    fi
+    if ! jq -e 'type == "object" and (.rules | type == "array") and (.rules | length > 0)' "$ROUTE_TABLE" >/dev/null 2>&1; then
+        fail "route-table.json rules 無效或缺失（expected non-empty array）"
+        ROUTE_TABLE_VALID=0
+    fi
+    if [[ $ROUTE_TABLE_VALID -eq 1 ]] && ! jq -e '
+        all(.rules[];
+            type == "object"
+            and ((.pattern | type) == "string") and ((.pattern | length) > 0)
+            and ((.label | type) == "string") and ((.label | length) > 0)
+            and ((.target | type) == "object")
+            and ((.target.kind | type) == "string")
+            and (.target.kind == "skill" or .target.kind == "command" or .target.kind == "agent")
+            and ((.target.id | type) == "string") and ((.target.id | length) > 0)
+        )
+    ' "$ROUTE_TABLE" >/dev/null 2>&1; then
+        fail "route-table.json rules 欄位無效（每條 rule 必須有非空 pattern、label、target.kind、target.id）"
+        ROUTE_TABLE_VALID=0
+    fi
+
+    # Resolve a candidate and require its canonical path to remain below the
+    # corresponding agent root. `-f` alone follows symlinks and would allow a
+    # route target such as agents/role.md -> /tmp/role.md to pass validation.
+    canonical_regular_file_under() {
+        local candidate="$1"
+        local allowed_root="$2"
+        local canonical_root
+        local canonical
+        # Python's os.path.realpath is available wherever this route section
+        # already compiles patterns, and is portable to stock macOS/BSD
+        # userlands as well as Linux.
+        canonical_root="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$allowed_root" 2>/dev/null)" || return 1
+        [[ -d "$canonical_root" ]] || return 1
+        canonical="$(python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$candidate" 2>/dev/null)" || return 1
+        [[ -f "$canonical" ]] || return 1
+        case "$canonical" in
+            "$ROOT"/*|"$ROOT") ;;
+            *) return 1 ;;
+        esac
+        case "$canonical" in
+            "$canonical_root"/*) return 0 ;;
+            *) return 1 ;;
+        esac
+    }
+
+    agent_route_target_exists() {
+        local name="$1"
+        local agents_root="$ROOT/agents"
+        local codex_agents_root="$ROOT/codex/agents"
+        canonical_regular_file_under "$agents_root/$name.md" "$agents_root" && return 0
+        canonical_regular_file_under "$codex_agents_root/$name.toml" "$codex_agents_root" && return 0
+        return 1
+    }
+
+    if [[ $ROUTE_TABLE_VALID -eq 1 ]]; then
+      while IFS=$'\t' read -r pattern kind ident label; do
+        [[ -z "$ident" ]] && continue
+        RT_TOTAL=$((RT_TOTAL+1))
+        # (a) target existence — resolve strictly by target.kind.
+        case "$kind" in
+            skill)
+                if ! [[ "$ident" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+                    fail "route-table skill target identifier 無效: $ident (expected lowercase kebab-case)"
+                elif [[ ! " $ROUTE_WHITELIST " == *" $ident "* ]]; then
+                    canonical_regular_file_under "$ROOT/skills/$ident/SKILL.md" "$ROOT/skills" \
+                        || fail "route-table 指向不存在或不安全的 command/skill: $ident (canonical regular file required under skills/)"
+                fi
+                ;;
+            command)
+                if ! [[ "$ident" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+                    fail "route-table command target identifier 無效: $ident (expected lowercase kebab-case)"
+                elif [[ ! " $ROUTE_WHITELIST " == *" $ident "* ]]; then
+                    canonical_regular_file_under "$ROOT/commands/$ident.md" "$ROOT/commands" \
+                        || fail "route-table 指向不存在或不安全的 command/skill: $ident (canonical regular file required under commands/)"
+                fi
+                ;;
+            agent)
+                if [[ ! "$ident" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+                    fail "route-table agent target identifier 無效: $ident (expected lowercase kebab-case)"
+                elif ! agent_route_target_exists "$ident"; then
+                    fail "route-table 指向不存在的 agent: $ident (agents/$ident.md or codex/agents/$ident.toml must resolve to a canonical regular file under its root)"
+                fi
+                ;;
+            *)
+                fail "route-table target namespace 無效: $kind:$ident (expected skill|command|agent + kebab id)"
+                ;;
+        esac
+        # (b) pattern must compile with Python re, matching pre-route.sh runtime semantics.
+        if ! python3 -c 'import re, sys; re.compile(sys.argv[1])' "$pattern" >/dev/null 2>&1; then
+            fail "route-table pattern 無法編譯為 Python re: [$label] $pattern"
+        fi
+        # (c) bilingual coverage — warn (not fail) on an English-only rule (no CJK / non-ASCII alternation)
+        if ! printf '%s' "$pattern" | LC_ALL=C grep -qE '[^ -~]'; then
+            warn "route-table 規則僅有英文（無中文 alternation）: [$label] $ident"
+        fi
+      done < <(jq -r '.rules[] | [.pattern, .target.kind, .target.id, .label] | @tsv' "$ROUTE_TABLE")
+      # (d) unintended duplicate target.id → fail (whitelisted routers may legitimately repeat)
+      while IFS= read -r ident; do
+        [[ -z "$ident" ]] && continue
+        [[ " $DUP_WHITELIST " == *" $ident "* ]] && continue
+        cnt=$(jq -r --arg s "$ident" '[.rules[] | select(.target.id==$s)] | length' "$ROUTE_TABLE")
+        fail "route-table 重複 skill target（非預期，考慮合併規則）: $ident ×$cnt"
+      done < <(jq -r '.rules[].target.id' "$ROUTE_TABLE" | sort | uniq -d)
+      [[ $ERR -eq 0 ]] && ok "route-table $RT_TOTAL 條：target 存在、pattern 可編譯、無非預期重複（dup-whitelist: $DUP_WHITELIST）"
+    fi
+fi
+
+echo ""
+echo "=========================================="
+if [[ $ERR -gt 0 ]]; then
+    echo "FAIL: $ERR 個錯誤 / $WARN 個警告"
+    exit 1
+elif [[ $WARN -gt 0 ]]; then
+    echo "PASS (with warnings): $WARN 個警告"
+    exit 2
+else
+    echo "PASS: 全部通過"
+    exit 0
+fi

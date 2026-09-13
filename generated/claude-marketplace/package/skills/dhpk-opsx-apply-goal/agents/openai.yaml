@@ -1,0 +1,6 @@
+interface:
+  display_name: "Opsx Apply Goal"
+  short_description: "Unattended OpenSpec goal generator."
+  default_prompt: "Use $dhpk-opsx-apply-goal to apply the Opsx Apply Goal workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

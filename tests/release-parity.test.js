@@ -32,6 +32,7 @@ function mkRepo({ versions, changelogHeading, agyDocVersion = '1.0.0' } = {}) {
   };
   const merged = { ...defaults, ...(versions || {}) };
   for (const rel of [
+    'generated/claude-marketplace/package/.claude-plugin/plugin.json',
     'generated/claude-profiles/minimal/package/plugin.json',
     'generated/claude-profiles/full/package/plugin.json',
     'generated/claude-profiles/compat-v1/package/plugin.json',
@@ -87,6 +88,7 @@ function allAtVersion(version) {
     'plugins/dhpk-agy/provenance.json': version,
     'plugins/dhpk-cursor/.cursor-plugin/plugin.json': version,
     'plugins/dhpk-cursor/provenance.json': version,
+    'generated/claude-marketplace/package/.claude-plugin/plugin.json': version,
     'generated/claude-profiles/minimal/package/plugin.json': version,
     'generated/claude-profiles/full/package/plugin.json': version,
     'generated/claude-profiles/compat-v1/package/plugin.json': version,
@@ -95,6 +97,7 @@ function allAtVersion(version) {
 
 test('checkParity fails when a tracked Claude profile manifest lags the target', () => {
   for (const rel of [
+    'generated/claude-marketplace/package/.claude-plugin/plugin.json',
     'generated/claude-profiles/minimal/package/plugin.json',
     'generated/claude-profiles/full/package/plugin.json',
     'generated/claude-profiles/compat-v1/package/plugin.json',
@@ -123,6 +126,7 @@ test('MANIFEST_PATHS lists every version-bearing manifest, including native pack
     'plugins/dhpk-agy/provenance.json',
     'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
     'plugins/dhpk-cursor/provenance.json',
+    'generated/claude-marketplace/package/.claude-plugin/plugin.json',
     'generated/claude-profiles/minimal/package/plugin.json',
     'generated/claude-profiles/full/package/plugin.json',
     'generated/claude-profiles/compat-v1/package/plugin.json',

@@ -1,0 +1,165 @@
+# Agent Artifact-Output Contract
+
+Reviewer dispatch prompt fields and bounded no-op recovery are defined in
+[`reviewer-contract.md`](./reviewer-contract.md); this file remains the SSOT for
+persisted artifact paths, frontmatter, and verdict vocabulary. Current Review
+Gate dispatch does not use sentinel clearance.
+
+SSOT for the write-to-disk conventions shared across dhpk agents that persist a report, review, or plan under `.claude/artifacts/`. Extracted from what was previously copy-pasted (and drifting) inline across 18 agent files. Referenced from each agent's own "Closing — Artifact Output" section, which keeps only what's genuinely agent-specific: its own path category, its own extra frontmatter fields, and whether it participates in Review Gate dispatch.
+
+## Does this output belong here at all?
+
+Decide this BEFORE reaching for the path template. `.claude/artifacts/` is
+gitignored; `docs/` is version-controlled. That single difference decides the
+destination, and getting it backwards silently destroys an output's value.
+
+| | `.claude/artifacts/` (gitignored) | `docs/` (tracked) |
+|---|---|---|
+| Holds | session-scoped evidence | durable project deliverables |
+| Examples | review docs, audit reports, architect plans / ADR fallbacks, session state, failure logs | codemaps, feature specs, knowledge base |
+| A teammate cloning the repo | does not need it, will not have it | needs it, gets it for free |
+| Committed | noise | reviewable in the PR |
+| Regenerated | every session, cheaply | on structural change, deliberately |
+
+The test: **would a teammate on a fresh clone need this, and would you want it
+in a PR diff?** Yes to both → `docs/`. No → `.claude/artifacts/`.
+
+Being wrong in the `docs/` → `artifacts/` direction is the costly one. An
+output whose whole purpose is to be available cheaply at session start (a
+codemap is the canonical case) becomes per-machine the moment it is gitignored:
+every teammate, every fresh clone, and every CI run must regenerate it, and it
+can never appear in review.
+
+The reverse error is cheaper but still real — committing 60+ per-session review
+docs buries the signal a PR diff is supposed to carry.
+
+## Path template
+
+```
+.claude/artifacts/<category>/<agent>-{yyyymmdd-HHMMSS}-{slug}.md
+```
+
+- Timestamp in the project's local timezone (dhpk defaults to Asia/Taipei).
+- `slug` is ASCII kebab-case, short.
+- Known categories: `reviews/` (most reviewer-family agents), `audits/` (harness-reviser), `codemaps/` (doc-updater — see the qualifier below), `refactors/` (refactor-cleaner). `architect` is the one exception with two categories (`plans/`, `adr/`) instead of `reviews/` — document that inline in its own Closing section, don't force it into this template.
+- **`codemaps/` holds doc-updater's optional session log, NOT the codemaps.** The codemaps themselves are a tracked deliverable at `docs/CODEMAPS/{area}.md` per the rule above, as `agents/doc-updater.md` states explicitly. Unqualified, this line reads as though `.claude/artifacts/codemaps/` were their home — it is not.
+- An empty category directory means that agent has not run in this repository. It is idle infrastructure, not a dead entry — the declared-category set above is the SSOT for which categories an *agent* writes, never the filesystem.
+- A directory here that is NOT in the list above is not necessarily a defect either. `.claude/artifacts/` is gitignored, so it is also the correct home for material that is durable but deliberately unversioned — a maintainer's own analysis kept across sessions and intentionally never committed. `reports/` is one such human-owned drop: no agent writes it, nothing creates it, and it should not be added to this registry or to `session-start.sh`'s mkdir list. Undeclared plus human-owned is a valid state; do not "clean it up".
+- Some agents have no artifact at all (`docs-lookup` is read-only-reply; `spec-miner`'s deliverable is `openspec/specs/<capability>/spec.md`, not a `.claude/artifacts/` report) — those agents document that exception inline instead of using this template.
+
+## Universal frontmatter fields
+
+Every artifact-writing agent includes at minimum:
+
+```yaml
+---
+agent: <agent-name>
+generated_at: <ISO8601, +08:00 offset or the project's local offset>
+commit: <short-sha>
+scope: [path/a, path/b]
+---
+```
+
+For the retired reviewer-sentinel compatibility path, this frontmatter had to
+be the leading,
+delimited block of a canonical filename
+`<agent>-YYYYMMDD-HHMMSS-<slug>.md`. Body text that merely resembles YAML is
+not evidence; `subagent-stop-verify.sh` accepts only `APPROVE` or `PASS` after
+these fields validate.
+
+## Reviewer-family extension
+
+Agents that produce a severity-graded finding list add:
+
+```yaml
+severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }
+verdict: APPROVE | WARNING | BLOCK   # or PASS | WARNING | FAIL — see below
+# lifecycle-bound reviewer waves also carry scope_id and diff_id
+```
+
+`scope_id` identifies the complete review-trigger set for the wave and
+`diff_id` identifies the worktree diff/status snapshot. A producer writes the
+artifact-ready marker only after the artifact is durable. Consumers require
+that marker, fresh mtime, matching identity (when supplied), and a parseable
+verdict; a fixed sleep or a reviewer reply is not readiness evidence.
+
+Two verdict vocabularies are both in current use — pick the one matching the agent's own body, don't invent a third:
+
+- **APPROVE | WARNING | BLOCK** (`code-reviewer`, `doc-reviewer`, `frontend-reviewer`, `polyfill-reviewer`, and others with a `Verdict:` line convention): APPROVE = no CRITICAL/HIGH finding; WARNING = HIGH only; BLOCK = any CRITICAL finding.
+- **PASS | WARNING | FAIL** (`database-reviewer`, `security-reviewer`, `migration-reviewer`, `performance-analyzer`, `tdd-guide`): used by audit/analysis-style agents; each agent's own body defines what PASS vs FAIL means for its domain (e.g. `tdd-guide` ties it to `coverage_pct`).
+
+Non-reviewer agents keep their own extra fields documented inline, not centralized here — they're genuinely agent-specific:
+
+- `architect`: `verdict` only, no `severity_summary` (a design review isn't severity-graded the same way).
+- `refactor-cleaner`: `removed[]`, `consolidated[]`.
+- `harness-reviser`: `baseline_pass`, `post_pass`, `deferred[]`, `verdict`.
+- `doc-updater`: `updated_files[]`, no `verdict` (it's a sync operation, not a gate).
+- `tdd-guide`: `coverage_pct` alongside `verdict (PASS|WARNING|FAIL)`.
+- `e2e-runner`: `pass_rate` alongside `verdict (PASS|WARNING|FAIL)`.
+- `polyfill-reviewer`: `guards_reviewed` alongside the APPROVE/WARNING/BLOCK shape.
+- `agent-evaluator`, `type-design-analyzer`: `verdict` only, no `severity_summary`.
+
+## Retention
+
+**Advisory and unenforced.** Nothing prunes these directories, and no code
+creates `archive/`. This section previously read "keep the most recent ~30 per
+category; move older ones to `archive/`" as though it were a rule. It never
+was: as of 2026-07-22 `reviews/` held 70 files and `archive/` had never existed.
+
+Prune for navigability, when a directory gets hard to scan by eye. **Not for
+speed.** The measured costs run opposite to intuition, and are recorded here so
+the performance rationale is not re-derived from a plausible guess:
+
+- The three `ls -t` globs in `subagent-stop-verify.sh` match a per-agent prefix
+  (`<agent>-*.md`), so each scales with one reviewer's own history — 39 and 24
+  against a 70-file directory — and only weakly with the directory's size (glob
+  expansion still has to `readdir` it: measured ~1.15 ms per glob at 39 files
+  versus ~4.45 ms at 20,039, so 500x the directory costs ~4x). ~5 ms combined
+  today; ~13 ms at 285x the current size.
+- `find_misplaced_review_artifact` is the expensive one (~29 ms), and it
+  **prunes `reviews/`**. Its cost scales with everything *outside* the directory
+  anyone would think to prune, and it runs only in the no-fresh-review-doc
+  failure branch, not on every stop.
+
+Growing `reviews/` is therefore close to free. Measure before acting on a
+suspected cost here, and do not restate a threshold that nothing enforces.
+
+## Degradation
+
+If `.claude/artifacts/` (or the specific category subdirectory) does not exist, emit the report to stdout only — do not error.
+
+## Legacy Sentinel clearance (historical compatibility only)
+
+The following section documents the retired hook-backed compatibility path. It
+does not apply to current Review Gate obligations, which are cleared by a
+durable identity-compatible verdict rather than by deleting a marker.
+
+Reviewer agent definitions do NOT self-run a closing `clear-sentinel.sh` step.
+Clearance is owned by the runtime hook `scripts/hooks/subagent-stop-verify.sh`:
+on a successful reviewer stop with the sentinel still armed, it auto-clears
+that reviewer's own slot only when fresh canonical review evidence has a
+canonical `<agent>-YYYYMMDD-HHMMSS-<slug>.md` filename, leading delimited
+frontmatter with all required reviewer fields, and a parseable passing
+`verdict: APPROVE` or `verdict: PASS` (reviewer-liveness-gate).
+"Fresh" means produced this cycle: the artifact's mtime must postdate the
+sentinel that armed the review, so a doc left over from an earlier review cycle
+does not count (reviewers run repeatedly per session). Missing, noncanonical,
+malformed, warning, failing, or unparseable evidence leaves the sentinel armed;
+it is not clearance. This is the sanctioned path
+(the auto-mode permission classifier blocks a reviewer running
+`clear-sentinel.sh` on its own sentinel as "Logging/Audit Tampering"). When the
+reviewer stops cleanly but **no fresh review artifact was produced this cycle,
+the hook leaves the sentinel ARMED** (the review gate stays unmet, so the
+orchestrator re-dispatches) and logs it as a failure — a no-output reviewer must
+not clear its own gate.
+
+As an exception-path back-stop, the orchestrator may still invoke
+`clear-sentinel.sh` manually for a stale sentinel left armed after an
+otherwise-clean APPROVE (e.g. when the SubagentStop payload didn't carry a
+resolvable subagent name):
+
+```
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" <sentinel-name> <agent-name>
+```
+
+N/A for agents not in the sentinel review chain (`doc-updater`, `harness-reviser`, `tdd-guide`, `type-design-analyzer`, `architect`, `agent-evaluator`, `refactor-cleaner`, `e2e-runner`, `performance-analyzer`, `spec-miner`, `deep-reasoner`, `fast-worker`) — those either have no sentinel slot or are triggered by explicit invocation / a back-stop, not a `.pending-*` sentinel.
