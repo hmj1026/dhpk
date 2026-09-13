@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.58.3 — 2026-09-13 — Safe marketplace cache and cross-platform compatibility projections
+
+**feat(agents-skills-compatibility)** — Project-local skills can now be generated once into `.agents/skills` for Cursor and Antigravity while platform-native agent and rule paths remain explicit.
+**fix(agy-install-path)** — AGY installation now uses the inventory-owned official path by default, detects legacy installations without mutating them, and provides an explicit receipt-safe migration action with rollback protection.
+**fix(claude-marketplace)** — Publish Claude marketplace installs from a physical package without the development root CLAUDE.md and validate the installed cache under --strict. If the CLI omits installPath, the evidence is NOT RUN, the gate fails closed, and completion is blocked without an official PASS.
+
 ## 0.58.2 — 2026-09-12 — Dual-platform bounded release preflight
 
 **chore(release-gate)** — Support guarded release preflight on Linux cgroup and macOS portable bounded runners.

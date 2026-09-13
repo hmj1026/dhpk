@@ -85,6 +85,13 @@ variables。Cursor provenance 會記錄 shared stable IDs 與
 fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills 只有一個
 更新／rollback owner，而 Cursor-native files 由另一個 owner 獨立管理。
 
+project-local `.agents/skills` 相容投影是同一份 canonical selection 的 generated
+adapter。它在同一個 receipt-owned root 產生 Cursor 的 directory-shaped
+`<name>/SKILL.md` 與 Antigravity 的 direct `<name>.md` discovery shim。它不會把
+canonical skill 改成新 owner，也不會把 `.agents/agents` 或 `.agents/rules` 宣稱為
+官方路徑；Codex、Cursor、AGY 的 agent/rule projection 仍保留各自文件定義的
+platform-native 位置。
+
 ## Claude publication：raw compatibility surface 與實體化預設
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的

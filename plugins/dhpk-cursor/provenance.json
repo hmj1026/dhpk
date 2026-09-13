@@ -4,10 +4,10 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.58.2",
-  "sourceCommit": "bd3776aad528b857738d754528ea3da16faf0fac",
-  "generatedFromCommit": "bd3776aad528b857738d754528ea3da16faf0fac",
-  "generatedFromTree": "42f5566c722d27b7d7093c752113de2b8289d18f",
+  "sourceVersion": "0.58.3",
+  "sourceCommit": "ec9377c5266fc5810b084f805dcd0c5805e48aff",
+  "generatedFromCommit": "ec9377c5266fc5810b084f805dcd0c5805e48aff",
+  "generatedFromTree": "29a39be17836fd46d930d4592c2aa7cb5386cd4e",
   "inventoryDigest": "2de8144eb1200ade0bf10538acc0a56e4656f644de0843d01821d7b3e427d61e",
   "inventoryRevision": "sha256:27d7c3e0addf7709489c610f9e37bae272bd4a164d4d1e9df97866a42fe25110",
   "generatorVersion": "1.0.0",
@@ -1059,5 +1059,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "64456c0993f4ee19e02d0d6f399f96583d235014f0eb91adc306365eb517568a"
+  "planFingerprint": "756b8394e93f97e78371351e78b8ae96b42903e4445873e548e7b12f47a8f42b"
 }

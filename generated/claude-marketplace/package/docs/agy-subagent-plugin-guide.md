@@ -112,10 +112,11 @@ model: pro  # 可選值: inherit | flash_lite | flash | pro
 
 ### 3.2 外掛安裝與結構佈局
 
-`dhpk` 外掛安裝至 Antigravity CLI 時，目錄結構應符合標準規範：
+`dhpk` 外掛安裝至 Antigravity CLI 時，AGY 1.2.x 的 canonical 目錄結構應符合
+inventory-owned path contract：
 
 ```text
-~/.gemini/config/plugins/dhpk/
+~/.gemini/antigravity-cli/plugins/dhpk/
 ├── plugin.json               # 必須包含 name: "dhpk"
 ├── mcp_config.json           # optional：MCP 伺服器配置（如 gitnexus 等）
 ├── hooks.json                # optional：生命週期鉤子
@@ -146,14 +147,24 @@ bin/dhpk distribution agy-plugin validate \
 node scripts/agy-adapt-agents.js --staging-root /tmp/dhpk-agy-staging
 ```
 
-不得把 adapter 指向 `~/.gemini/config/plugins/dhpk` 或其子目錄。完成 structural
-validation 後，安裝必須使用同一個已驗證的 staging package；這樣 canonical receipt、
-collision 與 rollback ownership 才會沿著同一份產物傳遞：
+舊版 AGY layout `~/.gemini/config/plugins/dhpk/` 仍是受支援的 legacy candidate，
+但只用於唯讀診斷與明確 migration。不得把 adapter 指向任何 consumer target
+或其子目錄。完成 structural validation 後，安裝必須使用同一個已驗證的
+staging package；這樣 canonical receipt、collision 與 rollback ownership 才會
+沿著同一份產物傳遞：
 
 ```bash
 node scripts/ci/install-agy-plugin.js install \
-  --source /tmp/dhpk-agy-staging \
-  --target ~/.gemini/config/plugins/dhpk
+  --source /tmp/dhpk-agy-staging --json
+```
+
+預設安裝會使用 canonical path；`plan`／`status` 會偵測 legacy receipt 而不
+修改它。若要搬移 legacy installation，先確認只有一個 receipt-owned legacy
+target，再執行：
+
+```bash
+node scripts/ci/install-agy-plugin.js migrate \
+  --source /tmp/dhpk-agy-staging --json
 ```
 
 ### 步驟 2：驗證外掛與 SubAgent 載入狀態

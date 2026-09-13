@@ -2800,7 +2800,16 @@
     "optional_files": [
       "mcp_config.json",
       "hooks.json"
-    ]
+    ],
+    "install_paths": {
+      "schema": "dhpk.agy-install-path.v1",
+      "plugin_name": "dhpk",
+      "canonical_relative": ".gemini/antigravity-cli/plugins/dhpk",
+      "legacy_relatives": [
+        ".gemini/config/plugins/dhpk"
+      ],
+      "sandbox_home": "/home/agy"
+    }
   },
   "portable_frontmatter": {
     "allowlist": [

@@ -106,6 +106,13 @@ records its transform, fallback, and independent fingerprint. Update and
 rollback therefore have one owner for shared portable skills and a separate
 owner for Cursor-native files.
 
+The project-local `.agents/skills` compatibility projection is a generated
+adapter over that same canonical selection. It emits Cursor's directory-shaped
+`<name>/SKILL.md` and Antigravity's direct `<name>.md` discovery shim under one
+receipt-owned root. It does not re-home canonical skills and it does not make
+`.agents/agents` or `.agents/rules` official paths: Codex, Cursor, and AGY keep
+their documented platform-native agent/rule projections.
+
 ## Claude publication: raw compatibility surface and materialized default
 
 `scripts/ci/gen-claude-manifest.js` derives the expected `.claude-plugin/plugin.json`

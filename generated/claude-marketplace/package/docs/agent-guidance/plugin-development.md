@@ -62,6 +62,18 @@ canonical-source commit, commit their outputs, then run the verifier. If
 `node tests/profile-scoped-claude-capability-bundle.test.js` and update
 its measured characterization bytes/hash from the generated result.
 
+The project-local `.agents/skills` compatibility projection is generated from
+the same canonical `skills/` tree and is not hand-edited:
+
+```bash
+node scripts/ci/gen-agents-skills.js
+node scripts/ci/validate-agents-skills.js
+```
+
+It emits Cursor's directory-shaped skill package and Antigravity's direct-file
+discovery shim. Keep Codex/Cursor/AGY agent and rule projections on their
+platform-native paths; `.agents` is not their shared configuration root.
+
 Every non-test-only change must include either a
 `changelog.d/<category>.<slug>.md` fragment or a
 `changelog.d/<slug>.none` marker. Before handoff, run:
