@@ -1,0 +1,122 @@
+{
+  "schema": "dhpk.issue-422.cost-comparison.v1",
+  "issue": 422,
+  "parent_issue": 416,
+  "blocked_by": [421],
+  "source_evidence": {
+    "path": "docs/evidence/issue-421.json",
+    "schema": "dhpk.issue-421.evidence.v1",
+    "source_commit": "4796c410004b9095f639027e6132907dc83ed0f9"
+  },
+  "comparison": {
+    "runner": {
+      "platform": "darwin",
+      "node": "v26.8.2",
+      "jobs": 4,
+      "workload": "DHPK_TEST_JOBS=4 node tests/run-all.js",
+      "same_runner": true
+    },
+    "timing": {
+      "baseline": {
+        "phase": "pre-change",
+        "files": 299,
+        "failed_files": 60,
+        "exit_code": 1,
+        "wall_time_seconds": 124.41
+      },
+      "post_change": {
+        "phase": "post-change",
+        "files": 300,
+        "failed_files": 60,
+        "exit_code": 1,
+        "wall_time_seconds": 149.67,
+        "timing_report_duration_ms": 149627
+      },
+      "delta": {
+        "files": 1,
+        "failed_files": 0,
+        "wall_time_seconds": 25.26,
+        "wall_time_percent": 20.3,
+        "interpretation": "Post-change wall time increased on this workload; this is not a cost or quality score."
+      },
+      "bottleneck": {
+        "file": "install-codex-skills.test.js",
+        "duration_ms": 105954,
+        "worker_index": 0,
+        "worker_duration_ms": 149570
+      }
+    },
+    "cost_metrics": {
+      "root_usage_tokens": {
+        "baseline": null,
+        "post_change": null,
+        "delta": null,
+        "status": "UNKNOWN",
+        "reason": "Issue #421 captured timing/runtime evidence but not root token usage."
+      },
+      "total_usage_tokens": {
+        "baseline": null,
+        "post_change": null,
+        "delta": null,
+        "status": "UNKNOWN",
+        "reason": "No comparable total usage ledger was captured."
+      },
+      "retry_count": {
+        "baseline": null,
+        "post_change": null,
+        "delta": null,
+        "status": "UNKNOWN",
+        "reason": "The runner evidence does not expose a comparable retry count."
+      },
+      "additional_cost": {
+        "baseline": null,
+        "post_change": null,
+        "delta": null,
+        "currency": null,
+        "status": "UNKNOWN",
+        "reason": "No actual subscription or provider billing data was captured; API list prices are not substituted."
+      }
+    },
+    "acceptance_quality": {
+      "formal_score": {
+        "baseline": null,
+        "post_change": null,
+        "delta": null,
+        "status": "UNKNOWN",
+        "reason": "No independent acceptance-quality score was captured."
+      },
+      "observed_test_result": {
+        "baseline": {
+          "exit_code": 1,
+          "failed_files": 60
+        },
+        "post_change": {
+          "exit_code": 1,
+          "failed_files": 60
+        },
+        "interpretation": "The aggregate runner result was FAIL in both phases; this report does not promote it to PASS."
+      },
+      "runtime_smoke": {
+        "source": "docs/evidence/issue-421.json#/runtime_smoke",
+        "status_counts": {
+          "FAIL": 3,
+          "NOT_RUN": 1,
+          "BLOCKED": 2,
+          "UNAVAILABLE": 1
+        },
+        "interpretation": "Runtime evidence is post-change only and mixed; it does not establish all-platform support."
+      }
+    }
+  },
+  "closeout_boundaries": {
+    "functional_implementation": "NOT_ASSESSED_BY_THIS_REPORT",
+    "test_and_runtime_proof": "OBSERVED_IN_SOURCE_EVIDENCE",
+    "package_release": "NOT_REPORTED",
+    "cost_observation": "INCOMPLETE"
+  },
+  "interpretation": [
+    "The timing comparison is reproducible for the recorded runner and workload only.",
+    "Root usage reduction, total development-cost reduction, retry reduction, and billing savings are not established by the available evidence.",
+    "Parent issue #416 may cite this report together with issue #421, while keeping implementation, runtime proof, package publication, and cost observation as separate states."
+  ]
+}

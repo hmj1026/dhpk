@@ -33,6 +33,15 @@ function invokeForSource(action, source, target) {
   });
 }
 
+function invokeWithHome(action, source, home) {
+  return spawnSync(process.execPath, [SCRIPT, action, '--source', source, '--json'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 30000,
+    env: { ...process.env, HOME: home, XDG_CONFIG_HOME: path.join(home, '.config') },
+  });
+}
+
 function invokeReportForSource(action, source, target) {
   const result = invokeForSource(action, source, target);
   return { result, report: JSON.parse(result.stdout) };
@@ -178,6 +187,24 @@ test('CLI plan and status pass for a stale owned upgrade without mutation', () =
     assert.match(plan.report.next_action, /update/i);
     assert.deepStrictEqual(snapshotFiles(sourceNext), sourceBefore);
     assert.deepStrictEqual(snapshotFiles(target), targetBefore);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('CLI migration moves an explicit legacy installation to the canonical home path', () => {
+  const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-migrate-'));
+  const legacy = path.join(temp, '.gemini/config/plugins/dhpk');
+  const canonical = path.join(temp, '.gemini/antigravity-cli/plugins/dhpk');
+  try {
+    const installed = invoke('install', legacy);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const migrated = invokeWithHome('migrate', SOURCE, temp);
+    assert.strictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
+    const report = JSON.parse(migrated.stdout);
+    assert.strictEqual(report.classification, 'MIGRATED_LEGACY');
+    assert.ok(fs.existsSync(path.join(canonical, 'provenance.json')));
+    assert.ok(!fs.existsSync(path.join(legacy, 'provenance.json')));
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

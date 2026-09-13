@@ -1,0 +1,4 @@
+interface:
+  display_name: "Software Architecture"
+  short_description: "Use when users need architecture decisions, module boundaries"
+  default_prompt: "Use $dhpk-module-design to apply the Software Architecture workflow with its verification rules."

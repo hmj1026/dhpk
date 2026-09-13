@@ -1,0 +1,6 @@
+interface:
+  display_name: "Harness Govern"
+  short_description: "Govern harness health, budget, filling, revision, and sync."
+  default_prompt: "Use $harness-govern to run one explicit harness governance mode with its verification contract."
+policy:
+  allow_implicit_invocation: false

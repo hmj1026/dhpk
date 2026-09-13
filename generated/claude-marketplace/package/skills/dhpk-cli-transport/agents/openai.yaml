@@ -1,0 +1,6 @@
+interface:
+  display_name: "Internal CLI transport"
+  short_description: "Internal transport support package; not invokable"
+  default_prompt: "Internal-only package. Do not invoke directly."
+policy:
+  allow_implicit_invocation: false

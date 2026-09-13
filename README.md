@@ -276,12 +276,20 @@ node scripts/ci/validate-plugin.js
 node scripts/ci/validate-skills.js --strict
 ```
 
-These checks cover repository source. For official Claude CLI evidence, run
-`claude plugin validate <manifest> --strict` against a consumer-shaped staged
-package. The development checkout's root `CLAUDE.md` can trigger a warning when
-the checkout is validated directly. It may also be physically present in a
-checkout or installed cache, but it is not loaded as plugin context and is
-excluded from official consumer-validation staging. Document the module in this
+These checks cover repository source. The marketplace uses the generated
+physical package at `generated/claude-marketplace/package`, which excludes the
+development-only root `CLAUDE.md`. For official Claude CLI evidence, validate
+the installed cache directly with:
+
+```bash
+claude plugin validate <installed>/.claude-plugin/plugin.json --strict
+```
+
+The release consumer gate records the staged check and, when `claude plugin
+list --json` reports an `installPath`, also validates that installed cache. A
+non-zero result blocks completion. If the CLI omits `installPath`, the gate
+records that installed-cache proof was `NOT RUN`, returns `FAIL`, and blocks
+completion; no official PASS may be claimed. Document the module in this
 README.
 
 Modules may ship hook scripts under `modules/<stack>-<version>/hooks/`. Their activation depends on the hook class:

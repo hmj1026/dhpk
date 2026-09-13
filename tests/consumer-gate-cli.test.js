@@ -342,7 +342,7 @@ if [ "$1 $2" = "plugin uninstall" ] || [ "$1 $2" = "plugin remove" ]; then
   printf 'UNINSTALL_CWD=%s\\n' "$PWD" >> "$LOG"
   exit ${uninstallExit}
 fi
-if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${listVersion}"}]'; exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${listVersion}","scope":"project","installPath":"'"$PWD"'"}]'; exit 0; fi
 exit 0
 `;
 }
@@ -380,7 +380,7 @@ test('reports overall PENDING when supported checks pass but Cursor runtime is n
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
 if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
-if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}"}]'; exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","installPath":"'"$PWD"'"}]'; exit 0; fi
 exit 0
 `);
     const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
@@ -449,44 +449,118 @@ test('selected Cursor sync evidence keeps the gate pending without a Cursor clie
 test('Claude strict validation uses a consumer-shaped staged package without the development root instructions', () => {
   withConsumerGateBin((bin) => {
     const log = path.join(bin, 'claude-validation.log');
-    mkBinStub(bin, 'claude', `#!/bin/sh
+    const installedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-installed-cache-'));
+    try {
+      mkBinStub(bin, 'claude', `#!/bin/sh
 LOG=${JSON.stringify(log)}
 if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
 if [ "$1 $2" = "plugin validate" ]; then
   printf 'VALIDATE_CWD=%s\\n' "$PWD" >> "$LOG"
   printf 'VALIDATE_MANIFEST=%s\\n' "$3" >> "$LOG"
   printf 'VALIDATE_FLAG=%s\\n' "$4" >> "$LOG"
+  case "$PWD" in
+    *dhpk-claude-validation-*)
   for path in .claude-plugin/plugin.json skills agents commands modules; do
     if [ ! -e "$PWD/$path" ]; then printf 'MISSING=%s\\n' "$path" >> "$LOG"; exit 2; fi
   done
   if [ -e "$PWD/CLAUDE.md" ]; then printf 'ROOT_CLAUDE_PRESENT=1\\n' >> "$LOG"; exit 3; fi
+      ;;
+  esac
   exit 0
 fi
 if [ "$1 $2 $3" = "plugin marketplace add" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
-if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}"}]'; exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","installPath":${JSON.stringify(installedRoot)}}]'; exit 0; fi
+if [ "$1 $2" = "plugin uninstall" ] || [ "$1 $2" = "plugin remove" ]; then exit 0; fi
+if [ "$1 $2 $3" = "plugin marketplace remove" ] || [ "$1 $2 $3" = "plugin marketplace rm" ]; then exit 0; fi
+exit 0
+`);
+      const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
+      assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+      const stage = JSON.parse(res.stdout);
+      assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+
+      const logText = fs.readFileSync(log, 'utf8');
+      const validationCwd = /^VALIDATE_CWD=(.+)$/m.exec(logText);
+      const validationManifest = /^VALIDATE_MANIFEST=(.+)$/m.exec(logText);
+      const validationFlag = /^VALIDATE_FLAG=(.+)$/m.exec(logText);
+      assert.ok(validationCwd, logText);
+      assert.ok(validationManifest, logText);
+      assert.ok(validationFlag, logText);
+      assert.strictEqual(validationFlag[1], '--strict');
+      // macOS may render /var/folders as /private/var/folders in $PWD while
+      // Node retains the lexical temp path in the argv; compare the unique
+      // stage directory rather than the symlinked prefix.
+      assert.strictEqual(
+        path.basename(path.dirname(path.dirname(validationManifest[1]))),
+        path.basename(validationCwd[1]),
+      );
+      assert.match(validationManifest[1], /[\\/]\.claude-plugin[\\/]plugin\.json$/);
+      assert.notStrictEqual(validationCwd[1], ROOT);
+      assert.match(validationCwd[1], /[\\/]dhpk-claude-validation-/);
+      assert.doesNotMatch(logText, /MISSING=|ROOT_CLAUDE_PRESENT/);
+    } finally {
+      fs.rmSync(installedRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+test('fails closed when Claude omits the installed cache path', () => {
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
+if [ "$1 $2 $3" = "plugin marketplace add" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project"}]'; exit 0; fi
 if [ "$1 $2" = "plugin uninstall" ] || [ "$1 $2" = "plugin remove" ]; then exit 0; fi
 if [ "$1 $2 $3" = "plugin marketplace remove" ] || [ "$1 $2 $3" = "plugin marketplace rm" ]; then exit 0; fi
 exit 0
 `);
     const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
-    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    assert.notStrictEqual(res.status, 0, res.stdout + res.stderr);
     const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+    assert.strictEqual(claude.status, 'FAIL', JSON.stringify(stage));
+    assert.match(claude.reasons.join('\n'), /installPath|installed-cache.*NOT RUN/i);
+    assert.ok(claude.commands.some((command) => command.status === 'NOT RUN' && /<installed>/.test(command.cmd)), JSON.stringify(stage));
+  });
+});
 
-    const logText = fs.readFileSync(log, 'utf8');
-    const validationCwd = /^VALIDATE_CWD=(.+)$/m.exec(logText);
-    const validationManifest = /^VALIDATE_MANIFEST=(.+)$/m.exec(logText);
-    const validationFlag = /^VALIDATE_FLAG=(.+)$/m.exec(logText);
-    assert.ok(validationCwd, logText);
-    assert.ok(validationManifest, logText);
-    assert.ok(validationFlag, logText);
-    assert.strictEqual(validationFlag[1], '--strict');
-    assert.strictEqual(path.dirname(path.dirname(validationManifest[1])), validationCwd[1]);
-    assert.match(validationManifest[1], /[\\/]\.claude-plugin[\\/]plugin\.json$/);
-    assert.notStrictEqual(validationCwd[1], ROOT);
-    assert.ok(validationCwd[1].startsWith(`${os.tmpdir()}${path.sep}`), validationCwd[1]);
-    assert.doesNotMatch(logText, /MISSING=|ROOT_CLAUDE_PRESENT/);
+test('Claude consumer gate validates the installed cache manifest after marketplace install', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'claude-installed-validation.log');
+    const installedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-installed-cache-'));
+    try {
+      mkBinStub(bin, 'claude', `#!/bin/sh
+LOG=${JSON.stringify(log)}
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then
+  printf 'VALIDATE_CWD=%s\\n' "$PWD" >> "$LOG"
+  printf 'VALIDATE_MANIFEST=%s\\n' "$3" >> "$LOG"
+  exit 0
+fi
+if [ "$1 $2 $3" = "plugin marketplace add" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then
+  echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","installPath":${JSON.stringify(installedRoot)}}]'
+  exit 0
+fi
+if [ "$1 $2" = "plugin uninstall" ] || [ "$1 $2" = "plugin remove" ]; then exit 0; fi
+if [ "$1 $2 $3" = "plugin marketplace remove" ] || [ "$1 $2 $3" = "plugin marketplace rm" ]; then exit 0; fi
+exit 0
+`);
+      const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
+      assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+      const stage = JSON.parse(res.stdout);
+      assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+      assert.ok(stage.commands.some((command) => command.cmd === 'claude plugin validate <installed>/.claude-plugin/plugin.json --strict' && command.exitCode === 0), JSON.stringify(stage));
+      const logText = fs.readFileSync(log, 'utf8');
+      assert.strictEqual((logText.match(/^VALIDATE_MANIFEST=/gm) || []).length, 2, logText);
+      assert.match(logText, new RegExp(`VALIDATE_CWD=.*${path.basename(installedRoot)}`));
+    } finally {
+      fs.rmSync(installedRoot, { recursive: true, force: true });
+    }
   });
 });
 
@@ -515,7 +589,7 @@ if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
 if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
 if [ "$1 $2" = "plugin list" ]; then
-  echo '[{"id":"dhpk@dhpk","version":"0.44.0","scope":"user"},{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","projectPath":"'"$PWD"'"}]'
+  echo '[{"id":"dhpk@dhpk","version":"0.44.0","scope":"user"},{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","projectPath":"'"$PWD"'","installPath":"'"$PWD"'"}]'
   exit 0
 fi
 exit 0

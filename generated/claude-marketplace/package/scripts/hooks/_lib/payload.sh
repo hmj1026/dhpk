@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# payload.sh — shared helpers for dhpk plugin hooks.
+# Source-only — never execute directly. No side effects on sourcing.
+#
+# Constants exported:
+#   REVIEWER_AGENTS  — reviewer agent invocation names, derived from
+#                      CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS env var (Claude Code
+#                      exports each userConfig key). Falls back to plugin defaults.
+#                      Used to classify "is this subagent a reviewer" (e.g.
+#                      subagent-stop-quality.sh, pre-agent-warmstart.sh).
+#
+# Helpers exported:
+#   extract_tool_input <field> "<payload>"
+#       — Pulls tool_input.<field> from a Claude Code PreToolUse/PostToolUse
+#         JSON payload. Prefers jq; falls back to python3 when jq is missing.
+#         Returns empty string on any error (callers MUST handle empty).
+#
+# The Review Sentinel `.pending-*` file mechanism (SENTINEL_NAMES/LABELS/
+# SHORT_NAMES, the generated slot-routing block, the provenance sidecar) was
+# retired with the rest of Sentinel (#376/#377) — see
+# docs/adr/0018-production-migration-observation-checkpoint.md.
+
+. "${BASH_SOURCE[0]%/*}/runtime-config.sh"
+
+# Default agent names — overridable via userConfig.review_agents (comma-joined).
+_dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer")
+
+_dhpk_review_agents="$(dhpk_config_review_agents)"
+if [ -n "$_dhpk_review_agents" ]; then
+    IFS=',' read -r -a REVIEWER_AGENTS <<< "$_dhpk_review_agents"
+else
+    REVIEWER_AGENTS=("${_dhpk_default_agents[@]}")
+fi
+unset _dhpk_review_agents
+
+# Pad shorter override with defaults so downstream array indexing stays safe.
+while [ ${#REVIEWER_AGENTS[@]} -lt ${#_dhpk_default_agents[@]} ]; do
+    REVIEWER_AGENTS+=("${_dhpk_default_agents[${#REVIEWER_AGENTS[@]}]}")
+done
+unset _dhpk_default_agents
+
+extract_tool_input() {
+    local field="$1" payload="$2" out=""
+    [ -z "$payload" ] && return 0
+    # Both jq and python3 fallbacks tolerate errors — sourcing hooks may use
+    # set -euo pipefail, so any non-zero must be swallowed here.
+    if command -v jq >/dev/null 2>&1; then
+        out="$(printf '%s' "$payload" | jq -r ".tool_input.${field} // empty" 2>/dev/null || true)"
+    fi
+    if [ -z "$out" ] && command -v python3 >/dev/null 2>&1; then
+        out="$(printf '%s' "$payload" | FIELD="$field" python3 -c '
+import sys, os, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get("tool_input", {}).get(os.environ.get("FIELD", ""), ""))
+except Exception:
+    pass
+' 2>/dev/null || true)"
+    fi
+    printf '%s' "$out"
+    return 0
+}
+
+# extract_top_field <field> "<payload>"
+#   Pulls a TOP-LEVEL <field> from a Claude Code hook JSON payload (e.g. the
+#   Stop hook's stop_hook_active flag). Same error-swallowing contract as
+#   extract_tool_input: returns empty string on any error (callers MUST handle
+#   empty). Prefers jq; falls back to python3 when jq is missing.
+#   NOTE: boolean false collapses to "" (same as absent/null), because both the
+#         jq `// empty` operator and the python3 fallback treat false as empty.
+#         Only use for fields where false and absent are equivalent (e.g.
+#         stop_hook_active); do NOT use where false is a meaningful value.
+extract_top_field() {
+    local field="$1" payload="$2" out=""
+    [ -z "$payload" ] && return 0
+    if command -v jq >/dev/null 2>&1; then
+        out="$(printf '%s' "$payload" | jq -r ".${field} // empty" 2>/dev/null || true)"
+    fi
+    if [ -z "$out" ] && command -v python3 >/dev/null 2>&1; then
+        out="$(printf '%s' "$payload" | FIELD="$field" python3 -c '
+import sys, os, json
+try:
+    d = json.load(sys.stdin)
+    v = d.get(os.environ.get("FIELD", ""), "")
+    print("true" if v is True else ("" if v is False or v is None else v))
+except Exception:
+    pass
+' 2>/dev/null || true)"
+    fi
+    printf '%s' "$out"
+    return 0
+}

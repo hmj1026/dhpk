@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy to <project>/.claude/dhpk-versions.json (version-controlled). Ranges are prefix-matched: '0.10' / '0.10.x' cover every 0.10.* patch. The session-start advisory flags the running dhpk version when it is outside every verified range or inside an incompatible one. Update deliberately after verifying a new plugin version against this project.",
+  "verified": [
+    { "range": "0.10.x", "note": "verified YYYY-MM-DD — <what was checked>" }
+  ],
+  "incompatible": []
+}

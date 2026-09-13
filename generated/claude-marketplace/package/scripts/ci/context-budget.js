@@ -1,0 +1,365 @@
+#!/usr/bin/env node
+'use strict';
+
+// Discovery-context budget validator. It measures only always-visible
+// frontmatter descriptions, not conditional reference bodies. Optional module
+// entries are intentionally reported as discovery-visible because the host
+// publishes their descriptions even when activation is disabled.
+
+const fs = require('node:fs');
+const path = require('node:path');
+const {
+  CATEGORIES,
+  ESTIMATOR,
+  evaluateAggregateDiscoveryBudget,
+  evaluateDiscoveryBudget,
+} = require('../lib/discovery-budget');
+const { extractInvocationClass } = require('./_lib/frontmatter');
+
+const DEFAULT_MANIFEST = path.join(__dirname, '..', '..', 'manifests', 'discovery-budgets.json');
+
+function loadDiscoveryBudgets(root) {
+  return loadDiscoveryBudgetManifest(root).budgets;
+}
+
+function loadDiscoveryBudgetManifest(root) {
+  const file = path.join(root, 'manifests', 'discovery-budgets.json');
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function frontmatterDescription(text) {
+  const match = String(text || '').match(/^description:\s*(?:["']([\s\S]*?)["']|([^\n]+))/m);
+  return (match && (match[1] || match[2]) || '').trim();
+}
+
+function defaultReadDescription(root, entry) {
+  const safePath = (relativePath) => {
+    if (typeof relativePath !== 'string' || relativePath.trim() === '' || path.isAbsolute(relativePath)) return null;
+    const rootPath = path.resolve(root);
+    try {
+      if (fs.lstatSync(rootPath).isSymbolicLink()) return null;
+    } catch (_) {
+      return null;
+    }
+    const candidate = path.resolve(rootPath, relativePath);
+    if (candidate !== rootPath && !candidate.startsWith(`${rootPath}${path.sep}`)) return null;
+    let current = rootPath;
+    for (const component of path.relative(rootPath, candidate).split(path.sep).filter(Boolean)) {
+      current = path.join(current, component);
+      try {
+        if (fs.lstatSync(current).isSymbolicLink()) return null;
+      } catch (_) {
+        return null;
+      }
+    }
+    return candidate;
+  };
+  const file = safePath(path.join(entry.path || '', 'SKILL.md'));
+  if (file && fs.existsSync(file)) return frontmatterDescription(fs.readFileSync(file, 'utf8'));
+  const command = safePath(entry.path);
+  if (command && fs.existsSync(command)) return frontmatterDescription(fs.readFileSync(command, 'utf8'));
+  return '';
+}
+
+function defaultInvocationClass(root, entry) {
+  if (entry && typeof entry.invocation_class === 'string') return entry.invocation_class;
+  if (entry && typeof entry.invocationClass === 'string') return entry.invocationClass;
+  const relative = path.join(entry && entry.path || '', 'SKILL.md');
+  const candidate = path.resolve(root, relative);
+  try {
+    const rootPath = path.resolve(root);
+    if (candidate !== rootPath && !candidate.startsWith(`${rootPath}${path.sep}`)) return null;
+    return extractInvocationClass(fs.readFileSync(candidate, 'utf8')).value;
+  } catch (_) {
+    return null;
+  }
+}
+
+function counts(text) {
+  const value = String(text || '').trim();
+  return {
+    words: value ? value.split(/\s+/u).length : 0,
+    tokens: value ? Math.ceil(Array.from(value).length / 4) : 0,
+  };
+}
+
+function budgetFor(budgets, lifecycle, surface) {
+  return (budgets[lifecycle] && budgets[lifecycle][surface])
+    || null;
+}
+
+function visibilityFor(skill, entrySurface, manifest, legacyCli) {
+  if (skill.invokable === false) {
+    return { value: false, reason: 'internal runtime support is host-invisible' };
+  }
+  if (legacyCli) return { value: true, reason: 'legacy CLI compatibility: discovery-visible surface' };
+  if (typeof skill.discoveryVisible === 'boolean') {
+    return {
+      value: skill.discoveryVisible,
+      reason: skill.discoveryVisible
+        ? (skill.lifecycle === 'optional' ? 'discovery-visible; runtime/activation optional' : 'declared discovery-visible metadata')
+        : 'declared host-invisible metadata',
+    };
+  }
+  if (typeof skill.discovery_visible === 'boolean') {
+    return { value: skill.discovery_visible, reason: 'declared discovery visibility metadata' };
+  }
+  const declared = manifest && manifest.visibility;
+  if (declared && declared[skill.lifecycle] && typeof declared[skill.lifecycle][entrySurface] === 'boolean') {
+    const value = declared[skill.lifecycle][entrySurface];
+    return {
+      value,
+      reason: value
+        ? (skill.lifecycle === 'optional' ? 'discovery-visible; runtime/activation optional (manifest-declared)' : 'manifest-declared discovery visibility')
+        : 'manifest-declared host-invisible metadata',
+    };
+  }
+  // Optional references were historically host-visible. Keep this narrow
+  // compatibility path for progressive-loading callers while requiring all
+  // promoted/scoped records to declare their visibility explicitly.
+  if (skill.lifecycle === 'optional' && !skill.profiles) {
+    return { value: true, reason: 'discovery-visible; runtime/activation optional (legacy compatibility)' };
+  }
+  return { value: null, reason: 'discovery visibility is not declared' };
+}
+
+function categoryFor(skill, entrySurface, effectiveProfile) {
+  if (skill.category && CATEGORIES.includes(skill.category)) return skill.category;
+  if (entrySurface === 'claude-user-config') return 'claude-user-config';
+  if (effectiveProfile) return 'claude-profile-bundle';
+  return 'claude-skill-description';
+}
+
+function inspectDiscoveryContext({ root, inventory, readDescription = null, budgets = null, profileSelection = null, artifactIdentity = null, profileId = null, selectedStableIds = null, surface = null, legacyCli = false, estimator = null, category: requestedCategory = null } = {}) {
+  const effectiveProfile = profileSelection || (profileId ? { id: profileId, profileId, selectedStableIds: selectedStableIds || [] } : null);
+  const manifest = budgets ? { budgets } : loadDiscoveryBudgetManifest(root);
+  const effectiveBudgets = manifest.budgets || {};
+  const reader = readDescription || ((entry) => defaultReadDescription(root, entry));
+  const selectedIds = effectiveProfile && Array.isArray(effectiveProfile.selectedStableIds)
+    ? new Set(effectiveProfile.selectedStableIds)
+    : null;
+  const profileName = effectiveProfile && (effectiveProfile.id || effectiveProfile.profileId) || null;
+  const scope = effectiveProfile ? { kind: 'claude-profile', profile: profileName } : null;
+  const identity = artifactIdentity && typeof artifactIdentity === 'object'
+    ? {
+      planFingerprint: artifactIdentity.planFingerprint || null,
+      artifactFingerprint: artifactIdentity.artifactFingerprint || null,
+      selectionFingerprint: artifactIdentity.selectionFingerprint || effectiveProfile && effectiveProfile.selectionFingerprint || null,
+      surfaceSelectionFingerprint: artifactIdentity.surfaceSelectionFingerprint || effectiveProfile && effectiveProfile.surfaceSelectionFingerprint || null,
+    }
+    : (effectiveProfile ? {
+      planFingerprint: null,
+      artifactFingerprint: null,
+      selectionFingerprint: effectiveProfile.selectionFingerprint || null,
+      surfaceSelectionFingerprint: effectiveProfile.surfaceSelectionFingerprint || null,
+    } : null);
+  const skills = ((inventory && inventory.skills) || []).filter((skill) => !selectedIds || selectedIds.has(skill.id));
+  const items = [];
+  for (const skill of skills) {
+    const description = reader(skill) || '';
+    const measured = counts(description);
+    for (const entrySurface of skill.surfaces || []) {
+      if (surface && entrySurface !== surface) continue;
+      const limit = budgetFor(effectiveBudgets, skill.lifecycle, entrySurface);
+      const visibility = visibilityFor(skill, entrySurface, manifest, legacyCli);
+      const category = categoryFor(skill, entrySurface, effectiveProfile);
+      items.push({
+        id: skill.id || skill.name,
+        stableId: skill.id || skill.name,
+        name: skill.name || skill.id,
+        lifecycle: skill.lifecycle,
+        surface: entrySurface,
+        publicationSurface: entrySurface,
+        category,
+        description,
+        words: measured.words,
+        tokens: measured.tokens,
+        wordBudget: limit && limit.words,
+        tokenBudget: limit && limit.tokens,
+        limits: limit,
+        discoveryVisible: visibility.value,
+        visibilityReason: visibility.reason,
+        profile: profileName,
+      });
+    }
+  }
+  const discoveredCategories = [...new Set(items.map((item) => item.category).filter(Boolean))];
+  const reportCategory = requestedCategory
+    || (effectiveProfile ? 'claude-profile-bundle' : discoveredCategories.length === 1 ? discoveredCategories[0] : 'claude-skill-description');
+  const reportScope = reportCategory === 'claude-user-config'
+    ? { kind: 'claude-plugin.userConfig' }
+    : scope;
+  const result = evaluateDiscoveryBudget({
+    items,
+    category: reportCategory,
+    scope: reportScope,
+    estimator: estimator || manifest.estimator || ESTIMATOR,
+    identity,
+    stage: 'structural',
+    adapter: { id: 'context-budget', version: '2' },
+  });
+  const entries = result.entries.map((entry) => ({
+    ...entry,
+    id: entry.id || entry.stableId,
+    wordBudget: entry.limits && entry.limits.words,
+    tokenBudget: entry.limits && entry.limits.tokens,
+  }));
+  const report = {
+    schema: 'dhpk.discovery-report.v1',
+    category: reportCategory,
+    categoryContracts: manifest.categories || {},
+    entries,
+    violations: result.violations,
+    totals: result.totals,
+    configurationErrors: result.configurationErrors,
+    categories: result.categories,
+    estimator: result.estimator,
+    receipt: result.evidence,
+    legacyCompatibilityViolations: legacyCli
+      ? result.configurationErrors.filter((error) => error.code === 'MISSING_BUDGET_CONFIGURATION').length
+      : undefined,
+    ok: result.ok,
+  };
+  if (effectiveProfile) {
+    report.scope = 'claude-profile';
+    report.profileId = profileName;
+    report.scopeDetails = {
+      kind: 'claude-profile',
+      profile: profileName,
+      planFingerprint: artifactIdentity && artifactIdentity.planFingerprint || null,
+      artifactFingerprint: artifactIdentity && artifactIdentity.artifactFingerprint || null,
+      selectionFingerprint: artifactIdentity && artifactIdentity.selectionFingerprint || effectiveProfile.selectionFingerprint || null,
+      surfaceSelectionFingerprint: artifactIdentity && artifactIdentity.surfaceSelectionFingerprint || effectiveProfile.surfaceSelectionFingerprint || null,
+    };
+    report.compatibilityCatalog = inspectDiscoveryContext({ root, inventory, readDescription, budgets, surface, estimator, legacyCli });
+  } else {
+    report.scope = reportCategory === 'claude-user-config' ? 'claude-plugin.userConfig' : 'claude-compatibility';
+    report.profileId = null;
+  }
+  return report;
+}
+
+function inspectAggregateDiscoveryContext({
+  root,
+  inventory,
+  readDescription = null,
+  selectedStableIds = null,
+  profileId = 'minimal',
+  surface = 'claude-core',
+  budgets = null,
+  baseline = null,
+  maxEntries = null,
+  minReductionPercent = null,
+  estimator = null,
+} = {}) {
+  const manifest = budgets ? { aggregate: budgets.aggregate, estimator: budgets.estimator } : loadDiscoveryBudgetManifest(root);
+  const aggregate = manifest.aggregate || {};
+  const selected = new Set(Array.isArray(selectedStableIds)
+    ? selectedStableIds
+    : inventory && inventory.profile_policy && Array.isArray(inventory.profile_policy.required_core_ids)
+      ? inventory.profile_policy.required_core_ids
+      : []);
+  const reader = readDescription || ((entry) => defaultReadDescription(root, entry));
+  const skills = ((inventory && inventory.skills) || []).filter((skill) => {
+    if (!selected.has(skill.id)) return false;
+    if (!Array.isArray(skill.surfaces) || !skill.surfaces.includes(surface)) return false;
+    return defaultInvocationClass(root, skill) === 'implicit-eligible';
+  });
+  const items = skills.map((skill) => {
+    const description = reader(skill) || '';
+    return {
+      id: skill.id,
+      stableId: skill.id,
+      name: skill.name || skill.id,
+      lifecycle: skill.lifecycle,
+      surface,
+      publicationSurface: surface,
+      discoveryVisible: true,
+      ...counts(description),
+    };
+  });
+  const evaluated = evaluateAggregateDiscoveryBudget({
+    items,
+    baseline: baseline || aggregate.baseline,
+    maxEntries: maxEntries === null ? aggregate.maxEntries : maxEntries,
+    minReductionPercent: minReductionPercent === null ? aggregate.minReductionPercent : minReductionPercent,
+  });
+  return {
+    schema: 'dhpk.aggregate-discovery-report.v1',
+    profileId,
+    surface,
+    selectedStableIds: [...selected],
+    selectedEntries: ((inventory && inventory.skills) || []).filter((skill) => selected.has(skill.id) && Array.isArray(skill.surfaces) && skill.surfaces.includes(surface)).length,
+    entries: evaluated.entries,
+    tokens: evaluated.tokens,
+    baseline: evaluated.baseline,
+    reductionPercent: evaluated.reductionPercent,
+    maxEntries: evaluated.maxEntries,
+    minReductionPercent: evaluated.minReductionPercent,
+    excessEntries: evaluated.excessEntries,
+    violations: evaluated.violations,
+    configurationErrors: evaluated.configurationErrors,
+    estimator: estimator || manifest.estimator || ESTIMATOR,
+    ok: evaluated.ok,
+  };
+}
+
+function renderBudgetReport(report) {
+  const lines = [
+    `discovery-visible entries: ${report.totals.discoveryVisible}`,
+    `optional discovery-visible entries: ${report.totals.optionalDiscoveryVisible}`,
+    `budget violations: ${report.legacyCompatibilityViolations === undefined ? report.totals.violations : report.legacyCompatibilityViolations}`,
+  ];
+  if (report.configurationErrors && report.configurationErrors.length) {
+    for (const error of report.configurationErrors) {
+      const code = error && error.code ? `${error.code}: ` : '';
+      const message = error && error.message ? error.message : String(error);
+      lines.push(`FAIL configuration: ${code}${message}`);
+    }
+  }
+  for (const entry of report.violations) {
+    lines.push(`FAIL ${entry.id} [${entry.lifecycle}/${entry.surface}] discovery-visible ${entry.words}/${entry.wordBudget} words, ${entry.tokens}/${entry.tokenBudget} tokens`);
+  }
+  return `${lines.join('\n')}\n`;
+}
+
+function renderAggregateBudgetReport(report) {
+  const lines = [
+    `aggregate discovery entries: ${report.entries}/${report.maxEntries}`,
+    `aggregate description tokens: ${report.tokens}`,
+    `baseline description tokens: ${report.baseline.tokens}`,
+    `description-token reduction: ${report.reductionPercent.toFixed(2)}% (target ${report.minReductionPercent}%)`,
+  ];
+  for (const violation of report.violations || []) lines.push(`FAIL ${violation.reason}`);
+  for (const error of report.configurationErrors || []) lines.push(`FAIL configuration: ${error.code}: ${error.message}`);
+  return `${lines.join('\n')}\n`;
+}
+
+function main() {
+  const root = path.join(__dirname, '..', '..');
+  const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  if (process.argv.includes('--aggregate')) {
+    const report = inspectAggregateDiscoveryContext({ root, inventory });
+    process.stdout.write(process.argv.includes('--json')
+      ? `${JSON.stringify(report)}\n`
+      : renderAggregateBudgetReport(report));
+    return report.ok ? 0 : 1;
+  }
+  const report = inspectDiscoveryContext({ root, inventory, legacyCli: true });
+  process.stdout.write(renderBudgetReport(report));
+  if (process.argv.includes('--json')) process.stdout.write(`${JSON.stringify(report)}\n`);
+  return report.violations.length || (report.configurationErrors && report.configurationErrors.length) ? 1 : 0;
+}
+
+if (require.main === module) process.exit(main());
+
+module.exports = {
+  DEFAULT_MANIFEST,
+  loadDiscoveryBudgets,
+  loadDiscoveryBudgetManifest,
+  inspectDiscoveryContext,
+  inspectAggregateDiscoveryContext,
+  renderBudgetReport,
+  renderAggregateBudgetReport,
+  counts,
+};
