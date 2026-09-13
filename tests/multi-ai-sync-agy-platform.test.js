@@ -456,7 +456,12 @@ test('AGY 1.2.x isolated fixture mounts the inventory-owned official consumer pa
     const invocations = bwrapInvocations(stub.log);
     const consumerPath = resolveAgyConsumerPath(loadAgyPathContract());
     assert.strictEqual(consumerPath, '/home/agy/.gemini/antigravity-cli/plugins/dhpk');
-    assert.ok(invocations.every((invocation) => invocation.includes(consumerPath)), consumerPath);
+    for (const invocation of invocations) {
+      assert.ok(invocation.includes(consumerPath), consumerPath);
+      const executableIndex = invocation.lastIndexOf('/workspace/bin/agy');
+      const parentIndex = invocation.indexOf('/home/agy/.gemini/antigravity-cli/plugins');
+      assert.ok(parentIndex > -1 && parentIndex < executableIndex, 'dynamic bwrap directories must precede the command');
+    }
     const report = JSON.parse(result.stdout);
     const row = report.results.find((item) => item.platform === 'agy');
     assert.strictEqual(row.path_contract.canonical_relative, '.gemini/antigravity-cli/plugins/dhpk');
