@@ -1,8 +1,11 @@
 # agents-skills-compatibility Specification
 
 ## Purpose
+
 TBD - created by archiving change add-agents-skills-compatibility-projection. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Inventory-owned selection remains canonical
 
 The compatibility projection SHALL select public skill entries from the existing inventory-owned shared portable skill selection and SHALL resolve each source to a physical `skills/<name>/SKILL.md` package inside the repository root. The projection SHALL NOT introduce a second skill catalog or allow a source path outside the canonical skills tree.
