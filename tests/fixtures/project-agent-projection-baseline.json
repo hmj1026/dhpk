@@ -1,0 +1,120 @@
+{
+  "schema": "dhpk.project-agent-projection-baseline.v1",
+  "issue": 498,
+  "currentSelection": {
+    "surface": "agent-plugin",
+    "expectedCount": 37,
+    "selectedStableIds": [
+      "agent-architecture-audit",
+      "agy-fast-worker",
+      "change-verdict",
+      "cli-dispatch-context",
+      "cli-transport",
+      "code-trace",
+      "codex-bridge",
+      "composer-package-hygiene",
+      "deploy-list",
+      "feature-verify",
+      "flow-drive",
+      "flow-guide",
+      "git-smart-commit",
+      "gitnexus-cli",
+      "gitnexus-debugging",
+      "gitnexus-exploring",
+      "gitnexus-guide",
+      "gitnexus-impact-analysis",
+      "gitnexus-refactoring",
+      "harness-govern",
+      "issue-analyze",
+      "laravel-package-author",
+      "laravel-testbench-matrix",
+      "opsx-apply-goal",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "polyfill-version-matrix-audit",
+      "project-audit",
+      "project-setup",
+      "prompt-optimize",
+      "release-creator",
+      "repo-intake",
+      "session-usage-audit",
+      "skill-forge",
+      "skill-scope",
+      "software-architecture",
+      "tdd"
+    ],
+    "contract": "current-agent-plugin-selection",
+    "evidenceOnly": true,
+    "portableCoreExpansion": false
+  },
+  "portableCore": {
+    "profileId": "portable-core",
+    "explicitOnly": true,
+    "distinctFrom": "minimal"
+  },
+  "compatibilityMatrix": {
+    "hosts": ["Claude", "Codex", "Cursor", "AGY"],
+    "classifications": ["portable-core", "HOST_SPECIFIC", "SKIP_INCOMPATIBLE"],
+    "currentCodexSyncSubset": {
+      "surface": "codex-sync",
+      "expectedCount": 15,
+      "selectedStableIds": [
+        "cli-dispatch-context",
+        "cli-transport",
+        "code-trace",
+        "flow-drive",
+        "flow-guide",
+        "git-smart-commit",
+        "harness-govern",
+        "legacy-code-characterization",
+        "opsx-load-context",
+        "opsx-post-obs",
+        "php-pro",
+        "php56-yii-dev",
+        "skill-scope",
+        "tdd",
+        "yii1-security-audit"
+      ]
+    },
+    "evidenceFields": [
+      "output.path",
+      "output.fingerprint",
+      "receipt.path",
+      "receipt.fingerprint",
+      "diagnostics",
+      "exit.code",
+      "runtime.status"
+    ]
+  },
+  "hosts": [
+    {
+      "host": "Claude",
+      "portableKind": "directory",
+      "nativeKind": "claude-plugin"
+    },
+    {
+      "host": "Codex",
+      "portableKind": "directory",
+      "nativeKind": "codex-native"
+    },
+    {
+      "host": "Cursor",
+      "portableKind": "directory",
+      "nativeKind": "cursor-native"
+    },
+    {
+      "host": "AGY",
+      "portableKind": "direct-file",
+      "nativeKind": "agy-native"
+    }
+  ],
+  "runtimeStatuses": [
+    "PASS",
+    "FAIL",
+    "NOT_RUN",
+    "NOT_CONFIGURED",
+    "SKIP_INCOMPATIBLE",
+    "BLOCKED",
+    "UNAVAILABLE"
+  ]
+}
