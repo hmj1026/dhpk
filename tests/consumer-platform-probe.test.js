@@ -9,6 +9,7 @@ const { networkSandboxProbe, sandboxInvocation } = require('../scripts/lib/curso
 const { AGENT_PLUGIN_SCHEMA, MCP_SCHEMA } = require('../scripts/lib/agent-plugin-package');
 const { redactSensitiveText } = require('../scripts/lib/redaction');
 const { runCursorConsumerProbe } = require('../scripts/lib/cursor-plugin-package');
+const { materializeAgentsSkillsProjection } = require('../scripts/lib/agents-skills-package');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts/release/consumer-platform-probe.js');
@@ -53,6 +54,56 @@ function writeSandboxUnavailable(bin) {
   }
 }
 
+function projectSourceFixture() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-probe-source-'));
+  fs.mkdirSync(path.join(root, 'skills', 'dhpk-probe'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'skills', 'dhpk-probe', 'SKILL.md'), [
+    '---',
+    'name: dhpk-probe',
+    "description: 'A project probe skill.'",
+    '---',
+    '# Project probe skill',
+    '',
+  ].join('\n'));
+  return root;
+}
+
+function projectProbeInventory() {
+  return {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: [{
+      id: 'probe',
+      name: 'dhpk-probe',
+      path: 'skills/dhpk-probe',
+      lifecycle: 'promoted',
+      surfaces: ['agy-plugin'],
+    }],
+    surface_membership: { 'agy-plugin': ['probe'] },
+    project_agent_projection: {
+      schema: 'dhpk.project-agent-projection.v1',
+      scope: 'project',
+      owner: 'dhpk.project-agent-projection',
+      managed_root: '.agents/skills',
+      receipt: '.agents/.dhpk-installed.json',
+      profiles: {
+        'portable-core': {
+          version: 'portable-core-v1',
+          compatibility_mode: 'portable-core',
+          stable_ids: ['probe'],
+          hosts: ['agy'],
+        },
+      },
+      hosts: {
+        agy: { surface: 'agy-plugin', evidence_source: 'entry_surfaces', shape: 'project-skill-direct-file', transform: { id: 'agy-project-direct-file', version: '1' } },
+        claude: { surface: 'claude-core', evidence_source: 'entry_surfaces', shape: 'project-skill-directory', transform: { id: 'claude-project-skill', version: '1' } },
+        codex: { surface: 'codex-sync', evidence_source: 'entry_surfaces', shape: 'project-skill-directory', transform: { id: 'codex-project-skill', version: '1' } },
+        cursor: { surface: 'cursor-plugin', evidence_source: 'entry_surfaces', shape: 'project-skill-directory', transform: { id: 'cursor-project-skill', version: '1' } },
+      },
+      dependencies: {},
+    },
+  };
+}
+
 test('missing package is BLOCKED without probing a client', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-missing-'));
   try {
@@ -91,6 +142,123 @@ test('present package reports UNAVAILABLE or NOT_RUN, never static PASS, when co
     assert.notStrictEqual(payload.status, 'PASS');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY project probe validates the exact receipt-owned artifact before execution', () => {
+  const sourceRoot = projectSourceFixture();
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-probe-'));
+  try {
+    materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      sourceRoot,
+      projectRoot,
+      inventory: projectProbeInventory(),
+      profileId: 'portable-core',
+      requestedHosts: ['agy'],
+    });
+    const result = runProbe('agy-project', fs.realpathSync(projectRoot), [], process.env);
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.platform, 'agy-project', JSON.stringify(payload));
+    assert.strictEqual(payload.status, 'NOT_RUN', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.surface, 'agy-plugin', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.status, 'NOT_RUN', JSON.stringify(payload));
+    assert.ok(payload.planFingerprint && payload.artifactFingerprint, JSON.stringify(payload));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('AGY project probe reports UNAVAILABLE without promoting structural PASS', () => {
+  const sourceRoot = projectSourceFixture();
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-probe-unavailable-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-probe-bin-'));
+  try {
+    materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      sourceRoot,
+      projectRoot,
+      inventory: projectProbeInventory(),
+      profileId: 'portable-core',
+      requestedHosts: ['agy'],
+    });
+    const result = runProbe('agy-project', fs.realpathSync(projectRoot), ['--execute'], {
+      ...process.env,
+      PATH: bin,
+    });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'UNAVAILABLE', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.status, 'UNAVAILABLE', JSON.stringify(payload));
+    assert.match(payload.surfaceEvidence.reasons.join(' '), /agy.*(installed|available|CLI)/i);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('Claude project probe validates the receipt-owned discovery binding', () => {
+  const sourceRoot = projectSourceFixture();
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-probe-'));
+  try {
+    const inventory = projectProbeInventory();
+    inventory.skills[0].surfaces.push('claude-core');
+    inventory.surface_membership['claude-core'] = ['probe'];
+    inventory.project_agent_projection.profiles['portable-core'].hosts = ['claude'];
+    materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      sourceRoot,
+      projectRoot,
+      inventory,
+      profileId: 'portable-core',
+      requestedHosts: ['claude'],
+    });
+    const result = runProbe('claude-project', fs.realpathSync(projectRoot));
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.platform, 'claude-project', JSON.stringify(payload));
+    assert.strictEqual(payload.status, 'NOT_RUN', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.surface, 'claude-project', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.status, 'NOT_RUN', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.adapter.id, 'claude-project-discovery', JSON.stringify(payload));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('Claude project probe reports UNAVAILABLE when the CLI is absent', () => {
+  const sourceRoot = projectSourceFixture();
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-probe-unavailable-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-probe-bin-'));
+  try {
+    const inventory = projectProbeInventory();
+    inventory.skills[0].surfaces.push('claude-core');
+    inventory.surface_membership['claude-core'] = ['probe'];
+    inventory.project_agent_projection.profiles['portable-core'].hosts = ['claude'];
+    materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      sourceRoot,
+      projectRoot,
+      inventory,
+      profileId: 'portable-core',
+      requestedHosts: ['claude'],
+    });
+    const result = runProbe('claude-project', fs.realpathSync(projectRoot), ['--execute'], {
+      ...process.env,
+      PATH: bin,
+    });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'UNAVAILABLE', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.status, 'UNAVAILABLE', JSON.stringify(payload));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
   }
 });
 

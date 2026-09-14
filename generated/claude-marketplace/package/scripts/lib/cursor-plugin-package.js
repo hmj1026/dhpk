@@ -436,6 +436,7 @@ function stableInventoryDigest(inventory) {
   const source = { ...(inventory || {}) };
   delete source.profile_policy;
   delete source.standalone_dependencies;
+  delete source.project_agent_projection;
   return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 }
 

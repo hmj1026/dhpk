@@ -74,6 +74,7 @@ function legacyInventoryDigest(inventory) {
   const source = { ...(inventory || {}) };
   delete source.profile_policy;
   delete source.standalone_dependencies;
+  delete source.project_agent_projection;
   return digest(stableStringify(source));
 }
 

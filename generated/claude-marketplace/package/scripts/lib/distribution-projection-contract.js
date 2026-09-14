@@ -480,6 +480,27 @@ function createDistributionPlan(input = {}) {
   // deliberately omitted when no ledger (or explicit ledger fingerprint) is
   // supplied so legacy plan fingerprints remain byte-for-byte compatible.
   if (ownershipFingerprint !== undefined) body.externalSkillPackagesFingerprint = ownershipFingerprint;
+
+  // Project-agent planning adds profile membership, Host evidence, and
+  // ownership metadata without creating a second DistributionPlan schema.
+  // Every field is optional so existing callers retain their original plan
+  // shape and fingerprint when they do not use this projection.
+  for (const field of [
+    'scope',
+    'projectionOwner',
+    'requestedHosts',
+    'profileFingerprint',
+    'dependencyClosure',
+    'capabilityDecisions',
+    'capabilityEvidenceFingerprint',
+    'hostBindings',
+    'selected',
+    'skipped',
+    'incompatible',
+    'writes',
+  ]) {
+    if (input[field] !== undefined) body[field] = clone(input[field]);
+  }
   return result({ ...body, planFingerprint: fingerprint(body) });
 }
 

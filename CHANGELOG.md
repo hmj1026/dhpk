@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.59.0 — 2026-09-14 — Unify external project agent projection, provider-shaped adapters, and relocatable distribution plans
+
+**feat(distribution-projection)** — Establish a deterministic, read-only characterization baseline for the shared project skill projection across Claude, Codex, Cursor, and AGY.
+**feat(distribution-projection)** — Compile an explicit portable-core project projection plan with Host bindings, dependency closure, ownership, and deterministic fingerprints.
+**feat(distribution-projection)** — Publish a relocatable project skill projection with receipt-owned lifecycle, recovery, and rollback metadata.
+**feat(distribution-projection)** — Add compiler-bound Provider-shaped project skill adapters, self-contained AGY direct files, and an isolated exact-artifact consumer gate.
+**docs(distribution-projection)** — Document the shared project skill projection, Host adapters, receipt ownership, and evidence-bound installation behavior.
+
 ## 0.58.3 — 2026-09-13 — Safe marketplace cache and cross-platform compatibility projections
 
 **feat(agents-skills-compatibility)** — Project-local skills can now be generated once into `.agents/skills` for Cursor and Antigravity while platform-native agent and rule paths remain explicit.
