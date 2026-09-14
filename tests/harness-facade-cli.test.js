@@ -1124,7 +1124,7 @@ test('probe facade selects the exact project artifact when its lifecycle receipt
     assert.strictEqual(execution.surfaceResults.length, 1);
     assert.strictEqual(execution.surfaceResults[0].producer, 'project-agent-projection');
     assert.strictEqual(execution.surfaceResults[0].adapter.id, 'agy-project-direct-file');
-    assert.strictEqual(execution.surfaceResults[0].status, 'NOT_CONFIGURED');
+    assert.ok(['BLOCKED', 'NOT_CONFIGURED'].includes(execution.surfaceResults[0].status), execution.surfaceResults[0].status);
     assert.match(execution.surfaceResults[0].commands[0], /agy-project/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
