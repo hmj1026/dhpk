@@ -4,6 +4,10 @@
 .claude/cache/
 .dhpk/review-gate/
 
+# Transient test / build artifacts
+.agents-skills-*
+.dhpk-agents-skills-*
+
 # Python bytecode (hook helper scripts under scripts/hooks/_lib/*.py)
 __pycache__/
 *.pyc
