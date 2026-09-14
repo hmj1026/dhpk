@@ -5,6 +5,7 @@ const {
   AGY_PROJECT_PROBE_ADAPTER,
   AGY_PROJECT_PROBE_CLAIMS,
   AGY_PROJECT_PROBE_PRODUCER,
+  createClaudeProjectDiscoveryAdapter,
   createProjectAgentProviderAdapters,
   renderAgyDirectFile,
 } = require('../scripts/lib/project-agent-provider-adapters');
@@ -117,6 +118,41 @@ test('AGY direct-file rendering embeds the body and gates sibling references on 
   });
   assert.strictEqual(sibling.resolution, 'verified-sibling-package');
   assert.match(sibling.content, /\.\/dhpk-sample\/SKILL\.md/);
+});
+
+test('Claude discovery adapter binds generated packages without creating an authored skill tree', () => {
+  const adapter = createClaudeProjectDiscoveryAdapter({
+    entries: [
+      { stableId: 'z-skill', name: 'dhpk-z-skill' },
+      { stableId: 'a-skill', name: 'dhpk-a-skill' },
+    ],
+  });
+  assert.deepStrictEqual(adapter, {
+    id: 'claude-project-discovery',
+    version: '1.0.0',
+    kind: 'symlink',
+    sourceRoot: '.agents/skills',
+    destinationRoot: '.claude/skills',
+    owner: 'dhpk.project-agent-projection',
+    entries: [
+      {
+        stableId: 'a-skill',
+        name: 'dhpk-a-skill',
+        path: '.claude/skills/dhpk-a-skill',
+        target: '../../.agents/skills/dhpk-a-skill',
+      },
+      {
+        stableId: 'z-skill',
+        name: 'dhpk-z-skill',
+        path: '.claude/skills/dhpk-z-skill',
+        target: '../../.agents/skills/dhpk-z-skill',
+      },
+    ],
+  });
+  assert.throws(
+    () => createClaudeProjectDiscoveryAdapter({ entries: [{ stableId: 'bad', name: '../outside' }] }),
+    /safe|name|path/i,
+  );
 });
 
 run('project-agent-provider-adapters');

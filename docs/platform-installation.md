@@ -416,7 +416,8 @@ and [Codex project guidance](https://learn.chatgpt.com/docs/agent-configuration/
 [Codex rules](https://learn.chatgpt.com/docs/agent-configuration/rules), and
 [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents).
 
-Generate and validate it from the dhpk checkout:
+The no-argument route remains a compatibility wrapper for an in-checkout
+`.agents/skills/` tree:
 
 ```bash
 node scripts/ci/gen-agents-skills.js
@@ -430,17 +431,53 @@ projection. After reviewing the source diff, explicitly authorize that update:
 node scripts/ci/gen-agents-skills.js --update
 ```
 
-The generator writes an ignored, receipt-owned `.agents/skills/` tree with a
-Cursor package at `<name>/SKILL.md` and an Antigravity discovery shim at
-`<name>.md`. The shim points to the complete canonical
-`skills/<name>/SKILL.md`; it is not a second hand-maintained skill body.
-Updates preserve unmanaged entries and refuse changed receipt-owned files.
-If a previously projected skill is removed from the current inventory, its files
-remain as explicit stale content and validation fails until that stale projection
-is resolved; generation never silently deletes it.
-Structural `PASS` does not establish consumer runtime discovery: record AGY or
-Cursor probe results separately as `PASS`, `NOT_RUN`, `UNAVAILABLE`, or
-`NOT_CONFIGURED`.
+For a consumer project outside the checkout, use the compiler-owned project
+route. One project-level receipt owns the shared artifact and all Host bindings:
+
+```bash
+DHPK_ROOT=/absolute/path/to/dhpk
+PROJECT_ROOT=/absolute/path/to/consumer
+node "$DHPK_ROOT/scripts/ci/gen-agents-skills.js" \
+  --source-root "$DHPK_ROOT" \
+  --project-root "$PROJECT_ROOT" \
+  --profile portable-core \
+  --host claude --host codex --host cursor --host agy
+node "$DHPK_ROOT/scripts/ci/validate-agents-skills.js" \
+  --repo-root "$DHPK_ROOT" \
+  --source-root "$DHPK_ROOT" \
+  --project-root "$PROJECT_ROOT"
+```
+
+This route materializes self-contained `<name>/SKILL.md` packages and AGY
+`<name>.md` direct files under `$PROJECT_ROOT/.agents/skills/`, writes the sole
+lifecycle receipt at `$PROJECT_ROOT/.agents/.dhpk-installed.json`, and binds
+Claude through receipt-owned `.claude/skills/<name>` symlinks to the shared
+artifact. The compatibility `.agents/skills/.dhpk-projection.json`, when
+present, is only a generated manifest. Codex and Cursor consume the directory
+shape; AGY consumes the embedded direct-file body. No generated instruction
+points back to the source checkout.
+
+When a source change is intentional, add `--update` after reviewing the diff.
+For a receipt-less legacy artifact, use explicit adoption or repair:
+
+```bash
+node "$DHPK_ROOT/scripts/ci/gen-agents-skills.js" \
+  --source-root "$DHPK_ROOT" --project-root "$PROJECT_ROOT" \
+  --profile portable-core --adopt --update
+node "$DHPK_ROOT/scripts/ci/gen-agents-skills.js" \
+  --project-root "$PROJECT_ROOT" --rollback
+node "$DHPK_ROOT/scripts/ci/gen-agents-skills.js" \
+  --project-root "$PROJECT_ROOT" --uninstall
+```
+
+`legacy-unbound` status leaves the artifact unchanged until `--adopt` or
+`--repair` proves ownership. Updates preserve unmanaged entries and refuse
+changed receipt-owned files; removing one Host binding removes only its Claude
+adapter and retains shared content used by the remaining Hosts. Structural
+`PASS` does not establish consumer runtime discovery. Record each configured
+Host separately with `PASS`, `NOT_RUN`, `UNAVAILABLE`, `NOT_CONFIGURED`,
+`BLOCKED`, or `SKIP_INCOMPATIBLE`; for the exact external artifact, the bounded
+project probes are `--platform claude-project` and `--platform agy-project`.
 
 The official Codex locations remain `.codex/agents/*.toml` and
 `.codex/rules/*.rules` (with `AGENTS.md`/configured fallback filenames for

@@ -70,8 +70,13 @@ node scripts/ci/gen-agents-skills.js
 node scripts/ci/validate-agents-skills.js
 ```
 
-It emits Cursor's directory-shaped skill package and Antigravity's direct-file
-discovery shim. Keep Codex/Cursor/AGY agent and rule projections on their
+The no-argument invocation is the retained in-checkout compatibility route.
+For an external consumer project, pass `--source-root`, `--project-root`, the
+explicit `portable-core` profile, and the requested Hosts; the shared publisher
+then writes a self-contained artifact, a project receipt at
+`.agents/.dhpk-installed.json`, and a Claude discovery binding when Claude is
+selected. AGY sibling-package references remain forbidden unless a bounded
+consumer probe passes. Keep Codex/Cursor/AGY agent and rule projections on their
 platform-native paths; `.agents` is not their shared configuration root.
 
 Every non-test-only change must include either a

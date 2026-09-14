@@ -20,6 +20,7 @@ const SURFACE = 'agy-plugin';
 const PACKAGE_METADATA = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
 const DIAGNOSTIC_SCHEMA = 'dhpk.agy-install-plan.v1';
 const DIFF_PREVIEW_LIMIT = 20;
+const INCIDENTAL_CANDIDATE_ENTRIES = new Set(['.DS_Store']);
 
 function digest(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -503,6 +504,7 @@ function removeEmptyDirectories(root) {
     }
   };
   walk(root, 0);
+  directories.push(root);
   for (const directory of directories.sort((a, b) => b.length - a.length)) {
     if (readDirectoryEntries(directory).length === 0) fs.rmdirSync(directory);
   }
@@ -546,11 +548,78 @@ function resolveAgyInstallCandidates(homeDirectory = os.homedir(), contract = lo
   return resolveAgyInstallPaths(homeDirectory, contract);
 }
 
+function observeAgyInstallCandidate(candidate) {
+  const stat = lstatOrNull(candidate.root);
+  const base = {
+    role: candidate.role,
+    root: candidate.root,
+    exists: Boolean(stat),
+    installed: false,
+    classification: 'ABSENT',
+  };
+  if (!stat) return base;
+  if (stat.isSymbolicLink() || !stat.isDirectory()) {
+    return { ...base, installed: true, classification: 'FOREIGN_CHECKOUT', reason: 'candidate root is not a physical directory' };
+  }
+
+  let entries;
+  try {
+    entries = readDirectoryEntries(candidate.root, { sort: true, localeSort: true });
+  } catch (error) {
+    return { ...base, installed: true, classification: 'FOREIGN_CHECKOUT', reason: `candidate root cannot be inspected: ${error.message}` };
+  }
+  const names = entries.map((entry) => entry.name);
+  const incidentalOnly = names.length === 0 || names.every((name) => INCIDENTAL_CANDIDATE_ENTRIES.has(name));
+  const gitMarker = lstatOrNull(path.join(candidate.root, '.git'));
+  let receipt = null;
+  let receiptError = null;
+  try {
+    receipt = readReceipt(candidate.root);
+  } catch (error) {
+    receiptError = error;
+  }
+  if (receipt) {
+    const ownership = inspectReceiptOwnership(candidate.root, receipt);
+    if (ownership.unsafe.length > 0 || ownership.changed.length > 0) {
+      return {
+        ...base,
+        installed: true,
+        classification: 'MODIFIED_MANAGED',
+        reason: 'receipt-owned AGY content is missing, changed, or unsafe',
+        receipt: { valid: true, changed: ownership.changed, unsafe: ownership.unsafe },
+      };
+    }
+    return { ...base, installed: true, classification: 'AGY_OWNED', receipt: { valid: true } };
+  }
+  if (gitMarker) {
+    return {
+      ...base,
+      installed: true,
+      classification: 'FOREIGN_CHECKOUT',
+      receipt: { present: Boolean(lstatOrNull(path.join(candidate.root, 'provenance.json'))), valid: false },
+    };
+  }
+  if (receiptError) {
+    return {
+      ...base,
+      installed: true,
+      classification: 'INVALID_RECEIPT',
+      reason: receiptError.message,
+      receipt: { present: true, valid: false },
+    };
+  }
+  if (incidentalOnly) return { ...base, classification: 'EMPTY_INCIDENTAL' };
+  return { ...base, installed: true, classification: 'LEGACY_UNBOUND' };
+}
+
 function existingTargets(paths) {
-  return [
+  const candidates = [
     { role: 'canonical', root: paths.canonical },
     ...paths.legacy.map((root, index) => ({ role: `legacy-${index + 1}`, root })),
-  ].filter((candidate) => Boolean(lstatOrNull(candidate.root)));
+  ];
+  return candidates
+    .map(observeAgyInstallCandidate)
+    .filter((candidate) => candidate.installed);
 }
 
 function inspectAgyInstallTargets({ sourceRoot, targetRoot = null, homeDirectory = os.homedir(), contract = loadAgyPathContract() } = {}) {
@@ -562,7 +631,8 @@ function inspectAgyInstallTargets({ sourceRoot, targetRoot = null, homeDirectory
     { role: 'canonical', root: paths.canonical },
     ...paths.legacy.map((root, index) => ({ role: `legacy-${index + 1}`, root })),
   ];
-  const existing = existingTargets(paths);
+  const observations = candidates.map(observeAgyInstallCandidate);
+  const existing = observations.filter((candidate) => candidate.installed);
   if (existing.length > 1) {
     return {
       schema: DIAGNOSTIC_SCHEMA,
@@ -570,7 +640,13 @@ function inspectAgyInstallTargets({ sourceRoot, targetRoot = null, homeDirectory
       state: 'BLOCKED',
       classification: 'AMBIGUOUS_TARGETS',
       contract: paths.contract,
-      candidates: candidates.map((candidate) => ({ role: candidate.role, root: candidate.root, exists: Boolean(lstatOrNull(candidate.root)) })),
+      candidates: observations.map((candidate) => ({
+        role: candidate.role,
+        root: candidate.root,
+        exists: candidate.exists,
+        installed: candidate.installed,
+        classification: candidate.classification,
+      })),
       next_action: 'choose one owner-approved target and use --target explicitly, or run migrate after removing the ambiguity',
       mutation: { performed: false },
     };
@@ -748,6 +824,7 @@ module.exports = {
   SURFACE,
   resolveAgyInstallRoot,
   resolveAgyInstallCandidates,
+  observeAgyInstallCandidate,
   inspectAgyInstallTargets,
   resolveAgyInstallTarget,
   migrateAgyPlugin,

@@ -368,7 +368,7 @@ canonical `skills/` source 產生兩種 shape。這個 generated tree 只負責 
 [Codex rules](https://learn.chatgpt.com/docs/agent-configuration/rules) 與
 [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)。
 
-從 dhpk checkout 產生與驗證：
+不帶參數的路徑仍是 checkout 內 `.agents/skills/` 的 compatibility wrapper：
 
 ```bash
 node scripts/ci/gen-agents-skills.js
@@ -382,16 +382,51 @@ source diff 後，必須明確授權更新：
 node scripts/ci/gen-agents-skills.js --update
 ```
 
-generator 會寫入被忽略、由 receipt 管理的 `.agents/skills/`：Cursor 使用
-`<name>/SKILL.md` package，Antigravity discovery 使用 `<name>.md` shim。shim
-指向完整的 canonical `skills/<name>/SKILL.md`，不是第二份需要手動維護的 skill
-body。更新會保留非 dhpk 管理的 entry，若 receipt-owned file 被外部修改則拒絕
-覆寫。
-若先前投影的 skill 已從目前 inventory 移除，檔案會保留為明確的 stale content，
-直到處理該 stale projection 前 validation 會失敗；generator 不會靜默刪除它。
+若 consumer project 位於 checkout 外，請使用 compiler-owned project 路徑。單一
+project-level receipt 管理 shared artifact 與所有 Host binding：
 
-結構 `PASS` 不等於 consumer runtime discovery；AGY 或 Cursor probe 必須另外記錄
-`PASS`、`NOT_RUN`、`UNAVAILABLE` 或 `NOT_CONFIGURED`。Codex 的官方位置仍是
+```bash
+DHPK_ROOT=/absolute/path/to/dhpk
+PROJECT_ROOT=/absolute/path/to/consumer
+node "$DHPK_ROOT/scripts/ci/gen-agents-skills.js" \
+  --source-root "$DHPK_ROOT" \
+  --project-root "$PROJECT_ROOT" \
+  --profile portable-core \
+  --host claude --host codex --host cursor --host agy
+node "$DHPK_ROOT/scripts/ci/validate-agents-skills.js" \
+  --repo-root "$DHPK_ROOT" \
+  --source-root "$DHPK_ROOT" \
+  --project-root "$PROJECT_ROOT"
+```
+
+這條路徑會在 `$PROJECT_ROOT/.agents/skills/` 產生自足的
+`<name>/SKILL.md` package 與 AGY `<name>.md` direct-file，並在
+`$PROJECT_ROOT/.agents/.dhpk-installed.json` 寫入唯一 lifecycle receipt；Claude
+則透過 receipt-owned `.claude/skills/<name>` symlink 綁定同一份 artifact。
+`.agents/skills/.dhpk-projection.json` 若存在只是一份 generated manifest。Codex 與
+Cursor 使用 directory shape，AGY 使用內嵌的 direct-file body；generated instruction
+不會指回 source checkout。
+
+若 source 有經審查的變更，加入 `--update`。若既有 artifact 沒有 lifecycle receipt，
+必須明確採用或修復：
+
+```bash
+node "$DHPK_ROOT/scripts/ci/gen-agents-skills.js" \
+  --source-root "$DHPK_ROOT" --project-root "$PROJECT_ROOT" \
+  --profile portable-core --adopt --update
+node "$DHPK_ROOT/scripts/ci/gen-agents-skills.js" \
+  --project-root "$PROJECT_ROOT" --rollback
+node "$DHPK_ROOT/scripts/ci/gen-agents-skills.js" \
+  --project-root "$PROJECT_ROOT" --uninstall
+```
+
+`legacy-unbound` 會保持 artifact 不變，直到 `--adopt` 或 `--repair` 證明 ownership。
+更新會保留 unmanaged entries，並拒絕改動過的 receipt-owned files；移除一個 Host
+只移除它的 Claude adapter，仍保留其他 Host 使用的 shared content。結構
+`PASS` 不等於 consumer runtime discovery；每個 Host 必須分開記錄 `PASS`、`NOT_RUN`、
+`UNAVAILABLE`、`NOT_CONFIGURED`、`BLOCKED` 或 `SKIP_INCOMPATIBLE`。針對 exact external
+artifact，可用 `--platform claude-project` 與 `--platform agy-project` 執行 bounded
+project probe。Codex 的官方位置仍是
 `.codex/agents/*.toml` 與 `.codex/rules/*.rules`（project guidance 使用
 `AGENTS.md`／設定的 fallback filename）。Cursor agent/rule 仍在
 `.cursor/agents/` 與 `.cursor/rules/`；AGY plugin agent/rule 仍在已安裝的 AGY

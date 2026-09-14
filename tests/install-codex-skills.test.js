@@ -44,6 +44,13 @@ test('bash -n syntax check passes', () => {
   assert.strictEqual(res.status, 0, `syntax error: ${res.stderr}`);
 });
 
+test('shared surface diagnostics do not hard-code Codex wording', () => {
+  const source = fs.readFileSync(HOOK, 'utf8');
+  assert.doesNotMatch(source, /project \.codex (?:install lock|receipt) is not a regular file/);
+  assert.doesNotMatch(source, /another Codex installer is already reconciling this project/);
+  assert.doesNotMatch(source, /rollback backup symlink escapes the Codex root/);
+});
+
 test('--help invocation is a safe no-op (no .codex/ created, exit 0)', () => {
   const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-')));
   try {
@@ -2113,6 +2120,34 @@ for (const drift of ['version', 'fingerprint', 'both']) {
     }
   });
 }
+
+test('Cursor stale source diagnostics use the active surface label', () => {
+  const scratch = projectRoot();
+  const cursorEnv = {
+    DHPK_HARNESS_KIND: 'cursor',
+    DHPK_SRC_REL: 'cursor',
+    DHPK_DEST_REL: '.cursor',
+    DHPK_SOURCE_KINDS: 'skills,agents,rules,commands',
+  };
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force'], ROOT, cursorEnv);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const receiptPath = path.join(scratch, '.cursor', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    receipt.source_fingerprint = '0'.repeat(64);
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+
+    const planned = runInstaller(scratch, [
+      '--update', '--plan', '--json', '--force',
+    ], ROOT, cursorEnv);
+    assert.notStrictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    assert.match(report.reasons.join('\n'), /receipt source fingerprint differs from the current Cursor source/);
+    assert.doesNotMatch(report.reasons.join('\n'), /current Codex source/);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
 
 for (const nonFiniteLiteral of ['NaN', '1e10000']) {
   test(`non-finite receipt provenance ${nonFiniteLiteral} stays fail-closed with strict JSON plan output`, () => {
