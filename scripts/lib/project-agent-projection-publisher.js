@@ -20,6 +20,10 @@ const {
 } = require('./distribution-projection-contract');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  createProjectAgentProviderAdapters,
+  renderAgyDirectFile,
+} = require('./project-agent-provider-adapters');
 
 const PROJECT_RECEIPT_SCHEMA = 'dhpk.project-agent-projection-receipt.v1';
 const PROJECT_ROLLBACK_SCHEMA = 'dhpk.project-agent-projection-rollback.v1';
@@ -267,13 +271,14 @@ function sourceEntryFor(planEntry, byId) {
 }
 
 function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
+  const providers = createProjectAgentProviderAdapters(plan.hostBindings);
   const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.id, entry]));
   const records = [];
   const receiptEntries = [];
   const sourceFingerprints = {};
   const usedDestinations = new Set();
 
-  const addRecord = ({ stableId, source, destination, content, transform, metadata = {}, sourceStableId = null }) => {
+  const addRecord = ({ stableId, source, destination, content, transform, metadata = {}, sourceStableId = null, sourceFingerprint = null }) => {
     assertSafeRelative(destination, 'generated destination');
     if (usedDestinations.has(destination)) throw fail('DUPLICATE_OUTPUT', `generated destination is duplicated: ${destination}`, { paths: [destination] });
     usedDestinations.add(destination);
@@ -285,6 +290,7 @@ function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
       transform: transform || { id: 'project-agent-generated', version: GENERATOR_VERSION },
       expectedFingerprint: digest(content),
       symlinkPolicy: 'forbid',
+      ...(sourceFingerprint ? { sourceFingerprint } : {}),
       ...metadata,
     };
     records.push({ value, content, sourceStableId });
@@ -311,39 +317,60 @@ function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
     }
     sourceFingerprints[planEntry.stableId] = manifest.sourceFingerprint;
     const metadata = planEntryMetadata(planEntry);
-    for (const file of manifest.files) {
-      const content = readPhysicalFile(file.absolute, `canonical skill '${name}/${file.relative}'`);
+    if (metadata.provenance && typeof metadata.provenance === 'object' && !Array.isArray(metadata.provenance)) {
+      metadata.provenance = {
+        ...metadata.provenance,
+        sourceFingerprint: manifest.sourceFingerprint,
+      };
+    }
+    const generatedPaths = [];
+    if (providers.directory.hosts.length > 0) {
+      for (const file of manifest.files) {
+        const content = readPhysicalFile(file.absolute, `canonical skill '${name}/${file.relative}'`);
+        const destination = `${name}/${file.relative}`;
+        addRecord({
+          stableId: outputStableId(planEntry.stableId, 'directory', file.relative),
+          source: `${sourceEntry.path}/${file.relative}`,
+          destination,
+          content,
+          transform: providers.directory.transform,
+          metadata,
+          sourceStableId: planEntry.stableId,
+          sourceFingerprint: manifest.sourceFingerprint,
+        });
+        generatedPaths.push(destination);
+      }
+    }
+    if (providers.directFile.hosts.length > 0) {
+      // AGY consumes a direct file. It is intentionally the complete
+      // canonical body, not a pointer into the source checkout. The sibling
+      // package option is deliberately absent here: only a later, passing
+      // AGY consumer probe can authorize that optimization.
+      const direct = renderAgyDirectFile({
+        name,
+        description: parsed.values.description,
+        body: skillContent,
+      });
+      const destination = `${name}.md`;
       addRecord({
-        stableId: outputStableId(planEntry.stableId, 'file', file.relative),
-        source: `${sourceEntry.path}/${file.relative}`,
-        destination: `${name}/${file.relative}`,
-        content,
-        transform: { id: 'project-agent-directory-skill', version: '1' },
+        stableId: outputStableId(planEntry.stableId, 'agy', 'direct'),
+        source: `${sourceEntry.path}/SKILL.md`,
+        destination,
+        content: direct.content,
+        transform: providers.directFile.transform,
         metadata,
         sourceStableId: planEntry.stableId,
+        sourceFingerprint: manifest.sourceFingerprint,
       });
+      generatedPaths.push(destination);
     }
-    // AGY consumes a direct file. It is intentionally the complete canonical
-    // body, not a pointer into the source checkout.
-    addRecord({
-      stableId: outputStableId(planEntry.stableId, 'agy', 'direct'),
-      source: `${sourceEntry.path}/SKILL.md`,
-      destination: `${name}.md`,
-      content: skillContent,
-      transform: { id: 'project-agent-direct-file', version: '1' },
-      metadata,
-      sourceStableId: planEntry.stableId,
-    });
     receiptEntries.push({
       stableId: planEntry.stableId,
       name,
       source: sourceEntry.path,
       sourceFingerprint: manifest.sourceFingerprint,
       sourceFiles: manifest.sourceFiles,
-      generatedPaths: [
-        ...manifest.files.map((file) => `${name}/${file.relative}`),
-        `${name}.md`,
-      ].sort(),
+      generatedPaths: generatedPaths.sort(),
       ...metadata,
     });
   }
@@ -934,35 +961,39 @@ function publishManagedCandidate({ roots, previous, candidateRoot, candidateFile
 
 function stageArtifact({ roots, sourceRoot, inventory, plan }) {
   const artifactRoot = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-artifact-'));
-  const publishedRoot = path.join(artifactRoot, 'published');
-  const inputs = buildArtifactInputs({ sourceRoot, inventory, plan, roots });
-  const store = new ProjectionArtifactStore({ root: artifactRoot, sourceRoot, publishRoot: publishedRoot });
-  const contentByPath = new Map(inputs.records.map((record) => [record.value.destination, record.content]));
-  const adapter = {
-    identity: { id: 'project-agent-projection', version: GENERATOR_VERSION },
-    render: () => ({
-      adapter: { id: 'project-agent-projection', version: GENERATOR_VERSION },
-      outputs: inputs.records.map((record) => ({ ...record.value, content: contentByPath.get(record.value.destination) })),
-      links: [],
-      metadata: {
-        parentPlanFingerprint: plan.planFingerprint,
-        selectedIds: inputs.selectedIds,
-        emittedIds: inputs.emittedIds,
-        sourceFingerprints: inputs.sourceFingerprints,
-      },
-    }),
-  };
-  const materialized = materializeDistribution(inputs.plan, adapter, store);
-  if (!materialized.ok) {
+  try {
+    const publishedRoot = path.join(artifactRoot, 'published');
+    const inputs = buildArtifactInputs({ sourceRoot, inventory, plan, roots });
+    const store = new ProjectionArtifactStore({ root: artifactRoot, sourceRoot, publishRoot: publishedRoot });
+    const contentByPath = new Map(inputs.records.map((record) => [record.value.destination, record.content]));
+    const adapter = {
+      identity: { id: 'project-agent-projection', version: GENERATOR_VERSION },
+      render: () => ({
+        adapter: { id: 'project-agent-projection', version: GENERATOR_VERSION },
+        outputs: inputs.records.map((record) => ({ ...record.value, content: contentByPath.get(record.value.destination) })),
+        links: [],
+        metadata: {
+          parentPlanFingerprint: plan.planFingerprint,
+          selectedIds: inputs.selectedIds,
+          emittedIds: inputs.emittedIds,
+          sourceFingerprints: inputs.sourceFingerprints,
+        },
+      }),
+    };
+    const materialized = materializeDistribution(inputs.plan, adapter, store);
+    if (!materialized.ok) {
+      throw fail(materialized.error.code, materialized.error.message, materialized.error.details || {});
+    }
+    return {
+      artifactRoot,
+      candidateRoot: publishedRoot,
+      artifact: materialized.value,
+      inputs,
+    };
+  } catch (error) {
     cleanupDirectory(artifactRoot, 'failed project projection artifact');
-    throw fail(materialized.error.code, materialized.error.message, materialized.error.details || {});
+    throw error;
   }
-  return {
-    artifactRoot,
-    candidateRoot: publishedRoot,
-    artifact: materialized.value,
-    inputs,
-  };
 }
 
 function receiptForArtifact({ roots, plan, staged }) {
@@ -1066,8 +1097,26 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
     const receipt = readProjectProjectionReceipt(roots);
     if (!receipt) throw fail('MISSING_RECEIPT', `project projection receipt is missing: ${roots.receiptPath}`);
     validateManagedFiles(roots, receipt);
+    let providers = null;
+    if (receipt.legacyUnbound) {
+      // A legacy receipt is read-only compatibility evidence. Its historical
+      // two-shape output remains inspectable until an explicit update/adopt
+      // operation replaces it with compiler-owned Host bindings.
+      providers = { directory: { hosts: ['legacy'] }, directFile: { hosts: ['legacy'] } };
+    } else {
+      try {
+        providers = createProjectAgentProviderAdapters(receipt.hostBindings);
+      } catch (error) {
+        errors.push(error.message);
+      }
+    }
     for (const entry of receipt.entries) {
-      for (const required of [`${entry.name}.md`, `${entry.name}/SKILL.md`]) {
+      const requiredPaths = [];
+      if (providers && providers.directory.hosts.length > 0) {
+        requiredPaths.push(...(entry.sourceFiles || []).map((sourceFile) => `${entry.name}/${sourceFile.path}`));
+      }
+      if (providers && providers.directFile.hosts.length > 0) requiredPaths.push(`${entry.name}.md`);
+      for (const required of [...new Set(requiredPaths)].sort()) {
         if (!receipt.managedPaths.includes(required)) errors.push(`receipt entry is missing generated path: ${required}`);
         else {
           const target = pathIn(roots.managedRoot, required, 'generated projection path');
@@ -1076,6 +1125,21 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
           if (!required.includes('/') && content.includes(`skills/${entry.name}/SKILL.md`)) {
             errors.push(`AGY direct-file entry contains a source-checkout pointer: ${required}`);
           }
+          if (!required.includes('/')) {
+            const parsed = parseFrontmatter(content);
+            if (!parsed.present || parsed.values.name !== entry.name || !parsed.values.description) {
+              errors.push(`AGY direct-file entry has invalid portable frontmatter: ${required}`);
+            }
+          }
+        }
+      }
+      if (providers && providers.directory.hosts.length > 0 && providers.directFile.hosts.length > 0) {
+        const directoryPath = pathIn(roots.managedRoot, `${entry.name}/SKILL.md`, 'directory skill path');
+        const directPath = pathIn(roots.managedRoot, `${entry.name}.md`, 'AGY direct-file path');
+        const directoryStat = lstatOrNull(directoryPath);
+        const directStat = lstatOrNull(directPath);
+        if (directoryStat && directStat && digest(fs.readFileSync(directoryPath)) !== digest(fs.readFileSync(directPath))) {
+          errors.push(`provider-shaped outputs do not share the same skill body: ${entry.name}`);
         }
       }
     }

@@ -10,6 +10,11 @@ const {
   fingerprint,
   projectionError,
 } = require('./distribution-projection-contract');
+const {
+  DIRECTORY_SHAPE,
+  DIRECT_FILE_SHAPE,
+  AGY_DIRECT_FILE_TRANSFORM_ID,
+} = require('./project-agent-provider-adapters');
 
 const PROJECT_AGENT_PROJECTION_SCHEMA = 'dhpk.project-agent-projection.v1';
 const PROJECT_AGENT_PROFILE_ID = 'portable-core';
@@ -171,7 +176,15 @@ function validateProjectAgentProjection(input = {}) {
         errors.push(`${label}.evidence_source must be one of ${PROJECT_AGENT_EVIDENCE_SOURCES.join('/')}`);
       }
       if (!nonEmptyString(host.shape)) errors.push(`${label}.shape must be a non-empty string`);
+      else if (hostId === 'agy' && host.shape !== DIRECT_FILE_SHAPE) {
+        errors.push(`${label}.shape must be '${DIRECT_FILE_SHAPE}'`);
+      } else if (hostId !== 'agy' && host.shape !== DIRECTORY_SHAPE) {
+        errors.push(`${label}.shape must be '${DIRECTORY_SHAPE}'`);
+      }
       validateTransform(host.transform, `${label}.transform`, errors);
+      if (hostId === 'agy' && isObject(host.transform) && host.transform.id !== AGY_DIRECT_FILE_TRANSFORM_ID) {
+        errors.push(`${label}.transform.id must be '${AGY_DIRECT_FILE_TRANSFORM_ID}'`);
+      }
     }
   }
 

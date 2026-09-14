@@ -438,7 +438,7 @@ function normalizedGateRow(surface, raw, root, childStatus, adapterId) {
   }
 }
 
-function runAgyConsumerProbe(root) {
+function runNativeAgyConsumerProbe(root) {
   const script = path.join(root, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync.py');
   const command = `python3 -B skills/harness-govern/scripts/multi_ai_sync.py --root . validate --targets agy --agy-runtime-probe --format json`;
   if (!allowsRealConsumerProbe()) {
@@ -536,6 +536,87 @@ function runAgyConsumerProbe(root) {
     surfaceResults: [row],
     identity: { surface: 'agy-plugin', stage: row.stage, producer: row.producer, adapter: row.adapter },
   };
+}
+
+function runAgyProjectConsumerProbe(root) {
+  const receiptPath = path.join(root, '.agents', '.dhpk-installed.json');
+  const script = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
+  const command = `node scripts/release/consumer-platform-probe.js --platform agy-project --package-root <project-root> --execute`;
+  const base = (status, reason, commands = [command]) => {
+    const row = failedProbeRow(
+      'agy-plugin',
+      status,
+      reason,
+      root,
+      commands,
+      'project-agent-projection',
+      'agy-project-direct-file',
+    );
+    return {
+      outcome: row.status,
+      diagnostics: row.reasons,
+      surfaceResults: [row],
+      identity: { surface: 'agy-plugin', stage: row.stage, producer: row.producer, adapter: row.adapter },
+    };
+  };
+  let receiptStat = null;
+  try { receiptStat = fs.lstatSync(receiptPath); } catch (error) {
+    if (!error || error.code !== 'ENOENT') return base('BLOCKED', `AGY project receipt could not be inspected safely: ${error.message}`);
+  }
+  if (!receiptStat) return base('NOT_CONFIGURED', 'AGY project artifact receipt is not configured');
+  if (receiptStat.isSymbolicLink() || !receiptStat.isFile()) return base('BLOCKED', 'AGY project artifact receipt is not a regular file');
+  if (!allowsRealConsumerProbe()) {
+    return base('NOT_CONFIGURED', 'AGY project runtime probe is opt-in outside CI; set DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE=1 on an isolated runner');
+  }
+  if (!fs.existsSync(script)) return base('BLOCKED', 'AGY project consumer probe script is unavailable');
+  const child = spawnSync(process.execPath, [
+    script,
+    '--platform', 'agy-project',
+    '--package-root', root,
+    '--execute',
+  ], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 120000,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  let payload;
+  try {
+    payload = JSON.parse(child.stdout || '{}');
+  } catch (_) {
+    payload = {
+      status: 'FAIL',
+      reason: `AGY project consumer probe emitted invalid JSON (exit ${child.status === null ? 127 : child.status})`,
+      diagnostics: [child.stderr || child.stdout || 'no probe output'],
+    };
+  }
+  if (child.error && child.error.code === 'ETIMEDOUT') payload = { ...payload, status: 'BLOCKED', reason: 'AGY project consumer probe timed out' };
+  const normalized = normalizedProbeRow('agy-plugin', root, payload, child.status === null ? 127 : child.status, 'agy-plugin');
+  const row = {
+    ...normalized,
+    producer: 'project-agent-projection',
+    adapter: normalized.adapter || { id: 'agy-project-direct-file', version: '1.0.0' },
+  };
+  return {
+    outcome: row.status,
+    diagnostics: [...(row.reasons || []), ...(row.diagnostics || [])].slice(0, 20),
+    surfaceResults: [row],
+    identity: { surface: 'agy-plugin', stage: row.stage, producer: row.producer, adapter: row.adapter },
+  };
+}
+
+function runAgyConsumerProbe(root) {
+  const receiptPath = path.join(root, '.agents', '.dhpk-installed.json');
+  try {
+    const stat = fs.lstatSync(receiptPath);
+    // A project receipt is the explicit authority for the relocatable route;
+    // once present, an invalid receipt must surface as a project failure and
+    // must not be hidden by the native-package fallback.
+    if (stat) return runAgyProjectConsumerProbe(root);
+  } catch (error) {
+    if (!error || error.code !== 'ENOENT') return runAgyProjectConsumerProbe(root);
+  }
+  return runNativeAgyConsumerProbe(root);
 }
 
 function normalizedProbeRow(surface, packageRoot, payload, childStatus, consumerSurface) {

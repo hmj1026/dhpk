@@ -98,26 +98,26 @@
       "claude": {
         "surface": "claude-core",
         "evidence_source": "entry_surfaces",
-        "shape": "directory",
+        "shape": "project-skill-directory",
         "transform": {"id": "claude-project-skill", "version": "1"}
       },
       "codex": {
         "surface": "codex-sync",
         "evidence_source": "entry_surfaces",
-        "shape": "directory",
+        "shape": "project-skill-directory",
         "transform": {"id": "codex-project-skill", "version": "1"}
       },
       "cursor": {
         "surface": "cursor-plugin",
         "evidence_source": "surface_membership",
-        "shape": "directory",
+        "shape": "project-skill-directory",
         "transform": {"id": "cursor-project-skill", "version": "1"}
       },
       "agy": {
         "surface": "agy-plugin",
         "evidence_source": "surface_membership",
-        "shape": "directory",
-        "transform": {"id": "agy-project-skill", "version": "1"}
+        "shape": "project-skill-direct-file",
+        "transform": {"id": "agy-project-direct-file", "version": "1"}
       }
     },
     "dependencies": {

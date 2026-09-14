@@ -4123,8 +4123,8 @@
       "agy": {
         "surface": "agy-plugin",
         "evidence_source": "surface_membership",
-        "shape": "project-skill-directory",
-        "transform": {"id": "agy-project-skill", "version": "1"}
+        "shape": "project-skill-direct-file",
+        "transform": {"id": "agy-project-direct-file", "version": "1"}
       }
     },
     "dependencies": {}
