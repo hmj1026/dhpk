@@ -1,0 +1,125 @@
+{
+  "schema": "dhpk.project-agent-projection-baseline.v1",
+  "issue": 498,
+  "sourceCommit": "81dba953c53b27dd47cc2b819e1bcbe8f065abde",
+  "selection": {
+    "currentAgentPlugin": {
+      "surface": "agent-plugin",
+      "contract": "current-agent-plugin-selection",
+      "evidenceOnly": true,
+      "portableCoreExpansion": false,
+      "selectedStableIds": [
+        "agent-architecture-audit",
+        "agy-fast-worker",
+        "change-verdict",
+        "cli-dispatch-context",
+        "cli-transport",
+        "code-trace",
+        "codex-bridge",
+        "composer-package-hygiene",
+        "deploy-list",
+        "feature-verify",
+        "flow-drive",
+        "flow-guide",
+        "git-smart-commit",
+        "gitnexus-cli",
+        "gitnexus-debugging",
+        "gitnexus-exploring",
+        "gitnexus-guide",
+        "gitnexus-impact-analysis",
+        "gitnexus-refactoring",
+        "harness-govern",
+        "issue-analyze",
+        "laravel-package-author",
+        "laravel-testbench-matrix",
+        "opsx-apply-goal",
+        "opsx-load-context",
+        "opsx-post-obs",
+        "polyfill-version-matrix-audit",
+        "project-audit",
+        "project-setup",
+        "prompt-optimize",
+        "release-creator",
+        "repo-intake",
+        "session-usage-audit",
+        "skill-forge",
+        "skill-scope",
+        "software-architecture",
+        "tdd"
+      ]
+    },
+    "portableCore": {
+      "profileId": "portable-core",
+      "declared": false,
+      "selectedStableIds": [],
+      "reason": "portable-core is not declared; no current surface selection may expand into it"
+    },
+    "currentCodexSync": {
+      "surface": "codex-sync",
+      "selectedStableIds": [
+        "cli-dispatch-context",
+        "cli-transport",
+        "code-trace",
+        "flow-drive",
+        "flow-guide",
+        "git-smart-commit",
+        "harness-govern",
+        "legacy-code-characterization",
+        "opsx-load-context",
+        "opsx-post-obs",
+        "php-pro",
+        "php56-yii-dev",
+        "skill-scope",
+        "tdd",
+        "yii1-security-audit"
+      ]
+    }
+  },
+  "hosts": [
+    {
+      "host": "Claude",
+      "portableShape": { "kind": "directory", "root": ".agents/skills", "entry": "<name>/SKILL.md" },
+      "nativeRoots": ["skills/", "agents/", "rules/"],
+      "output": { "path": ".agents/skills", "fingerprint": null, "status": "NOT_RUN" },
+      "receipt": { "path": ".agents/.dhpk-installed.json", "legacyPath": ".agents/skills/.dhpk-projection.json", "fingerprint": null, "status": "NOT_RUN" },
+      "diagnostics": [],
+      "exit": { "code": null, "status": "NOT_RUN" },
+      "runtime": { "status": "NOT_RUN", "evidence": "NOT_RUN" }
+    },
+    {
+      "host": "Codex",
+      "portableShape": { "kind": "directory", "root": ".agents/skills", "entry": "<name>/SKILL.md" },
+      "nativeRoots": [".agents/agents", ".agents/rules", ".agents/hooks"],
+      "output": { "path": ".agents/skills", "fingerprint": null, "status": "NOT_RUN" },
+      "receipt": { "path": ".agents/.dhpk-installed.json", "legacyPath": ".agents/skills/.dhpk-projection.json", "fingerprint": null, "status": "NOT_RUN" },
+      "diagnostics": [],
+      "exit": { "code": null, "status": "NOT_RUN" },
+      "runtime": { "status": "NOT_RUN", "evidence": "NOT_RUN" }
+    },
+    {
+      "host": "Cursor",
+      "portableShape": { "kind": "directory", "root": ".agents/skills", "entry": "<name>/SKILL.md" },
+      "nativeRoots": [".cursor/agents", ".cursor/rules", ".cursor/hooks"],
+      "output": { "path": ".agents/skills", "fingerprint": null, "status": "NOT_RUN" },
+      "receipt": { "path": ".agents/.dhpk-installed.json", "legacyPath": ".agents/skills/.dhpk-projection.json", "fingerprint": null, "status": "NOT_RUN" },
+      "diagnostics": [],
+      "exit": { "code": null, "status": "NOT_RUN" },
+      "runtime": { "status": "NOT_RUN", "evidence": "NOT_RUN" }
+    },
+    {
+      "host": "AGY",
+      "portableShape": { "kind": "direct-file", "root": ".agents/skills", "entry": "<name>.md" },
+      "nativeRoots": [".agy/agents", ".agy/rules", ".agy/hooks"],
+      "output": { "path": ".agents/skills", "fingerprint": null, "status": "NOT_RUN" },
+      "receipt": { "path": ".agents/.dhpk-installed.json", "legacyPath": ".agents/skills/.dhpk-projection.json", "fingerprint": null, "status": "NOT_RUN" },
+      "diagnostics": [],
+      "exit": { "code": null, "status": "NOT_RUN" },
+      "runtime": { "status": "NOT_RUN", "evidence": "NOT_RUN" }
+    }
+  ],
+  "notes": [
+    "This is a read-only pre-migration characterization; null output and receipt fingerprints mean no consumer projection was activated.",
+    "SKIP_INCOMPATIBLE and Host-specific entries are classified by tests/project-agent-projection-baseline.test.js from the inventory capability matrix.",
+    "Static/package evidence is not a consumer-runtime PASS."
+  ]
+}
