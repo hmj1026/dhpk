@@ -13,6 +13,18 @@ const {
 } = require('./agent-plugin-package');
 const { resolveInventoryRevision } = require('./distribution-projection-contract');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  materializeRelocatableAgentsSkillsProjection,
+  validateRelocatableAgentsSkillsProjection,
+  uninstallAgentsSkillsProjection,
+  removeAgentsSkillsProjection,
+  rollbackAgentsSkillsProjection,
+  recoverAgentsSkillsProjection,
+  readProjectProjectionReceipt,
+  PROJECT_RECEIPT_SCHEMA,
+  PROJECT_ROLLBACK_SCHEMA,
+  PROJECT_TRANSACTION_SCHEMA,
+} = require('./project-agent-projection-publisher');
 
 const SCHEMA = 'dhpk.agents-skills-projection.v1';
 const GENERATOR_VERSION = '1.0.0';
@@ -379,6 +391,12 @@ function outputFiles(outDir, budget = createTraversalBudget()) {
   return relativeFiles(outDir, budget).filter((relative) => relative !== RECEIPT_NAME);
 }
 
+function usesRelocatableProjection(options = {}) {
+  if (options.projectRoot || options.sourceRoot || options.plan || options.relocatable === true) return true;
+  if (options.root && options.outDir) return !isInside(options.root, options.outDir);
+  return false;
+}
+
 function transactionPathFor(outDir) {
   return path.join(path.dirname(outDir), `.dhpk-agents-skills-${digest(path.resolve(outDir)).slice(0, 16)}.transaction.json`);
 }
@@ -486,7 +504,9 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, `${stableStringify(value)}\n`, { mode: 0o644 });
 }
 
-function materializeAgentsSkillsProjection({ root, inventory, outDir = path.join(root, '.agents', 'skills'), allowCanonicalChanges = false } = {}) {
+function materializeAgentsSkillsProjection(options = {}) {
+  if (usesRelocatableProjection(options)) return materializeRelocatableAgentsSkillsProjection(options);
+  const { root, inventory, outDir = path.join(root, '.agents', 'skills'), allowCanonicalChanges = false } = options;
   if (!root || !inventory) throw new Error('root and inventory are required');
   const sourceRoot = path.resolve(root);
   const outputRoot = path.resolve(outDir);
@@ -633,7 +653,9 @@ function materializeAgentsSkillsProjection({ root, inventory, outDir = path.join
   }
 }
 
-function validateAgentsSkillsProjection({ root, inventory, outDir = path.join(root, '.agents', 'skills') } = {}) {
+function validateAgentsSkillsProjection(options = {}) {
+  if (usesRelocatableProjection(options)) return validateRelocatableAgentsSkillsProjection(options);
+  const { root, inventory, outDir = path.join(root, '.agents', 'skills') } = options;
   const errors = [];
   const outputRoot = path.resolve(outDir);
   try {
@@ -702,6 +724,16 @@ module.exports = {
   SCHEMA,
   GENERATOR_VERSION,
   RECEIPT_NAME,
+  PROJECT_RECEIPT_SCHEMA,
+  PROJECT_ROLLBACK_SCHEMA,
+  PROJECT_TRANSACTION_SCHEMA,
   materializeAgentsSkillsProjection,
   validateAgentsSkillsProjection,
+  materializeRelocatableAgentsSkillsProjection,
+  validateRelocatableAgentsSkillsProjection,
+  uninstallAgentsSkillsProjection,
+  removeAgentsSkillsProjection,
+  rollbackAgentsSkillsProjection,
+  recoverAgentsSkillsProjection,
+  readProjectProjectionReceipt,
 };
