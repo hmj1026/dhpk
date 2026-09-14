@@ -76,9 +76,11 @@ test('baseline is deterministic and records the current Agent Plugin set as evid
   const codex = first.hosts.find((host) => host.host === 'Codex');
   assert.strictEqual(codex.selection.count, FIXTURE.compatibilityMatrix.currentCodexSyncSubset.expectedCount);
   assert.deepStrictEqual(codex.selection.selectedStableIds, FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds);
-  assert.strictEqual(first.selection.portableCore.declared, false);
-  assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, []);
-  assert.match(first.selection.portableCore.reason, /explicit|not declared/i);
+  assert.strictEqual(first.selection.portableCore.declared, true);
+  assert.strictEqual(first.selection.portableCore.profileId, FIXTURE.portableCore.profileId);
+  assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, FIXTURE.currentSelection.selectedStableIds);
+  assert.strictEqual(first.selection.portableCore.evidenceOnly, true);
+  assert.match(first.selection.portableCore.reason, /explicit|evidence/i);
 });
 
 test('baseline distinguishes portable-core from minimal and reports Host-specific/incompatible entries', () => {

@@ -1,0 +1,130 @@
+{
+  "schema": "dhpk.distribution-inventory.v2",
+  "skills": [
+    {
+      "id": "portable-a",
+      "name": "dhpk-portable-a",
+      "path": "skills/dhpk-portable-a",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": ["core"],
+      "surfaces": ["claude-core", "codex-sync", "cursor-plugin", "agy-plugin"]
+    },
+    {
+      "id": "portable-b",
+      "name": "dhpk-portable-b",
+      "path": "skills/dhpk-portable-b",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": ["core"],
+      "surfaces": ["claude-core", "codex-sync", "cursor-plugin", "agy-plugin"],
+      "project_dependencies": ["runtime-support"]
+    },
+    {
+      "id": "codex-only",
+      "name": "dhpk-codex-only",
+      "path": "skills/dhpk-codex-only",
+      "lifecycle": "promoted",
+      "tier": "optional",
+      "profiles": ["core"],
+      "surfaces": ["codex-sync"]
+    },
+    {
+      "id": "portable-incompatible",
+      "name": "dhpk-portable-incompatible",
+      "path": "skills/dhpk-portable-incompatible",
+      "lifecycle": "promoted",
+      "tier": "optional",
+      "profiles": ["core"],
+      "surfaces": ["claude-core", "codex-sync"]
+    }
+  ],
+  "modules": [
+    {
+      "id": "runtime-support",
+      "name": "dhpk-runtime-support",
+      "path": "skills/dhpk-runtime-support",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": ["core"],
+      "surfaces": ["claude-core", "codex-sync", "cursor-plugin", "agy-plugin"],
+      "invokable": false
+    }
+  ],
+  "surface_membership": {
+    "cursor-plugin": ["portable-a", "portable-b", "runtime-support"],
+    "agy-plugin": ["portable-a", "portable-b", "runtime-support"]
+  },
+  "supporting_assets": [
+    {
+      "id": "portable-manifest",
+      "source": "manifests/portable.json",
+      "destination": "portable.json"
+    }
+  ],
+  "profile_policy": {
+    "version": "minimal-v1",
+    "required_core_ids": ["portable-a"],
+    "profiles": {
+      "minimal": {
+        "selection": "required-core",
+        "compatibilityMode": "profile"
+      },
+      "full": {
+        "selection": "all",
+        "compatibilityMode": "profile"
+      },
+      "compat-v1": {
+        "selection": "legacy",
+        "compatibilityMode": "compat-v1"
+      }
+    }
+  },
+  "project_agent_projection": {
+    "schema": "dhpk.project-agent-projection.v1",
+    "scope": "project",
+    "owner": "dhpk.project-agent-projection",
+    "managed_root": ".agents/skills",
+    "receipt": ".agents/.dhpk-installed.json",
+    "profiles": {
+      "portable-core": {
+        "version": "portable-core-v1",
+        "compatibility_mode": "portable-core",
+        "stable_ids": ["portable-b"],
+        "hosts": ["claude", "codex", "cursor", "agy"]
+      }
+    },
+    "hosts": {
+      "claude": {
+        "surface": "claude-core",
+        "evidence_source": "entry_surfaces",
+        "shape": "directory",
+        "transform": {"id": "claude-project-skill", "version": "1"}
+      },
+      "codex": {
+        "surface": "codex-sync",
+        "evidence_source": "entry_surfaces",
+        "shape": "directory",
+        "transform": {"id": "codex-project-skill", "version": "1"}
+      },
+      "cursor": {
+        "surface": "cursor-plugin",
+        "evidence_source": "surface_membership",
+        "shape": "directory",
+        "transform": {"id": "cursor-project-skill", "version": "1"}
+      },
+      "agy": {
+        "surface": "agy-plugin",
+        "evidence_source": "surface_membership",
+        "shape": "directory",
+        "transform": {"id": "agy-project-skill", "version": "1"}
+      }
+    },
+    "dependencies": {
+      "portable-b": {
+        "stable_ids": ["runtime-support"],
+        "supporting_asset_ids": ["portable-manifest"]
+      }
+    }
+  }
+}

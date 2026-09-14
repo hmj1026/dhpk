@@ -4048,5 +4048,85 @@
         "release": "0.53.0"
       }
     }
-  ]
+  ],
+  "project_agent_projection": {
+    "schema": "dhpk.project-agent-projection.v1",
+    "scope": "project",
+    "owner": "dhpk.project-agent-projection",
+    "managed_root": ".agents/skills",
+    "receipt": ".agents/.dhpk-installed.json",
+    "profiles": {
+      "portable-core": {
+        "version": "portable-core-v1",
+        "compatibility_mode": "portable-core",
+        "stable_ids": [
+          "agent-architecture-audit",
+          "agy-fast-worker",
+          "change-verdict",
+          "cli-dispatch-context",
+          "cli-transport",
+          "code-trace",
+          "codex-bridge",
+          "composer-package-hygiene",
+          "deploy-list",
+          "feature-verify",
+          "flow-drive",
+          "flow-guide",
+          "git-smart-commit",
+          "gitnexus-cli",
+          "gitnexus-debugging",
+          "gitnexus-exploring",
+          "gitnexus-guide",
+          "gitnexus-impact-analysis",
+          "gitnexus-refactoring",
+          "harness-govern",
+          "issue-analyze",
+          "laravel-package-author",
+          "laravel-testbench-matrix",
+          "opsx-apply-goal",
+          "opsx-load-context",
+          "opsx-post-obs",
+          "polyfill-version-matrix-audit",
+          "project-audit",
+          "project-setup",
+          "prompt-optimize",
+          "release-creator",
+          "repo-intake",
+          "session-usage-audit",
+          "skill-forge",
+          "skill-scope",
+          "software-architecture",
+          "tdd"
+        ],
+        "hosts": ["agy", "claude", "codex", "cursor"]
+      }
+    },
+    "hosts": {
+      "claude": {
+        "surface": "claude-core",
+        "evidence_source": "entry_surfaces",
+        "shape": "project-skill-directory",
+        "transform": {"id": "claude-project-skill", "version": "1"}
+      },
+      "codex": {
+        "surface": "codex-sync",
+        "evidence_source": "entry_surfaces",
+        "shape": "project-skill-directory",
+        "transform": {"id": "codex-project-skill", "version": "1"}
+      },
+      "cursor": {
+        "surface": "cursor-plugin",
+        "evidence_source": "surface_membership",
+        "shape": "project-skill-directory",
+        "transform": {"id": "cursor-project-skill", "version": "1"}
+      },
+      "agy": {
+        "surface": "agy-plugin",
+        "evidence_source": "surface_membership",
+        "shape": "project-skill-directory",
+        "transform": {"id": "agy-project-skill", "version": "1"}
+      }
+    },
+    "dependencies": {}
+  }
 }
