@@ -175,6 +175,20 @@ test('inventory project projection validator reports malformed ownership and tra
   assert.ok(result.errors.some((error) => /transform.version/.test(error)));
 });
 
+test('project Host validation fixes the AGY direct-file and directory shape contract', () => {
+  const source = fixture();
+  source.project_agent_projection.hosts.agy.shape = 'project-skill-directory';
+  const result = validateProjectAgentProjection(source);
+  assert.strictEqual(result.ok, false);
+  assert.ok(result.errors.some((error) => /hosts\.agy\.shape/.test(error)));
+
+  const directory = fixture();
+  directory.project_agent_projection.hosts.cursor.shape = 'directory';
+  const directoryResult = validateProjectAgentProjection(directory);
+  assert.strictEqual(directoryResult.ok, false);
+  assert.ok(directoryResult.errors.some((error) => /hosts\.cursor\.shape/.test(error)));
+});
+
 test('project projection rejects root and dot-segment ownership paths', () => {
   const root = fixture();
   root.project_agent_projection.managed_root = '.';

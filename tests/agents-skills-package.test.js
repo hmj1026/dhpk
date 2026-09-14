@@ -77,7 +77,7 @@ function projectInventory() {
       claude: { surface: 'claude-core', evidence_source: 'entry_surfaces', shape: 'project-skill-directory', transform: { id: 'claude-project-skill', version: '1' } },
       codex: { surface: 'codex-sync', evidence_source: 'entry_surfaces', shape: 'project-skill-directory', transform: { id: 'codex-project-skill', version: '1' } },
       cursor: { surface: 'cursor-plugin', evidence_source: 'entry_surfaces', shape: 'project-skill-directory', transform: { id: 'cursor-project-skill', version: '1' } },
-      agy: { surface: 'agy-plugin', evidence_source: 'entry_surfaces', shape: 'project-skill-directory', transform: { id: 'agy-project-skill', version: '1' } },
+      agy: { surface: 'agy-plugin', evidence_source: 'entry_surfaces', shape: 'project-skill-direct-file', transform: { id: 'agy-project-direct-file', version: '1' } },
     },
     dependencies: {},
   };
@@ -463,6 +463,53 @@ test('relocatable AGY entries stay self-contained after the canonical source is 
     assert.strictEqual(fs.readFileSync(path.join(outputRoot, 'dhpk-sample', 'references', 'guide.md'), 'utf8'), '# Guide\n');
     const checked = validateAgentsSkillsProjection({ projectRoot });
     assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('requested Host bindings select only their provider-shaped outputs', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-agy-only-');
+  try {
+    const result = materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      sourceRoot,
+      projectRoot,
+      inventory: projectInventory(),
+      profileId: 'portable-core',
+      requestedHosts: ['agy'],
+    });
+    const outputRoot = path.join(projectRoot, '.agents', 'skills');
+    assert.ok(fs.existsSync(path.join(outputRoot, 'dhpk-sample.md')));
+    assert.strictEqual(fs.existsSync(path.join(outputRoot, 'dhpk-sample', 'SKILL.md')), false);
+    assert.deepStrictEqual(Object.keys(result.receipt.hostBindings), ['agy']);
+    assert.strictEqual(result.receipt.hostBindings.agy.shape, 'project-skill-direct-file');
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('provider-shaped projection rejects an AGY directory binding before publication', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-invalid-agy-binding-');
+  const inventory = projectInventory();
+  inventory.project_agent_projection.hosts.agy.shape = 'project-skill-directory';
+  try {
+    assert.throws(
+      () => materializeAgentsSkillsProjection({
+        root: sourceRoot,
+        sourceRoot,
+        projectRoot,
+        inventory,
+        profileId: 'portable-core',
+        requestedHosts: ['agy'],
+      }),
+      /AGY.*direct-file|provider.*shape|incompatible/i,
+    );
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false);
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
     fs.rmSync(projectRoot, { recursive: true, force: true });

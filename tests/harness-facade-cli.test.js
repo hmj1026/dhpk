@@ -1097,7 +1097,7 @@ test('probe facade delegates configured sync surfaces to the canonical consumer 
   }
 });
 
-test('probe facade preserves AGY runtime evidence from the multi-AI validator', () => {
+test('probe facade preserves native AGY runtime evidence when no project artifact is configured', () => {
   const receiptRoot = temporaryReceiptRoot();
   try {
     const result = invoke(['probe', '--surface', 'agy-plugin', '--task-id', 'facade-agy-probe', '--json'], {
@@ -1112,6 +1112,22 @@ test('probe facade preserves AGY runtime evidence from the multi-AI validator', 
     assert.ok(['PASS', 'FAIL', 'BLOCKED', 'NOT_RUN', 'NOT_CONFIGURED', 'UNAVAILABLE', 'SKIP_INCOMPATIBLE'].includes(payload.surfaceResults[0].status));
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
+  }
+});
+
+test('probe facade selects the exact project artifact when its lifecycle receipt is present', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-agy-project-'));
+  try {
+    fs.mkdirSync(path.join(root, '.agents'), { recursive: true });
+    fs.writeFileSync(path.join(root, '.agents', '.dhpk-installed.json'), '{}\n');
+    const execution = harness.runConsumerProbe(root, { surface: 'agy-plugin' });
+    assert.strictEqual(execution.surfaceResults.length, 1);
+    assert.strictEqual(execution.surfaceResults[0].producer, 'project-agent-projection');
+    assert.strictEqual(execution.surfaceResults[0].adapter.id, 'agy-project-direct-file');
+    assert.strictEqual(execution.surfaceResults[0].status, 'NOT_CONFIGURED');
+    assert.match(execution.surfaceResults[0].commands[0], /agy-project/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
