@@ -17,12 +17,25 @@ function temporaryReceiptRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-identity-'));
 }
 
-function sourceBinding(revision = 'HEAD') {
+function sourceBinding(revision = 'HEAD', root = ROOT) {
   const sourceCommit = execFileSync('git', ['rev-parse', `${revision}^{commit}`], {
-    cwd: ROOT,
+    cwd: root,
     encoding: 'utf8',
   }).trim();
-  return { sourceCommit, sourceTree: receipts.resolveGitTree(ROOT, sourceCommit) };
+  return { sourceCommit, sourceTree: receipts.resolveGitTree(root, sourceCommit) };
+}
+
+function temporaryCleanCheckout() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-checkout-clean-'));
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'initial\n');
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  execFileSync('git', ['config', 'user.email', 'harness-test@example.invalid'], { cwd: root });
+  execFileSync('git', ['config', 'user.name', 'Harness Test'], { cwd: root });
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: root });
+  execFileSync('git', ['commit', '-qm', 'fixture initial'], { cwd: root });
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'second\n');
+  execFileSync('git', ['commit', '-qam', 'fixture second'], { cwd: root });
+  return root;
 }
 
 function temporaryDirtyCheckout() {
@@ -38,8 +51,9 @@ function temporaryDirtyCheckout() {
 }
 
 function makeAttempt(root, options = {}) {
-  const binding = sourceBinding(options.revision || 'HEAD');
-  const current = sourceBinding('HEAD');
+  const checkoutRoot = options.checkoutRoot || ROOT;
+  const binding = sourceBinding(options.revision || 'HEAD', checkoutRoot);
+  const current = sourceBinding('HEAD', checkoutRoot);
   return receipts.createAttempt({
     root,
     command: 'harness verify --json',
@@ -60,7 +74,7 @@ function makeAttempt(root, options = {}) {
     identity: {
       targetCommit: current.sourceCommit,
       targetTree: current.sourceTree,
-      worktree: receipts.resolveGitWorktree(ROOT),
+      worktree: receipts.resolveGitWorktree(checkoutRoot),
     },
     operationKey: options.operationKey,
     retryOf: options.retryOf,
@@ -70,19 +84,20 @@ function makeAttempt(root, options = {}) {
 
 test('exact source commit and resolved tree must match the consuming checkout', () => {
   const root = temporaryReceiptRoot();
+  const checkoutRoot = temporaryCleanCheckout();
   try {
-    const current = sourceBinding('HEAD');
-    const attempt = makeAttempt(root);
+    const current = sourceBinding('HEAD', checkoutRoot);
+    const attempt = makeAttempt(root, { checkoutRoot });
     const accepted = receipts.validateReceipt(attempt.path, {
-      root: ROOT,
+      root: checkoutRoot,
       expectedSourceCommit: current.sourceCommit,
       expectedSourceTree: current.sourceTree,
     });
     assert.strictEqual(accepted.ok, true, accepted.errors.join('; '));
 
-    const stale = sourceBinding('HEAD^');
+    const stale = sourceBinding('HEAD^', checkoutRoot);
     const rejected = receipts.validateReceipt(attempt.path, {
-      root: ROOT,
+      root: checkoutRoot,
       expectedSourceCommit: stale.sourceCommit,
       expectedSourceTree: stale.sourceTree,
     });
@@ -90,14 +105,16 @@ test('exact source commit and resolved tree must match the consuming checkout', 
     assert.match(rejected.errors.join('\n'), /commit|tree|current|expected/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(checkoutRoot, { recursive: true, force: true });
   }
 });
 
 test('final target receipt identity must match the checkout independently of generated-input identity', () => {
   const root = temporaryReceiptRoot();
+  const checkoutRoot = temporaryCleanCheckout();
   try {
-    const current = sourceBinding('HEAD');
-    const generated = sourceBinding('HEAD^');
+    const current = sourceBinding('HEAD', checkoutRoot);
+    const generated = sourceBinding('HEAD^', checkoutRoot);
     const attempt = receipts.createAttempt({
       root,
       command: 'harness verify --json',
@@ -110,35 +127,32 @@ test('final target receipt identity must match the checkout independently of gen
         generatedFromTree: generated.sourceTree,
         targetCommit: current.sourceCommit,
         targetTree: current.sourceTree,
-        worktree: receipts.resolveGitWorktree(ROOT),
+        worktree: receipts.resolveGitWorktree(checkoutRoot),
       },
     });
-    assert.strictEqual(receipts.validateReceipt(attempt.path, { root: ROOT }).ok, true);
+    const validated = receipts.validateReceipt(attempt.path, { root: checkoutRoot });
+    assert.strictEqual(validated.ok, true, validated.errors?.join('; '));
 
     const envelopePath = path.join(attempt.path, 'attempt.json');
     const tampered = JSON.parse(fs.readFileSync(envelopePath, 'utf8'));
     tampered.targetCommit = generated.sourceCommit;
     tampered.targetTree = generated.sourceTree;
     fs.writeFileSync(envelopePath, JSON.stringify(tampered, null, 2) + '\n');
-    const rejected = receipts.validateReceipt(attempt.path, { root: ROOT });
+    const rejected = receipts.validateReceipt(attempt.path, { root: checkoutRoot });
     assert.strictEqual(rejected.ok, false);
     assert.match(rejected.errors.join('\n'), /target (commit|tree)|current checkout/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(checkoutRoot, { recursive: true, force: true });
   }
 });
 
 test('generated-input commit and tree must be a matching pair', () => {
   const root = temporaryReceiptRoot();
+  const checkoutRoot = temporaryCleanCheckout();
   try {
-    const current = sourceBinding('HEAD');
-    // Release back-merges can make HEAD^ tree-identical to HEAD. Pick the
-    // nearest distinct-tree ancestor so this fixture always exercises the
-    // generated-input pair mismatch rather than a coincidental equal tree.
-    const directParent = sourceBinding('HEAD^');
-    const generated = directParent.sourceTree === current.sourceTree
-      ? sourceBinding('HEAD^^')
-      : directParent;
+    const current = sourceBinding('HEAD', checkoutRoot);
+    const generated = sourceBinding('HEAD^', checkoutRoot);
     const attempt = receipts.createAttempt({
       root,
       command: 'harness verify --json',
@@ -154,7 +168,7 @@ test('generated-input commit and tree must be a matching pair', () => {
         worktree: 'DIRTY',
       },
     });
-    const mismatchedTree = receipts.validateReceipt(attempt.path, { root: ROOT });
+    const mismatchedTree = receipts.validateReceipt(attempt.path, { root: checkoutRoot });
     assert.strictEqual(mismatchedTree.ok, false);
     assert.match(mismatchedTree.errors.join('\n'), /generated|tree|commit/i);
 
@@ -172,11 +186,12 @@ test('generated-input commit and tree must be a matching pair', () => {
         worktree: 'DIRTY',
       },
     });
-    const missing = receipts.validateReceipt(missingTree.path, { root: ROOT });
+    const missing = receipts.validateReceipt(missingTree.path, { root: checkoutRoot });
     assert.strictEqual(missing.ok, false);
     assert.match(missing.errors.join('\n'), /generated.*tree|pair|missing/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(checkoutRoot, { recursive: true, force: true });
   }
 });
 
