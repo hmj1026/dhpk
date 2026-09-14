@@ -17,6 +17,10 @@ const {
   usageFingerprint,
   resolveInventoryRevision,
 } = require('./skill-usage');
+const {
+  compileProjectAgentProjection,
+  validateProjectAgentProjection,
+} = require('./project-agent-projection-plan');
 
 const EMISSION_METADATA_FIELDS = Object.freeze([
   'skillId',
@@ -464,6 +468,8 @@ function verifyDistribution(stage, artifact, consumerAdapter) {
 
 module.exports = {
   compileDistribution,
+  compileProjectAgentProjection,
+  validateProjectAgentProjection,
   materializeDistribution,
   verifyDistribution,
   inventoryEntries,

@@ -98,6 +98,17 @@ function snapshot(directory) {
   return files;
 }
 
+function resealProjectReceipt(receipt) {
+  const sort = (value) => Array.isArray(value)
+    ? value.map(sort)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, sort(value[key])]))
+      : value;
+  const payload = { ...receipt };
+  delete payload.receiptFingerprint;
+  receipt.receiptFingerprint = crypto.createHash('sha256').update(JSON.stringify(sort(payload))).digest('hex');
+}
+
 test('materializes Cursor and AGY skill shapes from one canonical package', () => {
   const root = makeFixture();
   const outDir = path.join(root, '.agents', 'skills');
@@ -492,6 +503,141 @@ test('requested Host bindings select only their provider-shaped outputs', () => 
   }
 });
 
+test('Claude discovery uses receipt-owned symlinks to the shared artifact', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-claude-adapter-');
+  try {
+    const result = materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      projectRoot,
+      inventory: projectInventory(),
+      profileId: 'portable-core',
+      requestedHosts: ['claude', 'codex'],
+    });
+    const adapterPath = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+    assert.strictEqual(fs.lstatSync(adapterPath).isSymbolicLink(), true);
+    assert.strictEqual(fs.readlinkSync(adapterPath), '../../.agents/skills/dhpk-sample');
+    assert.strictEqual(fs.readFileSync(path.join(adapterPath, 'SKILL.md'), 'utf8'), fs.readFileSync(path.join(projectRoot, '.agents/skills/dhpk-sample/SKILL.md'), 'utf8'));
+    assert.strictEqual(result.receipt.hostBindings.claude.discovery.adapterId, 'claude-project-discovery');
+    assert.deepStrictEqual(result.receipt.bindingPaths.claude, [{
+      path: '.claude/skills/dhpk-sample',
+      target: '../../.agents/skills/dhpk-sample',
+    }]);
+    assert.strictEqual(validateAgentsSkillsProjection({ projectRoot }).ok, true);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('Claude discovery refuses native or foreign overlap at the selected skill path', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-claude-overlap-');
+  try {
+    write(path.join(projectRoot, '.claude', 'skills', 'dhpk-sample', 'SKILL.md'), '# Native skill\n');
+    assert.throws(
+      () => materializeAgentsSkillsProjection({
+        root: sourceRoot,
+        projectRoot,
+        inventory: projectInventory(),
+        profileId: 'portable-core',
+        requestedHosts: ['claude', 'codex'],
+      }),
+      /collision|unmanaged/i,
+    );
+    assert.strictEqual(fs.readFileSync(path.join(projectRoot, '.claude', 'skills', 'dhpk-sample', 'SKILL.md'), 'utf8'), '# Native skill\n');
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('Claude discovery treats a changed binding as modified managed content', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-claude-modified-');
+  try {
+    materializeAgentsSkillsProjection({ root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core', requestedHosts: ['claude', 'codex'] });
+    const binding = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+    fs.unlinkSync(binding);
+    fs.mkdirSync(binding, { recursive: true });
+    const checked = validateAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(checked.ok, false);
+    assert.match(checked.errors.join('\n'), /binding|modified|missing/i);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('project receipt rejects divergent or unsupported binding claims', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-binding-claims-');
+  try {
+    materializeAgentsSkillsProjection({ root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core', requestedHosts: ['claude', 'codex'] });
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    receipt.bindings = {};
+    resealProjectReceipt(receipt);
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    let checked = validateAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(checked.ok, false);
+    assert.match(checked.errors.join('\n'), /aliases disagree|binding/i);
+
+    const restored = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    restored.bindings = restored.hostBindings;
+    restored.bindingPaths.codex = [{ path: '.codex/skills/dhpk-sample', target: '../../.agents/skills/dhpk-sample' }];
+    resealProjectReceipt(restored);
+    fs.writeFileSync(receiptPath, `${JSON.stringify(restored, null, 2)}\n`);
+    checked = validateAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(checked.ok, false);
+    assert.match(checked.errors.join('\n'), /unsupported Host binding paths|binding/i);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('removing one Host binding preserves shared content for the remaining Host', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-binding-removal-');
+  try {
+    const options = { root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core' };
+    materializeAgentsSkillsProjection({ ...options, requestedHosts: ['claude', 'codex'] });
+    materializeAgentsSkillsProjection({ ...options, requestedHosts: ['codex'], allowCanonicalChanges: true });
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.claude', 'skills', 'dhpk-sample')), false);
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')), true);
+    const receipt = JSON.parse(fs.readFileSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.deepStrictEqual(Object.keys(receipt.hostBindings), ['codex']);
+    assert.strictEqual(receipt.bindingPaths.claude, undefined);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('legacy project output is reported as legacy-unbound until explicit adoption', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-legacy-unbound-');
+  try {
+    const options = { root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core' };
+    materializeAgentsSkillsProjection(options);
+    fs.rmSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'));
+    const observed = validateAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(observed.ok, false);
+    assert.strictEqual(observed.classification, 'LEGACY_UNBOUND');
+    assert.match(observed.errors.join('\n'), /legacy-unbound|adopt|repair/i);
+
+    const adopted = materializeAgentsSkillsProjection({ ...options, adopt: true, allowCanonicalChanges: true });
+    assert.strictEqual(adopted.receipt.legacyUnbound, undefined);
+    assert.strictEqual(adopted.receipt.hostBindings.claude.discovery.adapterId, 'claude-project-discovery');
+    assert.strictEqual(validateAgentsSkillsProjection({ projectRoot }).ok, true);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('provider-shaped projection rejects an AGY directory binding before publication', () => {
   const sourceRoot = makeFixture();
   const projectRoot = tmpDir('dhpk-agents-skills-invalid-agy-binding-');
@@ -604,11 +750,15 @@ test('relocatable update keeps a durable rollback and uninstall removes only unc
     const rolledBack = rollbackAgentsSkillsProjection({ projectRoot });
     assert.strictEqual(rolledBack.ok, true, rolledBack.error && rolledBack.error.message);
     assert.strictEqual(fs.readFileSync(path.join(outputRoot, 'dhpk-sample', 'references', 'guide.md'), 'utf8'), '# Guide\n');
+    const claudeBinding = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+    assert.strictEqual(fs.lstatSync(claudeBinding).isSymbolicLink(), true);
+    assert.strictEqual(fs.readlinkSync(claudeBinding), '../../.agents/skills/dhpk-sample');
 
     const removed = uninstallAgentsSkillsProjection({ projectRoot });
     assert.strictEqual(removed.ok, true, removed.error && removed.error.message);
     assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false);
     assert.strictEqual(fs.existsSync(path.join(outputRoot, 'dhpk-sample', 'SKILL.md')), false);
+    assert.strictEqual(fs.existsSync(claudeBinding), false);
     assert.strictEqual(fs.readFileSync(path.join(outputRoot, 'foreign', 'keep.md'), 'utf8'), '# Keep me\n');
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });

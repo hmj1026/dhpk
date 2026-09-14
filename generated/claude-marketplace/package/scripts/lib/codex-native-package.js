@@ -334,13 +334,15 @@ function nativeSkillFingerprint(files) {
 }
 
 // The pre-profile native package receipt used the inventory lifecycle and
-// surface contract as its source identity. Profile policy metadata is bound
-// separately through selectionFingerprint, so adding the policy must not
-// invalidate the legacy compatibility package byte identity.
+// surface contract as its source identity. Profile policy and project-agent
+// projection metadata are bound separately through selectionFingerprint, so
+// adding either policy must not invalidate the legacy compatibility package
+// byte identity.
 function legacyInventoryDigest(inventory) {
   const source = { ...(inventory || {}) };
   delete source.profile_policy;
   delete source.standalone_dependencies;
+  delete source.project_agent_projection;
   return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 }
 

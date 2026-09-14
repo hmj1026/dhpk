@@ -525,10 +525,13 @@ function resolveInventoryRevision(inventory, requested) {
       }
     }
   }
-  // Older inventories have no explicit revision. Binding to their complete
-  // deterministic digest prevents a stale catalog from being mistaken for the
-  // current source.
-  return 'sha256:' + fingerprint(inventory);
+  // Older inventories have no explicit revision. Legacy skill/package
+  // artifacts bind to the skill inventory, while the project-agent policy is
+  // a separate compiler-owned plan contract and must not invalidate those
+  // artifacts merely because the new project projection is declared.
+  const source = isRecord(inventory) ? { ...inventory } : inventory;
+  if (isRecord(source)) delete source.project_agent_projection;
+  return 'sha256:' + fingerprint(source);
 }
 
 function isCodexInvokableSkill(skill) {

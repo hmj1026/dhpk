@@ -200,6 +200,68 @@ test('AGY project probe reports UNAVAILABLE without promoting structural PASS', 
   }
 });
 
+test('Claude project probe validates the receipt-owned discovery binding', () => {
+  const sourceRoot = projectSourceFixture();
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-probe-'));
+  try {
+    const inventory = projectProbeInventory();
+    inventory.skills[0].surfaces.push('claude-core');
+    inventory.surface_membership['claude-core'] = ['probe'];
+    inventory.project_agent_projection.profiles['portable-core'].hosts = ['claude'];
+    materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      sourceRoot,
+      projectRoot,
+      inventory,
+      profileId: 'portable-core',
+      requestedHosts: ['claude'],
+    });
+    const result = runProbe('claude-project', fs.realpathSync(projectRoot));
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.platform, 'claude-project', JSON.stringify(payload));
+    assert.strictEqual(payload.status, 'NOT_RUN', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.surface, 'claude-project', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.status, 'NOT_RUN', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.adapter.id, 'claude-project-discovery', JSON.stringify(payload));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('Claude project probe reports UNAVAILABLE when the CLI is absent', () => {
+  const sourceRoot = projectSourceFixture();
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-probe-unavailable-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-probe-bin-'));
+  try {
+    const inventory = projectProbeInventory();
+    inventory.skills[0].surfaces.push('claude-core');
+    inventory.surface_membership['claude-core'] = ['probe'];
+    inventory.project_agent_projection.profiles['portable-core'].hosts = ['claude'];
+    materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      sourceRoot,
+      projectRoot,
+      inventory,
+      profileId: 'portable-core',
+      requestedHosts: ['claude'],
+    });
+    const result = runProbe('claude-project', fs.realpathSync(projectRoot), ['--execute'], {
+      ...process.env,
+      PATH: bin,
+    });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'UNAVAILABLE', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceEvidence.status, 'UNAVAILABLE', JSON.stringify(payload));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 test('Codex discovery reports UNAVAILABLE before NOT_RUN when the CLI is absent', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-absent-'));
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-absent-bin-'));

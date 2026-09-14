@@ -15,7 +15,11 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
-const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
+const {
+  compileDistribution,
+  verifyDistribution,
+  validateProjectAgentProjection,
+} = require('./distribution-compiler');
 const {
   fingerprint,
   createDistributionArtifact,
@@ -220,7 +224,7 @@ function preserveProjectionContract(generated, existing) {
     })
     : generated.skills;
   const contract = {};
-  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'renamed_skill_names', 'external_skill_packages', 'agent_roster', 'standalone_dependencies']) {
+  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'renamed_skill_names', 'external_skill_packages', 'agent_roster', 'standalone_dependencies', 'project_agent_projection']) {
     if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = cloneInventoryValue(existing[key]);
   }
   return { ...generated, ...(Array.isArray(generated && generated.skills) ? { skills } : {}), ...contract };
@@ -1064,6 +1068,10 @@ function validateDistributionInventoryV2(input = {}) {
   errors.push(...selection.errors);
   const profilePolicy = validateCapabilityProfilePolicy({ inventory });
   errors.push(...profilePolicy.errors);
+  if (inventory.project_agent_projection !== undefined) {
+    const projectProjection = validateProjectAgentProjection(inventory);
+    errors.push(...projectProjection.errors);
+  }
   const internalRuntime = validateInternalRuntimeSkills({ inventory, skillIds: ids });
   errors.push(...internalRuntime.errors);
   const routing = validateSkillRoutingFamilies({ families: inventory.skill_routing_families, skillIds: ids, skills: inventory.skills });

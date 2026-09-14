@@ -47,15 +47,15 @@ function parseArgs(argv) {
     else if (arg === '--version') args.version = argv[++i];
     else if (arg === '--inventory') args.inventory = argv[++i];
     else if (arg === '--help') {
-      console.log('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor|agy-project --package-root <path> [--inventory <path>] [--execute] [--version X.Y.Z]');
+      console.log('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor|agy-project|claude-project --package-root <path> [--inventory <path>] [--execute] [--version X.Y.Z]');
       process.exit(0);
     } else {
       console.error(`consumer-platform-probe: unknown argument '${redactSensitiveText(String(arg), { maxLength: 200 })}'`);
       process.exit(2);
     }
   }
-  if (!['codex', 'agent-plugin', 'cursor', 'agy-project'].includes(args.platform) || !args.packageRoot) {
-    console.error('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor|agy-project --package-root <path> [--inventory <path>] [--execute] [--version X.Y.Z]');
+  if (!['codex', 'agent-plugin', 'cursor', 'agy-project', 'claude-project'].includes(args.platform) || !args.packageRoot) {
+    console.error('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor|agy-project|claude-project --package-root <path> [--inventory <path>] [--execute] [--version X.Y.Z]');
     process.exit(2);
   }
   return args;
@@ -530,8 +530,126 @@ function runAgyProjectProbe(root, structural, execute = false) {
   }
 }
 
+const CLAUDE_PROJECT_DISCOVERY_PROMPT = 'Read only. Discover the generated dhpk skill under .claude/skills. Return exactly CLAUDE_PROJECT_SMOKE_OK. Do not call tools or edit files.';
+const CLAUDE_PROJECT_PROBE_CLAIMS = ['project-artifact-structure', 'claude-project-discovery', 'consumer-route'];
+
+function assertPhysicalProjectRoot(root, label) {
+  let stat;
+  try { stat = fs.lstatSync(root); } catch (error) { throw new Error(`${label} is unavailable: ${error.message}`); }
+  if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`${label} must be a physical directory`);
+}
+
+function runClaudeProjectProbe(root, structural, execute = false) {
+  const receipt = structural && structural.receipt;
+  const evidenceFingerprint = (value) => typeof value === 'string' && /^[a-f0-9]{64}$/i.test(value) ? `sha256:${value}` : value;
+  const command = 'claude -p <smoke-prompt> --output-format text';
+  const blocked = (reason) => ({
+    status: 'BLOCKED',
+    reason,
+    commands: [command],
+    checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(),
+  });
+  const binding = receipt && receipt.hostBindings && receipt.hostBindings.claude;
+  const discovery = binding && binding.discovery;
+  const bindingPaths = receipt && receipt.bindingPaths && receipt.bindingPaths.claude;
+  if (!binding || binding.surface !== 'claude-core' || binding.shape !== 'project-skill-directory'
+    || !discovery || discovery.adapterId !== 'claude-project-discovery'
+    || discovery.adapterVersion !== '1.0.0') {
+    return blocked('Claude project probe requires a concrete receipt Host binding for the Claude discovery adapter');
+  }
+  if (!Array.isArray(bindingPaths) || bindingPaths.length === 0 || !structural.outputRoot) {
+    return blocked('Claude project probe requires receipt-owned discovery paths');
+  }
+  for (const entry of bindingPaths) {
+    if (!entry || typeof entry.path !== 'string' || typeof entry.target !== 'string') return blocked('Claude project probe found an invalid discovery binding path');
+    const target = path.join(root, entry.path);
+    try {
+      const stat = fs.lstatSync(target);
+      if (!stat.isSymbolicLink() || fs.readlinkSync(target) !== entry.target) return blocked(`Claude discovery binding is not the receipt-owned symlink: ${entry.path}`);
+      if (!fs.existsSync(target)) return blocked(`Claude discovery binding target is unavailable: ${entry.path}`);
+    } catch (_) {
+      return blocked(`Claude discovery binding is unavailable: ${entry.path}`);
+    }
+  }
+  const planFingerprint = evidenceFingerprint(receipt.planFingerprint);
+  const artifactFingerprint = evidenceFingerprint(receipt.artifactFingerprint);
+  const identity = {
+    adapter: { id: 'claude-project-discovery', version: '1.0.0' },
+    planFingerprint,
+    artifactFingerprint,
+    artifacts: [
+      { path: '<project-root>/.agents/.dhpk-installed.json', version: null },
+      ...bindingPaths.map((entry) => ({ path: `<project-root>/${entry.path}`, version: null })),
+    ],
+  };
+  if (!execute) {
+    return {
+      status: 'NOT_RUN',
+      reason: 'Claude project discovery runtime probe is opt-in; pass --execute on an isolated runner',
+      commands: [command],
+      checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(),
+      ...identity,
+    };
+  }
+
+  const tempHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-home-')));
+  const stagingRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-project-artifact-')));
+  const stagedProject = path.join(stagingRoot, 'project');
+  const workspace = path.join(stagingRoot, 'workspace');
+  const env = probeEnvironment(tempHome);
+  const limits = boundedCodexLimits();
+  try {
+    const resolution = resolveExecutable('claude', env.PATH);
+    if (!resolution) return { status: 'UNAVAILABLE', reason: 'claude CLI is not installed', commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    if (resolution.blocked) return { status: 'BLOCKED', reason: resolution.blocked, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    assertPhysicalProjectRoot(root, 'Claude project artifact');
+    fs.cpSync(root, stagedProject, { recursive: true, dereference: false });
+    assertPhysicalProjectRoot(stagedProject, 'staged Claude project artifact');
+    fs.mkdirSync(workspace, { recursive: true, mode: 0o700 });
+    const sandboxOptions = {
+      env,
+      cwd: stagedProject,
+      pathValue: env.PATH,
+      writablePaths: [workspace, env.HOME],
+      privateRoot: os.tmpdir(),
+      timeoutMs: limits.timeoutMs,
+      maxOutputBytes: limits.maxOutputBytes,
+    };
+    const result = executeWithSandbox(resolution.path, ['-p', CLAUDE_PROJECT_DISCOVERY_PROMPT, '--output-format', 'text'], sandboxOptions);
+    if (result.error && result.error.code === 'ETIMEDOUT') {
+      terminateSandboxProcess(result);
+      return { status: 'BLOCKED', reason: `Claude project probe timed out after ${limits.timeoutMs} ms`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    }
+    if (result.error && result.error.code === 'ENOBUFS') {
+      terminateSandboxProcess(result);
+      return { status: 'BLOCKED', reason: `Claude project probe output exceeded ${limits.maxOutputBytes} bytes`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    }
+    if (result.error && ['DHPK_NETWORK_SANDBOX_UNAVAILABLE', 'DHPK_SANDBOX_PATH_UNSAFE'].includes(result.error.code)) {
+      return { status: 'BLOCKED', reason: result.error.message, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    }
+    if (result.error) return { status: 'UNAVAILABLE', reason: `claude project probe unavailable: ${redactSensitiveText(String(result.error.message || result.error), { maxLength: 800 })}`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    if (result.status !== 0) {
+      const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+      const lower = output.toLowerCase();
+      if (/unknown argument|unknown flag|flag provided but not defined/.test(lower)) return { status: 'SKIP_INCOMPATIBLE', reason: 'claude CLI does not support the bounded project skill probe route', diagnostic: diagnostic(result), commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+      if (/authentication|unauthorized|api key|credential|network|connection|timed out|timeout|dns|resolve/.test(lower)) return { status: 'UNAVAILABLE', reason: 'claude project probe is unavailable in the isolated runtime', diagnostic: diagnostic(result), commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+      return { status: 'FAIL', reason: `claude project probe failed with exit ${result.status}`, diagnostic: diagnostic(result), commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    }
+    if (String(result.stdout || '').trim() !== 'CLAUDE_PROJECT_SMOKE_OK') return { status: 'FAIL', reason: 'claude project probe did not return the exact CLAUDE_PROJECT_SMOKE_OK marker', diagnostic: diagnostic(result), commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+    return { status: 'PASS', reason: 'bounded Claude project probe returned CLAUDE_PROJECT_SMOKE_OK', network: 'disabled', commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+  } catch (error) {
+    return { status: 'BLOCKED', reason: `Claude project probe could not start: ${redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 })}`, commands: [command], checkedClaims: CLAUDE_PROJECT_PROBE_CLAIMS.slice(), ...identity };
+  } finally {
+    fs.rmSync(tempHome, { recursive: true, force: true });
+    fs.rmSync(stagingRoot, { recursive: true, force: true });
+  }
+}
+
 function validatePackage(platform, root, inventoryPath = null) {
   if (platform === 'agy-project') {
+    return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
+  }
+  if (platform === 'claude-project') {
     return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
   }
   let inventory = null;
@@ -551,6 +669,8 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
       ? 'agent-plugin'
       : platform === 'agy-project'
         ? 'agy-plugin'
+        : platform === 'claude-project'
+          ? 'claude-project'
         : 'cursor-plugin';
   const evidence = normalizeConsumerEvidence({
     stage: 'CONSUMER',
@@ -569,6 +689,8 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
       reasons: result.reasons || (result.reason ? [result.reason] : []),
       checkedClaims: result.checkedClaims || (platform === 'agy-project'
         ? ['project-artifact-structure', 'project-agent-direct-file', 'consumer-route']
+        : platform === 'claude-project'
+          ? CLAUDE_PROJECT_PROBE_CLAIMS.slice()
         : ['package-manifest', 'consumer-route']),
       ...(result.planFingerprint ? { planFingerprint: result.planFingerprint } : {}),
       ...(result.artifactFingerprint ? { artifactFingerprint: result.artifactFingerprint } : {}),
@@ -588,7 +710,8 @@ function main() {
     // Preflight the complete tree before reading a caller-controlled manifest;
     // this bounds bytes/entries and rejects symlinks, including generated
     // bytecode paths that identity fingerprints intentionally omit.
-    assertPhysicalPackageRoot(root, `${args.platform} package`);
+    if (args.platform === 'agy-project' || args.platform === 'claude-project') assertPhysicalProjectRoot(root, `${args.platform} artifact`);
+    else assertPhysicalPackageRoot(root, `${args.platform} package`);
   } catch (error) {
     const blocked = {
       platform: args.platform,
@@ -601,9 +724,9 @@ function main() {
     const normalized = normalizedProbeEvidence(args.platform, null, blocked, args.version || null);
     emit({ ...blocked, ...normalized }, 1);
   }
-  const manifest = args.platform === 'agy-project' ? null : packageManifest(args.platform, root);
-  if (args.platform !== 'agy-project' && !manifest) emit({ platform: args.platform, status: 'BLOCKED', packageRoot: root, reason: 'package manifest is missing', commands: [] }, 1);
-  if (args.platform !== 'agy-project' && manifest.error) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: manifest.error, commands: [] }, 1);
+  const manifest = args.platform === 'agy-project' || args.platform === 'claude-project' ? null : packageManifest(args.platform, root);
+  if (args.platform !== 'agy-project' && args.platform !== 'claude-project' && !manifest) emit({ platform: args.platform, status: 'BLOCKED', packageRoot: root, reason: 'package manifest is missing', commands: [] }, 1);
+  if (args.platform !== 'agy-project' && args.platform !== 'claude-project' && manifest.error) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: manifest.error, commands: [] }, 1);
   let structural;
   try {
     structural = validatePackage(args.platform, root, args.inventory || null);
@@ -633,6 +756,8 @@ function main() {
       ? runAgentPluginProbe(root, args.execute)
       : args.platform === 'agy-project'
         ? runAgyProjectProbe(root, structural, args.execute)
+        : args.platform === 'claude-project'
+          ? runClaudeProjectProbe(root, structural, args.execute)
         : runCursorProbe(root, args.execute);
   if (!STATUSES.includes(result.status)) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: `unknown probe status ${result.status}` }, 1);
   let normalized;

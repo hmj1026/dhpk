@@ -2,7 +2,9 @@
 
 // Project-local compatibility projection for the two documented `.agents/skills`
 // loaders. Canonical skill packages remain under skills/; this adapter owns only
-// generated consumer files and their receipt.
+// generated consumer files and their receipt. New external project writes go
+// through project-agent-projection-publisher; the in-checkout branch below is a
+// retained compatibility path for the historical generator contract.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -506,6 +508,8 @@ function writeJson(filePath, value) {
 
 function materializeAgentsSkillsProjection(options = {}) {
   if (usesRelocatableProjection(options)) return materializeRelocatableAgentsSkillsProjection(options);
+  // Compatibility-only writer: preserve the historical in-checkout byte and
+  // receipt contract until a separately reviewed retirement migration removes it.
   const { root, inventory, outDir = path.join(root, '.agents', 'skills'), allowCanonicalChanges = false } = options;
   if (!root || !inventory) throw new Error('root and inventory are required');
   const sourceRoot = path.resolve(root);

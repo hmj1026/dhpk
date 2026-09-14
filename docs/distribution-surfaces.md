@@ -107,11 +107,17 @@ rollback therefore have one owner for shared portable skills and a separate
 owner for Cursor-native files.
 
 The project-local `.agents/skills` compatibility projection is a generated
-adapter over that same canonical selection. It emits Cursor's directory-shaped
-`<name>/SKILL.md` and Antigravity's direct `<name>.md` discovery shim under one
-receipt-owned root. It does not re-home canonical skills and it does not make
-`.agents/agents` or `.agents/rules` official paths: Codex, Cursor, and AGY keep
-their documented platform-native agent/rule projections.
+adapter over that same canonical selection. The retained no-argument wrapper
+supports an in-checkout compatibility tree; the external project route emits
+Cursor/Codex directory-shaped `<name>/SKILL.md` packages and Antigravity direct
+`<name>.md` adapters under one receipt-owned root. Its sole lifecycle receipt is
+`.agents/.dhpk-installed.json`; Claude, when selected, receives a symlink
+discovery adapter at `.claude/skills/<name>` that points to the generated
+artifact. AGY files are self-contained by default, and sibling package
+references require a passing consumer probe. It does not re-home canonical
+skills and it does not make `.agents/agents` or `.agents/rules` official paths:
+Codex, Cursor, and AGY keep their documented platform-native agent/rule
+projections.
 
 ## Claude publication: raw compatibility surface and materialized default
 

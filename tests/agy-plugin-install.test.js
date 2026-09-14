@@ -8,6 +8,7 @@ const { materializeAgyPluginPackage } = require('../scripts/lib/agy-plugin-packa
 const {
   resolveAgyInstallRoot,
   inspectAgyInstallTargets,
+  observeAgyInstallCandidate,
   resolveAgyInstallTarget,
   installAgyPlugin,
   migrateAgyPlugin,
@@ -140,6 +141,70 @@ test('blocks ambiguous canonical and legacy targets and migrates only with expli
     assert.strictEqual(migrated.classification, 'MIGRATED_LEGACY');
     assert.ok(fs.existsSync(path.join(canonical, 'provenance.json')));
     assert.ok(!fs.existsSync(path.join(legacy, 'provenance.json')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('ignores empty and incidental legacy directories after migration', () => {
+  const root = tmp();
+  try {
+    const first = packageFixture(root, '# First\n');
+    const canonical = path.join(root, '.gemini/antigravity-cli/plugins/dhpk');
+    const legacy = path.join(root, '.gemini/config/plugins/dhpk');
+    installAgyPlugin({ sourceRoot: first.output, targetRoot: legacy, mode: 'install' });
+    migrateAgyPlugin({ sourceRoot: first.output, homeDirectory: root });
+
+    const empty = inspectAgyInstallTargets({ sourceRoot: first.output, homeDirectory: root });
+    assert.strictEqual(empty.status, 'PASS', JSON.stringify(empty));
+    assert.strictEqual(empty.target_role, 'canonical');
+
+    fs.mkdirSync(legacy, { recursive: true });
+    fs.writeFileSync(path.join(legacy, '.DS_Store'), 'incidental\n');
+    const incidental = inspectAgyInstallTargets({ sourceRoot: first.output, homeDirectory: root });
+    assert.strictEqual(incidental.status, 'PASS', JSON.stringify(incidental));
+    assert.strictEqual(incidental.target_role, 'canonical');
+    assert.ok(fs.existsSync(path.join(canonical, 'provenance.json')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('keeps a foreign legacy checkout visible beside the canonical target', () => {
+  const root = tmp();
+  try {
+    const first = packageFixture(root, '# First\n');
+    const canonical = path.join(root, '.gemini/antigravity-cli/plugins/dhpk');
+    const legacy = path.join(root, '.gemini/config/plugins/dhpk');
+    installAgyPlugin({ sourceRoot: first.output, targetRoot: canonical, mode: 'install' });
+    fs.mkdirSync(path.join(legacy, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(legacy, 'plugin.json'), '{"name":"foreign"}\n');
+
+    const report = inspectAgyInstallTargets({ sourceRoot: first.output, homeDirectory: root });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.classification, 'AMBIGUOUS_TARGETS');
+    assert.ok(report.candidates.some((candidate) => candidate.role === 'legacy-1' && candidate.exists));
+    assert.match(report.next_action, /target|ambiguity/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('lifecycle observation distinguishes invalid receipts and modified managed content', () => {
+  const root = tmp();
+  try {
+    const first = packageFixture(root, '# First\n');
+    const target = path.join(root, '.gemini/antigravity-cli/plugins/dhpk');
+    installAgyPlugin({ sourceRoot: first.output, targetRoot: target, mode: 'install' });
+    fs.appendFileSync(path.join(target, 'agents/sample.md'), '\n# local edit\n');
+    const modified = observeAgyInstallCandidate({ role: 'canonical', root: target });
+    assert.strictEqual(modified.installed, true);
+    assert.strictEqual(modified.classification, 'MODIFIED_MANAGED');
+
+    fs.writeFileSync(path.join(target, 'provenance.json'), '{not-json}\n');
+    const invalid = observeAgyInstallCandidate({ role: 'canonical', root: target });
+    assert.strictEqual(invalid.installed, true);
+    assert.strictEqual(invalid.classification, 'INVALID_RECEIPT');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

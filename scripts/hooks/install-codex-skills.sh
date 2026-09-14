@@ -171,6 +171,7 @@ PLUGIN_ROOT = os.environ['DHPK_PLUGIN_ROOT']
 INSTALLER_ROOT = os.environ.get('DHPK_INSTALLER_ROOT', PLUGIN_ROOT)
 PROJECT_ROOT = os.environ['DHPK_PROJECT_ROOT']
 HARNESS_KIND = os.environ.get('DHPK_HARNESS_KIND', 'codex')
+SURFACE_LABEL = 'Cursor' if HARNESS_KIND == 'cursor' else 'Codex'
 SRC_REL = os.environ.get('DHPK_SRC_REL', 'codex')
 DEST_REL = os.environ.get('DHPK_DEST_REL', '.codex')
 SOURCE_KINDS = tuple(kind.strip() for kind in os.environ.get('DHPK_SOURCE_KINDS', 'skills,agents').split(',') if kind.strip())
@@ -646,12 +647,12 @@ def acquire_install_lock():
         )
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             os.close(fd)
-            raise ValueError('project .codex install lock is not a regular file')
+            raise ValueError(f'project {DEST_REL} install lock is not a regular file')
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             os.close(fd)
-            raise ValueError('another Codex installer is already reconciling this project')
+            raise ValueError(f'another {SURFACE_LABEL} installer is already reconciling this project')
         INSTALL_LOCK_FD = fd
     finally:
         os.close(root_fd)
@@ -693,7 +694,7 @@ def read_manifest_document():
         )
         if not stat.S_ISREG(os.fstat(fd).st_mode):
             os.close(fd)
-            raise ValueError('project .codex receipt is not a regular file')
+            raise ValueError(f'project {DEST_REL} receipt is not a regular file')
         with os.fdopen(fd, encoding='utf-8') as receipt_file:
             return json.load(
                 receipt_file,
@@ -936,7 +937,7 @@ def restore_backup_copy(backup, destination):
     safe_destination(destination_relative)
     if os.path.islink(backup) and (
             not (is_within(backup, CODEX_ROOT) or is_within(backup, PLUGIN_ROOT))):
-        raise ValueError(f'rollback backup symlink escapes the Codex root: {backup_relative}')
+        raise ValueError(f'rollback backup symlink escapes the {SURFACE_LABEL} root: {backup_relative}')
     validate_source_tree(backup, 'rollback backup', allowed_roots=(CODEX_ROOT, PLUGIN_ROOT))
     backup_parent_relative, backup_name = os.path.split(backup_relative)
     destination_parent_relative, destination_name = os.path.split(destination_relative)
@@ -2626,7 +2627,7 @@ def validate_skill_metadata(sources, metadata):
             incomplete.append(name)
     if incomplete:
         joined = ', '.join(incomplete)
-        raise ValueError(f'distribution inventory skill metadata is missing or incomplete for Codex skill sources: {joined} (schema-v3 receipts require id and name)')
+        raise ValueError(f'distribution inventory skill metadata is missing or incomplete for {SURFACE_LABEL} skill sources: {joined} (schema-v3 receipts require id and name)')
 
 
 def read_receipt():
@@ -2685,7 +2686,7 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
         if key in legacy_to_public or basename in legacy_to_public:
             legacy_names.append(key)
             requires_migration = True
-            reasons.append(f'legacy Codex skill name {key} shadows canonical {legacy_to_public.get(key) or legacy_to_public.get(basename)}')
+            reasons.append(f'legacy {SURFACE_LABEL} skill name {key} shadows canonical {legacy_to_public.get(key) or legacy_to_public.get(basename)}')
         else:
             retired_names.append(key)
 
@@ -2698,7 +2699,7 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
         reasons.append('receipt plugin version differs from source')
     if isinstance(receipt, dict) and receipt.get('source_fingerprint') != fingerprint:
         requires_migration = True
-        reasons.append('receipt source fingerprint differs from the current Codex source')
+        reasons.append(f'receipt source fingerprint differs from the current {SURFACE_LABEL} source')
     if isinstance(receipt, dict) and receipt.get('profileId') is not None:
         if receipt.get('profileId') != SELECTION_PROFILE_ID:
             requires_migration = True
@@ -3603,17 +3604,17 @@ if PROVIDER_CHECK.get('status') == 'ENABLED':
         'providerCheck': PROVIDER_CHECK,
         'receiptCheck': RECEIPT_CHECK,
         'receipt_state': 'blocked',
-        'next_action': 'disable Codex plugin dhpk@dhpk, then re-run project-local sync',
+        'next_action': f'disable {SURFACE_LABEL} plugin dhpk@dhpk, then re-run project-local sync',
     }
     if JSON_OUTPUT:
         print(json.dumps(blocked_report, indent=2, sort_keys=True))
     else:
-        print('[install-codex-skills] BLOCKED: native Codex plugin dhpk@dhpk is enabled')
+        print(f'[install-codex-skills] BLOCKED: native {SURFACE_LABEL} plugin dhpk@dhpk is enabled')
         print('[install-codex-skills] ACTION REQUIRED: ' + blocked_report['next_action'])
     sys.exit(2)
 if PROVIDER_CHECK.get('status') == 'UNAVAILABLE':
     print(
-        "[install-codex-skills] note: Codex provider check UNAVAILABLE; "
+        f"[install-codex-skills] note: {SURFACE_LABEL} provider check UNAVAILABLE; "
         "project-local sync will continue without native-plugin activation evidence.",
         file=sys.stderr,
     )
