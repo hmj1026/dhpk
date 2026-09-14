@@ -25,4 +25,21 @@ test('gen-agents-skills CLI materializes a project-local compatibility tree', ()
   }
 });
 
+test('gen-agents-skills CLI can materialize outside the canonical source checkout', () => {
+  const projectRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-agents-skills-cli-project-'));
+  try {
+    const result = spawnSync(process.execPath, [
+      GENERATOR,
+      '--source-root', ROOT,
+      '--project-root', projectRoot,
+      '--profile', 'portable-core',
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')));
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'flow-guide', 'SKILL.md')));
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 run('gen-agents-skills');
