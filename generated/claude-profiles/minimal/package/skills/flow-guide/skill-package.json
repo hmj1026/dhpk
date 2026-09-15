@@ -1,0 +1,25 @@
+{
+  "schema": "dhpk.skill-package.v1",
+  "id": "flow-guide",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "resources": [
+    { "path": "SKILL.md", "kind": "entry", "required": true },
+    { "path": "references", "kind": "reference", "required": true },
+    { "path": "scripts", "kind": "runtime", "required": true }
+  ],
+  "runtimeAssets": [
+    { "source": "rules/execution-policy.md", "destination": "references/execution-policy.md", "required": true },
+    { "source": "rules/execution-policy-kernel.md", "destination": "references/execution-policy-kernel.md", "required": true },
+    { "source": "scripts/lib/skill-usage.js", "destination": "scripts/_lib/skill-usage.js", "required": true },
+    { "source": "scripts/lib/utils.js", "destination": "scripts/_lib/utils.js", "required": true },
+    { "source": "scripts/lib/feature-resolver.js", "destination": "scripts/_lib/feature-resolver.js", "required": true }
+  ],
+  "fallback": [
+    "package-local",
+    "declared-dependency-closure",
+    "receipt-bound-project-projection",
+    "explicit-development-source-root",
+    "blocked-resource-missing"
+  ]
+}
