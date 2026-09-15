@@ -29,38 +29,6 @@
     }
   },
   "standalone_dependencies": {
-    "flow-guide": {
-      "files": [
-        {
-          "source": "rules/execution-policy.md",
-          "destination": "rules/execution-policy.md"
-        },
-        {
-          "source": "rules/execution-policy-kernel.md",
-          "destination": "rules/execution-policy-kernel.md"
-        },
-        {
-          "source": "scripts/lib/flow-handoff-contract.js",
-          "destination": "scripts/lib/flow-handoff-contract.js"
-        }
-      ]
-    },
-    "flow-drive": {
-      "files": [
-        {
-          "source": "rules/execution-policy.md",
-          "destination": "rules/execution-policy.md"
-        },
-        {
-          "source": "rules/execution-policy-kernel.md",
-          "destination": "rules/execution-policy-kernel.md"
-        },
-        {
-          "source": "scripts/lib/flow-handoff-contract.js",
-          "destination": "scripts/lib/flow-handoff-contract.js"
-        }
-      ]
-    },
     "code-trace": {
       "files": [
         {
@@ -2741,7 +2709,8 @@
       "agy-fast-worker",
       "cli-dispatch-context",
       "cli-transport",
-      "codex-bridge"
+      "codex-bridge",
+      "flow-guide"
     ],
     "codex-native": [
       "cli-dispatch-context",
