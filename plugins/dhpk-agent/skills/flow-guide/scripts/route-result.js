@@ -2,7 +2,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { createFlowHandoff } = require('../../../scripts/lib/flow-handoff-contract');
+const { loadRuntimeModule } = require('./_lib/runtime-loader');
+const { createFlowHandoff } = loadRuntimeModule('flow-handoff-contract');
 
 const SCHEMA = 'dhpk.route-result.v3';
 const HOSTS = Object.freeze(['claude-code', 'codex-cli', 'agy', 'cursor', 'claude', 'codex']);
