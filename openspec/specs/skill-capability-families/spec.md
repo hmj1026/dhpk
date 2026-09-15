@@ -3,7 +3,9 @@
 ## Purpose
 
 Define a compact, ownership-aware skill interface that lets users and agents select a task-shaped capability without learning dhpk's former implementation-level skill names.
+
 ## Requirements
+
 ### Requirement: First-party workflows are exposed through nine capability families
 
 dhpk SHALL expose exactly nine portable first-party capability families:

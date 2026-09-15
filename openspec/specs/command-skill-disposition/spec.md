@@ -1,9 +1,12 @@
 # command-skill-disposition Specification
 
 ## Purpose
+
 Keep the canonical Host command inventory aligned with reusable Skill ownership,
 thin front doors, authority boundaries, and evidence states before publication.
+
 ## Requirements
+
 ### Requirement: Every canonical command has one explicit disposition
 
 The command inventory SHALL classify every canonical command as an existing

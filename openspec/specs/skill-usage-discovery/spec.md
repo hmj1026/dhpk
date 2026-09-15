@@ -6,7 +6,9 @@ Define one inventory-owned, machine-readable usage contract for every skill
 that Codex can invoke, then expose that contract through progressive help and
 deterministic host/documentation projections without duplicating procedure
 content from the canonical skill.
+
 ## Requirements
+
 ### Requirement: Codex-invokable skills declare an inventory-owned usage contract
 
 Every skill selected by the `codex-native` or `codex-sync` surface SHALL have
