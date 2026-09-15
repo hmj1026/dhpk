@@ -34,12 +34,9 @@ keep required, skipped, unavailable, and failed evidence distinct.
 
 ## `help`
 
-Run `node skills/flow-guide/scripts/action-runner.js help` (or the underlying
-`usage-card.js`) for the generated Codex catalog, or add one public skill name
-for a single usage card. Help is metadata
-only: it never invokes the named skill, loads its procedural references, or
-grants workspace, Git, or external-write authority. An unknown name and a known
-non-Codex skill receive different diagnostics.
+Run `node skills/flow-guide/scripts/action-runner.js help` (or `usage-card.js`) for the generated Codex catalog, or add one public skill name for a single usage card.
+Help is metadata only: it never invokes the named skill, loads procedural references, or grants workspace/Git/external-write authority.
+Unknown and known non-Codex skill names receive different diagnostics.
 
 ## `route`
 
@@ -65,9 +62,9 @@ The result has exactly `schema`, `action`, `host`, `cleanedQuery`, `options`,
 
 Read the package-local `references/execution-policy.md` projection first (its
 canonical authoring source is `rules/execution-policy.md`). Use
-`references/invocation-precedence.md` when more than one owner appears to
-match, and load the phase-specific delivery reference only after the phase is
-known. Return the source pointer, applicable gate, and one next handoff.
+`references/invocation-precedence.md` when more than one owner appears to match,
+and load the phase-specific delivery reference only after the phase is known.
+Return the source pointer, applicable gate, and one next handoff.
 
 ## `next`
 
