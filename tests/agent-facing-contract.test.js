@@ -80,7 +80,7 @@ test('rules and commands point to policy ownership and execution outcomes', () =
   const ruleFiles = relativeFiles('rules', (file) => file.endsWith('.md'));
   const commandFiles = relativeFiles('commands', (file) => file.endsWith('.md') && !file.endsWith('/INDEX.md'));
   assert.strictEqual(ruleFiles.length, 5, 'rule inventory count drifted');
-  assert.strictEqual(commandFiles.length, 29, 'invocable command inventory count drifted');
+  assert.strictEqual(commandFiles.length, 31, 'invocable command inventory count drifted');
   const findings = [];
   for (const relative of ruleFiles) {
     const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');

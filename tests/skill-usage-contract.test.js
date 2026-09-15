@@ -37,6 +37,13 @@ function usage(overrides = {}) {
     input_kind: 'identifier',
     invocation_class: 'explicit-only',
     effect_authority: 'workspace-write',
+    inputs: [{
+      id: 'confirmed-spec-or-change-id',
+      syntax: '<confirmed-spec-or-change-id>',
+      value_kind: 'string',
+      required: true,
+      summary: 'Select the confirmed specification or change',
+    }],
     actions: [{
       id: 'apply',
       summary: 'Apply the confirmed specification',
@@ -103,6 +110,47 @@ test('usage schema rejects duplicate action and option identifiers', () => {
   assertUsageError(skill(), candidate, /flow-drive|duplicate|action|option/i);
 });
 
+test('usage schema requires closed positional-input metadata and valid enum defaults', () => {
+  const missing = usage({
+    inputs: [{ id: 'input', syntax: '<input>', value_kind: 'string', required: true }],
+  });
+  assertUsageError(skill(), missing, /input|summary|required/i);
+
+  const invalid = usage({
+    inputs: [{
+      ...usage().inputs[0],
+      value_kind: 'enum',
+      enum_values: ['one'],
+      default: 'two',
+    }],
+  });
+  assertUsageError(skill(), invalid, /input|enum|default/i);
+});
+
+test('usage schema validates legacy compatibility markers without promoting them', () => {
+  const candidate = usage({
+    options: [
+      usage().options[0],
+      {
+        id: 'legacy-plan',
+        syntax: '--legacy-plan',
+        value_kind: 'boolean',
+        required: false,
+        summary: 'Retired planning compatibility diagnostic',
+        legacy: {
+          replacement_id: 'plan',
+          diagnostic_only: true,
+          reason: 'Use the canonical plan option instead',
+        },
+      },
+    ],
+  });
+  const result = validateUsageContract(skill(), candidate);
+  assert.deepStrictEqual(result.errors, []);
+  const normalized = usageApi().normalizeSkillUsage({ skill: skill(), usage: candidate });
+  assert.strictEqual(normalized.options[1].legacy.diagnostic_only, true);
+});
+
 test('usage schema rejects unknown action references and invalid enum defaults', () => {
   const candidate = usage({
     options: [{
@@ -162,11 +210,12 @@ test('normalization returns a deterministic closed usage object', () => {
   const normalized = api.normalizeSkillUsage({ skill: skill(), usage: candidate });
   assert.ok(normalized && typeof normalized === 'object', 'normalized usage must be an object');
   assert.deepStrictEqual(Object.keys(normalized).sort(), [
-    'actions', 'display_name', 'effect_authority', 'examples', 'input_kind',
+    'actions', 'display_name', 'effect_authority', 'examples', 'input_kind', 'inputs',
     'invocation_class', 'options', 'summary', 'syntax',
   ]);
   assert.ok(Object.isFrozen(normalized), 'normalized usage must be immutable');
   assert.ok(Object.isFrozen(normalized.actions), 'normalized actions must be immutable');
+  assert.ok(Object.isFrozen(normalized.inputs), 'normalized inputs must be immutable');
   assert.ok(Object.isFrozen(normalized.options), 'normalized options must be immutable');
 });
 

@@ -39,9 +39,20 @@ const USAGE_KEYS = Object.freeze([
   'input_kind',
   'invocation_class',
   'effect_authority',
+  'inputs',
   'actions',
   'options',
   'examples',
+]);
+const INPUT_KEYS = Object.freeze([
+  'id',
+  'syntax',
+  'value_kind',
+  'required',
+  'summary',
+  'default',
+  'enum_values',
+  'applies_to',
 ]);
 const ACTION_KEYS = Object.freeze([
   'id',
@@ -58,9 +69,11 @@ const OPTION_KEYS = Object.freeze([
   'summary',
   'default',
   'enum_values',
+  'legacy',
   'applies_to',
 ]);
 const EXAMPLE_KEYS = Object.freeze(['prompt', 'summary']);
+const LEGACY_KEYS = Object.freeze(['replacement_id', 'diagnostic_only', 'reason']);
 
 // Higher values carry more authority. A child action can never grant more
 // authority than the usage record itself.
@@ -231,6 +244,111 @@ function validateAction(errors, action, index, name, parentAuthority, actionIds,
   }
 }
 
+function validateAppliesTo(errors, value, prefix, actionIds, owner) {
+  if (!Array.isArray(value)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an array of action ids');
+    return;
+  }
+  const seen = new Set();
+  value.forEach((actionId, actionIndex) => {
+    if (typeof actionId !== 'string' || actionId.trim() === '') {
+      errors.push(owner + ' usage.' + prefix + '[' + actionIndex + '] must be a non-empty action id');
+    } else if (seen.has(actionId)) {
+      errors.push(owner + ' usage.' + prefix + " contains duplicate action id '" + actionId + "'");
+    } else {
+      seen.add(actionId);
+      if (!actionIds.has(actionId)) {
+        errors.push(owner + ' usage.' + prefix + " references unknown action '" + actionId + "'");
+      }
+    }
+  });
+}
+
+function validateValueDetails(errors, value, prefix, valueKindValid, owner) {
+  if (hasOwn(value, 'enum_values')) {
+    if (!Array.isArray(value.enum_values) || value.enum_values.length === 0) {
+      errors.push(owner + ' usage.' + prefix + '.enum_values must be a non-empty string array');
+    } else {
+      const values = new Set();
+      value.enum_values.forEach((item, itemIndex) => {
+        if (typeof item !== 'string' || item.trim() === '') {
+          errors.push(owner + ' usage.' + prefix + '.enum_values[' + itemIndex + '] must be a non-empty string');
+        } else if (values.has(item)) {
+          errors.push(owner + ' usage.' + prefix + ".enum_values contains duplicate '" + item + "'");
+        } else {
+          values.add(item);
+        }
+      });
+      if (valueKindValid && value.value_kind !== 'enum') {
+        errors.push(owner + ' usage.' + prefix + '.enum_values is only valid for value_kind enum');
+      }
+    }
+  } else if (valueKindValid && value.value_kind === 'enum') {
+    errors.push(owner + ' usage.' + prefix + '.enum_values is required for value_kind enum');
+  }
+
+  if (hasOwn(value, 'default')) {
+    if (value.value_kind === 'boolean' && typeof value.default !== 'boolean') {
+      errors.push(owner + ' usage.' + prefix + '.default must be boolean for value_kind boolean');
+    }
+    if (value.value_kind === 'string' && typeof value.default !== 'string') {
+      errors.push(owner + ' usage.' + prefix + '.default must be string for value_kind string');
+    }
+    if (value.value_kind === 'enum'
+        && (!Array.isArray(value.enum_values) || !value.enum_values.includes(value.default))) {
+      errors.push(owner + ' usage.' + prefix + '.default must be one of enum_values');
+    }
+  }
+}
+
+function validateInput(errors, input, index, actionIds, inputIds, owner) {
+  const prefix = 'inputs[' + index + ']';
+  if (!isRecord(input)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an object');
+    return;
+  }
+  addUnknownKeys(errors, input, INPUT_KEYS, prefix + '.', owner);
+
+  const idValid = requireString(errors, input.id, prefix + '.id', owner, { max: 64 });
+  if (idValid && !IDENTIFIER.test(input.id)) {
+    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
+  }
+  if (idValid && inputIds.has(input.id)) {
+    errors.push(owner + " usage has duplicate input id '" + input.id + "'");
+  } else if (idValid) {
+    inputIds.add(input.id);
+  }
+
+  const syntaxValid = requireString(errors, input.syntax, prefix + '.syntax', owner, { max: 256 });
+  if (syntaxValid && !/^<[^<>\r\n]+>$/.test(input.syntax)) {
+    errors.push(owner + ' usage.' + prefix + '.syntax must be one positional placeholder enclosed in angle brackets');
+  }
+  const valueKindValid = requireEnum(errors, input.value_kind, 'value_kind', VALUE_KINDS, owner);
+  if (typeof input.required !== 'boolean') {
+    errors.push(owner + ' usage.' + prefix + '.required must be boolean');
+  }
+  requireString(errors, input.summary, prefix + '.summary', owner, { max: 256 });
+  validateValueDetails(errors, input, prefix, valueKindValid, owner);
+  if (hasOwn(input, 'applies_to')) validateAppliesTo(errors, input.applies_to, prefix + '.applies_to', actionIds, owner);
+}
+
+function validateLegacy(errors, value, prefix, optionIds, currentId, owner) {
+  if (!isRecord(value)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an object');
+    return;
+  }
+  addUnknownKeys(errors, value, LEGACY_KEYS, prefix + '.', owner);
+  if (typeof value.replacement_id !== 'string'
+      || value.replacement_id === currentId
+      || !optionIds.has(value.replacement_id)) {
+    errors.push(owner + ' usage.' + prefix + '.replacement_id must reference another option id');
+  }
+  if (typeof value.diagnostic_only !== 'boolean') {
+    errors.push(owner + ' usage.' + prefix + '.diagnostic_only must be boolean');
+  }
+  requireString(errors, value.reason, prefix + '.reason', owner, { max: 256 });
+}
+
 function validateOption(errors, option, index, actionIds, optionIds, owner) {
   const prefix = 'options[' + index + ']';
   if (!isRecord(option)) {
@@ -259,60 +377,8 @@ function validateOption(errors, option, index, actionIds, optionIds, owner) {
   }
   requireString(errors, option.summary, prefix + '.summary', owner, { max: 256 });
 
-  if (hasOwn(option, 'enum_values')) {
-    if (!Array.isArray(option.enum_values) || option.enum_values.length === 0) {
-      errors.push(owner + ' usage.' + prefix + '.enum_values must be a non-empty string array');
-    } else {
-      const values = new Set();
-      option.enum_values.forEach((value, valueIndex) => {
-        if (typeof value !== 'string' || value.trim() === '') {
-          errors.push(owner + ' usage.' + prefix + '.enum_values[' + valueIndex + '] must be a non-empty string');
-        } else if (values.has(value)) {
-          errors.push(owner + " usage." + prefix + ".enum_values contains duplicate '" + value + "'");
-        } else {
-          values.add(value);
-        }
-      });
-      if (valueKindValid && option.value_kind !== 'enum') {
-        errors.push(owner + ' usage.' + prefix + '.enum_values is only valid for value_kind enum');
-      }
-    }
-  } else if (valueKindValid && option.value_kind === 'enum') {
-    errors.push(owner + ' usage.' + prefix + '.enum_values is required for value_kind enum');
-  }
-
-  if (hasOwn(option, 'default')) {
-    if (option.value_kind === 'boolean' && typeof option.default !== 'boolean') {
-      errors.push(owner + ' usage.' + prefix + '.default must be boolean for value_kind boolean');
-    }
-    if (option.value_kind === 'string' && typeof option.default !== 'string') {
-      errors.push(owner + ' usage.' + prefix + '.default must be string for value_kind string');
-    }
-    if (option.value_kind === 'enum'
-        && (!Array.isArray(option.enum_values) || !option.enum_values.includes(option.default))) {
-      errors.push(owner + ' usage.' + prefix + '.default must be one of enum_values');
-    }
-  }
-
-  if (hasOwn(option, 'applies_to')) {
-    if (!Array.isArray(option.applies_to)) {
-      errors.push(owner + ' usage.' + prefix + '.applies_to must be an array of action ids');
-    } else {
-      const seen = new Set();
-      option.applies_to.forEach((actionId, actionIndex) => {
-        if (typeof actionId !== 'string' || actionId.trim() === '') {
-          errors.push(owner + ' usage.' + prefix + '.applies_to[' + actionIndex + '] must be a non-empty action id');
-        } else if (seen.has(actionId)) {
-          errors.push(owner + " usage." + prefix + ".applies_to contains duplicate action id '" + actionId + "'");
-        } else {
-          seen.add(actionId);
-          if (!actionIds.has(actionId)) {
-            errors.push(owner + " usage." + prefix + ".applies_to references unknown action '" + actionId + "'");
-          }
-        }
-      });
-    }
-  }
+  validateValueDetails(errors, option, prefix, valueKindValid, owner);
+  if (hasOwn(option, 'applies_to')) validateAppliesTo(errors, option.applies_to, prefix + '.applies_to', actionIds, owner);
 }
 
 function validateExample(errors, example, index, name, owner) {
@@ -396,6 +462,7 @@ function validateSkillUsage(input) {
     errors.push(owner + " usage.effect_authority '" + usage.effect_authority + "' requires explicit-only invocation");
   }
 
+  if (!Array.isArray(usage.inputs)) errors.push(owner + ' usage.inputs must be an array');
   if (!Array.isArray(usage.actions)) errors.push(owner + ' usage.actions must be an array');
   if (!Array.isArray(usage.options)) errors.push(owner + ' usage.options must be an array');
   if (!Array.isArray(usage.examples)) errors.push(owner + ' usage.examples must be an array');
@@ -412,6 +479,23 @@ function validateSkillUsage(input) {
       owner,
     ));
   }
+  const inputIds = new Set();
+  if (Array.isArray(usage.inputs)) {
+    usage.inputs.forEach((inputValue, index) => validateInput(
+      errors,
+      inputValue,
+      index,
+      actionIds,
+      inputIds,
+      owner,
+    ));
+    if (usage.input_kind === 'none' && usage.inputs.length > 0) {
+      errors.push(owner + ' usage.input_kind none must not declare positional inputs');
+    }
+    if (usage.input_kind !== 'none' && usage.inputs.length === 0) {
+      errors.push(owner + ' usage.input_kind ' + usage.input_kind + ' requires at least one positional input');
+    }
+  }
   const optionIds = new Set();
   if (Array.isArray(usage.options)) {
     usage.options.forEach((option, index) => validateOption(
@@ -422,6 +506,21 @@ function validateSkillUsage(input) {
       optionIds,
       owner,
     ));
+    usage.options.forEach((option, index) => {
+      if (isRecord(option) && hasOwn(option, 'legacy')) {
+        validateLegacy(errors, option.legacy, 'options[' + index + '].legacy', optionIds, option.id, owner);
+      }
+    });
+    const legacySyntaxes = usage.options
+      .filter((option) => isRecord(option) && hasOwn(option, 'legacy'))
+      .map((option) => option.syntax)
+      .filter((syntax) => typeof syntax === 'string');
+    for (const legacySyntax of legacySyntaxes) {
+      if ((typeof usage.syntax === 'string' && usage.syntax.includes(legacySyntax))
+          || (Array.isArray(usage.examples) && usage.examples.some((example) => isRecord(example) && typeof example.prompt === 'string' && example.prompt.includes(legacySyntax)))) {
+        errors.push(owner + ' usage legacy option ' + legacySyntax + ' must not appear in primary syntax or examples');
+      }
+    }
   }
   if (Array.isArray(usage.examples)) {
     usage.examples.forEach((example, index) => validateExample(errors, example, index, name, owner));
@@ -448,9 +547,25 @@ function normalizeOption(option) {
     required: option.required,
     summary: option.summary,
   };
-  for (const field of ['default', 'enum_values', 'applies_to']) {
+  for (const field of ['default', 'enum_values', 'legacy', 'applies_to']) {
     if (!hasOwn(option, field)) continue;
     normalized[field] = clone(option[field]);
+    if (field === 'applies_to') normalized[field].sort();
+  }
+  return normalized;
+}
+
+function normalizeInput(input) {
+  const normalized = {
+    id: input.id,
+    syntax: input.syntax,
+    value_kind: input.value_kind,
+    required: input.required,
+    summary: input.summary,
+  };
+  for (const field of ['default', 'enum_values', 'applies_to']) {
+    if (!hasOwn(input, field)) continue;
+    normalized[field] = clone(input[field]);
     if (field === 'applies_to') normalized[field].sort();
   }
   return normalized;
@@ -474,6 +589,7 @@ function normalizeSkillUsage(input) {
     input_kind: usage.input_kind,
     invocation_class: usage.invocation_class,
     effect_authority: usage.effect_authority,
+    inputs: usage.inputs.map(normalizeInput),
     actions: usage.actions.map(normalizeAction),
     options: usage.options.map(normalizeOption),
     examples: usage.examples.map(normalizeExample),
@@ -502,6 +618,7 @@ function renderSkillUsageCard(input) {
     input_kind: normalized.input_kind,
     invocation_class: normalized.invocation_class,
     effect_authority: normalized.effect_authority,
+    inputs: normalized.inputs,
     actions: normalized.actions,
     options: normalized.options,
     examples: normalized.examples,
@@ -598,15 +715,96 @@ function serializeSkillUsageCatalog(catalog) {
   return JSON.stringify(catalog, null, 2) + '\n';
 }
 
+function deriveArgumentHint(name, syntax) {
+  const prefix = '$' + name;
+  if (typeof syntax !== 'string' || !syntax.startsWith(prefix)) return '';
+  return syntax.slice(prefix.length).trim();
+}
+
+function formatDocumentationValue(value) {
+  if (Array.isArray(value)) return value.join('|');
+  if (typeof value === 'boolean') return String(value);
+  return String(value);
+}
+
+function renderSkillUsageDocumentation(catalog, locale = 'en') {
+  const isChinese = locale === 'zh-TW';
+  const lines = isChinese
+    ? [
+      '# Codex 技能使用發現',
+      '',
+      '<!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->',
+      '',
+      '來源 inventory revision：`' + catalog.sourceInventoryRevision + '`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。',
+      '',
+      '## 可用技能',
+    ]
+    : [
+      '# Codex skill usage discovery',
+      '',
+      '<!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->',
+      '',
+      'Source inventory revision: `' + catalog.sourceInventoryRevision + '`. Use `$flow-guide help` for read-only progressive usage cards.',
+      '',
+      '## Available skills',
+    ];
+
+  for (const entry of catalog.entries) {
+    const usage = entry.usage;
+    lines.push('', '### `$' + entry.name + '`', '');
+    lines.push((isChinese ? '摘要：' : 'Summary: ') + usage.summary);
+    lines.push((isChinese ? '語法：' : 'Syntax: ') + '`' + usage.syntax + '`');
+    lines.push((isChinese ? '呼叫類別：' : 'Invocation class: ') + '`' + usage.invocation_class + '`');
+    lines.push((isChinese ? '最高 authority：' : 'Maximum authority: ') + '`' + usage.effect_authority + '`');
+    if (usage.inputs.length > 0) {
+      lines.push('', isChinese ? '輸入：' : 'Inputs:');
+      for (const input of usage.inputs) {
+        const details = [input.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), input.value_kind];
+        if (input.enum_values) details.push('values=' + input.enum_values.join('|'));
+        if (hasOwn(input, 'default')) details.push('default=' + formatDocumentationValue(input.default));
+        lines.push('- `' + input.id + '` `' + input.syntax + '` (' + details.join(', ') + ') — ' + input.summary);
+      }
+    }
+    if (usage.actions.length > 0) {
+      lines.push('', isChinese ? 'Actions：' : 'Actions:');
+      for (const action of usage.actions) lines.push('- `' + action.id + '` `' + action.syntax + '` — ' + action.summary);
+    }
+    const options = usage.options.filter((option) => !option.legacy);
+    if (options.length > 0) {
+      lines.push('', isChinese ? '選項：' : 'Options:');
+      for (const option of options) {
+        const details = [option.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), option.value_kind];
+        if (option.enum_values) details.push('values=' + option.enum_values.join('|'));
+        if (hasOwn(option, 'default')) details.push('default=' + formatDocumentationValue(option.default));
+        lines.push('- `' + option.id + '` `' + option.syntax + '` (' + details.join(', ') + ') — ' + option.summary);
+      }
+    }
+    const legacy = usage.options.filter((option) => option.legacy);
+    if (legacy.length > 0) {
+      lines.push('', isChinese ? 'Legacy diagnostic（非主要語法）：' : 'Legacy diagnostics (not primary syntax):');
+      for (const option of legacy) lines.push('- `' + option.syntax + '` — ' + option.legacy.reason);
+    }
+    if (usage.examples.length > 0) {
+      lines.push('', isChinese ? '範例：' : 'Examples:');
+      for (const example of usage.examples) lines.push('- `' + example.prompt + '` — ' + example.summary);
+    }
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
 module.exports = {
   ACTION_KEYS,
   AUTHORITY_RANK,
   CARD_SCHEMA,
   CATALOG_SCHEMA,
+  deriveArgumentHint,
   EFFECT_AUTHORITIES,
   INPUT_KINDS,
+  INPUT_KEYS,
   INVOCATION_CLASSES,
   OPTION_KEYS,
+  LEGACY_KEYS,
   USAGE_KEYS,
   USAGE_SCHEMA,
   VALUE_KINDS,
@@ -616,6 +814,7 @@ module.exports = {
   isCodexInvokableSkill,
   normalizeSkillUsage,
   renderSkillUsageCard,
+  renderSkillUsageDocumentation,
   resolveInventoryRevision,
   serializeSkillUsageCatalog,
   stableStringify,

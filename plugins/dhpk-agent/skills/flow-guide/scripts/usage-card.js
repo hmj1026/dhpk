@@ -142,17 +142,40 @@ function renderCardText(card) {
   if (card.invocation_class === 'explicit-only') {
     lines.push('direct invocation required; this help card is read-only');
   }
+  if (card.inputs.length > 0) {
+    lines.push('inputs:');
+    for (const input of card.inputs) {
+      const required = input.required ? 'required' : 'optional';
+      const values = input.enum_values ? ' values=' + input.enum_values.join('|') : '';
+      const defaultValue = Object.prototype.hasOwnProperty.call(input, 'default')
+        ? ' default=' + String(input.default)
+        : '';
+      lines.push('- ' + input.id + ': ' + input.syntax + ' (' + required + ', ' + input.value_kind + values + defaultValue + ') — ' + input.summary);
+    }
+  }
   if (card.actions.length > 0) {
     lines.push('actions:');
     for (const action of card.actions) {
       lines.push('- ' + action.id + ': ' + action.syntax + ' — ' + action.summary);
     }
   }
-  if (card.options.length > 0) {
+  const options = card.options.filter((option) => !option.legacy);
+  const legacyOptions = card.options.filter((option) => option.legacy);
+  if (options.length > 0) {
     lines.push('options:');
-    for (const option of card.options) {
+    for (const option of options) {
       const required = option.required ? 'required' : 'optional';
-      lines.push('- ' + option.id + ': ' + option.syntax + ' (' + required + ') — ' + option.summary);
+      const values = option.enum_values ? ' values=' + option.enum_values.join('|') : '';
+      const defaultValue = Object.prototype.hasOwnProperty.call(option, 'default')
+        ? ' default=' + String(option.default)
+        : '';
+      lines.push('- ' + option.id + ': ' + option.syntax + ' (' + required + ', ' + option.value_kind + values + defaultValue + ') — ' + option.summary);
+    }
+  }
+  if (legacyOptions.length > 0) {
+    lines.push('legacy diagnostics:');
+    for (const option of legacyOptions) {
+      lines.push('- ' + option.id + ': ' + option.syntax + ' (diagnostic-only) — ' + option.legacy.reason);
     }
   }
   if (card.examples.length > 0) {

@@ -76,6 +76,7 @@ test('v2 regeneration preserves each skill usage contract by stable id', () => {
     summary: 'Inspect a demo task with bounded read-only evidence',
     syntax: '$dhpk-demo <task>',
     input_kind: 'free-text',
+    inputs: [{ id: 'task', syntax: '<task>', value_kind: 'string', required: true, summary: 'Task to inspect' }],
     invocation_class: 'implicit-eligible',
     effect_authority: 'read-only',
     actions: [],
