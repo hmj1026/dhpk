@@ -32,6 +32,7 @@ test('flow-guide runtime closure names one canonical source for external helpers
     'scripts/_lib/skill-usage.js',
     'scripts/_lib/utils.js',
     'scripts/_lib/feature-resolver.js',
+    'scripts/_lib/flow-handoff-contract.js',
   ]);
   for (const asset of assets) assert.ok(fs.existsSync(asset.source), asset.source);
 });
