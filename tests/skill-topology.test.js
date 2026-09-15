@@ -32,6 +32,7 @@ function skill(overrides = {}) {
       summary: 'Guide one behavior-first task with bounded tests',
       syntax: '$dhpk-tdd <task>',
       input_kind: 'free-text',
+      inputs: [{ id: 'task', syntax: '<task>', value_kind: 'string', required: true, summary: 'Task to guide' }],
       invocation_class: 'implicit-eligible',
       effect_authority: 'read-only',
       actions: [],

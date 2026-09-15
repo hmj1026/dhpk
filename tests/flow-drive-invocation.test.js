@@ -35,6 +35,7 @@ test('flow-drive parses the documented implementation options into one immutable
   assert.deepStrictEqual(context.options, {
     plan: { enabled: true, model: 'sol', effort: 'medium' },
     worker: 'auto',
+    workerTarget: null,
     crossProvider: true,
     reasoner: { backend: 'codex', model: 'terra', effort: 'high' },
     architect: true,
@@ -52,6 +53,36 @@ test('flow-drive fails closed on conflicting architecture flags', () => {
   assert.strictEqual(context.status, 'blocked');
   assert.ok(context.diagnostics.some((item) => /architect.*conflict|mutually exclusive/i.test(item)));
   assert.strictEqual(context.options.architect, null);
+});
+
+test('flow-drive keeps worker selection separate from an explicit worker target', () => {
+  const context = parseInvocation([
+    'confirmed-change-123',
+    '--worker=auto',
+    '--worker-target=codex/gpt-5.6-sol:high',
+  ]);
+
+  assert.strictEqual(context.status, 'ready');
+  assert.strictEqual(context.options.worker, 'auto');
+  assert.deepStrictEqual(context.options.workerTarget, {
+    provider: 'codex',
+    model: 'gpt-5.6-sol',
+    effort: 'high',
+  });
+});
+
+test('flow-drive rejects malformed worker targets and duplicate target selectors', () => {
+  const malformed = parseInvocation(['confirmed-change-123', '--worker-target=auto/model']);
+  assert.strictEqual(malformed.status, 'blocked');
+  assert.ok(malformed.diagnostics.some((item) => /worker-target.*provider|unsupported/i.test(item)));
+
+  const duplicate = parseInvocation([
+    'confirmed-change-123',
+    '--worker-target=codex/terra',
+    '--worker-target=agy/worker',
+  ]);
+  assert.strictEqual(duplicate.status, 'blocked');
+  assert.ok(duplicate.diagnostics.some((item) => /worker-target.*once/i.test(item)));
 });
 
 test('flow-drive rejects retired codex and malformed worker/reasoner options', () => {

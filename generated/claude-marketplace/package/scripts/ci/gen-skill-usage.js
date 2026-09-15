@@ -11,6 +11,8 @@ const path = require('node:path');
 
 const {
   compileSkillUsageCatalog,
+  deriveArgumentHint,
+  renderSkillUsageDocumentation,
   serializeSkillUsageCatalog,
 } = require('../lib/skill-usage');
 
@@ -21,6 +23,8 @@ function parseArgs(argv) {
     root: DEFAULT_ROOT,
     inventory: null,
     output: null,
+    docs: null,
+    docsZh: null,
     check: false,
     write: false,
     help: false,
@@ -61,6 +65,20 @@ function parseArgs(argv) {
       }
     } else if (arg.startsWith('--out=')) result.output = arg.slice('--out='.length);
     else if (arg.startsWith('--output=')) result.output = arg.slice('--output='.length);
+    else if (arg === '--docs') {
+      const value = valueFor(index, '--docs');
+      if (value !== null) {
+        result.docs = value;
+        index += 1;
+      }
+    } else if (arg.startsWith('--docs=')) result.docs = arg.slice('--docs='.length);
+    else if (arg === '--docs-zh') {
+      const value = valueFor(index, '--docs-zh');
+      if (value !== null) {
+        result.docsZh = value;
+        index += 1;
+      }
+    } else if (arg.startsWith('--docs-zh=')) result.docsZh = arg.slice('--docs-zh='.length);
     else result.errors.push('unknown argument: ' + arg);
   }
   if (result.check && result.write) result.errors.push('--check and --write are mutually exclusive');
@@ -98,8 +116,37 @@ function writeAtomically(filePath, content) {
 function usageText() {
   return [
     'Usage: node scripts/ci/gen-skill-usage.js [--check|--write] [--root DIR]',
-    '       [--inventory FILE] [--out FILE]',
+    '       [--inventory FILE] [--out FILE] [--docs FILE] [--docs-zh FILE]',
   ].join('\n');
+}
+
+function expectedProjections(root, args, catalog, inventory) {
+  const projections = [
+    {
+      path: resolvePath(root, args.docs, 'docs/codex-skill-usage.md'),
+      content: renderSkillUsageDocumentation(catalog),
+      label: 'English usage documentation',
+    },
+    {
+      path: resolvePath(root, args.docsZh, 'docs/codex-skill-usage.zh-TW.md'),
+      content: renderSkillUsageDocumentation(catalog, 'zh-TW'),
+      label: 'Traditional Chinese usage documentation',
+    },
+  ];
+  for (const entry of inventory.skills || []) {
+    if (!entry.usage || !entry.path) continue;
+    const skillPath = path.join(root, entry.path, 'SKILL.md');
+    if (!fs.existsSync(skillPath)) continue;
+    const source = fs.readFileSync(skillPath, 'utf8');
+    if (!/^argument-hint:/m.test(source)) continue;
+    const hint = deriveArgumentHint(entry.name, entry.usage.syntax).replace(/'/g, "''");
+    projections.push({
+      path: skillPath,
+      content: source.replace(/^argument-hint:.*$/m, "argument-hint: '" + hint + "'"),
+      label: entry.path + '/SKILL.md argument hint',
+    });
+  }
+  return projections;
 }
 
 function run(argv, io) {
@@ -120,15 +167,17 @@ function run(argv, io) {
   const root = path.resolve(args.root);
   const inventoryPath = resolvePath(root, args.inventory, 'manifests/distribution-inventory.json');
   const outputPath = resolvePath(root, args.output, 'skills/flow-guide/references/codex-usage-catalog.json');
+  let inventory;
   let catalog;
   try {
-    const inventory = readJson(inventoryPath, 'distribution inventory');
+    inventory = readJson(inventoryPath, 'distribution inventory');
     catalog = compileSkillUsageCatalog({ inventory });
   } catch (error) {
     stderr.write('FAIL [gen-skill-usage]: ' + error.message + '\n');
     return 1;
   }
   const expected = serializeSkillUsageCatalog(catalog);
+  const projections = expectedProjections(root, args, catalog, inventory);
 
   if (args.check) {
     let actual;
@@ -143,6 +192,12 @@ function run(argv, io) {
       stderr.write('FAIL [gen-skill-usage]: generated catalog drifted from inventory: ' + outputPath + '\n');
       return 1;
     }
+    for (const projection of projections) {
+      if (!fs.existsSync(projection.path) || fs.readFileSync(projection.path, 'utf8') !== projection.content) {
+        stderr.write('FAIL [gen-skill-usage]: ' + projection.label + ' drifted from inventory: ' + projection.path + '\n');
+        return 1;
+      }
+    }
     stdout.write(
       'PASS [gen-skill-usage]: catalog matches inventory ('
       + catalog.entries.length
@@ -156,6 +211,7 @@ function run(argv, io) {
   if (args.write) {
     try {
       writeAtomically(outputPath, expected);
+      for (const projection of projections) writeAtomically(projection.path, projection.content);
     } catch (error) {
       stderr.write('FAIL [gen-skill-usage]: cannot write generated catalog: ' + error.message + '\n');
       return 1;

@@ -13,19 +13,35 @@ content from the canonical skill.
 
 Every skill selected by the `codex-native` or `codex-sync` surface SHALL have
 one normalized `usage` object in the distribution inventory. The object SHALL
-contain `display_name`, `summary`, `syntax`, `input_kind`, `invocation_class`,
-`effect_authority`, `actions`, `options`, and `examples`. `actions` and
-`options` MAY be empty arrays, but every action SHALL contain a unique `id`,
-`summary`, `syntax`, `input_kind`, and `effect_authority`; every option SHALL
-contain a unique `id`, `syntax`, `value_kind`, `required`, and `summary`, with
-optional `default`, `enum_values`, and `applies_to` fields. Every example SHALL
-contain exactly `prompt` and `summary`. `syntax` and every example prompt SHALL
-begin with `$` plus the inventory public skill name, and
+contain `display_name`, `summary`, `syntax`, `input_kind`,
+`invocation_class`, `effect_authority`, `inputs`, `actions`, `options`, and
+`examples`. `inputs`, `actions`, and `options` MAY be empty arrays, but every
+input SHALL contain a unique `id`, `syntax`, `value_kind`, `required`, and
+`summary`, with optional `default`, `enum_values`, and `applies_to` fields;
+every action SHALL contain a unique `id`, `summary`, `syntax`, `input_kind`,
+and `effect_authority`; every option SHALL contain a unique `id`, `syntax`,
+`value_kind`, `required`, and `summary`, with optional `default`,
+`enum_values`, `legacy`, and `applies_to` fields. Every example SHALL contain
+exactly `prompt` and `summary`. `syntax` and every example prompt SHALL begin
+with `$` plus the inventory public skill name, and
 `usage.invocation_class` SHALL equal the canonical invocation class. The usage
 object and child records are closed schemas: unsupported fields, duplicate
-IDs, unknown `applies_to` action IDs, invalid enum defaults, empty examples, or
-child effect authority above the parent maximum SHALL fail. Skills not selected
-by either Codex surface MAY omit `usage`.
+IDs, unknown `applies_to` action IDs, invalid enum defaults, empty examples,
+or child effect authority above the parent maximum SHALL fail. Skills not
+selected by either Codex surface MAY omit `usage`.
+
+#### Scenario: A positional input lacks meaning metadata
+
+- **WHEN** a Codex skill declares an input without `value_kind`, `required`, or
+  `summary`
+- **THEN** inventory validation fails with the skill identity and missing field
+
+#### Scenario: A legacy option is exposed as canonical
+
+- **WHEN** an option marked `legacy` is used as the only primary syntax or
+  example for a skill
+- **THEN** validation fails or requires an explicit compatibility annotation
+  that preserves a canonical alternative
 
 #### Scenario: A Codex skill has no usage contract
 
@@ -41,7 +57,8 @@ by either Codex surface MAY omit `usage`.
 
 #### Scenario: Usage grammar contains duplicate names
 
-- **WHEN** two actions or two options in one usage contract have the same `id`
+- **WHEN** two inputs, actions, or two options in one usage contract have the
+  same `id`
 - **THEN** validation fails and identifies the owning skill and duplicate
 
 #### Scenario: A non-Codex skill omits usage
@@ -54,11 +71,25 @@ by either Codex surface MAY omit `usage`.
 
 The `flow-guide help` action SHALL list the available Codex-invokable skills
 when no skill is supplied and SHALL return one usage card when a public skill
-name is supplied. A card SHALL expose the inventory `syntax`, input kind,
-actions, options, examples, invocation class, maximum effect authority, and the
-evidence state of the generated catalog. Help SHALL not load the target skill's
-procedural references, invoke the target, or grant authority. An unknown name
-and a known non-Codex skill SHALL produce distinct diagnostics.
+name is supplied. A card SHALL expose the inventory `syntax`, positional
+inputs, input kind, actions, options, enum values, legacy markers, examples,
+invocation class, maximum effect authority, and the evidence state of the
+generated catalog. Help SHALL not load the target skill's procedural
+references, invoke the target, or grant authority. An unknown name and a
+known non-Codex skill SHALL produce distinct diagnostics.
+
+#### Scenario: User requests one usage card
+
+- **WHEN** a user invokes `$flow-guide help flow-drive`
+- **THEN** the result returns the Worker Selector syntax,
+  `--worker-target=<provider>/<model>[:<effort>]`, bounded retired-option
+  diagnostics, and explicit-only authority without loading implementation
+  procedures
+
+#### Scenario: Usage card exposes enum values
+
+- **WHEN** an option or input declares `enum_values`
+- **THEN** the rendered card shows the allowed values and its summary
 
 #### Scenario: User requests the available usage catalog
 
@@ -66,16 +97,10 @@ and a known non-Codex skill SHALL produce distinct diagnostics.
 - **THEN** the result lists Codex-invokable public names in deterministic order
   with a concise usage summary and no target execution
 
-#### Scenario: User requests one usage card
-
-- **WHEN** a user invokes `$flow-guide help flow-drive`
-- **THEN** the result returns only `flow-drive`'s usage contract and states its
-  explicit-only authority without loading implementation procedures
-
 #### Scenario: Help receives a non-Codex skill
 
-- **WHEN** a user requests `$flow-guide help` for a known skill absent from both
-  Codex surfaces
+- **WHEN** a user requests `$flow-guide help` for a known skill absent from
+  both Codex surfaces
 - **THEN** the result reports `not-codex-invokable` and does not invent a usage
   contract
 
@@ -89,16 +114,19 @@ and a known non-Codex skill SHALL produce distinct diagnostics.
 ### Requirement: Usage projections have one deterministic source
 
 A generator SHALL compile normalized inventory usage records in public-name
-order into the Codex help catalog, supported OpenAI default prompts, applicable
-Claude argument hints, and the dedicated English and Traditional Chinese usage
-documentation. Generated artifacts SHALL identify the source inventory
-revision and SHALL fail parity validation when manually edited content or
-ordering diverges. Broad hand-maintained cheat sheets MAY link to the generated
-guide but SHALL not become a second usage source of truth.
+order into the Codex help catalog, supported OpenAI default prompts,
+applicable Claude Argument Hints, and the dedicated English and Traditional
+Chinese usage documentation. Generated artifacts SHALL identify the source
+inventory revision and SHALL fail parity validation when manually edited
+content or ordering diverges. Argument Hints SHALL remain compact syntax
+projections; parameter meaning SHALL remain in structured metadata and Usage
+Cards. Broad hand-maintained cheat sheets MAY link to the generated guide but
+SHALL not become a second usage source of truth.
 
 #### Scenario: Inventory usage changes
 
-- **WHEN** an action or option changes in the inventory usage contract
+- **WHEN** an input, action, option, or legacy marker changes in the inventory
+  usage contract
 - **THEN** the generator updates every applicable usage artifact or the parity
   gate fails with the stale artifact and source record
 
@@ -107,6 +135,12 @@ guide but SHALL not become a second usage source of truth.
 - **WHEN** a generated Codex help card differs from the normalized inventory
   record without a generator input change
 - **THEN** validation fails and reports the source and generated paths
+
+#### Scenario: A Host lacks live argument completion
+
+- **WHEN** a Host does not expose a documented interactive Argument Hint UI
+- **THEN** the generated usage contract remains valid and the Usage Card is
+  the supported parameter-discovery path
 
 #### Scenario: Procedure detail is added to a usage contract
 

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.61.0 — 2026-09-15 — Normalize command and skill discovery with structured usage cards
+
+**feat(command-skill-discovery)** — Normalize command and Skill discovery with structured usage cards and explicit Host-only dispositions.
+
 ## 0.60.1 — 2026-09-15 — Fix AGY package publication validation
 
 **ci(agy-package)** — Keep canonical skill package manifests out of the published AGY package so release consumer verification accepts the platform path contract.

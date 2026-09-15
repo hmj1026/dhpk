@@ -20,6 +20,7 @@ function usage(summary = 'Trace the selected task with bounded evidence') {
     summary,
     syntax: '$fixture-skill <task>',
     input_kind: 'free-text',
+    inputs: [{ id: 'task', syntax: '<task>', value_kind: 'string', required: true, summary: 'Task to trace' }],
     invocation_class: 'implicit-eligible',
     effect_authority: 'read-only',
     actions: [{

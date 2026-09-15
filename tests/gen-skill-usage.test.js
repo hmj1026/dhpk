@@ -33,6 +33,13 @@ function usage(name, overrides = {}) {
     input_kind: 'free-text',
     invocation_class: 'implicit-eligible',
     effect_authority: 'read-only',
+    inputs: [{
+      id: 'input',
+      syntax: '<input>',
+      value_kind: 'string',
+      required: true,
+      summary: 'Describe the bounded task input',
+    }],
     actions: [],
     options: [],
     examples: [{
