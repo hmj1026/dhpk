@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.59.0",
-  "sourceCommit": "e0fa8161f16f08ce6888557616b678bf3a4c8b1e",
-  "generatedFromCommit": "e0fa8161f16f08ce6888557616b678bf3a4c8b1e",
-  "generatedFromTree": "014b7c1a31cd1601d413d681ed4cc051a1b63b49",
-  "inventoryDigest": "1857ca06ec5d9b127bb3f43b8fe906508633b04a4f4319ddb047cea19e3f0a68",
-  "inventoryRevision": "sha256:27d7c3e0addf7709489c610f9e37bae272bd4a164d4d1e9df97866a42fe25110",
+  "sourceCommit": "f2512196e45e7faa87d30d4ae1ea5371d49819cf",
+  "generatedFromCommit": "f2512196e45e7faa87d30d4ae1ea5371d49819cf",
+  "generatedFromTree": "74357895ea4661f57a370cfdcbd2f152427d5cba",
+  "inventoryDigest": "db82e9e96ede04f1b8be28708a94342c6f3a054608e41dcbae9863ad71b26983",
+  "inventoryRevision": "sha256:471c046cc30150538d78ad106bd4c1860fcbe6c81ac2d095e584192140b987e5",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -89,6 +89,16 @@
     "skill-forge",
     "skill-scope"
   ],
+  "skillPackageClosure": [
+    {
+      "id": "flow-drive",
+      "version": "1.0.0"
+    },
+    {
+      "id": "flow-guide",
+      "version": "1.0.0"
+    }
+  ],
   "selectedPlatformMatrixIds": [
     "dhpk.platform.agent-plugin.mcp",
     "dhpk.platform.agent-plugin.skills"
@@ -128,8 +138,8 @@
     "dhpk-repo-intake": "d90f67ea707acae30e1c4c8d67a94b974bec5a4618a52c6bae8c6749e942d2e6",
     "dhpk-session-usage-audit": "9c87600b97c9a9e49128b5e11d92c22a72d33b709d797b096899c79ef52b9833",
     "dhpk-tdd-workflow": "6f69203e035cfb2431f1b8bdb9ef75288e62212177c9812a0f882d984614dd4f",
-    "flow-drive": "0a0a431128a28ba421c5e131fd7efb645b399a14c55deb715afedccfe78770f1",
-    "flow-guide": "3b6972ba1c71dfd50c19a66e63097bf9ec39ccd87cad3f82af738fb870b8ea7d",
+    "flow-drive": "e1daed6eb841edd39596952bf583b755ac38d7fabf70bfab62d8ddadc92df687",
+    "flow-guide": "c9883b6d2bc5481167c3c312d2137f25ac29cff20e7c741696a72cfc12c7674c",
     "harness-govern": "97c0a27950aa92cb13c909ca2aee562aacb9e0b1b87f296a685646254a271967",
     "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
     "skill-scope": "ec46bf749a61d9d33c20431d32d5b883455d7d5ec096cfcb7023547ad46cf421"

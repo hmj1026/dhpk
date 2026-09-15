@@ -2,20 +2,43 @@
   "schema": "dhpk.claude-capability-bundle.v1",
   "surface": "claude-profile",
   "profile": {
+    "emittedStableIds": [
+      "change-verdict",
+      "code-trace",
+      "flow-drive",
+      "flow-guide",
+      "git-smart-commit",
+      "project-audit",
+      "prompt-optimize",
+      "tdd"
+    ],
     "excludes": [],
     "id": "minimal",
-    "inventoryFingerprint": "991fda431c44e3f8ab4470498480124da2f02ef51c295d44f3b83615f598ef22",
+    "inventoryFingerprint": "94ea642fd46d7f9af123aa3a910c059e82cab15426b2dee729ddc3a3cb1fd3e8",
     "mode": "profile",
     "modules": [],
     "profileFingerprint": "f53fe6bf916d2edaba5ced145211c8ba5a3d56a87a4ce71f8915597e68a6345d",
     "profileId": "minimal",
-    "selectionFingerprint": "d1f616faff7b4fdf442bae73eb726be528e46919b34910d6d95436fbc9659fee",
+    "selectedStableIds": [
+      "change-verdict",
+      "code-trace",
+      "flow-drive",
+      "flow-guide",
+      "git-smart-commit",
+      "project-audit",
+      "prompt-optimize",
+      "tdd"
+    ],
+    "selectionFingerprint": "80ead6e4f97bb7946f5490beffc354228ad5100274019b472a7e3d1aba953657",
+    "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "7c017d05ff8d30ec7e8dd7d73dcd3d268626e06d6201f00a19a85a9990bd554c",
-    "surfaceSelectionFingerprint": "ba43fc0dd2bfa4eed02346e8a6ce3a581a2362cfab72094ae1bfa0de4bd8dd88",
+    "surfaceSelectionFingerprint": "a2f8c8e0cfd05993ef8a1fa24b1577c5c75887b29f5839b92d6481961aad1bb9",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
+  "selectionMode": "profile",
+  "requestedStableIds": [],
   "selectedStableIds": [
     "change-verdict",
     "code-trace",
@@ -26,6 +49,9 @@
     "prompt-optimize",
     "tdd"
   ],
+  "emittedPublicNames": [],
+  "dependencyClosure": null,
+  "unavailableCapabilities": [],
   "consumerPluginId": "dhpk@dhpk-profile-minimal",
   "outputs": [
     {
@@ -49,8 +75,208 @@
       "destination": "skills/flow-drive/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:flow-drive:scripts/invocation.js",
+      "destination": "skills/flow-drive/scripts/invocation.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:skill-package.json",
+      "destination": "skills/flow-drive/skill-package.json"
+    },
+    {
       "stableId": "claude-profile:skill:flow-guide",
       "destination": "skills/flow-guide/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/anti-loop.md",
+      "destination": "skills/flow-guide/references/anti-loop.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/codex-mode.md",
+      "destination": "skills/flow-guide/references/codex-mode.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/codex-usage-catalog.json",
+      "destination": "skills/flow-guide/references/codex-usage-catalog.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/component-addition-policy.md",
+      "destination": "skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/delivery-core.md",
+      "destination": "skills/flow-guide/references/delivery-core.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/delivery-loop-gate.md",
+      "destination": "skills/flow-guide/references/delivery-loop-gate.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/deterministic-first.md",
+      "destination": "skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/dispatch-and-gates.md",
+      "destination": "skills/flow-guide/references/dispatch-and-gates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/handoff-and-verification.md",
+      "destination": "skills/flow-guide/references/handoff-and-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/implementation-dispatch.md",
+      "destination": "skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/invocation-classification.md",
+      "destination": "skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/invocation-precedence.md",
+      "destination": "skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/output-shape.md",
+      "destination": "skills/flow-guide/references/output-shape.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/premise-verification.md",
+      "destination": "skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/profile-and-project-overrides.md",
+      "destination": "skills/flow-guide/references/profile-and-project-overrides.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/progression-tables.md",
+      "destination": "skills/flow-guide/references/progression-tables.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/projects-generic.md",
+      "destination": "skills/flow-guide/references/projects-generic.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/projects-index.md",
+      "destination": "skills/flow-guide/references/projects-index.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/review-gate-mechanics.md",
+      "destination": "skills/flow-guide/references/review-gate-mechanics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/route-result.schema.json",
+      "destination": "skills/flow-guide/references/route-result.schema.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/route-table.json",
+      "destination": "skills/flow-guide/references/route-table.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/script-operations.md",
+      "destination": "skills/flow-guide/references/script-operations.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/squash-merge-hygiene.md",
+      "destination": "skills/flow-guide/references/squash-merge-hygiene.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/task-modes.md",
+      "destination": "skills/flow-guide/references/task-modes.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/testing-policy.md",
+      "destination": "skills/flow-guide/references/testing-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/work-item-and-gates.md",
+      "destination": "skills/flow-guide/references/work-item-and-gates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-analysis.md",
+      "destination": "skills/flow-guide/references/workflow-analysis.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-bugfix.md",
+      "destination": "skills/flow-guide/references/workflow-bugfix.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-checklists.md",
+      "destination": "skills/flow-guide/references/workflow-checklists.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-feature-delivery.md",
+      "destination": "skills/flow-guide/references/workflow-feature-delivery.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/workflow-lightweight.md",
+      "destination": "skills/flow-guide/references/workflow-lightweight.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/runtime-loader.js",
+      "destination": "skills/flow-guide/scripts/_lib/runtime-loader.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/action-runner.js",
+      "destination": "skills/flow-guide/scripts/action-runner.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/analyze.js",
+      "destination": "skills/flow-guide/scripts/analyze.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/openspec_gate_check.py",
+      "destination": "skills/flow-guide/scripts/openspec_gate_check.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/pre-route.sh",
+      "destination": "skills/flow-guide/scripts/pre-route.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/prepare_dev_scope.py",
+      "destination": "skills/flow-guide/scripts/prepare_dev_scope.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/prepare_workflow_profile.py",
+      "destination": "skills/flow-guide/scripts/prepare_workflow_profile.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/route-result.js",
+      "destination": "skills/flow-guide/scripts/route-result.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/usage-card.js",
+      "destination": "skills/flow-guide/scripts/usage-card.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/workflow_gate_check.py",
+      "destination": "skills/flow-guide/scripts/workflow_gate_check.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:skill-package.json",
+      "destination": "skills/flow-guide/skill-package.json"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:references/execution-policy.md",
+      "destination": "skills/flow-guide/references/execution-policy.md"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:references/execution-policy-kernel.md",
+      "destination": "skills/flow-guide/references/execution-policy-kernel.md"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/skill-usage.js",
+      "destination": "skills/flow-guide/scripts/_lib/skill-usage.js"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/utils.js",
+      "destination": "skills/flow-guide/scripts/_lib/utils.js"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/feature-resolver.js",
+      "destination": "skills/flow-guide/scripts/_lib/feature-resolver.js"
+    },
+    {
+      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/flow-handoff-contract.js",
+      "destination": "skills/flow-guide/scripts/_lib/flow-handoff-contract.js"
     },
     {
       "stableId": "claude-profile:skill:git-smart-commit",
@@ -139,5 +365,15 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "d26c46f99c56ae9c3452c727b02f38d493ee94561ae86670b3d8ac15a156c26b"
+  "skillPackageClosure": [
+    {
+      "id": "flow-drive",
+      "version": "1.0.0"
+    },
+    {
+      "id": "flow-guide",
+      "version": "1.0.0"
+    }
+  ],
+  "planFingerprint": "ca5809d1a7570b40fa0da6077b3d239bbd543a369166c5252bb5a2f5b9958dcb"
 }

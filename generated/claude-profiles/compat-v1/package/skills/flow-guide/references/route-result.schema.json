@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dhpk.route-result.v3",
+  "title": "dhpk.route-result.v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "action",
+    "host",
+    "cleanedQuery",
+    "options",
+    "target",
+    "availability",
+    "diagnostics",
+    "disposition",
+    "requiredEvidence",
+    "nextAction"
+  ],
+  "properties": {
+    "schema": { "const": "dhpk.route-result.v3" },
+    "action": { "const": "route" },
+    "host": {
+      "type": "string",
+      "enum": ["claude", "cursor", "codex"]
+    },
+    "cleanedQuery": { "type": "string" },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["go"],
+      "properties": { "go": { "type": "boolean" } }
+    },
+    "target": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "publicName", "invocationClass", "command"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            },
+            "publicName": { "type": "string", "minLength": 1 },
+            "invocationClass": {
+              "type": "string",
+              "enum": ["implicit-eligible", "explicit-only", "not-configured"]
+            },
+            "command": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    },
+    "availability": {
+      "type": "string",
+      "enum": ["available", "unavailable", "not-configured"]
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "disposition": {
+      "type": "string",
+      "enum": ["advice", "ready", "explicit-required", "blocked", "unavailable"]
+    },
+    "requiredEvidence": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "nextAction": { "type": "string", "minLength": 1 }
+  }
+}
