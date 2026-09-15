@@ -474,12 +474,6 @@ function materializeAgyPluginPackage({
     if (lstatOrNull(packageManifest)) {
       const packageValidation = validateSkillPackageManifest(sourceRoot, skill.id);
       if (!packageValidation.ok) throw new Error(packageValidation.errors.join('; '));
-      copyFileContained(
-        packageManifest,
-        path.join(skillsDestination, skillPath, 'skill-package.json'),
-        sourceRoot,
-        outputRoot,
-      );
       const packageManifestData = readSkillPackageManifest(sourceRoot, skill.id);
       for (const resource of packageManifestData.resources || []) {
         if (!resource || resource.path === 'SKILL.md') continue;
@@ -641,32 +635,13 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     ? selected.skills.map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/references/`)
     : [];
   const expectedSkillRuntimeScriptRoots = selected
+    ? selected.skills.map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/scripts/`)
+    : [];
+  const requiredSkillRuntimeScriptRoots = selected
     ? selected.skills
       .filter((skill) => selected.runtimeSkillIds.includes(skill.id))
       .map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/scripts/`)
     : [];
-  const expectedSkillPackageFiles = selected
-    ? new Set(selected.skills.map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/skill-package.json`))
-    : new Set();
-  const expectedSkillPackageResourceFiles = new Set();
-  const expectedSkillPackageResourceRoots = [];
-  if (selected) {
-    for (const skill of selected.skills) {
-      const skillRoot = `skills/${skill.path.replace(/^skills\//, '')}`;
-      const manifestPath = path.join(root, skillRoot, 'skill-package.json');
-      if (!lstatOrNull(manifestPath)) continue;
-      let packageManifest;
-      try { packageManifest = readJson(manifestPath, `skill package manifest '${skill.id}'`); }
-      catch (error) { errors.push(error.message); continue; }
-      for (const resource of packageManifest.resources || []) {
-        if (!resource || resource.path === 'SKILL.md') continue;
-        const relative = `${skillRoot}/${resource.path}`;
-        const stat = lstatOrNull(path.join(root, relative));
-        if (stat && stat.isDirectory()) expectedSkillPackageResourceRoots.push(`${relative}/`);
-        else expectedSkillPackageResourceFiles.add(relative);
-      }
-    }
-  }
   const expectedComponentFiles = selected
     ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles])
     : null;
@@ -694,13 +669,9 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     }
     const isExpectedSkillReference = expectedSkillReferenceRoots.some((prefix) => relative.startsWith(prefix));
     const isExpectedRuntimeScript = expectedSkillRuntimeScriptRoots.some((prefix) => relative.startsWith(prefix));
-    const isExpectedSkillPackage = expectedSkillPackageFiles.has(relative);
-    const isExpectedSkillPackageResource = expectedSkillPackageResourceFiles.has(relative)
-      || expectedSkillPackageResourceRoots.some((prefix) => relative.startsWith(prefix));
     if (expectedComponentFiles && COMPONENT_ROOTS.has(base)
       && !expectedComponentFiles.has(relative) && !expectedStandaloneFiles.has(relative)
-      && !isExpectedSkillReference && !isExpectedRuntimeScript
-      && !isExpectedSkillPackage && !isExpectedSkillPackageResource) {
+      && !isExpectedSkillReference && !isExpectedRuntimeScript) {
       errors.push(`undeclared AGY package file: ${relative}`);
     }
     const absolute = path.join(root, relative);
@@ -720,7 +691,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   }
   if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!files.includes(relative)) errors.push(`selected AGY rule is missing: ${relative}`);
   if (expectedSkillFiles) for (const relative of expectedSkillFiles) if (!files.includes(relative)) errors.push(`selected AGY skill is missing: ${relative}`);
-  for (const rootPrefix of expectedSkillRuntimeScriptRoots) {
+  for (const rootPrefix of requiredSkillRuntimeScriptRoots) {
     if (!files.some((relative) => relative.startsWith(rootPrefix))) errors.push(`selected AGY runtime scripts are missing: ${rootPrefix}`);
   }
 
