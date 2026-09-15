@@ -452,7 +452,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "7f5128dcd8b981d3e24c856e0e89148a2446a2858ae9d6c0e05de9a12d2bfacf",
+      "canonical_digest": "4cdbb91c44b46230a7ecb85dd9f9b445d1d5e6628516d26e7a2c6ce19b49acd4",
       "projection_digest": "5f1b9f5b3817b657b9c945dfa2cc6c7c1d825f0776dd63729217928c82c31114",
       "destination": "dhpk/policies/execution-policy.md"
     },
