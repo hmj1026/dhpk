@@ -3,9 +3,7 @@
 ## Purpose
 
 Define a compact, ownership-aware skill interface that lets users and agents select a task-shaped capability without learning dhpk's former implementation-level skill names.
-
 ## Requirements
-
 ### Requirement: First-party workflows are exposed through nine capability families
 
 dhpk SHALL expose exactly nine portable first-party capability families:
@@ -155,3 +153,37 @@ review.
 
 - **WHEN** a family mode contains procedure or reference material not needed by every other mode
 - **THEN** the entrypoint links that material behind a mode-specific context pointer and does not preload sibling modes
+
+### Requirement: Flow families expose bounded parameter discovery
+
+The `flow-guide` family SHALL expose read-only `help` for its own grammar and
+for another Codex-visible Skill. The `flow-drive` family SHALL expose one
+explicit implementation entry for a confirmed specification or OpenSpec
+change, SHALL use the inventory Usage Grammar for parameter discovery, and
+SHALL not add a workflow mode or independent help owner.
+
+#### Scenario: User reviews flow-guide parameters
+
+- **WHEN** a user invokes `$flow-guide help flow-guide`
+- **THEN** the result shows the finite actions, route-only `--go` option,
+  query input, authority, and examples without executing a route
+
+#### Scenario: User reviews flow-drive parameters
+
+- **WHEN** a user invokes `$flow-guide help flow-drive`
+- **THEN** the result shows the required confirmed-spec-or-change-id input,
+  Worker Selector syntax, explicit worker-target syntax, architecture
+  switches, and explicit-only authority without starting implementation
+
+#### Scenario: User invokes flow-drive without a confirmed specification
+
+- **WHEN** `flow-drive` receives no confirmed specification or OpenSpec change
+  identity
+- **THEN** it reports the bounded input failure and does not reinterpret the
+  request as route selection, proposal authoring, or help execution
+
+#### Scenario: A caller attempts to add a flow-drive mode
+
+- **WHEN** a proposed usage contract adds a mode selector to `flow-drive`
+- **THEN** family validation rejects it and preserves the single explicit
+  implementation entry

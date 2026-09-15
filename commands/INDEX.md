@@ -12,6 +12,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 | Command | 用途 |
 |---------|------|
+| `/dhpk:flow-guide` / `/dhpk:flow-drive` | 唯讀 usage discovery、路由與已確認工作的 explicit-only 實作 front door。 |
 | `/dhpk:deep-analyze` | 深入分析提案並產出 roadmap。 |
 | `/dhpk:spec-mine` | 從既有程式碼萃取 behavioral specification。 |
 | `/dhpk:opsx-apply-resume` | 長時間 `opsx:apply` 的 context handoff。 |

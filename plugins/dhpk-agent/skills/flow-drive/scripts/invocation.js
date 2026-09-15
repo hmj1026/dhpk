@@ -2,6 +2,7 @@
 
 const SCHEMA = 'dhpk.flow-drive-invocation.v1';
 const WORKERS = Object.freeze(['claude', 'codex', 'agy', 'auto']);
+const TARGET_PROVIDERS = Object.freeze(['claude', 'codex', 'agy']);
 const REASONER_BACKENDS = Object.freeze(['claude', 'codex']);
 const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const EFFORT = /^(?:low|medium|high|max|xhigh|ultra)$/;
@@ -39,7 +40,9 @@ function parseReasoner(value, diagnostics) {
     diagnostic(diagnostics, '--reasoner requires backend[:model[:effort]].');
     return null;
   }
-  const parts = value.split(':');
+  const parts = value.includes('/')
+    ? value.replace('/', ':').split(':')
+    : value.split(':');
   if (parts.length > 3 || parts.some((part) => !TOKEN.test(part))) {
     diagnostic(diagnostics, `invalid --reasoner value '${value}'; expected backend[:model[:effort]].`);
     return null;
@@ -52,6 +55,31 @@ function parseReasoner(value, diagnostics) {
     diagnostic(diagnostics, `invalid --reasoner effort '${effort}'.`);
   }
   return { backend, model, effort };
+}
+
+function parseWorkerTarget(value, diagnostics) {
+  if (!value) {
+    diagnostic(diagnostics, '--worker-target requires provider/model[:effort].');
+    return null;
+  }
+  const parts = value.split(':');
+  if (parts.length > 2 || !parts[0].includes('/')) {
+    diagnostic(diagnostics, `invalid --worker-target value '${value}'; expected provider/model[:effort].`);
+    return null;
+  }
+  const [providerAndModel, effort = null] = parts;
+  const [provider, model, ...extra] = providerAndModel.split('/');
+  if (!provider || !model || extra.length > 0 || !TOKEN.test(provider) || !TOKEN.test(model)) {
+    diagnostic(diagnostics, `invalid --worker-target value '${value}'; expected provider/model[:effort].`);
+    return null;
+  }
+  if (!TARGET_PROVIDERS.includes(provider)) {
+    diagnostic(diagnostics, `unsupported worker-target provider '${provider}'; choose ${TARGET_PROVIDERS.join(', ')}.`);
+  }
+  if (effort !== null && !EFFORT.test(effort)) {
+    diagnostic(diagnostics, `invalid --worker-target effort '${effort}'.`);
+  }
+  return { provider, model, effort };
 }
 
 function parseWorker(value, diagnostics) {
@@ -71,6 +99,7 @@ function parseInvocation(argv = []) {
   const options = {
     plan: { enabled: false, model: null, effort: null },
     worker: 'auto',
+    workerTarget: null,
     crossProvider: false,
     reasoner: null,
     architect: null,
@@ -97,6 +126,10 @@ function parseInvocation(argv = []) {
     }
     if (token.startsWith('--worker=')) {
       if (markOnce('--worker')) options.worker = parseWorker(token.slice('--worker='.length), diagnostics) || 'auto';
+      continue;
+    }
+    if (token.startsWith('--worker-target=')) {
+      if (markOnce('--worker-target')) options.workerTarget = parseWorkerTarget(token.slice('--worker-target='.length), diagnostics);
       continue;
     }
     if (token === '--cross-provider') {

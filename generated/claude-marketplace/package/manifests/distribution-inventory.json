@@ -724,6 +724,15 @@
         "summary": "Detect PHP runtime and select safe framework guidance",
         "syntax": "$dhpk-php-runtime-router <php-task>",
         "input_kind": "free-text",
+        "inputs": [
+          {
+            "id": "php-task",
+            "syntax": "<php-task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the PHP or framework task"
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "read-only",
         "actions": [
@@ -820,6 +829,15 @@
         "summary": "Lock observed legacy behavior before refactoring safely",
         "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
         "input_kind": "path",
+        "inputs": [
+          {
+            "id": "legacy-target",
+            "syntax": "<legacy-target>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Select the legacy code target to characterize"
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "workspace-write",
         "actions": [
@@ -1051,6 +1069,15 @@
         "summary": "Implement Yii 1.x backend changes with PHP 5.6-safe tests",
         "syntax": "$dhpk-yii1-php56-development <backend-task>",
         "input_kind": "free-text",
+        "inputs": [
+          {
+            "id": "backend-task",
+            "syntax": "<backend-task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the Yii backend implementation task"
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "workspace-write",
         "actions": [
@@ -1095,6 +1122,18 @@
         "summary": "Audit Yii 1.1 security boundaries with evidence and fixes",
         "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
         "input_kind": "path",
+        "inputs": [
+          {
+            "id": "source-path",
+            "syntax": "<source-path>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Select the Yii source path to audit",
+            "applies_to": [
+              "audit"
+            ]
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "read-only",
         "actions": [
@@ -1149,6 +1188,36 @@
         "summary": "Guide routes, rules, next steps, closeout, and usage help",
         "syntax": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
         "input_kind": "action-first",
+        "inputs": [
+          {
+            "id": "action",
+            "syntax": "<help|route|rules|next|close>",
+            "value_kind": "enum",
+            "required": true,
+            "summary": "Choose one read-only guide action",
+            "enum_values": [
+              "help",
+              "route",
+              "rules",
+              "next",
+              "close"
+            ]
+          },
+          {
+            "id": "query",
+            "syntax": "<query>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Provide the action-specific skill or workflow text",
+            "applies_to": [
+              "help",
+              "route",
+              "rules",
+              "next",
+              "close"
+            ]
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "delegate",
         "actions": [
@@ -1268,6 +1337,21 @@
         "summary": "Trace code paths, causes, history, or navigation tools",
         "syntax": "$code-trace [--mode=<mode>] <query>",
         "input_kind": "mixed",
+        "inputs": [
+          {
+            "id": "query",
+            "syntax": "<query>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the symbol, failure, or history to trace",
+            "applies_to": [
+              "explore",
+              "diagnose",
+              "history",
+              "select-tool"
+            ]
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "read-only",
         "actions": [
@@ -1462,8 +1546,20 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
         "input_kind": "mixed",
+        "inputs": [
+          {
+            "id": "confirmed-spec-or-change-id",
+            "syntax": "<confirmed-spec-or-change-id>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Select the confirmed specification or change",
+            "applies_to": [
+              "apply"
+            ]
+          }
+        ],
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
         "actions": [
@@ -1498,6 +1594,27 @@
               "auto"
             ],
             "summary": "Select an explicitly requested implementation worker",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "worker-target",
+            "syntax": "--worker-target=<provider>/<model>[:<effort>]",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Select an explicit provider, model, and effort target",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "cross-provider",
+            "syntax": "--cross-provider",
+            "value_kind": "boolean",
+            "required": false,
+            "default": false,
+            "summary": "Allow the explicitly selected provider boundary",
             "applies_to": [
               "apply"
             ]
@@ -1538,6 +1655,11 @@
             "value_kind": "boolean",
             "required": false,
             "summary": "Request the retired Codex diagnostic",
+            "legacy": {
+              "replacement_id": "worker",
+              "diagnostic_only": true,
+              "reason": "Use an explicit worker, worker-target, or reasoner instead of the retired Codex shortcut"
+            },
             "applies_to": [
               "apply"
             ]
@@ -1648,6 +1770,7 @@
         "summary": "Group related changes into reviewable commits safely",
         "syntax": "$dhpk-git-smart-commit",
         "input_kind": "none",
+        "inputs": [],
         "invocation_class": "explicit-only",
         "effect_authority": "git-write",
         "actions": [
@@ -1874,6 +1997,7 @@
         "summary": "Load resume context through the deterministic fallback chain",
         "syntax": "$dhpk-opsx-load-context",
         "input_kind": "none",
+        "inputs": [],
         "invocation_class": "implicit-eligible",
         "effect_authority": "read-only",
         "actions": [
@@ -1919,6 +2043,15 @@
         "summary": "Post one resume observation through the observer boundary",
         "syntax": "$dhpk-opsx-post-observation <observation-context>",
         "input_kind": "free-text",
+        "inputs": [
+          {
+            "id": "observation-context",
+            "syntax": "<observation-context>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the compact session observation"
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "delegate",
         "actions": [
@@ -2088,6 +2221,33 @@
         "summary": "Route skill governance to one focused mode with evidence",
         "syntax": "$skill-scope <health|judge|stocktake|scout>",
         "input_kind": "action-first",
+        "inputs": [
+          {
+            "id": "mode",
+            "syntax": "<health|judge|stocktake|scout>",
+            "value_kind": "enum",
+            "required": true,
+            "summary": "Choose one skill governance mode",
+            "enum_values": [
+              "health",
+              "judge",
+              "stocktake",
+              "scout"
+            ]
+          },
+          {
+            "id": "target",
+            "syntax": "<target>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Select the skill or capability to inspect",
+            "applies_to": [
+              "health",
+              "judge",
+              "scout"
+            ]
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "delegate",
         "actions": [
@@ -2172,6 +2332,32 @@
         "summary": "Drive behavior-first tests through a minimal red-green loop",
         "syntax": "$dhpk-tdd-workflow [test-generation] <task>",
         "input_kind": "mixed",
+        "inputs": [
+          {
+            "id": "mode",
+            "syntax": "<test-generation>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Optionally request test scaffold generation",
+            "enum_values": [
+              "test-generation"
+            ],
+            "applies_to": [
+              "test-generation"
+            ]
+          },
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the behavior-first development task",
+            "applies_to": [
+              "tdd",
+              "test-generation"
+            ]
+          }
+        ],
         "invocation_class": "implicit-eligible",
         "effect_authority": "workspace-write",
         "actions": [
@@ -2222,6 +2408,22 @@
         "summary": "Govern harness health, budget, filling, revision, and sync",
         "syntax": "$harness-govern <health|budget|fill|revise|sync> [options]",
         "input_kind": "action-first",
+        "inputs": [
+          {
+            "id": "mode",
+            "syntax": "<health|budget|fill|revise|sync>",
+            "value_kind": "enum",
+            "required": true,
+            "summary": "Choose one harness governance mode",
+            "enum_values": [
+              "health",
+              "budget",
+              "fill",
+              "revise",
+              "sync"
+            ]
+          }
+        ],
         "invocation_class": "explicit-only",
         "effect_authority": "external-write",
         "actions": [
