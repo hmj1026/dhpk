@@ -3,12 +3,12 @@
   "surface": "codex-native",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.59.0",
-  "sourceCommit": "e0fa8161f16f08ce6888557616b678bf3a4c8b1e",
-  "generatedFromCommit": "e0fa8161f16f08ce6888557616b678bf3a4c8b1e",
-  "generatedFromTree": "014b7c1a31cd1601d413d681ed4cc051a1b63b49",
-  "inventoryDigest": "2de8144eb1200ade0bf10538acc0a56e4656f644de0843d01821d7b3e427d61e",
-  "inventoryRevision": "sha256:27d7c3e0addf7709489c610f9e37bae272bd4a164d4d1e9df97866a42fe25110",
+  "sourceVersion": "0.60.0",
+  "sourceCommit": "5787e9f0fefd661ca02637e18eb9edd1cc8c8de6",
+  "generatedFromCommit": "5787e9f0fefd661ca02637e18eb9edd1cc8c8de6",
+  "generatedFromTree": "f071d387940ea9bc63021a1d5b49de2232d433d6",
+  "inventoryDigest": "8cecb10ad1e4cbf5f5522e705f9571fa5634c8a373f2284f0957d89848b82462",
+  "inventoryRevision": "sha256:471c046cc30150538d78ad106bd4c1860fcbe6c81ac2d095e584192140b987e5",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "code-trace",
@@ -74,6 +74,16 @@
     "harness-govern",
     "skill-scope"
   ],
+  "skillPackageClosure": [
+    {
+      "id": "flow-drive",
+      "version": "1.0.0"
+    },
+    {
+      "id": "flow-guide",
+      "version": "1.0.0"
+    }
+  ],
   "runtimeSupportStableIds": [
     "cli-dispatch-context",
     "cli-transport"
@@ -83,9 +93,9 @@
     "dhpk-legacy-characterization-tests": "2a2df71423e54c8e24f10c645b917eb070aa728905171da6783dd23af16f8cf6",
     "dhpk-yii1-php56-development": "8af02d34fca4f9eaee43d4ceb72851dfe494462955af1b08f7cb74a2f703f2bc",
     "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
-    "flow-guide": "e32d76fec789e9efe6cbd4a50f1f0ecd396a74c494f57193c2165b845a74df50",
+    "flow-guide": "35863e2305c453ed0ba689462463cbaa9eec4e3a6a04ef01d8b593115b1934a5",
     "code-trace": "f97e720f358a8320b62977c04c0e1dd59a0277ee49e65500aa6c4aae32a7b3e6",
-    "flow-drive": "2e5d6c3a4323320fc1fdcd7b48658d751fce87aab3feb8f0bf44410eb0ebc316",
+    "flow-drive": "f570b2c89026c9134e77beab210ad78deda67f6c7e12e7243e8789ed25f6f537",
     "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
     "dhpk-opsx-load-context": "405884767ca4114a166db0e0e8e52c48e1ccc502d0b6ff5fbede2c8654b72ee1",
     "dhpk-opsx-post-observation": "cfb6322b54bac5536b4c76f42165095100fca25b45b0065a337b03a9c83b8c75",

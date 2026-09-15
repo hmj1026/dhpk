@@ -6,7 +6,7 @@ alwaysApply: false
 # Execution Policy
 
 dhpk's default execution policy for projects that adopt the harness. Read the
-always-visible kernel first (`.cursor/rules/execution-policy-kernel.mdc`),
+always-visible kernel first (`./execution-policy-kernel.md`),
 then load the conditional sections below as the selected route requires.
 Resource-layer markdown — referenced from the `flow-guide` skill and
 consumable directly by a project's own `CLAUDE.md` via the

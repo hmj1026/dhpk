@@ -2,7 +2,8 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { createFlowHandoff } = require('../../../scripts/lib/flow-handoff-contract');
+const { loadRuntimeModule } = require('./_lib/runtime-loader');
+const { createFlowHandoff } = loadRuntimeModule('flow-handoff-contract');
 
 const SCHEMA = 'dhpk.route-result.v3';
 const HOSTS = Object.freeze(['claude-code', 'codex-cli', 'agy', 'cursor', 'claude', 'codex']);
@@ -231,6 +232,7 @@ function resolveDisposition({ parsed, target, availability }) {
   if (!target) return 'blocked';
   if (target.invocationClass === 'explicit-only') return 'explicit-required';
   if (availability === 'unavailable') return 'unavailable';
+  if (availability === 'not-configured') return 'blocked';
   if (target.invocationClass !== 'implicit-eligible') return 'blocked';
   return 'ready';
 }
@@ -355,3 +357,15 @@ module.exports = {
   createRouteHandoff,
   validateRouteResult,
 };
+
+if (require.main === module) {
+  const result = parseInvocationContext(process.argv.slice(2));
+  try {
+    validateRouteResult(result);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    process.exitCode = result.disposition === 'blocked' ? 2 : 0;
+  } catch (error) {
+    process.stderr.write(`ERROR [route-result] invalid-route-result: ${error.message}\n`);
+    process.exitCode = 2;
+  }
+}

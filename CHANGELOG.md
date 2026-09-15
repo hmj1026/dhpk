@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.60.0 — 2026-09-15 — Package Flow Guide runtime closure with Flow Drive and harden CI test isolation
+
+**feat(flow-runtime)** — Package the Flow Guide runtime closure with Flow Drive across supported distribution surfaces, with explicit local-resource loading and fail-closed path validation.
+**fix(ci)** — Fix harness receipt identity test fixture isolation under parallel workers and synchronize generated Claude marketplace package assets.
+
 ## 0.59.0 — 2026-09-14 — Unify external project agent projection, provider-shaped adapters, and relocatable distribution plans
 
 **feat(distribution-projection)** — Establish a deterministic, read-only characterization baseline for the shared project skill projection across Claude, Codex, Cursor, and AGY.
