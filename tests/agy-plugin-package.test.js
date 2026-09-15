@@ -500,4 +500,43 @@ test('rejects manifest escapes and provenance fingerprint drift', () => {
   }
 });
 
+test('keeps canonical skill package manifests out of the AGY projection', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    const inventory = writeFixture(root);
+    inventory.skills[0].id = 'dhpk-sample';
+    inventory.surface_membership['agy-plugin'] = ['dhpk-sample'];
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample', 'scripts'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'scripts', 'run.sh'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'skill-package.json'), `${JSON.stringify({
+      schema: 'dhpk.skill-package.v1',
+      id: 'dhpk-sample',
+      version: '1.0.0',
+      entry: 'SKILL.md',
+      resources: [
+        { path: 'SKILL.md', kind: 'entry', required: true },
+        { path: 'references', kind: 'reference', required: true },
+        { path: 'scripts', kind: 'runtime', required: true },
+      ],
+    })}\n`);
+
+    const result = materializeAgyPluginPackage({
+      root,
+      inventory,
+      outDir,
+      version: '0.39.0',
+      sourceVersion: '0.39.0',
+      sourceCommit: COMMIT,
+    });
+
+    assert.ok(result.files.includes('skills/dhpk-sample/references/guide.md'));
+    assert.ok(result.files.includes('skills/dhpk-sample/scripts/run.sh'));
+    assert.ok(!result.files.includes('skills/dhpk-sample/skill-package.json'));
+    assert.strictEqual(fs.existsSync(path.join(outDir, 'skills', 'dhpk-sample', 'skill-package.json')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 run('agy-plugin-package');

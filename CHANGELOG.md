@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.60.1 — 2026-09-15 — Fix AGY package publication validation
+
+**ci(agy-package)** — Keep canonical skill package manifests out of the published AGY package so release consumer verification accepts the platform path contract.
+
 ## 0.60.0 — 2026-09-15 — Package Flow Guide runtime closure with Flow Drive and harden CI test isolation
 
 **feat(flow-runtime)** — Package the Flow Guide runtime closure with Flow Drive across supported distribution surfaces, with explicit local-resource loading and fail-closed path validation.
