@@ -13,7 +13,8 @@
     { "source": "rules/execution-policy-kernel.md", "destination": "references/execution-policy-kernel.md", "required": true },
     { "source": "scripts/lib/skill-usage.js", "destination": "scripts/_lib/skill-usage.js", "required": true },
     { "source": "scripts/lib/utils.js", "destination": "scripts/_lib/utils.js", "required": true },
-    { "source": "scripts/lib/feature-resolver.js", "destination": "scripts/_lib/feature-resolver.js", "required": true }
+    { "source": "scripts/lib/feature-resolver.js", "destination": "scripts/_lib/feature-resolver.js", "required": true },
+    { "source": "scripts/lib/flow-handoff-contract.js", "destination": "scripts/_lib/flow-handoff-contract.js", "required": true }
   ],
   "fallback": [
     "package-local",
