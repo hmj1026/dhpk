@@ -465,6 +465,10 @@
       "destination": "skills/flow-guide/scripts/_lib/feature-resolver.js"
     },
     {
+      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/flow-handoff-contract.js",
+      "destination": "skills/flow-guide/scripts/_lib/flow-handoff-contract.js"
+    },
+    {
       "stableId": "claude-profile:skill:git-smart-commit",
       "destination": "skills/dhpk-git-smart-commit/SKILL.md"
     },
@@ -833,5 +837,5 @@
       "version": "1.0.0"
     }
   ],
-  "planFingerprint": "6a99b687a45b77e8c0cf9da7d1433ac219994d0d7cef4f2bd36dcdbb34249eca"
+  "planFingerprint": "2f3d6576880ed719c29e4c794572197dba3ea1b5289a44d9b293b14abc986aec"
 }
