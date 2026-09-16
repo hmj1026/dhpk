@@ -2187,10 +2187,10 @@
       "rationale": "Issue #534 P2 reviewed outcome: Technical-spec authoring is owned by the external openspec-propose workflow.",
       "content_value": "Technical-spec authoring is owned by the external openspec-propose workflow.",
       "callers": [
-        "openspec/changes/issue-534-skill-distribution-consolidation/design.md"
+        "openspec/specs/skill-retirement-migration/spec.md"
       ],
       "evidence": {
-        "source": "openspec/changes/issue-534-skill-distribution-consolidation/design.md",
+        "source": "openspec/specs/skill-retirement-migration/spec.md",
         "structural": "PASS",
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
@@ -2201,7 +2201,7 @@
         "fact": "Compared with the external proposal workflow; DHPK does not copy or execute a second technical-spec authoring surface.",
         "comparison": "Compared with the external proposal workflow; DHPK does not copy or execute a second technical-spec authoring surface.",
         "evidence": {
-          "source": "openspec/changes/issue-534-skill-distribution-consolidation/design.md",
+          "source": "openspec/specs/skill-retirement-migration/spec.md",
           "status": "PASS"
         }
       }
@@ -2213,10 +2213,10 @@
       "rationale": "Issue #534 P2 reviewed outcome: Request authoring is owned by the external openspec-propose workflow.",
       "content_value": "Request authoring is owned by the external openspec-propose workflow.",
       "callers": [
-        "openspec/changes/issue-534-skill-distribution-consolidation/design.md"
+        "openspec/specs/skill-retirement-migration/spec.md"
       ],
       "evidence": {
-        "source": "openspec/changes/issue-534-skill-distribution-consolidation/design.md",
+        "source": "openspec/specs/skill-retirement-migration/spec.md",
         "structural": "PASS",
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
@@ -2227,7 +2227,7 @@
         "fact": "Compared with the external proposal workflow; DHPK does not copy or execute a second request-authoring surface.",
         "comparison": "Compared with the external proposal workflow; DHPK does not copy or execute a second request-authoring surface.",
         "evidence": {
-          "source": "openspec/changes/issue-534-skill-distribution-consolidation/design.md",
+          "source": "openspec/specs/skill-retirement-migration/spec.md",
           "status": "PASS"
         }
       }
