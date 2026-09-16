@@ -44,8 +44,6 @@ const DEFAULT_HISTORICAL_ALLOWLIST = Object.freeze([
   Object.freeze({ path: 'docs/skill-platform-migration.zh-TW.md', reason: 'published Traditional Chinese migration and rollback history' }),
   Object.freeze({ path: 'docs/agent-guidance/skill-disposition.md', reason: 'historical disposition snapshot' }),
   Object.freeze({ path: 'openspec/specs/skill-retirement-migration/spec.md', reason: 'reviewed retirement contract and acceptance evidence' }),
-  Object.freeze({ path: 'openspec/changes/issue-534-skill-distribution-consolidation/design.md', reason: 'change design and reviewed predecessor mapping' }),
-  Object.freeze({ path: 'openspec/changes/issue-534-skill-distribution-consolidation/tasks.md', reason: 'change task ledger and acceptance checklist' }),
 ]);
 
 // The default scan follows every active publication and routing root. It does
