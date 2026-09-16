@@ -3,6 +3,7 @@
 .claude/worktrees/
 .claude/cache/
 .dhpk/review-gate/
+.dhpk/model-observations.json
 
 # Transient test / build artifacts
 .agents-skills-*

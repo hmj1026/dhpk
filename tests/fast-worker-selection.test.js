@@ -186,13 +186,13 @@ test('canonical worker selection builds a neutral request and returns resolved t
     ...cursor,
     access: {
       ...cursor.access,
-      'codex-cli': { status: 'AVAILABLE', evidence: 'bounded local-cli probe' },
+      openai: { status: 'AVAILABLE', evidence: 'bounded local-cli probe' },
     },
   };
   const result = selector.select({
     host_profile: hostProfile,
     catalog,
-    target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' },
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', transport: 'native-runtime' },
     effort: 'high',
     task_id: 'selector-task-1',
     attempt_id: 'selector-attempt-1',
@@ -212,12 +212,15 @@ test('canonical worker selection builds a neutral request and returns resolved t
   assert.strictEqual(result.request.authority, 'workspace-write');
   assert.strictEqual(result.request.host_profile.host, 'cursor');
   assert.deepStrictEqual(result.selected_target, {
-    provider: 'codex-cli',
-    model: 'sol5.6',
+    target_agent: 'codex-cli',
+    provider: 'openai',
+    model_id: 'gpt-5.6-luna-high',
+    model: 'gpt-5.6-luna-high',
     effort: 'high',
-    transport: 'local-cli',
+    route: 'native',
+    transport: 'native-runtime',
     native: false,
-    identity: 'codex-cli/sol5.6',
+    identity: 'codex-cli/gpt-5.6-luna-high',
   });
   assert.strictEqual(result.capability.status, 'AVAILABLE');
   assert.strictEqual(result.resolution_source, 'dispatch-engine');

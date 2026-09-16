@@ -9,12 +9,12 @@ const {
 const catalog = require('../manifests/provider-model-catalog.json');
 const profile = require('../manifests/host-profiles.json').profiles.find((entry) => entry.host === 'cursor');
 
-const target = { provider: 'codex-cli', model: 'sol5.6', effort: 'high', transport: 'local-cli' };
+const target = { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', effort: 'high', route: 'native', transport: 'native-runtime' };
 
 test('platform evidence separates catalog support, Host access, and runtime probe status', () => {
   const evidence = validateDispatchPlatformEvidence({ hostProfile: profile, catalog, target });
   assert.strictEqual(evidence.schema, VALIDATION_SCHEMA);
-  assert.strictEqual(evidence.status.catalog_support, 'AVAILABLE');
+  assert.strictEqual(evidence.status.catalog_support, 'SUPPORTED');
   assert.strictEqual(evidence.status.host_access, 'NOT_RUN');
   assert.strictEqual(evidence.status.runtime, 'NOT_RUN');
   assert.strictEqual(evidence.status.terminal, 'NOT_RUN');
@@ -22,7 +22,7 @@ test('platform evidence separates catalog support, Host access, and runtime prob
 
 test('runtime and verification evidence are recorded without turning a receipt into capability proof', () => {
   const evidence = validateDispatchPlatformEvidence({
-    hostProfile: { ...profile, access: { ...profile.access, 'codex-cli': { status: 'AVAILABLE', evidence: 'bounded probe' } } },
+    hostProfile: { ...profile, access: { ...profile.access, openai: { status: 'AVAILABLE', evidence: 'bounded probe' } } },
     catalog,
     target,
     probe: { status: 'AVAILABLE', evidence: 'executable and auth fixture' },
@@ -38,10 +38,10 @@ test('surface validation marks missing catalog support incomplete', () => {
   const result = validateDispatchSurfaceSet([{
     hostProfile: profile,
     catalog,
-    target: { provider: 'codex-cli', model: 'missing-model', effort: 'high', transport: 'local-cli' },
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'missing-model', effort: 'high', route: 'headless-cli', transport: 'local-cli' },
   }]);
   assert.strictEqual(result.verdict, 'INCOMPLETE');
-  assert.strictEqual(result.surfaces[0].status.catalog_support, 'UNAVAILABLE');
+  assert.strictEqual(result.surfaces[0].status.catalog_support, 'UNSUPPORTED');
 });
 
 run('dispatch-platform-validation');
