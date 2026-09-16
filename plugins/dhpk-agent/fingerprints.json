@@ -27,7 +27,7 @@
     "dhpk-opsx-load-context": "127aa99ffc46360d9d6da4589b7838bc75d4447f3acf8e011ab6d6048cfd6604",
     "dhpk-opsx-post-observation": "991b510f9fa18f457132221f0c5d507a06158b835cde7c57772b100f1a6dc882",
     "dhpk-polyfill-version-matrix-audit": "c18597d1bbc40c5691321f3490ff28a07ffa0f6ec665deb15f2698147d158d2b",
-    "dhpk-project-audit": "f110e304eddc1635bac3b45e9b36b97d2d0e9357fd156a840b3f426dcffe737a",
+    "dhpk-project-audit": "2068dd3ec3e9f0ee128ef6a569e070a956ca4ea71e4e61acdf9413ef8e2ebbb1",
     "dhpk-project-setup": "4c761853626944703650a8b10ef4f9cd47778e1d668ffe474d7f48ee0eb2ce8f",
     "dhpk-prompt-optimize": "7a84b49e66401c119c5558616f152d0a22f240bdcc815294654e00a571f10eef",
     "dhpk-release-creator": "267c736e0fda4ed81aabb92a4c9b78a0b0d898904d0974c0a4a93b69c90e416f",
@@ -35,9 +35,9 @@
     "dhpk-session-usage-audit": "9c87600b97c9a9e49128b5e11d92c22a72d33b709d797b096899c79ef52b9833",
     "dhpk-tdd-workflow": "6f69203e035cfb2431f1b8bdb9ef75288e62212177c9812a0f882d984614dd4f",
     "flow-drive": "b8eee4a9236425c360b6e8054335804130dbbae417d4124a00de4a2d0885a947",
-    "flow-guide": "265cec1a5367409aebcc8994754956c7189f0227794863f4147a9e8aefcb0a7f",
+    "flow-guide": "9d0d88810c467fb624519197e3b57306e11ddde264a98028148f41d0dbaaa33f",
     "harness-govern": "cbb298a79c6d933928d9fbe669c1d1aa120c2d9fdd3243622a8e0d95d2564f67",
     "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
-    "skill-scope": "ec46bf749a61d9d33c20431d32d5b883455d7d5ec096cfcb7023547ad46cf421"
+    "skill-scope": "1554bbd074b292142c3da57b458aeec9a10f4b28130a64b981dfdd81aee2b340"
   }
 }

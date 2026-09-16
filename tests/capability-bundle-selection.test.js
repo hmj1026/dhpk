@@ -380,6 +380,38 @@ test('checked-in minimal profile is the curated four-entry Claude default', () =
   assert.ok(result.value.supportClosure.files.every((file) => expected.includes(file.requiredBy)));
 });
 
+// RED contract for issue #534 P2.  A renamed public name may improve the
+// rejection diagnostic, but it must never become a selection alias or invoke
+// the replacement family automatically; stable-ID selection remains intact.
+test('renamed public names fail with diagnostics while canonical stable IDs still select', () => {
+  const root = path.join(__dirname, '..');
+  const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests/distribution-inventory.json'), 'utf8'));
+  const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'));
+  const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests/module-catalog.json'), 'utf8'));
+
+  const renamed = selection.resolveCapabilitySelection({
+    inventory,
+    profiles,
+    moduleCatalog,
+    surface: 'claude-profile',
+    standaloneSkillIds: ['dhpk-laravel'],
+  });
+  assert.strictEqual(renamed.ok, false);
+  assert.strictEqual(renamed.error.code, 'RENAMED_STABLE_ID');
+  assert.deepStrictEqual(renamed.error.stableIds, ['dhpk-laravel']);
+  assert.strictEqual(renamed.value, undefined);
+
+  const canonical = selection.resolveCapabilitySelection({
+    inventory,
+    profiles,
+    moduleCatalog,
+    surface: 'claude-profile',
+    standaloneSkillIds: ['laravel'],
+  });
+  assert.strictEqual(canonical.ok, true, canonical.error && canonical.error.message);
+  assert.deepStrictEqual(canonical.value.selectedStableIds, ['laravel']);
+});
+
 run();
 
 module.exports = { CORE_IDS, fixture };

@@ -9,6 +9,12 @@ const ROOT = path.join(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/command-skill-dispositions.json'), 'utf8'));
 const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
 
+const REMOVED_COMMAND_IDS = Object.freeze([
+  'check-skill', 'create-dev', 'do', 'codex-review', 'codex-review-fast',
+  'codex-review-branch', 'codex-review-doc', 'codex-security',
+  'codex-test-review', 'review-spec',
+]);
+
 function copyManifest() {
   return JSON.parse(JSON.stringify(manifest));
 }
@@ -76,6 +82,54 @@ test('thin front doors identify one real Skill owner and Host-only rows explain 
   for (const row of manifest.commands.filter((entry) => entry.disposition === 'host-only' || entry.disposition === 'retired')) {
     assert.ok(row.reason);
   }
+});
+
+// RED contract for issue #534 P2.  The physical command inventory and the
+// removed-name ledger are separate sets: historical command records remain
+// useful for diagnostics but can never become executable discovery entries.
+test('v2 command disposition keeps 31 active commands disjoint from the exact removed wave', () => {
+  assert.strictEqual(manifest.schema, 'dhpk.command-skill-disposition.v2');
+  assert.ok(Array.isArray(manifest.commands));
+  assert.strictEqual(manifest.commands.length, 31);
+  assert.ok(manifest.commands.every((row) => row.disposition !== 'retired' && row.outcome !== 'remove'));
+
+  assert.ok(Array.isArray(manifest.removed_commands));
+  assert.deepStrictEqual(manifest.removed_commands.map((row) => row.id).sort(), [...REMOVED_COMMAND_IDS].sort());
+  assert.ok(manifest.removed_commands.every((row) => row.outcome === 'remove' || row.disposition === 'removed'));
+  assert.ok(manifest.removed_commands.every((row) => Array.isArray(row.callers) && row.callers.length > 0));
+  assert.ok(manifest.removed_commands.every((row) => row.evidence && typeof row.evidence === 'object'));
+  assert.ok(typeof manifest.source_revision === 'string' && manifest.source_revision.startsWith('sha256:'));
+  assert.ok(typeof manifest.removed_source_revision === 'string' && manifest.removed_source_revision.startsWith('sha256:'));
+
+  const activeIds = new Set(manifest.commands.map((row) => row.id));
+  assert.ok(manifest.removed_commands.every((row) => !activeIds.has(row.id)));
+});
+
+test('v2 command validation rejects an omitted removal and a present removed path', () => {
+  const missing = copyManifest();
+  missing.removed_commands = (Array.isArray(missing.removed_commands)
+    ? missing.removed_commands
+    : REMOVED_COMMAND_IDS.map((id) => ({ id }))).slice(1);
+  const missingResult = validate(missing);
+  assert.ok(missingResult.errors.some((error) => /missing.*removed.*check-skill|check-skill.*missing/i.test(error)),
+    `expected missing removed-command diagnostic, got:\n${missingResult.errors.join('\n')}`);
+
+  const present = copyManifest();
+  present.commands.push({
+    id: 'check-skill',
+    path: 'commands/check-skill.md',
+    host_surface: 'claude-command',
+    public_name: '/dhpk:check-skill',
+    argument_contract: '',
+    authority: 'read-only',
+    skill_owner: null,
+    disposition: 'host-only',
+    reason: 'test-only removed command resurrection',
+    evidence: { structural: 'PASS', host_smoke: 'NOT_RUN', consumer: 'NOT_RUN' },
+  });
+  const presentResult = validate(present);
+  assert.ok(presentResult.errors.some((error) => /check-skill.*removed|removed.*check-skill|retired.*path/i.test(error)),
+    `expected removed-command resurrection diagnostic, got:\n${presentResult.errors.join('\n')}`);
 });
 
 run('command-skill-disposition');

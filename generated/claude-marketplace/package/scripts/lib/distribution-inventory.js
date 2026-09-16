@@ -1390,8 +1390,9 @@ function resolveSkillRoutingAlias({ families = [], id, inventory } = {}) {
 }
 
 // Resolve an identifier without introducing compatibility aliases. Active
-// inventory entries win; retired rows are consulted only after active lookup
-// fails, and unknown identifiers retain their original input for diagnostics.
+// inventory entries win; diagnostic-only public-name renames are consulted
+// before retired rows, and unknown identifiers retain their original input for
+// diagnostics. A renamed result intentionally carries no alias or successor.
 function resolveSkillIdentity({ inventory, identifier } = {}) {
   const skills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
   const active = skills.find((entry) => entry && (
@@ -1404,6 +1405,25 @@ function resolveSkillIdentity({ inventory, identifier } = {}) {
       state: 'active',
       stableId: active.id,
       publicName: active.name || active.id,
+    };
+  }
+
+  const renameValidation = validateRenamedSkillNames({ inventory });
+  if (renameValidation.errors.length > 0) return { state: 'unknown', identifier };
+  const renamedRows = inventory && Array.isArray(inventory.renamed_skill_names)
+    ? inventory.renamed_skill_names
+    : [];
+  const renamed = renamedRows.find((entry) => entry && (
+    entry.oldName === identifier || entry.oldPath === identifier
+  ));
+  if (renamed) {
+    const canonical = skills.find((entry) => entry && entry.id === renamed.id);
+    if (!canonical) return { state: 'unknown', identifier };
+    return {
+      state: 'renamed',
+      stableId: canonical.id,
+      publicName: canonical.name || renamed.newName,
+      oldName: renamed.oldName,
     };
   }
 
@@ -1432,6 +1452,19 @@ function resolveSkillIdentity({ inventory, identifier } = {}) {
 }
 
 function formatSkillIdentityDiagnostic({ inventory, resolution } = {}) {
+  if (resolution && resolution.state === 'renamed'
+    && typeof resolution.stableId === 'string'
+    && typeof resolution.oldName === 'string') {
+    const renameValidation = validateRenamedSkillNames({ inventory });
+    if (renameValidation.errors.length > 0) return '';
+    const row = (inventory && Array.isArray(inventory.renamed_skill_names) ? inventory.renamed_skill_names : [])
+      .find((entry) => entry && entry.id === resolution.stableId && entry.oldName === resolution.oldName);
+    const active = inventory && Array.isArray(inventory.skills)
+      ? inventory.skills.find((entry) => entry && entry.id === resolution.stableId)
+      : null;
+    if (!row || !active || active.name !== resolution.publicName) return '';
+    return `run-skill: skill '${resolution.oldName}' was renamed to '${resolution.publicName}'; select stable ID '${resolution.stableId}'. Public-name renames are diagnostic-only and do not install a compatibility alias.`;
+  }
   if (!resolution || resolution.state !== 'retired'
     || typeof resolution.retiredIn !== 'string'
     || typeof resolution.reasonCode !== 'string'

@@ -61,6 +61,10 @@ try {
     process.stderr.write(`${api.formatSkillIdentityDiagnostic({ inventory, resolution })}\n`);
     process.exit(2);
   }
+  if (resolution.state === 'renamed') {
+    process.stderr.write(`${api.formatSkillIdentityDiagnostic({ inventory, resolution })}\n`);
+    process.exit(2);
+  }
 } catch (error) {
   process.stderr.write(`run-skill: distribution inventory is malformed or unavailable; refusing to execute: ${error.message}\n`);
   process.exit(3);
