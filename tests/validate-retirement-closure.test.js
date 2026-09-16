@@ -96,6 +96,7 @@ test('default active-root discovery catches route, package, projection, and rena
         const relative = path.relative(ROOT, source);
         if (!relative) return true;
         const first = relative.split(path.sep)[0];
+        if (first.startsWith('.agents-skills-validate-')) return false;
         return !new Set(['.claude', '.codex', '.git', '.gitnexus', 'node_modules', 'tests']).has(first);
       },
     });
