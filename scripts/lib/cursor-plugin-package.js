@@ -1053,6 +1053,7 @@ function compileCursorPackage({
       } : {}),
   }));
   const compiled = compileDistribution({
+      internalCharacterization: selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy),
       surface: 'cursor-plugin',
       compilerVersion: `cursor-${generatorVersion}`,
       inventoryFingerprint: stableInventoryDigest(inventory),
