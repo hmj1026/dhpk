@@ -49,34 +49,59 @@ Reconfigure or inspect the effective config at any time from inside Claude Code:
 A handful of boolean/mode knobs additionally support a **one-shot environment-variable override** for a single session — see the "Env override" column below.
 
 For automatic fast-worker dispatch, the one-shot `--cross-provider` flag has
-the highest precedence and enables external candidates only for that
-invocation. Without the flag, project configuration wins over the installed
-user setting, and the shipped default is `false`.
+the highest precedence and enables cross-Agent candidates only for that
+invocation. It does not force a different-vendor Model through a CLI when the
+current Host can invoke that Model natively. Without the flag, project
+configuration wins over the installed user setting, and the shipped default is
+`false`.
 
 ### Provider-neutral dispatch settings
 
-The canonical dispatch settings use separate Host, Provider, Model, Role,
-Effort, and Transport concepts. A target uses `provider/model[:effort]`; a
-bare model name is not sufficient. `auto` selects the current Host-native
-target, subject to the ordered `preference_order` and the explicit
-`cross_provider` opt-in for external candidates.
+The canonical dispatch settings use separate Current Host, Target Agent,
+Provider, Model, Role, Effort, logical Route, and physical Transport concepts.
+The public target format is `agent/model[:effort]`; a bare model name is not
+sufficient. During migration, the older `provider/model[:effort]` spelling may
+be accepted only at the input compatibility boundary and is translated before
+capability lookup.
+
+`auto` uses the current Host/Role default `(target, effort)` pair, followed by
+the explicitly ordered fallback pairs after a confirmed availability failure
+before side effects. A different-vendor Model may still use the current Host's
+`native` route. `headless-cli` is reserved for a cross-Agent call. The
+`claude-code` and `codex-cli` names may be written as `claude` and `codex` in
+the public target; these are target-Agent aliases, not Model or Provider names.
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `worker_target` | string | `auto` | Provider-scoped target for the `worker` Role. |
-| `reasoner_target` | string | `auto` | Provider-scoped target for the read-only `reasoner` Role. |
-| `planner_target` | string | `auto` | Provider-scoped target for the read-only `planner` Role. |
-| `reviewer_target` | string | `auto` | Provider-scoped target for the read-only `reviewer` Role. |
-| `preference_order` | string[] | `[]` | Ordered Provider or Provider/Model candidates for automatic resolution. |
-| `fallback_allow` | boolean | `true` | Permit fallback only after confirmed pre-side-effect availability failure. |
+| `worker_target` | string | `auto` | Target-Agent/model for the canonical `worker` Role. |
+| `reasoner_target` | string | `auto` | Target-Agent/model for the canonical `reasoner` Role. |
+| `planner_target` | string | `auto` | Target-Agent/model for the canonical `planner` Role. |
+| `reviewer_target` | string | `auto` | Target-Agent/model for the canonical `reviewer` Role. |
+| `preference_order` | string[] | `[]` | Legacy compatibility order only; it does not replace the Host Profile's declared fallback pairs. |
+| `fallback_allow` | boolean | `true` | Permit only the Host Profile's declared fallback pairs after confirmed pre-side-effect availability failure. |
 
 Project values take precedence over installed-user values. Invalid fields are
 reported as `BLOCKED` without invalidating unrelated settings. Diagnostics keep
 catalog support, Host access, runtime availability, and fallback permission
 separate; static catalog membership or package discovery is never runtime proof.
+The dispatch Roles are `planner`, `reasoner`, `worker`, and `reviewer`.
+`orchestrator`/`spec-miner` map to `planner`, `architect`/`deep-reasoner` to
+`reasoner`, `codex-worker`/`agy-worker` to `worker`, and
+`doc-reviewer`/`code-reviewer`/`security-reviewer` to `reviewer`. These policy
+aliases/subroles do not create additional default sets. Static
+catalog capability uses `SUPPORTED`/`UNSUPPORTED`; current access/runtime
+evidence uses `AVAILABLE`/`UNAVAILABLE`/`BLOCKED`/`NOT_RUN`.
+The public `:effort` suffix uses canonical `low`, `medium`, `high`, or `max`;
+values such as `xhigh` remain Provider-specific compatibility values and are
+translated inside the Adapter.
 Legacy `fast_worker_*`, provider-specific model keys, and provider-bound Role
 aliases remain accepted only at the compatibility boundary and are recorded as
 translation evidence.
+
+The project-local Codex clean-install profile remains `compat-v1` for backward
+compatibility. The unified distribution/lifecycle default is `minimal` and
+contains the new four-capability public set. These skill-installation profiles
+are independent from Model default/fallback pairs.
 
 ## Core dispatch & review
 
@@ -104,7 +129,7 @@ translation evidence.
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes, plus `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
-| `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for external candidates during automatic fast-worker selection. `false` keeps `auto` native-only and prevents external probing; `true` allows the configured `fast_worker_backend_order` to be checked. An explicit `--worker=<target>` remains directional and does not open other providers. |
+| `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic fast-worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--worker=<target>` remains directional and does not open other target Agents. |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:flow-drive --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used by `auto` when `cross_provider=true`; rejected candidates and reasons are recorded. With the opt-in disabled, external entries are suppressed and not probed. Invalid values warn once per session and use the shipped order. |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
