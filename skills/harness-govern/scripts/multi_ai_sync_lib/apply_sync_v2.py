@@ -25,12 +25,13 @@ MAPPING_FIELDS = frozenset([
 ])
 SAFE_TARGET_PREFIXES = {
     "codex": (".codex", "artifacts/codex-skills-fallback", ".agent", ".agents"),
-    "antigravity": (".agent",),
+    "antigravity": (".agent", ".agents/skills"),
     "cursor": (".cursor",),
     "agy": (),
 }
 SAFE_SOURCE_PREFIXES = (".claude",)
 SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+SAFE_ANTIGRAVITY_SKILL_TARGET = re.compile(r"^\.agents/skills/[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
 
 
 def _validate_plan(plan):
@@ -226,9 +227,9 @@ def _resolve_codex_skill_target(target_rel, repo_root, fallback_roots):
         if _is_path_writable(candidate_abs):
             candidate_rel = _to_rel_for_report(candidate_abs, repo_root)
             reason = "`.codex/skills` 不可寫，改用 fallback root `%s`" % _to_rel_for_report(root_abs, repo_root)
-            # Task 1.6: 若 fallback 為 legacy alias，加入 WARNING 提示
-            if ".agents/skills" in root.replace("\\", "/"):
-                reason = "[WARNING: legacy alias `.agents/skills` used as fallback — migrate to `.agent/skills`] " + reason
+            # 若 fallback 為 legacy alias，加入 WARNING 提示
+            if ".agent/skills" in root.replace("\\", "/"):
+                reason = "[WARNING: legacy alias `.agent/skills` used as fallback — migrate to `.agents/skills`] " + reason
             return candidate_abs, candidate_rel, True, reason
 
     return planned_abs, target_rel, False, ""
@@ -298,6 +299,13 @@ def _apply_mapping(item, repo_root, dry_run, codex_skill_fallback_roots, sync_ru
 
     try:
         source_abs = _safe_repo_path(source_rel, repo_root, SAFE_SOURCE_PREFIXES, must_exist=True)
+        if item.get("target") == "antigravity":
+            normalized_target = target_rel.replace("\\", "/")
+            if item.get("category") == "skills":
+                if not SAFE_ANTIGRAVITY_SKILL_TARGET.fullmatch(normalized_target):
+                    raise ValueError("unsafe path: Antigravity skills must target a single .agents/skills/<name>.md file")
+            elif not normalized_target.startswith(".agent/"):
+                raise ValueError("unsafe path: Antigravity non-skill mappings must remain under .agent")
         target_abs = _safe_repo_path(target_rel, repo_root, SAFE_TARGET_PREFIXES.get(item.get("target"), ()))
     except ValueError as exc:
         return _failed_result(item, str(exc))
@@ -310,6 +318,11 @@ def _apply_mapping(item, repo_root, dry_run, codex_skill_fallback_roots, sync_ru
 
     try:
         if category == "skills":
+            if target == "antigravity":
+                if not dry_run:
+                    _copy_file(source_abs, target_abs)
+                return _apply_result(item, "applied", "已同步為 Antigravity direct-file Markdown")
+
             effective_target_abs = target_abs
             effective_target_rel = target_rel
             used_fallback = False
@@ -417,7 +430,7 @@ def update_tasks_from_apply_report(tasks_path, report):
 def apply_plan(plan, repo_root, dry_run=False, codex_skill_fallback_roots=None, sync_run_id=""):
     _validate_plan(plan)
     adapted = [item for item in plan.get("mappings", []) if item.get("status") == STATUS_ADAPT]
-    fallback_roots = codex_skill_fallback_roots or ["artifacts/codex-skills-fallback", ".agent/skills", ".agents/skills"]
+    fallback_roots = codex_skill_fallback_roots or ["artifacts/codex-skills-fallback", ".agents/skills", ".agent/skills"]
     run_id = sync_run_id or now_iso().replace(":", "-")
 
     results = []

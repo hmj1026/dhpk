@@ -47,7 +47,7 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | `install-codex-skills.sh` | Supported | Stable, canonical Codex project sync path; runtime activation is mutually exclusive with the native `dhpk@dhpk` plugin. |
 | `install-cursor-harness.sh` | Supported | Stable Cursor project-local sync path (`.cursor/`). |
 | Codex plugin marketplace | Experimental | Physical publication package for isolated disposable `CODEX_HOME` experiments; runtime activation is mutually exclusive with project-local sync and the tier stays Experimental until a separate graduation decision. |
-| Antigravity / AGY sync | Adapter/package | Antigravity uses `.agent` mappings; AGY uses its native plugin package and validator. |
+| Antigravity / AGY sync | Adapter/package | Antigravity project skills use `.agents/skills` mapping while rules/workflows remain under `.agent`; AGY uses its native plugin package and validator. |
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
 from skill invocation. Choose one Codex runtime route per host: use the
