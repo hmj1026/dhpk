@@ -97,9 +97,12 @@ test('default active-root discovery catches route, package, projection, and rena
         if (!relative) return true;
         const first = relative.split(path.sep)[0];
         if (first.startsWith('.agents-skills-validate-')) return false;
-        return !new Set(['.claude', '.codex', '.git', '.gitnexus', 'node_modules', 'tests']).has(first);
+        return !new Set(['.agents', '.claude', '.codex', '.git', '.gitnexus', 'node_modules', 'tests']).has(first);
       },
     });
+    const projectedSkill = path.join(temporaryRoot, '.agents', 'skills', 'flow-guide', 'SKILL.md');
+    fs.mkdirSync(path.dirname(projectedSkill), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), projectedSkill);
 
     const baseline = validateRetirementClosure({ root: temporaryRoot });
     assert.strictEqual(baseline.ok, true, baseline.errors.join('\n'));
