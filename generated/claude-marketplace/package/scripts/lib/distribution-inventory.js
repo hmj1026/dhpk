@@ -2098,6 +2098,7 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
     ),
   ];
   const compiled = compileDistribution({
+    internalCharacterization: true,
     compilerVersion,
     surface: 'claude-core',
     inventoryFingerprint: fingerprint(inventoryView),

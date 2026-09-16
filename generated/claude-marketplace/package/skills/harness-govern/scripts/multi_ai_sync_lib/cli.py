@@ -166,8 +166,8 @@ def build_parser():
     p_apply.add_argument(
         "--codex-skills-fallback-roots",
         nargs="+",
-        default=["artifacts/codex-skills-fallback", ".agent/skills", ".agents/skills"],
-        help="當 .codex/skills 不可寫時，依序嘗試 fallback roots（.agent/skills 為 canonical，.agents/skills 為 legacy alias）",
+        default=["artifacts/codex-skills-fallback", ".agents/skills", ".agent/skills"],
+        help="當 .codex/skills 不可寫時，依序嘗試 fallback roots（.agents/skills 為 canonical，.agent/skills 為 legacy alias）",
     )
     p_apply.add_argument("--update-tasks", default="", help="依 apply 結果回寫 tasks checkbox")
     p_apply.add_argument("--manual-draft-output", default="", help="把 manual 項目轉成 reviewer-ready 草稿檔")

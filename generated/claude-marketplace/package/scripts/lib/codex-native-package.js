@@ -574,6 +574,7 @@ function compileNativePackage({
     } : {}),
   }));
   const compiled = compileDistribution({
+    internalCharacterization: selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy),
     surface: 'codex-native',
     compilerVersion: `codex-native-${generatorVersion}`,
     inventoryFingerprint: inventoryDigest,

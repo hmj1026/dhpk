@@ -46,7 +46,7 @@ dhpk 刻意提供多個不同支援等級的 surface：
 | `install-codex-skills.sh` | Supported | 穩定且 canonical 的 Codex project sync 路徑；runtime activation 與 native `dhpk@dhpk` plugin 互斥。 |
 | `install-cursor-harness.sh` | Supported | 穩定的 Cursor project-local sync 路徑（`.cursor/`）。 |
 | Codex plugin marketplace | Experimental | 僅供 disposable isolated `CODEX_HOME` 實驗的實體 publication package；runtime activation 與 project-local sync 互斥，在另一次升級決策前維持 Experimental。 |
-| Antigravity / AGY sync | Adapter/package | Antigravity 使用 `.agent` mapping；AGY 使用原生 plugin package 與 validator。 |
+| Antigravity / AGY sync | Adapter/package | Antigravity project skills 使用 `.agents/skills` mapping，rules/workflows 仍在 `.agent`；AGY 使用原生 plugin package 與 validator。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invocation 分開。
 每個 host 只選一條 Codex runtime route：日常工作使用支援的 project-local

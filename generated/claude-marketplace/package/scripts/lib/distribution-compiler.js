@@ -248,6 +248,23 @@ function compileDistribution(inputs = {}) {
   // cannot use it to decide inventory membership; inventory-backed calls below
   // are the only public selection path for migrated surfaces.
   const profileSelection = inputs.profileSelection || inputs.selection || null;
+  const hasNormalizedSelection = profileSelection && typeof profileSelection.selectionFingerprint === 'string'
+    || Array.isArray(inputs.selectedStableIds) && (
+      inputs.selectionPolicy && typeof inputs.selectionPolicy === 'object'
+      || Array.isArray(inputs.selectionEntries)
+    );
+  if (inputs.entries && !inputs.internalCharacterization && !hasNormalizedSelection) {
+    return {
+      ok: false,
+      error: projectionError('MISSING_NORMALIZED_SELECTION', 'compile', 'raw entries require a normalized profile selection or an explicit internal characterization marker'),
+    };
+  }
+  if (inputs.selectionMode === 'legacy' && !inputs.internalCharacterization) {
+    return {
+      ok: false,
+      error: projectionError('MISSING_NORMALIZED_SELECTION', 'compile', 'legacy selection is restricted to explicit internal characterization fixtures'),
+    };
+  }
   let entries = inputs.entries;
   let selection = { selectedStableIds: null, selectionPolicy: null };
   if (!inputs.entries) {

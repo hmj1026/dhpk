@@ -563,6 +563,21 @@ function resolveCapabilitySelection(input = {}) {
     baseSet.add(id);
   }
   const selectedStableIds = [...baseSet];
+  const dependencyTable = input.standaloneDependencies
+    || input.inventory && (input.inventory.standalone_dependencies || input.inventory.standaloneDependencies)
+    || {};
+  const supportFiles = selectedStableIds.flatMap((id) => {
+    const dependency = dependencyTable[id];
+    return dependency && Array.isArray(dependency.files)
+      ? dependency.files.map((file) => ({ ...file, requiredBy: id }))
+      : [];
+  }).sort((left, right) => `${left.destination || ''}:${left.source || ''}:${left.requiredBy}`
+    .localeCompare(`${right.destination || ''}:${right.source || ''}:${right.requiredBy}`));
+  const supportClosure = freeze({
+    skillStableIds: [],
+    files: supportFiles,
+    assets: [],
+  });
   const profileDefinition = clone({ ...profile, modules: selectedModules, skillIds: selectedDefinition || null, excludes });
   const sourceFingerprint = input.sourceFingerprint || input.sourceInputs && fingerprint(clone(input.sourceInputs)) || fingerprint({ source: input.source || null });
   const inventoryFingerprint = input.inventoryFingerprint || fingerprint({ skills: entries, retired_skills: input.inventory && input.inventory.retired_skills || [] });
@@ -581,6 +596,7 @@ function resolveCapabilitySelection(input = {}) {
     sourceFingerprint,
     profileFingerprint,
     inventoryFingerprint,
+    supportClosure,
   };
   const selectionFingerprint = fingerprint(identity);
   const value = {

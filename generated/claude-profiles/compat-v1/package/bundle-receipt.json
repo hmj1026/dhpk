@@ -68,7 +68,7 @@
     ],
     "excludes": [],
     "id": "compat-v1",
-    "inventoryFingerprint": "94ea642fd46d7f9af123aa3a910c059e82cab15426b2dee729ddc3a3cb1fd3e8",
+    "inventoryFingerprint": "18dd86fa66c4ac5eed8c1a32934f6644798a86f2f27ba9dc8fd8e725aded9533",
     "mode": "compat-v1",
     "modules": [],
     "profileFingerprint": "4dd58ea5c7deba9273adb78a0b85ece5a93a2246d301365f67f437cfcb56228e",
@@ -137,11 +137,52 @@
       "xcode-build-tooling",
       "yii1-security-audit"
     ],
-    "selectionFingerprint": "56915da18c92ec257c6268feba61dc1cb350623aca553fe772270eb03d6d789a",
+    "selectionFingerprint": "07bfe4dc5b08abd4f74921e670296cb89d302a2979999d141d9e6887de59f5da",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "4991adf51b8c9e98fa47e9385b5898d69335eeb95704f97c8032905d4b2bb731",
-    "surfaceSelectionFingerprint": "eba686426e846896832df961e2af3d55bf75d1a93bda7a624c1dfed16f4a053e",
+    "sourceFingerprint": "7807174eea94a200cbbabbcf45e0209535314fa345b5a7fb04d6cd9c6f7087d6",
+    "supportClosure": {
+      "assets": [],
+      "files": [
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "flow-drive",
+          "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "flow-guide",
+          "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "flow-drive",
+          "source": "rules/execution-policy.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "flow-guide",
+          "source": "rules/execution-policy.md"
+        },
+        {
+          "destination": "rules/tool-routing.md",
+          "requiredBy": "code-trace",
+          "source": "rules/tool-routing.md"
+        },
+        {
+          "destination": "scripts/lib/flow-handoff-contract.js",
+          "requiredBy": "flow-drive",
+          "source": "scripts/lib/flow-handoff-contract.js"
+        },
+        {
+          "destination": "scripts/lib/flow-handoff-contract.js",
+          "requiredBy": "flow-guide",
+          "source": "scripts/lib/flow-handoff-contract.js"
+        }
+      ],
+      "skillStableIds": []
+    },
+    "surfaceSelectionFingerprint": "78c756e539c8a3bb4ee0387e0b0de6fe340e773716cf08c94fa24362c9e81a4d",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "compat-v1",
@@ -701,6 +742,14 @@
       "destination": "commands/doc-refactor.md"
     },
     {
+      "stableId": "claude-profile:command:flow-drive",
+      "destination": "commands/flow-drive.md"
+    },
+    {
+      "stableId": "claude-profile:command:flow-guide",
+      "destination": "commands/flow-guide.md"
+    },
+    {
       "stableId": "claude-profile:command:git-worktree",
       "destination": "commands/git-worktree.md"
     },
@@ -837,5 +886,5 @@
       "version": "1.0.0"
     }
   ],
-  "planFingerprint": "f89ecd9e0549eb4e0323c49bac39b21f60091100e3b86a992e7168747b4fb934"
+  "planFingerprint": "6b7bee38b8bb230a51847c7b056122cfff30b9559678d09a8544c8a7ca1a8e2d"
 }
