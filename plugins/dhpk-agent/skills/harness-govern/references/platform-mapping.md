@@ -24,7 +24,7 @@
 
 | Category | Claude Source | Codex Target | Antigravity Target | Cursor Target |
 |---|---|---|---|---|
-| skills | `.claude/skills/<name>/SKILL.md` | `.codex/skills/<name>/SKILL.md` | `.agent/skills/<name>/SKILL.md` | `.cursor/skills/<name>/SKILL.md` |
+| skills | `.claude/skills/<name>/SKILL.md` | `.codex/skills/<name>/SKILL.md` | `.agents/skills/<name>.md` | `.cursor/skills/<name>/SKILL.md` |
 | commands (opsx) | `.claude/commands/opsx/<cmd>.md` | N/A (skip) | `.agent/workflows/opsx-<cmd>.md` | `.cursor/commands/opsx-<cmd>.md` |
 | commands (non-opsx) | `.claude/commands/<cmd>.md` | N/A (skip) | `.agent/workflows/<cmd>.md` (adapted, if workflow policy allows) | `.cursor/commands/<cmd>.md` (adapted, if command policy allows) |
 | agents | `.claude/agents/<role>.md` | `.codex/agents/<role>.toml` (+ optional md) | N/A (skip) | `.cursor/agents/<role>.md` |

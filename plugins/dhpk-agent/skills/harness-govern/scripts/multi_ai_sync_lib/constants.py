@@ -23,7 +23,8 @@ CONFLICT_REGISTRY_CANDIDATES = [
 # --- Configured-platform validation status vocabulary (design.md Decisions 2 and 6) ---
 # Distinct from CHECK_PASS/CHECK_FAIL/CHECK_SKIP above, which remain the
 # lowercase vocabulary for the pre-existing, unrelated `run_policy_checks`
-# checks (path.canonical, profile.php_pro, parity.agents.*).
+# checks (path.canonical, profile.php_pro, parity.agents.*); `.agents/skills`
+# is the canonical shared project projection and `.agent/skills` is legacy.
 ROW_PASS = "PASS"
 ROW_FAIL = "FAIL"
 ROW_NOT_CONFIGURED = "NOT_CONFIGURED"
