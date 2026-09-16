@@ -36,10 +36,6 @@ const EXPECTED_MINIMAL_PROFILE = Object.freeze([
   'code-trace',
   'flow-drive',
   'flow-guide',
-  'git-smart-commit',
-  'project-audit',
-  'prompt-optimize',
-  'tdd',
 ]);
 
 const SHARED_SURFACES = Object.freeze([
@@ -277,7 +273,7 @@ test('consolidated inventory exposes exactly nine portable families and canonica
 test('profiles and shared publication surfaces expose the approved closed counts', () => {
   const profileTable = PROFILES.profiles;
   assert.deepStrictEqual(profileTable.minimal.skillIds.slice().sort(), EXPECTED_MINIMAL_PROFILE.slice().sort());
-  assert.strictEqual(profileTable.minimal.skillIds.length, 8);
+  assert.strictEqual(profileTable.minimal.skillIds.length, 4);
   assert.strictEqual(profileTable.full.skillIds.length, 55);
   assert.strictEqual(profileTable['compat-v1'].skillIds.length, 62);
 

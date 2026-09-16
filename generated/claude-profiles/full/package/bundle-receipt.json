@@ -3,17 +3,18 @@
   "surface": "claude-profile",
   "profile": {
     "emittedStableIds": [
+      "flow-guide",
       "agent-architecture-audit",
       "agy-fast-worker",
-      "change-verdict",
       "code-trace",
       "codex-bridge",
+      "change-verdict",
       "composer-package-hygiene",
+      "skill-forge",
       "deploy-list",
+      "flow-drive",
       "fastapi-pro",
       "feature-verify",
-      "flow-drive",
-      "flow-guide",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -21,7 +22,6 @@
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
-      "harness-govern",
       "ios-icon-gen",
       "ios-platform",
       "issue-analyze",
@@ -48,7 +48,6 @@
       "release-creator",
       "repo-intake",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
       "swift-language",
@@ -57,7 +56,8 @@
       "tdd",
       "vue-2-notes",
       "xcode-build-tooling",
-      "yii1-security-audit"
+      "yii1-security-audit",
+      "harness-govern"
     ],
     "excludes": [
       "laravel-10",
@@ -79,7 +79,7 @@
       "react-19"
     ],
     "id": "full",
-    "inventoryFingerprint": "94ea642fd46d7f9af123aa3a910c059e82cab15426b2dee729ddc3a3cb1fd3e8",
+    "inventoryFingerprint": "18dd86fa66c4ac5eed8c1a32934f6644798a86f2f27ba9dc8fd8e725aded9533",
     "mode": "profile",
     "modules": [
       "fastapi",
@@ -100,17 +100,18 @@
     "profileFingerprint": "7415422214d9b959789b7ed6e34c4cef7d46476e82be0f389f476618a4ed73b4",
     "profileId": "full",
     "selectedStableIds": [
+      "flow-guide",
       "agent-architecture-audit",
       "agy-fast-worker",
-      "change-verdict",
       "code-trace",
       "codex-bridge",
+      "change-verdict",
       "composer-package-hygiene",
+      "skill-forge",
       "deploy-list",
+      "flow-drive",
       "fastapi-pro",
       "feature-verify",
-      "flow-drive",
-      "flow-guide",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -118,7 +119,6 @@
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
-      "harness-govern",
       "ios-icon-gen",
       "ios-platform",
       "issue-analyze",
@@ -145,7 +145,6 @@
       "release-creator",
       "repo-intake",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
       "swift-language",
@@ -154,13 +153,55 @@
       "tdd",
       "vue-2-notes",
       "xcode-build-tooling",
-      "yii1-security-audit"
+      "yii1-security-audit",
+      "harness-govern"
     ],
-    "selectionFingerprint": "3a279c2555880e5f0009642ce3621fbc97486fbb4ed63a0bcc2c4dc41dc28a66",
+    "selectionFingerprint": "255a9d166d79b74143c6c427a276bf4c2d6fbc37a75f9dabff072ab3eeb70900",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "79ab2fb294d2d69c0ca9e30f56fa63d588197a6d558ebebe11101bf5990f36b8",
-    "surfaceSelectionFingerprint": "22b9f99f61f45dcb765627bde37d895dad8bbfd9c29dd27a05e20ea44edb3573",
+    "sourceFingerprint": "0852795c136a739657686ba229f7a445475d73996ff2161fc858f3fa491fe876",
+    "supportClosure": {
+      "assets": [],
+      "files": [
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "flow-drive",
+          "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "flow-guide",
+          "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "flow-drive",
+          "source": "rules/execution-policy.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "flow-guide",
+          "source": "rules/execution-policy.md"
+        },
+        {
+          "destination": "rules/tool-routing.md",
+          "requiredBy": "code-trace",
+          "source": "rules/tool-routing.md"
+        },
+        {
+          "destination": "scripts/lib/flow-handoff-contract.js",
+          "requiredBy": "flow-drive",
+          "source": "scripts/lib/flow-handoff-contract.js"
+        },
+        {
+          "destination": "scripts/lib/flow-handoff-contract.js",
+          "requiredBy": "flow-guide",
+          "source": "scripts/lib/flow-handoff-contract.js"
+        }
+      ],
+      "skillStableIds": []
+    },
+    "surfaceSelectionFingerprint": "9c2cc6fc018f38b298fc1b01db27568eb83ef2a64b032561684e5d4400a61f5c",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -685,6 +726,14 @@
       "destination": "commands/doc-refactor.md"
     },
     {
+      "stableId": "claude-profile:command:flow-drive",
+      "destination": "commands/flow-drive.md"
+    },
+    {
+      "stableId": "claude-profile:command:flow-guide",
+      "destination": "commands/flow-guide.md"
+    },
+    {
       "stableId": "claude-profile:command:git-worktree",
       "destination": "commands/git-worktree.md"
     },
@@ -829,5 +878,5 @@
       "version": "1.0.0"
     }
   ],
-  "planFingerprint": "e042b42d0c16ce6e2b9c96a3aeb4a6c165f1e1957b5cdbaaae5c2a5556130a6d"
+  "planFingerprint": "968f4111740e1131f339234374d00b5ba43663fc1e09be33eea7c577cdb7b731"
 }

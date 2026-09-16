@@ -182,7 +182,7 @@ test('GitNexus packages remain byte-identical and active', () => {
 });
 
 test('profiles, shared surfaces, and command retirement match the approved cutover', () => {
-  assert.strictEqual(PROFILES.profiles.minimal.skillIds.length, 8);
+  assert.strictEqual(PROFILES.profiles.minimal.skillIds.length, 4);
   assert.strictEqual(PROFILES.profiles.full.skillIds.length, 55);
   assert.strictEqual(PROFILES.profiles['compat-v1'].skillIds.length, 62);
   assert.strictEqual(INVENTORY.surface_membership['agent-plugin'].length, 37);

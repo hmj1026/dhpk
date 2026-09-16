@@ -1083,6 +1083,7 @@ function buildAgentPluginProjection(options = {}) {
     } : {}),
   }));
   const compiled = compileDistribution({
+    internalCharacterization: selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy),
     surface: 'agent-plugin',
     compilerVersion: `agent-plugin-${generatorVersion}`,
     inventoryFingerprint: legacyInventoryDigest(inventory),

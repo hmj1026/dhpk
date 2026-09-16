@@ -35,6 +35,25 @@ function write(file, content, mode) {
   fs.writeFileSync(file, content, mode ? { mode } : undefined);
 }
 
+test('path-only Cursor shared rows consume the compiler-bound public selection', () => {
+  const inventory = fixtureInventory();
+  inventory.skills.push(
+    { id: 'shared-selected', name: 'shared-selected', path: 'skills/shared-selected', lifecycle: 'promoted', surfaces: ['agent-plugin'] },
+    { id: 'shared-unselected', name: 'shared-unselected', path: 'skills/shared-unselected', lifecycle: 'promoted', surfaces: ['agent-plugin'] },
+  );
+  inventory.surface_membership['agent-plugin'] = ['shared-selected', 'shared-unselected'];
+  inventory.platform_matrix.entries = [{
+    id: 'cursor-shared-path-only',
+    surface: 'cursor-plugin',
+    source_paths: ['skills/'],
+    destination: 'plugins/dhpk-agent/skills/',
+    projection_mode: 'shared',
+    shared_surface: 'agent-plugin',
+  }];
+  const projection = cursorSkillProjection(inventory, ['shared-selected']);
+  assert.deepStrictEqual(projection.sharedSkills.map((skill) => skill.id), ['shared-selected']);
+});
+
 function makeFixture() {
   const root = tmpDir('dhpk-cursor-source-');
   write(path.join(root, 'skills', 'dhpk-portable', 'SKILL.md'), [

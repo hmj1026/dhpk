@@ -348,7 +348,12 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   assert.strictEqual(checked.ok, true, checked.errors.join('; '));
   const minimal = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
   const compat = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'compat-v1' });
-  assert.strictEqual(minimal.value.selectedStableIds.length, 8);
+  assert.deepStrictEqual(minimal.value.selectedStableIds, [
+    'change-verdict',
+    'code-trace',
+    'flow-drive',
+    'flow-guide',
+  ]);
   const declaredCompatIds = profiles.profiles['compat-v1'].skillIds.slice().sort();
   assert.deepStrictEqual(compat.value.selectedStableIds, declaredCompatIds);
   for (const familyId of (inventory.skill_routing_families || []).map((family) => family.id)) {
@@ -357,20 +362,22 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   assert.ok(compat.value.selectedStableIds.every((id) => !inventory.retired_skills.some((row) => row.id === id)));
 });
 
-test('checked-in minimal profile is the curated eight-entry Claude default', () => {
+test('checked-in minimal profile is the curated four-entry Claude default', () => {
   const root = path.join(__dirname, '..');
   const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests/distribution-inventory.json'), 'utf8'));
   const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'));
   const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests/module-catalog.json'), 'utf8'));
-  const expected = [
-    'change-verdict', 'code-trace', 'flow-drive',
-    'flow-guide', 'git-smart-commit', 'project-audit', 'prompt-optimize',
-    'tdd',
-  ];
+  const expected = ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide'];
   const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
   assert.strictEqual(result.ok, true, result.error && result.error.message);
   assert.deepStrictEqual(result.value.selectedStableIds, expected);
-  assert.strictEqual(result.value.selectedStableIds.length, 8);
+  assert.strictEqual(result.value.selectedStableIds.length, 4);
+  assert.deepStrictEqual(result.value.supportClosure.skillStableIds, []);
+  assert.deepStrictEqual(
+    [...new Set(result.value.supportClosure.files.map((file) => file.destination))].sort(),
+    ['rules/execution-policy-kernel.md', 'rules/execution-policy.md', 'rules/tool-routing.md', 'scripts/lib/flow-handoff-contract.js'],
+  );
+  assert.ok(result.value.supportClosure.files.every((file) => expected.includes(file.requiredBy)));
 });
 
 run();

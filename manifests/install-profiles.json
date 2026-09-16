@@ -10,11 +10,7 @@
         "change-verdict",
         "code-trace",
         "flow-drive",
-        "flow-guide",
-        "git-smart-commit",
-        "project-audit",
-        "prompt-optimize",
-        "tdd"
+        "flow-guide"
       ],
       "commandIds": [
         "smart-commit",

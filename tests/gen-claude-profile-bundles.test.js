@@ -23,13 +23,12 @@ test('minimal generator reports the curated default selection', () => {
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const payload = JSON.parse(result.stdout);
-  assert.strictEqual(payload.selectedStableIds.length, 8);
-  assert.ok(payload.selectedStableIds.includes('code-trace'));
-  assert.ok(payload.selectedStableIds.includes('flow-drive'));
-  assert.ok(payload.selectedStableIds.includes('flow-guide'));
-  assert.ok(payload.selectedStableIds.includes('change-verdict'));
-  assert.ok(!payload.selectedStableIds.includes('code-explore'));
-  assert.ok(payload.selectedStableIds.includes('project-audit'));
+  assert.deepStrictEqual(payload.selectedStableIds, [
+    'change-verdict',
+    'code-trace',
+    'flow-drive',
+    'flow-guide',
+  ]);
 });
 
 test('compat-v1 generator preserves the predecessor-compatible allowlist', () => {

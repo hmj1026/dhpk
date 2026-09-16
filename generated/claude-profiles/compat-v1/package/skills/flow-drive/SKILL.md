@@ -1,6 +1,6 @@
 ---
 name: flow-drive
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<provider>/<model>[:<effort>]] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
+argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
 description: 'Explicit-only implementation workflow for a confirmed specification or OpenSpec change whose target and acceptance contract are settled. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: ordered implementation and verification evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
@@ -58,9 +58,13 @@ action.
 ## Implementation options
 
 - `--plan[=<model>:<effort>]` requests a planning pass.
-- `--worker=<provider>/<model>[:<effort>]` selects an explicitly requested
-  Provider-scoped worker target; legacy backend values remain compatibility
-  inputs only.
+- `--worker=<claude|codex|agy|auto>` selects the Worker Selector and preserves
+  the existing worker-routing enum.
+- `--worker-target=<provider>/<model>[:<effort>]` selects an explicit
+  Provider/Model/Effort Execution Target. It is distinct from `--worker` and
+  is not an alias for the selector.
+- `--cross-provider` permits the explicitly selected provider boundary when
+  the surrounding policy and evidence allow it.
 - `--reasoner=<provider>/<model>[:<effort>]` requests a bounded second opinion
   with a Provider-scoped target; canonical Role remains `reasoner`.
 - `--architect` or `--no-architect` controls the architecture pass.
