@@ -94,6 +94,23 @@ test('output plans retain canonical selection identity separately from output in
   assert.deepStrictEqual(compiled.value.entries.map((entry) => entry.stableId), ['manifest:plugin']);
 });
 
+test('public compilation rejects raw entries without normalized selection identity', () => {
+  const compiled = compileDistribution({
+    surface: 'agent-plugin',
+    entries: [{ id: 'ambient', path: 'skills/ambient' }],
+  });
+  assert.strictEqual(compiled.ok, false);
+  assert.strictEqual(compiled.error.code, 'MISSING_NORMALIZED_SELECTION');
+  const legacy = compileDistribution({
+    internalCharacterization: false,
+    selectionMode: 'legacy',
+    surface: 'agent-plugin',
+    entries: [{ id: 'ambient', path: 'skills/ambient' }],
+  });
+  assert.strictEqual(legacy.ok, false);
+  assert.strictEqual(legacy.error.code, 'MISSING_NORMALIZED_SELECTION');
+});
+
 test('compiler fails closed when a migrated surface lacks a valid selection policy', () => {
   const source = inventory();
   delete source.projection_contract.surfaces['agent-plugin'].selection_policy;
@@ -205,6 +222,7 @@ test('compiler preserves Native Codex entry allowlist over other membership maps
 
 test('compileDistribution rejects duplicate IDs, invalid entries, and unsupported symlink policies', () => {
   const duplicate = compileDistribution({
+    internalCharacterization: true,
     surface: 'agent-plugin',
     entries: [{ id: 'same', path: 'skills/a' }, { id: 'same', path: 'skills/b' }],
   });
@@ -212,6 +230,7 @@ test('compileDistribution rejects duplicate IDs, invalid entries, and unsupporte
   assert.strictEqual(duplicate.error.code, 'DUPLICATE_STABLE_ID');
 
   const invalidLink = compileDistribution({
+    internalCharacterization: true,
     surface: 'agent-plugin',
     entries: [{ id: 'a', path: 'skills/a', symlinkPolicy: 'absolute' }],
   });
@@ -309,6 +328,7 @@ test('materializeDistribution aborts when an adapter injects an unplanned staged
 
 test('materializeDistribution rejects incomplete plans and materializes link intents', () => {
   const compiled = compileDistribution({
+    internalCharacterization: true,
     surface: 'codex-sync',
     entries: [
       { id: 'one', path: 'links/one', symlinkPolicy: 'contained-relative' },
@@ -332,6 +352,7 @@ test('materializeDistribution rejects incomplete plans and materializes link int
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-link-intent-'));
   try {
     const linkPlan = compileDistribution({
+      internalCharacterization: true,
       surface: 'codex-sync',
       entries: [{ id: 'link', path: 'links/one', symlinkPolicy: 'contained-relative' }],
     });

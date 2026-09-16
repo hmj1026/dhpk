@@ -632,11 +632,28 @@ test('Claude profile probe stays non-pass when the configured executable is unav
 // v2 RED contract (this test): minimal required_core includes `do`. Membership
 // count is not a replacement literal of nine — see flow-drive route coverage [5.1].
 
-test('minimal required_core includes flow-drive', () => {
+test('minimal required_core is exactly the four public workflow capabilities', () => {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const core = inventory.profile_policy.required_core_ids;
   assert.ok(Array.isArray(core), 'profile_policy.required_core_ids must be an array');
-  assert.ok(core.includes('flow-drive'), "minimal required_core_ids must include stable id 'flow-drive'");
+  assert.deepStrictEqual(core, ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide']);
+});
+
+test('minimal Claude package keeps dependency skills outside the public selection', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
+  const moduleCatalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'module-catalog.json'), 'utf8'));
+  const result = bundleApi.compileClaudeCapabilityBundle({
+    root: ROOT,
+    inventory,
+    profiles,
+    moduleCatalog,
+    profileId: 'minimal',
+  });
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.deepStrictEqual(result.value.selection.selectedStableIds, ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide']);
+  assert.deepStrictEqual(result.value.plan.selectedStableIds, ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide']);
+  assert.deepStrictEqual(result.value.plan.profile.supportClosure, result.value.selection.supportClosure);
 });
 
 run('profile-scoped-claude-capability-bundle');

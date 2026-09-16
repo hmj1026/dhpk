@@ -539,6 +539,10 @@ function cursorSkillProjection(inventory, selectedStableIds = null) {
   const agentSkills = selectPortableSkills(inventory, 'agent-plugin', selectedStableIds);
   const sharedIds = new Set(sharedRows.flatMap(matrixEntryIds));
   if (sharedRows.length > 0 && sharedIds.size === 0) agentSkills.forEach((skill) => sharedIds.add(skill.id));
+  if (Array.isArray(selectedStableIds)) {
+    const boundIds = new Set(agentSkills.map((skill) => skill.id));
+    for (const id of sharedIds) if (!boundIds.has(id)) sharedIds.delete(id);
+  }
   const overlayIds = new Set(overlayRows.flatMap(matrixEntryIds));
   const hasExplicitRows = rows.length > 0;
   const profileOverlaySkills = hasExplicitRows && overlayIds.size > 0

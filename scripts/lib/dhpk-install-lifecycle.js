@@ -178,22 +178,31 @@ function compileLifecyclePlan(request, inventory, { profiles = null, moduleCatal
     if (!resolved.ok) return resolved;
     profileSelection = resolved.value;
   }
-  const compiled = profileSelection
-    ? compileDistribution({
+  let compiled;
+  if (profileSelection) {
+    compiled = compileDistribution({
       inventory,
       surface,
       profileSelection,
       compilerVersion: 'dhpk-install-lifecycle-v1',
       inventoryFingerprint: inventoryFingerprint(inventory),
       inputFingerprint: crypto.createHash('sha256').update(JSON.stringify(request)).digest('hex'),
-    })
-    : compileDistribution({
+    });
+  } else {
+    const normalized = compileDistribution({ inventory, surface });
+    if (!normalized.ok) return normalized;
+    compiled = compileDistribution({
+      inventory,
       surface,
       entries,
+      selectedStableIds: normalized.value.selectedStableIds,
+      selectionPolicy: normalized.value.selectionPolicy,
+      selectionEntries: entries,
       compilerVersion: 'dhpk-install-lifecycle-v1',
       inventoryFingerprint: inventoryFingerprint(inventory),
       inputFingerprint: crypto.createHash('sha256').update(JSON.stringify(request)).digest('hex'),
     });
+  }
   if (!compiled.ok) return compiled;
   return {
     ok: true,
