@@ -1,76 +1,2262 @@
 {
-  "schema": "dhpk.skill-purpose-decisions.v1",
-  "contractVersion": "dhpk.skill-purpose-contract.v1",
+  "schema": "dhpk.skill-purpose-decisions.v2",
+  "contractVersion": "dhpk.skill-purpose-contract.v2",
   "issue": 469,
   "baseline": {
     "path": "docs/baselines/issue-467-develop-bba2873.json",
     "decisionRule": "Every active baseline skill has one explicit disposition; no active entry is removed or aliased by this ledger."
   },
   "decisions": [
-    { "id": "fastapi-pro", "disposition": "retain-optional", "rationale": "Keep independently selectable FastAPI and async SQLAlchemy guidance; it is bounded web-Python work, not a general Python entry." },
-    { "id": "ios-platform", "disposition": "retain-optional", "rationale": "Keep independently selectable iOS SDK and privacy guidance; do not merge SDK APIs with Swift or SwiftUI language guidance." },
-    { "id": "js-lint-config", "disposition": "retain-optional", "rationale": "Keep the lint and TypeScript configuration task separate from ordinary JavaScript implementation guidance." },
-    { "id": "js-static-check-strategy", "disposition": "retain-optional", "rationale": "Keep the staged JavaScript static-check migration task separately selectable for legacy bundles." },
-    { "id": "laravel", "disposition": "retain-family", "family": "laravel", "rationale": "Retain the existing Laravel family entry and selector contract; historical dhpk-laravel migration remains in the rename ledger." },
-    { "id": "library-dual-testsuite-map", "disposition": "retain-optional", "rationale": "Keep path-to-testsuite mapping independently selectable for libraries with framework-agnostic and framework layers." },
-    { "id": "matrix-cell-onboard", "disposition": "retain-optional", "rationale": "Keep multi-major matrix cell onboarding separate from package authoring and ordinary test guidance." },
-    { "id": "openspec-artifact-guard", "disposition": "retain-optional", "rationale": "Keep OpenSpec artifact validation independently selectable because its authority and acceptance gates differ from implementation flow." },
-    { "id": "nextjs-15-5-notes", "disposition": "retain-optional", "rationale": "Keep version-specific Next.js 15.5 guidance selectable without guessing a cross-version frontend target." },
-    { "id": "nextjs-16-notes", "disposition": "retain-optional", "rationale": "Keep version-specific Next.js 16 and upgrade guidance selectable without merging it into a giant frontend skill." },
-    { "id": "php-pro", "disposition": "retain-standalone", "rationale": "Retain the PHP runtime router as an independently usable provider-neutral entry that selects framework and version guidance." },
-    { "id": "php-modern-pro", "disposition": "retain-optional", "rationale": "Keep PHP 7.4–8.x idiom and package compatibility guidance separately selectable from runtime routing." },
-    { "id": "php-8x-features", "disposition": "retain-optional", "rationale": "Keep PHP 8.x feature adoption guidance separately selectable and gated by the project PHP floor." },
-    { "id": "phpunit", "disposition": "retain-family", "family": "phpunit", "rationale": "Retain the existing PHPUnit family entry and selector contract; historical version predecessors remain in the retirement ledger." },
-    { "id": "legacy-code-characterization", "disposition": "retain-optional", "rationale": "Keep characterization testing independently selectable because it protects observed legacy behavior before refactoring." },
-    { "id": "pytest-async", "disposition": "retain-optional", "rationale": "Keep async pytest and ASGI fixture guidance independently selectable from general Python guidance." },
-    { "id": "python-pro", "disposition": "retain-optional", "rationale": "Keep modern Python implementation and review guidance separately selectable from Python static-check policy." },
-    { "id": "python-static-checks", "disposition": "retain-optional", "rationale": "Keep Python lint and type-check strategy independently selectable from Python implementation guidance." },
-    { "id": "react-18-notes", "disposition": "retain-optional", "rationale": "Keep React 18 guidance independently selectable; do not infer a version or collapse it with React 19." },
-    { "id": "react-19-notes", "disposition": "retain-optional", "rationale": "Keep React 19 guidance independently selectable; cross-version comparison remains explicit work." },
-    { "id": "swift-test-strategy", "disposition": "retain-optional", "rationale": "Keep Swift testing and UI automation strategy independently selectable from Swift language guidance." },
-    { "id": "swift-language", "disposition": "retain-optional", "rationale": "Keep Swift language and concurrency guidance separate from SwiftUI composition and iOS SDK APIs." },
-    { "id": "swiftui-architecture", "disposition": "retain-optional", "rationale": "Keep SwiftUI architecture independently selectable from Swift language and iOS platform guidance." },
-    { "id": "vue-2-notes", "disposition": "retain-optional", "rationale": "Keep Vue 2 Options API guidance independently selectable with explicit legacy-version scope." },
-    { "id": "ios-icon-gen", "disposition": "retain-optional", "rationale": "Keep offline Apple asset generation separately selectable because it is a bounded tool task." },
-    { "id": "xcode-build-tooling", "disposition": "retain-optional", "rationale": "Keep Xcode, SwiftLint, and build-tool guidance separately selectable from application architecture." },
-    { "id": "php56-yii-dev", "disposition": "retain-optional", "rationale": "Keep Yii 1.1/PHP 5.6 implementation guidance independent from the Yii security audit." },
-    { "id": "yii1-security-audit", "disposition": "retain-optional", "rationale": "Keep Yii 1.1 security review independent from implementation guidance and preserve its audit authority boundary." },
-    { "id": "flow-guide", "disposition": "retain-standalone", "rationale": "Keep bounded route, policy, next-step, and closeout help as a directly usable read-only workflow capability." },
-    { "id": "agent-architecture-audit", "disposition": "retain-standalone", "rationale": "Keep the twelve-layer agent application audit independently usable because it has a distinct diagnostic output." },
-    { "id": "agy-fast-worker", "disposition": "retain-standalone", "rationale": "Keep precise AGY delegation independently selectable; shared worker transport does not prove that the public task can be retired." },
-    { "id": "code-trace", "disposition": "retain-standalone", "rationale": "Keep explore, diagnose, history, and tool-selection modes under one bounded code-navigation entry." },
-    { "id": "cli-dispatch-context", "disposition": "retain-internal", "rationale": "Keep the attested dispatch-context helper as non-discoverable runtime support; it must not become a public capability or alias." },
-    { "id": "cli-transport", "disposition": "retain-internal", "rationale": "Keep validated CLI transport as non-discoverable runtime support with timeout and containment boundaries intact." },
-    { "id": "codex-bridge", "disposition": "retain-standalone", "rationale": "Keep explicit Codex bridge and blind-second-opinion work independently selectable until all provider ownership bridges are verified." },
-    { "id": "change-verdict", "disposition": "retain-standalone", "rationale": "Keep code, PR, security, test, document, and risk verdict modes under a bounded read-only decision entry." },
-    { "id": "flow-drive", "disposition": "retain-standalone", "rationale": "Keep confirmed-spec implementation as an explicit workflow entry with its planner, worker, reasoner, and evidence boundaries." },
-    { "id": "composer-package-hygiene", "disposition": "retain-standalone", "rationale": "Keep Composer publication-contract review independently usable rather than merging release and package concerns." },
-    { "id": "skill-forge", "disposition": "retain-standalone", "rationale": "Keep skill authoring and refactoring independently selectable because it changes agent-facing contracts." },
-    { "id": "deploy-list", "disposition": "retain-standalone", "rationale": "Keep deploy file-list generation independently selectable as a bounded release preparation task." },
-    { "id": "feature-verify", "disposition": "retain-standalone", "rationale": "Keep post-deployment feature verification independently usable and read-only." },
-    { "id": "git-smart-commit", "disposition": "retain-standalone", "rationale": "Keep logical commit grouping standalone; it must not be forced through flow-guide or flow-drive." },
-    { "id": "gitnexus-cli", "disposition": "retain-external", "owner": "gitnexus", "rationale": "Keep the upstream GitNexus CLI capability under the protected external-package ledger and do not treat it as a DHPK predecessor." },
-    { "id": "gitnexus-debugging", "disposition": "retain-external", "owner": "gitnexus", "rationale": "Keep upstream GitNexus debugging ownership and protect its existing content and stable identity." },
-    { "id": "gitnexus-exploring", "disposition": "retain-external", "owner": "gitnexus", "rationale": "Keep upstream GitNexus exploration ownership and protect its existing content and stable identity." },
-    { "id": "gitnexus-guide", "disposition": "retain-external", "owner": "gitnexus", "rationale": "Keep upstream GitNexus tool-reference ownership and do not merge it into DHPK code-trace." },
-    { "id": "gitnexus-impact-analysis", "disposition": "retain-external", "owner": "gitnexus", "rationale": "Keep upstream GitNexus impact-analysis ownership and preserve the provider bridge boundary." },
-    { "id": "gitnexus-refactoring", "disposition": "retain-external", "owner": "gitnexus", "rationale": "Keep upstream GitNexus refactoring ownership and preserve graph-aware rename behavior." },
-    { "id": "issue-analyze", "disposition": "retain-standalone", "rationale": "Keep GitHub issue and review-thread analysis independently selectable because its input and evidence differ from code tracing." },
-    { "id": "laravel-package-author", "disposition": "retain-standalone", "rationale": "Keep cross-version Laravel package authoring separate from one-major framework guidance and Testbench mechanics." },
-    { "id": "laravel-testbench-matrix", "disposition": "retain-standalone", "rationale": "Keep Laravel Testbench matrix mechanics independently selectable from package authoring." },
-    { "id": "opsx-apply-goal", "disposition": "retain-standalone", "rationale": "Keep the unattended OpenSpec goal generator independently selectable with its explicit change-id boundary." },
-    { "id": "opsx-load-context", "disposition": "retain-standalone", "rationale": "Keep the resume-context capability available while its internal loading helpers remain behind the documented boundary." },
-    { "id": "opsx-post-obs", "disposition": "retain-standalone", "rationale": "Keep the observer-boundary capability available while its transport remains supporting implementation detail." },
-    { "id": "polyfill-version-matrix-audit", "disposition": "retain-standalone", "rationale": "Keep multi-major polyfill matrix auditing independently selectable from package authoring and test matrix setup." },
-    { "id": "project-audit", "disposition": "retain-standalone", "rationale": "Keep deterministic project health auditing independently usable as a bounded diagnostic task." },
-    { "id": "project-setup", "disposition": "retain-standalone", "rationale": "Keep first-time project harness setup independently selectable with explicit workspace-write authority." },
-    { "id": "prompt-optimize", "disposition": "retain-standalone", "rationale": "Keep prompt rewriting and effort calibration standalone; it is not a workflow router." },
-    { "id": "release-creator", "disposition": "retain-standalone", "rationale": "Keep release creation independently selectable because it coordinates version and publication evidence." },
-    { "id": "repo-intake", "disposition": "retain-standalone", "rationale": "Keep first-onboarding inventory independently usable and separate from project health audit." },
-    { "id": "session-usage-audit", "disposition": "retain-standalone", "rationale": "Keep home-session usage auditing independently selectable with its private-state and evidence boundary." },
-    { "id": "skill-scope", "disposition": "retain-standalone", "rationale": "Keep skill governance routing available as a bounded selector for health, judge, stocktake, and scout work." },
-    { "id": "software-architecture", "disposition": "retain-standalone", "rationale": "Retain the stable architecture capability and current public path; the legacy software-architecture name remains diagnostic metadata, not an alias." },
-    { "id": "tdd", "disposition": "retain-standalone", "rationale": "Keep behavior-first test development independently usable and do not force it into a larger workflow family." },
-    { "id": "harness-govern", "disposition": "retain-standalone", "rationale": "Keep explicit harness health, budget, fill, revise, and sync modes under one bounded governance entry." }
+    {
+      "id": "fastapi-pro",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep independently selectable FastAPI and async SQLAlchemy guidance; it is bounded web-Python work, not a general Python entry.",
+      "content_value": "'FastAPI + SQLAlchemy 2.0 async patterns + review checklist: routers, Depends DI, Pydantic schemas, session/transaction discipline, Alembic safety, auth/CORS/errors. Use when writing or reviewing FastAPI routes, async repositories, or migrations. Not for non-web Python. Output: layered, transaction-safe API.'",
+      "callers": [
+        "skills/dhpk-fastapi-pro/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-fastapi-pro/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-fastapi-pro/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "ios-platform",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep independently selectable iOS SDK and privacy guidance; do not merge SDK APIs with Swift or SwiftUI language guidance.",
+      "content_value": "'Use when iOS SDK guidance is needed for privacy-sensitive persistence, CryptoKit/Keychain, OCR, camera, biometrics, notifications, HealthKit, or privacy manifests. Requires swift. Not for SwiftUI composition or pure Swift language work. Output: SDK-specific implementation or review guidance with privacy and verification gates.'",
+      "callers": [
+        "skills/dhpk-ios-platform/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-ios-platform/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-ios-platform/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "js-lint-config",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep the lint and TypeScript configuration task separate from ordinary JavaScript implementation guidance.",
+      "content_value": "'ESLint/TypeScript configuration guidance for tier selection, global-list synchronization, static gates, or frontend-review consistency. Use when editing eslint.config.js or tsconfig.json, adding globals, or planning lint migration. Not for ordinary JS logic. Output: a tier decision and verification evidence.'",
+      "callers": [
+        "skills/dhpk-js-lint-config/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-js-lint-config/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-js-lint-config/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "js-static-check-strategy",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep the staged JavaScript static-check migration task separately selectable for legacy bundles.",
+      "content_value": "'Progressive `// @ts-check` per-leaf rollout playbook for legacy JS bundles. Covers the three-list legacy-globals sync (ESLint globals / TypeScript ambient .d.ts / JSDoc typedef), tsconfig exclude strategy for type-check-resistant files, leaf classification (typedef-widening-fixable vs permanent-exclude), line-anchored progress-grep traps, and Phase-2 exit-gate semantics. Use when planning a per-leaf cleanup PR, introducing a new leaf-level global, editing tsconfig''s exclude list, interpreting /ts-check-status output, or validating the strict-checkJs exit gate. Not for everyday JavaScript feature work or isolated lint-rule lookups; use the sibling dhpk-js-lint-config and references/static-checks.md for those. Output: a per-leaf classification, three-list change set, and exit-gate evidence.'",
+      "callers": [
+        "skills/dhpk-js-static-check-strategy/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-js-static-check-strategy/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-js-static-check-strategy/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel",
+      "outcome": "retain",
+      "disposition": "retain-family",
+      "family": "laravel",
+      "rationale": "Retain the existing Laravel family entry and selector contract; historical dhpk-laravel migration remains in the rename ledger.",
+      "content_value": "'Laravel framework guidance across 5.4, 6, 7, 8, 9, 10, 11, and optional Mix 5. Use when implementing or reviewing framework-touching Laravel code, planning an upgrade, or debugging a version-specific build. Not for Symfony, Yii, or frontend-only work; use dhpk-php-runtime-router for runtime selection. Output: one selected Laravel or Mix reference, compatibility constraints, and verification gates.'",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/laravel/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "library-dual-testsuite-map",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep path-to-testsuite mapping independently selectable for libraries with framework-agnostic and framework layers.",
+      "content_value": "'Map edited file paths to the correct testsuite(s) for libraries with a framework-agnostic Core layer and a framework-specific glue layer. Use when editing any `src/**` file in a library whose phpunit.xml declares multiple testsuites (commonly `core` + `laravel`, or `core` + `symfony`, etc.) and you need to know which `composer test:*` command(s) to run. Not for single-testsuite projects or full framework integration orchestration. Output: the selected suite(s), boundary warning, and the commands to run. Saves the round-trip of \"I ran the wrong suite, the failing test is in the other one\". Companion to (not duplicate of) `dhpk-polyfill-version-matrix-audit` which works at the version-guard level; this skill works at the directory level.'",
+      "callers": [
+        "skills/dhpk-library-dual-testsuite-map/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-library-dual-testsuite-map/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-library-dual-testsuite-map/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "matrix-cell-onboard",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep multi-major matrix cell onboarding separate from package authoring and ordinary test guidance.",
+      "content_value": "'Checklist + procedure for adding a new PHP / Laravel / PHPUnit / Monolog cell to a multi-major library''s CI matrix. Use when extending support to a new runtime version (e.g. \"add PHP 8.3 + Laravel 12\"), bumping a dep major (e.g. \"Monolog 4 came out, plan the cell\"), or restoring a dropped cell. Not for patch-only changes that do not alter the support matrix. Output: a cell plan with composer, workflow, polyfill, Testbench, and focused-test gates. Cross-checks `composer.json` constraints, `.github/workflows/*.yml` matrix rows, Testbench mapping for Laravel, and triggers a polyfill-coverage check for the new cell''s dep versions. Pairs with `dhpk-laravel-testbench-matrix` (per-cell Testbench install) and `dhpk-composer-package-hygiene` (semver of raising the floor).'",
+      "callers": [
+        "skills/dhpk-matrix-cell-onboard/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-matrix-cell-onboard/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-matrix-cell-onboard/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "openspec-artifact-guard",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep OpenSpec artifact validation independently selectable because its authority and acceptance gates differ from implementation flow.",
+      "content_value": "'Use when validating OpenSpec artifact shape, delta placement, task/git alignment, and safe change slugs. Apply while editing OpenSpec files or reviewing them before archive. Not for implementation or archive itself. Output: a verdict with artifact and task evidence.'",
+      "callers": [
+        "skills/dhpk-openspec-artifact-guard/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-openspec-artifact-guard/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-openspec-artifact-guard/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "nextjs-15-5-notes",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep version-specific Next.js 15.5 guidance selectable without guessing a cross-version frontend target.",
+      "content_value": "\"Next.js 15.5 (current stable; the 15.x line ends at v15.5.19) signature features and traps. Use when writing or reviewing Next.js 15.5 code or a package constrained to ^15.5. Covers typegen, typed routes, beta Turbopack production builds, and the next lint deprecation. Not for application business logic; pair with `dhpk-react-18-notes` or `dhpk-react-19-notes` for React guidance and `dhpk-nextjs-16-notes` for the upgrade target. Output: version-specific guidance, migration traps, and verification gates.\"",
+      "callers": [
+        "skills/dhpk-nextjs-15-5-notes/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-nextjs-15-5-notes/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-nextjs-15-5-notes/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "nextjs-16-notes",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep version-specific Next.js 16 and upgrade guidance selectable without merging it into a giant frontend skill.",
+      "content_value": "\"Use when working on Next.js 16 framework code or 15→16 upgrades: Turbopack, async Request APIs, Node floor, removed APIs, and image changes. Not for application business logic. React 18.2+ or 19 is supported; pair with `dhpk-react-18-notes` or `dhpk-react-19-notes` for React-language guidance and `dhpk-nextjs-15-5-notes` for the upgrade source. Output: migration traps and verification gates.\"",
+      "callers": [
+        "skills/dhpk-nextjs-16-notes/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-nextjs-16-notes/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-nextjs-16-notes/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "php-pro",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Retain the PHP runtime router as an independently usable provider-neutral entry that selects framework and version guidance.",
+      "content_value": "'Use when implementing or reviewing Laravel, Symfony, modern PHP, or PHP 5.6/Yii code. Detect runtime first and load only matching references; select Laravel major before framework-coupled edits. Not for frontend-only work. Output: compatibility-safe guidance and verification gates.'",
+      "callers": [
+        "skills/dhpk-php-runtime-router/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-php-runtime-router/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "read-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-php-runtime-router/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "php-modern-pro",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep PHP 7.4–8.x idiom and package compatibility guidance separately selectable from runtime routing.",
+      "content_value": "'PHP 7.4–8.x idiom and dual-version library-packaging guidance. Use for public APIs, version-conditional shims, supported floors, or composer constraints. Not for routine business logic. Output: a compatibility decision and verification gates.'",
+      "callers": [
+        "skills/dhpk-php-modern-pro/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-php-modern-pro/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-php-modern-pro/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "php-8x-features",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep PHP 8.x feature adoption guidance separately selectable and gated by the project PHP floor.",
+      "content_value": "'Use when the project''s PHP floor permits 8.x syntax, when reviewing whether a 7.4-and-up library can adopt an 8.x idiom conditionally, or when designing an API with attributes, enums, readonly, or newer types. Not for everyday business logic, 7.4 baseline guidance, or legacy 5.6 code. Output: a feature recommendation or migration decision with its minimum PHP version and library-floor rule.'",
+      "callers": [
+        "skills/dhpk-php-8x-features/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-php-8x-features/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-php-8x-features/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "phpunit",
+      "outcome": "retain",
+      "disposition": "retain-family",
+      "family": "phpunit",
+      "rationale": "Retain the existing PHPUnit family entry and selector contract; historical version predecessors remain in the retirement ledger.",
+      "content_value": "'Use when writing, reviewing, or migrating PHPUnit 9, 10, or 11 tests, resolving a project version, or choosing assertion, metadata, provider, mock, hook, runner, or coverage APIs. Not for PHPUnit 5/6/7-only suites, everyday assertion writing without a version decision, or Laravel routing. Output: selected version boundary, applicable reference, migration guidance, and verification evidence.'",
+      "callers": [
+        "skills/phpunit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/phpunit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/phpunit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "legacy-code-characterization",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep characterization testing independently selectable because it protects observed legacy behavior before refactoring.",
+      "content_value": "'Write characterization tests for untested legacy code to lock current behavior before refactoring. Use when users want to safely refactor legacy controllers/models/services, add regression safety nets, or prepare code for extraction. Trigger words: characterization test, lock behavior, legacy test, safe refactor, 行為鎖定, 特徵測試, 安全重構. Not for: greenfield code, already well-tested modules, or pure bug fixes. Output: characterization test files + coverage delta report.'",
+      "callers": [
+        "skills/dhpk-legacy-characterization-tests/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-legacy-characterization-tests/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "workspace-write",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-legacy-characterization-tests/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "pytest-async",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep async pytest and ASGI fixture guidance independently selectable from general Python guidance.",
+      "content_value": "'Async pytest + pytest-asyncio testing: asyncio_mode=auto, SQLite fixtures, httpx.AsyncClient + ASGITransport, unit/integration split, coverage floor, live markers. Use when writing or reviewing async FastAPI/SQLAlchemy tests, or enforcing dhpk-tdd-workflow. Not for production code. Output: offline-green async tests.'",
+      "callers": [
+        "skills/dhpk-pytest-async/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-pytest-async/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-pytest-async/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "python-pro",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep modern Python implementation and review guidance separately selectable from Python static-check policy.",
+      "content_value": "'Modern Python (3.10+) review checklist: typing, dataclasses/pydantic, async-await discipline, logging over print, exception chain, ruff+pyright. Use when writing or reviewing backend Python (async FastAPI/SQLAlchemy). Not for non-backend or pre-3.10 code. Output: typed, ruff/pyright-clean code.'",
+      "callers": [
+        "skills/dhpk-python-pro/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-python-pro/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-python-pro/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "python-static-checks",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep Python lint and type-check strategy independently selectable from Python implementation guidance.",
+      "content_value": "'Static-check strategy for Python — ruff rule selection (lint vs format), pyright-strict vs mypy trade-offs, progressive typing adoption, per-file/per-line suppression discipline, and how the dhpk python module''s post-edit + pre-commit hooks invoke them. Use when configuring ruff/pyright/mypy or triaging their output. Not for runtime debugging or test design; use dhpk-python-pro or dhpk-pytest-async. Output: a tool configuration or triage plan with commands and pass/fail gates.'",
+      "callers": [
+        "skills/dhpk-python-static-checks/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-python-static-checks/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-python-static-checks/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "react-18-notes",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep React 18 guidance independently selectable; do not infer a version or collapse it with React 19.",
+      "content_value": "\"Use when working on React 18 guidance for ^18 projects, root setup, concurrent rendering, StrictMode, or 17→18/18→19 upgrades. Not for ordinary application logic. Remains a separate React 18 route; pair with `dhpk-react-19-notes` for 18→19 changes and `dhpk-nextjs-15-5-notes` or `dhpk-nextjs-16-notes` for Next integration. Output: migration traps and verification gates.\"",
+      "callers": [
+        "skills/dhpk-react-18-notes/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-react-18-notes/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-react-18-notes/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "react-19-notes",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep React 19 guidance independently selectable; cross-version comparison remains explicit work.",
+      "content_value": "\"Use when working on React 19 guidance for Actions, new hooks, refs, providers, Server Components, or 18→19 upgrades. Not for ordinary application logic. Remains a separate React 19 route; pair with `dhpk-react-18-notes` for the 18 baseline and `dhpk-nextjs-16-notes` for Next integration. Output: migration traps and verification gates.\"",
+      "callers": [
+        "skills/dhpk-react-19-notes/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-react-19-notes/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-react-19-notes/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "swift-test-strategy",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep Swift testing and UI automation strategy independently selectable from Swift language guidance.",
+      "content_value": "'iOS testing strategy for Swift Testing, XCTest, UI automation, async actors, and RED-first coverage. Use when writing or reviewing iOS tests or choosing test targets. Not for non-test app code. Requires swift. Output: RED-first tests and a three-layer coverage plan.'",
+      "callers": [
+        "skills/dhpk-swift-test-strategy/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-swift-test-strategy/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-swift-test-strategy/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "swift-language",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep Swift language and concurrency guidance separate from SwiftUI composition and iOS SDK APIs.",
+      "content_value": "'Swift language guidance for concurrency, optionals, value/reference design, property wrappers, and errors across Swift 5.10/6. Use for .swift implementation or review. Not for SwiftUI composition or iOS SDK APIs. Output: compatibility and verification decisions.'",
+      "callers": [
+        "skills/dhpk-swift-language/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-swift-language/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-swift-language/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "swiftui-architecture",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep SwiftUI architecture independently selectable from Swift language and iOS platform guidance.",
+      "content_value": "'SwiftUI architecture guidance for MVVM, Observation, navigation, state ownership, Combine, and UIKit interop. Use when building screens, view models, or routes. Requires swift. Not for iOS SDK APIs or pure Swift language work. Output: architecture and verification guidance.'",
+      "callers": [
+        "skills/dhpk-swiftui-architecture/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-swiftui-architecture/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-swiftui-architecture/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "vue-2-notes",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep Vue 2 Options API guidance independently selectable with explicit legacy-version scope.",
+      "content_value": "'Vue 2 (^2.5.17, Options API era) component structure and the reactivity caveats that bite when mutating reactive state. Use when writing or reviewing .vue single-file components in a Vue 2 project (resources/assets/js), or a codebase whose package.json pins vue ^2.5.x. Covers the data() / computed / methods / watch + lifecycle shape, props-down + $emit events-up, vue-loader SFC compilation, the Vue.set / array-mutation traps, and @vue/test-utils 1.x + vue-jest 3 testing. Not for Vue 3 or 2.7 Composition API (predates setup() / <script setup>) — load when touching components or planning a Vue 2 → 3 migration. Output: Vue 2 component guidance, migration traps, and verification gates.'",
+      "callers": [
+        "skills/dhpk-vue-2-notes/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-vue-2-notes/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-vue-2-notes/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "ios-icon-gen",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep offline Apple asset generation separately selectable because it is a bounded tool task.",
+      "content_value": "'Generate iOS/macOS asset-catalog imagesets (1x/2x/3x PNG + Contents.json) from SF Symbols (Apple-native, offline, macOS) or the Iconify API (275k+ open-source icons, online). Use when adding icons to an Xcode asset catalog, replacing placeholder glyphs, or searching for an icon that matches a project''s style. Not for general SwiftUI design, arbitrary raster editing, or production code changes. Output: an imageset path plus generated PNG and Contents.json verification. Part of the xcode-tooling module; requires the swift module.'",
+      "callers": [
+        "skills/dhpk-ios-icon-gen/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-ios-icon-gen/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-ios-icon-gen/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "xcode-build-tooling",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep Xcode, SwiftLint, and build-tool guidance separately selectable from application architecture.",
+      "content_value": "Xcode / SwiftLint / xcodebuild / Swift Package Manager tooling — SwiftLint rule-tier strategy and per-package .swiftlint.yml, xcodebuild -scheme/-destination build & test vs swift build / swift test for SPM packages, and scheme / code-signing notes for a no-iCloud capability set. Use when configuring SwiftLint, deciding how to build/test an iOS app or SPM package from the CLI, interpreting the module's post-edit SwiftLint hook or pre-commit build gate, or setting up CI build commands. Not for Swift language questions (swift) or test strategy (dhpk-swift-test-strategy); output is build/lint commands plus hook and CI config. Requires the swift module; wires post-edit-swiftlint.sh and pre-commit-swift-build.sh.",
+      "callers": [
+        "skills/dhpk-xcode-build-tooling/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-xcode-build-tooling/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-xcode-build-tooling/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "php56-yii-dev",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep Yii 1.1/PHP 5.6 implementation guidance independent from the Yii security audit.",
+      "content_value": "'Use when implementing or reviewing Yii 1.x/PHP 5.6 backend controllers, models, services, repositories, validation, security, and DDD boundaries. Not for frontend, docs-only, or non-PHP work. Output: PHP 5.6-safe TDD plan and compatibility evidence.'",
+      "callers": [
+        "skills/dhpk-yii1-php56-development/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-yii1-php56-development/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "workspace-write",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-yii1-php56-development/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "yii1-security-audit",
+      "outcome": "retain",
+      "disposition": "retain-optional",
+      "rationale": "Keep Yii 1.1 security review independent from implementation guidance and preserve its audit authority boundary.",
+      "content_value": "'Yii 1.1（PHP 5.6）框架安全白盒靜態審計。Use when：對 Yii 1.1 專案查找漏洞、驗證 accessRules/checkAccess/CSRF/SQL injection/CUploadedFile/Session 設定，或框架安全複查（即使用戶只說「檢查這個 Controller 有沒有安全問題」也應觸發）。Not for：Yii2 專案、非 PHP 專案、純業務邏輯演算法審查。Output：依 AUTH/CSRF/XSS/SQL/CFG/LOGIC/FILE 分類、含檔名:行號 + 可觀測 PoC + Yii API 修復建議的審計報告。'",
+      "callers": [
+        "skills/dhpk-yii1-security-audit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-yii1-security-audit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "read-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-yii1-security-audit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "flow-guide",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep bounded route, policy, next-step, and closeout help as a directly usable read-only workflow capability.",
+      "content_value": "'Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff.'",
+      "callers": [
+        "skills/flow-guide/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/flow-guide/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "delegate",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/flow-guide/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "agent-architecture-audit",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep the twelve-layer agent application audit independently usable because it has a distinct diagnostic output.",
+      "content_value": "'Full-stack diagnostic for agent and LLM applications — audits the 12-layer agent stack for wrapper regression, memory pollution, tool-discipline failures, hidden repair loops, and rendering corruption. Use when: shipping an agent/LLM feature, an agent degrades after adding wrapper/memory/tool layers, the same model works in the playground but breaks in your wrapper, or debugging agent behavior >15 min with no root cause. Not for: general code debugging, code review, or security scanning (use change-verdict). Output: severity-ranked findings with code-first fixes.'",
+      "callers": [
+        "skills/dhpk-agent-architecture-audit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-agent-architecture-audit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-agent-architecture-audit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "agy-fast-worker",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep precise AGY delegation independently selectable; shared worker transport does not prove that the public task can be retired.",
+      "content_value": "'Use when offloading a precise self-contained mechanical task to the agy CLI when available. Require target files, intent, and verification command; keep output in the agy-fast-worker subagent. Not for ambiguity, conversation-dependent work, or default fast-worker use. Output: verified edited files or honest BLOCKED evidence.'",
+      "callers": [
+        "skills/dhpk-agy-fast-worker/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-agy-fast-worker/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-agy-fast-worker/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "code-trace",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep explore, diagnose, history, and tool-selection modes under one bounded code-navigation entry.",
+      "content_value": "'Trace unfamiliar code, diagnose a reproducible failure, investigate history, or select one code-navigation tool. Use when evidence must follow symbols, callers, data flow, regressions, or tool choice. Not for implementing a confirmed fix, reviewing a proposed diff, or plain-text/document search. Output: an evidence-backed trace, root-cause state, history report, or executable tool route.'",
+      "callers": [
+        "skills/code-trace/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/code-trace/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "read-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/code-trace/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "cli-dispatch-context",
+      "outcome": "retain",
+      "disposition": "retain-internal",
+      "rationale": "Keep the attested dispatch-context helper as non-discoverable runtime support; it must not become a public capability or alias.",
+      "content_value": "\"Trigger: explicit provider-qualified CLI dispatch-context construction and launcher execution. Avoid: direct adapter invocation or implicit role, mode, path, or authority derivation. Output: canonical dispatch evidence with an immutable dhpk.cli.context.v1 compatibility projection or BLOCKED diagnostics.\"",
+      "callers": [
+        "skills/dhpk-cli-dispatch-context/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-cli-dispatch-context/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "transport-internal",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-cli-dispatch-context/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "cli-transport",
+      "outcome": "retain",
+      "disposition": "retain-internal",
+      "rationale": "Keep validated CLI transport as non-discoverable runtime support with timeout and containment boundaries intact.",
+      "content_value": "\"Internal Codex and AGY CLI transport that validates an already-attested request and produces a contained terminal receipt; it never selects roles or accepts direct user invocation.\"",
+      "callers": [
+        "skills/dhpk-cli-transport/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-cli-transport/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "transport-internal",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-cli-transport/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "codex-bridge",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep explicit Codex bridge and blind-second-opinion work independently selectable until all provider ownership bridges are verified.",
+      "content_value": "'Use when an explicit CLI handoff or blind second opinion should go to the GPT-5.6 family through one-shot codex exec: gpt-5.6-sol/high for read-only or gpt-5.6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.'",
+      "callers": [
+        "skills/dhpk-codex-bridge/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-codex-bridge/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-codex-bridge/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "change-verdict",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep code, PR, security, test, document, and risk verdict modes under a bounded read-only decision entry.",
+      "content_value": "'Read-only verdicts for code changes, pull requests, security, tests, documents, or change risk. Use when judging an existing change or evidence set. Not for implementing fixes, generating tests, editing documents, clearing gates, or architecture-only design. Output: evidence-backed findings, degradation state, and READY, BLOCKED, or INCONCLUSIVE.'",
+      "callers": [
+        "skills/change-verdict/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/change-verdict/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/change-verdict/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "flow-drive",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep confirmed-spec implementation as an explicit workflow entry with its planner, worker, reasoner, and evidence boundaries.",
+      "content_value": "'Explicit-only implementation workflow for a confirmed specification or OpenSpec change whose target and acceptance contract are settled. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: ordered implementation and verification evidence, or an explicit blocker.'",
+      "callers": [
+        "skills/flow-drive/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/flow-drive/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "workspace-write",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/flow-drive/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "composer-package-hygiene",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep Composer publication-contract review independently usable rather than merging release and package concerns.",
+      "content_value": "'Composer-published package contract review. Use when: deciding semver, auditing public API or composer.json, validating Laravel package discovery, or coordinating a package release. Not for: everyday application code, language idioms, or Laravel-specific authoring mechanics. Output: a contract verdict, audited manifest, or release gate backed by the package-contract reference.'",
+      "callers": [
+        "skills/dhpk-composer-package-hygiene/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-composer-package-hygiene/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-composer-package-hygiene/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "skill-forge",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep skill authoring and refactoring independently selectable because it changes agent-facing contracts.",
+      "content_value": "'Create or refactor an agent skill, or distill repeated principles into rules after explicit authoring or maintenance invocation. Not for: skill audits, searching only, one-off rule edits, slash commands, or application code review. Output: a validated skill package or an approval-ready rules candidate report.'",
+      "callers": [
+        "skills/skill-forge/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/skill-forge/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/skill-forge/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "deploy-list",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep deploy file-list generation independently selectable as a bounded release preparation task.",
+      "content_value": "'Cross-project deploy file-list generator (schema=v1). Use when: building a deploy/release checklist from git history, listing which files to ship for a deploy, 部署清單, deploy list/checklist. Scope via --anchor (in-code markers), --deploy-commits (pinned commits), or whole base..head; filters dev-only paths (tests, docs, CI, AI harness) and groups by ecosystem preset (php-yii, laravel, node, python, generic, or a custom preset). Not for: plain commit lookup (git log), raw diffs (git diff), or actually running the deploy. Output: a deterministic deploy checklist (deploy-list.sh stdout, forwarded verbatim).'",
+      "callers": [
+        "skills/dhpk-deploy-list/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-deploy-list/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-deploy-list/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "feature-verify",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep post-deployment feature verification independently usable and read-only.",
+      "content_value": "'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-guide in feature mode), code review (use change-verdict), writing tests (use dhpk-tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check.'",
+      "callers": [
+        "skills/dhpk-feature-verify/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-feature-verify/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-feature-verify/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "git-smart-commit",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep logical commit grouping standalone; it must not be forced through flow-guide or flow-drive.",
+      "content_value": "'將雜亂的 git 變更依邏輯分群、逐批提交,適用於需要把多項變更拆成多個邏輯一致 commit 的情境。Not for: 單一小變更或只需要一個 commit（直接 commit 即可）。Output: 可直接執行的分組提交計畫與 commit 指令。'",
+      "callers": [
+        "skills/dhpk-git-smart-commit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-git-smart-commit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "git-write",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-git-smart-commit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "gitnexus-cli",
+      "outcome": "retain",
+      "disposition": "retain-external",
+      "owner": "gitnexus",
+      "rationale": "Keep the upstream GitNexus CLI capability under the protected external-package ledger and do not treat it as a DHPK predecessor.",
+      "content_value": "'Run GitNexus CLI commands (analyze, status, clean, wiki, list). Use when: indexing or re-indexing a repo, checking index freshness, generating a wiki, listing indexed repos. Not for: querying the graph (use dhpk-gitnexus-exploring), tool/schema reference (use dhpk-gitnexus-guide). Output: the npx gitnexus command to run + next step.'",
+      "callers": [
+        "skills/dhpk-gitnexus-cli/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-gitnexus-cli/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-package",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-gitnexus-cli/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "gitnexus-debugging",
+      "outcome": "retain",
+      "disposition": "retain-external",
+      "owner": "gitnexus",
+      "rationale": "Keep upstream GitNexus debugging ownership and protect its existing content and stable identity.",
+      "content_value": "'Trace bugs and errors through the GitNexus knowledge graph. Use when: debugging a failure, tracing an error to its origin, finding callers of a suspect symbol, investigating unexpected behavior. Not for: general architecture understanding (use dhpk-gitnexus-exploring), change blast-radius (use dhpk-gitnexus-impact-analysis), CLI/index ops (use dhpk-gitnexus-cli). Output: a root-cause hypothesis with the call chain + files to inspect.'",
+      "callers": [
+        "skills/dhpk-gitnexus-debugging/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-gitnexus-debugging/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-package",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-gitnexus-debugging/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "gitnexus-exploring",
+      "outcome": "retain",
+      "disposition": "retain-external",
+      "owner": "gitnexus",
+      "rationale": "Keep upstream GitNexus exploration ownership and protect its existing content and stable identity.",
+      "content_value": "'Explore and understand a codebase via the GitNexus knowledge graph. Use when: asking how code works, understanding architecture, tracing execution flows, or exploring unfamiliar code. Not for: blast-radius of a change (use dhpk-gitnexus-impact-analysis), bug tracing (use dhpk-gitnexus-debugging), CLI/index ops (use dhpk-gitnexus-cli). Output: a code-flow explanation grounded in graph queries + the files to read.'",
+      "callers": [
+        "skills/dhpk-gitnexus-exploring/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-gitnexus-exploring/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-package",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-gitnexus-exploring/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "gitnexus-guide",
+      "outcome": "retain",
+      "disposition": "retain-external",
+      "owner": "gitnexus",
+      "rationale": "Keep upstream GitNexus tool-reference ownership and do not merge it into DHPK code-trace.",
+      "content_value": "'Reference for GitNexus MCP tools, resources, and graph schema. Use when: asking what GitNexus tools exist, how to query the graph, or for MCP resource / schema reference. Not for: CLI commands (use dhpk-gitnexus-cli), task flows (use dhpk-gitnexus-exploring / dhpk-gitnexus-debugging / dhpk-gitnexus-impact-analysis / dhpk-gitnexus-refactoring). Output: the right tool / resource / skill to use next.'",
+      "callers": [
+        "skills/dhpk-gitnexus-guide/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-gitnexus-guide/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-package",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-gitnexus-guide/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "gitnexus-impact-analysis",
+      "outcome": "retain",
+      "disposition": "retain-external",
+      "owner": "gitnexus",
+      "rationale": "Keep upstream GitNexus impact-analysis ownership and preserve the provider bridge boundary.",
+      "content_value": "'Assess the blast radius of a code change via the GitNexus graph. Use when: asking what breaks if you change X, who depends on a symbol, or for a pre-commit safety check. Not for: understanding how code works (use dhpk-gitnexus-exploring), bug tracing (use dhpk-gitnexus-debugging), performing the rename/refactor (use dhpk-gitnexus-refactoring). Output: a depth-ranked dependents list + risk level.'",
+      "callers": [
+        "skills/dhpk-gitnexus-impact-analysis/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-gitnexus-impact-analysis/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-package",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-gitnexus-impact-analysis/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "gitnexus-refactoring",
+      "outcome": "retain",
+      "disposition": "retain-external",
+      "owner": "gitnexus",
+      "rationale": "Keep upstream GitNexus refactoring ownership and preserve graph-aware rename behavior.",
+      "content_value": "'Safely rename, extract, split, move, or restructure code using the GitNexus graph + coordinated rename. Use when: renaming a symbol across files, extracting a module, splitting a function/service, moving code. Not for: understanding code (use dhpk-gitnexus-exploring), pre-change risk only (use dhpk-gitnexus-impact-analysis), bug tracing (use dhpk-gitnexus-debugging). Output: an ordered refactor plan + verified multi-file edits.'",
+      "callers": [
+        "skills/dhpk-gitnexus-refactoring/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-gitnexus-refactoring/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-package",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-gitnexus-refactoring/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "issue-analyze",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep GitHub issue and review-thread analysis independently selectable because its input and evidence differ from code tracing.",
+      "content_value": "'GitHub Issue and PR review thread deep analysis with an optional blind verdict. Purpose: analyze issue root causes, classify problems, plan investigations, or triage PR review comments for actionability. Not for: fixing bugs (use flow-guide in bug mode), code exploration (use code-trace). Output: classified analysis + verdict assessment + investigation strategy.'",
+      "callers": [
+        "skills/dhpk-issue-analyze/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-issue-analyze/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-issue-analyze/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-package-author",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep cross-version Laravel package authoring separate from one-major framework guidance and Testbench mechanics.",
+      "content_value": "'Cross-version Laravel package authoring. Use when: designing a service provider, facade, version-conditional binding, publishable artifact, discovery contract, or package compatibility surface. Not for: application code, one-major API details, Composer release hygiene, or deep Testbench matrix mechanics. Output: an authoring decision or package design with provider, facade, publishing, discovery, and compatibility gates.'",
+      "callers": [
+        "skills/dhpk-laravel-package-author/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-laravel-package-author/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-laravel-package-author/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-testbench-matrix",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep Laravel Testbench matrix mechanics independently selectable from package authoring.",
+      "content_value": "'Orchestra Testbench matrix mechanics for Laravel packages spanning multiple majors. Use when: choosing Testbench pins, defining PHP × Laravel cells, building the shared TestCase, provisioning per-cell databases, running prefer-lowest, or validating package discovery. Not for: single-major packages, application test suites, Laravel package authoring outside the matrix, or semver decisions. Output: a per-cell CI matrix, TestCase design, and evidence-backed test gate.'",
+      "callers": [
+        "skills/dhpk-laravel-testbench-matrix/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-laravel-testbench-matrix/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-laravel-testbench-matrix/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "opsx-apply-goal",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep the unattended OpenSpec goal generator independently selectable with its explicit change-id boundary.",
+      "content_value": "'Unattended OpenSpec goal generator for an existing change-id that needs a bounded fresh-session implementation goal. Not for: authoring, applying in the current session, verifying, syncing, or archiving. Output: an analysis summary plus one pasteable /goal condition, or a hard-stop report.'",
+      "callers": [
+        "skills/dhpk-opsx-apply-goal/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-opsx-apply-goal/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-opsx-apply-goal/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "opsx-load-context",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep the resume-context capability available while its internal loading helpers remain behind the documented boundary.",
+      "content_value": "'Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use dhpk-opsx-post-observation) or goal generation (use dhpk-opsx-apply-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'",
+      "callers": [
+        "skills/dhpk-opsx-load-context/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-opsx-load-context/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "read-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-opsx-load-context/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "opsx-post-obs",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep the observer-boundary capability available while its transport remains supporting implementation detail.",
+      "content_value": "'Post a session observation to claude-mem from opsx-apply-resume Save Phase — builds a JSON payload and runs post-obs.sh as a non-blocking background post (the caller collects the result before the handoff write, so the POST overlaps Save-Phase Steps 4–6). Use when: opsx-apply-resume Save Phase Step 3b, right after compact-save extracts L0/session_goal/completed/key_decisions. Not for: loading Resume context (use dhpk-opsx-load-context) or goal generation (use dhpk-opsx-apply-goal). Output: OBS_PID + OBS_RESULT_FILE path for the caller to wait on.'",
+      "callers": [
+        "skills/dhpk-opsx-post-observation/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-opsx-post-observation/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "delegate",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-opsx-post-observation/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "polyfill-version-matrix-audit",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep multi-major polyfill matrix auditing independently selectable from package authoring and test matrix setup.",
+      "content_value": "'Audit multi-major-version polyfill code for branch coverage and CI-matrix gaps. Use when: a library spans multiple dep majors (Monolog 2/3, Laravel 6/7+, PHPUnit 8-11) using version_compare / class_exists / method_exists guards, or after a \"fix: polyfill ...\" commit. Not for: single-version libraries, application code, version-detection-only helpers. Output: branch + matrix-gap audit report.'",
+      "callers": [
+        "skills/dhpk-polyfill-version-matrix-audit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-polyfill-version-matrix-audit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-polyfill-version-matrix-audit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "project-audit",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep deterministic project health auditing independently usable as a bounded diagnostic task.",
+      "content_value": "'Project health audit with deterministic scoring. Use when: evaluating project quality, onboarding to new codebase, periodic health checks. Not for: runtime performance analysis, security-specific audits (use /dhpk:change-verdict --mode security). Output: 5-dimension score + actionable findings.'",
+      "callers": [
+        "skills/dhpk-project-audit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-project-audit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-project-audit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "project-setup",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep first-time project harness setup independently selectable with explicit workspace-write authority.",
+      "content_value": "'Project configuration initialization: first-time setup, auto-detecting the framework, and replacing CLAUDE.md placeholders. Not for: ongoing config checks (use harness-govern health), skill creation (use skill-forge). Output: configured CLAUDE.md + project settings + rules + hooks.'",
+      "callers": [
+        "skills/dhpk-project-setup/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-project-setup/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-project-setup/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "prompt-optimize",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep prompt rewriting and effort calibration standalone; it is not a workflow router.",
+      "content_value": "'Rewrite a raw task prompt into a model-aware, effort-calibrated version before you run it. Use when: the user asks to \"optimize this prompt\", \"improve this prompt for Claude\", \"what effort should I use\", \"make this a good API prompt/template\", or pastes a rough instruction before a big Claude Code or API task. Detects the target model (current session or a named one), classifies task complexity, recommends an effort level (low/medium/high/xhigh/max, plus the dhpk agent-frontmatter/Claude Code equivalent), asks up to 4 AskUserQuestion questions only for missing required info, then applies model-specific behavioral rewrites. Not for: generic few-shot/CoT/template technique coaching with no model or effort selection (use prompt-engineering-patterns), or auditing token/cache budget (use `$harness-govern budget`). Output: optimized prompt block + effort recommendation with rationale + bullet list of rewrites applied.'",
+      "callers": [
+        "skills/dhpk-prompt-optimize/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-prompt-optimize/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-prompt-optimize/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "release-creator",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep release creation independently selectable because it coordinates version and publication evidence.",
+      "content_value": "'Cuts a new release of a software project or plugin, coordinating release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved.'",
+      "callers": [
+        "skills/dhpk-release-creator/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-release-creator/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-release-creator/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "repo-intake",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep first-onboarding inventory independently usable and separate from project health audit.",
+      "content_value": "'Project initialization inventory (one-time), for first onboarding a project or rebuilding cache after structural changes. Not for: day-to-day development (read cache directly), finding specific files (use code-trace). Output: project map with entrypoints + test map + next steps.'",
+      "callers": [
+        "skills/dhpk-repo-intake/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-repo-intake/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-repo-intake/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "session-usage-audit",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep home-session usage auditing independently selectable with its private-state and evidence boundary.",
+      "content_value": "'Audits dhpk usage evidence in the current user home, correlates session failures with installed agents and package versions, verifies candidate defects, and prepares deduplicated GitHub issue evidence. Not for: remote fleet scans or automatic source changes. Output: redacted report, verified findings, and confirmed issue handoff. Explicit invocation only.'",
+      "callers": [
+        "skills/dhpk-session-usage-audit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-session-usage-audit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-session-usage-audit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "skill-scope",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep skill governance routing available as a bounded selector for health, judge, stocktake, and scout work.",
+      "content_value": "'Route skill-governance work to health, judge, stocktake, or scout mode. Use when: auditing skill quality, comparing many skills, or searching before authoring. Not for: authoring a skill, editing a rule, or reviewing application code. Output: one mode-specific report with evidence and a clear gate.'",
+      "callers": [
+        "skills/skill-scope/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/skill-scope/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "delegate",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/skill-scope/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "software-architecture",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Retain the stable architecture capability and current public path; the legacy software-architecture name remains diagnostic metadata, not an alias.",
+      "content_value": "'Use when users need architecture decisions, module boundaries, or implementation guidance for software development tasks. Supports design, review, compare, and bounded adversarial modes. Not for pure documentation editing or non-technical writing tasks. Output: actionable, stack-neutral architecture guidance with explicit seams, trade-offs, and implementation-ready recommendations.'",
+      "callers": [
+        "skills/dhpk-module-design/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-module-design/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-module-design/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "tdd",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep behavior-first test development independently usable and do not force it into a larger workflow family.",
+      "content_value": "'Framework-agnostic test-driven development guidance for behavior-first unit and integration tests, test scaffolds, and minimal RED-GREEN-REFACTOR changes. Use when building a feature or fixing a bug test-first, writing a test scaffold, or reviewing test seams and mocks. Not for: Playwright journey authoring, pure documentation or rename work, or replacing dhpk''s tdd-guide dispatch. Output: a failing-test proof, minimal implementation/test change, scoped verification, and a concise TDD report.'",
+      "callers": [
+        "skills/dhpk-tdd-workflow/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-tdd-workflow/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "workspace-write",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/dhpk-tdd-workflow/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "harness-govern",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "rationale": "Keep explicit harness health, budget, fill, revise, and sync modes under one bounded governance entry.",
+      "content_value": "'Govern a project harness through one explicit health, budget, fill, revise, or cross-platform sync mode for structure, context cost, missing infrastructure, safe trimming, or Claude-first parity. Not for application code or ordinary skill authoring. Output: mode-specific evidence, dry-run or applied-change state, and a terminal gate.'",
+      "callers": [
+        "skills/harness-govern/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-govern/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-write",
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
+        "comparison": "One canonical active owner is retained for this capability.",
+        "evidence": {
+          "source": "skills/harness-govern/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    }
+  ],
+  "retirementWave": {
+    "issue": 534,
+    "release": "0.54.0",
+    "rollback": "0.53.0"
+  },
+  "retirements": [
+    {
+      "id": "laravel-5.4-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: Laravel 5.4 guidance is internalized behind the laravel family selector.",
+      "content_value": "Laravel 5.4 guidance is internalized behind the laravel family selector.",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/laravel/references/5-4.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-6-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: Laravel 6 guidance is internalized behind the laravel family selector.",
+      "content_value": "Laravel 6 guidance is internalized behind the laravel family selector.",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/laravel/references/6.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-7-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: Laravel 7 guidance is internalized behind the laravel family selector.",
+      "content_value": "Laravel 7 guidance is internalized behind the laravel family selector.",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/laravel/references/7.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-8-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: Laravel 8 guidance is internalized behind the laravel family selector.",
+      "content_value": "Laravel 8 guidance is internalized behind the laravel family selector.",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/laravel/references/8.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-9-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: Laravel 9 guidance is internalized behind the laravel family selector.",
+      "content_value": "Laravel 9 guidance is internalized behind the laravel family selector.",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/laravel/references/9.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-10-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: Laravel 10 guidance is internalized behind the laravel family selector.",
+      "content_value": "Laravel 10 guidance is internalized behind the laravel family selector.",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/laravel/references/10.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-11-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: Laravel 11 guidance is internalized behind the laravel family selector.",
+      "content_value": "Laravel 11 guidance is internalized behind the laravel family selector.",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/laravel/references/11.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "laravel-mix-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: Laravel Mix guidance is internalized behind the laravel family selector.",
+      "content_value": "Laravel Mix guidance is internalized behind the laravel family selector.",
+      "callers": [
+        "skills/laravel/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/laravel/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical Laravel family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/laravel/references/mix.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "phpunit-9-modern",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: PHPUnit 9 guidance is internalized behind the phpunit family selector.",
+      "content_value": "PHPUnit 9 guidance is internalized behind the phpunit family selector.",
+      "callers": [
+        "skills/phpunit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/phpunit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/phpunit/references/9.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "phpunit-10-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: PHPUnit 10 guidance is internalized behind the phpunit family selector.",
+      "content_value": "PHPUnit 10 guidance is internalized behind the phpunit family selector.",
+      "callers": [
+        "skills/phpunit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/phpunit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/phpunit/references/10.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "phpunit-11-notes",
+      "outcome": "internalize",
+      "disposition": "internalize",
+      "rationale": "Issue #534 P2 reviewed outcome: PHPUnit 11 guidance is internalized behind the phpunit family selector.",
+      "content_value": "PHPUnit 11 guidance is internalized behind the phpunit family selector.",
+      "callers": [
+        "skills/phpunit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/phpunit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "internalized",
+        "fact": "Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.",
+        "comparison": "Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.",
+        "evidence": {
+          "source": "skills/phpunit/references/11.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "claude-health",
+      "outcome": "merge",
+      "disposition": "merge",
+      "rationale": "Issue #534 P2 reviewed outcome: Harness health guidance is merged into the harness-govern health mode.",
+      "content_value": "Harness health guidance is merged into the harness-govern health mode.",
+      "callers": [
+        "skills/harness-govern/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-govern/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "merged",
+        "fact": "Compared with the harness-govern health mode; the health guidance has one canonical home.",
+        "comparison": "Compared with the harness-govern health mode; the health guidance has one canonical home.",
+        "evidence": {
+          "source": "skills/harness-govern/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "harness-budget",
+      "outcome": "merge",
+      "disposition": "merge",
+      "rationale": "Issue #534 P2 reviewed outcome: Harness budget guidance is merged into the harness-govern budget mode.",
+      "content_value": "Harness budget guidance is merged into the harness-govern budget mode.",
+      "callers": [
+        "skills/harness-govern/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-govern/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "merged",
+        "fact": "Compared with the harness-govern budget mode; the budget guidance has one canonical home.",
+        "comparison": "Compared with the harness-govern budget mode; the budget guidance has one canonical home.",
+        "evidence": {
+          "source": "skills/harness-govern/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "harness-fill",
+      "outcome": "merge",
+      "disposition": "merge",
+      "rationale": "Issue #534 P2 reviewed outcome: Harness fill guidance is merged into the harness-govern fill mode.",
+      "content_value": "Harness fill guidance is merged into the harness-govern fill mode.",
+      "callers": [
+        "skills/harness-govern/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-govern/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "merged",
+        "fact": "Compared with the harness-govern fill mode; the fill guidance has one canonical home.",
+        "comparison": "Compared with the harness-govern fill mode; the fill guidance has one canonical home.",
+        "evidence": {
+          "source": "skills/harness-govern/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "harness-revise",
+      "outcome": "merge",
+      "disposition": "merge",
+      "rationale": "Issue #534 P2 reviewed outcome: Harness revision guidance is merged into the harness-govern revise mode.",
+      "content_value": "Harness revision guidance is merged into the harness-govern revise mode.",
+      "callers": [
+        "skills/harness-govern/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-govern/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "merged",
+        "fact": "Compared with the harness-govern revise mode; the revision guidance has one canonical home.",
+        "comparison": "Compared with the harness-govern revise mode; the revision guidance has one canonical home.",
+        "evidence": {
+          "source": "skills/harness-govern/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "multi-ai-sync",
+      "outcome": "merge",
+      "disposition": "merge",
+      "rationale": "Issue #534 P2 reviewed outcome: Cross-agent synchronization guidance is merged into the harness-govern sync mode.",
+      "content_value": "Cross-agent synchronization guidance is merged into the harness-govern sync mode.",
+      "callers": [
+        "skills/harness-govern/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-govern/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "merged",
+        "fact": "Compared with the harness-govern sync mode; cross-agent synchronization guidance has one canonical home.",
+        "comparison": "Compared with the harness-govern sync mode; cross-agent synchronization guidance has one canonical home.",
+        "evidence": {
+          "source": "skills/harness-govern/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "agy-commit",
+      "outcome": "merge",
+      "disposition": "merge",
+      "rationale": "Issue #534 P2 reviewed outcome: AGY commit guidance is merged into the git-smart-commit workflow without an AGY adapter.",
+      "content_value": "AGY commit guidance is merged into the git-smart-commit workflow without an AGY adapter.",
+      "callers": [
+        "skills/dhpk-git-smart-commit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-git-smart-commit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "git-write",
+      "duplicate_content": {
+        "status": "merged",
+        "fact": "Compared with the git-smart-commit workflow; AGY commit guidance has one canonical commit owner.",
+        "comparison": "Compared with the git-smart-commit workflow; AGY commit guidance has one canonical commit owner.",
+        "evidence": {
+          "source": "skills/dhpk-git-smart-commit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "feasibility-study",
+      "outcome": "merge",
+      "disposition": "merge",
+      "rationale": "Issue #534 P2 reviewed outcome: Feasibility comparison guidance is merged into the software-architecture compare mode.",
+      "content_value": "Feasibility comparison guidance is merged into the software-architecture compare mode.",
+      "callers": [
+        "skills/dhpk-module-design/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dhpk-module-design/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "guidance-only",
+      "duplicate_content": {
+        "status": "merged",
+        "fact": "Compared with the software-architecture compare mode; feasibility guidance has one canonical architecture owner.",
+        "comparison": "Compared with the software-architecture compare mode; feasibility guidance has one canonical architecture owner.",
+        "evidence": {
+          "source": "skills/dhpk-module-design/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "tech-spec",
+      "outcome": "retire",
+      "disposition": "retire",
+      "rationale": "Issue #534 P2 reviewed outcome: Technical-spec authoring is owned by the external openspec-propose workflow.",
+      "content_value": "Technical-spec authoring is owned by the external openspec-propose workflow.",
+      "callers": [
+        "openspec/changes/issue-534-skill-distribution-consolidation/design.md"
+      ],
+      "evidence": {
+        "source": "openspec/changes/issue-534-skill-distribution-consolidation/design.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-write",
+      "duplicate_content": {
+        "status": "externally-owned",
+        "fact": "Compared with the external proposal workflow; DHPK does not copy or execute a second technical-spec authoring surface.",
+        "comparison": "Compared with the external proposal workflow; DHPK does not copy or execute a second technical-spec authoring surface.",
+        "evidence": {
+          "source": "openspec/changes/issue-534-skill-distribution-consolidation/design.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "create-request",
+      "outcome": "retire",
+      "disposition": "retire",
+      "rationale": "Issue #534 P2 reviewed outcome: Request authoring is owned by the external openspec-propose workflow.",
+      "content_value": "Request authoring is owned by the external openspec-propose workflow.",
+      "callers": [
+        "openspec/changes/issue-534-skill-distribution-consolidation/design.md"
+      ],
+      "evidence": {
+        "source": "openspec/changes/issue-534-skill-distribution-consolidation/design.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-write",
+      "duplicate_content": {
+        "status": "externally-owned",
+        "fact": "Compared with the external proposal workflow; DHPK does not copy or execute a second request-authoring surface.",
+        "comparison": "Compared with the external proposal workflow; DHPK does not copy or execute a second request-authoring surface.",
+        "evidence": {
+          "source": "openspec/changes/issue-534-skill-distribution-consolidation/design.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "op-session",
+      "outcome": "remove",
+      "disposition": "remove",
+      "rationale": "Issue #534 P2 reviewed outcome: OnePassword session setup is an operator action, not a distributed skill.",
+      "content_value": "OnePassword session setup is an operator action, not a distributed skill.",
+      "callers": [
+        "skills/harness-govern/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-govern/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "authority": "external-write",
+      "duplicate_content": {
+        "status": "removed",
+        "fact": "Compared with the operator-owned OnePassword action; session setup is not duplicated as a distributed skill.",
+        "comparison": "Compared with the operator-owned OnePassword action; session setup is not duplicated as a distributed skill.",
+        "evidence": {
+          "source": "skills/harness-govern/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    }
   ]
 }

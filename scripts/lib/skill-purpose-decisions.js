@@ -9,8 +9,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { extract: extractFrontmatter } = require('../ci/_lib/frontmatter');
 
-const SCHEMA = 'dhpk.skill-purpose-decisions.v1';
-const CONTRACT_VERSION = 'dhpk.skill-purpose-contract.v1';
+const SCHEMA = 'dhpk.skill-purpose-decisions.v2';
+const CONTRACT_VERSION = 'dhpk.skill-purpose-contract.v2';
 const BASELINE_SCHEMA = 'dhpk.skill-baseline.v1';
 const DISPOSITIONS = Object.freeze([
   'retain-standalone',
@@ -29,12 +29,54 @@ const AUTHORITY = Object.freeze([
   'transport-internal',
   'external-package',
 ]);
+const DUPLICATE_CONTENT_STATUSES = Object.freeze([
+  'distinct',
+  'internalized',
+  'merged',
+  'externally-owned',
+  'removed',
+]);
 const COMPATIBILITY = Object.freeze([
   'stable-id-preserved',
   'public-identity-preserved',
   'frontmatter-name-matches-inventory',
   'canonical-path-matches-inventory',
   'no-permanent-alias',
+]);
+
+// Purpose records explain content and disposition; distribution-inventory.json
+// remains the only owner of executable identity and publication/migration
+// facts.  Keep the current retirement wave closed here so a partial decision
+// record cannot make a predecessor disappear from review.
+const CURRENT_WAVE = Object.freeze({
+  'laravel-5.4-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical Laravel family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/laravel/references/5-4.md', contentValue: 'Laravel 5.4 guidance is internalized behind the laravel family selector.' }),
+  'laravel-6-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical Laravel family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/laravel/references/6.md', contentValue: 'Laravel 6 guidance is internalized behind the laravel family selector.' }),
+  'laravel-7-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical Laravel family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/laravel/references/7.md', contentValue: 'Laravel 7 guidance is internalized behind the laravel family selector.' }),
+  'laravel-8-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical Laravel family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/laravel/references/8.md', contentValue: 'Laravel 8 guidance is internalized behind the laravel family selector.' }),
+  'laravel-9-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical Laravel family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/laravel/references/9.md', contentValue: 'Laravel 9 guidance is internalized behind the laravel family selector.' }),
+  'laravel-10-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical Laravel family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/laravel/references/10.md', contentValue: 'Laravel 10 guidance is internalized behind the laravel family selector.' }),
+  'laravel-11-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical Laravel family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/laravel/references/11.md', contentValue: 'Laravel 11 guidance is internalized behind the laravel family selector.' }),
+  'laravel-mix-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical Laravel family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/laravel/references/mix.md', contentValue: 'Laravel Mix guidance is internalized behind the laravel family selector.' }),
+  'phpunit-9-modern': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/phpunit/references/9.md', contentValue: 'PHPUnit 9 guidance is internalized behind the phpunit family selector.' }),
+  'phpunit-10-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/phpunit/references/10.md', contentValue: 'PHPUnit 10 guidance is internalized behind the phpunit family selector.' }),
+  'phpunit-11-notes': Object.freeze({ outcome: 'internalize', disposition: 'internalize', authority: 'guidance-only', duplicateStatus: 'internalized', duplicateFact: 'Compared with the canonical PHPUnit family content; the version guidance is retained behind its selector.', duplicateEvidence: 'skills/phpunit/references/11.md', contentValue: 'PHPUnit 11 guidance is internalized behind the phpunit family selector.' }),
+  'claude-health': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the harness-govern health mode; the health guidance has one canonical home.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'Harness health guidance is merged into the harness-govern health mode.' }),
+  'harness-budget': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the harness-govern budget mode; the budget guidance has one canonical home.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'Harness budget guidance is merged into the harness-govern budget mode.' }),
+  'harness-fill': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the harness-govern fill mode; the fill guidance has one canonical home.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'Harness fill guidance is merged into the harness-govern fill mode.' }),
+  'harness-revise': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the harness-govern revise mode; the revision guidance has one canonical home.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'Harness revision guidance is merged into the harness-govern revise mode.' }),
+  'multi-ai-sync': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the harness-govern sync mode; cross-agent synchronization guidance has one canonical home.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'Cross-agent synchronization guidance is merged into the harness-govern sync mode.' }),
+  'agy-commit': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'git-write', duplicateStatus: 'merged', duplicateFact: 'Compared with the git-smart-commit workflow; AGY commit guidance has one canonical commit owner.', duplicateEvidence: 'skills/dhpk-git-smart-commit/SKILL.md', contentValue: 'AGY commit guidance is merged into the git-smart-commit workflow without an AGY adapter.' }),
+  'feasibility-study': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the software-architecture compare mode; feasibility guidance has one canonical architecture owner.', duplicateEvidence: 'skills/dhpk-module-design/SKILL.md', contentValue: 'Feasibility comparison guidance is merged into the software-architecture compare mode.' }),
+  'tech-spec': Object.freeze({ outcome: 'retire', disposition: 'retire', authority: 'external-write', duplicateStatus: 'externally-owned', duplicateFact: 'Compared with the external proposal workflow; DHPK does not copy or execute a second technical-spec authoring surface.', duplicateEvidence: 'openspec/changes/issue-534-skill-distribution-consolidation/design.md', contentValue: 'Technical-spec authoring is owned by the external openspec-propose workflow.' }),
+  'create-request': Object.freeze({ outcome: 'retire', disposition: 'retire', authority: 'external-write', duplicateStatus: 'externally-owned', duplicateFact: 'Compared with the external proposal workflow; DHPK does not copy or execute a second request-authoring surface.', duplicateEvidence: 'openspec/changes/issue-534-skill-distribution-consolidation/design.md', contentValue: 'Request authoring is owned by the external openspec-propose workflow.' }),
+  'op-session': Object.freeze({ outcome: 'remove', disposition: 'remove', authority: 'external-write', duplicateStatus: 'removed', duplicateFact: 'Compared with the operator-owned OnePassword action; session setup is not duplicated as a distributed skill.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'OnePassword session setup is an operator action, not a distributed skill.' }),
+});
+const RETIREMENT_OUTCOMES = Object.freeze(['internalize', 'merge', 'retire', 'remove']);
+const OUTCOMES = Object.freeze(['retain', ...RETIREMENT_OUTCOMES]);
+const EVIDENCE_STATES = Object.freeze(['PASS', 'FAIL', 'NOT_RUN', 'UNAVAILABLE', 'BLOCKED']);
+const INVENTORY_DERIVED_FIELDS = Object.freeze([
+  'name', 'path', 'publicName', 'canonicalPath', 'surfaces', 'surface',
+  'successor', 'migration', 'rollback',
 ]);
 
 const CONTRACTS = Object.freeze({
@@ -114,14 +156,15 @@ function effectiveDecision({ inventory, ledger, row, root = process.cwd() } = {}
   const frontmatter = readSkillFrontmatter(root, skill);
   const family = row.family || (row.disposition === 'retain-family' ? skill.id : null);
   const owner = row.owner || (row.disposition === 'retain-external' ? (activeExternalOwner(inventory, skill.id) || {}).id : null);
-  const authority = contract.authority === 'source-usage-or-guidance'
+  const authority = row.authority || (contract.authority === 'source-usage-or-guidance'
     ? usageAuthority(skill)
-    : contract.authority;
+    : contract.authority);
   return {
     id: skill.id,
     stableId: skill.id,
     publicName: skill.name,
     path: skill.path,
+    outcome: row.outcome || 'retain',
     disposition: row.disposition,
     task: {
       source: 'skill.frontmatter.description',
@@ -132,6 +175,10 @@ function effectiveDecision({ inventory, ledger, row, root = process.cwd() } = {}
     successor: { kind: contract.successorKind, id: family || owner || skill.id },
     compatibility: [...contract.compatibility],
     rationale: row.rationale,
+    contentValue: row.content_value,
+    duplicateContent: clone(row.duplicate_content),
+    callers: row.callers.map((caller) => caller),
+    evidence: clone(row.evidence),
     family,
     owner,
     source: {
@@ -140,6 +187,155 @@ function effectiveDecision({ inventory, ledger, row, root = process.cwd() } = {}
       contractVersion: ledger.contractVersion,
     },
   };
+}
+
+function validateEvidence(errors, evidence, prefix) {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) {
+    errors.push(`${prefix} must be an object`);
+    return;
+  }
+  const allowed = new Set(['source', 'structural', 'consumer', 'runtime']);
+  for (const field of Object.keys(evidence)) {
+    if (!allowed.has(field)) errors.push(`${prefix}.${field} is not allowed`);
+  }
+  if (!nonEmptyString(evidence.source)) errors.push(`${prefix}.source must be a non-empty repository path or evidence pointer`);
+  for (const field of ['structural', 'consumer', 'runtime']) {
+    if (evidence[field] !== undefined && !EVIDENCE_STATES.includes(evidence[field])) {
+      errors.push(`${prefix}.${field} must be one of ${EVIDENCE_STATES.join('/')}`);
+    }
+  }
+  if (evidence.structural !== 'PASS') errors.push(`${prefix}.structural must be PASS for a checked-in decision`);
+}
+
+function validateDuplicateContent(errors, duplicateContent, prefix) {
+  if (!duplicateContent || typeof duplicateContent !== 'object' || Array.isArray(duplicateContent)) {
+    errors.push(`${prefix} must be an object with an explicit comparison fact and evidence`);
+    return;
+  }
+  const allowed = new Set(['status', 'fact', 'comparison', 'evidence']);
+  for (const field of Object.keys(duplicateContent)) {
+    if (!allowed.has(field)) errors.push(`${prefix}.${field} is not allowed`);
+  }
+  if (!DUPLICATE_CONTENT_STATUSES.includes(duplicateContent.status)) {
+    errors.push(`${prefix}.status must be one of ${DUPLICATE_CONTENT_STATUSES.join('/')}`);
+  }
+  for (const field of ['fact', 'comparison']) {
+    if (!nonEmptyString(duplicateContent[field])) errors.push(`${prefix}.${field} must be a non-empty comparison fact`);
+  }
+  if (!duplicateContent.evidence || typeof duplicateContent.evidence !== 'object' || Array.isArray(duplicateContent.evidence)) {
+    errors.push(`${prefix}.evidence must be an object with source and PASS status`);
+    return;
+  }
+  if (!nonEmptyString(duplicateContent.evidence.source)) errors.push(`${prefix}.evidence.source must be a non-empty path or evidence pointer`);
+  if (duplicateContent.evidence.status !== 'PASS') errors.push(`${prefix}.evidence.status must be PASS for a checked-in comparison`);
+  for (const field of Object.keys(duplicateContent.evidence)) {
+    if (!['source', 'status'].includes(field)) errors.push(`${prefix}.evidence.${field} is not allowed`);
+  }
+}
+
+function validateCallers(errors, callers, prefix, root) {
+  if (!Array.isArray(callers) || callers.length === 0) {
+    errors.push(`${prefix} must be a non-empty array of repository caller paths`);
+    return;
+  }
+  const seen = new Set();
+  for (const caller of callers) {
+    if (!nonEmptyString(caller) || caller.includes('\\') || path.posix.isAbsolute(caller)
+      || caller.includes('..') || caller.includes('*')) {
+      errors.push(`${prefix} contains an unsafe caller path '${caller}'`);
+      continue;
+    }
+    if (seen.has(caller)) errors.push(`${prefix} contains duplicate caller '${caller}'`);
+    seen.add(caller);
+    if (root && !fs.existsSync(path.join(root, caller))) errors.push(`${prefix} caller does not exist: ${caller}`);
+  }
+}
+
+function validateDecisionShape(errors, row, prefix, { retirement = false } = {}) {
+  const allowed = retirement
+    ? new Set(['id', 'outcome', 'disposition', 'authority', 'rationale', 'content_value', 'duplicate_content', 'callers', 'evidence'])
+    : new Set(['id', 'outcome', 'disposition', 'authority', 'rationale', 'family', 'owner', 'content_value', 'duplicate_content', 'callers', 'evidence']);
+  for (const field of Object.keys(row)) {
+    if (!allowed.has(field)) errors.push(`${prefix}.${row.id || '<unknown>'}.${field} is not allowed; derive identity/publication facts from distribution inventory`);
+    if (INVENTORY_DERIVED_FIELDS.includes(field)) {
+      errors.push(`${prefix}.${row.id || '<unknown>'}.${field} must be derived from distribution inventory, not duplicated in the purpose ledger`);
+    }
+  }
+  for (const field of ['id', 'outcome', 'disposition', 'authority', 'rationale', 'content_value']) {
+    if (!nonEmptyString(row[field])) errors.push(`${prefix}.${field} must be a non-empty string`);
+  }
+  if (nonEmptyString(row.authority) && !AUTHORITY.includes(row.authority)) {
+    errors.push(`${prefix}.authority must be one of ${AUTHORITY.join('/')}`);
+  }
+  validateDuplicateContent(errors, row.duplicate_content, `${prefix}.duplicate_content`);
+  validateCallers(errors, row.callers, `${prefix}.callers`, null);
+  validateEvidence(errors, row.evidence, `${prefix}.evidence`);
+}
+
+function validateCurrentWave({ inventory, ledger, errors, root }) {
+  const rows = ledger.retirements;
+  if (!Array.isArray(rows)) {
+    errors.push('purpose decision ledger requires a retirements array for the current retirement wave');
+    return [];
+  }
+  const retiredById = new Map((Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [])
+    .filter((entry) => entry && typeof entry.id === 'string')
+    .map((entry) => [entry.id, entry]));
+  const seen = new Set();
+  const result = [];
+  rows.forEach((row, index) => {
+    const prefix = `retirements[${index}]`;
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+    validateDecisionShape(errors, row, prefix, { retirement: true });
+    if (!nonEmptyString(row.id)) return;
+    if (seen.has(row.id)) errors.push(`duplicate retirement purpose decision '${row.id}'`);
+    seen.add(row.id);
+    const expected = CURRENT_WAVE[row.id];
+    const retired = retiredById.get(row.id);
+    if (!expected) {
+      errors.push(`unexpected current-wave retirement purpose decision '${row.id}'`);
+      return;
+    }
+    if (!retired) errors.push(`retirement purpose decision '${row.id}' does not resolve to the inventory retired ledger`);
+    if (row.outcome !== expected.outcome) errors.push(`${prefix}.${row.id}.outcome must be ${expected.outcome}`);
+    if (row.disposition !== expected.disposition) errors.push(`${row.id} disposition must be ${expected.disposition}`);
+    if (row.authority !== expected.authority) errors.push(`${row.id} authority must be ${expected.authority}`);
+    if (row.content_value !== expected.contentValue) errors.push(`${row.id} content_value must describe the reviewed migration outcome`);
+    if (!row.duplicate_content || row.duplicate_content.status !== expected.duplicateStatus) {
+      errors.push(`${row.id} duplicate_content.status must be ${expected.duplicateStatus}`);
+    } else {
+      if (row.duplicate_content.fact !== expected.duplicateFact) errors.push(`${row.id} duplicate_content.fact must record the reviewed comparison`);
+      if (!row.duplicate_content.comparison || !nonEmptyString(row.duplicate_content.comparison)) errors.push(`${row.id} duplicate_content.comparison is required`);
+      if (!row.duplicate_content.evidence || row.duplicate_content.evidence.source !== expected.duplicateEvidence) errors.push(`${row.id} duplicate_content.evidence.source must be ${expected.duplicateEvidence}`);
+    }
+    validateCallers(errors, row.callers, `${prefix}.${row.id}.callers`, root);
+    result.push({
+      id: row.id,
+      outcome: row.outcome,
+      disposition: row.disposition,
+      authority: row.authority,
+      rationale: row.rationale,
+      contentValue: row.content_value,
+      duplicateContent: clone(row.duplicate_content),
+      callers: row.callers.map((caller) => caller),
+      evidence: clone(row.evidence),
+      inventory: retired ? {
+        retiredIn: retired.retiredIn,
+        reasonCode: retired.reasonCode,
+        replacements: clone(retired.replacements),
+      } : null,
+    });
+  });
+  for (const id of Object.keys(CURRENT_WAVE)) {
+    if (!seen.has(id)) errors.push(`missing retirement purpose decision '${id}'`);
+  }
+  if (rows.length !== Object.keys(CURRENT_WAVE).length) {
+    errors.push(`purpose retirement decisions must cover exactly ${Object.keys(CURRENT_WAVE).length} current-wave entries`);
+  }
+  return result;
 }
 
 function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd() } = {}) {
@@ -170,8 +366,7 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
       errors.push(`${prefix} must be an object`);
       continue;
     }
-    const allowed = new Set(['id', 'disposition', 'rationale', 'family', 'owner', 'publicName', 'path']);
-    for (const field of Object.keys(row)) if (!allowed.has(field)) errors.push(`${prefix}.${field} is not allowed`);
+    validateDecisionShape(errors, row, prefix);
     if (!nonEmptyString(row.id)) {
       errors.push(`${prefix}.id must be a non-empty string`);
       continue;
@@ -183,14 +378,18 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
       continue;
     }
     if (retiredIds.has(row.id)) errors.push(`purpose decision '${row.id}' conflicts with the retired ledger`);
+    if (row.outcome !== 'retain') errors.push(`${prefix}.${row.id}.outcome must be retain for active decisions`);
     if (!DISPOSITIONS.includes(row.disposition)) {
       errors.push(`${prefix}.${row.id}.disposition must be one of ${DISPOSITIONS.join('/')}`);
       continue;
     }
     if (!nonEmptyString(row.rationale)) errors.push(`${prefix}.${row.id}.rationale is required`);
     const skill = activeById.get(row.id);
-    if (row.publicName !== undefined && row.publicName !== skill.name) errors.push(`${row.id}.publicName must match inventory name '${skill.name}'`);
-    if (row.path !== undefined && row.path !== skill.path) errors.push(`${row.id}.path must match inventory path '${skill.path}'`);
+    validateCallers(errors, row.callers, `${prefix}.${row.id}.callers`, root);
+    if (!nonEmptyString(row.content_value)) errors.push(`${row.id}.content_value is required`);
+    if (row.content_value !== readSkillFrontmatter(root, skill).values.description) {
+      errors.push(`${row.id}.content_value must match the canonical SKILL.md description`);
+    }
     const contract = CONTRACTS[row.disposition];
     const external = activeExternalOwner(inventory, row.id);
     const family = activeFamily(inventory, row.id);
@@ -210,6 +409,10 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
     if (contract && contract.authority === 'source-usage-or-guidance' && !AUTHORITY.includes(usageAuthority(skill))) {
       errors.push(`${row.id} resolves to unsupported source authority '${usageAuthority(skill)}'`);
     }
+    const expectedAuthority = contract && contract.authority === 'source-usage-or-guidance'
+      ? usageAuthority(skill)
+      : contract && contract.authority;
+    if (row.authority !== expectedAuthority) errors.push(`${row.id}.authority must match the reviewed authority '${expectedAuthority}'`);
     const frontmatter = readSkillFrontmatter(root, skill);
     if (!nonEmptyString(frontmatter.values.description)) errors.push(`${row.id} is missing the task source description`);
     if (frontmatter.values.name !== skill.name) errors.push(`${row.id} SKILL.md name must match inventory public name '${skill.name}'`);
@@ -224,6 +427,8 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
     if (!rowsById.has(skill.id)) errors.push(`missing decision for active skill '${skill.id}'`);
   }
   if (rowsById.size !== activeSkills.length) errors.push(`purpose decisions must cover exactly ${activeSkills.length} active skills`);
+
+  const retirements = validateCurrentWave({ inventory, ledger, errors, root });
 
   const baselinePath = ledger.baseline && path.join(root, ledger.baseline.path);
   if (baselinePath && fs.existsSync(baselinePath)) {
@@ -240,7 +445,7 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
     errors.push(`issue #467 baseline is missing at '${ledger.baseline && ledger.baseline.path}'`);
   }
 
-  return { ok: errors.length === 0, errors, effective: effective.map(clone) };
+  return { ok: errors.length === 0, errors, effective: effective.map(clone), retirements: retirements.map(clone) };
 }
 
 module.exports = {
@@ -248,7 +453,13 @@ module.exports = {
   COMPATIBILITY,
   CONTRACTS,
   CONTRACT_VERSION,
+  CURRENT_WAVE,
+  DUPLICATE_CONTENT_STATUSES,
   DISPOSITIONS,
+  EVIDENCE_STATES,
+  INVENTORY_DERIVED_FIELDS,
+  OUTCOMES,
+  RETIREMENT_OUTCOMES,
   SCHEMA,
   effectiveDecision,
   validateSkillPurposeDecisions,

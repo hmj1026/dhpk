@@ -9,6 +9,7 @@ const {
   fingerprint,
   projectionError,
 } = require('./distribution-projection-contract');
+const { resolveSkillIdentity } = require('./distribution-inventory');
 
 const SELECTION_POLICY_VERSION = 'dhpk.capability-bundle-selection.v1';
 const PROFILE_IDS = Object.freeze(['minimal', 'full', 'compat-v1']);
@@ -99,10 +100,35 @@ function allSkills(inventory) {
   return { entries: [...byId.values()], byId };
 }
 
-function retiredMap(inventory) {
-  return new Map((Array.isArray(inventory && inventory.retired_skills) ? inventory.retired_skills : [])
-    .filter((entry) => entry && typeof entry.id === 'string')
-    .map((entry) => [entry.id, entry]));
+function identitySelectionError(inventory, reference, role) {
+  const resolution = resolveSkillIdentity({ inventory, identifier: reference });
+  if (resolution.state === 'retired') {
+    return error('RETIRED_STABLE_ID', `stable ID '${reference}' is retired`, [reference], { retired: resolution });
+  }
+  if (resolution.state !== 'renamed') return null;
+  const stableId = resolution.stableId;
+  const publicName = resolution.publicName || stableId;
+  return error(
+    'RENAMED_STABLE_ID',
+    `${role} '${reference}' is a renamed public name; select stable ID '${stableId || publicName || reference}'`,
+    [reference],
+    {
+      renamed: {
+        oldName: resolution.oldName,
+        newName: publicName,
+        stableId,
+      },
+    },
+  );
+}
+
+function legacyRetirementSelectionError(inventory, reference) {
+  const row = (Array.isArray(inventory && inventory.retired_skills) ? inventory.retired_skills : [])
+    .find((entry) => entry && entry.retiredIn !== '0.54.0'
+      && (entry.id === reference || entry.name === reference || entry.canonicalPath === reference));
+  return row
+    ? error('RETIRED_STABLE_ID', `stable ID '${reference}' is retired`, [reference], { retired: clone(row) })
+    : null;
 }
 
 function moduleCatalog(moduleCatalog) {
@@ -275,7 +301,7 @@ function safeStandalonePath(value) {
     && value.split('/').every((part) => part !== '' && part !== '.');
 }
 
-function resolveStandaloneSelection({ input, entries, byId, retired, surfaceAllowed, sourceFingerprint, inventoryFingerprint }) {
+function resolveStandaloneSelection({ input, entries, byId, surfaceAllowed, sourceFingerprint, inventoryFingerprint }) {
   const values = standaloneInputValues(input);
   if (values === null) return null;
   if (values.error) return { ok: false, error: values.error };
@@ -293,7 +319,9 @@ function resolveStandaloneSelection({ input, entries, byId, retired, surfaceAllo
     const named = byPublicName.get(reference);
     if (named === null) return { error: error('AMBIGUOUS_PUBLIC_NAME', `standalone ${role} name '${reference}' is ambiguous`) };
     if (named) return { id: named.id };
-    if (retired.has(reference)) return { error: error('RETIRED_STABLE_ID', `stable ID '${reference}' is retired`, [reference], { retired: retired.get(reference) }) };
+    const identityIssue = identitySelectionError(input.inventory, reference, `standalone ${role}`)
+      || legacyRetirementSelectionError(input.inventory, reference);
+    if (identityIssue) return { error: identityIssue };
     return { error: error('UNKNOWN_STABLE_ID', `unknown standalone ${role} '${reference}'`, [reference]) };
   };
   const roots = [];
@@ -318,7 +346,9 @@ function resolveStandaloneSelection({ input, entries, byId, retired, surfaceAllo
   ]);
 
   const checkEntry = (id, role) => {
-    if (retired.has(id)) return error('RETIRED_STABLE_ID', `standalone ${role} '${id}' is retired`, [id], { retired: retired.get(id) });
+    const identityIssue = identitySelectionError(input.inventory, id, `standalone ${role}`)
+      || legacyRetirementSelectionError(input.inventory, id);
+    if (identityIssue) return identityIssue;
     const entry = byId.get(id);
     if (!entry || entry.lifecycle === 'deprecated') return error('UNKNOWN_STABLE_ID', `unknown standalone ${role} '${id}'`, [id]);
     if (entry.invokable === false) return error('NON_INVOKABLE_STABLE_ID', `standalone ${role} '${id}' is internal runtime support and cannot be public`, [id]);
@@ -449,7 +479,6 @@ function resolveCapabilitySelection(input = {}) {
   const inventoryResult = allSkills(input.inventory);
   if (inventoryResult.error) return inventoryResult.error;
   const { entries, byId } = inventoryResult;
-  const retired = retiredMap(input.inventory);
   const hasStandaloneInput = standaloneInputValues(input) !== null;
   const calculatedInventoryFingerprint = input.inventoryFingerprint || fingerprint(hasStandaloneInput
     ? {
@@ -464,7 +493,6 @@ function resolveCapabilitySelection(input = {}) {
     input,
     entries,
     byId,
-    retired,
     surfaceAllowed: surfaceIds(input.inventory, input.surface, entries),
     sourceFingerprint: input.sourceFingerprint || input.sourceInputs && fingerprint(clone(input.sourceInputs)) || fingerprint({ source: input.source || null }),
     inventoryFingerprint: calculatedInventoryFingerprint,
@@ -542,7 +570,9 @@ function resolveCapabilitySelection(input = {}) {
   const surfaceAllowed = surfaceIds(input.inventory, input.surface, entries);
   const checkId = (id, isOverlay) => {
     if (!id || typeof id !== 'string' || id.trim() === '') return error('MISSING_STABLE_ID', 'a selected stable ID is missing');
-    if (retired.has(id)) return error('RETIRED_STABLE_ID', `stable ID '${id}' is retired`, [id], { retired: retired.get(id) });
+    const identityIssue = identitySelectionError(input.inventory, id, 'selected stable ID')
+      || legacyRetirementSelectionError(input.inventory, id);
+    if (identityIssue) return identityIssue;
     const entry = byId.get(id);
     if (!entry || entry.lifecycle === 'deprecated') return error('UNKNOWN_STABLE_ID', `unknown stable ID '${id}'`, [id]);
     if (entry.invokable === false) return error('NON_INVOKABLE_STABLE_ID', `stable ID '${id}' is internal runtime support and cannot be selected`, [id]);
