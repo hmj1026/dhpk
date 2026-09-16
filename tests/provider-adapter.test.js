@@ -113,6 +113,12 @@ test('Adapter registry exposes the four supported execution families', () => {
   assert.deepStrictEqual(registry.providers, ['claude-code', 'codex-cli', 'agy', 'cursor-native']);
   assert.strictEqual(registry.get('codex-cli').provider, 'codex-cli');
   assert.strictEqual(registry.get('cursor-native').provider, 'cursor-native');
+
+  const legacyCursor = registry.get('cursor-native').execute({
+    provider: 'cursor-native', model_id: 'cursor-default', effort: 'high', transport: 'native-runtime',
+  }, request);
+  assert.strictEqual(legacyCursor.status, 'SUCCEEDED');
+  assert.strictEqual(legacyCursor.receipt.resolved_target.provider, 'xai');
 });
 
 run('provider-adapter');

@@ -242,22 +242,22 @@ test('v2 requests use Host profile and Provider-scoped target resolution through
   const request = {
     schema: SCHEMAS.REQUEST,
     host_profile: {
-      schema: SCHEMAS.HOST_PROFILE, version: 'cursor-policy.v1', host: 'cursor', native_provider: 'cursor-native', native_model: 'cursor-default', native_transport: 'native-runtime',
-      allowed_providers: ['cursor-native', 'codex-cli'],
+      schema: SCHEMAS.HOST_PROFILE, version: 'cursor-policy.v2', host: 'cursor', native_target_agent: 'cursor', native_provider: 'cursor', native_model: 'composer-2.5', native_transport: 'native-runtime',
+      allowed_providers: ['cursor', 'openai'],
       access: {
-        'cursor-native': { status: 'AVAILABLE', evidence: 'native ready' },
-        'codex-cli': { status: 'AVAILABLE', evidence: 'CLI ready' },
+        cursor: { status: 'AVAILABLE', evidence: 'native ready' },
+        openai: { status: 'AVAILABLE', evidence: 'CLI ready' },
       },
-      quota_pools: { 'cursor-native': 'native', 'codex-cli': 'codex' }, concurrency_limits: { native: 1, codex: 1 }, observed_at: '2026-09-11T00:00:00.000Z',
+      quota_pools: { cursor: 'native', openai: 'codex' }, concurrency_limits: { native: 1, codex: 1 }, observed_at: '2026-09-11T00:00:00.000Z',
     },
     task_id: 'policy-v2-task', attempt_id: 'policy-v2-attempt', role: 'reasoner', authority: 'read-only',
     task: { description_digest: 'a'.repeat(64) }, scope: { workdir: '/workspace', assigned_files: [], prompt_evidence: { path: '/workspace/prompt', dev: 1, ino: 2, sha256: 'b'.repeat(64) } },
-    target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' }, effort: 'high',
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', transport: 'native-runtime' }, effort: 'high',
     fallback: { allow: true, retry_budget: 1 }, parallelism: { dependencies: [], max_concurrency: 1 },
   };
   const plan = resolveDispatchPlan({ request, catalog: providerCatalog });
   assert.strictEqual(plan.status, 'RESOLVED');
-  assert.strictEqual(plan.target.identity, 'codex-cli/sol5.6');
+  assert.strictEqual(plan.target.identity, 'codex-cli/gpt-5.6-sol-high');
   assert.strictEqual(plan.request.role, 'reasoner');
 });
 

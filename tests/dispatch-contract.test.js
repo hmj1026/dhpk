@@ -19,19 +19,20 @@ const HOST_PROFILES = require('../manifests/host-profiles.json');
 
 const HOST_PROFILE = {
   schema: SCHEMAS.HOST_PROFILE,
-  version: 'host-profile.test.v1',
+  version: 'host-profile.test.v2',
   host: 'cursor',
-  native_provider: 'cursor-native',
-  native_model: 'cursor-default',
+  native_target_agent: 'cursor',
+  native_provider: 'cursor',
+  native_model: 'composer-2.5',
   native_transport: 'native-runtime',
-  allowed_providers: ['cursor-native', 'claude-code', 'codex-cli', 'agy'],
+  allowed_providers: ['cursor', 'anthropic', 'openai', 'google'],
   access: {
-    'cursor-native': { status: 'AVAILABLE', evidence: 'fixture native runtime' },
-    'claude-code': { status: 'NOT_RUN', evidence: 'fixture probe not run' },
-    'codex-cli': { status: 'AVAILABLE', evidence: 'fixture bounded probe' },
-    agy: { status: 'UNAVAILABLE', evidence: 'fixture executable missing' },
+    cursor: { status: 'AVAILABLE', evidence: 'fixture native runtime' },
+    anthropic: { status: 'NOT_RUN', evidence: 'fixture probe not run' },
+    openai: { status: 'AVAILABLE', evidence: 'fixture bounded probe' },
+    google: { status: 'UNAVAILABLE', evidence: 'fixture executable missing' },
   },
-  quota_pools: { 'cursor-native': 'native', 'claude-code': 'claude', 'codex-cli': 'codex', agy: 'agy' },
+  quota_pools: { cursor: 'native', anthropic: 'claude', openai: 'codex', google: 'agy' },
   concurrency_limits: { native: 1, claude: 1, codex: 2, agy: 1 },
   observed_at: '2026-09-11T00:00:00.000Z',
 };
@@ -66,7 +67,7 @@ test('canonical request keeps Host, Provider-scoped target, Role, Effort, and au
   const normalized = createDispatchRequest(request({
     role: 'reasoner',
     authority: 'read-only',
-    target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' },
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol', transport: 'local-cli' },
   }));
 
   assert.strictEqual(normalized.schema, SCHEMAS.REQUEST);
@@ -74,8 +75,9 @@ test('canonical request keeps Host, Provider-scoped target, Role, Effort, and au
   assert.strictEqual(normalized.role, 'reasoner');
   assert.strictEqual(normalized.authority, 'read-only');
   assert.deepStrictEqual(normalized.target, {
-    provider: 'codex-cli',
-    model: 'sol5.6',
+    target_agent: 'codex-cli',
+    provider: 'openai',
+    model_id: 'gpt-5.6-sol',
     transport: 'local-cli',
   });
   assert.strictEqual(normalized.effort, 'high');
@@ -120,14 +122,15 @@ test('raw prompt/output/secret fields do not enter the canonical request', () =>
 test('versioned catalog and Host profiles keep Provider capability separate from Host access', () => {
   const catalog = createProviderModelCatalog(PROVIDER_CATALOG);
   const profiles = createHostProfileSet(HOST_PROFILES);
-  assert.strictEqual(catalog.version, 'provider-catalog.v1');
-  assert.deepStrictEqual(catalog.providers.map((entry) => entry.provider), ['claude-code', 'codex-cli', 'agy', 'cursor-native']);
-  assert.strictEqual(catalog.providers[1].models[0].id, 'sol5.6');
-  assert.strictEqual(catalog.providers[1].models[0].effort_mapping.high, 'high');
-  assert.deepStrictEqual(profiles.profiles.map((profile) => profile.host), ['cursor', 'claude-code', 'codex-cli', 'agy']);
-  assert.strictEqual(profiles.profiles[0].native_provider, 'cursor-native');
-  assert.strictEqual(profiles.profiles[0].access['codex-cli'].status, 'NOT_RUN');
-  assert.strictEqual(Object.isFrozen(catalog.providers[0].models[0]), true);
+  assert.strictEqual(catalog.version, 'model-catalog.v2');
+  assert.deepStrictEqual(Object.keys(catalog.models).slice(0, 2), ['anthropic/opus5', 'anthropic/sonnet5']);
+  assert.strictEqual(catalog.models['openai/gpt-5.6-sol'].model_id, 'gpt-5.6-sol');
+  assert.ok(catalog.routes.some((route) => route.provider === 'openai' && route.model_id === 'gpt-5.6-sol'));
+  assert.deepStrictEqual(profiles.profiles.map((profile) => profile.host).sort(), ['agy', 'claude-code', 'codex-cli', 'cursor']);
+  const cursorProfile = profiles.profiles.find((profile) => profile.host === 'cursor');
+  assert.strictEqual(cursorProfile.native_provider, 'cursor');
+  assert.strictEqual(cursorProfile.access.openai.status, 'NOT_RUN');
+  assert.strictEqual(Object.isFrozen(catalog.models['anthropic/opus5']), true);
 });
 
 test('capability statuses are explicit and static catalog data cannot become runtime proof', () => {
@@ -135,16 +138,16 @@ test('capability statuses are explicit and static catalog data cannot become run
     ...HOST_PROFILE,
     access: {
       ...HOST_PROFILE.access,
-      'codex-cli': { status: 'BLOCKED', evidence: 'Host policy denied external CLI' },
-      agy: { status: 'UNAVAILABLE', evidence: 'missing executable: agy' },
+      openai: { status: 'BLOCKED', evidence: 'Host policy denied external CLI' },
+      google: { status: 'UNAVAILABLE', evidence: 'missing executable: agy' },
     },
   });
-  assert.strictEqual(profile.access['codex-cli'].status, 'BLOCKED');
-  assert.strictEqual(profile.access.agy.status, 'UNAVAILABLE');
-  assert.ok(PROVIDER_CATALOG.providers.some((entry) => entry.provider === 'codex-cli'));
+  assert.strictEqual(profile.access.openai.status, 'BLOCKED');
+  assert.strictEqual(profile.access.google.status, 'UNAVAILABLE');
+  assert.ok(PROVIDER_CATALOG.routes.some((entry) => entry.provider === 'openai'));
 });
 
-test('v1 compatibility translation preserves alias and resolves one canonical v2 request', () => {
+test('v1 compatibility translation preserves alias while leaving Provider selection to the Host policy', () => {
   const translated = translateLegacyRequest({
     schema: 'dhpk.cli.request.v1',
     host_profile: HOST_PROFILE,
@@ -152,18 +155,17 @@ test('v1 compatibility translation preserves alias and resolves one canonical v2
     attempt_id: 'legacy-attempt-1',
     requested_role: 'codex-fast-worker',
     mode: 'workspace-write',
-    model: 'sol5.6',
+    model: 'gpt-5.6-luna',
     effort: 'high',
     task: { description_digest: 'c'.repeat(64) },
     scope: request().scope,
   });
   assert.strictEqual(translated.request.schema, SCHEMAS.REQUEST);
   assert.strictEqual(translated.request.role, 'worker');
-  assert.strictEqual(translated.request.target.provider, 'codex-cli');
-  assert.strictEqual(translated.request.target.model, 'sol5.6');
+  assert.strictEqual(translated.request.target, undefined);
   assert.strictEqual(translated.compatibility.requested_alias, 'codex-fast-worker');
   assert.strictEqual(translated.compatibility.canonical_role, 'worker');
-  assert.strictEqual(translated.compatibility.provider_constraint, 'codex-cli');
+  assert.strictEqual(translated.compatibility.provider_constraint, null);
   assert.strictEqual(translated.compatibility.deprecated, true);
 });
 
@@ -196,15 +198,15 @@ test('v2 receipt identifies target and verification without raw prompt, output, 
   const normalized = createDispatchRequest(request({
     role: 'reasoner',
     authority: 'read-only',
-    target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' },
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol', transport: 'local-cli' },
   }));
   const receipt = createDispatchReceipt({
     receipt_id: 'receipt-contract-1',
     request: normalized,
-    target: { provider: 'codex-cli', model: 'sol5.6', effort: 'high', transport: 'local-cli' },
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol', effort: 'high', route: 'headless-cli', transport: 'local-cli' },
     status: 'SUCCEEDED',
     verification: 'PASSED',
-    catalog_version: 'provider-catalog.v1',
+    catalog_version: 'model-catalog.v2',
     adapter_version: 'codex-adapter.v1',
     capability_evidence: { status: 'AVAILABLE', source: 'fixture' },
     prompt: 'raw prompt must not be persisted',
@@ -213,7 +215,7 @@ test('v2 receipt identifies target and verification without raw prompt, output, 
   });
   assert.strictEqual(receipt.schema, SCHEMAS.RECEIPT);
   assert.strictEqual(receipt.requested_role, 'reasoner');
-  assert.strictEqual(receipt.resolved_target.identity, 'codex-cli/sol5.6');
+  assert.strictEqual(receipt.resolved_target.identity, 'codex-cli/gpt-5.6-sol');
   assert.strictEqual(receipt.verification, 'PASSED');
   assert.strictEqual(receipt.host_profile_version, HOST_PROFILE.version);
   const serialized = JSON.stringify(receipt);
@@ -249,10 +251,14 @@ test('legacy transport names translate to the canonical local-cli transport', ()
     attempt_id: 'legacy-attempt-4',
     requested_role: 'codex-fast-worker',
     mode: 'workspace-write',
+    backend: 'codex',
+    model: 'gpt-5.6-luna',
     transport: 'codex-exec',
     task: { description_digest: 'f'.repeat(64) },
     scope: request().scope,
   });
+  assert.strictEqual(translated.request.target.target_agent, 'codex-cli');
+  assert.strictEqual(translated.request.target.provider, 'openai');
   assert.strictEqual(translated.request.target.transport, 'local-cli');
 });
 
