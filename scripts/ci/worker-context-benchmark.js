@@ -8,7 +8,13 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const SCHEMA = 'dhpk.worker-context-benchmark-receipt.v1';
+const SCHEMA = 'dhpk.worker-context-benchmark-receipt.v2';
+// One call per client/variant cell was the merged directional pilot's footprint.  Any
+// larger execution is a deliberate spend and must name its own ceiling.
+const PILOT_CALL_BUDGET = 12;
+const MAX_SESSIONS = 5;
+const FORMAL_SESSION_FLOOR = 3;
+const FORMAL_FIXTURE_FLOOR = 2;
 const CLIENTS = Object.freeze({
   claude: Object.freeze({ model: 'claude-sonnet-5', effort: 'high' }),
   codex: Object.freeze({ model: 'gpt-5.6-luna', effort: 'high' }),
@@ -87,14 +93,21 @@ function parseJsonObject(raw) {
 
 function scoreResponse(rawResponse, oracle) {
   const parsed = parseJsonObject(rawResponse);
+  const required = oracle.requiredReasonCodes || [];
+  const forbidden = oracle.forbiddenReasonCodes || [];
+  const codes = parsed && Array.isArray(parsed.reason_codes) ? parsed.reason_codes : null;
   const checks = {
     validJson: Boolean(parsed),
     decision: Boolean(parsed && parsed.decision === oracle.decision),
     mayEdit: Boolean(parsed && parsed.may_edit === oracle.may_edit),
-    reasonCodes: Boolean(parsed && Array.isArray(parsed.reason_codes)
-      && oracle.requiredReasonCodes.every((code) => parsed.reason_codes.includes(code))),
-    technique: Boolean(parsed && new RegExp(oracle.techniquePattern, 'i').test(String(parsed.technique || ''))),
+    reasonCodes: Boolean(codes && required.every((code) => codes.includes(code))),
+    // A negative-control oracle names no required code; it fails an answer that
+    // reaches for a reason code belonging to a different failure mode.
+    forbiddenReasonCodes: Boolean(codes && !forbidden.some((code) => codes.includes(code))),
   };
+  if (oracle.techniquePattern) {
+    checks.technique = Boolean(parsed && new RegExp(oracle.techniquePattern, 'i').test(String(parsed.technique || '')));
+  }
   return { passed: Object.values(checks).every(Boolean), checks };
 }
 
@@ -206,6 +219,15 @@ async function defaultInvoke(request) {
   }
 }
 
+function stabilityOf(runs) {
+  const evaluated = runs.filter((run) => run.status !== 'NOT_RUN');
+  if (!evaluated.length) return 'NOT_RUN';
+  const passes = evaluated.filter((run) => run.score && run.score.passed).length;
+  if (passes === evaluated.length) return 'STABLE_PASS';
+  if (passes === 0) return 'STABLE_FAIL';
+  return 'UNSTABLE';
+}
+
 function sumUsage(runs) {
   return runs.reduce((sum, run) => ({
     inputTokens: sum.inputTokens + Number(run.usage && run.usage.inputTokens || 0),
@@ -214,62 +236,180 @@ function sumUsage(runs) {
   }), usage());
 }
 
-async function runBenchmark({ root = ROOT, argv = [], clients = Object.keys(CLIENTS), invoke = defaultInvoke, now = () => new Date().toISOString(), gitInfo = defaultGitInfo } = {}) {
-  const execute = argv.includes('--execute');
-  const unknown = clients.filter((client) => !CLIENTS[client]);
-  if (unknown.length) throw new Error(`unknown benchmark clients: ${unknown.join(', ')}`);
-  const plan = buildBenchmarkPlan({ root });
-  const fixture = plan.fixtures[0];
-  const source = gitInfo(root);
-  if (execute && source.dirty) throw new Error('benchmark execution requires a clean source checkout');
-  const runs = [];
+function meanUsage(runs) {
+  const evaluated = runs.filter((run) => run.status !== 'NOT_RUN');
+  if (!evaluated.length) return usage();
+  const total = sumUsage(evaluated);
+  return usage(
+    Math.round(total.inputTokens / evaluated.length),
+    Math.round(total.outputTokens / evaluated.length),
+    Math.round(total.totalTokens / evaluated.length),
+  );
+}
+
+function buildAggregate(runs, { sessions, plannedCalls, clients, fixtures, variants }) {
+  const cells = [];
   for (const client of clients) {
-    for (const variant of plan.variants) {
-      const base = {
-        client,
-        variantId: variant.id,
-        variantFingerprint: variant.fingerprint,
-        requestedModel: CLIENTS[client].model,
-        effectiveModel: null,
-        status: 'NOT_RUN',
-        usage: usage(),
-        score: null,
-      };
-      if (!execute) { runs.push(base); continue; }
-      const observed = await invoke({ client, variantId: variant.id, context: variant.context, fixture });
-      const hasResponse = typeof observed.rawResponse === 'string' && observed.rawResponse.trim() !== '';
-      runs.push({
-        ...base,
-        status: observed.status === 'PASS' && hasResponse ? 'PASS' : 'BLOCKED',
-        requestedModel: observed.requestedModel,
-        effectiveModel: observed.effectiveModel,
-        usage: observed.usage,
-        diagnosticCode: observed.diagnosticCode || (hasResponse ? null : 'EMPTY_RESPONSE'),
-        responseFingerprint: digest(observed.rawResponse || ''),
-        score: scoreResponse(observed.rawResponse, fixture.oracle),
-      });
+    for (const fixture of fixtures) {
+      for (const variant of variants) {
+        const cellRuns = runs.filter((run) => run.client === client
+          && run.fixtureId === fixture.id
+          && run.variantId === variant.id);
+        const evaluated = cellRuns.filter((run) => run.status !== 'NOT_RUN');
+        cells.push({
+          client,
+          fixtureId: fixture.id,
+          variantId: variant.id,
+          sessions: cellRuns.length,
+          evaluated: evaluated.length,
+          passes: evaluated.filter((run) => run.score && run.score.passed).length,
+          stability: stabilityOf(cellRuns),
+          meanUsage: meanUsage(cellRuns),
+        });
+      }
     }
   }
+  const variantRollup = variants.map((variant) => {
+    const scoped = runs.filter((run) => run.variantId === variant.id && run.status !== 'NOT_RUN');
+    return {
+      variantId: variant.id,
+      total: scoped.length,
+      passes: scoped.filter((run) => run.score && run.score.passed).length,
+    };
+  });
+  return { sessions, plannedCalls, cells, variants: variantRollup };
+}
+
+async function runBenchmark({
+  root = ROOT,
+  argv = [],
+  clients = Object.keys(CLIENTS),
+  fixtures = null,
+  sessions = 1,
+  maxCalls = null,
+  invoke = defaultInvoke,
+  now = () => new Date().toISOString(),
+  gitInfo = defaultGitInfo,
+} = {}) {
+  const execute = argv.includes('--execute');
+  const unknownClients = clients.filter((client) => !CLIENTS[client]);
+  if (unknownClients.length) throw new Error(`unknown benchmark clients: ${unknownClients.join(', ')}`);
+  if (!Number.isInteger(sessions) || sessions < 1 || sessions > MAX_SESSIONS) {
+    throw new Error(`--sessions must be an integer between 1 and ${MAX_SESSIONS}`);
+  }
+  const plan = buildBenchmarkPlan({ root });
+  const unknownFixtures = (fixtures || []).filter((id) => !plan.fixtures.some((entry) => entry.id === id));
+  if (unknownFixtures.length) throw new Error(`unknown benchmark fixtures: ${unknownFixtures.join(', ')}`);
+  const selected = fixtures === null
+    ? plan.fixtures.slice()
+    : fixtures.map((id) => plan.fixtures.find((entry) => entry.id === id));
+  if (!selected.length) throw new Error('no benchmark fixtures selected');
+  const source = gitInfo(root);
+  if (execute && source.dirty) throw new Error('benchmark execution requires a clean source checkout');
+
+  const plannedCalls = clients.length * selected.length * plan.variants.length * sessions;
+  if (execute && maxCalls === null && plannedCalls > PILOT_CALL_BUDGET) {
+    throw new Error(`benchmark plan of ${plannedCalls} calls is above the ${PILOT_CALL_BUDGET}-call pilot budget and requires an explicit --max-calls`);
+  }
+  if (execute && maxCalls !== null && plannedCalls > maxCalls) {
+    throw new Error(`benchmark plan of ${plannedCalls} calls exceeds --max-calls ${maxCalls}`);
+  }
+
+  const runs = [];
+  for (const client of clients) {
+    for (const fixture of selected) {
+      for (const variant of plan.variants) {
+        for (let sessionIndex = 1; sessionIndex <= sessions; sessionIndex += 1) {
+          const base = {
+            client,
+            fixtureId: fixture.id,
+            oracleId: fixture.oracle.id,
+            sessionIndex,
+            variantId: variant.id,
+            variantFingerprint: variant.fingerprint,
+            requestedModel: CLIENTS[client].model,
+            effectiveModel: null,
+            status: 'NOT_RUN',
+            usage: usage(),
+            score: null,
+          };
+          if (!execute) { runs.push(base); continue; }
+          // Each session is an independent process in its own throwaway sandbox; the
+          // client adapters already run ephemeral and without session persistence.
+          const observed = await invoke({
+            client,
+            variantId: variant.id,
+            context: variant.context,
+            fixture,
+            sessionIndex,
+          });
+          const hasResponse = typeof observed.rawResponse === 'string' && observed.rawResponse.trim() !== '';
+          runs.push({
+            ...base,
+            status: observed.status === 'PASS' && hasResponse ? 'PASS' : 'BLOCKED',
+            requestedModel: observed.requestedModel,
+            effectiveModel: observed.effectiveModel,
+            usage: observed.usage,
+            diagnosticCode: observed.diagnosticCode || (hasResponse ? null : 'EMPTY_RESPONSE'),
+            responseFingerprint: digest(observed.rawResponse || ''),
+            score: scoreResponse(observed.rawResponse, fixture.oracle),
+          });
+        }
+      }
+    }
+  }
+
+  // One call per cell stays directional no matter how many cells it covers.  The
+  // formal gate needs repeated sessions AND more than the single safety fixture.
+  const formal = execute
+    && sessions >= FORMAL_SESSION_FLOOR
+    && selected.length >= FORMAL_FIXTURE_FLOOR;
   return {
     schema: SCHEMA,
-    evidenceClass: 'directional-pilot',
+    evidenceClass: formal ? 'formal-comparison' : 'directional-pilot',
     createdAt: now(),
     mode: execute ? 'execute' : 'dry-run',
     source,
     baselineCommit: plan.baselineCommit,
-    fixtureId: fixture.id,
-    oracleId: fixture.oracle.id,
+    sessions,
+    fixtureIds: selected.map((fixture) => fixture.id),
+    oracleIds: selected.map((fixture) => fixture.oracle.id),
     runs,
+    aggregate: buildAggregate(runs, {
+      sessions,
+      plannedCalls,
+      clients,
+      fixtures: selected,
+      variants: plan.variants,
+    }),
     usage: sumUsage(runs),
   };
 }
 
+function parseBoundedInteger(raw, flag, min, max) {
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`${flag} must be an integer between ${min} and ${max}`);
+  }
+  return value;
+}
+
 function parseArgs(argv) {
-  const args = { execute: false, clients: Object.keys(CLIENTS), output: null };
+  const args = {
+    execute: false,
+    clients: Object.keys(CLIENTS),
+    fixtures: null,
+    sessions: 1,
+    maxCalls: null,
+    output: null,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--execute') args.execute = true;
     else if (arg === '--clients') args.clients = String(argv[++index] || '').split(',').filter(Boolean);
+    else if (arg === '--fixtures') args.fixtures = String(argv[++index] || '').split(',').filter(Boolean);
+    else if (arg === '--sessions') args.sessions = parseBoundedInteger(argv[++index], '--sessions', 1, MAX_SESSIONS);
+    else if (arg === '--max-calls') args.maxCalls = parseBoundedInteger(argv[++index], '--max-calls', 1, 1000);
     else if (arg === '--output') args.output = argv[++index];
     else throw new Error(`unknown argument: ${arg}`);
   }
@@ -292,7 +432,13 @@ function validateEvidenceTarget(root, requestedPath) {
 async function main() {
   try {
     const args = parseArgs(process.argv.slice(2));
-    const receipt = await runBenchmark({ argv: args.execute ? ['--execute'] : [], clients: args.clients });
+    const receipt = await runBenchmark({
+      argv: args.execute ? ['--execute'] : [],
+      clients: args.clients,
+      fixtures: args.fixtures,
+      sessions: args.sessions,
+      maxCalls: args.maxCalls,
+    });
     const output = `${JSON.stringify(receipt, null, 2)}\n`;
     if (args.output) {
       const target = validateEvidenceTarget(ROOT, args.output);
@@ -315,6 +461,7 @@ module.exports = {
   cursorResponse,
   scoreResponse,
   runBenchmark,
+  parseArgs,
   defaultInvoke,
   validateEvidenceTarget,
 };

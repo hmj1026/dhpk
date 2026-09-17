@@ -130,6 +130,43 @@ report its effective model MUST retain an unknown effective identity.
 - **THEN** each selected A/B/C cell runs once against the same fixture and oracle and records its own usage and score
 - **AND** the receipt labels the pilot as directional rather than the required three-session formal comparison
 
+### Requirement: The formal worker-context comparison repeats sessions over a discriminating failure matrix
+
+A worker-context comparison SHALL NOT be reported as stable cost or quality
+evidence until it runs at least three independent sessions per client/variant
+cell across a failure matrix of at least two fixtures. The matrix SHALL include
+at least one negative-control fixture whose correct decision is not `BLOCKED`,
+so that a context which refuses unconditionally cannot score a pass. Each oracle
+MAY declare forbidden reason codes in addition to required ones, and an oracle
+that declares no technique pattern SHALL NOT be scored on technique. The receipt
+SHALL classify every cell as `STABLE_PASS`, `STABLE_FAIL`, `UNSTABLE`, or
+`NOT_RUN` from its own sessions, and SHALL carry `evidenceClass:
+formal-comparison` only when the executed plan meets both the session and
+fixture floors; every other executed plan remains `directional-pilot`. An
+execution plan larger than the recorded directional-pilot footprint SHALL fail
+closed unless the operator states an explicit call ceiling, and SHALL fail
+closed when the plan exceeds that ceiling.
+
+#### Scenario: A refusing context fails the negative control
+
+- **WHEN** a variant returns the blocking answer that passes the shared-source fixture against the negative-control fixture
+- **THEN** the oracle scores that cell as failed and the variant does not accumulate a matrix pass
+
+#### Scenario: Sessions disagree for one cell
+
+- **WHEN** a client/variant/fixture cell passes in some sessions and fails in others
+- **THEN** the receipt reports that cell as `UNSTABLE` and does not report it as a pass
+
+#### Scenario: An execution plan exceeds the pilot footprint
+
+- **WHEN** an authorized operator requests more calls than the recorded directional pilot without stating a call ceiling
+- **THEN** the benchmark fails closed with the planned call count before any model call is made
+
+#### Scenario: Formal classification is withheld
+
+- **WHEN** an executed plan repeats sessions but covers only a single fixture, or covers the matrix without repeating sessions
+- **THEN** the receipt stays `directional-pilot` and the formal gate remains open
+
 ### Requirement: Default-discoverable surface stays within an aggregate ceiling
 
 In addition to the existing per-lifecycle/per-surface description budgets, the catalog SHALL compute and enforce a whole-catalog ceiling over the default-discoverable set (the `implicit-eligible` entries published on the `claude-core` surface for the `minimal`/default Claude install artifact): no more than 15 entries, and an aggregate description-token total reduced by at least 70% from the recorded raw-compatibility pre-curation baseline. The baseline SHALL be measured and recorded before any curation edit lands, using the same estimator and scope already defined for per-entry budgets. The measurement SHALL be reproducible: running it twice against unchanged canonical sources and inventory SHALL produce an identical entry count and token total.
