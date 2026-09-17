@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.62.2 — 2026-09-17 — Restore release publication in the no-checkout publish job
+
+**fix(release)** — Bind GH_REPO in the no-checkout publication job so the GitHub Release is created instead of failing on repository resolution.
+
 ## 0.62.1 — 2026-09-17 — Fix release workflow verifier digest prefix
 
 **fix(release)** — Bind the sha256 scheme prefix to the trusted publication verifier digest in the release workflow.
