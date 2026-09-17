@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 0.62.0 — 2026-09-17 — Default to four capabilities, remove retired entry points, and converge simplify workflow
+
+**BREAKING(distribution)** — Remove the retired public skill, agent, and command entry points; clean installs now expose the four-capability minimal profile and require receipt-bound migration or version-pinned rollback.
+**feat(distribution)** — Default new installations to the four public workflow capabilities and add a shared, ownership-safe installation plan and receipt contract across supported surfaces.
+**feat(commands)** — Upgrade `/dhpk:simplify` with diff-first scoping, parallel cleanup angles, and truthful fallback disclosure while preserving its test and safe-deletion gates.
+**fix(consumer-gate)** — Record the resolved Claude CLI version in consumer verification evidence and release job summaries.
+**fix(multi-ai-sync)** — Recognize the canonical `.agents/skills` project projection during multi-platform sync validation.
+**chore(config)** — Optimize gitignore patterns for runtime receipts and track domain CONTEXT.md SSOT.
+
 ## 0.61.0 — 2026-09-15 — Normalize command and skill discovery with structured usage cards
 
 **feat(command-skill-discovery)** — Normalize command and Skill discovery with structured usage cards and explicit Host-only dispositions.

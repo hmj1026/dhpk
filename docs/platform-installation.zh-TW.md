@@ -153,7 +153,7 @@ diagnostic。尤其是 Codex project-local write 仍應使用既有
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.61.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.62.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -764,7 +764,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.61.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.62.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
