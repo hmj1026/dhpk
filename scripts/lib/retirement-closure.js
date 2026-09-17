@@ -142,6 +142,23 @@ function walkTextFiles(root, relativePath, out = []) {
   return out;
 }
 
+const DEFAULT_ACTIVE_REFERENCE_CACHES = new Map();
+
+function fileSnapshotSignature(stat) {
+  const modified = stat.mtimeNs === undefined ? stat.mtimeMs : stat.mtimeNs;
+  const changed = stat.ctimeNs === undefined ? stat.ctimeMs : stat.ctimeNs;
+  return [stat.dev, stat.ino, stat.size, modified.toString(), changed.toString()].join(':');
+}
+
+function defaultActiveReferenceCache(root) {
+  let cache = DEFAULT_ACTIVE_REFERENCE_CACHES.get(root);
+  if (!cache) {
+    cache = new Map();
+    DEFAULT_ACTIVE_REFERENCE_CACHES.set(root, cache);
+  }
+  return cache;
+}
+
 function validateHistoricalAllowlist(root, allowlist) {
   const errors = [];
   const rows = Array.isArray(allowlist) ? allowlist : [];
@@ -236,6 +253,7 @@ function tokenPattern(token) {
 function collectActiveReferences({ root, activeFiles, activeReferences, historicalAllowlist }) {
   const errors = [];
   const candidates = [];
+  let discoveryCache = null;
   if (Array.isArray(activeReferences)) {
     for (const [index, entry] of activeReferences.entries()) {
       if (typeof entry === 'string') candidates.push({ path: entry });
@@ -246,8 +264,12 @@ function collectActiveReferences({ root, activeFiles, activeReferences, historic
     candidates.push(...activeFiles.map((entry) => ({ path: entry, discovered: false })));
   } else {
     const discovered = new Set();
+    discoveryCache = defaultActiveReferenceCache(root);
     for (const entry of DEFAULT_ACTIVE_ROOTS) {
       for (const file of walkTextFiles(root, entry)) discovered.add(file);
+    }
+    for (const cachedPath of discoveryCache.keys()) {
+      if (!discovered.has(cachedPath)) discoveryCache.delete(cachedPath);
     }
     candidates.push(...[...discovered].sort().map((file) => ({ path: file, discovered: true })));
   }
@@ -265,16 +287,27 @@ function collectActiveReferences({ root, activeFiles, activeReferences, historic
     const isHistorical = allowlisted.has(candidate.path);
     const file = path.join(root, candidate.path);
     let text = candidate.text;
+    let snapshotSignature = null;
     if (text === undefined) {
       if (!fs.existsSync(file)) {
         errors.push(`active reference path does not exist: ${candidate.path}`);
         continue;
       }
-      if (!fs.statSync(file).isFile()) {
+      const stat = fs.statSync(file);
+      if (!stat.isFile()) {
         errors.push(`active reference path is not a file: ${candidate.path}`);
         continue;
       }
-      text = fs.readFileSync(file, 'utf8');
+      if (discoveryCache && candidate.discovered) {
+        const signature = fileSnapshotSignature(stat);
+        snapshotSignature = signature;
+        const cached = discoveryCache.get(candidate.path);
+        if (cached && cached.signature === signature) text = cached.text;
+        else {
+          text = fs.readFileSync(file, 'utf8');
+          discoveryCache.set(candidate.path, { signature, text });
+        }
+      } else text = fs.readFileSync(file, 'utf8');
     }
     if (isHistorical && !candidate.path.endsWith('/distribution-inventory.json')
       && !candidate.path.endsWith('/skill-purpose-decisions.json')
@@ -284,6 +317,7 @@ function collectActiveReferences({ root, activeFiles, activeReferences, historic
       text: historicalProjectionText(candidate.path, String(text)),
       discovered: candidate.discovered === true,
       historical: isHistorical,
+      snapshotSignature,
     });
   }
   return { errors, files };
@@ -296,12 +330,39 @@ function scanActiveReferences({ inventory, root, activeFiles, activeReferences, 
   errors.push(...collected.errors);
   const tokens = [...retiredTokens(inventory), ...commandTokens(), ...renameTokens(inventory)];
   for (const file of collected.files) {
+    const cache = file.discovered === true && file.snapshotSignature
+      ? defaultActiveReferenceCache(root)
+      : null;
+    const cached = cache && cache.get(file.path);
+    const tokenFindings = cached && cached.signature === file.snapshotSignature && cached.tokenFindings
+      ? cached.tokenFindings
+      : new Map();
+    const projection = /(?:^|\/)(?:distribution-inventory|skill-purpose-decisions|command-skill-dispositions)\.json$/.test(file.path)
+      ? file.historical
+      : false;
+    const fileFindings = [];
     for (const token of tokens) {
-      const match = tokenMatchesActiveReference(token, file.text, file.discovered === true)
-        ? tokenPattern(token.value).exec(file.text)
-        : null;
-      if (match) findings.push({ path: file.path, token: token.value, kind: token.kind, index: match.index });
+      const tokenKey = JSON.stringify([projection, token.kind, token.value]);
+      let tokenResult = tokenFindings.get(tokenKey);
+      if (!tokenResult) {
+        const match = tokenMatchesActiveReference(token, file.text, file.discovered === true)
+          ? tokenPattern(token.value).exec(file.text)
+          : null;
+        tokenResult = match
+          ? [{ path: file.path, token: token.value, kind: token.kind, index: match.index }]
+          : [];
+        tokenFindings.set(tokenKey, tokenResult);
+      }
+      fileFindings.push(...clone(tokenResult));
     }
+    if (cache && file.snapshotSignature) {
+      cache.set(file.path, {
+        signature: file.snapshotSignature,
+        text: cached ? cached.text : file.text,
+        tokenFindings,
+      });
+    }
+    findings.push(...fileFindings);
   }
   for (const finding of findings) errors.push(`active reference to ${finding.kind} '${finding.token}' in ${finding.path}`);
   return { errors, findings, files: collected.files.map((file) => file.path) };
