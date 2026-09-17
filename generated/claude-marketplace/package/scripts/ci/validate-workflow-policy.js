@@ -1,0 +1,178 @@
+#!/usr/bin/env node
+'use strict';
+
+// Validate the repository-owned GitHub Actions policy that actionlint cannot
+// express: immutable Action revisions, the shared Node baseline, and explicit
+// timeout budgets. This intentionally uses a small indentation-aware scanner
+// so the repository remains dependency-free and policy tests stay semantic.
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+const ROOT = path.join(__dirname, '..', '..');
+const NODE_BASELINE = '24';
+const COMMIT_SHA = /^[0-9a-f]{40}$/i;
+const VERSION_COMMENT = /(?:^|\s)v?\d+(?:\.\d+){0,3}(?:[-+][\w.-]+)?(?:\s|$)/i;
+
+const WORKFLOW_TIMEOUTS = Object.freeze({
+  'ci.yml': Object.freeze({
+    validate: 10,
+    'macos-installer': 10,
+    lint: 5,
+  }),
+  'release.yml': Object.freeze({
+    release: 10,
+    'consumer-verify': 10,
+    'sync-develop': 5,
+  }),
+});
+
+function unquote(value) {
+  const trimmed = String(value).trim().replace(/\s+#.*$/, '');
+  if ((trimmed.startsWith("'") && trimmed.endsWith("'")) || (trimmed.startsWith('"') && trimmed.endsWith('"'))) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function workflowFiles(root) {
+  const directory = path.join(root, '.github', 'workflows');
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory)
+    .filter((file) => /\.ya?ml$/i.test(file))
+    .sort()
+    .map((file) => path.join(directory, file));
+}
+
+function jobBlocks(content) {
+  const lines = content.split(/\r?\n/);
+  const jobsIndex = lines.findIndex((line) => /^jobs:\s*$/.test(line));
+  if (jobsIndex === -1) return [];
+
+  const jobs = [];
+  for (let index = jobsIndex + 1; index < lines.length; index += 1) {
+    const match = lines[index].match(/^  ([A-Za-z0-9][A-Za-z0-9_-]*):\s*$/);
+    if (!match) continue;
+    const end = lines.findIndex((line, offset) => offset > index && /^  [A-Za-z0-9][A-Za-z0-9_-]*:\s*$/.test(line));
+    jobs.push({ name: match[1], lines: lines.slice(index, end === -1 ? lines.length : end) });
+    if (end !== -1) index = end - 1;
+  }
+  return jobs;
+}
+
+function addError(errors, root, file, line, message) {
+  errors.push(`${path.relative(root, file) || file}:${line}: ${message}`);
+}
+
+function validateActions(root, file, content, errors) {
+  content.split(/\r?\n/).forEach((line, index) => {
+    const match = line.match(/^\s*(?:-\s*)?uses:\s*([^\s#]+)(?:\s+#(.*))?\s*$/);
+    if (!match) return;
+    const reference = unquote(match[1]);
+    const at = reference.lastIndexOf('@');
+    const revision = at === -1 ? '' : reference.slice(at + 1);
+    if (at === -1 || !COMMIT_SHA.test(revision)) {
+      addError(errors, root, file, index + 1, `Action '${reference}' must use a full immutable commit SHA`);
+    }
+    if (!match[2] || !VERSION_COMMENT.test(match[2])) {
+      addError(errors, root, file, index + 1, `Action '${reference}' must include a readable version comment`);
+    }
+  });
+}
+
+function stepBlocks(content) {
+  const lines = content.split(/\r?\n/);
+  const starts = [];
+  lines.forEach((line, index) => {
+    const match = line.match(/^(\s*)-\s+/);
+    if (match) starts.push({ index, indent: match[1].length });
+  });
+  return starts.map((start, position) => {
+    const next = starts.slice(position + 1).find((candidate) => candidate.indent <= start.indent);
+    return {
+      line: start.index + 1,
+      lines: lines.slice(start.index, next ? next.index : lines.length),
+    };
+  });
+}
+
+function validateNodeBaseline(root, file, content, errors) {
+  const setupSteps = stepBlocks(content).filter((step) => step.lines.some((line) => /(?:-\s*)?uses:\s*actions\/setup-node@/.test(line)));
+  for (const step of setupSteps) {
+    const versions = step.lines
+      .map((line, offset) => {
+        const match = line.match(/^\s*node-version:\s*(.+?)\s*$/);
+        return match ? { value: unquote(match[1]), line: step.line + offset } : null;
+      })
+      .filter(Boolean);
+    if (versions.length === 0) {
+      addError(errors, root, file, step.line, `actions/setup-node must declare Node ${NODE_BASELINE} via node-version`);
+      continue;
+    }
+    for (const version of versions) {
+      if (version.value !== NODE_BASELINE) {
+        addError(errors, root, file, version.line, `CI Runtime Baseline must be Node ${NODE_BASELINE}; found '${version.value}'`);
+      }
+    }
+  }
+}
+
+function timeoutValue(job) {
+  const line = job.lines.find((entry) => /^    timeout-minutes:\s*/.test(entry));
+  if (!line) return null;
+  const match = line.match(/^    timeout-minutes:\s*([^\s#]+)/);
+  if (!match || !/^\d+$/.test(unquote(match[1]))) return NaN;
+  return Number(unquote(match[1]));
+}
+
+function validateTimeouts(root, file, content, errors) {
+  const jobs = jobBlocks(content);
+  if (jobs.length === 0) {
+    addError(errors, root, file, 1, 'workflow must define at least one job');
+    return;
+  }
+  const expected = WORKFLOW_TIMEOUTS[path.basename(file)] || {};
+  for (const job of jobs) {
+    const actual = timeoutValue(job);
+    if (actual === null) {
+      addError(errors, root, file, 1, `job '${job.name}' must declare an explicit timeout-minutes`);
+      continue;
+    }
+    if (!Number.isSafeInteger(actual) || actual <= 0) {
+      addError(errors, root, file, 1, `job '${job.name}' timeout-minutes must be a positive integer`);
+      continue;
+    }
+    if (Object.prototype.hasOwnProperty.call(expected, job.name) && actual !== expected[job.name]) {
+      addError(errors, root, file, 1, `job '${job.name}' timeout-minutes must be ${expected[job.name]}, found ${actual}`);
+    }
+  }
+  for (const [name, budget] of Object.entries(expected)) {
+    if (!jobs.some((job) => job.name === name)) {
+      addError(errors, root, file, 1, `expected job '${name}' is missing; its timeout budget is ${budget} minutes`);
+    }
+  }
+}
+
+function main(root = ROOT) {
+  const files = workflowFiles(root);
+  const errors = [];
+  if (files.length === 0) {
+    errors.push('.github/workflows: no workflow files found');
+  }
+  for (const file of files) {
+    const content = fs.readFileSync(file, 'utf8');
+    validateActions(root, file, content, errors);
+    validateNodeBaseline(root, file, content, errors);
+    validateTimeouts(root, file, content, errors);
+  }
+  return { errors, warnings: [], files: files.map((file) => path.relative(root, file)) };
+}
+
+if (require.main === module) {
+  const result = main();
+  for (const error of result.errors) console.error(`workflow-policy: ${error}`);
+  if (result.errors.length > 0) process.exitCode = 1;
+  else console.log(`workflow-policy: checked ${result.files.length} workflow file(s)`);
+}
+
+module.exports = { main, NODE_BASELINE, WORKFLOW_TIMEOUTS };

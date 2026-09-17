@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.command-skill-disposition.v2",
-  "source_revision": "sha256:aad871ed2f83e0ab0d674d7b51e79d18f2dbe80e6ca062847cc649c6675be401",
+  "source_revision": "sha256:f17528c488e05c2f9b2bb2e23950e2b1da634cbd27aa2d32291d29502e6a0b7c",
   "commands": [
     {
       "id": "check-coverage",
@@ -507,7 +507,7 @@
       "path": "commands/simplify.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:simplify",
-      "argument_contract": "<file or directory>",
+      "argument_contract": "[<PR|branch|file|directory>]",
       "authority": "workspace-write",
       "skill_owner": null,
       "disposition": "host-only",
