@@ -128,7 +128,8 @@ node scripts/ci/worker-context-benchmark.js \
 Any *execution* plan larger than the 12-call directional-pilot footprint fails
 closed unless `--max-calls` is stated, and fails closed again if the plan
 exceeds it. The check runs before the first model call. A dry run is never quota
-gated, so `--sessions 3` above prints its full 108-cell plan and spends nothing.
+gated, so `--sessions 3` above prints all 36 cells across 108 planned calls and
+spends nothing.
 
 No formal run has been executed. The only checked-in receipt remains the
 one-session directional pilot, and Issue #534 task 8.5 is still open.
