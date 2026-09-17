@@ -11,6 +11,7 @@ const crypto = require('node:crypto');
 const { adaptFrontmatter } = require('../agy-adapt-agents');
 const {
   createSurfaceReceipt,
+  createInstallationReceiptIdentity,
   resolveGeneratedFromTree,
   validateSurfaceReceipt,
 } = require('./platform-provenance');
@@ -538,6 +539,14 @@ function materializeAgyPluginPackage({
     generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
     inventoryDigest: legacyInventoryDigest(inventory),
     fingerprints,
+    installation: createInstallationReceiptIdentity({
+      surface: SURFACE, scope: 'user', sourceVersion,
+      inventoryDigest: legacyInventoryDigest(inventory),
+      profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
+      selectedStableIds: profileSelection && profileSelection.selectedStableIds || selected.selection.selectedStableIds,
+      supportClosure: profileSelection && profileSelection.dependencyClosure,
+      ownedRoots: ['plugins/dhpk-agy'],
+    }),
     inventoryRevision,
     skillPackageClosure,
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),

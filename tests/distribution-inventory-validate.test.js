@@ -555,7 +555,6 @@ test('inventory bootstrap preserves projection contracts on regeneration', () =>
   assert.deepStrictEqual(merged.portable_frontmatter, existing.portable_frontmatter);
   assert.deepStrictEqual(merged.projection_contract, existing.projection_contract);
   assert.deepStrictEqual(merged.installation_contract, existing.installation_contract);
-  assert.deepStrictEqual(validateInstallationLifecycleContract(existing.installation_contract).errors, []);
 });
 
 test('inventory regeneration preserves the external package ledger', () => {
@@ -570,6 +569,19 @@ test('inventory regeneration preserves the external package ledger', () => {
   };
   const merged = preserveProjectionContract(generated, existing);
   assert.deepStrictEqual(merged.external_skill_packages, existing.external_skill_packages);
+});
+
+test('installation lifecycle contract requires the exact surface and operation matrix', () => {
+  const inventory = require('../manifests/distribution-inventory.json');
+  assert.deepStrictEqual(validateInstallationLifecycleContract(inventory.installation_contract).errors, []);
+
+  const missing = JSON.parse(JSON.stringify(inventory.installation_contract));
+  delete missing.surfaces.cursor;
+  assert.ok(validateInstallationLifecycleContract(missing).errors.some((error) => /missing 'cursor'/i));
+
+  const extra = JSON.parse(JSON.stringify(inventory.installation_contract));
+  extra.surfaces.claude.operations.typo = 'BLOCKED';
+  assert.ok(validateInstallationLifecycleContract(extra).errors.some((error) => /unsupported operation 'typo'/i));
 });
 
 run('distribution-inventory-validate');

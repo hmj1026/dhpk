@@ -6,6 +6,7 @@
 // another surface.
 
 const crypto = require('node:crypto');
+const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const RECEIPT_SCHEMA = 'dhpk.platform-provenance.v1';
@@ -24,6 +25,39 @@ const VERSION = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
 function digest(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+function createInstallationReceiptIdentity({
+  surface,
+  scope,
+  sourceVersion,
+  inventoryDigest,
+  profileId,
+  selectedStableIds,
+  supportClosure = null,
+  ownedRoots = [],
+  planFingerprint = null,
+} = {}) {
+  if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) throw new Error(`unknown installation surface: ${surface}`);
+  if (!Array.isArray(selectedStableIds) || selectedStableIds.length === 0
+    || selectedStableIds.some((id) => typeof id !== 'string' || id.trim() === '')) {
+    throw new Error('installation selectedStableIds must be a non-empty string array');
+  }
+  const selection = [...new Set(selectedStableIds || [])].sort();
+  const planId = planFingerprint || digest(JSON.stringify({
+    schema: 'dhpk.installation-receipt.v1', surface, scope, sourceVersion, inventoryDigest, profileId, selection,
+  }));
+  return {
+    schema: 'dhpk.installation-receipt.v1',
+    planId,
+    scope,
+    profileId,
+    selectedStableIds: selection,
+    supportClosure: supportClosure || { stableIds: selection },
+    ownership: { owner: SURFACE_OWNERS[surface], roots: [...new Set(ownedRoots)].sort() },
+    fingerprints: { plan: planId, inventory: inventoryDigest },
+    rollbackIdentity: digest(JSON.stringify({ surface, scope, owner: SURFACE_OWNERS[surface], planId })),
+  };
 }
 
 function createSurfaceReceipt({
@@ -244,10 +278,34 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
       if (installation.schema !== 'dhpk.installation-receipt.v1') errors.push('provenance installation schema must be dhpk.installation-receipt.v1');
       if (typeof installation.planId !== 'string' || !SHA256.test(installation.planId)) errors.push('provenance installation planId must be a SHA-256 digest');
       if (!['project', 'user', 'local'].includes(installation.scope)) errors.push('provenance installation scope is unsupported');
-      if (!Array.isArray(installation.selectedStableIds) || installation.selectedStableIds.length === 0) errors.push('provenance installation selectedStableIds must be a non-empty array');
+      if (typeof installation.profileId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(installation.profileId)) errors.push('provenance installation profileId must be a safe non-empty profile alias');
+      if (!Array.isArray(installation.selectedStableIds) || installation.selectedStableIds.length === 0
+        || installation.selectedStableIds.some((id) => typeof id !== 'string' || id.trim() === '')) {
+        errors.push('provenance installation selectedStableIds must be a non-empty string array');
+      } else if (new Set(installation.selectedStableIds).size !== installation.selectedStableIds.length) {
+        errors.push('provenance installation selectedStableIds must not contain duplicates');
+      }
       if (!installation.supportClosure || typeof installation.supportClosure !== 'object' || Array.isArray(installation.supportClosure)) errors.push('provenance installation supportClosure must be an object');
-      if (!installation.ownership || typeof installation.ownership.owner !== 'string' || !Array.isArray(installation.ownership.roots)) errors.push('provenance installation ownership must declare owner and roots');
-      if (!installation.fingerprints || typeof installation.fingerprints !== 'object') errors.push('provenance installation fingerprints must be an object');
+      if (!installation.ownership || typeof installation.ownership.owner !== 'string' || !Array.isArray(installation.ownership.roots)) {
+        errors.push('provenance installation ownership must declare owner and roots');
+      } else {
+        if (installation.ownership.owner !== receipt.owner) errors.push('provenance installation ownership owner must match receipt owner');
+        for (const root of installation.ownership.roots) {
+          if (typeof root !== 'string' || root.trim() === '' || path.isAbsolute(root)
+            || root.split(/[\\/]+/).some((segment) => segment === '..')) {
+            errors.push(`provenance installation ownership root is unsafe: ${String(root)}`);
+          }
+        }
+      }
+      if (!installation.fingerprints || typeof installation.fingerprints !== 'object' || Array.isArray(installation.fingerprints)) {
+        errors.push('provenance installation fingerprints must be an object');
+      } else {
+        for (const [name, fingerprint] of Object.entries(installation.fingerprints)) {
+          if (!name || typeof fingerprint !== 'string' || !SHA256.test(fingerprint)) errors.push(`provenance installation fingerprint '${name}' must be a SHA-256 digest`);
+        }
+        if (installation.fingerprints.plan !== installation.planId) errors.push('provenance installation fingerprints.plan must match planId');
+        if (installation.fingerprints.inventory !== receipt.inventoryDigest) errors.push('provenance installation fingerprints.inventory must match inventoryDigest');
+      }
       if (typeof installation.rollbackIdentity !== 'string' || !SHA256.test(installation.rollbackIdentity)) errors.push('provenance installation rollbackIdentity must be a SHA-256 digest');
     }
   }
@@ -324,6 +382,7 @@ module.exports = {
   RECEIPT_SCHEMA,
   SURFACE_OWNERS,
   digest,
+  createInstallationReceiptIdentity,
   resolveGeneratedFromTree,
   createSurfaceReceipt,
   assertCleanSourceCheckout,

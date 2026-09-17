@@ -3035,7 +3035,7 @@
         "adapter": "scripts/hooks/install-codex-skills.sh",
         "support_tier": "supported",
         "owner": ".codex/.dhpk-installed.json",
-        "owned_roots": [".codex/skills", ".codex/agents", ".codex/.dhpk-installed.json"],
+        "owned_roots": [".codex/.dhpk-installed.json"],
         "backup": "schema-v3-transaction",
         "recovery": "schema-v3-recovery",
         "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
@@ -3062,7 +3062,7 @@
         "adapter": "scripts/hooks/install-cursor-harness.sh",
         "support_tier": "supported",
         "owner": ".cursor/.dhpk-installed.json",
-        "owned_roots": [".cursor/skills", ".cursor/agents", ".cursor/.dhpk-installed.json"],
+        "owned_roots": [".cursor/.dhpk-installed.json"],
         "backup": "schema-v3-transaction",
         "recovery": "schema-v3-recovery",
         "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }

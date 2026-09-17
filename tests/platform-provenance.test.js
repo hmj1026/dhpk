@@ -102,6 +102,24 @@ test('surface receipts can carry a normalized installation identity without chan
   assert.ok(validateSurfaceReceipt(receipt, 'agent-plugin').errors.some((error) => /rollbackIdentity/));
 });
 
+test('installation receipt identity rejects cross-owner cleanup roots and mismatched fingerprints', () => {
+  const receipt = createSurfaceReceipt({
+    surface: 'agent-plugin', sourceVersion: '1.2.3', sourceCommit: 'a'.repeat(40),
+    inventoryDigest: 'b'.repeat(64), fingerprints: { package: 'c'.repeat(64) },
+    installation: {
+      schema: 'dhpk.installation-receipt.v1', planId: 'd'.repeat(64), scope: 'project', profileId: 'minimal',
+      selectedStableIds: ['flow-guide'], supportClosure: { stableIds: ['flow-guide'] },
+      ownership: { owner: 'foreign', roots: ['/', '../foreign'] },
+      fingerprints: { plan: 'e'.repeat(64), inventory: 'f'.repeat(64) }, rollbackIdentity: 'e'.repeat(64),
+    },
+  });
+  const errors = validateSurfaceReceipt(receipt, 'agent-plugin').errors.join('\n');
+  assert.match(errors, /owner must match receipt owner/);
+  assert.match(errors, /ownership root is unsafe/);
+  assert.match(errors, /fingerprints\.plan must match planId/);
+  assert.match(errors, /fingerprints\.inventory must match inventoryDigest/);
+});
+
 test('standalone surface receipts retain closure identity and validate as a distinct selection mode', () => {
   const receipt = createSurfaceReceipt({
     surface: 'agent-plugin',

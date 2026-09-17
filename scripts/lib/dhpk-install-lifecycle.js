@@ -219,14 +219,23 @@ function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
     ? profileSelection.dependencyClosure
     : { stableIds: selectedIds };
   const owner = surfaceContract.owner || compiled.value.entries[0] && compiled.value.entries[0].owner || request.surface;
+  const planId = crypto.createHash('sha256').update(JSON.stringify({
+    schema: 'dhpk.installation-plan.v1',
+    sourceVersion,
+    source: request.source,
+    surface: request.surface,
+    scope: request.scope,
+    mode: request.mode,
+    distribution: compiled.value.planFingerprint,
+  })).digest('hex');
   const rollbackIdentity = crypto.createHash('sha256').update(JSON.stringify({
-    surface: request.surface, scope: request.scope, owner, plan: compiled.value.planFingerprint,
+    surface: request.surface, scope: request.scope, owner, plan: planId,
   })).digest('hex');
   return {
     ok: true,
     value: Object.freeze({
       schema: 'dhpk.installation-plan.v1',
-      id: compiled.value.planFingerprint,
+      id: planId,
       distribution: compiled.value,
       source: Object.freeze({ version: sourceVersion, source: request.source }),
       target: Object.freeze({ surface: request.surface, scope: request.scope, mode: request.mode }),
@@ -236,7 +245,7 @@ function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
         supportClosure,
       }),
       ownership: Object.freeze({ owner, roots: Object.freeze((surfaceContract.owned_roots || []).slice()) }),
-      fingerprints: Object.freeze({ plan: compiled.value.planFingerprint, inventory: inventoryDigest }),
+      fingerprints: Object.freeze({ plan: planId, distribution: compiled.value.planFingerprint, inventory: inventoryDigest }),
       preview: Object.freeze({ mutation: false, entryCount: selectedIds.length }),
       backup: Object.freeze({ requiredBeforeWrite: true, strategy: surfaceContract.backup || 'adapter-owned' }),
       transaction: Object.freeze({ writer: surfaceContract.adapter || null, genericLifecycleMayWrite: false }),
