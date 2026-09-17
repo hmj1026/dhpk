@@ -47,9 +47,54 @@ function realRepoResult() {
   return main(ROOT);
 }
 
+function releasePolicyRoot(mutator = (workflow) => workflow) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-policy-'));
+  fs.mkdirSync(path.join(root, '.github', 'workflows'), { recursive: true });
+  for (const file of ['ci.yml', 'release.yml']) {
+    const source = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
+    fs.writeFileSync(
+      path.join(root, '.github', 'workflows', file),
+      file === 'release.yml' ? mutator(source) : source,
+    );
+  }
+  return root;
+}
+
+function runReleasePolicy(mutator) {
+  const root = releasePolicyRoot(mutator);
+  try {
+    return main(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test('the real repository satisfies the workflow policy', () => {
   const result = realRepoResult();
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+});
+
+test('release policy requires one repository-global, non-cancelling concurrency group', () => {
+  const result = runReleasePolicy((workflow) => workflow
+    .replace('  group: release-${{ github.repository }}', '  group: release-${{ github.ref }}')
+    .replace('  cancel-in-progress: false', '  cancel-in-progress: true'));
+  assert.ok(result.errors.some((error) => /release.*concurrency|concurrency.*release/i.test(error)), result.errors.join('\n'));
+});
+
+test('release policy keeps repository write authority out of validation', () => {
+  const result = runReleasePolicy((workflow) => workflow.replace(
+    '    permissions:\n      contents: read\n      pull-requests: read',
+    '    permissions:\n      contents: write\n      pull-requests: read',
+  ));
+  assert.ok(result.errors.some((error) => /release.*permission|permission.*release/i.test(error)), result.errors.join('\n'));
+});
+
+test('release policy enforces the bounded publication timeout', () => {
+  const result = runReleasePolicy((workflow) => workflow.replace(
+    /(  publish:[\s\S]*?    timeout-minutes:) 5/,
+    '$1 4',
+  ));
+  assert.ok(result.errors.some((error) => /publish.*timeout|timeout.*publish/i.test(error)), result.errors.join('\n'));
 });
 
 test('workflow policy accepts equivalent formatting and reordered steps', () => {
