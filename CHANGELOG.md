@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.62.1 — 2026-09-17 — Fix release workflow verifier digest prefix
+
+**fix(release)** — Bind the sha256 scheme prefix to the trusted publication verifier digest in the release workflow.
+
 ## 0.62.0 — 2026-09-17 — Default to four capabilities, remove retired entry points, and converge simplify workflow
 
 **BREAKING(distribution)** — Remove the retired public skill, agent, and command entry points; clean installs now expose the four-capability minimal profile and require receipt-bound migration or version-pinned rollback.
