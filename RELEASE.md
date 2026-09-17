@@ -32,13 +32,15 @@ authorities ([ADR-0021](docs/adr/0021-three-proof-release-model.md)):
 3. **Tag-triggered Release job** — on the immutable tag, producing publication
    provenance.
 
-The `develop` and `main` push runs are not additional proofs. They use the same
-SHA and workflow definition as the pull-request run and carry no new
-information. They remain temporarily while the `main` ruleset is verified and
-will be removed by the follow-up trigger change. The local gate remains a
-mandatory checkpoint because it is the last point at which publication can be
-aborted before the immutable tag exists. Pull requests are still merged by a
-human; the flow does not auto-merge or auto-tag.
+The final model removes the `develop` and `main` push runs; their rationale is
+recorded in [ADR-0021](docs/adr/0021-three-proof-release-model.md). During the
+staged rollout, the repository's `main` ruleset (the required pull-request
+check) is verified before the follow-up CI trigger change removes the `push:`
+trigger.
+The local gate remains a mandatory checkpoint, and pull requests are still
+merged by a human. “Auto-tagging” means unattended tag creation from a `main`
+push; the human-invoked publish runner creates the tag only after the gate
+passes.
 
 ## Contract language
 

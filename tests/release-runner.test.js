@@ -54,15 +54,26 @@ test('release flow exposes the SOURCE+PACKAGE publish gate in every release guid
 });
 
 test('release documentation records the three-proof model and rejected automations', () => {
+  const decision = ADR_0021.slice(ADR_0021.indexOf('## Decision'), ADR_0021.indexOf('## Consequences'));
+  const alternatives = ADR_0021.slice(ADR_0021.indexOf('## Alternatives considered'));
+  const releaseModel = RELEASE.slice(RELEASE.indexOf('## Three-proof release model'), RELEASE.indexOf('## Contract language'));
+  const releaseModelZh = RELEASE_ZH.slice(RELEASE_ZH.indexOf('## Release commit 的三次 proof 模型'), RELEASE_ZH.indexOf('## Release-note fragments'));
+
   assert.match(ADR_0021, /Status: accepted/);
-  assert.match(ADR_0021, /Pull-request CI[\s\S]*local pre-tag gate[\s\S]*tag-triggered Release job/i);
-  assert.match(ADR_0021, /same SHA and the same workflow definition/i);
-  assert.match(ADR_0021, /green proves [“\"]not broken[”\"], not [“\"]correct[”\"]/i);
-  assert.match(ADR_0021, /auto-tag[\s\S]*last point at which a release can be aborted/i);
-  assert.match(ADR_0021, /rerun replays[\s\S]*workflow definition stored at the tag/i);
-  assert.match(ADR_0021, /saves two to three minutes[\s\S]*more contract surface[\s\S]*go[\s\S]*wrong/i);
-  assert.match(RELEASE, /proven three times[\s\S]*ADR-0021/i);
-  assert.match(RELEASE_ZH, /三次 proof[\s\S]*ADR-0021/i);
+  assert.match(decision, /1\. \*\*Pull-request CI\*\*[\s\S]*2\. \*\*The local pre-tag gate\*\*[\s\S]*3\. \*\*The tag-triggered Release job\*\*/i);
+  assert.match(decision, /same release result[\s\S]*same workflow definition/i);
+  assert.match(decision, /develop.*push[\s\S]*head\/source SHA[\s\S]*main.*push[\s\S]*resulting merge commit[\s\S]*synthetic merge SHA/i);
+  assert.match(decision, /event-specific SHA values can differ[\s\S]*same release-result tree/i);
+  assert.match(decision, /former proofs removed[\s\S]*final model/i);
+  assert.match(alternatives, /### Auto-merge pull requests on green[\s\S]*green proves [“\"]not broken[”\"], not [“\"]correct[”\"]/i);
+  assert.match(alternatives, /### Auto-tag pushes to `main`[\s\S]*last point at which a release can be aborted[\s\S]*derivation rule[\s\S]*requires ongoing maintenance[\s\S]*Tags are immutable[\s\S]*rerun replays[\s\S]*workflow definition stored at the tag/i);
+  assert.match(alternatives, /### Replace the local gate with CI-evidence lookup[\s\S]*saves two to three minutes[\s\S]*more contract surface[\s\S]*go[\s\S]*wrong/i);
+  assert.match(releaseModel, /1\. \*\*Pull-request CI\*\*[\s\S]*2\. \*\*Local pre-tag gate\*\*[\s\S]*3\. \*\*Tag-triggered Release job\*\*/i);
+  assert.match(releaseModel, /final model removes[\s\S]*ADR-0021[\s\S]*main[\s\S]*ruleset[\s\S]*push:[\s\S]*trigger/i);
+  assert.match(releaseModel, /human-invoked publish runner[\s\S]*gate/);
+  assert.match(releaseModelZh, /1\. \*\*Pull-request CI\*\*[\s\S]*2\. \*\*Local pre-tag gate\*\*[\s\S]*3\. \*\*Tag-triggered Release job\*\*/i);
+  assert.match(releaseModelZh, /最終模型會移除[\s\S]*ADR-0021[\s\S]*main[\s\S]*ruleset[\s\S]*push:[\s\S]*trigger/i);
+  assert.match(releaseModelZh, /人工執行的[\s\S]*publish runner[\s\S]*gate/);
 });
 
 test('prepare creates the release PR and stops before tagging', () => {

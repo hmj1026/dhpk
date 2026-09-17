@@ -22,13 +22,21 @@ Every release commit is proven three times, by three distinct authorities:
 3. **The tag-triggered Release job** proves the immutable tag and produces
    publication provenance.
 
-Two redundant proofs are designated for removal: the `develop` push run and the
-`main` push run. Both use the same SHA and the same workflow definition as the
-pull-request run, so they carry no new information. They remain temporarily
-while the `main` ruleset is verified; the follow-up trigger change removes them
-only after that required check is proven to work. The local pre-tag gate remains
-a separate proof because it is the last abort point before an immutable tag
-exists and is performed by a different authority from pull-request CI.
+The `develop` push run and the `main` push run are the two former proofs removed
+from the final model. The parent plan summarized the reason as “the same SHA
+and the same workflow definition” as the pull-request run. The precise
+invariant is the same release result under the same workflow definition: the
+`develop` push reused the pull request's head/source SHA, while the `main` push
+used the resulting merge commit; a pull-request event may instead use a
+synthetic merge SHA. Those event-specific SHA values can differ, but the runs
+checked the same release-result tree, so they added no new source revision or
+information. The removal is staged: the repository's `main` ruleset must first
+be verified to require the pull-request check, then the follow-up CI trigger
+change removes the `push:` trigger.
+
+The local pre-tag gate remains a separate proof because it is the last abort
+point before an immutable tag exists and is performed by a different authority
+from pull-request CI.
 
 The human merge boundary remains mandatory. The release flow does not
 auto-merge pull requests, auto-tag pushes to `main`, or replace the local gate
@@ -57,7 +65,9 @@ converts a human judgment about when a tag should exist into a derivation rule
 that requires ongoing maintenance. Tags are immutable, and a rerun replays
 the workflow definition stored at the tag. Two tags currently exist without a
 corresponding release, which demonstrates why a failed tag cannot simply be
-repaired by later workflow changes.
+repaired by later workflow changes. This rejects unattended tagging from a
+`main` push; the human-invoked publish runner may still create the tag after its
+pre-tag gate succeeds.
 
 ### Replace the local gate with CI-evidence lookup
 
