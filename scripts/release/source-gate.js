@@ -28,7 +28,8 @@ function parseArgs(argv) {
     else if (arg === '--steps-file') args.stepsFile = argv[++i];
     else {
       console.error(`source-gate: unknown argument '${arg}'`);
-      process.exit(2);
+      args.invalid = true;
+      break;
     }
   }
   return args;
@@ -68,16 +69,16 @@ function sourceGatePolicy() {
 }
 
 const args = parseArgs(process.argv.slice(2));
-if (!args.stepsFile && !args.version) {
-  console.error('usage: source-gate.js --version X.Y.Z [--repo-root <path>]');
-  process.exit(2);
+if (args.invalid || (!args.stepsFile && !args.version)) {
+  if (!args.invalid) console.error('usage: source-gate.js --version X.Y.Z [--repo-root <path>]');
+  process.exitCode = 2;
+} else {
+  const policy = sourceGatePolicy();
+  const steps = args.stepsFile
+    ? JSON.parse(readFileBounded(args.stepsFile).toString('utf8'))
+    : defaultSteps(args.root, args.version, policy.releaseTargetBranch);
+
+  const stage = runSteps(steps, { ...policy, cwd: args.root });
+  console.log(JSON.stringify(stage, null, 2));
+  process.exitCode = stage.verdict === 'PASS' ? 0 : 1;
 }
-
-const policy = sourceGatePolicy();
-const steps = args.stepsFile
-  ? JSON.parse(readFileBounded(args.stepsFile).toString('utf8'))
-  : defaultSteps(args.root, args.version, policy.releaseTargetBranch);
-
-const stage = runSteps(steps, { ...policy, cwd: args.root });
-console.log(JSON.stringify(stage, null, 2));
-process.exit(stage.verdict === 'PASS' ? 0 : 1);

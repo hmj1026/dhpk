@@ -12,6 +12,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const {
   parseOptions,
   assignShard,
+  findTests,
   partitionFiles,
   fileTimeoutMs,
   createTimingReport,
@@ -78,6 +79,21 @@ test('weighted partition assigns every selected file exactly once', () => {
   assert.strictEqual(flattened.length, files.length);
   assert.deepStrictEqual(new Set(flattened), new Set(files));
   assert.ok(buckets.every((bucket) => bucket.length > 0));
+});
+
+test('CI-sized weighted partition separates the suite\'s two slowest files', () => {
+  const files = findTests(__dirname).sort();
+  const buckets = partitionFiles(files, 4);
+  const workerFor = (name) => buckets.findIndex((bucket) => (
+    bucket.some((file) => path.basename(file) === name)
+  ));
+
+  assert.strictEqual(workerFor('install-codex-skills.test.js'), 0);
+  assert.strictEqual(
+    workerFor('validate-retirement-closure.test.js'),
+    2,
+    'CI worker pool must not co-schedule the suite\'s two slowest files',
+  );
 });
 
 test('shard assignment is deterministic and covers every shard', () => {

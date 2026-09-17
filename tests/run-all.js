@@ -20,6 +20,7 @@ const MAX_JOBS = 8;
 // deterministic for synthetic paths used by unit tests and future shards.
 const WEIGHT_HINTS = Object.freeze({
   'install-codex-skills.test.js': 160,
+  'validate-retirement-closure.test.js': 72,
   'consumer-gate-cli.test.js': 80,
   'gen-cursor-plugin-package.test.js': 70,
   'harness-facade-cli.test.js': 55,

@@ -22,6 +22,24 @@ the release-candidate commit as an ancestor. The publish runner checks that the
 GitHub `mergeCommit.oid` is the fetched `main` HEAD, requires two parents, and
 re-checks that ancestry before creating an immutable tag.
 
+## Three-proof release model
+
+The release commit is deliberately proven three times, by three distinct
+authorities ([ADR-0021](docs/adr/0021-three-proof-release-model.md)):
+
+1. **Pull-request CI** — before the release PR is merged.
+2. **Local pre-tag gate** — after merge, before the immutable tag exists.
+3. **Tag-triggered Release job** — on the immutable tag, producing publication
+   provenance.
+
+The `develop` and `main` push runs are not additional proofs. They use the same
+SHA and workflow definition as the pull-request run and carry no new
+information. They remain temporarily while the `main` ruleset is verified and
+will be removed by the follow-up trigger change. The local gate remains a
+mandatory checkpoint because it is the last point at which publication can be
+aborted before the immutable tag exists. Pull requests are still merged by a
+human; the flow does not auto-merge or auto-tag.
+
 ## Contract language
 
 - **Release candidate** — the version and changelog changes proposed by the

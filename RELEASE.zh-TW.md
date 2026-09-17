@@ -41,6 +41,22 @@ squash merge 或 rebase。Generated package provenance 必須保留 release cand
 commit 的 ancestry；publish runner 會確認 GitHub `mergeCommit.oid` 等於抓下來的
 `main` HEAD、該 commit 有兩個 parent，並在建立 immutable tag 前重新執行 PACKAGE gate。
 
+## Release commit 的三次 proof 模型
+
+同一個 release commit 刻意由三個不同 authority 驗證
+（[ADR-0021](docs/adr/0021-three-proof-release-model.md)）：
+
+1. **Pull-request CI**：release PR merge 前驗證。
+2. **Local pre-tag gate**：merge 後、immutable tag 建立前驗證。
+3. **Tag-triggered Release job**：在 immutable tag 上執行，產生 publication
+   provenance。
+
+`develop` 與 `main` push runs 不算額外 proof，因為它們與 pull-request run
+使用相同 SHA 與 workflow definition，沒有提供新資訊。目前在 main ruleset
+完成驗證前暫時保留，之後由後續 trigger change 移除。Local gate 仍是必要
+checkpoint，因為它是 immutable tag 建立前最後可以中止發布的時點。PR 仍由
+人員合併；流程不會自動 merge 或自動 tag。
+
 ## Release-note fragments
 
 一般 feature/fix PR 在 `changelog.d/` 加入 fragment：

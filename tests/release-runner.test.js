@@ -11,6 +11,7 @@ const RUNNER = path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'rel
 const SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-release-creator', 'SKILL.md'), 'utf8');
 const RELEASE = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
 const RELEASE_ZH = fs.readFileSync(path.join(ROOT, 'RELEASE.zh-TW.md'), 'utf8');
+const ADR_0021 = fs.readFileSync(path.join(ROOT, 'docs', 'adr', '0021-three-proof-release-model.md'), 'utf8');
 
 function writePackageGateFixture(root) {
   const gate = path.join(root, 'scripts', 'release', 'package-gate.js');
@@ -50,6 +51,18 @@ test('release flow exposes the SOURCE+PACKAGE publish gate in every release guid
   assert.match(SKILL, /scripts\/release\/publish-gate\.js/);
   assert.match(RELEASE, /scripts\/release\/publish-gate\.js/);
   assert.match(RELEASE_ZH, /scripts\/release\/publish-gate\.js/);
+});
+
+test('release documentation records the three-proof model and rejected automations', () => {
+  assert.match(ADR_0021, /Status: accepted/);
+  assert.match(ADR_0021, /Pull-request CI[\s\S]*local pre-tag gate[\s\S]*tag-triggered Release job/i);
+  assert.match(ADR_0021, /same SHA and the same workflow definition/i);
+  assert.match(ADR_0021, /green proves [“\"]not broken[”\"], not [“\"]correct[”\"]/i);
+  assert.match(ADR_0021, /auto-tag[\s\S]*last point at which a release can be aborted/i);
+  assert.match(ADR_0021, /rerun replays[\s\S]*workflow definition stored at the tag/i);
+  assert.match(ADR_0021, /saves two to three minutes[\s\S]*more contract surface[\s\S]*go[\s\S]*wrong/i);
+  assert.match(RELEASE, /proven three times[\s\S]*ADR-0021/i);
+  assert.match(RELEASE_ZH, /三次 proof[\s\S]*ADR-0021/i);
 });
 
 test('prepare creates the release PR and stops before tagging', () => {
