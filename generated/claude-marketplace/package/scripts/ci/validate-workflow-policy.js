@@ -22,9 +22,17 @@ const WORKFLOW_TIMEOUTS = Object.freeze({
   }),
   'release.yml': Object.freeze({
     release: 10,
+    publish: 5,
     'consumer-verify': 10,
     'sync-develop': 5,
   }),
+});
+
+const RELEASE_JOB_PERMISSIONS = Object.freeze({
+  release: Object.freeze({ contents: 'read', 'pull-requests': 'read' }),
+  publish: Object.freeze({ contents: 'write' }),
+  'consumer-verify': Object.freeze({ contents: 'read' }),
+  'sync-develop': Object.freeze({ contents: 'write' }),
 });
 
 function unquote(value) {
@@ -153,6 +161,67 @@ function validateTimeouts(root, file, content, errors) {
   }
 }
 
+function permissionMap(job) {
+  const permissionsIndex = job.lines.findIndex((line) => /^    permissions:\s*$/.test(line));
+  if (permissionsIndex === -1) return null;
+  const permissions = {};
+  for (let index = permissionsIndex + 1; index < job.lines.length; index += 1) {
+    if (/^    [A-Za-z0-9_-]+:\s*/.test(job.lines[index])) break;
+    const match = job.lines[index].match(/^      ([A-Za-z0-9_-]+):\s*(\S+)/);
+    if (match) permissions[match[1]] = unquote(match[2]);
+  }
+  return permissions;
+}
+
+function validateReleasePolicy(root, file, content, errors) {
+  if (path.basename(file) !== 'release.yml') return;
+
+  const lines = content.split(/\r?\n/);
+  const jobsIndex = lines.findIndex((line) => /^jobs:\s*$/.test(line));
+  const concurrencyIndex = lines.findIndex((line) => /^concurrency:\s*$/.test(line));
+  const concurrencyEnd = jobsIndex === -1 ? lines.length : jobsIndex;
+  const concurrencyLines = concurrencyIndex === -1
+    ? []
+    : lines.slice(concurrencyIndex + 1, concurrencyEnd);
+  const groupLine = concurrencyLines.find((line) => /^  group:\s*/.test(line));
+  const cancelLine = concurrencyLines.find((line) => /^  cancel-in-progress:\s*/.test(line));
+  if (concurrencyIndex === -1 || concurrencyIndex > concurrencyEnd
+    || !groupLine || unquote(groupLine.replace(/^  group:\s*/, '')) !== 'release-${{ github.repository }}'
+    || !cancelLine || unquote(cancelLine.replace(/^  cancel-in-progress:\s*/, '')) !== 'false') {
+    addError(
+      errors,
+      root,
+      file,
+      concurrencyIndex === -1 ? 1 : concurrencyIndex + 1,
+      'release workflow must define concurrency group release-${{ github.repository }} with cancel-in-progress: false',
+    );
+  }
+
+  const jobs = Object.fromEntries(jobBlocks(content).map((job) => [job.name, job]));
+  for (const [jobName, expected] of Object.entries(RELEASE_JOB_PERMISSIONS)) {
+    const job = jobs[jobName];
+    if (!job) continue;
+    const actual = permissionMap(job);
+    if (actual === null) {
+      addError(errors, root, file, 1, `release job '${jobName}' must declare its permission boundary`);
+      continue;
+    }
+    const expectedKeys = Object.keys(expected);
+    const actualKeys = Object.keys(actual);
+    const matches = expectedKeys.every((key) => actual[key] === expected[key])
+      && actualKeys.length === expectedKeys.length;
+    if (!matches) {
+      addError(
+        errors,
+        root,
+        file,
+        1,
+        `release job '${jobName}' permission boundary must be ${JSON.stringify(expected)}`,
+      );
+    }
+  }
+}
+
 function main(root = ROOT) {
   const files = workflowFiles(root);
   const errors = [];
@@ -164,6 +233,7 @@ function main(root = ROOT) {
     validateActions(root, file, content, errors);
     validateNodeBaseline(root, file, content, errors);
     validateTimeouts(root, file, content, errors);
+    validateReleasePolicy(root, file, content, errors);
   }
   return { errors, warnings: [], files: files.map((file) => path.relative(root, file)) };
 }
