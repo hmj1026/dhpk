@@ -237,13 +237,14 @@ async function runBenchmark({ root = ROOT, argv = [], clients = Object.keys(CLIE
       };
       if (!execute) { runs.push(base); continue; }
       const observed = await invoke({ client, variantId: variant.id, context: variant.context, fixture });
+      const hasResponse = typeof observed.rawResponse === 'string' && observed.rawResponse.trim() !== '';
       runs.push({
         ...base,
-        status: observed.status,
+        status: observed.status === 'PASS' && hasResponse ? 'PASS' : 'BLOCKED',
         requestedModel: observed.requestedModel,
         effectiveModel: observed.effectiveModel,
         usage: observed.usage,
-        diagnosticCode: observed.diagnosticCode || null,
+        diagnosticCode: observed.diagnosticCode || (hasResponse ? null : 'EMPTY_RESPONSE'),
         responseFingerprint: digest(observed.rawResponse || ''),
         score: scoreResponse(observed.rawResponse, fixture.oracle),
       });

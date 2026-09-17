@@ -119,6 +119,24 @@ test('execute invokes every selected client and context exactly once', async () 
   assert.ok(receipt.runs.every((entry) => entry.status === 'PASS' && entry.score.passed));
 });
 
+test('execute marks an empty model response as blocked', async () => {
+  const receipt = await runBenchmark({
+    root: ROOT,
+    argv: ['--execute'],
+    clients: ['agy'],
+    invoke: async () => ({
+      status: 'PASS',
+      requestedModel: 'gemini-3.8-flash-high',
+      effectiveModel: null,
+      rawResponse: '',
+      usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+    }),
+    gitInfo: () => ({ commit: 'abc123', tree: 'def456', dirty: false }),
+  });
+  assert.ok(receipt.runs.every((entry) => entry.status === 'BLOCKED'));
+  assert.ok(receipt.runs.every((entry) => entry.diagnosticCode === 'EMPTY_RESPONSE'));
+});
+
 test('execute refuses a dirty source checkout before invoking a model', async () => {
   let calls = 0;
   await assert.rejects(() => runBenchmark({
