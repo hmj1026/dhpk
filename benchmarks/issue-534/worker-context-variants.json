@@ -1,0 +1,29 @@
+{
+  "schema": "dhpk.worker-context-variants.v1",
+  "baselineCommit": "716ee8b9e327624f3c3f1e8897b1f9533aa38f98",
+  "variants": [
+    {
+      "id": "A",
+      "label": "full-current-contract",
+      "baselineSources": [
+        "agents/fast-worker.md",
+        "skills/dhpk-tdd-workflow/SKILL.md"
+      ]
+    },
+    {
+      "id": "B",
+      "label": "minimal-worker-kernel",
+      "sources": [
+        "benchmarks/issue-534/contexts/minimal-worker-kernel.md"
+      ]
+    },
+    {
+      "id": "C",
+      "label": "minimal-plus-task-reference",
+      "sources": [
+        "benchmarks/issue-534/contexts/minimal-worker-kernel.md",
+        "benchmarks/issue-534/references/shared-framework-safety.md"
+      ]
+    }
+  ]
+}

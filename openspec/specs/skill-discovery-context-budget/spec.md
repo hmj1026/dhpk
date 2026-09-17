@@ -108,6 +108,28 @@ Static inventory, discovery-budget, projection, profile-package, and rollback su
 - **WHEN** an optional consumer verification fails or is unavailable for an otherwise structurally valid candidate
 - **THEN** the report records that surface's non-pass state without discarding the active bundle or converting structural success into runtime PASS
 
+### Requirement: Worker-context comparisons use canonical variants and independent oracles
+
+Worker-context quality and cost comparisons SHALL compile A, B, and C from
+checked-in canonical sources: A from the pinned pre-curation baseline, B from a
+minimal worker kernel, and C from B plus only the task-matched on-demand
+reference. The benchmark SHALL default to dry-run, SHALL require explicit
+execution authorization, and SHALL bind each receipt to source commit/tree,
+dirty state, client, requested/effective model evidence, variant fingerprint,
+fixed fixture, independent oracle, and observed usage. A client that does not
+report its effective model MUST retain an unknown effective identity.
+
+#### Scenario: Benchmark is inspected without execution authority
+
+- **WHEN** the benchmark runs without `--execute`
+- **THEN** it emits the complete client-by-variant plan with `NOT_RUN` results and performs no model call
+
+#### Scenario: Small-quota pilot executes
+
+- **WHEN** an authorized operator selects clients and passes `--execute`
+- **THEN** each selected A/B/C cell runs once against the same fixture and oracle and records its own usage and score
+- **AND** the receipt labels the pilot as directional rather than the required three-session formal comparison
+
 ### Requirement: Default-discoverable surface stays within an aggregate ceiling
 
 In addition to the existing per-lifecycle/per-surface description budgets, the catalog SHALL compute and enforce a whole-catalog ceiling over the default-discoverable set (the `implicit-eligible` entries published on the `claude-core` surface for the `minimal`/default Claude install artifact): no more than 15 entries, and an aggregate description-token total reduced by at least 70% from the recorded raw-compatibility pre-curation baseline. The baseline SHALL be measured and recorded before any curation edit lands, using the same estimator and scope already defined for per-entry budgets. The measurement SHALL be reproducible: running it twice against unchanged canonical sources and inventory SHALL produce an identical entry count and token total.
