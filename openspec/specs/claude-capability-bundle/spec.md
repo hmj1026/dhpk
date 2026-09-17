@@ -12,14 +12,15 @@ preserving canonical sources and explicit routing compatibility.
 
 The compiler SHALL resolve profiles/modules from their catalogs and select only
 inventory entries. Minimal SHALL equal the complete reviewed
-`required_core_ids` set including `do`; expected count SHALL be derived from
-that set rather than another numeric constant. Unknown/duplicate/retired IDs,
+`required_core_ids` set: `change-verdict`, `code-trace`, `flow-drive`, and
+`flow-guide`; expected count SHALL be derived from that set rather than another
+numeric constant. Unknown/duplicate/retired IDs,
 cycles, missing requirements, and conflicts SHALL fail closed before a plan.
 
 #### Scenario: A known profile is selected
 
 - **WHEN** minimal is compiled with unchanged inputs and no override
-- **THEN** it returns exactly required-core including `do` and records selection identity
+- **THEN** it returns exactly the four required-core IDs and records selection identity
 - **AND** validation compares sets rather than a hard-coded count
 
 #### Scenario: A compatibility profile is selected

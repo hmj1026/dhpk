@@ -61,7 +61,9 @@ read-only `change-verdict` skill with its `code`, `pr`, `security`, `tests`,
 `docs`, or `risk` mode. `codex-test-gen` remains an explicit-only,
 Codex-MCP-free generation adapter using the TDD workflow. The default Claude
 discovery artifact is the materialized `minimal` profile; `full` and `compat-v1`
-are explicit opt-in artifacts. `check-coverage` remains an explicit-only
+are explicit opt-in artifacts. Minimal contains exactly `change-verdict`,
+`code-trace`, `flow-drive`, and `flow-guide`; use `flow-guide help <skill>` for
+output and stop-condition metadata. `check-coverage` remains an explicit-only
 compatibility alias outside that count.
 
 For Codex usage discovery, run `$flow-guide help` or `$flow-guide help <skill>`;

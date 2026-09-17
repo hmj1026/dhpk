@@ -1,5 +1,9 @@
 # dhpk 技能與 Slash Command 快速速查
 
+> **語言**：[English](./skill-command-cheat-sheet.md) · **繁體中文**
+>
+> 安裝與支援狀態：[平台安裝 SSOT](./platform-installation.zh-TW.md)
+
 這是一頁式入口圖，不是技能 procedure 的複本。完整的 65 個 canonical package
 請看 [`skills/INDEX.md`](../skills/INDEX.md)；Codex 的參數與可用性請看
 [`Codex 技能參數發現`](./codex-skill-usage.zh-TW.md)。
@@ -7,6 +11,13 @@
 符號約定：`<>` 是必填值，`[]` 是可省略值。Claude 使用
 `/dhpk:<name>`；Codex 先用 `$flow-guide help`，再使用查到的
 `$<public-name>`。
+
+## 四項預設能力
+
+Claude 的乾淨 `minimal` 安裝只公開 `flow-guide`、`code-trace`、
+`flow-drive` 與 `change-verdict`。`git-smart-commit`、完整 TDD、project
+audit、prompt optimization 與 stack-specific skills 都是明確選裝，不會被
+偷偷加回預設。
 
 ## 30 秒選入口
 
@@ -83,9 +94,26 @@ Git、release、setup、review 與其他 slash command 的完整清單在
 [`skill-platform-migration.zh-TW.md`](./skill-platform-migration.zh-TW.md#目前-054-capability-families-與-retirement)。
 歷史 0.47、0.52、0.53 ledger 保留在遷移文件，不代表目前可用 alias。
 
+## Host 語法與選裝
+
+| Host | 第一個檢查 | 邊界 |
+|---|---|---|
+| Claude Code | `/dhpk:flow-guide help` | 推薦以 `bash scripts/install.sh` 安裝，完成後重開 session |
+| Codex CLI | `$flow-guide help` | 只列實際 Codex surface；`change-verdict` 目前是 `not-codex-invokable`，不是 alias |
+| Cursor | reload 後確認 Agent Plugin 或 project-local projection discovery | 安裝不等於 runtime；缺 client 時記 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE` |
+| AGY | receipt-owned 安裝後執行 `agy agents` | native load 與 runtime 分開；沒有 probe 就不宣稱直接 skill 語法 |
+
+Codex 可先執行 `install-codex-skills.sh --plan --json --skill <stable-id>`
+預覽選裝，再以同一 `--skill` 套用 install/update。Claude standalone package
+使用 `node scripts/ci/gen-claude-profile-bundles.js --standalone <stable-id>`；
+這是 checkout/development route，generic `dhpk-install` writer 仍回
+`BLOCKED`／`NOT_IMPLEMENTED`。Cursor 與 AGY 依各自 inventory-selected package，
+沒有實作的動態單技能寫入不可寫成可用功能。
+
 ## Profile 與證據
 
-目前 profile 為 `minimal=8`、`full=55`、`compat-v1=62`；Agent Plugin、Cursor
-與 AGY publication surface 各有 37 個 selected stable ID。Local usage card 或
+目前 profile 為 `minimal=4`、`full=55`、`compat-v1=62`；Agent Plugin 與 AGY
+各有 37 個 selected stable ID；Cursor native overlay 為 4 個並共用 Agent
+Plugin skills；Codex native 為 15 個。Local usage card 或
 catalogue 只證明 metadata 已產生，不代表 skill runtime、測試、deployment、commit
 或 release 已完成；交接時分開標示 `PASS`、`BLOCKED`、`NOT_RUN`、`UNAVAILABLE`。

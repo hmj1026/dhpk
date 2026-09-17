@@ -31,6 +31,27 @@ contradictory command list.
 - **THEN** it names only its own surface, links to the canonical guide, and
   does not imply that a static manifest proves runtime support
 
+### Requirement: Claude clean installation selects the minimal profile
+
+The bilingual installation guide SHALL document `bash scripts/install.sh` as
+the recommended Claude clean-install route, SHALL identify
+`dhpk@dhpk-profile-minimal` as exactly `change-verdict`, `code-trace`,
+`flow-drive`, and `flow-guide`, and MUST keep structural generation evidence
+separate from fresh-session consumer discovery. Existing receipts SHALL retain
+their selection until explicit migration; rollback SHALL use a receipt-bound
+or version-pinned package without restoring retired aliases.
+
+#### Scenario: Claude clean install is documented
+
+- **WHEN** a user follows the recommended Claude route
+- **THEN** the guide provides dry-run, install, fresh-session verification, and rollback instructions
+- **AND** unobserved runtime evidence remains `NOT_RUN`
+
+#### Scenario: Generic distribution writer is unavailable
+
+- **WHEN** a reader looks for a generic `dhpk-install` write path
+- **THEN** the guide marks it `BLOCKED` and `NOT_IMPLEMENTED` and routes to host-specific adapters
+
 ### Requirement: Codex installation paths are explicit and evidence-scoped
 
 The canonical guide SHALL document three distinct Codex-related routes:

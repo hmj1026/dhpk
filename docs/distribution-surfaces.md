@@ -241,7 +241,7 @@ scopes the discovery-facing skill and command roots; agent, hook, rule, and
 
 | Profile | Meaning |
 |---|---|
-| `minimal` | The inventory required_core_ids (8 skills); the default for a clean install. |
+| `minimal` | Exactly `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`; the default for a clean install. |
 | `full` | The existing conflict-aware module closure (55 skills) plus its explicit stable IDs; it is not the complete catalog. |
 | `compat-v1` | The 62 stable IDs carried by the predecessor-compatible allowlist; this is the compatibility fallback for an unannotated existing receipt. |
 

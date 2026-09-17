@@ -14,7 +14,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
+const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -927,6 +927,10 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     if (value) fingerprints[relative] = value;
   }
   const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
+  const installationSelectedIds = [...new Set([
+    ...selectedIds,
+    ...skillProjection.sharedSkills.map((skill) => skill.id),
+  ])].sort();
   const provenance = {
     schema: RECEIPT_SCHEMA,
     surface: 'cursor-plugin',
@@ -951,6 +955,14 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     skippedSkills: skippedSkills.slice().sort((a, b) => String(a.id).localeCompare(String(b.id))),
     transformations: transformations.slice().sort((a, b) => `${a.source || ''}:${a.destination || ''}`.localeCompare(`${b.source || ''}:${b.destination || ''}`)),
     fingerprints,
+    ...(installationSelectedIds.length > 0 ? { installation: createInstallationReceiptIdentity({
+      surface: 'cursor-plugin', scope: 'project', sourceVersion: version,
+      inventoryDigest: stableInventoryDigest(inventory),
+      profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
+      selectedStableIds: profileSelection && profileSelection.selectedStableIds || installationSelectedIds,
+      supportClosure: profileSelection && profileSelection.dependencyClosure,
+      ownedRoots: ['plugins/dhpk-cursor'],
+    }) } : {}),
     ...(skillProjection.sharedSkills.concat(skillProjection.overlaySkills).some((skill) => skill.usage) ? {
       usageSchema: 'dhpk.skill-usage.v1',
       usage: Object.fromEntries(skillProjection.sharedSkills.concat(skillProjection.overlaySkills)

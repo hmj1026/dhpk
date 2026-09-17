@@ -6,6 +6,16 @@
 以 [英文版本](./RELEASE.md) 為工程 SSOT；本頁完整覆蓋分支、changelog、package、
 consumer gate、發布與 rollback 流程。
 
+Issue #534 breaking default transition 的 release evidence 必須涵蓋
+`scripts/install.sh`、`scripts/hooks/install-codex-skills.sh`、
+`scripts/hooks/install-cursor-harness.sh` 與
+`scripts/ci/install-agy-plugin.js`。發布後的 clean-install default 是精確四項的
+minimal profile。每個 consumer 應記錄為 `PASS`、`NOT_RUN`、
+`UNAVAILABLE` 或 `BLOCKED`；generic `dhpk-install` 寫入為
+`NOT_IMPLEMENTED`。Known limitation：static package validation 無法證明
+runtime discovery。Rollback 恢復 previous receipt 綁定或 version-pinned
+package，不會恢復 retired alias。
+
 ## 契約用語
 
 - **Supported**：Claude marketplace 與 `install-codex-skills.sh` project sync。

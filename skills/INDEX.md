@@ -10,6 +10,11 @@ and publication surfaces; this page is a navigation aid. Every package lives
 under `skills/<public-name>/SKILL.md` and keeps its procedure and completion
 contract in that file.
 
+The clean-install `minimal` profile contains exactly `change-verdict`,
+`code-trace`, `flow-drive`, and `flow-guide`. `flow-guide help <skill>` returns
+the selected skill's usage and stop conditions; optional skills require an
+explicit profile, overlay, or host-supported standalone projection.
+
 For Codex parameter discovery, use [`$flow-guide help`](../docs/codex-skill-usage.md)
 or `$flow-guide help <skill>`. The generated metadata-only catalogue is
 [`skills/flow-guide/references/codex-usage-catalog.json`](flow-guide/references/codex-usage-catalog.json);

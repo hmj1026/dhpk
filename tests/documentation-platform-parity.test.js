@@ -18,6 +18,7 @@ const BILINGUAL_PAIRS = [
   ['docs/docker-setup.md', 'docs/docker-setup.zh-TW.md'],
   ['docs/distribution-surfaces.md', 'docs/distribution-surfaces.zh-TW.md'],
   ['docs/hook-extension.md', 'docs/hook-extension.zh-TW.md'],
+  ['docs/skill-command-cheat-sheet.md', 'docs/skill-command-cheat-sheet.zh-TW.md'],
   ['docs/skill-platform-migration.md', 'docs/skill-platform-migration.zh-TW.md'],
   ['codex/README.md', 'codex/README.zh-TW.md'],
   ['plugins/dhpk/README.md', 'plugins/dhpk/README.zh-TW.md'],
@@ -212,6 +213,73 @@ test('all documented bundled-script handoffs are consumer-safe and canonical', (
   assert.ok(count > 1, 'expected to inspect every documented run-skill handoff');
   assert.deepStrictEqual(findings, [], findings.join('\n'));
 
+});
+
+test('issue 534 default documentation names the exact four-capability minimal profile', () => {
+  const expected = ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide'];
+  const inventory = JSON.parse(read('manifests/distribution-inventory.json'));
+  const profiles = JSON.parse(read('manifests/install-profiles.json'));
+  assert.deepStrictEqual(inventory.profile_policy.required_core_ids.slice().sort(), expected);
+  assert.deepStrictEqual(profiles.profiles.minimal.skillIds.slice().sort(), expected);
+
+  const currentDocs = [
+    'README.md',
+    'README.zh-TW.md',
+    'docs/configuration.md',
+    'docs/configuration.zh-TW.md',
+    'docs/distribution-surfaces.md',
+    'docs/distribution-surfaces.zh-TW.md',
+    'docs/skill-command-cheat-sheet.md',
+    'docs/skill-command-cheat-sheet.zh-TW.md',
+    'docs/skill-platform-migration.md',
+    'docs/skill-platform-migration.zh-TW.md',
+    'openspec/specs/capability-bundle-selection/spec.md',
+    'openspec/specs/claude-capability-bundle/spec.md',
+    'openspec/specs/skill-discovery-context-budget/spec.md',
+  ];
+  for (const relative of currentDocs) {
+    const text = read(relative);
+    assert.doesNotMatch(text, /minimal\s*=\s*8|eight-capability|eight canonical IDs|eight required core IDs|8 個 skill/i,
+      `${relative} still describes the retired eight-capability default`);
+  }
+
+  for (const relative of [
+    'README.md', 'README.zh-TW.md',
+    'docs/skill-command-cheat-sheet.md', 'docs/skill-command-cheat-sheet.zh-TW.md',
+  ]) {
+    const text = read(relative);
+    for (const name of expected) assert.ok(text.includes(name), `${relative} missing default capability ${name}`);
+  }
+});
+
+test('issue 534 user guides expose one evidence-scoped path per host', () => {
+  const pairs = [
+    ['README.md', 'README.zh-TW.md'],
+    ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md'],
+    ['docs/skill-platform-migration.md', 'docs/skill-platform-migration.zh-TW.md'],
+    ['RELEASE.md', 'RELEASE.zh-TW.md'],
+  ];
+  const required = [
+    'scripts/install.sh',
+    'install-codex-skills.sh',
+    'install-cursor-harness.sh',
+    'install-agy-plugin.js',
+    'NOT_RUN',
+    'BLOCKED',
+    'UNAVAILABLE',
+  ];
+  for (const pair of pairs) {
+    for (const relative of pair) {
+      const text = read(relative);
+      for (const token of required) assert.ok(text.includes(token), `${relative} missing ${token}`);
+    }
+  }
+
+  for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
+    const text = read(relative);
+    assert.ok(text.includes('NOT_IMPLEMENTED'), `${relative} must keep generic lifecycle writes fail-closed`);
+    assert.match(text, /Claude/, `${relative} must document the Claude minimal-profile route`);
+  }
 });
 
 run('documentation-platform-parity');

@@ -14,7 +14,7 @@ A generic, install-and-go Claude Code harness. It ships **36 role-based agents**
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
-If you are not sure which skill or command to start with, use the **[Skill & Slash Command cheat sheet](./docs/skill-command-cheat-sheet.zh-TW.md)** first.
+If you are not sure which skill or command to start with, use the **[Skill & Slash Command cheat sheet](./docs/skill-command-cheat-sheet.md)** first.
 
 ## Prerequisites
 
@@ -36,6 +36,23 @@ Missing optional tools degrade gracefully (the script no-ops or skips a feature)
 External code-navigation tools (`cx`, `gitnexus`, `claude-mem`) are **not bundled** by dhpk. Each consuming project decides whether to install them. The shipped rules and agents are written to degrade gracefully via [`rules/tool-routing.md`](./rules/tool-routing.md).
 
 ## Install
+
+Choose the route by Host and installation state. New Claude users should use
+the materialized four-capability profile; an existing installation should
+preview migration before changing its receipt-owned files.
+
+| Host | Recommended route | First verification | Evidence boundary |
+|---|---|---|---|
+| Claude Code | `bash scripts/install.sh` (`--dry-run` first) | Start a new session and run `/dhpk:flow-guide help` | Clean `minimal` exposes exactly `flow-guide`, `code-trace`, `flow-drive`, and `change-verdict` |
+| Codex CLI | `bash scripts/hooks/install-codex-skills.sh --plan --json`, then install/update | `$flow-guide help` | Supported project-local route; unavailable CLI/runtime stays `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE` |
+| Cursor | `bash scripts/hooks/install-cursor-harness.sh --plan --json`, then install/update | Inspect `.cursor/.dhpk-installed.json` and reload Cursor | Supported project-local route; native plugin/runtime evidence is separate |
+| AGY | `node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json`, then the receipt-owned adapter | `agy agents` when the CLI is available | Experimental; structural install is not runtime `PASS` |
+
+The generic `dhpk-install` lifecycle CLI is read-only for write actions in this
+release. `install`, `update`, `uninstall`, and `rollback` return
+`BLOCKED/NOT_IMPLEMENTED`; use the named, characterized adapter above. Full
+commands, collision handling, optional capability selection, and rollback are
+in the [platform installation SSOT](./docs/platform-installation.md).
 
 dhpk follows the standard [Claude Code plugin distribution model](https://docs.claude.com/en/docs/claude-code/plugins). Fastest path (no clone needed):
 
@@ -131,11 +148,11 @@ See `manifests/install-profiles.json` for curated module bundles.
 
 The default Claude discovery artifact is the materialized `minimal` profile,
 generated from the distribution inventory rather than from an unfiltered scan of
-the source `skills/` directory. The current profile sizes are `minimal=8`,
+the source `skills/` directory. The current profile sizes are `minimal=4`,
 `full=55`, and `compat-v1=62` before overlays. `full` and `compat-v1` remain
-explicit opt-in profile artifacts. The Agent Plugin, Cursor, and AGY publication
-surfaces each contain 37 selected skills; the source tree remains the authoring
-tree.
+explicit opt-in profile artifacts. Agent Plugin and AGY each select 37 stable
+IDs; the Cursor-native overlay selects four native IDs and reuses Agent Plugin
+skills; Codex native selects 15 IDs. The source tree remains the authoring tree.
 
 ## Codex integration surfaces
 
