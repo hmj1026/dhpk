@@ -9,6 +9,7 @@
 // shape and exits 0 on the current, presumably-green, suite.
 
 const path = require('node:path');
+const fs = require('node:fs');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
@@ -18,6 +19,11 @@ const SCRIPT = path.join(ROOT, 'scripts', 'validate', 'test-hooks.sh');
 test('bash -n syntax check passes', () => {
   const res = spawnSync('bash', ['-n', SCRIPT], { encoding: 'utf8' });
   assert.strictEqual(res.status, 0, res.stderr);
+});
+
+test('JSON output probes never write transient files into the plugin root', () => {
+  const source = fs.readFileSync(SCRIPT, 'utf8');
+  assert.doesNotMatch(source, />\s*"\$PLUGIN_ROOT\/_jo\d+\.txt"/);
 });
 
 test('running the suite (throwaway repos only) produces the documented PASS/FAIL summary shape', () => {

@@ -276,18 +276,21 @@ echo "  retired with Review Sentinel (#376/#377) — nothing to remind about wit
 
 echo ""
 echo "== 12. _lib/json-out.sh (advisory output contract) =="
+JSON_SYSTEM_F="$(mktemp)"
+JSON_CONTEXT_F="$(mktemp)"
+JSON_EMPTY_F="$(mktemp)"
+TMP_DIRS+=("$JSON_SYSTEM_F" "$JSON_CONTEXT_F" "$JSON_EMPTY_F")
 (
     . "$HOOKS/_lib/json-out.sh"
-    emit_system_message $'已完成 "x"\nline2' > "$PLUGIN_ROOT/_jo1.txt" 2>/dev/null
-    emit_additional_context "UserPromptSubmit" 'hint /dhpk:foo' > "$PLUGIN_ROOT/_jo2.txt" 2>/dev/null
-    emit_system_message "" > "$PLUGIN_ROOT/_jo3.txt" 2>/dev/null
+    emit_system_message $'已完成 "x"\nline2' > "$JSON_SYSTEM_F" 2>/dev/null
+    emit_additional_context "UserPromptSubmit" 'hint /dhpk:foo' > "$JSON_CONTEXT_F" 2>/dev/null
+    emit_system_message "" > "$JSON_EMPTY_F" 2>/dev/null
 )
 if [ -n "$(command -v jq python3 2>/dev/null)" ] || command -v python3 >/dev/null 2>&1; then
-    if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["systemMessage"].startswith("已完成")' "$PLUGIN_ROOT/_jo1.txt" 2>/dev/null; then ok "emit_system_message → valid JSON, CJK+quote+newline safe"; else fail "system_message JSON invalid"; fi
-    if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["hookSpecificOutput"]["additionalContext"]=="hint /dhpk:foo"' "$PLUGIN_ROOT/_jo2.txt" 2>/dev/null; then ok "emit_additional_context → valid JSON"; else fail "additional_context JSON invalid"; fi
+    if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["systemMessage"].startswith("已完成")' "$JSON_SYSTEM_F" 2>/dev/null; then ok "emit_system_message → valid JSON, CJK+quote+newline safe"; else fail "system_message JSON invalid"; fi
+    if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["hookSpecificOutput"]["additionalContext"]=="hint /dhpk:foo"' "$JSON_CONTEXT_F" 2>/dev/null; then ok "emit_additional_context → valid JSON"; else fail "additional_context JSON invalid"; fi
 fi
-if [ ! -s "$PLUGIN_ROOT/_jo3.txt" ]; then ok "emit_system_message '' → no-op (empty)"; else fail "empty message emitted output"; fi
-rm -f "$PLUGIN_ROOT/_jo1.txt" "$PLUGIN_ROOT/_jo2.txt" "$PLUGIN_ROOT/_jo3.txt"
+if [ ! -s "$JSON_EMPTY_F" ]; then ok "emit_system_message '' → no-op (empty)"; else fail "empty message emitted output"; fi
 
 echo ""
 echo "== 13. session-start.sh source branching (P1-3) =="
