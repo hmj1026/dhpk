@@ -20,6 +20,10 @@ test('simplify defaults to the current diff and preserves explicit target overri
   const body = commandText();
 
   assert.match(body, /\$ARGUMENTS.*override|override.*\$ARGUMENTS/is);
+  assert.match(body, /gh pr diff.*\$ARGUMENTS/is);
+  assert.match(body, /git merge-base.*\$ARGUMENTS/is);
+  assert.match(body, /git diff.*--.*\$ARGUMENTS/is);
+  assert.match(body, /file or directory.*full contents|full contents.*file or directory/is);
   assert.match(body, /git diff @\{upstream\}\.\.\.HEAD/);
   assert.match(body, /git diff main\.\.\.HEAD/);
   assert.match(body, /git diff HEAD~1/);

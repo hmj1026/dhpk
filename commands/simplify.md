@@ -8,8 +8,21 @@ metadata:
 
 ## Scope
 
-An explicit `$ARGUMENTS` target overrides automatic diff discovery. Accept a
-pull request, branch, file, or directory and restrict the review to that target.
+An explicit `$ARGUMENTS` target overrides automatic diff discovery. Resolve it
+before running any review agent:
+
+1. For an existing file or directory, use its full contents as the review scope
+   and use `git diff HEAD -- "$ARGUMENTS"` to identify its current changes. Keep
+   the path quoted and after `--`; do not interpret path text as an option.
+2. For a pull-request number, URL, or `#number`, resolve the PR and gather its
+   patch with `gh pr diff "$ARGUMENTS"`.
+3. For a branch or other commit ref, verify the ref, determine its upstream or
+   the repository default branch, resolve their common ancestor with
+   `git merge-base "$ARGUMENTS" <base-ref>`, then gather
+   `git diff <merge-base>..."$ARGUMENTS"`.
+4. If the argument matches none of these forms, stop and report that the target
+   could not be resolved. Never fall back to the current branch for an invalid
+   explicit target.
 
 Without an explicit target, gather the current change:
 
