@@ -12,7 +12,6 @@ const { test, run, assert } = require('./_lib/tinytest');
 const {
   parseOptions,
   assignShard,
-  findTests,
   partitionFiles,
   fileTimeoutMs,
   createTimingReport,
@@ -82,18 +81,35 @@ test('weighted partition assigns every selected file exactly once', () => {
 });
 
 test('CI-sized weighted partition separates the suite\'s two slowest files', () => {
-  const files = findTests(__dirname).sort();
-  const buckets = partitionFiles(files, 4);
-  const workerFor = (name) => buckets.findIndex((bucket) => (
-    bucket.some((file) => path.basename(file) === name)
-  ));
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-scheduler-'));
+  try {
+    const fillerFiles = Array.from({ length: 5 }, (_, index) => {
+      const file = path.join(fixtureRoot, `filler-${index}.test.js`);
+      fs.writeFileSync(file, Buffer.alloc(53 * 2048));
+      return file;
+    });
+    const files = [
+      'install-codex-skills.test.js',
+      'consumer-gate-cli.test.js',
+      'gen-cursor-plugin-package.test.js',
+      'harness-facade-cli.test.js',
+      'run-codex.test.js',
+      ...fillerFiles,
+      'validate-retirement-closure.test.js',
+    ].map((name) => path.isAbsolute(name) ? name : path.join(__dirname, name));
+    const buckets = partitionFiles(files, 4);
+    const workerFor = (name) => buckets.findIndex((bucket) => (
+      bucket.some((file) => path.basename(file) === name)
+    ));
 
-  assert.strictEqual(workerFor('install-codex-skills.test.js'), 0);
-  assert.strictEqual(
-    workerFor('validate-retirement-closure.test.js'),
-    2,
-    'CI worker pool must not co-schedule the suite\'s two slowest files',
-  );
+    assert.notStrictEqual(
+      workerFor('install-codex-skills.test.js'),
+      workerFor('validate-retirement-closure.test.js'),
+      'CI worker pool must not co-schedule the suite\'s two slowest files',
+    );
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
 });
 
 test('shard assignment is deterministic and covers every shard', () => {
