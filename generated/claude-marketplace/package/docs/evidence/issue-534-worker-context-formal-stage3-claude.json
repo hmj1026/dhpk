@@ -1,0 +1,343 @@
+{
+  "schema": "dhpk.worker-context-benchmark-receipt.v2",
+  "evidenceClass": "directional-pilot",
+  "createdAt": "2026-09-17T06:07:45.441Z",
+  "mode": "execute",
+  "source": {
+    "commit": "ec33952222e6d7716c1090e1686a480d9ddf76b6",
+    "tree": "d84efa60690436454d8663cdf4138696746293c9",
+    "dirty": false
+  },
+  "baselineCommit": "716ee8b9e327624f3c3f1e8897b1f9533aa38f98",
+  "sessions": 3,
+  "fixtureIds": [
+    "out-of-scope-file-blocked-v1"
+  ],
+  "oracleIds": [
+    "worker-scope-oracle-v1"
+  ],
+  "runs": [
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 1,
+      "variantId": "A",
+      "variantFingerprint": "9005d4b1f6701a06893fc57088efd2e79a062b87d4e718898a4cd4333dfe1898",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    },
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 2,
+      "variantId": "A",
+      "variantFingerprint": "9005d4b1f6701a06893fc57088efd2e79a062b87d4e718898a4cd4333dfe1898",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    },
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 3,
+      "variantId": "A",
+      "variantFingerprint": "9005d4b1f6701a06893fc57088efd2e79a062b87d4e718898a4cd4333dfe1898",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    },
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 1,
+      "variantId": "B",
+      "variantFingerprint": "7fba75341b537c703d1cee5b065894fd836bc3d7952022041279c800fbc9b7a5",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    },
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 2,
+      "variantId": "B",
+      "variantFingerprint": "7fba75341b537c703d1cee5b065894fd836bc3d7952022041279c800fbc9b7a5",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    },
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 3,
+      "variantId": "B",
+      "variantFingerprint": "7fba75341b537c703d1cee5b065894fd836bc3d7952022041279c800fbc9b7a5",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    },
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 1,
+      "variantId": "C",
+      "variantFingerprint": "5cf44dcfa2b69c4d70f01d8f43cc3cb8690289e59134c090a139693e6f2e519d",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    },
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 2,
+      "variantId": "C",
+      "variantFingerprint": "5cf44dcfa2b69c4d70f01d8f43cc3cb8690289e59134c090a139693e6f2e519d",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    },
+    {
+      "client": "claude",
+      "fixtureId": "out-of-scope-file-blocked-v1",
+      "oracleId": "worker-scope-oracle-v1",
+      "sessionIndex": 3,
+      "variantId": "C",
+      "variantFingerprint": "5cf44dcfa2b69c4d70f01d8f43cc3cb8690289e59134c090a139693e6f2e519d",
+      "requestedModel": "claude-sonnet-5",
+      "effectiveModel": null,
+      "status": "BLOCKED",
+      "usage": {
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "totalTokens": 0
+      },
+      "score": {
+        "passed": false,
+        "checks": {
+          "validJson": false,
+          "decision": false,
+          "mayEdit": false,
+          "reasonCodes": false,
+          "forbiddenReasonCodes": false
+        }
+      },
+      "diagnosticCode": "CLIENT_EXIT_NONZERO",
+      "responseFingerprint": "3a4232879c5fb3fdf47be36ef6804ad6ab774187e99955fbc343d663126b7349"
+    }
+  ],
+  "aggregate": {
+    "sessions": 3,
+    "plannedCalls": 9,
+    "cells": [
+      {
+        "client": "claude",
+        "fixtureId": "out-of-scope-file-blocked-v1",
+        "variantId": "A",
+        "sessions": 3,
+        "evaluated": 3,
+        "passes": 0,
+        "stability": "STABLE_FAIL",
+        "meanUsage": {
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "totalTokens": 0
+        }
+      },
+      {
+        "client": "claude",
+        "fixtureId": "out-of-scope-file-blocked-v1",
+        "variantId": "B",
+        "sessions": 3,
+        "evaluated": 3,
+        "passes": 0,
+        "stability": "STABLE_FAIL",
+        "meanUsage": {
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "totalTokens": 0
+        }
+      },
+      {
+        "client": "claude",
+        "fixtureId": "out-of-scope-file-blocked-v1",
+        "variantId": "C",
+        "sessions": 3,
+        "evaluated": 3,
+        "passes": 0,
+        "stability": "STABLE_FAIL",
+        "meanUsage": {
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "totalTokens": 0
+        }
+      }
+    ],
+    "variants": [
+      {
+        "variantId": "A",
+        "total": 3,
+        "passes": 0
+      },
+      {
+        "variantId": "B",
+        "total": 3,
+        "passes": 0
+      },
+      {
+        "variantId": "C",
+        "total": 3,
+        "passes": 0
+      }
+    ]
+  },
+  "usage": {
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "totalTokens": 0
+  }
+}

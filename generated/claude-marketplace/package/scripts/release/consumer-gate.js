@@ -44,6 +44,7 @@ const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
+const CLAUDE_CLI_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(?:\s+\([^()\r\n]+\))?$/;
 const CONSUMER_SURFACES = Object.freeze([
   'claude-core',
   'codex-sync',
@@ -1110,14 +1111,50 @@ function verifyCursorSync(root, version) {
   }
 }
 
-function claudeAvailable() {
-  return spawnSync('claude', ['--version'], { encoding: 'utf8' }).status === 0;
-}
-
 function claudeCliVersion() {
   const result = spawnSync('claude', ['--version'], { encoding: 'utf8' });
-  if (result.status !== 0) return null;
-  return ((result.stdout || result.stderr || '').trim().split(/\r?\n/)[0] || 'unknown').trim();
+  const output = [result.stdout, result.stderr]
+    .filter((value) => typeof value === 'string')
+    .flatMap((value) => value.split(/\r?\n/))
+    .map((value) => value.trim())
+    .find(Boolean) || null;
+  if (result.error && result.error.code === 'ENOENT') {
+    return {
+      cmd: 'claude --version',
+      status: 'UNAVAILABLE',
+      exitCode: null,
+      version: null,
+      diagnostic: 'claude CLI not found on PATH',
+    };
+  }
+  if (result.error) {
+    return {
+      cmd: 'claude --version',
+      status: 'FAIL',
+      exitCode: result.status,
+      version: null,
+      diagnostic: `claude --version failed: ${result.error.message}`,
+    };
+  }
+  if (result.status !== 0) {
+    return {
+      cmd: 'claude --version',
+      status: 'FAIL',
+      exitCode: result.status,
+      version: null,
+      diagnostic: `claude --version exited ${result.status}`,
+    };
+  }
+  if (!output || !CLAUDE_CLI_VERSION_PATTERN.test(output)) {
+    return {
+      cmd: 'claude --version',
+      status: 'FAIL',
+      exitCode: result.status,
+      version: null,
+      diagnostic: 'claude --version returned malformed version output',
+    };
+  }
+  return { cmd: 'claude --version', status: 'PASS', exitCode: result.status, version: output };
 }
 
 function teardownClaudeProjectRegistry(project, commands, warnings, root) {
@@ -1145,21 +1182,38 @@ function teardownClaudeProjectRegistry(project, commands, warnings, root) {
 
 function verifyClaudeReinstall(root, version) {
   const strictCommand = 'claude plugin validate <manifest> --strict';
-  if (!claudeAvailable()) {
-    return {
-      verdict: VERDICTS.UNAVAILABLE,
-      commands: [{ cmd: strictCommand, exitCode: null, status: 'NOT RUN' }],
+  const versionDiscovery = claudeCliVersion();
+  const versionCommand = {
+    cmd: 'claude --version',
+    status: versionDiscovery.status,
+    exitCode: versionDiscovery.exitCode,
+    ...(versionDiscovery.version === null ? { version: null } : { claudeVersion: versionDiscovery.version }),
+    ...(versionDiscovery.diagnostic ? { diagnostic: versionDiscovery.diagnostic } : {}),
+  };
+  const finish = (result) => ({
+    ...result,
+    cliVersion: versionDiscovery.version,
+    versionDiscovery,
+  });
+  if (versionDiscovery.status !== 'PASS') {
+    const unavailable = versionDiscovery.status === 'UNAVAILABLE';
+    const reason = unavailable
+      ? `${versionDiscovery.diagnostic} — official strict validation is NOT RUN; Claude update/reinstall proof requires a clean CI runner or a fresh session`
+      : `${versionDiscovery.diagnostic} — official strict validation is NOT RUN`;
+    return finish({
+      verdict: unavailable ? VERDICTS.UNAVAILABLE : VERDICTS.FAIL,
+      commands: [versionCommand, { cmd: strictCommand, exitCode: null, status: 'NOT RUN' }],
       officialValidation: {
         verdict: 'NOT RUN',
         command: strictCommand,
         exitCode: null,
-        reason: 'claude CLI not found on PATH',
+        reason,
       },
-      reasons: ["claude CLI not found on PATH — official strict validation is NOT RUN; Claude update/reinstall proof requires a clean CI runner or a fresh session"],
-    };
+      reasons: [reason],
+    });
   }
-  const commands = [];
-  const cliVersion = claudeCliVersion() || 'unknown';
+  const commands = [versionCommand];
+  const cliVersion = versionDiscovery.version;
   // Validate the consumer-shaped staged package. The source checkout carries a
   // development-only root CLAUDE.md; Claude warns that this file is not loaded
   // from a plugin, so leaving it in the stage would fail strict validation.
@@ -1183,7 +1237,7 @@ function verifyClaudeReinstall(root, version) {
     commands.push(strictEvidence);
     if (strict.status !== 0) {
       const output = redactEvidence(`${strict.stdout || ''}\n${strict.stderr || ''}`.trim(), root);
-      return {
+      return finish({
         verdict: VERDICTS.FAIL,
         commands,
         officialValidation: {
@@ -1191,7 +1245,7 @@ function verifyClaudeReinstall(root, version) {
           ...strictEvidence,
         },
         reasons: [`official Claude strict validation failed (exit ${strict.status})${output ? `: ${output}` : ''}`],
-      };
+      });
     }
   } finally {
     fs.rmSync(validationStage, { recursive: true, force: true });
@@ -1203,19 +1257,19 @@ function verifyClaudeReinstall(root, version) {
     const add = spawnSync('claude', ['plugin', 'marketplace', 'add', root, '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin marketplace add <root> --scope project', exitCode: add.status });
     if (add.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`], warnings };
+      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`], warnings });
     }
 
     const install = spawnSync('claude', ['plugin', 'install', 'dhpk@dhpk', '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin install dhpk@dhpk --scope project', exitCode: install.status });
     if (install.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`], warnings };
+      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`], warnings });
     }
 
     const list = spawnSync('claude', ['plugin', 'list', '--json'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin list --json', exitCode: list.status });
     if (list.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin list exited ${list.status}`], warnings };
+      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin list exited ${list.status}`], warnings });
     }
     const installedEntries = JSON.parse(list.stdout || '[]');
     const matchingEntries = installedEntries.filter((p) => p.id === 'dhpk@dhpk');
@@ -1230,10 +1284,10 @@ function verifyClaudeReinstall(root, version) {
       return !p.projectPath || identityPath(p.projectPath) === identityPath(project);
     }) || (matchingEntries.length === 1 && matchingEntries[0].scope === undefined ? matchingEntries[0] : null);
     if (!installed) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: ["'dhpk@dhpk' not present in 'claude plugin list --json' after install"], warnings };
+      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: ["'dhpk@dhpk' not present in 'claude plugin list --json' after install"], warnings });
     }
     if (installed.version !== version) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`installed plugin reports version '${installed.version}', expected '${version}'`], warnings };
+      return finish({ verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`installed plugin reports version '${installed.version}', expected '${version}'`], warnings });
     }
     if (installed.installPath) {
       const installedRoot = path.resolve(installed.installPath);
@@ -1251,13 +1305,13 @@ function verifyClaudeReinstall(root, version) {
       commands.push(installedEvidence);
       if (installedStrict.status !== 0) {
         const output = redactEvidence(`${installedStrict.stdout || ''}\n${installedStrict.stderr || ''}`.trim(), root);
-        return {
+        return finish({
           verdict: VERDICTS.FAIL,
           commands,
           officialValidation: { verdict: 'FAIL', ...installedEvidence },
           reasons: [`official Claude strict validation failed on installed cache (exit ${installedStrict.status})${output ? `: ${output}` : ''}`],
           warnings,
-        };
+        });
       }
     } else {
       const reason = 'installed Claude plugin did not report installPath; installed-cache strict validation was NOT RUN';
@@ -1270,21 +1324,21 @@ function verifyClaudeReinstall(root, version) {
       };
       commands.push(installedEvidence);
       warnings.push(reason);
-      return {
+      return finish({
         verdict: VERDICTS.FAIL,
         commands,
         officialValidation: { verdict: 'NOT RUN', ...installedEvidence, reason },
         reasons: [reason],
         warnings,
-      };
+      });
     }
-    return {
+    return finish({
       verdict: VERDICTS.PASS,
       commands,
       officialValidation,
       reasons: [],
       warnings,
-    };
+    });
   } finally {
     try {
       teardownClaudeProjectRegistry(project, commands, warnings, root);
@@ -1397,6 +1451,7 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
     diagnostics: result.diagnostics || result.diagnostic || [],
     reasons: result.failureReasons || result.reasons || [],
     checkedClaims: result.checkedClaims || [],
+    ...(result.versionDiscovery ? { versionDiscovery: result.versionDiscovery } : {}),
   }];
   const normalized = normalizeConsumerEvidence({
     stage: 'CONSUMER',
@@ -1430,7 +1485,7 @@ function runGate(args) {
   const environment = process.env.CI ? 'ci' : 'local';
   const surfaceResults = [
     ...(codex ? normalizeGateSurface('codex-sync', 'consumer-gate', { id: 'codex-sync-installer', version: '1.0.0' }, codex, environment) : []),
-    ...(claude ? normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion || 'unknown' }, claude, environment) : []),
+    ...(claude ? normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion }, claude, environment) : []),
     ...(native ? normalizeGateSurface('codex-native', 'consumer-gate', { id: 'codex-native-install-smoke', version: '1.0.0' }, native, environment) : []),
     ...(cursorSync ? normalizeGateSurface('cursor-sync', 'consumer-gate', { id: 'cursor-sync-installer', version: '1.0.0' }, cursorSync, environment) : []),
     ...(projectedCodex ? projectedCodex.surfaceResults : []),
