@@ -6,6 +6,7 @@ const os = require('node:os');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   buildBenchmarkPlan,
+  buildClaudeArgs,
   buildCodexArgs,
   cursorResponse,
   scoreResponse,
@@ -69,6 +70,24 @@ test('Codex adapter disables agent tools and ignores ambient rules', () => {
   for (const feature of ['shell_tool', 'unified_exec', 'code_mode_host', 'apps', 'plugins', 'browser_use']) {
     assert.ok(args.includes(feature));
   }
+});
+
+test('Claude adapter enables safe mode and disables tools', () => {
+  const args = buildClaudeArgs('benchmark prompt');
+  const safeModeIndex = args.indexOf('--safe-mode');
+  const toolsIndex = args.indexOf('--tools');
+
+  assert.ok(safeModeIndex >= 0);
+  assert.deepStrictEqual(
+    args.slice(safeModeIndex, safeModeIndex + 2),
+    ['--safe-mode', 'on'],
+  );
+  assert.ok(args.includes('--restricted'));
+  assert.ok(args.includes('--strict-mcp-config'));
+  assert.deepStrictEqual(
+    args.slice(toolsIndex, toolsIndex + 2),
+    ['--tools', ''],
+  );
 });
 
 test('evidence output accepts only a direct child JSON file', () => {

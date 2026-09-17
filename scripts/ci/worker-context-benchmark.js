@@ -132,8 +132,12 @@ function usage(inputTokens = 0, outputTokens = 0, totalTokens = null) {
   return { inputTokens, outputTokens, totalTokens: totalTokens == null ? inputTokens + outputTokens : totalTokens };
 }
 
+function buildClaudeArgs(prompt) {
+  return ['-p', '--restricted', '--safe-mode', 'on', '--strict-mcp-config', '--tools', '', '--setting-sources', '', '--model', CLIENTS.claude.model, '--effort', 'high', '--permission-mode', 'plan', '--permission-prompts', 'none', '--no-session-persistence', '--max-budget-usd', '0.30', '--output-format', 'json', prompt];
+}
+
 function invokeClaude(prompt, cwd, timeoutMs) {
-  const result = spawnSync('claude', ['-p', '--restricted', '--safe-mode', '--strict-mcp-config', '--tools', '', '--setting-sources', '', '--model', CLIENTS.claude.model, '--effort', 'high', '--permission-mode', 'plan', '--permission-prompts', 'none', '--no-session-persistence', '--max-budget-usd', '0.30', '--output-format', 'json', prompt], { cwd, encoding: 'utf8', timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, killSignal: 'SIGKILL' });
+  const result = spawnSync('claude', buildClaudeArgs(prompt), { cwd, encoding: 'utf8', timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024, killSignal: 'SIGKILL' });
   const payload = parseJsonObject(result.stdout);
   const modelUsage = payload && payload.modelUsage && payload.modelUsage[CLIENTS.claude.model];
   return {
@@ -457,6 +461,7 @@ async function main() {
 module.exports = {
   CLIENTS,
   buildBenchmarkPlan,
+  buildClaudeArgs,
   buildCodexArgs,
   cursorResponse,
   scoreResponse,
