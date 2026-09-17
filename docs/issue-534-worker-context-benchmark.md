@@ -131,10 +131,12 @@ exceeds it. The check runs before the first model call. A dry run is never quota
 gated, so `--sessions 3` above prints all 36 cells across 108 planned calls and
 spends nothing.
 
-Formal stages have now run on Claude Code and Codex CLI. Issue #534 task 8.5
-remains open because neither stage includes the third failure-matrix fixture.
-Cursor and AGY still have directional evidence only, but formal coverage for
-every client is not a separate closure requirement.
+Formal-comparison receipts from Stages 1 and 2 cover Claude Code and Codex CLI
+across two fixtures. The three-session directional extension in Stage 3 covers
+the previously missing scope fixture and completes the cumulative failure
+matrix, so Issue #534 task 8.5 is complete without relabelling that one-fixture
+receipt as formal. Cursor and AGY still have directional evidence only; formal
+coverage for every client is not a separate closure requirement.
 
 ## Quota
 
@@ -230,7 +232,45 @@ A 15,003, B 11,338, and C 11,107; C used about 26% fewer tokens than A. The
 negative control was stable on Codex, but its `may_edit` referent remains
 ambiguous because the fixture was intentionally left unchanged for this stage.
 
-Task 8.5 stays open: the formal stages cover two of the three fixtures, while
-the broader `out-of-scope-file-blocked-v1` matrix has not run. Cursor and AGY
-also remain at one-session directional evidence, which limits generalization
-but is not independently a closure blocker.
+## 2026-09-17 three-session matrix extension, stage 3
+
+Stage 3 completed `out-of-scope-file-blocked-v1` with three independent
+sessions for every A/B/C variant on Claude Code and Codex CLI. The successful
+model evaluations reported 168,992 tokens: 109,894 from Codex and 59,098 from
+Claude.
+
+The run is split across immutable receipts because Claude Code 2.1.274 changed
+`--safe-mode` from a bare flag to a required `on|off` value and the account then
+hit its session limit:
+
+- `docs/evidence/issue-534-worker-context-formal-stage3.json` records the first
+  combined attempt: all nine Codex evaluations passed the oracle, while all
+  nine Claude invocations failed before model usage.
+- `docs/evidence/issue-534-worker-context-formal-stage3-claude.json` retains the
+  pre-reset Claude retry as bounded non-PASS client evidence.
+- `docs/evidence/issue-534-worker-context-formal-stage3-claude-retry.json`
+  records the authenticated retry after the argument-vector (`argv`) fix and
+  session reset. Its
+  effective model is verified as `claude-sonnet-5` on all nine evaluations.
+
+| Client | A | B | C |
+| --- | --- | --- | --- |
+| Claude Code | 0/3 `STABLE_FAIL` | 0/3 `STABLE_FAIL` | 0/3 `STABLE_FAIL` |
+| Codex CLI | 3/3 `STABLE_PASS` | 3/3 `STABLE_PASS` | 3/3 `STABLE_PASS` |
+
+Codex consistently identified the out-of-scope and unspecified-rule boundary
+without using the forbidden shared-source reason. Its effective model remains
+unverified because the adapter reports `effectiveModel: null`.
+
+Claude returned non-empty responses from the verified requested model, but all
+nine responses failed the fixture's JSON contract before decision semantics
+could be scored. This is a stable format-compliance failure, not a client-launch
+failure and not evidence that one worker-context variant outperforms another on
+this fixture. It remains negative model-quality evidence rather than being
+converted into a pass.
+
+Together, the formal-comparison receipts from Stages 1–2 and the directional
+Stage 3 extension provide three independent sessions across the complete
+three-fixture matrix for Claude and Codex. Cursor and AGY remain one-session
+directional evidence, which limits cross-client generalization but is not an
+independent closeout blocker.
