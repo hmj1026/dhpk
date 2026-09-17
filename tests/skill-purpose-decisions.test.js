@@ -14,6 +14,14 @@ const ROOT = path.join(__dirname, '..');
 const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
 const LEDGER = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'skill-purpose-decisions.json'), 'utf8'));
 
+const CURRENT_WAVE_IDS = Object.freeze([
+  'laravel-5.4-notes', 'laravel-6-notes', 'laravel-7-notes', 'laravel-8-notes',
+  'laravel-9-notes', 'laravel-10-notes', 'laravel-11-notes', 'laravel-mix-notes',
+  'phpunit-9-modern', 'phpunit-10-notes', 'phpunit-11-notes', 'claude-health',
+  'harness-budget', 'harness-fill', 'harness-revise', 'multi-ai-sync',
+  'agy-commit', 'feasibility-study', 'tech-spec', 'create-request', 'op-session',
+]);
+
 test('purpose ledger covers the current baseline and resolves every decision contract', () => {
   const result = validateSkillPurposeDecisions({ inventory: INVENTORY, ledger: LEDGER, root: ROOT });
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
@@ -66,6 +74,66 @@ test('effective decisions expose the versioned contract for a single row', () =>
   assert.strictEqual(decision.path, 'skills/laravel');
   assert.strictEqual(decision.successor.kind, 'family');
   assert.strictEqual(decision.successor.id, 'laravel');
+});
+
+// RED contract for issue #534 P2.  The purpose ledger explains active
+// decisions, while inventory remains the only source for identity and
+// publication/migration facts.  The current retirement wave is deliberately
+// a separate decision collection so a missing row cannot hide in the active
+// 65-row baseline.
+test('v2 purpose ledger covers active rows and the exact separate retirement wave', () => {
+  assert.strictEqual(LEDGER.schema, 'dhpk.skill-purpose-decisions.v2');
+  assert.ok(Array.isArray(LEDGER.decisions));
+  assert.strictEqual(LEDGER.decisions.length, 65);
+  assert.ok(LEDGER.decisions.every((row) => row.outcome === 'retain'));
+  assert.ok(LEDGER.decisions.every((row) => typeof row.content_value === 'string' && row.content_value.trim() !== ''));
+  assert.ok(LEDGER.decisions.every((row) => typeof row.authority === 'string' && row.authority.trim() !== ''));
+  assert.ok(LEDGER.decisions.every((row) => row.duplicate_content
+    && typeof row.duplicate_content.fact === 'string'
+    && typeof row.duplicate_content.comparison === 'string'
+    && row.duplicate_content.evidence
+    && row.duplicate_content.evidence.status === 'PASS'));
+  assert.ok(LEDGER.decisions.every((row) => Array.isArray(row.callers) && row.callers.length > 0));
+  assert.ok(LEDGER.decisions.every((row) => row.evidence && typeof row.evidence === 'object'));
+
+  assert.ok(Array.isArray(LEDGER.retirements));
+  assert.deepStrictEqual(LEDGER.retirements.map((row) => row.id).sort(), [...CURRENT_WAVE_IDS].sort());
+  const outcomeCounts = LEDGER.retirements.reduce((counts, row) => {
+    counts[row.outcome] = (counts[row.outcome] || 0) + 1;
+    return counts;
+  }, {});
+  assert.deepStrictEqual(outcomeCounts, { internalize: 11, merge: 7, retire: 2, remove: 1 });
+  assert.ok(LEDGER.retirements.every((row) => typeof row.authority === 'string' && row.authority.length > 0));
+  assert.ok(LEDGER.retirements.every((row) => row.duplicate_content
+    && typeof row.duplicate_content.fact === 'string'
+    && typeof row.duplicate_content.comparison === 'string'
+    && row.duplicate_content.evidence
+    && row.duplicate_content.evidence.status === 'PASS'));
+  for (const row of [...LEDGER.decisions, ...LEDGER.retirements]) {
+    for (const duplicated of ['name', 'path', 'publicName', 'canonicalPath', 'surfaces', 'successor', 'migration', 'rollback']) {
+      assert.strictEqual(Object.prototype.hasOwnProperty.call(row, duplicated), false,
+        `${row.id} must derive ${duplicated} from distribution inventory`);
+    }
+  }
+
+  const result = validateSkillPurposeDecisions({ inventory: INVENTORY, ledger: LEDGER, root: ROOT });
+  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+  assert.strictEqual(result.effective.length, INVENTORY.skills.length);
+  assert.strictEqual(result.retirements.length, CURRENT_WAVE_IDS.length);
+});
+
+test('v2 purpose validation rejects missing outcome rows and duplicated inventory identity', () => {
+  const missing = JSON.parse(JSON.stringify(LEDGER));
+  missing.retirements = (Array.isArray(missing.retirements) ? missing.retirements : CURRENT_WAVE_IDS.map((id) => ({ id }))).slice(1);
+  const missingResult = validateSkillPurposeDecisions({ inventory: INVENTORY, ledger: missing, root: ROOT });
+  assert.ok(missingResult.errors.some((error) => /missing.*retire.*laravel-5\.4-notes|laravel-5\.4-notes.*missing/i.test(error)),
+    `expected missing retirement diagnostic, got:\n${missingResult.errors.join('\n')}`);
+
+  const duplicated = JSON.parse(JSON.stringify(LEDGER));
+  duplicated.decisions[0].path = INVENTORY.skills[0].path;
+  const duplicateResult = validateSkillPurposeDecisions({ inventory: INVENTORY, ledger: duplicated, root: ROOT });
+  assert.ok(duplicateResult.errors.some((error) => /identity|path|distribution inventory/i.test(error)),
+    `expected inventory-derived identity diagnostic, got:\n${duplicateResult.errors.join('\n')}`);
 });
 
 run('skill-purpose-decisions');

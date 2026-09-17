@@ -9,6 +9,14 @@
 
 ## 決策階梯
 
+Clean install 只暴露四個預設 capability：`change-verdict`、`code-trace`、
+`flow-drive`、`flow-guide`。Claude 使用 `bash scripts/install.sh`，Codex 使用
+`scripts/hooks/install-codex-skills.sh`，Cursor 使用
+`scripts/hooks/install-cursor-harness.sh`，AGY 安裝前先執行
+`node scripts/ci/install-agy-plugin.js plan`。Static package evidence 不等於
+runtime evidence；在對應 consumer 被實際觀察前應記錄 `NOT_RUN`、`BLOCKED`
+或 `UNAVAILABLE`。
+
 新請求依序執行：**檢查** repository 與 session 狀態 → **確認** 已安裝的
 surface → **選擇** Claude、支援的 Codex sync 或實驗性的原生 Codex surface →
 透過 Claude `/dhpk:flow-guide`（分類）、`/dhpk:flow-drive`（執行）、Cursor
@@ -46,7 +54,7 @@ dhpk 刻意提供多個不同支援等級的 surface：
 | `install-codex-skills.sh` | Supported | 穩定且 canonical 的 Codex project sync 路徑；runtime activation 與 native `dhpk@dhpk` plugin 互斥。 |
 | `install-cursor-harness.sh` | Supported | 穩定的 Cursor project-local sync 路徑（`.cursor/`）。 |
 | Codex plugin marketplace | Experimental | 僅供 disposable isolated `CODEX_HOME` 實驗的實體 publication package；runtime activation 與 project-local sync 互斥，在另一次升級決策前維持 Experimental。 |
-| Antigravity / AGY sync | Adapter/package | Antigravity 使用 `.agent` mapping；AGY 使用原生 plugin package 與 validator。 |
+| Antigravity / AGY sync | Adapter/package | Antigravity project skills 使用 `.agents/skills` mapping，rules/workflows 仍在 `.agent`；AGY 使用原生 plugin package 與 validator。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invocation 分開。
 每個 host 只選一條 Codex runtime route：日常工作使用支援的 project-local

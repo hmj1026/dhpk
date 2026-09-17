@@ -6,34 +6,67 @@
       "change-verdict",
       "code-trace",
       "flow-drive",
-      "flow-guide",
-      "git-smart-commit",
-      "project-audit",
-      "prompt-optimize",
-      "tdd"
+      "flow-guide"
     ],
     "excludes": [],
     "id": "minimal",
-    "inventoryFingerprint": "94ea642fd46d7f9af123aa3a910c059e82cab15426b2dee729ddc3a3cb1fd3e8",
+    "inventoryFingerprint": "18dd86fa66c4ac5eed8c1a32934f6644798a86f2f27ba9dc8fd8e725aded9533",
     "mode": "profile",
     "modules": [],
-    "profileFingerprint": "f53fe6bf916d2edaba5ced145211c8ba5a3d56a87a4ce71f8915597e68a6345d",
+    "profileFingerprint": "e6fced74bf8dd6e7a3464c7b9b070196cf2a8276b01f1942d260884815b80fd6",
     "profileId": "minimal",
     "selectedStableIds": [
       "change-verdict",
       "code-trace",
       "flow-drive",
-      "flow-guide",
-      "git-smart-commit",
-      "project-audit",
-      "prompt-optimize",
-      "tdd"
+      "flow-guide"
     ],
-    "selectionFingerprint": "80ead6e4f97bb7946f5490beffc354228ad5100274019b472a7e3d1aba953657",
+    "selectionFingerprint": "4bb345fa92806e443aeac01e0b8fb566dace1fd0e1792999657dbe5cd4a25cc7",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "7c017d05ff8d30ec7e8dd7d73dcd3d268626e06d6201f00a19a85a9990bd554c",
-    "surfaceSelectionFingerprint": "a2f8c8e0cfd05993ef8a1fa24b1577c5c75887b29f5839b92d6481961aad1bb9",
+    "sourceFingerprint": "3d3d4e80dc57e1bc273f0a5f22f7729574e3a32d6b6ada1e10f389c3faeb73ec",
+    "supportClosure": {
+      "assets": [],
+      "files": [
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "flow-drive",
+          "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "flow-guide",
+          "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "flow-drive",
+          "source": "rules/execution-policy.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "flow-guide",
+          "source": "rules/execution-policy.md"
+        },
+        {
+          "destination": "rules/tool-routing.md",
+          "requiredBy": "code-trace",
+          "source": "rules/tool-routing.md"
+        },
+        {
+          "destination": "scripts/lib/flow-handoff-contract.js",
+          "requiredBy": "flow-drive",
+          "source": "scripts/lib/flow-handoff-contract.js"
+        },
+        {
+          "destination": "scripts/lib/flow-handoff-contract.js",
+          "requiredBy": "flow-guide",
+          "source": "scripts/lib/flow-handoff-contract.js"
+        }
+      ],
+      "skillStableIds": []
+    },
+    "surfaceSelectionFingerprint": "e3206aa71a2a554de6a911a7075bb31b84e860d4e9fb47eff6aa10d415a9fd2d",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -43,11 +76,7 @@
     "change-verdict",
     "code-trace",
     "flow-drive",
-    "flow-guide",
-    "git-smart-commit",
-    "project-audit",
-    "prompt-optimize",
-    "tdd"
+    "flow-guide"
   ],
   "emittedPublicNames": [],
   "dependencyClosure": null,
@@ -279,22 +308,6 @@
       "destination": "skills/flow-guide/scripts/_lib/flow-handoff-contract.js"
     },
     {
-      "stableId": "claude-profile:skill:git-smart-commit",
-      "destination": "skills/dhpk-git-smart-commit/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:project-audit",
-      "destination": "skills/dhpk-project-audit/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:prompt-optimize",
-      "destination": "skills/dhpk-prompt-optimize/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:tdd",
-      "destination": "skills/dhpk-tdd-workflow/SKILL.md"
-    },
-    {
       "stableId": "claude-profile:command:smart-commit",
       "destination": "commands/smart-commit.md"
     },
@@ -375,5 +388,5 @@
       "version": "1.0.0"
     }
   ],
-  "planFingerprint": "ca5809d1a7570b40fa0da6077b3d239bbd543a369166c5252bb5a2f5b9958dcb"
+  "planFingerprint": "b5cb8b5b4d6fde005ad46d84da1b09c08a8a2b79500e431f9afb4e2ff51e4e95"
 }

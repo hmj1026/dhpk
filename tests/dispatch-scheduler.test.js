@@ -8,59 +8,64 @@ const { SCHEMAS } = require('../scripts/lib/dispatch-contract');
 
 const catalog = require('../manifests/provider-model-catalog.json');
 const baseProfile = {
-  schema: SCHEMAS.HOST_PROFILE, version: 'cursor-scheduler.v1', host: 'cursor', native_provider: 'cursor-native', native_model: 'cursor-default', native_transport: 'native-runtime',
-  allowed_providers: ['cursor-native', 'claude-code', 'codex-cli', 'agy'],
+  schema: SCHEMAS.HOST_PROFILE, version: 'cursor-scheduler.v2', host: 'cursor', native_target_agent: 'cursor', native_provider: 'cursor', native_model: 'composer-2.5', native_transport: 'native-runtime',
+  allowed_providers: ['cursor', 'anthropic', 'openai', 'google'],
   access: {
-    'cursor-native': { status: 'AVAILABLE', evidence: 'native scheduler fixture' },
-    'claude-code': { status: 'AVAILABLE', evidence: 'claude scheduler fixture' },
-    'codex-cli': { status: 'AVAILABLE', evidence: 'codex scheduler fixture' },
-    agy: { status: 'AVAILABLE', evidence: 'agy scheduler fixture' },
+    cursor: { status: 'AVAILABLE', evidence: 'native scheduler fixture' },
+    anthropic: { status: 'AVAILABLE', evidence: 'claude scheduler fixture' },
+    openai: { status: 'AVAILABLE', evidence: 'codex scheduler fixture' },
+    google: { status: 'AVAILABLE', evidence: 'agy scheduler fixture' },
   },
-  quota_pools: { 'cursor-native': 'native', 'claude-code': 'claude', 'codex-cli': 'codex', agy: 'agy' },
+  quota_pools: { cursor: 'native', anthropic: 'claude', openai: 'codex', google: 'agy' },
   concurrency_limits: { native: 1, claude: 1, codex: 1, agy: 1 },
   observed_at: '2026-09-11T00:00:00.000Z',
 };
 
 function request(id, files, overrides = {}) {
-  return {
+  const input = {
     schema: SCHEMAS.REQUEST, host_profile: baseProfile, task_id: id, attempt_id: `${id}-attempt`,
     role: 'worker', authority: 'workspace-write', task: { description_digest: 'a'.repeat(64) },
     scope: { workdir: '/workspace', assigned_files: files, prompt_evidence: { path: `/workspace/${id}.prompt`, dev: 1, ino: id.length, sha256: 'b'.repeat(64) } },
-    effort: 'high', fallback: { allow: false, retry_budget: 0 }, parallelism: { dependencies: [], max_concurrency: 3 },
+    effort: 'medium', fallback: { allow: false, retry_budget: 0 }, parallelism: { dependencies: [], max_concurrency: 3 },
     ...overrides,
   };
+  if (input.target && Object.prototype.hasOwnProperty.call(input.target, 'route')) {
+    const { route, ...target } = input.target;
+    input.target = target;
+  }
+  return input;
 }
 
 test('scheduler admits independent mixed-provider workers in one wave', () => {
   const plan = createSchedule([
-    request('claude-task', ['src/claude.js'], { target: { provider: 'claude-code', model: 'opus5', transport: 'local-cli' } }),
-    request('codex-task', ['src/codex.js'], { target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' } }),
-    request('agy-task', ['src/agy.js'], { target: { provider: 'agy', model: 'gemini-3.8-flash-high', transport: 'local-cli' } }),
+    request('claude-task', ['src/claude.js'], { effort: 'medium', target: { target_agent: 'cursor', provider: 'cursor', model_id: 'composer-2.5', route: 'native', transport: 'native-runtime' } }),
+    request('codex-task', ['src/codex.js'], { effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
+    request('agy-task', ['src/agy.js'], { effort: 'high', target: { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high', route: 'native', transport: 'native-runtime' } }),
   ], { catalog });
 
   assert.strictEqual(plan.status, 'READY');
   assert.strictEqual(plan.waves.length, 1);
-  assert.deepStrictEqual(plan.waves[0].map((entry) => entry.target.provider), ['claude-code', 'codex-cli', 'agy']);
+  assert.deepStrictEqual(plan.waves[0].map((entry) => entry.target.provider), ['cursor', 'openai', 'google']);
 });
 
 test('scheduler separates conflicting assigned scopes without blaming Provider identity', () => {
   const plan = createSchedule([
-    request('first', ['src/shared.js'], { target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' } }),
-    request('second', ['src/shared.js'], { target: { provider: 'claude-code', model: 'opus5', transport: 'local-cli' } }),
+    request('first', ['src/shared.js'], { effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
+    request('second', ['src/shared.js'], { effort: 'high', target: { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.7-flash-high', route: 'native', transport: 'native-runtime' } }),
   ], { catalog });
 
   assert.strictEqual(plan.status, 'READY');
   assert.strictEqual(plan.waves.length, 2);
-  assert.strictEqual(plan.waves[0][0].target.provider, 'codex-cli');
-  assert.strictEqual(plan.waves[1][0].target.provider, 'claude-code');
+  assert.strictEqual(plan.waves[0][0].target.provider, 'openai');
+  assert.strictEqual(plan.waves[1][0].target.provider, 'google');
   assert.ok(plan.diagnostics.some((item) => item.reason === 'assigned scope conflict'));
 });
 
 test('scheduler enforces a shared Provider quota pool', () => {
-  const profile = { ...baseProfile, quota_pools: { ...baseProfile.quota_pools, 'codex-cli': 'shared' }, concurrency_limits: { ...baseProfile.concurrency_limits, shared: 1 } };
+  const profile = { ...baseProfile, quota_pools: { ...baseProfile.quota_pools, openai: 'shared' }, concurrency_limits: { ...baseProfile.concurrency_limits, shared: 1 } };
   const plan = createSchedule([
-    request('codex-one', ['src/one.js'], { host_profile: profile, target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' } }),
-    request('codex-two', ['src/two.js'], { host_profile: profile, target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' } }),
+    request('codex-one', ['src/one.js'], { host_profile: profile, effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
+    request('codex-two', ['src/two.js'], { host_profile: profile, effort: 'high', target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' } }),
   ], { catalog });
 
   assert.strictEqual(plan.waves.length, 2);
@@ -70,24 +75,25 @@ test('scheduler enforces a shared Provider quota pool', () => {
 test('scheduler plans unavailable external work onto the current Host-native fallback', async () => {
   const unavailable = {
     ...baseProfile,
-    access: { ...baseProfile.access, 'codex-cli': { status: 'UNAVAILABLE', evidence: 'missing Codex CLI' } },
+    access: { ...baseProfile.access, openai: { status: 'UNAVAILABLE', evidence: 'missing Codex CLI' } },
   };
   const input = request('fallback-task', ['src/fallback.js'], {
     host_profile: unavailable,
-    target: { provider: 'codex-cli', model: 'sol5.6', transport: 'local-cli' },
+    effort: 'high',
+    target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna-high', route: 'native', transport: 'native-runtime' },
     fallback: { allow: true, retry_budget: 1 },
   });
   const plan = createSchedule([input], { catalog });
   assert.strictEqual(plan.status, 'READY');
-  assert.strictEqual(plan.waves[0][0].target.identity, 'cursor-native/cursor-default');
+  assert.strictEqual(plan.waves[0][0].target.identity, 'cursor/composer-2.5');
   assert.strictEqual(plan.waves[0][0].fallback.status, 'FALLBACK');
 
   const registry = createAdapterRegistry({ executors: {
-    'cursor-native': (target) => ({ status: 'SUCCEEDED', verification: 'PASSED', receipt_id: `receipt-${target.identity}` }),
+    cursor: (target) => ({ status: 'SUCCEEDED', verification: 'PASSED', receipt_id: `receipt-${target.identity}` }),
   } });
   const result = await executeSchedule([input], { catalog, registry, dispatch, fallback: true });
   assert.strictEqual(result.results[0].status, 'SUCCEEDED');
-  assert.strictEqual(result.results[0].receipt.resolved_target.identity, 'cursor-native/cursor-default');
+  assert.strictEqual(result.results[0].receipt.resolved_target.identity, 'cursor/composer-2.5');
 });
 
 test('scheduler honors dependencies before admitting a wave', () => {
@@ -123,7 +129,7 @@ test('execution scheduler preserves launch identity and distinguishes crash from
   assert.deepStrictEqual(crash.results[0].launch_identity, {
     task_id: 'crash',
     attempt_id: 'crash-attempt',
-    target: 'cursor-native/cursor-default',
+    target: 'cursor/composer-2.5',
   });
 
   const unknown = await executeSchedule([request('unknown', ['src/unknown.js'])], {

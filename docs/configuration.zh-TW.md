@@ -6,8 +6,8 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **76 個 active `userConfig` 旋
 
 Claude 的預設 discovery artifact 是由
 `manifests/distribution-inventory.json` 產生的實體化 `minimal` profile，並非
-直接掃描未過濾的 `skills/` 原始目錄。此 profile 最多發布 15 個
-`implicit-eligible` entry；`full` 與 `compat-v1` 是明確 opt-in 的 profile
+直接掃描未過濾的 `skills/` 原始目錄。此 profile 只發布 `change-verdict`、
+`code-trace`、`flow-drive`、`flow-guide`；`full` 與 `compat-v1` 是明確 opt-in 的 profile
 artifact。Agent Plugin 與 Cursor 的發布 membership 維持不變。profile 選擇與
 receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installation.zh-TW.md)。
 

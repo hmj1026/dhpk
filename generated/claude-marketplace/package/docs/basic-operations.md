@@ -6,6 +6,14 @@ This page walks through the operational lifecycle of dhpk: installing it, the da
 
 ## Decision ladder
 
+Clean installs expose exactly four default capabilities: `change-verdict`,
+`code-trace`, `flow-drive`, and `flow-guide`. Use `bash scripts/install.sh` for
+Claude, `scripts/hooks/install-codex-skills.sh` for Codex,
+`scripts/hooks/install-cursor-harness.sh` for Cursor, and
+`node scripts/ci/install-agy-plugin.js plan` before AGY installation. Static
+package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
+`UNAVAILABLE` until the corresponding consumer is observed.
+
 Use this order for a fresh request: **inspect** the repository and session
 state → **verify** the installed surface → **choose** Claude, supported Codex
 sync, or the experimental native Codex surface → **route** through Claude
@@ -47,7 +55,7 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | `install-codex-skills.sh` | Supported | Stable, canonical Codex project sync path; runtime activation is mutually exclusive with the native `dhpk@dhpk` plugin. |
 | `install-cursor-harness.sh` | Supported | Stable Cursor project-local sync path (`.cursor/`). |
 | Codex plugin marketplace | Experimental | Physical publication package for isolated disposable `CODEX_HOME` experiments; runtime activation is mutually exclusive with project-local sync and the tier stays Experimental until a separate graduation decision. |
-| Antigravity / AGY sync | Adapter/package | Antigravity uses `.agent` mappings; AGY uses its native plugin package and validator. |
+| Antigravity / AGY sync | Adapter/package | Antigravity project skills use `.agents/skills` mapping while rules/workflows remain under `.agent`; AGY uses its native plugin package and validator. |
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
 from skill invocation. Choose one Codex runtime route per host: use the

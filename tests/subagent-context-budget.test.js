@@ -7,6 +7,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const {
   SCHEMA,
   inspectSubagentContext,
+  validateDispatchPacket,
 } = require('../scripts/ci/subagent-context-budget');
 
 const ROOT = path.join(__dirname, '..');
@@ -158,6 +159,24 @@ test('structured dispatch packets and context tiers fail closed when incomplete'
   });
   assert.ok(missingKernel.static.scenarios[0].missingRoles.some((error) => error.role === 'missing-reviewer-kernel'));
   assert.ok(missingKernel.configurationErrors.some((error) => error.code === 'MISSING_SELECTED_DEVELOPER_INSTRUCTIONS'));
+});
+
+test('required cold packet carries identity and selected references without parent history', () => {
+  const packet = {
+    goal: 'implement the bounded slice',
+    non_goals: ['no unrelated cleanup'],
+    owned_files: ['scripts/lib/example.js'],
+    constraints: ['preserve the receipt contract'],
+    evidence_pointers: ['openspec/changes/example/tasks.md'],
+    verification: ['node tests/example.test.js'],
+    phase: 'green',
+    references: ['skills/dhpk-tdd-workflow/SKILL.md'],
+    task_id: 'issue-534-p1',
+    attempt_id: 'issue-534-p1-a1',
+  };
+  const result = validateDispatchPacket(packet, { required: true });
+  assert.strictEqual(result.ok, true, JSON.stringify(result));
+  assert.ok(result.parts.includes('owned_files'));
 });
 
 run('subagent-context-budget');

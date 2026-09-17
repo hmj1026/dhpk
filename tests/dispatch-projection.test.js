@@ -16,7 +16,7 @@ test('projection carries one canonical dispatch contract for each configured sur
   assert.strictEqual(projection.surface, 'cursor-plugin');
   assert.strictEqual(projection.contract.receipt, 'dhpk.dispatch.receipt.v2');
   assert.deepStrictEqual(projection.contract.roles.map((entry) => entry.role), ['planner', 'reasoner', 'worker', 'reviewer']);
-  assert.strictEqual(projection.hosts.find((entry) => entry.host === 'cursor').native_provider, 'cursor-native');
+  assert.strictEqual(projection.hosts.find((entry) => entry.host === 'cursor').native_provider, 'cursor');
   assert.deepStrictEqual(validateDispatchProjection(projection), { ok: true, errors: [] });
 });
 

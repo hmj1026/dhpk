@@ -12,6 +12,14 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const raw = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
 
+test('release workflows share one repository-global queue without cancelling active releases', () => {
+  assert.match(
+    raw,
+    /^concurrency:\n  group: release-\$\{\{\s*github\.repository\s*\}\}\n  cancel-in-progress: false$/m,
+    'release workflow must queue every tag in one repository-global, non-cancelling group',
+  );
+});
+
 test('release step preserves an existing release instead of editing it', () => {
   const viewIdx = raw.indexOf('gh release view');
   const createIdx = raw.indexOf('gh release create');
@@ -31,6 +39,69 @@ test('release notes are streamed via stdin, not interpolated inline', () => {
 
 test('release workflow delegates note extraction to the unit-tested extract-notes.sh (see tests/extract-release-notes.test.js for empty/malformed-section coverage)', () => {
   assert.ok(raw.includes('scripts/release/extract-notes.sh'), 'missing extract-notes.sh invocation');
+});
+
+test('release validation emits one run-bound publication bundle from the exact notes file', () => {
+  const bundleIdx = raw.indexOf('Write trusted publication bundle');
+  const uploadIdx = raw.indexOf('Upload trusted publication bundle');
+  const digestUploadIdx = raw.indexOf('Upload trusted publication notes digest');
+  const verifierUploadIdx = raw.indexOf('Upload trusted publication bundle verifier');
+  const createIdx = raw.indexOf('gh release create');
+  assert.ok(bundleIdx !== -1, 'missing trusted publication bundle generation');
+  assert.ok(uploadIdx > bundleIdx, 'publication bundle must be uploaded after generation');
+  assert.ok(digestUploadIdx > uploadIdx, 'notes digest must be uploaded after the publication bundle');
+  assert.ok(verifierUploadIdx > digestUploadIdx, 'portable verifier must be uploaded after the notes digest');
+  assert.ok(createIdx > verifierUploadIdx, 'publication bundle must be produced before publication');
+  const bundleBlock = raw.slice(bundleIdx, uploadIdx);
+  assert.match(bundleBlock, /release-publication-bundle\.js/);
+  assert.match(bundleBlock, /--notes-file\s+"\$RUNNER_TEMP\/dhpk-release-notes\.txt"/);
+  assert.match(bundleBlock, /--run-id\s+"\$GITHUB_RUN_ID"/);
+  assert.match(bundleBlock, /--tag\s+"\$GITHUB_REF_NAME"/);
+  assert.match(bundleBlock, /--expected-notes-sha256\s+"\$\{\{\s*steps\.notes\.outputs\.notes_sha256\s*\}\}"/);
+  assert.match(bundleBlock, /--digest-output\s+"\$RUNNER_TEMP\/dhpk-release-publication-notes-digest\.json"/);
+  assert.match(bundleBlock, /--target-commit/);
+  assert.match(bundleBlock, /--target-tree/);
+  const uploadBlock = raw.slice(uploadIdx, createIdx);
+  assert.match(uploadBlock, /actions\/upload-artifact@[0-9a-f]{40}\s+#\s*v4/);
+  assert.match(uploadBlock, /dhpk-release-publication-bundle-\$\{\{\s*github\.run_id\s*\}\}/);
+  const digestUploadBlock = raw.slice(digestUploadIdx, verifierUploadIdx);
+  assert.match(digestUploadBlock, /actions\/upload-artifact@[0-9a-f]{40}\s+#\s*v4/);
+  assert.match(digestUploadBlock, /dhpk-release-publication-notes-digest-\$\{\{\s*github\.run_id\s*\}\}/);
+  const verifierUploadBlock = raw.slice(verifierUploadIdx, createIdx);
+  assert.match(verifierUploadBlock, /verify-publication-bundle\.js/);
+  assert.match(verifierUploadBlock, /dhpk-release-publication-bundle-verifier-\$\{\{\s*github\.run_id\s*\}\}/);
+});
+
+test('release publication validates the bundle and streams only its validated note bytes', () => {
+  const publishIdx = raw.indexOf('  publish:');
+  const nextJobIdx = raw.indexOf('  consumer-verify:', publishIdx);
+  const publishBlock = raw.slice(publishIdx, nextJobIdx);
+  const validateIdx = publishBlock.indexOf('Validate trusted publication bundle');
+  const ghCreateIdx = publishBlock.indexOf('gh release create');
+  assert.ok(publishIdx !== -1, 'missing no-checkout publication job');
+  assert.ok(validateIdx !== -1, 'publication must validate the trusted bundle');
+  assert.ok(ghCreateIdx > validateIdx, 'bundle validation must precede release creation');
+  assert.match(publishBlock, /needs:\s+release/);
+  assert.doesNotMatch(publishBlock, /actions\/checkout@/, 'publication consumer must not checkout the repository');
+  assert.match(publishBlock, /actions\/download-artifact@[0-9a-f]{40}\s+#\s*v4/);
+  assert.match(publishBlock, /dhpk-release-publication-bundle-\$\{\{\s*github\.run_id\s*\}\}/);
+  assert.match(publishBlock, /dhpk-release-publication-notes-digest-\$\{\{\s*github\.run_id\s*\}\}/);
+  assert.match(publishBlock, /dhpk-release-publication-bundle-verifier-\$\{\{\s*github\.run_id\s*\}\}/);
+  assert.match(publishBlock, /VERIFIER_SHA256:\s*\$\{\{\s*needs\.release\.outputs\.release_verifier_sha256\s*\}\}/);
+  assert.match(publishBlock, /EXPECTED_NOTES_SHA256:\s*\$\{\{\s*needs\.release\.outputs\.release_notes_sha256\s*\}\}/);
+  assert.match(publishBlock, /actual_verifier_sha256="sha256:\$\(sha256sum\s+"\$verifier"/);
+  assert.match(publishBlock, /downloaded verifier digest does not match/);
+  assert.match(publishBlock, /node\s+"\$verifier"/);
+  assert.match(publishBlock, /--bundle\s+"\$bundle"/);
+  assert.match(publishBlock, /--expected-run-id\s+"\$GITHUB_RUN_ID"/);
+  assert.match(publishBlock, /--expected-tag\s+"\$GITHUB_REF_NAME"/);
+  assert.match(publishBlock, /--expected-notes-sha256\s+"\$EXPECTED_NOTES_SHA256"/);
+  assert.match(publishBlock, /--expected-notes-digest-file\s+"\$digest"/);
+  assert.match(publishBlock, /--expected-target-commit\s+"\$TARGET_COMMIT"/);
+  assert.match(publishBlock, /--expected-target-tree\s+"\$TARGET_TREE"/);
+  assert.match(publishBlock, /--notes-output\s+"\$validated_notes_file"/);
+  assert.match(publishBlock, /--notes-file -\s+<\s+"\$RUNNER_TEMP\/dhpk-release-notes-validated\.txt"/);
+  assert.doesNotMatch(publishBlock, /steps\.notes\.outputs\.notes/);
 });
 
 test('release workflow verifies the tag commit is contained in main', () => {
@@ -121,7 +192,7 @@ test('consumer-verify installs the real claude CLI so the supported Claude check
   const verifyIdx = raw.indexOf('consumer-verify:');
   const nextJobIdx = raw.indexOf('sync-develop:');
   const consumerBlock = raw.slice(verifyIdx, nextJobIdx);
-  assert.match(consumerBlock, /actions\/checkout@v7[\s\S]{0,120}fetch-depth: 0/, 'consumer verification needs full git history for ancestry checks');
+  assert.match(consumerBlock, /actions\/checkout@[0-9a-f]{40}[\s\S]{0,160}fetch-depth: 0/, 'consumer verification needs full git history for ancestry checks');
   const installIdx = consumerBlock.indexOf('@anthropic-ai/claude-code');
   const gateInvocationIdx = consumerBlock.indexOf('bin/dhpk harness release');
   assert.ok(installIdx !== -1, 'missing claude CLI install step');

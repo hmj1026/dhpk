@@ -3,7 +3,7 @@
 SSOT for every Distributed Skill and Distributed Command's `explicit-only` /
 `implicit-eligible` classification (`metadata.dhpk-invocation-class`). Reviewed
 once per entry against maximum authority, not inferred from descriptions or
-existing runtime flags. See `openspec/changes/clarify-dhpk-skill-invocation-policy/design.md`
+existing runtime flags. See `openspec/specs/skill-invocation-policy/spec.md`
 decision 2 for the full rule; summarized here:
 
 **explicit-only** — any normal path can initiate: setup, installation,
@@ -62,35 +62,23 @@ release, or write externally. This includes `dhpk-matrix-cell-onboard` (a guided
 checklist for CI-matrix cells — no elevated tools, editing stays within the
 already-authorized library-authoring request).
 
-## Commands (`commands/*.md`) — 29 entries
+## Commands (`commands/*.md`) — 31 physical entries
 
-Only `matrix-cell-onboard.md` names a canonical skill 1:1 (paired; inherits
-`implicit-eligible` from its skill). The remaining 38 are unpaired and own
-their class directly.
+The active command surface is exactly the 31 physical files below. Host-only
+adapters remain physical command front doors and are not portable Skill aliases;
+the two thin front doors retain their owning Skill contracts.
 
-### explicit-only (13)
+`check-coverage`, `codex-test-gen`, `create-pr`, `create-release`, `deep-analyze`,
+`dep-audit`, `doc-refactor`, `flow-drive`, `flow-guide`, `git-worktree`,
+`harness-audit`, `harness-govern`, `install-hooks`, `install-rules`,
+`install-scripts`, `matrix-cell-onboard`, `merge-prep`, `opsx-apply-resume`,
+`pr-summary`, `precommit`, `precommit-fast`, `project-brief`, `review-pending`,
+`setup`, `simplify`, `smart-commit`, `spec-mine`, `ui-ux-verify`,
+`update-codemaps`, `update-docs`, and `verify`.
 
-| Command | Rationale |
-|---|---|
-| `create-pr` | Creates a GitHub PR (`gh pr create`). |
-| `create-release` | Cuts a release. |
-| `check-coverage`, `codex-test-gen`, `precommit-fast` | Explicit-only compatibility adapters retain their metadata; do not infer a lower class from their forwarding target. |
-| `flow-drive` | Top-level implementation router; can reach explicit-only implementation workflows — classified explicit-only because it starts broad execution. |
-| `harness-govern` | Read-only by default, but `--fix` mutates the harness in bulk; class reflects maximum authority, not the default mode. |
-| `install-hooks` | Installation. |
-| `install-rules` | Installation (writes into a consumer project's `.claude/rules/`). |
-| `install-scripts` | Installation. |
-| `opsx-apply-resume` | Already explicit-only. Resumes/continues an unattended OpenSpec-apply session. |
-| `setup` | Already explicit-only. Interactive plugin (re)configuration. |
-| `smart-commit` | Executes `git commit` in batches. |
-
-### implicit-eligible (16, incl. `dhpk-matrix-cell-onboard` inherited)
-
-`check-skill`, `codex-review`, `deep-analyze`, `dep-audit`, `doc-refactor`,
-`git-worktree`, `harness-audit`,
-`dhpk-matrix-cell-onboard`, `merge-prep`, `pr-summary`, `precommit`,
-`project-brief`, `review-pending`, `simplify`, `spec-mine`, `ui-ux-verify`,
-`update-codemaps`, `update-docs`, `verify`.
+The command disposition manifest records the authority, owner, callers, and
+structural evidence for each physical entry. Former command aliases are kept
+only in its separate removed ledger; they are not active discovery routes.
 
 ## Family migration
 
@@ -98,7 +86,9 @@ The capability-family change retires predecessor identities through the
 inventory-owned ledger. Runtime routing uses the family plus a mode, so a
 description or command must not recreate a retired alias. Keep the six
 GitNexus package skills outside this migration and resolve them through their
-own package contract.
+own package contract. OpenSpec proposal authoring is owned by the external
+`openspec-propose` workflow, and operator session setup remains an explicit
+operator action.
 
 For a new family, check that its `agents/openai.yaml` policy agrees with the
 maximum authority of every mode, that implicit descriptions retain all routing

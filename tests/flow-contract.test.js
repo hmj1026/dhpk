@@ -82,11 +82,14 @@ test('flow-drive validates confirmation and resolves Roles through the common Di
     request: {
       schema: 'dhpk.dispatch.request.v2',
       host_profile: {
-        schema: 'dhpk.host.profile.v1', version: 'test.v1', host: 'cursor',
-        native_provider: 'cursor-native', native_model: 'cursor-default', native_transport: 'native-runtime',
-        allowed_providers: ['cursor-native'],
-        access: { 'cursor-native': { status: 'AVAILABLE', evidence: 'test native runtime' } },
-        quota_pools: { 'cursor-native': 'native' }, concurrency_limits: { native: 1 },
+        schema: 'dhpk.host.profile.v1', version: 'test.v2', host: 'cursor',
+        native_target_agent: 'cursor', native_provider: 'cursor', native_model: 'composer-2.5', native_transport: 'native-runtime',
+        allowed_providers: ['cursor', 'openai'],
+        access: { cursor: { status: 'AVAILABLE', evidence: 'test native runtime' }, openai: { status: 'AVAILABLE', evidence: 'test reviewer route' } },
+        quota_pools: { cursor: 'native', openai: 'codex' }, concurrency_limits: { native: 1, codex: 1 },
+        role_defaults: {
+          reviewer: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-sol-high', effort: 'high', route: 'native', transport: 'native-runtime' },
+        },
         observed_at: '2026-09-11T00:00:00.000Z',
       },
       task_id: 'flow-drive-task', attempt_id: 'flow-drive-attempt', role: 'reviewer', authority: 'read-only',

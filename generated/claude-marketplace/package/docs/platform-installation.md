@@ -10,6 +10,7 @@ callable only after the named consumer probe discovers the projected content.
 
 | Surface | Install | Update / remove | Verify | Support boundary |
 |---|---|---|---|---|
+| Claude Code default | `bash scripts/install.sh` → `dhpk@dhpk-profile-minimal` | Re-run the installer or select an explicit compatibility package | Fresh-session `/dhpk:flow-guide help` | Structural checks can pass; consumer discovery stays `NOT_RUN` until observed |
 | Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
 | Codex legacy/native | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe | Experimental; test only in a disposable isolated `CODEX_HOME`; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | Standard Agent Plugin | Publish or install `plugins/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance | Structural conformance is not Codex runtime proof |
@@ -28,6 +29,7 @@ result; do not infer a runtime `PASS` from a package check.
 
 | Route | Client/version assumption | OS and shell assumption | Required tooling | Evidence gate |
 |---|---|---|---|---|
+| Claude Code | Marketplace/plugin support; minimum version not established | Client-supported OS and POSIX shell | `bash`, Claude Code | Run the installer and observe the selected package in a fresh session |
 | Codex project-local sync | Codex project-local loader; schema-v3 receipt; minimum Codex version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.codex/.dhpk-installed.json`, and run the listed metadata/test commands |
 | Codex legacy/native | Codex CLI with marketplace/plugin commands; run `codex --version`; minimum CLI version not established | Linux, macOS, or WSL shell for the documented route; use a disposable isolated `CODEX_HOME` | `codex`, marketplace access, `git` | Execute the marketplace route and record CLI output; absent CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | Standard Agent Plugin | Agent Plugins 1.0.0 schema consumer; minimum client version not established | Client-supported OS; package validation is performed from a POSIX shell | A verified Agent Plugin loader; Node.js for structural validation | Run both package commands, then record client discovery evidence |
@@ -50,6 +52,31 @@ result; do not infer a runtime `PASS` from a package check.
 
 Never turn a static manifest, marketplace entry, generated file, or enabled
 flag into a runtime `PASS`.
+
+## Claude Code minimal profile (recommended)
+
+For a clean install, preview and then materialize the default package:
+
+```bash
+bash scripts/install.sh --dry-run
+bash scripts/install.sh
+```
+
+`dhpk@dhpk-profile-minimal` exposes exactly `change-verdict`, `code-trace`,
+`flow-drive`, and `flow-guide`. Start a fresh Claude session and run
+`/dhpk:flow-guide help`; until that observation is recorded, runtime evidence is
+`NOT_RUN`. The root marketplace remains a compatibility route, and an existing
+receipt keeps its selection until an explicit migration.
+
+Maintainers may generate one optional capability for development inspection:
+
+```bash
+node scripts/ci/gen-claude-profile-bundles.js --standalone <stable-id> --out /tmp/dhpk-standalone
+```
+
+Generic `dhpk-install` writes remain `BLOCKED` / `NOT_IMPLEMENTED`; use the
+host-specific adapters below. Roll back to the package identity in the previous
+receipt or a version-pinned compatibility package. Rollback restores no alias.
 
 ## Controlled authenticated runner preflight
 
@@ -103,14 +130,25 @@ dhpk-install cursor plan --scope project --json
 When running from a source checkout, invoke the bundled entrypoint directly:
 `bash /path/to/dhpk/bin/dhpk-install cursor plan --scope project --json`.
 
-The JSON result binds the normalized request to a compiler plan and keeps the
+The JSON result binds the normalized request to a versioned
+`dhpk.installation-plan.v1` identity. It records source version, target scope,
+profile and selected stable IDs, support closure, owned roots, plan/inventory
+fingerprints, preview, backup, transaction, recovery, and rollback identity.
+Native surface receipts may embed the corresponding
+`dhpk.installation-receipt.v1` identity while retaining their native receipt
+schema. The inventory-owned `installation_contract` is the support-tier and
+surface × operation matrix; `ADAPTER` names an existing characterized route,
+not permission for this generic CLI to write.
+
+The plan keeps the
 closed projection evidence vocabulary separate from lifecycle presentation.
 `INSTALL_PASS + CONSUMER_BLOCKED` is never a projection `PASS` and cannot
 promote a support tier. Write actions currently return `BLOCKED` with the
 stable `NOT_IMPLEMENTED` diagnostic before any mutation. In particular, retain
 the supported `install-codex-skills.sh` route for Codex project-local writes and
-`install-cursor-harness.sh` for Cursor project-local writes until those adapters
-are migrated through the same ArtifactStore transaction.
+`install-cursor-harness.sh` for Cursor project-local writes. The generic route
+stays fail-closed until a future change explicitly transfers ArtifactStore
+write ownership; adapter characterization alone never enables mutation.
 
 ### Standalone selection and profile selection
 

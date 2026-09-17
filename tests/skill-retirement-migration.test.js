@@ -217,6 +217,24 @@ test('identity resolution distinguishes active, retired skill, retired model-def
   });
 });
 
+// RED contract for issue #534 P2: active public renames are diagnostics, not
+// compatibility aliases.  The stable ID remains the only selectable identity.
+test('identity resolution reports renamed active names without aliasing or successor invocation', () => {
+  const inventory = fixtureInventory();
+  const resolution = resolveSkillIdentity({ inventory, identifier: 'dhpk-laravel' });
+  assert.strictEqual(resolution.state, 'renamed');
+  assert.strictEqual(resolution.stableId, 'laravel');
+  assert.strictEqual(resolution.publicName, 'laravel');
+  assert.strictEqual(resolution.oldName, 'dhpk-laravel');
+  assert.strictEqual(resolution.alias, undefined);
+  assert.strictEqual(resolution.successor, undefined);
+
+  const diagnostic = formatSkillIdentityDiagnostic({ inventory, resolution });
+  assert.match(diagnostic, /renamed/i);
+  assert.match(diagnostic, /dhpk-laravel/);
+  assert.match(diagnostic, /laravel/);
+});
+
 test('malformed retirement rows fail closed before identity diagnostics', () => {
   const inventory = fixtureInventory();
   inventory.retired_skills = [{

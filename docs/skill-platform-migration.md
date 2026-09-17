@@ -10,6 +10,15 @@ installed.
 Current Codex/Cursor installation routes and rollback boundaries live in the
 [platform installation SSOT](./platform-installation.md).
 
+For the Issue #534 default transition, preview Claude with `bash scripts/install.sh
+--dry-run`; use `scripts/hooks/install-codex-skills.sh`,
+`scripts/hooks/install-cursor-harness.sh`, or `node scripts/ci/install-agy-plugin.js
+plan` for the other hosts. A clean install selects the exact four-capability
+minimal profile. Existing receipts keep their recorded selection until explicit
+migration. Structural success never upgrades an unobserved consumer: record
+`NOT_RUN`, missing tooling as `UNAVAILABLE`, and failed prerequisites as
+`BLOCKED`. Generic `dhpk-install` writes remain `NOT_IMPLEMENTED`.
+
 ## Current contract
 
 | Concern | Current implementation |
@@ -22,8 +31,8 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 | Codex native package | 15 physical packages under `plugins/dhpk/skills/`; zero symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
-| Profile sizes | `minimal=8`, `full=55`, `compat-v1=62` before overlays |
-| Shared Agent/Cursor/AGY surface | 37 selected stable IDs per surface |
+| Profile sizes | `minimal=4`, `full=55`, `compat-v1=62` before overlays; minimal is `change-verdict`, `code-trace`, `flow-drive`, `flow-guide` |
+| Agent/Cursor/AGY publication | Agent Plugin and AGY each select 37 stable IDs; Cursor native owns 4 overlay entries and shares Agent portable skills |
 
 Directory placement and README lists are not authoritative. The inventory
 owns stable ids, public names, lifecycle, modules, and publication surfaces;

@@ -1,6 +1,6 @@
 {
-  "schema": "dhpk.command-skill-disposition.v1",
-  "source_revision": "sha256:aad871ed2f83e0ab0d674d7b51e79d18f2dbe80e6ca062847cc649c6675be401",
+  "schema": "dhpk.command-skill-disposition.v2",
+  "source_revision": "sha256:f17528c488e05c2f9b2bb2e23950e2b1da634cbd27aa2d32291d29502e6a0b7c",
   "commands": [
     {
       "id": "check-coverage",
@@ -10,9 +10,18 @@
       "argument_contract": "",
       "authority": "read-only",
       "skill_owner": null,
-      "disposition": "retired",
-      "reason": "Deprecated coverage alias is retained only for compatibility; use the canonical review owner.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "disposition": "host-only",
+      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/check-coverage.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/check-coverage.md"
+      ]
     },
     {
       "id": "codex-test-gen",
@@ -22,9 +31,18 @@
       "argument_contract": "",
       "authority": "workspace-write",
       "skill_owner": null,
-      "disposition": "retired",
-      "reason": "Deprecated Codex-named test-generation alias; use the Codex-free TDD owner.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "disposition": "host-only",
+      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/codex-test-gen.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/codex-test-gen.md"
+      ]
     },
     {
       "id": "create-pr",
@@ -36,7 +54,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "GitHub CLI, repository credentials, and pull-request mutation are host-specific authority.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/create-pr.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/create-pr.md"
+      ]
     },
     {
       "id": "create-release",
@@ -48,7 +75,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Release tagging, changelog mutation, and remote PR/release operations depend on the host repository.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/create-release.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/create-release.md"
+      ]
     },
     {
       "id": "deep-analyze",
@@ -60,7 +96,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Proposal research and OpenSpec authoring are coupled to the host's external authoring workflow.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/deep-analyze.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/deep-analyze.md"
+      ]
     },
     {
       "id": "dep-audit",
@@ -72,7 +117,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Package-manager audit/fix commands and their credentials vary by host project.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/dep-audit.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/dep-audit.md"
+      ]
     },
     {
       "id": "doc-refactor",
@@ -84,7 +138,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Document editing is a host command boundary with project-local writing policy and file authority.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/doc-refactor.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/doc-refactor.md"
+      ]
     },
     {
       "id": "flow-drive",
@@ -95,7 +158,16 @@
       "authority": "workspace-write",
       "skill_owner": "flow-drive",
       "disposition": "thin-front-door",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/flow-drive.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/flow-drive.md"
+      ]
     },
     {
       "id": "flow-guide",
@@ -106,7 +178,16 @@
       "authority": "delegate",
       "skill_owner": "flow-guide",
       "disposition": "thin-front-door",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/flow-guide.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/flow-guide.md"
+      ]
     },
     {
       "id": "git-worktree",
@@ -118,7 +199,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Worktree lifecycle changes local Git topology and cannot be granted by a portable Skill contract.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/git-worktree.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/git-worktree.md"
+      ]
     },
     {
       "id": "harness-audit",
@@ -130,7 +220,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "The command is a host-specific audit adapter; reusable harness governance already owns the portable capability.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/harness-audit.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/harness-audit.md"
+      ]
     },
     {
       "id": "harness-govern",
@@ -141,7 +240,16 @@
       "authority": "external-write",
       "skill_owner": "harness-govern",
       "disposition": "thin-front-door",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/harness-govern.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/harness-govern.md"
+      ]
     },
     {
       "id": "install-hooks",
@@ -151,9 +259,18 @@
       "argument_contract": "",
       "authority": "workspace-write",
       "skill_owner": null,
-      "disposition": "retired",
-      "reason": "Deprecated installation alias; setup is the single host installation owner.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "disposition": "host-only",
+      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/install-hooks.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/install-hooks.md"
+      ]
     },
     {
       "id": "install-rules",
@@ -163,9 +280,18 @@
       "argument_contract": "",
       "authority": "workspace-write",
       "skill_owner": null,
-      "disposition": "retired",
-      "reason": "Deprecated installation alias; setup is the single host installation owner.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "disposition": "host-only",
+      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/install-rules.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/install-rules.md"
+      ]
     },
     {
       "id": "install-scripts",
@@ -175,9 +301,18 @@
       "argument_contract": "",
       "authority": "workspace-write",
       "skill_owner": null,
-      "disposition": "retired",
-      "reason": "Deprecated installation alias; setup is the single host installation owner.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "disposition": "host-only",
+      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/install-scripts.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/install-scripts.md"
+      ]
     },
     {
       "id": "matrix-cell-onboard",
@@ -188,7 +323,16 @@
       "authority": "workspace-write",
       "skill_owner": "matrix-cell-onboard",
       "disposition": "thin-front-door",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/matrix-cell-onboard.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/matrix-cell-onboard.md"
+      ]
     },
     {
       "id": "merge-prep",
@@ -200,7 +344,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Branch topology and merge state are repository-local Git authority.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/merge-prep.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/merge-prep.md"
+      ]
     },
     {
       "id": "opsx-apply-resume",
@@ -212,7 +365,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Cross-session state and Claude-specific continuation artifacts are host lifecycle authority.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/opsx-apply-resume.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/opsx-apply-resume.md"
+      ]
     },
     {
       "id": "pr-summary",
@@ -224,7 +386,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Pull-request lookup depends on GitHub CLI access, repository identity, and host credentials.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/pr-summary.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/pr-summary.md"
+      ]
     },
     {
       "id": "precommit-fast",
@@ -234,9 +405,18 @@
       "argument_contract": "",
       "authority": "read-only",
       "skill_owner": null,
-      "disposition": "retired",
-      "reason": "Deprecated fast-check alias; precommit owns the combined verification entry point.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "disposition": "host-only",
+      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/precommit-fast.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/precommit-fast.md"
+      ]
     },
     {
       "id": "precommit",
@@ -248,7 +428,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Runner selection and repository-local precommit mutation are host lifecycle behavior.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/precommit.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/precommit.md"
+      ]
     },
     {
       "id": "project-brief",
@@ -260,7 +449,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Executive-brief output location and project-specific source policy are host document authority.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/project-brief.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/project-brief.md"
+      ]
     },
     {
       "id": "review-pending",
@@ -272,7 +470,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Pending-diff selection and reviewer delegation depend on the current host session and worktree.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/review-pending.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/review-pending.md"
+      ]
     },
     {
       "id": "setup",
@@ -284,19 +491,37 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Interactive configuration, credentials, and local asset installation are host authority.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/setup.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/setup.md"
+      ]
     },
     {
       "id": "simplify",
       "path": "commands/simplify.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:simplify",
-      "argument_contract": "<file or directory>",
+      "argument_contract": "[<PR|branch|file|directory>]",
       "authority": "workspace-write",
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Interactive refactoring and test execution require host workspace and tool authority.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/simplify.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/simplify.md"
+      ]
     },
     {
       "id": "smart-commit",
@@ -307,7 +532,16 @@
       "authority": "git-write",
       "skill_owner": "git-smart-commit",
       "disposition": "thin-front-door",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/smart-commit.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/smart-commit.md"
+      ]
     },
     {
       "id": "spec-mine",
@@ -319,7 +553,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Brownfield sampling and OpenSpec artifact writes are tied to the host project and agent delegation.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/spec-mine.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/spec-mine.md"
+      ]
     },
     {
       "id": "ui-ux-verify",
@@ -331,7 +574,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Browser automation, live URLs, and screenshot/report artifacts are host-only capabilities.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/ui-ux-verify.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/ui-ux-verify.md"
+      ]
     },
     {
       "id": "update-codemaps",
@@ -343,7 +595,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Codemap generation writes project-specific architecture documents and requires host structure.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/update-codemaps.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/update-codemaps.md"
+      ]
     },
     {
       "id": "update-docs",
@@ -355,7 +616,16 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Documentation updates are project-local writes governed by the host checkout and locale pair.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/update-docs.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/update-docs.md"
+      ]
     },
     {
       "id": "verify",
@@ -367,7 +637,239 @@
       "skill_owner": null,
       "disposition": "host-only",
       "reason": "Runner, package manager, integration environment, and e2e services are host-specific runtime authority.",
-      "evidence": { "structural": "PASS", "host_smoke": "NOT_RUN", "consumer": "NOT_RUN" }
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "commands/verify.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "commands/verify.md"
+      ]
     }
-  ]
+  ],
+  "removed_commands": [
+    {
+      "id": "check-skill",
+      "path": "commands/check-skill.md",
+      "public_name": "/dhpk:check-skill",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "skill-scope",
+        "mode": "health"
+      },
+      "reason": "The legacy command is removed; use the skill-scope health selector.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "create-dev",
+      "path": "commands/create-dev.md",
+      "public_name": "/dhpk:create-dev",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "flow-guide",
+        "mode": "route"
+      },
+      "reason": "The broad development entry is removed; route intent through flow-guide or use the external OpenSpec authoring workflow.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "do",
+      "path": "commands/do.md",
+      "public_name": "/dhpk:do",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "flow-guide",
+        "mode": "route"
+      },
+      "reason": "The broad router is removed; use flow-guide for routing and flow-drive for confirmed implementation.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "codex-review",
+      "path": "commands/codex-review.md",
+      "public_name": "/dhpk:codex-review",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "change-verdict",
+        "mode": "code"
+      },
+      "reason": "The legacy command family is removed; use change-verdict code mode with an explicit CLI backend when requested.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "codex-review-fast",
+      "path": "commands/codex-review-fast.md",
+      "public_name": "/dhpk:codex-review-fast",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "change-verdict",
+        "mode": "code"
+      },
+      "reason": "The legacy fast review command is removed; use change-verdict code mode.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "codex-review-branch",
+      "path": "commands/codex-review-branch.md",
+      "public_name": "/dhpk:codex-review-branch",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "change-verdict",
+        "mode": "pr"
+      },
+      "reason": "The legacy branch review command is removed; use change-verdict PR mode.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "codex-review-doc",
+      "path": "commands/codex-review-doc.md",
+      "public_name": "/dhpk:codex-review-doc",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "change-verdict",
+        "mode": "docs"
+      },
+      "reason": "The legacy document review command is removed; use change-verdict docs mode.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "codex-security",
+      "path": "commands/codex-security.md",
+      "public_name": "/dhpk:codex-security",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "change-verdict",
+        "mode": "security"
+      },
+      "reason": "The legacy security command is removed; use change-verdict security mode.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "codex-test-review",
+      "path": "commands/codex-test-review.md",
+      "public_name": "/dhpk:codex-test-review",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "change-verdict",
+        "mode": "tests"
+      },
+      "reason": "The legacy test review command is removed; use change-verdict tests mode.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "review-spec",
+      "path": "commands/review-spec.md",
+      "public_name": "/dhpk:review-spec",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "skill",
+        "id": "change-verdict",
+        "mode": "docs"
+      },
+      "reason": "The legacy specification review command is removed; use change-verdict docs mode.",
+      "callers": [
+        "docs/skill-platform-migration.md"
+      ],
+      "evidence": {
+        "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    }
+  ],
+  "removed_source_revision": "sha256:0a9b8c8bc649180f886819ea79391b0ed7f8cee7e865404a6e670551c859528f"
 }

@@ -23,8 +23,28 @@ function invoke(args, cwd = ROOT) {
   });
 }
 
+function withTmpdirSymlinkAlias(callback) {
+  const originalTmpdir = os.tmpdir;
+  const hadTmpdirEnvironment = Object.prototype.hasOwnProperty.call(process.env, 'TMPDIR');
+  const originalTmpdirEnvironment = process.env.TMPDIR;
+  const physicalTmp = fs.realpathSync(originalTmpdir());
+  const aliasRoot = fs.mkdtempSync(path.join(physicalTmp, 'dhpk-distribution-tmp-alias-'));
+  const alias = path.join(aliasRoot, 'tmp');
+  fs.symlinkSync(physicalTmp, alias, 'dir');
+  os.tmpdir = () => alias;
+  process.env.TMPDIR = alias;
+  try {
+    return callback({ physicalTmp, alias });
+  } finally {
+    if (hadTmpdirEnvironment) process.env.TMPDIR = originalTmpdirEnvironment;
+    else delete process.env.TMPDIR;
+    os.tmpdir = originalTmpdir;
+    fs.rmSync(aliasRoot, { recursive: true, force: true });
+  }
+}
+
 function withCleanWorktree(callback) {
-  const worktreeParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-clean-'));
+  const worktreeParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-clean-'));
   const worktreeRoot = path.join(worktreeParent, 'checkout');
   let worktreeAdded = false;
   try {
@@ -94,26 +114,55 @@ test('validates every retained package surface through one JSON command contract
 });
 
 test('generates a disposable AGY package and validates that exact output', () => {
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-cli-'));
-  const outDir = path.join(temporaryRoot, 'agy-package');
-  try {
-    withCleanWorktree((worktreeRoot) => {
-      const generated = invoke(['agy-plugin', 'generate', '--output', outDir, '--version', '0.42.2', '--json'], worktreeRoot);
-      assert.strictEqual(generated.status, 0, generated.stderr);
-      assert.strictEqual(report(generated).verdict, 'PASS');
-      assert.ok(fs.existsSync(path.join(outDir, 'plugin.json')));
+  withTmpdirSymlinkAlias(() => {
+    const temporaryRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-cli-'));
+    const outDir = path.join(temporaryRoot, 'agy-package');
+    try {
+      withCleanWorktree((worktreeRoot) => {
+        const generated = invoke(['agy-plugin', 'generate', '--output', outDir, '--version', '0.42.2', '--json'], worktreeRoot);
+        assert.strictEqual(generated.status, 0, generated.stderr);
+        assert.strictEqual(report(generated).verdict, 'PASS');
+        assert.ok(fs.existsSync(path.join(outDir, 'plugin.json')));
+        assert.strictEqual(fs.realpathSync(outDir), outDir);
 
-      const validated = invoke(['agy-plugin', 'validate', '--output', outDir, '--version', '0.42.2', '--json'], worktreeRoot);
-      assert.strictEqual(validated.status, 0, validated.stderr);
-      assert.strictEqual(report(validated).verdict, 'PASS');
-    });
-  } finally {
-    fs.rmSync(temporaryRoot, { recursive: true, force: true });
-  }
+        const validated = invoke(['agy-plugin', 'validate', '--output', outDir, '--version', '0.42.2', '--json'], worktreeRoot);
+        assert.strictEqual(validated.status, 0, validated.stderr);
+        assert.strictEqual(report(validated).verdict, 'PASS');
+      });
+    } finally {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+test('accepts a symlinked os.tmpdir alias but rejects a symlinked AGY output', () => {
+  withTmpdirSymlinkAlias(({ physicalTmp }) => {
+    const temporaryRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-alias-'));
+    const outDir = path.join(temporaryRoot, 'agy-package');
+    const foreignRoot = fs.mkdtempSync(path.join(physicalTmp, 'dhpk-distribution-foreign-target-'));
+    const foreignOut = path.join(temporaryRoot, 'foreign-package');
+    fs.symlinkSync(foreignRoot, foreignOut, 'dir');
+    try {
+      assert.strictEqual(fs.realpathSync(foreignOut), foreignRoot);
+      withCleanWorktree((worktreeRoot) => {
+        const generated = invoke(['agy-plugin', 'generate', '--output', outDir, '--version', '0.42.2', '--json'], worktreeRoot);
+        assert.strictEqual(generated.status, 0, generated.stderr);
+        assert.ok(fs.existsSync(path.join(outDir, 'plugin.json')));
+
+        const rejected = invoke(['agy-plugin', 'generate', '--output', foreignOut, '--version', '0.42.2', '--json'], worktreeRoot);
+        assert.strictEqual(rejected.status, 1, rejected.stderr);
+        assert.match(rejected.stderr, /foreign output|physical package directory/i);
+        assert.strictEqual(fs.existsSync(path.join(foreignRoot, 'plugin.json')), false);
+      });
+    } finally {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+      fs.rmSync(foreignRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 test('rejects provenance-bound generation from a dirty source checkout before writing output', () => {
-  const worktreeParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-dirty-'));
+  const worktreeParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-dirty-'));
   const worktreeRoot = path.join(worktreeParent, 'checkout');
   const outDir = path.join(worktreeParent, 'agent-package');
   let worktreeAdded = false;
@@ -148,7 +197,7 @@ test('rejects provenance-bound generation from a dirty source checkout before wr
 });
 
 test('validate and verify still run on a dirty checkout because they do not write provenance', () => {
-  const worktreeParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-dirty-read-'));
+  const worktreeParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-dirty-read-'));
   const worktreeRoot = path.join(worktreeParent, 'checkout');
   let worktreeAdded = false;
   const marker = path.join(worktreeRoot, `.issue-237-dirty-source-read-${process.pid}`);
@@ -189,7 +238,7 @@ test('validate and verify still run on a dirty checkout because they do not writ
 });
 
 test('refuses to replace a foreign output directory before package materialization', () => {
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-foreign-'));
+  const temporaryRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-foreign-'));
   const outDir = path.join(temporaryRoot, 'foreign-package');
   fs.mkdirSync(outDir);
   const sentinel = path.join(outDir, 'user-owned.txt');

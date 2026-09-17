@@ -8,7 +8,7 @@ const TRANSPORT_REQUESTS = Object.freeze({
   'codex-cli/local-cli': Object.freeze({ executable: 'codex', stdin_mode: 'prompt', output: 'transport-file' }),
   'agy/local-cli': Object.freeze({ executable: 'agy', stdin_mode: 'agy-confirmation', output: 'none' }),
   'claude-code/local-cli': Object.freeze({ executable: 'claude', stdin_mode: 'prompt', output: 'stdout' }),
-  'cursor-native/native-runtime': Object.freeze({ executable: null, stdin_mode: 'native', output: 'native-result' }),
+  'cursor/native-runtime': Object.freeze({ executable: null, stdin_mode: 'native', output: 'native-result' }),
 });
 
 function requireTarget(target) {
@@ -16,6 +16,11 @@ function requireTarget(target) {
 }
 
 function translatedModel(target, catalog) {
+  if (catalog && catalog.models && target.target_agent === 'agy' && target.provider === 'google' && target.model_id) {
+    const model = catalog.models[`google/${target.model_id}`];
+    if (model) return model.display_name;
+  }
+  if (catalog && catalog.models && target.provider && target.model_id) return target.model_id;
   const provider = catalog && Array.isArray(catalog.providers)
     ? catalog.providers.find((entry) => entry.provider === target.provider)
     : null;
@@ -24,31 +29,47 @@ function translatedModel(target, catalog) {
     : null;
   return model && model.effort_mapping && model.effort_mapping[target.effort]
     ? model.effort_mapping[target.effort]
-    : target.model;
+    : target.model_id || target.model;
 }
 
 function buildInvocation(target, request, { printTimeout = '300s', catalog = DEFAULT_CATALOG } = {}) {
   const normalizedTarget = requireTarget(target);
-  const transport = TRANSPORT_REQUESTS[`${normalizedTarget.provider}/${normalizedTarget.transport}`];
-  if (!transport) throw new Error(`unsupported Provider/Transport: ${normalizedTarget.provider}/${normalizedTarget.transport}`);
-  if (normalizedTarget.provider === 'cursor-native') {
-    return Object.freeze({ provider: normalizedTarget.provider, transport: normalizedTarget.transport, executable: null, argv: [], stdin_mode: transport.stdin_mode, output: transport.output });
+  const adapter = normalizedTarget.target_agent || normalizedTarget.provider;
+  const transport = TRANSPORT_REQUESTS[`${adapter}/${normalizedTarget.transport}`]
+    || TRANSPORT_REQUESTS[`${normalizedTarget.provider}/${normalizedTarget.transport}`];
+  // A native route is owned by the current Host, even when the model vendor
+  // differs from the Host's canonical Agent (for example Cursor invoking an
+  // Anthropic model).  Native execution has no target CLI argv; the Host
+  // adapter receives the resolved identity separately.
+  if (normalizedTarget.route === 'native' && normalizedTarget.transport === 'native-runtime') {
+    return Object.freeze({
+      provider: normalizedTarget.provider,
+      transport: normalizedTarget.transport,
+      executable: null,
+      argv: [],
+      stdin_mode: transport ? transport.stdin_mode : 'native',
+      output: transport ? transport.output : 'native-result',
+    });
   }
+  if (!transport) throw new Error(`unsupported Provider/Transport: ${normalizedTarget.provider}/${normalizedTarget.transport}`);
   const workdir = request.scope.workdir;
-  if (normalizedTarget.provider === 'codex-cli') {
+  if (adapter === 'codex-cli' || normalizedTarget.provider === 'openai' || normalizedTarget.provider === 'codex-cli') {
     const argv = ['exec', '--skip-git-repo-check', '--sandbox', request.authority,
       '-c', 'approval_policy=never', '--cd', workdir, '-m', normalizedTarget.model,
       '-c', `model_reasoning_effort=${normalizedTarget.effort}`,
       '--output-last-message', '{transport_output}', '-'];
     return Object.freeze({ provider: normalizedTarget.provider, transport: normalizedTarget.transport, executable: transport.executable, argv: Object.freeze(argv), stdin_mode: transport.stdin_mode, output: transport.output });
   }
-  if (normalizedTarget.provider === 'agy') {
+  if (adapter === 'agy' || normalizedTarget.provider === 'google' || normalizedTarget.provider === 'agy') {
     const argv = ['--dangerously-skip-permissions', '--mode', 'accept-edits', '--add-dir', workdir,
       '--model', translatedModel(normalizedTarget, catalog), '--print-timeout', printTimeout, '-p', '{prompt}'];
     return Object.freeze({ provider: normalizedTarget.provider, transport: normalizedTarget.transport, executable: transport.executable, argv: Object.freeze(argv), stdin_mode: transport.stdin_mode, output: transport.output });
   }
-  const argv = ['--model', normalizedTarget.model, '--effort', normalizedTarget.effort, '--prompt-file', '{prompt}'];
-  return Object.freeze({ provider: normalizedTarget.provider, transport: normalizedTarget.transport, executable: transport.executable, argv: Object.freeze(argv), stdin_mode: transport.stdin_mode, output: transport.output });
+  if (adapter === 'claude-code' || normalizedTarget.provider === 'anthropic' || normalizedTarget.provider === 'claude-code') {
+    const argv = ['--print', '--model', normalizedTarget.model, '--effort', normalizedTarget.effort, '--output-format', 'json'];
+    return Object.freeze({ provider: normalizedTarget.provider, transport: normalizedTarget.transport, executable: transport.executable, argv: Object.freeze(argv), stdin_mode: transport.stdin_mode, output: transport.output });
+  }
+  throw new Error(`unsupported Target-Agent/Provider adapter: ${normalizedTarget.target_agent}/${normalizedTarget.provider}`);
 }
 
 function createCliAdapter({ provider, version, execute, catalog = DEFAULT_CATALOG } = {}) {

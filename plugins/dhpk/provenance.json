@@ -3,12 +3,12 @@
   "surface": "codex-native",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.61.0",
-  "sourceCommit": "40e05f87692b5f10269add45fbeb7d3cb3ab374b",
-  "generatedFromCommit": "40e05f87692b5f10269add45fbeb7d3cb3ab374b",
-  "generatedFromTree": "112af1b6b55dbf2f91feb5a523b06df985a44ae3",
-  "inventoryDigest": "58831cad32cf18d758b84e382bdc9bac65b7c8d00cab508762c887d642e060d9",
-  "inventoryRevision": "sha256:ad8494e1aee3e3ac59c2611d38c86aac1c882635989b812ff8d5e31092b43562",
+  "sourceVersion": "0.62.0",
+  "sourceCommit": "30ef5f31d190ed3d6b4116c78c9250517e03f983",
+  "generatedFromCommit": "30ef5f31d190ed3d6b4116c78c9250517e03f983",
+  "generatedFromTree": "592abc491289354405da110a45ed6c8919917993",
+  "inventoryDigest": "6e9af26ac6cf5f90208a4360c24b5091cf9dfbbd478b9fb83682504d747c0738",
+  "inventoryRevision": "sha256:4870c6b34e8040a8dde5267d2b13e1f00f23fe44258b546900c23303a5d8300e",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "code-trace",
@@ -93,17 +93,66 @@
     "dhpk-legacy-characterization-tests": "2a2df71423e54c8e24f10c645b917eb070aa728905171da6783dd23af16f8cf6",
     "dhpk-yii1-php56-development": "8af02d34fca4f9eaee43d4ceb72851dfe494462955af1b08f7cb74a2f703f2bc",
     "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
-    "flow-guide": "54a569ee725121e44189c3417524d38715c822c2badb74f1c1218f2c90d1e35d",
+    "flow-guide": "53c8090c5449038eeae0a931c764743ecfc9b8527366ec39570d11ccca8c25f3",
     "code-trace": "f97e720f358a8320b62977c04c0e1dd59a0277ee49e65500aa6c4aae32a7b3e6",
     "flow-drive": "1901a1e5525aaf6f133b48c1cd3f9d0de70e5ec5baed3640375b2fdcc61de43c",
     "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
     "dhpk-opsx-load-context": "405884767ca4114a166db0e0e8e52c48e1ccc502d0b6ff5fbede2c8654b72ee1",
     "dhpk-opsx-post-observation": "cfb6322b54bac5536b4c76f42165095100fca25b45b0065a337b03a9c83b8c75",
-    "skill-scope": "7eebca48fb7b447ba9ab07d2694eeab7f6b2ec12d5b416eff716e9117228e3ca",
+    "skill-scope": "92679bf17ebcfe00bf588f323fbde04e0b393495029f05093772a3ea593d5a12",
     "dhpk-tdd-workflow": "e6c686704db2c5c5385a2b6c28ac4c1099e76b7f51f5708a69eaf7b31b5722c6",
-    "harness-govern": "4356c8e77a6379b2d7e2de5bfc2e26b4794a17af8916a9ac37eebc35c40b93d3",
+    "harness-govern": "62f52add7477a33565fa7aefe4d8b7c670fc82e7dea9210839e4c6778b9714b3",
     "dhpk-cli-dispatch-context": "ebbac24048a7f4784f150d087144e95dc532b157feeee41fb57497516572672e",
     "dhpk-cli-transport": "12926e258a9c40c274f4ea1789d0fb8b69cf45c2d4f329aa0b359eb611aa6502"
+  },
+  "installation": {
+    "schema": "dhpk.installation-receipt.v1",
+    "planId": "54cb9d373fb41ea9f8e3907c11a64b19c4029ef198eb065119f69799d97cff8c",
+    "scope": "project",
+    "profileId": "compat-v1",
+    "selectedStableIds": [
+      "code-trace",
+      "flow-drive",
+      "flow-guide",
+      "git-smart-commit",
+      "harness-govern",
+      "legacy-code-characterization",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "php-pro",
+      "php56-yii-dev",
+      "skill-scope",
+      "tdd",
+      "yii1-security-audit"
+    ],
+    "supportClosure": {
+      "stableIds": [
+        "code-trace",
+        "flow-drive",
+        "flow-guide",
+        "git-smart-commit",
+        "harness-govern",
+        "legacy-code-characterization",
+        "opsx-load-context",
+        "opsx-post-obs",
+        "php-pro",
+        "php56-yii-dev",
+        "skill-scope",
+        "tdd",
+        "yii1-security-audit"
+      ]
+    },
+    "ownership": {
+      "owner": "plugins/dhpk",
+      "roots": [
+        "plugins/dhpk"
+      ]
+    },
+    "fingerprints": {
+      "plan": "54cb9d373fb41ea9f8e3907c11a64b19c4029ef198eb065119f69799d97cff8c",
+      "inventory": "6e9af26ac6cf5f90208a4360c24b5091cf9dfbbd478b9fb83682504d747c0738"
+    },
+    "rollbackIdentity": "c8175b0aeacf3f68667109c6530440cbb006c6d567fdfcd65a44d1d17a2d5714"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

@@ -108,6 +108,68 @@ Static inventory, discovery-budget, projection, profile-package, and rollback su
 - **WHEN** an optional consumer verification fails or is unavailable for an otherwise structurally valid candidate
 - **THEN** the report records that surface's non-pass state without discarding the active bundle or converting structural success into runtime PASS
 
+### Requirement: Worker-context comparisons use canonical variants and independent oracles
+
+Worker-context quality and cost comparisons SHALL compile A, B, and C from
+checked-in canonical sources: A from the pinned pre-curation baseline, B from a
+minimal worker kernel, and C from B plus only the task-matched on-demand
+reference. The benchmark SHALL default to dry-run, SHALL require explicit
+execution authorization, and SHALL bind each receipt to source commit/tree,
+dirty state, client, requested/effective model evidence, variant fingerprint,
+the selected fixtures and their independent oracles, and observed usage. A
+client that does not report its effective model MUST retain an unknown
+effective identity. The fixture set is selectable; the formal-comparison
+requirement below governs how many fixtures and sessions an executed plan needs
+before its result counts as stable evidence.
+
+#### Scenario: Benchmark is inspected without execution authority
+
+- **WHEN** the benchmark runs without `--execute`
+- **THEN** it emits the complete client-by-variant plan with `NOT_RUN` results and performs no model call
+
+#### Scenario: Small-quota pilot executes
+
+- **WHEN** an authorized operator selects a single fixture and passes `--execute`
+- **THEN** each selected A/B/C cell runs once against that fixture and its oracle and records its own usage and score
+- **AND** the receipt labels the pilot as directional rather than the required three-session formal comparison
+
+### Requirement: The formal worker-context comparison repeats sessions over a discriminating failure matrix
+
+A worker-context comparison SHALL NOT be reported as stable cost or quality
+evidence until it runs at least three independent sessions per client/variant
+cell across a failure matrix of at least two fixtures. The matrix SHALL include
+at least one negative-control fixture whose correct decision is not `BLOCKED`,
+so that a context which refuses unconditionally cannot score a pass. Each oracle
+MAY declare forbidden reason codes in addition to required ones, and an oracle
+that declares no technique pattern SHALL NOT be scored on technique. The receipt
+SHALL classify every cell as `STABLE_PASS`, `STABLE_FAIL`, `UNSTABLE`, or
+`NOT_RUN` from its own sessions, and SHALL carry `evidenceClass:
+formal-comparison` only when the executed plan meets both the session and
+fixture floors; every other executed plan remains `directional-pilot`. An
+execution plan larger than the recorded directional-pilot footprint SHALL fail
+closed unless the operator states an explicit call ceiling, and SHALL fail
+closed when the plan exceeds that ceiling.
+
+#### Scenario: A refusing context fails the negative control
+
+- **WHEN** a variant returns the blocking answer that passes the shared-source fixture against the negative-control fixture
+- **THEN** the oracle scores that cell as failed and the variant does not accumulate a matrix pass
+
+#### Scenario: Sessions disagree for one cell
+
+- **WHEN** a client/variant/fixture cell passes in some sessions and fails in others
+- **THEN** the receipt reports that cell as `UNSTABLE` and does not report it as a pass
+
+#### Scenario: An execution plan exceeds the pilot footprint
+
+- **WHEN** an authorized operator requests more calls than the recorded directional pilot without stating a call ceiling
+- **THEN** the benchmark fails closed with the planned call count before any model call is made
+
+#### Scenario: Formal classification is withheld
+
+- **WHEN** an executed plan repeats sessions but covers only a single fixture, or covers the matrix without repeating sessions
+- **THEN** the receipt stays `directional-pilot` and the formal gate remains open
+
 ### Requirement: Default-discoverable surface stays within an aggregate ceiling
 
 In addition to the existing per-lifecycle/per-surface description budgets, the catalog SHALL compute and enforce a whole-catalog ceiling over the default-discoverable set (the `implicit-eligible` entries published on the `claude-core` surface for the `minimal`/default Claude install artifact): no more than 15 entries, and an aggregate description-token total reduced by at least 70% from the recorded raw-compatibility pre-curation baseline. The baseline SHALL be measured and recorded before any curation edit lands, using the same estimator and scope already defined for per-entry budgets. The measurement SHALL be reproducible: running it twice against unchanged canonical sources and inventory SHALL produce an identical entry count and token total.
@@ -210,12 +272,12 @@ The consolidated PHPUnit family SHALL follow the authoritative annotation lifecy
 
 ### Requirement: Capability-family discovery exposes interfaces rather than modes
 
-Discovery-visible metadata SHALL expose one concise description for each capability family and SHALL keep mode procedures out of the initial context. For this inventory revision the canonical inventory SHALL contain exactly 65 skills, exactly 9 live `portable-family` entries, and exactly 56 live entries whose public name retains the `dhpk-` prefix. The selected profile counts SHALL be `minimal=8`, `full=55`, and `compat-v1=62` before any explicit overlay.
+Discovery-visible metadata SHALL expose one concise description for each capability family and SHALL keep mode procedures out of the initial context. For this inventory revision the canonical inventory SHALL contain exactly 65 skills, exactly 9 live `portable-family` entries, and exactly 56 live entries whose public name retains the `dhpk-` prefix. The selected profile counts SHALL be `minimal=4`, `full=55`, and `compat-v1=62` before any explicit overlay.
 
 #### Scenario: Family surface meets the structural baseline
 
 - **WHEN** inventory and profile validation run after the consolidation
-- **THEN** the reported canonical, naming-style, and profile counts match `65`, `9`, `56`, `8`, `55`, and `62`, and identify any unexpected entry by stable ID
+- **THEN** the reported canonical, naming-style, and profile counts match `65`, `9`, `56`, `4`, `55`, and `62`, and identify any unexpected entry by stable ID
 
 #### Scenario: Mode procedures leak into discovery metadata
 

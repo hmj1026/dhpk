@@ -8,7 +8,7 @@ TBD - created by archiving change repair-open-issues-and-agent-guidance. Update 
 
 ### Requirement: The basic-operation guide presents a surface-first decision path
 
-The paired `docs/basic-operations.md` and `docs/basic-operations.zh-TW.md` guides SHALL distinguish Claude marketplace, `--plugin-dir` development, `scripts/install.sh` convenience installation, supported project-local Codex sync, and experimental native Codex. The guide SHALL lead readers from install and verification to the correct invocation surface instead of treating management commands as skill execution.
+The paired `docs/basic-operations.md` and `docs/basic-operations.zh-TW.md` guides SHALL distinguish Claude marketplace, `--plugin-dir` development, `scripts/install.sh` convenience installation, supported project-local Codex sync, Cursor sync, and experimental native Codex and AGY adapters. The guide SHALL lead readers from install and verification to the correct invocation surface instead of treating management commands as skill execution, and SHALL name the exact four-capability clean-install default.
 
 #### Scenario: New user installs dhpk
 
@@ -22,7 +22,7 @@ The paired `docs/basic-operations.md` and `docs/basic-operations.zh-TW.md` guide
 
 ### Requirement: The guide reflects the evidence-backed daily dhpk workflow
 
-The guide SHALL express the recommended sequence: inspect repository/session state, choose the appropriate `/dhpk:do` or explicit skill route, use TDD and impact checks before implementation edits, satisfy review/verification gates, and hand off with a single next command. For unclear multi-session work it SHALL point to the wayfinder/OpenSpec planning boundary; for confirmed changes it SHALL distinguish `opsx:new`/`opsx:ff`, `opsx:apply`, verification, and archive.
+The guide SHALL express the recommended sequence: inspect repository/session state, choose the host-appropriate `flow-guide`, `flow-drive`, or explicit family-skill route, use TDD and impact checks before implementation edits, satisfy review/verification gates, and hand off with a single next command. For unclear multi-session work it SHALL point to the wayfinder/OpenSpec planning boundary; for confirmed changes it SHALL distinguish `opsx:new`/`opsx:ff`, `opsx:apply`, verification, and archive.
 
 #### Scenario: User starts a new feature or bug request
 

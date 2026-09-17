@@ -14,7 +14,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
+const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -511,6 +511,14 @@ function compileNativePackage({
     skillPackageClosure,
     runtimeSupportStableIds: nativeSelection.runtimeSupportStableIds,
     fingerprints,
+    ...(selectedSkillIds.length > 0 ? { installation: createInstallationReceiptIdentity({
+      surface: 'codex-native', scope: 'project', sourceVersion: version,
+      inventoryDigest,
+      profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'compat-v1',
+      selectedStableIds: profileSelection && profileSelection.selectedStableIds || selectedSkillIds,
+      supportClosure: profileSelection && profileSelection.dependencyClosure,
+      ownedRoots: ['plugins/dhpk'],
+    }) } : {}),
     routingProjection,
     ...(selectedEntries.some((entry) => entry.usage) ? {
       usageSchema: 'dhpk.skill-usage.v1',
@@ -574,6 +582,7 @@ function compileNativePackage({
     } : {}),
   }));
   const compiled = compileDistribution({
+    internalCharacterization: selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy),
     surface: 'codex-native',
     compilerVersion: `codex-native-${generatorVersion}`,
     inventoryFingerprint: inventoryDigest,

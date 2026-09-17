@@ -313,11 +313,16 @@ def validate_antigravity(repo_root, membership=None):
                 notes.append("Rule 缺少 trigger frontmatter：%s" % relpath(path, repo_root))
                 break
 
-    smoke_ok = bool(glob.glob(os.path.join(repo_root, ".agent/skills/*/SKILL.md"))) and bool(
+    project_skill_roots = (".agents/skills", ".agent/skills")
+    smoke_ok = any(
+        glob.glob(os.path.join(repo_root, root, "*.md"))
+        or glob.glob(os.path.join(repo_root, root, "*/SKILL.md"))
+        for root in project_skill_roots
+    ) and bool(
         glob.glob(os.path.join(repo_root, ".agent/workflows/*.md"))
     )
     if not smoke_ok:
-        notes.append(".agent 缺少核心 skills/workflows")
+        notes.append(".agents/.agent 缺少核心 skills，或 .agent 缺少 workflows")
 
     hook_state = ROW_SKIP_INCOMPATIBLE
     hook_reason = "Antigravity hook parity 不支援；視為 skip-incompatible"
@@ -1301,23 +1306,26 @@ def run_policy_checks(repo_root, codex_present=True):
     checks = []
 
     # --- 5.1 Canonical path check ---
-    agent_skills = os.path.join(repo_root, ".agent", "skills")
-    agents_skills = os.path.join(repo_root, ".agents", "skills")
-    has_canonical = os.path.isdir(agent_skills) and bool(os.listdir(agent_skills))
-    has_legacy_only = (not has_canonical) and os.path.isdir(agents_skills) and bool(os.listdir(agents_skills))
+    canonical_skills = os.path.join(repo_root, ".agents", "skills")
+    legacy_skills = os.path.join(repo_root, ".agent", "skills")
+    has_canonical = os.path.isdir(canonical_skills) and bool(os.listdir(canonical_skills))
+    has_legacy = os.path.isdir(legacy_skills) and bool(os.listdir(legacy_skills))
 
     if has_canonical:
         checks.append({"id": "path.canonical", "level": "info", "status": CHECK_PASS,
-                       "message": "`.agent/skills` 為 canonical path，存在且有內容。"})
-    elif has_legacy_only:
-        checks.append({"id": "path.canonical", "level": "warn", "status": CHECK_FAIL,
-                       "message": "只有 legacy alias `.agents/skills` 存在，需遷移至 `.agent/skills`。"})
+                       "message": "`.agents/skills` 為 canonical path，存在且有內容。"})
+    elif has_legacy:
+        checks.append({"id": "path.canonical", "level": "warn", "status": CHECK_PASS,
+                       "message": "只有 legacy alias `.agent/skills` 存在；建議遷移至 `.agents/skills`。"})
     else:
         checks.append({"id": "path.canonical", "level": "warn", "status": CHECK_SKIP,
-                       "message": "`.agent/skills` 與 `.agents/skills` 皆不存在。"})
+                       "message": "`.agents/skills` 與 `.agent/skills` 皆不存在。"})
 
     # --- 5.2 php-pro profile compatibility check ---
     php_pro_paths = [
+        os.path.join(repo_root, ".agents", "skills", "php-pro.md"),
+        os.path.join(repo_root, ".agents", "skills", "php-pro", "SKILL.md"),
+        os.path.join(repo_root, ".agent", "skills", "php-pro.md"),
         os.path.join(repo_root, ".agent", "skills", "php-pro", "SKILL.md"),
         os.path.join(repo_root, ".codex", "skills", "php-pro", "SKILL.md"),
         os.path.join(repo_root, ".claude", "skills", "php-pro", "SKILL.md"),

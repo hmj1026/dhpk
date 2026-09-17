@@ -402,6 +402,17 @@ function validateDispatchPacket(packet, { required = false } = {}) {
   for (const aliases of PACKET_PARTS.slice(1)) {
     if (!aliases.some((key) => present(key))) missing.push(aliases);
   }
+  // A structured packet crossing a dispatch boundary must be independently
+  // replayable.  Keep the historical five logical parts above, then require
+  // the phase/reference selectors and separate task/attempt identity when the
+  // caller marks the packet as required.  Raw legacy strings remain opaque
+  // compatibility fixtures and are not treated as structured packets.
+  if (required) {
+    if (!present('phase')) missing.push(['phase']);
+    if (!present('references') && !present('reference_selectors') && !present('referenceSelectors')) missing.push(['references']);
+    if (!present('task_id') && !present('taskId')) missing.push(['task_id']);
+    if (!present('attempt_id') && !present('attemptId')) missing.push(['attempt_id']);
+  }
   return missing.length
     ? { ok: false, code: 'DISPATCH_PACKET_INCOMPLETE', message: `dispatch packet is missing required part(s): ${missing.map((part) => part[0]).join(', ')}`, missing }
     : { ok: true, parts: PACKET_PARTS.map((aliases) => aliases.find((key) => value[key] !== undefined) || aliases[0]), structured: true };

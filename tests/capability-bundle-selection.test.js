@@ -348,7 +348,12 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   assert.strictEqual(checked.ok, true, checked.errors.join('; '));
   const minimal = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
   const compat = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'compat-v1' });
-  assert.strictEqual(minimal.value.selectedStableIds.length, 8);
+  assert.deepStrictEqual(minimal.value.selectedStableIds, [
+    'change-verdict',
+    'code-trace',
+    'flow-drive',
+    'flow-guide',
+  ]);
   const declaredCompatIds = profiles.profiles['compat-v1'].skillIds.slice().sort();
   assert.deepStrictEqual(compat.value.selectedStableIds, declaredCompatIds);
   for (const familyId of (inventory.skill_routing_families || []).map((family) => family.id)) {
@@ -357,20 +362,54 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   assert.ok(compat.value.selectedStableIds.every((id) => !inventory.retired_skills.some((row) => row.id === id)));
 });
 
-test('checked-in minimal profile is the curated eight-entry Claude default', () => {
+test('checked-in minimal profile is the curated four-entry Claude default', () => {
   const root = path.join(__dirname, '..');
   const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests/distribution-inventory.json'), 'utf8'));
   const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'));
   const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests/module-catalog.json'), 'utf8'));
-  const expected = [
-    'change-verdict', 'code-trace', 'flow-drive',
-    'flow-guide', 'git-smart-commit', 'project-audit', 'prompt-optimize',
-    'tdd',
-  ];
+  const expected = ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide'];
   const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
   assert.strictEqual(result.ok, true, result.error && result.error.message);
   assert.deepStrictEqual(result.value.selectedStableIds, expected);
-  assert.strictEqual(result.value.selectedStableIds.length, 8);
+  assert.strictEqual(result.value.selectedStableIds.length, 4);
+  assert.deepStrictEqual(result.value.supportClosure.skillStableIds, []);
+  assert.deepStrictEqual(
+    [...new Set(result.value.supportClosure.files.map((file) => file.destination))].sort(),
+    ['rules/execution-policy-kernel.md', 'rules/execution-policy.md', 'rules/tool-routing.md', 'scripts/lib/flow-handoff-contract.js'],
+  );
+  assert.ok(result.value.supportClosure.files.every((file) => expected.includes(file.requiredBy)));
+});
+
+// RED contract for issue #534 P2.  A renamed public name may improve the
+// rejection diagnostic, but it must never become a selection alias or invoke
+// the replacement family automatically; stable-ID selection remains intact.
+test('renamed public names fail with diagnostics while canonical stable IDs still select', () => {
+  const root = path.join(__dirname, '..');
+  const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests/distribution-inventory.json'), 'utf8'));
+  const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'));
+  const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests/module-catalog.json'), 'utf8'));
+
+  const renamed = selection.resolveCapabilitySelection({
+    inventory,
+    profiles,
+    moduleCatalog,
+    surface: 'claude-profile',
+    standaloneSkillIds: ['dhpk-laravel'],
+  });
+  assert.strictEqual(renamed.ok, false);
+  assert.strictEqual(renamed.error.code, 'RENAMED_STABLE_ID');
+  assert.deepStrictEqual(renamed.error.stableIds, ['dhpk-laravel']);
+  assert.strictEqual(renamed.value, undefined);
+
+  const canonical = selection.resolveCapabilitySelection({
+    inventory,
+    profiles,
+    moduleCatalog,
+    surface: 'claude-profile',
+    standaloneSkillIds: ['laravel'],
+  });
+  assert.strictEqual(canonical.ok, true, canonical.error && canonical.error.message);
+  assert.deepStrictEqual(canonical.value.selectedStableIds, ['laravel']);
 });
 
 run();

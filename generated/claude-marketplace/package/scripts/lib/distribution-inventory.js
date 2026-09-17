@@ -147,6 +147,10 @@ const CLIENT_METADATA_BOUNDARY = {
   cursor: ['rules/frontmatter', 'variables', 'hooks'],
 };
 const PROJECTION_CONTRACT_SCHEMA = 'dhpk.distribution-projection-contract.v1';
+const INSTALLATION_CONTRACT_SCHEMA = 'dhpk.installation-lifecycle.v1';
+const INSTALLATION_OPERATIONS = ['plan', 'install', 'verify', 'update', 'uninstall', 'rollback', 'status'];
+const INSTALLATION_OPERATION_STATES = ['READ_ONLY', 'ADAPTER', 'BLOCKED'];
+const INSTALLATION_SURFACES = ['claude', 'codex-sync', 'codex-native', 'agent-plugin', 'cursor', 'agy-plugin'];
 const PROJECTION_SYMLINK_POLICIES = ['forbid', 'contained-relative', 'declared-source-relative'];
 const PROJECTION_STAGES = ['structural', 'package', 'consumer-runtime'];
 const MIGRATED_SELECTION_SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin'];
@@ -224,7 +228,7 @@ function preserveProjectionContract(generated, existing) {
     })
     : generated.skills;
   const contract = {};
-  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'renamed_skill_names', 'external_skill_packages', 'agent_roster', 'standalone_dependencies', 'project_agent_projection']) {
+  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'installation_contract', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'renamed_skill_names', 'external_skill_packages', 'agent_roster', 'standalone_dependencies', 'project_agent_projection']) {
     if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = cloneInventoryValue(existing[key]);
   }
   return { ...generated, ...(Array.isArray(generated && generated.skills) ? { skills } : {}), ...contract };
@@ -1060,6 +1064,8 @@ function validateDistributionInventoryV2(input = {}) {
     projectionContract: inventory.projection_contract,
   });
   errors.push(...matrix.errors);
+  const installation = validateInstallationLifecycleContract(inventory.installation_contract);
+  errors.push(...installation.errors);
   const frontmatter = validatePortableFrontmatterContract(inventory.portable_frontmatter);
   errors.push(...frontmatter.errors);
   const projection = validateProjectionContract(inventory.projection_contract);
@@ -1390,8 +1396,9 @@ function resolveSkillRoutingAlias({ families = [], id, inventory } = {}) {
 }
 
 // Resolve an identifier without introducing compatibility aliases. Active
-// inventory entries win; retired rows are consulted only after active lookup
-// fails, and unknown identifiers retain their original input for diagnostics.
+// inventory entries win; diagnostic-only public-name renames are consulted
+// before retired rows, and unknown identifiers retain their original input for
+// diagnostics. A renamed result intentionally carries no alias or successor.
 function resolveSkillIdentity({ inventory, identifier } = {}) {
   const skills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
   const active = skills.find((entry) => entry && (
@@ -1404,6 +1411,25 @@ function resolveSkillIdentity({ inventory, identifier } = {}) {
       state: 'active',
       stableId: active.id,
       publicName: active.name || active.id,
+    };
+  }
+
+  const renameValidation = validateRenamedSkillNames({ inventory });
+  if (renameValidation.errors.length > 0) return { state: 'unknown', identifier };
+  const renamedRows = inventory && Array.isArray(inventory.renamed_skill_names)
+    ? inventory.renamed_skill_names
+    : [];
+  const renamed = renamedRows.find((entry) => entry && (
+    entry.oldName === identifier || entry.oldPath === identifier
+  ));
+  if (renamed) {
+    const canonical = skills.find((entry) => entry && entry.id === renamed.id);
+    if (!canonical) return { state: 'unknown', identifier };
+    return {
+      state: 'renamed',
+      stableId: canonical.id,
+      publicName: canonical.name || renamed.newName,
+      oldName: renamed.oldName,
     };
   }
 
@@ -1432,6 +1458,19 @@ function resolveSkillIdentity({ inventory, identifier } = {}) {
 }
 
 function formatSkillIdentityDiagnostic({ inventory, resolution } = {}) {
+  if (resolution && resolution.state === 'renamed'
+    && typeof resolution.stableId === 'string'
+    && typeof resolution.oldName === 'string') {
+    const renameValidation = validateRenamedSkillNames({ inventory });
+    if (renameValidation.errors.length > 0) return '';
+    const row = (inventory && Array.isArray(inventory.renamed_skill_names) ? inventory.renamed_skill_names : [])
+      .find((entry) => entry && entry.id === resolution.stableId && entry.oldName === resolution.oldName);
+    const active = inventory && Array.isArray(inventory.skills)
+      ? inventory.skills.find((entry) => entry && entry.id === resolution.stableId)
+      : null;
+    if (!row || !active || active.name !== resolution.publicName) return '';
+    return `run-skill: skill '${resolution.oldName}' was renamed to '${resolution.publicName}'; select stable ID '${resolution.stableId}'. Public-name renames are diagnostic-only and do not install a compatibility alias.`;
+  }
   if (!resolution || resolution.state !== 'retired'
     || typeof resolution.retiredIn !== 'string'
     || typeof resolution.reasonCode !== 'string'
@@ -1571,6 +1610,49 @@ function validateRequiredSurfaceProjectionContracts(requiredSurfaces, projection
   for (const surface of requiredSurfaces) {
     if (!surfaces[surface] || typeof surfaces[surface] !== 'object' || Array.isArray(surfaces[surface])) {
       errors.push(`required surface '${surface}' has no matching projection contract`);
+    }
+  }
+  return { errors };
+}
+
+function validateInstallationLifecycleContract(contract) {
+  const errors = [];
+  if (contract === undefined) return { errors };
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)) return { errors: ['installation_contract must be an object when present'] };
+  if (contract.schema !== INSTALLATION_CONTRACT_SCHEMA) errors.push(`installation_contract schema must be ${INSTALLATION_CONTRACT_SCHEMA}`);
+  if (!Array.isArray(contract.operations) || contract.operations.length !== INSTALLATION_OPERATIONS.length
+    || contract.operations.some((operation, index) => operation !== INSTALLATION_OPERATIONS[index])) {
+    errors.push(`installation_contract.operations must exactly match ${INSTALLATION_OPERATIONS.join(', ')}`);
+  }
+  if (!contract.surfaces || typeof contract.surfaces !== 'object' || Array.isArray(contract.surfaces)) {
+    errors.push('installation_contract.surfaces must be an object');
+    return { errors };
+  }
+  const declaredSurfaces = Object.keys(contract.surfaces);
+  for (const surface of INSTALLATION_SURFACES) {
+    if (!declaredSurfaces.includes(surface)) errors.push(`installation_contract.surfaces is missing '${surface}'`);
+  }
+  for (const surface of declaredSurfaces) {
+    if (!INSTALLATION_SURFACES.includes(surface)) errors.push(`installation_contract.surfaces declares unsupported surface '${surface}'`);
+  }
+  for (const [surface, rule] of Object.entries(contract.surfaces)) {
+    const prefix = `installation_contract.surfaces.${surface}`;
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) {
+      errors.push(`${prefix} must be an object`);
+      continue;
+    }
+    if (typeof rule.adapter !== 'string' || rule.adapter.trim() === '') errors.push(`${prefix}.adapter must be non-empty`);
+    if (typeof rule.support_tier !== 'string' || rule.support_tier.trim() === '') errors.push(`${prefix}.support_tier must be non-empty`);
+    if (!rule.operations || typeof rule.operations !== 'object' || Array.isArray(rule.operations)) {
+      errors.push(`${prefix}.operations must be an object`);
+      continue;
+    }
+    const operationKeys = Object.keys(rule.operations);
+    for (const operation of operationKeys) {
+      if (!INSTALLATION_OPERATIONS.includes(operation)) errors.push(`${prefix}.operations declares unsupported operation '${operation}'`);
+    }
+    for (const operation of INSTALLATION_OPERATIONS) {
+      if (!INSTALLATION_OPERATION_STATES.includes(rule.operations[operation])) errors.push(`${prefix}.operations.${operation} is unsupported`);
     }
   }
   return { errors };
@@ -2098,6 +2180,7 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
     ),
   ];
   const compiled = compileDistribution({
+    internalCharacterization: true,
     compilerVersion,
     surface: 'claude-core',
     inventoryFingerprint: fingerprint(inventoryView),
@@ -2278,6 +2361,7 @@ module.exports = {
   validateInventoryV2: validateDistributionInventoryV2,
   validateSurfaceMembership,
   validatePlatformCapabilityMatrix,
+  validateInstallationLifecycleContract,
   validateRequiredRuntimeSurfaceList,
   validateRequiredSurfacePlan,
   validatePortableFrontmatterContract,

@@ -36,10 +36,10 @@ re-checks that ancestry before creating an immutable tag.
 
 ## Current skill-platform topology (release preparation)
 
-The current release-preparation topology is 100 canonical packages (62
-promoted to the Agent Plugin surface), 31 Codex project modules, and 18
-Codex project/native entries (16 invokable skills plus internal transport and
-dispatch-context runtimes). Five alias-free rows remain in the `retired_skills` ledger and are
+The current release-preparation topology is 65 canonical packages, 37 entries
+on both the Agent Plugin and AGY surfaces, a 4-entry Cursor-native overlay, 37
+module projections, and 15 Codex project/native entries (13 invokable skills
+plus internal transport and dispatch-context runtimes). Five alias-free rows remain in the `retired_skills` ledger and are
 excluded from discovery. Module and Codex project projections use relative
 symlinks; the native package contains no symlinks.
 
@@ -48,6 +48,16 @@ target's version and provenance must be read from the exact clean checkout used
 for that release. Claude, Codex, and other consumer runtime probes must be
 reported separately as `PASS`, `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED`; package
 generation alone is not consumer-runtime proof.
+
+For the Issue #534 breaking default transition, release evidence MUST cover
+`scripts/install.sh`, `scripts/hooks/install-codex-skills.sh`,
+`scripts/hooks/install-cursor-harness.sh`, and
+`scripts/ci/install-agy-plugin.js`. The published clean-install default is the
+exact four-capability minimal profile. Record each consumer as `PASS`,
+`NOT_RUN`, `UNAVAILABLE`, or `BLOCKED`; generic `dhpk-install` writes are
+`NOT_IMPLEMENTED`. Known limitation: static package validation cannot prove
+runtime discovery. Rollback restores the prior receipt-bound or version-pinned
+package, never a retired alias.
 
 ## Branch rules
 

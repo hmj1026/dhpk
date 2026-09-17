@@ -10,6 +10,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 
 | Surface | 安裝 | 更新／移除 | 驗證 | 支援邊界 |
 |---|---|---|---|---|
+| Claude Code 預設 | `bash scripts/install.sh` → `dhpk@dhpk-profile-minimal` | 重跑 installer 或選擇明確的 compatibility package | Fresh-session `/dhpk:flow-guide help` | 結構檢查可通過；consumer discovery 在實際觀察前維持 `NOT_RUN` |
 | Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
 | Codex legacy/native | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `plugins/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
@@ -28,6 +29,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 
 | Route | Client／版本假設 | OS 與 shell 假設 | 必要 tooling | Evidence gate |
 |---|---|---|---|---|
+| Claude Code | 支援 marketplace/plugin；最低版本尚未建立 | Client 支援的 OS 與 POSIX shell | `bash`、Claude Code | 執行 installer，並在 fresh session 觀察 selected package |
 | Codex project-local sync | Codex project-local loader；schema-v3 receipt；最低 Codex version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.codex/.dhpk-installed.json`，並執行列出的 metadata/test 命令 |
 | Codex legacy/native | 支援 marketplace/plugin 命令的 Codex CLI；執行 `codex --version`；最低 CLI version 尚未建立 | Linux、macOS 或 WSL shell；使用 disposable isolated `CODEX_HOME` | `codex`、marketplace access、`git` | 執行 marketplace route 並記錄 CLI 輸出；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
@@ -49,6 +51,31 @@ projection 內容後，才能宣稱 client 可呼叫。
 
 不可把 static manifest、marketplace entry、generated file 或 enabled flag
 直接轉成 runtime `PASS`。
+
+## Claude Code minimal profile（推薦）
+
+Clean install 先預覽，再實體化預設 package：
+
+```bash
+bash scripts/install.sh --dry-run
+bash scripts/install.sh
+```
+
+`dhpk@dhpk-profile-minimal` 只暴露 `change-verdict`、`code-trace`、
+`flow-drive`、`flow-guide`。開啟 fresh Claude session 並執行
+`/dhpk:flow-guide help`；實際觀察前，runtime evidence 維持 `NOT_RUN`。
+Root marketplace 保留為 compatibility route，既有 receipt 在明確 migration
+前維持原 selection。
+
+Maintainer 可為開發檢視產生單一 optional capability：
+
+```bash
+node scripts/ci/gen-claude-profile-bundles.js --standalone <stable-id> --out /tmp/dhpk-standalone
+```
+
+Generic `dhpk-install` 寫入仍是 `BLOCKED` / `NOT_IMPLEMENTED`；請使用下方
+host-specific adapters。Rollback 應恢復 previous receipt 的 package identity，
+或使用 version-pinned compatibility package；rollback 不會恢復 alias。
 
 ## 受控 authenticated runner preflight
 
@@ -100,14 +127,22 @@ dhpk-install cursor plan --scope project --json
 從 source checkout 執行時，直接使用 bundled entrypoint：
 `bash /path/to/dhpk/bin/dhpk-install cursor plan --scope project --json`。
 
-JSON result 會將 normalized request 與 compiler plan 綁定，並將 closed
-projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
+JSON result 會將 normalized request 綁定到具版本的
+`dhpk.installation-plan.v1` identity，記錄 source version、target scope、profile、
+selected stable IDs、support closure、owned roots、plan/inventory fingerprints、
+preview、backup、transaction、recovery 與 rollback identity。Native surface
+receipt 可嵌入對應的 `dhpk.installation-receipt.v1` identity，同時保留原生 receipt
+schema。Inventory-owned `installation_contract` 是 support-tier 與 surface ×
+operation matrix；`ADAPTER` 代表既有、已 characterization 的 route，不表示此
+generic CLI 取得寫入權。
+
+Plan 會將 closed projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
 CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。目前 write
 action 在任何 mutation 前都會回傳 `BLOCKED` 與 stable `NOT_IMPLEMENTED`
 diagnostic。尤其是 Codex project-local write 仍應使用既有
 `install-codex-skills.sh`，Cursor project-local write 應使用
-`install-cursor-harness.sh`，直到這些 adapter 透過相同的 ArtifactStore
-transaction 遷移。
+`install-cursor-harness.sh`。Generic route 會持續 fail-closed，直到未來變更明確
+移交 ArtifactStore write ownership；只有 adapter characterization 絕不會啟用 mutation。
 
 ## Unified distribution CLI
 
@@ -118,7 +153,7 @@ transaction 遷移。
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.61.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.62.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -729,7 +764,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.61.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.62.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

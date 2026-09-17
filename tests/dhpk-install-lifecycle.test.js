@@ -75,6 +75,40 @@ test('write actions remain explicitly blocked while legacy Codex sync is preserv
   assert.match(output.remediation[0], /install-codex-skills\.sh/);
 });
 
+test('plans expose the shared installation identity and recovery contract', () => {
+  const result = invoke(['codex-sync', 'plan', '--scope', 'project', '--profile', 'minimal', '--json']);
+  assert.strictEqual(result.status, 0, result.stderr);
+  const plan = json(result).plan;
+  assert.strictEqual(plan.schema, 'dhpk.installation-plan.v1');
+  assert.match(plan.source.version, /^\d+\.\d+\.\d+/);
+  assert.deepStrictEqual(plan.target, { surface: 'codex-sync', scope: 'project', mode: 'auto' });
+  assert.strictEqual(plan.selection.profileId, 'minimal');
+  assert.deepStrictEqual(plan.selection.selectedStableIds, plan.selectedIds);
+  assert.ok(plan.selection.supportClosure);
+  assert.ok(plan.ownership.owner);
+  assert.match(plan.fingerprints.plan, /^[a-f0-9]{64}$/);
+  assert.ok(plan.preview);
+  assert.ok(plan.backup);
+  assert.ok(plan.transaction);
+  assert.ok(plan.recovery);
+  assert.ok(plan.rollback.identity);
+});
+
+test('every lifecycle surface declares operation capability while generic writes stay blocked', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const operations = ['plan', 'install', 'verify', 'update', 'uninstall', 'rollback', 'status'];
+  const surfaces = ['claude', 'codex-sync', 'codex-native', 'agent-plugin', 'cursor', 'agy-plugin'];
+  assert.deepStrictEqual(inventory.installation_contract.operations, operations);
+  for (const surface of surfaces) {
+    const row = inventory.installation_contract.surfaces[surface];
+    assert.ok(row && row.adapter && row.support_tier, `${surface} must declare its adapter and support tier`);
+    assert.deepStrictEqual(Object.keys(row.operations), operations);
+    const result = invoke([surface, 'install', '--scope', surface === 'agy-plugin' ? 'user' : 'project', '--json']);
+    assert.strictEqual(result.status, 2, `${surface}: ${result.stderr}`);
+    assert.strictEqual(json(result).lifecycle.verdict, 'BLOCKED');
+  }
+});
+
 test('cursor write actions remain blocked and point at the project-local installer', () => {
   const result = invoke(['cursor', 'install', '--scope', 'project', '--json']);
   assert.strictEqual(result.status, 2, result.stderr);

@@ -5,6 +5,7 @@ const {
   AUTHORITIES,
   CANONICAL_ROLES,
   EFFORTS,
+  ROLE_ALIASES,
   SCHEMAS,
   TRANSPORTS,
 } = require('./dispatch-contract');
@@ -25,7 +26,7 @@ function digest(value) {
 
 function buildDispatchProjection({ surface, catalog, hostProfiles, source = 'scripts/lib/dispatch-contract.js' } = {}) {
   if (!SURFACES.includes(surface)) throw new TypeError(`unsupported dispatch projection surface: ${surface}`);
-  if (!catalog || typeof catalog !== 'object' || !Array.isArray(catalog.providers)) throw new TypeError('catalog is required');
+  if (!catalog || typeof catalog !== 'object' || (!Array.isArray(catalog.routes) && !Array.isArray(catalog.providers))) throw new TypeError('catalog is required');
   if (!hostProfiles || typeof hostProfiles !== 'object' || !Array.isArray(hostProfiles.profiles)) throw new TypeError('hostProfiles are required');
   const roles = CANONICAL_ROLES.map((role) => ({
     role,
@@ -43,14 +44,19 @@ function buildDispatchProjection({ surface, catalog, hostProfiles, source = 'scr
       receipt: SCHEMAS.RECEIPT,
       authorities: [...AUTHORITIES],
       roles,
+      role_aliases: Object.fromEntries(Object.entries(ROLE_ALIASES).map(([alias, value]) => [alias, { ...value }])),
     },
     catalog: { schema: catalog.schema, version: catalog.version },
     hosts: hostProfiles.profiles.map((profile) => ({
       host: profile.host,
+      native_target_agent: profile.native_target_agent,
       native_provider: profile.native_provider,
       native_model: profile.native_model,
+      native_route: profile.native_route,
       native_transport: profile.native_transport,
       profile_version: profile.version,
+      role_defaults: profile.role_defaults,
+      role_fallbacks: profile.role_fallbacks,
     })).sort((left, right) => left.host.localeCompare(right.host)),
     fallback: {
       default: 'current Host Profile native target',

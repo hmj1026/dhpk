@@ -31,6 +31,13 @@ function runValidate(root, extraArgs = []) {
   });
 }
 
+function runPlan(root, extraArgs = []) {
+  return spawnSync('python3', ['-B', SCRIPT, '--root', root, 'plan', '--format', 'json', ...extraArgs], {
+    encoding: 'utf8',
+    timeout: 20000,
+  });
+}
+
 function importLib(pyExpr) {
   const snippet = `import sys\nsys.path.insert(0, ${JSON.stringify(SCRIPTS_DIR)})\n${pyExpr}`;
   return spawnSync('python3', ['-B', '-c', snippet], { encoding: 'utf8', timeout: 20000 });
@@ -340,6 +347,130 @@ test('regression: a Claude-only repo with parity role sources but zero .codex di
     const coverageCheck = report.policy_checks.find((c) => c.id === 'parity.agents.coverage');
     assert.notStrictEqual(coverageCheck.status, 'fail', `absent Codex must not leak a coverage FAIL: ${coverageCheck.message}`);
     assert.strictEqual(report.gate, 'PASS', `absent optional Codex must not fail the gate, got ${report.gate}`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('issue #530: plural .agents/skills is the canonical path and singular .agent/skills remains compatible', () => {
+  const cases = [
+    { label: 'canonical-only', canonical: true, legacy: false, status: 'pass', message: /\.agents\/skills.*canonical/ },
+    { label: 'legacy-only', canonical: false, legacy: true, status: 'pass', message: /legacy alias.*\.agent\/skills/ },
+    { label: 'both', canonical: true, legacy: true, status: 'pass', message: /\.agents\/skills.*canonical/ },
+    { label: 'neither', canonical: false, legacy: false, status: 'skip', message: /\.agents\/skills.*\.agent\/skills/ },
+  ];
+
+  for (const scenario of cases) {
+    const root = mkTmp(`issue-530-${scenario.label}`);
+    try {
+      if (scenario.canonical) writeFile(path.join(root, '.agents/skills/demo/SKILL.md'), '# Demo\n');
+      if (scenario.legacy) writeFile(path.join(root, '.agent/skills/demo/SKILL.md'), '# Legacy Demo\n');
+      const res = runValidate(root);
+      assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
+      const report = JSON.parse(res.stdout);
+      const check = report.policy_checks.find((item) => item.id === 'path.canonical');
+      assert.strictEqual(check.status, scenario.status, `${scenario.label}: unexpected path.canonical status`);
+      assert.match(check.message, scenario.message, `${scenario.label}: unexpected path.canonical message`);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test('issue #530: Antigravity validation accepts the plural project skill projection', () => {
+  const root = mkTmp('issue-530-antigravity');
+  try {
+    writeFile(path.join(root, '.agent/rules/demo.md'), 'trigger: demo\nBody\n');
+    writeFile(path.join(root, '.agents/skills/demo.md'), '---\nname: demo\ndescription: Demo skill\n---\n# Demo\n');
+    writeFile(path.join(root, '.agent/workflows/review.md'), '# Review workflow\n');
+    const res = runValidate(root, ['--targets', 'antigravity']);
+    assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
+    const report = JSON.parse(res.stdout);
+    const antigravity = report.results.find((item) => item.platform === 'antigravity');
+    assert.strictEqual(antigravity.smoke_ok, true, 'plural project skill projection must satisfy the Antigravity smoke check');
+    assert.notStrictEqual(antigravity.final_status, 'FAIL', 'plural project skill projection must not fail Antigravity validation');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('issue #530: direct-file project skill projections remain covered by php-pro profile validation', () => {
+  const root = mkTmp('issue-530-php-pro');
+  try {
+    writeFile(path.join(root, '.agents/skills/php-pro.md'), '---\nname: php-pro\ndescription: PHP\n---\n# Missing profile override\n');
+    const res = runValidate(root);
+    assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
+    const report = JSON.parse(res.stdout);
+    const check = report.policy_checks.find((item) => item.id === 'profile.php_pro');
+    assert.strictEqual(check.status, 'fail', 'invalid direct-file php-pro projection must fail profile validation');
+    assert.match(check.message, /php-pro\.md/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('issue #530: Antigravity skill mappings use .agents while workflows keep .agent', () => {
+  const root = mkTmp('issue-530-plan');
+  try {
+    writeFile(path.join(root, '.claude/skills/demo/SKILL.md'), '---\nname: demo\ndescription: Demo skill\n---\n# Demo\n');
+    writeFile(path.join(root, '.claude/commands/review.md'), '# Review\n');
+    const res = runPlan(root, ['--targets', 'antigravity']);
+    assert.strictEqual(res.status, 0, res.stderr || res.stdout);
+    const plan = JSON.parse(res.stdout);
+    const skill = plan.mappings.find((item) => item.category === 'skills');
+    const workflow = plan.mappings.find((item) => item.category === 'commands');
+    assert.strictEqual(skill.target_path, '.agents/skills/demo.md');
+    assert.strictEqual(workflow.target_path, '.agent/workflows/review.md');
+
+    const planPath = path.join(root, 'plan.json');
+    writeFile(planPath, `${JSON.stringify(plan)}\n`);
+    const apply = spawnSync('python3', ['-B', SCRIPT, '--root', root, 'apply', '--plan', planPath, '--dry-run', '--format', 'json'], {
+      encoding: 'utf8',
+      timeout: 20000,
+    });
+    assert.strictEqual(apply.status, 0, apply.stderr || apply.stdout);
+    const report = JSON.parse(apply.stdout);
+    assert.strictEqual(report.summary.failed, 0, `dry-run must accept mapped .agents target: ${JSON.stringify(report)}`);
+    assert.deepStrictEqual(report.codex_skill_fallback_roots, [
+      'artifacts/codex-skills-fallback',
+      '.agents/skills',
+      '.agent/skills',
+    ], 'fallback roots must prefer the canonical plural project projection');
+
+    for (const targetPath of ['.agents/.dhpk-installed.json', '.agents/skills/.dhpk-projection.json']) {
+      const unsafePlan = {
+        ...plan,
+        mappings: [{
+          ...skill,
+          category: 'commands',
+          feature_id: 'commands/unsafe',
+          feature_name: 'unsafe',
+          target_path: targetPath,
+        }],
+      };
+      const unsafePlanPath = path.join(root, `unsafe-${path.basename(targetPath)}.json`);
+      writeFile(unsafePlanPath, `${JSON.stringify(unsafePlan)}\n`);
+      const unsafe = spawnSync('python3', ['-B', SCRIPT, '--root', root, 'apply', '--plan', unsafePlanPath, '--dry-run', '--format', 'json'], {
+        encoding: 'utf8',
+        timeout: 20000,
+      });
+      assert.notStrictEqual(unsafe.status, 0, `Antigravity apply must reject shared projection metadata path ${targetPath}`);
+      assert.match(`${unsafe.stdout}\n${unsafe.stderr}`, /allowlist|unsafe|destination/i);
+    }
+
+    const live = spawnSync('python3', ['-B', SCRIPT, '--root', root, 'apply', '--plan', planPath,
+      '--approved-plan-sha256', report.plan_sha256, '--format', 'json'], {
+      encoding: 'utf8',
+      timeout: 20000,
+    });
+    assert.strictEqual(live.status, 0, live.stderr || live.stdout);
+    const liveReport = JSON.parse(live.stdout);
+    assert.strictEqual(liveReport.summary.failed, 0, `live apply must materialize direct-file mapping: ${JSON.stringify(liveReport)}`);
+    assert.strictEqual(
+      fs.readFileSync(path.join(root, '.agents/skills/demo.md'), 'utf8'),
+      fs.readFileSync(path.join(root, '.claude/skills/demo/SKILL.md'), 'utf8'),
+    );
+    assert.strictEqual(fs.existsSync(path.join(root, '.agent/workflows/review.md')), true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

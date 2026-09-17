@@ -759,11 +759,18 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
     return fail('MISSING_SKILL_DEPENDENCY', error.message);
   }
   const closureIds = [...new Set(closureEntries.map((entry) => entry.id))].sort();
+  const publicIds = selection.value.selectedStableIds.slice();
+  const publicIdSet = new Set(publicIds);
+  const supportClosure = {
+    ...(selection.value.supportClosure || {}),
+    skillStableIds: closureIds.filter((id) => !publicIdSet.has(id)),
+  };
   const skillPackageClosure = skillPackageClosureReceipt(rootPath, closureEntries);
   const materializedSelection = {
     ...selection.value,
     selectedEntries: closureEntries,
-    selectedStableIds: closureIds,
+    selectedStableIds: publicIds,
+    supportClosure,
   };
   const metadataContext = {
     inventoryRevision,
@@ -789,12 +796,13 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
     surface: CLAUDE_SURFACE,
     entries: entryResult.outputs,
     selectionEntries,
-    selectedStableIds: materializedSelection.selectedStableIds,
+    selectedStableIds: publicIds,
     selectionPolicy: { source: selection.value.selectionMode === 'standalone' ? 'standalone' : 'profile', version: BUNDLE_VERSION, profileId: selection.value.id },
     profileSelection: {
       ...selection.value.identity,
-      selectedStableIds: materializedSelection.selectedStableIds,
-      emittedStableIds: materializedSelection.selectedStableIds,
+      selectedStableIds: publicIds,
+      emittedStableIds: publicIds,
+      supportClosure,
     },
     compatibilityMode: selection.value.mode,
     inventoryFingerprint: fingerprint(stableInput(inventory)),

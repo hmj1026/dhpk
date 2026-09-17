@@ -225,16 +225,25 @@ function buildNextActions(findings, phase, featureCtx) {
   // Extract commands from P0/P1 findings
   for (const f of findings) {
     if (f.priority !== 'P0' && f.priority !== 'P1') continue;
-    const cmdMatch = f.suggestion.match(/\/[\w-]+/);
+    const suggestion = typeof f.suggestion === 'string' ? f.suggestion : '';
+    const cmdMatch = suggestion.match(/\/[\w-]+/);
     if (cmdMatch) {
       const cmd = cmdMatch[0];
       // Extract path/flag args after command (skip prose words)
-      const afterCmd = f.suggestion.slice(f.suggestion.indexOf(cmd) + cmd.length).trim();
+      const afterCmd = suggestion.slice(suggestion.indexOf(cmd) + cmd.length).trim();
       const argTokens = afterCmd.split(/\s+/).filter(t => t.startsWith('--') || t.includes('/') || t.includes('.'));
       actions.push({
         id: f.id,
         command: qualifyCommand(cmd),
         args: argTokens.length > 0 ? argTokens.join(' ') : null,
+        reason: f.message,
+        confidence: f.priority === 'P0' ? 1.0 : 0.8,
+      });
+    }
+    if (!cmdMatch && typeof f.guidance === 'string' && f.guidance.trim() !== '') {
+      actions.push({
+        id: f.id,
+        guidance: f.guidance,
         reason: f.message,
         confidence: f.priority === 'P0' ? 1.0 : 0.8,
       });
@@ -255,9 +264,8 @@ function buildNextActions(findings, phase, featureCtx) {
     if (featureCtx.has_requests) {
       actions.push({
         id: 'request-update',
-        command: qualifyCommand('/create-request'),
-        args: '--update',
-        reason: 'Precommit passed — update request status',
+        guidance: 'Use the external $openspec-propose workflow to update request status.',
+        reason: 'Precommit passed — update request status through the external proposal workflow',
         confidence: 0.8,
       });
     }
@@ -556,7 +564,7 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
                 id: 'request-stale',
                 priority: 'P1',
                 message: `Request "${rf}" status is "${status}" but precommit has passed`,
-                suggestion: `/create-request --update ${featureCtx.docs_path}/requests/${rf}`,
+                guidance: `Use the external $openspec-propose workflow to update request status for ${featureCtx.docs_path}/requests/${rf}.`,
               });
               break; // one finding is enough
             }
@@ -695,7 +703,7 @@ function formatMarkdown(output) {
     lines.push('');
     for (const f of output.findings) {
       lines.push(`- **[${f.priority}] ${f.id}** — ${f.message}`);
-      lines.push(`  → ${f.suggestion}`);
+      lines.push(`  → ${f.suggestion || f.guidance || 'See the owning workflow guidance.'}`);
     }
     if (output.suppressed > 0) {
       lines.push(`- _+${output.suppressed} more suppressed_`);
@@ -714,7 +722,8 @@ function formatMarkdown(output) {
     lines.push('');
     for (const a of output.next_actions) {
       const args = a.args ? ` ${a.args}` : '';
-      lines.push(`- \`${a.command}${args}\` (${a.confidence.toFixed(1)}) — ${a.reason}`);
+      const target = a.command ? `\`${a.command}${args}\`` : (a.guidance || '(manual)');
+      lines.push(`- ${target} (${a.confidence.toFixed(1)}) — ${a.reason}`);
     }
     lines.push('');
   }

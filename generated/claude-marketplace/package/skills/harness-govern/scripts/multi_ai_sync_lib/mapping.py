@@ -103,7 +103,7 @@ def map_target_path(feature, target):
         if target == "codex":
             return ".codex/skills/%s/SKILL.md" % name
         if target == "antigravity":
-            return ".agent/skills/%s/SKILL.md" % name
+            return ".agents/skills/%s.md" % name
         if target == "cursor":
             return ".cursor/skills/%s/SKILL.md" % name
 

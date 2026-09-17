@@ -624,13 +624,13 @@ function buildNextActions(checks) {
     actions.push(action);
   }
 
-  // If ≥3 P0+P1 findings, suggest /create-request
+  // If ≥3 P0+P1 findings, point operators to the external proposal workflow.
   const p0p1Count = checks.filter(c => c.priority === 'P0' || c.priority === 'P1').length;
   if (p0p1Count >= 3) {
     actions.push({
-      id: 'create-request',
-      command: qualifyCommand('/create-request'),
-      reason: `${p0p1Count} critical findings — create a request to track remediation`,
+      id: 'request-authoring-guidance',
+      guidance: 'Use the external $openspec-propose workflow to track remediation.',
+      reason: `${p0p1Count} critical findings — track remediation through the external proposal workflow`,
       confidence: 0.7,
     });
   }
@@ -719,8 +719,8 @@ function formatMarkdown(output) {
     lines.push('### Next Actions');
     lines.push('');
     for (const a of output.next_actions) {
-      const cmd = a.command ? `\`${a.command}\`` : '(manual)';
-      lines.push(`- ${cmd} — ${a.reason}`);
+      const target = a.command ? `\`${a.command}\`` : (a.guidance || '(manual)');
+      lines.push(`- ${target} — ${a.reason}`);
     }
     lines.push('');
   }
