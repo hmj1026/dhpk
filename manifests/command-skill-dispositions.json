@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.command-skill-disposition.v2",
-  "source_revision": "sha256:b2d60f55153c7fb38f71e6240aca2128128620f5062a2bae353c6c865a524eba",
+  "source_revision": "sha256:f17528c488e05c2f9b2bb2e23950e2b1da634cbd27aa2d32291d29502e6a0b7c",
   "commands": [
     {
       "id": "check-coverage",

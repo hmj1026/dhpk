@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.61.0",
-  "sourceCommit": "477d8bdce2fc4412b5167198f3e99899b303aace",
-  "generatedFromCommit": "477d8bdce2fc4412b5167198f3e99899b303aace",
-  "generatedFromTree": "2d879c895e4083e265274bb9ed3e31e46d0d105a",
+  "sourceCommit": "7c7aa4cd1e92175f9db64fd079d9f79540cc4595",
+  "generatedFromCommit": "7c7aa4cd1e92175f9db64fd079d9f79540cc4595",
+  "generatedFromTree": "a6b4c41852dc027ea46e4ebf1495d63a307ef7c4",
   "inventoryDigest": "6e9af26ac6cf5f90208a4360c24b5091cf9dfbbd478b9fb83682504d747c0738",
   "inventoryRevision": "sha256:4870c6b34e8040a8dde5267d2b13e1f00f23fe44258b546900c23303a5d8300e",
   "generatorVersion": "1.0.0",
@@ -551,7 +551,7 @@
     "skills": "95000b6bcf0309e686e3e0d50bc13a1009156a40c1d63ad171f8fb63a1d44192",
     "rules": "454d23485c67727c53c2252633f4b7ab78b5d3d2223adffbd87167f17278e751",
     "agents": "b49c56f640b6048435cbc54a60a62f2bdfafdc5de902070df445fcf8f425e7b6",
-    "commands": "8068a6cb5585a01a3a4b622acc3c8f3f0dc4f3ea5d1d85b0bcb62af8dcc66549",
+    "commands": "cdd2e846015bdfeff656d1d55dd751fbfffcd53e6424ed9304a8fcf76b002d0c",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
   "installation": {
@@ -1329,5 +1329,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "af56930d4a450d3c40ddb74ed110fafb642dab77d5cd64ce3142a335b9230ec3"
+  "planFingerprint": "c5bef23b4831db12ec29e79479832986c28e0a984cdd0dc07f8a38ed61c09b14"
 }
