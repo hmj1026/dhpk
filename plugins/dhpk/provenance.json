@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.61.0",
-  "sourceCommit": "8af9854c9a7c650a4f99724d6b53b482d49d7e56",
-  "generatedFromCommit": "8af9854c9a7c650a4f99724d6b53b482d49d7e56",
-  "generatedFromTree": "ac824c37a8ab11be4b15e6b7204a3b8320fe5be0",
-  "inventoryDigest": "58831cad32cf18d758b84e382bdc9bac65b7c8d00cab508762c887d642e060d9",
-  "inventoryRevision": "sha256:2954a33c2968b910988e43da944ad7fae55ca256bf1e9b0daabca0a37ca56a91",
+  "sourceCommit": "6bdd9b589d8684883bdacd99c93673105604a0ea",
+  "generatedFromCommit": "6bdd9b589d8684883bdacd99c93673105604a0ea",
+  "generatedFromTree": "079fe77c3d9b61fd688a831837d5f7d3fb24894c",
+  "inventoryDigest": "6e9af26ac6cf5f90208a4360c24b5091cf9dfbbd478b9fb83682504d747c0738",
+  "inventoryRevision": "sha256:4870c6b34e8040a8dde5267d2b13e1f00f23fe44258b546900c23303a5d8300e",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "code-trace",
@@ -93,7 +93,7 @@
     "dhpk-legacy-characterization-tests": "2a2df71423e54c8e24f10c645b917eb070aa728905171da6783dd23af16f8cf6",
     "dhpk-yii1-php56-development": "8af02d34fca4f9eaee43d4ceb72851dfe494462955af1b08f7cb74a2f703f2bc",
     "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
-    "flow-guide": "0cecd96231e70a9819dd0118dc10963302de19ad7e9261d708e7e8263429ad41",
+    "flow-guide": "53c8090c5449038eeae0a931c764743ecfc9b8527366ec39570d11ccca8c25f3",
     "code-trace": "f97e720f358a8320b62977c04c0e1dd59a0277ee49e65500aa6c4aae32a7b3e6",
     "flow-drive": "1901a1e5525aaf6f133b48c1cd3f9d0de70e5ec5baed3640375b2fdcc61de43c",
     "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
@@ -104,6 +104,55 @@
     "harness-govern": "62f52add7477a33565fa7aefe4d8b7c670fc82e7dea9210839e4c6778b9714b3",
     "dhpk-cli-dispatch-context": "ebbac24048a7f4784f150d087144e95dc532b157feeee41fb57497516572672e",
     "dhpk-cli-transport": "12926e258a9c40c274f4ea1789d0fb8b69cf45c2d4f329aa0b359eb611aa6502"
+  },
+  "installation": {
+    "schema": "dhpk.installation-receipt.v1",
+    "planId": "5f9fd584d74891b54345c9eabdeee374418e68338e616f0fd5f67be31332de3f",
+    "scope": "project",
+    "profileId": "compat-v1",
+    "selectedStableIds": [
+      "code-trace",
+      "flow-drive",
+      "flow-guide",
+      "git-smart-commit",
+      "harness-govern",
+      "legacy-code-characterization",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "php-pro",
+      "php56-yii-dev",
+      "skill-scope",
+      "tdd",
+      "yii1-security-audit"
+    ],
+    "supportClosure": {
+      "stableIds": [
+        "code-trace",
+        "flow-drive",
+        "flow-guide",
+        "git-smart-commit",
+        "harness-govern",
+        "legacy-code-characterization",
+        "opsx-load-context",
+        "opsx-post-obs",
+        "php-pro",
+        "php56-yii-dev",
+        "skill-scope",
+        "tdd",
+        "yii1-security-audit"
+      ]
+    },
+    "ownership": {
+      "owner": "plugins/dhpk",
+      "roots": [
+        "plugins/dhpk"
+      ]
+    },
+    "fingerprints": {
+      "plan": "5f9fd584d74891b54345c9eabdeee374418e68338e616f0fd5f67be31332de3f",
+      "inventory": "6e9af26ac6cf5f90208a4360c24b5091cf9dfbbd478b9fb83682504d747c0738"
+    },
+    "rollbackIdentity": "26b047221d51b2dfe9c795beab5673b8b028d550402068600a7168507e550de4"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

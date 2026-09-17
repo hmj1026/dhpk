@@ -78,6 +78,65 @@ test('surface receipts carry an owner that is independent per publication surfac
   assert.strictEqual(validateSurfaceReceipt(receipt, 'cursor-plugin').ok, false);
 });
 
+test('surface receipts can carry a normalized installation identity without changing their native schema', () => {
+  const installation = {
+    schema: 'dhpk.installation-receipt.v1',
+    planId: 'd'.repeat(64),
+    scope: 'project',
+    profileId: 'minimal',
+    selectedStableIds: ['flow-guide'],
+    supportClosure: { stableIds: ['flow-guide'] },
+    ownership: { owner: 'plugins/dhpk-agent', roots: ['plugins/dhpk-agent'] },
+    fingerprints: { plan: 'd'.repeat(64), inventory: 'b'.repeat(64) },
+    rollbackIdentity: 'e'.repeat(64),
+  };
+  const receipt = createSurfaceReceipt({
+    surface: 'agent-plugin', sourceVersion: '1.2.3', sourceCommit: 'a'.repeat(40),
+    inventoryDigest: 'b'.repeat(64), fingerprints: { 'dhpk-example': 'c'.repeat(64) }, installation,
+  });
+  assert.strictEqual(receipt.schema, RECEIPT_SCHEMA);
+  assert.deepStrictEqual(receipt.installation, installation);
+  assert.strictEqual(validateSurfaceReceipt(receipt, 'agent-plugin').ok, true);
+
+  receipt.installation.rollbackIdentity = 'unsafe';
+  assert.ok(validateSurfaceReceipt(receipt, 'agent-plugin').errors.some((error) => /rollbackIdentity/));
+});
+
+test('installation receipt identity rejects cross-owner cleanup roots and mismatched fingerprints', () => {
+  const receipt = createSurfaceReceipt({
+    surface: 'agent-plugin', sourceVersion: '1.2.3', sourceCommit: 'a'.repeat(40),
+    inventoryDigest: 'b'.repeat(64), fingerprints: { package: 'c'.repeat(64) },
+    installation: {
+      schema: 'dhpk.installation-receipt.v1', planId: 'd'.repeat(64), scope: 'project', profileId: 'minimal',
+      selectedStableIds: ['flow-guide'], supportClosure: { stableIds: ['flow-guide'] },
+      ownership: { owner: 'foreign', roots: ['/', '../foreign', '.', 'C:\\Windows', '\\\\server\\share'] },
+      fingerprints: { plan: 'e'.repeat(64), inventory: 'f'.repeat(64) }, rollbackIdentity: 'e'.repeat(64),
+    },
+  });
+  const errors = validateSurfaceReceipt(receipt, 'agent-plugin').errors.join('\n');
+  assert.match(errors, /owner must match receipt owner/);
+  assert.match(errors, /ownership root is unsafe/);
+  assert.match(errors, /fingerprints\.plan must match planId/);
+  assert.match(errors, /fingerprints\.inventory must match inventoryDigest/);
+});
+
+test('tracked native package receipts emit the shared installation identity', () => {
+  const root = path.join(__dirname, '..');
+  for (const relative of [
+    'plugins/dhpk-agent/provenance.json',
+    'plugins/dhpk-cursor/provenance.json',
+    'plugins/dhpk/provenance.json',
+    'plugins/dhpk-agy/provenance.json',
+  ]) {
+    const receipt = JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8'));
+    assert.strictEqual(receipt.installation.schema, 'dhpk.installation-receipt.v1', relative);
+    assert.ok(receipt.installation.selectedStableIds.length > 0, relative);
+    assert.strictEqual(receipt.installation.fingerprints.plan, receipt.installation.planId, relative);
+    assert.strictEqual(receipt.installation.fingerprints.inventory, receipt.inventoryDigest, relative);
+    assert.strictEqual(receipt.installation.ownership.owner, receipt.owner, relative);
+  }
+});
+
 test('standalone surface receipts retain closure identity and validate as a distinct selection mode', () => {
   const receipt = createSurfaceReceipt({
     surface: 'agent-plugin',

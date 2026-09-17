@@ -12,7 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
+const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree, createInstallationReceiptIdentity } = require('./platform-provenance');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -1034,6 +1034,14 @@ function buildAgentPluginProjection(options = {}) {
     skippedSkills: skipped,
     mcpServerNames: mcp.valid.map((entry) => entry.name).sort(),
     fingerprints,
+    ...(selectedSkillIds.length > 0 ? { installation: createInstallationReceiptIdentity({
+      surface: 'agent-plugin', scope: 'project', sourceVersion: version,
+      inventoryDigest: legacyInventoryDigest(inventory),
+      profileId: profileSelection && (profileSelection.profileId || profileSelection.id) || 'surface-default',
+      selectedStableIds: profileSelection && profileSelection.selectedStableIds || selectedSkillIds,
+      supportClosure: profileSelection && profileSelection.dependencyClosure,
+      ownedRoots: ['plugins/dhpk-agent'],
+    }) } : {}),
     ...(selectedEntries.some((entry) => entry.usage) ? {
       usageSchema: 'dhpk.skill-usage.v1',
       usage: Object.fromEntries(selectedEntries.filter((entry) => entry.usage).map((entry) => [entry.id, entry.usage])),

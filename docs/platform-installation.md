@@ -103,14 +103,25 @@ dhpk-install cursor plan --scope project --json
 When running from a source checkout, invoke the bundled entrypoint directly:
 `bash /path/to/dhpk/bin/dhpk-install cursor plan --scope project --json`.
 
-The JSON result binds the normalized request to a compiler plan and keeps the
+The JSON result binds the normalized request to a versioned
+`dhpk.installation-plan.v1` identity. It records source version, target scope,
+profile and selected stable IDs, support closure, owned roots, plan/inventory
+fingerprints, preview, backup, transaction, recovery, and rollback identity.
+Native surface receipts may embed the corresponding
+`dhpk.installation-receipt.v1` identity while retaining their native receipt
+schema. The inventory-owned `installation_contract` is the support-tier and
+surface × operation matrix; `ADAPTER` names an existing characterized route,
+not permission for this generic CLI to write.
+
+The plan keeps the
 closed projection evidence vocabulary separate from lifecycle presentation.
 `INSTALL_PASS + CONSUMER_BLOCKED` is never a projection `PASS` and cannot
 promote a support tier. Write actions currently return `BLOCKED` with the
 stable `NOT_IMPLEMENTED` diagnostic before any mutation. In particular, retain
 the supported `install-codex-skills.sh` route for Codex project-local writes and
-`install-cursor-harness.sh` for Cursor project-local writes until those adapters
-are migrated through the same ArtifactStore transaction.
+`install-cursor-harness.sh` for Cursor project-local writes. The generic route
+stays fail-closed until a future change explicitly transfers ArtifactStore
+write ownership; adapter characterization alone never enables mutation.
 
 ### Standalone selection and profile selection
 
