@@ -76,7 +76,7 @@ _Avoid_: Supported (when no environment-specific observation exists)
 ## Release Evidence
 
 **CI Runtime Baseline**:
-The single Node.js version used by repository-owned CI and release automation. It does not declare a minimum Node.js version for consumers or installation surfaces.
+The single Node.js version used by repository-owned CI, release automation, and local development. It does not declare a minimum Node.js version for consumers or installation surfaces.
 _Avoid_: Consumer runtime requirement, Node support matrix
 
 **Published Pending**:

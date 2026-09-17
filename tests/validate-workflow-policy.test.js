@@ -18,20 +18,21 @@ const ACTIONS = {
   setupNode: 'actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6',
 };
 
-function makeRoot(workflows, dependabot = null) {
+function makeRoot(workflows, dependabot = null, nodeVersion = '24') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-workflow-policy-'));
   fs.mkdirSync(path.join(root, '.github', 'workflows'), { recursive: true });
   for (const [name, content] of Object.entries(workflows)) {
     fs.writeFileSync(path.join(root, '.github', 'workflows', name), content);
   }
+  if (nodeVersion !== null) fs.writeFileSync(path.join(root, '.nvmrc'), `${nodeVersion}\n`);
   if (dependabot !== null) {
     fs.writeFileSync(path.join(root, '.github', 'dependabot.yml'), dependabot);
   }
   return root;
 }
 
-function runInTemp(workflows, dependabot = null) {
-  const root = makeRoot(workflows, dependabot);
+function runInTemp(workflows, dependabot = null, nodeVersion = '24') {
+  const root = makeRoot(workflows, dependabot, nodeVersion);
   try {
     return main(root);
   } finally {
@@ -50,6 +51,7 @@ function realRepoResult() {
 function releasePolicyRoot(mutator = (workflow) => workflow) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-policy-'));
   fs.mkdirSync(path.join(root, '.github', 'workflows'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.nvmrc'), '24\n');
   for (const file of ['ci.yml', 'release.yml']) {
     const source = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
     fs.writeFileSync(
@@ -118,6 +120,16 @@ test('an Action without a readable version comment fails closed', () => {
 test('a Node baseline other than 24 fails closed', () => {
   const result = runInTemp({ 'custom.yml': genericWorkflow({ nodeVersion: "'20'" }) });
   assert.ok(result.errors.some((error) => /Node 24/i.test(error)), result.errors.join('\n'));
+});
+
+test('the local version file must match the CI Runtime Baseline', () => {
+  const result = runInTemp({ 'custom.yml': genericWorkflow() }, null, '20');
+  assert.ok(result.errors.some((error) => /CI Runtime Baseline.*\.nvmrc|\.nvmrc.*CI Runtime Baseline/i.test(error)), result.errors.join('\n'));
+});
+
+test('a missing local version file fails closed', () => {
+  const result = runInTemp({ 'custom.yml': genericWorkflow() }, null, null);
+  assert.ok(result.errors.some((error) => /CI Runtime Baseline.*\.nvmrc|\.nvmrc.*CI Runtime Baseline/i.test(error)), result.errors.join('\n'));
 });
 
 test('every setup-node step must configure the Node 24 baseline', () => {

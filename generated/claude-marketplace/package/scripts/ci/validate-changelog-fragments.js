@@ -11,6 +11,7 @@
 // Usage:
 //   node scripts/ci/validate-changelog-fragments.js
 //   node scripts/ci/validate-changelog-fragments.js --diff-base origin/develop
+//   node scripts/ci/validate-changelog-fragments.js --diff-base origin/develop --bot-authored
 //   node scripts/ci/validate-changelog-fragments.js --write --version X.Y.Z --date YYYY-MM-DD [--summary "..."]
 
 const fs = require('fs');
@@ -21,10 +22,11 @@ const { readFragments, validateFragments, checkCoverage, promote } = require('..
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 
 function parseArgs(argv) {
-  const args = { write: false, root: DEFAULT_ROOT };
+  const args = { write: false, botAuthored: false, root: DEFAULT_ROOT };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--write') args.write = true;
+    else if (arg === '--bot-authored') args.botAuthored = true;
     else if (arg === '--diff-base') args.diffBase = argv[++i];
     else if (arg === '--base-ref') args.baseRef = argv[++i];
     else if (arg === '--version') args.version = argv[++i];
@@ -144,7 +146,7 @@ function main() {
   if (args.diffBase) {
     const changedFiles = changedFilesSince(args.root, args.diffBase);
     const releaseSectionAdded = releaseSectionAddedSince(args.root, args.diffBase, args.baseRef);
-    const coverage = checkCoverage({ changedFiles, fragments, markers, releaseSectionAdded });
+    const coverage = checkCoverage({ changedFiles, fragments, markers, releaseSectionAdded, botAuthored: args.botAuthored });
     if (!coverage.ok) {
       console.error('validate-changelog-fragments: FAIL (missing release fragment)');
       console.error(`  changed files since ${args.diffBase} have no changelog.d/*.md or *.none:`);

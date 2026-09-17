@@ -80,6 +80,38 @@ test('weighted partition assigns every selected file exactly once', () => {
   assert.ok(buckets.every((bucket) => bucket.length > 0));
 });
 
+test('CI-sized weighted partition separates the suite\'s two slowest files', () => {
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-scheduler-'));
+  try {
+    const fillerFiles = Array.from({ length: 5 }, (_, index) => {
+      const file = path.join(fixtureRoot, `filler-${index}.test.js`);
+      fs.writeFileSync(file, Buffer.alloc(53 * 2048));
+      return file;
+    });
+    const files = [
+      'install-codex-skills.test.js',
+      'consumer-gate-cli.test.js',
+      'gen-cursor-plugin-package.test.js',
+      'harness-facade-cli.test.js',
+      'run-codex.test.js',
+      ...fillerFiles,
+      'validate-retirement-closure.test.js',
+    ].map((name) => path.isAbsolute(name) ? name : path.join(__dirname, name));
+    const buckets = partitionFiles(files, 4);
+    const workerFor = (name) => buckets.findIndex((bucket) => (
+      bucket.some((file) => path.basename(file) === name)
+    ));
+
+    assert.notStrictEqual(
+      workerFor('install-codex-skills.test.js'),
+      workerFor('validate-retirement-closure.test.js'),
+      'CI worker pool must not co-schedule the suite\'s two slowest files',
+    );
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test('shard assignment is deterministic and covers every shard', () => {
   const files = Array.from({ length: 20 }, (_, i) => `/repo/tests/${i}.test.js`);
   const assignments = files.map((file) => assignShard(file, 4));

@@ -849,7 +849,8 @@ function isDir(p) {
 function main() {
   if (!isDir(skillsDir)) {
     console.error(`Skills directory not found or not a directory: ${skillsDir}`);
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
 
   // Recursive discovery — finds nested skills (e.g. skills/gitnexus/<sub>/SKILL.md)
@@ -940,7 +941,8 @@ function main() {
       skipped: capabilitySkips,
     };
     process.stdout.write(JSON.stringify(report, null, 2) + '\n');
-    process.exit(exitCode);
+    process.exitCode = exitCode;
+    return;
   }
 
   // Markdown output
@@ -1017,7 +1019,7 @@ function main() {
   // Gate
   console.log(`## Gate: ${overallPass ? '✅ All Pass' : `⛔ ${p0Count + p1Count} issues need fixing`}`);
 
-  process.exit(exitCode);
+  process.exitCode = exitCode;
 }
 
 if (require.main === module) {
