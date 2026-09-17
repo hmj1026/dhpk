@@ -12,6 +12,14 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const raw = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
 
+test('release workflows share one repository-global queue without cancelling active releases', () => {
+  assert.match(
+    raw,
+    /^concurrency:\n  group: release-\$\{\{\s*github\.repository\s*\}\}\n  cancel-in-progress: false$/m,
+    'release workflow must queue every tag in one repository-global, non-cancelling group',
+  );
+});
+
 test('release step preserves an existing release instead of editing it', () => {
   const viewIdx = raw.indexOf('gh release view');
   const createIdx = raw.indexOf('gh release create');
