@@ -165,7 +165,7 @@ jobs:
 
       - name: Bind trusted publication verifier
         id: verifier-integrity
-        run: echo "sha256=$(sha256sum scripts/release/verify-publication-bundle.js | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "sha256=sha256:$(sha256sum scripts/release/verify-publication-bundle.js | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload trusted publication bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
