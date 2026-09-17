@@ -199,7 +199,7 @@ jobs:
             echo ""
             echo "Outcome: \`$outcome\`"
             echo ""
-            node -e "const result=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); for (const row of (result.surfaceResults || [])) console.log('- ' + row.surface + ': ' + row.status);" "$result_file" >> "$GITHUB_STEP_SUMMARY"
+            node -e "const result=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); for (const row of (result.surfaceResults || [])) { const adapter = row.adapter && typeof row.adapter === 'object' ? row.adapter : {}; const version = row.surface === 'claude' && adapter.version ? ' (CLI ' + adapter.version + ')' : ''; console.log('- ' + row.surface + ': ' + row.status + version); }" "$result_file" >> "$GITHUB_STEP_SUMMARY"
             node -e "const result=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); const p=result.probeExecution; if (p) console.log('- Probe schedule: ' + p.mode + ', concurrency=' + p.concurrency + ', wallTimeMs=' + p.wallTimeMs);" "$result_file" >> "$GITHUB_STEP_SUMMARY"
             echo ""
             echo "Tag \`${GITHUB_REF_NAME}\` is PUBLISHED. Overall release status is COMPLETE only when all seven consumer rows are PASS; non-pass evidence keeps the release PUBLISHED/PENDING or PUBLISHED/UNHEALTHY and never edits the immutable tag."

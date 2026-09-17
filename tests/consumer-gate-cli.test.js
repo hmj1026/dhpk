@@ -377,6 +377,7 @@ test('keeps Claude and native Codex UNAVAILABLE when their CLIs are absent', () 
 test('reports overall PENDING when supported checks pass but Cursor runtime is not invoked', () => {
   withConsumerGateBin((bin) => {
     mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
 if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
@@ -567,6 +568,7 @@ exit 0
 test('fails when the stubbed claude CLI reports a version mismatch after install', () => {
   withConsumerGateBin((bin) => {
     mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
 if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
@@ -1052,6 +1054,109 @@ test('withConsumerGateBin removes the stub PATH dir after a thrown error', () =>
   }, /boom/);
   assert.ok(captured);
   assert.ok(!fs.existsSync(captured), `leftover stub dir after throw: ${captured}`);
+});
+
+test('records the resolved Claude CLI version in consumer evidence', () => {
+  withConsumerGateBin((bin) => {
+    const version = '2.1.274 (Claude Code)';
+    const installedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-installed-cache-'));
+    try {
+      mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '${version}'; exit 0; fi
+if [ "$1 $2 $3" = "plugin marketplace add" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","installPath":"${installedRoot}"}]'; exit 0; fi
+if [ "$1 $2" = "plugin uninstall" ] || [ "$1 $2 $3" = "plugin marketplace remove" ]; then exit 0; fi
+exit 0
+`);
+      const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
+      assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+      const stage = JSON.parse(res.stdout);
+      const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+      assert.strictEqual(claude.status, 'PASS', JSON.stringify(stage));
+      assert.strictEqual(claude.adapter.version, version, JSON.stringify(claude));
+      assert.deepStrictEqual(claude.versionDiscovery, {
+        cmd: 'claude --version',
+        status: 'PASS',
+        exitCode: 0,
+        version,
+      });
+      assert.ok(stage.commands.some((command) => command.claudeVersion === version), JSON.stringify(stage.commands));
+    } finally {
+      fs.rmSync(installedRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+test('records unavailable Claude CLI discovery without inventing a version', () => {
+  const res = runCli({ PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'claude-core']);
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  const stage = JSON.parse(res.stdout);
+  const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+  assert.strictEqual(claude.status, 'UNAVAILABLE', JSON.stringify(stage));
+  assert.strictEqual(claude.adapter.version, null, JSON.stringify(claude));
+  assert.strictEqual(claude.versionDiscovery.status, 'UNAVAILABLE', JSON.stringify(claude));
+  assert.strictEqual(claude.versionDiscovery.version, null, JSON.stringify(claude));
+  assert.ok(claude.versionDiscovery.diagnostic, JSON.stringify(claude));
+});
+
+test('fails closed on malformed Claude CLI version output', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'claude-argv.log');
+    mkBinStub(bin, 'claude', `#!/bin/sh
+printf '%s\\n' "$*" >> ${JSON.stringify(log)}
+if [ "$1" = "--version" ]; then echo 'version unavailable'; exit 0; fi
+exit 0
+`);
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const stage = JSON.parse(res.stdout);
+    const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+    assert.strictEqual(claude.status, 'FAIL', JSON.stringify(stage));
+    assert.strictEqual(claude.adapter.version, null, JSON.stringify(claude));
+    assert.strictEqual(claude.versionDiscovery.status, 'FAIL', JSON.stringify(claude));
+    assert.strictEqual(claude.versionDiscovery.version, null, JSON.stringify(claude));
+    assert.match(claude.versionDiscovery.diagnostic, /version|format|malformed/i);
+    assert.strictEqual(fs.readFileSync(log, 'utf8').trim(), '--version');
+  });
+});
+
+test('records a failed Claude CLI version command explicitly', () => {
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'version probe failed' >&2; exit 7; fi
+exit 0
+`);
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const stage = JSON.parse(res.stdout);
+    const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+    assert.strictEqual(claude.status, 'FAIL', JSON.stringify(stage));
+    assert.strictEqual(claude.adapter.version, null, JSON.stringify(claude));
+    assert.strictEqual(claude.versionDiscovery.status, 'FAIL', JSON.stringify(claude));
+    assert.strictEqual(claude.versionDiscovery.exitCode, 7, JSON.stringify(claude));
+    assert.strictEqual(claude.versionDiscovery.version, null, JSON.stringify(claude));
+  });
+});
+
+test('retains Claude CLI version evidence when a consumer probe fails', () => {
+  withConsumerGateBin((bin) => {
+    const version = '2.1.274 (Claude Code)';
+    mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '${version}'; exit 0; fi
+if [ "$1 $2 $3" = "plugin marketplace add" ]; then exit 1; fi
+exit 0
+`);
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const stage = JSON.parse(res.stdout);
+    const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+    assert.strictEqual(claude.status, 'FAIL', JSON.stringify(stage));
+    assert.strictEqual(claude.adapter.version, version, JSON.stringify(claude));
+    assert.strictEqual(claude.versionDiscovery.status, 'PASS', JSON.stringify(claude));
+    assert.ok(claude.reasons.some((reason) => /marketplace add/i.test(reason)), JSON.stringify(claude));
+  });
 });
 
 run('consumer-gate-cli');
