@@ -8,13 +8,14 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       release_pr_head_sha: ${{ steps.resolve-release-pr.outputs.head_sha }}
     permissions:
       contents: write
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -30,9 +31,9 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20'
+          node-version: '24'
 
       # Re-run the full source test suite on the immutable tag with the same
       # strong containment contract as CI. Local macOS publish preflight may
@@ -112,7 +113,7 @@ jobs:
             --version "${GITHUB_REF_NAME#v}"
 
       - name: Upload trusted release artifact manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact-manifest.json
@@ -154,19 +155,20 @@ jobs:
   consumer-verify:
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Download trusted release artifact manifest
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact
@@ -229,10 +231,11 @@ jobs:
   sync-develop:
     needs: release
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: develop
           fetch-depth: 0
