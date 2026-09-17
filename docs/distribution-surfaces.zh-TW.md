@@ -143,7 +143,7 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 
 | Profile | 意義 |
 |---|---|
-| `minimal` | inventory required_core_ids（8 個 skill）；clean install 的預設。 |
+| `minimal` | 只含 `change-verdict`、`code-trace`、`flow-drive`、`flow-guide`；clean install 的預設。 |
 | `full` | 既有 conflict-aware module closure（55 個 skill）加上明確 stable IDs；不代表完整 catalog。 |
 | `compat-v1` | predecessor-compatible allowlist（62 個 stable ID）；未標註舊 receipt 的相容 fallback。 |
 

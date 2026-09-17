@@ -14,7 +14,7 @@
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
-如果你不知道該先叫哪個技能或指令，請先看：**[技能與 Slash Command 快速速查（非專業版）](./docs/skill-command-cheat-sheet.zh-TW.md)**。
+如果你不知道該先叫哪個技能或指令，請先看：**[技能與 Slash Command 快速速查](./docs/skill-command-cheat-sheet.zh-TW.md)**。
 
 ## 前置需求
 
@@ -36,6 +36,21 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 外部 code-navigation 工具（`cx`、`gitnexus`、`claude-mem`）**不由 dhpk 內附**，是否安裝由各 consuming 專案決定。dhpk 內附的 rules 與 agents 寫法已預設它們可能不在，會依 [`rules/tool-routing.md`](./rules/tool-routing.md) 自動降級。
 
 ## 安裝
+
+請先依 Host 與安裝狀態選路徑。Claude 新使用者使用實體化的四能力
+profile；既有安裝則先預覽 migration，再動 receipt-owned 檔案。
+
+| Host | 推薦路徑 | 第一個驗證 | 證據邊界 |
+|---|---|---|---|
+| Claude Code | 先執行 `bash scripts/install.sh --dry-run`，再執行安裝 | 重開 session 後執行 `/dhpk:flow-guide help` | 乾淨 `minimal` 精確公開 `flow-guide`、`code-trace`、`flow-drive`、`change-verdict` |
+| Codex CLI | `bash scripts/hooks/install-codex-skills.sh --plan --json`，再 install/update | `$flow-guide help` | 支援的 project-local route；CLI/runtime 缺少時維持 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE` |
+| Cursor | `bash scripts/hooks/install-cursor-harness.sh --plan --json`，再 install/update | 檢查 `.cursor/.dhpk-installed.json` 並 reload Cursor | 支援的 project-local route；native plugin/runtime 證據分開 |
+| AGY | `node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json`，再使用 receipt-owned adapter | CLI 可用時執行 `agy agents` | Experimental；結構安裝不等於 runtime `PASS` |
+
+本版 generic `dhpk-install` lifecycle CLI 的寫入 action 仍是唯讀邊界；
+`install`、`update`、`uninstall`、`rollback` 回傳
+`BLOCKED/NOT_IMPLEMENTED`。請使用上表已 characterization 的 adapter。完整指令、
+collision、選裝與 rollback 見[平台安裝 SSOT](./docs/platform-installation.zh-TW.md)。
 
 dhpk 遵循 [Claude Code plugin 標準發布模式](https://docs.claude.com/en/docs/claude-code/plugins)。最快的路徑（不用 clone）：
 
@@ -129,9 +144,10 @@ claude plugin install dhpk@dhpk \
 
 Claude 的預設 discovery artifact 是由 distribution inventory 產生的實體化
 `minimal` profile，不是直接掃描未過濾的 `skills/` 原始目錄。目前 profile 數量是
-`minimal=8`、`full=55`、`compat-v1=62`（尚未加入 overlay）。`full` 與
-`compat-v1` 仍是明確 opt-in 的 profile artifact；Agent Plugin、Cursor 與 AGY
-發布面各含 37 個 selected skill，source tree 仍是 authoring tree。
+`minimal=4`、`full=55`、`compat-v1=62`（尚未加入 overlay）。`full` 與
+`compat-v1` 仍是明確 opt-in 的 profile artifact；Agent Plugin 與 AGY 各選取
+37 個 stable ID；Cursor native overlay 選取 4 個 native ID 並共用 Agent Plugin
+skills；Codex native 選取 15 個 ID。source tree 仍是 authoring tree。
 
 ## Codex 整合面
 

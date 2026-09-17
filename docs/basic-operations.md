@@ -6,6 +6,14 @@ This page walks through the operational lifecycle of dhpk: installing it, the da
 
 ## Decision ladder
 
+Clean installs expose exactly four default capabilities: `change-verdict`,
+`code-trace`, `flow-drive`, and `flow-guide`. Use `bash scripts/install.sh` for
+Claude, `scripts/hooks/install-codex-skills.sh` for Codex,
+`scripts/hooks/install-cursor-harness.sh` for Cursor, and
+`node scripts/ci/install-agy-plugin.js plan` before AGY installation. Static
+package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
+`UNAVAILABLE` until the corresponding consumer is observed.
+
 Use this order for a fresh request: **inspect** the repository and session
 state → **verify** the installed surface → **choose** Claude, supported Codex
 sync, or the experimental native Codex surface → **route** through Claude

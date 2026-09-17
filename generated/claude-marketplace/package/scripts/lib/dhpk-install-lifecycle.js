@@ -148,7 +148,15 @@ function inventoryFingerprint(inventory) {
   return crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex');
 }
 
-function compileLifecyclePlan(request, inventory, { profiles = null, moduleCatalog = null } = {}) {
+function installationSurfaceContract(inventory, surface) {
+  const contract = inventory && inventory.installation_contract;
+  return contract && contract.surfaces && contract.surfaces[surface]
+    ? contract.surfaces[surface]
+    : {};
+}
+
+function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
+  const { profiles = null, moduleCatalog = null, sourceVersion = '0.0.0' } = selectionConfig;
   if (request.surface === 'cursor' && request.agents.length > 0) {
     return { ok: false, error: { code: 'UNSUPPORTED_AGENT_SELECTION', message: 'Cursor native agent selection is blocked until the inventory-owned agent profile contract is implemented' } };
   }
@@ -204,13 +212,47 @@ function compileLifecyclePlan(request, inventory, { profiles = null, moduleCatal
     });
   }
   if (!compiled.ok) return compiled;
+  const surfaceContract = installationSurfaceContract(inventory, request.surface);
+  const selectedIds = compiled.value.entries.map((entry) => entry.stableId);
+  const inventoryDigest = inventoryFingerprint(inventory);
+  const supportClosure = profileSelection && profileSelection.dependencyClosure
+    ? profileSelection.dependencyClosure
+    : { stableIds: selectedIds };
+  const owner = surfaceContract.owner || compiled.value.entries[0] && compiled.value.entries[0].owner || request.surface;
+  const planId = crypto.createHash('sha256').update(JSON.stringify({
+    schema: 'dhpk.installation-plan.v1',
+    sourceVersion,
+    source: request.source,
+    surface: request.surface,
+    scope: request.scope,
+    mode: request.mode,
+    distribution: compiled.value.planFingerprint,
+  })).digest('hex');
+  const rollbackIdentity = crypto.createHash('sha256').update(JSON.stringify({
+    surface: request.surface, scope: request.scope, owner, plan: planId,
+  })).digest('hex');
   return {
     ok: true,
     value: Object.freeze({
-      id: compiled.value.planFingerprint,
+      schema: 'dhpk.installation-plan.v1',
+      id: planId,
       distribution: compiled.value,
-      selectedIds: compiled.value.entries.map((entry) => entry.stableId),
-      selectedNames: compiled.value.entries.map((entry) => entry.stableId),
+      source: Object.freeze({ version: sourceVersion, source: request.source }),
+      target: Object.freeze({ surface: request.surface, scope: request.scope, mode: request.mode }),
+      selection: Object.freeze({
+        profileId: profileSelection && profileSelection.profileId || request.profileId || null,
+        selectedStableIds: Object.freeze(selectedIds.slice()),
+        supportClosure,
+      }),
+      ownership: Object.freeze({ owner, roots: Object.freeze((surfaceContract.owned_roots || []).slice()) }),
+      fingerprints: Object.freeze({ plan: planId, distribution: compiled.value.planFingerprint, inventory: inventoryDigest }),
+      preview: Object.freeze({ mutation: false, entryCount: selectedIds.length }),
+      backup: Object.freeze({ requiredBeforeWrite: true, strategy: surfaceContract.backup || 'adapter-owned' }),
+      transaction: Object.freeze({ writer: surfaceContract.adapter || null, genericLifecycleMayWrite: false }),
+      recovery: Object.freeze({ strategy: surfaceContract.recovery || 'adapter-owned', receiptRequired: true }),
+      rollback: Object.freeze({ identity: rollbackIdentity, owner }),
+      selectedIds,
+      selectedNames: selectedIds,
       profileSelection,
       compatibilityState: profileSelection && profileSelection.preservedCompatibility ? 'compat-v1-preserved' : null,
     }),

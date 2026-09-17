@@ -9,6 +9,14 @@
 
 ## 決策階梯
 
+Clean install 只暴露四個預設 capability：`change-verdict`、`code-trace`、
+`flow-drive`、`flow-guide`。Claude 使用 `bash scripts/install.sh`，Codex 使用
+`scripts/hooks/install-codex-skills.sh`，Cursor 使用
+`scripts/hooks/install-cursor-harness.sh`，AGY 安裝前先執行
+`node scripts/ci/install-agy-plugin.js plan`。Static package evidence 不等於
+runtime evidence；在對應 consumer 被實際觀察前應記錄 `NOT_RUN`、`BLOCKED`
+或 `UNAVAILABLE`。
+
 新請求依序執行：**檢查** repository 與 session 狀態 → **確認** 已安裝的
 surface → **選擇** Claude、支援的 Codex sync 或實驗性的原生 Codex surface →
 透過 Claude `/dhpk:flow-guide`（分類）、`/dhpk:flow-drive`（執行）、Cursor

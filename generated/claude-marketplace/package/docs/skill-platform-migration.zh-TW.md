@@ -8,6 +8,15 @@ Pocock 或其他全域 skill 的使用者。
 
 目前 Codex/Cursor 安裝路徑與 rollback 邊界請以[平台安裝 SSOT](./platform-installation.zh-TW.md)為準。
 
+Issue #534 預設轉換時，Claude 先執行 `bash scripts/install.sh --dry-run`；
+其他 host 分別使用 `scripts/hooks/install-codex-skills.sh`、
+`scripts/hooks/install-cursor-harness.sh` 或
+`node scripts/ci/install-agy-plugin.js plan`。Clean install 選擇精確四項的
+minimal profile；既有 receipt 在明確 migration 前保留原 selection。結構成功
+不會把未觀察的 consumer 升級為 runtime 成功：應記錄 `NOT_RUN`，缺少 tooling
+記為 `UNAVAILABLE`，prerequisite 失敗記為 `BLOCKED`。Generic
+`dhpk-install` 寫入維持 `NOT_IMPLEMENTED`。
+
 ## 目前契約
 
 | 關注點 | 目前實作 |
@@ -20,8 +29,8 @@ Pocock 或其他全域 skill 的使用者。
 | Codex native package | `plugins/dhpk/skills/` 下 15 個實體 package，零 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
-| Profile 大小 | `minimal=8`、`full=55`、`compat-v1=62`（不含 overlays） |
-| Agent/Cursor/AGY 共用 surface | 每個 surface 37 個 selected stable ID |
+| Profile 大小 | `minimal=4`、`full=55`、`compat-v1=62`（不含 overlays）；minimal 為 `change-verdict`、`code-trace`、`flow-drive`、`flow-guide` |
+| Agent/Cursor/AGY publication | Agent Plugin 與 AGY 各選 37 個 stable ID；Cursor native 擁有 4 個 overlay entry，portable skills 與 Agent 共用 |
 
 目錄位置與 README 清單都不是權威來源。Inventory 管理 stable id、public name、
 lifecycle、module 與 publication surface；validator 會將每個 projection 與它對齊。
@@ -332,7 +341,7 @@ node tests/run-all.js
 預期拓撲由 inventory 管理 65 個 canonical package、31 個 module 與 Codex project/native
 項目（13 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；上述九個 MCP
 capability identity 只存在 ledger，不計入任何 active count。Profiles 應為
-`minimal=8`、`full=55`、`compat-v1=62`，每個 Agent/Cursor/AGY surface 為 37 個
+`minimal=4`、`full=55`、`compat-v1=62`；Agent Plugin 與 AGY 各為 37 個，Cursor native overlay 為 4 個
 selected stable ID。相對 symlink 只能出現在
 module/Codex projection，native package 必須零 symlink。
 

@@ -210,12 +210,12 @@ The consolidated PHPUnit family SHALL follow the authoritative annotation lifecy
 
 ### Requirement: Capability-family discovery exposes interfaces rather than modes
 
-Discovery-visible metadata SHALL expose one concise description for each capability family and SHALL keep mode procedures out of the initial context. For this inventory revision the canonical inventory SHALL contain exactly 65 skills, exactly 9 live `portable-family` entries, and exactly 56 live entries whose public name retains the `dhpk-` prefix. The selected profile counts SHALL be `minimal=8`, `full=55`, and `compat-v1=62` before any explicit overlay.
+Discovery-visible metadata SHALL expose one concise description for each capability family and SHALL keep mode procedures out of the initial context. For this inventory revision the canonical inventory SHALL contain exactly 65 skills, exactly 9 live `portable-family` entries, and exactly 56 live entries whose public name retains the `dhpk-` prefix. The selected profile counts SHALL be `minimal=4`, `full=55`, and `compat-v1=62` before any explicit overlay.
 
 #### Scenario: Family surface meets the structural baseline
 
 - **WHEN** inventory and profile validation run after the consolidation
-- **THEN** the reported canonical, naming-style, and profile counts match `65`, `9`, `56`, `8`, `55`, and `62`, and identify any unexpected entry by stable ID
+- **THEN** the reported canonical, naming-style, and profile counts match `65`, `9`, `56`, `4`, `55`, and `62`, and identify any unexpected entry by stable ID
 
 #### Scenario: Mode procedures leak into discovery metadata
 

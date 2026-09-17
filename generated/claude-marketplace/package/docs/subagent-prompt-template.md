@@ -54,6 +54,26 @@ Report results in the standard shape:
   Conclusion → Changed files → Verification → Risks/Open questions
 ```
 
+## Progressive references (select, do not preload)
+
+The packet is a context boundary, not a copy of the parent session or the
+entire skill body. Add only the references required by the requested phase:
+
+```text
+Phase: <explore | red | green | review | verify>
+References:
+- <repo-relative reference path or selector>
+Load rule: <one sentence describing why each reference is needed>
+```
+
+For a GREEN implementation (the implementation phase after a failing RED
+test) or a test scaffold, select the matching TDD (test-driven development)
+reference and omit the full TDD teaching body. For a review, select the
+relevant standards and evidence references only. A worker must report
+`DISPATCH_PACKET_INCOMPLETE` when the packet has no phase, reference selector,
+or verification contract; it must not infer missing context from parent
+history.
+
 ## DB-access boilerplate (include when the task touches a database)
 
 ```

@@ -6,8 +6,8 @@ dhpk exposes **76 active `userConfig` knobs** in `.claude-plugin/plugin.json`. T
 
 The default Claude discovery artifact is the materialized `minimal` profile,
 derived from `manifests/distribution-inventory.json`; it is not an unfiltered
-scan of the source `skills/` directory. The profile publishes at most 15
-`implicit-eligible` entries. `full` and `compat-v1` are explicit opt-in profile
+scan of the source `skills/` directory. It publishes exactly `change-verdict`,
+`code-trace`, `flow-drive`, and `flow-guide`. `full` and `compat-v1` are explicit opt-in profile
 artifacts. Agent Plugin and Cursor publication memberships are unchanged. See
 [`docs/platform-installation.md`](./platform-installation.md) for the profile
 selection and receipt rules.
