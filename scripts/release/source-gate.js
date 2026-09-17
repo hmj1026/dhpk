@@ -14,6 +14,7 @@ const { runSteps } = require('../lib/gate-runner');
 const { readFileBounded } = require('../lib/bounded-filesystem');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
+const TEST_JOBS = '4';
 
 function parseArgs(argv) {
   const args = { root: DEFAULT_ROOT };
@@ -43,7 +44,12 @@ function defaultSteps(root, version, releaseTargetBranch) {
   return [
     { name: 'changelog-fragments', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-changelog-fragments.js'), '--repo-root', root] },
     releaseParity,
-    { name: 'repository-tests', cmd: path.join(root, 'scripts/ci/run-bounded-node-test.sh'), args: ['node', path.join(root, 'tests/run-all.js')] },
+    {
+      name: 'repository-tests',
+      cmd: path.join(root, 'scripts/ci/run-bounded-node-test.sh'),
+      args: ['node', path.join(root, 'tests/run-all.js')],
+      env: { DHPK_TEST_JOBS: TEST_JOBS },
+    },
     { name: 'openspec-validate', cmd: 'openspec', args: ['validate', '--changes', '--strict', '--no-interactive'] },
   ];
 }
