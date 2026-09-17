@@ -3010,6 +3010,74 @@
       "sandbox_home": "/home/agy"
     }
   },
+  "installation_contract": {
+    "schema": "dhpk.installation-lifecycle.v1",
+    "operations": [
+      "plan",
+      "install",
+      "verify",
+      "update",
+      "uninstall",
+      "rollback",
+      "status"
+    ],
+    "surfaces": {
+      "claude": {
+        "adapter": "scripts/install.sh",
+        "support_tier": "supported",
+        "owner": ".claude-plugin",
+        "owned_roots": [".claude-plugin"],
+        "backup": "client-managed",
+        "recovery": "marketplace-reinstall",
+        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "BLOCKED", "status": "READ_ONLY" }
+      },
+      "codex-sync": {
+        "adapter": "scripts/hooks/install-codex-skills.sh",
+        "support_tier": "supported",
+        "owner": ".codex/.dhpk-installed.json",
+        "owned_roots": [".codex/skills", ".codex/agents", ".codex/.dhpk-installed.json"],
+        "backup": "schema-v3-transaction",
+        "recovery": "schema-v3-recovery",
+        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
+      },
+      "codex-native": {
+        "adapter": "scripts/dhpk-distribution.js",
+        "support_tier": "package-only",
+        "owner": "plugins/dhpk",
+        "owned_roots": ["plugins/dhpk"],
+        "backup": "release-artifact",
+        "recovery": "regenerate-package",
+        "operations": { "plan": "READ_ONLY", "install": "BLOCKED", "verify": "READ_ONLY", "update": "BLOCKED", "uninstall": "BLOCKED", "rollback": "BLOCKED", "status": "READ_ONLY" }
+      },
+      "agent-plugin": {
+        "adapter": "scripts/lib/project-agent-publisher.js",
+        "support_tier": "projection",
+        "owner": "plugins/dhpk-agent",
+        "owned_roots": ["plugins/dhpk-agent"],
+        "backup": "receipt-scoped",
+        "recovery": "receipt-scoped",
+        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
+      },
+      "cursor": {
+        "adapter": "scripts/hooks/install-cursor-harness.sh",
+        "support_tier": "supported",
+        "owner": ".cursor/.dhpk-installed.json",
+        "owned_roots": [".cursor/skills", ".cursor/agents", ".cursor/.dhpk-installed.json"],
+        "backup": "schema-v3-transaction",
+        "recovery": "schema-v3-recovery",
+        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
+      },
+      "agy-plugin": {
+        "adapter": "scripts/install-agy-plugin.js",
+        "support_tier": "supported",
+        "owner": "plugins/dhpk-agy",
+        "owned_roots": ["plugins/dhpk-agy"],
+        "backup": "transactional-swap",
+        "recovery": "receipt-scoped-rollback",
+        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
+      }
+    }
+  },
   "portable_frontmatter": {
     "allowlist": [
       "name",

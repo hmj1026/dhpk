@@ -78,6 +78,30 @@ test('surface receipts carry an owner that is independent per publication surfac
   assert.strictEqual(validateSurfaceReceipt(receipt, 'cursor-plugin').ok, false);
 });
 
+test('surface receipts can carry a normalized installation identity without changing their native schema', () => {
+  const installation = {
+    schema: 'dhpk.installation-receipt.v1',
+    planId: 'd'.repeat(64),
+    scope: 'project',
+    profileId: 'minimal',
+    selectedStableIds: ['flow-guide'],
+    supportClosure: { stableIds: ['flow-guide'] },
+    ownership: { owner: 'plugins/dhpk-agent', roots: ['plugins/dhpk-agent'] },
+    fingerprints: { plan: 'd'.repeat(64), inventory: 'b'.repeat(64) },
+    rollbackIdentity: 'e'.repeat(64),
+  };
+  const receipt = createSurfaceReceipt({
+    surface: 'agent-plugin', sourceVersion: '1.2.3', sourceCommit: 'a'.repeat(40),
+    inventoryDigest: 'b'.repeat(64), fingerprints: { 'dhpk-example': 'c'.repeat(64) }, installation,
+  });
+  assert.strictEqual(receipt.schema, RECEIPT_SCHEMA);
+  assert.deepStrictEqual(receipt.installation, installation);
+  assert.strictEqual(validateSurfaceReceipt(receipt, 'agent-plugin').ok, true);
+
+  receipt.installation.rollbackIdentity = 'unsafe';
+  assert.ok(validateSurfaceReceipt(receipt, 'agent-plugin').errors.some((error) => /rollbackIdentity/));
+});
+
 test('standalone surface receipts retain closure identity and validate as a distinct selection mode', () => {
   const receipt = createSurfaceReceipt({
     surface: 'agent-plugin',

@@ -56,6 +56,7 @@ function createSurfaceReceipt({
   usage = null,
   skillProvenance = null,
   skillPackageClosure = null,
+  installation = null,
 } = {}) {
   if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) {
     throw new Error(`unknown provenance surface: ${surface}`);
@@ -94,6 +95,7 @@ function createSurfaceReceipt({
     ...(usage ? { usage } : {}),
     ...(skillProvenance ? { skillProvenance } : {}),
     ...(Array.isArray(skillPackageClosure) ? { skillPackageClosure: skillPackageClosure.map((entry) => ({ ...entry })) } : {}),
+    ...(installation ? { installation: JSON.parse(JSON.stringify(installation)) } : {}),
     evidence,
   };
 }
@@ -232,6 +234,21 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
           errors.push(`provenance skillPackageClosure version for '${dependency.id}' must be SemVer`);
         }
       }
+    }
+  }
+  if (receipt.installation !== undefined) {
+    const installation = receipt.installation;
+    if (!installation || typeof installation !== 'object' || Array.isArray(installation)) {
+      errors.push('provenance installation must be an object when present');
+    } else {
+      if (installation.schema !== 'dhpk.installation-receipt.v1') errors.push('provenance installation schema must be dhpk.installation-receipt.v1');
+      if (typeof installation.planId !== 'string' || !SHA256.test(installation.planId)) errors.push('provenance installation planId must be a SHA-256 digest');
+      if (!['project', 'user', 'local'].includes(installation.scope)) errors.push('provenance installation scope is unsupported');
+      if (!Array.isArray(installation.selectedStableIds) || installation.selectedStableIds.length === 0) errors.push('provenance installation selectedStableIds must be a non-empty array');
+      if (!installation.supportClosure || typeof installation.supportClosure !== 'object' || Array.isArray(installation.supportClosure)) errors.push('provenance installation supportClosure must be an object');
+      if (!installation.ownership || typeof installation.ownership.owner !== 'string' || !Array.isArray(installation.ownership.roots)) errors.push('provenance installation ownership must declare owner and roots');
+      if (!installation.fingerprints || typeof installation.fingerprints !== 'object') errors.push('provenance installation fingerprints must be an object');
+      if (typeof installation.rollbackIdentity !== 'string' || !SHA256.test(installation.rollbackIdentity)) errors.push('provenance installation rollbackIdentity must be a SHA-256 digest');
     }
   }
 

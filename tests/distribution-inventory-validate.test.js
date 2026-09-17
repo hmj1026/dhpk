@@ -13,6 +13,7 @@ const {
   externalSkillPackagesFingerprint,
   validateSupportingAssets,
   validatePlatformCapabilityMatrix,
+  validateInstallationLifecycleContract,
   validatePortableFrontmatterContract,
   preserveProjectionContract,
   LIFECYCLES,
@@ -541,6 +542,11 @@ test('inventory bootstrap preserves projection contracts on regeneration', () =>
     platform_matrix: { schema: 'dhpk.platform-capability-matrix.v1', entries: [] },
     portable_frontmatter: { allowlist: ['name'], client_owned: ['agents/openai.yaml'] },
     projection_contract: { schema: 'dhpk.distribution-projection-contract.v1' },
+    installation_contract: {
+      schema: 'dhpk.installation-lifecycle.v1',
+      operations: ['plan', 'install', 'verify', 'update', 'uninstall', 'rollback', 'status'],
+      surfaces: { 'codex-sync': { adapter: 'scripts/hooks/install-codex-skills.sh', support_tier: 'supported', operations: { plan: 'READ_ONLY', install: 'ADAPTER', verify: 'READ_ONLY', update: 'ADAPTER', uninstall: 'ADAPTER', rollback: 'ADAPTER', status: 'READ_ONLY' } } },
+    },
   };
   const merged = preserveProjectionContract(generated, existing);
   assert.deepStrictEqual(merged.surfaces, existing.surfaces);
@@ -548,6 +554,8 @@ test('inventory bootstrap preserves projection contracts on regeneration', () =>
   assert.deepStrictEqual(merged.platform_matrix, existing.platform_matrix);
   assert.deepStrictEqual(merged.portable_frontmatter, existing.portable_frontmatter);
   assert.deepStrictEqual(merged.projection_contract, existing.projection_contract);
+  assert.deepStrictEqual(merged.installation_contract, existing.installation_contract);
+  assert.deepStrictEqual(validateInstallationLifecycleContract(existing.installation_contract).errors, []);
 });
 
 test('inventory regeneration preserves the external package ledger', () => {

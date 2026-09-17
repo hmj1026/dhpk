@@ -100,14 +100,22 @@ dhpk-install cursor plan --scope project --json
 從 source checkout 執行時，直接使用 bundled entrypoint：
 `bash /path/to/dhpk/bin/dhpk-install cursor plan --scope project --json`。
 
-JSON result 會將 normalized request 與 compiler plan 綁定，並將 closed
-projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
+JSON result 會將 normalized request 綁定到具版本的
+`dhpk.installation-plan.v1` identity，記錄 source version、target scope、profile、
+selected stable IDs、support closure、owned roots、plan/inventory fingerprints、
+preview、backup、transaction、recovery 與 rollback identity。Native surface
+receipt 可嵌入對應的 `dhpk.installation-receipt.v1` identity，同時保留原生 receipt
+schema。Inventory-owned `installation_contract` 是 support-tier 與 surface ×
+operation matrix；`ADAPTER` 代表既有、已 characterization 的 route，不表示此
+generic CLI 取得寫入權。
+
+Plan 會將 closed projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
 CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。目前 write
 action 在任何 mutation 前都會回傳 `BLOCKED` 與 stable `NOT_IMPLEMENTED`
 diagnostic。尤其是 Codex project-local write 仍應使用既有
 `install-codex-skills.sh`，Cursor project-local write 應使用
-`install-cursor-harness.sh`，直到這些 adapter 透過相同的 ArtifactStore
-transaction 遷移。
+`install-cursor-harness.sh`。Generic route 會持續 fail-closed，直到未來變更明確
+移交 ArtifactStore write ownership；只有 adapter characterization 絕不會啟用 mutation。
 
 ## Unified distribution CLI
 
