@@ -18,13 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20'
+          node-version: '24'
+
+      - name: Validate workflow syntax
+        uses: reviewdog/action-actionlint@ab7138020abfe6cd20b742c82e5b7a9749fb5884 # v1.75.0
+        with:
+          actionlint_flags: -color
+          fail_level: error
+      - name: Validate workflow policy
+        run: node scripts/ci/validate-workflow-policy.js
 
       # Structure check (bash). Exit 1 = errors (fail); exit 2 = warnings (ok).
       - name: Harness structure
@@ -122,7 +130,7 @@ jobs:
 
       - name: Upload test timing evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dhpk-test-timing.json
@@ -134,11 +142,11 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Codex installer tests
         run: node tests/install-codex-skills.test.js
@@ -164,9 +172,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@v23
+        uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd # v23
         with:
           globs: |
             *.md
