@@ -62,7 +62,7 @@ function jobBlocks(content) {
     const match = lines[index].match(/^  ([A-Za-z0-9][A-Za-z0-9_-]*):\s*$/);
     if (!match) continue;
     const end = lines.findIndex((line, offset) => offset > index && /^  [A-Za-z0-9][A-Za-z0-9_-]*:\s*$/.test(line));
-    jobs.push({ name: match[1], lines: lines.slice(index, end === -1 ? lines.length : end) });
+    jobs.push({ name: match[1], line: index + 1, lines: lines.slice(index, end === -1 ? lines.length : end) });
     if (end !== -1) index = end - 1;
   }
   return jobs;
@@ -120,6 +120,54 @@ function validateNodeBaseline(root, file, content, errors) {
     for (const version of versions) {
       if (version.value !== NODE_BASELINE) {
         addError(errors, root, file, version.line, `CI Runtime Baseline must be Node ${NODE_BASELINE}; found '${version.value}'`);
+      }
+    }
+  }
+}
+
+// A job without actions/checkout has no working tree and no git remote, so
+// anything that resolves the repository from local git state fails at runtime
+// with "not a git repository". Structural step assertions cannot see this:
+// the step is well-formed, it just has no repository underneath it.
+function stepSections(step) {
+  const dashIndent = step.lines[0].match(/^(\s*)-\s/)[1].length;
+  const keyPattern = new RegExp(`^\\s{${dashIndent + 2}}([A-Za-z0-9_-]+):\\s*(?:.*)$`);
+  const sections = [];
+  step.lines.forEach((line, offset) => {
+    const match = offset === 0
+      ? line.slice(dashIndent + 2).match(/^([A-Za-z0-9_-]+):/)
+      : line.match(keyPattern);
+    if (match) sections.push({ key: match[1], offset });
+  });
+  return (key) => {
+    const index = sections.findIndex((section) => section.key === key);
+    if (index === -1) return '';
+    const start = sections[index].offset;
+    const end = index + 1 < sections.length ? sections[index + 1].offset : step.lines.length;
+    return step.lines.slice(start, end).join('\n');
+  };
+}
+
+function shellCommands(runBody) {
+  return runBody
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*#/.test(line))
+    .join('\n');
+}
+
+function validateCheckoutlessRepoContext(root, file, content, errors) {
+  for (const job of jobBlocks(content)) {
+    if (job.lines.some((line) => /uses:\s*actions\/checkout@/.test(line))) continue;
+    for (const step of stepBlocks(job.lines.join('\n'))) {
+      const section = stepSections(step);
+      const commands = shellCommands(section('run'));
+      if (!commands) continue;
+      const line = job.line + job.lines.findIndex((entry) => entry === step.lines[0]);
+      if (/(?:^|\s)gh\s+[a-z]/m.test(commands) && !/^\s*GH_REPO:\s*\S/m.test(section('env'))) {
+        addError(errors, root, file, line, `job '${job.name}' has no actions/checkout, so a step calling gh must set GH_REPO`);
+      }
+      if (/(?:^|\s)git\s+[a-z]/m.test(commands)) {
+        addError(errors, root, file, line, `job '${job.name}' has no actions/checkout, so a step must not invoke git`);
       }
     }
   }
@@ -233,6 +281,7 @@ function main(root = ROOT) {
     validateActions(root, file, content, errors);
     validateNodeBaseline(root, file, content, errors);
     validateTimeouts(root, file, content, errors);
+    validateCheckoutlessRepoContext(root, file, content, errors);
     validateReleasePolicy(root, file, content, errors);
   }
   return { errors, warnings: [], files: files.map((file) => path.relative(root, file)) };

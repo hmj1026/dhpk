@@ -264,6 +264,7 @@ jobs:
       - name: Create GitHub Release from validated bytes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           # An existing release is preserved; tags and release metadata are immutable.
           if gh release view "$GITHUB_REF_NAME" &>/dev/null; then

@@ -109,6 +109,23 @@ test('release publication validates the bundle and streams only its validated no
   assert.doesNotMatch(publishBlock, /steps\.notes\.outputs\.notes/);
 });
 
+test('publication steps that call gh bind GH_REPO because the no-checkout job has no git remote to infer from', () => {
+  const publishIdx = raw.indexOf('  publish:');
+  const nextJobIdx = raw.indexOf('  consumer-verify:', publishIdx);
+  const publishBlock = raw.slice(publishIdx, nextJobIdx);
+  const steps = publishBlock.split(/\n      - name: /).slice(1);
+  const ghSteps = steps.filter((step) => /^\s*gh\s/m.test(step));
+  assert.ok(ghSteps.length > 0, 'publication job must invoke the gh CLI');
+  for (const step of ghSteps) {
+    const stepName = step.split('\n', 1)[0];
+    assert.match(
+      step,
+      /GH_REPO:\s*\$\{\{\s*github\.repository\s*\}\}/,
+      `publication step "${stepName}" calls gh without GH_REPO; the job does not checkout, so gh cannot resolve the repository from git`,
+    );
+  }
+});
+
 test('release workflow verifies the tag commit is contained in main', () => {
   assert.ok(raw.includes('git merge-base --is-ancestor'), 'missing tag-to-main provenance check');
 });
@@ -230,6 +247,14 @@ test('release preflight step classifies UNAVAILABLE outcome as non-blocking on s
   assert.ok(preflightBlock.includes('UNAVAILABLE'), 'preflight step must explicitly handle UNAVAILABLE outcome');
   assert.ok(preflightBlock.includes('BLOCKED'), 'preflight step must explicitly handle BLOCKED outcome');
   assert.ok(preflightBlock.includes('preflight_exit'), 'preflight step must capture exit code');
+});
+
+test('RELEASE.md documents that a failed publish job leaves an unreleased tag recovered by the next patch, not a hand-made release', () => {
+  const releaseDoc = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
+  assert.match(releaseDoc, /publish[\s\S]{0,200}fails[\s\S]{0,200}no GitHub Release/i);
+  assert.match(releaseDoc, /Do not create that release by hand/i);
+  assert.match(releaseDoc, /workflow definition stored at the\s+tag/i);
+  assert.match(releaseDoc, /ship the next patch\s+release/i);
 });
 
 run('release-workflow');
