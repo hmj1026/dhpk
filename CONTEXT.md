@@ -72,3 +72,13 @@ _Avoid_: Supported (when no environment-specific observation exists)
 - A Host such as AGY and a Provider or worker backend such as `agy-fast-worker` are distinct concepts even when their names are related.
 - A Target Agent is an agent identity (`claude-code`, `codex-cli`, `cursor`, `agy`); the Route to it is looked up, so the same target may be `native` on one Host and `headless-cli` on another.
 - A Role Alias carries a Role, never a backend; Host/Role Defaults remain the only automatic selection policy.
+
+## Release Evidence
+
+**CI Runtime Baseline**:
+The single Node.js version used by repository-owned CI and release automation. It does not declare a minimum Node.js version for consumers or installation surfaces.
+_Avoid_: Consumer runtime requirement, Node support matrix
+
+**Published Pending**:
+A release state in which the immutable GitHub Release exists but required runtime evidence is not yet complete. Pending evidence remains visible without treating publication itself as failed.
+_Avoid_: Release failure, complete release
