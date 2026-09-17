@@ -116,8 +116,11 @@ minimal worker kernel, and C from B plus only the task-matched on-demand
 reference. The benchmark SHALL default to dry-run, SHALL require explicit
 execution authorization, and SHALL bind each receipt to source commit/tree,
 dirty state, client, requested/effective model evidence, variant fingerprint,
-fixed fixture, independent oracle, and observed usage. A client that does not
-report its effective model MUST retain an unknown effective identity.
+the selected fixtures and their independent oracles, and observed usage. A
+client that does not report its effective model MUST retain an unknown
+effective identity. The fixture set is selectable; the formal-comparison
+requirement below governs how many fixtures and sessions an executed plan needs
+before its result counts as stable evidence.
 
 #### Scenario: Benchmark is inspected without execution authority
 
@@ -126,8 +129,8 @@ report its effective model MUST retain an unknown effective identity.
 
 #### Scenario: Small-quota pilot executes
 
-- **WHEN** an authorized operator selects clients and passes `--execute`
-- **THEN** each selected A/B/C cell runs once against the same fixture and oracle and records its own usage and score
+- **WHEN** an authorized operator selects a single fixture and passes `--execute`
+- **THEN** each selected A/B/C cell runs once against that fixture and its oracle and records its own usage and score
 - **AND** the receipt labels the pilot as directional rather than the required three-session formal comparison
 
 ### Requirement: The formal worker-context comparison repeats sessions over a discriminating failure matrix
