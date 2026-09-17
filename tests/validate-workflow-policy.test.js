@@ -175,3 +175,32 @@ test('Dependabot groups weekly GitHub Actions updates without auto-merge policy'
 });
 
 run('workflow-policy');
+
+// Regression guard for the v0.62.0/v0.62.1 publish failures: the no-checkout
+// publication job inherited steps that silently assumed a repository was
+// present, and every structural assertion still passed.
+test('a checkout-less job calling gh without GH_REPO fails closed', () => {
+  const result = runReleasePolicy((workflow) => workflow.replace(
+    /^\s*GH_REPO: \$\{\{ github\.repository \}\}\n/m,
+    '',
+  ));
+  assert.ok(
+    result.errors.some((error) => /publish.*GH_REPO/.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('a checkout-less job invoking git fails closed', () => {
+  const workflow = `name: Generic\non: push\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n`;
+  const result = runInTemp({ 'custom.yml': workflow });
+  assert.ok(
+    result.errors.some((error) => /publish.*must not invoke git/.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('a job that checks out the repository may use git and gh without GH_REPO', () => {
+  const workflow = `name: Generic\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - uses: ${ACTIONS.checkout}\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n          gh pr list\n`;
+  const result = runInTemp({ 'custom.yml': workflow });
+  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+});
