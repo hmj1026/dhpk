@@ -291,8 +291,10 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
       } else {
         if (installation.ownership.owner !== receipt.owner) errors.push('provenance installation ownership owner must match receipt owner');
         for (const root of installation.ownership.roots) {
-          if (typeof root !== 'string' || root.trim() === '' || path.isAbsolute(root)
-            || root.split(/[\\/]+/).some((segment) => segment === '..')) {
+        if (typeof root !== 'string' || root.trim() === '' || path.isAbsolute(root)
+            || path.posix.isAbsolute(root) || path.win32.isAbsolute(root)
+            || root === '.' || root.includes('\\') || path.posix.normalize(root) !== root
+            || root.split('/').some((segment) => segment === '..')) {
             errors.push(`provenance installation ownership root is unsafe: ${String(root)}`);
           }
         }
