@@ -70,7 +70,8 @@ unknown for three clients, and the AGY-A usage observation is incomplete.
 
 The one required reason code in `vendor-parser-red-v1` is
 `SHARED_SOURCE_PROHIBITED`, and that string appears in exactly one place across
-the three variants: C's `references/shared-framework-safety.md`. A and B are
+the three variants: C's `benchmarks/issue-534/references/shared-framework-safety.md`.
+A and B are
 never shown the token the oracle demands. The pilot's `C = 4/4` against
 `A = B = 0/4` therefore measures string availability at least as much as it
 measures safety behavior, and a single fixture cannot separate the two.

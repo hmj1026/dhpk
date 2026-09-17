@@ -95,7 +95,7 @@ test('dry run plans every client and variant without invoking a model', async ()
   assert.ok(receipt.runs.every((entry) => entry.status === 'NOT_RUN'));
 });
 
-test('execute invokes every selected client and context exactly once', async () => {
+test('execute invokes every client fixture and variant cell exactly once', async () => {
   const calls = [];
   const receipt = await runBenchmark({
     root: ROOT,
