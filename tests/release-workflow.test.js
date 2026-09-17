@@ -67,6 +67,11 @@ test('release validation emits one run-bound publication bundle from the exact n
   const digestUploadBlock = raw.slice(digestUploadIdx, verifierUploadIdx);
   assert.match(digestUploadBlock, /actions\/upload-artifact@[0-9a-f]{40}\s+#\s*v4/);
   assert.match(digestUploadBlock, /dhpk-release-publication-notes-digest-\$\{\{\s*github\.run_id\s*\}\}/);
+  const verifierBindIdx = raw.indexOf('Bind trusted publication verifier');
+  assert.ok(verifierBindIdx !== -1, 'missing verifier integrity binding');
+  assert.ok(verifierBindIdx > bundleIdx && uploadIdx > verifierBindIdx, 'verifier integrity must be bound before upload');
+  const verifierBindBlock = raw.slice(verifierBindIdx, uploadIdx);
+  assert.match(verifierBindBlock, /echo\s+["']sha256=sha256:\$\(sha256sum\s+scripts\/release\/verify-publication-bundle\.js/);
   const verifierUploadBlock = raw.slice(verifierUploadIdx, createIdx);
   assert.match(verifierUploadBlock, /verify-publication-bundle\.js/);
   assert.match(verifierUploadBlock, /dhpk-release-publication-bundle-verifier-\$\{\{\s*github\.run_id\s*\}\}/);
