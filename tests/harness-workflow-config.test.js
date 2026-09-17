@@ -33,6 +33,12 @@ test('CI runs the aggregate suite with a bounded worker pool and one changelog g
   );
 });
 
+test('CI forwards bot authorship to the changelog coverage gate', () => {
+  const workflow = read('.github/workflows/ci.yml');
+  assert.match(workflow, /PR_AUTHOR_TYPE:\s*\$\{\{\s*github\.event\.pull_request\.user\.type\s*\}\}/);
+  assert.match(workflow, /if \[ "\$PR_AUTHOR_TYPE" = "Bot" \]; then[\s\S]*?CHANGELOG_ARGS\+=\(--bot-authored\)/);
+});
+
 test('release invokes the harness facade for the full consumer surface plan', () => {
   const workflow = read('.github/workflows/release.yml');
   assert.match(workflow, /bin\/dhpk harness release/);

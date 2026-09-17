@@ -98,11 +98,15 @@ jobs:
       - name: Validate changelog fragments
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
         run: |
           CHANGELOG_ARGS=()
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             git fetch origin "$BASE_REF"
             CHANGELOG_ARGS=(--diff-base "origin/$BASE_REF" --base-ref "$BASE_REF")
+            if [ "$PR_AUTHOR_TYPE" = "Bot" ]; then
+              CHANGELOG_ARGS+=(--bot-authored)
+            fi
           fi
           node scripts/ci/validate-changelog-fragments.js "${CHANGELOG_ARGS[@]}"
 

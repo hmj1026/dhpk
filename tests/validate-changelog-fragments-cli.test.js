@@ -184,4 +184,26 @@ test('--write promotes fragments into CHANGELOG.md', () => {
   assert.ok(!fs.existsSync(path.join(repo, 'changelog.d', 'feat.widget.md')));
 });
 
+test('--diff-base passes for a bot-authored workflow change without a fragment', () => {
+  const repo = mkRepo();
+  fs.mkdirSync(path.join(repo, '.github', 'workflows'), { recursive: true });
+  fs.writeFileSync(path.join(repo, '.github', 'workflows', 'ci.yml'), 'name: CI\n');
+  spawnSync('git', ['add', '-A'], { cwd: repo });
+  spawnSync('git', ['commit', '-q', '-m', 'bot updates workflow'], { cwd: repo });
+  const res = runCli(repo, ['--diff-base', 'develop', '--bot-authored']);
+  assert.strictEqual(res.status, 0, res.stderr);
+});
+
+test('--diff-base still fails for a human-authored workflow change without a fragment', () => {
+  const repo = mkRepo();
+  fs.mkdirSync(path.join(repo, '.github', 'workflows'), { recursive: true });
+  fs.writeFileSync(path.join(repo, '.github', 'workflows', 'ci.yml'), 'name: CI\n');
+  spawnSync('git', ['add', '-A'], { cwd: repo });
+  spawnSync('git', ['commit', '-q', '-m', 'human updates workflow'], { cwd: repo });
+  const res = runCli(repo, ['--diff-base', 'develop']);
+  assert.notStrictEqual(res.status, 0, res.stdout);
+  assert.match(res.stderr, /missing release fragment/);
+  assert.match(res.stderr, /.github\/workflows\/ci\.yml/);
+});
+
 run('validate-changelog-fragments-cli');
