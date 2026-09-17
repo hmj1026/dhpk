@@ -174,8 +174,6 @@ test('Dependabot groups weekly GitHub Actions updates without auto-merge policy'
   assert.doesNotMatch(workflows, /dependabot[\s\S]{0,300}(?:auto-merge|gh pr merge)/i);
 });
 
-run('workflow-policy');
-
 // Regression guard for the v0.62.0/v0.62.1 publish failures: the no-checkout
 // publication job inherited steps that silently assumed a repository was
 // present, and every structural assertion still passed.
@@ -204,3 +202,5 @@ test('a job that checks out the repository may use git and gh without GH_REPO', 
   const result = runInTemp({ 'custom.yml': workflow });
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
 });
+
+run('workflow-policy');

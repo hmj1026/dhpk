@@ -249,4 +249,12 @@ test('release preflight step classifies UNAVAILABLE outcome as non-blocking on s
   assert.ok(preflightBlock.includes('preflight_exit'), 'preflight step must capture exit code');
 });
 
+test('RELEASE.md documents that a failed publish job leaves an unreleased tag recovered by the next patch, not a hand-made release', () => {
+  const releaseDoc = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
+  assert.match(releaseDoc, /publish[\s\S]{0,200}fails[\s\S]{0,200}no GitHub Release/i);
+  assert.match(releaseDoc, /Do not create that release by hand/i);
+  assert.match(releaseDoc, /workflow definition stored at the\s+tag/i);
+  assert.match(releaseDoc, /ship the next patch\s+release/i);
+});
+
 run('release-workflow');

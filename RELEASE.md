@@ -322,6 +322,14 @@ edit them. Diagnose the failure and ship a new patch (or `hotfix/*`)
 release; rollback for an already-updated consumer means reinstalling the
 previous known-good immutable version and starting a fresh session.
 
+If the `publish` job itself fails, the tag exists but no GitHub Release does.
+Do not create that release by hand: the release bytes are only trustworthy
+when the no-checkout publication consumer validates the run-bound bundle, and
+a rerun of the failed job re-executes the workflow definition stored at the
+tag, so a workflow fix merged after tagging cannot reach it. Leave the tag in
+place unreleased, land the workflow fix on `develop`, and ship the next patch
+release; that tag carries the corrected workflow and publishes normally.
+
 The durable release evidence is the version, tag SHA, CI run, GitHub Release,
 and develop-reconciliation result. Session-local reports may supplement that
 evidence but are not themselves proof of publication.
