@@ -29,6 +29,7 @@ const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
 const { materializeCursorPackage } = require('../lib/cursor-plugin-package');
 const { validateCursorPackage } = require('../lib/cursor-plugin-package');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../lib/agy-plugin-package');
+const { materialize } = require('../ci/gen-claude-marketplace-package');
 const { validateSurfaceReceipt, resolveGeneratedFromTree } = require('../lib/platform-provenance');
 
 // The codex-native package (plugins/dhpk/.codex-plugin/plugin.json +
@@ -46,6 +47,17 @@ const NATIVE_PACKAGE_PATHS = new Set([
   'plugins/dhpk-agy/plugin.json',
   'plugins/dhpk-agy/provenance.json',
 ]);
+
+// The generated Claude marketplace package is regenerated wholesale via
+// materialize() in write mode rather than field-patching plugin.json, so
+// packaged docs stay in lockstep with the version bump.
+const GENERATED_CLAUDE_MARKETPLACE_MANIFEST_PATHS = new Set([
+  'generated/claude-marketplace/package/.claude-plugin/plugin.json',
+]);
+
+function skipFieldPatchManifest(relPath) {
+  return NATIVE_PACKAGE_PATHS.has(relPath) || GENERATED_CLAUDE_MARKETPLACE_MANIFEST_PATHS.has(relPath);
+}
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const REQUIRED_BRANCH = 'develop';
@@ -132,7 +144,7 @@ function isCanonicalReleaseTarget(root, target) {
   const resolvedTarget = path.resolve(target);
   const canonicalFiles = new Set([
     path.join(resolvedRoot, 'CHANGELOG.md'),
-    ...MANIFEST_PATHS.filter((relPath) => !NATIVE_PACKAGE_PATHS.has(relPath)).map((relPath) => path.join(resolvedRoot, relPath)),
+    ...MANIFEST_PATHS.filter((relPath) => !skipFieldPatchManifest(relPath)).map((relPath) => path.join(resolvedRoot, relPath)),
     ...AGY_GENERATOR_DOC_PATHS.map((relPath) => path.join(resolvedRoot, relPath)),
   ]);
   const canonicalDirectories = new Set([
@@ -140,6 +152,7 @@ function isCanonicalReleaseTarget(root, target) {
     path.join(resolvedRoot, 'plugins', 'dhpk-agent'),
     path.join(resolvedRoot, 'plugins', 'dhpk-cursor'),
     path.join(resolvedRoot, 'plugins', 'dhpk-agy'),
+    path.join(resolvedRoot, 'generated', 'claude-marketplace', 'package'),
   ]);
   if (canonicalFiles.has(resolvedTarget) || canonicalDirectories.has(resolvedTarget)) return true;
   const fragmentDirectory = path.join(resolvedRoot, 'changelog.d');
@@ -596,6 +609,11 @@ function main() {
     ];
     if (validationErrors.length > 0) throw new Error(`generated release package validation failed: ${validationErrors.join('; ')}`);
 
+    const stagedClaude = path.join(stagingRoot, 'claude-marketplace-package');
+    materialize({ root: args.root, out: stagedClaude });
+    writeManifestVersion(stagedClaude, '.claude-plugin/plugin.json', args.version);
+    writeAgyGeneratorDocPins(stagedClaude, args.version);
+
     const stagedChangelog = path.join(stagingRoot, 'CHANGELOG.md');
     fs.copyFileSync(changelogPath, stagedChangelog);
     const stagedFragments = path.join(stagingRoot, 'changelog.d');
@@ -608,7 +626,7 @@ function main() {
     const stagedFiles = path.join(stagingRoot, 'files');
     fs.mkdirSync(stagedFiles, { recursive: true });
     for (const relPath of MANIFEST_PATHS) {
-      if (NATIVE_PACKAGE_PATHS.has(relPath)) continue;
+      if (skipFieldPatchManifest(relPath)) continue;
       const destination = path.join(stagedFiles, relPath);
       fs.mkdirSync(path.dirname(destination), { recursive: true });
       fs.copyFileSync(path.join(args.root, relPath), destination);
@@ -625,13 +643,13 @@ function main() {
     const changed = [];
     changed.push('CHANGELOG.md');
     for (const relPath of MANIFEST_PATHS) {
-      if (NATIVE_PACKAGE_PATHS.has(relPath)) continue;
+      if (skipFieldPatchManifest(relPath)) continue;
       changed.push(relPath);
     }
     for (const relPath of AGY_GENERATOR_DOC_PATHS) changed.push(relPath);
     const replacements = [
       { target: changelogPath, source: stagedChangelog },
-      ...MANIFEST_PATHS.filter((relPath) => !NATIVE_PACKAGE_PATHS.has(relPath)).map((relPath) => ({
+      ...MANIFEST_PATHS.filter((relPath) => !skipFieldPatchManifest(relPath)).map((relPath) => ({
         target: path.join(args.root, relPath),
         source: path.join(stagedFiles, relPath),
       })),
@@ -643,6 +661,7 @@ function main() {
       { target: path.join(args.root, 'plugins', 'dhpk-agent'), source: stagedAgent },
       { target: path.join(args.root, 'plugins', 'dhpk-cursor'), source: stagedCursor },
       { target: path.join(args.root, 'plugins', 'dhpk-agy'), source: stagedAgy },
+      { target: path.join(args.root, 'generated', 'claude-marketplace', 'package'), source: stagedClaude },
       ...promoted.consumed.map((relative) => ({ target: path.join(fragmentDir, relative), source: null })),
     ];
     const operationKey = args.operationKey || `release-${args.version}-${Date.now()}`;
@@ -655,6 +674,7 @@ function main() {
     changed.push('plugins/dhpk-agent/ (regenerated standard Agent Plugin package)');
     changed.push('plugins/dhpk-cursor/ (regenerated Cursor Plugin package)');
     changed.push('plugins/dhpk-agy/ (regenerated native AGY package)');
+    changed.push('generated/claude-marketplace/package/ (regenerated Claude marketplace package)');
 
     console.log(`prepare-release: write PASS (target ${args.version}); changed files:`);
     for (const f of changed) console.log(`  - ${f}`);

@@ -79,6 +79,8 @@ jobs:
         run: node scripts/ci/verify-platform-packages.js
       - name: No-drift Claude manifest check
         run: node scripts/ci/gen-claude-manifest.js --check
+      - name: No-drift Claude marketplace package check
+        run: node scripts/ci/gen-claude-marketplace-package.js --check
       - name: Validate invocation policy
         run: node scripts/ci/validate-invocation-policy.js
 
