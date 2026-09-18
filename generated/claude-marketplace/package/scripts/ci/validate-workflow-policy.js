@@ -11,6 +11,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..', '..');
 const NODE_BASELINE = '24';
+const NODE_VERSION_FILE = '.nvmrc';
 const COMMIT_SHA = /^[0-9a-f]{40}$/i;
 const VERSION_COMMENT = /(?:^|\s)v?\d+(?:\.\d+){0,3}(?:[-+][\w.-]+)?(?:\s|$)/i;
 
@@ -70,6 +71,19 @@ function jobBlocks(content) {
 
 function addError(errors, root, file, line, message) {
   errors.push(`${path.relative(root, file) || file}:${line}: ${message}`);
+}
+
+function validateLocalNodeBaseline(root, errors) {
+  const file = path.join(root, NODE_VERSION_FILE);
+  if (!fs.existsSync(file)) {
+    addError(errors, root, file, 1, `CI Runtime Baseline must be declared in ${NODE_VERSION_FILE}`);
+    return;
+  }
+
+  const value = fs.readFileSync(file, 'utf8').trim();
+  if (value !== NODE_BASELINE) {
+    addError(errors, root, file, 1, `CI Runtime Baseline in ${NODE_VERSION_FILE} must be Node ${NODE_BASELINE}; found '${value}'`);
+  }
 }
 
 function validateActions(root, file, content, errors) {
@@ -273,6 +287,7 @@ function validateReleasePolicy(root, file, content, errors) {
 function main(root = ROOT) {
   const files = workflowFiles(root);
   const errors = [];
+  validateLocalNodeBaseline(root, errors);
   if (files.length === 0) {
     errors.push('.github/workflows: no workflow files found');
   }

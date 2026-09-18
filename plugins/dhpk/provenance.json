@@ -3,10 +3,10 @@
   "surface": "codex-native",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.62.2",
-  "sourceCommit": "81434978150fe4d45e64c92c162b5d0eab3fca30",
-  "generatedFromCommit": "81434978150fe4d45e64c92c162b5d0eab3fca30",
-  "generatedFromTree": "3fe4fe1d6bb413fd9f3ce96dfb0fda2df6b5ac4f",
+  "sourceVersion": "0.62.3",
+  "sourceCommit": "fab9115be841eab782f70b0527c4a4624aaa428a",
+  "generatedFromCommit": "fab9115be841eab782f70b0527c4a4624aaa428a",
+  "generatedFromTree": "8f35894e6efaa872e8c789ae9eb5deb28ef61761",
   "inventoryDigest": "6e9af26ac6cf5f90208a4360c24b5091cf9dfbbd478b9fb83682504d747c0738",
   "inventoryRevision": "sha256:4870c6b34e8040a8dde5267d2b13e1f00f23fe44258b546900c23303a5d8300e",
   "generatorVersion": "2.3.0",
@@ -99,7 +99,7 @@
     "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
     "dhpk-opsx-load-context": "405884767ca4114a166db0e0e8e52c48e1ccc502d0b6ff5fbede2c8654b72ee1",
     "dhpk-opsx-post-observation": "cfb6322b54bac5536b4c76f42165095100fca25b45b0065a337b03a9c83b8c75",
-    "skill-scope": "92679bf17ebcfe00bf588f323fbde04e0b393495029f05093772a3ea593d5a12",
+    "skill-scope": "464bbce695f572ef430c680729036712a4aad814bc9aff1a28fcc4905b71d7da",
     "dhpk-tdd-workflow": "e6c686704db2c5c5385a2b6c28ac4c1099e76b7f51f5708a69eaf7b31b5722c6",
     "harness-govern": "62f52add7477a33565fa7aefe4d8b7c670fc82e7dea9210839e4c6778b9714b3",
     "dhpk-cli-dispatch-context": "ebbac24048a7f4784f150d087144e95dc532b157feeee41fb57497516572672e",
@@ -107,7 +107,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "7f1f59f9d1984850ee1d7667d911a8084a4a15e6f68c53230df43ef875e086a0",
+    "planId": "30127c0e0ab941f196831f65fbe03cef61ea22f67d0e4a09355f2d8d4efcbcf1",
     "scope": "project",
     "profileId": "compat-v1",
     "selectedStableIds": [
@@ -149,10 +149,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "7f1f59f9d1984850ee1d7667d911a8084a4a15e6f68c53230df43ef875e086a0",
+      "plan": "30127c0e0ab941f196831f65fbe03cef61ea22f67d0e4a09355f2d8d4efcbcf1",
       "inventory": "6e9af26ac6cf5f90208a4360c24b5091cf9dfbbd478b9fb83682504d747c0738"
     },
-    "rollbackIdentity": "ae5015e14f14ccc48fb1dea7ac490d24747425f2d8ba3e6eb7e75f1b89b66e32"
+    "rollbackIdentity": "f3a0508f336104457d013389b33e2b42073febf326b7f2c5fc32989be896193b"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

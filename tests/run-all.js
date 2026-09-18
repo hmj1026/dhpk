@@ -19,7 +19,10 @@ const MAX_JOBS = 8;
 // fixture-heavy files from landing in the same worker. The fallback weight is
 // deterministic for synthetic paths used by unit tests and future shards.
 const WEIGHT_HINTS = Object.freeze({
-  'install-codex-skills.test.js': 160,
+  'install-codex-skills.test.js': 20,
+  'install-codex-skills-reconciliation.test.js': 60,
+  'install-codex-skills-planning.test.js': 60,
+  'install-codex-skills-uninstall.test.js': 20,
   'consumer-gate-cli.test.js': 80,
   'gen-cursor-plugin-package.test.js': 70,
   'harness-facade-cli.test.js': 55,
@@ -33,7 +36,7 @@ const WEIGHT_HINTS = Object.freeze({
 // consumer-gate children with a 120s inner cap) overrun that under four-way
 // CI contention inside a 2G cgroup.
 const TIMEOUT_HINTS = Object.freeze({
-  'install-codex-skills.test.js': 300000,
+  'install-codex-skills-reconciliation.test.js': 300000,
   'harness-facade-cli.test.js': 240000,
 });
 

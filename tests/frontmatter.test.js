@@ -11,6 +11,34 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
+
+// The official-validator probe shells out to the `claude` CLI. That CLI is
+// absent on Linux CI (status !== 0, skip) but present on a maintainer's macOS
+// machine, where it can block instead of returning -- which stalled this file
+// until run-all.js killed it at its 180s per-file ceiling. Bound every probe
+// and treat an unresponsive CLI the same as a missing one, but say so instead
+// of skipping silently.
+const CLI_PROBE_TIMEOUT_MS = 30000;
+
+function runClaudeCli(args, options = {}) {
+  return spawnSync('claude', args, {
+    encoding: 'utf8',
+    timeout: CLI_PROBE_TIMEOUT_MS,
+    killSignal: 'SIGKILL',
+    ...options,
+  });
+}
+
+function claudeCliUnusable(result, what) {
+  if (result.error) {
+    const reason = result.error.code === 'ETIMEDOUT'
+      ? `did not return within ${CLI_PROBE_TIMEOUT_MS}ms`
+      : result.error.message;
+    console.error(`  note - skipping official strict validation: 'claude ${what}' ${reason}`);
+    return true;
+  }
+  return false;
+}
 const OFFICIAL_STRICT_FAILURE_SET = [
   'dhpk-ios-platform',
   'laravel',
@@ -81,8 +109,8 @@ test('all 21 official strict-failure skills expose equivalent quoted metadata', 
 });
 
 test('official strict validator accepts a fixture using the same quoted scalar metadata', () => {
-  const claude = spawnSync('claude', ['--version'], { encoding: 'utf8' });
-  if (claude.status !== 0) return;
+  const claude = runClaudeCli(['--version']);
+  if (claudeCliUnusable(claude, '--version') || claude.status !== 0) return;
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-frontmatter-official-'));
   try {
     fs.mkdirSync(path.join(fixture, '.claude-plugin'), { recursive: true });
@@ -103,10 +131,11 @@ test('official strict validator accepts a fixture using the same quoted scalar m
       '# fixture',
       '',
     ].join('\n'));
-    const result = spawnSync('claude', ['plugin', 'validate', path.join(fixture, '.claude-plugin', 'plugin.json'), '--strict'], {
-      cwd: fixture,
-      encoding: 'utf8',
-    });
+    const result = runClaudeCli(
+      ['plugin', 'validate', path.join(fixture, '.claude-plugin', 'plugin.json'), '--strict'],
+      { cwd: fixture },
+    );
+    if (claudeCliUnusable(result, 'plugin validate --strict')) return;
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });

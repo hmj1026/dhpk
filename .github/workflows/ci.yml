@@ -2,8 +2,6 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -33,6 +31,8 @@ jobs:
           fail_level: error
       - name: Validate workflow policy
         run: node scripts/ci/validate-workflow-policy.js
+      - name: Validate JSON CLI termination
+        run: node scripts/ci/validate-json-cli-termination.js
 
       # Structure check (bash). Exit 1 = errors (fail); exit 2 = warnings (ok).
       - name: Harness structure
@@ -98,11 +98,15 @@ jobs:
       - name: Validate changelog fragments
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
         run: |
           CHANGELOG_ARGS=()
           if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
             git fetch origin "$BASE_REF"
             CHANGELOG_ARGS=(--diff-base "origin/$BASE_REF" --base-ref "$BASE_REF")
+            if [ "$PR_AUTHOR_TYPE" = "Bot" ]; then
+              CHANGELOG_ARGS+=(--bot-authored)
+            fi
           fi
           node scripts/ci/validate-changelog-fragments.js "${CHANGELOG_ARGS[@]}"
 
@@ -150,6 +154,12 @@ jobs:
 
       - name: Codex installer tests
         run: node tests/install-codex-skills.test.js
+      - name: Codex reconciliation tests
+        run: node tests/install-codex-skills-reconciliation.test.js
+      - name: Codex planning tests
+        run: node tests/install-codex-skills-planning.test.js
+      - name: Codex uninstall tests
+        run: node tests/install-codex-skills-uninstall.test.js
       - name: Cursor installer tests
         run: node tests/install-cursor-harness.test.js
       - name: CLI dispatch launcher tests

@@ -16,8 +16,8 @@ try {
   const result = execute(request, inventory, { profiles, moduleCatalog, sourceVersion: plugin.version });
   if (request.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   else process.stdout.write(`${result.lifecycle.verdict}: ${request.surface} ${request.action}\n`);
-  process.exit(result.lifecycle.verdict === 'BLOCKED' ? 2 : 0);
+  process.exitCode = result.lifecycle.verdict === 'BLOCKED' ? 2 : 0;
 } catch (error) {
   process.stderr.write(`dhpk-install: ${error.message}\n`);
-  process.exit(64);
+  process.exitCode = 64;
 }
