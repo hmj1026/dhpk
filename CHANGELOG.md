@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.62.3 — 2026-09-18 — Fix piped JSON CLI output and bot changelog gate
+
+- **fix(changelog)** — Render release-note entries as Markdown list items so each entry keeps its own line instead of collapsing into one paragraph.
+- **fix(cli)** — Prevent JSON-emitting CLI output from being truncated when piped to another tool.
+- **ci(dependabot)** — Exempt bot-authored pull requests from the changelog fragment coverage gate.
+
 ## 0.62.2 — 2026-09-17 — Restore release publication in the no-checkout publish job
 
 - **fix(release)** — Bind GH_REPO in the no-checkout publication job so the GitHub Release is created instead of failing on repository resolution.
