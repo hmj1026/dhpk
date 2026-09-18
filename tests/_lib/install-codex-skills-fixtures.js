@@ -25,6 +25,9 @@ if [ "$1" = "plugin" ] && [ "$2" = "list" ] && [ "$3" = "--json" ]; then
     (sleep 4; printf survived > "\${DHPK_TEST_CODEX_BACKGROUND_MARKER}") &
     exit 0
   fi
+  if [ -n "\${DHPK_TEST_CODEX_PLUGIN_LIST_SLEEP_SECONDS:-}" ]; then
+    sleep "\${DHPK_TEST_CODEX_PLUGIN_LIST_SLEEP_SECONDS}"
+  fi
   if [ -n "\${DHPK_TEST_CODEX_PLUGIN_LIST_JSON:-}" ]; then
     printf '%s\\n' "\${DHPK_TEST_CODEX_PLUGIN_LIST_JSON}"
   else

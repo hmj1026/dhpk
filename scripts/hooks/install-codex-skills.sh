@@ -206,12 +206,38 @@ SCHEMA_VERSION = 3
 BACKUP_DIR = '.dhpk-backups'
 BACKUP_RUN = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ') + f'-{os.getpid()}'
 CODEX_NATIVE_PLUGIN_ID = 'dhpk@dhpk'
-PROVIDER_QUERY_TIMEOUT_SECONDS = 3
+DEFAULT_PROVIDER_QUERY_TIMEOUT_SECONDS = 30
 PROVIDER_QUERY_OUTPUT_LIMIT = 1024 * 1024
 PROVIDER_RECEIPT_BYTES_LIMIT = 1024 * 1024
 PROVIDER_RECEIPT_ENTRY_LIMIT = 512
 PROVIDER_RECEIPT_PATH_LIMIT = 64
 PROVIDER_RECEIPT_VERSION_LIMIT = 128
+
+
+def _positive_int(raw):
+    if raw is None or raw == '':
+        return None
+    try:
+        value = int(raw, 10)
+    except (TypeError, ValueError):
+        return None
+    if value <= 0:
+        return None
+    return value
+
+
+def resolve_provider_query_timeout_seconds(env=None):
+    source = os.environ if env is None else env
+    seconds = _positive_int(source.get('DHPK_CODEX_PROBE_TIMEOUT_SECONDS'))
+    if seconds is not None:
+        return seconds
+    ms = _positive_int(source.get('DHPK_CODEX_PROBE_TIMEOUT_MS'))
+    if ms is not None:
+        return max(1, ms // 1000)
+    return DEFAULT_PROVIDER_QUERY_TIMEOUT_SECONDS
+
+
+PROVIDER_QUERY_TIMEOUT_SECONDS = resolve_provider_query_timeout_seconds()
 
 
 class ProviderReceiptTooLarge(ValueError):
