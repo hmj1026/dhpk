@@ -13,6 +13,7 @@ const {
   parseOptions,
   assignShard,
   partitionFiles,
+  findTests,
   fileTimeoutMs,
   createTimingReport,
   parseTimingPayload,
@@ -231,6 +232,17 @@ test('worker timing payloads are machine-readable and tolerate ordinary test out
   );
   assert.strictEqual(parseTimingPayload('ordinary output\n'), null);
   assert.strictEqual(parseTimingPayload('DHPK_TEST_TIMING_PAYLOAD={invalid}\n'), null);
+});
+
+test('discovered tests stay flat except skipped _lib', () => {
+  const files = findTests(__dirname);
+  const nested = files.filter((file) => path.relative(__dirname, file).split(path.sep).length > 1);
+  assert.deepStrictEqual(nested, [], `nested *.test.js must not exist: ${nested.join(', ')}`);
+  const libDir = path.join(__dirname, '_lib');
+  const libNested = fs.existsSync(libDir)
+    ? fs.readdirSync(libDir).filter((name) => name.endsWith('.test.js'))
+    : [];
+  assert.deepStrictEqual(libNested, [], '_lib must not hold discovered *.test.js files');
 });
 
 run('run-all');

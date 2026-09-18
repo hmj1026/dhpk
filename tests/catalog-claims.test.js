@@ -276,4 +276,55 @@ test('a synthetic uncovered script is detected and fails --check', () => {
   }
 });
 
+test('a many-to-one coverage map covers two scripts with one discovered file', () => {
+  const catalogPath = path.join(repo, 'scripts', 'ci', 'catalog.js');
+  const originalCatalog = fs.readFileSync(catalogPath, 'utf8');
+  const alpha = path.join(repo, 'scripts', 'zz-shared-alpha.sh');
+  const beta = path.join(repo, 'scripts', 'zz-shared-beta.sh');
+  const sharedTest = path.join(repo, 'tests', 'zz-shared-coverage.test.js');
+  try {
+    fs.writeFileSync(alpha, '#!/usr/bin/env bash\necho alpha\n');
+    fs.writeFileSync(beta, '#!/usr/bin/env bash\necho beta\n');
+    fs.writeFileSync(sharedTest, "'use strict';\n");
+    fs.writeFileSync(
+      catalogPath,
+      originalCatalog.replace(
+        'const COVERAGE_MAP = {',
+        "const COVERAGE_MAP = {\n  'scripts/zz-shared-alpha.sh': 'zz-shared-coverage.test.js',\n  'scripts/zz-shared-beta.sh': 'zz-shared-coverage.test.js',",
+      ),
+    );
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 0, `many-to-one map should cover both scripts, got:\n${out}`);
+    assert.doesNotMatch(out, /zz-shared-alpha|zz-shared-beta/);
+  } finally {
+    fs.writeFileSync(catalogPath, originalCatalog);
+    fs.rmSync(alpha, { force: true });
+    fs.rmSync(beta, { force: true });
+    fs.rmSync(sharedTest, { force: true });
+  }
+});
+
+test('a nested tests/subdir/*.test.js file is not treated as coverage', () => {
+  const scriptFp = path.join(repo, 'scripts', 'zz-nested-only.sh');
+  const nestedDir = path.join(repo, 'tests', 'subdir');
+  const nestedTest = path.join(nestedDir, 'zz-nested-only.test.js');
+  try {
+    fs.writeFileSync(scriptFp, '#!/usr/bin/env bash\necho nested\n');
+    fs.mkdirSync(nestedDir, { recursive: true });
+    fs.writeFileSync(nestedTest, "'use strict';\n");
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 1, `nested test must not count as coverage, got:\n${out}`);
+    assert.match(out, /UNCOVERED scripts\/zz-nested-only\.sh/);
+  } finally {
+    fs.rmSync(scriptFp, { force: true });
+    fs.rmSync(nestedTest, { force: true });
+    fs.rmSync(nestedDir, { recursive: true, force: true });
+  }
+});
+
+test('coverage ledger is named resolveScriptCoverage in catalog.js', () => {
+  const catalogSource = fs.readFileSync(path.join(ROOT, 'scripts', 'ci', 'catalog.js'), 'utf8');
+  assert.match(catalogSource, /function resolveScriptCoverage\b/);
+});
+
 run('catalog-claims');
