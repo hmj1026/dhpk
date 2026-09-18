@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.62.4 — 2026-09-18 — Fix Codex probe timeout, agents-skills update drift, and Claude marketplace package sync
+
+- **fix(agents-skills)** — Allow `gen-agents-skills --update` to overwrite drifted receipt-owned managed files from current canonical sources.
+- **fix(marketplace)** — Keep the generated Claude marketplace package in sync during release preparation and PR CI.
+- **fix(codex)** — Allow the Codex plugin-list activation probe enough time for remote marketplace queries, with an env override.
+
 ## 0.62.3 — 2026-09-18 — Fix piped JSON CLI output and bot changelog gate
 
 - **fix(changelog)** — Render release-note entries as Markdown list items so each entry keeps its own line instead of collapsing into one paragraph.
