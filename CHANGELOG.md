@@ -4,159 +4,159 @@
 
 ## 0.62.2 — 2026-09-17 — Restore release publication in the no-checkout publish job
 
-**fix(release)** — Bind GH_REPO in the no-checkout publication job so the GitHub Release is created instead of failing on repository resolution.
+- **fix(release)** — Bind GH_REPO in the no-checkout publication job so the GitHub Release is created instead of failing on repository resolution.
 
 ## 0.62.1 — 2026-09-17 — Fix release workflow verifier digest prefix
 
-**fix(release)** — Bind the sha256 scheme prefix to the trusted publication verifier digest in the release workflow.
+- **fix(release)** — Bind the sha256 scheme prefix to the trusted publication verifier digest in the release workflow.
 
 ## 0.62.0 — 2026-09-17 — Default to four capabilities, remove retired entry points, and converge simplify workflow
 
-**BREAKING(distribution)** — Remove the retired public skill, agent, and command entry points; clean installs now expose the four-capability minimal profile and require receipt-bound migration or version-pinned rollback.
-**feat(distribution)** — Default new installations to the four public workflow capabilities and add a shared, ownership-safe installation plan and receipt contract across supported surfaces.
-**feat(commands)** — Upgrade `/dhpk:simplify` with diff-first scoping, parallel cleanup angles, and truthful fallback disclosure while preserving its test and safe-deletion gates.
-**fix(consumer-gate)** — Record the resolved Claude CLI version in consumer verification evidence and release job summaries.
-**fix(multi-ai-sync)** — Recognize the canonical `.agents/skills` project projection during multi-platform sync validation.
-**chore(config)** — Optimize gitignore patterns for runtime receipts and track domain CONTEXT.md SSOT.
+- **BREAKING(distribution)** — Remove the retired public skill, agent, and command entry points; clean installs now expose the four-capability minimal profile and require receipt-bound migration or version-pinned rollback.
+- **feat(distribution)** — Default new installations to the four public workflow capabilities and add a shared, ownership-safe installation plan and receipt contract across supported surfaces.
+- **feat(commands)** — Upgrade `/dhpk:simplify` with diff-first scoping, parallel cleanup angles, and truthful fallback disclosure while preserving its test and safe-deletion gates.
+- **fix(consumer-gate)** — Record the resolved Claude CLI version in consumer verification evidence and release job summaries.
+- **fix(multi-ai-sync)** — Recognize the canonical `.agents/skills` project projection during multi-platform sync validation.
+- **chore(config)** — Optimize gitignore patterns for runtime receipts and track domain CONTEXT.md SSOT.
 
 ## 0.61.0 — 2026-09-15 — Normalize command and skill discovery with structured usage cards
 
-**feat(command-skill-discovery)** — Normalize command and Skill discovery with structured usage cards and explicit Host-only dispositions.
+- **feat(command-skill-discovery)** — Normalize command and Skill discovery with structured usage cards and explicit Host-only dispositions.
 
 ## 0.60.1 — 2026-09-15 — Fix AGY package publication validation
 
-**ci(agy-package)** — Keep canonical skill package manifests out of the published AGY package so release consumer verification accepts the platform path contract.
+- **ci(agy-package)** — Keep canonical skill package manifests out of the published AGY package so release consumer verification accepts the platform path contract.
 
 ## 0.60.0 — 2026-09-15 — Package Flow Guide runtime closure with Flow Drive and harden CI test isolation
 
-**feat(flow-runtime)** — Package the Flow Guide runtime closure with Flow Drive across supported distribution surfaces, with explicit local-resource loading and fail-closed path validation.
-**fix(ci)** — Fix harness receipt identity test fixture isolation under parallel workers and synchronize generated Claude marketplace package assets.
+- **feat(flow-runtime)** — Package the Flow Guide runtime closure with Flow Drive across supported distribution surfaces, with explicit local-resource loading and fail-closed path validation.
+- **fix(ci)** — Fix harness receipt identity test fixture isolation under parallel workers and synchronize generated Claude marketplace package assets.
 
 ## 0.59.0 — 2026-09-14 — Unify external project agent projection, provider-shaped adapters, and relocatable distribution plans
 
-**feat(distribution-projection)** — Establish a deterministic, read-only characterization baseline for the shared project skill projection across Claude, Codex, Cursor, and AGY.
-**feat(distribution-projection)** — Compile an explicit portable-core project projection plan with Host bindings, dependency closure, ownership, and deterministic fingerprints.
-**feat(distribution-projection)** — Publish a relocatable project skill projection with receipt-owned lifecycle, recovery, and rollback metadata.
-**feat(distribution-projection)** — Add compiler-bound Provider-shaped project skill adapters, self-contained AGY direct files, and an isolated exact-artifact consumer gate.
-**docs(distribution-projection)** — Document the shared project skill projection, Host adapters, receipt ownership, and evidence-bound installation behavior.
+- **feat(distribution-projection)** — Establish a deterministic, read-only characterization baseline for the shared project skill projection across Claude, Codex, Cursor, and AGY.
+- **feat(distribution-projection)** — Compile an explicit portable-core project projection plan with Host bindings, dependency closure, ownership, and deterministic fingerprints.
+- **feat(distribution-projection)** — Publish a relocatable project skill projection with receipt-owned lifecycle, recovery, and rollback metadata.
+- **feat(distribution-projection)** — Add compiler-bound Provider-shaped project skill adapters, self-contained AGY direct files, and an isolated exact-artifact consumer gate.
+- **docs(distribution-projection)** — Document the shared project skill projection, Host adapters, receipt ownership, and evidence-bound installation behavior.
 
 ## 0.58.3 — 2026-09-13 — Safe marketplace cache and cross-platform compatibility projections
 
-**feat(agents-skills-compatibility)** — Project-local skills can now be generated once into `.agents/skills` for Cursor and Antigravity while platform-native agent and rule paths remain explicit.
-**fix(agy-install-path)** — AGY installation now uses the inventory-owned official path by default, detects legacy installations without mutating them, and provides an explicit receipt-safe migration action with rollback protection.
-**fix(claude-marketplace)** — Publish Claude marketplace installs from a physical package without the development root CLAUDE.md and validate the installed cache under --strict. If the CLI omits installPath, the evidence is NOT RUN, the gate fails closed, and completion is blocked without an official PASS.
+- **feat(agents-skills-compatibility)** — Project-local skills can now be generated once into `.agents/skills` for Cursor and Antigravity while platform-native agent and rule paths remain explicit.
+- **fix(agy-install-path)** — AGY installation now uses the inventory-owned official path by default, detects legacy installations without mutating them, and provides an explicit receipt-safe migration action with rollback protection.
+- **fix(claude-marketplace)** — Publish Claude marketplace installs from a physical package without the development root CLAUDE.md and validate the installed cache under --strict. If the CLI omits installPath, the evidence is NOT RUN, the gate fails closed, and completion is blocked without an official PASS.
 
 ## 0.58.2 — 2026-09-12 — Dual-platform bounded release preflight
 
-**chore(release-gate)** — Support guarded release preflight on Linux cgroup and macOS portable bounded runners.
+- **chore(release-gate)** — Support guarded release preflight on Linux cgroup and macOS portable bounded runners.
 
 ## 0.58.1 — 2026-09-12 — Accept symlinked Cursor local package roots in CLI probe
 
-**fix(cursor-cli)** — Allow the bounded Cursor CLI probe to accept documented symlink aliases for local package roots.
+- **fix(cursor-cli)** — Allow the bounded Cursor CLI probe to accept documented symlink aliases for local package roots.
 
 ## 0.58.0 — 2026-09-11 — Provider-neutral subagent orchestration, platform gates, and CLI context portability
 
-**fix(cli-dispatch-context)** — Make CLI context creation portable and race-safe on macOS by writing through a pinned parent descriptor.
-**fix(macos-portability)** — Make harness skill path checks compatible with BSD and GNU realpath implementations.
-**docs(markdown-format)** — Unify tracked Markdown formatting and tighten agent-facing documentation contracts across canonical and generated documentation surfaces.
+- **fix(cli-dispatch-context)** — Make CLI context creation portable and race-safe on macOS by writing through a pinned parent descriptor.
+- **fix(macos-portability)** — Make harness skill path checks compatible with BSD and GNU realpath implementations.
+- **docs(markdown-format)** — Unify tracked Markdown formatting and tighten agent-facing documentation contracts across canonical and generated documentation surfaces.
 
 ## 0.57.1 — 2026-09-11 — Release parity fixes and macOS platform compatibility
 
-**fix(release)** — Claude profile packages (minimal, full, compat-v1) are now kept in version parity with the plugin release, and the release gate fails on drift.
-**fix(codex-discovery)** — check-codex-discovery now consults real Codex activation, so a source-tree native package is no longer reported as a duplicate runtime provider.
-**fix(release)** — Fix consumer/release probes misreading macOS's /var -> /private/var temp-directory alias as an unsafe symlink, which could falsely block Cursor/Codex consumer verification.
+- **fix(release)** — Claude profile packages (minimal, full, compat-v1) are now kept in version parity with the plugin release, and the release gate fails on drift.
+- **fix(codex-discovery)** — check-codex-discovery now consults real Codex activation, so a source-tree native package is no longer reported as a duplicate runtime provider.
+- **fix(release)** — Fix consumer/release probes misreading macOS's /var -> /private/var temp-directory alias as an unsafe symlink, which could falsely block Cursor/Codex consumer verification.
 
 ## 0.57.0 — 2026-09-10 — Native-first dispatch and Sentinel retirement
 
-**BREAKING(review-gate)** — Remove the legacy Review Sentinel mechanism (`.pending-*` marker files, resumed-review-obligation reconciliation, and the PostToolUse edit-arming hook); reviewer dispatch is now an orchestrator/AI judgment call against the trigger table in `rules/execution-policy.md`, not a hook-armed marker file.
-**feat(execution-policy)** — Add native-first fallback classification and partial-writer handoff safeguards without silently switching providers or dropping dirty work.
-**feat(execution-policy)** — Make automatic delegated dispatch native-only by default so external provider CLIs are not probed unless explicitly selected.
-**chore(review-gate)** — Remove the unused Sentinel-retirement evidence gate (20-outcome ledger, single-maintainer authorization track); Sentinel retirement is now a direct maintainer decision recorded in ADR-0018.
+- **BREAKING(review-gate)** — Remove the legacy Review Sentinel mechanism (`.pending-*` marker files, resumed-review-obligation reconciliation, and the PostToolUse edit-arming hook); reviewer dispatch is now an orchestrator/AI judgment call against the trigger table in `rules/execution-policy.md`, not a hook-armed marker file.
+- **feat(execution-policy)** — Add native-first fallback classification and partial-writer handoff safeguards without silently switching providers or dropping dirty work.
+- **feat(execution-policy)** — Make automatic delegated dispatch native-only by default so external provider CLIs are not probed unless explicitly selected.
+- **chore(review-gate)** — Remove the unused Sentinel-retirement evidence gate (20-outcome ledger, single-maintainer authorization track); Sentinel retirement is now a direct maintainer decision recorded in ADR-0018.
 
 ## 0.56.0 — 2026-09-09 — Single-maintainer Sentinel retirement track and agent schema deduplication
 
-**feat(review-gate)** — Add a single-maintainer authorization track for Sentinel retirement evidence (issue #375), letting a solo maintainer's time-separated, CI-corroborated self-authorization substitute for a distinct-party reviewer.
-**fix(review-gate)** — Fix a TypeError in the retirement Accepted-Outcome Cost comparator when a CUTOVER cohort has a matching baseline cohort, and split review-gate-retirement.js under the file-size guideline.
-**refactor(agents)** — Point sentinel reviewer closing clearance at the artifact and reviewer contracts instead of restating hook-owned sentinel rules. Codex projection rewrites that pointer into `.codex/artifacts` manual-review semantics.
-**refactor(agents)** — Point canonical agent prompts at official Claude Code schema and existing policy SSOTs instead of restating harness copies, and enforce labeled local policy in the agent validator.
+- **feat(review-gate)** — Add a single-maintainer authorization track for Sentinel retirement evidence (issue #375), letting a solo maintainer's time-separated, CI-corroborated self-authorization substitute for a distinct-party reviewer.
+- **fix(review-gate)** — Fix a TypeError in the retirement Accepted-Outcome Cost comparator when a CUTOVER cohort has a matching baseline cohort, and split review-gate-retirement.js under the file-size guideline.
+- **refactor(agents)** — Point sentinel reviewer closing clearance at the artifact and reviewer contracts instead of restating hook-owned sentinel rules. Codex projection rewrites that pointer into `.codex/artifacts` manual-review semantics.
+- **refactor(agents)** — Point canonical agent prompts at official Claude Code schema and existing policy SSOTs instead of restating harness copies, and enforce labeled local policy in the agent validator.
 
 ## 0.55.0 — 2026-09-08 — Add Review Gate runtime observation checkpoint
 
-**feat(review-gate)** — Add bounded Claude reviewer observations for BASELINE and OBSERVE while preserving Sentinel as the sole enforcement authority.
-**feat(review-gate)** — Add a Codex Review Gate submission adapter that runs Codex review waves through the shared Reviewer Contract and Review Gate, inert until explicitly activated and never authoritative over Sentinel.
-**feat(review-gate)** — Add a shared black-box differential corpus and a pure PASS/BLOCKED/UNAVAILABLE/NOT_RUN conformance report that drives Claude, Codex, CI, and Git-provider Review Gate adapters through the same scenarios, carries every focused Sentinel case forward, and cannot itself promote a migration phase.
-**feat(review-gate)** — Add maintainer-authorized `DUAL_ENFORCE` migration with fail-closed Sentinel/Review Gate agreement checks and scoped one-phase diagnostic rollback to Sentinel-authoritative `OBSERVE`.
-**feat(review-gate)** — Add a replay-backed Review Gate lifecycle with trusted lane evidence, scoped receipt reuse, remediation continuity, and expiring authority overrides.
-**feat(review-gate)** — Add an authenticated append-only Receipt Store with trusted-head replay, fenced lease journals, producer trust, and redacted content-addressed evidence.
-**feat(review-gate)** — Add a deterministic Risk Router that produces immutable Work Records and named-risk Review Plans without dispatch or workflow authority.
-**feat(review-gate)** — Add an opt-in migration-observation checkpoint with explicit setup, risk-routed reviewer requests, structured companion validation, durable observation receipts, and redacted status without changing Sentinel authority.
-**feat(review-gate)** — Add a provider-neutral Receipt Bundle transport plus CI and Git-provider verification adapters, and derive PR-creation authorization and Delivery Complete/archive eligibility from typed post-merge evidence, all inert observation with no change to Sentinel authority.
-**feat(review-gate)** — Add a risk-adaptive local Workflow Coordinator that derives immutable workflow state from trusted receipts while Sentinel remains authoritative.
-**feat(review-gate)** — Add the versioned platform-neutral reviewer request, result, finding, and legacy compatibility contract.
+- **feat(review-gate)** — Add bounded Claude reviewer observations for BASELINE and OBSERVE while preserving Sentinel as the sole enforcement authority.
+- **feat(review-gate)** — Add a Codex Review Gate submission adapter that runs Codex review waves through the shared Reviewer Contract and Review Gate, inert until explicitly activated and never authoritative over Sentinel.
+- **feat(review-gate)** — Add a shared black-box differential corpus and a pure PASS/BLOCKED/UNAVAILABLE/NOT_RUN conformance report that drives Claude, Codex, CI, and Git-provider Review Gate adapters through the same scenarios, carries every focused Sentinel case forward, and cannot itself promote a migration phase.
+- **feat(review-gate)** — Add maintainer-authorized `DUAL_ENFORCE` migration with fail-closed Sentinel/Review Gate agreement checks and scoped one-phase diagnostic rollback to Sentinel-authoritative `OBSERVE`.
+- **feat(review-gate)** — Add a replay-backed Review Gate lifecycle with trusted lane evidence, scoped receipt reuse, remediation continuity, and expiring authority overrides.
+- **feat(review-gate)** — Add an authenticated append-only Receipt Store with trusted-head replay, fenced lease journals, producer trust, and redacted content-addressed evidence.
+- **feat(review-gate)** — Add a deterministic Risk Router that produces immutable Work Records and named-risk Review Plans without dispatch or workflow authority.
+- **feat(review-gate)** — Add an opt-in migration-observation checkpoint with explicit setup, risk-routed reviewer requests, structured companion validation, durable observation receipts, and redacted status without changing Sentinel authority.
+- **feat(review-gate)** — Add a provider-neutral Receipt Bundle transport plus CI and Git-provider verification adapters, and derive PR-creation authorization and Delivery Complete/archive eligibility from typed post-merge evidence, all inert observation with no change to Sentinel authority.
+- **feat(review-gate)** — Add a risk-adaptive local Workflow Coordinator that derives immutable workflow state from trusted receipts while Sentinel remains authoritative.
+- **feat(review-gate)** — Add the versioned platform-neutral reviewer request, result, finding, and legacy compatibility contract.
 
 ## 0.54.2 — 2026-09-05 — Correct consumer validation and installation diagnostics
 
-**fix(consumers)** — Correct Claude checkout validation guidance and expose stale receipt diagnostics when a native Codex plugin blocks project-local updates.
+- **fix(consumers)** — Correct Claude checkout validation guidance and expose stale receipt diagnostics when a native Codex plugin blocks project-local updates.
 
 ## 0.54.1 — 2026-09-05 — Consolidate skill families and harden cross-platform consumers
 
 This candidate includes the unpublished 0.54.0 changes and subsequent fixes.
 
-**BREAKING(skill-discovery)** — Retire 21 duplicate or superseded identities with alias-free rollback to 0.53.0. Keep `git-smart-commit` unchanged and retire `agy-commit`; version-specific Laravel and PHPUnit notes now use selectors under `laravel` and `phpunit`.
-**feat(codex-sync)** — Enforce mutual exclusivity between Codex project-local sync and enabled native plugin dhpk@dhpk with preflight guards and duplicate provider detection.
-**feat(flow-ownership)** — Give `flow-guide` the `help`, `route`, `rules`, `next`, and `close` guidance actions. Make `flow-drive` an explicit-only, mode-free implementation entry for confirmed specifications or changes; proposal authoring belongs to external `$openspec-propose`.
-**feat(harness-govern)** — Consolidate health, budget, fill, revise, and sync governance under harness-govern.
-**fix(installer)** — Fixed AGY plan and status incorrectly blocking intact installations during upgrades while preserving receipt ownership and collision checks.
-**fix(codex-discovery)** — Return structured BLOCKED evidence and safe remediation when Codex discovery cannot compute a provider fingerprint.
-**fix(installer)** — Fixed Codex and Cursor project-local install and update failures on macOS.
-**fix(harness-govern)** — Validate mandatory Claude sources from the dhpk checkout root, reject invalid source markers without consumer fallback, and bound manifest reads to regular files of at most 1 MiB while preserving valid symlink support.
-**docs(docs)** — Add quick-reference cheat sheet and navigation links for skills and slash commands.
-**docs(codex)** — Document progressive parameter discovery through `$flow-guide help` and `$flow-guide help <skill>`, with generated metadata links. OnePassword authentication remains the operator action `op signin`.
+- **BREAKING(skill-discovery)** — Retire 21 duplicate or superseded identities with alias-free rollback to 0.53.0. Keep `git-smart-commit` unchanged and retire `agy-commit`; version-specific Laravel and PHPUnit notes now use selectors under `laravel` and `phpunit`.
+- **feat(codex-sync)** — Enforce mutual exclusivity between Codex project-local sync and enabled native plugin dhpk@dhpk with preflight guards and duplicate provider detection.
+- **feat(flow-ownership)** — Give `flow-guide` the `help`, `route`, `rules`, `next`, and `close` guidance actions. Make `flow-drive` an explicit-only, mode-free implementation entry for confirmed specifications or changes; proposal authoring belongs to external `$openspec-propose`.
+- **feat(harness-govern)** — Consolidate health, budget, fill, revise, and sync governance under harness-govern.
+- **fix(installer)** — Fixed AGY plan and status incorrectly blocking intact installations during upgrades while preserving receipt ownership and collision checks.
+- **fix(codex-discovery)** — Return structured BLOCKED evidence and safe remediation when Codex discovery cannot compute a provider fingerprint.
+- **fix(installer)** — Fixed Codex and Cursor project-local install and update failures on macOS.
+- **fix(harness-govern)** — Validate mandatory Claude sources from the dhpk checkout root, reject invalid source markers without consumer fallback, and bound manifest reads to regular files of at most 1 MiB while preserving valid symlink support.
+- **docs(docs)** — Add quick-reference cheat sheet and navigation links for skills and slash commands.
+- **docs(codex)** — Document progressive parameter discovery through `$flow-guide help` and `$flow-guide help <skill>`, with generated metadata links. OnePassword authentication remains the operator action `op signin`.
 
 ## 0.54.0 — 2026-09-04 — Consolidate remaining skill families and make Codex usage discoverable
 
 This entry records the 0.54 migration contract and documentation metadata; it is
 not runtime, deployment, marketplace, or release evidence.
 
-**BREAKING(skill-discovery)** — Retire 21 duplicate or superseded identities with
+- **BREAKING(skill-discovery)** — Retire 21 duplicate or superseded identities with
 alias-free rollback to 0.53.0. Keep `git-smart-commit` unchanged and retire
 `agy-commit`; version-specific Laravel and PHPUnit notes now use selectors under
 `laravel` and `phpunit`.
-**feat(codex-sync)** — Enforce mutual exclusivity between Codex project-local sync and enabled native plugin dhpk@dhpk with preflight guards and duplicate provider detection.
-**feat(flow-ownership)** — Give `flow-guide` the `help`, `route`, `rules`, `next`,
+- **feat(codex-sync)** — Enforce mutual exclusivity between Codex project-local sync and enabled native plugin dhpk@dhpk with preflight guards and duplicate provider detection.
+- **feat(flow-ownership)** — Give `flow-guide` the `help`, `route`, `rules`, `next`,
 and `close` guidance actions. Make `flow-drive` an explicit-only, mode-free
 implementation entry for confirmed specifications or changes; proposal authoring
 belongs to external `$openspec-propose`.
-**feat(harness-govern)** — Consolidate health, budget, fill, revise, and sync
+- **feat(harness-govern)** — Consolidate health, budget, fill, revise, and sync
 governance under `harness-govern`.
-**docs(codex)** — Document progressive parameter discovery through
+- **docs(codex)** — Document progressive parameter discovery through
 `$flow-guide help` and `$flow-guide help <skill>`, with generated metadata links.
 OnePassword authentication remains the operator action `op signin`.
-**docs(docs)** — Add quick-reference cheat sheet and navigation links for skills and slash commands.
+- **docs(docs)** — Add quick-reference cheat sheet and navigation links for skills and slash commands.
 
 ## 0.53.0 — 2026-09-03 — Consolidate skill capability families across harness surfaces
 
-**feat(skill-capability-families)** — Consolidate skill discovery, workflow, review, and tracing capabilities into portable family surfaces across supported harnesses.
+- **feat(skill-capability-families)** — Consolidate skill discovery, workflow, review, and tracing capabilities into portable family surfaces across supported harnesses.
 
 ## 0.52.0 — 2026-09-03 — Retire Codex MCP capability identities, consolidate Laravel and PHPUnit version families, and materialize Claude profile bundles
 
-**BREAKING(codex-mcp)** — Retire legacy Codex MCP capability identities and route implementation and review workflows through portable execution paths.
-**feat(distribution)** — Materialize Claude capability profile bundles and validate aggregate discovery context budget in CI.
+- **BREAKING(codex-mcp)** — Retire legacy Codex MCP capability identities and route implementation and review workflows through portable execution paths.
+- **feat(distribution)** — Materialize Claude capability profile bundles and validate aggregate discovery context budget in CI.
 
 ## 0.51.0 — 2026-09-01 — Reject unknown Codex role handoffs and guard distribution inventory regeneration
 
-**feat(codex)** — Reject unavailable or unknown role handoffs in generated Codex projections.
-**fix(distribution)** — Prevent inventory regeneration from overwriting curated v2 distribution policy.
+- **feat(codex)** — Reject unavailable or unknown role handoffs in generated Codex projections.
+- **fix(distribution)** — Prevent inventory regeneration from overwriting curated v2 distribution policy.
 
 ## 0.50.5 — 2026-09-01 — Prove Codex named-role runtime with disposable trusted CODEX_HOME
 
-**fix(consumer-gate)** — Use a disposable trusted CODEX_HOME and rollout JSONL as named-role runtime evidence, and do not pass --ephemeral.
-**fix(distribution)** — Keep the clean-checkout gate on distribution generate only, so validate and verify can run while parallel tests or local WIP dirty the tree.
-**docs(codex)** — Clarify named-role runtime evidence: use a non-built-in canary, record CUSTOM_AGENT_REGISTRY_UNAVAILABLE only from typed registry failure, and do not treat a text marker as PASS.
+- **fix(consumer-gate)** — Use a disposable trusted CODEX_HOME and rollout JSONL as named-role runtime evidence, and do not pass --ephemeral.
+- **fix(distribution)** — Keep the clean-checkout gate on distribution generate only, so validate and verify can run while parallel tests or local WIP dirty the tree.
+- **docs(codex)** — Clarify named-role runtime evidence: use a non-built-in canary, record CUSTOM_AGENT_REGISTRY_UNAVAILABLE only from typed registry failure, and do not treat a text marker as PASS.
 
 ## 0.50.4 — 2026-08-31 — Fix Codex named-specialist cold dispatch packets
 
-**fix(codex)** — Ensure named specialist subagents use standalone cold dispatch packets without overriding role defaults.
+- **fix(codex)** — Ensure named specialist subagents use standalone cold dispatch packets without overriding role defaults.
 
 ## 0.50.3 — 2026-08-30 — Harden release publication and develop reconciliation
 
@@ -172,52 +172,52 @@ No user-visible changes in this release.
 
 ## 0.50.0 — 2026-08-29 — Publish portable dhpk-do as the explicit router across Claude, Cursor, and Codex
 
-**feat(dhpk-do)** — Publish portable `$dhpk-do` as the explicit router across Claude, Cursor, and Codex, with thin host adapters and typed route results.
+- **feat(dhpk-do)** — Publish portable `$dhpk-do` as the explicit router across Claude, Cursor, and Codex, with thin host adapters and typed route results.
 
 ## 0.49.1 — 2026-08-29 — Allow AGY skill scripts, canonicalize CLI role labels, and idle-align develop after release
 
-**fix(agy-plugin)** — Allow skill scripts subdirectories during AGY package structure validation so nested runtime assets do not cause false-positive consumer gate failures.
-**fix(release)** — After a successful release, align idle develop onto main with force-with-lease when trees match; keep a conflict-loud --no-ff merge when develop has unique work.
-**docs(docs)** — Use canonical CLI role IDs as the primary labels in policy docs and hook liveness matching, keeping legacy aliases for the compatibility window.
+- **fix(agy-plugin)** — Allow skill scripts subdirectories during AGY package structure validation so nested runtime assets do not cause false-positive consumer gate failures.
+- **fix(release)** — After a successful release, align idle develop onto main with force-with-lease when trees match; keep a conflict-loud --no-ff merge when develop has unique work.
+- **docs(docs)** — Use canonical CLI role IDs as the primary labels in policy docs and hook liveness matching, keeping legacy aliases for the compatibility window.
 
 ## 0.49.0 — 2026-08-28 — Unify external CLI transport and canonicalize CLI role vocabulary
 
-**feat(cli-role-dispatch)** — Canonicalize CLI role dispatch vocabulary across skill mirrors and platform projections, with a shared cli-role-resolver and reconciled agent skill mirrors.
-**feat(cli-transport)** — Unify the Codex/AGY external CLI transport path into a single hardened dispatch module shared by agent-facing skills.
-**fix(codex-install)** — Detect and fail closed on Codex skill receipt provenance drift during install-codex-skills sync instead of trusting a stale receipt.
-**fix(cursor-sync)** — Validate current project-local Cursor receipts and projections without requiring a consumer-local package root.
-**docs(docs)** — Add CODING_STANDARDS.md documenting reviewer checks for generated distribution/provenance, consumer evidence, and OpenSpec archive changes.
-**ci(ci)** — Run the repository test suite in a bounded weighted worker pool to shorten CI validation time.
+- **feat(cli-role-dispatch)** — Canonicalize CLI role dispatch vocabulary across skill mirrors and platform projections, with a shared cli-role-resolver and reconciled agent skill mirrors.
+- **feat(cli-transport)** — Unify the Codex/AGY external CLI transport path into a single hardened dispatch module shared by agent-facing skills.
+- **fix(codex-install)** — Detect and fail closed on Codex skill receipt provenance drift during install-codex-skills sync instead of trusting a stale receipt.
+- **fix(cursor-sync)** — Validate current project-local Cursor receipts and projections without requiring a consumer-local package root.
+- **docs(docs)** — Add CODING_STANDARDS.md documenting reviewer checks for generated distribution/provenance, consumer evidence, and OpenSpec archive changes.
+- **ci(ci)** — Run the repository test suite in a bounded weighted worker pool to shorten CI validation time.
 
 ## 0.48.3 — 2026-08-26 — Harden Cursor and AGY consumer probes with exact terminal evidence, isolated loader attestation, and redacted diagnostics
 
-**fix(consumer-runtime)** — Harden Cursor and AGY consumer probes with exact terminal evidence, isolated loader attestation, and redacted diagnostics.
+- **fix(consumer-runtime)** — Harden Cursor and AGY consumer probes with exact terminal evidence, isolated loader attestation, and redacted diagnostics.
 
 ## 0.48.2 — 2026-08-26 — Run harness preflight and consumer verification without creating untracked files in the working directory
 
-**fix(release-workflow)** — Run harness preflight and consumer verification without creating untracked files in the working directory.
+- **fix(release-workflow)** — Run harness preflight and consumer verification without creating untracked files in the working directory.
 
 ## 0.48.1 — 2026-08-26 — Handle unavailable harness facade preflight outcomes as non-blocking in the release workflow
 
-**fix(ci)** — Handle unavailable harness facade preflight outcomes as non-blocking in the release workflow.
+- **fix(ci)** — Handle unavailable harness facade preflight outcomes as non-blocking in the release workflow.
 
 ## 0.48.0 — 2026-08-26 — Add exact-head consumer-runner preflight diagnostics and embed opsx orchestration decision policy
 
-**feat(consumer-runtime)** — Add exact-head consumer-runner preflight diagnostics while keeping authenticated runtime evidence fail-closed.
-**feat(orchestration-policy)** — Add a project-owned orchestration gate for reasoner, planner, review, archive, Draft PR, and completed-CI delivery decisions.
+- **feat(consumer-runtime)** — Add exact-head consumer-runner preflight diagnostics while keeping authenticated runtime evidence fail-closed.
+- **feat(orchestration-policy)** — Add a project-owned orchestration gate for reasoner, planner, review, archive, Draft PR, and completed-CI delivery decisions.
 
 ## 0.47.1 — 2026-08-25 — Allow skill references during AGY package structure validation
 
-**fix(agy-plugin)** — Allow skill references subdirectories during AGY package structure validation so nested supporting assets do not cause false-positive consumer gate failures.
+- **fix(agy-plugin)** — Allow skill references subdirectories during AGY package structure validation so nested supporting assets do not cause false-positive consumer gate failures.
 
 ## 0.47.0 — 2026-08-25 — Consolidate canonical skill portfolio and scope default workflow capability bundles
 
-**feat(skill-portfolio)** — Consolidate the canonical skill portfolio with explicit successor routes, retirement diagnostics, and safe cross-platform projections.
+- **feat(skill-portfolio)** — Consolidate the canonical skill portfolio with explicit successor routes, retirement diagnostics, and safe cross-platform projections.
 
 ## 0.46.1 — 2026-08-25 — Keep pending consumer evidence non-blocking and make release manifest checks version-flexible
 
-**fix(release-consumer-verification)** — Keep expected PUBLISHED_PENDING consumer evidence visible without failing the release CI job, while retaining failures for unhealthy or blocked verification.
-**fix(release-workflow)** — Make release manifest characterization checks ignore only version metadata changes while retaining non-version drift detection, and refresh the bilingual agent workflow guidance and platform support badges.
+- **fix(release-consumer-verification)** — Keep expected PUBLISHED_PENDING consumer evidence visible without failing the release CI job, while retaining failures for unhealthy or blocked verification.
+- **fix(release-workflow)** — Make release manifest characterization checks ignore only version metadata changes while retaining non-version drift detection, and refresh the bilingual agent workflow guidance and platform support badges.
 
 ## 0.46.0 — 2026-08-24 — Run consumer probes during release aggregation, isolate Cursor probes with bubblewrap, and bind harness receipts to execution identity
 
@@ -225,80 +225,80 @@ No user-visible changes in this release.
 
 ## 0.45.0 — 2026-08-23 — Add harness receipt verification, agent workflow guidance, and safe release staging
 
-**feat(harness)** — Add a unified cross-platform harness facade with identity-bound receipts and deterministic workflow evidence.
-**docs(agent-guidance)** — Document GitHub issue triage, domain context, and canonical agent guidance for repository workflows.
+- **feat(harness)** — Add a unified cross-platform harness facade with identity-bound receipts and deterministic workflow evidence.
+- **docs(agent-guidance)** — Document GitHub issue triage, domain context, and canonical agent guidance for repository workflows.
 
 ## 0.44.0 — 2026-08-21 — Add profile-scoped capability bundles, normalize consumer evidence, and optimize subagent warmstart context
 
-**feat(bundles)** — Add profile-scoped Claude capability bundles for tailored agent and skill exposure.
-**feat(consumer-gate)** — Normalize consumer evidence semantics across Claude, Codex, Cursor, and AGY with explicit execution states.
-**feat(review-lifecycle)** — Centralize review lifecycle identity and binding across orchestration hooks.
-**refactor(agent-context)** — Optimize subagent warmstart context budgets and deduplicate context fingerprints.
+- **feat(bundles)** — Add profile-scoped Claude capability bundles for tailored agent and skill exposure.
+- **feat(consumer-gate)** — Normalize consumer evidence semantics across Claude, Codex, Cursor, and AGY with explicit execution states.
+- **feat(review-lifecycle)** — Centralize review lifecycle identity and binding across orchestration hooks.
+- **refactor(agent-context)** — Optimize subagent warmstart context budgets and deduplicate context fingerprints.
 
 ## 0.43.0 — 2026-08-20 — Unify distribution contracts, retire Gemini CLI sync, and deduplicate Codex discovery surfaces
 
-**BREAKING(distribution)** — Replace per-platform package validation entrypoints with the unified `dhpk distribution` contract and retire Gemini CLI sync support while retaining native AGY packages.
-**fix(codex-discovery)** — Deduplicate identical project-local and native Codex skill discoveries while preserving conflict evidence and read-only remediation guidance.
+- **BREAKING(distribution)** — Replace per-platform package validation entrypoints with the unified `dhpk distribution` contract and retire Gemini CLI sync support while retaining native AGY packages.
+- **fix(codex-discovery)** — Deduplicate identical project-local and native Codex skill discoveries while preserving conflict evidence and read-only remediation guidance.
 
 ## 0.42.2 — 2026-08-19 — docs: treat Cursor marketplace hash cache as non-SSOT; fix consumer-gate CLI stub test cleanup
 
-**docs(cursor-install)** — Document that Cursor marketplace hash cache is not SSOT, and warn from install-cursor-harness --plan when it drifts.
+- **docs(cursor-install)** — Document that Cursor marketplace hash cache is not SSOT, and warn from install-cursor-harness --plan when it drifts.
 
 ## 0.42.1 — 2026-08-18 — Harden CLI wrappers and discovery probes, and rewrite agent traps
 
-**fix(cli-wrappers)** — Adapt run-agy.sh and run-codex.sh to agy 1.1.13 soft-deny diagnostics and Codex 0.147.0 additive --output-schema.
-**fix(agy-discovery)** — Treat empty isolated AGY native discovery on a valid package as SKIP_INCOMPATIBLE, not a package-shape FAIL.
-**fix(claude-consumer-gate)** — Uninstall the throwaway project-scope Claude plugin and marketplace before deleting consumer-gate temp projects.
-**fix(cursor-probe)** — Map a silent Cursor `--plugin-dir` hang to `SKIP_INCOMPATIBLE` with `no_stdout`, not a package FAIL.
-**docs(agent-traps)** — Rewrite stack trap sheets into unique agent×stack rows with Non-apply bounds, and treat them as a writing-for-agents document class.
+- **fix(cli-wrappers)** — Adapt run-agy.sh and run-codex.sh to agy 1.1.13 soft-deny diagnostics and Codex 0.147.0 additive --output-schema.
+- **fix(agy-discovery)** — Treat empty isolated AGY native discovery on a valid package as SKIP_INCOMPATIBLE, not a package-shape FAIL.
+- **fix(claude-consumer-gate)** — Uninstall the throwaway project-scope Claude plugin and marketplace before deleting consumer-gate temp projects.
+- **fix(cursor-probe)** — Map a silent Cursor `--plugin-dir` hang to `SKIP_INCOMPATIBLE` with `no_stdout`, not a package FAIL.
+- **docs(agent-traps)** — Rewrite stack trap sheets into unique agent×stack rows with Non-apply bounds, and treat them as a writing-for-agents document class.
 
 ## 0.42.0 — 2026-08-18 — Retire continuous-learning-v2, enforce canonical skill counts, and sync AGY generator pin
 
-**BREAKING(skills)** — removed the dormant `dhpk-continuous-learning-v2` skill and its `/dhpk:evolve`, `/dhpk:promote`, `/dhpk:instinct-status`, `/dhpk:instinct-import`, and `/dhpk:instinct-export` commands; the observer was never registered in the shipped hooks and any local `~/.local/share/dhpk-homunculus` data is now orphaned and safe to delete by hand.
-**fix(release)** — prepare-release write now syncs the bilingual AGY generator version pin with the release target.
-**ci(count-integrity)** — catalog.js now enforces the canonical skill count and the Claude-published skill count across README, skills/INDEX.md, and the bilingual distribution/migration docs, so a retired skill can no longer leave a stale count behind.
+- **BREAKING(skills)** — removed the dormant `dhpk-continuous-learning-v2` skill and its `/dhpk:evolve`, `/dhpk:promote`, `/dhpk:instinct-status`, `/dhpk:instinct-import`, and `/dhpk:instinct-export` commands; the observer was never registered in the shipped hooks and any local `~/.local/share/dhpk-homunculus` data is now orphaned and safe to delete by hand.
+- **fix(release)** — prepare-release write now syncs the bilingual AGY generator version pin with the release target.
+- **ci(count-integrity)** — catalog.js now enforces the canonical skill count and the Claude-published skill count across README, skills/INDEX.md, and the bilingual distribution/migration docs, so a retired skill can no longer leave a stale count behind.
 
 ## 0.41.2 — 2026-08-17 — Include native AGY package in release version parity
 
-**fix(release)** — Include the native AGY package in version-parity checks and regenerate it during release preparation.
+- **fix(release)** — Include the native AGY package in version-parity checks and regenerate it during release preparation.
 
 ## 0.41.1 — 2026-08-16 — Fail-close Codex collision exits, mount native AGY discovery, and pass trust flags to launch-scoped Cursor probes
 
-**fix(agy-installation)** — Mount the AGY package at the consumer plugin path and stop treating import-only `agy plugins list` JSON as native discovery evidence.
-**fix(codex-project-local-sync)** — Make `--update` exit non-zero while an unowned Codex collision remains, so a partial receipt cannot be treated as current without `--adopt`.
-**fix(cursor-consumer-probe)** — Pass `--trust` and ignore stdin on launch-scoped Cursor probes so authenticated discovery does not hang on a workspace-confirmation prompt.
+- **fix(agy-installation)** — Mount the AGY package at the consumer plugin path and stop treating import-only `agy plugins list` JSON as native discovery evidence.
+- **fix(codex-project-local-sync)** — Make `--update` exit non-zero while an unowned Codex collision remains, so a partial receipt cannot be treated as current without `--adopt`.
+- **fix(cursor-consumer-probe)** — Pass `--trust` and ignore stdin on launch-scoped Cursor probes so authenticated discovery does not hang on a workspace-confirmation prompt.
 
 ## 0.41.0 — 2026-08-15 — Add Cursor project-local harness with standalone installation and projection contracts
 
-**feat(cursor-sync)** — Add a Codex-parity project-local Cursor harness (`cursor/` projection plus `install-cursor-harness.sh`) so consumers can install skills, subagents, `.mdc` rules, and commands into `.cursor/` without depending on the marketplace plugin. Rewritten harness paths point at installed `.mdc` rules, `.cursor/agents/`, and `.cursor/dhpk/` supporting assets. Cursor agent frontmatter uses `cursor-grok-4.6-high` for general workflow roles and `composer-2.5-fast` for `doc-reviewer`, `docs-lookup`, and `doc-updater`.
+- **feat(cursor-sync)** — Add a Codex-parity project-local Cursor harness (`cursor/` projection plus `install-cursor-harness.sh`) so consumers can install skills, subagents, `.mdc` rules, and commands into `.cursor/` without depending on the marketplace plugin. Rewritten harness paths point at installed `.mdc` rules, `.cursor/agents/`, and `.cursor/dhpk/` supporting assets. Cursor agent frontmatter uses `cursor-grok-4.6-high` for general workflow roles and `composer-2.5-fast` for `doc-reviewer`, `docs-lookup`, and `doc-updater`.
 
 ## 0.40.1 — 2026-08-15 — Harden consumer probes, AGY checkout diagnostics, and Codex projection adoption
 
-**fix(agy-installation)** — Add read-only foreign-checkout ownership diagnostics and fail-closed recovery guidance for AGY targets.
-**fix(codex-project-local-sync)** — Add read-only collision planning and explicit, rollback-safe adoption for stale project-local Codex projections.
-**fix(cursor-consumer-probe)** — Bound Cursor launch-scoped consumer probes with finite timeout, output limits, redacted JSON diagnostics, and explicit BLOCKED timeout evidence.
+- **fix(agy-installation)** — Add read-only foreign-checkout ownership diagnostics and fail-closed recovery guidance for AGY targets.
+- **fix(codex-project-local-sync)** — Add read-only collision planning and explicit, rollback-safe adoption for stale project-local Codex projections.
+- **fix(cursor-consumer-probe)** — Bound Cursor launch-scoped consumer probes with finite timeout, output limits, redacted JSON diagnostics, and explicit BLOCKED timeout evidence.
 
 ## 0.40.0 — 2026-08-14 — Add native AGY CLI plugin generation, receipt-owned installation, and isolated verification support
 
-**feat(agy-cli)** — Add native AGY CLI plugin generation, receipt-owned installation, and isolated verification support.
+- **feat(agy-cli)** — Add native AGY CLI plugin generation, receipt-owned installation, and isolated verification support.
 
 ## 0.39.0 — 2026-08-14 — Harden distribution projections, add platform lifecycle CLI, and achieve skill routing parity
 
-**feat(discovery-routing)** — Add inventory-owned Laravel and PHPUnit compatibility routing and concise discovery metadata.
-**feat(skill routing and projection parity)** — Preserve Laravel and PHPUnit legacy routes through deterministic family routing while keeping conditional references and Claude/Codex projection metadata in parity.
-**feat(platform-installation)** — Add a strict read-only dhpk-install lifecycle CLI that emits deterministic plans while retaining existing write routes until adapters are characterized.
-**chore(Agent Plugin distribution projection)** — Route the existing Agent Plugin generator through the shared compiler and staged artifact store while preserving its public CLI and package bytes.
-**chore(distribution projection architecture)** — add deterministic compiler, immutable projection contracts, and a fail-closed artifact store boundary
-**chore(Claude distribution projection)** — Route Claude inventory generation and validation through the shared compiler and evidence contract while preserving existing CLI output and exit behavior.
-**chore(Codex native distribution projection)** — Route Codex native package generation and verification through the shared compiler and staged artifact store while preserving existing CLI behavior and package bytes.
-**chore(Cursor distribution projection)** — Route Cursor package generation and verification through the shared compiler and staged artifact store while preserving existing CLI behavior and support-state semantics.
-**chore(orchestration governance)** — preserve reviewer lifecycle compatibility while binding dispatch identities and Sentinel clearance to hook-owned evidence.
-**chore(projection governance)** — Document shared projection ownership, rollback, stage-bound evidence, and orchestration/Sentinel boundaries while retiring unreachable legacy writers.
+- **feat(discovery-routing)** — Add inventory-owned Laravel and PHPUnit compatibility routing and concise discovery metadata.
+- **feat(skill routing and projection parity)** — Preserve Laravel and PHPUnit legacy routes through deterministic family routing while keeping conditional references and Claude/Codex projection metadata in parity.
+- **feat(platform-installation)** — Add a strict read-only dhpk-install lifecycle CLI that emits deterministic plans while retaining existing write routes until adapters are characterized.
+- **chore(Agent Plugin distribution projection)** — Route the existing Agent Plugin generator through the shared compiler and staged artifact store while preserving its public CLI and package bytes.
+- **chore(distribution projection architecture)** — add deterministic compiler, immutable projection contracts, and a fail-closed artifact store boundary
+- **chore(Claude distribution projection)** — Route Claude inventory generation and validation through the shared compiler and evidence contract while preserving existing CLI output and exit behavior.
+- **chore(Codex native distribution projection)** — Route Codex native package generation and verification through the shared compiler and staged artifact store while preserving existing CLI behavior and package bytes.
+- **chore(Cursor distribution projection)** — Route Cursor package generation and verification through the shared compiler and staged artifact store while preserving existing CLI behavior and support-state semantics.
+- **chore(orchestration governance)** — preserve reviewer lifecycle compatibility while binding dispatch identities and Sentinel clearance to hook-owned evidence.
+- **chore(projection governance)** — Document shared projection ownership, rollback, stage-bound evidence, and orchestration/Sentinel boundaries while retiring unreachable legacy writers.
 
 ## 0.38.2 — 2026-08-13 — Fix installer UTC timestamp deprecation and align historical validation docs
 
-**fix(codex-installer)** — Replace deprecated UTC timestamp APIs while preserving installer receipt and backup formats.
-**docs(bootstrap-docs)** — Align historical validation guidance with separate Claude marketplace and Codex-native package contracts.
+- **fix(codex-installer)** — Replace deprecated UTC timestamp APIs while preserving installer receipt and backup formats.
+- **docs(bootstrap-docs)** — Align historical validation guidance with separate Claude marketplace and Codex-native package contracts.
 
 ## 0.38.1 — 2026-08-13 — Clean Python bytecode from Codex projections and repair operational docs
 
@@ -306,287 +306,287 @@ No user-visible changes in this release.
 
 ## 0.38.0 — 2026-08-12 — Harden session audit, agent orchestration, and platform support projections
 
-**feat(platform-support)** — Add deterministic Agent Plugin and Cursor Plugin projections with independent provenance, validation, installation guidance, and release gates.
-**feat(orchestration)** — Harden session-audit evidence, reviewer lifecycle provenance, OpsX routing, and Codex projection validation with fail-closed verification and durable audit coverage.
+- **feat(platform-support)** — Add deterministic Agent Plugin and Cursor Plugin projections with independent provenance, validation, installation guidance, and release gates.
+- **feat(orchestration)** — Harden session-audit evidence, reviewer lifecycle provenance, OpsX routing, and Codex projection validation with fail-closed verification and durable audit coverage.
 
 ## 0.37.0 — 2026-08-07 — Expand Codex subagent coverage and tune model default economics
 
-**feat(codex)** — Expand Codex subAgent coverage with e2e, migration, frontend, planning, and specification roles and tune model effort defaults.
+- **feat(codex)** — Expand Codex subAgent coverage with e2e, migration, frontend, planning, and specification roles and tune model effort defaults.
 
 ## 0.36.0 — 2026-08-06 — Add local session usage audit skill
 
-**feat(session-usage-audit)** — Add a local session audit skill that redacts usage evidence, verifies dhpk findings, and prepares duplicate-safe issue handoffs.
+- **feat(session-usage-audit)** — Add a local session audit skill that redacts usage evidence, verifies dhpk findings, and prepares duplicate-safe issue handoffs.
 
 ## 0.35.1 — 2026-08-06 — Repair official plugin validation, safe installer reconciliation, and agent-facing operation guidance.
 
-**fix(open-issue-guards)** — Repair official plugin validation, safe installer reconciliation, and agent-facing operation guidance.
+- **fix(open-issue-guards)** — Repair official plugin validation, safe installer reconciliation, and agent-facing operation guidance.
 
 ## 0.35.0 — 2026-08-05 — Unify Claude and Codex skills, canonical sources, and distribution surfaces
 
-**feat(skill-platform)** — Unify Claude and Codex skills under collision-safe dhpk names, one flat canonical source, safer distribution installs, and a smaller deterministic hook and command surface.
+- **feat(skill-platform)** — Unify Claude and Codex skills under collision-safe dhpk names, one flat canonical source, safer distribution installs, and a smaller deterministic hook and command surface.
 
 ## 0.34.1 — 2026-08-05 — Fix review gate observability, skill health check resilience, codex agent projection, and codex distribution safety
 
-**fix(codex-agent-projection)** — Preserve safety and review contracts when projecting Claude agent roles into a clean Codex consumer.
-**fix(codex-distribution)** — Make Codex synchronization ownership-aware, path-safe, and explicit about fallback/native surface parity.
-**fix(review-gate)** — Scope misplaced review diagnostics to fresh dispatch/session provenance and render every generated review sentinel badge in the statusline.
-**fix(skill-health-check)** — Report malformed skill, command, and agent entries as deterministic P1 findings and accept qualified cross-skill references without stack traces or host-path leaks.
+- **fix(codex-agent-projection)** — Preserve safety and review contracts when projecting Claude agent roles into a clean Codex consumer.
+- **fix(codex-distribution)** — Make Codex synchronization ownership-aware, path-safe, and explicit about fallback/native surface parity.
+- **fix(review-gate)** — Scope misplaced review diagnostics to fresh dispatch/session provenance and render every generated review sentinel badge in the statusline.
+- **fix(skill-health-check)** — Report malformed skill, command, and agent entries as deterministic P1 findings and accept qualified cross-skill references without stack traces or host-path leaks.
 
 ## 0.34.0 — 2026-08-04 — Add role-aware Codex timeout budgets and timeout recovery safeguards
 
-**feat(codex-timeout)** — Configure role-aware Codex timeout budgets with explicit precedence, diagnostics, and fail-closed validation.
-**fix(codex-bridge)** — Preserve verified Codex timeout reports as bounded, redacted evidence for safe salvage or blocked reconciliation.
-**fix(invocation-hints)** — Respect explicit-only invocation policy in UserPromptSubmit skill hints.
+- **feat(codex-timeout)** — Configure role-aware Codex timeout budgets with explicit precedence, diagnostics, and fail-closed validation.
+- **fix(codex-bridge)** — Preserve verified Codex timeout reports as bounded, redacted evidence for safe salvage or blocked reconciliation.
+- **fix(invocation-hints)** — Respect explicit-only invocation policy in UserPromptSubmit skill hints.
 
 ## 0.33.2 — 2026-08-03 — Align Codex agent runtime contracts and lifecycle hook documentation
 
-**fix(codex)** — Align the Codex agent projection, TOML configuration, and lifecycle-hook documentation with the current runtime contract.
+- **fix(codex)** — Align the Codex agent projection, TOML configuration, and lifecycle-hook documentation with the current runtime contract.
 
 ## 0.33.1 — 2026-08-03 — 更新 Codex agents 模型設定與 worker 開發者指引
 
-**chore(codex)** — 更新 Codex agents 模型設定與 worker 開發者指引。
+- **chore(codex)** — 更新 Codex agents 模型設定與 worker 開發者指引。
 
 ## 0.33.0 — 2026-07-28 — 強化 Codex Native 套件生成與發佈安全性、CLI Prompt 組合與 agy 旗標支援
 
-**feat(agents)** — Add a per-model (GPT-5.x/Gemini) prompt-composition effectiveness baseline (`agent-traps/_common/cli-prompt-composition.md`) and wire it into `codex-fast-worker`, `codex-deep-reasoner`, `agy-fast-worker`, and the `codex-bridge` skill's prompt-composition steps.
-**fix(agy-fast-worker)** — Modernize `run-agy.sh` to enforce the autonomy boundary and report contract via `--mode`/`--output-format json`/`--json-schema` instead of prompt text, rebuild the agy version baseline from 1.1.2 to 1.1.8 with a runtime drift notice and an audible degrade path for older binaries, and bump the default model to `Gemini 3.6 Flash (High)`.
+- **feat(agents)** — Add a per-model (GPT-5.x/Gemini) prompt-composition effectiveness baseline (`agent-traps/_common/cli-prompt-composition.md`) and wire it into `codex-fast-worker`, `codex-deep-reasoner`, `agy-fast-worker`, and the `codex-bridge` skill's prompt-composition steps.
+- **fix(agy-fast-worker)** — Modernize `run-agy.sh` to enforce the autonomy boundary and report contract via `--mode`/`--output-format json`/`--json-schema` instead of prompt text, rebuild the agy version baseline from 1.1.2 to 1.1.8 with a runtime drift notice and an audible degrade path for older binaries, and bump the default model to `Gemini 3.6 Flash (High)`.
 
 ## 0.32.0 — 2026-07-27 — Harden release contracts and phase gates, and curate distribution surfaces
 
-**feat(release)** — Add release-note fragments (changelog.d/), a version-parity preparation command, and CI/release-only parity gates as part of hardening the dhpk release contract.
-**feat(dist)** — Curate the dhpk distribution surfaces: add a distribution inventory manifest and generator, a Codex native package builder, CI distribution validation, and updated Codex CLI installation and distribution-architecture docs.
-**fix(ci)** — Accept a promoted CHANGELOG.md release section as changelog-fragment coverage, so the develop → main release PR is no longer blocked by the fragment-coverage gate after release preparation consumed every pending fragment.
+- **feat(release)** — Add release-note fragments (changelog.d/), a version-parity preparation command, and CI/release-only parity gates as part of hardening the dhpk release contract.
+- **feat(dist)** — Curate the dhpk distribution surfaces: add a distribution inventory manifest and generator, a Codex native package builder, CI distribution validation, and updated Codex CLI installation and distribution-architecture docs.
+- **fix(ci)** — Accept a promoted CHANGELOG.md release section as changelog-fragment coverage, so the develop → main release PR is no longer blocked by the fragment-coverage gate after release preparation consumed every pending fragment.
 
 ## 0.31.0 — 2026-07-27 — Scope multi-AI sync validation to configured platforms, harden parallel dispatch worker boundaries, and fix resumed reviewer clearance
 
 Scopes multi-AI sync post-sync validation to configured platforms, hardens fast-worker parallel dispatch execution boundaries and report schema, fixes the SendMessage-resumed reviewer sentinel clearance gap, and refactors skill invocation policies.
 
-**feat(multi-ai-sync)** — Scope post-sync validation to platforms with local configuration evidence, update ADR 0002/0003, and refine risk policies.
-**feat(agent)** — Harden `fast-worker` and `codex-fast-worker` parallel mode boundaries with assigned-scope status/diff enforcement and out-of-scope write protection.
-**fix(hooks)** — Reconcile SendMessage-resumed reviewer obligations with canonical review artifacts before clearing sentinels.
-**chore(config)** — Update skill invocation policies, agent/command manifests, and CI validation scripts.
+- **feat(multi-ai-sync)** — Scope post-sync validation to platforms with local configuration evidence, update ADR 0002/0003, and refine risk policies.
+- **feat(agent)** — Harden `fast-worker` and `codex-fast-worker` parallel mode boundaries with assigned-scope status/diff enforcement and out-of-scope write protection.
+- **fix(hooks)** — Reconcile SendMessage-resumed reviewer obligations with canonical review artifacts before clearing sentinels.
+- **chore(config)** — Update skill invocation policies, agent/command manifests, and CI validation scripts.
 
 ## 0.30.0 — 2026-07-24 — Add TDD skill, expand multi-AI sync validation, and refactor core and module skills
 
 Adds the TDD skill with comprehensive mocking and testing guidelines, expands multi-AI sync validation with OpenAI metadata checks, and refactors core and module skills for progressive disclosure.
 
-**feat(tdd)** — Add TDD skill (`skills/tdd/`) and guide agents with testing and mocking specifications.
-**feat(multi-ai-sync)** — Expand Multi-AI Sync skill with OpenAI metadata validation and canonical Codex agent mirror alignment (`tests/validate-openai-metadata.test.js`, `tests/codex-skill-*.test.js`).
-**refactor(spec)** — Refactor core command and execution policy skills (`opsx-apply-goal`, `dhpk-execution-policy`, `execution-checklist`, `tool-routing`, `codex-bridge`).
-**refactor(skills)** — Refactor core skills (`agent-architecture-audit`, `codex-code-review`, `composer-package-hygiene`, `laravel-package-author`, `laravel-testbench-matrix`, `skill-health-check`) and extract reference documentation for progressive disclosure.
-**refactor(modules)** — Refactor language and framework module skills across PHP, Yii, PHPUnit, Laravel, JS, Next.js, React, Python, Swift, and SwiftUI to adopt progressive loading.
+- **feat(tdd)** — Add TDD skill (`skills/tdd/`) and guide agents with testing and mocking specifications.
+- **feat(multi-ai-sync)** — Expand Multi-AI Sync skill with OpenAI metadata validation and canonical Codex agent mirror alignment (`tests/validate-openai-metadata.test.js`, `tests/codex-skill-*.test.js`).
+- **refactor(spec)** — Refactor core command and execution policy skills (`opsx-apply-goal`, `dhpk-execution-policy`, `execution-checklist`, `tool-routing`, `codex-bridge`).
+- **refactor(skills)** — Refactor core skills (`agent-architecture-audit`, `codex-code-review`, `composer-package-hygiene`, `laravel-package-author`, `laravel-testbench-matrix`, `skill-health-check`) and extract reference documentation for progressive disclosure.
+- **refactor(modules)** — Refactor language and framework module skills across PHP, Yii, PHPUnit, Laravel, JS, Next.js, React, Python, Swift, and SwiftUI to adopt progressive loading.
 
 ## 0.29.0 — 2026-07-23 — Rename fast-worker override to worker, support codex-deep-reasoner, and consolidate advisory hooks
 
 Rename the fast-worker override flag to worker, add support for the codex-deep-reasoner agent and backend selector, consult the architect agent during planning phase, and consolidate default-off advisory hooks.
 
-**BREAKING(do)** — Rename the `/dhpk:do` and `dhpk:opsx-apply-goal` mechanical-worker override flag from `--fast-worker=<claude|codex|agy|auto>` to `--worker=<claude|codex|agy|auto>`. The legacy `--fast-worker` spelling is **removed** outright with no alias — update any hard-coded goal strings or scripts. The preserved invocation context is renamed `FAST_WORKER_OVERRIDE` → `WORKER_OVERRIDE`. The `fast_worker_backend` userConfig key and the `scripts/fast-worker-selector.js` engine interface are unchanged.
-**feat(do)** — Add `--reasoner=<claude|codex>[:<model>[:<effort>]]` to `/dhpk:do` to pick the deep-reasoning backend (claude → `deep-reasoner`, codex → new `codex-deep-reasoner`, default `gpt-5.6-sol` @ `high`); `agy` unsupported.
-**feat(agents)** — Add `codex-deep-reasoner` agent (CLI-backed, read-only reasoning; conclusion contract) and `codex_deep_reasoner_model`/`codex_deep_reasoner_effort` userConfig keys.
-**feat(do)** — `/dhpk:do --plan`/`--opsx` now consults `dhpk:architect` for architecture-relevant new-feature tasks; `architect` default tier lowered to `fable`/`low` (up-only escalation).
-**refactor(hooks)** — Extract shared `_lib/sentinel-clear-core.sh`; merge three default-off Stop advisory hooks into `stop-advisory-dispatch.sh`.
-**refactor(rules)** — Converge the `${CLAUDE_PLUGIN_ROOT}` interpolation-token caveat to one SSOT home; reconcile tool-routing decision-tree drift.
+- **BREAKING(do)** — Rename the `/dhpk:do` and `dhpk:opsx-apply-goal` mechanical-worker override flag from `--fast-worker=<claude|codex|agy|auto>` to `--worker=<claude|codex|agy|auto>`. The legacy `--fast-worker` spelling is **removed** outright with no alias — update any hard-coded goal strings or scripts. The preserved invocation context is renamed `FAST_WORKER_OVERRIDE` → `WORKER_OVERRIDE`. The `fast_worker_backend` userConfig key and the `scripts/fast-worker-selector.js` engine interface are unchanged.
+- **feat(do)** — Add `--reasoner=<claude|codex>[:<model>[:<effort>]]` to `/dhpk:do` to pick the deep-reasoning backend (claude → `deep-reasoner`, codex → new `codex-deep-reasoner`, default `gpt-5.6-sol` @ `high`); `agy` unsupported.
+- **feat(agents)** — Add `codex-deep-reasoner` agent (CLI-backed, read-only reasoning; conclusion contract) and `codex_deep_reasoner_model`/`codex_deep_reasoner_effort` userConfig keys.
+- **feat(do)** — `/dhpk:do --plan`/`--opsx` now consults `dhpk:architect` for architecture-relevant new-feature tasks; `architect` default tier lowered to `fable`/`low` (up-only escalation).
+- **refactor(hooks)** — Extract shared `_lib/sentinel-clear-core.sh`; merge three default-off Stop advisory hooks into `stop-advisory-dispatch.sh`.
+- **refactor(rules)** — Converge the `${CLAUDE_PLUGIN_ROOT}` interpolation-token caveat to one SSOT home; reconcile tool-routing decision-tree drift.
 
 ## 0.28.19 — 2026-07-22 — Diagnose misplaced review docs and refine contract guidance
 
 Diagnoses misplaced review documents in subagent stop hooks, stops release bumps from rewriting historical session fixtures, and clarifies tracked-vs-runtime rules and retention guidance for agent artifacts.
 
-**fix(hooks)** — Diagnose misplaced review docs and report actionable warning instead of silent failure.
-**fix(test)** — Stop release bumps from rewriting recorded session fixtures.
-**docs(contracts)** — State tracked-vs-runtime rule for agent outputs and replace unenforced retention numbers with measured guidance.
+- **fix(hooks)** — Diagnose misplaced review docs and report actionable warning instead of silent failure.
+- **fix(test)** — Stop release bumps from rewriting recorded session fixtures.
+- **docs(contracts)** — State tracked-vs-runtime rule for agent outputs and replace unenforced retention numbers with measured guidance.
 
 ## 0.28.18 — 2026-07-22 — Add session install-health gate and refine stack detection
 
 Adds SessionStart install-health gate for version gaps and module setup, refines stack evidence detection and laravel-mix ordering, and adds test coverage.
 
-**feat(hooks)** — Add SessionStart install-health gate (`install-health.sh`) to detect version gaps and contradicted module configurations.
-**fix(hooks)** — Refactor stack evidence collection to report contradicted modules independently and handle `laravel-mix` before `laravel-*` globs.
-**test(hooks)** — Add unit test suites for session install health and stack evidence.
-**docs(hooks)** — Document install-health gate behavior and execution policy rules.
+- **feat(hooks)** — Add SessionStart install-health gate (`install-health.sh`) to detect version gaps and contradicted module configurations.
+- **fix(hooks)** — Refactor stack evidence collection to report contradicted modules independently and handle `laravel-mix` before `laravel-*` globs.
+- **test(hooks)** — Add unit test suites for session install health and stack evidence.
+- **docs(hooks)** — Document install-health gate behavior and execution policy rules.
 
 ## 0.28.17 — 2026-07-22 — Refine fast-worker goal clause and hook session scopes
 
 Refines `opsx-apply-goal` to emit fast-worker clause in every dispatch goal and resolve script-relative modules, scopes review reminders and sentinel entries to current sessions, and hardens push gate and review counter reset mechanics.
 
-**fix(opsx)** — Emit fast-worker clause unconditionally in dispatch-on goals, and resolve `goal-context.js` relative to the script path.
-**fix(hooks)** — Scope review reminders and sentinels to current session, reset review-gate escalation counter on sentinel clear, detect git global options before push, and scope push review gate to target repository.
-**test(ci)** — Blame odd copy out in guardrail sync check, and add documentation warning that `CLAUDE_PLUGIN_ROOT` is not a shell variable.
+- **fix(opsx)** — Emit fast-worker clause unconditionally in dispatch-on goals, and resolve `goal-context.js` relative to the script path.
+- **fix(hooks)** — Scope review reminders and sentinels to current session, reset review-gate escalation counter on sentinel clear, detect git global options before push, and scope push review gate to target repository.
+- **test(ci)** — Blame odd copy out in guardrail sync check, and add documentation warning that `CLAUDE_PLUGIN_ROOT` is not a shell variable.
 
 ## 0.28.16 — 2026-07-19 — Harden harness dispatch, guards, and content hygiene
 
-**fix(hooks)** — Tighten pre-edit path guards, arm reviewer sentinels on dispatch, merge reminder batches, and add the dispatch-aware distinct-file edit gate.
-**fix(config)** — Detect configured-module/manifest mismatches and deduplicate session advisories with a shared once-guard.
-**refactor(skills)** — Deduplicate execution/review policy prose, extract shared development gates, script deterministic release and runtime-verification mechanics, and enforce shrink-only skill size budgets.
-**test(harness)** — Add regression coverage for guard precision, sentinel lifecycle, batch dispatch, advisory deduplication, deterministic runners, and size validation.
+- **fix(hooks)** — Tighten pre-edit path guards, arm reviewer sentinels on dispatch, merge reminder batches, and add the dispatch-aware distinct-file edit gate.
+- **fix(config)** — Detect configured-module/manifest mismatches and deduplicate session advisories with a shared once-guard.
+- **refactor(skills)** — Deduplicate execution/review policy prose, extract shared development gates, script deterministic release and runtime-verification mechanics, and enforce shrink-only skill size budgets.
+- **test(harness)** — Add regression coverage for guard precision, sentinel lifecycle, batch dispatch, advisory deduplication, deterministic runners, and size validation.
 
 ## 0.28.15 — 2026-07-18 — Refine reviewer contracts, footprint scanning, and script validations
 
 Refines reviewer contracts to require single-run verdicts and updates sentinel auto-clear/verify logic, implements task footprint scanning in `opsx-apply-goal` to optimize fast-worker bypass decisions, adjusts active stack detection logic for the trap sheet loader, prevents system-generated prompts from triggering workflow-routing hints, and adds static dependency validation checks for `opsx-apply-goal` scripts.
 
-**feat(opsx)** — Implement task Footprint scanning in `opsx-apply-goal` to optimize fast-worker bypass decisions.
-**refactor(reviewer)** — Update reviewer contracts to require single-run verdicts and refine sentinel auto-clear/verify logic.
-**refactor(agent-traps)** — Adjust active stack detection logic for the trap sheet loader.
-**fix(hooks)** — Prevent system-generated prompts from triggering workflow-routing hints.
-**chore(ci)** — Add static dependency check for `opsx-apply-goal` scripts during plugin validation.
+- **feat(opsx)** — Implement task Footprint scanning in `opsx-apply-goal` to optimize fast-worker bypass decisions.
+- **refactor(reviewer)** — Update reviewer contracts to require single-run verdicts and refine sentinel auto-clear/verify logic.
+- **refactor(agent-traps)** — Adjust active stack detection logic for the trap sheet loader.
+- **fix(hooks)** — Prevent system-generated prompts from triggering workflow-routing hints.
+- **chore(ci)** — Add static dependency check for `opsx-apply-goal` scripts during plugin validation.
 
 ## 0.28.14 — 2026-07-16 — Introduce sentinel-slots registry and optimize asset inventory
 
 Introduces a sentinel-slots registry and auto-generator, relocates and refactors project asset inventory logic into a shared helper module, adds shell runtime configuration helpers for hooks, improves multi-AI platform sync drift checks, and enhances change detection accuracy for Codex skills via content hashing.
 
-**feat(config)** — Introduce a sentinel-slots registry and auto-generator.
-**feat(hooks)** — Add shell runtime configuration helpers, and improve change detection accuracy for install-codex-skills.
-**refactor(ci)** — Relocate and refactor project asset inventory logic to a shared asset-inventory module.
-**feat(sync)** — Enhance multi-AI platform sync testing and drift check logic.
+- **feat(config)** — Introduce a sentinel-slots registry and auto-generator.
+- **feat(hooks)** — Add shell runtime configuration helpers, and improve change detection accuracy for install-codex-skills.
+- **refactor(ci)** — Relocate and refactor project asset inventory logic to a shared asset-inventory module.
+- **feat(sync)** — Enhance multi-AI platform sync testing and drift check logic.
 
 ## 0.28.13 — 2026-07-16 — Support fast-worker override and refine opsx goal/review waves
 
 Introduces fast-worker custom override (`--fast-worker=<claude|codex|agy|auto>`), decouples Codex reviews from codex-fast-worker backend availability, refines the implementation policy for parallel reviewer waves, upgrades the `opsx:apply` goal generation and budget control with goal-context JSON, and optimizes the post-edit reminders hook with deduplication.
 
-**feat(opsx)** — Upgrade `opsx:apply` goal generation and budget control, introducing `goal-context.js` for context analysis, a task digest, and conditional E2E composition.
-**refactor(worker)** — Support custom fast-worker overrides downstream and refine availability checks.
-**refactor(rules)** — Tune parallel reviewer waves, consolidate reviewer batches, and introduce symlink-safe writes guidance.
-**fix(remind)** — Optimize post-edit reminders hook with advisory deduplication.
-**fix(version)** — Correct plugin version checking, version diff, and references.
-**docs(agent)** — Update E2E and TDD agent contracts and verification checks.
+- **feat(opsx)** — Upgrade `opsx:apply` goal generation and budget control, introducing `goal-context.js` for context analysis, a task digest, and conditional E2E composition.
+- **refactor(worker)** — Support custom fast-worker overrides downstream and refine availability checks.
+- **refactor(rules)** — Tune parallel reviewer waves, consolidate reviewer batches, and introduce symlink-safe writes guidance.
+- **fix(remind)** — Optimize post-edit reminders hook with advisory deduplication.
+- **fix(version)** — Correct plugin version checking, version diff, and references.
+- **docs(agent)** — Update E2E and TDD agent contracts and verification checks.
 
 ## 0.28.12 — 2026-07-16 — Unify hook environment variables and test harnesses
 
 Introduces `session-env.sh` to unify environment variable loading and project root resolution across all hooks, establishes `hookharness.js` to simplify hook execution testing, and refactors all lifecycle hooks and their test suites to use these new frameworks.
 
-**feat(tests)** — Introduce `hookharness.js` to dry up temporary repo setups and run hook pipelines.
-**refactor(config)** — Add `session-env.sh` for canonical path resolutions and transition settings loaders and learning database utils to it.
-**refactor(hooks)** — Rewrite all Pre-edit, Pre-bash, Post-edit, SubagentStop, and Session-lifecycle scripts and tests to run on the new environment architecture.
+- **feat(tests)** — Introduce `hookharness.js` to dry up temporary repo setups and run hook pipelines.
+- **refactor(config)** — Add `session-env.sh` for canonical path resolutions and transition settings loaders and learning database utils to it.
+- **refactor(hooks)** — Rewrite all Pre-edit, Pre-bash, Post-edit, SubagentStop, and Session-lifecycle scripts and tests to run on the new environment architecture.
 
 ## 0.28.11 — 2026-07-15 — Refine opsx orchestration and governance
 
 Refines opsx apply goal pasting limits using UTF-8 byte counts, limits subagent quality gates to reviewer agents, adds fast-worker selector logic and contract verification, and expands tests across all hook lifecycle classes.
 
-**feat(config/hooks)** — Limit subagent quality gate checks to reviewer agents, improve reminder debounce/backoff mechanisms, add fast-worker selection script, and expand hook tests.
-**docs(contracts)** — Add reviewer-contract specification and verify reviewer inputs/outputs.
-**docs(opsx)** — Correct apply-goal character limits to UTF-8 byte limits in documentation and template validation.
-**test(hooks)** — Add test coverage for hook lifecycle budget and TDD E2E contract verification.
+- **feat(config/hooks)** — Limit subagent quality gate checks to reviewer agents, improve reminder debounce/backoff mechanisms, add fast-worker selection script, and expand hook tests.
+- **docs(contracts)** — Add reviewer-contract specification and verify reviewer inputs/outputs.
+- **docs(opsx)** — Correct apply-goal character limits to UTF-8 byte limits in documentation and template validation.
+- **test(hooks)** — Add test coverage for hook lifecycle budget and TDD E2E contract verification.
 
 ## 0.28.10 — 2026-07-15 — Usage-audit fixes and CLI-backed fast-worker variants
 
 Acts on a 2026-07-13/14 usage audit (an unattended `/goal` session spent ~65M tokens hand-typing 45 edits inline instead of dispatching) with five harness fixes to the unattended-session token economy, and adds two CLI-backed `fast-worker` variants so mechanical batches can be offloaded to an external codex/agy budget.
 
-**feat(agents)** — Add two CLI-backed mechanical implementers, `codex-fast-worker` (edits run on `codex exec`, default `gpt-5.6-luna` @ `xhigh`) and `agy-fast-worker` (edits run on the agy CLI, default `Gemini 3.5 Flash (High)`). Both preserve the full `fast-worker` contract (task-spec trio, surgical edits, 3-attempt stop, mandatory working-tree-derived edited-file list), check backend availability first (missing CLI / auth failure / rejected model → `RESULT: BLOCKED`, never simulated), and run verification themselves. Role-based agent count 29 → 31 (root 28 → 30).
+- **feat(agents)** — Add two CLI-backed mechanical implementers, `codex-fast-worker` (edits run on `codex exec`, default `gpt-5.6-luna` @ `xhigh`) and `agy-fast-worker` (edits run on the agy CLI, default `Gemini 3.5 Flash (High)`). Both preserve the full `fast-worker` contract (task-spec trio, surgical edits, 3-attempt stop, mandatory working-tree-derived edited-file list), check backend availability first (missing CLI / auth failure / rejected model → `RESULT: BLOCKED`, never simulated), and run verification themselves. Role-based agent count 29 → 31 (root 28 → 30).
 
-**feat(config)** — Add three `userConfig` keys with the standard project > global > default layering: `codex_fast_worker_model` (`gpt-5.6-luna`), `codex_fast_worker_effort` (`xhigh`), `agy_fast_worker_model` (`Gemini 3.5 Flash (High)`, live-probe-verified against agy 1.1.2). `session-start.sh` surfaces them only when non-default.
+- **feat(config)** — Add three `userConfig` keys with the standard project > global > default layering: `codex_fast_worker_model` (`gpt-5.6-luna`), `codex_fast_worker_effort` (`xhigh`), `agy_fast_worker_model` (`Gemini 3.5 Flash (High)`, live-probe-verified against agy 1.1.2). `session-start.sh` surfaces them only when non-default.
 
-**feat(scripts)** — Extend `skills/codex-bridge/scripts/run-codex.sh` with optional `<model>` `<effort>` args (empty → omit the flags, byte-identical legacy behavior for `codex-bridge`); add `skills/agy-fast-worker/scripts/run-agy.sh` implementing the verified non-interactive agy combination (stdin `Y`, `--dangerously-skip-permissions`, `--add-dir`, `--model`, `-p`, `--print-timeout`; no `--cwd`) with a loud-failure contract. Dedicated tests for both wrappers.
+- **feat(scripts)** — Extend `skills/codex-bridge/scripts/run-codex.sh` with optional `<model>` `<effort>` args (empty → omit the flags, byte-identical legacy behavior for `codex-bridge`); add `skills/agy-fast-worker/scripts/run-agy.sh` implementing the verified non-interactive agy combination (stdin `Y`, `--dangerously-skip-permissions`, `--add-dir`, `--model`, `-p`, `--print-timeout`; no `--cwd`) with a loud-failure contract. Dedicated tests for both wrappers.
 
-**fix(hooks)** — Reviewer-liveness gate (A5): `subagent-stop-verify.sh` now clears a reviewer's sentinel **only when a fresh matching review artifact exists**. A reviewer that stops exit 0 but produced no fresh review doc leaves the sentinel armed (gate stays unmet → orchestrator re-dispatches) and is logged — closing the 2026-07-13 no-output auto-clear defect. The clear gate keys on artifact existence + freshness only (never verdict-parseability), so a present-but-unparseable review still clears instead of looping.
+- **fix(hooks)** — Reviewer-liveness gate (A5): `subagent-stop-verify.sh` now clears a reviewer's sentinel **only when a fresh matching review artifact exists**. A reviewer that stops exit 0 but produced no fresh review doc leaves the sentinel armed (gate stays unmet → orchestrator re-dispatches) and is logged — closing the 2026-07-13 no-output auto-clear defect. The clear gate keys on artifact existence + freshness only (never verdict-parseability), so a present-but-unparseable review still clears instead of looping.
 
-**refactor(skill)** — Strengthen the `opsx-apply-goal` goal string with three compact dispatch-economy clauses (A1–A3, ≤300 chars): mechanical batches (≥3 files, or same-shaped edits past the ≤2-file inline bound) → one batched `fast-worker` dispatch; one consolidated review round per implementation wave with confirm-only re-reviews; never `sleep`-poll background work. Typical composed length moves to ~3600 chars, still under the 4000 hard stop.
+- **refactor(skill)** — Strengthen the `opsx-apply-goal` goal string with three compact dispatch-economy clauses (A1–A3, ≤300 chars): mechanical batches (≥3 files, or same-shaped edits past the ≤2-file inline bound) → one batched `fast-worker` dispatch; one consolidated review round per implementation wave with confirm-only re-reviews; never `sleep`-poll background work. Typical composed length moves to ~3600 chars, still under the 4000 hard stop.
 
-**refactor(rules)** — Add dispatch-table rows + roster entries for the two CLI-backed workers in `rules/execution-policy.md` (opt-in, availability/CODEX-gated; plain `fast-worker` stays the default) and tier-map rows + the runtime-tunable note in `rules/model-economics.md`.
+- **refactor(rules)** — Add dispatch-table rows + roster entries for the two CLI-backed workers in `rules/execution-policy.md` (opt-in, availability/CODEX-gated; plain `fast-worker` stays the default) and tier-map rows + the runtime-tunable note in `rules/model-economics.md`.
 
-**fix(docs)** — Normalize the goal-template reference files to literal UTF-8 (A4). Document the three new keys in `docs/configuration.md` / `.zh-TW.md`, register both agents in `plugin.json` + `agents/INDEX.md`, and align the `reviewer-liveness-gate` behavior across `artifact-contract.md`, `execution-policy.md`, and `review-gate-mechanics.md`.
+- **fix(docs)** — Normalize the goal-template reference files to literal UTF-8 (A4). Document the three new keys in `docs/configuration.md` / `.zh-TW.md`, register both agents in `plugin.json` + `agents/INDEX.md`, and align the `reviewer-liveness-gate` behavior across `artifact-contract.md`, `execution-policy.md`, and `review-gate-mechanics.md`.
 
 ## 0.28.9 — 2026-07-13 — Goal-string slimming, sentinel auto-clear promotion, and graduation auto-draft removal
 
 Slims the `opsx-apply-goal` `/goal` string to a bounded Part 0 kickoff with behavioral prose relocated to `execution-policy.md`, removes the compact-template fallback in favor of a hard generation stop, promotes the reviewer sentinel hook's silent auto-clear to the sanctioned path, drops the graduation Stop hook's OpenSpec auto-draft step, and folds in small tool/shell guardrail fixes from the 2026-07-12 retrospective.
 
-**refactor(skill)** — Restructure the `opsx-apply-goal` emitted `/goal` string: the orientation command now reads both the change's `tasks.md` head and the self-located `rules/execution-policy.md` in a single combined Bash step (best-effort; `POLICY-UNRESOLVED` falls back to the string's own inline gates); Part 0 is now a bounded kickoff (kickoff sentence, hard-rule carve-out, unknown-skill fallback, one-line four-role dispatch roster, inline hard-rule guardrail, CODEX ON/OFF line) with the behavioral elaborations (premise-verification routing, in-flight doubt cycle, CODEX high-stakes peer path, session-end self-check) relocated to `rules/execution-policy.md` and bound via the orientation read. Typical composed length drops to ~3300 characters, down from 5428.
+- **refactor(skill)** — Restructure the `opsx-apply-goal` emitted `/goal` string: the orientation command now reads both the change's `tasks.md` head and the self-located `rules/execution-policy.md` in a single combined Bash step (best-effort; `POLICY-UNRESOLVED` falls back to the string's own inline gates); Part 0 is now a bounded kickoff (kickoff sentence, hard-rule carve-out, unknown-skill fallback, one-line four-role dispatch roster, inline hard-rule guardrail, CODEX ON/OFF line) with the behavioral elaborations (premise-verification routing, in-flight doubt cycle, CODEX high-stakes peer path, session-end self-check) relocated to `rules/execution-policy.md` and bound via the orientation read. Typical composed length drops to ~3300 characters, down from 5428.
 
-**fix(skill)** — Delete the compact-variant fallback: there is now a single full template (no auto-compaction step). A composed length over 4000 characters is a should-never-fire hard stop — no `/goal` is emitted, and the measured length plus adjustable settings/flags are reported instead. Retarget the goal-string guardrails test to the new single-variant, hard-stop behavior.
+- **fix(skill)** — Delete the compact-variant fallback: there is now a single full template (no auto-compaction step). A composed length over 4000 characters is a should-never-fire hard stop — no `/goal` is emitted, and the measured length plus adjustable settings/flags are reported instead. Retarget the goal-string guardrails test to the new single-variant, hard-stop behavior.
 
-**fix(hooks)** — Remove the `openspec/changes/graduate-*/` OpenSpec auto-draft step from the graduation Stop hook, along with the now-dead `CLAUDE_HOOK_SKIP_OPSX_DRAFT` flag and `graduated_at` field; the hook continues to maintain the candidates report only.
+- **fix(hooks)** — Remove the `openspec/changes/graduate-*/` OpenSpec auto-draft step from the graduation Stop hook, along with the now-dead `CLAUDE_HOOK_SKIP_OPSX_DRAFT` flag and `graduated_at` field; the hook continues to maintain the candidates report only.
 
-**refactor(agents)** — Promote the `subagent-stop-verify.sh` hook's silent sentinel auto-clear to the sanctioned clearance path: a successful reviewer stop with a fresh, verdict-bearing review doc clears its sentinel silently; a failure is recorded only when the sentinel is left uncleared **and** no review doc was produced. Remove the manual closing `clear-sentinel.sh` step from all six reviewer agents; the orchestrator-side manual `clear-sentinel.sh` back-stop remains as the exception path.
+- **refactor(agents)** — Promote the `subagent-stop-verify.sh` hook's silent sentinel auto-clear to the sanctioned clearance path: a successful reviewer stop with a fresh, verdict-bearing review doc clears its sentinel silently; a failure is recorded only when the sentinel is left uncleared **and** no review doc was produced. Remove the manual closing `clear-sentinel.sh` step from all six reviewer agents; the orchestrator-side manual `clear-sentinel.sh` back-stop remains as the exception path.
 
-**fix(docs)** — Document the gitnexus multi-repo `repo` param in `tool-routing.md` and the zsh `=`-expansion trap in `execution-policy.md`.
+- **fix(docs)** — Document the gitnexus multi-repo `repo` param in `tool-routing.md` and the zsh `=`-expansion trap in `execution-policy.md`.
 
-**docs** — Update `docs/basic-operations.md` and `docs/basic-operations.zh-TW.md` to reflect the restructured `/goal` string and the four-role dispatch roster. Per the 2026-07-12 retrospective, dispatch posture and Stop-hook merge behavior were verdict-only findings (no further changes needed) and are out of scope for this release.
+- **docs** — Update `docs/basic-operations.md` and `docs/basic-operations.zh-TW.md` to reflect the restructured `/goal` string and the four-role dispatch roster. Per the 2026-07-12 retrospective, dispatch posture and Stop-hook merge behavior were verdict-only findings (no further changes needed) and are out of scope for this release.
 
 ## 0.28.8 — 2026-07-12 — Script test coverage policy, catalog claim checks, test backfill, and CI install fix
 
 Introduces a new script test coverage policy, adds hook event count validations and script coverage checks to the catalog verification tool, backfills 59 tests to cover all harness script assets, fixes the installation test in CI runners lacking the claude CLI, and refreshes index stats.
 
-**feat(ci)** — Upgrade the `catalog.js` validation tool to enforce exact claims for command counts and hook lifecycle event counts (parsed from `hooks/hooks.json`). Implement an automated check requiring every `.sh`/`.js`/`.ts`/`.py` script under `scripts/` to have a matching test case under `tests/` or a mapped override in `COVERAGE_MAP`.
+- **feat(ci)** — Upgrade the `catalog.js` validation tool to enforce exact claims for command counts and hook lifecycle event counts (parsed from `hooks/hooks.json`). Implement an automated check requiring every `.sh`/`.js`/`.ts`/`.py` script under `scripts/` to have a matching test case under `tests/` or a mapped override in `COVERAGE_MAP`.
 
-**test(harness)** — Add 59 new test files in `tests/` to backfill coverage for all harness guards, resolvers, validators, runners, codegen utilities, and lifecycle scripts, satisfying the script coverage policy.
+- **test(harness)** — Add 59 new test files in `tests/` to backfill coverage for all harness guards, resolvers, validators, runners, codegen utilities, and lifecycle scripts, satisfying the script coverage policy.
 
-**fix(tests)** — Stub the `claude` CLI in `install.test.js` to satisfy prerequisite checks on CI runners without the actual executable.
+- **fix(tests)** — Stub the `claude` CLI in `install.test.js` to satisfy prerequisite checks on CI runners without the actual executable.
 
-**chore(policy)** — Document the `Script test coverage policy` (flat `tests/<stem>[-<aspect>].test.js` naming convention and behavioral vs smoke coverage) and component-addition gates in `execution-policy.md`. Reflect the new hook event count in `README.md` and `README.zh-TW.md`.
+- **chore(policy)** — Document the `Script test coverage policy` (flat `tests/<stem>[-<aspect>].test.js` naming convention and behavioral vs smoke coverage) and component-addition gates in `execution-policy.md`. Reflect the new hook event count in `README.md` and `README.zh-TW.md`.
 
-**docs** — Align documentation for `do.md`, `hook-extension.md`, `INDEX.md`, and `SKILL.md` to reflect the updated command counts, `reap-stale-sentinels` lifecycle path, and SSOT workflow classifications. Refresh GitNexus code intelligence index statistics in `AGENTS.md` and `CLAUDE.md`.
+- **docs** — Align documentation for `do.md`, `hook-extension.md`, `INDEX.md`, and `SKILL.md` to reflect the updated command counts, `reap-stale-sentinels` lifecycle path, and SSOT workflow classifications. Refresh GitNexus code intelligence index statistics in `AGENTS.md` and `CLAUDE.md`.
 
 ## 0.28.7 — 2026-07-11 — Pre-bash-guard env write-blocks, dangerous-root depth check, post-edit sentinel triage, and zsh status trap protection
 
 Introduces Bash redirection/tee blocks against .env files, splits dangerous root path validation into system and user directory tiers to tolerate deep workspace actions, refines checkbox-only doc-review triage, adds a zsh status-variable trap warning, and enforces flaky test hard caps.
 
-**fix(hooks)** — Add Pattern 6 to `pre-bash-guard.sh` to block writing to `.env` files via Bash redirection or `tee` (excluding template files like `.env.example`). Split Pattern 1 (dangerous root directory checks) into two tiers: block system directories (e.g. `/etc`) at any depth, and user directories (e.g. `/home`) only at depth <=2, allowing deep workspace tasks. Add comprehensive regression tests in `pre-bash-guard.test.js`.
+- **fix(hooks)** — Add Pattern 6 to `pre-bash-guard.sh` to block writing to `.env` files via Bash redirection or `tee` (excluding template files like `.env.example`). Split Pattern 1 (dangerous root directory checks) into two tiers: block system directories (e.g. `/etc`) at any depth, and user directories (e.g. `/home`) only at depth <=2, allowing deep workspace tasks. Add comprehensive regression tests in `pre-bash-guard.test.js`.
 
-**fix(hooks)** — Refine checkbox-only task edits triage using per-edit payload classification in `post-edit-remind.sh` and add tests in `post-edit-remind-scope.test.js` verifying it does not arm doc-review sentinels despite existing uncommitted prose deltas.
+- **fix(hooks)** — Refine checkbox-only task edits triage using per-edit payload classification in `post-edit-remind.sh` and add tests in `post-edit-remind-scope.test.js` verifying it does not arm doc-review sentinels despite existing uncommitted prose deltas.
 
-**chore(policy)** — Document the zsh `status` read-only variable trap and PR self-merge restriction in `execution-policy.md`. Update the `/goal` templates in `goal-templates.md` and basic operations documentation to reflect orientation-first kickoff instructions, self-locating policy pointers, and resume-note hard stops.
+- **chore(policy)** — Document the zsh `status` read-only variable trap and PR self-merge restriction in `execution-policy.md`. Update the `/goal` templates in `goal-templates.md` and basic operations documentation to reflect orientation-first kickoff instructions, self-locating policy pointers, and resume-note hard stops.
 
-**docs(agents)** — Add a hard cap of at most 3 attempts to stabilize a flaky test spec before quarantining it in `e2e-runner.md`.
+- **docs(agents)** — Add a hard cap of at most 3 attempts to stabilize a flaky test spec before quarantining it in `e2e-runner.md`.
 
 ## 0.28.6 — 2026-07-10 — Codex dual-track agent generation, multi-ai-sync role field checks, and Smart Router --openspec flag
 
 Adds an opt-in `--openspec` (alias `--opsx`) flag to the Smart Router to force-select change artifact authoring, introduces a Codex agent generator to automatically sync canonical Claude roles, and implements Codex agent role field validations within the multi-ai-sync utility.
 
-**feat(command)** — Add `--openspec`/`--opsx` argument parsing to `/dhpk:do` to bypass implementation routing and directly trigger `opsx:new` -> `opsx:ff` artifact generation. Document this override in `rules/execution-policy.md`.
+- **feat(command)** — Add `--openspec`/`--opsx` argument parsing to `/dhpk:do` to bypass implementation routing and directly trigger `opsx:new` -> `opsx:ff` artifact generation. Document this override in `rules/execution-policy.md`.
 
-**feat(codex)** — Add `scripts/gen-codex-agents.js` generator to produce Codex TOML role files from the allowlisted Claude agent markdown definitions. Expand the `codex/agents/` roster to 11 roles (4 hand-maintained and 7 generated).
+- **feat(codex)** — Add `scripts/gen-codex-agents.js` generator to produce Codex TOML role files from the allowlisted Claude agent markdown definitions. Expand the `codex/agents/` roster to 11 roles (4 hand-maintained and 7 generated).
 
-**feat(sync)** — Add Codex agent role required-field checks (`name`, `description`, `developer_instructions`) and validation self-tests to the `multi-ai-sync` script.
+- **feat(sync)** — Add Codex agent role required-field checks (`name`, `description`, `developer_instructions`) and validation self-tests to the `multi-ai-sync` script.
 
-**docs** — Update user guides, Codex documentation, and bootstrap specifications to reflect the new router flags and generated dual-track role files.
+- **docs** — Update user guides, Codex documentation, and bootstrap specifications to reflect the new router flags and generated dual-track role files.
 
 ## 0.28.5 — 2026-07-09 — File-state ground truth, premise verification type check, and render-surface completeness
 
 Adds file-state ground truth verification to prevent snapshot-driven false defects, refactors premise verification to avoid deep dispatches for static facts, and introduces render-surface completeness rules for testing new fields.
 
-**chore(policy)** — Implement live file-state ground truth checks using `git status` and direct file reads in `rules/execution-policy.md` and `review-gate-mechanics.md`. Introduce a low-risk model tier downgrade rule for known-finding-mapped small edits, and clarify structural vs behavioral premise dispatch routing in `implementation-dispatch.md`.
+- **chore(policy)** — Implement live file-state ground truth checks using `git status` and direct file reads in `rules/execution-policy.md` and `review-gate-mechanics.md`. Introduce a low-risk model tier downgrade rule for known-finding-mapped small edits, and clarify structural vs behavioral premise dispatch routing in `implementation-dispatch.md`.
 
-**docs(e2e)** — Add render-surface completeness requirements to `e2e-runner` and the legacy code characterization test skill.
+- **docs(e2e)** — Add render-surface completeness requirements to `e2e-runner` and the legacy code characterization test skill.
 
 ## 0.28.4 — 2026-07-09 — Introduce release-creator and agy-commit
 
 Introduces the new `release-creator` skill and `/create-release` command to automate release flows across generic project ecosystems. Replaces the deprecated `gemini-commit` skill with `agy-commit` utilizing the Antigravity CLI in non-interactive mode.
 
-**feat(skill)** — New `release-creator` skill that auto-detects project ecosystem release presets (claude-plugin, node, php, python, rust, etc.) to dynamically manage version bumping, changelogs, testing, PR generation, tagging, and CI workflow tracking.
+- **feat(skill)** — New `release-creator` skill that auto-detects project ecosystem release presets (claude-plugin, node, php, python, rust, etc.) to dynamically manage version bumping, changelogs, testing, PR generation, tagging, and CI workflow tracking.
 
-**feat(command)** — New `/create-release` command that resolves the release configuration from a root `RELEASE.md` or via auto-detected presets.
+- **feat(command)** — New `/create-release` command that resolves the release configuration from a root `RELEASE.md` or via auto-detected presets.
 
-**refactor(skill)** — Rename `gemini-commit` to `agy-commit` to utilize the `agy` CLI, and update it to feed `Y` via stdin to avoid getting stuck in non-interactive plan confirmation prompts.
+- **refactor(skill)** — Rename `gemini-commit` to `agy-commit` to utilize the `agy` CLI, and update it to feed `Y` via stdin to avoid getting stuck in non-interactive plan confirmation prompts.
 
 ## 0.28.3 — 2026-07-08 — Playwright native dialog traps, tasks.md/openspec post-edit remind bypass, and tdd-guide dispatch routing
 
 Fixes a bug where checkbox-only changes in `tasks.md` or leading-dot orchestration dotfiles in `openspec/` armed the `doc-review` sentinel, adds Playwright native dialog traps to `playwright.md` and `e2e-runner.md`, routes RED PHPUnit unit/integration tests to `tdd-guide`, and enforces a wrap-up self-check for `CODEX=on` sessions with 0 dispatches.
 
-**fix(hooks)** — Exclude checkbox-only `tasks.md` edits and leading-dot orchestration dotfiles in `openspec/` (e.g., `.resume-note.md`) from arming the `doc-review` sentinel in `post-edit-remind.sh`. Add tests verifying this behavior.
+- **fix(hooks)** — Exclude checkbox-only `tasks.md` edits and leading-dot orchestration dotfiles in `openspec/` (e.g., `.resume-note.md`) from arming the `doc-review` sentinel in `post-edit-remind.sh`. Add tests verifying this behavior.
 
-**docs(agents)** — Update Playwright trap documentation and e2e-runner agent instructions with native dialog handling guidelines to avoid silent timeouts.
+- **docs(agents)** — Update Playwright trap documentation and e2e-runner agent instructions with native dialog handling guidelines to avoid silent timeouts.
 
-**chore(policy)** — Update agent dispatch policy and templates to route RED PHPUnit tests to `tdd-guide`, and introduce a wrap-up self-check for `CODEX=on` sessions that dispatched `codex-bridge` 0 times.
+- **chore(policy)** — Update agent dispatch policy and templates to route RED PHPUnit tests to `tdd-guide`, and introduce a wrap-up self-check for `CODEX=on` sessions that dispatched `codex-bridge` 0 times.
 
 ## 0.28.2 — 2026-07-08 — Planner consult mode, smoke-test gate, and machine-readable agent verdicts
 
 Adds an opt-in pre-implementation plan consult, a live smoke-test gate for unattended opsx-apply-goal runs, and a machine-readable `Verdict:`/conclusion-first output contract across agents.
 
-**feat(agent)** — New `planner` agent, invoked via `/dhpk:do --plan` for the four implementation-class skill routes. Returns ENDORSE/AMEND/REPLACE with risks, checkpoints, and assumptions, and is resumed post-implementation for a warm diff review. New `smoke-tester` agent — a read-only live-runtime probe that drives the real running system with one orchestrator-supplied scenario, used as a post-implementation live-proof gate. All agents refactored to emit a machine-checkable `Verdict:`/conclusion first line.
+- **feat(agent)** — New `planner` agent, invoked via `/dhpk:do --plan` for the four implementation-class skill routes. Returns ENDORSE/AMEND/REPLACE with risks, checkpoints, and assumptions, and is resumed post-implementation for a warm diff review. New `smoke-tester` agent — a read-only live-runtime probe that drives the real running system with one orchestrator-supplied scenario, used as a post-implementation live-proof gate. All agents refactored to emit a machine-checkable `Verdict:`/conclusion first line.
 
-**feat(opsx)** — `opsx-apply-goal` now integrates the smoke-test gate, a 4000-character goal-string cap with automatic compression, and a new `analyze-change.sh` helper script for deterministic OpenSpec change analysis. The skill itself was reorganized: verbatim templates and the output-block catalog moved into standalone reference files, loaded on demand.
+- **feat(opsx)** — `opsx-apply-goal` now integrates the smoke-test gate, a 4000-character goal-string cap with automatic compression, and a new `analyze-change.sh` helper script for deterministic OpenSpec change analysis. The skill itself was reorganized: verbatim templates and the output-block catalog moved into standalone reference files, loaded on demand.
 
-**refactor(hooks)** — Merged the `git-gate` and `post-edit` hooks for fewer duplicate invocations. New `subagent-stop-quality.sh` hook checks subagent output quality at session end.
+- **refactor(hooks)** — Merged the `git-gate` and `post-edit` hooks for fewer duplicate invocations. New `subagent-stop-quality.sh` hook checks subagent output quality at session end.
 
-**docs** — Updated README and manual docs for the new `--plan` parameter, the 4000-character goal limit, and smoke-test configuration.
+- **docs** — Updated README and manual docs for the new `--plan` parameter, the 4000-character goal limit, and smoke-test configuration.
 
 ## 0.28.1 — 2026-07-07 — Reviewer liveness tracking and static guardrails
 
 Adds reviewer liveness tracking to prevent redundant dispatches, introduces Repository Discovery Gate rules, and hardens the opsx-apply-goal pipeline.
 
-**feat(hooks)** — New `pre-agent-liveness-mark.sh` hook. Track reviewer dispatches as active liveness markers and report them as in-flight work. Strip plugin namespaces during liveness checks and auto-clearing. Record unresolved blocker verdicts in a `.unresolved-verdict` sidecar.
+- **feat(hooks)** — New `pre-agent-liveness-mark.sh` hook. Track reviewer dispatches as active liveness markers and report them as in-flight work. Strip plugin namespaces during liveness checks and auto-clearing. Record unresolved blocker verdicts in a `.unresolved-verdict` sidecar.
 
-**chore(policy)** — Implement Repository Discovery Gate, anti-rationalization guidelines, and parallel Codex peer triggers for query/repository patterns in `rules/execution-policy.md` and `implementation-dispatch.md`. Incorporate strict framework/vendor edit bans and cleanliness proof rules into `agents/tdd-guide.md`.
+- **chore(policy)** — Implement Repository Discovery Gate, anti-rationalization guidelines, and parallel Codex peer triggers for query/repository patterns in `rules/execution-policy.md` and `implementation-dispatch.md`. Incorporate strict framework/vendor edit bans and cleanliness proof rules into `agents/tdd-guide.md`.
 
-**feat(opsx)** — Integrate the Repository Discovery Gate, `.unresolved-verdict` verification, and `.hard-rule-escalation.md` stop conditions into `opsx-apply-goal` goal generation and load-context pipeline.
+- **feat(opsx)** — Integrate the Repository Discovery Gate, `.unresolved-verdict` verification, and `.hard-rule-escalation.md` stop conditions into `opsx-apply-goal` goal generation and load-context pipeline.
 
 ## 0.28.0 — 2026-07-07 — Next.js + React stack modules
 
@@ -595,7 +595,7 @@ bump + reinstall release step is handled separately by the project release flow;
 once released, `nextjs-15.5` / `nextjs-16` and `react-18` / `react-19` become
 selectable via `pluginConfigs."dhpk@dhpk".options.modules`.
 
-**feat(modules)** — new `nextjs-15.5` and `nextjs-16` modules (stack-module count
+- **feat(modules)** — new `nextjs-15.5` and `nextjs-16` modules (stack-module count
 27 → 29). `nextjs-15.5` covers the current stable 15.x line (`next typegen`,
 stable typed routes, beta Turbopack production builds, the `next lint`
 deprecation). `nextjs-16` covers the current major (Turbopack default for dev +
@@ -605,13 +605,13 @@ CLI). Registered across `module-catalog.json` (new exclusive `nextjs` stack),
 `install-profiles.json` (`full.excludes`), and `.claude-plugin/plugin.json`
 (`skills[]` + descriptions); `README.md` / `README.zh-TW.md` updated in lockstep.
 
-**note(facts)** — Next.js 16 supports React 18.2+ or 19 (peerDependency
+- **note(facts)** — Next.js 16 supports React 18.2+ or 19 (peerDependency
 `^18.2.0 || ^19.0.0`); React 19 is recommended but NOT required. Verified against
 Context7 `/vercel/next.js` and cross-checked with a second model at implementation
 time, correcting an earlier draft premise that framed React 19 as a hard upgrade
 blocker.
 
-**feat(modules)** — new `react-18` and `react-19` modules under a new exclusive
+- **feat(modules)** — new `react-18` and `react-19` modules under a new exclusive
 `react` stack (stack-module count 29 → 31). `react-18` covers the concurrent
 baseline (`createRoot`/`hydrateRoot`, automatic batching, `startTransition` /
 `useTransition` / `useDeferredValue`, streaming SSR, `useId` /
@@ -626,7 +626,7 @@ Registered across `module-catalog.json` (new exclusive `react` stack),
 (`skills[]` + descriptions); `README.md` / `README.zh-TW.md` updated in lockstep.
 React facts verified against Context7 `/reactjs/react.dev`.
 
-**note(design)** — reverses the Next.js design decision D3 ("no separate `react`
+- **note(design)** — reverses the Next.js design decision D3 ("no separate `react`
 module ships"). React-language guidance now lives in the dedicated `react-18` /
 `react-19` modules; the `nextjs-15.5` / `nextjs-16` modules now point to them
 cross-stack instead of inlining React notes.
@@ -636,24 +636,24 @@ cross-stack instead of inlining React notes.
 Dispatch-policy hardening for `opsx-apply-goal` and the orchestrator's execution
 policy, plus new unit coverage for a plugin-development hook path.
 
-**chore(rules)** — `execution-policy.md` gains premise-verification guidance
+- **chore(rules)** — `execution-policy.md` gains premise-verification guidance
 (don't trust unverified behavioral claims before dispatch), a non-blocking
 polling rule, a `SendMessage` reuse rule for resuming agents, and a proactive
 CODEX peer-review clause for high-stakes changes.
 
-**chore(skill)** — `opsx-apply-goal`'s Part 0 dispatch clause adds premise
+- **chore(skill)** — `opsx-apply-goal`'s Part 0 dispatch clause adds premise
 verification and CODEX configuration, a Pre-existing-warnings rule, and a
 proactive peer-review clause for CODEX mode.
 
-**chore(agent)** — `deep-reasoner` and `e2e-runner` gain a new Playwright trap
+- **chore(agent)** — `deep-reasoner` and `e2e-runner` gain a new Playwright trap
 sheet reference; `fast-worker` gets a tightened special-character grep-matching
 spec; `post-edit-remind.sh` adjusts its plugin-development-mode trigger logic
 to match.
 
-**test(hook)** — new unit test coverage for `post-edit-remind.sh` under
+- **test(hook)** — new unit test coverage for `post-edit-remind.sh` under
 plugin-development mode.
 
-**chore(gitignore)** — `.claude/dhpk_advice.md` (the per-session retrospective
+- **chore(gitignore)** — `.claude/dhpk_advice.md` (the per-session retrospective
 log) is untracked and gitignored — it's local working state, not part of the
 shipped plugin source.
 
@@ -663,7 +663,7 @@ Two hook reliability fixes plus dispatch-policy refinements distilled from a
 real `opsx-apply-goal` retrospective, bundled with the execution-policy
 progressive-disclosure slim.
 
-**fix(hooks)** — `stop-completion-evidence.sh` now counts untracked new test
+- **fix(hooks)** — `stop-completion-evidence.sh` now counts untracked new test
 files (`git ls-files --others`) and recognizes a `.spec.` filename suffix, so a
 TDD flow that adds a brand-new spec no longer trips a false "no test changes"
 warning. `subagent-stop-verify.sh` now auto-clears a reviewer's own sentinel on
@@ -673,7 +673,7 @@ keeps its sentinel armed. Reviewers spawned via the Agent/Task tool did not
 reliably self-run their closing `clear-sentinel.sh`, leaving a stale `.pending-*`
 sentinel that could falsely block `opsx-apply-goal`.
 
-**docs(policy)** — `execution-policy.md` gains an `e2e-runner` row in both the
+- **docs(policy)** — `execution-policy.md` gains an `e2e-runner` row in both the
 Agent-dispatch and Implementation-dispatch tables (RED/E2E specs that must run
 against a live server), and reframes reviewer-sentinel auto-clear as the primary
 mechanism with the orchestrator's manual re-check as the fallback. The
@@ -683,7 +683,7 @@ inline Read; behavioral / runtime / non-deterministic → `deep-reasoner`).
 remaining failures are proven pre-existing via `git stash`, without narrowing
 the run to the change's own spec.
 
-**docs(rules)** — bundles the execution-policy progressive-disclosure slim
+- **docs(rules)** — bundles the execution-policy progressive-disclosure slim
 (detail moved into `dhpk-execution-policy` reference files), the
 development-time doubt-cycle / foolproofing rules, and the addyosmani
 discipline-pack technique folds.
@@ -695,7 +695,7 @@ back-stop to the Implementation dispatch policy, guarding against
 `fast-worker` being dispatched onto an unverified assumption or a stale
 `.pending-review` sentinel silently blocking `opsx-apply-goal`.
 
-**docs(policy)** — `execution-policy.md` gains three additions: (1) verify an
+- **docs(policy)** — `execution-policy.md` gains three additions: (1) verify an
 unverified behavioral premise (bug repro, algorithm correctness, data-shape
 assumption) via `deep-reasoner` before dispatching a write worker; (2)
 cross-verify a premise-overturning worker discovery with an independent
@@ -706,7 +706,7 @@ APPROVE, since a reviewer has been observed returning APPROVE while its
 rule so pure OpenSpec bookkeeping (`tasks.md` checkbox edits) batches instead
 of firing per-checkbox.
 
-**docs(command)** — `opsx-apply-goal` SKILL.md's `/goal` condition template
+- **docs(command)** — `opsx-apply-goal` SKILL.md's `/goal` condition template
 and validation checklist updated to reference the premise-verification step.
 
 ## 0.27.0 — 2026-07-05 — codex-bridge: third Codex integration path
@@ -716,27 +716,27 @@ MCP-based `codex-review-*` family and the interactive `codex-rescue` agent:
 output is isolated inside a subagent and relayed verbatim, with no synthesis
 or embellishment by the calling agent.
 
-**feat(codex-bridge)** — New `skills/codex-bridge/SKILL.md`, the
+- **feat(codex-bridge)** — New `skills/codex-bridge/SKILL.md`, the
 `run-codex.sh` wrapper, and the `codex-bridge` subagent. The wrapper hardcodes
 `--skip-git-repo-check`, `--sandbox`, `approval_policy=never`, and
 `--output-last-message`; it fails loud (prints the stderr tail) on empty
 output or a non-zero exit instead of fabricating a result.
 
-**chore(config)** — Bash permission rules for `codex exec:*` and the
+- **chore(config)** — Bash permission rules for `codex exec:*` and the
 path-scoped direct `run-codex.sh` invocation. The subagent's `Bash(bash:*)`
 grant for `${CLAUDE_PLUGIN_ROOT}`-qualified paths is left as a user opt-in
 (#9354), not auto-applied.
 
-**docs(policy)** — `codex-bridge` added to the Implementation/Agent dispatch
+- **docs(policy)** — `codex-bridge` added to the Implementation/Agent dispatch
 table in `execution-policy.md`, the `model-economics.md` tier map, and the
 `adaptive-dev-workflow` workflow table, all gated on `CODEX=on`; the
 codex-free default path is unaffected.
 
-**chore(agents)** — Registered as the 27th agent (26 root + 1 module-scoped
+- **chore(agents)** — Registered as the 27th agent (26 root + 1 module-scoped
 reviewer): `plugin.json` `agents[]`, `agents/INDEX.md`, and the
 plugin/marketplace/README agent-count claims (26→27) updated in lockstep.
 
-**feat(ci)** — `validate-plugin.js` gained a disk→manifest reverse check:
+- **feat(ci)** — `validate-plugin.js` gained a disk→manifest reverse check:
 every `agents/*.md` and `modules/*/agents/*.md` (excluding `INDEX.md`) must
 be listed in `agents[]`, failing loud on an unregistered agent file.
 
@@ -748,7 +748,7 @@ subprocess timeouts → explicit `hooks.json` timeouts), sentinel clearing is
 fail-loud instead of silently no-op'ing, and a fifth CI reference-integrity
 check closes the last gap in the `execution-policy.md` dual-path contract.
 
-**perf(hooks)** — Fixed `userpromptsubmit-skill-hint.sh` blocking on an
+- **perf(hooks)** — Fixed `userpromptsubmit-skill-hint.sh` blocking on an
 unbounded stdin read by adding a `-t 3` deadline, and gave synchronous hook
 entries in `hooks/hooks.json` explicit `timeout` values instead of inheriting
 the platform default. Added `scripts/hooks/_lib/portable-timeout.sh`
@@ -757,7 +757,7 @@ fallback) and applied it to `session-start.sh`'s `docker ps` probe.
 Documented the resulting convention in `docs/hook-extension.md` under "Hook
 performance convention".
 
-**fix(hooks)** — `clear-sentinel.sh` no longer exits 0 while leaving a
+- **fix(hooks)** — `clear-sentinel.sh` no longer exits 0 while leaving a
 sentinel armed: an unknown or unresolvable sentinel name now exits 2 with an
 explicit stderr message. `rules/execution-policy.md` codifies this as the
 "Closing-hook clear contract (fail-loud)" — a reviewer whose clear call fails
@@ -765,20 +765,20 @@ must surface that in its final output rather than reporting a clean review.
 Added `scripts/hooks/_lib/payload.sh` and `reap-stale-sentinels.sh` life-cycle
 fixes to back this contract at the Stop hook.
 
-**feat(hooks)** — `pretool-branch-safety.sh`'s reminder is now deduplicated
+- **feat(hooks)** — `pretool-branch-safety.sh`'s reminder is now deduplicated
 per-branch-per-session instead of firing on every matching tool call.
 
-**docs(policy)** — Added an explicit resolution-order note to
+- **docs(policy)** — Added an explicit resolution-order note to
 `rules/execution-policy.md`: consumers resolve their own
 `.claude/rules/execution-policy.md` first, falling back to
 `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`.
 
-**feat(ci)** — New reference-integrity check 5 fails CI on a bare
+- **feat(ci)** — New reference-integrity check 5 fails CI on a bare
 `.claude/rules/execution-policy.md` reference that omits the
 `${CLAUDE_PLUGIN_ROOT}/...` fallback in the same block, preventing the
 dual-path contract above from silently regressing.
 
-**docs(readme)** — `README.md` / `README.zh-TW.md` repo-tree listing now
+- **docs(readme)** — `README.md` / `README.zh-TW.md` repo-tree listing now
 includes `_lib/portable-timeout.sh` alongside `payload,portable-sed`.
 
 ## 0.25.0 — 2026-07-03 — harness cross-reference audit, install rebrand, reference-integrity CI guard
@@ -787,18 +787,18 @@ A three-track harness audit (rule-vs-skill dedupe, cross-reference integrity,
 main-workflow doc correctness) surfaced 6 HIGH / 6 MEDIUM / 4 LOW consistency
 defects. All are fixed and two new CI guards prevent recurrence.
 
-**fix(commands)** — Renamed the `/dhpk:dhpk-setup` command file
+- **fix(commands)** — Renamed the `/dhpk:dhpk-setup` command file
 (`commands/dhpk-setup.md` → `commands/setup.md`) so it resolves as
 `/dhpk:setup`, matching every shipped doc reference; the old
 `/dhpk:dhpk-setup` form no longer resolves. **(consumer-visible — takes effect
 after a version bump + reinstall.)**
 
-**fix(plugin)** — Registered `./modules/js/commands/` so `/dhpk:ts-check-status`
+- **fix(plugin)** — Registered `./modules/js/commands/` so `/dhpk:ts-check-status`
 is now reachable **(consumer-visible — reinstall)**; removed the duplicate
 `modules/yii-1.1/commands/yii1-security-audit.md` (the registered skill twin is
 the surviving surface) and its now-stale `module.yaml` `provides.commands` entry.
 
-**fix(harness)** — Eliminated every dangling `@rules/<file>` reference:
+- **fix(harness)** — Eliminated every dangling `@rules/<file>` reference:
 repointed review-loop / Codex-independence refs to the governing
 `rules/execution-policy.md` sections, inlined testing/doc conventions (the plugin
 ships 4 rules and adds none), and reconciled
@@ -806,7 +806,7 @@ ships 4 rules and adds none), and reconciled
 change-classification table. Consumer-side `@rules/*-project.md` override
 illustrations are preserved by design.
 
-**fix(install)** — Rewrote `install-rules` / `install-hooks` / `install-scripts`
+- **fix(install)** — Rewrote `install-rules` / `install-hooks` / `install-scripts`
 as pointer-installers using the real plugin identity (`dhpk` / `hmj1026/dhpk`,
 not the pre-rename `sd0x-dev-flow`), the 4-rule path-reference model (no 11-rule
 copy, no `CLAUDE.template.md`), and the correct hook source dir `scripts/hooks/`.
@@ -815,18 +815,18 @@ installer state manifest `.sd0x/install-state.json` → `.dhpk/install-state.jso
 (key `sd0x_version` → `dhpk_version`) with a one-time legacy back-compat read so
 existing consumers migrate cleanly.
 
-**fix(manifests)** — The `full` install profile now enumerates every shipped
+- **fix(manifests)** — The `full` install profile now enumerates every shipped
 module with an explicit machine-readable conflict-exclusion list (14 included +
 13 excluded = 27); added the missing `library-author` entry to
 `module-catalog.json`.
 
-**fix(docs)** — Corrected the Codex-MCP setup wording in `basic-operations.md`
+- **fix(docs)** — Corrected the Codex-MCP setup wording in `basic-operations.md`
 (register `codex mcp-server`; 5 MCP-backed + 1 CLI-only skill) to match
 `configuration.md` / README; added `model-economics.md` to the README rules
 list; corrected `~commands` / agent / `~skills` count claims (EN + zh-TW); fixed
 root `CLAUDE.md`/`AGENTS.md` gitnexus paths and added lean plugin-dev guidance.
 
-**feat(ci)** — New `scripts/ci/validate-references.js` reference-integrity guard
+- **feat(ci)** — New `scripts/ci/validate-references.js` reference-integrity guard
 (dangling `@rules/`, `/dhpk:`, and `${CLAUDE_PLUGIN_ROOT}/` refs + predecessor-brand
 `sd0x` strings, with a documented whitelist) wired into `tests/run-all.js`;
 extended `tests/module-catalog.test.js` with reverse catalog-selectability and a
@@ -834,31 +834,31 @@ extended `tests/module-catalog.test.js` with reverse catalog-selectability and a
 
 ## 0.24.0 — 2026-07-03 — model-economics SSOT, default worker dispatch, README/CI hygiene
 
-**docs(policy)** — New `rules/model-economics.md` cost/tier SSOT (role → tier
+- **docs(policy)** — New `rules/model-economics.md` cost/tier SSOT (role → tier
 map + master cost rules). `execution-policy.md §Agent dispatch` and the
 `prompt-optimize` effort guide now point to it instead of each carrying
 partial tier guidance. `harness-budget` gains a Phase 3b tier-economics pass
 that flags cost-posture mismatches (discovery role on opus, mechanical role
 at high effort, reviewer above the sonnet floor) against `model-economics.md`.
 
-**feat(config)** — Two worker-scoped `userConfig` keys: `deep_reasoner_effort`
+- **feat(config)** — Two worker-scoped `userConfig` keys: `deep_reasoner_effort`
 (default: high) and `fast_worker_effort` (default: medium). Defaults match
 current agent frontmatter, so behavior is unchanged unless overridden;
 `session-start` announces them only when non-default.
 
-**docs(policy)** — Worker dispatch (deep-reasoner/fast-worker) is now the
+- **docs(policy)** — Worker dispatch (deep-reasoner/fast-worker) is now the
 default execution path in `execution-policy.md`, with the bounded exception
 for falling back to `general-purpose` inlined instead of split across docs.
 `opsx-apply-goal` skill wording updated to match.
 
-**docs(readme)** — Corrected the Codex MCP dependency description in
+- **docs(readme)** — Corrected the Codex MCP dependency description in
 `README.md` / `README.zh-TW.md`, added badge icons, and added CI enforcement
 (`scripts/ci/catalog.js` + `tests/catalog-claims.test.js`) so documented
 codex-surface counts can't silently drift from the real catalog.
 
 ## 0.23.0 — 2026-07-02 — version-diff helper, README-to-docs migration, and release-flow regression tests
 
-**feat(version)** — New `scripts/version-diff.sh` helper: when
+- **feat(version)** — New `scripts/version-diff.sh` helper: when
 `check-plugin-version.sh` flags the running plugin version as unverified, it
 diffs the project's `pluginConfigs["dhpk@dhpk"].options` schema against the
 running plugin's `userConfig` keys, prints the relevant `CHANGELOG.md`
@@ -867,16 +867,16 @@ verified-entry JSON snippet (never written automatically). Read-only,
 advisory, always exits 0; not wired into any hook. `check-plugin-version.sh`
 hook prompt updated to point at it.
 
-**docs(project)** — Moved detailed setup and day-to-day operation docs out of
+- **docs(project)** — Moved detailed setup and day-to-day operation docs out of
 `README.md` / `README.zh-TW.md` into `docs/configuration.md` and
 `docs/basic-operations.md` (with `.zh-TW` counterparts), shrinking both
 READMEs to a lighter entry point.
 
-**chore(config)** — Added a GitNexus rules configuration section to
+- **chore(config)** — Added a GitNexus rules configuration section to
 `CLAUDE.md` / `AGENTS.md` and ignored GitNexus's scratch directory in
 `.gitignore`.
 
-**test(ci)** — Two new regression suites: `release-workflow.test.js` locks
+- **test(ci)** — Two new regression suites: `release-workflow.test.js` locks
 the Release workflow's upsert-not-create release step and stdin-streamed
 (not inline-interpolated) release notes; `validate-agents-behavior.test.js`
 covers the agent-frontmatter validator's missing-block, empty-description,
@@ -889,7 +889,7 @@ resolver; this release adds the first two implementation-capable workers and
 a dispatch policy that routes implement-phase work through them instead of
 the generic `general-purpose` subagent.
 
-**feat(agents)** — Two new implementation workers:
+- **feat(agents)** — Two new implementation workers:
 - `dhpk:deep-reasoner` (opus, read-only) — root-cause analysis, algorithm
   design, and complex multi-file debugging. Returns a conclusion contract
   (conclusion + `file:line` evidence + fast-worker-ready next actions);
@@ -901,7 +901,7 @@ the generic `general-purpose` subagent.
   ambiguous specs instead of guessing; stops after 3 failed verification
   attempts.
 
-**feat(rules)** — New `rules/execution-policy.md` §Implementation dispatch:
+- **feat(rules)** — New `rules/execution-policy.md` §Implementation dispatch:
 decision table routing reasoning-heavy work to `deep-reasoner`, mechanical
 work with a clear spec to `fast-worker`, small (~2-file) unambiguous diffs
 inline, and complex work to a deep-reasoner-spec → fast-worker-apply
@@ -910,7 +910,7 @@ enabled; preserves every existing sentinel/reviewer gate unchanged; the
 `CODEX=on` high-stakes path cross-references the existing §Multi-AI /
 dual-perspective independence rule (deep-reasoner ∥ codex blind parallel).
 
-**feat(config)** — Three new `userConfig` keys for per-project model tuning:
+- **feat(config)** — Three new `userConfig` keys for per-project model tuning:
 - `deep_reasoner_model` (default `opus`), `fast_worker_model` (default
   `sonnet`) — applied per Agent-call dispatch via the `model` param; an
   invalid value warns once per session and falls back to the agent's
@@ -920,12 +920,12 @@ dual-perspective independence rule (deep-reasoner ∥ codex blind parallel).
   prohibition, and `opsx-apply-goal`'s emitted `/goal` kickoff text is
   byte-identical to the pre-change output.
 
-**feat(hooks)** — `session-start.sh` announces
+- **feat(hooks)** — `session-start.sh` announces
 `orchestration: deep=<model> worker=<model>[ dispatch=off]`, but only when
 at least one value diverges from the shipped default (silent on the common
 all-defaults case).
 
-**refactor(skills)** — `feature-dev`, `bug-fix`, and `adaptive-dev-workflow`
+- **refactor(skills)** — `feature-dev`, `bug-fix`, and `adaptive-dev-workflow`
 route their implement-phase steps through the new dispatch table instead of
 "write code directly" / ad-hoc `general-purpose` dispatch;
 `opsx-apply-goal`'s unattended-session kickoff gains a one-line dispatch
@@ -933,13 +933,13 @@ directive (gated on `orchestration_dispatch=on`); Block C notes that
 worker-produced sentinels converge through the existing universal
 `ls .pending-*` gate — no new stop condition.
 
-**test** — `scripts/ci/validate-agents.js` and `tests/run-all.js` extended
+- **test** — `scripts/ci/validate-agents.js` and `tests/run-all.js` extended
 to cover the two new agent files and the updated count/catalog claims
 (25 agent files pass; 6/6 suites, 30/30 assertions green).
 
 ## 0.21.0 — 2026-07-02 — Agent shared skeleton, sentinel-scoped review, prompt-optimize skill
 
-**feat(infra)** — Agent shared process skeleton + artifact-output contract:
+- **feat(infra)** — Agent shared process skeleton + artifact-output contract:
 - New `agent-traps/_common/build-resolver-skeleton.md` and `trap-sheet-loader.md`
   — shared workflow steps for the build-resolver agents, replacing what was
   drifting copy-paste across each agent file.
@@ -947,12 +947,12 @@ to cover the two new agent files and the updated count/catalog claims
   `.claude/artifacts/` path template, frontmatter fields, and sentinel-clear
   convention previously duplicated inline across 18 agent files.
 
-**refactor(agents)** — All root-level agents now reference the shared
+- **refactor(agents)** — All root-level agents now reference the shared
 skeleton/contract instead of repeating instructions inline, cutting
 duplicated boilerplate across `agents/*.md` and
 `modules/library-author/agents/polyfill-reviewer.md`.
 
-**feat(agents)** — Sentinel-scoped review precedence + safety turn caps:
+- **feat(agents)** — Sentinel-scoped review precedence + safety turn caps:
 - Reviewer agents (db/security/frontend/doc/migration) now treat their own
   pending-sentinel file's listed paths as the sole authoritative review
   scope instead of the full uncommitted working tree — prevents one
@@ -962,22 +962,22 @@ duplicated boilerplate across `agents/*.md` and
   member of the 7-slot `review_agents` default; its sentinel *trigger*
   stays opt-in via module / `review_trigger_extra_paths` config.
 
-**feat(hooks)** — Pre-commit timeout detection:
+- **feat(hooks)** — Pre-commit timeout detection:
 - `pre-commit-{php,js,python}-validation.sh` and `pre-commit-swift-build.sh`
   now wrap their lint/typecheck/build subprocesses in `timeout`, with a
   distinct "possible hang" failure message (exit 124) versus a normal lint
   failure — prevents a hung linter from silently stalling `git commit`.
 
-**feat(skills)** — New `prompt-optimize` skill: rewrites a raw task prompt
+- **feat(skills)** — New `prompt-optimize` skill: rewrites a raw task prompt
 into a model-aware, effort-calibrated version, with reference guides for
 effort selection, model-specific rewrites, and general prompting techniques.
 
-**refactor(rules)** — Consolidated `rules/execution-policy.md` as SSOT for
+- **refactor(rules)** — Consolidated `rules/execution-policy.md` as SSOT for
 the post-implementation reviewer gate and sentinel-scope rules;
 `skills/dhpk-execution-policy/SKILL.md`, `skills/execution-checklist/SKILL.md`,
 and `skills/tool-routing/SKILL.md` now reference it instead of duplicating.
 
-**test** — Extended `tests/catalog-claims.test.js` / `scripts/ci/catalog.js`
+- **test** — Extended `tests/catalog-claims.test.js` / `scripts/ci/catalog.js`
 to cover the rules/agent index SSOT claims added in this release.
 
 ## 0.20.1 — 2026-07-01 — Post-implementation agent gate SSOT, route-table consolidation, harness validation hardening
@@ -985,26 +985,26 @@ to cover the rules/agent index SSOT claims added in this release.
 Maintenance release — no new agents or behavior changes for end users. Internal
 harness cleanup and test coverage additions only.
 
-**docs(rules)** — Post-implementation agent gate:
+- **docs(rules)** — Post-implementation agent gate:
 - Established `rules/execution-policy.md` as the single source of truth for
   the post-implementation reviewer-agent gate; `commands/create-dev.md`,
   `skills/adaptive-dev-workflow/SKILL.md`, and `skills/pr-review/SKILL.md`
   now reference it instead of duplicating the rules.
 - Added `skills/INDEX.md` — navigable index of installed skills.
 
-**chore(scripts)** — Route-table and validation hardening:
+- **chore(scripts)** — Route-table and validation hardening:
 - Consolidated task-routing rules in `scripts/lib/route-table.json` and
   `commands/do.md`.
 - `scripts/validate/validate-harness.sh` and `scripts/ci/catalog.js`
   strengthened for stricter static validation of the harness catalog.
 
-**test** — Integration coverage:
+- **test** — Integration coverage:
 - Added `tests/catalog-claims.test.js` and `tests/sentinel-slots.test.js`
   covering catalog claim accuracy and the 7-slot sentinel model.
 
-**chore(config)** — Plugin description and README bilingual sync.
+- **chore(config)** — Plugin description and README bilingual sync.
 
-**fix(docs)** — Fixed a pre-existing MD038 markdownlint violation in
+- **fix(docs)** — Fixed a pre-existing MD038 markdownlint violation in
 `skills/opsx-load-context/SKILL.md` (space inside a code span) that was
 blocking CI.
 
@@ -1014,7 +1014,7 @@ Agent count 22 → 24. Artifact-reviewer merged into doc-reviewer (7-slot
 sentinel model preserved). Route-table and `do` command simplified. opsx
 apply-resume flow improved.
 
-**feat(agent)** — Two new build-resolver agents:
+- **feat(agent)** — Two new build-resolver agents:
 - `python-build-resolver` — diagnoses and fixes Python toolchain failures
   (ruff/pyright/mypy/pytest/pytest-asyncio/uv sync). Three-attempt cap;
   escalates to code-reviewer on success.
@@ -1022,22 +1022,22 @@ apply-resume flow improved.
   type/borrow/lifetime errors, trait-bound / Send+Sync errors, async/tokio,
   macro errors, Cargo.toml version conflicts). Same three-attempt cap.
 
-**refactor(agent)** — `doc-reviewer` absorbs artifact-reviewer scope:
+- **refactor(agent)** — `doc-reviewer` absorbs artifact-reviewer scope:
 - `.md` DSL artifacts with YAML frontmatter (agent / skill / command / rule
   files) are now reviewed under the existing `doc-reviewer` sentinel — no
   additional slot required.
 - Standalone `artifact-reviewer` agent removed; 7-slot sentinel model preserved.
 
-**refactor(hook)** — Sentinel hook cleanup:
+- **refactor(hook)** — Sentinel hook cleanup:
 - Experimental 8th sentinel slot (artifact) removed; back to canonical 7 slots
   (code / db / sec / frontend / doc / polyfill / migration).
 - Removed artifact-reviewer hook and stale rules.
 
-**refactor(router)** — Route-table bilingual convergence:
+- **refactor(router)** — Route-table bilingual convergence:
 - Bilingual (zh/en) route rules converged into a single unified table.
 - `do` command logic simplified; dead rule branches pruned.
 
-**refactor(opsx)** — apply-resume flow:
+- **refactor(opsx)** — apply-resume flow:
 - Recovery and storage flow in `opsx-goal` apply-resume optimised.
 
 ## 0.19.0 — 2026-06-29 — ECC agent port: 4 new agents, trap-sheet harvest, reachability wiring, opsx coverage gate
@@ -1046,7 +1046,7 @@ ECC sibling-project content ported into dhpk across four passes. Agent count
 18 → 22. Existing single stack-aware reviewer model preserved; ECC per-language
 reviewer content harvested into `agent-traps/` instead of creating new agents.
 
-**feat(agent)** — Four new manual-invoke agents:
+- **feat(agent)** — Four new manual-invoke agents:
 - `spec-miner` (Opus) — brownfield spec extraction → `openspec/specs/`; paired
   with new `/spec-mine` command.
 - `type-design-analyzer` — data-model / type-system review; dispatched from
@@ -1056,7 +1056,7 @@ reviewer content harvested into `agent-traps/` instead of creating new agents.
 - `e2e-runner` — Playwright E2E runner; `skills: ["playwright-cli"]` like
   `ui-ux-verifier`; dispatched from `post-dev-test` and E2E routing rules.
 
-**feat(trap)** — New trap sheets harvested from ECC:
+- **feat(trap)** — New trap sheets harvested from ECC:
 - `code-reviewer/{python,js,vue,fastapi}.md` — stack-specific reviewer traps.
 - `security-reviewer/{python,js}.md` — severity-anchor table, emergency
   response protocol, JS/Vue stack detection.
@@ -1066,7 +1066,7 @@ reviewer content harvested into `agent-traps/` instead of creating new agents.
 - `tdd-guide/js.md` — JS-specific edge-case catalog.
 - `_common/prompt-defense.md` already present (shipped in 0.18.0).
 
-**feat(agent-baseline)** — Baseline enrichment across agents:
+- **feat(agent-baseline)** — Baseline enrichment across agents:
 - `architect.md` — 8-name anti-pattern catalog, build-order bullet, reject
   & re-slice plan gate.
 - `tdd-guide.md` — fuller edge-case catalog + `js` detection wiring.
@@ -1075,7 +1075,7 @@ reviewer content harvested into `agent-traps/` instead of creating new agents.
 - `code-reviewer.md` — model-cost-tier bias surfaced as MEDIUM finding.
 - `security-reviewer.md` — severity-anchors table + emergency response section.
 
-**feat(routing)** — Agent reachability wiring for 8 previously orphaned agents:
+- **feat(routing)** — Agent reachability wiring for 8 previously orphaned agents:
 - `rules/execution-policy.md` — AI-judgment back-stop list (8 bullets).
 - `commands/spec-mine.md` — new thin command dispatching to `spec-miner`.
 - `commands/simplify.md` — `Agent` added to allowed-tools for `refactor-cleaner`
@@ -1083,7 +1083,7 @@ reviewer content harvested into `agent-traps/` instead of creating new agents.
 - `scripts/lib/route-table.json` — dead-code regex scoped to explicit removal
   verbs so "review dead code" no longer routes to simplify.
 
-**feat(opsx)** — opsx-goal reliability fixes:
+- **feat(opsx)** — opsx-goal reliability fixes:
 - **Coverage gate** — opt-in outcome gate; `detection.md` += `HAS_COVERAGE`
   section (true only when project has a configured fail-threshold: jest
   `coverageThreshold` / phpunit `<coverage>` min / pytest `--cov-fail-under` /
@@ -1097,10 +1097,10 @@ reviewer content harvested into `agent-traps/` instead of creating new agents.
   `--threshold-minutes 60 --clear`. `clear-sentinel.sh` whitelist-rejects unknown
   names.
 
-**feat(workflow)** — `adaptive-dev-workflow`: description and openspec error
+- **feat(workflow)** — `adaptive-dev-workflow`: description and openspec error
 handling improved.
 
-**docs** — Harness health-check / governance guide, spec-extraction guide, and
+- **docs** — Harness health-check / governance guide, spec-extraction guide, and
 E2E test writing guide added to README files.
 
 ## 0.18.0 — 2026-06-29 — CI quality gate, opsx hang-detection, prompt-injection defense, reviewer trap enrichment
@@ -1109,7 +1109,7 @@ First PR-level harness quality gate modelled on ECC's `scripts/ci/` pattern,
 plus opsx long-task hang monitoring, prompt-injection defence baseline, and
 enriched reviewer trap sheets.
 
-**feat(ci)** — Added `.github/workflows/ci.yml` (validate + non-blocking markdown
+- **feat(ci)** — Added `.github/workflows/ci.yml` (validate + non-blocking markdown
 lint). Added five zero-dependency Node validators
 (`scripts/ci/validate-{agents,skills,commands,modules,plugin}.js`) with shared
 `_lib/frontmatter.js` + `_lib/report.js` (WARN default / `--strict` flag).
@@ -1119,26 +1119,26 @@ Fixed `scripts/validate/validate-harness.sh` for dual-mode validation (repo
 source root `agents/ skills/ commands/ rules/` + `scripts/hooks/`, not the
 installed `.claude/` layout).
 
-**test(harness)** — Added `tests/` directory with `tinytest` zero-dependency
+- **test(harness)** — Added `tests/` directory with `tinytest` zero-dependency
 runner and three suites: `plugin-manifest`, `module-catalog`, `hooks-wiring`.
 
-**feat(opsx)** — `skills/opsx-goal/SKILL.md`: added wall-clock hang-detection
+- **feat(opsx)** — `skills/opsx-goal/SKILL.md`: added wall-clock hang-detection
 (`detection.md` reference), timeout resume-note output guidance, and context-
 loading chain integration. `skills/opsx-load-context/SKILL.md`: wired into the
 resume-note pipeline.
 
-**feat(router)** — `commands/do.md`: improved repo-signal disambiguation for
+- **feat(router)** — `commands/do.md`: improved repo-signal disambiguation for
 smart routing; added `opsx-goal` routing rule to `scripts/lib/route-table.json`.
 
-**feat(security)** — Added `agent-traps/_common/prompt-defense.md` (Prompt-
+- **feat(security)** — Added `agent-traps/_common/prompt-defense.md` (Prompt-
 Defense baseline). Applied to `security-reviewer`, `doc-reviewer`,
 `docs-lookup`, and `ui-ux-verifier` agents.
 
-**feat(review)** — Enriched PHP and Swift `code-reviewer` trap sheets with
+- **feat(review)** — Enriched PHP and Swift `code-reviewer` trap sheets with
 worked real-world examples and false-positive filtering guidance. Added AI code
 review metrics section to `security-reviewer` iOS / PHP / Yii trap sheets.
 
-**fix** — chmod +x on 4 hook scripts that shipped without execute permission
+- **fix** — chmod +x on 4 hook scripts that shipped without execute permission
 (`check-plugin-version.sh`, `post-edit-manifest-guard.sh`,
 `pre-agent-warmstart.sh`, `stop-completion-evidence.sh`). Removed dangling
 `phpunit-batch-refactor` skill reference from `modules/phpunit-5.7/module.yaml`.
@@ -1149,24 +1149,24 @@ Added `.markdownlint.json` for consistent Markdown lint config.
 Full health-check of every skill (necessity, relationships, format, content
 correctness) plus reconstruction of documented-but-unbuilt helper infrastructure.
 
-**fix(skill-lint)** — `skill-lint.js` now (1) accepts namespaced MCP tool names
+- **fix(skill-lint)** — `skill-lint.js` now (1) accepts namespaced MCP tool names
 (`mcp__server__tool`, including hyphenated segments) instead of flagging valid
 `mcp__gitnexus__*` / `mcp__context7__*` agent tools as "non-canonical" (16 false
 positives removed), and (2) discovers skills **recursively**, so the 6 nested
 `skills/gitnexus/*` skills are linted for the first time.
 
-**fix(skills) — format / routing** — Cleared all P1/P2 routing & structure
+- **fix(skills) — format / routing** — Cleared all P1/P2 routing & structure
 findings across ~40 skills: added missing `When NOT to Use` / `Output` /
 `Verification` sections, strengthened description routing signatures, and added
 `Agent` / `Task` to `allowed-tools` where dispatched.
 
-**fix(skills) — latent loader bugs** — Three description classes that broke under
+- **fix(skills) — latent loader bugs** — Three description classes that broke under
 strict YAML are now single-quoted: the 6 `gitnexus/*` descriptions
 (double-quote-wrapped with backslash escapes → literal quotes), and
 `swift-test-strategy` / `phpunit-10-notes` (unquoted `#[…]` / `#expect`
 truncated the description at the `#`).
 
-**fix(skills) — content correctness** — Corrected version-fact errors found in
+- **fix(skills) — content correctness** — Corrected version-fact errors found in
 deep review: laravel-6 (fabricated "extracted packages" list → the real
 `laravel/ui` extraction; removed a non-existent `RetrievedUser` event and a
 mis-dated `MustVerifyEmail` change), laravel-10 (broken Faker entry with
@@ -1176,7 +1176,7 @@ in 10 — was "removed in 9"), phpunit-10 (`CovesClass` typo). `feasibility-stud
 dispatched a non-existent `feasibility-analyst` agent → repointed to
 `general-purpose`.
 
-**fix(skills) — Context7 fact validation** — Cross-checked every
+- **fix(skills) — Context7 fact validation** — Cross-checked every
 language/framework skill's version-specific claims against Context7 docs
 (Laravel 6.x/8.x/11.x branches, PHPUnit, php.net, FastAPI/SQLAlchemy/pytest/Ruff,
 ESLint/TypeScript/Vue) plus the authoritative PHPUnit changelog. PHP, Python, JS
@@ -1188,17 +1188,17 @@ replacement is a `ProphecyTrait` (not a base class); **TestListener** deprecatio
 re-dated to 7.3 consistently across the 9/10 skills; **python-pro** PEP 585
 builtin generics re-dated to 3.9 (was 3.10); **laravel-6** gained the Carbon-2
 requirement note; **laravel-11** "Backport classes" wording corrected;
-**laravel-package-author** dropped a false "Laravel 11 no longer recommends
+- **laravel-package-author** dropped a false "Laravel 11 no longer recommends
 deferred providers" claim; **laravel-testbench-matrix** "−2 offset" note fixed.
 Apple-SDK facts (Swift/iOS) are thinly covered by Context7 and were left as-is
 where unverifiable.
 
-**refactor(skills) — oversized splits** — Split 5 over-budget skills into
+- **refactor(skills) — oversized splits** — Split 5 over-budget skills into
 `references/` (content moved, not lost): skill-judge 753→141, project-setup
 554→179, create-request 464→183, continuous-learning-v2 363→170, claude-health
 335→148.
 
-**feat(scripts) — build documented-but-missing helpers** — Implemented helpers
+- **feat(scripts) — build documented-but-missing helpers** — Implemented helpers
 that skills referenced but that never existed in git: `scripts/run-skill.sh`
 (skill helper-script runner, used by 6 skills), `scripts/emit-review-gate.sh`
 (review-gate marker), and the feature-context resolver
@@ -1206,13 +1206,13 @@ that skills referenced but that never existed in git: `scripts/run-skill.sh`
 `scripts/resolve-feature.sh` (the documented 4-level cascade, slug-validated,
 `execFileSync`-safe).
 
-**fix(skills) — dangling references** — Inlined the never-built `seek-verdict`
+- **fix(skills) — dangling references** — Inlined the never-built `seek-verdict`
 verdict-prompt + thresholds into `issue-analyze` and `codex-code-review`
 (self-contained now); repointed `test-driven-development` → the `tdd-guide`
 agent (4 files); fixed the `smart-commit` command to reference the
 `git-smart-commit` skill.
 
-**chore(skills) — retire** — Removed `contract-decode` (EVM decoder, out of
+- **chore(skills) — retire** — Removed `contract-decode` (EVM decoder, out of
 stack) and `phpunit-batch-refactor` (project-specific completed-migration
 artifact), and cleaned their inbound references.
 
@@ -1221,7 +1221,7 @@ reference-length line counts), `validate-harness.sh` + `test-hooks.sh` green.
 
 ## 0.16.2 — 2026-06-27 — module skill description trim (issue #12 interim)
 
-**docs/perf(skills)** — Interim mitigation for
+- **docs/perf(skills)** — Interim mitigation for
 [#12](https://github.com/hmj1026/dhpk/issues/12): module skill `description:`
 fields are statically registered for **every** shipped module regardless of the
 `modules` option (a Claude Code plugin-manifest limitation — `modules` gates
@@ -1241,7 +1241,7 @@ provisioning) remains tracked on #12.
 
 ## 0.16.1 — 2026-06-27 — statusline 1M-context usage fix
 
-**fix(statusline)** — The global statusline defaults `context_window_size` to
+- **fix(statusline)** — The global statusline defaults `context_window_size` to
 200000, so a 1M-context model (model id carries a `[1m]` suffix, e.g.
 `claude-opus-4-8[1m]`) reading ~192k tokens displayed **96%** instead of ~19%.
 `scripts/statusline/statusline.sh` now injects `context_window_size=1000000`
@@ -1256,7 +1256,7 @@ behind a single front door (`/harness-govern`), removes a redundant scorecard
 path, and brings token accounting under the `harness-*` brand. No behaviour change
 beyond the two renames/removals below.
 
-**BREAKING — agent removed (`harness-optimizer`)** — its broader
+- **BREAKING — agent removed (`harness-optimizer`)** — its broader
 reliability/cost/throughput scorecard overlapped both the deterministic
 `/harness-audit` script and `/harness-govern`'s conform step. That judgment is now
 folded into `/harness-govern`'s conform step as an explicit **five-leverage-area
@@ -1264,12 +1264,12 @@ scan** (hooks / evals / routing / context / safety) that proposes changes but
 still delegates edits to `/harness-revise`. Anything that invoked
 `harness-optimizer` directly should call `/harness-govern` (read-only) instead.
 
-**BREAKING — skill renamed (`context-budget` → `harness-budget`)** — the token
+- **BREAKING — skill renamed (`context-budget` → `harness-budget`)** — the token
 audit joins the `harness-*` family as its token-accounting member and backs
 `/harness-govern`'s measure step. Update any `/context-budget` invocations to
 `/harness-budget`. Behaviour is unchanged.
 
-**docs / routing** — `commands/INDEX.md` gains a harness-family decision tree and
+- **docs / routing** — `commands/INDEX.md` gains a harness-family decision tree and
 marks `/harness-govern` as the single front door (build → `/harness-fill`,
 score → `/harness-audit` | `/harness-budget`, trim → `/harness-revise`, full loop
 → `/harness-govern`). `agents/INDEX.md` (19→18 agents), README agent counts
@@ -1279,7 +1279,7 @@ registration and bumps to 0.16.0.
 
 ## 0.15.0 — 2026-06-26 — new opsx-goal skill: unattended OpenSpec implementation sessions
 
-**feat(skills)** — New `opsx-goal` skill. Given an OpenSpec change-id, it reads the
+- **feat(skills)** — New `opsx-goal` skill. Given an OpenSpec change-id, it reads the
 change's `tasks.md` + `proposal.md`, detects the test-runner scope, calculates a
 turn budget, and emits a tailored `/goal` condition plus the `/opsx:apply` sequence
 ready to paste into a fresh session — so Claude can drive an OpenSpec change to
@@ -1291,28 +1291,28 @@ completion unattended. Complements the existing `opsx-archive` / `opsx-verify` /
 Structural refactor across agents, hooks, commands, and skills — no new measurement
 or orchestration logic, but all four layers are now cleaner and more maintainable.
 
-**refactor(agent)** — Language- and framework-specific trap tables extracted from
+- **refactor(agent)** — Language- and framework-specific trap tables extracted from
 inline agent descriptions into a dedicated `agent-traps/` directory. Agent `.md`
 files now stay short and stable; trap content can evolve independently.
 
-**refactor(command)** — Standalone per-command description files removed; all
+- **refactor(command)** — Standalone per-command description files removed; all
 routing and setup metadata is now consolidated into the unified route table and
 setup config. Reduces the per-command maintenance surface.
 
-**refactor(hooks)** — Shared lifecycle hook utilities extracted into `hooks/_lib/`.
+- **refactor(hooks)** — Shared lifecycle hook utilities extracted into `hooks/_lib/`.
 `lifecycle.sh` and related scripts refactored to source from `_lib/`; test suite
 updated to match. Eliminates duplicated shell fragments across hook scripts.
 
-**refactor(skills) — breaking rename** — `goal-ex` skill renamed to `harness-fill`
+- **refactor(skills) — breaking rename** — `goal-ex` skill renamed to `harness-fill`
 (better reflects that it fills in harness boilerplate rather than running goal
 extraction). Update any `/goal-ex` invocations to `/harness-fill`. New
 `create-skill` skill added: scaffolds a new skill directory with correct
 frontmatter and `SKILL.md` boilerplate.
 
-**chore(config)** — `plugin.json` gains `homepage` field; `php_cs_fixer_bin`
+- **chore(config)** — `plugin.json` gains `homepage` field; `php_cs_fixer_bin`
 description tightened. Release workflow and metadata updated.
 
-**chore(rules)** — Rules updated to reference `harness-fill`; tool-routing
+- **chore(rules)** — Rules updated to reference `harness-fill`; tool-routing
 guidance fine-tuned.
 
 ## 0.13.0 — 2026-06-26 — add /harness-govern audit→fix orchestrator
@@ -1324,7 +1324,7 @@ against the official Claude Code best-practices checklist + known caveats such
 as `skillOverrides` not applying to plugin skills, account-level claude.ai
 connectors, and `skillListingBudgetFraction` as the only file-level truncation
 lever), **fix** (only with `--fix`; routes to `/harness-revise --apply`), and
-**verify**. Read-only by default so it is safe to `/loop`; mutating only on
+- **verify**. Read-only by default so it is safe to `/loop`; mutating only on
 `--fix`. Adds **zero** new measurement logic and does **not** merge the existing
 specialists — it sequences them and the specialists stay the SSOT. Cross `See
 also` links added to `/harness-audit`, `/harness-revise`, and the
@@ -1339,7 +1339,7 @@ the fix sat uncommitted in the working tree — reported already-superseded
 committed code as unfixed. This release makes the working-tree scope explicit so
 the behaviour no longer depends on the caller's prompt phrasing.
 
-**Fixed — reviewer diff scope:**
+- **Fixed — reviewer diff scope:**
 - `agents/code-reviewer.md` / `agents/doc-reviewer.md`: the change-discovery step
   now mandates auditing the UNCOMMITTED working tree (`git diff --staged` +
   `git diff HEAD`) and forbids `git diff <base>...HEAD` / merge-base diffs.
@@ -1360,7 +1360,7 @@ false-positive sentinels at dispatch time). This release adds the **root-cause**
 counterpart: `post-edit-remind.sh` drops mechanically-trivial sentinels at write
 time, so the assistant never sees them in the first place.
 
-**Added — hook-level sentinel triage (`scripts/hooks/post-edit-remind.sh`):**
+- **Added — hook-level sentinel triage (`scripts/hooks/post-edit-remind.sh`):**
 - Before writing sentinels, the hook measures the edited file's cumulative diff
   vs HEAD and drops false positives for the two change classes that are
   *mechanically* safe to detect: comment-only edits (drops db/security/frontend/
@@ -1375,7 +1375,7 @@ time, so the assistant never sees them in the first place.
   review is worse than an extra one. The diff is cumulative, so a file that grows
   substantial across edits re-acquires its sentinel.
 
-**Fixed — harness-revise scripts:**
+- **Fixed — harness-revise scripts:**
 - `skills/harness-revise/scripts/test-harness.sh`: T9.1 emitted zero assertions
   silently when the main rule file (e.g. a repo with no top-level CLAUDE.md) was
   absent or had no `rules/*.md` refs; it now emits an explicit SKIP.
@@ -1393,7 +1393,7 @@ chain, and the PreCompact/PostCompact hooks now carry a full work handoff so a
 conversation survives Claude Code's native auto-compaction without losing its
 thread.
 
-**Changed — reviewer dispatch (was a serial chain):**
+- **Changed — reviewer dispatch (was a serial chain):**
 - `rules/execution-policy.md`: the `database → security → … → doc` **serial
   chain** is replaced by **triage → parallel dispatch → merge**. After a turn's
   edits, triage drops false-positive sentinels (a 2-line CSS tweak or a typo-fix
@@ -1405,13 +1405,13 @@ thread.
   `rules/anti-rationalization.md`, `skills/execution-checklist`,
   `skills/dhpk-execution-policy`, `agents/doc-reviewer.md`, `README.md`.
 
-**Fixed — clear-sentinel path inconsistency:**
+- **Fixed — clear-sentinel path inconsistency:**
 - `code-reviewer`, `database-reviewer`, `security-reviewer` called the
   project-local `clear-sentinel.sh`; the other three used the plugin path. All
   six now call `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh`, so a
   project can drop its local copy.
 
-**Added — work-state handoff across compaction:**
+- **Added — work-state handoff across compaction:**
 - `scripts/hooks/precompact-archive.sh` now also writes
   `.claude/artifacts/checkpoints/handoff-latest.md` — branch, pending review
   sentinels, the active OpenSpec change + done/open task counts, working tree,
@@ -1431,13 +1431,13 @@ file-not-found and the skill was effectively unusable via the command. Only
 `harness-inventory.sh` had ever been committed to the plugin; the scenario and
 test-harness scripts existed solely in a downstream project's customized fork.
 
-**Fixed — the command now uses the plugin-bundled skill:**
+- **Fixed — the command now uses the plugin-bundled skill:**
 - `@skills/harness-revise/SKILL.md` (matches every sibling command).
 - Engine block runs `${CLAUDE_PLUGIN_ROOT}/skills/harness-revise/scripts/...`.
 - `SKILL.md` resolves `SKILL_DIR` as `CLAUDE_SKILL_DIR` → `CLAUDE_PLUGIN_ROOT` →
   `.agents/` (cross-LLM fallback), with a warning when it falls through.
 
-**Added — the two missing scripts, generalized for any dhpk project:**
+- **Added — the two missing scripts, generalized for any dhpk project:**
 - `harness-scenarios.sh` and `test-harness.sh` now ship inside the plugin.
 - Hooks are discovered via `find -L $HARNESS_DIR/hooks/*.sh` instead of a
   hardcoded (project-specific / plugin-owned) list; symlinked harness dirs are
@@ -1458,14 +1458,14 @@ Codifies the **git flow** branching model and closes the gap that let `develop`
 drift 76 commits behind `main`: the post-release back-merge was manual and got
 skipped. It is now automated and documented.
 
-**New — `sync-develop` CI job (`.github/workflows/release.yml`):**
+- **New — `sync-develop` CI job (`.github/workflows/release.yml`):**
 - Runs after the existing `release` job on every `v*` tag push.
 - Checks out `develop`, fetches `main`, and back-merges with `--no-ff`
   (git-flow merge commit), then pushes `develop`.
 - Fails **loudly** on a merge conflict — never silently drops the back-merge.
   "Already up to date" is a safe no-op, so re-runs are harmless.
 
-**New — `RELEASE.md`:**
+- **New — `RELEASE.md`:**
 - Documents the full git-flow release flow: branch from `develop` → PR into
   `main` → tag → CI Release + auto back-merge → `develop`.
 - States the permanent-branch rule (`develop` is never deleted) and the manual
@@ -1482,7 +1482,7 @@ had to hand-roll its own `.claude/hooks/*.sh` because dhpk shipped no Python
 module. Backward compatible: the new modules are opt-in; projects that don't
 enable them see zero change.
 
-**New — `python` module (language baseline + tooling hooks):**
+- **New — `python` module (language baseline + tooling hooks):**
 - `module.yaml` triggers code-reviewer on `.py`; provides skills `python-pro`
   (modern 3.10+ idioms, async-await discipline, logging-over-print, exception
   hierarchy) and `python-static-checks` (ruff rule selection, pyright-vs-mypy,
@@ -1500,27 +1500,27 @@ enable them see zero change.
   up to the nearest `pyproject.toml`, so a backend under `backend/` just works.
   `python_project_roots` optionally *restricts* linting to named subtrees.
 
-**New — `fastapi` module (skills+refs, `requires: python`):**
+- **New — `fastapi` module (skills+refs, `requires: python`):**
 - `fastapi-pro` skill: router/DI patterns, Pydantic request/response schemas,
   SQLAlchemy 2.0 async session & transaction discipline, Alembic migration
   safety, CORS/auth/error handling. Adds `db` / `sec` path triggers so
   database-reviewer / security-reviewer fire on model / migration / auth edits.
 
-**New — `pytest` module (skills+refs, `requires: python`):**
+- **New — `pytest` module (skills+refs, `requires: python`):**
 - `pytest-async` skill: pytest-asyncio (`asyncio_mode=auto`), in-memory SQLite
   fixtures, `httpx.AsyncClient` + `ASGITransport`, unit/integration taxonomy,
   coverage floor, opt-in live markers. Test conventions for `tdd-guide`.
 
-**New userConfig knobs (all optional, sane defaults):**
+- **New userConfig knobs (all optional, sane defaults):**
 - `python_project_roots` (default `[]` = walk-up), `python_runner`
   (`uv run`; set `poetry run` or `` for bare PATH), `ruff_bin` (`ruff`),
   `python_typechecker` (`pyright`|`mypy`|`none`, default `pyright`),
   `pyright_bin`, `mypy_bin`.
 
-**New install profiles:** `python-api` (`python,fastapi,pytest`) and
+- **New install profiles:** `python-api` (`python,fastapi,pytest`) and
 `python-fullstack` (`+ js`). `full` profile extended to include the family.
 
-**Note — stale-cache bash errors (0.9.1):** the `declare -A` / arithmetic-trap
+- **Note — stale-cache bash errors (0.9.1):** the `declare -A` / arithmetic-trap
 errors some sessions reported originate from the cached 0.9.1 plugin, not from
 current source — `session-start.sh` has been bash-3.2-clean since 0.10.0
 (`a9490b2`). Resolution: repin/reinstall dhpk to ≥0.10.0 in consuming projects
@@ -1532,7 +1532,7 @@ Upstreams generic harness improvements matured in a consuming project
 (zdpos-217). Backward compatible: all new userConfig keys default off/empty,
 so existing consumers see zero behaviour change unless they opt in.
 
-**New — migration-review is an official sentinel slot (slot 6):**
+- **New — migration-review is an official sentinel slot (slot 6):**
 - `payload.sh` arrays extended to 7 slots (`.pending-migration-review` →
   `migration-reviewer`, agent already shipped). All array-driven consumers
   (clear-sentinel, reap, push-block, stop reminder, subagent verify) pick it
@@ -1543,7 +1543,7 @@ so existing consumers see zero behaviour change unless they opt in.
 - New `SENTINEL_SHORT_NAMES` aligned array for statusline-style consumers.
 - Removes the last reason consuming projects had to fork `payload.sh`.
 
-**New hooks / scripts (opt-in or self-skipping):**
+- **New hooks / scripts (opt-in or self-skipping):**
 - `post-edit-manifest-guard.sh` (PostToolUse, async): lock-file sync reminder
   when a root manifest (composer.json / package.json / Gemfile / Cargo.toml /
   pyproject.toml) is edited. Per-project command via `lockfile_sync_commands`.
@@ -1566,7 +1566,7 @@ so existing consumers see zero behaviour change unless they opt in.
   (restore command line via new `harness_restore_hint`).
 - `templates/settings.local.json.example` for project onboarding.
 
-**Improvements:**
+- **Improvements:**
 - camelCase `filePath` payload fallback in `post-edit-remind.sh` and
   `post-write-crlf-fix.sh` (Write-tool payload variants no longer drop
   sentinels / CRLF fixes).
@@ -1583,7 +1583,7 @@ so existing consumers see zero behaviour change unless they opt in.
   timeout exists).
 - Advisory stderr prefixes normalised to ASCII `[WARN]` (was `⚠`).
 
-**Fixes:**
+- **Fixes:**
 - `session-start.sh` used `declare -A` (bash 4+) — broke stock macOS bash 3.2.
   Replaced with a portable membership check.
 - `session-start.sh` module banner truncated multi-word display names
@@ -1603,7 +1603,7 @@ so existing consumers see zero behaviour change unless they opt in.
 
 Bugfix + hardening release. No breaking changes; opt-in reaper behaviour only.
 
-**Fix — `reap_stale_mcp_processes` is now parallel-session safe:**
+- **Fix — `reap_stale_mcp_processes` is now parallel-session safe:**
 - The SessionStart reaper used "kill all but the newest" `gitnexus mcp` process.
   When more than one Claude session runs concurrently in the same repo, that
   killed gitnexus servers owned by **live sibling sessions** — surfacing as a
@@ -1616,7 +1616,7 @@ Bugfix + hardening release. No breaking changes; opt-in reaper behaviour only.
 - Benign known limitation: on systemd-user hosts an orphan reparented to
   `systemd --user` (ppid≠1, still alive) is not detected — it simply lingers.
 
-**Docs:**
+- **Docs:**
 - `context-budget` skill gains a **Prompt Caching** section: the three-layer
   prefix model, do/don't behaviours (pin model+effort, avoid `opusplan`, no
   mid-task fast-mode toggle, `/compact` at task boundaries), a "does NOT affect
@@ -1633,7 +1633,7 @@ everything-claude-code marketplaces. Additive by default — the only behaviour
 change is the js module's lint timing (now batched at Stop; opt back to per-edit
 with `DHPK_JS_LINT_MODE=per-edit`).
 
-**De-coupling (plugin must be project-agnostic):**
+- **De-coupling (plugin must be project-agnostic):**
 - **New `hot_tables` userConfig key** — projects declare their high-volume tables
   for `performance-analyzer` / `migration-reviewer` instead of relying on
   hard-coded example names. Defaults `[]` (fall back to generic heuristics +
@@ -1647,7 +1647,7 @@ with `DHPK_JS_LINT_MODE=per-edit`).
   references updated). Design-doc history and CHANGELOG references retained as
   historical context.
 
-**Reviewer quality guardrails (benchmarked vs everything-claude-code):**
+- **Reviewer quality guardrails (benchmarked vs everything-claude-code):**
 - `code-reviewer` — added a **Confidence gate (emit stage)** (4-question pre-report
   filter, HIGH/CRITICAL proof requirement, "zero findings is valid") and a
   **Common false positives** skip-list. Complements (does not replace) the existing
@@ -1656,7 +1656,7 @@ with `DHPK_JS_LINT_MODE=per-edit`).
 - `refactor-cleaner` — workflow now has a `rg` fallback when gitnexus/cx is absent
   (portability) and explicit small-batch verify-then-commit discipline.
 
-**New guard hooks (ecc-benchmarked):**
+- **New guard hooks (ecc-benchmarked):**
 - `pre-edit-guard` — **config-protection**: blocks edits that *weaken an existing*
   linter / formatter / static-analysis config (eslint/prettier/biome/php-cs-fixer/
   phpcs/phpstan/psalm/ruff/flake8/pylint/mypy) to make a failing gate pass. First-time
@@ -1666,14 +1666,14 @@ with `DHPK_JS_LINT_MODE=per-edit`).
   pre-commit/pre-push gates). Short `-n` is left alone (overloaded: push `-n`
   = --dry-run). Opt out: `DHPK_ALLOW_NO_VERIFY=1`.
 
-**js module — batched lint at Stop:**
+- **js module — batched lint at Stop:**
 - post-edit-js-lint now *accumulates* edited frontend paths and runs ESLint **once at
   Stop** (new `stop-js-batch-check.sh`) instead of once per edit. New generic
   `stop-dispatch.sh` fires module `stop-*.sh` hooks (mirrors post-edit-dispatch).
   `DHPK_JS_LINT_MODE=per-edit` restores the legacy immediate behaviour;
   `DHPK_JS_STOP_TYPECHECK=1` adds a whole-project typecheck at Stop.
 
-**New agent + planning/loop discipline:**
+- **New agent + planning/loop discipline:**
 - **`silent-failure-hunter`** (situational, read-only, 19th agent) — deep
   error-handling audit (empty catch / swallowed exceptions / error-hiding fallbacks /
   lost stack traces / missing rollback). Wired as a `code-reviewer` delegate; not a
@@ -1686,7 +1686,7 @@ with `DHPK_JS_LINT_MODE=per-edit`).
   recurring blocking conflict) + a pre-loop safety-floor checklist (gate active /
   baseline / rollback / isolation), distilled from ecc's loop-operator.
 
-**Distilled rules (`/rules-distill` over dhpk's own 62 skills):** cross-cutting
+- **Distilled rules (`/rules-distill` over dhpk's own 62 skills):** cross-cutting
 principles that recurred across ≥2 skills, promoted into the three opt-in rule files:
 - `rules/execution-policy.md` — three new sections: *Classification-first context
   loading* (classify workflow type before loading heavy references), *Multi-AI /

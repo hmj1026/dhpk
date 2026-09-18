@@ -104,7 +104,7 @@ function renderSection({ version, date, summary, fragments }) {
   }
 
   for (const frag of sortFragments(fragments)) {
-    lines.push(`**${frag.category}(${frag.scope})** — ${frag.note}`);
+    lines.push(`- **${frag.category}(${frag.scope})** — ${frag.note}`);
   }
   lines.push('');
   return lines.join('\n');
