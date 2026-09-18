@@ -22,7 +22,7 @@ function fileFingerprint(file) {
 
 function mkRepo({ branch = 'develop' } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-')));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/dhpk-tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package']) {
+  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/dhpk-tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package', 'agent-traps', 'commands', 'hooks', 'modules', 'scripts', 'templates']) {
     fs.mkdirSync(path.join(root, rel), { recursive: true });
   }
   for (const profile of ['minimal', 'full', 'compat-v1']) {
@@ -72,6 +72,8 @@ function mkRepo({ branch = 'develop' } = {}) {
   const agyPin = 'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.0.0 --json\n';
   fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
   fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
+  fs.mkdirSync(path.join(root, 'docs', 'knowledge'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'docs', 'knowledge', 'marketplace-sync.md'), 'Marketplace package must stay in sync.\n');
 
   spawnSync('git', ['init', '-q'], { cwd: root });
   spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
@@ -180,6 +182,27 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   assert.match(res.stdout, /docs\/platform-installation\.zh-TW\.md/);
   assert.ok(fs.readFileSync(path.join(repo, 'docs', 'platform-installation.md'), 'utf8').includes(expectedPin));
   assert.ok(fs.readFileSync(path.join(repo, 'docs', 'platform-installation.zh-TW.md'), 'utf8').includes(expectedPin));
+});
+
+test('write mode regenerates a drifted Claude marketplace package', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  const generatedSync = path.join(repo, 'generated', 'claude-marketplace', 'package', 'docs', 'knowledge', 'marketplace-sync.md');
+  try {
+    assert.ok(!fs.existsSync(generatedSync));
+
+    const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(fs.existsSync(generatedSync), 'generated Claude marketplace package must include docs/knowledge/marketplace-sync.md');
+    assert.strictEqual(fs.readFileSync(generatedSync, 'utf8'), 'Marketplace package must stay in sync.\n');
+
+    const generatedPlugin = JSON.parse(fs.readFileSync(path.join(repo, 'generated', 'claude-marketplace', 'package', '.claude-plugin', 'plugin.json'), 'utf8'));
+    assert.strictEqual(generatedPlugin.version, '1.1.0');
+    assert.match(res.stdout, /claude-marketplace/);
+    assert.match(res.stdout, /regenerated/i);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });
 
 test('write mode retains a durable rollback manifest and rollback restores the prior release tree', () => {
