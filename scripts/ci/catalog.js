@@ -164,13 +164,28 @@ const COVERAGE_MAP = {
   'scripts/lib/review-gate-runtime-evidence.js': 'review-gate-runtime-observe-security.test.js',
   'scripts/lib/review-gate-runtime-storage.js': 'review-gate-runtime-init-security.test.js',
   'scripts/ci/validate-command-dispositions.js': 'command-skill-disposition.test.js',
+  'scripts/hooks/_lib/advise-once.sh': 'session-start-advisories.test.js',
+  'scripts/hooks/_lib/detect-stack-hints.sh': 'session-start-advisories.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);
 
+// Many-to-one coverage ledger: unique scripts default to the stem heuristic
+// (tests/<stem>.test.js or tests/<stem>-<aspect>.test.js). Two or more scripts
+// MAY share one discovered tests/*.test.js file via COVERAGE_MAP. Nested
+// tests/subdir/*.test.js files are invisible here (top-level readdir only).
+function resolveScriptCoverage(rel, testFiles, testFileSet) {
+  const stem = path.basename(rel, path.extname(rel));
+  const mapped = COVERAGE_MAP[rel];
+  return Boolean(
+    (mapped && testFileSet.has(mapped)) ||
+    testFileSet.has(`${stem}.test.js`) ||
+    testFiles.some((n) => n.startsWith(`${stem}-`))
+  );
+}
+
 // Every *.sh/*.js/*.ts/*.py under scripts/ (data files like .json excluded) must
-// have a dedicated test: tests/<stem>.test.js, tests/<stem>-<aspect>.test.js, or
-// an explicit COVERAGE_MAP entry for feature-named tests. Pure fs walk, no deps.
+// have owned assertions via resolveScriptCoverage. Pure fs walk, no deps.
 function findScriptCoverageGaps() {
   const scriptFiles = walkFiles(p('scripts'), (fp) => SCRIPT_EXTS.has(path.extname(fp)));
   const testsDir = p('tests');
@@ -182,13 +197,7 @@ function findScriptCoverageGaps() {
   const uncovered = [];
   for (const fp of scriptFiles) {
     const rel = path.relative(ROOT, fp).split(path.sep).join('/');
-    const stem = path.basename(fp, path.extname(fp));
-    const mapped = COVERAGE_MAP[rel];
-    const covered =
-      (mapped && testFileSet.has(mapped)) ||
-      testFileSet.has(`${stem}.test.js`) ||
-      testFiles.some((n) => n.startsWith(`${stem}-`));
-    if (!covered) uncovered.push(rel);
+    if (!resolveScriptCoverage(rel, testFiles, testFileSet)) uncovered.push(rel);
   }
   return uncovered;
 }

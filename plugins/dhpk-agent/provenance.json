@@ -3,10 +3,10 @@
   "surface": "agent-plugin",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
-  "sourceVersion": "0.62.3",
-  "sourceCommit": "fab9115be841eab782f70b0527c4a4624aaa428a",
-  "generatedFromCommit": "fab9115be841eab782f70b0527c4a4624aaa428a",
-  "generatedFromTree": "8f35894e6efaa872e8c789ae9eb5deb28ef61761",
+  "sourceVersion": "0.62.4",
+  "sourceCommit": "47f7a40c8681396c9dcc48e0b23d2332d26f4447",
+  "generatedFromCommit": "47f7a40c8681396c9dcc48e0b23d2332d26f4447",
+  "generatedFromTree": "1546287927cce94e93554063be229813f84d7529",
   "inventoryDigest": "ab3ac0a9f34b666ff92f10bcb5c96e9e5175890493a368a41d964aeccb0d81d3",
   "inventoryRevision": "sha256:4870c6b34e8040a8dde5267d2b13e1f00f23fe44258b546900c23303a5d8300e",
   "generatorVersion": "1.0.0",
@@ -139,14 +139,14 @@
     "dhpk-session-usage-audit": "9c87600b97c9a9e49128b5e11d92c22a72d33b709d797b096899c79ef52b9833",
     "dhpk-tdd-workflow": "6f69203e035cfb2431f1b8bdb9ef75288e62212177c9812a0f882d984614dd4f",
     "flow-drive": "b8eee4a9236425c360b6e8054335804130dbbae417d4124a00de4a2d0885a947",
-    "flow-guide": "47be62ece1aedd5afce5c2dc87caea7ba2ccab367101a8ea8f2c23c8272ea85c",
+    "flow-guide": "83ad1caf53cf679f6fbad4c85e246342cea43ce2a2ed75e4919e9221f55a07c7",
     "harness-govern": "cbb298a79c6d933928d9fbe669c1d1aa120c2d9fdd3243622a8e0d95d2564f67",
     "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
     "skill-scope": "01e0b2b56fe128836c1363909e18a6a9d15f420316b0ce0e7636a20fd9f1362f"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "afc8c7521f9fb6cbdbd4d3b8a831f4f144d54f55651c64f5ab9193be2dec3c94",
+    "planId": "e01d7a509950811c7df6bac280c961ef38aa8aef0ae0aad253e2cffd530871db",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -236,10 +236,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "afc8c7521f9fb6cbdbd4d3b8a831f4f144d54f55651c64f5ab9193be2dec3c94",
+      "plan": "e01d7a509950811c7df6bac280c961ef38aa8aef0ae0aad253e2cffd530871db",
       "inventory": "ab3ac0a9f34b666ff92f10bcb5c96e9e5175890493a368a41d964aeccb0d81d3"
     },
-    "rollbackIdentity": "1451b8a7f1a511cd95005f85edd2a7732b487b8f3c325b970d3f8f7f2902fa4c"
+    "rollbackIdentity": "409167f6b3633c3c1067c3743263ca92460b201fef429d0f67e8e1e2cb9edf31"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

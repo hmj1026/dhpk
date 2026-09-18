@@ -289,6 +289,40 @@ test('unavailable Codex provider query is reported but does not block planning',
   }
 });
 
+test('provider query slower than 3 seconds still reports AVAILABLE', () => {
+  const scratch = projectRoot();
+  try {
+    const startedAt = Date.now();
+    const result = runInstaller(scratch, ['--copy', '--force', '--plan', '--json'], ROOT, {
+      DHPK_TEST_CODEX_PLUGIN_LIST_SLEEP_SECONDS: '4',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.strictEqual(JSON.parse(result.stdout).providerCheck.status, 'AVAILABLE');
+    assert.ok(elapsedMs >= 4000, `expected the 4s plugin-list query to finish, took ${elapsedMs}ms`);
+    assert.ok(elapsedMs < 15000, `expected the query not to wait out a long timeout, took ${elapsedMs}ms`);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('DHPK_CODEX_PROBE_TIMEOUT_SECONDS bounds a hung provider query', () => {
+  const scratch = projectRoot();
+  try {
+    const startedAt = Date.now();
+    const result = runInstaller(scratch, ['--copy', '--force', '--plan', '--json'], ROOT, {
+      DHPK_TEST_CODEX_PLUGIN_LIST_SLEEP_SECONDS: '4',
+      DHPK_CODEX_PROBE_TIMEOUT_SECONDS: '1',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.strictEqual(JSON.parse(result.stdout).providerCheck.status, 'UNAVAILABLE');
+    assert.ok(elapsedMs < 2500, `expected the 1s override to expire promptly, took ${elapsedMs}ms`);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('oversized provider output is capped before the child command finishes', () => {
   const scratch = projectRoot();
   try {
@@ -311,6 +345,7 @@ test('provider timeout terminates descendants after the direct Codex process exi
   try {
     const result = runInstaller(scratch, ['--copy', '--force', '--plan', '--json'], ROOT, {
       DHPK_TEST_CODEX_BACKGROUND_MARKER: marker,
+      DHPK_CODEX_PROBE_TIMEOUT_MS: '1000',
     });
     assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.strictEqual(JSON.parse(result.stdout).providerCheck.status, 'UNAVAILABLE');
