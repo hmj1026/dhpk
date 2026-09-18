@@ -186,6 +186,56 @@ test('canonical source changes require explicit update authority', () => {
   }
 });
 
+test('explicit update authority overwrites drifted receipt-owned managed files', () => {
+  const root = makeFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    write(path.join(root, 'skills', 'dhpk-sample', 'references', 'guide.md'), '# Updated guide\n');
+    write(path.join(outDir, 'dhpk-sample', 'references', 'guide.md'), '# Updated guide\n');
+    fs.appendFileSync(path.join(outDir, 'dhpk-sample.md'), '\n# Local drift\n');
+    assert.throws(
+      () => materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir }),
+      /modified or fingerprint drifted/i,
+    );
+    materializeAgentsSkillsProjection({
+      root,
+      inventory: fixtureInventory(),
+      outDir,
+      allowCanonicalChanges: true,
+    });
+    assert.strictEqual(fs.readFileSync(path.join(outDir, 'dhpk-sample', 'references', 'guide.md'), 'utf8'), '# Updated guide\n');
+    assert.doesNotMatch(fs.readFileSync(path.join(outDir, 'dhpk-sample.md'), 'utf8'), /# Local drift/);
+    const checked = validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('explicit update authority still refuses unmanaged collisions', () => {
+  const root = makeFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    write(path.join(root, 'skills', 'dhpk-sample', 'new.md'), '# Canonical later\n');
+    const unmanaged = path.join(outDir, 'dhpk-sample', 'new.md');
+    write(unmanaged, '# Keep me\n');
+    assert.throws(
+      () => materializeAgentsSkillsProjection({
+        root,
+        inventory: fixtureInventory(),
+        outDir,
+        allowCanonicalChanges: true,
+      }),
+      /collides with unmanaged content/i,
+    );
+    assert.strictEqual(fs.readFileSync(unmanaged, 'utf8'), '# Keep me\n');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('legacy receipts migrate their source manifests before enforcing update authority', () => {
   const root = makeFixture();
   const outDir = path.join(root, '.agents', 'skills');

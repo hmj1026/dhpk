@@ -367,12 +367,14 @@ function validateExistingManagedFiles(outDir, receipt, managedPaths = receipt.ma
     const stat = lstatOrNull(target);
     if (!stat || !stat.isFile() || stat.isSymbolicLink()) throw new Error(`receipt-owned file is missing or unsafe: ${relative}`);
     const actual = digest(fs.readFileSync(target));
-    if (actual !== receipt.generatedFingerprints[relative]) {
-      throw new Error(`receipt-owned managed file was modified or fingerprint drifted: ${relative}`);
-    }
-    const sourceFingerprint = sourceFingerprints.get(relative);
-    if (sourceFingerprint && actual !== sourceFingerprint) {
-      throw new Error(`receipt-owned canonical file does not match its source manifest: ${relative}`);
+    if (!allowCanonicalChanges) {
+      if (actual !== receipt.generatedFingerprints[relative]) {
+        throw new Error(`receipt-owned managed file was modified or fingerprint drifted: ${relative}`);
+      }
+      const sourceFingerprint = sourceFingerprints.get(relative);
+      if (sourceFingerprint && actual !== sourceFingerprint) {
+        throw new Error(`receipt-owned canonical file does not match its source manifest: ${relative}`);
+      }
     }
     const currentSourceFingerprint = currentSourceFingerprints.get(relative);
     if (currentSourceFingerprint && actual !== currentSourceFingerprint && !allowCanonicalChanges) {
