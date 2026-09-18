@@ -7,6 +7,18 @@ function stub(result) {
   return () => result;
 }
 
+function captureProbeTimeout(options = {}) {
+  let timeout;
+  const result = probeCodexNativeActivation({
+    spawn: (_cmd, _args, spawnOptions) => {
+      timeout = spawnOptions.timeout;
+      return { status: 0, stdout: JSON.stringify({ installed: [], available: [] }), stderr: '' };
+    },
+    ...options,
+  });
+  return { result, timeout };
+}
+
 test('codex missing from PATH reports NOT_INSTALLED', () => {
   const spawn = () => {
     const error = new Error('spawn codex ENOENT');
@@ -61,6 +73,43 @@ test('timeout reports UNAVAILABLE', () => {
   });
   const result = probeCodexNativeActivation({ spawn });
   assert.strictEqual(result.status, 'UNAVAILABLE');
+});
+
+test('live probe waits 30 seconds by default so remote marketplace queries can finish', () => {
+  const { result, timeout } = captureProbeTimeout({ env: {} });
+  assert.strictEqual(result.status, 'AVAILABLE');
+  assert.strictEqual(timeout, 30000);
+});
+
+test('DHPK_CODEX_PROBE_TIMEOUT_MS overrides the default live-probe budget', () => {
+  const { result, timeout } = captureProbeTimeout({
+    env: { DHPK_CODEX_PROBE_TIMEOUT_MS: '45000' },
+  });
+  assert.strictEqual(result.status, 'AVAILABLE');
+  assert.strictEqual(timeout, 45000);
+});
+
+test('DHPK_CODEX_PROBE_TIMEOUT_SECONDS is accepted when the millisecond override is unset', () => {
+  const { result, timeout } = captureProbeTimeout({
+    env: { DHPK_CODEX_PROBE_TIMEOUT_SECONDS: '12' },
+  });
+  assert.strictEqual(result.status, 'AVAILABLE');
+  assert.strictEqual(timeout, 12000);
+});
+
+test('an explicit timeoutMs option outranks the environment override', () => {
+  const { timeout } = captureProbeTimeout({
+    env: { DHPK_CODEX_PROBE_TIMEOUT_MS: '45000' },
+    timeoutMs: 1200,
+  });
+  assert.strictEqual(timeout, 1200);
+});
+
+test('invalid probe timeout environment values keep the 30 second default', () => {
+  const { timeout } = captureProbeTimeout({
+    env: { DHPK_CODEX_PROBE_TIMEOUT_MS: 'nope', DHPK_CODEX_PROBE_TIMEOUT_SECONDS: '0' },
+  });
+  assert.strictEqual(timeout, 30000);
 });
 
 test('non-JSON stdout reports UNAVAILABLE', () => {

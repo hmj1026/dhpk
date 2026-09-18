@@ -20,14 +20,22 @@ const ACTIVATION_STATUSES = Object.freeze([
   // (the live probe), only from `--native-activation inactive` in the CLI.
   'INACTIVE',
 ]);
-const QUERY_TIMEOUT_MS = 3000;
+const QUERY_TIMEOUT_MS = 30000;
 const QUERY_OUTPUT_LIMIT_BYTES = 1024 * 1024;
 
 function unavailable() {
   return { status: 'UNAVAILABLE', source: 'codex-plugin-list' };
 }
 
-function probeCodexNativeActivation({ env = process.env, spawn = spawnSync, timeoutMs = QUERY_TIMEOUT_MS } = {}) {
+function resolveProbeTimeoutMs(env = {}) {
+  const fromMs = Number(env.DHPK_CODEX_PROBE_TIMEOUT_MS);
+  if (Number.isSafeInteger(fromMs) && fromMs > 0) return fromMs;
+  const fromSeconds = Number(env.DHPK_CODEX_PROBE_TIMEOUT_SECONDS);
+  if (Number.isSafeInteger(fromSeconds) && fromSeconds > 0) return fromSeconds * 1000;
+  return QUERY_TIMEOUT_MS;
+}
+
+function probeCodexNativeActivation({ env = process.env, spawn = spawnSync, timeoutMs = resolveProbeTimeoutMs(env) } = {}) {
   let result;
   try {
     result = spawn('codex', ['plugin', 'list', '--json'], {
