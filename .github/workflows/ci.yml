@@ -2,8 +2,6 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -156,6 +154,12 @@ jobs:
 
       - name: Codex installer tests
         run: node tests/install-codex-skills.test.js
+      - name: Codex reconciliation tests
+        run: node tests/install-codex-skills-reconciliation.test.js
+      - name: Codex planning tests
+        run: node tests/install-codex-skills-planning.test.js
+      - name: Codex uninstall tests
+        run: node tests/install-codex-skills-uninstall.test.js
       - name: Cursor installer tests
         run: node tests/install-cursor-harness.test.js
       - name: CLI dispatch launcher tests

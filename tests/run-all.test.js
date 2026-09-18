@@ -56,17 +56,22 @@ test('invalid shard and job values fail closed before scheduling', () => {
 });
 
 test('installer and harness-release files keep a longer timeout than the default 180s budget', () => {
-  assert.strictEqual(fileTimeoutMs('tests/install-codex-skills.test.js', 180000), 300000);
+  assert.strictEqual(fileTimeoutMs('tests/install-codex-skills.test.js', 180000), 180000);
+  assert.strictEqual(fileTimeoutMs('tests/install-codex-skills-reconciliation.test.js', 180000), 300000);
   assert.strictEqual(fileTimeoutMs('tests/harness-facade-cli.test.js', 180000), 240000);
   assert.strictEqual(fileTimeoutMs('tests/alpha.test.js', 180000), 180000);
-  assert.strictEqual(fileTimeoutMs('tests/install-codex-skills.test.js', 400000), 400000);
+  assert.strictEqual(fileTimeoutMs('tests/install-codex-skills-reconciliation.test.js', 400000), 400000);
 });
 
 test('weighted partition assigns every selected file exactly once', () => {
   const files = [
     'install-codex-skills.test.js',
+    'install-codex-skills-reconciliation.test.js',
+    'install-codex-skills-planning.test.js',
+    'install-codex-skills-uninstall.test.js',
     'consumer-gate-cli.test.js',
     'run-codex.test.js',
+    'validate-retirement-closure.test.js',
     'alpha.test.js',
     'beta.test.js',
     'gamma.test.js',
@@ -80,7 +85,7 @@ test('weighted partition assigns every selected file exactly once', () => {
   assert.ok(buckets.every((bucket) => bucket.length > 0));
 });
 
-test('CI-sized weighted partition separates the suite\'s two slowest files', () => {
+test('CI-sized weighted partition separates the heaviest split installer file', () => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-scheduler-'));
   try {
     const fillerFiles = Array.from({ length: 5 }, (_, index) => {
@@ -90,6 +95,9 @@ test('CI-sized weighted partition separates the suite\'s two slowest files', () 
     });
     const files = [
       'install-codex-skills.test.js',
+      'install-codex-skills-reconciliation.test.js',
+      'install-codex-skills-planning.test.js',
+      'install-codex-skills-uninstall.test.js',
       'consumer-gate-cli.test.js',
       'gen-cursor-plugin-package.test.js',
       'harness-facade-cli.test.js',
@@ -103,9 +111,9 @@ test('CI-sized weighted partition separates the suite\'s two slowest files', () 
     ));
 
     assert.notStrictEqual(
-      workerFor('install-codex-skills.test.js'),
-      workerFor('validate-retirement-closure.test.js'),
-      'CI worker pool must not co-schedule the suite\'s two slowest files',
+      workerFor('install-codex-skills-reconciliation.test.js'),
+      workerFor('consumer-gate-cli.test.js'),
+      'CI worker pool must not co-schedule the heaviest split installer file with consumer-gate',
     );
   } finally {
     fs.rmSync(fixtureRoot, { recursive: true, force: true });

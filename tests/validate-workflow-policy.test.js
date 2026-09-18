@@ -171,6 +171,16 @@ test('CI runs actionlint and the repository-owned policy gate', () => {
   assert.match(workflow, /node scripts\/ci\/validate-workflow-policy\.js/);
 });
 
+test('CI is pull-request-only under the three-proof release decision', () => {
+  const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  assert.match(workflow, /^  pull_request:\s*$/m);
+  assert.doesNotMatch(
+    workflow,
+    /^  push\s*:/m,
+    'three-proof decision: CI must not declare a push trigger; pull-request CI is the pre-merge proof',
+  );
+});
+
 test('Dependabot groups weekly GitHub Actions updates without auto-merge policy', () => {
   const config = fs.readFileSync(path.join(ROOT, '.github', 'dependabot.yml'), 'utf8');
   assert.match(config, /package-ecosystem:\s*github-actions/);
