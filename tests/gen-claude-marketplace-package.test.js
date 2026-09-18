@@ -5,6 +5,7 @@
 // a marketplace cache copies that file and strict validation rejects it.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
@@ -55,7 +56,7 @@ test('Claude marketplace generator rejects output paths that overlap canonical s
 });
 
 test('Claude marketplace generator rejects symlinked output parents', () => {
-  const temp = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-claude-output-'));
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-output-'));
   const alias = path.join(temp, 'alias');
   try {
     fs.symlinkSync(ROOT, alias, 'dir');
@@ -63,6 +64,42 @@ test('Claude marketplace generator rejects symlinked output parents', () => {
       () => GENERATOR.materialize({ out: path.join(alias, 'agents', 'nested') }),
       /overlaps canonical source path/i,
     );
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('check reports a drifted generated Claude marketplace package as out of date', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-check-'));
+  const root = path.join(temp, 'root');
+  const out = path.join(temp, 'package');
+  try {
+    for (const rel of [
+      '.claude-plugin',
+      'agent-traps',
+      'agents',
+      'commands',
+      'docs',
+      'hooks',
+      'manifests',
+      'modules',
+      'rules',
+      'scripts',
+      'skills',
+      'templates',
+    ]) {
+      fs.mkdirSync(path.join(root, rel), { recursive: true });
+    }
+    fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), '{"name":"dhpk","version":"1.0.0"}');
+    fs.mkdirSync(path.join(root, 'docs', 'knowledge'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'knowledge', 'keep-me.md'), 'keep me\n');
+
+    GENERATOR.materialize({ root, out });
+    fs.unlinkSync(path.join(out, 'docs', 'knowledge', 'keep-me.md'));
+
+    const result = GENERATOR.check({ root, out });
+    assert.strictEqual(result.ok, false);
+    assert.match(result.error, /out of date/i);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
