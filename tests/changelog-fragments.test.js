@@ -126,11 +126,11 @@ test('renderSection sorts deterministically by category rank then slug', () => {
   });
   const { fragments } = readFragments(dir);
   const section = renderSection({ version: '1.2.3', date: '2026-07-27', fragments });
-  const lines = section.split('\n').filter((l) => l.startsWith('**'));
+  const lines = section.split('\n').filter((l) => l.startsWith('- **'));
   assert.deepStrictEqual(lines, [
-    '**BREAKING(zzz)** — Break zzz.',
-    '**feat(alpha)** — Add alpha.',
-    '**fix(beta)** — Fix beta.',
+    '- **BREAKING(zzz)** — Break zzz.',
+    '- **feat(alpha)** — Add alpha.',
+    '- **fix(beta)** — Fix beta.',
   ]);
 });
 
@@ -184,7 +184,7 @@ test('promote (write mode) inserts the rendered section into CHANGELOG.md and co
 
   const changelog = fs.readFileSync(changelogPath, 'utf8');
   assert.ok(changelog.includes('## 1.0.0 — 2026-07-27 — Add alpha support'));
-  assert.ok(changelog.includes('**feat(alpha)** — Add alpha.'));
+  assert.ok(changelog.includes('- **feat(alpha)** — Add alpha.'));
   assert.ok(changelog.includes('## [Unreleased]'));
   assert.ok(changelog.indexOf('## [Unreleased]') < changelog.indexOf('## 1.0.0'));
   assert.ok(changelog.includes('## 0.9.0 — 2026-01-01 — Prior release'), 'prior releases must be preserved');
