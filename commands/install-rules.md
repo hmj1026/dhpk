@@ -1,15 +1,16 @@
 ---
 description: 'Deprecated forwarding alias for dhpk rule installation.'
+argument-hint: '[--source-artifact <dir>] [--dry-run] [--force]'
 metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-**Deprecated forwarding alias.** For this minor release, run:
+**Deprecated forwarding alias.** Forward to the explicit-only,
+workspace-write `$harness-setup` Skill with the fixed installation group:
 
-`/dhpk:setup --install rules $ARGUMENTS`
+`$harness-setup --install rules $ARGUMENTS`
 
-## Compatibility boundary
-
-This explicit-only alias is retained for legacy callers; new work uses the canonical target.
-See [the alias contract](../docs/agent-guidance/command-aliases.md); preserve the target, flags, and `$ARGUMENTS`.
-Completion: propagate the target's exit status and report its PASS/FAIL/verdict evidence.
+Preserve `$ARGUMENTS` unchanged, including `--source-artifact`, dry-run, or force options. Propagate
+the target status and report its PASS/FAIL/verdict evidence with host,
+preserved-file, receipt, and `PASS`, `BLOCKED`, `UNAVAILABLE`,
+`NOT_CONFIGURED`, or `NOT_RUN` state.

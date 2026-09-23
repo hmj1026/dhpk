@@ -4,7 +4,7 @@ description: 'CLI-backed mechanical implementer — the codex variant of `fast-w
 tools: Bash, Read, Write, Grep, Glob
 model: sonnet
 effort: low
-skills: ["dhpk-tdd-workflow"]
+skills: ["tdd-workflow"]
 ---
 
 # Codex Worker

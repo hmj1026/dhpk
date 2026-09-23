@@ -27,12 +27,12 @@ their invokable public skill names overlap.
 
 ## What This Provides
 
-- The tracked `codex-native` package at `plugins/dhpk/` (15 entries: 13
+- The tracked `codex-native` package at `plugins/dhpk/` (34 entries: 32
   invokable skills plus internal transport and dispatch-context runtimes) — an explicitly
   allowlisted, physical subset generated from
-  `manifests/distribution-inventory.json`. Distinct from the `codex/skills/` mirror (15 entries)
+  `manifests/distribution-inventory.json`. Distinct from the `codex/skills/` mirror (34 entries)
   that `scripts/hooks/install-codex-skills.sh` ships under
-  the separate `codex-sync` surface: the same 13 invokable skills plus the
+  the separate `codex-sync` surface: the same 32 invokable skills plus the
   internal transport and dispatch-context packages, but its own
   acquisition/update/verification contract — see
   `plugins/dhpk/README.md`.
