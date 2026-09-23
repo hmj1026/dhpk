@@ -24,7 +24,7 @@ const {
   resolveCapabilitySelection,
   bindSurfaceSelection,
 } = require('./capability-bundle-selection');
-const { readSkillPackageManifest, resolveSkillPackageClosure, skillPackageClosureReceipt, runtimeAssetsForSkill } = require('./workflow-package-closure');
+const { physicalSkillTree } = require('./workflow-package-closure');
 
 const BUNDLE_VERSION = 'claude-profile-v1';
 const CLAUDE_SURFACE = 'claude-profile';
@@ -335,30 +335,6 @@ function safeSourceFile(root, relativePath) {
   return { path: candidate };
 }
 
-function safePackagePath(root, relativePath) {
-  if (typeof relativePath !== 'string' || relativePath.length === 0
-    || relativePath.includes('\0') || relativePath.includes('\\')
-    || path.posix.isAbsolute(relativePath) || /^[A-Za-z]:[\\/]/.test(relativePath)
-    || path.posix.normalize(relativePath) !== relativePath
-    || relativePath === '.' || relativePath === '..' || relativePath.startsWith('../')) {
-    return { error: 'skill package resource path is not a safe relative path' };
-  }
-  let rootReal;
-  try { rootReal = fs.realpathSync(root); } catch (_) { return { error: 'skill package resource root is unavailable' }; }
-  const candidate = path.resolve(rootReal, relativePath);
-  const relativeToRoot = path.relative(rootReal, candidate);
-  if (relativeToRoot === '..' || relativeToRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeToRoot)) {
-    return { error: 'skill package resource path escapes the source root' };
-  }
-  let cursor = rootReal;
-  for (const part of relativePath.split('/')) {
-    cursor = path.join(cursor, part);
-    try { if (fs.lstatSync(cursor).isSymbolicLink()) return { error: 'skill package resource path contains a symlink' }; }
-    catch (_) { return { error: 'skill package resource path is missing' }; }
-  }
-  return { path: candidate };
-}
-
 function commandFileName(value) {
   if (typeof value !== 'string' || value.trim() === '') return null;
   const name = value.endsWith('.md') ? value : `${value}.md`;
@@ -415,82 +391,6 @@ function commandSources(selection, root) {
   return [];
 }
 
-function enumerateStandaloneSkillFiles(root, entry) {
-  const sourceResult = safeSourcePath(root, entry.path);
-  if (sourceResult.error) return { error: sourceResult.error };
-  const skillRoot = path.dirname(sourceResult.path);
-  const budget = createTraversalBudget({ maxDepth: 32, maxFiles: 4096, maxEntries: 8192 });
-  const files = [];
-  const walk = (directory, relative, depth) => {
-    const realDirectory = budget.enterDirectory(directory, depth);
-    try {
-      for (const child of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
-        if (child.isSymbolicLink()) return { error: `standalone skill source contains a symlink: ${path.posix.join(relative, child.name)}` };
-        const absolute = path.join(directory, child.name);
-        const childRelative = path.posix.join(relative, child.name);
-        if (child.isDirectory()) {
-          const nested = walk(absolute, childRelative, depth + 1);
-          if (nested && nested.error) return nested;
-        } else if (child.isFile()) {
-          files.push({ absolute, relative: childRelative });
-        }
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-    return null;
-  };
-  const walked = walk(skillRoot, '', 0);
-  if (walked && walked.error) return walked;
-  return { files };
-}
-
-function packageResourceFiles(root, skillPath, skillId) {
-  const manifestPath = path.join(root, skillPath, 'skill-package.json');
-  if (!fs.existsSync(manifestPath)) return [];
-  const manifest = readSkillPackageManifest(root, skillId);
-  const budget = createTraversalBudget({ maxDepth: 16, maxFiles: 2048, maxEntries: 8192 });
-  const files = [];
-  const walk = (absolute, relative) => {
-    const realDirectory = budget.enterDirectory(absolute, relative.split('/').length);
-    try {
-      for (const entry of readDirectoryEntries(absolute, { budget, sort: true, localeSort: true })) {
-        const child = path.join(absolute, entry.name);
-        const childRelative = path.posix.join(relative, entry.name);
-        if (entry.isSymbolicLink()) throw new Error(`skill package resource contains a symlink: ${childRelative}`);
-        if (entry.isDirectory()) walk(child, childRelative);
-        else if (entry.isFile()) files.push({ absolute: child, relative: childRelative });
-      }
-    } finally {
-      budget.leaveDirectory(realDirectory);
-    }
-  };
-  const rootReal = fs.realpathSync(root);
-  const skillReal = fs.realpathSync(path.join(root, skillPath));
-  for (const resource of manifest.resources || []) {
-    const relative = resource && resource.path;
-    const sourceResult = safePackagePath(rootReal, path.posix.join(skillPath, relative || ''));
-    if (sourceResult.error) throw new Error(`skill package resource '${skillId}/${relative || ''}' is unsafe: ${sourceResult.error}`);
-    const source = sourceResult.path;
-    const stat = fs.lstatSync(source);
-    if (stat.isDirectory()) walk(source, relative);
-    else if (stat.isFile()) files.push({ absolute: source, relative });
-    else throw new Error(`skill package resource '${skillId}/${relative}' is not a regular file or directory`);
-  }
-  const manifestRelative = 'skill-package.json';
-  if (!files.some((file) => file.relative === manifestRelative)) {
-    const manifestResult = safePackagePath(rootReal, path.posix.join(skillPath, manifestRelative));
-    if (!manifestResult.error) files.push({ absolute: manifestResult.path, relative: manifestRelative });
-  }
-  for (const file of files) {
-    const relative = path.relative(skillReal, file.absolute);
-    if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-      throw new Error(`skill package resource escapes skill root: ${skillId}/${file.relative}`);
-    }
-  }
-  return files.sort((left, right) => left.relative.localeCompare(right.relative));
-}
-
 function createBundleEntries(selection, root, metadataContext = {}, supportingAssets = []) {
   const outputs = [{
     stableId: 'claude-profile:manifest',
@@ -538,92 +438,39 @@ function createBundleEntries(selection, root, metadataContext = {}, supportingAs
       }),
     });
     contentByStableId.set(stableId, content);
-    const packageManifestPath = path.join(root, entry.path, 'skill-package.json');
-    if (selection.selectionMode === 'standalone' && !fs.existsSync(packageManifestPath)) {
-      const filesResult = enumerateStandaloneSkillFiles(root, entry);
-      if (filesResult.error) return { error: projectionError('UNSAFE_PATH', 'compile', `${filesResult.error}: '${entry.id}'`, { stableIds: [entry.id] }) };
-      for (const file of filesResult.files) {
-        if (file.relative === 'SKILL.md') continue;
-        const destination = `skills/${skillName}/${file.relative}`;
-        if (seenDestinations.has(destination)) return { error: projectionError('DUPLICATE_OUTPUT_PATH', 'compile', `standalone skill files collide at '${destination}'`) };
-        let fileContent;
-        try { fileContent = readFileBounded(file.absolute); } catch (error) {
-          return { error: projectionError('UNSAFE_PATH', 'compile', `standalone skill source cannot be read safely: '${entry.id}'`, { stableIds: [entry.id], details: { cause: error.message } }) };
-        }
-        const relative = file.relative;
-        const fileStableId = `claude-profile:skill:${entry.id}:${relative}`;
-        const fileDigest = crypto.createHash('sha256').update(fileContent).digest('hex');
-        seenDestinations.add(destination);
-        outputs.push({
-          stableId: fileStableId,
-          source: path.posix.join(entry.path, relative),
-          sourceFingerprint: fileDigest,
-          destination,
-          owner: 'claude-profile',
-          transform: { id: 'claude-profile-skill-asset', version: BUNDLE_VERSION },
-          expectedFingerprint: fileDigest,
-        });
-        contentByStableId.set(fileStableId, fileContent);
-      }
+    // Every selected Skill publishes its complete physical directory; no
+    // per-Skill descriptor selects or injects files.
+    let treeFiles;
+    try { treeFiles = physicalSkillTree(root, entry); } catch (error) {
+      return { error: projectionError('UNSAFE_PATH', 'compile', `skill tree enumeration failed: '${entry.id}'`, { stableIds: [entry.id], details: { cause: error.message } }) };
     }
-    if (fs.existsSync(packageManifestPath)) {
-      let packageFiles;
-      try { packageFiles = packageResourceFiles(root, entry.path, entry.id); } catch (error) {
-        return { error: projectionError('UNSAFE_PATH', 'compile', `skill package resource enumeration failed: '${entry.id}'`, { stableIds: [entry.id], details: { cause: error.message } }) };
+    for (const file of treeFiles) {
+      if (file.relative === 'SKILL.md') continue;
+      const resourceDestination = path.posix.join('skills', skillName, file.relative);
+      if (seenDestinations.has(resourceDestination)) return { error: projectionError('DUPLICATE_OUTPUT_PATH', 'compile', `profile skill resources collide at '${resourceDestination}'`) };
+      let resourceContent;
+      try { resourceContent = readFileBounded(file.absolute); } catch (error) {
+        return { error: projectionError('UNSAFE_PATH', 'compile', `selected skill resource cannot be read safely: '${entry.id}/${file.relative}'`, { details: { cause: error.message } }) };
       }
-      for (const file of packageFiles) {
-        const resourceDestination = path.posix.join('skills', skillName, file.relative);
-        if (resourceDestination === destination) continue;
-        if (seenDestinations.has(resourceDestination)) return { error: projectionError('DUPLICATE_OUTPUT_PATH', 'compile', `profile skill resources collide at '${resourceDestination}'`) };
-        let resourceContent;
-        try { resourceContent = readFileBounded(file.absolute); } catch (error) {
-          return { error: projectionError('UNSAFE_PATH', 'compile', `selected skill package resource cannot be read safely: '${entry.id}/${file.relative}'`, { details: { cause: error.message } }) };
-        }
-        seenDestinations.add(resourceDestination);
-        const resourceStableId = `claude-profile:skill-resource:${entry.id}:${file.relative}`;
-        const resourceDigest = crypto.createHash('sha256').update(resourceContent).digest('hex');
-        const resourceTransform = { id: 'claude-profile-skill-resource', version: BUNDLE_VERSION };
-        outputs.push({
-          stableId: resourceStableId,
-          source: path.posix.join(entry.path, file.relative),
-          sourceFingerprint: resourceDigest,
-          destination: resourceDestination,
-          owner: 'claude-profile',
+      seenDestinations.add(resourceDestination);
+      const resourceStableId = `claude-profile:skill-resource:${entry.id}:${file.relative}`;
+      const resourceDigest = crypto.createHash('sha256').update(resourceContent).digest('hex');
+      const resourceTransform = { id: 'claude-profile-skill-resource', version: BUNDLE_VERSION };
+      outputs.push({
+        stableId: resourceStableId,
+        source: path.posix.join(entry.path, file.relative),
+        sourceFingerprint: resourceDigest,
+        destination: resourceDestination,
+        owner: 'claude-profile',
+        transform: resourceTransform,
+        expectedFingerprint: resourceDigest,
+        ...skillProjectionMetadata({ ...entry, sourceFingerprint: resourceDigest }, {
           transform: resourceTransform,
-          expectedFingerprint: resourceDigest,
-          ...skillProjectionMetadata({ ...entry, sourceFingerprint: resourceDigest }, {
-            transform: resourceTransform,
-            owner: 'claude-profile',
-            ...metadataContext,
-          }),
-        });
-        contentByStableId.set(resourceStableId, resourceContent);
-      }
-      let runtimeAssets;
-      try { runtimeAssets = runtimeAssetsForSkill(root, entry.id); } catch (error) {
-        return { error: projectionError('UNSAFE_PATH', 'compile', `skill runtime closure enumeration failed: '${entry.id}'`, { stableIds: [entry.id], details: { cause: error.message } }) };
-      }
-      for (const asset of runtimeAssets) {
-        const runtimeDestination = path.posix.join('skills', skillName, asset.destination);
-        if (seenDestinations.has(runtimeDestination)) return { error: projectionError('DUPLICATE_OUTPUT_PATH', 'compile', `profile runtime resources collide at '${runtimeDestination}'`) };
-        let runtimeContent;
-        try { runtimeContent = readFileBounded(asset.source); } catch (error) {
-          return { error: projectionError('UNSAFE_PATH', 'compile', `selected skill runtime resource cannot be read safely: '${entry.id}/${asset.destination}'`, { details: { cause: error.message } }) };
-        }
-        seenDestinations.add(runtimeDestination);
-        const runtimeStableId = `claude-profile:runtime:${entry.id}:${asset.destination}`;
-        const runtimeDigest = crypto.createHash('sha256').update(runtimeContent).digest('hex');
-        outputs.push({
-          stableId: runtimeStableId,
-          source: path.relative(path.resolve(root), asset.source).split(path.sep).join('/'),
-          sourceFingerprint: runtimeDigest,
-          destination: runtimeDestination,
           owner: 'claude-profile',
-          transform: { id: 'claude-profile-workflow-runtime', version: BUNDLE_VERSION },
-          expectedFingerprint: runtimeDigest,
-        });
-        contentByStableId.set(runtimeStableId, runtimeContent);
-      }
+          ...metadataContext,
+        }),
+      });
+      contentByStableId.set(resourceStableId, resourceContent);
     }
   }
   for (const file of selection.dependencyClosure && selection.dependencyClosure.files || []) {
@@ -730,6 +577,38 @@ function readPlugin(root, commandRoots = []) {
   return { ...plugin, skills: ['./skills/'], commands: commandRoots };
 }
 
+function commandSupportEntries(root, selection, inventory) {
+  const commandIds = selection && Array.isArray(selection.selectedCommandIds)
+    ? selection.selectedCommandIds
+    : [];
+  if (commandIds.length === 0) return { entries: [] };
+  const manifestPath = path.join(root, 'manifests', 'command-skill-dispositions.json');
+  if (!fs.existsSync(manifestPath)) return { entries: [] };
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  } catch (error) {
+    return { error: fail('COMMAND_SUPPORT_UNAVAILABLE', `command disposition manifest is unavailable: ${error.message}`) };
+  }
+  const rows = Array.isArray(manifest && manifest.commands) ? manifest.commands : [];
+  const byId = new Map((Array.isArray(inventory && inventory.skills) ? inventory.skills : [])
+    .filter((entry) => entry && typeof entry.id === 'string')
+    .map((entry) => [entry.id, entry]));
+  const entries = [];
+  for (const commandId of commandIds) {
+    const row = rows.find((candidate) => candidate && candidate.id === commandId);
+    // A legacy v2 profile may declare a Host-only command.  It remains part
+    // of the command surface but contributes no portable support root.
+    if (!row || typeof row.skill_owner !== 'string' || row.skill_owner.trim() === '') continue;
+    const owner = byId.get(row.skill_owner);
+    if (!owner) {
+      return { error: fail('COMMAND_SUPPORT_UNAVAILABLE', `command '${commandId}' names unknown Skill owner '${row.skill_owner}'`) };
+    }
+    if (!entries.some((entry) => entry.id === owner.id)) entries.push(owner);
+  }
+  return { entries };
+}
+
 function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalog, profileId, skillIds, standaloneSkillIds, compilerVersion = BUNDLE_VERSION } = {}) {
   const standalone = standaloneSkillIds !== undefined && standaloneSkillIds !== null;
   if (!inventory || (!standalone && !profiles) || (!standalone && !moduleCatalog)) {
@@ -745,19 +624,19 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
   });
   if (!selection.ok) return selection;
   const rootPath = root || process.cwd();
+  const commandSupport = commandSupportEntries(rootPath, selection.value, inventory);
+  if (commandSupport.error) return commandSupport.error;
+  const closureRoots = [...selection.value.selectedEntries];
+  for (const entry of commandSupport.entries) {
+    if (!closureRoots.some((candidate) => candidate && candidate.id === entry.id)) closureRoots.push(entry);
+  }
   const inventoryRevision = resolveInventoryRevision(inventory);
   const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
     ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
     : undefined;
-  let closureEntries;
-  try {
-    closureEntries = resolveSkillPackageClosure(rootPath, selection.value.selectedEntries, {
-      availableEntries: inventory.skills,
-      surface: CLAUDE_SURFACE,
-    });
-  } catch (error) {
-    return fail('MISSING_SKILL_DEPENDENCY', error.message);
-  }
+  // Skills carry their own resources, so the closure is exactly the selected
+  // public entries plus command owners; no peer Skill is installed implicitly.
+  const closureEntries = closureRoots;
   const closureIds = [...new Set(closureEntries.map((entry) => entry.id))].sort();
   const publicIds = selection.value.selectedStableIds.slice();
   const publicIdSet = new Set(publicIds);
@@ -765,7 +644,6 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
     ...(selection.value.supportClosure || {}),
     skillStableIds: closureIds.filter((id) => !publicIdSet.has(id)),
   };
-  const skillPackageClosure = skillPackageClosureReceipt(rootPath, closureEntries);
   const materializedSelection = {
     ...selection.value,
     selectedEntries: closureEntries,
@@ -778,19 +656,26 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
   };
   const entryResult = createBundleEntries(materializedSelection, rootPath, metadataContext, inventory.supporting_assets || []);
   if (entryResult.error) return { ok: false, error: entryResult.error };
-  const selectionEntries = materializedSelection.selectedEntries.map((entry) => ({
-    id: entry.id,
-    source: entry.path,
-    destination: entry.path,
-    sourceFingerprint: entry.source_fingerprint || entry.sourceFingerprint || null,
-    owner: entry.owner || 'claude-profile',
-    transform: entry.transform || { id: 'identity', version: '1' },
-    ...skillProjectionMetadata(entry, {
-      transform: entry.transform || { id: 'identity', version: '1' },
+  // Package dependencies and command-owner support roots are emitted in the
+  // artifact closure, but they are not public profile selections.  Keep the
+  // canonical selection table aligned with selectedStableIds while exposing
+  // those extra entries through supportClosure and the planned artifact
+  // entries.
+  const selectionEntries = materializedSelection.selectedEntries
+    .filter((entry) => publicIdSet.has(entry.id))
+    .map((entry) => ({
+      id: entry.id,
+      source: entry.path,
+      destination: entry.path,
+      sourceFingerprint: entry.source_fingerprint || entry.sourceFingerprint || null,
       owner: entry.owner || 'claude-profile',
-      ...metadataContext,
-    }),
-  }));
+      transform: entry.transform || { id: 'identity', version: '1' },
+      ...skillProjectionMetadata(entry, {
+        transform: entry.transform || { id: 'identity', version: '1' },
+        owner: entry.owner || 'claude-profile',
+        ...metadataContext,
+      }),
+    }));
   const compiled = compileDistribution({
     compilerVersion,
     surface: CLAUDE_SURFACE,
@@ -823,7 +708,6 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
       selection: materializedSelection,
       outputs: entryResult.outputs,
       contentByStableId: entryResult.contentByStableId,
-      skillPackageClosure,
       plugin,
     },
   };
@@ -848,7 +732,6 @@ function createClaudeCapabilityBundleAdapter({ root, compiled } = {}) {
       ? 'dhpk@dhpk' : `dhpk@dhpk-profile-${compiled.plan.profile.id}`,
     outputs: compiled.outputs.map((entry) => ({ stableId: entry.stableId, destination: entry.destination })),
     unavailableOptionalIds: compiled.selection && compiled.selection.unavailableOptionalIds || [],
-    skillPackageClosure: compiled.skillPackageClosure || [],
     planFingerprint: compiled.plan.planFingerprint,
   };
   const contents = new Map(contentByStableId);

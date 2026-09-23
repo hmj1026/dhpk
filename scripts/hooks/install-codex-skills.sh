@@ -135,7 +135,7 @@ export DHPK_DEST_REL="$DEST_REL"
 export DHPK_SOURCE_KINDS="${DHPK_SOURCE_KINDS:-skills,agents}"
 export DHPK_INSTALLER_NAME="$INSTALLER_NAME"
 export DHPK_PLUGIN_ROOT="$PLUGIN_ROOT"
-export DHPK_INSTALLER_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+export DHPK_INSTALLER_ROOT="${DHPK_INSTALLER_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 export DHPK_PROJECT_ROOT="$PROJECT_ROOT"
 export DHPK_MODE="$MODE"
 export DHPK_MODE_EXPLICIT="$MODE_EXPLICIT"
@@ -521,6 +521,9 @@ SELECTION_RUNTIME_IDS = None
 SELECTION_FINGERPRINT = None
 SELECTION_SURFACE_FINGERPRINT = None
 SELECTION_MIGRATION = None
+# Relative Codex skill path -> validated package-local runtime assets.  The
+# map is populated while the selected source inventory is built, before any
+# transaction or destination mutation starts.
 
 
 def record_path(kind, relative):
@@ -1896,11 +1899,13 @@ def prepare_adoption_backup(relative, destination, expected_fingerprint):
 def effective_materialization_mode(relative):
     """Return the runtime-safe materialization mode for one managed entry."""
     top_level = relative.split('/', 1)[0]
-    return 'copy' if HARNESS_KIND == 'codex' and top_level == 'agents' else MODE
+    if HARNESS_KIND == 'codex' and top_level == 'agents':
+        return 'copy'
+    return MODE
 
 
-def copy_source_into_stage(source, staged_name, stage_fd):
-    """Use a scoped cwd to give shutil a descriptor-pinned destination."""
+def copy_source_into_stage(source, staged_name, stage_fd, relative=None):
+    """Copy one physical source entry into the stage; nothing is injected."""
     validate_fd_name(staged_name)
     saved_cwd_fd = os.open('.', _DIRECTORY_FLAGS)
     try:
@@ -1935,9 +1940,9 @@ def verify_staged_materialization(source, relative, stage_fd, staged_name, expec
         return False
 
 
-def stage_materialization(source, destination, destination_fd):
+def stage_materialization(source, destination, destination_fd, relative=None):
     """Build a new projection in a descriptor-pinned staging directory."""
-    relative = os.path.relpath(destination, CODEX_ROOT).replace(os.sep, '/')
+    relative = relative or os.path.relpath(destination, CODEX_ROOT).replace(os.sep, '/')
     mode = effective_materialization_mode(relative)
     stage_name, stage_fd = create_staging_directory(destination_fd)
     staged_name = validate_fd_name(os.path.basename(destination))
@@ -1945,7 +1950,7 @@ def stage_materialization(source, destination, destination_fd):
         if mode == 'symlink':
             os.symlink(source, staged_name, target_is_directory=os.path.isdir(source), dir_fd=stage_fd)
         else:
-            copy_source_into_stage(source, staged_name, stage_fd)
+            copy_source_into_stage(source, staged_name, stage_fd, relative)
         fsync_fd_entry(stage_fd, staged_name)
         os.fsync(stage_fd)
         return stage_name, stage_fd, staged_name
@@ -2001,27 +2006,44 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
         if hash_fd_entry(backup_fd, quarantine_name) != expected_destination:
             restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name)
             raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
-        if hash_path(source, include_ignored=False) != expected_source:
+        if source_fingerprint_for(source, relative) != expected_source:
             raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
-        stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd)
+        stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd, relative)
         if not verify_staged_materialization(source, relative, stage_fd, staged_name, expected_source):
             raise ValueError(f'adoption materialization changed: {relative}; run a fresh plan')
-        if hash_path(source, include_ignored=False) != expected_source:
+        if source_fingerprint_for(source, relative) != expected_source:
             raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
         if fd_entry_exists(destination_fd, destination_name):
             raise ValueError(f'adoption target reappeared: {relative}; run a fresh plan')
         os.replace(staged_name, destination_name, src_dir_fd=stage_fd, dst_dir_fd=destination_fd)
         os.fsync(destination_fd)
         published_fingerprint = hash_fd_entry(destination_fd, destination_name)
-        update_pending_adoption(state, 'published', published=published_fingerprint)
-        if ABORT_ADOPTION_PHASE_FOR_TEST == 'published':
-            os._exit(73)
-        if hash_path(source, include_ignored=False) != expected_source:
+        published_matches = False
+        try:
+            published_matches = verify_staged_materialization(
+                source,
+                relative,
+                destination_fd,
+                destination_name,
+                expected_source,
+            )
+        except (OSError, ValueError):
+            published_matches = False
+        source_matches = False
+        try:
+            source_matches = source_fingerprint_for(source, relative) == expected_source
+        except (OSError, ValueError):
+            source_matches = False
+        if not published_matches or not source_matches:
             if (fd_entry_exists(destination_fd, destination_name)
                     and hash_fd_entry(destination_fd, destination_name) == published_fingerprint):
                 remove_fd_entry(destination_fd, destination_name)
             restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name)
-            raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
+            reason = 'published materialization' if not published_matches else 'source'
+            raise ValueError(f'adoption {reason} changed: {relative}; run a fresh plan')
+        update_pending_adoption(state, 'published', published=published_fingerprint)
+        if ABORT_ADOPTION_PHASE_FOR_TEST == 'published':
+            os._exit(73)
         if persist_adoption is not None:
             # Keep the original in quarantine and the rollback copy available
             # until the final ownership receipt is durable. If this callback
@@ -2139,6 +2161,15 @@ def safe_inventory_relative(relative, label):
     return normalized
 
 
+def source_fingerprint_for(source, relative):
+    """Return the receipt/source hash for one physical entry.
+
+    Skill directories are self-contained, so nothing is overlaid from outside
+    the source tree; the relative path is kept for caller symmetry.
+    """
+    return hash_path(source, include_ignored=False)
+
+
 def inventory_supporting_sources():
     inventory_path = os.path.join(PLUGIN_ROOT, 'manifests', 'distribution-inventory.json')
     assets = None
@@ -2189,9 +2220,11 @@ def source_fingerprint():
                     continue
             child = os.path.join(root, name)
             validate_source_tree(child, f'{root_name} source', allowed_roots=(PLUGIN_ROOT, INSTALLER_ROOT))
-            digest.update(f'{root_name}/{name}'.encode('utf-8'))
+            relative = f'{root_name}/{name}'
+            digest.update(relative.encode('utf-8'))
             digest.update(b'\0')
-            digest.update(hash_path(child, include_ignored=False).encode('ascii'))
+            source_hash = hash_path(child, include_ignored=False)
+            digest.update(source_hash.encode('ascii'))
             digest.update(b'\0')
     for relative, (supporting, destination) in sorted(inventory_supporting_sources().items()):
         validate_source_tree(supporting, 'supporting asset source')
@@ -2237,6 +2270,7 @@ def inventory_skill_metadata():
         result[name] = {
             'id': skill.get('id'),
             'name': name,
+            'path': skill.get('path'),
             'legacy_names': [legacy for legacy in (skill.get('legacy_names') or []) if isinstance(legacy, str) and legacy],
             'lifecycle': skill.get('lifecycle'),
             'tier': skill.get('tier'),
@@ -2771,7 +2805,8 @@ def current_sources():
             source = os.path.join(root, name)
             if not lexists(source):
                 continue
-            result[kind][name] = (source, f'{kind}/{name}')
+            relative = f'{kind}/{name}'
+            result[kind][name] = (source, relative)
     result['supporting_assets'].update(inventory_supporting_sources())
     return result
 
@@ -2781,7 +2816,7 @@ def target_for(relative):
 
 
 def make_entry(source, relative, destination, metadata=None):
-    source_fp = hash_path(source, include_ignored=False)
+    source_fp = source_fingerprint_for(source, relative)
     destination_fp = hash_path(destination)
     mode = effective_materialization_mode(relative)
     marker = f'{mode}:{relative}'
@@ -2876,12 +2911,12 @@ def recorded_copy_fingerprint(entry):
     return fingerprint if isinstance(fingerprint, str) and len(fingerprint) == 64 else None
 
 
-def exact_source_match(source, destination):
+def exact_source_match(source, destination, relative):
     if not lexists(destination):
         return False
     if os.path.islink(destination):
         return os.path.realpath(destination) == os.path.realpath(source)
-    return hash_path(source, include_ignored=False) == hash_path(destination)
+    return source_fingerprint_for(source, relative) == hash_path(destination)
 
 
 def hash_fd_entry(parent_fd, name, include_ignored=True):
@@ -2986,7 +3021,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
                 })
                 continue
             old = entries[kind].get(name)
-            source_fp = hash_path(source, include_ignored=False)
+            source_fp = source_fingerprint_for(source, relative)
             if not lexists(destination):
                 missing.append({'path': relative, 'kind': kind, 'name': name, 'source_fingerprint': source_fp})
                 continue
@@ -3005,7 +3040,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
                 })
                 continue
             if (old.get('mode') != effective_materialization_mode(relative)
-                    or not exact_source_match(source, destination)):
+                    or not exact_source_match(source, destination, relative)):
                 updates.append({
                     'path': relative,
                     'kind': kind,
@@ -3259,15 +3294,15 @@ def install_descriptor_safe(source, destination, replace_existing=True):
     relative = os.path.relpath(destination, CODEX_ROOT).replace(os.sep, '/')
     safe_destination(relative)
     validate_source_tree(source, 'install source', allowed_roots=(PLUGIN_ROOT, INSTALLER_ROOT))
-    source_fingerprint = hash_path(source, include_ignored=False)
+    source_fingerprint = source_fingerprint_for(source, relative)
     parent_relative, destination_name = os.path.split(relative)
     destination_fd = open_relative_directory(parent_relative, create=True)
     stage_fd = None
     stage_name = None
     staged_name = None
     try:
-        stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd)
-        if hash_path(source, include_ignored=False) != source_fingerprint:
+        stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd, relative)
+        if source_fingerprint_for(source, relative) != source_fingerprint:
             raise ValueError(f'install source changed during materialization: {relative}; run a fresh update')
         if not verify_staged_materialization(source, relative, stage_fd, staged_name, source_fingerprint):
             raise ValueError(f'install materialization changed: {relative}; run a fresh update')
@@ -3277,6 +3312,29 @@ def install_descriptor_safe(source, destination, replace_existing=True):
             remove_fd_entry(destination_fd, destination_name)
         os.replace(staged_name, destination_name, src_dir_fd=stage_fd, dst_dir_fd=destination_fd)
         os.fsync(destination_fd)
+        published_fingerprint = hash_fd_entry(destination_fd, destination_name)
+        published_matches = False
+        try:
+            published_matches = verify_staged_materialization(
+                source,
+                relative,
+                destination_fd,
+                destination_name,
+                source_fingerprint,
+            )
+        except (OSError, ValueError):
+            published_matches = False
+        source_matches = False
+        try:
+            source_matches = source_fingerprint_for(source, relative) == source_fingerprint
+        except (OSError, ValueError):
+            source_matches = False
+        if not published_matches or not source_matches:
+            if (fd_entry_exists(destination_fd, destination_name)
+                    and hash_fd_entry(destination_fd, destination_name) == published_fingerprint):
+                remove_fd_entry(destination_fd, destination_name)
+            reason = 'published materialization' if not published_matches else 'source'
+            raise ValueError(f'install {reason} changed: {relative}; run a fresh update')
     finally:
         if stage_fd is not None:
             try:
@@ -3602,7 +3660,7 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
                 new_relative,
                 new_destination,
                 None,
-                hash_path(source, include_ignored=False),
+                source_fingerprint_for(source, new_relative),
             )
             # Publish the new destination first. Only after it is visible do we
             # remove the unchanged legacy path, preserving rollback safety.
@@ -3997,7 +4055,7 @@ for kind in MANAGED_KINDS:
             if (not lexists(destination)
                     or not is_owned(old, destination)
                     or old.get('mode') != effective_materialization_mode(relative)
-                    or not exact_source_match(source, destination)):
+                    or not exact_source_match(source, destination, relative)):
                 record_path('deferred', relative)
                 if relative not in collisions:
                     collisions.append(relative)
@@ -4011,7 +4069,7 @@ for kind in MANAGED_KINDS:
             adopted = False
             if (legacy_pending and MIGRATE
                     and matches_effective_materialization(relative, destination)
-                    and exact_source_match(source, destination)):
+                    and exact_source_match(source, destination, relative)):
                 entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
                 adopted = True
                 counts['preserved'] += 1
@@ -4029,7 +4087,7 @@ for kind in MANAGED_KINDS:
                     )
                     expected_source = adopt_paths[relative]
                     if (safe_destination_fingerprint(destination) != expected
-                            or hash_path(source, include_ignored=False) != expected_source):
+                            or source_fingerprint_for(source, relative) != expected_source):
                         print(
                             f'[install-codex-skills] ERROR: adoption preflight changed: {relative}; run a fresh plan',
                             file=sys.stderr,
@@ -4110,7 +4168,7 @@ for kind in MANAGED_KINDS:
                 record_ownership(relative, 'orphaned')
                 continue
             if (old.get('mode') == effective_materialization_mode(relative)
-                    and exact_source_match(source, destination)):
+                    and exact_source_match(source, destination, relative)):
                 entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
                 clear_orphaned(relative)
                 record_ownership(relative, 'dhpk-managed')
@@ -4124,7 +4182,7 @@ for kind in MANAGED_KINDS:
                 relative,
                 destination,
                 backup,
-                hash_path(source, include_ignored=False),
+                source_fingerprint_for(source, relative),
             )
             install(source, destination)
             entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
@@ -4137,7 +4195,7 @@ for kind in MANAGED_KINDS:
                 relative,
                 destination,
                 None,
-                hash_path(source, include_ignored=False),
+                source_fingerprint_for(source, relative),
             )
             install(source, destination)
             entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
