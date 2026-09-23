@@ -86,4 +86,3 @@ if [[ "$ACTUAL" != "$STATE" ]]; then
 fi
 
 echo "state updated to: $STATE"
-

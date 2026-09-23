@@ -67,4 +67,3 @@ if [[ -n "$OBS_FP" ]]; then
 fi
 
 echo "${OBS_ID:-null}"
-

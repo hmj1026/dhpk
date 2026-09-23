@@ -1054,7 +1054,7 @@
     "skills/opsx-apply-resume/scripts/extract-compact.sh": {
       "skill_id": "opsx-apply-resume",
       "source": "skills/dhpk-opsx-load-context/scripts/extract-compact.sh",
-      "sha256": "sha256:51529c5947448c273c058e857a23708993e473e3b38ab84033ebdc8b3c2407a0",
+      "sha256": "sha256:2c59d38ad387b67ae5d3ceb360c76d4288b65c49ca4be649d561bcbfb3fdb8af",
       "mode": "0755"
     },
     "skills/opsx-apply-resume/scripts/lib/portable-sed.sh": {
@@ -1066,7 +1066,7 @@
     "skills/opsx-apply-resume/scripts/post-obs.sh": {
       "skill_id": "opsx-apply-resume",
       "source": "skills/dhpk-opsx-post-observation/scripts/post-obs.sh",
-      "sha256": "sha256:1223d620d78fa08508b8eadb3387c47f3d628a4cbf7ff8efad113c6262e56a01",
+      "sha256": "sha256:f272b7806eef53eba3cfc14f480f15ef41e479725e227f4e9e07cecd93572ba5",
       "mode": "0755"
     },
     "skills/precommit/scripts/lib/runner-utils.js": {

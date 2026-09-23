@@ -50,4 +50,3 @@ jq -r '
       else "  lesson: " + (.lesson // .description // tostring) end)
   else "  (none)" end)
 ' "$FILE"
-
