@@ -20,6 +20,7 @@ const {
   materializeCursorPackage,
   validateCursorPackage,
   fingerprintDir: fingerprintCursor,
+  sanitizeMarkdownLinks: sanitizeCursorLinks,
 } = require('../lib/cursor-plugin-package');
 const {
   materializeNativePackage,
@@ -29,6 +30,7 @@ const {
 const {
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
+  sanitizeMarkdownLinks: sanitizeAgyLinks,
 } = require('../lib/agy-plugin-package');
 const {
   SURFACE_OWNERS,
@@ -275,6 +277,17 @@ function verifySharedSkillParity(root, inventory, errors) {
   return checked;
 }
 
+// The AGY and Cursor generators rewrite repository-relative links (targets
+// such as docs/ that are not shipped) to canonical repository URLs, so parity
+// compares against the same transform rather than the raw canonical bytes.
+function expectedAgyPolicy(canonical, canonicalPath, root) {
+  return sanitizeAgyLinks(canonical, canonicalPath, root);
+}
+
+function expectedCursorPolicyBody(canonical, canonicalPath, root) {
+  return sanitizeCursorLinks(rewriteCursorHarnessBody(canonical), canonicalPath, root).trim();
+}
+
 function verifyPolicyParity(root, inventory) {
   const paths = policyProjectionPaths(inventory);
   const errors = [];
@@ -294,10 +307,10 @@ function verifyPolicyParity(root, inventory) {
     if (platform === 'codex') {
       if (paths.codexEntry.canonical_digest !== canonicalDigest) errors.push('Codex policy canonical digest is stale');
       if (paths.codexEntry.projection_digest !== projectionDigest) errors.push('Codex policy projection digest is stale');
-    } else if (platform === 'agy' && content !== canonical) {
+    } else if (platform === 'agy' && content !== expectedAgyPolicy(canonical, canonicalPath, root)) {
       errors.push('AGY policy projection drifted from the canonical policy');
     } else if (platform === 'cursor') {
-      const expectedBody = rewriteCursorHarnessBody(canonical).trim();
+      const expectedBody = expectedCursorPolicyBody(canonical, canonicalPath, root);
       if (stripFrontmatter(content).trim() !== expectedBody) errors.push('Cursor policy projection drifted from the canonical transform');
     }
     projections[platform] = {
@@ -387,4 +400,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { reportFromSurfaces };
+module.exports = { reportFromSurfaces, expectedAgyPolicy, expectedCursorPolicyBody };

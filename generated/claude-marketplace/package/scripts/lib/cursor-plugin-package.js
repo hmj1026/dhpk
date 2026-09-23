@@ -2413,6 +2413,7 @@ module.exports = {
   adaptNativeDocument,
   rewriteCursorHarnessBody,
   cursorDocumentDestinationName,
+  sanitizeMarkdownLinks,
   selectCursorSkills,
   cursorSkillProjection,
   materializeCursorPackage,
