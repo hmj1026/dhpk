@@ -9,6 +9,8 @@ Forward to the canonical [`$spec-mine` skill](https://github.com/hmj1026/dhpk/bl
 registered `spec-miner` role, and relays the artifact path, capability,
 `Last verified` commit, and deferred files.
 
+Not for: mining every module, refactoring, or applying a change.
+
 Preserve `UNAVAILABLE` when the required role is not registered; do not remap
 to another role or inline mining. The only successful artifact is
 `openspec/specs/<capability>/spec.md`.

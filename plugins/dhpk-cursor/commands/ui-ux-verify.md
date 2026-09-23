@@ -9,6 +9,8 @@ Forward `$ARGUMENTS` unchanged; the Skill owns target selection, the
 read-only browser probe, the Content/Structure/Behavior comparison, and the
 shared audit report.
 
+Not for: E2E journey authoring, application edits, data mutation, or a runtime API smoke test.
+
 Claude may use the existing `ui-ux-verifier` reviewer. Codex performs the same
 single-page check directly when a browser capability is available and returns
 `UNAVAILABLE` when it is not; an E2E journey is not a substitute. This command

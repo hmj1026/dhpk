@@ -9,5 +9,7 @@ Skill. It owns clean-worktree validation, native `git merge-tree` analysis,
 conflict evidence, and manual command output. It never checks out, merges,
 rebases, or edits branches.
 
+Not for: checkout, merge, rebase, conflict edits, or branch mutation.
+
 Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
 `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.
