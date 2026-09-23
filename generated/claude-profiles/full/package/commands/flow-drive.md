@@ -14,6 +14,8 @@ the supplied confirmed specification or change identifier and implementation
 options unchanged; the Skill owns planning, editing, verification, authority,
 and terminal evidence.
 
+Not for: route selection, proposal authoring, review, debugging without a confirmed cause, or release.
+
 `--worker=<worker>` remains the Worker Selector. Use
 `--worker-target=<provider>/<model>[:<effort>]` for an explicit execution
 target. The retired `--codex` diagnostic remains owned by the canonical Skill.

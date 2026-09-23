@@ -10,6 +10,8 @@ metadata:
 
 `$change-verdict --mode tests --coverage $ARGUMENTS`
 
+Not for: implementing fixes, generating tests, or clearing gates; new callers use `$change-verdict` directly.
+
 Preserve `$ARGUMENTS` unchanged after the fixed flags. Propagate the target
 status and report its PASS/FAIL/verdict evidence (the owner may classify that
 as `READY`, `BLOCKED`, or `INCONCLUSIVE`); a missing or invalid target remains

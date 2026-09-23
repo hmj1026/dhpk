@@ -491,6 +491,19 @@ check_legacy_runner_conflicts() {
     done
 }
 
+# Resume helpers moved into the opsx-apply-resume Skill. Older installs left
+# copies here; they are unowned, so report them for manual removal instead of
+# deleting or blocking on them.
+report_legacy_resume_helpers() {
+    local helper legacy_path
+    for helper in detect-phase.sh extract-compact.sh post-obs.sh set-handoff-state.sh; do
+        legacy_path="$TARGET/scripts/opsx-apply-resume/$helper"
+        if [ -e "$legacy_path" ] || [ -L "$legacy_path" ]; then
+            echo "LEGACY PRESERVED $legacy_path (unowned resume helper from an older install; the installed opsx-apply-resume Skill now owns its helpers). Manual action: delete it once nothing of yours calls it." >&2
+        fi
+    done
+}
+
 walk_groups() {
     local mode="$1"
     case "$INSTALL" in
@@ -529,6 +542,7 @@ walk_groups_for_all() {
 if [ "$INSTALL" = "scripts" ] || [ "$INSTALL" = "all" ]; then
     check_pilot_resources
     check_legacy_runner_conflicts
+    report_legacy_resume_helpers
 fi
 
 walk_groups check

@@ -587,7 +587,7 @@ def run_self_tests(repo_root):
             with open(source_path, "w", encoding="utf-8") as fh:
                 fh.write("---\nname: %s\ndescription: self-test fixture\n---\nSample role guidance.\n" % role)
             with open(os.path.join(codex_agents_root, "%s.toml" % role), "w", encoding="utf-8") as fh:
-                fh.write('model = "gpt-5.3-codex"\nmodel_reasoning_effort = "medium"\n')
+                fh.write('model = "gpt-6-luna"\nmodel_reasoning_effort = "medium"\n')
 
         for case in agent_cases:
             try:

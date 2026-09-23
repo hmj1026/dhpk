@@ -13,5 +13,7 @@ canonical `$harness-audit` Skill. It owns the package-local deterministic
 engine, rubric, scorecard, exact paths, and JSON/text output. This command
 adds no scoring dimensions or governance mutation.
 
+Not for: changing harness files, inventing scoring dimensions, or replacing harness governance.
+
 Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
 `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

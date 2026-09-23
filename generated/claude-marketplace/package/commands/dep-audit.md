@@ -13,5 +13,7 @@ Skill. It owns project-script precedence, ecosystem fallback, the explicit
 fix boundary, and the separate read-only `$change-verdict --mode security`
 review. This command adds no audit or verdict procedure.
 
+Not for: implicit upgrades, general code review, or treating a successful fix command as clearance.
+
 Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
 `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

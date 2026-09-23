@@ -54,19 +54,19 @@ verification evidence.
 
 ## Step 1 — Analyze the change (deterministic)
 
-Run the analyzer from the installed Skill directory with `$ARGUMENTS` verbatim;
-the host supplies the physical Skill path only for this entry command. The
-script self-locates from `BASH_SOURCE`, emits the Bash-safe `SKILL_ROOT_Q`, and
-never searches a plugin cache, checkout, parent, sibling, or ambient source
-root. It normalizes arguments (incl. the `--no-smoke > --smoke > auto`
-precedence), locates the change dir, counts the checkboxes, and computes the
-turn budget:
+Run the analyzer with `$ARGUMENTS` verbatim. `$SKILL_DIR` denotes the physical
+directory containing the selected `SKILL.md` (path notation, not an ambient
+environment variable or repository-root lookup). The script self-locates from
+`BASH_SOURCE`, emits the Bash-safe `SKILL_ROOT_Q`, never searches a plugin
+cache, checkout, parent, sibling, or ambient source root, normalizes arguments
+(incl. `--no-smoke > --smoke > auto`), locates the change dir, counts the
+checkboxes, and computes the turn budget:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-opsx-apply-goal/scripts/analyze-change.sh" $ARGUMENTS
+bash "$SKILL_DIR/scripts/analyze-change.sh" $ARGUMENTS
 ```
 
-The host path only selects the entry point; every runtime resource resolves below the
+`$SKILL_DIR` only selects the entry point; every runtime resource resolves below the
 physical Skill root, and a missing one stops with `BLOCKED_RESOURCE_MISSING`.
 
 It prints a `# schema=v1` KEY=VALUE block. Act on `STATUS`:

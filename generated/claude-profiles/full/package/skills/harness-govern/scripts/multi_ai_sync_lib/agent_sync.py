@@ -175,7 +175,7 @@ def _load_target_metadata(repo_root, role):
     defaults = {
         "name": role,
         "description": "Claude parity role synced from .claude/agents/%s.md" % role,
-        "model": "gpt-5.3-codex",
+        "model": "gpt-6-luna",
         "model_reasoning_effort": "medium",
     }
     path = os.path.join(repo_root, codex_agent_target_rel(role))

@@ -105,13 +105,17 @@ into independent verification.
 
 ## Design status
 
-The interview decisions above are accepted, not evidence of completed migration.
-The user confirmed the consolidated design and authorized documentation-only
-specification and task planning. The local OpenSpec change
-`openspec/changes/self-contained-skill-directories/` contains the proposal,
-design, delta specifications and batched tasks recording that agreement.
-By repository policy, change artifacts remain local-only; this ADR records the
-durable decisions, and only accepted main specifications are versioned.
-Implementation remains pending a separate instruction.
-No script relocation, manifest removal, commit, or publication is performed by
-recording this decision or preparing those artifacts.
+Implemented on the `refactor/portable-command-skills` branch. The OpenSpec
+change `self-contained-skill-directories` was applied and archived as
+`openspec/changes/archive/2026-09-23-self-contained-skill-directories/`; its
+deltas are synced into the versioned main specifications
+`skill-directory-self-containment`, `command-skill-disposition`,
+`policy-resolution-fallback`, and `codex-native-publication`. By repository
+policy, change artifacts remain local-only; this ADR and those main
+specifications are the durable record.
+
+The migration relocated the former root runners and resume helpers into their
+owning Skill directories without compatibility shims, removed
+`skill-package.json`, and renamed prefixed public skills by stable identity.
+Official consumer and Host probes (task 9.4) remain outstanding and are
+reported as `NOT_RUN` until they are executed.

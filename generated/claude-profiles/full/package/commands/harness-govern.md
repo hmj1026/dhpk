@@ -14,6 +14,8 @@ Select exactly one mode and pass its options through to the canonical
 `skills/harness-govern/SKILL.md` procedure. A missing or ambiguous mode is
 `BLOCKED`; do not infer a mode or run every mode.
 
+Not for: application code or ordinary skill authoring.
+
 ## Usage
 
 ```text

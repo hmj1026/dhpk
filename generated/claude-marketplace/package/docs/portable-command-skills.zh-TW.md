@@ -49,8 +49,9 @@ setup installer 會把完整的本地 tree 複製到
 `lib/runner-utils.js` helper 也一併複製。Skill 會自動從自己的目錄解析
 helper，不依賴 ambient dhpk checkout。resume helpers 由已安裝的
 `opsx-apply-resume` Skill 直接使用；setup installer 不再複製它們，也不會移除
-舊版安裝留在 `.claude/dhpk/scripts/opsx-apply-resume/` 的副本。確認沒有自己
-的呼叫者後，請手動刪除這些副本。
+舊版安裝留在 `.claude/dhpk/scripts/opsx-apply-resume/` 的副本；安裝時會以
+`LEGACY PRESERVED <path>` 逐一回報，但不中斷安裝。確認沒有自己的呼叫者後，
+請手動刪除這些副本。
 
 setup installer 對舊的 root 檔案沒有 ownership receipt。只要 legacy runner
 檔案存在，就會保留檔案、回報確切路徑與人工 reconciliation 動作，並在

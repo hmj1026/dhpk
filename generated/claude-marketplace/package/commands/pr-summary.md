@@ -13,5 +13,7 @@ Forward `--author` and `--label` arguments unchanged to the canonical
 grouping, `/tmp/pr-summary.md`, and copy instructions. This command never
 changes PR state or adds a second query grammar.
 
+Not for: changing PR state, reviewing code, merging, or closing PRs.
+
 Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
 `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

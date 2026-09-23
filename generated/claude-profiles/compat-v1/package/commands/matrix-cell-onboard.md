@@ -11,6 +11,8 @@ Forward `$ARGUMENTS` unchanged to the workspace-write canonical
 It owns Composer/workflow bounds, Laravel-to-Testbench mapping, polyfill branch
 coverage, dual-testsuite gating, and the local dry-run.
 
+Not for: patch-only changes that do not alter the support matrix.
+
 Preserve the `<php> <laravel> [phpunit] [monolog]` grammar and the owner’s
 single onboarding report, open questions, and apply-or-defer confirmation. This
 front door adds no second matrix procedure or authority.

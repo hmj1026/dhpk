@@ -34,10 +34,18 @@ function writeJson(p, obj) {
   writeText(p, JSON.stringify(obj, null, 2));
 }
 
+// A runner log is diagnostic evidence, not the verdict: a failed append must
+// not abort the run, but it is reported once per path so the gap is visible.
+const appendLogFailures = new Set();
+
 function appendLog(p, s) {
   try {
     fs.appendFileSync(p, s, 'utf8');
-  } catch {}
+  } catch (error) {
+    if (appendLogFailures.has(p)) return;
+    appendLogFailures.add(p);
+    process.stderr.write(`[runner-utils] appendLog failed for ${p}: ${error.code || error.message}\n`);
+  }
 }
 
 function runCapture(cmd, args, opts = {}) {

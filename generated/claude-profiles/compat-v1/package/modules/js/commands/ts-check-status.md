@@ -14,6 +14,8 @@ specific frontend root; when omitted, the owning Skill applies
 `CLAUDE_PLUGIN_OPTION_JS_CHECK_PATH` or its `js/` default and returns the
 machine-readable directive distribution.
 
+Not for: everyday JavaScript feature work or isolated lint-rule lookups (use `dhpk-js-lint-config`).
+
 This command is a thin Host front door. The owning Skill and its standalone
 runner own classification, deterministic ordering, unavailable-path
 diagnostics, and the `PASS` / `UNAVAILABLE` evidence state.

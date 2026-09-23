@@ -10,7 +10,7 @@
     "skills/change-verdict/scripts/lib/runner-utils.js": {
       "skill_id": "change-verdict",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:955bd40fad2c93617d11c2f0ab3e4d9eefef12966c7453ccb8ce4260993fc1a1",
+      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
     "skills/dhpk-agy-fast-worker/scripts/cli-transport/prepare-cli-request.py": {
@@ -454,13 +454,19 @@
     "skills/dhpk-project-audit/scripts/lib/runner-utils.js": {
       "skill_id": "project-audit",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:955bd40fad2c93617d11c2f0ab3e4d9eefef12966c7453ccb8ce4260993fc1a1",
+      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
+    },
+    "skills/dhpk-project-setup/scripts/install-project-assets.sh": {
+      "skill_id": "project-setup",
+      "source": "skills/harness-setup/scripts/install-assets.sh",
+      "sha256": "sha256:aa00fe8e42becff9239e0d1c2bd6e163b1c4657aa9ccbcd9e0d8600fd1202b7a",
+      "mode": "0755"
     },
     "skills/dhpk-project-setup/scripts/lib/install-assets-writer.sh": {
       "skill_id": "project-setup",
       "source": "scripts/setup/install-assets.sh",
-      "sha256": "sha256:4ecbb25dc37d4cb55478c0b70b2f564e392d9ccbb824345687a6591a6927ecf7",
+      "sha256": "sha256:684a37e2771bc590b0c6dfc42eb964f2a6ff668faa7446d7502c99e8c59405e6",
       "mode": "0755"
     },
     "skills/dhpk-react-18-notes/references/frontend-framework-routing.md": {
@@ -478,7 +484,7 @@
     "skills/dhpk-repo-intake/scripts/lib/runner-utils.js": {
       "skill_id": "repo-intake",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:955bd40fad2c93617d11c2f0ab3e4d9eefef12966c7453ccb8ce4260993fc1a1",
+      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
     "skills/dhpk-swift-language/references/approachable-concurrency.md": {
@@ -892,7 +898,7 @@
     "skills/flow-guide/scripts/_lib/runner-utils.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:955bd40fad2c93617d11c2f0ab3e4d9eefef12966c7453ccb8ce4260993fc1a1",
+      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/skill-usage.js": {
@@ -916,7 +922,7 @@
     "skills/harness-setup/scripts/lib/install-assets-writer.sh": {
       "skill_id": "harness-setup",
       "source": "scripts/setup/install-assets.sh",
-      "sha256": "sha256:4ecbb25dc37d4cb55478c0b70b2f564e392d9ccbb824345687a6591a6927ecf7",
+      "sha256": "sha256:684a37e2771bc590b0c6dfc42eb964f2a6ff668faa7446d7502c99e8c59405e6",
       "mode": "0755"
     },
     "skills/harness-setup/scripts/lib/install-codex-skills.sh": {
@@ -1066,19 +1072,19 @@
     "skills/opsx-apply-resume/scripts/post-obs.sh": {
       "skill_id": "opsx-apply-resume",
       "source": "skills/dhpk-opsx-post-observation/scripts/post-obs.sh",
-      "sha256": "sha256:f272b7806eef53eba3cfc14f480f15ef41e479725e227f4e9e07cecd93572ba5",
+      "sha256": "sha256:d26ec7c9cd9073470b8c8af1c21f972d437a29bc57e0417e7ba9f1b153b7a0c9",
       "mode": "0755"
     },
     "skills/precommit/scripts/lib/runner-utils.js": {
       "skill_id": "precommit",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:955bd40fad2c93617d11c2f0ab3e4d9eefef12966c7453ccb8ce4260993fc1a1",
+      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     },
     "skills/repo-verify/scripts/lib/runner-utils.js": {
       "skill_id": "repo-verify",
       "source": "scripts/lib/runner-utils.js",
-      "sha256": "sha256:955bd40fad2c93617d11c2f0ab3e4d9eefef12966c7453ccb8ce4260993fc1a1",
+      "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
     }
   }

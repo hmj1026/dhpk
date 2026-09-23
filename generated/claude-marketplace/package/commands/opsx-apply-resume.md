@@ -13,6 +13,8 @@ This is a thin Claude front door to the canonical `$opsx-apply-resume` Skill.
 Forward `$ARGUMENTS` unchanged; the Skill owns phase detection, handoff state,
 optional commit/precommit/compact/memory gates, and live-worktree evidence.
 
+Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite.
+
 The Skill keeps uncommitted files as the source of truth, uses the host's
 receipt/artifact root, and hands successful continuation to the canonical
 `openspec-apply-change` Skill. It must
