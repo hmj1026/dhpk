@@ -702,14 +702,43 @@ test('AGY package structure accepts skills with scripts/ supporting files', () =
   }
 });
 
-test('AGY package structure rejects skill assets/ supporting files', () => {
-  const root = tempRoot('agy-skill-assets');
-  const rejected = 'skills/dhpk-sample/assets/note.md';
+test('AGY package structure accepts the complete physical skill directory', () => {
+  const root = tempRoot('agy-skill-physical');
+  const extras = [
+    'skills/dhpk-sample/assets/note.md',
+    'skills/dhpk-sample/templates/review_output.md',
+    'skills/dhpk-sample/mocking.md',
+  ];
   try {
     agyPackage(root);
-    write(path.join(root, 'plugins/dhpk-agy', rejected), '# not an allowed skill nested path\n');
-    const files = {};
     const pkg = path.join(root, 'plugins/dhpk-agy');
+    for (const relative of extras) write(path.join(pkg, relative), '# skill-local resource\n');
+    const files = {};
+    for (const relative of ['plugin.json', 'agents/sample.md', 'agents/INDEX.md', 'agents/README.md', 'rules/sample.md', 'skills/dhpk-sample/SKILL.md', ...extras]) {
+      files[relative] = crypto.createHash('sha256').update(fs.readFileSync(path.join(pkg, relative))).digest('hex');
+    }
+    write(path.join(pkg, 'fingerprints.json'), JSON.stringify({ schema: 'dhpk.agy-plugin.v1', files }));
+    const prov = JSON.parse(fs.readFileSync(path.join(pkg, 'provenance.json'), 'utf8'));
+    prov.fingerprints = files;
+    write(path.join(pkg, 'provenance.json'), JSON.stringify(prov));
+
+    const result = validate(root, []);
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.package.structure').status, 'PASS', JSON.stringify(row));
+    assert.ok(!row.notes.some((note) => note.includes('AGY skill path must')), `unexpected skill path notes: ${row.notes.join('; ')}`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY package structure rejects a file that is not inside a skill directory', () => {
+  const root = tempRoot('agy-skill-stray');
+  const rejected = 'skills/stray.md';
+  try {
+    agyPackage(root);
+    const pkg = path.join(root, 'plugins/dhpk-agy');
+    write(path.join(pkg, rejected), '# not inside a skill directory\n');
+    const files = {};
     for (const relative of ['plugin.json', 'agents/sample.md', 'agents/INDEX.md', 'agents/README.md', 'rules/sample.md', 'skills/dhpk-sample/SKILL.md', rejected]) {
       files[relative] = crypto.createHash('sha256').update(fs.readFileSync(path.join(pkg, relative))).digest('hex');
     }
