@@ -102,8 +102,12 @@ function main() {
     if (!PORTABLE_FAMILY_NAMES.includes(skill.name) || skill.id !== skill.name) {
       throw new Error(`${args.skill} is not a reviewed portable-family package identity`);
     }
+  } else if (skill.name_style === 'portable-skill') {
+    if (skill.name.startsWith('dhpk-') || PORTABLE_FAMILY_NAMES.includes(skill.name)) {
+      throw new Error(`${args.skill} is not a valid portable-skill public name`);
+    }
   } else if (!/^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(args.skill)) {
-    throw new Error(`${args.skill} must declare name_style: portable-family before mirror reconciliation`);
+    throw new Error(`${args.skill} must declare name_style: portable-family or portable-skill before mirror reconciliation`);
   }
   if (!skill.surfaces || !SURFACES.every((surface) => skill.surfaces.includes(surface.inventorySurface))) {
     throw new Error(`${args.skill} must declare both codex-sync and cursor-sync before mirror reconciliation`);

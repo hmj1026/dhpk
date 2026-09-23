@@ -472,15 +472,15 @@
       "id": "codex-supporting-contracts-reviewer-contract-md",
       "source": "codex/supporting/contracts/reviewer-contract.md",
       "canonical_source": "docs/contracts/reviewer-contract.md",
-      "canonical_digest": "9ec69a2050af03f8998d4cfe8aaed2fbef87541d11acba701609621e8310b249",
-      "projection_digest": "de61304342345e5daf1c3812982501f49dff4698bf6064638ca68ad800aa528a",
+      "canonical_digest": "7d3794c676d8080856e76a477ad8abb973277bc4464ffe1ba637bb73afaaef73",
+      "projection_digest": "d04688af1f527bf4aaf318b1ac3572eacbf91ad70052f8cf63ecb3fc00dcce64",
       "destination": "dhpk/contracts/reviewer-contract.md"
     },
     {
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "4cdbb91c44b46230a7ecb85dd9f9b445d1d5e6628516d26e7a2c6ce19b49acd4",
+      "canonical_digest": "f17bcf2b2fda43fed00c3dd82527a8c8f424966ca54aa3e508af25fceb9ce28c",
       "projection_digest": "5f1b9f5b3817b657b9c945dfa2cc6c7c1d825f0776dd63729217928c82c31114",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -573,8 +573,8 @@
     },
     {
       "id": "js-static-check-strategy",
-      "name": "dhpk-js-static-check-strategy",
-      "path": "skills/dhpk-js-static-check-strategy",
+      "name": "js-static-check-strategy",
+      "path": "skills/js-static-check-strategy",
       "capability_id": "dhpk.skill.js-static-check-strategy",
       "lifecycle": "optional",
       "tier": "optional",
@@ -582,11 +582,46 @@
         "js"
       ],
       "surfaces": [
-        "claude-module"
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
       ],
-      "legacy_names": [
-        "js-static-check-strategy"
-      ]
+      "name_style": "portable-skill",
+      "invocation_class": "implicit-eligible",
+      "usage": {
+        "display_name": "JS Static Check Strategy",
+        "summary": "Plan staged TypeScript checks and inspect strict-check progress",
+        "syntax": "$js-static-check-strategy status [--path=<path>]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "status",
+            "summary": "Report the current static-check status",
+            "syntax": "$js-static-check-strategy status [--path=<path>]",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "path",
+            "syntax": "--path=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Frontend root to scan"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$js-static-check-strategy status --path=js/",
+            "summary": "Use js static check strategy with its declared interface"
+          }
+        ]
+      }
     },
     {
       "id": "laravel",
@@ -630,8 +665,8 @@
     },
     {
       "id": "matrix-cell-onboard",
-      "name": "dhpk-matrix-cell-onboard",
-      "path": "skills/dhpk-matrix-cell-onboard",
+      "name": "matrix-cell-onboard",
+      "path": "skills/matrix-cell-onboard",
       "capability_id": "dhpk.skill.matrix-cell-onboard",
       "lifecycle": "optional",
       "tier": "optional",
@@ -639,11 +674,67 @@
         "library-author"
       ],
       "surfaces": [
-        "claude-module"
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
       ],
-      "legacy_names": [
-        "matrix-cell-onboard"
-      ]
+      "name_style": "portable-skill",
+      "invocation_class": "implicit-eligible",
+      "usage": {
+        "display_name": "Matrix Cell Onboard",
+        "summary": "Plan and optionally apply one multi-major CI matrix cell",
+        "syntax": "$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "php-version",
+            "syntax": "<php-version>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "PHP runtime version"
+          },
+          {
+            "id": "laravel-version",
+            "syntax": "<laravel-version>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Laravel version"
+          },
+          {
+            "id": "phpunit",
+            "syntax": "<phpunit>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "PHPUnit version"
+          },
+          {
+            "id": "monolog",
+            "syntax": "<monolog>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Monolog version"
+          }
+        ],
+        "actions": [
+          {
+            "id": "onboard",
+            "summary": "Plan and apply one matrix cell",
+            "syntax": "$matrix-cell-onboard <php-version> <laravel-version>",
+            "input_kind": "mixed",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$matrix-cell-onboard 8.3 12 11 3",
+            "summary": "Use matrix cell onboard with its declared interface"
+          }
+        ]
+      }
     },
     {
       "id": "openspec-artifact-guard",
@@ -1519,7 +1610,99 @@
       "surfaces": [
         "claude-core",
         "cursor-sync"
-      ]
+      ],
+      "usage": {
+        "display_name": "Change Verdict",
+        "summary": "Return an evidence-backed read-only change verdict",
+        "syntax": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [
+          {
+            "id": "target",
+            "syntax": "<target>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Change, PR, test, document, or risk target"
+          }
+        ],
+        "actions": [
+          {
+            "id": "code",
+            "summary": "Judge code changes",
+            "syntax": "$change-verdict --mode=code [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "pr",
+            "summary": "Judge pull-request evidence",
+            "syntax": "$change-verdict --mode=pr [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "security",
+            "summary": "Judge security evidence",
+            "syntax": "$change-verdict --mode=security [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "tests",
+            "summary": "Judge test and coverage evidence",
+            "syntax": "$change-verdict --mode=tests [--coverage] [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "docs",
+            "summary": "Judge documentation evidence",
+            "syntax": "$change-verdict --mode=docs [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "risk",
+            "summary": "Judge change-risk evidence",
+            "syntax": "$change-verdict --mode=risk [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "mode",
+            "syntax": "--mode=<mode>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Select one verdict mode",
+            "enum_values": [
+              "code",
+              "pr",
+              "security",
+              "tests",
+              "docs",
+              "risk"
+            ]
+          },
+          {
+            "id": "coverage",
+            "syntax": "--coverage",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Include coverage evidence in tests mode",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$change-verdict --mode=tests --coverage",
+            "summary": "Use change verdict with its declared interface"
+          }
+        ]
+      }
     },
     {
       "id": "flow-drive",
@@ -1743,8 +1926,8 @@
     },
     {
       "id": "git-smart-commit",
-      "name": "dhpk-git-smart-commit",
-      "path": "skills/dhpk-git-smart-commit",
+      "name": "git-smart-commit",
+      "path": "skills/git-smart-commit",
       "capability_id": "dhpk.skill.git-smart-commit",
       "lifecycle": "promoted",
       "tier": "core",
@@ -1758,34 +1941,64 @@
         "codex-native",
         "cursor-sync"
       ],
-      "legacy_names": [
-        "git-smart-commit"
-      ],
       "usage": {
         "display_name": "Git Smart Commit",
         "summary": "Group related changes into reviewable commits safely",
-        "syntax": "$dhpk-git-smart-commit",
+        "syntax": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
         "input_kind": "none",
-        "inputs": [],
         "invocation_class": "explicit-only",
         "effect_authority": "git-write",
+        "inputs": [],
         "actions": [
           {
             "id": "group",
             "summary": "Analyze changes and produce grouped commit steps",
-            "syntax": "$dhpk-git-smart-commit",
+            "syntax": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
             "input_kind": "none",
             "effect_authority": "git-write"
           }
         ],
-        "options": [],
+        "options": [
+          {
+            "id": "scope",
+            "syntax": "--scope=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Limit status and diff collection"
+          },
+          {
+            "id": "type",
+            "syntax": "--type=<type>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Force a conventional commit type",
+            "enum_values": [
+              "feat",
+              "fix",
+              "docs",
+              "refactor",
+              "style",
+              "chore",
+              "test"
+            ]
+          },
+          {
+            "id": "ai-co-author",
+            "syntax": "--ai-co-author",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Opt into the project-approved AI trailer",
+            "default": false
+          }
+        ],
         "examples": [
           {
-            "prompt": "$dhpk-git-smart-commit split these changes into logical commits",
-            "summary": "Prepare a safe grouped commit plan"
+            "prompt": "$git-smart-commit --scope=src/",
+            "summary": "Use git smart commit with its declared interface"
           }
         ]
-      }
+      },
+      "name_style": "portable-skill"
     },
     {
       "id": "gitnexus-cli",
@@ -2142,8 +2355,8 @@
     },
     {
       "id": "release-creator",
-      "name": "dhpk-release-creator",
-      "path": "skills/dhpk-release-creator",
+      "name": "release-creator",
+      "path": "skills/release-creator",
       "capability_id": "dhpk.skill.release-creator",
       "lifecycle": "promoted",
       "tier": "core",
@@ -2152,11 +2365,54 @@
       ],
       "surfaces": [
         "claude-core",
-        "cursor-sync"
+        "cursor-sync",
+        "codex-sync",
+        "codex-native"
       ],
-      "legacy_names": [
-        "release-creator"
-      ]
+      "name_style": "portable-skill",
+      "invocation_class": "explicit-only",
+      "usage": {
+        "display_name": "Release Creator",
+        "summary": "Prepare or publish a validated release with a human gate",
+        "syntax": "$release-creator <version> [--execute]",
+        "input_kind": "identifier",
+        "invocation_class": "explicit-only",
+        "effect_authority": "external-write",
+        "inputs": [
+          {
+            "id": "version",
+            "syntax": "<version>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Release version"
+          }
+        ],
+        "actions": [
+          {
+            "id": "release",
+            "summary": "Prepare or publish one release",
+            "syntax": "$release-creator <version> [--execute]",
+            "input_kind": "identifier",
+            "effect_authority": "external-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "execute",
+            "syntax": "--execute",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Proceed past the human release gate",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$release-creator 0.62.4 --execute",
+            "summary": "Use release creator with its declared interface"
+          }
+        ]
+      }
     },
     {
       "id": "repo-intake",
@@ -2305,8 +2561,8 @@
     },
     {
       "id": "tdd",
-      "name": "dhpk-tdd-workflow",
-      "path": "skills/dhpk-tdd-workflow",
+      "name": "tdd-workflow",
+      "path": "skills/tdd-workflow",
       "capability_id": "dhpk.skill.tdd",
       "lifecycle": "promoted",
       "tier": "core",
@@ -2320,14 +2576,13 @@
         "codex-native",
         "cursor-sync"
       ],
-      "legacy_names": [
-        "tdd"
-      ],
       "usage": {
         "display_name": "TDD",
         "summary": "Drive behavior-first tests through a minimal red-green loop",
-        "syntax": "$dhpk-tdd-workflow [test-generation] <task>",
+        "syntax": "$tdd-workflow [test-generation] <task>",
         "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
         "inputs": [
           {
             "id": "mode",
@@ -2354,20 +2609,18 @@
             ]
           }
         ],
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
         "actions": [
           {
             "id": "tdd",
             "summary": "Guide a behavior-first test and implementation loop",
-            "syntax": "$dhpk-tdd-workflow <task>",
+            "syntax": "$tdd-workflow <task>",
             "input_kind": "free-text",
             "effect_authority": "workspace-write"
           },
           {
             "id": "test-generation",
             "summary": "Generate a focused failing-test scaffold",
-            "syntax": "$dhpk-tdd-workflow test-generation <target>",
+            "syntax": "$tdd-workflow test-generation <target>",
             "input_kind": "path",
             "effect_authority": "workspace-write"
           }
@@ -2375,11 +2628,12 @@
         "options": [],
         "examples": [
           {
-            "prompt": "$dhpk-tdd-workflow test-generation tests/OrderTest.php",
-            "summary": "Start with a behavior-focused test scaffold"
+            "prompt": "$tdd-workflow test-generation tests/OrderTest.php",
+            "summary": "Use tdd with its declared interface"
           }
         ]
-      }
+      },
+      "name_style": "portable-skill"
     },
     {
       "id": "harness-govern",
@@ -2509,6 +2763,1180 @@
           {
             "prompt": "$harness-govern health --dry-run",
             "summary": "Inspect harness health without changing files"
+          }
+        ]
+      }
+    },
+    {
+      "id": "create-pr",
+      "name": "create-pr",
+      "name_style": "portable-skill",
+      "path": "skills/create-pr",
+      "capability_id": "dhpk.skill.create-pr",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "explicit-only",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Create PR",
+        "summary": "Create a ticket-aware pull request with a safe dry-run boundary",
+        "syntax": "$create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]",
+        "input_kind": "none",
+        "invocation_class": "explicit-only",
+        "effect_authority": "external-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "create",
+            "summary": "Create or preview one pull request",
+            "syntax": "$create-pr [--execute]",
+            "input_kind": "none",
+            "effect_authority": "external-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "head",
+            "syntax": "--head=<branch>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Use this source branch"
+          },
+          {
+            "id": "base",
+            "syntax": "--base=<branch>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Use this target branch"
+          },
+          {
+            "id": "title",
+            "syntax": "--title=<text>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Override the generated title"
+          },
+          {
+            "id": "execute",
+            "syntax": "--execute",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Perform the explicit remote create",
+            "default": false
+          },
+          {
+            "id": "dry-run",
+            "syntax": "--dry-run",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Preview without remote mutation",
+            "default": true
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$create-pr --dry-run",
+            "summary": "Use create pr with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "git-worktree",
+      "name": "git-worktree",
+      "name_style": "portable-skill",
+      "path": "skills/git-worktree",
+      "capability_id": "dhpk.skill.git-worktree",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "explicit-only",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Git Worktree",
+        "summary": "Manage native Git worktrees with confirmation boundaries",
+        "syntax": "$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]",
+        "input_kind": "action-first",
+        "invocation_class": "explicit-only",
+        "effect_authority": "git-write",
+        "inputs": [
+          {
+            "id": "operation",
+            "syntax": "<operation>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Worktree operation",
+            "default": "list",
+            "enum_values": [
+              "add",
+              "list",
+              "remove",
+              "prune"
+            ],
+            "applies_to": [
+              "manage"
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "id": "manage",
+            "summary": "Add, list, remove, or prune a worktree",
+            "syntax": "$git-worktree [<operation>]",
+            "input_kind": "action-first",
+            "effect_authority": "git-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "branch",
+            "syntax": "--branch=<name>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Branch used by add or remove"
+          },
+          {
+            "id": "base",
+            "syntax": "--base=<ref>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Base ref used when adding"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$git-worktree list",
+            "summary": "Use git worktree with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "merge-prep",
+      "name": "merge-prep",
+      "name_style": "portable-skill",
+      "path": "skills/merge-prep",
+      "capability_id": "dhpk.skill.merge-prep",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Merge Prep",
+        "summary": "Analyze a branch merge without mutating the repository",
+        "syntax": "$merge-prep <source-branch> [--target=<branch>]",
+        "input_kind": "identifier",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [
+          {
+            "id": "source-branch",
+            "syntax": "<source-branch>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Branch to analyze"
+          }
+        ],
+        "actions": [
+          {
+            "id": "prepare",
+            "summary": "Analyze merge conflicts and manual commands",
+            "syntax": "$merge-prep <source-branch>",
+            "input_kind": "identifier",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "target",
+            "syntax": "--target=<branch>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Target branch for the analysis"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$merge-prep feature/topic --target=main",
+            "summary": "Use merge prep with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "pr-summary",
+      "name": "pr-summary",
+      "name_style": "portable-skill",
+      "path": "skills/pr-summary",
+      "capability_id": "dhpk.skill.pr-summary",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "PR Summary",
+        "summary": "Summarize open pull requests with evidence",
+        "syntax": "$pr-summary [--author=<user>] [--label=<label>]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "summarize",
+            "summary": "Group accessible open pull requests",
+            "syntax": "$pr-summary",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "author",
+            "syntax": "--author=<user>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Filter by pull-request author"
+          },
+          {
+            "id": "label",
+            "syntax": "--label=<label>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Filter by pull-request label"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$pr-summary --label=ready",
+            "summary": "Use pr summary with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "proposal-analyze",
+      "name": "proposal-analyze",
+      "name_style": "portable-skill",
+      "path": "skills/proposal-analyze",
+      "capability_id": "dhpk.skill.proposal-analyze",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Proposal Analyze",
+        "summary": "Turn a proposal into an evidence-backed implementation roadmap",
+        "syntax": "$proposal-analyze <proposal>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "proposal",
+            "syntax": "<proposal>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Proposal text or file path"
+          }
+        ],
+        "actions": [
+          {
+            "id": "analyze",
+            "summary": "Research a proposal and produce a roadmap",
+            "syntax": "$proposal-analyze <proposal>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$proposal-analyze openspec/changes/example/proposal.md",
+            "summary": "Use proposal analyze with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "project-brief",
+      "name": "project-brief",
+      "name_style": "portable-skill",
+      "path": "skills/project-brief",
+      "capability_id": "dhpk.skill.project-brief",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Project Brief",
+        "summary": "Convert one technical specification into an executive brief",
+        "syntax": "$project-brief <tech-spec-path> [--output=<output-path>]",
+        "input_kind": "path",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "tech-spec-path",
+            "syntax": "<tech-spec-path>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Readable technical specification"
+          }
+        ],
+        "actions": [
+          {
+            "id": "brief",
+            "summary": "Write an executive summary without changing the source",
+            "syntax": "$project-brief <tech-spec-path>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "output",
+            "syntax": "--output=<output-path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Destination for the brief"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$project-brief docs/spec.md --output=docs/brief.md",
+            "summary": "Use project brief with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "doc-refactor",
+      "name": "doc-refactor",
+      "name_style": "portable-skill",
+      "path": "skills/doc-refactor",
+      "capability_id": "dhpk.skill.doc-refactor",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Doc Refactor",
+        "summary": "Refactor one bounded Markdown document while preserving facts",
+        "syntax": "$doc-refactor <file-path>",
+        "input_kind": "path",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "file-path",
+            "syntax": "<file-path>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "One Markdown document"
+          }
+        ],
+        "actions": [
+          {
+            "id": "refactor",
+            "summary": "Rewrite one bounded document and validate its links",
+            "syntax": "$doc-refactor <file-path>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$doc-refactor docs/guide.md",
+            "summary": "Use doc refactor with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "update-docs",
+      "name": "update-docs",
+      "name_style": "portable-skill",
+      "path": "skills/update-docs",
+      "capability_id": "dhpk.skill.update-docs",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Update Docs",
+        "summary": "Update a bounded user or agent document from live evidence",
+        "syntax": "$update-docs <docs-path-or-workflow-keyword>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "target",
+            "syntax": "<docs-path-or-workflow-keyword>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Documentation path or workflow keyword"
+          }
+        ],
+        "actions": [
+          {
+            "id": "update",
+            "summary": "Update owned documentation and its locale pair",
+            "syntax": "$update-docs <docs-path-or-workflow-keyword>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$update-docs docs/configuration.md",
+            "summary": "Use update docs with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "update-codemaps",
+      "name": "update-codemaps",
+      "name_style": "portable-skill",
+      "path": "skills/update-codemaps",
+      "capability_id": "dhpk.skill.update-codemaps",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Update Codemaps",
+        "summary": "Refresh architecture codemaps from the live project structure",
+        "syntax": "$update-codemaps",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "update",
+            "summary": "Refresh the bounded architecture codemaps",
+            "syntax": "$update-codemaps",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$update-codemaps",
+            "summary": "Use update codemaps with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "precommit",
+      "name": "precommit",
+      "name_style": "portable-skill",
+      "path": "skills/precommit",
+      "capability_id": "dhpk.skill.precommit",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Precommit",
+        "summary": "Run the packaged deterministic pre-commit pipeline",
+        "syntax": "$precommit [--fast]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "run",
+            "summary": "Run fast or full pre-commit stages",
+            "syntax": "$precommit [--fast]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "fast",
+            "syntax": "--fast",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Run the fast stage set",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$precommit --fast",
+            "summary": "Use precommit with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dep-audit",
+      "name": "dep-audit",
+      "name_style": "portable-skill",
+      "path": "skills/dep-audit",
+      "capability_id": "dhpk.skill.dep-audit",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Dependency Audit",
+        "summary": "Audit dependency risks with a separate explicit fix boundary",
+        "syntax": "$dep-audit [--level=<severity>] [--fix]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "audit",
+            "summary": "Audit dependency vulnerabilities and optional fixes",
+            "syntax": "$dep-audit",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "level",
+            "syntax": "--level=<severity>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Minimum severity to report",
+            "default": "moderate",
+            "enum_values": [
+              "low",
+              "moderate",
+              "high",
+              "critical"
+            ]
+          },
+          {
+            "id": "fix",
+            "syntax": "--fix",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Run the explicitly requested fix operation",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$dep-audit --level=high",
+            "summary": "Use dependency audit with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "repo-verify",
+      "name": "repo-verify",
+      "name_style": "portable-skill",
+      "path": "skills/repo-verify",
+      "capability_id": "dhpk.skill.repo-verify",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Repo Verify",
+        "summary": "Run runner-first repository verification with explicit evidence",
+        "syntax": "$repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]",
+        "input_kind": "action-first",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [
+          {
+            "id": "mode",
+            "syntax": "<mode>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Verification depth",
+            "default": "full",
+            "enum_values": [
+              "fast",
+              "full"
+            ],
+            "applies_to": [
+              "verify"
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "id": "verify",
+            "summary": "Run fast or full repository verification",
+            "syntax": "$repo-verify [<mode>]",
+            "input_kind": "action-first",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "integration",
+            "syntax": "--integration=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Run the named integration stage"
+          },
+          {
+            "id": "e2e",
+            "syntax": "--e2e=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Run the named end-to-end stage"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$repo-verify fast",
+            "summary": "Use repo verify with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "code-simplify",
+      "name": "code-simplify",
+      "name_style": "portable-skill",
+      "path": "skills/code-simplify",
+      "capability_id": "dhpk.skill.code-simplify",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Code Simplify",
+        "summary": "Clean changed code without changing behavior",
+        "syntax": "$code-simplify [<target>]",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "target",
+            "syntax": "<target>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "PR, branch, file, or directory"
+          }
+        ],
+        "actions": [
+          {
+            "id": "simplify",
+            "summary": "Apply bounded cleanup with test evidence",
+            "syntax": "$code-simplify [<target>]",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$code-simplify src/",
+            "summary": "Use code simplify with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "harness-audit",
+      "name": "harness-audit",
+      "name_style": "portable-skill",
+      "path": "skills/harness-audit",
+      "capability_id": "dhpk.skill.harness-audit",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Harness Audit",
+        "summary": "Audit repository harness health with a deterministic scorecard",
+        "syntax": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
+        "input_kind": "action-first",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [
+          {
+            "id": "scope",
+            "syntax": "<scope>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Harness area to inspect",
+            "default": "repo",
+            "enum_values": [
+              "repo",
+              "hooks",
+              "skills",
+              "commands",
+              "agents"
+            ],
+            "applies_to": [
+              "audit"
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "id": "audit",
+            "summary": "Run the deterministic harness audit",
+            "syntax": "$harness-audit [<scope>]",
+            "input_kind": "action-first",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "format",
+            "syntax": "--format=<format>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Output format",
+            "default": "text",
+            "enum_values": [
+              "text",
+              "json"
+            ]
+          },
+          {
+            "id": "root",
+            "syntax": "--root=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Consumer repository root"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$harness-audit skills --format=json",
+            "summary": "Use harness audit with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "review-pending",
+      "name": "review-pending",
+      "name_style": "portable-skill",
+      "path": "skills/review-pending",
+      "capability_id": "dhpk.skill.review-pending",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Review Pending",
+        "summary": "Delegate a read-only pending-change review",
+        "syntax": "$review-pending [--files=<rel-paths>]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "delegate",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "review",
+            "summary": "Delegate the selected pending files to code-reviewer",
+            "syntax": "$review-pending",
+            "input_kind": "none",
+            "effect_authority": "delegate"
+          }
+        ],
+        "options": [
+          {
+            "id": "files",
+            "syntax": "--files=<rel-paths>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Comma-separated relative file paths"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$review-pending --files=src/a.js",
+            "summary": "Use review pending with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "spec-mine",
+      "name": "spec-mine",
+      "name_style": "portable-skill",
+      "path": "skills/spec-mine",
+      "capability_id": "dhpk.skill.spec-mine",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Spec Mine",
+        "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
+        "syntax": "$spec-mine [<capability-or-path>]",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "capability-or-path",
+            "syntax": "<capability-or-path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Capability or path to mine first"
+          }
+        ],
+        "actions": [
+          {
+            "id": "mine",
+            "summary": "Write one bounded behavioral baseline",
+            "syntax": "$spec-mine [<capability-or-path>]",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$spec-mine billing",
+            "summary": "Use spec mine with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "harness-setup",
+      "name": "harness-setup",
+      "name_style": "portable-skill",
+      "path": "skills/harness-setup",
+      "capability_id": "dhpk.skill.harness-setup",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "explicit-only",
+      "surfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Harness Setup",
+        "summary": "Inspect or configure host harness assets",
+        "syntax": "$harness-setup [--show] [--review-gate] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force]",
+        "input_kind": "none",
+        "invocation_class": "explicit-only",
+        "effect_authority": "workspace-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "setup",
+            "summary": "Inspect or configure the host harness",
+            "syntax": "$harness-setup",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "show",
+            "syntax": "--show",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Inspect effective state without writes",
+            "default": false
+          },
+          {
+            "id": "review-gate",
+            "syntax": "--review-gate",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Initialize or inspect the Review Gate",
+            "default": false
+          },
+          {
+            "id": "source-artifact",
+            "syntax": "--source-artifact=<dir>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Use an explicit distribution artifact as installation payload"
+          },
+          {
+            "id": "install",
+            "syntax": "--install=<group>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Install one host asset group",
+            "enum_values": [
+              "hooks",
+              "rules",
+              "scripts",
+              "all"
+            ]
+          },
+          {
+            "id": "dry-run",
+            "syntax": "--dry-run",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Plan an install without writing",
+            "default": false
+          },
+          {
+            "id": "force",
+            "syntax": "--force",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Confirm an overwrite boundary",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$harness-setup --show",
+            "summary": "Use harness setup with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "opsx-apply-resume",
+      "name": "opsx-apply-resume",
+      "name_style": "portable-skill",
+      "path": "skills/opsx-apply-resume",
+      "capability_id": "dhpk.skill.opsx-apply-resume",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "explicit-only",
+      "surfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "Opsx Apply Resume",
+        "summary": "Save or resume an OpenSpec apply handoff",
+        "syntax": "$opsx-apply-resume [<change-id>]",
+        "input_kind": "identifier",
+        "invocation_class": "explicit-only",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "change-id",
+            "syntax": "<change-id>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "OpenSpec change identifier"
+          }
+        ],
+        "actions": [
+          {
+            "id": "resume",
+            "summary": "Save or resume one apply handoff",
+            "syntax": "$opsx-apply-resume [<change-id>]",
+            "input_kind": "identifier",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$opsx-apply-resume portable-command-skills",
+            "summary": "Use opsx apply resume with its declared interface"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ui-ux-verify",
+      "name": "ui-ux-verify",
+      "name_style": "portable-skill",
+      "path": "skills/ui-ux-verify",
+      "capability_id": "dhpk.skill.ui-ux-verify",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "invocation_class": "implicit-eligible",
+      "surfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "usage": {
+        "display_name": "UI UX Verify",
+        "summary": "Audit one rendered page against one UI specification",
+        "syntax": "$ui-ux-verify [<url>] [spec:<spec-path>]",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "url",
+            "syntax": "<url>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Page URL"
+          },
+          {
+            "id": "spec-path",
+            "syntax": "<spec-path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "OpenSpec UI specification"
+          }
+        ],
+        "actions": [
+          {
+            "id": "verify",
+            "summary": "Capture and report one read-only UI audit",
+            "syntax": "$ui-ux-verify [<url>] [spec:<spec-path>]",
+            "input_kind": "mixed",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$ui-ux-verify spec:openspec/changes/example/spec.md",
+            "summary": "Use ui ux verify with its declared interface"
           }
         ]
       }
@@ -2771,38 +4199,56 @@
       "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-simplify",
       "code-trace",
       "codex-bridge",
       "composer-package-hygiene",
+      "create-pr",
+      "dep-audit",
       "deploy-list",
+      "doc-refactor",
       "feature-verify",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
+      "git-worktree",
       "gitnexus-cli",
       "gitnexus-debugging",
       "gitnexus-exploring",
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
+      "harness-audit",
       "harness-govern",
       "issue-analyze",
+      "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
+      "matrix-cell-onboard",
+      "merge-prep",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
+      "pr-summary",
+      "precommit",
       "project-audit",
+      "project-brief",
       "project-setup",
       "prompt-optimize",
+      "proposal-analyze",
       "release-creator",
       "repo-intake",
+      "repo-verify",
+      "review-pending",
       "session-usage-audit",
       "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd"
+      "spec-mine",
+      "tdd",
+      "update-codemaps",
+      "update-docs"
     ],
     "cursor-plugin": [
       "agent-architecture-audit",
@@ -2810,38 +4256,59 @@
       "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-simplify",
       "code-trace",
       "codex-bridge",
       "composer-package-hygiene",
+      "create-pr",
+      "dep-audit",
       "deploy-list",
+      "doc-refactor",
       "feature-verify",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
+      "git-worktree",
       "gitnexus-cli",
       "gitnexus-debugging",
       "gitnexus-exploring",
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
+      "harness-audit",
       "harness-govern",
+      "harness-setup",
       "issue-analyze",
+      "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
+      "matrix-cell-onboard",
+      "merge-prep",
       "opsx-apply-goal",
+      "opsx-apply-resume",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
+      "pr-summary",
+      "precommit",
       "project-audit",
+      "project-brief",
       "project-setup",
       "prompt-optimize",
+      "proposal-analyze",
       "release-creator",
       "repo-intake",
+      "repo-verify",
+      "review-pending",
       "session-usage-audit",
       "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd"
+      "spec-mine",
+      "tdd",
+      "ui-ux-verify",
+      "update-codemaps",
+      "update-docs"
     ],
     "agy-plugin": [
       "agent-architecture-audit",
@@ -2849,38 +4316,56 @@
       "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-simplify",
       "code-trace",
       "codex-bridge",
       "composer-package-hygiene",
+      "create-pr",
+      "dep-audit",
       "deploy-list",
+      "doc-refactor",
       "feature-verify",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
+      "git-worktree",
       "gitnexus-cli",
       "gitnexus-debugging",
       "gitnexus-exploring",
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
+      "harness-audit",
       "harness-govern",
       "issue-analyze",
+      "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
+      "matrix-cell-onboard",
+      "merge-prep",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
+      "pr-summary",
+      "precommit",
       "project-audit",
+      "project-brief",
       "project-setup",
       "prompt-optimize",
+      "proposal-analyze",
       "release-creator",
       "repo-intake",
+      "repo-verify",
+      "review-pending",
       "session-usage-audit",
       "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd"
+      "spec-mine",
+      "tdd",
+      "update-codemaps",
+      "update-docs"
     ],
     "cursor-sync": [
       "agent-architecture-audit",
@@ -2888,38 +4373,59 @@
       "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-simplify",
       "code-trace",
       "codex-bridge",
       "composer-package-hygiene",
+      "create-pr",
+      "dep-audit",
       "deploy-list",
+      "doc-refactor",
       "feature-verify",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
+      "git-worktree",
       "gitnexus-cli",
       "gitnexus-debugging",
       "gitnexus-exploring",
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
+      "harness-audit",
       "harness-govern",
+      "harness-setup",
       "issue-analyze",
+      "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
+      "matrix-cell-onboard",
+      "merge-prep",
       "opsx-apply-goal",
+      "opsx-apply-resume",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
+      "pr-summary",
+      "precommit",
       "project-audit",
+      "project-brief",
       "project-setup",
       "prompt-optimize",
+      "proposal-analyze",
       "release-creator",
       "repo-intake",
+      "repo-verify",
+      "review-pending",
       "session-usage-audit",
       "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd"
+      "spec-mine",
+      "tdd",
+      "ui-ux-verify",
+      "update-codemaps",
+      "update-docs"
     ]
   },
   "internal_runtime_skills": {
@@ -3026,55 +4532,115 @@
         "adapter": "scripts/install.sh",
         "support_tier": "supported",
         "owner": ".claude-plugin",
-        "owned_roots": [".claude-plugin"],
+        "owned_roots": [
+          ".claude-plugin"
+        ],
         "backup": "client-managed",
         "recovery": "marketplace-reinstall",
-        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "BLOCKED", "status": "READ_ONLY" }
+        "operations": {
+          "plan": "READ_ONLY",
+          "install": "ADAPTER",
+          "verify": "READ_ONLY",
+          "update": "ADAPTER",
+          "uninstall": "ADAPTER",
+          "rollback": "BLOCKED",
+          "status": "READ_ONLY"
+        }
       },
       "codex-sync": {
         "adapter": "scripts/hooks/install-codex-skills.sh",
         "support_tier": "supported",
         "owner": ".codex/.dhpk-installed.json",
-        "owned_roots": [".codex/.dhpk-installed.json"],
+        "owned_roots": [
+          ".codex/.dhpk-installed.json"
+        ],
         "backup": "schema-v3-transaction",
         "recovery": "schema-v3-recovery",
-        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
+        "operations": {
+          "plan": "READ_ONLY",
+          "install": "ADAPTER",
+          "verify": "READ_ONLY",
+          "update": "ADAPTER",
+          "uninstall": "ADAPTER",
+          "rollback": "ADAPTER",
+          "status": "READ_ONLY"
+        }
       },
       "codex-native": {
         "adapter": "scripts/dhpk-distribution.js",
         "support_tier": "package-only",
         "owner": "plugins/dhpk",
-        "owned_roots": ["plugins/dhpk"],
+        "owned_roots": [
+          "plugins/dhpk"
+        ],
         "backup": "release-artifact",
         "recovery": "regenerate-package",
-        "operations": { "plan": "READ_ONLY", "install": "BLOCKED", "verify": "READ_ONLY", "update": "BLOCKED", "uninstall": "BLOCKED", "rollback": "BLOCKED", "status": "READ_ONLY" }
+        "operations": {
+          "plan": "READ_ONLY",
+          "install": "BLOCKED",
+          "verify": "READ_ONLY",
+          "update": "BLOCKED",
+          "uninstall": "BLOCKED",
+          "rollback": "BLOCKED",
+          "status": "READ_ONLY"
+        }
       },
       "agent-plugin": {
         "adapter": "scripts/lib/project-agent-publisher.js",
         "support_tier": "projection",
         "owner": "plugins/dhpk-agent",
-        "owned_roots": ["plugins/dhpk-agent"],
+        "owned_roots": [
+          "plugins/dhpk-agent"
+        ],
         "backup": "receipt-scoped",
         "recovery": "receipt-scoped",
-        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
+        "operations": {
+          "plan": "READ_ONLY",
+          "install": "ADAPTER",
+          "verify": "READ_ONLY",
+          "update": "ADAPTER",
+          "uninstall": "ADAPTER",
+          "rollback": "ADAPTER",
+          "status": "READ_ONLY"
+        }
       },
       "cursor": {
         "adapter": "scripts/hooks/install-cursor-harness.sh",
         "support_tier": "supported",
         "owner": ".cursor/.dhpk-installed.json",
-        "owned_roots": [".cursor/.dhpk-installed.json"],
+        "owned_roots": [
+          ".cursor/.dhpk-installed.json"
+        ],
         "backup": "schema-v3-transaction",
         "recovery": "schema-v3-recovery",
-        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
+        "operations": {
+          "plan": "READ_ONLY",
+          "install": "ADAPTER",
+          "verify": "READ_ONLY",
+          "update": "ADAPTER",
+          "uninstall": "ADAPTER",
+          "rollback": "ADAPTER",
+          "status": "READ_ONLY"
+        }
       },
       "agy-plugin": {
         "adapter": "scripts/install-agy-plugin.js",
         "support_tier": "supported",
         "owner": "plugins/dhpk-agy",
-        "owned_roots": ["plugins/dhpk-agy"],
+        "owned_roots": [
+          "plugins/dhpk-agy"
+        ],
         "backup": "transactional-swap",
         "recovery": "receipt-scoped-rollback",
-        "operations": { "plan": "READ_ONLY", "install": "ADAPTER", "verify": "READ_ONLY", "update": "ADAPTER", "uninstall": "ADAPTER", "rollback": "ADAPTER", "status": "READ_ONLY" }
+        "operations": {
+          "plan": "READ_ONLY",
+          "install": "ADAPTER",
+          "verify": "READ_ONLY",
+          "update": "ADAPTER",
+          "uninstall": "ADAPTER",
+          "rollback": "ADAPTER",
+          "status": "READ_ONLY"
+        }
       }
     }
   },
@@ -4314,6 +5880,56 @@
       "rollback": {
         "release": "0.53.0"
       }
+    },
+    {
+      "id": "git-smart-commit",
+      "oldName": "dhpk-git-smart-commit",
+      "oldPath": "skills/dhpk-git-smart-commit",
+      "newName": "git-smart-commit",
+      "newPath": "skills/git-smart-commit",
+      "rollback": {
+        "release": "0.62.4"
+      }
+    },
+    {
+      "id": "release-creator",
+      "oldName": "dhpk-release-creator",
+      "oldPath": "skills/dhpk-release-creator",
+      "newName": "release-creator",
+      "newPath": "skills/release-creator",
+      "rollback": {
+        "release": "0.62.4"
+      }
+    },
+    {
+      "id": "matrix-cell-onboard",
+      "oldName": "dhpk-matrix-cell-onboard",
+      "oldPath": "skills/dhpk-matrix-cell-onboard",
+      "newName": "matrix-cell-onboard",
+      "newPath": "skills/matrix-cell-onboard",
+      "rollback": {
+        "release": "0.62.4"
+      }
+    },
+    {
+      "id": "tdd",
+      "oldName": "dhpk-tdd-workflow",
+      "oldPath": "skills/dhpk-tdd-workflow",
+      "newName": "tdd-workflow",
+      "newPath": "skills/tdd-workflow",
+      "rollback": {
+        "release": "0.62.4"
+      }
+    },
+    {
+      "id": "js-static-check-strategy",
+      "oldName": "dhpk-js-static-check-strategy",
+      "oldPath": "skills/dhpk-js-static-check-strategy",
+      "newName": "js-static-check-strategy",
+      "newPath": "skills/js-static-check-strategy",
+      "rollback": {
+        "release": "0.62.4"
+      }
     }
   ],
   "project_agent_projection": {
@@ -4332,40 +5948,63 @@
           "change-verdict",
           "cli-dispatch-context",
           "cli-transport",
+          "code-simplify",
           "code-trace",
           "codex-bridge",
           "composer-package-hygiene",
+          "create-pr",
+          "dep-audit",
           "deploy-list",
+          "doc-refactor",
           "feature-verify",
           "flow-drive",
           "flow-guide",
           "git-smart-commit",
+          "git-worktree",
           "gitnexus-cli",
           "gitnexus-debugging",
           "gitnexus-exploring",
           "gitnexus-guide",
           "gitnexus-impact-analysis",
           "gitnexus-refactoring",
+          "harness-audit",
           "harness-govern",
           "issue-analyze",
+          "js-static-check-strategy",
           "laravel-package-author",
           "laravel-testbench-matrix",
+          "matrix-cell-onboard",
+          "merge-prep",
           "opsx-apply-goal",
           "opsx-load-context",
           "opsx-post-obs",
           "polyfill-version-matrix-audit",
+          "pr-summary",
+          "precommit",
           "project-audit",
+          "project-brief",
           "project-setup",
           "prompt-optimize",
+          "proposal-analyze",
           "release-creator",
           "repo-intake",
+          "repo-verify",
+          "review-pending",
           "session-usage-audit",
           "skill-forge",
           "skill-scope",
           "software-architecture",
-          "tdd"
+          "spec-mine",
+          "tdd",
+          "update-codemaps",
+          "update-docs"
         ],
-        "hosts": ["agy", "claude", "codex", "cursor"]
+        "hosts": [
+          "agy",
+          "claude",
+          "codex",
+          "cursor"
+        ]
       }
     },
     "hosts": {
@@ -4373,25 +6012,37 @@
         "surface": "claude-core",
         "evidence_source": "entry_surfaces",
         "shape": "project-skill-directory",
-        "transform": {"id": "claude-project-skill", "version": "1"}
+        "transform": {
+          "id": "claude-project-skill",
+          "version": "1"
+        }
       },
       "codex": {
         "surface": "codex-sync",
         "evidence_source": "entry_surfaces",
         "shape": "project-skill-directory",
-        "transform": {"id": "codex-project-skill", "version": "1"}
+        "transform": {
+          "id": "codex-project-skill",
+          "version": "1"
+        }
       },
       "cursor": {
         "surface": "cursor-plugin",
         "evidence_source": "surface_membership",
         "shape": "project-skill-directory",
-        "transform": {"id": "cursor-project-skill", "version": "1"}
+        "transform": {
+          "id": "cursor-project-skill",
+          "version": "1"
+        }
       },
       "agy": {
         "surface": "agy-plugin",
         "evidence_source": "surface_membership",
         "shape": "project-skill-direct-file",
-        "transform": {"id": "agy-project-direct-file", "version": "1"}
+        "transform": {
+          "id": "agy-project-direct-file",
+          "version": "1"
+        }
       }
     },
     "dependencies": {}

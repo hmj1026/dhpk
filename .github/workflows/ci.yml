@@ -51,6 +51,8 @@ jobs:
         run: node scripts/ci/validate-plugin.js --strict
       - name: Validate distribution inventory
         run: node scripts/ci/validate-distribution.js --strict
+      - name: Validate skill resource copies
+        run: node scripts/ci/sync-skill-resources.js --check
       - name: Validate skill purpose decisions
         run: node scripts/ci/validate-skill-purpose-decisions.js --strict
       - name: Validate retirement closure

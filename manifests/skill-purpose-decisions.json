@@ -6,6 +6,84 @@
     "path": "docs/baselines/issue-467-develop-bba2873.json",
     "decisionRule": "Every active baseline skill has one explicit disposition; no active entry is removed or aliased by this ledger."
   },
+  "additions": [
+    {
+      "id": "create-pr",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "git-worktree",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "merge-prep",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "pr-summary",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "proposal-analyze",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "project-brief",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "doc-refactor",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "update-docs",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "update-codemaps",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "precommit",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "dep-audit",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "repo-verify",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "code-simplify",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "harness-audit",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "review-pending",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "spec-mine",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "harness-setup",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "opsx-apply-resume",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    },
+    {
+      "id": "ui-ux-verify",
+      "source": "docs/adr/0022-portable-command-skills-and-public-names.md"
+    }
+  ],
   "decisions": [
     {
       "id": "fastapi-pro",
@@ -92,21 +170,21 @@
       "rationale": "Keep the staged JavaScript static-check migration task separately selectable for legacy bundles.",
       "content_value": "'Progressive `// @ts-check` per-leaf rollout playbook for legacy JS bundles. Covers the three-list legacy-globals sync (ESLint globals / TypeScript ambient .d.ts / JSDoc typedef), tsconfig exclude strategy for type-check-resistant files, leaf classification (typedef-widening-fixable vs permanent-exclude), line-anchored progress-grep traps, and Phase-2 exit-gate semantics. Use when planning a per-leaf cleanup PR, introducing a new leaf-level global, editing tsconfig''s exclude list, interpreting /ts-check-status output, or validating the strict-checkJs exit gate. Not for everyday JavaScript feature work or isolated lint-rule lookups; use the sibling dhpk-js-lint-config and references/static-checks.md for those. Output: a per-leaf classification, three-list change set, and exit-gate evidence.'",
       "callers": [
-        "skills/dhpk-js-static-check-strategy/SKILL.md"
+        "skills/js-static-check-strategy/SKILL.md"
       ],
       "evidence": {
-        "source": "skills/dhpk-js-static-check-strategy/SKILL.md",
+        "source": "skills/js-static-check-strategy/SKILL.md",
         "structural": "PASS",
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
       },
-      "authority": "guidance-only",
+      "authority": "read-only",
       "duplicate_content": {
         "status": "distinct",
-        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
-        "comparison": "One canonical active owner is retained for this capability.",
+        "fact": "Compared the js-static-check-strategy workflow with neighboring active capabilities; its reviewed boundary remains unique.",
+        "comparison": "The canonical js-static-check-strategy procedure owns this capability rather than duplicating another active owner.",
         "evidence": {
-          "source": "skills/dhpk-js-static-check-strategy/SKILL.md",
+          "source": "skills/js-static-check-strategy/SKILL.md",
           "status": "PASS"
         }
       }
@@ -171,21 +249,21 @@
       "rationale": "Keep multi-major matrix cell onboarding separate from package authoring and ordinary test guidance.",
       "content_value": "'Checklist + procedure for adding a new PHP / Laravel / PHPUnit / Monolog cell to a multi-major library''s CI matrix. Use when extending support to a new runtime version (e.g. \"add PHP 8.3 + Laravel 12\"), bumping a dep major (e.g. \"Monolog 4 came out, plan the cell\"), or restoring a dropped cell. Not for patch-only changes that do not alter the support matrix. Output: a cell plan with composer, workflow, polyfill, Testbench, and focused-test gates. Cross-checks `composer.json` constraints, `.github/workflows/*.yml` matrix rows, Testbench mapping for Laravel, and triggers a polyfill-coverage check for the new cell''s dep versions. Pairs with `dhpk-laravel-testbench-matrix` (per-cell Testbench install) and `dhpk-composer-package-hygiene` (semver of raising the floor).'",
       "callers": [
-        "skills/dhpk-matrix-cell-onboard/SKILL.md"
+        "skills/matrix-cell-onboard/SKILL.md"
       ],
       "evidence": {
-        "source": "skills/dhpk-matrix-cell-onboard/SKILL.md",
+        "source": "skills/matrix-cell-onboard/SKILL.md",
         "structural": "PASS",
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
       },
-      "authority": "guidance-only",
+      "authority": "workspace-write",
       "duplicate_content": {
         "status": "distinct",
-        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
-        "comparison": "One canonical active owner is retained for this capability.",
+        "fact": "Compared the matrix-cell-onboard workflow with neighboring active capabilities; its reviewed boundary remains unique.",
+        "comparison": "The canonical matrix-cell-onboard procedure owns this capability rather than duplicating another active owner.",
         "evidence": {
-          "source": "skills/dhpk-matrix-cell-onboard/SKILL.md",
+          "source": "skills/matrix-cell-onboard/SKILL.md",
           "status": "PASS"
         }
       }
@@ -404,7 +482,7 @@
       "outcome": "retain",
       "disposition": "retain-optional",
       "rationale": "Keep async pytest and ASGI fixture guidance independently selectable from general Python guidance.",
-      "content_value": "'Async pytest + pytest-asyncio testing: asyncio_mode=auto, SQLite fixtures, httpx.AsyncClient + ASGITransport, unit/integration split, coverage floor, live markers. Use when writing or reviewing async FastAPI/SQLAlchemy tests, or enforcing dhpk-tdd-workflow. Not for production code. Output: offline-green async tests.'",
+      "content_value": "'Async pytest + pytest-asyncio testing: asyncio_mode=auto, SQLite fixtures, httpx.AsyncClient + ASGITransport, unit/integration split, coverage floor, live markers. Use when writing or reviewing async FastAPI/SQLAlchemy tests, or enforcing tdd-workflow. Not for production code. Output: offline-green async tests.'",
       "callers": [
         "skills/dhpk-pytest-async/SKILL.md"
       ],
@@ -934,7 +1012,7 @@
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
       },
-      "authority": "guidance-only",
+      "authority": "read-only",
       "duplicate_content": {
         "status": "distinct",
         "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
@@ -1054,7 +1132,7 @@
       "outcome": "retain",
       "disposition": "retain-standalone",
       "rationale": "Keep post-deployment feature verification independently usable and read-only.",
-      "content_value": "'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-guide in feature mode), code review (use change-verdict), writing tests (use dhpk-tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check.'",
+      "content_value": "'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-guide in feature mode), code review (use change-verdict), writing tests (use tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check.'",
       "callers": [
         "skills/dhpk-feature-verify/SKILL.md"
       ],
@@ -1082,10 +1160,10 @@
       "rationale": "Keep logical commit grouping standalone; it must not be forced through flow-guide or flow-drive.",
       "content_value": "'將雜亂的 git 變更依邏輯分群、逐批提交,適用於需要把多項變更拆成多個邏輯一致 commit 的情境。Not for: 單一小變更或只需要一個 commit（直接 commit 即可）。Output: 可直接執行的分組提交計畫與 commit 指令。'",
       "callers": [
-        "skills/dhpk-git-smart-commit/SKILL.md"
+        "skills/git-smart-commit/SKILL.md"
       ],
       "evidence": {
-        "source": "skills/dhpk-git-smart-commit/SKILL.md",
+        "source": "skills/git-smart-commit/SKILL.md",
         "structural": "PASS",
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
@@ -1093,10 +1171,10 @@
       "authority": "git-write",
       "duplicate_content": {
         "status": "distinct",
-        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
-        "comparison": "One canonical active owner is retained for this capability.",
+        "fact": "Compared the git-smart-commit workflow with neighboring active capabilities; its reviewed boundary remains unique.",
+        "comparison": "The canonical git-smart-commit procedure owns this capability rather than duplicating another active owner.",
         "evidence": {
-          "source": "skills/dhpk-git-smart-commit/SKILL.md",
+          "source": "skills/git-smart-commit/SKILL.md",
           "status": "PASS"
         }
       }
@@ -1530,21 +1608,21 @@
       "rationale": "Keep release creation independently selectable because it coordinates version and publication evidence.",
       "content_value": "'Cuts a new release of a software project or plugin, coordinating release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved.'",
       "callers": [
-        "skills/dhpk-release-creator/SKILL.md"
+        "skills/release-creator/SKILL.md"
       ],
       "evidence": {
-        "source": "skills/dhpk-release-creator/SKILL.md",
+        "source": "skills/release-creator/SKILL.md",
         "structural": "PASS",
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
       },
-      "authority": "guidance-only",
+      "authority": "external-write",
       "duplicate_content": {
         "status": "distinct",
-        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
-        "comparison": "One canonical active owner is retained for this capability.",
+        "fact": "Compared the release-creator workflow with neighboring active capabilities; its reviewed boundary remains unique.",
+        "comparison": "The canonical release-creator procedure owns this capability rather than duplicating another active owner.",
         "evidence": {
-          "source": "skills/dhpk-release-creator/SKILL.md",
+          "source": "skills/release-creator/SKILL.md",
           "status": "PASS"
         }
       }
@@ -1660,10 +1738,10 @@
       "rationale": "Keep behavior-first test development independently usable and do not force it into a larger workflow family.",
       "content_value": "'Framework-agnostic test-driven development guidance for behavior-first unit and integration tests, test scaffolds, and minimal RED-GREEN-REFACTOR changes. Use when building a feature or fixing a bug test-first, writing a test scaffold, or reviewing test seams and mocks. Not for: Playwright journey authoring, pure documentation or rename work, or replacing dhpk''s tdd-guide dispatch. Output: a failing-test proof, minimal implementation/test change, scoped verification, and a concise TDD report.'",
       "callers": [
-        "skills/dhpk-tdd-workflow/SKILL.md"
+        "skills/tdd-workflow/SKILL.md"
       ],
       "evidence": {
-        "source": "skills/dhpk-tdd-workflow/SKILL.md",
+        "source": "skills/tdd-workflow/SKILL.md",
         "structural": "PASS",
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
@@ -1671,10 +1749,10 @@
       "authority": "workspace-write",
       "duplicate_content": {
         "status": "distinct",
-        "fact": "Compared against the active capability set; this bounded content is not duplicated by another active decision.",
-        "comparison": "One canonical active owner is retained for this capability.",
+        "fact": "Compared the tdd workflow with neighboring active capabilities; its reviewed boundary remains unique.",
+        "comparison": "The canonical tdd procedure owns this capability rather than duplicating another active owner.",
         "evidence": {
-          "source": "skills/dhpk-tdd-workflow/SKILL.md",
+          "source": "skills/tdd-workflow/SKILL.md",
           "status": "PASS"
         }
       }
@@ -1701,6 +1779,500 @@
         "comparison": "One canonical active owner is retained for this capability.",
         "evidence": {
           "source": "skills/harness-govern/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "create-pr",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "external-write",
+      "rationale": "Promote create-pr as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Create a GitHub pull request from a pushed branch with ticket-aware title and body generation. Not for: committing, pushing, merging, releasing, or editing an existing PR. Output: a dry-run gh pr create command by default, or the created PR URL after explicit execution.'",
+      "callers": [
+        "skills/create-pr/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/create-pr/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared create-pr with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the create-pr trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/create-pr/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "git-worktree",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "git-write",
+      "rationale": "Promote git-worktree as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Manage Git worktree lifecycle with exact native git targets, branch/path validation, and dirty-worktree safety. Covers adding, listing, removing, and pruning worktrees. Not for: branch merging, broad cleanup, or removing or pruning without confirmation. Output: exact commands plus resulting worktree status.'",
+      "callers": [
+        "skills/git-worktree/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/git-worktree/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared git-worktree with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the git-worktree trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/git-worktree/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "merge-prep",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "read-only",
+      "rationale": "Promote merge-prep as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Prepare a read-only branch merge analysis with native git merge-tree conflict detection and copy-pasteable manual commands. Use when deciding whether to merge one branch into another. Not for: checkout, merge, rebase, conflict edits, or branch mutation. Output: commits, files, conflicts, evidence, and manual commands.'",
+      "callers": [
+        "skills/merge-prep/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/merge-prep/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared merge-prep with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the merge-prep trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/merge-prep/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "pr-summary",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "read-only",
+      "rationale": "Promote pr-summary as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Summarize accessible open GitHub pull requests from structured gh JSON, filtering bots and grouping results by ticket. Use for a read-only PR status report. Not for: changing PR state, reviewing code, merging, or closing PRs. Output: grouped Markdown written to /tmp/pr-summary.md and displayed for copying.'",
+      "callers": [
+        "skills/pr-summary/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/pr-summary/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared pr-summary with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the pr-summary trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/pr-summary/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "proposal-analyze",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote proposal-analyze as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Use when turning an initial proposal or proposal file into an evidence-backed implementation roadmap. Not for applying an approved OpenSpec change or writing OpenSpec artifacts. Output: validated assumptions, code-research summary, roadmap, alternatives, risks, and immediate actions.'",
+      "callers": [
+        "skills/proposal-analyze/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/proposal-analyze/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared proposal-analyze with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the proposal-analyze trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/proposal-analyze/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "project-brief",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote project-brief as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Use when converting one readable technical specification into a PM or CTO executive brief. Not for editing the source specification or preserving implementation detail. Output: a saved executive-summary path and retained unresolved decisions.'",
+      "callers": [
+        "skills/project-brief/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/project-brief/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared project-brief with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the project-brief trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/project-brief/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "doc-refactor",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote doc-refactor as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Use when refactoring one bounded Markdown document while preserving its facts, policy, frontmatter, and route semantics. Not for cross-file policy changes, generated projections, or broad documentation audits. Output: the refactored path, line-count comparison, preserved-fact summary, and PASS, NOT_RUN, or BLOCKED validation.'",
+      "callers": [
+        "skills/doc-refactor/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/doc-refactor/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared doc-refactor with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the doc-refactor trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/doc-refactor/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "update-docs",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote update-docs as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Use when a live route, setup, distribution, configuration, or bounded workflow change makes user or agent documentation stale. Not for source/test edits, codemap-only refreshes, policy review, or external-library research. Output: an evidence-backed document update report with PASS, NOT_RUN, BLOCKED, or Need Human handoff.'",
+      "callers": [
+        "skills/update-docs/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/update-docs/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared update-docs with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the update-docs trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/update-docs/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "update-codemaps",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote update-codemaps as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Use after a structural change or for an explicit architecture-document refresh. Not for rewriting application source or updating user documentation outside codemaps. Output: changed $PROJECT_DIR/docs/CODEMAPS paths, scan metadata, diff percentage, and PASS, BLOCKED, or confirmation-required status.'",
+      "callers": [
+        "skills/update-codemaps/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/update-codemaps/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared update-codemaps with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the update-codemaps trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/update-codemaps/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "precommit",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote precommit as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Run the deterministic pre-commit pipeline in fast or full mode through the packaged runner. Use when handing off repository changes. Not for: ad hoc replacement checks, dependency audits, or read-only verification. Output: runner-owned changed-file reporting and final verdict.'",
+      "callers": [
+        "skills/precommit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/precommit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared precommit with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the precommit trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/precommit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "dep-audit",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote dep-audit as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Audit dependency security risks with an evidence-only verdict and an explicitly separate fix operation. Use for dependency vulnerability review. Not for: implicit upgrades, general code review, or treating a successful fix command as clearance. Output: audit findings, optional fix status, and a read-only security verdict.'",
+      "callers": [
+        "skills/dep-audit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/dep-audit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared dep-audit with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the dep-audit trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/dep-audit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "repo-verify",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "read-only",
+      "rationale": "Promote repo-verify as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Run a repository verification loop with runner-first execution, deterministic stages, and explicit PASS/FAIL/SKIP output. Use for fast or full validation of a consumer repository. Not for: mutation, fixing failures, dependency remediation, or merge approval. Output: runner summary or a complete fallback stage table.'",
+      "callers": [
+        "skills/repo-verify/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/repo-verify/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared repo-verify with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the repo-verify trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/repo-verify/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "code-simplify",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote code-simplify as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Use when cleaning changed code for reuse, simplicity, efficiency, and the right abstraction level without changing behavior. Not for correctness review, broad redesign, or unbounded cleanup. Output: four-angle findings, applied/skipped changes, and baseline/final test evidence with degraded status when needed.'",
+      "callers": [
+        "skills/code-simplify/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/code-simplify/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared code-simplify with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the code-simplify trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/code-simplify/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "harness-audit",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "read-only",
+      "rationale": "Promote harness-audit as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Run the deterministic repository harness audit and return its prioritized scorecard. Use when measuring harness health for a repository or scoped harness area. Not for: changing harness files, inventing scoring dimensions, or replacing harness governance. Output: script-owned score, findings, failed checks, top actions, and suggested skills.'",
+      "callers": [
+        "skills/harness-audit/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-audit/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared harness-audit with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the harness-audit trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/harness-audit/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "review-pending",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "delegate",
+      "rationale": "Promote review-pending as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Delegate the current diff or explicitly selected files to an available code-reviewer and relay its report. Use for a read-only pending-change review. Not for: implementing findings, clearing a merge gate, or silently substituting another reviewer. Output: the reviewer report, or UNAVAILABLE when code-reviewer is absent.'",
+      "callers": [
+        "skills/review-pending/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/review-pending/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared review-pending with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the review-pending trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/review-pending/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "spec-mine",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote spec-mine as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Use when extracting one capability’s behavioral baseline from a brownfield codebase into openspec/specs/<capability>/spec.md. Not for mining every module, refactoring, or applying a change. Output: the spec path, capability, Last verified commit, deferred files, or UNAVAILABLE when the required spec-miner role is not registered.'",
+      "callers": [
+        "skills/spec-mine/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/spec-mine/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared spec-mine with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the spec-mine trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/spec-mine/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "harness-setup",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote harness-setup as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Configure or inspect the dhpk harness, initialize its optional Review Gate, or install selected host assets. Not for: ordinary harness audits, application changes, or silent credential/configuration changes. Output: a host-specific setup report with preserved-file, receipt, and terminal evidence.'",
+      "callers": [
+        "skills/harness-setup/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/harness-setup/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared harness-setup with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the harness-setup trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/harness-setup/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "opsx-apply-resume",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote opsx-apply-resume as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Save and resume a long-running OpenSpec apply session from a live worktree, preserving optional gates and host-specific handoff artifacts. Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite. Output: a saved/resumed handoff report with lifecycle and next-action evidence.'",
+      "callers": [
+        "skills/opsx-apply-resume/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/opsx-apply-resume/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared opsx-apply-resume with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the opsx-apply-resume trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/opsx-apply-resume/SKILL.md",
+          "status": "PASS"
+        }
+      }
+    },
+    {
+      "id": "ui-ux-verify",
+      "outcome": "retain",
+      "disposition": "retain-standalone",
+      "authority": "workspace-write",
+      "rationale": "Promote ui-ux-verify as a standalone portable capability with its own bounded procedure and public usage contract.",
+      "content_value": "'Read-only verification of one rendered page against one OpenSpec UI specification. Use when: checking a page against a spec, auditing a controller/action render, or reviewing UI content, structure, and behavior. Not for: E2E journey authoring, application edits, data mutation, or a runtime API smoke test. Output: one severity-ranked audit report with APPROVE, WARNING, BLOCK, or UNAVAILABLE evidence.'",
+      "callers": [
+        "skills/ui-ux-verify/SKILL.md"
+      ],
+      "evidence": {
+        "source": "skills/ui-ux-verify/SKILL.md",
+        "structural": "PASS",
+        "consumer": "NOT_RUN",
+        "runtime": "NOT_RUN"
+      },
+      "duplicate_content": {
+        "status": "distinct",
+        "fact": "Compared ui-ux-verify with the active command owners and neighboring workflows; the package boundary is specific to this capability.",
+        "comparison": "No existing active owner combines the ui-ux-verify trigger, authority, and completion evidence.",
+        "evidence": {
+          "source": "skills/ui-ux-verify/SKILL.md",
           "status": "PASS"
         }
       }
@@ -2135,10 +2707,10 @@
       "rationale": "Issue #534 P2 reviewed outcome: AGY commit guidance is merged into the git-smart-commit workflow without an AGY adapter.",
       "content_value": "AGY commit guidance is merged into the git-smart-commit workflow without an AGY adapter.",
       "callers": [
-        "skills/dhpk-git-smart-commit/SKILL.md"
+        "skills/git-smart-commit/SKILL.md"
       ],
       "evidence": {
-        "source": "skills/dhpk-git-smart-commit/SKILL.md",
+        "source": "skills/git-smart-commit/SKILL.md",
         "structural": "PASS",
         "consumer": "NOT_RUN",
         "runtime": "NOT_RUN"
@@ -2149,7 +2721,7 @@
         "fact": "Compared with the git-smart-commit workflow; AGY commit guidance has one canonical commit owner.",
         "comparison": "Compared with the git-smart-commit workflow; AGY commit guidance has one canonical commit owner.",
         "evidence": {
-          "source": "skills/dhpk-git-smart-commit/SKILL.md",
+          "source": "skills/git-smart-commit/SKILL.md",
           "status": "PASS"
         }
       }

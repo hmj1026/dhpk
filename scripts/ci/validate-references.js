@@ -227,10 +227,33 @@ function checkBrand(relFile, text, whitelist) {
 // must also state the ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md fallback in
 // the SAME reference block (blank-line-delimited), so consumers without a local
 // copy still resolve it. Blocks are split on blank lines.
+//
+// EXCEPTION: the four execution-bundle self-locating files (rules/execution-policy.md
+// and its skill mirrors) resolve their base via POLICY_BUNDLE_ROOT and explicitly
+// forbid a fallback chain (self-contained-skill-directories). They don't need the
+// dual-path wording, but reintroducing the legacy ${CLAUDE_PLUGIN_ROOT} fallback
+// phrase into one of them is a contract regression that must still be flagged.
+const POLICY_BUNDLE_ROOT_FILES = new Set([
+  'rules/execution-policy.md',
+  'skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md',
+  'skills/flow-drive/references/execution-bundle/rules/execution-policy.md',
+  'skills/flow-guide/references/execution-bundle/rules/execution-policy.md',
+]);
+
 function checkExecPolicyFallback(relFile, text) {
   const findings = [];
   const BARE = '.claude/rules/execution-policy.md';
   const FALLBACK = '${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md';
+  if (POLICY_BUNDLE_ROOT_FILES.has(relFile)) {
+    if (text.includes(FALLBACK)) {
+      findings.push({
+        file: relFile,
+        check: 5,
+        detail: `legacy '${FALLBACK}' fallback reintroduced in a POLICY_BUNDLE_ROOT self-locating file`,
+      });
+    }
+    return findings;
+  }
   for (const block of text.split(/\n\s*\n/)) {
     if (!block.includes(BARE)) continue;
     if (block.includes(FALLBACK)) continue;

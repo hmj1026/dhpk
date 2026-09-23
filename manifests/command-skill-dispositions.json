@@ -1,17 +1,17 @@
 {
-  "schema": "dhpk.command-skill-disposition.v2",
-  "source_revision": "sha256:f17528c488e05c2f9b2bb2e23950e2b1da634cbd27aa2d32291d29502e6a0b7c",
+  "schema": "dhpk.command-skill-disposition.v3",
+  "source_revision": "sha256:37edd046494bf42ff43cdf5187d71cbb0ed690c69d9c943a2a6e84761d5c19b6",
   "commands": [
     {
       "id": "check-coverage",
       "path": "commands/check-coverage.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:check-coverage",
-      "argument_contract": "",
+      "argument_contract": "[<target>]",
       "authority": "read-only",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "skill_owner": "change-verdict",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $change-verdict Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -21,18 +21,27 @@
       "outcome": "retain",
       "callers": [
         "commands/check-coverage.md"
-      ]
+      ],
+      "resource": "skills/change-verdict/SKILL.md",
+      "forwarding": {
+        "action": "tests",
+        "prepend_args": [
+          "--mode",
+          "tests",
+          "--coverage"
+        ]
+      }
     },
     {
       "id": "codex-test-gen",
       "path": "commands/codex-test-gen.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:codex-test-gen",
-      "argument_contract": "",
+      "argument_contract": "<target>",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "skill_owner": "tdd",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $tdd-workflow Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -42,7 +51,14 @@
       "outcome": "retain",
       "callers": [
         "commands/codex-test-gen.md"
-      ]
+      ],
+      "resource": "skills/tdd-workflow/SKILL.md",
+      "forwarding": {
+        "action": "test-generation",
+        "prepend_args": [
+          "test-generation"
+        ]
+      }
     },
     {
       "id": "create-pr",
@@ -51,9 +67,9 @@
       "public_name": "/dhpk:create-pr",
       "argument_contract": "[--head <branch>] [--base <branch>] [--title <text>] [--execute] [--dry-run]",
       "authority": "external-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "GitHub CLI, repository credentials, and pull-request mutation are host-specific authority.",
+      "skill_owner": "create-pr",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $create-pr Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -63,7 +79,8 @@
       "outcome": "retain",
       "callers": [
         "commands/create-pr.md"
-      ]
+      ],
+      "resource": "skills/create-pr/SKILL.md"
     },
     {
       "id": "create-release",
@@ -72,9 +89,9 @@
       "public_name": "/dhpk:create-release",
       "argument_contract": "<version> [--execute]",
       "authority": "external-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Release tagging, changelog mutation, and remote PR/release operations depend on the host repository.",
+      "skill_owner": "release-creator",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $release-creator Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -84,7 +101,8 @@
       "outcome": "retain",
       "callers": [
         "commands/create-release.md"
-      ]
+      ],
+      "resource": "skills/release-creator/SKILL.md"
     },
     {
       "id": "deep-analyze",
@@ -93,9 +111,9 @@
       "public_name": "/dhpk:deep-analyze",
       "argument_contract": "<initial proposal description or file path>",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Proposal research and OpenSpec authoring are coupled to the host's external authoring workflow.",
+      "skill_owner": "proposal-analyze",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $proposal-analyze Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -105,7 +123,8 @@
       "outcome": "retain",
       "callers": [
         "commands/deep-analyze.md"
-      ]
+      ],
+      "resource": "skills/proposal-analyze/SKILL.md"
     },
     {
       "id": "dep-audit",
@@ -114,9 +133,9 @@
       "public_name": "/dhpk:dep-audit",
       "argument_contract": "[--level <severity>] [--fix]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Package-manager audit/fix commands and their credentials vary by host project.",
+      "skill_owner": "dep-audit",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $dep-audit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -126,7 +145,8 @@
       "outcome": "retain",
       "callers": [
         "commands/dep-audit.md"
-      ]
+      ],
+      "resource": "skills/dep-audit/SKILL.md"
     },
     {
       "id": "doc-refactor",
@@ -135,9 +155,9 @@
       "public_name": "/dhpk:doc-refactor",
       "argument_contract": "<file path>",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Document editing is a host command boundary with project-local writing policy and file authority.",
+      "skill_owner": "doc-refactor",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $doc-refactor Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -147,7 +167,8 @@
       "outcome": "retain",
       "callers": [
         "commands/doc-refactor.md"
-      ]
+      ],
+      "resource": "skills/doc-refactor/SKILL.md"
     },
     {
       "id": "flow-drive",
@@ -167,7 +188,9 @@
       "outcome": "retain",
       "callers": [
         "commands/flow-drive.md"
-      ]
+      ],
+      "resource": "skills/flow-drive/SKILL.md",
+      "reason": "Canonical $flow-drive Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     },
     {
       "id": "flow-guide",
@@ -187,7 +210,9 @@
       "outcome": "retain",
       "callers": [
         "commands/flow-guide.md"
-      ]
+      ],
+      "resource": "skills/flow-guide/SKILL.md",
+      "reason": "Canonical $flow-guide Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     },
     {
       "id": "git-worktree",
@@ -196,9 +221,9 @@
       "public_name": "/dhpk:git-worktree",
       "argument_contract": "[add|list|remove|prune] [--branch <name>] [--base <ref>]",
       "authority": "git-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Worktree lifecycle changes local Git topology and cannot be granted by a portable Skill contract.",
+      "skill_owner": "git-worktree",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $git-worktree Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -208,7 +233,8 @@
       "outcome": "retain",
       "callers": [
         "commands/git-worktree.md"
-      ]
+      ],
+      "resource": "skills/git-worktree/SKILL.md"
     },
     {
       "id": "harness-audit",
@@ -217,9 +243,9 @@
       "public_name": "/dhpk:harness-audit",
       "argument_contract": "[scope] [--format text|json] [--root <path>]",
       "authority": "read-only",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "The command is a host-specific audit adapter; reusable harness governance already owns the portable capability.",
+      "skill_owner": "harness-audit",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $harness-audit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -229,7 +255,8 @@
       "outcome": "retain",
       "callers": [
         "commands/harness-audit.md"
-      ]
+      ],
+      "resource": "skills/harness-audit/SKILL.md"
     },
     {
       "id": "harness-govern",
@@ -249,18 +276,20 @@
       "outcome": "retain",
       "callers": [
         "commands/harness-govern.md"
-      ]
+      ],
+      "resource": "skills/harness-govern/SKILL.md",
+      "reason": "Canonical $harness-govern Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     },
     {
       "id": "install-hooks",
       "path": "commands/install-hooks.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:install-hooks",
-      "argument_contract": "",
+      "argument_contract": "[--source-artifact <dir>] [--dry-run] [--force]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "skill_owner": "harness-setup",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -270,18 +299,26 @@
       "outcome": "retain",
       "callers": [
         "commands/install-hooks.md"
-      ]
+      ],
+      "resource": "skills/harness-setup/SKILL.md",
+      "forwarding": {
+        "action": "setup",
+        "prepend_args": [
+          "--install",
+          "hooks"
+        ]
+      }
     },
     {
       "id": "install-rules",
       "path": "commands/install-rules.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:install-rules",
-      "argument_contract": "",
+      "argument_contract": "[--source-artifact <dir>] [--dry-run] [--force]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "skill_owner": "harness-setup",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -291,18 +328,26 @@
       "outcome": "retain",
       "callers": [
         "commands/install-rules.md"
-      ]
+      ],
+      "resource": "skills/harness-setup/SKILL.md",
+      "forwarding": {
+        "action": "setup",
+        "prepend_args": [
+          "--install",
+          "rules"
+        ]
+      }
     },
     {
       "id": "install-scripts",
       "path": "commands/install-scripts.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:install-scripts",
-      "argument_contract": "",
+      "argument_contract": "[--source-artifact <dir>] [--dry-run] [--force]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "skill_owner": "harness-setup",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -312,14 +357,22 @@
       "outcome": "retain",
       "callers": [
         "commands/install-scripts.md"
-      ]
+      ],
+      "resource": "skills/harness-setup/SKILL.md",
+      "forwarding": {
+        "action": "setup",
+        "prepend_args": [
+          "--install",
+          "scripts"
+        ]
+      }
     },
     {
       "id": "matrix-cell-onboard",
       "path": "commands/matrix-cell-onboard.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:matrix-cell-onboard",
-      "argument_contract": "\"<php-version> <laravel-version> [phpunit] [monolog]\" e.g. \"8.3 12 11 3\"",
+      "argument_contract": "\"<php-version> <laravel-version> [phpunit] [monolog]\"  e.g. \"8.3 12 11 3\"",
       "authority": "workspace-write",
       "skill_owner": "matrix-cell-onboard",
       "disposition": "thin-front-door",
@@ -332,7 +385,9 @@
       "outcome": "retain",
       "callers": [
         "commands/matrix-cell-onboard.md"
-      ]
+      ],
+      "resource": "skills/matrix-cell-onboard/SKILL.md",
+      "reason": "Canonical $matrix-cell-onboard Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     },
     {
       "id": "merge-prep",
@@ -341,9 +396,9 @@
       "public_name": "/dhpk:merge-prep",
       "argument_contract": "<source-branch> [--target <branch>]",
       "authority": "read-only",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Branch topology and merge state are repository-local Git authority.",
+      "skill_owner": "merge-prep",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $merge-prep Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -353,7 +408,8 @@
       "outcome": "retain",
       "callers": [
         "commands/merge-prep.md"
-      ]
+      ],
+      "resource": "skills/merge-prep/SKILL.md"
     },
     {
       "id": "opsx-apply-resume",
@@ -362,9 +418,9 @@
       "public_name": "/dhpk:opsx-apply-resume",
       "argument_contract": "[change-id]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Cross-session state and Claude-specific continuation artifacts are host lifecycle authority.",
+      "skill_owner": "opsx-apply-resume",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $opsx-apply-resume Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -374,7 +430,8 @@
       "outcome": "retain",
       "callers": [
         "commands/opsx-apply-resume.md"
-      ]
+      ],
+      "resource": "skills/opsx-apply-resume/SKILL.md"
     },
     {
       "id": "pr-summary",
@@ -383,9 +440,9 @@
       "public_name": "/dhpk:pr-summary",
       "argument_contract": "[--author <user>] [--label <label>]",
       "authority": "read-only",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Pull-request lookup depends on GitHub CLI access, repository identity, and host credentials.",
+      "skill_owner": "pr-summary",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $pr-summary Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -395,18 +452,19 @@
       "outcome": "retain",
       "callers": [
         "commands/pr-summary.md"
-      ]
+      ],
+      "resource": "skills/pr-summary/SKILL.md"
     },
     {
       "id": "precommit-fast",
       "path": "commands/precommit-fast.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:precommit-fast",
-      "argument_contract": "",
-      "authority": "read-only",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Retained physical Host front door for an existing migration path; it is not a portable Skill alias or discovery successor.",
+      "argument_contract": "[--fast]",
+      "authority": "workspace-write",
+      "skill_owner": "precommit",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $precommit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -416,7 +474,14 @@
       "outcome": "retain",
       "callers": [
         "commands/precommit-fast.md"
-      ]
+      ],
+      "resource": "skills/precommit/SKILL.md",
+      "forwarding": {
+        "action": "run",
+        "prepend_args": [
+          "--fast"
+        ]
+      }
     },
     {
       "id": "precommit",
@@ -425,9 +490,9 @@
       "public_name": "/dhpk:precommit",
       "argument_contract": "[--fast]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Runner selection and repository-local precommit mutation are host lifecycle behavior.",
+      "skill_owner": "precommit",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $precommit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -437,7 +502,8 @@
       "outcome": "retain",
       "callers": [
         "commands/precommit.md"
-      ]
+      ],
+      "resource": "skills/precommit/SKILL.md"
     },
     {
       "id": "project-brief",
@@ -446,9 +512,9 @@
       "public_name": "/dhpk:project-brief",
       "argument_contract": "<tech spec path> [--output <output path>]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Executive-brief output location and project-specific source policy are host document authority.",
+      "skill_owner": "project-brief",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $project-brief Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -458,18 +524,19 @@
       "outcome": "retain",
       "callers": [
         "commands/project-brief.md"
-      ]
+      ],
+      "resource": "skills/project-brief/SKILL.md"
     },
     {
       "id": "review-pending",
       "path": "commands/review-pending.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:review-pending",
-      "argument_contract": "\"[--files \"<rel-path,...>\"]\"",
-      "authority": "read-only",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Pending-diff selection and reviewer delegation depend on the current host session and worktree.",
+      "argument_contract": "\"[--files \\\"<rel-path,...>\\\"]\"",
+      "authority": "delegate",
+      "skill_owner": "review-pending",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $review-pending Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -479,18 +546,19 @@
       "outcome": "retain",
       "callers": [
         "commands/review-pending.md"
-      ]
+      ],
+      "resource": "skills/review-pending/SKILL.md"
     },
     {
       "id": "setup",
       "path": "commands/setup.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:setup",
-      "argument_contract": "[--show] [--review-gate] [--install hooks|rules|scripts|all] [--dry-run] [--force]",
+      "argument_contract": "[--show] [--review-gate] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Interactive configuration, credentials, and local asset installation are host authority.",
+      "skill_owner": "harness-setup",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $harness-setup Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -500,7 +568,8 @@
       "outcome": "retain",
       "callers": [
         "commands/setup.md"
-      ]
+      ],
+      "resource": "skills/harness-setup/SKILL.md"
     },
     {
       "id": "simplify",
@@ -509,9 +578,9 @@
       "public_name": "/dhpk:simplify",
       "argument_contract": "[<PR|branch|file|directory>]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Interactive refactoring and test execution require host workspace and tool authority.",
+      "skill_owner": "code-simplify",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $code-simplify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -521,7 +590,8 @@
       "outcome": "retain",
       "callers": [
         "commands/simplify.md"
-      ]
+      ],
+      "resource": "skills/code-simplify/SKILL.md"
     },
     {
       "id": "smart-commit",
@@ -541,7 +611,9 @@
       "outcome": "retain",
       "callers": [
         "commands/smart-commit.md"
-      ]
+      ],
+      "resource": "skills/git-smart-commit/SKILL.md",
+      "reason": "Canonical $git-smart-commit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     },
     {
       "id": "spec-mine",
@@ -550,9 +622,9 @@
       "public_name": "/dhpk:spec-mine",
       "argument_contract": "[capability or path to mine first]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Brownfield sampling and OpenSpec artifact writes are tied to the host project and agent delegation.",
+      "skill_owner": "spec-mine",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $spec-mine Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -562,7 +634,8 @@
       "outcome": "retain",
       "callers": [
         "commands/spec-mine.md"
-      ]
+      ],
+      "resource": "skills/spec-mine/SKILL.md"
     },
     {
       "id": "ui-ux-verify",
@@ -571,9 +644,9 @@
       "public_name": "/dhpk:ui-ux-verify",
       "argument_contract": "[<url>] [spec:<path>]",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Browser automation, live URLs, and screenshot/report artifacts are host-only capabilities.",
+      "skill_owner": "ui-ux-verify",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $ui-ux-verify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -583,7 +656,8 @@
       "outcome": "retain",
       "callers": [
         "commands/ui-ux-verify.md"
-      ]
+      ],
+      "resource": "skills/ui-ux-verify/SKILL.md"
     },
     {
       "id": "update-codemaps",
@@ -592,9 +666,9 @@
       "public_name": "/dhpk:update-codemaps",
       "argument_contract": "",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Codemap generation writes project-specific architecture documents and requires host structure.",
+      "skill_owner": "update-codemaps",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $update-codemaps Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -604,7 +678,8 @@
       "outcome": "retain",
       "callers": [
         "commands/update-codemaps.md"
-      ]
+      ],
+      "resource": "skills/update-codemaps/SKILL.md"
     },
     {
       "id": "update-docs",
@@ -613,9 +688,9 @@
       "public_name": "/dhpk:update-docs",
       "argument_contract": "<docs-path | workflow-keyword>",
       "authority": "workspace-write",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Documentation updates are project-local writes governed by the host checkout and locale pair.",
+      "skill_owner": "update-docs",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $update-docs Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -625,7 +700,8 @@
       "outcome": "retain",
       "callers": [
         "commands/update-docs.md"
-      ]
+      ],
+      "resource": "skills/update-docs/SKILL.md"
     },
     {
       "id": "verify",
@@ -634,9 +710,9 @@
       "public_name": "/dhpk:verify",
       "argument_contract": "[fast|full] [--integration <path>] [--e2e <path>]",
       "authority": "read-only",
-      "skill_owner": null,
-      "disposition": "host-only",
-      "reason": "Runner, package manager, integration environment, and e2e services are host-specific runtime authority.",
+      "skill_owner": "repo-verify",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $repo-verify Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
       "evidence": {
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
@@ -646,7 +722,34 @@
       "outcome": "retain",
       "callers": [
         "commands/verify.md"
-      ]
+      ],
+      "resource": "skills/repo-verify/SKILL.md"
+    },
+    {
+      "id": "ts-check-status",
+      "path": "modules/js/commands/ts-check-status.md",
+      "host_surface": "claude-command",
+      "public_name": "/dhpk:ts-check-status",
+      "argument_contract": "[--path <directory>]",
+      "authority": "read-only",
+      "skill_owner": "js-static-check-strategy",
+      "resource": "skills/js-static-check-strategy/SKILL.md",
+      "disposition": "thin-front-door",
+      "reason": "Canonical $js-static-check-strategy Skill owns status behavior; the module command preserves the status adapter grammar.",
+      "evidence": {
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN",
+        "source": "modules/js/commands/ts-check-status.md"
+      },
+      "outcome": "retain",
+      "callers": [
+        "modules/js/commands/ts-check-status.md"
+      ],
+      "forwarding": {
+        "action": "status",
+        "prepend_args": []
+      }
     }
   ],
   "removed_commands": [
