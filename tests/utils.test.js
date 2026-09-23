@@ -50,8 +50,21 @@ test('ensureDir/writeText/writeJson/appendLog round-trip through the filesystem'
   }
 });
 
-test('appendLog swallows write failures to an unwritable path (no throw)', () => {
-  assert.doesNotThrow(() => utils.appendLog('/no/such/dir/log.txt', 'x'));
+test('appendLog reports an unwritable path once on stderr without throwing', () => {
+  const logPath = path.join(os.tmpdir(), `utils-test-missing-${process.pid}`, 'log.txt');
+  const writes = [];
+  const originalWrite = process.stderr.write;
+  process.stderr.write = (chunk) => { writes.push(String(chunk)); return true; };
+  try {
+    assert.doesNotThrow(() => utils.appendLog(logPath, 'x'));
+    assert.doesNotThrow(() => utils.appendLog(logPath, 'y'));
+  } finally {
+    process.stderr.write = originalWrite;
+  }
+  assert.strictEqual(writes.length, 1, `expected one warning, got ${JSON.stringify(writes)}`);
+  assert.match(writes[0], /appendLog failed/);
+  assert.ok(writes[0].includes(logPath), writes[0]);
+  assert.match(writes[0], /ENOENT/);
 });
 
 test('tailLinesFromFile returns the last N lines only', () => {

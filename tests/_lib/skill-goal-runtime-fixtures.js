@@ -10,6 +10,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
+const { outputText, assertExpected } = require('./fixture-assertions');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SOURCE = path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal');
@@ -58,20 +59,6 @@ const REVIEW_GATE_CLOSURE = Object.freeze([
 const POLICY_KERNEL = 'references/execution-bundle/rules/execution-policy-kernel.md';
 const POLICY_ROUTE = 'references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md';
 
-const outputText = (result) => `${String(result && result.stdout || '')}\n${String(result && result.stderr || '')}`;
-
-function assertExpected(result, expected, id) {
-  const output = outputText(result);
-  if (!result || result.status !== expected.status) {
-    throw new Error(`${id}: expected status ${expected.status}, got ${result && result.status}\n${output}`);
-  }
-  for (const fragment of expected.output || []) {
-    if (!output.includes(fragment)) throw new Error(`${id}: expected output '${fragment}'\n${output}`);
-  }
-  for (const fragment of expected.absent || []) {
-    if (output.includes(fragment)) throw new Error(`${id}: unexpected output '${fragment}'\n${output}`);
-  }
-}
 
 function definition(definition) {
   return {

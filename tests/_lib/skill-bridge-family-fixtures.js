@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
+const { outputText, assertExpected } = require('./fixture-assertions');
 
 const SYSTEM_PYTHON = '/usr/bin/python3';
 const SYSTEM_BASH = '/bin/bash';
@@ -17,10 +18,6 @@ const RESERVED_ROOT_ENVIRONMENT = Object.freeze([
   'DHPK_PLUGIN_ROOT', 'CURSOR_PLUGIN_ROOT', 'DHPK_CURSOR_PLUGIN_ROOT',
   'NODE_PATH', 'NODE_OPTIONS', 'PYTHONPATH', 'PYTHONHOME',
 ]);
-
-function outputText(result) {
-  return `${String(result.stdout || '')}\n${String(result.stderr || '')}`;
-}
 
 function digestBytes(bytes) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
@@ -235,19 +232,6 @@ const launcher = path.join(skillDir, 'scripts', 'launch-cli-dispatch.js');
 const result = require(launcher).main(args);
 process.exitCode = result;
 `, [JSON.stringify(entryArgs)]);
-}
-
-function assertExpected(result, expected, id) {
-  const output = outputText(result);
-  if (result.status !== expected.status) {
-    throw new Error(`${id}: expected status ${expected.status}, got ${result.status}\n${output}`);
-  }
-  for (const fragment of expected.output || []) {
-    if (!output.includes(fragment)) throw new Error(`${id}: expected output '${fragment}'\n${output}`);
-  }
-  for (const fragment of expected.absent || []) {
-    if (output.includes(fragment)) throw new Error(`${id}: unexpected output '${fragment}'\n${output}`);
-  }
 }
 
 function fixture(definition) {

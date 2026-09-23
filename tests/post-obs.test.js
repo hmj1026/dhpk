@@ -70,4 +70,14 @@ test('payload-construction path: title/content/concepts are read via jq even whe
   }
 });
 
+test('temp files honor TMPDIR and end in X so BSD mktemp randomizes them', () => {
+  const source = fs.readFileSync(SCRIPT, 'utf8');
+  const templates = [...source.matchAll(/mktemp\s+(?:-\S+\s+)*("[^"]*"|\S+)/g)].map((match) => match[1]);
+  assert.ok(templates.length > 0, 'expected at least one mktemp call');
+  for (const template of templates) {
+    assert.ok(template.startsWith('"${TMPDIR:-/tmp}/'), `mktemp must use TMPDIR: ${template}`);
+    assert.match(template, /X{6,}"$/, `mktemp template must end in X: ${template}`);
+  }
+});
+
 run('post-obs');

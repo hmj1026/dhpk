@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
+const { assertExpected } = require('./fixture-assertions');
 
 const profileArgs = ['--language', 'javascript', '--runtime', 'node', '--current-version', '22',
   '--target-version', '24', '--architecture', 'modules', '--test-strategy', 'unit',
@@ -41,9 +42,7 @@ function registerFlowEntryFixtures() {
   for (const item of definitions) {
     if (existing[item.id]) continue;
     registerFixture({ ...item, assert(result, context) {
-      const output = `${result.stdout || ''}\n${result.stderr || ''}`;
-      assert.equal(result.status, item.expected.status, output);
-      for (const fragment of item.expected.output) assert.ok(output.includes(fragment), output);
+      assertExpected(result, item.expected, item.id);
       if (item.verify) item.verify(result, context);
     } });
   }

@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
+const { outputText } = require('./fixture-assertions');
 
 let registered = false;
 
@@ -72,10 +73,6 @@ const NETWORK_DENIED_CURL = {
   status: 7,
   stderr: 'NETWORK_DENIED: fixture curl is intentionally denied\n',
 };
-
-function outputText(result) {
-  return `${String(result.stdout || '')}\n${String(result.stderr || '')}`;
-}
 
 function shellDefinition(definition, validate) {
   const expected = { ...definition.expected };

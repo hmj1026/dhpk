@@ -11,6 +11,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
+const { outputText, assertExpected } = require('./fixture-assertions');
 const { withIsolatedSkill } = require('./skill-directory-isolation');
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -90,23 +91,6 @@ function writeFile(filePath, content, mode = 0o644) {
 
 function jsonFile(filePath, value, mode = 0o644) {
   writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, mode);
-}
-
-function outputText(result) {
-  return `${String(result.stdout || '')}\n${String(result.stderr || '')}`;
-}
-
-function assertExpected(result, expected, id) {
-  assert.strictEqual(result.status, expected.status, `${id}: unexpected exit\n${outputText(result)}`);
-  if (typeof expected.stdout === 'string') {
-    assert.strictEqual(String(result.stdout || ''), expected.stdout, `${id}: unexpected stdout`);
-  }
-  if (typeof expected.stderr === 'string') {
-    assert.strictEqual(String(result.stderr || ''), expected.stderr, `${id}: unexpected stderr`);
-  }
-  for (const fragment of expected.output || []) {
-    assert.ok(outputText(result).includes(fragment), `${id}: output is missing ${fragment}\n${outputText(result)}`);
-  }
 }
 
 function fixture(definition) {

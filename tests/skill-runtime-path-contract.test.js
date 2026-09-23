@@ -86,4 +86,31 @@ test('runtime path repair preserves handoff and optional-provider contracts', ()
   assert.match(docs.observe, /outcomes accepted/);
 });
 
+function skillMarkdownFiles(dir) {
+  const files = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      // Execution bundles are synchronized plugin-policy copies, not entries.
+      if (entry.name !== 'execution-bundle') files.push(...skillMarkdownFiles(full));
+    } else if (entry.name.endsWith('.md')) {
+      files.push(full);
+    }
+  }
+  return files;
+}
+
+test('skill documents never resolve Skill scripts through CLAUDE_PLUGIN_ROOT', () => {
+  const offenders = [];
+  for (const file of skillMarkdownFiles(path.join(ROOT, 'skills'))) {
+    const lines = fs.readFileSync(file, 'utf8').split('\n');
+    lines.forEach((line, index) => {
+      if (/CLAUDE_PLUGIN_ROOT[^}]*\}\/skills\/[^/\s`]+\/scripts/.test(line)) {
+        offenders.push(`${path.relative(ROOT, file)}:${index + 1}`);
+      }
+    });
+  }
+  assert.deepStrictEqual(offenders, [], `use "$SKILL_DIR/scripts/..." instead:\n${offenders.join('\n')}`);
+});
+
 run('skill-runtime-path-contract');

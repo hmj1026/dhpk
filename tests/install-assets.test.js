@@ -338,4 +338,21 @@ for (const component of ['leaf', 'ancestor']) {
   });
 }
 
+test('scripts installation reports leftover legacy resume helpers without blocking or deleting them', () => {
+  const ctx = fixture();
+  try {
+    const legacyDir = path.join(ctx.target, 'scripts', 'opsx-apply-resume');
+    fs.mkdirSync(legacyDir, { recursive: true });
+    const helper = path.join(legacyDir, 'post-obs.sh');
+    fs.writeFileSync(helper, 'consumer-edited helper\n');
+    const res = install(ctx, ['--install', 'scripts']);
+    const output = `${res.stdout}\n${res.stderr}`;
+    assert.strictEqual(res.status, 0, output);
+    assert.match(output, new RegExp(`LEGACY PRESERVED ${helper.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    assert.match(output, /opsx-apply-resume Skill/);
+    assert.doesNotMatch(output, /LEGACY PRESERVED .*detect-phase\.sh/);
+    assert.strictEqual(fs.readFileSync(helper, 'utf8'), 'consumer-edited helper\n');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
 run('setup-install-assets');

@@ -381,4 +381,31 @@ test('relocated project setup keeps Host procedure resources local and declares 
   });
 });
 
+test('setup asset adapters are one manifest-synchronized source that names itself', () => {
+  const ROOT = path.join(__dirname, '..');
+  const { spawnSync } = require('node:child_process');
+  const canonical = 'skills/harness-setup/scripts/install-assets.sh';
+  const adapters = {
+    'harness-setup/install-assets': canonical,
+    'dhpk-project-setup/install-project-assets': 'skills/dhpk-project-setup/scripts/install-project-assets.sh',
+  };
+  const bytes = Object.values(adapters).map(rel => fs.readFileSync(path.join(ROOT, rel)));
+  assert.ok(bytes[0].equals(bytes[1]), 'adapters must be byte-identical copies of one source');
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'skill-resources.json'), 'utf8'));
+  const projectEntries = manifest.skills['project-setup'] || [];
+  assert.ok(
+    projectEntries.some(entry => entry.source === canonical && entry.destination === 'scripts/install-project-assets.sh'),
+    'dhpk-project-setup adapter must be synchronized from the harness-setup source',
+  );
+
+  for (const [name, rel] of Object.entries(adapters)) {
+    const result = spawnSync('bash', [path.join(ROOT, rel), '--help'], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, outputOf(result));
+    assert.match(result.stdout, new RegExp(`^Usage: ${path.basename(rel).replace('.', '\\.')} `, 'm'));
+    const missing = spawnSync('bash', [path.join(ROOT, rel)], { encoding: 'utf8' });
+    assert.match(missing.stderr, new RegExp(`\\[${name}\\] --source-artifact is required`));
+  }
+});
+
 run('skill-setup-family-isolation');

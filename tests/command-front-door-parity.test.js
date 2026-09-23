@@ -71,4 +71,30 @@ test('pilot Skill procedures retain package-local runner ownership and the new r
   }
 });
 
+function commandFiles() {
+  const roots = [path.join(ROOT, 'commands')];
+  for (const moduleName of fs.readdirSync(path.join(ROOT, 'modules'))) {
+    const dir = path.join(ROOT, 'modules', moduleName, 'commands');
+    if (fs.existsSync(dir)) roots.push(dir);
+  }
+  return roots.flatMap(dir => fs.readdirSync(dir)
+    .filter(name => name.endsWith('.md') && name !== 'INDEX.md')
+    .map(name => path.join(dir, name)));
+}
+
+test('every command front door states its non-use boundary before completion', () => {
+  // docs/agent-guidance/command-contract.md: "State the trigger and nearest
+  // non-use boundary before detailed mechanics."
+  const offenders = [];
+  for (const file of commandFiles()) {
+    const body = fs.readFileSync(file, 'utf8');
+    const boundary = body.search(/^Not for: \S/m);
+    const completion = body.search(/^Completion:/m);
+    if (boundary < 0 || (completion >= 0 && boundary > completion)) {
+      offenders.push(path.relative(ROOT, file));
+    }
+  }
+  assert.deepStrictEqual(offenders, [], `missing "Not for:" boundary:\n${offenders.join('\n')}`);
+});
+
 run('command-front-door-parity');

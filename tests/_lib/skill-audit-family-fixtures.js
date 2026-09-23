@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
+const { outputText } = require('./fixture-assertions');
 
 let registered = false;
 
@@ -146,10 +147,6 @@ function assertCachedArtifacts(first, second, context) {
     const latestJsonPath = path.join(repoCacheDir, 'latest.json');
     assert.deepStrictEqual(JSON.parse(fs.readFileSync(latestJsonPath, 'utf8')), JSON.parse(second.stdout));
   }
-}
-
-function outputText(result) {
-  return `${String(result.stdout || '')}\n${String(result.stderr || '')}`;
 }
 
 function parseJson(result, id) {

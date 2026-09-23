@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { assert } = require('./tinytest');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
+const { outputText } = require('./fixture-assertions');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SOURCES = Object.freeze({
@@ -38,9 +39,7 @@ const RESERVED_ENV = Object.freeze([
 
 let registered = false;
 
-function outputOf(result) {
-  return `${result && result.stdout ? result.stdout : ''}\n${result && result.stderr ? result.stderr : ''}`;
-}
+const outputOf = outputText;
 
 function quoteShell(value) {
   return `'${String(value).replace(/'/g, "'\\''")}'`;

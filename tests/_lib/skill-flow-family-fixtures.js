@@ -7,34 +7,21 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
+const { outputText, assertExpected } = require('./fixture-assertions');
 
 const FLOW_GUIDE_ACTION = 'scripts/action-runner.js';
 const FLOW_DRIVE_INVOCATION = 'scripts/invocation.js';
 
-function outputOf(result) {
-  return `${result.stdout || ''}\n${result.stderr || ''}`;
-}
-
-function assertExpected(result, expected) {
-  const output = outputOf(result);
-  assert.strictEqual(result.status, expected.status, output);
-  for (const fragment of expected.outputFragments || []) {
-    assert.ok(output.includes(fragment), `expected output fragment '${fragment}'\n${output}`);
-  }
-  for (const fragment of expected.absentFragments || []) {
-    assert.ok(!output.includes(fragment), `unexpected output fragment '${fragment}'\n${output}`);
-  }
-  if (expected.references) {
-    assert.deepStrictEqual(JSON.parse(result.stdout).references, expected.references);
-  }
-}
+const outputOf = outputText;
 
 function definition(definition) {
   return {
     ...definition,
-    expected: { ...definition.expected, output: definition.expected.outputFragments },
     assert(result) {
-      assertExpected(result, definition.expected);
+      assertExpected(result, definition.expected, definition.id);
+      if (definition.expected.references) {
+        assert.deepStrictEqual(JSON.parse(result.stdout).references, definition.expected.references);
+      }
     },
   };
 }
@@ -185,26 +172,26 @@ const DEFINITIONS = [
     id: 'flow-guide-help-unknown',
     entry: FLOW_GUIDE_ACTION,
     args: ['help', 'does-not-exist'],
-    expected: { status: 1, outputFragments: ['unknown-skill'] },
+    expected: { status: 1, output: ['unknown-skill'] },
   }),
   definition({
     id: 'flow-guide-help-known-non-codex',
     entry: FLOW_GUIDE_ACTION,
     args: ['help', 'dhpk-module-design'],
-    expected: { status: 1, outputFragments: ['not-codex-invokable'] },
+    expected: { status: 1, output: ['not-codex-invokable'] },
   }),
   definition({
     id: 'flow-guide-help-retired-name',
     entry: FLOW_GUIDE_ACTION,
     args: ['help', 'dhpk-post-dev-test'],
-    expected: { status: 1, outputFragments: ['retired'] },
+    expected: { status: 1, output: ['retired'] },
   }),
   definition({
     id: 'flow-guide-route-explicit-authority',
     entry: 'scripts/route-result.js',
     expected: {
       status: 0,
-      outputFragments: ['flow-drive', 'explicit-only', 'explicit-required', 'available'],
+      output: ['flow-drive', 'explicit-only', 'explicit-required', 'available'],
     },
     testdriver: (context) => runApiDriver(context, ROUTE_DRIVER),
   }),
@@ -214,7 +201,7 @@ const DEFINITIONS = [
     args: ['rules'],
     expected: {
       status: 0,
-      outputFragments: ['references/execution-bundle/rules/execution-policy.md'],
+      output: ['references/execution-bundle/rules/execution-policy.md'],
       references: [
         'references/execution-bundle/rules/execution-policy.md',
         'references/execution-bundle/skills/flow-guide/references/invocation-precedence.md',
@@ -227,32 +214,32 @@ const DEFINITIONS = [
     args: ['close'],
     expected: {
       status: 0,
-      outputFragments: ['references/handoff-and-verification.md', 'references/review-gate-mechanics.md'],
-      absentFragments: ['skills/flow-guide/references/'],
+      output: ['references/handoff-and-verification.md', 'references/review-gate-mechanics.md'],
+      absent: ['skills/flow-guide/references/'],
     },
   }),
   definition({
     id: 'flow-drive-confirmed-input',
     entry: FLOW_DRIVE_INVOCATION,
     args: ['confirmed-change-123'],
-    expected: { status: 0, outputFragments: ['"status":"ready"', 'confirmed-change-123'] },
+    expected: { status: 0, output: ['"status":"ready"', 'confirmed-change-123'] },
   }),
   definition({
     id: 'flow-drive-retired-codex-block',
     entry: FLOW_DRIVE_INVOCATION,
     args: ['confirmed-change-123', '--codex'],
-    expected: { status: 2, outputFragments: ['"status":"blocked"', '--codex', 'retired'] },
+    expected: { status: 2, output: ['"status":"blocked"', '--codex', 'retired'] },
   }),
   definition({
     id: 'flow-drive-dispatch-valid',
     entry: 'scripts/dispatch.js',
-    expected: { status: 0, outputFragments: ['RESOLVED', 'ready', 'workspace-write', 'fixture-model'] },
+    expected: { status: 0, output: ['RESOLVED', 'ready', 'workspace-write', 'fixture-model'] },
     testdriver: (context) => runApiDriver(context, dispatchDriver(DISPATCH_REQUEST)),
   }),
   definition({
     id: 'flow-drive-dispatch-invalid-authority',
     entry: 'scripts/dispatch.js',
-    expected: { status: 2, outputFragments: ['planner', 'workspace-write', 'authority'] },
+    expected: { status: 2, output: ['planner', 'workspace-write', 'authority'] },
     testdriver: (context) => runApiDriver(context, dispatchDriver(DISPATCH_REQUEST, true)),
   }),
 ];
