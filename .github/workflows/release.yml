@@ -47,6 +47,11 @@ jobs:
         with:
           node-version: '24'
 
+      # Ubuntu runners ship yq but not ripgrep. Several harness scripts
+      # require rg, and the isolated fixtures delegate to the host binary.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       # Re-run the full source test suite on the immutable tag with the same
       # strong containment contract as CI. Local macOS publish preflight may
       # use the portable adapter, but release authority stays on Linux.

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.63.1 — 2026-09-23 — Release workflow installs ripgrep before repository tests
+
+- **fix(release-workflow)** — Install ripgrep in the Release workflow before rerunning the bounded repository tests, matching CI, so the isolated code-trace and deploy-list fixtures no longer fail on the Ubuntu runner.
+
 ## 0.63.0 — 2026-09-23 — Publish self-contained Skill directories, portable command skills, and GPT-6 defaults
 
 - **BREAKING(skill-packaging)** — Remove per-Skill skill-package.json descriptors so no file is injected from outside a Skill directory, move the precommit, repo-verify, harness-audit, and opsx-apply-resume scripts into their Skill directories without shims, and publish complete Skill directories in Claude profile and AGY packages (new receipts omit skillPackageClosure).

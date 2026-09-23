@@ -4,10 +4,10 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.63.0",
-  "sourceCommit": "0d775fb610c914a411fd599f7af256554531ce1c",
-  "generatedFromCommit": "0d775fb610c914a411fd599f7af256554531ce1c",
-  "generatedFromTree": "f1930197bce79d05ae3b593678088c526bd74972",
+  "sourceVersion": "0.63.1",
+  "sourceCommit": "c0049fea4d045f7a04920b5bd321e8e1e6c7a061",
+  "generatedFromCommit": "c0049fea4d045f7a04920b5bd321e8e1e6c7a061",
+  "generatedFromTree": "b0d85455436c6b32a7276bfac46eac76872ea8aa",
   "inventoryDigest": "bd00136b3855d761fe1991b7abf70634d952f1764df3b78b8da9271868353c6d",
   "inventoryRevision": "sha256:b2de9604027d1af95634c4581547fcff1ac365bb2da114ebac0a754ea4ae4a7d",
   "generatorVersion": "1.0.0",
@@ -610,7 +610,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "c74844cd92343180f40cc44d72cadd6aa705df195d3e1314df799a07883c82af",
+    "planId": "b224f33cb51acf721252a052ec1bf2f55129e178c276e5c52d53ce579bfbdea4",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -736,10 +736,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "c74844cd92343180f40cc44d72cadd6aa705df195d3e1314df799a07883c82af",
+      "plan": "b224f33cb51acf721252a052ec1bf2f55129e178c276e5c52d53ce579bfbdea4",
       "inventory": "bd00136b3855d761fe1991b7abf70634d952f1764df3b78b8da9271868353c6d"
     },
-    "rollbackIdentity": "68ecc2b0387ed8e15c4e8ceb399bd57f635ddfc96e609714ff2be79a20eecc0b"
+    "rollbackIdentity": "c2c6b8a47b38e30100ce92d2edc165e352b687ec2081f6f6f48d297a669e2e61"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -2360,5 +2360,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "00e147050bbde59c50a34bcf6e33ec04e53ef06e583ca9317669604d5d1122aa"
+  "planFingerprint": "46570a5b86dcecbbab82c5736eb198b220c83e33b2ec7f3ddd3a184ea61ae88e"
 }
