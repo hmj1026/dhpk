@@ -54,8 +54,9 @@ The setup installer copies complete local trees to
 its own directory automatically, so it does not need an ambient dhpk checkout.
 The resume helpers are used from the installed `opsx-apply-resume` Skill; the
 setup installer no longer copies them and does not remove copies left under
-`.claude/dhpk/scripts/opsx-apply-resume/` by an older install. Delete those
-copies manually once nothing of yours calls them.
+`.claude/dhpk/scripts/opsx-apply-resume/` by an older install. It reports each
+leftover as `LEGACY PRESERVED <path>` without blocking the install; delete
+those copies manually once nothing of yours calls them.
 
 The setup installer has no ownership receipt for the former root files. It
 preserves any existing legacy runner file, reports the exact path and manual

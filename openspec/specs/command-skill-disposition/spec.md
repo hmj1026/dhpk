@@ -73,8 +73,8 @@ Grammar.
 
 ### Requirement: Public skill renames preserve stable identity
 
-The approved portable-command migration MAY rename a Skill's public name and
-canonical directory while retaining its stable ID and capability ID. Individual
+A renamed Skill SHALL retain its stable ID and capability ID; the approved
+portable-command migration MAY rename its public name and canonical directory. Individual
 unprefixed workflows use `portable-skill`; capability families retain their
 existing `portable-family` classification. Claude command names remain stable.
 

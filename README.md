@@ -398,8 +398,8 @@ dhpk/
 ├── scripts/
 │   ├── hooks/                    # core hooks incl. pre-edit-guard.sh, pre-bash-dispatch.sh, session-start.sh, subagent-stop-verify.sh, _lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
-│   ├── codemaps/, lib/, opsx-apply-resume/, validate/
-│   └── (harness-audit, precommit-runner, verify-runner, agy-adapt-agents, dep-audit)
+│   ├── codemaps/, lib/, release/, setup/, validate/
+│   └── (agy-adapt-agents, dep-audit, review-gate-runtime, install, …)
 ├── docs/
 │   ├── configuration.md, configuration.zh-TW.md      # full userConfig reference
 │   ├── basic-operations.md, basic-operations.zh-TW.md # install + workflow lifecycle

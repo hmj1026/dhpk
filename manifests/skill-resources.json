@@ -665,6 +665,10 @@
       {
         "source": "scripts/setup/install-assets.sh",
         "destination": "scripts/lib/install-assets-writer.sh"
+      },
+      {
+        "source": "skills/harness-setup/scripts/install-assets.sh",
+        "destination": "scripts/install-project-assets.sh"
       }
     ],
     "react-18-notes": [

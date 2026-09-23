@@ -371,8 +371,8 @@ dhpk/
 ├── scripts/
 │   ├── hooks/                    # 核心 hook，含 pre-edit-guard.sh、pre-bash-dispatch.sh、session-start.sh、subagent-stop-verify.sh、_lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
-│   ├── codemaps/、lib/、opsx-apply-resume/、validate/
-│   └── （harness-audit、precommit-runner、verify-runner、agy-adapt-agents、dep-audit）
+│   ├── codemaps/、lib/、release/、setup/、validate/
+│   └── （agy-adapt-agents、dep-audit、review-gate-runtime、install 等）
 ├── docs/
 │   ├── configuration.md、configuration.zh-TW.md      # 完整 userConfig 參考
 │   ├── basic-operations.md、basic-operations.zh-TW.md # 安裝與工作流生命週期
