@@ -146,6 +146,15 @@ test('release workflow reruns repository tests under the required Linux bounded 
   assert.match(boundedBlock, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js/);
 });
 
+// Ubuntu runners do not ship ripgrep, and the isolated skill fixtures delegate
+// to the host rg binary. CI installs it; the release rerun must match.
+test('release workflow installs ripgrep before the bounded repository tests', () => {
+  const installIdx = raw.search(/apt-get install -y ripgrep/);
+  const boundedIdx = raw.indexOf('Verify bounded repository tests');
+  assert.ok(installIdx !== -1, 'release workflow must install ripgrep for the repository tests');
+  assert.ok(installIdx < boundedIdx, 'ripgrep must be installed before the bounded repository tests run');
+});
+
 test('a post-publish consumer-verify job runs the full harness release probe and reports via the job summary, never editing the release', () => {
   assert.ok(raw.includes('consumer-verify:'), 'missing consumer-verify job');
   assert.ok(raw.includes('bin/dhpk harness release'), 'consumer-verify must run the public release facade');
