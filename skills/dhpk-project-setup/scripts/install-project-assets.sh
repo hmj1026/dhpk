@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Portable asset adapter for the relocated dhpk-project-setup Skill.
+# Portable asset adapter shared by the setup Skills. harness-setup owns this
+# source and dhpk-project-setup ships a synchronized copy named
+# install-project-assets.sh, so the adapter names itself from its path.
 # The source artifact is data; only the synchronized writer beside this file
 # is executable.
 set -u
 
-ADAPTER_NAME="dhpk-project-setup/install-project-assets"
+SCRIPT_NAME="$(basename -- "${BASH_SOURCE[0]}")"
+ADAPTER_NAME="${SCRIPT_NAME%.sh}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P)" || {
     printf '[%s] BLOCKED_RESOURCE_MISSING: cannot resolve Skill directory\n' "$ADAPTER_NAME" >&2
     exit 1
@@ -13,6 +16,8 @@ SKILL_ROOT="$(cd -- "$SCRIPT_DIR/.." 2>/dev/null && pwd -P)" || {
     printf '[%s] BLOCKED_RESOURCE_MISSING: cannot resolve Skill root\n' "$ADAPTER_NAME" >&2
     exit 1
 }
+SKILL_NAME="$(basename -- "$SKILL_ROOT")"
+ADAPTER_NAME="$SKILL_NAME/${SCRIPT_NAME%.sh}"
 WRITER="$SCRIPT_DIR/lib/install-assets-writer.sh"
 
 SOURCE_ARTIFACT=""
@@ -23,8 +28,8 @@ FORCE=0
 HELP=0
 
 usage() {
-    cat <<'EOF'
-Usage: install-project-assets.sh --source-artifact DIR --target DIR --install hooks|rules|scripts|all [--dry-run] [--force]
+    cat <<EOF
+Usage: $SCRIPT_NAME --source-artifact DIR --target DIR --install hooks|rules|scripts|all [--dry-run] [--force]
 
 Copies selected assets from the explicit distribution artifact into TARGET.
 The artifact is read as data; only the Skill-local writer is executed.
@@ -162,9 +167,9 @@ TARGET="$(absolute_path "$TARGET")"
 valid_payload ||
     fail_result SOURCE_ARTIFACT_INVALID "selected '$INSTALL' payload is missing or invalid"
 
-stdout_file="$(mktemp "${TMPDIR:-/tmp}/dhpk-project-assets.XXXXXX")" ||
+stdout_file="$(mktemp "${TMPDIR:-/tmp}/dhpk-$SKILL_NAME-assets.XXXXXX")" ||
     fail_result WRITER_FAILED 'cannot allocate writer output buffer'
-stderr_file="$(mktemp "${TMPDIR:-/tmp}/dhpk-project-assets.XXXXXX")" || {
+stderr_file="$(mktemp "${TMPDIR:-/tmp}/dhpk-$SKILL_NAME-assets.XXXXXX")" || {
     rm -f "$stdout_file"
     fail_result WRITER_FAILED 'cannot allocate writer error buffer'
 }

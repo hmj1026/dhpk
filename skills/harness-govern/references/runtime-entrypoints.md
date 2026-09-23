@@ -9,12 +9,13 @@ subcommand in that run.
 Set `SYNC_CLI` to:
 
 ```bash
-SYNC_CLI="${CLAUDE_PLUGIN_ROOT}/skills/harness-govern/scripts/multi_ai_sync.py"
+SYNC_CLI="$SKILL_DIR/scripts/multi_ai_sync.py"
 ```
 
-The plugin root must contain the referenced script. If
-`CLAUDE_PLUGIN_ROOT` is unavailable or the file is missing, stop and report the
-runtime resolution blocker.
+`$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`;
+it is path notation, not an ambient environment variable or plugin-root lookup.
+If the file is missing below that directory, stop with
+`BLOCKED_RESOURCE_MISSING` and report the runtime resolution blocker.
 
 ## Codex project harness
 

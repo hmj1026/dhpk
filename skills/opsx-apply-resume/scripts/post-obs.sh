@@ -50,7 +50,11 @@ if [[ -n "$OBS_FP" && -f "$FP_FILE" ]]; then
   fi
 fi
 
-RESULT_FILE=$(mktemp /tmp/claude-mem-obs-result-XXXXXX.json)
+RESULT_FILE=$(mktemp "${TMPDIR:-/tmp}/claude-mem-obs-result.XXXXXX") || {
+  echo "[post-obs] cannot create a result temp file under ${TMPDIR:-/tmp}" >&2
+  echo "null"
+  exit 0
+}
 trap 'rm -f "$RESULT_FILE"' EXIT
 
 curl -s -m 5 -X POST "http://127.0.0.1:${PORT}/api/observations" \
