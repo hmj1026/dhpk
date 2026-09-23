@@ -3,10 +3,10 @@
   "surface": "agent-plugin",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
-  "sourceVersion": "0.62.4",
-  "sourceCommit": "56482f4a483cf43a5f6e9440fe7314b66aa8a561",
-  "generatedFromCommit": "56482f4a483cf43a5f6e9440fe7314b66aa8a561",
-  "generatedFromTree": "b9b0977d184d9af22307b2ad5696888d5697baa0",
+  "sourceVersion": "0.63.0",
+  "sourceCommit": "0d775fb610c914a411fd599f7af256554531ce1c",
+  "generatedFromCommit": "0d775fb610c914a411fd599f7af256554531ce1c",
+  "generatedFromTree": "f1930197bce79d05ae3b593678088c526bd74972",
   "inventoryDigest": "c02a3f05d66dd7991642490bc26b129b48abd7afe2d0f111526b8fcace31d31b",
   "inventoryRevision": "sha256:b2de9604027d1af95634c4581547fcff1ac365bb2da114ebac0a754ea4ae4a7d",
   "generatorVersion": "1.0.0",
@@ -190,7 +190,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "4db2d3be2a87329abe705c4b9f53ae973e75160034e088625ad7867ac5f0bf6b",
+    "planId": "2c94019dfcdfbf6b2420484b33832f0a3d7ef1481728b376352000e41aa3cf56",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -316,10 +316,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "4db2d3be2a87329abe705c4b9f53ae973e75160034e088625ad7867ac5f0bf6b",
+      "plan": "2c94019dfcdfbf6b2420484b33832f0a3d7ef1481728b376352000e41aa3cf56",
       "inventory": "c02a3f05d66dd7991642490bc26b129b48abd7afe2d0f111526b8fcace31d31b"
     },
-    "rollbackIdentity": "999c432229d3fd087d447df4a2b1dbd3aa596cea1f1ece86087c8965708275ff"
+    "rollbackIdentity": "295b5245e013e381a0436e2e1179d95cb5f19497383a75d4b91f56df11a6d94b"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

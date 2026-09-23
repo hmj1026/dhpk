@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.63.0 — 2026-09-23 — Publish self-contained Skill directories, portable command skills, and GPT-6 defaults
+
+- **BREAKING(skill-packaging)** — Remove per-Skill skill-package.json descriptors so no file is injected from outside a Skill directory, move the precommit, repo-verify, harness-audit, and opsx-apply-resume scripts into their Skill directories without shims, and publish complete Skill directories in Claude profile and AGY packages (new receipts omit skillPackageClosure).
+- **feat(codex-native)** — Ship the 16 portable command skills plus js-static-check-strategy, matrix-cell-onboard, and release-creator in the Codex native package, growing it from 13 to 32 selected skills.
+- **feat(model-economics)** — Move Codex role and CLI-worker defaults to GPT-6 (`gpt-6-sol` replaces GPT-5.6 Sol and Terra, `gpt-6-luna` replaces GPT-5.6 Luna), pin Claude Code and Cursor Claude routes to Opus 5.5, and refresh published model pricing; existing `codex_*_model` overrides keep working.
+- **fix(portable-command-skills)** — Resolve skill entry scripts through the physical Skill directory instead of CLAUDE_PLUGIN_ROOT, report leftover legacy resume helpers during setup, surface runner-log write failures, fix a macOS mktemp collision in post-obs.sh, and state a non-use boundary on every command front door.
+- **refactor(portable-command-skills)** — Extract command workflows into portable skills with prefix-free public names, thin Claude entry points, and self-contained Skill directories; retain explicit Host capability and consumer-evidence boundaries.
+
 ## 0.62.4 — 2026-09-18 — Fix Codex probe timeout, agents-skills update drift, and Claude marketplace package sync
 
 - **fix(agents-skills)** — Allow `gen-agents-skills --update` to overwrite drifted receipt-owned managed files from current canonical sources.
