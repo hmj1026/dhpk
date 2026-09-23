@@ -1,43 +1,18 @@
 ---
-description: 'Manage git worktrees — create, list, remove, parallel branch development'
+description: 'Short Claude front door for the $git-worktree Skill and native Git worktree lifecycle.'
 argument-hint: '[add|list|remove|prune] [--branch <name>] [--base <ref>]'
-allowed-tools: 'Bash(git:*), Read, Grep, Glob'
+allowed-tools: 'Bash(git:*), Read, Grep, Glob, Skill'
 metadata:
-  dhpk-invocation-class: implicit-eligible
+  dhpk-invocation-class: explicit-only
+disable-model-invocation: true
 ---
 
-## Contract
+# `/dhpk:git-worktree`
 
-Use for worktree lifecycle operations; do not remove or prune a worktree
-without confirmation. See the [command contract](../docs/agent-guidance/command-contract.md).
-Stop when a branch/path is missing or dirty; completion reports exact commands
-and resulting status.
+Forward the supplied sub-command and options unchanged to the canonical
+`$git-worktree` Skill. It owns native Git target resolution, dirty checks,
+`wt-{repo-shortname}-{purpose}` naming, confirmation for remove/prune, and
+the resulting status. This command adds no lifecycle procedure.
 
-## Context
-
-- Worktrees: !`git worktree list 2>/dev/null || echo 'not in a git repo'`
-- Branch: !`git rev-parse --abbrev-ref HEAD`
-
-## Task
-
-Follow the `git-worktree` skill workflow.
-
-### Sub-commands
-
-| Sub-command | Action |
-|-------------|--------|
-| `add` | Create new worktree (ask for branch + purpose) |
-| `list` | Show all worktrees with status |
-| `remove` | Remove a worktree (with confirmation) |
-| `prune` | Clean up stale worktree records |
-| (none) | Show current worktrees and suggest actions |
-
-### Naming
-
-Use `wt-{repo-shortname}-{purpose}` format, placed in repo's parent directory.
-
-## Output
-
-For `add`: the exact `git worktree add` command and next steps.
-For `list`: formatted table of worktrees.
-For `remove`: confirmation prompt then `git worktree remove` command.
+Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
+`BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

@@ -1,5 +1,9 @@
 # Invocation classification decision table
 
+The `skills/`, `modules/`, and `agents/` paths below describe target-project
+inputs and classification evidence. They are not required resources of a raw
+Skill bundle and must never trigger an upward checkout search.
+
 SSOT for every Distributed Skill and Distributed Command's `explicit-only` /
 `implicit-eligible` classification (`metadata.dhpk-invocation-class`). Reviewed
 once per entry against maximum authority, not inferred from descriptions or
@@ -58,7 +62,7 @@ Notes on close calls:
 All implicit-eligible: these are stack reference/guidance packages (language
 and framework "notes," lint/type-check strategy, test strategy) loaded to
 inform in-scope implementation or review. None can setup, install, commit,
-release, or write externally. This includes `dhpk-matrix-cell-onboard` (a guided
+release, or write externally. This includes `matrix-cell-onboard` (a guided
 checklist for CI-matrix cells — no elevated tools, editing stays within the
 already-authorized library-authoring request).
 

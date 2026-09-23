@@ -7,29 +7,12 @@ metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-## Context
+Forward `$ARGUMENTS` unchanged to the explicit-only, git-write
+`$git-smart-commit` Skill.
+It owns status/diff collection, sensitive-file handling, cohesive grouping,
+project-style messages, confirmation, and copy-pasteable git commands.
 
-- Status: !`git status --short`
-- Recent style: !`git log --oneline -10`
-- Branch: !`git rev-parse --abbrev-ref HEAD`
-
-## Task
-
-Follow the `git-smart-commit` skill workflow:
-
-1. **Detect mode**: Read CLAUDE.md / execution-policy "Git pipeline" → manual or auto
-2. **Pre-flight**: Verify `/precommit` passed for code changes
-3. **Collect**: `git status`, `git diff --stat`, exclude sensitive files
-4. **Group**: High-cohesion grouping (staged first, then by feature/type)
-5. **Generate**: Commit messages matching project style + git commands
-6. **Verify**: `git status` after user executes
-
-Arguments:
-- `--scope <path>`: Only include changes under this path
-- `--type <type>`: Force all commits to use this type (feat/fix/docs/etc.)
-- `--ai-co-author`: Add `Co-Authored-By: Claude <noreply@anthropic.com>` trailer to commit messages (off by default)
-
-## Output
-
-For each commit group, output a code block with copy-pasteable git commands.
-Respect `rules/execution-policy.md` "Git pipeline" — if Claude is forbidden from git commit, output commands only.
+Preserve the `--scope`, `--type`, and `--ai-co-author` options and the
+execution-policy git-pipeline boundary. Relay the owner’s plan or executed
+result; do not add a second commit grammar or claim commits were created from
+commands that were only proposed.

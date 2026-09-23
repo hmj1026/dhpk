@@ -1,0 +1,4 @@
+interface:
+  display_name: "Merge Prep"
+  short_description: "Prepare a read-only branch merge analysis"
+  default_prompt: "Use $merge-prep to analyze a branch merge without mutation."

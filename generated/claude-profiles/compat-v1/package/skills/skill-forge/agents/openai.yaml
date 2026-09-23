@@ -1,0 +1,6 @@
+interface:
+  display_name: "Skill Forge"
+  short_description: "Create skills or distill approved rules"
+  default_prompt: "Use $skill-forge explicitly for skill authoring or cross-skill rules distillation."
+policy:
+  allow_implicit_invocation: false

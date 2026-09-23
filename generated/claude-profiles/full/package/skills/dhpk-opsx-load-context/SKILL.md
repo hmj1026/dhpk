@@ -9,7 +9,9 @@ metadata:
 # opsx-load-context
 
 Context loading skill for `opsx-apply-resume` Resume Phase.
-Implements a 3-tier fallback so that context is always available even if earlier tiers fail.
+Uses a 3-tier fallback; a valid handoff is required for the final tier, and a missing handoff is reported unavailable.
+`$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`; it is path notation,
+not an ambient environment variable or repository-root lookup. Keep the consumer's cwd as task context.
 
 ## When NOT to Use
 
@@ -24,6 +26,7 @@ Implements a 3-tier fallback so that context is always available even if earlier
 | `claude_mem_obs_id` | Handoff frontmatter | Integer obs ID, or null / absent |
 | `compact_json_path` | Handoff frontmatter | Relative path like `compact-notes/compact-*.json`, or absent |
 | `next_action_hint` | First Next Action from handoff | Key terms for cross-session search; may be empty |
+| `handoff_path` | Host adapter | Explicit handoff file; defaults to `.claude/artifacts/apply-resume/latest.md` |
 
 ## Fallback Chain
 
@@ -48,8 +51,7 @@ ESCALATION=$(ls -t openspec/changes/*/.hard-rule-escalation.md 2>/dev/null | hea
   loop until the human explicitly decides how to resolve the rule conflict.
 - No file (the common case) → fall through to the unattended stop resume note.
 
-Best-effort only: a malformed or unreadable escalation file still blocks; report
-the path and ask the human to inspect it.
+Best-effort only: a malformed or unreadable escalation still blocks; report its path and ask the human to inspect it.
 
 ---
 
@@ -71,7 +73,7 @@ RESUME=$(ls -t openspec/changes/*/.resume-note.md 2>/dev/null | head -1)
   run the optional cross-session step below).
 - No file (the common case) → fall through to Tier 0. Behavior unchanged.
 
-Best-effort only: a malformed or unreadable note → silently fall through.
+Best-effort only: a malformed or unreadable note silently falls through.
 
 ---
 
@@ -94,11 +96,9 @@ get_observations(ids=[<claude_mem_obs_id>])
 **Condition**: a compact-notes JSON exists — either the explicit
 `compact_json_path` from handoff frontmatter, or the newest one on disk.
 
-Read `references/extractor-resolution.md` when Tier 1 is used. Its resolver
-checks explicit `CLAUDE_PLUGIN_ROOT`/`PLUGIN_ROOT` candidates for an installed
-plugin, then `DHPK_SOURCE_ROOT` for a source checkout. If none exists, report
-the actionable `unresolved` state and continue to Tier 2; never guess a
-consumer `.claude` path.
+Read `references/extractor-resolution.md` when Tier 1 is used. Invoke the local
+`"$SKILL_DIR/scripts/extract-compact.sh"`; if it is missing, report `BLOCKED_RESOURCE_MISSING` and
+continue to Tier 2; never search a plugin root, source checkout, consumer `.claude` directory, or peer Skill.
 
 - Script outputs fields → parse L0, session_goal, completed, in_progress.
   Set `CONTEXT_SOURCE = "compact JSON"` — append `(heuristic)` when `$COMPACT`
@@ -107,12 +107,15 @@ consumer `.claude` path.
 
 ---
 
-### Tier 2 — Handoff embedded summary (always succeeds)
+### Tier 2 — Handoff embedded summary
 
-Use the `## Compact Summary`, `### Completed`, and `### In Progress` sections embedded in
-`.claude/artifacts/apply-resume/latest.md` (already read in Resume Phase Step 1).
+**Condition**: `handoff_path` exists and is readable. Use its `## Compact Summary`,
+`### Completed`, and `### In Progress` sections (already read in Resume Phase Step 1).
 
 Set `CONTEXT_SOURCE = "handoff only"`.
+
+If `handoff_path` is missing or unreadable, set `CONTEXT_SOURCE = "handoff unavailable"`, leave
+fields empty or `(未取得)`, and surface `BLOCKED_RESOURCE_MISSING` with the path.
 
 ---
 
@@ -131,16 +134,13 @@ search(
 
 - Relevant results → `get_observations(ids=[<up to 3 IDs>])` → store as `cross_session_observations`.
 - No relevant results or search fails → set `cross_session_observations = []`. Silently skip.
-
-Cross-session context is always optional — never retry or block on it.
-
 ---
 
 ## Output
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `CONTEXT_SOURCE` | string | One of: ".hard-rule-escalation.md", ".resume-note.md", "claude-mem obs #N", "compact JSON", "compact JSON (heuristic)", "handoff only" |
+| `CONTEXT_SOURCE` | string | One of: ".hard-rule-escalation.md", ".resume-note.md", "claude-mem obs #N", "compact JSON", "compact JSON (heuristic)", "handoff only", "handoff unavailable" |
 | `session_goal` | string | Goal from context, or "(未取得)" |
 | `completed` | list | Completed items, or empty list |
 | `in_progress` | list | In-progress items, or empty list |
@@ -153,7 +153,7 @@ All variables always set — no undefined outputs. The caller (Resume Phase Step
 - [ ] `CONTEXT_SOURCE` set to exactly one tier label
 - [ ] Pre-chain `.hard-rule-escalation.md` checked before `.resume-note.md`; both absent → falls through silently to Tier 0
 - [ ] Stopped at the first successful tier (no redundant lower-tier calls)
-- [ ] All return fields set — no undefined outputs (Tier 2 always succeeds from handoff)
+- [ ] All return fields set — no undefined outputs (missing handoff returns an unavailable diagnostic)
 - [ ] Cross-session search failure handled silently (`cross_session_observations = []`)
 
 ## Guardrails
@@ -161,4 +161,4 @@ All variables always set — no undefined outputs. The caller (Resume Phase Step
 - Never throw on partial failure — always complete the chain and return `CONTEXT_SOURCE`
 - "compact JSON (heuristic)" is acceptable quality; note in Step 3 display that it is a heuristic path
 - Cross-session search failure is silent — the resume can proceed without it
-- If all tiers fail (impossible in practice since Tier 2 always succeeds from handoff), set `CONTEXT_SOURCE = "handoff only"` and use empty strings for context fields
+- If all tiers fail, set `CONTEXT_SOURCE = "handoff unavailable"`, use empty strings for context fields, and preserve the blocking diagnostic instead of claiming success

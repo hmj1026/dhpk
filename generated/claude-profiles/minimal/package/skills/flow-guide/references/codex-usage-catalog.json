@@ -1,7 +1,45 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:2954a33c2968b910988e43da944ad7fae55ca256bf1e9b0daabca0a37ca56a91",
+  "sourceInventoryRevision": "sha256:b2de9604027d1af95634c4581547fcff1ac365bb2da114ebac0a754ea4ae4a7d",
   "entries": [
+    {
+      "id": "code-simplify",
+      "name": "code-simplify",
+      "usage": {
+        "display_name": "Code Simplify",
+        "summary": "Clean changed code without changing behavior",
+        "syntax": "$code-simplify [<target>]",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "target",
+            "syntax": "<target>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "PR, branch, file, or directory"
+          }
+        ],
+        "actions": [
+          {
+            "id": "simplify",
+            "summary": "Apply bounded cleanup with test evidence",
+            "syntax": "$code-simplify [<target>]",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$code-simplify src/",
+            "summary": "Use code simplify with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "2d93bfcf975a3ae16ddc754187f387ab1ef4ae4f25abe2aa6b9235ca2f6e0069"
+    },
     {
       "id": "code-trace",
       "name": "code-trace",
@@ -119,34 +157,125 @@
       "usageFingerprint": "48654b9393cc852db2f54b7801cc7b40eee7b13eeab8b85ee8244d8248a9d438"
     },
     {
-      "id": "git-smart-commit",
-      "name": "dhpk-git-smart-commit",
+      "id": "create-pr",
+      "name": "create-pr",
       "usage": {
-        "display_name": "Git Smart Commit",
-        "summary": "Group related changes into reviewable commits safely",
-        "syntax": "$dhpk-git-smart-commit",
+        "display_name": "Create PR",
+        "summary": "Create a ticket-aware pull request with a safe dry-run boundary",
+        "syntax": "$create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]",
         "input_kind": "none",
         "invocation_class": "explicit-only",
-        "effect_authority": "git-write",
+        "effect_authority": "external-write",
         "inputs": [],
         "actions": [
           {
-            "id": "group",
-            "summary": "Analyze changes and produce grouped commit steps",
-            "syntax": "$dhpk-git-smart-commit",
+            "id": "create",
+            "summary": "Create or preview one pull request",
+            "syntax": "$create-pr [--execute]",
             "input_kind": "none",
-            "effect_authority": "git-write"
+            "effect_authority": "external-write"
           }
         ],
-        "options": [],
+        "options": [
+          {
+            "id": "head",
+            "syntax": "--head=<branch>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Use this source branch"
+          },
+          {
+            "id": "base",
+            "syntax": "--base=<branch>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Use this target branch"
+          },
+          {
+            "id": "title",
+            "syntax": "--title=<text>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Override the generated title"
+          },
+          {
+            "id": "execute",
+            "syntax": "--execute",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Perform the explicit remote create",
+            "default": false
+          },
+          {
+            "id": "dry-run",
+            "syntax": "--dry-run",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Preview without remote mutation",
+            "default": true
+          }
+        ],
         "examples": [
           {
-            "prompt": "$dhpk-git-smart-commit split these changes into logical commits",
-            "summary": "Prepare a safe grouped commit plan"
+            "prompt": "$create-pr --dry-run",
+            "summary": "Use create pr with its declared interface"
           }
         ]
       },
-      "usageFingerprint": "148b517b9f9bdac3f6f388f928b2df36219e99736af7c064ed1c35537950bedb"
+      "usageFingerprint": "f0da5b3f83857f6bb3b5f4a0cc91fde5a2e046f267c0899b0fce16276ba77ec0"
+    },
+    {
+      "id": "dep-audit",
+      "name": "dep-audit",
+      "usage": {
+        "display_name": "Dependency Audit",
+        "summary": "Audit dependency risks with a separate explicit fix boundary",
+        "syntax": "$dep-audit [--level=<severity>] [--fix]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "audit",
+            "summary": "Audit dependency vulnerabilities and optional fixes",
+            "syntax": "$dep-audit",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "level",
+            "syntax": "--level=<severity>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Minimum severity to report",
+            "default": "moderate",
+            "enum_values": [
+              "low",
+              "moderate",
+              "high",
+              "critical"
+            ]
+          },
+          {
+            "id": "fix",
+            "syntax": "--fix",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Run the explicitly requested fix operation",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$dep-audit --level=high",
+            "summary": "Use dependency audit with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "6ab9eeed7127559c6b5075f06b7284a7fad7f6d4aa68472b0d5e0f1a1075506a"
     },
     {
       "id": "legacy-code-characterization",
@@ -293,68 +422,6 @@
       "usageFingerprint": "3a76f007639517b3c23df7cae997f8e7a4b515adc19dfe5d4b34b609ea78753b"
     },
     {
-      "id": "tdd",
-      "name": "dhpk-tdd-workflow",
-      "usage": {
-        "display_name": "TDD",
-        "summary": "Drive behavior-first tests through a minimal red-green loop",
-        "syntax": "$dhpk-tdd-workflow [test-generation] <task>",
-        "input_kind": "mixed",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "mode",
-            "syntax": "<test-generation>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Optionally request test scaffold generation",
-            "enum_values": [
-              "test-generation"
-            ],
-            "applies_to": [
-              "test-generation"
-            ]
-          },
-          {
-            "id": "task",
-            "syntax": "<task>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Describe the behavior-first development task",
-            "applies_to": [
-              "tdd",
-              "test-generation"
-            ]
-          }
-        ],
-        "actions": [
-          {
-            "id": "tdd",
-            "summary": "Guide a behavior-first test and implementation loop",
-            "syntax": "$dhpk-tdd-workflow <task>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "test-generation",
-            "summary": "Generate a focused failing-test scaffold",
-            "syntax": "$dhpk-tdd-workflow test-generation <target>",
-            "input_kind": "path",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-tdd-workflow test-generation tests/OrderTest.php",
-            "summary": "Start with a behavior-focused test scaffold"
-          }
-        ]
-      },
-      "usageFingerprint": "4ddd4af41c7b24ea004c4bc49ebe4c37e6b23214026e03052409a0e7dfcb9d00"
-    },
-    {
       "id": "php56-yii-dev",
       "name": "dhpk-yii1-php56-development",
       "usage": {
@@ -443,6 +510,44 @@
         ]
       },
       "usageFingerprint": "cbe9ae60baa0624c71a2544a1f8e98167ed4b0ae05c2961cab63b62cc20c12ef"
+    },
+    {
+      "id": "doc-refactor",
+      "name": "doc-refactor",
+      "usage": {
+        "display_name": "Doc Refactor",
+        "summary": "Refactor one bounded Markdown document while preserving facts",
+        "syntax": "$doc-refactor <file-path>",
+        "input_kind": "path",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "file-path",
+            "syntax": "<file-path>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "One Markdown document"
+          }
+        ],
+        "actions": [
+          {
+            "id": "refactor",
+            "summary": "Rewrite one bounded document and validate its links",
+            "syntax": "$doc-refactor <file-path>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$doc-refactor docs/guide.md",
+            "summary": "Use doc refactor with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "8402542106387deb6c4f762a499aa8dba6f25ad73306294ebdcc047d1014a101"
     },
     {
       "id": "flow-drive",
@@ -678,6 +783,200 @@
       "usageFingerprint": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369"
     },
     {
+      "id": "git-smart-commit",
+      "name": "git-smart-commit",
+      "usage": {
+        "display_name": "Git Smart Commit",
+        "summary": "Group related changes into reviewable commits safely",
+        "syntax": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
+        "input_kind": "none",
+        "invocation_class": "explicit-only",
+        "effect_authority": "git-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "group",
+            "summary": "Analyze changes and produce grouped commit steps",
+            "syntax": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
+            "input_kind": "none",
+            "effect_authority": "git-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "scope",
+            "syntax": "--scope=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Limit status and diff collection"
+          },
+          {
+            "id": "type",
+            "syntax": "--type=<type>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Force a conventional commit type",
+            "enum_values": [
+              "feat",
+              "fix",
+              "docs",
+              "refactor",
+              "style",
+              "chore",
+              "test"
+            ]
+          },
+          {
+            "id": "ai-co-author",
+            "syntax": "--ai-co-author",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Opt into the project-approved AI trailer",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$git-smart-commit --scope=src/",
+            "summary": "Use git smart commit with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "bf7f04db7306d231b79a4e95374595c27fd56c8cd665f04394085a23af15b9f5"
+    },
+    {
+      "id": "git-worktree",
+      "name": "git-worktree",
+      "usage": {
+        "display_name": "Git Worktree",
+        "summary": "Manage native Git worktrees with confirmation boundaries",
+        "syntax": "$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]",
+        "input_kind": "action-first",
+        "invocation_class": "explicit-only",
+        "effect_authority": "git-write",
+        "inputs": [
+          {
+            "id": "operation",
+            "syntax": "<operation>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Worktree operation",
+            "default": "list",
+            "enum_values": [
+              "add",
+              "list",
+              "remove",
+              "prune"
+            ],
+            "applies_to": [
+              "manage"
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "id": "manage",
+            "summary": "Add, list, remove, or prune a worktree",
+            "syntax": "$git-worktree [<operation>]",
+            "input_kind": "action-first",
+            "effect_authority": "git-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "branch",
+            "syntax": "--branch=<name>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Branch used by add or remove"
+          },
+          {
+            "id": "base",
+            "syntax": "--base=<ref>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Base ref used when adding"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$git-worktree list",
+            "summary": "Use git worktree with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689"
+    },
+    {
+      "id": "harness-audit",
+      "name": "harness-audit",
+      "usage": {
+        "display_name": "Harness Audit",
+        "summary": "Audit repository harness health with a deterministic scorecard",
+        "syntax": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
+        "input_kind": "action-first",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [
+          {
+            "id": "scope",
+            "syntax": "<scope>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Harness area to inspect",
+            "default": "repo",
+            "enum_values": [
+              "repo",
+              "hooks",
+              "skills",
+              "commands",
+              "agents"
+            ],
+            "applies_to": [
+              "audit"
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "id": "audit",
+            "summary": "Run the deterministic harness audit",
+            "syntax": "$harness-audit [<scope>]",
+            "input_kind": "action-first",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "format",
+            "syntax": "--format=<format>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Output format",
+            "default": "text",
+            "enum_values": [
+              "text",
+              "json"
+            ]
+          },
+          {
+            "id": "root",
+            "syntax": "--root=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Consumer repository root"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$harness-audit skills --format=json",
+            "summary": "Use harness audit with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "c332dbc616714f42745d0cfcddc112b0452ec09ecf7f8b09c9cefb7549dda7f1"
+    },
+    {
       "id": "harness-govern",
       "name": "harness-govern",
       "usage": {
@@ -796,6 +1095,463 @@
       "usageFingerprint": "34ce3d263ed23aa924ae39a95916f45d7b7054cac3cc48ad515b90173f065989"
     },
     {
+      "id": "js-static-check-strategy",
+      "name": "js-static-check-strategy",
+      "usage": {
+        "display_name": "JS Static Check Strategy",
+        "summary": "Plan staged TypeScript checks and inspect strict-check progress",
+        "syntax": "$js-static-check-strategy status [--path=<path>]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "status",
+            "summary": "Report the current static-check status",
+            "syntax": "$js-static-check-strategy status [--path=<path>]",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "path",
+            "syntax": "--path=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Frontend root to scan"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$js-static-check-strategy status --path=js/",
+            "summary": "Use js static check strategy with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "d2e1037f13fd04f5e5597aab46728ab58bf5cc02e1634e0edd262322a463b3b9"
+    },
+    {
+      "id": "matrix-cell-onboard",
+      "name": "matrix-cell-onboard",
+      "usage": {
+        "display_name": "Matrix Cell Onboard",
+        "summary": "Plan and optionally apply one multi-major CI matrix cell",
+        "syntax": "$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "php-version",
+            "syntax": "<php-version>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "PHP runtime version"
+          },
+          {
+            "id": "laravel-version",
+            "syntax": "<laravel-version>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Laravel version"
+          },
+          {
+            "id": "phpunit",
+            "syntax": "<phpunit>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "PHPUnit version"
+          },
+          {
+            "id": "monolog",
+            "syntax": "<monolog>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Monolog version"
+          }
+        ],
+        "actions": [
+          {
+            "id": "onboard",
+            "summary": "Plan and apply one matrix cell",
+            "syntax": "$matrix-cell-onboard <php-version> <laravel-version>",
+            "input_kind": "mixed",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$matrix-cell-onboard 8.3 12 11 3",
+            "summary": "Use matrix cell onboard with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "e942d1c111138d66292691d79093d7dac1be21ddfd7fe5898a8edba1f546f2d3"
+    },
+    {
+      "id": "merge-prep",
+      "name": "merge-prep",
+      "usage": {
+        "display_name": "Merge Prep",
+        "summary": "Analyze a branch merge without mutating the repository",
+        "syntax": "$merge-prep <source-branch> [--target=<branch>]",
+        "input_kind": "identifier",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [
+          {
+            "id": "source-branch",
+            "syntax": "<source-branch>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Branch to analyze"
+          }
+        ],
+        "actions": [
+          {
+            "id": "prepare",
+            "summary": "Analyze merge conflicts and manual commands",
+            "syntax": "$merge-prep <source-branch>",
+            "input_kind": "identifier",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "target",
+            "syntax": "--target=<branch>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Target branch for the analysis"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$merge-prep feature/topic --target=main",
+            "summary": "Use merge prep with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "879b43381a9bf9c0233b0f17e9392bd161317d0a1cd9971d3e07a634b6bdd326"
+    },
+    {
+      "id": "pr-summary",
+      "name": "pr-summary",
+      "usage": {
+        "display_name": "PR Summary",
+        "summary": "Summarize open pull requests with evidence",
+        "syntax": "$pr-summary [--author=<user>] [--label=<label>]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "summarize",
+            "summary": "Group accessible open pull requests",
+            "syntax": "$pr-summary",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "author",
+            "syntax": "--author=<user>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Filter by pull-request author"
+          },
+          {
+            "id": "label",
+            "syntax": "--label=<label>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Filter by pull-request label"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$pr-summary --label=ready",
+            "summary": "Use pr summary with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "dcd0dbeea58a53a4a6f1947469a85b062a13f7f4580c33753c7d736cd141b670"
+    },
+    {
+      "id": "precommit",
+      "name": "precommit",
+      "usage": {
+        "display_name": "Precommit",
+        "summary": "Run the packaged deterministic pre-commit pipeline",
+        "syntax": "$precommit [--fast]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "run",
+            "summary": "Run fast or full pre-commit stages",
+            "syntax": "$precommit [--fast]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "fast",
+            "syntax": "--fast",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Run the fast stage set",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$precommit --fast",
+            "summary": "Use precommit with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699"
+    },
+    {
+      "id": "project-brief",
+      "name": "project-brief",
+      "usage": {
+        "display_name": "Project Brief",
+        "summary": "Convert one technical specification into an executive brief",
+        "syntax": "$project-brief <tech-spec-path> [--output=<output-path>]",
+        "input_kind": "path",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "tech-spec-path",
+            "syntax": "<tech-spec-path>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Readable technical specification"
+          }
+        ],
+        "actions": [
+          {
+            "id": "brief",
+            "summary": "Write an executive summary without changing the source",
+            "syntax": "$project-brief <tech-spec-path>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "output",
+            "syntax": "--output=<output-path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Destination for the brief"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$project-brief docs/spec.md --output=docs/brief.md",
+            "summary": "Use project brief with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "c9b320d28f4fb9dbd4c6b38dc2b376b847dd48102cbfd2f6f39f871f7ecbda8a"
+    },
+    {
+      "id": "proposal-analyze",
+      "name": "proposal-analyze",
+      "usage": {
+        "display_name": "Proposal Analyze",
+        "summary": "Turn a proposal into an evidence-backed implementation roadmap",
+        "syntax": "$proposal-analyze <proposal>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "proposal",
+            "syntax": "<proposal>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Proposal text or file path"
+          }
+        ],
+        "actions": [
+          {
+            "id": "analyze",
+            "summary": "Research a proposal and produce a roadmap",
+            "syntax": "$proposal-analyze <proposal>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$proposal-analyze openspec/changes/example/proposal.md",
+            "summary": "Use proposal analyze with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "89e3a151663d1389f14f9c10b547d09fb58dee3ab10a126491f546f0070f5e33"
+    },
+    {
+      "id": "release-creator",
+      "name": "release-creator",
+      "usage": {
+        "display_name": "Release Creator",
+        "summary": "Prepare or publish a validated release with a human gate",
+        "syntax": "$release-creator <version> [--execute]",
+        "input_kind": "identifier",
+        "invocation_class": "explicit-only",
+        "effect_authority": "external-write",
+        "inputs": [
+          {
+            "id": "version",
+            "syntax": "<version>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Release version"
+          }
+        ],
+        "actions": [
+          {
+            "id": "release",
+            "summary": "Prepare or publish one release",
+            "syntax": "$release-creator <version> [--execute]",
+            "input_kind": "identifier",
+            "effect_authority": "external-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "execute",
+            "syntax": "--execute",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Proceed past the human release gate",
+            "default": false
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$release-creator 0.62.4 --execute",
+            "summary": "Use release creator with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "7e3c907d8a22657cdfb8f3ba4f4962b13368f6621905bf23e9b8210ef8ae0e8c"
+    },
+    {
+      "id": "repo-verify",
+      "name": "repo-verify",
+      "usage": {
+        "display_name": "Repo Verify",
+        "summary": "Run runner-first repository verification with explicit evidence",
+        "syntax": "$repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]",
+        "input_kind": "action-first",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "inputs": [
+          {
+            "id": "mode",
+            "syntax": "<mode>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Verification depth",
+            "default": "full",
+            "enum_values": [
+              "fast",
+              "full"
+            ],
+            "applies_to": [
+              "verify"
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "id": "verify",
+            "summary": "Run fast or full repository verification",
+            "syntax": "$repo-verify [<mode>]",
+            "input_kind": "action-first",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "integration",
+            "syntax": "--integration=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Run the named integration stage"
+          },
+          {
+            "id": "e2e",
+            "syntax": "--e2e=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Run the named end-to-end stage"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$repo-verify fast",
+            "summary": "Use repo verify with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb"
+    },
+    {
+      "id": "review-pending",
+      "name": "review-pending",
+      "usage": {
+        "display_name": "Review Pending",
+        "summary": "Delegate a read-only pending-change review",
+        "syntax": "$review-pending [--files=<rel-paths>]",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "delegate",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "review",
+            "summary": "Delegate the selected pending files to code-reviewer",
+            "syntax": "$review-pending",
+            "input_kind": "none",
+            "effect_authority": "delegate"
+          }
+        ],
+        "options": [
+          {
+            "id": "files",
+            "syntax": "--files=<rel-paths>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Comma-separated relative file paths"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$review-pending --files=src/a.js",
+            "summary": "Use review pending with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "1a8af23d3337618651c3a1408255e1e90b59445ef26b22ca5e6e4640755a83d8"
+    },
+    {
       "id": "skill-scope",
       "name": "skill-scope",
       "usage": {
@@ -871,6 +1627,1192 @@
         ]
       },
       "usageFingerprint": "e17a0ce771f9d79a874c482c9e968878e86ce9f7ac6a094a89db8151cb3c7017"
+    },
+    {
+      "id": "spec-mine",
+      "name": "spec-mine",
+      "usage": {
+        "display_name": "Spec Mine",
+        "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
+        "syntax": "$spec-mine [<capability-or-path>]",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "capability-or-path",
+            "syntax": "<capability-or-path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Capability or path to mine first"
+          }
+        ],
+        "actions": [
+          {
+            "id": "mine",
+            "summary": "Write one bounded behavioral baseline",
+            "syntax": "$spec-mine [<capability-or-path>]",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$spec-mine billing",
+            "summary": "Use spec mine with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "918bc2cde6d9c328cbe8224867f68f3dc569b81f2434b0f04bcd598683c14a50"
+    },
+    {
+      "id": "tdd",
+      "name": "tdd-workflow",
+      "usage": {
+        "display_name": "TDD",
+        "summary": "Drive behavior-first tests through a minimal red-green loop",
+        "syntax": "$tdd-workflow [test-generation] <task>",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "mode",
+            "syntax": "<test-generation>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Optionally request test scaffold generation",
+            "enum_values": [
+              "test-generation"
+            ],
+            "applies_to": [
+              "test-generation"
+            ]
+          },
+          {
+            "id": "task",
+            "syntax": "<task>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Describe the behavior-first development task",
+            "applies_to": [
+              "tdd",
+              "test-generation"
+            ]
+          }
+        ],
+        "actions": [
+          {
+            "id": "tdd",
+            "summary": "Guide a behavior-first test and implementation loop",
+            "syntax": "$tdd-workflow <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "test-generation",
+            "summary": "Generate a focused failing-test scaffold",
+            "syntax": "$tdd-workflow test-generation <target>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$tdd-workflow test-generation tests/OrderTest.php",
+            "summary": "Use tdd with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d"
+    },
+    {
+      "id": "update-codemaps",
+      "name": "update-codemaps",
+      "usage": {
+        "display_name": "Update Codemaps",
+        "summary": "Refresh architecture codemaps from the live project structure",
+        "syntax": "$update-codemaps",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [],
+        "actions": [
+          {
+            "id": "update",
+            "summary": "Refresh the bounded architecture codemaps",
+            "syntax": "$update-codemaps",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$update-codemaps",
+            "summary": "Use update codemaps with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "0bf8b73840bccef16d4e4fbea12581029da9a48607769da14214b038f97ffa07"
+    },
+    {
+      "id": "update-docs",
+      "name": "update-docs",
+      "usage": {
+        "display_name": "Update Docs",
+        "summary": "Update a bounded user or agent document from live evidence",
+        "syntax": "$update-docs <docs-path-or-workflow-keyword>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "inputs": [
+          {
+            "id": "target",
+            "syntax": "<docs-path-or-workflow-keyword>",
+            "value_kind": "string",
+            "required": true,
+            "summary": "Documentation path or workflow keyword"
+          }
+        ],
+        "actions": [
+          {
+            "id": "update",
+            "summary": "Update owned documentation and its locale pair",
+            "syntax": "$update-docs <docs-path-or-workflow-keyword>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$update-docs docs/configuration.md",
+            "summary": "Use update docs with its declared interface"
+          }
+        ]
+      },
+      "usageFingerprint": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
     }
-  ]
+  ],
+  "runtimeIndex": {
+    "targets": {
+      "agent-architecture-audit": {
+        "id": "agent-architecture-audit",
+        "publicName": "dhpk-agent-architecture-audit",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-agent-architecture-audit <input>",
+        "codexInvokable": false
+      },
+      "agy-fast-worker": {
+        "id": "agy-fast-worker",
+        "publicName": "dhpk-agy-fast-worker",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-agy-fast-worker <input>",
+        "codexInvokable": false
+      },
+      "change-verdict": {
+        "id": "change-verdict",
+        "publicName": "change-verdict",
+        "invocationClass": "implicit-eligible",
+        "command": "$change-verdict <input>",
+        "codexInvokable": false
+      },
+      "cli-dispatch-context": {
+        "id": "cli-dispatch-context",
+        "publicName": "dhpk-cli-dispatch-context",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-cli-dispatch-context <input>",
+        "codexInvokable": false
+      },
+      "cli-transport": {
+        "id": "cli-transport",
+        "publicName": "dhpk-cli-transport",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-cli-transport <input>",
+        "codexInvokable": false
+      },
+      "code-simplify": {
+        "id": "code-simplify",
+        "publicName": "code-simplify",
+        "invocationClass": "implicit-eligible",
+        "command": "$code-simplify [<target>]",
+        "codexInvokable": true
+      },
+      "code-trace": {
+        "id": "code-trace",
+        "publicName": "code-trace",
+        "invocationClass": "implicit-eligible",
+        "command": "$code-trace [--mode=<mode>] <query>",
+        "codexInvokable": true
+      },
+      "codex-bridge": {
+        "id": "codex-bridge",
+        "publicName": "dhpk-codex-bridge",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-codex-bridge <input>",
+        "codexInvokable": false
+      },
+      "composer-package-hygiene": {
+        "id": "composer-package-hygiene",
+        "publicName": "dhpk-composer-package-hygiene",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-composer-package-hygiene <input>",
+        "codexInvokable": false
+      },
+      "create-pr": {
+        "id": "create-pr",
+        "publicName": "create-pr",
+        "invocationClass": "explicit-only",
+        "command": "$create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]",
+        "codexInvokable": true
+      },
+      "dep-audit": {
+        "id": "dep-audit",
+        "publicName": "dep-audit",
+        "invocationClass": "implicit-eligible",
+        "command": "$dep-audit [--level=<severity>] [--fix]",
+        "codexInvokable": true
+      },
+      "deploy-list": {
+        "id": "deploy-list",
+        "publicName": "dhpk-deploy-list",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-deploy-list <input>",
+        "codexInvokable": false
+      },
+      "doc-refactor": {
+        "id": "doc-refactor",
+        "publicName": "doc-refactor",
+        "invocationClass": "implicit-eligible",
+        "command": "$doc-refactor <file-path>",
+        "codexInvokable": true
+      },
+      "fastapi-pro": {
+        "id": "fastapi-pro",
+        "publicName": "dhpk-fastapi-pro",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-fastapi-pro <input>",
+        "codexInvokable": false
+      },
+      "feature-verify": {
+        "id": "feature-verify",
+        "publicName": "dhpk-feature-verify",
+        "invocationClass": "explicit-only",
+        "command": "$dhpk-feature-verify <input>",
+        "codexInvokable": false
+      },
+      "flow-drive": {
+        "id": "flow-drive",
+        "publicName": "flow-drive",
+        "invocationClass": "explicit-only",
+        "command": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+        "codexInvokable": true
+      },
+      "flow-guide": {
+        "id": "flow-guide",
+        "publicName": "flow-guide",
+        "invocationClass": "implicit-eligible",
+        "command": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
+        "codexInvokable": true
+      },
+      "git-smart-commit": {
+        "id": "git-smart-commit",
+        "publicName": "git-smart-commit",
+        "invocationClass": "explicit-only",
+        "command": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
+        "codexInvokable": true
+      },
+      "git-worktree": {
+        "id": "git-worktree",
+        "publicName": "git-worktree",
+        "invocationClass": "explicit-only",
+        "command": "$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]",
+        "codexInvokable": true
+      },
+      "gitnexus-cli": {
+        "id": "gitnexus-cli",
+        "publicName": "dhpk-gitnexus-cli",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-gitnexus-cli <input>",
+        "codexInvokable": false
+      },
+      "gitnexus-debugging": {
+        "id": "gitnexus-debugging",
+        "publicName": "dhpk-gitnexus-debugging",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-gitnexus-debugging <input>",
+        "codexInvokable": false
+      },
+      "gitnexus-exploring": {
+        "id": "gitnexus-exploring",
+        "publicName": "dhpk-gitnexus-exploring",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-gitnexus-exploring <input>",
+        "codexInvokable": false
+      },
+      "gitnexus-guide": {
+        "id": "gitnexus-guide",
+        "publicName": "dhpk-gitnexus-guide",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-gitnexus-guide <input>",
+        "codexInvokable": false
+      },
+      "gitnexus-impact-analysis": {
+        "id": "gitnexus-impact-analysis",
+        "publicName": "dhpk-gitnexus-impact-analysis",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-gitnexus-impact-analysis <input>",
+        "codexInvokable": false
+      },
+      "gitnexus-refactoring": {
+        "id": "gitnexus-refactoring",
+        "publicName": "dhpk-gitnexus-refactoring",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-gitnexus-refactoring <input>",
+        "codexInvokable": false
+      },
+      "harness-audit": {
+        "id": "harness-audit",
+        "publicName": "harness-audit",
+        "invocationClass": "implicit-eligible",
+        "command": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
+        "codexInvokable": true
+      },
+      "harness-govern": {
+        "id": "harness-govern",
+        "publicName": "harness-govern",
+        "invocationClass": "explicit-only",
+        "command": "$harness-govern <health|budget|fill|revise|sync> [options]",
+        "codexInvokable": true
+      },
+      "harness-setup": {
+        "id": "harness-setup",
+        "publicName": "harness-setup",
+        "invocationClass": "explicit-only",
+        "command": "$harness-setup <input>",
+        "codexInvokable": false
+      },
+      "ios-icon-gen": {
+        "id": "ios-icon-gen",
+        "publicName": "dhpk-ios-icon-gen",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-ios-icon-gen <input>",
+        "codexInvokable": false
+      },
+      "ios-platform": {
+        "id": "ios-platform",
+        "publicName": "dhpk-ios-platform",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-ios-platform <input>",
+        "codexInvokable": false
+      },
+      "issue-analyze": {
+        "id": "issue-analyze",
+        "publicName": "dhpk-issue-analyze",
+        "invocationClass": "explicit-only",
+        "command": "$dhpk-issue-analyze <input>",
+        "codexInvokable": false
+      },
+      "js-lint-config": {
+        "id": "js-lint-config",
+        "publicName": "dhpk-js-lint-config",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-js-lint-config <input>",
+        "codexInvokable": false
+      },
+      "js-static-check-strategy": {
+        "id": "js-static-check-strategy",
+        "publicName": "js-static-check-strategy",
+        "invocationClass": "implicit-eligible",
+        "command": "$js-static-check-strategy status [--path=<path>]",
+        "codexInvokable": true
+      },
+      "laravel": {
+        "id": "laravel",
+        "publicName": "laravel",
+        "invocationClass": "implicit-eligible",
+        "command": "$laravel <input>",
+        "codexInvokable": false
+      },
+      "laravel-package-author": {
+        "id": "laravel-package-author",
+        "publicName": "dhpk-laravel-package-author",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-laravel-package-author <input>",
+        "codexInvokable": false
+      },
+      "laravel-testbench-matrix": {
+        "id": "laravel-testbench-matrix",
+        "publicName": "dhpk-laravel-testbench-matrix",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-laravel-testbench-matrix <input>",
+        "codexInvokable": false
+      },
+      "legacy-code-characterization": {
+        "id": "legacy-code-characterization",
+        "publicName": "dhpk-legacy-characterization-tests",
+        "invocationClass": "implicit-eligible",
+        "command": "$dhpk-legacy-characterization-tests <legacy-target>",
+        "codexInvokable": true
+      },
+      "library-dual-testsuite-map": {
+        "id": "library-dual-testsuite-map",
+        "publicName": "dhpk-library-dual-testsuite-map",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-library-dual-testsuite-map <input>",
+        "codexInvokable": false
+      },
+      "matrix-cell-onboard": {
+        "id": "matrix-cell-onboard",
+        "publicName": "matrix-cell-onboard",
+        "invocationClass": "implicit-eligible",
+        "command": "$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]",
+        "codexInvokable": true
+      },
+      "merge-prep": {
+        "id": "merge-prep",
+        "publicName": "merge-prep",
+        "invocationClass": "implicit-eligible",
+        "command": "$merge-prep <source-branch> [--target=<branch>]",
+        "codexInvokable": true
+      },
+      "nextjs-15-5-notes": {
+        "id": "nextjs-15-5-notes",
+        "publicName": "dhpk-nextjs-15-5-notes",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-nextjs-15-5-notes <input>",
+        "codexInvokable": false
+      },
+      "nextjs-16-notes": {
+        "id": "nextjs-16-notes",
+        "publicName": "dhpk-nextjs-16-notes",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-nextjs-16-notes <input>",
+        "codexInvokable": false
+      },
+      "openspec-artifact-guard": {
+        "id": "openspec-artifact-guard",
+        "publicName": "dhpk-openspec-artifact-guard",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-openspec-artifact-guard <input>",
+        "codexInvokable": false
+      },
+      "opsx-apply-goal": {
+        "id": "opsx-apply-goal",
+        "publicName": "dhpk-opsx-apply-goal",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-opsx-apply-goal <input>",
+        "codexInvokable": false
+      },
+      "opsx-apply-resume": {
+        "id": "opsx-apply-resume",
+        "publicName": "opsx-apply-resume",
+        "invocationClass": "explicit-only",
+        "command": "$opsx-apply-resume <input>",
+        "codexInvokable": false
+      },
+      "opsx-load-context": {
+        "id": "opsx-load-context",
+        "publicName": "dhpk-opsx-load-context",
+        "invocationClass": "implicit-eligible",
+        "command": "$dhpk-opsx-load-context",
+        "codexInvokable": true
+      },
+      "opsx-post-obs": {
+        "id": "opsx-post-obs",
+        "publicName": "dhpk-opsx-post-observation",
+        "invocationClass": "implicit-eligible",
+        "command": "$dhpk-opsx-post-observation <observation-context>",
+        "codexInvokable": true
+      },
+      "php-8x-features": {
+        "id": "php-8x-features",
+        "publicName": "dhpk-php-8x-features",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-php-8x-features <input>",
+        "codexInvokable": false
+      },
+      "php-modern-pro": {
+        "id": "php-modern-pro",
+        "publicName": "dhpk-php-modern-pro",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-php-modern-pro <input>",
+        "codexInvokable": false
+      },
+      "php-pro": {
+        "id": "php-pro",
+        "publicName": "dhpk-php-runtime-router",
+        "invocationClass": "implicit-eligible",
+        "command": "$dhpk-php-runtime-router <php-task>",
+        "codexInvokable": true
+      },
+      "php56-yii-dev": {
+        "id": "php56-yii-dev",
+        "publicName": "dhpk-yii1-php56-development",
+        "invocationClass": "implicit-eligible",
+        "command": "$dhpk-yii1-php56-development <backend-task>",
+        "codexInvokable": true
+      },
+      "phpunit": {
+        "id": "phpunit",
+        "publicName": "phpunit",
+        "invocationClass": "implicit-eligible",
+        "command": "$phpunit <input>",
+        "codexInvokable": false
+      },
+      "polyfill-version-matrix-audit": {
+        "id": "polyfill-version-matrix-audit",
+        "publicName": "dhpk-polyfill-version-matrix-audit",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-polyfill-version-matrix-audit <input>",
+        "codexInvokable": false
+      },
+      "pr-summary": {
+        "id": "pr-summary",
+        "publicName": "pr-summary",
+        "invocationClass": "implicit-eligible",
+        "command": "$pr-summary [--author=<user>] [--label=<label>]",
+        "codexInvokable": true
+      },
+      "precommit": {
+        "id": "precommit",
+        "publicName": "precommit",
+        "invocationClass": "implicit-eligible",
+        "command": "$precommit [--fast]",
+        "codexInvokable": true
+      },
+      "project-audit": {
+        "id": "project-audit",
+        "publicName": "dhpk-project-audit",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-project-audit <input>",
+        "codexInvokable": false
+      },
+      "project-brief": {
+        "id": "project-brief",
+        "publicName": "project-brief",
+        "invocationClass": "implicit-eligible",
+        "command": "$project-brief <tech-spec-path> [--output=<output-path>]",
+        "codexInvokable": true
+      },
+      "project-setup": {
+        "id": "project-setup",
+        "publicName": "dhpk-project-setup",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-project-setup <input>",
+        "codexInvokable": false
+      },
+      "prompt-optimize": {
+        "id": "prompt-optimize",
+        "publicName": "dhpk-prompt-optimize",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-prompt-optimize <input>",
+        "codexInvokable": false
+      },
+      "proposal-analyze": {
+        "id": "proposal-analyze",
+        "publicName": "proposal-analyze",
+        "invocationClass": "implicit-eligible",
+        "command": "$proposal-analyze <proposal>",
+        "codexInvokable": true
+      },
+      "pytest-async": {
+        "id": "pytest-async",
+        "publicName": "dhpk-pytest-async",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-pytest-async <input>",
+        "codexInvokable": false
+      },
+      "python-pro": {
+        "id": "python-pro",
+        "publicName": "dhpk-python-pro",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-python-pro <input>",
+        "codexInvokable": false
+      },
+      "python-static-checks": {
+        "id": "python-static-checks",
+        "publicName": "dhpk-python-static-checks",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-python-static-checks <input>",
+        "codexInvokable": false
+      },
+      "react-18-notes": {
+        "id": "react-18-notes",
+        "publicName": "dhpk-react-18-notes",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-react-18-notes <input>",
+        "codexInvokable": false
+      },
+      "react-19-notes": {
+        "id": "react-19-notes",
+        "publicName": "dhpk-react-19-notes",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-react-19-notes <input>",
+        "codexInvokable": false
+      },
+      "release-creator": {
+        "id": "release-creator",
+        "publicName": "release-creator",
+        "invocationClass": "explicit-only",
+        "command": "$release-creator <version> [--execute]",
+        "codexInvokable": true
+      },
+      "repo-intake": {
+        "id": "repo-intake",
+        "publicName": "dhpk-repo-intake",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-repo-intake <input>",
+        "codexInvokable": false
+      },
+      "repo-verify": {
+        "id": "repo-verify",
+        "publicName": "repo-verify",
+        "invocationClass": "implicit-eligible",
+        "command": "$repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]",
+        "codexInvokable": true
+      },
+      "review-pending": {
+        "id": "review-pending",
+        "publicName": "review-pending",
+        "invocationClass": "implicit-eligible",
+        "command": "$review-pending [--files=<rel-paths>]",
+        "codexInvokable": true
+      },
+      "session-usage-audit": {
+        "id": "session-usage-audit",
+        "publicName": "dhpk-session-usage-audit",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-session-usage-audit <input>",
+        "codexInvokable": false
+      },
+      "skill-forge": {
+        "id": "skill-forge",
+        "publicName": "skill-forge",
+        "invocationClass": "explicit-only",
+        "command": "$skill-forge <input>",
+        "codexInvokable": false
+      },
+      "skill-scope": {
+        "id": "skill-scope",
+        "publicName": "skill-scope",
+        "invocationClass": "implicit-eligible",
+        "command": "$skill-scope <health|judge|stocktake|scout>",
+        "codexInvokable": true
+      },
+      "software-architecture": {
+        "id": "software-architecture",
+        "publicName": "dhpk-module-design",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-module-design <input>",
+        "codexInvokable": false
+      },
+      "spec-mine": {
+        "id": "spec-mine",
+        "publicName": "spec-mine",
+        "invocationClass": "implicit-eligible",
+        "command": "$spec-mine [<capability-or-path>]",
+        "codexInvokable": true
+      },
+      "swift-language": {
+        "id": "swift-language",
+        "publicName": "dhpk-swift-language",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-swift-language <input>",
+        "codexInvokable": false
+      },
+      "swift-test-strategy": {
+        "id": "swift-test-strategy",
+        "publicName": "dhpk-swift-test-strategy",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-swift-test-strategy <input>",
+        "codexInvokable": false
+      },
+      "swiftui-architecture": {
+        "id": "swiftui-architecture",
+        "publicName": "dhpk-swiftui-architecture",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-swiftui-architecture <input>",
+        "codexInvokable": false
+      },
+      "tdd": {
+        "id": "tdd",
+        "publicName": "tdd-workflow",
+        "invocationClass": "implicit-eligible",
+        "command": "$tdd-workflow [test-generation] <task>",
+        "codexInvokable": true
+      },
+      "ui-ux-verify": {
+        "id": "ui-ux-verify",
+        "publicName": "ui-ux-verify",
+        "invocationClass": "implicit-eligible",
+        "command": "$ui-ux-verify <input>",
+        "codexInvokable": false
+      },
+      "update-codemaps": {
+        "id": "update-codemaps",
+        "publicName": "update-codemaps",
+        "invocationClass": "implicit-eligible",
+        "command": "$update-codemaps",
+        "codexInvokable": true
+      },
+      "update-docs": {
+        "id": "update-docs",
+        "publicName": "update-docs",
+        "invocationClass": "implicit-eligible",
+        "command": "$update-docs <docs-path-or-workflow-keyword>",
+        "codexInvokable": true
+      },
+      "vue-2-notes": {
+        "id": "vue-2-notes",
+        "publicName": "dhpk-vue-2-notes",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-vue-2-notes <input>",
+        "codexInvokable": false
+      },
+      "xcode-build-tooling": {
+        "id": "xcode-build-tooling",
+        "publicName": "dhpk-xcode-build-tooling",
+        "invocationClass": "not-configured",
+        "command": "$dhpk-xcode-build-tooling <input>",
+        "codexInvokable": false
+      },
+      "yii1-security-audit": {
+        "id": "yii1-security-audit",
+        "publicName": "dhpk-yii1-security-audit",
+        "invocationClass": "implicit-eligible",
+        "command": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
+        "codexInvokable": true
+      }
+    },
+    "aliases": {
+      "agent-architecture-audit": {
+        "target": "dhpk-agent-architecture-audit",
+        "disposition": "legacy"
+      },
+      "agy-fast-worker": {
+        "target": "dhpk-agy-fast-worker",
+        "disposition": "legacy"
+      },
+      "codex-bridge": {
+        "target": "dhpk-codex-bridge",
+        "disposition": "legacy"
+      },
+      "composer-package-hygiene": {
+        "target": "dhpk-composer-package-hygiene",
+        "disposition": "legacy"
+      },
+      "deploy-list": {
+        "target": "dhpk-deploy-list",
+        "disposition": "legacy"
+      },
+      "dhpk-adaptive-dev-workflow": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-agy-commit": {
+        "target": "git-smart-commit",
+        "disposition": "retired"
+      },
+      "dhpk-bug-fix": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-change-review": {
+        "target": "change-verdict",
+        "disposition": "retired"
+      },
+      "dhpk-claude-health": {
+        "target": "harness-govern",
+        "disposition": "retired"
+      },
+      "dhpk-codebase-exploration": {
+        "target": "code-trace",
+        "disposition": "retired"
+      },
+      "dhpk-codex-architect": {
+        "target": "dhpk-module-design",
+        "disposition": "retired"
+      },
+      "dhpk-codex-brainstorm": {
+        "target": "dhpk-module-design",
+        "disposition": "retired"
+      },
+      "dhpk-codex-implement": {
+        "target": "flow-drive",
+        "disposition": "retired"
+      },
+      "dhpk-create-request": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-create-skill": {
+        "target": "skill-forge",
+        "disposition": "retired"
+      },
+      "dhpk-cross-agent-sync": {
+        "target": "harness-govern",
+        "disposition": "retired"
+      },
+      "dhpk-de-ai-flavor": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-do": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-doc-review": {
+        "target": "change-verdict",
+        "disposition": "retired"
+      },
+      "dhpk-execution-checklist": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-execution-policy": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-feasibility-study": {
+        "target": "dhpk-module-design",
+        "disposition": "retired"
+      },
+      "dhpk-feature-dev": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-git-history-investigation": {
+        "target": "code-trace",
+        "disposition": "retired"
+      },
+      "dhpk-git-smart-commit": {
+        "target": "git-smart-commit",
+        "disposition": "renamed"
+      },
+      "dhpk-harness-budget": {
+        "target": "harness-govern",
+        "disposition": "retired"
+      },
+      "dhpk-harness-fill": {
+        "target": "harness-govern",
+        "disposition": "retired"
+      },
+      "dhpk-harness-revise": {
+        "target": "harness-govern",
+        "disposition": "retired"
+      },
+      "dhpk-implement": {
+        "target": "flow-drive",
+        "disposition": "retired"
+      },
+      "dhpk-js-static-check-strategy": {
+        "target": "js-static-check-strategy",
+        "disposition": "renamed"
+      },
+      "dhpk-laravel": {
+        "target": "laravel",
+        "disposition": "renamed"
+      },
+      "dhpk-laravel-10-notes": {
+        "target": "laravel",
+        "disposition": "retired"
+      },
+      "dhpk-laravel-11-notes": {
+        "target": "laravel",
+        "disposition": "retired"
+      },
+      "dhpk-laravel-5-4-notes": {
+        "target": "laravel",
+        "disposition": "retired"
+      },
+      "dhpk-laravel-6-notes": {
+        "target": "laravel",
+        "disposition": "retired"
+      },
+      "dhpk-laravel-7-notes": {
+        "target": "laravel",
+        "disposition": "retired"
+      },
+      "dhpk-laravel-8-notes": {
+        "target": "laravel",
+        "disposition": "retired"
+      },
+      "dhpk-laravel-9-notes": {
+        "target": "laravel",
+        "disposition": "retired"
+      },
+      "dhpk-laravel-mix-notes": {
+        "target": "laravel",
+        "disposition": "retired"
+      },
+      "dhpk-matrix-cell-onboard": {
+        "target": "matrix-cell-onboard",
+        "disposition": "renamed"
+      },
+      "dhpk-next-step": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-onepassword-session": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-phpunit": {
+        "target": "phpunit",
+        "disposition": "renamed"
+      },
+      "dhpk-phpunit-10-notes": {
+        "target": "phpunit",
+        "disposition": "retired"
+      },
+      "dhpk-phpunit-11-notes": {
+        "target": "phpunit",
+        "disposition": "retired"
+      },
+      "dhpk-phpunit-9-modern": {
+        "target": "phpunit",
+        "disposition": "retired"
+      },
+      "dhpk-post-dev-test": {
+        "target": "tdd-workflow",
+        "disposition": "retired"
+      },
+      "dhpk-pr-review": {
+        "target": "change-verdict",
+        "disposition": "retired"
+      },
+      "dhpk-release-creator": {
+        "target": "release-creator",
+        "disposition": "renamed"
+      },
+      "dhpk-risk-assess": {
+        "target": "change-verdict",
+        "disposition": "retired"
+      },
+      "dhpk-root-cause-investigation": {
+        "target": "code-trace",
+        "disposition": "retired"
+      },
+      "dhpk-rules-distill": {
+        "target": "skill-forge",
+        "disposition": "retired"
+      },
+      "dhpk-security-review": {
+        "target": "change-verdict",
+        "disposition": "retired"
+      },
+      "dhpk-skill-health-audit": {
+        "target": "skill-scope",
+        "disposition": "retired"
+      },
+      "dhpk-skill-quality-judge": {
+        "target": "skill-scope",
+        "disposition": "retired"
+      },
+      "dhpk-skill-scout": {
+        "target": "skill-scope",
+        "disposition": "retired"
+      },
+      "dhpk-skill-stocktake": {
+        "target": "skill-scope",
+        "disposition": "retired"
+      },
+      "dhpk-tdd-workflow": {
+        "target": "tdd-workflow",
+        "disposition": "renamed"
+      },
+      "dhpk-tech-spec": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-test-review": {
+        "target": "change-verdict",
+        "disposition": "retired"
+      },
+      "dhpk-tool-routing": {
+        "target": "code-trace",
+        "disposition": "retired"
+      },
+      "fastapi-pro": {
+        "target": "dhpk-fastapi-pro",
+        "disposition": "legacy"
+      },
+      "feature-verify": {
+        "target": "dhpk-feature-verify",
+        "disposition": "legacy"
+      },
+      "gitnexus-cli": {
+        "target": "dhpk-gitnexus-cli",
+        "disposition": "legacy"
+      },
+      "gitnexus-debugging": {
+        "target": "dhpk-gitnexus-debugging",
+        "disposition": "legacy"
+      },
+      "gitnexus-exploring": {
+        "target": "dhpk-gitnexus-exploring",
+        "disposition": "legacy"
+      },
+      "gitnexus-guide": {
+        "target": "dhpk-gitnexus-guide",
+        "disposition": "legacy"
+      },
+      "gitnexus-impact-analysis": {
+        "target": "dhpk-gitnexus-impact-analysis",
+        "disposition": "legacy"
+      },
+      "gitnexus-refactoring": {
+        "target": "dhpk-gitnexus-refactoring",
+        "disposition": "legacy"
+      },
+      "ios-icon-gen": {
+        "target": "dhpk-ios-icon-gen",
+        "disposition": "legacy"
+      },
+      "ios-platform": {
+        "target": "dhpk-ios-platform",
+        "disposition": "legacy"
+      },
+      "issue-analyze": {
+        "target": "dhpk-issue-analyze",
+        "disposition": "legacy"
+      },
+      "js-lint-config": {
+        "target": "dhpk-js-lint-config",
+        "disposition": "legacy"
+      },
+      "laravel-package-author": {
+        "target": "dhpk-laravel-package-author",
+        "disposition": "legacy"
+      },
+      "laravel-testbench-matrix": {
+        "target": "dhpk-laravel-testbench-matrix",
+        "disposition": "legacy"
+      },
+      "legacy-code-characterization": {
+        "target": "dhpk-legacy-characterization-tests",
+        "disposition": "legacy"
+      },
+      "library-dual-testsuite-map": {
+        "target": "dhpk-library-dual-testsuite-map",
+        "disposition": "legacy"
+      },
+      "nextjs-15-5-notes": {
+        "target": "dhpk-nextjs-15-5-notes",
+        "disposition": "legacy"
+      },
+      "nextjs-16-notes": {
+        "target": "dhpk-nextjs-16-notes",
+        "disposition": "legacy"
+      },
+      "openspec-artifact-guard": {
+        "target": "dhpk-openspec-artifact-guard",
+        "disposition": "legacy"
+      },
+      "opsx-apply-goal": {
+        "target": "dhpk-opsx-apply-goal",
+        "disposition": "legacy"
+      },
+      "opsx-load-context": {
+        "target": "dhpk-opsx-load-context",
+        "disposition": "legacy"
+      },
+      "opsx-post-obs": {
+        "target": "dhpk-opsx-post-observation",
+        "disposition": "legacy"
+      },
+      "php-8x-features": {
+        "target": "dhpk-php-8x-features",
+        "disposition": "legacy"
+      },
+      "php-modern-pro": {
+        "target": "dhpk-php-modern-pro",
+        "disposition": "legacy"
+      },
+      "php-pro": {
+        "target": "dhpk-php-runtime-router",
+        "disposition": "legacy"
+      },
+      "php56-yii-dev": {
+        "target": "dhpk-yii1-php56-development",
+        "disposition": "legacy"
+      },
+      "polyfill-version-matrix-audit": {
+        "target": "dhpk-polyfill-version-matrix-audit",
+        "disposition": "legacy"
+      },
+      "project-audit": {
+        "target": "dhpk-project-audit",
+        "disposition": "legacy"
+      },
+      "project-setup": {
+        "target": "dhpk-project-setup",
+        "disposition": "legacy"
+      },
+      "prompt-optimize": {
+        "target": "dhpk-prompt-optimize",
+        "disposition": "legacy"
+      },
+      "pytest-async": {
+        "target": "dhpk-pytest-async",
+        "disposition": "legacy"
+      },
+      "python-pro": {
+        "target": "dhpk-python-pro",
+        "disposition": "legacy"
+      },
+      "python-static-checks": {
+        "target": "dhpk-python-static-checks",
+        "disposition": "legacy"
+      },
+      "react-18-notes": {
+        "target": "dhpk-react-18-notes",
+        "disposition": "legacy"
+      },
+      "react-19-notes": {
+        "target": "dhpk-react-19-notes",
+        "disposition": "legacy"
+      },
+      "repo-intake": {
+        "target": "dhpk-repo-intake",
+        "disposition": "legacy"
+      },
+      "session-usage-audit": {
+        "target": "dhpk-session-usage-audit",
+        "disposition": "legacy"
+      },
+      "software-architecture": {
+        "target": "dhpk-module-design",
+        "disposition": "legacy"
+      },
+      "swift-language": {
+        "target": "dhpk-swift-language",
+        "disposition": "legacy"
+      },
+      "swift-test-strategy": {
+        "target": "dhpk-swift-test-strategy",
+        "disposition": "legacy"
+      },
+      "swiftui-architecture": {
+        "target": "dhpk-swiftui-architecture",
+        "disposition": "legacy"
+      },
+      "vue-2-notes": {
+        "target": "dhpk-vue-2-notes",
+        "disposition": "legacy"
+      },
+      "xcode-build-tooling": {
+        "target": "dhpk-xcode-build-tooling",
+        "disposition": "legacy"
+      },
+      "yii1-security-audit": {
+        "target": "dhpk-yii1-security-audit",
+        "disposition": "legacy"
+      }
+    }
+  }
 }

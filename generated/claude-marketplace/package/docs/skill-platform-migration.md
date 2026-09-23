@@ -23,16 +23,16 @@ migration. Structural success never upgrades an unobserved consumer: record
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 65 flat packages at `skills/<public-name>/` (all active in 0.54) |
-| Public identity | Nine capability families use unprefixed names; the other 56 first-party names retain `dhpk-*` |
+| Canonical source | 84 flat packages at `skills/<public-name>/` |
+| Public identity | 33 public names are unprefixed, including the nine capability families and the portable command skills; the other 51 first-party names retain `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
-| Codex project projection | 15 relative symlinks under `codex/skills/` (13 invokable plus two internal transport and dispatch-context runtimes) |
-| Codex native package | 15 physical packages under `plugins/dhpk/skills/`; zero symlinks |
+| Codex project projection | 34 relative symlinks under `codex/skills/` (32 invokable plus two internal transport and dispatch-context runtimes) |
+| Codex native package | 34 physical packages under `plugins/dhpk/skills/`; zero symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
 | Profile sizes | `minimal=4`, `full=55`, `compat-v1=62` before overlays; minimal is `change-verdict`, `code-trace`, `flow-drive`, `flow-guide` |
-| Agent/Cursor/AGY publication | Agent Plugin and AGY each select 37 stable IDs; Cursor native owns 4 overlay entries and shares Agent portable skills |
+| Agent/Cursor/AGY publication | Agent Plugin and AGY each select 55 stable IDs; Cursor native owns 4 overlay entries and shares Agent portable skills |
 
 Directory placement and README lists are not authoritative. The inventory
 owns stable ids, public names, lifecycle, modules, and publication surfaces;

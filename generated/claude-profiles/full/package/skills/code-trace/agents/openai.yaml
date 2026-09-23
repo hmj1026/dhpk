@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Trace"
+  short_description: "Trace code, causes, history, and tools"
+  default_prompt: "Use $code-trace in the smallest matching mode to trace this code path and return evidence, gaps, and one next action."

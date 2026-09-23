@@ -17,7 +17,7 @@ const FORMAL_SESSION_FLOOR = 3;
 const FORMAL_FIXTURE_FLOOR = 2;
 const CLIENTS = Object.freeze({
   claude: Object.freeze({ model: 'claude-sonnet-5', effort: 'high' }),
-  codex: Object.freeze({ model: 'gpt-5.6-luna', effort: 'high' }),
+  codex: Object.freeze({ model: 'gpt-6-luna', effort: 'high' }),
   cursor: Object.freeze({ model: 'cursor-grok-4.6-high', effort: 'high' }),
   agy: Object.freeze({ model: 'gemini-3.8-flash-high', effort: 'high' }),
 });

@@ -1,16 +1,15 @@
 ---
 description: 'Deprecated alias for dhpk TDD test-generation mode.'
+argument-hint: '<target>'
 metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-**Deprecated forwarding alias.** Exact replacement:
+**Deprecated forwarding alias.** Forward to the workspace-write canonical
+`$tdd-workflow` Skill’s `test-generation` action:
 
-`/dhpk:dhpk-tdd-workflow --mode test-generation $ARGUMENTS`
+`$tdd-workflow test-generation $ARGUMENTS`
 
-## Compatibility boundary
-
-This explicit-only alias is retained for legacy callers; new work uses the
-Codex-free TDD target directly. Generation never selects MCP.
-See [the alias contract](../docs/agent-guidance/command-aliases.md); preserve the target, flags, and `$ARGUMENTS`.
-Completion: propagate the target's exit status and report its PASS/FAIL/verdict evidence.
+Preserve `$ARGUMENTS` unchanged and propagate the target status, generated-test
+result, failure state, and PASS/FAIL/verdict evidence. Do not select MCP or
+invent a replacement when the public owner resource is unavailable.

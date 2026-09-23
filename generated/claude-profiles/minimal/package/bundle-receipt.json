@@ -10,7 +10,7 @@
     ],
     "excludes": [],
     "id": "minimal",
-    "inventoryFingerprint": "18dd86fa66c4ac5eed8c1a32934f6644798a86f2f27ba9dc8fd8e725aded9533",
+    "inventoryFingerprint": "36798b20cfac504edbf53b6a265dd8a6c9ee797bdea5d5ab0050466be3707246",
     "mode": "profile",
     "modules": [],
     "profileFingerprint": "e6fced74bf8dd6e7a3464c7b9b070196cf2a8276b01f1942d260884815b80fd6",
@@ -21,10 +21,10 @@
       "flow-drive",
       "flow-guide"
     ],
-    "selectionFingerprint": "4bb345fa92806e443aeac01e0b8fb566dace1fd0e1792999657dbe5cd4a25cc7",
+    "selectionFingerprint": "b017afd565646d2267d2356c57027e6369cf4fe86f7e16e590adbe1812ee5c2d",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "3d3d4e80dc57e1bc273f0a5f22f7729574e3a32d6b6ada1e10f389c3faeb73ec",
+    "sourceFingerprint": "2021154b6fde20436bc35ee0a2f4fa25b287ef2d9826027f24a56ac6fe69e606",
     "supportClosure": {
       "assets": [],
       "files": [
@@ -64,9 +64,12 @@
           "source": "scripts/lib/flow-handoff-contract.js"
         }
       ],
-      "skillStableIds": []
+      "skillStableIds": [
+        "git-smart-commit",
+        "repo-verify"
+      ]
     },
-    "surfaceSelectionFingerprint": "e3206aa71a2a554de6a911a7075bb31b84e860d4e9fb47eff6aa10d415a9fd2d",
+    "surfaceSelectionFingerprint": "976189a75313206ea8cb54aeeaa8e032e3c7d1edf2705b6735c47101c779e2d3",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -96,24 +99,308 @@
       "destination": "skills/change-verdict/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:change-verdict:agents/openai.yaml",
+      "destination": "skills/change-verdict/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/code/codex-prompt-branch.md",
+      "destination": "skills/change-verdict/references/code/codex-prompt-branch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/code/codex-prompt-fast.md",
+      "destination": "skills/change-verdict/references/code/codex-prompt-fast.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/code/codex-prompt-full.md",
+      "destination": "skills/change-verdict/references/code/codex-prompt-full.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/docs/codex-prompt-doc.md",
+      "destination": "skills/change-verdict/references/docs/codex-prompt-doc.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/docs/review-loop-doc.md",
+      "destination": "skills/change-verdict/references/docs/review-loop-doc.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/risk/output-template.md",
+      "destination": "skills/change-verdict/references/risk/output-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/risk/risk-dimensions.md",
+      "destination": "skills/change-verdict/references/risk/risk-dimensions.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/security/codex-prompt-security.md",
+      "destination": "skills/change-verdict/references/security/codex-prompt-security.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/security/examples.md",
+      "destination": "skills/change-verdict/references/security/examples.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/cli-backend.md",
+      "destination": "skills/change-verdict/references/shared/cli-backend.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/codex-research-instructions.md",
+      "destination": "skills/change-verdict/references/shared/codex-research-instructions.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/command-context.md",
+      "destination": "skills/change-verdict/references/shared/command-context.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/review-common.md",
+      "destination": "skills/change-verdict/references/shared/review-common.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/review-rubric.md",
+      "destination": "skills/change-verdict/references/shared/review-rubric.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/review-workflow.md",
+      "destination": "skills/change-verdict/references/shared/review-workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/tests/codex-prompt-ac-trace.md",
+      "destination": "skills/change-verdict/references/tests/codex-prompt-ac-trace.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/tests/codex-prompt-test-review.md",
+      "destination": "skills/change-verdict/references/tests/codex-prompt-test-review.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/check-unrelated-changes.sh",
+      "destination": "skills/change-verdict/scripts/check-unrelated-changes.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/lib/command-namespace.js",
+      "destination": "skills/change-verdict/scripts/lib/command-namespace.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/lib/runner-utils.js",
+      "destination": "skills/change-verdict/scripts/lib/runner-utils.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/review-cli.sh",
+      "destination": "skills/change-verdict/scripts/review-cli.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/risk-analyze.js",
+      "destination": "skills/change-verdict/scripts/risk-analyze.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:templates/review_output.md",
+      "destination": "skills/change-verdict/templates/review_output.md"
+    },
+    {
       "stableId": "claude-profile:skill:code-trace",
       "destination": "skills/code-trace/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:agents/openai.yaml",
+      "destination": "skills/code-trace/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/checklists.md",
+      "destination": "skills/code-trace/references/diagnose/checklists.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/condition-based-waiting.md",
+      "destination": "skills/code-trace/references/diagnose/condition-based-waiting.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/defense-in-depth.md",
+      "destination": "skills/code-trace/references/diagnose/defense-in-depth.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/examples.md",
+      "destination": "skills/code-trace/references/diagnose/examples.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/phase-templates.md",
+      "destination": "skills/code-trace/references/diagnose/phase-templates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/root-cause-tracing.md",
+      "destination": "skills/code-trace/references/diagnose/root-cause-tracing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/scripts.md",
+      "destination": "skills/code-trace/references/diagnose/scripts.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/wait-for-helper.ts",
+      "destination": "skills/code-trace/references/diagnose/wait-for-helper.ts"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/explore/dual-perspective.md",
+      "destination": "skills/code-trace/references/explore/dual-perspective.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/explore/explain.md",
+      "destination": "skills/code-trace/references/explore/explain.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/explore/search-patterns.md",
+      "destination": "skills/code-trace/references/explore/search-patterns.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/history/commands.md",
+      "destination": "skills/code-trace/references/history/commands.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/history/wsl-traps.md",
+      "destination": "skills/code-trace/references/history/wsl-traps.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/select-tool/decision-tree.md",
+      "destination": "skills/code-trace/references/select-tool/decision-tree.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/analyze-function-calls.sh",
+      "destination": "skills/code-trace/scripts/diagnose/analyze-function-calls.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/check-tools.sh",
+      "destination": "skills/code-trace/scripts/diagnose/check-tools.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/find-polluter.sh",
+      "destination": "skills/code-trace/scripts/diagnose/find-polluter.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/generate-flow-diagram.sh",
+      "destination": "skills/code-trace/scripts/diagnose/generate-flow-diagram.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/search-database-queries.sh",
+      "destination": "skills/code-trace/scripts/diagnose/search-database-queries.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/trace-data-flow.sh",
+      "destination": "skills/code-trace/scripts/diagnose/trace-data-flow.sh"
     },
     {
       "stableId": "claude-profile:skill:flow-drive",
       "destination": "skills/flow-drive/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:flow-drive:agents/openai.yaml",
+      "destination": "skills/flow-drive/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/contracts/review-lifecycle.md",
+      "destination": "skills/flow-drive/references/execution-bundle/docs/contracts/review-lifecycle.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/contracts/reviewer-contract.md",
+      "destination": "skills/flow-drive/references/execution-bundle/docs/contracts/reviewer-contract.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/subagent-prompt-template.md",
+      "destination": "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/manifests/host-profiles.json",
+      "destination": "skills/flow-drive/references/execution-bundle/manifests/host-profiles.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/manifests/provider-model-catalog.json",
+      "destination": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/anti-rationalization.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/execution-policy-kernel.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/execution-policy.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/model-economics.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/tool-routing.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/tool-routing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/fast-worker-selector.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/dispatch-contract.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/dispatch-engine.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:scripts/dispatch.js",
+      "destination": "skills/flow-drive/scripts/dispatch.js"
+    },
+    {
       "stableId": "claude-profile:skill-resource:flow-drive:scripts/invocation.js",
       "destination": "skills/flow-drive/scripts/invocation.js"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-drive:skill-package.json",
-      "destination": "skills/flow-drive/skill-package.json"
-    },
-    {
       "stableId": "claude-profile:skill:flow-guide",
       "destination": "skills/flow-guide/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:agents/openai.yaml",
+      "destination": "skills/flow-guide/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/anti-loop.md",
@@ -146,6 +433,102 @@
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/dispatch-and-gates.md",
       "destination": "skills/flow-guide/references/dispatch-and-gates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/contracts/review-lifecycle.md",
+      "destination": "skills/flow-guide/references/execution-bundle/docs/contracts/review-lifecycle.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/contracts/reviewer-contract.md",
+      "destination": "skills/flow-guide/references/execution-bundle/docs/contracts/reviewer-contract.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/subagent-prompt-template.md",
+      "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/manifests/host-profiles.json",
+      "destination": "skills/flow-guide/references/execution-bundle/manifests/host-profiles.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/manifests/provider-model-catalog.json",
+      "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/anti-rationalization.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/execution-policy-kernel.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy-kernel.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/execution-policy.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/model-economics.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/tool-routing.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/fast-worker-selector.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/dispatch-contract.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/dispatch-engine.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/handoff-and-verification.md",
@@ -240,8 +623,24 @@
       "destination": "skills/flow-guide/references/workflow-lightweight.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/command-namespace.js",
+      "destination": "skills/flow-guide/scripts/_lib/command-namespace.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/feature-resolver.js",
+      "destination": "skills/flow-guide/scripts/_lib/feature-resolver.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/runner-utils.js",
+      "destination": "skills/flow-guide/scripts/_lib/runner-utils.js"
+    },
+    {
       "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/runtime-loader.js",
       "destination": "skills/flow-guide/scripts/_lib/runtime-loader.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/skill-usage.js",
+      "destination": "skills/flow-guide/scripts/_lib/skill-usage.js"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:scripts/action-runner.js",
@@ -280,32 +679,32 @@
       "destination": "skills/flow-guide/scripts/workflow_gate_check.py"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-guide:skill-package.json",
-      "destination": "skills/flow-guide/skill-package.json"
+      "stableId": "claude-profile:skill:git-smart-commit",
+      "destination": "skills/git-smart-commit/SKILL.md"
     },
     {
-      "stableId": "claude-profile:runtime:flow-guide:references/execution-policy.md",
-      "destination": "skills/flow-guide/references/execution-policy.md"
+      "stableId": "claude-profile:skill-resource:git-smart-commit:agents/openai.yaml",
+      "destination": "skills/git-smart-commit/agents/openai.yaml"
     },
     {
-      "stableId": "claude-profile:runtime:flow-guide:references/execution-policy-kernel.md",
-      "destination": "skills/flow-guide/references/execution-policy-kernel.md"
+      "stableId": "claude-profile:skill:repo-verify",
+      "destination": "skills/repo-verify/SKILL.md"
     },
     {
-      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/skill-usage.js",
-      "destination": "skills/flow-guide/scripts/_lib/skill-usage.js"
+      "stableId": "claude-profile:skill-resource:repo-verify:agents/openai.yaml",
+      "destination": "skills/repo-verify/agents/openai.yaml"
     },
     {
-      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/utils.js",
-      "destination": "skills/flow-guide/scripts/_lib/utils.js"
+      "stableId": "claude-profile:skill-resource:repo-verify:references/workflow.md",
+      "destination": "skills/repo-verify/references/workflow.md"
     },
     {
-      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/feature-resolver.js",
-      "destination": "skills/flow-guide/scripts/_lib/feature-resolver.js"
+      "stableId": "claude-profile:skill-resource:repo-verify:scripts/lib/runner-utils.js",
+      "destination": "skills/repo-verify/scripts/lib/runner-utils.js"
     },
     {
-      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/flow-handoff-contract.js",
-      "destination": "skills/flow-guide/scripts/_lib/flow-handoff-contract.js"
+      "stableId": "claude-profile:skill-resource:repo-verify:scripts/verify-runner.js",
+      "destination": "skills/repo-verify/scripts/verify-runner.js"
     },
     {
       "stableId": "claude-profile:command:smart-commit",
@@ -378,15 +777,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "skillPackageClosure": [
-    {
-      "id": "flow-drive",
-      "version": "1.0.0"
-    },
-    {
-      "id": "flow-guide",
-      "version": "1.0.0"
-    }
-  ],
-  "planFingerprint": "b5cb8b5b4d6fde005ad46d84da1b09c08a8a2b79500e431f9afb4e2ff51e4e95"
+  "planFingerprint": "27d95fe5e5ffefda026028d17aba1696c2db29de358ff0cec50af5493e7154ea"
 }

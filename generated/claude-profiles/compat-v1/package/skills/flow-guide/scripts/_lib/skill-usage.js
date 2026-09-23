@@ -13,6 +13,11 @@ const crypto = require('node:crypto');
 const USAGE_SCHEMA = 'dhpk.skill-usage.v1';
 const CATALOG_SCHEMA = 'dhpk.skill-usage-catalog.v1';
 const CARD_SCHEMA = 'dhpk.skill-usage-card.v1';
+const RUNTIME_INDEX_TARGET_KEYS = Object.freeze([
+  'id', 'publicName', 'invocationClass', 'command', 'codexInvokable',
+]);
+const RUNTIME_INDEX_ALIAS_KEYS = Object.freeze(['target', 'disposition']);
+const RUNTIME_INDEX_DISPOSITIONS = Object.freeze(['legacy', 'renamed', 'retired']);
 
 const INPUT_KINDS = Object.freeze([
   'none',
@@ -655,6 +660,111 @@ function isCodexInvokableSkill(skill) {
   return hasCodexSurface(skill);
 }
 
+function runtimeInvocationClass(skill) {
+  const value = canonicalInvocationClass(skill);
+  return INVOCATION_CLASSES.includes(value) ? value : 'not-configured';
+}
+
+function runtimeCommand(name, usage) {
+  return usage && typeof usage.syntax === 'string' && usage.syntax.trim()
+    ? usage.syntax.trim()
+    : '$' + name + ' <input>';
+}
+
+function addRuntimeAlias(aliases, alias, target, disposition) {
+  if (typeof alias !== 'string' || alias.trim() === ''
+    || typeof target !== 'string' || target.trim() === ''
+    || alias === target || aliases[alias]) return;
+  aliases[alias] = { target, disposition };
+}
+
+function compileRuntimeIndex(inventory, normalizedUsageById) {
+  const targets = {};
+  const aliases = {};
+  const skills = Array.isArray(inventory.skills) ? inventory.skills : [];
+
+  for (const skill of skills) {
+    const id = skillId(skill);
+    const name = publicName(skill);
+    if (!name || targets[id]) continue;
+    const usage = normalizedUsageById.get(id) || null;
+    targets[id] = {
+      id,
+      publicName: name,
+      invocationClass: runtimeInvocationClass(skill),
+      command: runtimeCommand(name, usage),
+      codexInvokable: hasCodexSurface(skill),
+    };
+  }
+
+  for (const skill of skills) {
+    const id = skillId(skill);
+    const target = targets[id];
+    if (!target) continue;
+    const legacyNames = Array.isArray(skill.legacy_names) ? skill.legacy_names : [];
+    for (const legacyName of legacyNames) addRuntimeAlias(aliases, legacyName, target.publicName, 'legacy');
+  }
+
+  const renamed = Array.isArray(inventory.renamed_skill_names) ? inventory.renamed_skill_names : [];
+  for (const entry of renamed) {
+    if (!entry || typeof entry !== 'object') continue;
+    const target = targets[entry.id];
+    addRuntimeAlias(aliases, entry.oldName, target ? target.publicName : entry.newName, 'renamed');
+  }
+
+  const retired = Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [];
+  for (const entry of retired) {
+    if (!entry || typeof entry !== 'object') continue;
+    const replacement = Array.isArray(entry.replacements)
+      ? entry.replacements.find((candidate) => candidate && candidate.kind === 'skill')
+      : null;
+    const target = replacement && targets[replacement.id]
+      ? targets[replacement.id].publicName
+      : replacement && typeof replacement.id === 'string'
+        ? replacement.id
+        : 'flow-guide';
+    addRuntimeAlias(aliases, entry.name, target, 'retired');
+  }
+
+  const sortedTargets = Object.fromEntries(
+    Object.keys(targets).sort().map((id) => [id, targets[id]]),
+  );
+  const sortedAliases = Object.fromEntries(
+    Object.keys(aliases).sort().map((alias) => [alias, aliases[alias]]),
+  );
+  return freezeDeep({ targets: sortedTargets, aliases: sortedAliases });
+}
+
+function validateRuntimeIndex(runtimeIndex) {
+  const errors = [];
+  if (!isRecord(runtimeIndex) || Object.keys(runtimeIndex).sort().join(',') !== 'aliases,targets') {
+    return { ok: false, errors: Object.freeze(['runtimeIndex must contain exactly targets and aliases']) };
+  }
+  if (!isRecord(runtimeIndex.targets) || !isRecord(runtimeIndex.aliases)) {
+    return { ok: false, errors: Object.freeze(['runtimeIndex targets and aliases must be objects']) };
+  }
+  for (const [id, target] of Object.entries(runtimeIndex.targets)) {
+    if (!isRecord(target) || JSON.stringify(Object.keys(target).sort()) !== JSON.stringify([...RUNTIME_INDEX_TARGET_KEYS].sort())) {
+      errors.push(`runtimeIndex target '${id}' has an open or incomplete schema`);
+      continue;
+    }
+    if (target.id !== id || typeof target.publicName !== 'string' || target.publicName.trim() === ''
+      || typeof target.command !== 'string' || target.command.trim() === ''
+      || !['implicit-eligible', 'explicit-only', 'not-configured'].includes(target.invocationClass)
+      || typeof target.codexInvokable !== 'boolean') {
+      errors.push(`runtimeIndex target '${id}' is invalid`);
+    }
+  }
+  for (const [alias, value] of Object.entries(runtimeIndex.aliases)) {
+    if (!isRecord(value) || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...RUNTIME_INDEX_ALIAS_KEYS].sort())
+      || typeof value.target !== 'string' || value.target.trim() === ''
+      || !RUNTIME_INDEX_DISPOSITIONS.includes(value.disposition)) {
+      errors.push(`runtimeIndex alias '${alias}' is invalid`);
+    }
+  }
+  return { ok: errors.length === 0, errors: Object.freeze(errors) };
+}
+
 // Compile the Codex usage catalog from an inventory object. The compiler is
 // pure: it neither reads SKILL.md nor writes generated files.
 function compileSkillUsageCatalog(input) {
@@ -667,6 +777,7 @@ function compileSkillUsageCatalog(input) {
 
   const selected = inventory.skills.filter(isCodexInvokableSkill);
   const entries = [];
+  const normalizedUsageById = new Map();
   const ids = new Set();
   const names = new Set();
   const errors = [];
@@ -697,6 +808,7 @@ function compileSkillUsageCatalog(input) {
       usage: normalized,
       usageFingerprint: fingerprint(normalized),
     });
+    normalizedUsageById.set(id, normalized);
   }
 
   if (errors.length > 0) throw new Error(errors.join('; '));
@@ -704,11 +816,15 @@ function compileSkillUsageCatalog(input) {
     left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
   ));
 
-  return freezeDeep({
+  const catalog = {
     schema: CATALOG_SCHEMA,
     sourceInventoryRevision: resolveInventoryRevision(inventory, values.inventoryRevision),
     entries,
-  });
+    runtimeIndex: compileRuntimeIndex(inventory, normalizedUsageById),
+  };
+  const runtimeValidation = validateRuntimeIndex(catalog.runtimeIndex);
+  if (!runtimeValidation.ok) throw new Error(runtimeValidation.errors.join('; '));
+  return freezeDeep(catalog);
 }
 
 function serializeSkillUsageCatalog(catalog) {
@@ -816,6 +932,7 @@ module.exports = {
   renderSkillUsageCard,
   renderSkillUsageDocumentation,
   resolveInventoryRevision,
+  validateRuntimeIndex,
   serializeSkillUsageCatalog,
   stableStringify,
   usageFingerprint,

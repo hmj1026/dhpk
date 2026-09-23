@@ -13,7 +13,7 @@ authority for directories, runners, fixtures, and coverage thresholds.
 
 1. Feature work starts with an independent RED test for the acceptance
    behavior. A bug fix starts with a regression test that reproduces the
-   reported failure. Use `dhpk-tdd-workflow` (and the `tdd-guide` specialist
+   reported failure. Use `tdd-workflow` (and the `tdd-guide` specialist
    when a dispatched RED phase is required) for unit and integration behavior.
 2. Run the project's verification command, normally `/verify`, after the RED →
    GREEN → REFACTOR loop. Record the exact command, tree or commit, and result.

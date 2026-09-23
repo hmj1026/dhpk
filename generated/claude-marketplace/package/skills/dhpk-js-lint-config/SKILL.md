@@ -181,7 +181,7 @@ Use the `/ts-check-status` command for a one-shot rendered summary.
 
 ## Sibling skill / references
 
-- `skills/dhpk-js-static-check-strategy/SKILL.md` — the per-leaf
+- `skills/js-static-check-strategy/SKILL.md` — the per-leaf
   rollout playbook (`// @ts-check` discipline, tsconfig `exclude` strategy,
   19-leaf-style classification template, line-anchored grep traps).
 - `modules/js/references/static-checks.md` — always-loaded index pointing
@@ -196,7 +196,7 @@ Use the `/ts-check-status` command for a one-shot rendered summary.
 Not for everyday JS business logic or simple AJAX-wrapper lookups (the
 always-loaded `references/static-checks.md` index covers those). Not for the
 per-leaf `// @ts-check` rollout itself — that is the sibling
-`dhpk-js-static-check-strategy`. Load this for tier design, AST selectors, and the
+`js-static-check-strategy`. Load this for tier design, AST selectors, and the
 three-list global sync.
 
 ## Output

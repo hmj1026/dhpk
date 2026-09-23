@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Brief"
+  short_description: "Turn technical specs into executive briefs"
+  default_prompt: "Use $project-brief to turn one technical specification into an executive brief."

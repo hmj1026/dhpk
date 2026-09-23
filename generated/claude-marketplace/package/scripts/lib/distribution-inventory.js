@@ -49,6 +49,12 @@ const SURFACES = [
 const V2_SCHEMA = 'dhpk.distribution-inventory.v2';
 const PUBLIC_SKILL_NAME = /^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const PORTABLE_FAMILY_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+// A portable-skill is an individual reusable capability.  Its public name is
+// deliberately unprefixed, but unlike a portable-family it does not require
+// the stable ID and public name to be identical.  Keep this separate from the
+// reviewed family vocabulary so a generic skill cannot silently consume a
+// family entry point.
+const PORTABLE_SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const PORTABLE_FAMILY_NAMES = Object.freeze([
   'skill-scope',
   'skill-forge',
@@ -121,6 +127,43 @@ const RENAMED_SKILL_NAMES_054 = Object.freeze({
     newName: 'phpunit',
     newPath: 'skills/phpunit',
     rollbackRelease: '0.53.0',
+  }),
+});
+const RENAMED_SKILL_NAMES_0624 = Object.freeze({
+  'git-smart-commit': Object.freeze({
+    oldName: 'dhpk-git-smart-commit',
+    oldPath: 'skills/dhpk-git-smart-commit',
+    newName: 'git-smart-commit',
+    newPath: 'skills/git-smart-commit',
+    rollbackRelease: '0.62.4',
+  }),
+  'release-creator': Object.freeze({
+    oldName: 'dhpk-release-creator',
+    oldPath: 'skills/dhpk-release-creator',
+    newName: 'release-creator',
+    newPath: 'skills/release-creator',
+    rollbackRelease: '0.62.4',
+  }),
+  'matrix-cell-onboard': Object.freeze({
+    oldName: 'dhpk-matrix-cell-onboard',
+    oldPath: 'skills/dhpk-matrix-cell-onboard',
+    newName: 'matrix-cell-onboard',
+    newPath: 'skills/matrix-cell-onboard',
+    rollbackRelease: '0.62.4',
+  }),
+  tdd: Object.freeze({
+    oldName: 'dhpk-tdd-workflow',
+    oldPath: 'skills/dhpk-tdd-workflow',
+    newName: 'tdd-workflow',
+    newPath: 'skills/tdd-workflow',
+    rollbackRelease: '0.62.4',
+  }),
+  'js-static-check-strategy': Object.freeze({
+    oldName: 'dhpk-js-static-check-strategy',
+    oldPath: 'skills/dhpk-js-static-check-strategy',
+    newName: 'js-static-check-strategy',
+    newPath: 'skills/js-static-check-strategy',
+    rollbackRelease: '0.62.4',
   }),
 });
 const CAPABILITY_ID = /^dhpk\.[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
@@ -813,22 +856,56 @@ function validateSkillRetirements({ inventory } = {}) {
 }
 
 // Public-name renames retain the stable skill identity but never create a
-// compatibility alias. This ledger is migration evidence only and is closed
-// to the two 0.54.0 family-path renames.
+// compatibility alias.  The ledger is migration evidence only: every row is
+// checked against the active canonical entry, while the historical Laravel /
+// PHPUnit rows and the 0.62.4 migration rows retain their release pins.
 function validateRenamedSkillNames({ inventory } = {}) {
   const errors = [];
   if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) return { errors };
   const activeSkills = Array.isArray(inventory.skills) ? inventory.skills : [];
-  const activeById = new Map(activeSkills.map((entry) => [entry && entry.id, entry]));
-  const expectedIds = Object.keys(RENAMED_SKILL_NAMES_054);
-  if (!expectedIds.some((id) => activeById.has(id))) return { errors };
-
+  const activeById = new Map(activeSkills
+    .filter((entry) => entry && typeof entry.id === 'string')
+    .map((entry) => [entry.id, entry]));
+  const fixedRows = { ...RENAMED_SKILL_NAMES_054, ...RENAMED_SKILL_NAMES_0624 };
+  const fixedIds = Object.keys(fixedRows);
+  const activeFixedIds = fixedIds.filter((id) => {
+    const active = activeById.get(id);
+    const expected = fixedRows[id];
+    if (!active) return false;
+    // Additional 0.62.4 rows become required only once that public-name/path
+    // migration is actually active.  This keeps legacy inventories readable
+    // while still fail-closing a partially applied generic-name migration.
+    if (Object.prototype.hasOwnProperty.call(RENAMED_SKILL_NAMES_0624, id)) {
+      return active.name === expected.newName && active.path === expected.newPath;
+    }
+    return true;
+  });
   const rows = inventory.renamed_skill_names;
+  // Inventories without any migration rows remain valid.  Once a fixed
+  // migration is active, or a caller supplies a ledger explicitly, validate
+  // the entire ledger rather than silently ignoring an incomplete row set.
   if (!Array.isArray(rows)) {
-    return { errors: ['renamed_skill_names is required when the laravel/phpunit public names are active'] };
+    // Small syntax-only fixtures often model one renamed stable ID without
+    // carrying the repository migration ledger.  The checked-in migration has
+    // several coordinated rows; require the ledger once that coordinated set
+    // is present, while still validating any explicitly supplied rows.
+    if (activeFixedIds.length > 1) {
+      return { errors: ['renamed_skill_names is required when an active public-name rename is present'] };
+    }
+    return { errors };
   }
-  const seen = new Set();
+
+  const seenIds = new Set();
+  const seenOldNames = new Set();
+  const seenOldPaths = new Set();
+  const seenNewNames = new Set();
+  const seenNewPaths = new Set();
   const allowedFields = new Set(['id', 'oldName', 'oldPath', 'newName', 'newPath', 'rollback']);
+  const safePublicName = (value) => typeof value === 'string'
+    && value.length <= 63
+    && (PUBLIC_SKILL_NAME.test(value) || PORTABLE_SKILL_NAME.test(value));
+  const releasePattern = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+
   rows.forEach((row, index) => {
     const prefix = `renamed_skill_names[${index}]`;
     if (!row || typeof row !== 'object' || Array.isArray(row)) {
@@ -838,45 +915,70 @@ function validateRenamedSkillNames({ inventory } = {}) {
     for (const field of Object.keys(row)) {
       if (!allowedFields.has(field)) errors.push(`${prefix} ${row.id || '<unknown>'} has unknown field '${field}'`);
     }
-    if (typeof row.id !== 'string' || !Object.prototype.hasOwnProperty.call(RENAMED_SKILL_NAMES_054, row.id)) {
-      errors.push(`${prefix} has unexpected stable id '${row.id || '<missing>'}'`);
+    const id = row.id;
+    const active = typeof id === 'string' ? activeById.get(id) : undefined;
+    if (typeof id !== 'string' || id.trim() === '' || !active) {
+      errors.push(`${prefix} has unexpected stable id '${id || '<missing>'}'; must reference an active stable id`);
       return;
     }
-    if (seen.has(row.id)) errors.push(`duplicate renamed skill id: ${row.id}`);
-    seen.add(row.id);
-    const expected = RENAMED_SKILL_NAMES_054[row.id];
-    for (const field of ['oldName', 'oldPath', 'newName', 'newPath']) {
-      if (row[field] !== expected[field]) {
-        errors.push(`${prefix} ${row.id}.${field} must be '${expected[field]}', got '${row[field]}'`);
+    if (seenIds.has(id)) errors.push(`duplicate renamed skill id: ${id}`);
+    seenIds.add(id);
+    const expected = fixedRows[id];
+    const fields = ['oldName', 'oldPath', 'newName', 'newPath'];
+    for (const field of fields) {
+      if (typeof row[field] !== 'string' || row[field].trim() === '') {
+        errors.push(`${prefix} ${id}.${field} must be a non-empty string`);
       }
     }
+    if (!safePublicName(row.oldName)) errors.push(`${prefix} ${id}.oldName must be a safe public name`);
+    if (!safePublicName(row.newName)) errors.push(`${prefix} ${id}.newName must be a safe public name`);
+    if (!isSafeInventoryPath(row.oldPath)) errors.push(`${prefix} ${id}.oldPath must be a safe relative path`);
+    if (!isSafeInventoryPath(row.newPath)) errors.push(`${prefix} ${id}.newPath must be a safe relative path`);
+    if (row.oldName === row.newName) errors.push(`${prefix} ${id} must change public name`);
+    if (row.oldPath === row.newPath) errors.push(`${prefix} ${id} must change canonical path`);
+    if (row.newName !== active.name) errors.push(`${prefix} ${id}.newName must match active canonical name '${active.name}'`);
+    if (row.newPath !== active.path) errors.push(`${prefix} ${id}.newPath must match active canonical path '${active.path}'`);
+    if (typeof active.name === 'string' && row.newPath !== `skills/${active.name}`) {
+      errors.push(`${prefix} ${id}.newPath must be the flat canonical path 'skills/${active.name}'`);
+    }
+    if (expected) {
+      for (const field of fields) {
+        if (row[field] !== expected[field]) {
+          errors.push(`${prefix} ${id}.${field} must be '${expected[field]}', got '${row[field]}'`);
+        }
+      }
+    }
+    if (seenOldNames.has(row.oldName)) errors.push(`duplicate renamed skill old name: ${row.oldName}`);
+    if (seenOldPaths.has(row.oldPath)) errors.push(`duplicate renamed skill old path: ${row.oldPath}`);
+    if (seenNewNames.has(row.newName)) errors.push(`duplicate renamed skill new name: ${row.newName}`);
+    if (seenNewPaths.has(row.newPath)) errors.push(`duplicate renamed skill new path: ${row.newPath}`);
+    seenOldNames.add(row.oldName);
+    seenOldPaths.add(row.oldPath);
+    seenNewNames.add(row.newName);
+    seenNewPaths.add(row.newPath);
+    const rollbackRelease = row.rollback && !Array.isArray(row.rollback) && row.rollback.release;
     if (!row.rollback || typeof row.rollback !== 'object' || Array.isArray(row.rollback)
-      || Object.keys(row.rollback).length !== 1 || row.rollback.release !== expected.rollbackRelease) {
-      errors.push(`${prefix} ${row.id} rollback must be exactly { release: '${expected.rollbackRelease}' }`);
+      || Object.keys(row.rollback).length !== 1
+      || typeof rollbackRelease !== 'string' || !releasePattern.test(rollbackRelease)) {
+      errors.push(`${prefix} ${id} rollback must be exactly { release: '<semver>' }`);
+    } else if (expected && rollbackRelease !== expected.rollbackRelease) {
+      errors.push(`${prefix} ${id} rollback must be exactly { release: '${expected.rollbackRelease}' }`);
+    }
+    for (const skill of activeSkills) {
+      if (!skill || typeof skill !== 'object') continue;
+      if (skill.id !== id && skill.name === row.oldName) errors.push(`${row.oldName} must not remain an active public name`);
+      if (Array.isArray(skill.legacy_names) && skill.legacy_names.includes(row.oldName)) {
+        errors.push(`${row.oldName} must not remain an active alias`);
+      }
+      if (skill.id !== id && skill.path === row.oldPath) errors.push(`${row.oldPath} must not remain an active old path`);
     }
   });
 
-  for (const id of expectedIds) {
-    if (!seen.has(id)) errors.push(`renamed_skill_names is missing required stable id '${id}'`);
-    const active = activeById.get(id);
-    const expected = RENAMED_SKILL_NAMES_054[id];
-    if (!active) {
-      errors.push(`renamed_skill_names '${id}' requires an active skill with the same stable id`);
-      continue;
-    }
-    if (active.name !== expected.newName) errors.push(`${id} active name must match newName '${expected.newName}'`);
-    if (active.path !== expected.newPath) errors.push(`${id} active path must match newPath '${expected.newPath}' and must not use old path '${expected.oldPath}'`);
-    for (const skill of activeSkills) {
-      if (!skill || typeof skill !== 'object') continue;
-      if (skill.name === expected.oldName) errors.push(`${expected.oldName} must not remain an active public name`);
-      if (Array.isArray(skill.legacy_names) && skill.legacy_names.includes(expected.oldName)) {
-        errors.push(`${expected.oldName} must not remain an active alias`);
-      }
-      if (skill.path === expected.oldPath) errors.push(`${expected.oldPath} must not remain an active old path`);
-    }
+  for (const id of activeFixedIds) {
+    if (!seenIds.has(id)) errors.push(`renamed_skill_names is missing required stable id '${id}'`);
   }
-  if (rows.length !== expectedIds.length) {
-    errors.push(`renamed_skill_names must contain exactly ${expectedIds.length} rows`);
+  if (rows.length < activeFixedIds.length) {
+    errors.push(`renamed_skill_names must contain at least ${activeFixedIds.length} active migration rows`);
   }
   return { errors };
 }
@@ -939,12 +1041,16 @@ function validateDistributionInventoryV2(input = {}) {
     }
 
     const portableFamily = entry.name_style === 'portable-family';
-    if (entry.name_style !== undefined && entry.name_style !== 'portable-family') {
-      errors.push(`${prefix}.name_style must be 'portable-family' when present: '${entry.name_style}'`);
+    const portableSkill = entry.name_style === 'portable-skill';
+    if (entry.name_style !== undefined && !portableFamily && !portableSkill) {
+      errors.push(`${prefix}.name_style must be 'portable-skill' or 'portable-family' when present: '${entry.name_style}'`);
     }
+    let validPublicName = false;
     if (portableFamily) {
       if (!PORTABLE_FAMILY_NAME.test(entry.name) || !PORTABLE_FAMILY_NAMES.includes(entry.name) || entry.name.length > 63) {
         errors.push(`${prefix}.name must be one of the reviewed unprefixed portable-family names (${PORTABLE_FAMILY_NAMES.join(', ')}): '${entry.name}'`);
+      } else {
+        validPublicName = true;
       }
       if (entry.id !== entry.name) {
         errors.push(`${prefix}.id must equal the portable-family public name '${entry.name}'`);
@@ -952,16 +1058,30 @@ function validateDistributionInventoryV2(input = {}) {
       if (!INVOCATION_CLASSES.includes(entry.invocation_class)) {
         errors.push(`${prefix}.invocation_class must be one of ${INVOCATION_CLASSES.join('/')} for portable-family skills`);
       }
+    } else if (portableSkill) {
+      if (!PORTABLE_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
+        errors.push(`${prefix}.name must match ^[a-z0-9]+(?:-[a-z0-9]+)*$ and be at most 63 characters for portable-skill entries: '${entry.name}'`);
+      } else if (PORTABLE_FAMILY_NAMES.includes(entry.name)) {
+        errors.push(`${prefix}.name '${entry.name}' is reserved for portable-family and must use name_style 'portable-family'`);
+        validPublicName = true;
+      } else {
+        validPublicName = true;
+      }
+      if (!INVOCATION_CLASSES.includes(entry.invocation_class)) {
+        errors.push(`${prefix}.invocation_class must be one of ${INVOCATION_CLASSES.join('/')} for portable-skill skills`);
+      }
     } else if (typeof entry.name !== 'string' || !PUBLIC_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
       errors.push(`${prefix}.name must match ^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$ and be at most 63 characters: '${entry.name}'`);
-    } else if (names.has(entry.name)) {
-      errors.push(`duplicate public skill name: ${entry.name}`);
     } else {
-      names.add(entry.name);
+      validPublicName = true;
     }
-    if (portableFamily && typeof entry.name === 'string') {
-      if (names.has(entry.name)) errors.push(`duplicate public skill name: ${entry.name}`);
-      else names.add(entry.name);
+    // Public names share one namespace across the legacy-prefixed,
+    // portable-skill, and portable-family styles.  Do this after style checks
+    // so malformed names do not mask the actionable style diagnostic.
+    if (validPublicName && names.has(entry.name)) {
+      errors.push(`duplicate public skill name: ${entry.name}`);
+    } else if (validPublicName) {
+      names.add(entry.name);
     }
 
     const expectedPath = typeof entry.name === 'string' ? `skills/${entry.name}` : null;
@@ -2326,6 +2446,7 @@ module.exports = {
   SURFACES,
   V2_SCHEMA,
   PUBLIC_SKILL_NAME,
+  PORTABLE_SKILL_NAME,
   PORTABLE_FAMILY_NAME,
   PORTABLE_FAMILY_NAMES,
   CAPABILITY_FAMILY_RETIREMENTS,

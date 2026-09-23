@@ -1,7 +1,7 @@
 ---
 name: dhpk-feature-verify
 disable-model-invocation: true
-description: 'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-guide in feature mode), code review (use change-verdict), writing tests (use dhpk-tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check.'
+description: 'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-guide in feature mode), code review (use change-verdict), writing tests (use tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check.'
 allowed-tools: 'Read, Grep, Glob, Bash, Bash(codex:*), WebFetch, Task, Skill'
 context: fork
 metadata:

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Flow Guide"
+  short_description: "Guide routes, rules, next steps, closeout, and usage help"
+  default_prompt: "Use $flow-guide <help|route|rules|next|close> to get one read-only workflow report or bounded route handoff."

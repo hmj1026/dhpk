@@ -80,7 +80,7 @@ Load detailed guidance based on project type:
 | Laravel patterns | `references/laravel-patterns.md` | Need framework-native examples after Laravel version routing is complete |
 
 For Yii 1.1 work, load `references/php56-legacy.md` and `references/yii1-1.md` together. Add `references/phpunit57-php56-legacy.md` whenever the task includes tests or test review.
-For Symfony or generic modern PHP, use the core workflow plus `references/testing-quality.md`, then inspect the repository's native structure directly.
+For Symfony or generic modern PHP, use the core workflow plus `references/testing-quality.md`, then inspect the repository's native structure directly. Architect, security, and TDD trap sheets may point to PHP examples under `references/agent-extracts/`.
 
 ## Modern PHP Expectations
 

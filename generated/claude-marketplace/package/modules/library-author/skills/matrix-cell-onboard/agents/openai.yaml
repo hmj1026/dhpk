@@ -1,0 +1,4 @@
+interface:
+  display_name: "Matrix Cell Onboard"
+  short_description: "Checklist + procedure for adding a new PHP / Laravel / PHPUnit"
+  default_prompt: "Use $matrix-cell-onboard to apply the Matrix Cell Onboard workflow with its verification rules."

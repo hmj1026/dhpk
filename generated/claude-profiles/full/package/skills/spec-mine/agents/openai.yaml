@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spec Mine"
+  short_description: "Extract one capability behavioral baseline"
+  default_prompt: "Use $spec-mine to extract one capability's behavioral baseline."

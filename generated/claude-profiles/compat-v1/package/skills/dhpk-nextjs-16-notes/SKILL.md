@@ -9,7 +9,7 @@ metadata:
 
 Current stable major of Next.js, now at 16.2.x.
 
-> Read `docs/agent-guidance/frontend-framework-routing.md` for React/Next
+> Read [frontend-framework-routing.md](references/frontend-framework-routing.md) for React/Next
 > family selection and compatibility. This module owns the Next.js 16
 > version floors and migration traps after routing.
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Proposal Analyze"
+  short_description: "Turn proposals into evidence-backed roadmaps"
+  default_prompt: "Use $proposal-analyze to turn a proposal into an evidence-backed roadmap."

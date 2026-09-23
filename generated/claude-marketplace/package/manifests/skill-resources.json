@@ -1,0 +1,775 @@
+{
+  "schema": "dhpk.skill-resources.v1",
+  "skills": {
+    "agy-fast-worker": [
+      {
+        "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
+        "destination": "scripts/cli-transport/prepare-cli-request.py"
+      },
+      {
+        "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
+        "destination": "scripts/cli-transport/run-cli-transport.py"
+      }
+    ],
+    "change-verdict": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      },
+      {
+        "source": "scripts/lib/command-namespace.js",
+        "destination": "scripts/lib/command-namespace.js"
+      }
+    ],
+    "cli-dispatch-context": [
+      {
+        "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
+        "destination": "scripts/run-codex.sh"
+      },
+      {
+        "source": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh",
+        "destination": "scripts/run-agy.sh"
+      },
+      {
+        "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
+        "destination": "scripts/cli-transport/prepare-cli-request.py"
+      },
+      {
+        "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
+        "destination": "scripts/cli-transport/run-cli-transport.py"
+      }
+    ],
+    "codex-bridge": [
+      {
+        "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
+        "destination": "scripts/cli-transport/prepare-cli-request.py"
+      },
+      {
+        "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
+        "destination": "scripts/cli-transport/run-cli-transport.py"
+      }
+    ],
+    "flow-drive": [
+      {
+        "source": "rules/execution-policy.md",
+        "destination": "references/execution-bundle/rules/execution-policy.md"
+      },
+      {
+        "source": "rules/execution-policy-kernel.md",
+        "destination": "references/execution-bundle/rules/execution-policy-kernel.md"
+      },
+      {
+        "source": "rules/model-economics.md",
+        "destination": "references/execution-bundle/rules/model-economics.md"
+      },
+      {
+        "source": "rules/anti-rationalization.md",
+        "destination": "references/execution-bundle/rules/anti-rationalization.md"
+      },
+      {
+        "source": "rules/tool-routing.md",
+        "destination": "references/execution-bundle/rules/tool-routing.md"
+      },
+      {
+        "source": "docs/subagent-prompt-template.md",
+        "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
+      },
+      {
+        "source": "docs/contracts/review-lifecycle.md",
+        "destination": "references/execution-bundle/docs/contracts/review-lifecycle.md"
+      },
+      {
+        "source": "docs/contracts/reviewer-contract.md",
+        "destination": "references/execution-bundle/docs/contracts/reviewer-contract.md"
+      },
+      {
+        "source": "skills/flow-guide/references/invocation-precedence.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+      },
+      {
+        "source": "skills/flow-guide/references/invocation-classification.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+      },
+      {
+        "source": "skills/flow-guide/references/implementation-dispatch.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+      },
+      {
+        "source": "skills/flow-guide/references/review-gate-mechanics.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
+      },
+      {
+        "source": "skills/flow-guide/references/premise-verification.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+      },
+      {
+        "source": "skills/flow-guide/references/deterministic-first.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+      },
+      {
+        "source": "skills/flow-guide/references/testing-policy.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+      },
+      {
+        "source": "skills/flow-guide/references/component-addition-policy.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+      },
+      {
+        "source": "scripts/fast-worker-selector.js",
+        "destination": "references/execution-bundle/scripts/fast-worker-selector.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-contract.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-engine.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
+      },
+      {
+        "source": "scripts/lib/native-dispatch-policy.js",
+        "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+      },
+      {
+        "source": "scripts/lib/partial-writer-handoff.js",
+        "destination": "references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+      },
+      {
+        "source": "scripts/lib/flow-handoff-contract.js",
+        "destination": "references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+      },
+      {
+        "source": "manifests/provider-model-catalog.json",
+        "destination": "references/execution-bundle/manifests/provider-model-catalog.json"
+      },
+      {
+        "source": "manifests/host-profiles.json",
+        "destination": "references/execution-bundle/manifests/host-profiles.json"
+      }
+    ],
+    "flow-guide": [
+      {
+        "source": "rules/execution-policy.md",
+        "destination": "references/execution-bundle/rules/execution-policy.md"
+      },
+      {
+        "source": "rules/execution-policy-kernel.md",
+        "destination": "references/execution-bundle/rules/execution-policy-kernel.md"
+      },
+      {
+        "source": "rules/model-economics.md",
+        "destination": "references/execution-bundle/rules/model-economics.md"
+      },
+      {
+        "source": "rules/anti-rationalization.md",
+        "destination": "references/execution-bundle/rules/anti-rationalization.md"
+      },
+      {
+        "source": "rules/tool-routing.md",
+        "destination": "references/execution-bundle/rules/tool-routing.md"
+      },
+      {
+        "source": "docs/subagent-prompt-template.md",
+        "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
+      },
+      {
+        "source": "docs/contracts/review-lifecycle.md",
+        "destination": "references/execution-bundle/docs/contracts/review-lifecycle.md"
+      },
+      {
+        "source": "docs/contracts/reviewer-contract.md",
+        "destination": "references/execution-bundle/docs/contracts/reviewer-contract.md"
+      },
+      {
+        "source": "skills/flow-guide/references/invocation-precedence.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+      },
+      {
+        "source": "skills/flow-guide/references/invocation-classification.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+      },
+      {
+        "source": "skills/flow-guide/references/implementation-dispatch.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+      },
+      {
+        "source": "skills/flow-guide/references/review-gate-mechanics.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
+      },
+      {
+        "source": "skills/flow-guide/references/premise-verification.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+      },
+      {
+        "source": "skills/flow-guide/references/deterministic-first.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+      },
+      {
+        "source": "skills/flow-guide/references/testing-policy.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+      },
+      {
+        "source": "skills/flow-guide/references/component-addition-policy.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+      },
+      {
+        "source": "scripts/fast-worker-selector.js",
+        "destination": "references/execution-bundle/scripts/fast-worker-selector.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-contract.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-engine.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
+      },
+      {
+        "source": "scripts/lib/native-dispatch-policy.js",
+        "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+      },
+      {
+        "source": "scripts/lib/partial-writer-handoff.js",
+        "destination": "references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+      },
+      {
+        "source": "scripts/lib/flow-handoff-contract.js",
+        "destination": "references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+      },
+      {
+        "source": "manifests/provider-model-catalog.json",
+        "destination": "references/execution-bundle/manifests/provider-model-catalog.json"
+      },
+      {
+        "source": "manifests/host-profiles.json",
+        "destination": "references/execution-bundle/manifests/host-profiles.json"
+      },
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/_lib/runner-utils.js"
+      },
+      {
+        "source": "scripts/lib/command-namespace.js",
+        "destination": "scripts/_lib/command-namespace.js"
+      },
+      {
+        "source": "scripts/lib/skill-usage.js",
+        "destination": "scripts/_lib/skill-usage.js"
+      },
+      {
+        "source": "scripts/lib/feature-resolver.js",
+        "destination": "scripts/_lib/feature-resolver.js"
+      }
+    ],
+    "harness-setup": [
+      {
+        "source": "scripts/setup/install-assets.sh",
+        "destination": "scripts/lib/install-assets-writer.sh"
+      },
+      {
+        "source": "scripts/hooks/install-codex-skills.sh",
+        "destination": "scripts/lib/install-codex-skills.sh"
+      },
+      {
+        "source": "scripts/review-gate-runtime.js",
+        "destination": "scripts/review-gate-runtime.js"
+      },
+      {
+        "source": "scripts/lib/claude-review-gate-adapter.js",
+        "destination": "scripts/lib/claude-review-gate-adapter.js"
+      },
+      {
+        "source": "scripts/lib/physical-file.js",
+        "destination": "scripts/lib/physical-file.js"
+      },
+      {
+        "source": "scripts/lib/receipt-json-primitives.js",
+        "destination": "scripts/lib/receipt-json-primitives.js"
+      },
+      {
+        "source": "scripts/lib/receipt-primitives.js",
+        "destination": "scripts/lib/receipt-primitives.js"
+      },
+      {
+        "source": "scripts/lib/redaction.js",
+        "destination": "scripts/lib/redaction.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-evidence.js",
+        "destination": "scripts/lib/review-gate-evidence.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-receipt-store.js",
+        "destination": "scripts/lib/review-gate-receipt-store.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime.js",
+        "destination": "scripts/lib/review-gate-runtime.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-attestation.js",
+        "destination": "scripts/lib/review-gate-runtime-attestation.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-checkpoint.js",
+        "destination": "scripts/lib/review-gate-runtime-checkpoint.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-composition.js",
+        "destination": "scripts/lib/review-gate-runtime-composition.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-errors.js",
+        "destination": "scripts/lib/review-gate-runtime-errors.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-evidence.js",
+        "destination": "scripts/lib/review-gate-runtime-evidence.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-storage.js",
+        "destination": "scripts/lib/review-gate-runtime-storage.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-store-budget.js",
+        "destination": "scripts/lib/review-gate-store-budget.js"
+      },
+      {
+        "source": "scripts/lib/review-gate.js",
+        "destination": "scripts/lib/review-gate.js"
+      },
+      {
+        "source": "scripts/lib/reviewer-contract.js",
+        "destination": "scripts/lib/reviewer-contract.js"
+      },
+      {
+        "source": "scripts/lib/risk-router.js",
+        "destination": "scripts/lib/risk-router.js"
+      },
+      {
+        "source": "manifests/module-catalog.json",
+        "destination": "data/module-catalog.json"
+      },
+      {
+        "source": "templates/settings.local.json.example",
+        "destination": "templates/settings.local.json.example"
+      }
+    ],
+    "ios-platform": [
+      {
+        "source": "modules/ios-platform/references/coredata-encryption.md",
+        "destination": "references/coredata-encryption.md"
+      },
+      {
+        "source": "modules/ios-platform/references/cryptokit-keychain.md",
+        "destination": "references/cryptokit-keychain.md"
+      },
+      {
+        "source": "modules/ios-platform/references/vision-ocr.md",
+        "destination": "references/vision-ocr.md"
+      },
+      {
+        "source": "modules/ios-platform/references/local-authentication.md",
+        "destination": "references/local-authentication.md"
+      },
+      {
+        "source": "modules/ios-platform/references/notifications.md",
+        "destination": "references/notifications.md"
+      },
+      {
+        "source": "modules/ios-platform/references/healthkit-read.md",
+        "destination": "references/healthkit-read.md"
+      },
+      {
+        "source": "modules/ios-platform/references/privacy-compliance.md",
+        "destination": "references/privacy-compliance.md"
+      },
+      {
+        "source": "modules/ios-platform/references/actor-persistence.md",
+        "destination": "references/actor-persistence.md"
+      }
+    ],
+    "js-lint-config": [
+      {
+        "source": "modules/js/references/static-checks.md",
+        "destination": "references/static-checks.md"
+      },
+      {
+        "source": "modules/js/references/frontend-review-patterns.md",
+        "destination": "references/frontend-review-patterns.md"
+      }
+    ],
+    "js-static-check-strategy": [
+      {
+        "source": "modules/js/references/static-checks.md",
+        "destination": "references/static-checks.md"
+      },
+      {
+        "source": "modules/js/references/frontend-review-patterns.md",
+        "destination": "references/frontend-review-patterns.md"
+      }
+    ],
+    "nextjs-15-5-notes": [
+      {
+        "source": "docs/agent-guidance/frontend-framework-routing.md",
+        "destination": "references/frontend-framework-routing.md"
+      }
+    ],
+    "nextjs-16-notes": [
+      {
+        "source": "docs/agent-guidance/frontend-framework-routing.md",
+        "destination": "references/frontend-framework-routing.md"
+      }
+    ],
+    "opsx-apply-goal": [
+      {
+        "source": "rules/execution-policy.md",
+        "destination": "references/execution-bundle/rules/execution-policy.md"
+      },
+      {
+        "source": "rules/execution-policy-kernel.md",
+        "destination": "references/execution-bundle/rules/execution-policy-kernel.md"
+      },
+      {
+        "source": "rules/model-economics.md",
+        "destination": "references/execution-bundle/rules/model-economics.md"
+      },
+      {
+        "source": "rules/anti-rationalization.md",
+        "destination": "references/execution-bundle/rules/anti-rationalization.md"
+      },
+      {
+        "source": "rules/tool-routing.md",
+        "destination": "references/execution-bundle/rules/tool-routing.md"
+      },
+      {
+        "source": "docs/subagent-prompt-template.md",
+        "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
+      },
+      {
+        "source": "docs/contracts/review-lifecycle.md",
+        "destination": "references/execution-bundle/docs/contracts/review-lifecycle.md"
+      },
+      {
+        "source": "docs/contracts/reviewer-contract.md",
+        "destination": "references/execution-bundle/docs/contracts/reviewer-contract.md"
+      },
+      {
+        "source": "skills/flow-guide/references/invocation-precedence.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+      },
+      {
+        "source": "skills/flow-guide/references/invocation-classification.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+      },
+      {
+        "source": "skills/flow-guide/references/implementation-dispatch.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+      },
+      {
+        "source": "skills/flow-guide/references/review-gate-mechanics.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
+      },
+      {
+        "source": "skills/flow-guide/references/premise-verification.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+      },
+      {
+        "source": "skills/flow-guide/references/deterministic-first.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+      },
+      {
+        "source": "skills/flow-guide/references/testing-policy.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+      },
+      {
+        "source": "skills/flow-guide/references/component-addition-policy.md",
+        "destination": "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+      },
+      {
+        "source": "scripts/fast-worker-selector.js",
+        "destination": "references/execution-bundle/scripts/fast-worker-selector.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-contract.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
+      },
+      {
+        "source": "scripts/lib/dispatch-engine.js",
+        "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
+      },
+      {
+        "source": "scripts/lib/native-dispatch-policy.js",
+        "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+      },
+      {
+        "source": "scripts/lib/partial-writer-handoff.js",
+        "destination": "references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+      },
+      {
+        "source": "scripts/lib/flow-handoff-contract.js",
+        "destination": "references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+      },
+      {
+        "source": "manifests/provider-model-catalog.json",
+        "destination": "references/execution-bundle/manifests/provider-model-catalog.json"
+      },
+      {
+        "source": "manifests/host-profiles.json",
+        "destination": "references/execution-bundle/manifests/host-profiles.json"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
+        "destination": "scripts/launch-cli-dispatch.js"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
+        "destination": "scripts/build-cli-dispatch-context.js"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
+        "destination": "scripts/cli-role-resolver.js"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
+        "destination": "scripts/physical-file.js"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
+        "destination": "scripts/physical-file.py"
+      },
+      {
+        "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
+        "destination": "scripts/run-codex.sh"
+      },
+      {
+        "source": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh",
+        "destination": "scripts/run-agy.sh"
+      },
+      {
+        "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
+        "destination": "scripts/cli-transport/prepare-cli-request.py"
+      },
+      {
+        "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
+        "destination": "scripts/cli-transport/run-cli-transport.py"
+      },
+      {
+        "source": "scripts/lib/claude-review-gate-adapter.js",
+        "destination": "scripts/lib/claude-review-gate-adapter.js"
+      },
+      {
+        "source": "scripts/lib/physical-file.js",
+        "destination": "scripts/lib/physical-file.js"
+      },
+      {
+        "source": "scripts/lib/receipt-json-primitives.js",
+        "destination": "scripts/lib/receipt-json-primitives.js"
+      },
+      {
+        "source": "scripts/lib/receipt-primitives.js",
+        "destination": "scripts/lib/receipt-primitives.js"
+      },
+      {
+        "source": "scripts/lib/redaction.js",
+        "destination": "scripts/lib/redaction.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-evidence.js",
+        "destination": "scripts/lib/review-gate-evidence.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-receipt-store.js",
+        "destination": "scripts/lib/review-gate-receipt-store.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-attestation.js",
+        "destination": "scripts/lib/review-gate-runtime-attestation.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-checkpoint.js",
+        "destination": "scripts/lib/review-gate-runtime-checkpoint.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-composition.js",
+        "destination": "scripts/lib/review-gate-runtime-composition.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-errors.js",
+        "destination": "scripts/lib/review-gate-runtime-errors.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-evidence.js",
+        "destination": "scripts/lib/review-gate-runtime-evidence.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime-storage.js",
+        "destination": "scripts/lib/review-gate-runtime-storage.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-runtime.js",
+        "destination": "scripts/lib/review-gate-runtime.js"
+      },
+      {
+        "source": "scripts/lib/review-gate-store-budget.js",
+        "destination": "scripts/lib/review-gate-store-budget.js"
+      },
+      {
+        "source": "scripts/lib/review-gate.js",
+        "destination": "scripts/lib/review-gate.js"
+      },
+      {
+        "source": "scripts/lib/reviewer-contract.js",
+        "destination": "scripts/lib/reviewer-contract.js"
+      },
+      {
+        "source": "scripts/lib/risk-router.js",
+        "destination": "scripts/lib/risk-router.js"
+      },
+      {
+        "source": "scripts/review-gate-runtime.js",
+        "destination": "scripts/review-gate-runtime.js"
+      }
+    ],
+    "opsx-apply-resume": [
+      {
+        "source": "skills/dhpk-opsx-load-context/scripts/extract-compact.sh",
+        "destination": "scripts/extract-compact.sh"
+      },
+      {
+        "source": "skills/dhpk-opsx-post-observation/scripts/post-obs.sh",
+        "destination": "scripts/post-obs.sh"
+      },
+      {
+        "source": "scripts/hooks/_lib/portable-sed.sh",
+        "destination": "scripts/lib/portable-sed.sh"
+      }
+    ],
+    "precommit": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      }
+    ],
+    "project-audit": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      },
+      {
+        "source": "scripts/lib/command-namespace.js",
+        "destination": "scripts/lib/command-namespace.js"
+      }
+    ],
+    "project-setup": [
+      {
+        "source": "scripts/setup/install-assets.sh",
+        "destination": "scripts/lib/install-assets-writer.sh"
+      }
+    ],
+    "react-18-notes": [
+      {
+        "source": "docs/agent-guidance/frontend-framework-routing.md",
+        "destination": "references/frontend-framework-routing.md"
+      }
+    ],
+    "react-19-notes": [
+      {
+        "source": "docs/agent-guidance/frontend-framework-routing.md",
+        "destination": "references/frontend-framework-routing.md"
+      }
+    ],
+    "repo-intake": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      }
+    ],
+    "repo-verify": [
+      {
+        "source": "scripts/lib/runner-utils.js",
+        "destination": "scripts/lib/runner-utils.js"
+      }
+    ],
+    "swift-language": [
+      {
+        "source": "modules/swift/references/concurrency.md",
+        "destination": "references/concurrency.md"
+      },
+      {
+        "source": "modules/swift/references/approachable-concurrency.md",
+        "destination": "references/approachable-concurrency.md"
+      },
+      {
+        "source": "modules/swift/references/value-vs-reference.md",
+        "destination": "references/value-vs-reference.md"
+      },
+      {
+        "source": "modules/swift/references/error-handling.md",
+        "destination": "references/error-handling.md"
+      },
+      {
+        "source": "modules/swift/references/swift5-compat-notes.md",
+        "destination": "references/swift5-compat-notes.md"
+      }
+    ],
+    "swift-test-strategy": [
+      {
+        "source": "modules/swift-testing/references/swift-testing-api.md",
+        "destination": "references/swift-testing-api.md"
+      },
+      {
+        "source": "modules/swift-testing/references/xctest-bridging.md",
+        "destination": "references/xctest-bridging.md"
+      },
+      {
+        "source": "modules/swift-testing/references/xcuitest.md",
+        "destination": "references/xcuitest.md"
+      },
+      {
+        "source": "modules/swift-testing/references/snapshot-testing.md",
+        "destination": "references/snapshot-testing.md"
+      },
+      {
+        "source": "modules/swift-testing/references/test-taxonomy.md",
+        "destination": "references/test-taxonomy.md"
+      },
+      {
+        "source": "modules/swift-testing/references/protocol-di-host-testing.md",
+        "destination": "references/protocol-di-host-testing.md"
+      }
+    ],
+    "swiftui-architecture": [
+      {
+        "source": "modules/swiftui/references/mvvm-coordinator.md",
+        "destination": "references/mvvm-coordinator.md"
+      },
+      {
+        "source": "modules/swiftui/references/observation-state.md",
+        "destination": "references/observation-state.md"
+      },
+      {
+        "source": "modules/swiftui/references/navigation.md",
+        "destination": "references/navigation.md"
+      },
+      {
+        "source": "modules/swiftui/references/interop.md",
+        "destination": "references/interop.md"
+      }
+    ],
+    "xcode-build-tooling": [
+      {
+        "source": "modules/xcode-tooling/references/swiftlint-config.md",
+        "destination": "references/swiftlint-config.md"
+      },
+      {
+        "source": "modules/xcode-tooling/references/xcodebuild-spm.md",
+        "destination": "references/xcodebuild-spm.md"
+      },
+      {
+        "source": "modules/xcode-tooling/references/scheme-signing.md",
+        "destination": "references/scheme-signing.md"
+      }
+    ]
+  }
+}
