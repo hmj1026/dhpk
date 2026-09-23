@@ -141,7 +141,7 @@ custom canary in hyphenated and underscored forms; built-in `explorer` success
 does not prove project custom-role discovery. If the custom probes still return
 `unknown agent_type`, record `CUSTOM_AGENT_REGISTRY_UNAVAILABLE`, the CLI
 version, and bounded redacted diagnostics. Keep the gate `FAIL`, dependent work
-`BLOCKED`, and the registered names, GPT-5.6 family models, and configuration
+`BLOCKED`, and the registered names, GPT-6 family models, and configuration
 unchanged. Model rejection is separate evidence because registry resolution
 precedes child model selection.
 

@@ -87,7 +87,7 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
 | `codex-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID, legacy alias: `codex-fast-worker`; see §Implementation dispatch | — |
 | `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID, legacy alias: `agy-fast-worker`; see §Implementation dispatch | — |
-| `codex-bridge` | **Explicit CLI `codex exec` path, not the legacy MCP peer** — outsource a self-contained clear-spec task, or a blind second opinion, to the GPT-5.6 family; output isolated in the subagent, relayed verbatim; mode-qualified alias (read-only → `codex-reviewer` → `gpt-5.6-sol`/`high`, workspace-write → `codex-worker` → `gpt-5.6-luna`/`xhigh`); `codex-reviewer` is internal-only in this rollout; see §Implementation dispatch | — |
+| `codex-bridge` | **Explicit CLI `codex exec` path, not the legacy MCP peer** — outsource a self-contained clear-spec task, or a blind second opinion, to the GPT-6 family; output isolated in the subagent, relayed verbatim; mode-qualified alias (read-only → `codex-reviewer` → `gpt-6-sol`/`high`, workspace-write → `codex-worker` → `gpt-6-luna`/`xhigh`); `codex-reviewer` is internal-only in this rollout; see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
 | `code-reviewer` | Code review — triggered by source-file edits | consolidated wave |
 | `database-reviewer` | SQL / Repository / migration (SQL correctness) — triggered or back-stop | consolidated wave |
@@ -175,7 +175,7 @@ so its success proves multi-agent availability, not project custom-role
 discovery. If the custom probes still return `unknown agent_type`, record
 `CUSTOM_AGENT_REGISTRY_UNAVAILABLE`, the Codex CLI version, and bounded redacted
 diagnostics; the consumer/release gate remains `FAIL` and dependent work remains
-`BLOCKED`. Keep the registered role names, GPT-5.6 family role models, and
+`BLOCKED`. Keep the registered role names, GPT-6 family role models, and
 configuration unchanged. A model-rejection error is separate evidence because
 `unknown agent_type` occurs before the child role model is selected.
 
@@ -248,7 +248,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | Work shape | Dispatch |
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
-| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex-cli/<model>[:<effort>]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex-cli/<model>[:<effort>]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-6-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
 | Judgment-dense but standardizable work touching more than two files (bounded documentation migration, bilingual restructuring, or a known review-fix batch) | In-process `fast-worker` by default |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; the retired `CODEX=on`/`--codex` review-peer flags cannot select it. | `codex-worker` (canonical role ID; legacy alias: `codex-fast-worker`) |

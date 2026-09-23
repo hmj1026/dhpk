@@ -976,7 +976,7 @@
       "outcome": "retain",
       "disposition": "retain-standalone",
       "rationale": "Keep explicit Codex bridge and blind-second-opinion work independently selectable until all provider ownership bridges are verified.",
-      "content_value": "'Use when an explicit CLI handoff or blind second opinion should go to the GPT-5.6 family through one-shot codex exec: gpt-5.6-sol/high for read-only or gpt-5.6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.'",
+      "content_value": "'Use when an explicit CLI handoff or blind second opinion should go to the GPT-6 family through one-shot codex exec: gpt-6-sol/high for read-only or gpt-6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.'",
       "callers": [
         "skills/dhpk-codex-bridge/SKILL.md"
       ],
