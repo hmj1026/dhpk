@@ -2,9 +2,25 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:4870c6b34e8040a8dde5267d2b13e1f00f23fe44258b546900c23303a5d8300e`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:cfb17c8bf44b319de5131e11f3081ef778fd715d1a6ea737fc24feac6ed724ac`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
+
+### `$code-simplify`
+
+摘要：Clean changed code without changing behavior
+語法：`$code-simplify [<target>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `target` `<target>` (可選, string) — PR, branch, file, or directory
+
+Actions：
+- `simplify` `$code-simplify [<target>]` — Apply bounded cleanup with test evidence
+
+範例：
+- `$code-simplify src/` — Use code simplify with its declared interface
 
 ### `$code-trace`
 
@@ -31,18 +47,42 @@ Actions：
 範例：
 - `$code-trace --mode=explore OrderService` — Trace callers and callees for an unfamiliar symbol
 
-### `$dhpk-git-smart-commit`
+### `$create-pr`
 
-摘要：Group related changes into reviewable commits safely
-語法：`$dhpk-git-smart-commit`
+摘要：Create a ticket-aware pull request with a safe dry-run boundary
+語法：`$create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]`
 呼叫類別：`explicit-only`
-最高 authority：`git-write`
+最高 authority：`external-write`
 
 Actions：
-- `group` `$dhpk-git-smart-commit` — Analyze changes and produce grouped commit steps
+- `create` `$create-pr [--execute]` — Create or preview one pull request
+
+選項：
+- `head` `--head=<branch>` (可選, string) — Use this source branch
+- `base` `--base=<branch>` (可選, string) — Use this target branch
+- `title` `--title=<text>` (可選, string) — Override the generated title
+- `execute` `--execute` (可選, boolean, default=false) — Perform the explicit remote create
+- `dry-run` `--dry-run` (可選, boolean, default=true) — Preview without remote mutation
 
 範例：
-- `$dhpk-git-smart-commit split these changes into logical commits` — Prepare a safe grouped commit plan
+- `$create-pr --dry-run` — Use create pr with its declared interface
+
+### `$dep-audit`
+
+摘要：Audit dependency risks with a separate explicit fix boundary
+語法：`$dep-audit [--level=<severity>] [--fix]`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+Actions：
+- `audit` `$dep-audit` — Audit dependency vulnerabilities and optional fixes
+
+選項：
+- `level` `--level=<severity>` (可選, enum, values=low|moderate|high|critical, default=moderate) — Minimum severity to report
+- `fix` `--fix` (可選, boolean, default=false) — Run the explicitly requested fix operation
+
+範例：
+- `$dep-audit --level=high` — Use dependency audit with its declared interface
 
 ### `$dhpk-legacy-characterization-tests`
 
@@ -105,24 +145,6 @@ Actions：
 範例：
 - `$dhpk-php-runtime-router review this Yii 1.1 controller` — Select PHP-compatible guidance for a backend task
 
-### `$dhpk-tdd-workflow`
-
-摘要：Drive behavior-first tests through a minimal red-green loop
-語法：`$dhpk-tdd-workflow [test-generation] <task>`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `mode` `<test-generation>` (可選, enum, values=test-generation) — Optionally request test scaffold generation
-- `task` `<task>` (必要, string) — Describe the behavior-first development task
-
-Actions：
-- `tdd` `$dhpk-tdd-workflow <task>` — Guide a behavior-first test and implementation loop
-- `test-generation` `$dhpk-tdd-workflow test-generation <target>` — Generate a focused failing-test scaffold
-
-範例：
-- `$dhpk-tdd-workflow test-generation tests/OrderTest.php` — Start with a behavior-focused test scaffold
-
 ### `$dhpk-yii1-php56-development`
 
 摘要：Implement Yii 1.x backend changes with PHP 5.6-safe tests
@@ -157,6 +179,22 @@ Actions：
 
 範例：
 - `$dhpk-yii1-security-audit protected` — Audit a Yii 1.1 project for framework security issues
+
+### `$doc-refactor`
+
+摘要：Refactor one bounded Markdown document while preserving facts
+語法：`$doc-refactor <file-path>`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `file-path` `<file-path>` (必要, string) — One Markdown document
+
+Actions：
+- `refactor` `$doc-refactor <file-path>` — Rewrite one bounded document and validate its links
+
+範例：
+- `$doc-refactor docs/guide.md` — Use doc refactor with its declared interface
 
 ### `$flow-drive`
 
@@ -210,6 +248,64 @@ Actions：
 範例：
 - `$flow-guide help` — List the available Codex skill usage contracts
 
+### `$git-smart-commit`
+
+摘要：Group related changes into reviewable commits safely
+語法：`$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]`
+呼叫類別：`explicit-only`
+最高 authority：`git-write`
+
+Actions：
+- `group` `$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]` — Analyze changes and produce grouped commit steps
+
+選項：
+- `scope` `--scope=<path>` (可選, string) — Limit status and diff collection
+- `type` `--type=<type>` (可選, enum, values=feat|fix|docs|refactor|style|chore|test) — Force a conventional commit type
+- `ai-co-author` `--ai-co-author` (可選, boolean, default=false) — Opt into the project-approved AI trailer
+
+範例：
+- `$git-smart-commit --scope=src/` — Use git smart commit with its declared interface
+
+### `$git-worktree`
+
+摘要：Manage native Git worktrees with confirmation boundaries
+語法：`$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]`
+呼叫類別：`explicit-only`
+最高 authority：`git-write`
+
+輸入：
+- `operation` `<operation>` (可選, enum, values=add|list|remove|prune, default=list) — Worktree operation
+
+Actions：
+- `manage` `$git-worktree [<operation>]` — Add, list, remove, or prune a worktree
+
+選項：
+- `branch` `--branch=<name>` (可選, string) — Branch used by add or remove
+- `base` `--base=<ref>` (可選, string) — Base ref used when adding
+
+範例：
+- `$git-worktree list` — Use git worktree with its declared interface
+
+### `$harness-audit`
+
+摘要：Audit repository harness health with a deterministic scorecard
+語法：`$harness-audit [<scope>] [--format=<format>] [--root=<path>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`read-only`
+
+輸入：
+- `scope` `<scope>` (可選, enum, values=repo|hooks|skills|commands|agents, default=repo) — Harness area to inspect
+
+Actions：
+- `audit` `$harness-audit [<scope>]` — Run the deterministic harness audit
+
+選項：
+- `format` `--format=<format>` (可選, enum, values=text|json, default=text) — Output format
+- `root` `--root=<path>` (可選, string) — Consumer repository root
+
+範例：
+- `$harness-audit skills --format=json` — Use harness audit with its declared interface
+
 ### `$harness-govern`
 
 摘要：Govern harness health, budget, filling, revision, and sync
@@ -236,6 +332,183 @@ Actions：
 範例：
 - `$harness-govern health --dry-run` — Inspect harness health without changing files
 
+### `$js-static-check-strategy`
+
+摘要：Plan staged TypeScript checks and inspect strict-check progress
+語法：`$js-static-check-strategy status [--path=<path>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`read-only`
+
+Actions：
+- `status` `$js-static-check-strategy status [--path=<path>]` — Report the current static-check status
+
+選項：
+- `path` `--path=<path>` (可選, string) — Frontend root to scan
+
+範例：
+- `$js-static-check-strategy status --path=js/` — Use js static check strategy with its declared interface
+
+### `$matrix-cell-onboard`
+
+摘要：Plan and optionally apply one multi-major CI matrix cell
+語法：`$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `php-version` `<php-version>` (必要, string) — PHP runtime version
+- `laravel-version` `<laravel-version>` (必要, string) — Laravel version
+- `phpunit` `<phpunit>` (可選, string) — PHPUnit version
+- `monolog` `<monolog>` (可選, string) — Monolog version
+
+Actions：
+- `onboard` `$matrix-cell-onboard <php-version> <laravel-version>` — Plan and apply one matrix cell
+
+範例：
+- `$matrix-cell-onboard 8.3 12 11 3` — Use matrix cell onboard with its declared interface
+
+### `$merge-prep`
+
+摘要：Analyze a branch merge without mutating the repository
+語法：`$merge-prep <source-branch> [--target=<branch>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`read-only`
+
+輸入：
+- `source-branch` `<source-branch>` (必要, string) — Branch to analyze
+
+Actions：
+- `prepare` `$merge-prep <source-branch>` — Analyze merge conflicts and manual commands
+
+選項：
+- `target` `--target=<branch>` (可選, string) — Target branch for the analysis
+
+範例：
+- `$merge-prep feature/topic --target=main` — Use merge prep with its declared interface
+
+### `$pr-summary`
+
+摘要：Summarize open pull requests with evidence
+語法：`$pr-summary [--author=<user>] [--label=<label>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`read-only`
+
+Actions：
+- `summarize` `$pr-summary` — Group accessible open pull requests
+
+選項：
+- `author` `--author=<user>` (可選, string) — Filter by pull-request author
+- `label` `--label=<label>` (可選, string) — Filter by pull-request label
+
+範例：
+- `$pr-summary --label=ready` — Use pr summary with its declared interface
+
+### `$precommit`
+
+摘要：Run the packaged deterministic pre-commit pipeline
+語法：`$precommit [--fast]`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+Actions：
+- `run` `$precommit [--fast]` — Run fast or full pre-commit stages
+
+選項：
+- `fast` `--fast` (可選, boolean, default=false) — Run the fast stage set
+
+範例：
+- `$precommit --fast` — Use precommit with its declared interface
+
+### `$project-brief`
+
+摘要：Convert one technical specification into an executive brief
+語法：`$project-brief <tech-spec-path> [--output=<output-path>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `tech-spec-path` `<tech-spec-path>` (必要, string) — Readable technical specification
+
+Actions：
+- `brief` `$project-brief <tech-spec-path>` — Write an executive summary without changing the source
+
+選項：
+- `output` `--output=<output-path>` (可選, string) — Destination for the brief
+
+範例：
+- `$project-brief docs/spec.md --output=docs/brief.md` — Use project brief with its declared interface
+
+### `$proposal-analyze`
+
+摘要：Turn a proposal into an evidence-backed implementation roadmap
+語法：`$proposal-analyze <proposal>`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `proposal` `<proposal>` (必要, string) — Proposal text or file path
+
+Actions：
+- `analyze` `$proposal-analyze <proposal>` — Research a proposal and produce a roadmap
+
+範例：
+- `$proposal-analyze openspec/changes/example/proposal.md` — Use proposal analyze with its declared interface
+
+### `$release-creator`
+
+摘要：Prepare or publish a validated release with a human gate
+語法：`$release-creator <version> [--execute]`
+呼叫類別：`explicit-only`
+最高 authority：`external-write`
+
+輸入：
+- `version` `<version>` (必要, string) — Release version
+
+Actions：
+- `release` `$release-creator <version> [--execute]` — Prepare or publish one release
+
+選項：
+- `execute` `--execute` (可選, boolean, default=false) — Proceed past the human release gate
+
+範例：
+- `$release-creator 0.62.4 --execute` — Use release creator with its declared interface
+
+### `$repo-verify`
+
+摘要：Run runner-first repository verification with explicit evidence
+語法：`$repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`read-only`
+
+輸入：
+- `mode` `<mode>` (可選, enum, values=fast|full, default=full) — Verification depth
+
+Actions：
+- `verify` `$repo-verify [<mode>]` — Run fast or full repository verification
+
+選項：
+- `integration` `--integration=<path>` (可選, string) — Run the named integration stage
+- `e2e` `--e2e=<path>` (可選, string) — Run the named end-to-end stage
+
+範例：
+- `$repo-verify fast` — Use repo verify with its declared interface
+
+### `$review-pending`
+
+摘要：Delegate a read-only pending-change review
+語法：`$review-pending [--files=<rel-paths>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`delegate`
+
+Actions：
+- `review` `$review-pending` — Delegate the selected pending files to code-reviewer
+
+選項：
+- `files` `--files=<rel-paths>` (可選, string) — Comma-separated relative file paths
+
+範例：
+- `$review-pending --files=src/a.js` — Use review pending with its declared interface
+
 ### `$skill-scope`
 
 摘要：Route skill governance to one focused mode with evidence
@@ -255,3 +528,66 @@ Actions：
 
 範例：
 - `$skill-scope health flow-guide` — Run a focused health check for one skill
+
+### `$spec-mine`
+
+摘要：Extract one capability baseline into an OpenSpec behavioral spec
+語法：`$spec-mine [<capability-or-path>]`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `capability-or-path` `<capability-or-path>` (可選, string) — Capability or path to mine first
+
+Actions：
+- `mine` `$spec-mine [<capability-or-path>]` — Write one bounded behavioral baseline
+
+範例：
+- `$spec-mine billing` — Use spec mine with its declared interface
+
+### `$tdd-workflow`
+
+摘要：Drive behavior-first tests through a minimal red-green loop
+語法：`$tdd-workflow [test-generation] <task>`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `mode` `<test-generation>` (可選, enum, values=test-generation) — Optionally request test scaffold generation
+- `task` `<task>` (必要, string) — Describe the behavior-first development task
+
+Actions：
+- `tdd` `$tdd-workflow <task>` — Guide a behavior-first test and implementation loop
+- `test-generation` `$tdd-workflow test-generation <target>` — Generate a focused failing-test scaffold
+
+範例：
+- `$tdd-workflow test-generation tests/OrderTest.php` — Use tdd with its declared interface
+
+### `$update-codemaps`
+
+摘要：Refresh architecture codemaps from the live project structure
+語法：`$update-codemaps`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+Actions：
+- `update` `$update-codemaps` — Refresh the bounded architecture codemaps
+
+範例：
+- `$update-codemaps` — Use update codemaps with its declared interface
+
+### `$update-docs`
+
+摘要：Update a bounded user or agent document from live evidence
+語法：`$update-docs <docs-path-or-workflow-keyword>`
+呼叫類別：`implicit-eligible`
+最高 authority：`workspace-write`
+
+輸入：
+- `target` `<docs-path-or-workflow-keyword>` (必要, string) — Documentation path or workflow keyword
+
+Actions：
+- `update` `$update-docs <docs-path-or-workflow-keyword>` — Update owned documentation and its locale pair
+
+範例：
+- `$update-docs docs/configuration.md` — Use update docs with its declared interface

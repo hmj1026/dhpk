@@ -21,16 +21,16 @@ minimal profile；既有 receipt 在明確 migration 前保留原 selection。�
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/<public-name>/` 下 65 個扁平 package |
-| Public identity | 九個 capability family 使用未加前綴名稱；其他 56 個 first-party name 維持 `dhpk-*` |
+| Canonical source | `skills/<public-name>/` 下 84 個扁平 package |
+| Public identity | 33 個 public name 不加前綴，包含九個 capability family 與可攜 command skill；其他 51 個 first-party name 維持 `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
-| Codex 專案 projection | `codex/skills/` 下 15 個相對 symlink（13 個可呼叫加內部 transport 與 dispatch-context runtime） |
-| Codex native package | `plugins/dhpk/skills/` 下 15 個實體 package，零 symlink |
+| Codex 專案 projection | `codex/skills/` 下 34 個相對 symlink（32 個可呼叫加內部 transport 與 dispatch-context runtime） |
+| Codex native package | `plugins/dhpk/skills/` 下 34 個實體 package，零 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
 | Profile 大小 | `minimal=4`、`full=55`、`compat-v1=62`（不含 overlays）；minimal 為 `change-verdict`、`code-trace`、`flow-drive`、`flow-guide` |
-| Agent/Cursor/AGY publication | Agent Plugin 與 AGY 各選 37 個 stable ID；Cursor native 擁有 4 個 overlay entry，portable skills 與 Agent 共用 |
+| Agent/Cursor/AGY publication | Agent Plugin 與 AGY 各選 55 個 stable ID；Cursor native 擁有 4 個 overlay entry，portable skills 與 Agent 共用 |
 
 目錄位置與 README 清單都不是權威來源。Inventory 管理 stable id、public name、
 lifecycle、module 與 publication surface；validator 會將每個 projection 與它對齊。
@@ -338,11 +338,10 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲由 inventory 管理 65 個 canonical package、31 個 module 與 Codex project/native
-項目（13 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；上述九個 MCP
-capability identity 只存在 ledger，不計入任何 active count。Profiles 應為
-`minimal=4`、`full=55`、`compat-v1=62`；Agent Plugin 與 AGY 各為 37 個，Cursor native overlay 為 4 個
-selected stable ID。相對 symlink 只能出現在
+預期拓撲由 inventory 管理 canonical package 數量、31 個 module，以及 inventory 所屬的
+Codex project/native 項目（可呼叫 skill 加上內部 transport 與 dispatch-context runtime）。
+上述九個 MCP capability identity 只存在 ledger，不計入任何 active count。Profiles 應為
+`minimal=4`、`full=55`、`compat-v1=62`。相對 symlink 只能出現在
 module/Codex projection，native package 必須零 symlink。
 
 ## Rollback

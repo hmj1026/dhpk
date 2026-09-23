@@ -257,11 +257,11 @@ Use the skill groups below as a reusable decision ladder:
 | Routing/decision | `flow-guide`, `flow-drive` | Discover, advise, and execute only confirmed work. | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
 | Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore\|diagnose\|history` |
 | Read-only verdict | `change-verdict` (`code\|pr\|security\|tests\|docs\|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
-| Delivery / implementation prep | `dhpk-tdd-workflow`, `dhpk-module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `dhpk-tdd-workflow` + scoped verification |
+| Delivery / implementation prep | `tdd-workflow`, `dhpk-module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `tdd-workflow` + scoped verification |
 | OpenSpec session control | `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`, `dhpk-opsx-apply-goal` | Resume / handoff an OpenSpec edit sequence. | `dhpk-opsx-apply-goal <change-id>` for long-run, `dhpk-opsx-load-context` for resume |
 | Harness and platform hygiene | `harness-govern` (`health\|budget\|fill\|revise\|sync`) | Keep plugin/sync state clean and repeatable across environments. | `$harness-govern health --dry-run` (read-first) |
 | Skill governance | `skill-scope`, `skill-forge` | Author, audit, and compare skill quality or usage | `skill-scope` for quick checks, `skill-forge` when changing structure |
-| Git / release prep | `dhpk-git-smart-commit`, `dhpk-release-creator`, `dhpk-deploy-list`, `dhpk-project-setup` | Group commits, prepare release and deploy artifacts, set up repo policy. | `dhpk-project-setup` → `dhpk-git-smart-commit` / `dhpk-release-creator` |
+| Git / release prep | `git-smart-commit`, `release-creator`, `dhpk-deploy-list`, `dhpk-project-setup` | Group commits, prepare release and deploy artifacts, set up repo policy. | `dhpk-project-setup` → `git-smart-commit` / `release-creator` |
 
 ### Parameter quick reference
 
@@ -271,7 +271,7 @@ Use the skill groups below as a reusable decision ladder:
 | `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
-| `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
+| `tdd-workflow` | `test-generation` `fast-worker` `standard` |
 | `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
 | `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
@@ -285,7 +285,7 @@ Use the lane first, then reduce flags: fewer inputs -> fewer routing misses and 
 | Feature, bug, refactor, or other substantial change | `/dhpk:flow-guide route <task>` then `/dhpk:flow-drive <confirmed-spec-or-change-id>` | One named owner followed by confirmed implementation evidence. |
 | Inspect code or execution flow | `/dhpk:code-trace --mode explore <area>` | Evidence-backed explanation with file/symbol references. |
 | Review existing edits | `/dhpk:review-pending` or `/dhpk:change-verdict --mode code` | Reviewer verdict plus fresh artifact or an explicit blocker. |
-| Commit, PR, or release | `/dhpk:smart-commit`, `/dhpk:create-pr`, or `/dhpk:dhpk-release-creator` | Explicit command result; no automatic commit, push, or merge. |
+| Commit, PR, or release | `/dhpk:smart-commit`, `/dhpk:create-pr`, or `/dhpk:create-release` | Explicit command result; no automatic commit, push, or merge. |
 
 `/dhpk:flow-guide` may identify an `implicit-eligible` target. If routing selects an
 `explicit-only` target, it prints the exact direct invocation and stops; routing

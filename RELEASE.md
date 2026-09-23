@@ -56,9 +56,9 @@ passes.
 
 ## Current skill-platform topology (release preparation)
 
-The current release-preparation topology is 65 canonical packages, 37 entries
+The current release-preparation topology is 84 canonical packages, 55 entries
 on both the Agent Plugin and AGY surfaces, a 4-entry Cursor-native overlay, 37
-module projections, and 15 Codex project/native entries (13 invokable skills
+module projections, and 34 Codex project/native entries (32 invokable skills
 plus internal transport and dispatch-context runtimes). Five alias-free rows remain in the `retired_skills` ledger and are
 excluded from discovery. Module and Codex project projections use relative
 symlinks; the native package contains no symlinks.
@@ -222,7 +222,7 @@ requirement stands.
    the whole repository implicitly:
 
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
      prepare X.Y.Z develop main v release.yml \
      .claude-plugin/plugin.json \
      .codex-plugin/plugin.json \
@@ -264,7 +264,7 @@ containment verification before a release is considered complete.
 Once the checks pass, publish the tag:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
+bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
   publish X.Y.Z develop main v release.yml
 ```
 

@@ -71,8 +71,8 @@ package.
 ## Evidence boundary
 
 The canonical profile is `minimal=4`; `full=55` and `compat-v1=62` remain
-explicit opt-ins. Agent Plugin and AGY packages currently select 37 stable IDs,
+explicit opt-ins. Agent Plugin and AGY packages currently select 55 stable IDs,
 the Cursor native overlay selects four native IDs and shares the Agent Plugin
-skills, and Codex native selects 15 IDs. These are structural/package facts,
+skills, and Codex native selects 34 IDs. These are structural/package facts,
 not runtime `PASS`. Report unavailable probes as `NOT_RUN`, `BLOCKED`, or
 `UNAVAILABLE`.

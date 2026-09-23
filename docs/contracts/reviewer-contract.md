@@ -7,9 +7,15 @@ results. The Review Gate is current runtime authority. Compatibility
 translation is an observation of legacy evidence only; it is never a new
 approval, lifecycle clearance, or active dispatch path.
 
-The executable definitions live in `scripts/lib/reviewer-contract.js`, and the
-shared conformance example lives in
-`tests/fixtures/review-gate/reviewer-contract-v2.json`.
+`<authoring-source-root>` denotes the dhpk repository root used to maintain and
+validate this contract; it is not a consumer or Skill runtime root. The
+canonical authoring source for the executable definitions is
+`<authoring-source-root>/scripts/lib/reviewer-contract.js`, and the shared
+conformance example is
+`<authoring-source-root>/tests/fixtures/review-gate/reviewer-contract-v2.json`.
+These paths record provenance for maintainers only. They are not required
+resources for a distributed Skill or a consumer's selected review route; that
+route must explicitly supply or select its own implementation and fixtures.
 
 ## Review Request
 

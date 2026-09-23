@@ -4,7 +4,7 @@
 >
 > 安裝與支援狀態：[平台安裝 SSOT](./platform-installation.zh-TW.md)
 
-這是一頁式入口圖，不是技能 procedure 的複本。完整的 65 個 canonical package
+這是一頁式入口圖，不是技能 procedure 的複本。完整的 84 個 canonical package
 請看 [`skills/INDEX.md`](../skills/INDEX.md)；Codex 的參數與可用性請看
 [`Codex 技能參數發現`](./codex-skill-usage.zh-TW.md)。
 
@@ -28,7 +28,7 @@ audit、prompt optimization 與 stack-specific skills 都是明確選裝，不�
 | 查政策、下一步或收尾 | `$flow-guide rules <query>`、`next <query>`、`close <query>` | 只讀 guidance，不取得 implementation 或 Git authority |
 | 已有確認的 specification/change | `$flow-drive <confirmed-spec-or-change-id>` | explicit-only、無 mode；只負責 implementation |
 | 還沒有 proposal 或 OpenSpec artifacts | 外部 `$openspec-propose`，再依流程使用 `/opsx:apply` | proposal authoring 不屬於 `flow-drive` |
-| 要分組 Git commit | `$dhpk-git-smart-commit` | `git-smart-commit` stable ID 與 public name 保持不變；需要明確 Git authority |
+| 要分組 Git commit | `$git-smart-commit` | `git-smart-commit` stable ID 與 public name 保持不變；需要明確 Git authority |
 
 ## 九個 portable family
 
@@ -69,7 +69,7 @@ $flow-drive <change-id> --no-architect
 
 | 技能 | 觸發 | 主要邊界 |
 |---|---|---|
-| [`dhpk-tdd-workflow`](../skills/dhpk-tdd-workflow/SKILL.md) | 需要 tests-first RED/GREEN/REFACTOR | 不負責瀏覽器旅程或未確認的需求 authoring |
+| [`tdd-workflow`](../skills/tdd-workflow/SKILL.md) | 需要 tests-first RED/GREEN/REFACTOR | 不負責瀏覽器旅程或未確認的需求 authoring |
 | [`dhpk-module-design`](../skills/dhpk-module-design/SKILL.md) | 需要 module boundary、deep-module 或 architecture decision | 不取代 OpenSpec proposal owner |
 | [`dhpk-php-runtime-router`](../skills/dhpk-php-runtime-router/SKILL.md) | PHP/Laravel/Symfony/Yii runtime 需要分流 | 先判斷 runtime，再載入一條 reference |
 | [`dhpk-yii1-php56-development`](../skills/dhpk-yii1-php56-development/SKILL.md) | Yii 1.x / PHP 5.6 backend 工作 | 不用於前端或非 PHP 專案 |
@@ -113,7 +113,7 @@ Codex 可先執行 `install-codex-skills.sh --plan --json --skill <stable-id>`
 ## Profile 與證據
 
 目前 profile 為 `minimal=4`、`full=55`、`compat-v1=62`；Agent Plugin 與 AGY
-各有 37 個 selected stable ID；Cursor native overlay 為 4 個並共用 Agent
-Plugin skills；Codex native 為 15 個。Local usage card 或
+各有 55 個 selected stable ID；Cursor native overlay 為 4 個並共用 Agent
+Plugin skills；Codex native 為 34 個。Local usage card 或
 catalogue 只證明 metadata 已產生，不代表 skill runtime、測試、deployment、commit
 或 release 已完成；交接時分開標示 `PASS`、`BLOCKED`、`NOT_RUN`、`UNAVAILABLE`。
