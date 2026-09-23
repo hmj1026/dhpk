@@ -48,7 +48,7 @@ test('goal dispatch mode enables the runtime batch gate and carries cwd-safe Bas
 });
 
 test('dispatch-on Part 0 names the repo launcher and requires an explicit READY packet', () => {
-  const launcher = 'node "$p/skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js"';
+  const launcher = 'node <SKILL_ROOT_Q>/scripts/launch-cli-dispatch.js';
   assert.ok(dispatchPart0.includes(launcher), 'dispatch-on roster must name the repo-owned launcher command');
   for (const field of [
     'dispatching_agent', 'execution_provider', 'requested_role', 'mode', 'task_id', 'attempt_id',
@@ -126,7 +126,9 @@ test('emitted Part 0 carries the compact directive inline survivors', () => {
   assert.ok(dispatchPart0.includes('≤2-file whole-implement-step'), 'missing inline footprint bound');
   assert.ok(dispatchPart0.includes('bookkeeping'), 'missing orchestrator bookkeeping carve-out');
   // self-locating policy pointer, read by the orientation command
-  assert.ok(dispatchPart0.includes('CLAUDE_PLUGIN_ROOT') && dispatchPart0.includes('rules/execution-policy-kernel.md'),
+  assert.ok(dispatchPart0.includes('p=<SKILL_ROOT_Q>')
+    && dispatchPart0.includes('references/execution-bundle/rules/execution-policy-kernel.md')
+    && !dispatchPart0.includes('CLAUDE_PLUGIN_ROOT'),
     'missing self-locating execution-policy kernel pointer');
   assert.ok(dispatchPart0.includes('never filesystem-scan'), 'missing never-filesystem-scan clause');
 });

@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for scripts/precommit-runner.js — package-manager-agnostic
+// Coverage for skills/precommit/scripts/precommit-runner.js — package-manager-agnostic
 // precommit runner (lint:fix -> [build] -> test:unit). Every test builds its
 // own scratch git repo under a temp dir (never the real repo) and redirects
 // the log cache via CLAUDE_PRECOMMIT_CACHE_DIR to a temp dir too, so nothing
@@ -13,7 +13,7 @@ const { spawnSync, execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'precommit-runner.js');
+const SCRIPT = path.join(ROOT, 'skills', 'precommit', 'scripts', 'precommit-runner.js');
 
 function mkScratchRepo(pkgScripts) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'precommit-runner-'));

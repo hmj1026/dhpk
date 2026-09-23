@@ -22,7 +22,7 @@ function inventoryWith(skills) {
 
 test('promoted-core root skill stays registered under ./skills/', () => {
   const inv = inventoryWith([
-    { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] },
+    { id: 'tdd', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
   assert.ok(gen.roots.includes('./skills/'));
@@ -50,7 +50,7 @@ test('experimental skill still stays registered (host cannot hide at discovery t
 test('a deprecated skill is excluded from generatedSkillIds', () => {
   const inv = inventoryWith([
     { id: 'old-thing', path: 'skills/old-thing', lifecycle: 'deprecated', surfaces: ['claude-core'] },
-    { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] },
+    { id: 'tdd', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
   assert.ok(!gen.generatedSkillIds.includes('old-thing'));

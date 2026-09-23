@@ -84,7 +84,7 @@ test('effective decisions expose the versioned contract for a single row', () =>
 test('v2 purpose ledger covers active rows and the exact separate retirement wave', () => {
   assert.strictEqual(LEDGER.schema, 'dhpk.skill-purpose-decisions.v2');
   assert.ok(Array.isArray(LEDGER.decisions));
-  assert.strictEqual(LEDGER.decisions.length, 65);
+  assert.strictEqual(LEDGER.decisions.length, 84);
   assert.ok(LEDGER.decisions.every((row) => row.outcome === 'retain'));
   assert.ok(LEDGER.decisions.every((row) => typeof row.content_value === 'string' && row.content_value.trim() !== ''));
   assert.ok(LEDGER.decisions.every((row) => typeof row.authority === 'string' && row.authority.trim() !== ''));

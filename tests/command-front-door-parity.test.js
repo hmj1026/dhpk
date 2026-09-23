@@ -33,4 +33,42 @@ test('short front doors have no competing Usage Grammar', () => {
   }
 });
 
+test('precommit and precommit-fast preserve forwarding authority and mode arguments', () => {
+  const precommit = read('precommit');
+  const fast = read('precommit-fast');
+  assert.match(precommit, /argument-hint:\s*'\[--fast\]'/);
+  assert.match(precommit, /Forward `\[--fast\]` unchanged to the\s+canonical `\$precommit` Skill/);
+  assert.match(precommit, /metadata:\s*\n\s+dhpk-invocation-class: implicit-eligible/);
+  assert.doesNotMatch(precommit, /scripts\/precommit-runner\.js|scripts\/verify-runner\.js/);
+
+  assert.match(fast, /deprecated forwarding alias/i);
+  assert.match(fast, /\$precommit --fast \$ARGUMENTS/);
+  assert.match(fast, /metadata:\s*\n\s+dhpk-invocation-class: explicit-only/);
+  assert.doesNotMatch(fast, /scripts\/precommit-runner\.js|scripts\/verify-runner\.js/);
+});
+
+test('verify preserves public authority and forwards optional integration/e2e arguments unchanged', () => {
+  const verify = read('verify');
+  assert.match(verify, /argument-hint:\s*'\[fast\|full\] \[--integration <path>\] \[--e2e <path>\]'/);
+  assert.match(verify, /Forward `\[fast\|full\] \[--integration <path>\] \[--e2e <path>\]` unchanged to the\s+canonical `\$repo-verify` Skill/);
+  assert.match(verify, /metadata:\s*\n\s+dhpk-invocation-class: implicit-eligible/);
+  assert.match(verify, /public command remains `\/dhpk:verify`/);
+  assert.doesNotMatch(verify, /scripts\/precommit-runner\.js|scripts\/verify-runner\.js/);
+});
+
+test('pilot Skill procedures retain package-local runner ownership and the new repo-verify install path', () => {
+  const precommitSkill = fs.readFileSync(path.join(ROOT, 'skills', 'precommit', 'SKILL.md'), 'utf8');
+  const precommitReference = fs.readFileSync(path.join(ROOT, 'skills', 'precommit', 'references', 'workflow.md'), 'utf8');
+  const repoVerifySkill = fs.readFileSync(path.join(ROOT, 'skills', 'repo-verify', 'SKILL.md'), 'utf8');
+  const repoVerifyReference = fs.readFileSync(path.join(ROOT, 'skills', 'repo-verify', 'references', 'workflow.md'), 'utf8');
+
+  for (const text of [precommitSkill, precommitReference]) {
+    assert.match(text, /\$SKILL_DIR\/scripts\/precommit-runner\.js/);
+  }
+  for (const text of [repoVerifySkill, repoVerifyReference]) {
+    assert.match(text, /\.claude\/dhpk\/skills\/repo-verify\/scripts\/verify-runner\.js/);
+    assert.doesNotMatch(text, /\.claude\/scripts\/verify-runner\.js/);
+  }
+});
+
 run('command-front-door-parity');

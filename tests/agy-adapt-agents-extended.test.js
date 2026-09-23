@@ -15,7 +15,7 @@ const SOURCE = [
   'effort: medium',
   'maxTurns: 25',
   'color: blue',
-  'skills: ["dhpk-tdd-workflow"]',
+  'skills: ["tdd-workflow"]',
   '---',
   '',
   '# Body',

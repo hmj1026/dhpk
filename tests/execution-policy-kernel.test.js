@@ -12,7 +12,7 @@ test('always-visible execution kernel preserves safety and completion boundaries
   for (const phrase of [
     'Safety and authorization',
     'dirty worktree',
-    'route-result.js',
+    'immutable route parser',
     'explicit-only',
     'Completion boundary',
     'unavailable',

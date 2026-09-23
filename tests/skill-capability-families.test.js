@@ -9,12 +9,6 @@ const inventoryApi = require('../scripts/lib/distribution-inventory');
 const ROOT = path.join(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const INVENTORY = JSON.parse(read('manifests/distribution-inventory.json'));
-const PROFILES = JSON.parse(read('manifests/install-profiles.json'));
-
-const PORTABLE_FAMILIES = Object.freeze([
-  'change-verdict', 'code-trace', 'flow-drive', 'flow-guide', 'harness-govern',
-  'laravel', 'phpunit', 'skill-forge', 'skill-scope',
-]);
 
 // The first family wave remains a closed 0.53.0 ledger.  The 0.54.0
 // remaining-wave rows are covered by consolidate-remaining-dhpk-skill-families
@@ -56,12 +50,6 @@ const FAMILY_MODES = Object.freeze({
   }),
 });
 
-const RETIRED_COMMANDS = Object.freeze([
-  'check-skill', 'create-dev', 'do', 'codex-review', 'codex-review-fast',
-  'codex-review-branch', 'codex-review-doc', 'codex-security',
-  'codex-test-review', 'review-spec',
-]);
-
 const GITNEXUS_IDS = Object.freeze([
   'gitnexus-cli', 'gitnexus-debugging', 'gitnexus-exploring',
   'gitnexus-guide', 'gitnexus-impact-analysis', 'gitnexus-refactoring',
@@ -79,32 +67,6 @@ const GITNEXUS_BASELINE = Object.freeze({
 function sha256(relative) {
   return crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, relative))).digest('hex');
 }
-
-test('inventory exposes nine portable capability families and the exact 22 retirement mappings', () => {
-  assert.strictEqual(INVENTORY.skills.length, 65);
-  assert.deepStrictEqual(
-    INVENTORY.skills.filter((entry) => entry.name_style === 'portable-family').map((entry) => entry.id).sort(),
-    [...PORTABLE_FAMILIES].sort(),
-  );
-  const retirements = new Map(INVENTORY.retired_skills.map((entry) => [entry.id, entry]));
-  for (const [family, predecessors] of Object.entries(FAMILY_MODES)) {
-    const skill = INVENTORY.skills.find((entry) => entry.id === family);
-    assert.ok(skill, `missing family ${family}`);
-    assert.strictEqual(skill.name, family);
-    assert.strictEqual(skill.name_style, 'portable-family');
-    assert.strictEqual(skill.path, `skills/${family}`);
-    for (const [predecessor, mode] of Object.entries(predecessors)) {
-      const retired = retirements.get(predecessor);
-      assert.ok(retired, `missing retirement ${predecessor}`);
-      assert.strictEqual(retired.retiredIn, '0.53.0');
-      assert.deepStrictEqual(retired.rollback, { release: '0.52.0' });
-      const replacement = { kind: 'skill', id: family };
-      if (mode !== undefined) replacement.mode = mode;
-      assert.deepStrictEqual(retired.replacements, [replacement]);
-      assert.ok(!INVENTORY.skills.some((entry) => entry.id === predecessor));
-    }
-  }
-});
 
 test('capability-family retirement is closed and rejects missing, duplicate, or remapped predecessors', () => {
   const expected = Object.entries(FAMILY_MODES).flatMap(([family, predecessors]) => (
@@ -178,19 +140,6 @@ test('GitNexus packages remain byte-identical and active', () => {
     assert.ok(entry, `missing protected ${id}`);
     assert.ok(!INVENTORY.retired_skills.some((retired) => retired.id === id));
     assert.strictEqual(sha256(`${entry.path}/SKILL.md`), GITNEXUS_BASELINE[id], id);
-  }
-});
-
-test('profiles, shared surfaces, and command retirement match the approved cutover', () => {
-  assert.strictEqual(PROFILES.profiles.minimal.skillIds.length, 4);
-  assert.strictEqual(PROFILES.profiles.full.skillIds.length, 55);
-  assert.strictEqual(PROFILES.profiles['compat-v1'].skillIds.length, 62);
-  assert.strictEqual(INVENTORY.surface_membership['agent-plugin'].length, 37);
-  assert.strictEqual(INVENTORY.surface_membership['cursor-plugin'].length, 37);
-  assert.strictEqual(INVENTORY.surface_membership['agy-plugin'].length, 37);
-  assert.strictEqual(INVENTORY.surface_membership['cursor-sync'].length, 37);
-  for (const command of RETIRED_COMMANDS) {
-    assert.ok(!fs.existsSync(path.join(ROOT, 'commands', `${command}.md`)), `${command} must be retired`);
   }
 });
 

@@ -1,7 +1,7 @@
 'use strict';
 
-// Unit coverage for scripts/lib/utils.js — the shared helper grab-bag used by
-// precommit-runner.js / verify-runner.js. Focuses on the pure/sync helpers
+// Unit coverage for scripts/lib/runner-utils.js — the shared helper module used
+// by the Skill-local precommit/verify runners. Focuses on the pure/sync helpers
 // plus a couple of process-spawning ones (runCapture, gitRepoRoot) exercised
 // against real, harmless commands.
 

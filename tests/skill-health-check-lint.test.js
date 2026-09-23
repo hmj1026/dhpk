@@ -72,14 +72,14 @@ test('command files exclude non-invocable markdown docs', () => {
   }
 });
 
-test('command pairing recognizes documented skill-name wording', () => {
+test('independent commands and Skills do not require pairing', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-skill-health-pairing-'));
   try {
     const commands = path.join(tmp, 'commands');
     fs.mkdirSync(commands);
     fs.writeFileSync(
       path.join(commands, 'smart-commit.md'),
-      'Follow the `dhpk-git-smart-commit` skill workflow.\n'
+      'Follow the `git-smart-commit` skill workflow.\n'
     );
     fs.writeFileSync(
       path.join(commands, 'create-dev.md'),
@@ -87,15 +87,12 @@ test('command pairing recognizes documented skill-name wording', () => {
     );
 
     const findings = lint.detectOrphans(
-      ['dhpk-git-smart-commit', 'dhpk-adaptive-dev-workflow', 'unpaired-skill'],
+      ['git-smart-commit', 'dhpk-adaptive-dev-workflow', 'unpaired-skill'],
       ['smart-commit.md', 'create-dev.md'],
       commands
     );
 
-    assert.deepStrictEqual(
-      findings.map((finding) => finding.message),
-      ['Skill "unpaired-skill" has no command referencing it']
-    );
+    assert.deepStrictEqual(findings, []);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

@@ -135,12 +135,14 @@ test('flow-guide routing, flow-drive implementation, and setup installation have
   const guide = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
   const drive = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
   const setup = fs.readFileSync(path.join(ROOT, 'commands', 'setup.md'), 'utf8');
+  const setupProcedure = fs.readFileSync(path.join(ROOT, 'skills', 'harness-setup', 'references', 'claude-setup.md'), 'utf8');
   assert.match(guide, /route --go/);
   assert.match(guide, /advisory|does not execute|without `--go`/i);
   assert.match(drive, /confirmed specification|confirmed work/i);
   assert.doesNotMatch(drive, /--route-only|flow-drive:author/);
-  assert.match(setup, /scripts\/setup\/install-assets\.sh/);
-  assert.match(setup, /--source.*--target.*--dry-run.*--force/is);
+  assert.match(setup, /canonical `\$harness-setup` Skill/);
+  assert.match(setupProcedure, /scripts\/setup\/install-assets\.sh/);
+  assert.match(setupProcedure, /--source.*--target.*--dry-run.*--force/is);
   assert.match(setup, /Bash\(bash:\*\).*Bash\(mkdir:\*\).*Bash\(cp:\*\).*Bash\(chmod:\*\)/);
 });
 

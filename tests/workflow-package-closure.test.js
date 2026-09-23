@@ -1,156 +1,117 @@
 'use strict';
 
+// Path-safety contract for the physical Skill tree every publisher shares.
+// Per-Skill descriptors, runtime overlays, and peer closures are retired;
+// what remains must still fail closed on escapes, symlinks, and caches.
+
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
-  readSkillPackageManifest,
-  resolveSkillPackageClosure,
-  skillPackageClosureReceipt,
-  runtimeAssetsForSkill,
-  validateSkillPackageManifest,
+  isIgnoredTreeName,
+  physicalSkillTree,
+  resolveSafeSkillPath,
 } = require('../scripts/lib/workflow-package-closure');
 
 const ROOT = path.join(__dirname, '..');
 
-test('flow-guide and flow-drive publish explicit package manifests', () => {
-  const guide = readSkillPackageManifest(ROOT, 'flow-guide');
-  const drive = readSkillPackageManifest(ROOT, 'flow-drive');
-  assert.strictEqual(validateSkillPackageManifest(ROOT, 'flow-guide').ok, true);
-  assert.strictEqual(validateSkillPackageManifest(ROOT, 'flow-drive').ok, true);
-  assert.strictEqual(guide.schema, 'dhpk.skill-package.v1');
-  assert.strictEqual(drive.schema, 'dhpk.skill-package.v1');
-  assert.deepStrictEqual(drive.requires, [{ id: 'flow-guide', version: '^1.0.0' }]);
-});
+function tempRoot(prefix) {
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
+}
 
-test('flow-guide runtime closure names one canonical source for external helpers', () => {
-  const assets = runtimeAssetsForSkill(ROOT, 'flow-guide');
-  assert.deepStrictEqual(assets.map((asset) => asset.destination), [
-    'references/execution-policy.md',
-    'references/execution-policy-kernel.md',
-    'scripts/_lib/skill-usage.js',
-    'scripts/_lib/utils.js',
-    'scripts/_lib/feature-resolver.js',
-    'scripts/_lib/flow-handoff-contract.js',
-  ]);
-  for (const asset of assets) assert.ok(fs.existsSync(asset.source), asset.source);
-});
+function writeSkill(root, relative, name) {
+  const skillRoot = path.join(root, relative);
+  fs.mkdirSync(skillRoot, { recursive: true });
+  fs.writeFileSync(path.join(skillRoot, 'SKILL.md'), `---\nname: ${name}\n---\n`);
+  return skillRoot;
+}
 
-test('flow-drive resolves its flow-guide dependency on published surfaces', () => {
-  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
-  const drive = inventory.skills.find((entry) => entry.id === 'flow-drive');
-  const closure = resolveSkillPackageClosure(ROOT, [drive], {
-    availableEntries: inventory.skills,
-    surface: 'codex-native',
-  });
-  assert.deepStrictEqual(closure.map((entry) => entry.id).sort(), ['flow-drive', 'flow-guide']);
-  assert.deepStrictEqual(skillPackageClosureReceipt(ROOT, closure), [
-    { id: 'flow-drive', version: '1.0.0' },
-    { id: 'flow-guide', version: '1.0.0' },
-  ]);
-});
-
-test('dependency version ranges are enforced by the closure resolver', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-runtime-version-'));
-  try {
-    for (const [id, version] of [['root-skill', '1.0.0'], ['dependency', '2.0.0']]) {
-      const skillRoot = path.join(root, 'skills', id);
-      fs.mkdirSync(skillRoot, { recursive: true });
-      fs.writeFileSync(path.join(skillRoot, 'SKILL.md'), `---\nname: ${id}\n---\n`);
-      fs.writeFileSync(path.join(skillRoot, 'skill-package.json'), JSON.stringify({
-        schema: 'dhpk.skill-package.v1', id, version, entry: 'SKILL.md',
-        resources: [{ path: 'SKILL.md', kind: 'entry', required: true }],
-        ...(id === 'root-skill' ? { requires: [{ id: 'dependency', version: '^1.0.0' }] } : {}),
-      }));
-    }
-    const entries = [
-      { id: 'root-skill', path: 'skills/root-skill', surfaces: ['codex-native'] },
-      { id: 'dependency', path: 'skills/dependency', surfaces: ['codex-native'] },
-    ];
-    const rootManifestPath = path.join(root, 'skills', 'root-skill', 'skill-package.json');
-    const dependencyManifestPath = path.join(root, 'skills', 'dependency', 'skill-package.json');
-    const assertRejected = (range, dependencyVersion) => {
-      fs.writeFileSync(rootManifestPath, JSON.stringify({
-        schema: 'dhpk.skill-package.v1', id: 'root-skill', version: '1.0.0', entry: 'SKILL.md',
-        resources: [{ path: 'SKILL.md', kind: 'entry', required: true }], requires: [{ id: 'dependency', version: range }],
-      }));
-      fs.writeFileSync(dependencyManifestPath, JSON.stringify({
-        schema: 'dhpk.skill-package.v1', id: 'dependency', version: dependencyVersion, entry: 'SKILL.md',
-        resources: [{ path: 'SKILL.md', kind: 'entry', required: true }],
-      }));
-      assert.throws(() => resolveSkillPackageClosure(root, [entries[0]], {
-        availableEntries: entries,
-        surface: 'codex-native',
-      }), /version range|does not satisfy/i);
-    };
-    assertRejected('^1.0.0', '2.0.0');
-    assertRejected('^0.2.3', '0.3.0');
-    assertRejected('^0.0.3', '0.1.0');
-    assertRejected('^1.0.0', '1.0.0-alpha');
-    assertRejected('1.0.0', '1.0.0-alpha');
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
+test('flow-guide and flow-drive publish their execution bundles from their own trees', () => {
+  for (const id of ['flow-guide', 'flow-drive']) {
+    const files = physicalSkillTree(ROOT, { id }).map((file) => file.relative);
+    assert.ok(files.includes('SKILL.md'), `${id} entry`);
+    assert.ok(files.includes('references/execution-bundle/rules/execution-policy.md'), `${id} policy bundle`);
+    assert.ok(files.includes('references/execution-bundle/scripts/lib/flow-handoff-contract.js'), `${id} handoff contract`);
+    assert.ok(!files.includes('skill-package.json'), `${id} retired descriptor`);
   }
 });
 
-test('runtime assets reject symlink escape instead of publishing external content', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-runtime-closure-'));
-  const external = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-runtime-external-'));
+test('an inventory path outside the source root fails closed', () => {
+  const root = tempRoot('dhpk-tree-root-');
+  const outside = tempRoot('dhpk-tree-outside-');
   try {
-    fs.mkdirSync(path.join(root, 'skills', 'demo'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'skills', 'demo', 'skill-package.json'), JSON.stringify({
-      schema: 'dhpk.skill-package.v1',
-      id: 'demo',
-      entry: 'SKILL.md',
-      resources: [{ path: 'SKILL.md', kind: 'entry', required: true }],
-      runtimeAssets: [{ source: 'outside.txt', destination: 'scripts/_lib/outside.txt', required: true }],
-    }));
-    fs.writeFileSync(path.join(root, 'skills', 'demo', 'SKILL.md'), '---\nname: demo\n---\n');
-    fs.writeFileSync(path.join(external, 'outside.txt'), 'external');
-    fs.symlinkSync(path.join(external, 'outside.txt'), path.join(root, 'outside.txt'));
-    assert.throws(() => runtimeAssetsForSkill(root, 'demo'), /symlink|escape/i);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(external, { recursive: true, force: true });
-  }
-});
-
-test('invalid package resources fail closed instead of guessing a source root', () => {
-  const result = validateSkillPackageManifest(ROOT, 'flow-guide', {
-    manifest: {
-      schema: 'dhpk.skill-package.v1',
-      id: 'flow-guide',
-      entry: '../SKILL.md',
-      resources: [{ path: '../rules/execution-policy.md', kind: 'reference', required: true }],
-    },
-  });
-  assert.strictEqual(result.ok, false);
-  assert.match(result.errors.join('\n'), /unsafe|relative|resource/i);
-});
-
-test('skill package closure rejects inventory paths outside the source root', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-runtime-root-'));
-  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-runtime-outside-'));
-  try {
-    fs.writeFileSync(path.join(outside, 'skill-package.json'), JSON.stringify({
-      schema: 'dhpk.skill-package.v1',
-      id: 'escape',
-      version: '1.0.0',
-      entry: 'SKILL.md',
-      resources: [{ path: 'SKILL.md', kind: 'entry', required: true }],
-    }));
-    fs.writeFileSync(path.join(outside, 'SKILL.md'), '---\nname: escape\n---\n');
-    fs.mkdirSync(path.join(root, 'skills', 'escape'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'skills', 'escape', 'SKILL.md'), '---\nname: escape\n---\n');
-    const entry = { id: 'escape', path: path.relative(root, outside).split(path.sep).join('/'), surfaces: ['codex-native'] };
-    assert.throws(() => resolveSkillPackageClosure(root, [entry], {
-      availableEntries: [entry],
-      surface: 'codex-native',
-    }), /unsafe|escapes|source root/i);
+    writeSkill(outside, '.', 'escape');
+    const entry = { id: 'escape', path: path.relative(root, outside).split(path.sep).join('/') };
+    assert.throws(() => physicalSkillTree(root, entry, { availableEntries: [entry] }), /unsafe|escapes|source root/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('a symlinked Skill ancestor or leaf fails closed', () => {
+  const root = tempRoot('dhpk-tree-link-');
+  const outside = tempRoot('dhpk-tree-link-outside-');
+  try {
+    writeSkill(outside, 'real', 'linked');
+    fs.mkdirSync(path.join(root, 'skills'), { recursive: true });
+    fs.symlinkSync(path.join(outside, 'real'), path.join(root, 'skills', 'linked'));
+    assert.throws(() => physicalSkillTree(root, { id: 'linked', path: 'skills/linked' }), /symlink/i);
+
+    const skill = writeSkill(root, 'skills/leaf', 'leaf');
+    fs.writeFileSync(path.join(outside, 'data.txt'), 'external');
+    fs.symlinkSync(path.join(outside, 'data.txt'), path.join(skill, 'data.txt'));
+    assert.throws(() => physicalSkillTree(root, { id: 'leaf', path: 'skills/leaf' }), /symlink/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('a stable ID resolves through its renamed canonical path from the inventory', () => {
+  const root = tempRoot('dhpk-tree-renamed-');
+  try {
+    writeSkill(root, 'skills/tdd-workflow', 'tdd-workflow');
+    const entry = { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow' };
+    fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), JSON.stringify({ skills: [entry] }));
+    assert.strictEqual(resolveSafeSkillPath(root, 'tdd').relative, 'skills/tdd-workflow');
+    assert.deepStrictEqual(physicalSkillTree(root, { id: 'tdd' }).map((file) => file.relative), ['SKILL.md']);
+    assert.deepStrictEqual(
+      physicalSkillTree(root, { id: 'tdd' }, { availableEntries: [entry] }).map((file) => file.relative),
+      ['SKILL.md'],
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('nested bytecode is ignored and a skill-package.json name has no special meaning', () => {
+  const root = tempRoot('dhpk-tree-ignored-');
+  try {
+    const skill = writeSkill(root, 'skills/demo', 'demo');
+    for (const relative of [
+      'scripts/runtime/__pycache__/runner.js',
+      'scripts/runtime/generated/runner.pyc',
+      'skill-package.json',
+      'references/examples/skill-package.json',
+      'scripts/runtime/generated/runner.py',
+    ]) {
+      fs.mkdirSync(path.dirname(path.join(skill, relative)), { recursive: true });
+      fs.writeFileSync(path.join(skill, relative), 'bytes\n');
+    }
+    assert.deepStrictEqual(physicalSkillTree(root, { id: 'demo', path: 'skills/demo' }).map((file) => file.relative), [
+      'SKILL.md',
+      'references/examples/skill-package.json',
+      'scripts/runtime/generated/runner.py',
+      'skill-package.json',
+    ]);
+    assert.strictEqual(isIgnoredTreeName('__pycache__', true), true);
+    assert.strictEqual(isIgnoredTreeName('runner.pyc', false), true);
+    assert.strictEqual(isIgnoredTreeName('runner.py', false), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

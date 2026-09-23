@@ -22,7 +22,7 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /PASS \[agents-skills\]: 37 selected skills; runtime=NOT_RUN/);
+    assert.match(result.stdout, /PASS \[agents-skills\]: 55 selected skills; runtime=NOT_RUN/);
   } finally {
     fs.rmSync(outDir, { recursive: true, force: true });
   }
@@ -47,7 +47,7 @@ test('validate-agents-skills CLI validates an external project receipt', () => {
       '--project-root', projectRoot,
     ], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /PASS \[agents-skills\]: 37 selected skills; runtime=NOT_RUN/);
+    assert.match(result.stdout, /PASS \[agents-skills\]: 55 selected skills; runtime=NOT_RUN/);
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }

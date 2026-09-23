@@ -85,15 +85,15 @@ test('$flow-guide help flow-drive returns only one explicit-only usage card', ()
 });
 
 test('help JSON preserves one machine-readable action and option contract', () => {
-  const card = jsonHelp(['dhpk-git-smart-commit']);
+  const card = jsonHelp(['git-smart-commit']);
   const usage = card.usage || card.entry || card;
   assert.strictEqual(usage.id, 'git-smart-commit');
-  assert.strictEqual(usage.name, 'dhpk-git-smart-commit');
-  assert.match(usage.syntax, /^\$dhpk-git-smart-commit\b/);
+  assert.strictEqual(usage.name, 'git-smart-commit');
+  assert.match(usage.syntax, /^\$git-smart-commit\b/);
   for (const action of usage.actions || []) {
     assert.ok(action.id && action.summary && action.syntax && action.input_kind,
       'each help action must expose public grammar fields');
-    assert.match(action.syntax, /^\$dhpk-git-smart-commit\b/);
+    assert.match(action.syntax, /^\$git-smart-commit\b/);
   }
   for (const option of usage.options || []) {
     assert.ok(option.id && option.syntax && option.value_kind && typeof option.required === 'boolean',

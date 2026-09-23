@@ -95,13 +95,21 @@ test('real create-pr route matches imperative requests but not incidental comman
   }
 });
 
-test('create-pr command carries deterministic ahead-count abort before gh pr create', () => {
+test('create-pr forwards to its Skill and the owner keeps the ahead-count abort', () => {
   const command = fs.readFileSync(path.join(ROOT, 'commands', 'create-pr.md'), 'utf8');
-  const countAt = command.indexOf('git rev-list --count <base>..HEAD');
-  const abortAt = command.indexOf('No commits between <base> and HEAD — nothing to open a PR for');
-  const createAt = command.indexOf('gh pr create');
-  assert.ok(countAt !== -1 && abortAt > countAt && createAt > abortAt, command);
-  assert.ok(!command.includes('Follow the `create-pr` skill workflow'));
+  const skill = fs.readFileSync(path.join(ROOT, 'skills', 'create-pr', 'SKILL.md'), 'utf8');
+  const workflow = fs.readFileSync(path.join(ROOT, 'skills', 'create-pr', 'references', 'workflow.md'), 'utf8');
+  assert.match(command, /Forward all supplied arguments unchanged to the canonical `\$create-pr` Skill\./);
+  assert.ok(!command.includes('git rev-list --count'), command);
+  assert.ok(!command.includes('gh pr create'), command);
+  assert.match(skill, /references\/workflow\.md/);
+
+  for (const owner of [skill, workflow]) {
+    const countAt = owner.indexOf('git rev-list --count <base>..HEAD');
+    const abortAt = owner.indexOf('No commits between <base> and HEAD — nothing to open a PR for');
+    const createAt = owner.lastIndexOf('gh pr create');
+    assert.ok(countAt !== -1 && abortAt > countAt && createAt > abortAt, owner);
+  }
 });
 
 test('flow-guide matcher uses its typed v2 route table', () => {
@@ -117,9 +125,9 @@ test('flow-guide matcher uses its typed v2 route table', () => {
 
 test('specific security, bug, and Playwright routes outrank broad unit/integration matches', () => {
   const cases = [
-    ['write unit tests for the changed behavior', 'dhpk-tdd-workflow'],
-    ['add integration tests for the endpoint', 'dhpk-tdd-workflow'],
-    ['close the integration coverage gap', 'dhpk-tdd-workflow'],
+    ['write unit tests for the changed behavior', 'tdd-workflow'],
+    ['add integration tests for the endpoint', 'tdd-workflow'],
+    ['close the integration coverage gap', 'tdd-workflow'],
     ['author a Playwright journey for checkout', 'e2e-runner'],
     ['fix the checkout bug and add integration tests', 'flow-guide'],
     ['run a security audit and add unit tests', 'change-verdict'],
@@ -131,7 +139,7 @@ test('specific security, bug, and Playwright routes outrank broad unit/integrati
     const parts = res.stdout.trim().split('\t');
     assert.strictEqual(parts[0], 'MATCH', `${query}: ${res.stdout}`);
     assert.strictEqual(parts[1], target, `${query}: ${res.stdout}`);
-    if (target === 'dhpk-tdd-workflow' || target === 'e2e-runner') {
+    if (target === 'tdd-workflow' || target === 'e2e-runner') {
       assert.match(parts[2], /UNAVAILABLE/);
     }
   }

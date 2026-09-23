@@ -212,4 +212,12 @@ test('provider failure and an empty structured report remain terminal FAILED rec
   });
 });
 
+test('AGY wrapper resolves transport only from its physical Skill-local directory', () => {
+  const source = fs.readFileSync(WRAPPER, 'utf8');
+  assert.match(source, /SCRIPT_DIR=.*pwd -P/);
+  assert.match(source, /PREPARE="\$SCRIPT_DIR\/cli-transport\/prepare-cli-request\.py"/);
+  assert.match(source, /RUNNER="\$SCRIPT_DIR\/cli-transport\/run-cli-transport\.py"/);
+  assert.doesNotMatch(source, /PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT|skills\/dhpk-cli-transport/);
+});
+
 run('run-agy');

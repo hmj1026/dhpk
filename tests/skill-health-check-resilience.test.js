@@ -157,8 +157,8 @@ test('empty When NOT to Use sections are a deterministic P1', () => {
 
 test('nested subsections remain part of a non-use section', () => {
   const finding = lint.checkWhenNotSection(
-    '## When NOT to Use\n\n### Alternatives\n- @skills/dhpk-tdd-workflow\n\n## Output\n- evidence\n',
-    ['dhpk-tdd-workflow'],
+    '## When NOT to Use\n\n### Alternatives\n- @skills/tdd-workflow\n\n## Output\n- evidence\n',
+    ['tdd-workflow'],
   );
   assert.deepStrictEqual(finding, { pass: true });
 });

@@ -102,14 +102,24 @@ test('task 1.1 (RED): audit report exposes the baseline contract and independent
   const fixture = readFixture('baseline-v0.37.0.json');
   const home = fixtureHome('baseline');
   try {
+    // A self-contained Skill never infers an ambient plugin root; the package
+    // role set is read only from an explicitly supplied package root.
     const report = audit.runAudit({
       argv: ['--date', '2026-08-06'],
       home,
       timeZone: 'UTC',
       testFixtureHome: true,
+      packageRoot: ROOT,
     });
     assert.deepStrictEqual(report.coverage.sourceRoots, fixture.sourceRoots);
     assert.deepStrictEqual(report.coverage.packageOwnedRoleSet, fixture.packageOwnedRoleSet);
+    const ambient = audit.runAudit({
+      argv: ['--date', '2026-08-06'],
+      home,
+      timeZone: 'UTC',
+      testFixtureHome: true,
+    });
+    assert.deepStrictEqual(ambient.coverage.packageOwnedRoleSet, { claude: [], codex: [], excludedNavigationFiles: ['INDEX'] });
     for (const field of fixture.report.requiredCoverageFields) {
       assert.ok(Object.prototype.hasOwnProperty.call(report.coverage, field), `coverage missing ${field}`);
     }

@@ -199,11 +199,11 @@ for (const drift of ['version', 'fingerprint', 'both']) {
     try {
       assert.notStrictEqual(fixture.planned.status, 0, fixture.planned.stdout);
       const beforeReceipt = JSON.parse(fixture.before.receipt);
-      const beforeEntry = beforeReceipt.managed_entries.skills['dhpk-tdd-workflow'];
+      const beforeEntry = beforeReceipt.managed_entries.skills['tdd-workflow'];
       const updated = runInstaller(fixture.scratch, ['--migrate', '--update', '--force']);
       assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
       const repaired = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
-      const repairedEntry = repaired.managed_entries.skills['dhpk-tdd-workflow'];
+      const repairedEntry = repaired.managed_entries.skills['tdd-workflow'];
       assert.strictEqual(repaired.plugin_version, fixture.currentProvenance.pluginVersion);
       assert.strictEqual(repaired.source_fingerprint, fixture.currentProvenance.sourceFingerprint);
       assert.strictEqual(repaired.mode, beforeReceipt.mode);
@@ -233,7 +233,7 @@ test('--plan blocks on an interrupted transaction without recovering or mutating
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const codexRoot = path.join(scratch, '.codex');
     const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
-    const target = path.join(codexRoot, 'skills', 'dhpk-tdd-workflow');
+    const target = path.join(codexRoot, 'skills', 'tdd-workflow');
     const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
     const targetBefore = completeTreeFingerprint(target);
     const receipt = JSON.parse(receiptBefore);
@@ -281,7 +281,7 @@ test('--plan blocks on malformed terminal transaction metadata without mutation'
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const codexRoot = path.join(scratch, '.codex');
     const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
-    const target = path.join(codexRoot, 'skills', 'dhpk-tdd-workflow');
+    const target = path.join(codexRoot, 'skills', 'tdd-workflow');
     const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
     const targetBefore = completeTreeFingerprint(target);
     const run = '20990101T000001Z-999999998';
@@ -309,7 +309,7 @@ test('--plan blocks on malformed terminal transaction metadata without mutation'
 test('explicit adoption backs up and receipt-owns only the selected collision', () => {
   const fixture = collisionFixture();
   try {
-    const sibling = 'dhpk-tdd-workflow';
+    const sibling = 'tdd-workflow';
     const siblingTarget = path.join(fixture.scratch, '.codex', 'skills', sibling);
     const siblingBefore = completeTreeFingerprint(siblingTarget);
     const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
@@ -446,7 +446,7 @@ test('adoption is path-scoped when multiple collisions are reported', () => {
 
 test('explicit adoption defers a stale-owned sibling instead of updating it', () => {
   const fixture = collisionFixture();
-  const sibling = 'dhpk-tdd-workflow';
+  const sibling = 'tdd-workflow';
   try {
     materializeFixtureSkill(fixture.fakePlugin, sibling);
     const siblingSource = path.join(fixture.fakePlugin, 'codex', 'skills', sibling, 'SKILL.md');

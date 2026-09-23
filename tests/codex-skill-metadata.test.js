@@ -46,13 +46,14 @@ function parseInterface(metadataPath) {
   return values;
 }
 
-test('all 65 canonical skill packages have valid Codex interface metadata', () => {
+test('every canonical skill package has valid Codex interface metadata', () => {
   const canonicalDirs = [
     ...findSkillDirs(path.join(ROOT, 'skills')),
     ...findSkillDirs(path.join(ROOT, 'modules')),
   ].filter((dir) => dir.includes(`${path.sep}modules${path.sep}`) || dir.includes(`${path.sep}skills${path.sep}`));
 
-  assert.strictEqual(canonicalDirs.length, 65, 'canonical package count changed');
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  assert.strictEqual(canonicalDirs.length, inventory.skills.length, 'canonical package tree drifted from the distribution inventory');
 
   for (const skillDir of canonicalDirs) {
     const metadataPath = path.join(skillDir, 'agents', 'openai.yaml');

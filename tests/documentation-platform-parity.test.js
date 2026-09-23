@@ -177,7 +177,7 @@ test('module hook and uninstall ordering match the live dispatcher lifecycle', (
   }
 });
 
-test('all documented bundled-script handoffs are consumer-safe and canonical', () => {
+test('canonical commands and Skills never hand off through the plugin-root run-skill wrapper', () => {
   const markdown = [];
   function collect(directory) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -210,8 +210,9 @@ test('all documented bundled-script handoffs are consumer-safe and canonical', (
       if (!fs.existsSync(target)) findings.push(`${relative}: missing ${path.relative(ROOT, target)}`);
     }
   }
-  assert.ok(count > 1, 'expected to inspect every documented run-skill handoff');
-  assert.deepStrictEqual(findings, [], findings.join('\n'));
+  // Self-contained Skills invoke their own local scripts (ADR-0022); a plugin-root
+  // run-skill wrapper handoff in canonical commands or Skills is a regression.
+  assert.strictEqual(count, 0, `canonical docs must not route through run-skill.sh:\n${findings.join('\n')}`);
 
 });
 

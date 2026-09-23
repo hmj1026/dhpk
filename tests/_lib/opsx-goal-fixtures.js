@@ -52,6 +52,8 @@ const composeGoal = (fixture) => {
   const parts = core.map((part) => part
     .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
     .replaceAll('<TASK_DIGEST>', 'T'.repeat(200))
+    // A realistic Bash-quoted relocated root keeps the byte budget honest.
+    .replaceAll('<SKILL_ROOT_Q>', '/Users/example/.claude/plugins/cache/dhpk/dhpk/0.62.4/skills/dhpk-opsx-apply-goal')
     .replaceAll('<FAST_WORKER_CLAUSE>', 'dhpk:codex-fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker')
     .replaceAll('<E2E_ROSTER_CLAUSE>', fixture.has_e2e === false ? '' : 'RED/E2E Playwright → dhpk:e2e-runner; '));
   for (const gate of fixture.gates || []) {

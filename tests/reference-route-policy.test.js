@@ -98,14 +98,22 @@ test('v3 skill-local parser keeps only the bounded --go option', () => {
   assert.ok(parsed.diagnostics.some((d) => /retired|unsupported/i.test(d)));
 });
 
-test('opsx resume contract keeps uncommitted files and optional gates explicit', () => {
+test('opsx resume forwards to its Skill and its owner keeps live-worktree gates explicit', () => {
   const command = fs.readFileSync(path.join(ROOT, 'commands', 'opsx-apply-resume.md'), 'utf8');
-  assert.match(command, /live worktree/i);
-  assert.match(command, /commit.*optional|optional.*commit/i);
-  assert.match(command, /memory.*optional|optional.*memory/i);
-  assert.match(command, /precommit.*optional|optional.*precommit/i);
-  assert.match(command, /does not.*(revert|delete).*uncommitted|uncommitted.*(preserved|remain)/i);
-  assert.match(command, /compact.*optional|optional.*compact/i);
+  const skill = fs.readFileSync(path.join(ROOT, 'skills', 'opsx-apply-resume', 'SKILL.md'), 'utf8');
+  const save = fs.readFileSync(path.join(ROOT, 'skills', 'opsx-apply-resume', 'references', 'save.md'), 'utf8');
+  const resume = fs.readFileSync(path.join(ROOT, 'skills', 'opsx-apply-resume', 'references', 'resume.md'), 'utf8');
+  const owner = `${skill}\n${save}\n${resume}`;
+
+  assert.match(command, /canonical `\$opsx-apply-resume` Skill/);
+  assert.match(command, /Forward `\$ARGUMENTS` unchanged/);
+  assert.ok(!/detect-phase\.sh|set-handoff-state\.sh|extract-compact\.sh/.test(command), command);
+  assert.match(owner, /live worktree/i);
+  assert.match(owner, /commit.*optional|optional.*commit/i);
+  assert.match(owner, /memory.*optional|optional.*memory/i);
+  assert.match(owner, /precommit.*optional|optional.*precommit/i);
+  assert.match(owner, /does not.*(revert|delete).*uncommitted|uncommitted.*(preserved|remain)/i);
+  assert.match(owner, /compact.*optional|optional.*compact/i);
 });
 
 run('reference-route-policy');

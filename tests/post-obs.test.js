@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for scripts/opsx-apply-resume/post-obs.sh — POSTs a claude-mem
+// Coverage for skills/dhpk-opsx-post-observation/scripts/post-obs.sh — POSTs a claude-mem
 // observation. MUST NOT hit a real network: every case here points
 // CLAUDE_MEM_WORKER_PORT at a port nothing is listening on, so the script's
 // own health-check (`curl .../health`) fails fast and the graceful-failure
@@ -13,7 +13,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'opsx-apply-resume', 'post-obs.sh');
+const SCRIPT = path.join(ROOT, 'skills', 'dhpk-opsx-post-observation', 'scripts', 'post-obs.sh');
 // Port in the "reserved, essentially never listening" range.
 const DEAD_PORT = '1';
 

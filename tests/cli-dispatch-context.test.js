@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const { createSessionDiagnostics } = require('../scripts/cli-role-resolver');
+const { createSessionDiagnostics } = require('../skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver');
 const { buildContext } = require('../skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context');
 
 const ROOT = path.join(__dirname, '..');

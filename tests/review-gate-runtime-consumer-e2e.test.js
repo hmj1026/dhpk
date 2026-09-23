@@ -85,6 +85,13 @@ function materializePackage(sandbox) {
     recursive: true,
     dereference: false,
   });
+  // The scripts group also installs the self-contained pilot Skill trees.
+  for (const skill of ['precommit', 'repo-verify', 'harness-audit']) {
+    fs.cpSync(path.join(ROOT, 'skills', skill, 'scripts'), path.join(packageRoot, 'skills', skill, 'scripts'), {
+      recursive: true,
+      dereference: false,
+    });
+  }
   return packageRoot;
 }
 
