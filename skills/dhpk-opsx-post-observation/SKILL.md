@@ -12,6 +12,10 @@ Non-blocking background observer for `opsx-apply-resume` Save Phase — the POST
 overlaps Steps 4–6 and the caller collects its result before the handoff write
 (it is *not* truly fire-and-forget: the obs_id feeds the handoff frontmatter).
 Called with compact-save output fields; posts an observation to the claude-mem worker without blocking the main Save Phase flow.
+`$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`;
+it is path notation, not an ambient environment variable or repository-root
+lookup. Resolve it before running the local observer from an arbitrary consumer
+cwd.
 
 ## When NOT to Use
 
@@ -65,7 +69,7 @@ Write the JSON payload to `$OBS_PAYLOAD_FILE` using the Write tool.
 ## Step 3 — Launch in background
 
 ```bash
-bash .claude/scripts/opsx-apply-resume/post-obs.sh "$OBS_PAYLOAD_FILE" > "$OBS_RESULT_FILE" &
+bash "$SKILL_DIR/scripts/post-obs.sh" "$OBS_PAYLOAD_FILE" > "$OBS_RESULT_FILE" &
 OBS_PID=$!
 ```
 

@@ -51,6 +51,8 @@ jobs:
         run: node scripts/ci/validate-plugin.js --strict
       - name: Validate distribution inventory
         run: node scripts/ci/validate-distribution.js --strict
+      - name: Validate skill resource copies
+        run: node scripts/ci/sync-skill-resources.js --check
       - name: Validate skill purpose decisions
         run: node scripts/ci/validate-skill-purpose-decisions.js --strict
       - name: Validate retirement closure
@@ -111,6 +113,11 @@ jobs:
             fi
           fi
           node scripts/ci/validate-changelog-fragments.js "${CHANGELOG_ARGS[@]}"
+
+      # Ubuntu runners ship yq but not ripgrep. Several harness scripts
+      # require rg, and the isolated fixtures delegate to the host binary.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
 
       # Regression tests (plugin paths, hook wiring, catalog<->modules).
       - name: Tests

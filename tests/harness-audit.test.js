@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for scripts/harness-audit.js — deterministic, read-only harness
+// Coverage for the harness-audit Skill runner — deterministic, read-only harness
 // audit. Supports --root so it can be pointed at a temp fixture (consumer
 // mode) or the real repo root (repo mode) without ever writing anything.
 
@@ -11,7 +11,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'harness-audit.js');
+const SCRIPT = path.join(ROOT, 'skills', 'harness-audit', 'scripts', 'harness-audit.js');
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'harness-audit-'));
@@ -24,7 +24,7 @@ function runScript(args) {
 test('--help prints usage and exits 0', () => {
   const res = runScript(['--help']);
   assert.strictEqual(res.status, 0, res.stderr);
-  assert.ok(res.stdout.includes('Usage: node scripts/harness-audit.js'), res.stdout);
+  assert.ok(res.stdout.includes('Usage: node "$SKILL_DIR/scripts/harness-audit.js"'), res.stdout);
 });
 
 test('unknown flag exits 1 with an error message', () => {

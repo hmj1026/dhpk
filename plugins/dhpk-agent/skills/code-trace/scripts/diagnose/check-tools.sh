@@ -8,24 +8,27 @@ echo ""
 MISSING_TOOLS=()
 INSTALLED_TOOLS=()
 
-# 定義工具列表
-declare -A TOOLS=(
-    ["fd"]="檔案搜尋 - 快速模式比對"
-    ["rg"]="程式碼搜尋 - 優化的正規表達式搜尋"
-    ["jq"]="JSON 資料處理"
-    ["yq"]="YAML 資料處理"
-    ["ast-grep"]="程式結構分析 - AST 層級搜尋"
+# 定義工具列表（以平行索引陣列取代關聯陣列，相容 Bash 3.2+）
+TOOL_NAMES=("fd" "rg" "jq" "yq" "ast-grep")
+TOOL_DESCS=(
+    "檔案搜尋 - 快速模式比對"
+    "程式碼搜尋 - 優化的正規表達式搜尋"
+    "JSON 資料處理"
+    "YAML 資料處理"
+    "程式結構分析 - AST 層級搜尋"
 )
 
 # 檢查每個工具
-for tool in "${!TOOLS[@]}"; do
+for i in "${!TOOL_NAMES[@]}"; do
+    tool="${TOOL_NAMES[$i]}"
+    desc="${TOOL_DESCS[$i]}"
     if command -v "$tool" &> /dev/null; then
         version=$("$tool" --version 2>&1 | head -1)
-        echo "✅ $tool - ${TOOLS[$tool]}"
+        echo "✅ $tool - $desc"
         echo "   版本: $version"
         INSTALLED_TOOLS+=("$tool")
     else
-        echo "❌ $tool - ${TOOLS[$tool]}"
+        echo "❌ $tool - $desc"
         MISSING_TOOLS+=("$tool")
     fi
     echo ""

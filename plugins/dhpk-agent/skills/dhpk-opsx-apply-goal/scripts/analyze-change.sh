@@ -20,6 +20,23 @@
 
 set -euo pipefail
 
+# Resolve the physical Skill boundary from this script before reading any
+# consumer artifacts.  The caller's working directory remains the consumer
+# project; only this helper's own directory is used for Skill resources.
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd -P)" || {
+  echo "BLOCKED_RESOURCE_MISSING: unable to resolve the physical Skill directory" >&2
+  exit 1
+}
+SKILL_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." 2>/dev/null && pwd -P)" || {
+  echo "BLOCKED_RESOURCE_MISSING: unable to resolve the physical Skill root" >&2
+  exit 1
+}
+if [ ! -f "$SKILL_ROOT/SKILL.md" ] || [ ! -f "$SCRIPT_DIR/goal-context.js" ]; then
+  echo "BLOCKED_RESOURCE_MISSING: required local Skill resource is unavailable" >&2
+  exit 1
+fi
+SKILL_ROOT_Q="$(printf '%q' "$SKILL_ROOT")"
+
 # --- argument normalization -------------------------------------------------
 CHANGE_ID=""
 CUSTOM_TURNS=""
@@ -145,13 +162,8 @@ echo "SMOKE_FLAG=$SMOKE_FLAG"
 echo "DRY_RUN=$DRY_RUN"
 echo "MAX_DURATION=${MAX_DURATION:-}"
 echo "MIN_COVERAGE=${MIN_COVERAGE:-}"
-# Self-locate the sibling script. CLAUDE_PLUGIN_ROOT is interpolated into hook
-# command strings and skill markdown, but is NOT exported into the Bash tool's
-# environment — so `${CLAUDE_PLUGIN_ROOT:-$ROOT}` silently resolved to the
-# *project* root and node could never find goal-context.js, truncating the
-# schema=v1 block (no FAST_WORKER_*/HAS_E2E/TASK_DIGEST) and exiting 1 under
-# `set -e`. Matches the self-locating fallback every other shipped script uses.
-node "$(cd "$(dirname "$0")" && pwd)/goal-context.js" \
+echo "SKILL_ROOT_Q=$SKILL_ROOT_Q"
+node "$SCRIPT_DIR/goal-context.js" \
   "--tasks=$TASKS" \
   "--proposal=$PROPOSAL" \
   "--worker=$FAST_WORKER_OVERRIDE" \

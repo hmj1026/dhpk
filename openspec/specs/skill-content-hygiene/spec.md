@@ -28,12 +28,12 @@ The auto-loop banner, the codex-family Key-Rules trio (independent research / th
 
 ### Requirement: Deterministic prose rituals are script-backed
 
-A skill or command step whose logic is fully deterministic (fixed command sequences, manifest-based detection, measurement thresholds) SHALL delegate to a script rather than restating the logic as prose. Specifically: the precommit commands SHALL delegate ecosystem detection and step ordering solely to `scripts/precommit-runner.js`; the release flow's fixed git/gh sequence SHALL run via a release-runner script; feature-verify's health probe and API-exec harness SHALL be scripts. Every new script SHALL have a test per the script test coverage policy.
+A skill or command step whose logic is fully deterministic (fixed command sequences, manifest-based detection, measurement thresholds) SHALL delegate to a script rather than restating the logic as prose. Specifically: the precommit commands SHALL delegate ecosystem detection and step ordering solely to the `precommit` Skill's package-local `scripts/precommit-runner.js`; the release flow's fixed git/gh sequence SHALL run via a release-runner script; feature-verify's health probe and API-exec harness SHALL be scripts. Every new script SHALL have a test per the script test coverage policy.
 
 #### Scenario: precommit prose fallback removed
 
 - **WHEN** `commands/precommit.md` and `commands/precommit-fast.md` are read after this change
-- **THEN** neither contains the ecosystem-detection fallback table; both invoke `precommit-runner.js` (differing only by `--mode`)
+- **THEN** neither contains the ecosystem-detection fallback table; both forward to the canonical `$precommit` Skill, whose package-local `precommit-runner.js` runs with `--mode full` or `--mode fast`
 
 #### Scenario: Release sequence scripted
 

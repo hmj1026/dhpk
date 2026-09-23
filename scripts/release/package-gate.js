@@ -45,6 +45,7 @@ function parseArgs(argv) {
 
 function defaultSteps(root, version) {
   return [
+    { name: 'skill-resource-copies', cmd: 'node', args: [path.join(root, 'scripts/ci/sync-skill-resources.js'), '--check'] },
     { name: 'claude-package-layout', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-plugin.js'), '--strict'] },
     { name: 'claude-marketplace-package-deterministic-generation', cmd: 'node', args: [path.join(root, 'scripts/ci/gen-claude-marketplace-package.js'), '--check'] },
     { name: 'claude-distribution-layout', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-distribution.js'), '--strict'] },

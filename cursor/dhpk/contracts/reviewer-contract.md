@@ -9,6 +9,9 @@ new approval or lifecycle clearance.
 
 The shared conformance example is
 `tests/fixtures/review-gate/reviewer-contract-v2.json` in the source repository.
+That path is maintainer provenance only. It is not a required resource for a
+distributed Skill or a consumer review route; the route must supply or select
+its own implementation and fixtures.
 
 ## Review Request
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Codemaps"
+  short_description: "Generate lean architecture codemaps"
+  default_prompt: "Use $update-codemaps to generate or refresh lean architecture codemaps."

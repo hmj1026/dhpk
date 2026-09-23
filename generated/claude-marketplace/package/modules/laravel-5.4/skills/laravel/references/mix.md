@@ -165,5 +165,5 @@ APIs differ. This skill is only for the Mix 5 asset pipeline itself.
   build
 - `skills/dhpk-js-lint-config/SKILL.md` — ESLint tier strategy
   and progressive TypeScript for the JS that Mix bundles
-- `skills/dhpk-js-static-check-strategy/SKILL.md` — static-check
+- `skills/js-static-check-strategy/SKILL.md` — static-check
   tiers for the same `resources/assets/` sources Mix consumes

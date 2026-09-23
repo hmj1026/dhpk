@@ -4,34 +4,39 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const SKILL_ROOT = path.resolve(__dirname, '..', '..');
-const CANONICAL_ROOT = path.resolve(SKILL_ROOT, '..', '..');
+const EXECUTION_BUNDLE_ROOT = path.join(SKILL_ROOT, 'references', 'execution-bundle');
 
-function validRoot(root) {
-  if (!root || !path.isAbsolute(root)) return false;
-  return fs.existsSync(path.join(root, '.claude-plugin', 'plugin.json'))
-    && fs.existsSync(path.join(root, 'scripts', 'lib'));
+function assertLocalResourceName(name) {
+  if (typeof name !== 'string' || name.trim() === '' || path.isAbsolute(name)
+    || path.win32.isAbsolute(name) || name.includes('\0')
+    || name.split(/[\\/]/).includes('..')) {
+    throw new TypeError(`workflow runtime resource '${name}' must be a Skill-local relative path`);
+  }
+  return name;
 }
 
-function canonicalSourceRoot(root) {
-  return validRoot(root) && fs.existsSync(path.join(root, '.claude-plugin', 'plugin.json'));
-}
-
-function candidateRoots() {
-  return [
-    process.env.DHPK_SOURCE_ROOT,
-    process.env.PLUGIN_ROOT,
-    canonicalSourceRoot(CANONICAL_ROOT) ? CANONICAL_ROOT : null,
-  ].filter(validRoot);
+function isContainedPath(candidate, root) {
+  try {
+    const realRoot = fs.realpathSync(root);
+    const realCandidate = fs.realpathSync(candidate);
+    return realCandidate === realRoot || realCandidate.startsWith(realRoot + path.sep);
+  } catch {
+    return false;
+  }
 }
 
 function resolveRuntimeFile(name) {
-  const local = path.join(__dirname, name);
-  if (fs.existsSync(local)) return local;
-  for (const root of candidateRoots()) {
-    const candidate = path.join(root, 'scripts', 'lib', name);
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  const error = new Error(`workflow runtime resource '${name}' is unavailable; install the package closure or set DHPK_SOURCE_ROOT in development mode`);
+  const resourceName = assertLocalResourceName(name);
+  const candidates = [
+    path.join(__dirname, resourceName),
+    path.join(EXECUTION_BUNDLE_ROOT, 'scripts', 'lib', resourceName),
+  ];
+  const resolved = candidates.find((candidate) => fs.existsSync(candidate)
+    && isContainedPath(candidate, candidate.startsWith(EXECUTION_BUNDLE_ROOT)
+      ? EXECUTION_BUNDLE_ROOT
+      : SKILL_ROOT));
+  if (resolved) return resolved;
+  const error = new Error(`workflow runtime resource '${resourceName}' is unavailable in the selected Skill directory`);
   error.code = 'BLOCKED_RESOURCE_MISSING';
   throw error;
 }

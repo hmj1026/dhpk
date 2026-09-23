@@ -14,9 +14,9 @@ SYSTEM_PYTHON3=/usr/bin/python3
 
 SCRIPT_DIR="${BASH_SOURCE[0]%/*}"
 [ "$SCRIPT_DIR" = "${BASH_SOURCE[0]}" ] && SCRIPT_DIR=.
-PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." 2>/dev/null && pwd)" || exit 78
-PREPARE="$PLUGIN_ROOT/skills/dhpk-cli-transport/scripts/prepare-cli-request.py"
-RUNNER="$PLUGIN_ROOT/skills/dhpk-cli-transport/scripts/run-cli-transport.py"
+SCRIPT_DIR="$(CDPATH= cd "$SCRIPT_DIR" 2>/dev/null && pwd -P)" || exit 78
+PREPARE="$SCRIPT_DIR/cli-transport/prepare-cli-request.py"
+RUNNER="$SCRIPT_DIR/cli-transport/run-cli-transport.py"
 
 usage() {
   cat <<'EOF'

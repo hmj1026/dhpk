@@ -14,6 +14,7 @@ const {
   deriveArgumentHint,
   renderSkillUsageDocumentation,
   serializeSkillUsageCatalog,
+  validateRuntimeIndex,
 } = require('../lib/skill-usage');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
@@ -172,6 +173,8 @@ function run(argv, io) {
   try {
     inventory = readJson(inventoryPath, 'distribution inventory');
     catalog = compileSkillUsageCatalog({ inventory });
+    const runtimeValidation = validateRuntimeIndex(catalog.runtimeIndex);
+    if (!runtimeValidation.ok) throw new Error(runtimeValidation.errors.join('; '));
   } catch (error) {
     stderr.write('FAIL [gen-skill-usage]: ' + error.message + '\n');
     return 1;

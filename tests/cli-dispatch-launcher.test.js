@@ -8,6 +8,9 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const SOURCE_SCRIPTS = path.join(ROOT, 'skills', 'dhpk-cli-dispatch-context', 'scripts');
+const SOURCE_CODEX_BRIDGE = path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'scripts');
+const SOURCE_AGY_WORKER = path.join(ROOT, 'skills', 'dhpk-agy-fast-worker', 'scripts');
+const SOURCE_TRANSPORT = path.join(ROOT, 'skills', 'dhpk-cli-transport', 'scripts');
 
 function writeJson(filePath, value) {
   fs.writeFileSync(filePath, JSON.stringify(value));
@@ -19,6 +22,16 @@ function projectedPackage() {
   fs.mkdirSync(scripts, { recursive: true });
   for (const fileName of ['cli-role-resolver.js', 'build-cli-dispatch-context.js', 'launch-cli-dispatch.js', 'physical-file.js', 'physical-file.py']) {
     fs.copyFileSync(path.join(SOURCE_SCRIPTS, fileName), path.join(scripts, fileName));
+  }
+  for (const [source, destination] of [
+    [path.join(SOURCE_CODEX_BRIDGE, 'run-codex.sh'), path.join(scripts, 'run-codex.sh')],
+    [path.join(SOURCE_AGY_WORKER, 'run-agy.sh'), path.join(scripts, 'run-agy.sh')],
+    [path.join(SOURCE_TRANSPORT, 'prepare-cli-request.py'), path.join(scripts, 'cli-transport', 'prepare-cli-request.py')],
+    [path.join(SOURCE_TRANSPORT, 'run-cli-transport.py'), path.join(scripts, 'cli-transport', 'run-cli-transport.py')],
+  ]) {
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.copyFileSync(source, destination);
+    fs.chmodSync(destination, fs.statSync(source).mode & 0o777);
   }
   return { root, scripts, launcher: path.join(scripts, 'launch-cli-dispatch.js') };
 }
@@ -84,8 +97,7 @@ test('public launcher keeps Codex dispatcher identity separate while AGY binds r
     fs.mkdirSync(artifactRoot, { recursive: true });
     fs.writeFileSync(prompt, 'bounded AGY task');
 
-    const adapter = path.join(projected.root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh');
-    fs.mkdirSync(path.dirname(adapter), { recursive: true });
+    const adapter = path.join(projected.scripts, 'run-agy.sh');
     fs.writeFileSync(adapter, '#!/bin/sh\nprintf "context=%s\\nworkdir=%s\\nprompt=%s\\nmodel=%s\\n" "$DHPK_CLI_TRANSPORT_CONTEXT" "$1" "$2" "$3"\n', { mode: 0o755 });
 
     const scopePath = path.join(projected.root, 'scope.json');
@@ -149,8 +161,7 @@ test('contradictory authority is BLOCKED before context creation or adapter exec
     fs.mkdirSync(artifactRoot, { recursive: true });
     fs.writeFileSync(prompt, 'must not execute');
 
-    const adapter = path.join(projected.root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh');
-    fs.mkdirSync(path.dirname(adapter), { recursive: true });
+    const adapter = path.join(projected.scripts, 'run-agy.sh');
     fs.writeFileSync(adapter, `#!/bin/sh\nprintf started > ${JSON.stringify(marker)}\n`, { mode: 0o755 });
     const scopePath = path.join(projected.root, 'scope.json');
     const configPath = path.join(projected.root, 'config.json');
@@ -192,8 +203,7 @@ test('symlink-resolved artifact or context paths are BLOCKED before any outside 
     fs.mkdirSync(outside);
     fs.writeFileSync(prompt, 'must stay physically contained');
 
-    const adapter = path.join(projected.root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh');
-    fs.mkdirSync(path.dirname(adapter), { recursive: true });
+    const adapter = path.join(projected.scripts, 'run-agy.sh');
     fs.writeFileSync(adapter, `#!/bin/sh\nprintf started > ${JSON.stringify(marker)}\n`, { mode: 0o755 });
     const configPath = path.join(projected.root, 'config.json');
     writeJson(configPath, { agy_worker_model: 'task-model', agy_worker_timeout_secs: 90 });
@@ -272,8 +282,7 @@ test('adapter execution uses only the declared restricted runtime PATH', () => {
     fs.mkdirSync(hostileBin);
     fs.writeFileSync(prompt, 'use only the attested runtime PATH');
 
-    const adapter = path.join(projected.root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh');
-    fs.mkdirSync(path.dirname(adapter), { recursive: true });
+    const adapter = path.join(projected.scripts, 'run-agy.sh');
     fs.writeFileSync(adapter, '#!/usr/bin/env sh\nprintf "declared-runtime-path=%s\\n" "$PATH"\n', { mode: 0o755 });
     fs.writeFileSync(path.join(hostileBin, 'sh'), `#!/bin/sh\nprintf hostile > ${JSON.stringify(hostileMarker)}\nexit 91\n`, { mode: 0o755 });
 
@@ -316,8 +325,7 @@ test('public launcher emits one bounded legacy-alias diagnostic per session with
     fs.mkdirSync(workdir);
     fs.writeFileSync(prompt, 'session-bounded alias dispatch');
 
-    const adapter = path.join(projected.root, 'skills', 'dhpk-codex-bridge', 'scripts', 'run-codex.sh');
-    fs.mkdirSync(path.dirname(adapter), { recursive: true });
+    const adapter = path.join(projected.scripts, 'run-codex.sh');
     fs.writeFileSync(adapter, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
 
     const configPath = path.join(projected.root, 'config.json');

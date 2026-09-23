@@ -1,6 +1,6 @@
 # Deterministic first, judgment second — detail
 
-Detail for `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Deterministic first, judgment second. The SSOT there keeps the one-line rule + pointer; this file carries the full three-step discipline, loaded **for audit / setup / inventory / generation work**.
+Detail for `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Deterministic first, judgment second. The SSOT there keeps the one-line rule + pointer; this file carries the full three-step discipline, loaded **for audit / setup / inventory / generation work**.
 
 For audit / setup / inventory / generation work, separate fact-collection from interpretation:
 

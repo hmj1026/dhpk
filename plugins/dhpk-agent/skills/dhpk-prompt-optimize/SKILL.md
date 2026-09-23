@@ -41,7 +41,7 @@ Exactly three parts, in this order:
 - [ ] Effort recommendation cites verified live sources and their lookup date,
   then states both the API value and the dhpk/Claude-Code equivalent
 - [ ] Output has exactly the 3 parts above, no extra essay
-- [ ] For a repo change to this skill itself: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" skill-scope skill-lint.js --fix-hint` (or `$skill-scope dhpk-prompt-optimize`) passes clean
+- [ ] For an authoring change to this Skill itself, check its metadata and local references; if available, `$skill-scope dhpk-prompt-optimize` may provide an additional lint check. That optional authoring tool is not required to rewrite a prompt.
 
 ## References
 

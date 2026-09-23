@@ -26,6 +26,31 @@ prose.
   not include `codex-native`
 - **THEN** PACKAGE validation rejects the candidate and names the extra skill
 
+### Requirement: Generic portable workflows join the native Codex surface
+
+Generic portable workflow Skills SHALL carry the `codex-native` inventory
+surface when they are promoted and their procedure needs no Claude-only Host
+capability, so the native package ships them as physical content alongside
+the existing allowlist.
+Setup, resume, and browser workflows SHALL stay off the surface until their
+own consumer evidence exists. Joining the surface SHALL NOT change the
+Experimental native support tier or the Supported `install-codex-skills.sh`
+path.
+
+#### Scenario: A generic portable workflow is published natively
+
+- **WHEN** the native generator runs against an inventory where a generic
+  portable workflow Skill carries the `codex-native` surface
+- **THEN** the package contains that Skill as physical files under its public
+  name and the support tier labels are unchanged
+
+#### Scenario: A Host-bound workflow lacks consumer evidence
+
+- **WHEN** a setup, resume, or browser workflow has no recorded Codex consumer
+  evidence
+- **THEN** its inventory surfaces exclude `codex-native` and PACKAGE
+  validation rejects a candidate that contains it
+
 ### Requirement: Native publication contains only physical package content
 
 The retained Codex-native package SHALL remain generated from the explicit

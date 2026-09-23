@@ -1,6 +1,6 @@
 name = "deep-reasoner"
 description = "Read-only deep-reasoning worker. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase — dispatched per the Implementation dispatch table when the work is reasoning-heavy rather than mechanical. Returns a conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture decisions to `architect`. Not a reviewer and not a Review Gate lane."
-model = "gpt-5.6-sol"
+model = "gpt-6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
@@ -34,6 +34,7 @@ switches target or changes its conclusion contract.
 - DDD-layer placement / cross-module architecture → `architect` (see Defers below).
 - Opt-in `$flow-drive --plan` critique or plan sketch → `planner`
 - Brownfield spec extraction into openspec → `spec-miner`
+- `--reasoner=codex-cli/<model>[:<effort>]` backend variant → the direct Codex CLI backend role (the legacy codex-deep-reasoner entry remains compatibility-only)
 
 ## Scope
 

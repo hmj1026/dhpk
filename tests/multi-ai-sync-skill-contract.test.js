@@ -122,4 +122,18 @@ test('task 5.4: configured-platform status vocabulary stays consistent between S
   assert.ok(syncWorkflow.includes('--targets'), 'sync workflow must document the --targets/--all-targets explicit-request flags');
 });
 
+test('sync library model literals are catalogued models, not a retired generation', () => {
+  const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'provider-model-catalog.json'), 'utf8'));
+  const known = new Set(JSON.stringify(catalog).match(/"model_id":\s*"([^"]+)"/g).map(m => m.split('"')[3]));
+  const libDir = path.join(ROOT, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync_lib');
+  const stale = [];
+  for (const name of fs.readdirSync(libDir).filter(file => file.endsWith('.py'))) {
+    const source = fs.readFileSync(path.join(libDir, name), 'utf8');
+    for (const [, model] of source.matchAll(/["'](gpt-[\w.-]+)["']/g)) {
+      if (!known.has(model)) stale.push(`${name}: ${model}`);
+    }
+  }
+  assert.deepStrictEqual(stale, [], `uncatalogued model ids:\n${stale.join('\n')}`);
+});
+
 run('multi-ai-sync-skill-contract');

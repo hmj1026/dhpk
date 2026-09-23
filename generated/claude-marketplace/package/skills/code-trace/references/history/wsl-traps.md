@@ -47,5 +47,5 @@ git merge <branch> --ff-only
 ### 處置
 
 - 先 `git status --short` 確認狀態
-- 若全 staged → 不用 `/dhpk:dhpk-git-smart-commit`，直接手動拆分（提供 commit 文本給 user）
+- 若全 staged → 不用 `/dhpk:git-smart-commit`，直接手動拆分（提供 commit 文本給 user）
 - 若需拆分 → 先 `git restore --staged <files>` 反暫存不屬於該 commit 的檔案

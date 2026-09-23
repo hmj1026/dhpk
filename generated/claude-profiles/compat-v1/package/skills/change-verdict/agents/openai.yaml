@@ -1,0 +1,4 @@
+interface:
+  display_name: "Change Verdict"
+  short_description: "Read-only evidence-backed change verdicts"
+  default_prompt: "Use $change-verdict to inspect this change in the appropriate mode and return a read-only evidence-backed verdict."

@@ -76,12 +76,12 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 |-----------|------:|-------|
 | Agents | Role-based agents | Trigger-table-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
 | Commands | dhpk's 31 commands | `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:review-pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:harness-audit`, `/dhpk:harness-govern`, `/dhpk:ui-ux-verify`, etc. |
-| Canonical skills | 65 flat packages | One named package per capability, rooted at `skills/<public-name>/`; non-family packages retain the `skills/dhpk-*/` contract; nine portable families (`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, `code-trace`, `laravel`, `phpunit`, `harness-govern`) own the consolidated interfaces. |
+| Canonical skills | 84 flat packages | One named package per capability, rooted at `skills/<public-name>/`; non-family packages retain the `skills/dhpk-*/` contract; nine portable families (`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, `code-trace`, `laravel`, `phpunit`, `harness-govern`) own the consolidated interfaces. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 3 events | PreToolUse (Edit guard and combined Bash safety/Git branch-safety gate), SessionStart (module activation), SubagentStop (fast-worker liveness cleanup) |
 | Hook dispatchers | 1 | `pre-bash-dispatch.sh` combines deterministic shell and Git branch-safety gates |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
-| Codex dual-track | 15 entries (13 invokable) | Project sync uses receipt-owned projections; the experimental native package publishes the same invokable set plus internal transport and dispatch-context runtimes as physical files. |
+| Codex dual-track | 34 entries (32 invokable) | Project sync uses receipt-owned projections; the experimental native package publishes the same invokable set plus internal transport and dispatch-context runtimes as physical files. |
 
 Invocation syntax is surface-specific:
 
@@ -150,9 +150,9 @@ The default Claude discovery artifact is the materialized `minimal` profile,
 generated from the distribution inventory rather than from an unfiltered scan of
 the source `skills/` directory. The current profile sizes are `minimal=4`,
 `full=55`, and `compat-v1=62` before overlays. `full` and `compat-v1` remain
-explicit opt-in profile artifacts. Agent Plugin and AGY each select 37 stable
+explicit opt-in profile artifacts. Agent Plugin and AGY each select 55 stable
 IDs; the Cursor-native overlay selects four native IDs and reuses Agent Plugin
-skills; Codex native selects 15 IDs. The source tree remains the authoring tree.
+skills; Codex native selects 34 IDs. The source tree remains the authoring tree.
 
 ## Codex integration surfaces
 
@@ -244,7 +244,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`react-19`** — React 19 (December 2024). Actions + async transitions, new hooks (`useActionState`/`useOptimistic`/`useFormStatus`, `use()`), `ref` as a prop (no `forwardRef`), `<Context>` as provider, document metadata hoisting, resource preloading (`preload`/`preinit`), stable Server Components. Removes `ReactDOM.render`/`hydrate`, `propTypes`/`defaultProps` on function components, legacy Context, and string refs. Recommended (not required) for Next.js 16.
 
 **Cross-cutting**:
-- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (selected by the Review Gate trigger table), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:dhpk-matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-selects the reviewer on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
+- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (selected by the Review Gate trigger table), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-selects the reviewer on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
 
 **iOS / Swift** (dependency-chained — each `requires: swift`; enable the whole set via the `ios-app` install profile):
 - **`swift`** — Swift 6 strict-concurrency baseline + Swift 5.10 / iOS 17 compatibility + Swift 6.2 approachable-concurrency. The foundation the rest of the suite requires.
@@ -380,7 +380,7 @@ dhpk/
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 36 role-based agents (INDEX.md is navigation)
 ├── commands/                     # slash commands (review, setup, codex-*, smart-commit, opsx-apply-resume, ...)
-├── skills/                       # SSOT: 65 flat canonical packages rooted at skills/<public-name>/ (nine portable family names are unprefixed)
+├── skills/                       # SSOT: 84 flat canonical packages rooted at skills/<public-name>/ (nine portable family names are unprefixed)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
 ├── modules/                      # 31 opt-in modules; skills/ entries are relative symlink projections
@@ -398,8 +398,8 @@ dhpk/
 ├── scripts/
 │   ├── hooks/                    # core hooks incl. pre-edit-guard.sh, pre-bash-dispatch.sh, session-start.sh, subagent-stop-verify.sh, _lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
-│   ├── codemaps/, lib/, opsx-apply-resume/, validate/
-│   └── (harness-audit, precommit-runner, verify-runner, agy-adapt-agents, dep-audit)
+│   ├── codemaps/, lib/, release/, setup/, validate/
+│   └── (agy-adapt-agents, dep-audit, review-gate-runtime, install, …)
 ├── docs/
 │   ├── configuration.md, configuration.zh-TW.md      # full userConfig reference
 │   ├── basic-operations.md, basic-operations.zh-TW.md # install + workflow lifecycle
@@ -415,10 +415,10 @@ dhpk/
 ├── codex/                        # Codex CLI dual-track (Claude Code does NOT auto-load)
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md, README.zh-TW.md # how to sync into a project
-│   ├── skills/                   # 15 relative symlinks (13 invokable + internal transport + dispatch-context runtimes)
+│   ├── skills/                   # 34 relative symlinks (32 invokable + internal transport + dispatch-context runtimes)
 │   ├── agents/, config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
-├── plugins/dhpk/                 # tracked Codex-native package: 15 physical entries, zero symlinks
+├── plugins/dhpk/                 # tracked Codex-native package: 34 physical entries, zero symlinks
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

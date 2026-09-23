@@ -1,0 +1,6 @@
+interface:
+  display_name: "Git Worktree"
+  short_description: "Manage Git worktree lifecycle safely"
+  default_prompt: "Use $git-worktree to inspect or manage worktrees safely."
+policy:
+  allow_implicit_invocation: false

@@ -76,27 +76,30 @@ test('action-runner rejects multiple or cross-action options', () => {
   assert.match(crossAction.stderr, /only valid for the route action/i);
 });
 
-test('runtime loader uses explicit development roots and blocks ambient guesses', () => {
+test('runtime loader resolves only the physical Skill tree and ignores ambient roots', () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-runtime-loader-'));
   try {
-    const scriptRoot = path.join(tempRoot, 'skills', 'flow-guide', 'scripts');
-    fs.mkdirSync(path.join(scriptRoot, '_lib'), { recursive: true });
-    fs.copyFileSync(path.join(ROOT, 'skills/flow-guide/scripts/usage-card.js'), path.join(scriptRoot, 'usage-card.js'));
-    fs.copyFileSync(path.join(ROOT, 'skills/flow-guide/scripts/_lib/runtime-loader.js'), path.join(scriptRoot, '_lib/runtime-loader.js'));
-    const explicit = spawnSync(process.execPath, [path.join(scriptRoot, 'usage-card.js'), '--root', ROOT, '--json', 'flow-drive'], {
+    const partialRoot = path.join(tempRoot, 'partial', 'skills', 'flow-guide', 'scripts');
+    fs.mkdirSync(path.join(partialRoot, '_lib'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, 'skills/flow-guide/scripts/usage-card.js'), path.join(partialRoot, 'usage-card.js'));
+    fs.copyFileSync(path.join(ROOT, 'skills/flow-guide/scripts/_lib/runtime-loader.js'), path.join(partialRoot, '_lib/runtime-loader.js'));
+    const blocked = spawnSync(process.execPath, [path.join(partialRoot, 'usage-card.js'), '--json', 'flow-drive'], {
       cwd: tempRoot,
-      env: { ...process.env, DHPK_SOURCE_ROOT: ROOT },
+      env: { ...process.env, DHPK_SOURCE_ROOT: ROOT, PLUGIN_ROOT: ROOT },
       encoding: 'utf8',
     });
-    assert.strictEqual(explicit.status, 0, `${explicit.stdout}\n${explicit.stderr}`);
-    assert.strictEqual(JSON.parse(explicit.stdout).id, 'flow-drive');
-    const blocked = spawnSync(process.execPath, [path.join(scriptRoot, 'usage-card.js'), '--root', ROOT, '--json', 'flow-drive'], {
+    assert.notStrictEqual(blocked.status, 0, 'an ambient source root must not satisfy a missing Skill-local resource');
+    assert.match(blocked.stderr, /BLOCKED_RESOURCE_MISSING|unavailable/i);
+
+    const skillCopy = path.join(tempRoot, 'relocated', 'flow-guide');
+    fs.cpSync(path.join(ROOT, 'skills', 'flow-guide'), skillCopy, { recursive: true });
+    const local = spawnSync(process.execPath, [path.join(skillCopy, 'scripts', 'usage-card.js'), '--json', 'flow-drive'], {
       cwd: tempRoot,
       env: Object.fromEntries(Object.entries(process.env).filter(([key]) => !['DHPK_SOURCE_ROOT', 'PLUGIN_ROOT'].includes(key))),
       encoding: 'utf8',
     });
-    assert.notStrictEqual(blocked.status, 0);
-    assert.match(blocked.stderr, /BLOCKED_RESOURCE_MISSING|unavailable/i);
+    assert.strictEqual(local.status, 0, `${local.stdout}\n${local.stderr}`);
+    assert.strictEqual(JSON.parse(local.stdout).id, 'flow-drive');
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });
   }

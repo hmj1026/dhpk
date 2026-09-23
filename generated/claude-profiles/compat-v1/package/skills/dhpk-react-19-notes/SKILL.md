@@ -11,7 +11,7 @@ React 19 (December 2024) centers on Actions (async transitions for data
 mutations) and a batch of ergonomics that remove long-standing boilerplate.
 
 > Family routing and the React/Next compatibility matrix live in
-> `docs/agent-guidance/frontend-framework-routing.md`. This module owns
+> [frontend-framework-routing.md](references/frontend-framework-routing.md). This module owns
 > standalone React 19 language guidance after the family is selected.
 
 ---

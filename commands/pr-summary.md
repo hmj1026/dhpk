@@ -1,35 +1,19 @@
 ---
-description: 'PR status summary — list open PRs, filter bots, group by ticket ID'
+description: 'Short Claude front door for the read-only $pr-summary Skill and its structured gh report.'
 argument-hint: '[--author <user>] [--label <label>]'
-allowed-tools: 'Bash(git:*), Bash(gh:*), Bash(bash:*)'
+allowed-tools: 'Bash(git:*), Bash(gh:*), Bash(bash:*), Skill'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-## Contract
+# `/dhpk:pr-summary`
 
-Use to summarize accessible pull requests; not to change PR state. See the
-[command contract](../docs/agent-guidance/command-contract.md). Stop when
-`gh` is unavailable or the query fails; completion reports the output path and
-the grouped result.
+Forward `--author` and `--label` arguments unchanged to the canonical
+`$pr-summary` Skill. It owns structured `gh` queries, bot filtering, ticket
+grouping, `/tmp/pr-summary.md`, and copy instructions. This command never
+changes PR state or adds a second query grammar.
 
-## Context
+Not for: changing PR state, reviewing code, merging, or closing PRs.
 
-- Repo: !`gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null || echo 'unknown'`
-
-## Task
-
-Follow the `pr-summary` skill workflow:
-
-1. Run `skills/pr-summary/scripts/pr-summary.sh` with any provided arguments
-2. Display the formatted output to user
-3. Provide copy instructions
-
-Arguments:
-- `--author <user>`: Filter PRs by author
-- `--label <label>`: Filter PRs by label
-
-## Output
-
-Formatted PR list grouped by ticket ID, with stacked PRs annotated.
-File written to `/tmp/pr-summary.md` for easy copying.
+Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
+`BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

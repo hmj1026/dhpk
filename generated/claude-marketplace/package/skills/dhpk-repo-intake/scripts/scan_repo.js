@@ -9,59 +9,23 @@
  *
  * Notes:
  *  - Prefers `git ls-files` to avoid node_modules
- *  - Config-driven entry scoring via scripts/config/repo-intake.json
- *  - Shared classification via scripts/config/file-classification.json
+ *  - Built-in entry scoring defaults
+ *  - Built-in shared classification defaults
  */
 
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-// Resolve plugin root: validated env var → walk-up with marker → legacy fallback
-const _pluginRoot = (() => {
-  const sentinel = p => fs.existsSync(path.join(p, 'scripts', 'lib', 'utils.js'));
-  const marker = p => fs.existsSync(path.join(p, '.claude-plugin', 'plugin.json'));
-  const envRoot = process.env.PLUGIN_ROOT;
-  if (envRoot && sentinel(envRoot) && marker(envRoot)) return envRoot;
-  let d = __dirname;
-  while (d !== path.dirname(d)) {
-    if (sentinel(d) && marker(d)) return d;
-    d = path.dirname(d);
-  }
-  return path.resolve(__dirname, '..', '..', '..');
-})();
-
 const {
   detectPackageManager,
   readPackageJson,
-} = require(path.join(_pluginRoot, 'scripts', 'lib', 'utils'));
+} = require('./lib/runner-utils');
 
 // ---------------------------------------------------------------------------
-// Config loading
+// Built-in configuration defaults
 // ---------------------------------------------------------------------------
-function loadClassification() {
-  try {
-    const p = path.join(_pluginRoot, 'scripts', 'config', 'file-classification.json');
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function loadIntakeConfig() {
-  try {
-    const p = path.join(_pluginRoot, 'scripts', 'config', 'repo-intake.json');
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-const CLASSIFICATION = loadClassification();
-const INTAKE_CONFIG = loadIntakeConfig();
-
-// Fallback values when config files are missing
-const IGNORE_PREFIXES = CLASSIFICATION?.ignore_prefixes ?? [
+const IGNORE_PREFIXES = [
   'node_modules/', 'vendor/', 'dist/', 'build/', 'out/',
   'target/', '.next/', '.nuxt/', '__pycache__/', '.pytest_cache/',
   'venv/', '.venv/', '.git/',
@@ -73,13 +37,13 @@ const IGNORE_DIRS = new Set([
   '.coverage', '.mypy_cache',
 ]);
 
-const ENTRY_PATTERNS = INTAKE_CONFIG?.entry_patterns ?? [];
-const BUILD_FILES = INTAKE_CONFIG?.build_files ?? [
+const ENTRY_PATTERNS = [];
+const BUILD_FILES = [
   'package.json', 'tsconfig.json', 'go.mod', 'Cargo.toml',
   'pyproject.toml', 'pom.xml', 'build.gradle', 'Gemfile',
   'composer.json', 'Dockerfile', 'docker-compose.yml', 'Makefile', 'justfile',
 ];
-const ECOSYSTEM_MANIFESTS = INTAKE_CONFIG?.ecosystem_manifests ?? {
+const ECOSYSTEM_MANIFESTS = {
   node: ['package.json'],
   go: ['go.mod'],
   rust: ['Cargo.toml'],
@@ -226,7 +190,7 @@ function detectEcosystems(root) {
 }
 
 // ---------------------------------------------------------------------------
-// Entry scoring (config-driven)
+// Entry scoring (built-in defaults)
 // ---------------------------------------------------------------------------
 function scoreEntries(files, patterns) {
   const scored = [];
@@ -591,7 +555,7 @@ function main() {
   let files = hasGit ? gitLsFiles(root) : null;
   if (!files) files = walkFiles(root);
   files = files.map(f => f.replace(/\\/g, '/')).filter(Boolean);
-  // Apply ignore_prefixes from classification config
+  // Apply the built-in ignore-prefix defaults.
   files = files.filter(f => !IGNORE_PREFIXES.some(pfx => f.startsWith(pfx)));
   const filesSet = new Set(files);
 
@@ -610,7 +574,7 @@ function main() {
   // Build files
   const buildFiles = BUILD_FILES.filter(f => filesSet.has(f));
 
-  // Entry points (config-driven scoring)
+  // Entry points (built-in scoring defaults)
   const entryScored = scoreEntries(files, ENTRY_PATTERNS);
   const entrypoints = entryScored.slice(0, topN);
 
@@ -665,6 +629,6 @@ function main() {
 }
 
 // Export for testing
-module.exports = { matchPattern, compilePattern, detectEcosystems, scoreEntries, loadIntakeConfig };
+module.exports = { matchPattern, compilePattern, detectEcosystems, scoreEntries };
 
 if (require.main === module) main();

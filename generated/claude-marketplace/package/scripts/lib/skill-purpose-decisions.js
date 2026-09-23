@@ -65,7 +65,7 @@ const CURRENT_WAVE = Object.freeze({
   'harness-fill': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the harness-govern fill mode; the fill guidance has one canonical home.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'Harness fill guidance is merged into the harness-govern fill mode.' }),
   'harness-revise': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the harness-govern revise mode; the revision guidance has one canonical home.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'Harness revision guidance is merged into the harness-govern revise mode.' }),
   'multi-ai-sync': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the harness-govern sync mode; cross-agent synchronization guidance has one canonical home.', duplicateEvidence: 'skills/harness-govern/SKILL.md', contentValue: 'Cross-agent synchronization guidance is merged into the harness-govern sync mode.' }),
-  'agy-commit': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'git-write', duplicateStatus: 'merged', duplicateFact: 'Compared with the git-smart-commit workflow; AGY commit guidance has one canonical commit owner.', duplicateEvidence: 'skills/dhpk-git-smart-commit/SKILL.md', contentValue: 'AGY commit guidance is merged into the git-smart-commit workflow without an AGY adapter.' }),
+  'agy-commit': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'git-write', duplicateStatus: 'merged', duplicateFact: 'Compared with the git-smart-commit workflow; AGY commit guidance has one canonical commit owner.', duplicateEvidence: 'skills/git-smart-commit/SKILL.md', contentValue: 'AGY commit guidance is merged into the git-smart-commit workflow without an AGY adapter.' }),
   'feasibility-study': Object.freeze({ outcome: 'merge', disposition: 'merge', authority: 'guidance-only', duplicateStatus: 'merged', duplicateFact: 'Compared with the software-architecture compare mode; feasibility guidance has one canonical architecture owner.', duplicateEvidence: 'skills/dhpk-module-design/SKILL.md', contentValue: 'Feasibility comparison guidance is merged into the software-architecture compare mode.' }),
   'tech-spec': Object.freeze({ outcome: 'retire', disposition: 'retire', authority: 'external-write', duplicateStatus: 'externally-owned', duplicateFact: 'Compared with the external proposal workflow; DHPK does not copy or execute a second technical-spec authoring surface.', duplicateEvidence: 'openspec/specs/skill-retirement-migration/spec.md', contentValue: 'Technical-spec authoring is owned by the external openspec-propose workflow.' }),
   'create-request': Object.freeze({ outcome: 'retire', disposition: 'retire', authority: 'external-write', duplicateStatus: 'externally-owned', duplicateFact: 'Compared with the external proposal workflow; DHPK does not copy or execute a second request-authoring surface.', duplicateEvidence: 'openspec/specs/skill-retirement-migration/spec.md', contentValue: 'Request authoring is owned by the external openspec-propose workflow.' }),
@@ -436,7 +436,27 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
       const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
       if (baseline.schema !== BASELINE_SCHEMA) errors.push(`baseline must use ${BASELINE_SCHEMA}`);
       const baselineIds = new Set((baseline.static && baseline.static.skills || []).map((entry) => entry && entry.id).filter(nonEmptyString));
-      for (const id of activeById.keys()) if (!baselineIds.has(id)) errors.push(`active skill '${id}' is absent from the issue #467 baseline`);
+      const additionIds = new Set();
+      if (ledger.additions !== undefined && !Array.isArray(ledger.additions)) {
+        errors.push('purpose ledger additions must be an array');
+      }
+      for (const [index, addition] of (Array.isArray(ledger.additions) ? ledger.additions : []).entries()) {
+        const prefix = `addition[${index}]`;
+        if (!addition || typeof addition !== 'object' || Array.isArray(addition) || !nonEmptyString(addition.id)) {
+          errors.push(`${prefix} requires an active skill id and decision source`);
+          continue;
+        }
+        if (additionIds.has(addition.id)) errors.push(`${prefix} duplicates addition '${addition.id}'`);
+        additionIds.add(addition.id);
+        if (!activeById.has(addition.id)) errors.push(`${prefix} does not resolve to active skill '${addition.id}'`);
+        if (baselineIds.has(addition.id)) errors.push(`${prefix} cannot redeclare baseline skill '${addition.id}'`);
+        validateCallers(errors, [addition.source], `${prefix}.source`, root);
+      }
+      for (const id of activeById.keys()) {
+        if (!baselineIds.has(id) && !additionIds.has(id)) {
+          errors.push(`active skill '${id}' requires an addition decision beyond the issue #467 baseline`);
+        }
+      }
       for (const id of baselineIds) if (!activeById.has(id)) errors.push(`baseline skill '${id}' is absent from the current inventory`);
     } catch (error) {
       errors.push(`cannot read issue #467 baseline: ${error.message}`);

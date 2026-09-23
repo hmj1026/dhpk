@@ -100,4 +100,4 @@ visible behavior. Test through a public seam with a literal, worked example,
 independent specification, or observable side effect. If the implementation
 and the test could share the same defect and still pass, rewrite the test
 before treating it as coverage; see the canonical
-`skills/dhpk-tdd-workflow/tests.md` guidance.
+`skills/tdd-workflow/tests.md` guidance.

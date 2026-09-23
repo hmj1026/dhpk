@@ -7,8 +7,8 @@ const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const RUNNER = path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'release-runner.sh');
-const SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-release-creator', 'SKILL.md'), 'utf8');
+const RUNNER = path.join(ROOT, 'skills', 'release-creator', 'scripts', 'release-runner.sh');
+const SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'release-creator', 'SKILL.md'), 'utf8');
 const RELEASE = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
 const RELEASE_ZH = fs.readFileSync(path.join(ROOT, 'RELEASE.zh-TW.md'), 'utf8');
 const ADR_0021 = fs.readFileSync(path.join(ROOT, 'docs', 'adr', '0021-three-proof-release-model.md'), 'utf8');

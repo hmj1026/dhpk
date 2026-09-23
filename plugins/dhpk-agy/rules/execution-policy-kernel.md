@@ -2,9 +2,12 @@
 
 This is the short, always-visible safety kernel. Read it before loading a
 conditional stack, version, review, or OpenSpec reference. The full policy in
-[`execution-policy.md`](https://github.com/hmj1026/dhpk/blob/main/rules/execution-policy.md) remains the single source of
+`${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` remains the single source of
 truth for routing precedence, dispatch selection, and reviewer closure; this
-file does not duplicate its tables.
+file does not duplicate its tables. The caller selects one policy file first;
+the selected file has the shape `<bundle-root>/rules/execution-policy.md`, and
+`POLICY_BUNDLE_ROOT` is the real parent of that file's containing `rules`
+directory.
 
 ## Safety and authorization
 
@@ -20,11 +23,11 @@ file does not duplicate its tables.
 
 ## Invocation and route boundary
 
-Command entry points parse flags once through the immutable
-`skills/flow-guide/scripts/route-result.js` boundary. Downstream policy consumes that route
-result and must not reconstruct precedence from the cleaned query. The target
-invocation class still applies: an `explicit-only` target is presented with
-its exact command form rather than called through a delegated Skill handoff.
+The selected entry Skill's local command boundary parses flags once through its
+immutable route parser. Downstream policy consumes that route result and must
+not reconstruct precedence from the cleaned query. The target invocation class
+still applies: an `explicit-only` target is presented with its exact command
+form rather than called through a delegated Skill handoff.
 
 ## Completion boundary
 
@@ -52,12 +55,13 @@ verification.
 
 Load only the references needed by the selected route:
 
-- `execution-policy.md` — routing, dispatch, review, git, and escalation SSOT.
-- `skills/flow-guide/references/invocation-precedence.md` — target
+- `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` — routing, dispatch, review,
+  git, and escalation SSOT.
+- `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/invocation-precedence.md` — target
   classes and invocation ordering.
-- `skills/flow-guide/references/implementation-dispatch.md` —
+- `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md` —
   worker selection, premise gates, retries, and evidence contracts.
-- `skills/flow-guide/references/review-gate-mechanics.md` —
+- `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md` —
   sentinel lifecycle and fresh reviewer artifacts.
 - Stack/version trap sheets and OpenSpec references — only when the selected
   route requires them.

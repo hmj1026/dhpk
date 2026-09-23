@@ -7,6 +7,17 @@ sentinel clearance in the active workflow. References below to Sentinel,
 legacy adapters, or migration phases are retained only as historical
 compatibility vocabulary and do not define current authority.
 
+Runtime paths named in the historical sections are compatibility and audit
+references, not required bundle resources. A consumer may supply them when an
+explicit legacy review route is selected; a raw Skill must not search outside
+its selected execution bundle to resolve them.
+
+Historical path notation uses `<selected-source-root>/` for a distribution
+source explicitly selected by the consumer and `<consumer-project>/` for
+optional test fixtures. These placeholders are documentation references, not
+bundle resources inferred from the active Skill. Public ADR links below are
+optional authoring context, never local Skill resources.
+
 The review chain keeps its durable lifecycle state in the current project's
 Review Gate evidence store. Session evidence is not a tracked deliverable:
 
@@ -134,7 +145,7 @@ This migration-observation section is retained as a record of the retired
 checkpoint contract. It does not gate current Review Gate dispatch or delivery.
 
 The production composition boundary is the explicit, dependency-free
-`scripts/review-gate-runtime.js` CLI. It is inactive until an operator runs
+`<selected-source-root>/scripts/review-gate-runtime.js` CLI. It is inactive until an operator runs
 `/dhpk:setup --review-gate`; setup creates the local
 `.dhpk/review-gate/v1/integrity.key` once with private permissions. `prepare`,
 `observe`, and `status` never create or replace that key. A consumer that has
@@ -213,9 +224,8 @@ diagnosis, and always sets `retirementEligible: false`. This v1 records the
 current per-obligation/lane observations.
 
 Retirement of Sentinel is a direct maintainer decision on this project, not a
-pre-collection evidence gate — see
-`docs/adr/0018-production-migration-observation-checkpoint.md` for the
-rationale. There is no `review-gate-retirement.js` evidence boundary or
+pre-collection evidence gate — see [ADR-0018](https://github.com/hmj1026/dhpk/blob/main/docs/adr/0018-production-migration-observation-checkpoint.md)
+for the rationale. There is no `review-gate-retirement.js` evidence boundary or
 20-outcome ledger requirement; Sentinel removal proceeds directly per
 issues #375-#378, with adjustments driven by rolling usage feedback rather
 than a pre-collected sample.
@@ -224,14 +234,14 @@ than a pre-collected sample.
 
 Codex has no legacy Sentinel, hook-based dispatch, or pending-file/SubagentStop
 mechanism to observe or compare against, so the Codex Review Gate adapter
-(`scripts/lib/codex-review-gate-adapter.js`) is not a migration-observation
+(`<selected-source-root>/scripts/lib/codex-review-gate-adapter.js`) is not a migration-observation
 bridge. It shares the same `ReviewGate.handle()`/`ReceiptStore` write path and
 `review` receipt kind that the Claude adapter's OBSERVE-phase diagnostic
 evaluation also uses, but it produces no `migration-observation` receipt, no
 `sentinelOutcome`, no `comparison` (`AGREE`/`DISAGREE`/`INDETERMINATE`), and
 has no `MigrationCoordinator` involvement: Codex has nothing legacy to
 reconcile against, so none of that comparison vocabulary applies. Given an
-already-registered plan (the `PLAN_REGISTERED` event `scripts/lib/review-gate.js`
+already-registered plan (the `PLAN_REGISTERED` event `<selected-source-root>/scripts/lib/review-gate.js`
 projects before any `REVIEW_RESULT_RECORDED` event for the same wave is
 accepted), a reviewer-contract v2
 Review Request and Review Result, and durable lifecycle/readiness events for the
@@ -267,7 +277,7 @@ than re-deriving its judgment.
 
 ## Receipt Bundle transport and post-merge delivery evidence
 
-Runtime receipts are never committed. `scripts/lib/review-gate-receipt-bundle.js`
+Runtime receipts are never committed. `<selected-source-root>/scripts/lib/review-gate-receipt-bundle.js`
 exports a provider-neutral, redacted, content-addressed Receipt Bundle from an
 already-validated evidence set: every receipt is redacted with the shared
 `redactEvidence` primitive, and the bundle carries the evidence's bound source
@@ -288,12 +298,12 @@ configured transport, there is simply nothing to import, and delivery
 evidence stays absent rather than assumed.
 
 CI and Git-provider observations translate only into `verification` receipts,
-never `review`: `scripts/lib/ci-review-gate-adapter.js` emits a `LOCAL_GATE`
+never `review`: `<selected-source-root>/scripts/lib/ci-review-gate-adapter.js` emits a `LOCAL_GATE`
 verification for a CI run, bound to whatever commit its caller names (a
 pull-request head commit or, reused unchanged, a post-merge commit). Because
 review and verification are independent lanes in `WorkflowCoordinator`, a
 CI-emitted verification receipt can satisfy only its own verification lane
-and can never substitute for semantic review. `scripts/lib/git-provider-review-gate-adapter.js`
+and can never substitute for semantic review. `<selected-source-root>/scripts/lib/git-provider-review-gate-adapter.js`
 emits a `PROVIDER_MERGE` verification observing that a commit was merged;
 this is deliberately not an `authority` receipt, whose fixed shape
 (`reason`/`risk`/`approver`/`skippedGate`/`remediation`) is reserved for a
@@ -338,7 +348,7 @@ before merge readiness can be derived.
 
 ## Cross-platform differential conformance
 
-`tests/fixtures/review-gate/cross-platform-differential-v1.json` is one
+`<consumer-project>/tests/fixtures/review-gate/cross-platform-differential-v1.json` is one
 black-box corpus of request, result, receipt, replay, workflow, provider, and
 failure scenarios, each naming the Review Gate adapters it applies to
 (`CLAUDE`, `CODEX`, `CI`, `GIT_PROVIDER`, or the `CORE` `WorkflowCoordinator`/
@@ -347,7 +357,7 @@ failure scenarios, each naming the Review Gate adapters it applies to
 `sentinelCoverage` map, so every focused legacy Sentinel scenario keeps a
 normalized expected outcome (the exact
 `baseline.normalizeSentinelOutcome` shape) even where it is not separately
-re-driven live. `tests/review-gate-cross-platform-differential.test.js`
+re-driven live. `<consumer-project>/tests/review-gate-cross-platform-differential.test.js`
 drives the corpus through the real adapters: Claude and Codex are asserted to
 reach the identical `ReviewGate.handle()` decision and the same fixed
 `authority: 'SENTINEL'`, `authorizesApproval`/`clearsSentinel`/
@@ -359,7 +369,7 @@ their local (`LOCAL_GATE`), remote (`PROVIDER_MERGE`), delivery
 (`reduceDelivery()` `POST_MERGE_PENDING`), and archive (`ARCHIVE_READY`)
 evidence tiers distinct rather than collapsing them into one pass/fail bit.
 
-`scripts/lib/review-gate-conformance.js` is a pure, dependency-free report
+`<selected-source-root>/scripts/lib/review-gate-conformance.js` is a pure, dependency-free report
 builder: `buildConformanceReport({ corpus, observations, generatedAt })`
 takes only case observations the caller already produced by running the real
 adapters, and returns one deep-frozen report whose every case/adapter cell is
@@ -406,12 +416,12 @@ separate lifecycle vocabulary; lifecycle summary codes must never be treated as
 a semantic Review Gate verdict.
 
 See the [reviewer contract](reviewer-contract.md),
-[ADR-0005](../adr/0005-resumed-review-lifecycle-clearance.md),
-[ADR-0009](../adr/0009-distribution-projection-and-orchestration-ownership.md),
-[ADR-0016](../adr/0016-phase-and-roll-back-review-gate-migration.md) for the
+[ADR-0005](https://github.com/hmj1026/dhpk/blob/main/docs/adr/0005-resumed-review-lifecycle-clearance.md),
+[ADR-0009](https://github.com/hmj1026/dhpk/blob/main/docs/adr/0009-distribution-projection-and-orchestration-ownership.md),
+[ADR-0016](https://github.com/hmj1026/dhpk/blob/main/docs/adr/0016-phase-and-roll-back-review-gate-migration.md) for the
 `BASELINE`/`OBSERVE`/`MigrationCoordinator` phase vocabulary the Claude
 section above uses, and
-[ADR-0017](../adr/0017-implement-review-gate-as-a-local-event-module.md) for
+[ADR-0017](https://github.com/hmj1026/dhpk/blob/main/docs/adr/0017-implement-review-gate-as-a-local-event-module.md) for
 the `ReviewGate`/`ReceiptStore` event module both adapter sections describe.
 
 ## Retry and quota behavior

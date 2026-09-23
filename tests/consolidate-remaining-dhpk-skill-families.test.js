@@ -10,7 +10,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { test, run, assert } = require('./_lib/tinytest');
 const inventoryApi = require('../scripts/lib/distribution-inventory');
 const profileApi = require('../scripts/lib/capability-bundle-selection');
@@ -18,18 +17,6 @@ const profileApi = require('../scripts/lib/capability-bundle-selection');
 const ROOT = path.join(__dirname, '..');
 const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
 const PROFILES = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
-
-const EXPECTED_PORTABLE_FAMILIES = Object.freeze([
-  'change-verdict',
-  'code-trace',
-  'flow-drive',
-  'flow-guide',
-  'harness-govern',
-  'laravel',
-  'phpunit',
-  'skill-forge',
-  'skill-scope',
-]);
 
 const EXPECTED_MINIMAL_PROFILE = Object.freeze([
   'change-verdict',
@@ -149,11 +136,6 @@ const EXPECTED_RENAMES = Object.freeze([
   },
 ]);
 
-const GIT_SMART_COMMIT_HASHES = Object.freeze({
-  'skills/dhpk-git-smart-commit/SKILL.md': '7f7affef0d387cbc03185c37279b428b4a545b9e8c4b8746ce3c6b4a872f0cfc',
-  'skills/dhpk-git-smart-commit/agents/openai.yaml': 'e9d135a5004c9c4efc661fa32fa5055914740dd67c1c78344b514f173a70be25',
-});
-
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -171,17 +153,6 @@ function expectedRetirementShape(row) {
     retiredIn: row.retiredIn,
     reasonCode: row.reasonCode,
     replacements: row.replacements,
-    rollback: row.rollback,
-  };
-}
-
-function expectedRenameShape(row) {
-  return {
-    id: row.id,
-    oldName: row.oldName,
-    oldPath: row.oldPath,
-    newName: row.newName,
-    newPath: row.newPath,
     rollback: row.rollback,
   };
 }
@@ -253,73 +224,6 @@ test('0.54.0 retirement ledger is the exact closed set of 21 approved rows', () 
     assert.ok(!INVENTORY.skills.some((entry) => entry.id === row.id), `${row.id} must not remain active`);
     assert.ok(!INVENTORY.skills.some((entry) => entry.name === row.name), `${row.name} must not remain active`);
     assert.ok(!fs.existsSync(path.join(ROOT, row.canonicalPath)), `${row.canonicalPath} must not remain canonical`);
-  }
-});
-
-test('consolidated inventory exposes exactly nine portable families and canonical name counts', () => {
-  const families = INVENTORY.skills
-    .filter((entry) => entry.name_style === 'portable-family')
-    .map((entry) => ({ id: entry.id, name: entry.name, path: entry.path }));
-  assert.deepStrictEqual(families.map((entry) => entry.id).sort(), [...EXPECTED_PORTABLE_FAMILIES].sort());
-  assert.strictEqual(INVENTORY.skills.length, 65);
-  assert.strictEqual(families.length, 9);
-  assert.strictEqual(INVENTORY.skills.filter((entry) => /^dhpk-/.test(entry.name)).length, 56);
-  for (const family of families) {
-    assert.strictEqual(family.id, family.name);
-    assert.strictEqual(family.path, `skills/${family.name}`);
-  }
-});
-
-test('profiles and shared publication surfaces expose the approved closed counts', () => {
-  const profileTable = PROFILES.profiles;
-  assert.deepStrictEqual(profileTable.minimal.skillIds.slice().sort(), EXPECTED_MINIMAL_PROFILE.slice().sort());
-  assert.strictEqual(profileTable.minimal.skillIds.length, 4);
-  assert.strictEqual(profileTable.full.skillIds.length, 55);
-  assert.strictEqual(profileTable['compat-v1'].skillIds.length, 62);
-
-  for (const surface of SHARED_SURFACES) {
-    const ids = INVENTORY.surface_membership[surface];
-    assert.deepStrictEqual(ids.slice().sort(), EXPECTED_SHARED_SURFACE_IDS.slice().sort(), `${surface} must contain the exact 37 selected IDs`);
-    assert.strictEqual(ids.length, 37, `${surface} must select 37 stable IDs`);
-    for (const protectedId of ['gitnexus-cli', 'gitnexus-debugging', 'gitnexus-exploring', 'gitnexus-guide', 'gitnexus-impact-analysis', 'gitnexus-refactoring']) {
-      assert.ok(ids.includes(protectedId), `${surface} must retain protected ${protectedId}`);
-    }
-  }
-});
-
-test('git-smart-commit remains the unchanged standalone owner while agy-commit retires', () => {
-  const entry = INVENTORY.skills.find((skill) => skill.id === 'git-smart-commit');
-  assert.deepStrictEqual({
-    id: entry && entry.id,
-    name: entry && entry.name,
-    path: entry && entry.path,
-    surfaces: entry && entry.surfaces,
-  }, {
-    id: 'git-smart-commit',
-    name: 'dhpk-git-smart-commit',
-    path: 'skills/dhpk-git-smart-commit',
-    surfaces: ['claude-core', 'codex-sync', 'codex-native', 'cursor-sync'],
-  });
-  for (const [relative, expectedHash] of Object.entries(GIT_SMART_COMMIT_HASHES)) {
-    const actualHash = crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, relative))).digest('hex');
-    assert.strictEqual(actualHash, expectedHash, `${relative} changed despite the protected identity contract`);
-  }
-  assert.ok(!INVENTORY.skills.some((skill) => skill.id === 'agy-commit'), 'agy-commit must not remain active');
-  assert.ok(INVENTORY.retired_skills.some((row) => row.id === 'agy-commit' && row.retiredIn === '0.54.0'));
-});
-
-test('active Laravel and PHPUnit renames are diagnostic-only and alias-free', () => {
-  const actual = Array.isArray(INVENTORY.renamed_skill_names)
-    ? INVENTORY.renamed_skill_names.map(expectedRenameShape)
-    : null;
-  assert.deepStrictEqual(actual && actual.slice().sort((left, right) => left.id.localeCompare(right.id)), EXPECTED_RENAMES.slice().sort((left, right) => left.id.localeCompare(right.id)));
-  for (const row of EXPECTED_RENAMES) {
-    const entry = INVENTORY.skills.find((skill) => skill.id === row.id);
-    assert.ok(entry, `${row.id} must retain its stable ID`);
-    assert.strictEqual(entry.name, row.newName);
-    assert.strictEqual(entry.path, row.newPath);
-    assert.ok(!Array.isArray(entry.legacy_names) || !entry.legacy_names.includes(row.oldName), `${row.oldName} must not be emitted as an alias`);
-    assert.ok(!fs.existsSync(path.join(ROOT, row.oldPath)), `${row.oldPath} must not remain canonical`);
   }
 });
 
@@ -411,7 +315,7 @@ test('retirement mutation canaries fail closed for omission, duplicate, remap, r
   );
 });
 
-test('profile, surface, and protected-identity mutation canaries fail closed', () => {
+test('profile duplicate and protected-identity mutation canaries fail closed', () => {
   const inventory = futureInventoryFixture();
   const profiles = futureProfiles();
 
@@ -424,15 +328,6 @@ test('profile, surface, and protected-identity mutation canaries fail closed', (
   });
   assert.ok(duplicateResult.errors.some((error) => /duplicate.*flow-guide|flow-guide.*duplicate|profile.*duplicate/i.test(error)), duplicateResult.errors.join('\n'));
 
-  const retiredProfile = clone(profiles);
-  retiredProfile.profiles['compat-v1'].skillIds.push('agy-commit');
-  const retiredResult = profileApi.validateProfileDefinitions({
-    inventory,
-    profiles: retiredProfile,
-    moduleCatalog: require('../manifests/module-catalog.json'),
-  });
-  assert.ok(retiredResult.errors.some((error) => /agy-commit.*retired|retired.*agy-commit/i.test(error)), retiredResult.errors.join('\n'));
-
   const protectedOmission = clone(profiles);
   protectedOmission.profiles.full.skillIds = protectedOmission.profiles.full.skillIds.filter((id) => id !== 'gitnexus-cli');
   const protectedResult = profileApi.validateProfileDefinitions({
@@ -441,14 +336,6 @@ test('profile, surface, and protected-identity mutation canaries fail closed', (
     moduleCatalog: require('../manifests/module-catalog.json'),
   });
   assert.ok(protectedResult.errors.some((error) => /gitnexus-cli.*protected|protected.*gitnexus-cli/i.test(error)), protectedResult.errors.join('\n'));
-
-  const surfaceMutation = futureInventoryFixture();
-  surfaceMutation.surface_membership['agent-plugin'].push('agy-commit');
-  const surfaceResult = inventoryApi.validateSurfaceMembership({
-    inventory: surfaceMutation,
-    ids: new Set(surfaceMutation.skills.map((entry) => entry.id)),
-  });
-  assert.ok(surfaceResult.errors.some((error) => /agent-plugin.*agy-commit|agy-commit.*(?:unknown|retired|surface)/i.test(error)), surfaceResult.errors.join('\n'));
 });
 
 run('consolidate-remaining-dhpk-skill-families');

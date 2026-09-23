@@ -1,7 +1,7 @@
 # Invocation precedence
 
 Use this reference when two route owners could match the same request. The
-project policy at `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` remains the
+project policy at `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` remains the
 normative source; this file explains how the `flow-guide` modes apply it.
 
 ## Fixed order

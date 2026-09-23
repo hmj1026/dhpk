@@ -96,7 +96,7 @@ Skill invocation 是 chat syntax，不是 plugin-management command。每個同�
 canary。只有觀測到真實 spawn 與 targeted wait 才能記為 PASS；此前 named-role
 runtime 維持 `NOT_RUN`、`UNAVAILABLE` 或實際觀測到的失敗。精確 ID 仍出現
 `unknown agent_type` 時，應分類為 registry failure，不能據此改名或把
-GPT-5.6 family model 換掉；診斷邊界見 [`AGENTS.md`](AGENTS.md#role-discovery)。
+GPT-6 family model 換掉；診斷邊界見 [`AGENTS.md`](AGENTS.md#role-discovery)。
 
 ## 移除
 

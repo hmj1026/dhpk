@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for scripts/verify-runner.js — verification loop runner
+// Coverage for skills/repo-verify/scripts/verify-runner.js — verification loop runner
 // (lint -> [typecheck] -> test_unit -> [integration/e2e in full mode]).
 // Every test builds its own scratch git repo under a temp dir (never the
 // real repo) and redirects the log cache via CLAUDE_VERIFY_CACHE_DIR to a
@@ -13,7 +13,7 @@ const { spawnSync, execFileSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'verify-runner.js');
+const SCRIPT = path.join(ROOT, 'skills', 'repo-verify', 'scripts', 'verify-runner.js');
 
 // `npm run <script> -- <extra args>` appends extra args to the script's argv.
 // `node -e "..." --some-flag` (no `--` separator) makes node itself choke on

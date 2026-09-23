@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for scripts/opsx-apply-resume/extract-compact.sh — extracts
+// Coverage for skills/dhpk-opsx-load-context/scripts/extract-compact.sh — extracts
 // human-readable fields from a compact-*.json file via jq. Covers the happy
 // path (populated fields, string vs object array items) and the two error
 // paths (missing arg / missing file).
@@ -12,7 +12,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'opsx-apply-resume', 'extract-compact.sh');
+const SCRIPT = path.join(ROOT, 'skills', 'dhpk-opsx-load-context', 'scripts', 'extract-compact.sh');
 
 function mkTmpFile(obj) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-compact-'));

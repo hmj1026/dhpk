@@ -47,7 +47,7 @@ function assertPackageFilesEquivalent(actualFiles, expectedFiles) {
 test('native compiler plan preserves explicit selection, public identity, and generated output intent', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
       { id: 'not-native', name: 'dhpk-not-native', path: 'skills/dhpk-not-native', lifecycle: 'promoted', surfaces: ['claude-core'] },
     ],
   };
@@ -56,10 +56,10 @@ test('native compiler plan preserves explicit selection, public identity, and ge
     const projection = compileNativePackage({ inventory, root: ROOT, outDir: out, version: '1.2.3', sourceCommit: 'abc123' });
     assert.strictEqual(projection.plan.surface, 'codex-native');
     assert.deepStrictEqual(projection.selectedSkillIds, ['tdd']);
-    assert.deepStrictEqual(projection.selectedSkillNames, ['dhpk-tdd-workflow']);
+    assert.deepStrictEqual(projection.selectedSkillNames, ['tdd-workflow']);
     assert.deepStrictEqual(projection.provenance.routingProjection, projection.routingProjection);
     assert.strictEqual(projection.routingProjection.surface, 'codex-native');
-    assert.ok(projection.plan.entries.some((entry) => entry.destination === 'skills/dhpk-tdd-workflow/SKILL.md'));
+    assert.ok(projection.plan.entries.some((entry) => entry.destination === 'skills/tdd-workflow/SKILL.md'));
     assert.ok(projection.plan.entries.some((entry) => entry.destination === '.codex-plugin/plugin.json'));
     assert.ok(!projection.plan.entries.some((entry) => entry.destination.includes('dhpk-not-native')));
     assert.ok(Object.isFrozen(projection.plan));
@@ -71,7 +71,7 @@ test('native compiler plan preserves explicit selection, public identity, and ge
 test('native compiler materializes a non-invokable transport runtime without granting capability selection', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] },
+      { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] },
       { id: 'cli-transport', name: 'dhpk-cli-transport', path: 'skills/dhpk-cli-transport', lifecycle: 'optional', invokable: false, surfaces: ['codex-native'] },
     ],
     internal_runtime_skills: { 'codex-native': ['cli-transport'] },
@@ -134,7 +134,7 @@ test('native materialization preserves executable source modes through the artif
 test('materialized candidate contains only the explicit codex-native surface, as real files — not every promoted skill', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
       { id: 'skill-judge', name: 'dhpk-skill-quality-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
       { id: 'vue-2-notes', name: 'dhpk-vue-2-notes', path: 'skills/dhpk-vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
     ],
@@ -143,7 +143,7 @@ test('materialized candidate contains only the explicit codex-native surface, as
   try {
     const result = materializeNativePackage({ inventory, root: ROOT, outDir: out });
     assert.deepStrictEqual(result.skillIds, ['tdd']);
-    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-tdd-workflow', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'tdd-workflow', 'SKILL.md')));
     // skill-judge is promoted but NOT codex-native — must be excluded.
     assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-skill-quality-judge')));
     assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-vue-2-notes')));
@@ -157,7 +157,7 @@ test('materialized candidate contains only the explicit codex-native surface, as
 test('an approved optional-lifecycle native exception is included alongside promoted native skills', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
       { id: 'php-pro', name: 'dhpk-php-runtime-router', path: 'skills/dhpk-php-runtime-router', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
     ],
   };
@@ -174,8 +174,8 @@ test('materialized native packages use public names for directories, frontmatter
   const inventory = {
     skills: [{
       id: 'tdd',
-      name: 'dhpk-tdd-workflow',
-      path: 'skills/dhpk-tdd-workflow',
+      name: 'tdd-workflow',
+      path: 'skills/tdd-workflow',
       lifecycle: 'promoted',
       surfaces: ['claude-core', 'codex-native'],
     }],
@@ -183,15 +183,15 @@ test('materialized native packages use public names for directories, frontmatter
   const out = tmpDir('dhpk-native-public-name-');
   try {
     const result = materializeNativePackage({ inventory, root: ROOT, outDir: out, version: '1.2.3', sourceCommit: 'abc123' });
-    const publicDir = path.join(out, 'skills', 'dhpk-tdd-workflow');
+    const publicDir = path.join(out, 'skills', 'tdd-workflow');
     assert.deepStrictEqual(result.skillIds, ['tdd']);
-    assert.deepStrictEqual(result.skillNames, ['dhpk-tdd-workflow']);
+    assert.deepStrictEqual(result.skillNames, ['tdd-workflow']);
     assert.ok(fs.existsSync(path.join(publicDir, 'SKILL.md')));
     assert.ok(!fs.existsSync(path.join(out, 'skills', 'tdd')), 'stable IDs must not become native directory names');
-    assert.match(fs.readFileSync(path.join(publicDir, 'SKILL.md'), 'utf8'), /^name:\s*dhpk-tdd-workflow/m);
-    assert.deepStrictEqual(Object.keys(result.fingerprints), ['dhpk-tdd-workflow']);
+    assert.match(fs.readFileSync(path.join(publicDir, 'SKILL.md'), 'utf8'), /^name:\s*tdd-workflow/m);
+    assert.deepStrictEqual(Object.keys(result.fingerprints), ['tdd-workflow']);
     assert.deepStrictEqual(result.provenance.selectedSkillIds, ['tdd']);
-    assert.deepStrictEqual(result.provenance.selectedSkillNames, ['dhpk-tdd-workflow']);
+    assert.deepStrictEqual(result.provenance.selectedSkillNames, ['tdd-workflow']);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }
@@ -225,7 +225,7 @@ test('native materialization rejects a skill whose frontmatter name differs from
 test('regenerating into an existing outDir removes a skill directory dropped from the codex-native surface', () => {
   const firstInventory = {
     skills: [
-      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
       { id: 'yii1-security-audit', name: 'dhpk-yii1-security-audit', path: 'skills/dhpk-yii1-security-audit', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
     ],
   };
@@ -236,14 +236,14 @@ test('regenerating into an existing outDir removes a skill directory dropped fro
 
     // yii1-security-audit is de-listed from codex-native between releases.
     const secondInventory = {
-      skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
+      skills: [{ id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
     };
     const result = materializeNativePackage({ inventory: secondInventory, root: ROOT, outDir: out });
 
     assert.deepStrictEqual(result.skillIds, ['tdd']);
-    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-tdd-workflow')), 'tdd must remain');
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'tdd-workflow')), 'tdd must remain');
     assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-yii1-security-audit')), 'stale yii1-security-audit directory must be removed on regeneration');
-    assert.deepStrictEqual(Object.keys(result.fingerprints), ['dhpk-tdd-workflow']);
+    assert.deepStrictEqual(Object.keys(result.fingerprints), ['tdd-workflow']);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }
@@ -280,7 +280,7 @@ test('materialization rejects a symlinked output root instead of writing through
   const actual = path.join(parent, 'actual');
   const linked = path.join(parent, 'linked');
   const inventory = {
-    skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] }],
+    skills: [{ id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] }],
   };
   try {
     fs.mkdirSync(actual);
@@ -297,7 +297,7 @@ test('materialization rejects a symlinked output ancestor before it can write ou
   const external = path.join(parent, 'external');
   const linkedParent = path.join(parent, 'plugins');
   const inventory = {
-    skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] }],
+    skills: [{ id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] }],
   };
   try {
     fs.mkdirSync(external);
@@ -312,7 +312,7 @@ test('materialization rejects a symlinked output ancestor before it can write ou
 
 test('generation is deterministic: two materializations of the same inventory produce identical fingerprints and provenance', () => {
   const inventory = {
-    skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
+    skills: [{ id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
   };
   const outA = tmpDir('dhpk-native-a-');
   const outB = tmpDir('dhpk-native-b-');
@@ -321,7 +321,7 @@ test('generation is deterministic: two materializations of the same inventory pr
     const b = materializeNativePackage({ inventory, root: ROOT, outDir: outB, version: '1.2.3', sourceCommit: 'abc123' });
     assert.deepStrictEqual(a.fingerprints, b.fingerprints);
     assert.deepStrictEqual(a.provenance, b.provenance);
-    assert.strictEqual(fingerprintDir(path.join(outA, 'skills', 'dhpk-tdd-workflow')), fingerprintDir(path.join(outB, 'skills', 'dhpk-tdd-workflow')));
+    assert.strictEqual(fingerprintDir(path.join(outA, 'skills', 'tdd-workflow')), fingerprintDir(path.join(outB, 'skills', 'tdd-workflow')));
   } finally {
     fs.rmSync(outA, { recursive: true, force: true });
     fs.rmSync(outB, { recursive: true, force: true });
@@ -432,11 +432,11 @@ test('CLI generates the real repo codex-native set with zero symlinks and proven
     assert.strictEqual(manifest.skills, './skills/');
 
     const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
-    assert.strictEqual(provenance.selectedSkillIds.length, 13);
-    assert.strictEqual(provenance.selectedSkillNames.length, 13);
+    assert.strictEqual(provenance.selectedSkillIds.length, 32);
+    assert.strictEqual(provenance.selectedSkillNames.length, 32);
     assert.deepStrictEqual(provenance.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
-    assert.strictEqual(provenance.materializedSkillIds.length, 15);
-    assert.strictEqual(provenance.materializedSkillNames.length, 15);
+    assert.strictEqual(provenance.materializedSkillIds.length, 34);
+    assert.strictEqual(provenance.materializedSkillNames.length, 34);
     assert.deepStrictEqual(
       fs.readdirSync(path.join(out, 'skills')).sort(),
       provenance.materializedSkillNames,

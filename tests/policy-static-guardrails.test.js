@@ -62,7 +62,7 @@ test('opsx-load-context surfaces hard-rule escalations before routine resume not
   assert.ok(text.includes('blocking human decision'), 'missing blocking human decision wording');
 });
 
-test('CLAUDE_PLUGIN_ROOT guardrail caveat has one SSOT home with pointers elsewhere', () => {
+test('POLICY_BUNDLE_ROOT guardrail caveat has one SSOT home with pointers elsewhere', () => {
   // rules-ssot-dedup: the interpolation-token caveat was deduped. The full
   // paragraph lives ONCE in review-gate-mechanics.md; execution-policy.md and
   // execution-checklist/SKILL.md carry a one-line pointer to it instead, and the
@@ -73,7 +73,7 @@ test('CLAUDE_PLUGIN_ROOT guardrail caveat has one SSOT home with pointers elsewh
     'rules/execution-policy.md',
     'skills/flow-guide/SKILL.md',
   ];
-  const marker = '`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token';
+  const marker = '`${POLICY_BUNDLE_ROOT}` is a markdown-interpolation token';
   const endMarker = '`find / -iname`.';
   const carriesFullParagraph = (rel) => {
     const text = read(rel);
@@ -83,11 +83,11 @@ test('CLAUDE_PLUGIN_ROOT guardrail caveat has one SSOT home with pointers elsewh
   // The full paragraph must live in exactly one file — the SSOT.
   const carriers = [SSOT, ...pointers].filter(carriesFullParagraph);
   assert.deepStrictEqual(carriers, [SSOT],
-    `the full CLAUDE_PLUGIN_ROOT guardrail paragraph must live only in ${SSOT}, found in: ${carriers.join(', ') || 'none'}`);
+    `the full POLICY_BUNDLE_ROOT guardrail paragraph must live only in ${SSOT}, found in: ${carriers.join(', ') || 'none'}`);
   // Each former mirror now points at the SSOT reference file.
   for (const rel of pointers) {
     assert.ok(read(rel).includes('review-gate-mechanics.md'),
-      `${rel} must point to the review-gate-mechanics.md SSOT for the CLAUDE_PLUGIN_ROOT caveat`);
+      `${rel} must point to the review-gate-mechanics.md SSOT for the POLICY_BUNDLE_ROOT caveat`);
   }
   // The removed keep-in-sync mirror markers must not resurface.
   for (const rel of [SSOT, ...pointers]) {

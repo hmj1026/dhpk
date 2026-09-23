@@ -1,0 +1,4 @@
+interface:
+  display_name: "Precommit"
+  short_description: "Run deterministic pre-commit verification"
+  default_prompt: "Use $precommit to run the repository's deterministic pre-commit checks."

@@ -75,12 +75,12 @@ Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整�
 |------|----:|------|
 | Agents | Role-based agents | Trigger table 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
 | Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
-| Canonical skills | 65 個扁平 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract；九個 portable family（`skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、`laravel`、`phpunit`、`harness-govern`）負責整併介面。 |
+| Canonical skills | 84 個扁平 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract；九個 portable family（`skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、`laravel`、`phpunit`、`harness-govern`）負責整併介面。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 3 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git branch-safety gate）、SessionStart（module activation）、SubagentStop（fast-worker liveness cleanup） |
 | Hook dispatchers | 1 | `pre-bash-dispatch.sh` 合併 deterministic shell 與 Git branch-safety gate |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
-| Codex 雙軌 | 15 筆項目（13 個可呼叫） | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能與內部 transport 與 dispatch-context runtime。 |
+| Codex 雙軌 | 34 筆項目（32 個可呼叫） | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能與內部 transport 與 dispatch-context runtime。 |
 
 呼叫語法會依 surface 不同：
 
@@ -146,8 +146,8 @@ Claude 的預設 discovery artifact 是由 distribution inventory 產生的實�
 `minimal` profile，不是直接掃描未過濾的 `skills/` 原始目錄。目前 profile 數量是
 `minimal=4`、`full=55`、`compat-v1=62`（尚未加入 overlay）。`full` 與
 `compat-v1` 仍是明確 opt-in 的 profile artifact；Agent Plugin 與 AGY 各選取
-37 個 stable ID；Cursor native overlay 選取 4 個 native ID 並共用 Agent Plugin
-skills；Codex native 選取 15 個 ID。source tree 仍是 authoring tree。
+55 個 stable ID；Cursor native overlay 選取 4 個 native ID 並共用 Agent Plugin
+skills；Codex native 選取 34 個 ID。source tree 仍是 authoring tree。
 
 ## Codex 整合面
 
@@ -232,7 +232,7 @@ OnePassword 驗證是 operator action，不是可 discovery 的 skill：需要 c
 - **`react-19`** — React 19（2024 年 12 月）。Actions 與 async transitions、新 hooks（`useActionState`/`useOptimistic`/`useFormStatus`、`use()`）、`ref` 作為一般 prop（免 `forwardRef`）、`<Context>` 直接當 provider、document metadata 自動 hoist、資源預載（`preload`/`preinit`）、穩定的 Server Components。移除 `ReactDOM.render`/`hydrate`、function component 的 `propTypes`/`defaultProps`、legacy Context 與 string refs。Next.js 16 建議但非必需。
 
 **跨版本**：
-- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（由 Review Gate trigger table 選取）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:dhpk-matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動選取。
+- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（由 Review Gate trigger table 選取）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動選取。
 
 **iOS / Swift**（依賴鏈式——每個都 `requires: swift`；可用 `ios-app` 安裝 profile 一次啟用整套）：
 - **`swift`** — Swift 6 strict-concurrency 基線 + Swift 5.10 / iOS 17 相容性 + Swift 6.2 approachable-concurrency。整套套件的基礎。
@@ -354,7 +354,7 @@ dhpk/
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 36 個角色 agent（35 root + 1 模組 reviewer；INDEX.md 為導覽用）
 ├── commands/                     # slash 指令（review、setup、smart-commit、opsx-apply-resume 等）
-├── skills/                       # SSOT：65 個扁平 canonical package，根目錄為 skills/<public-name>/（九個 portable family 名稱不加前綴）
+├── skills/                       # SSOT：84 個扁平 canonical package，根目錄為 skills/<public-name>/（九個 portable family 名稱不加前綴）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}
@@ -371,8 +371,8 @@ dhpk/
 ├── scripts/
 │   ├── hooks/                    # 核心 hook，含 pre-edit-guard.sh、pre-bash-dispatch.sh、session-start.sh、subagent-stop-verify.sh、_lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
-│   ├── codemaps/、lib/、opsx-apply-resume/、validate/
-│   └── （harness-audit、precommit-runner、verify-runner、agy-adapt-agents、dep-audit）
+│   ├── codemaps/、lib/、release/、setup/、validate/
+│   └── （agy-adapt-agents、dep-audit、review-gate-runtime、install 等）
 ├── docs/
 │   ├── configuration.md、configuration.zh-TW.md      # 完整 userConfig 參考
 │   ├── basic-operations.md、basic-operations.zh-TW.md # 安裝與工作流生命週期
@@ -388,10 +388,10 @@ dhpk/
 ├── codex/                        # Codex CLI 雙軌（Claude Code 不會自動載入）
 │   ├── AGENTS.md                 # Codex 專屬指引
 │   ├── README.md、README.zh-TW.md # 如何同步進專案
-│   ├── skills/                   # 15 個相對 symlink（13 個可呼叫加內部 transport 與 dispatch-context runtime）
+│   ├── skills/                   # 34 個相對 symlink（32 個可呼叫加內部 transport 與 dispatch-context runtime）
 │   ├── agents/、config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest（marketplace 可安裝，實驗性）
-├── plugins/dhpk/                 # 追蹤中的 Codex-native package：15 個實體項目、零 symlink
+├── plugins/dhpk/                 # 追蹤中的 Codex-native package：34 個實體項目、零 symlink
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

@@ -22,7 +22,7 @@ function fileFingerprint(file) {
 
 function mkRepo({ branch = 'develop' } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-')));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/dhpk-tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package', 'agent-traps', 'commands', 'hooks', 'modules', 'scripts', 'templates']) {
+  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package', 'agent-traps', 'commands', 'hooks', 'modules', 'scripts', 'templates']) {
     fs.mkdirSync(path.join(root, rel), { recursive: true });
   }
   for (const profile of ['minimal', 'full', 'compat-v1']) {
@@ -34,7 +34,7 @@ function mkRepo({ branch = 'develop' } = {}) {
   fs.writeFileSync(path.join(root, 'plugins/dhpk/.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
   fs.writeFileSync(path.join(root, '.agents/plugins', 'marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version: '1.0.0' }] }));
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n## 1.0.0 — 2026-01-01 — Prior\n\nPrior notes.\n');
-  fs.writeFileSync(path.join(root, 'skills/dhpk-tdd-workflow', 'SKILL.md'), '---\nname: dhpk-tdd-workflow\n---\n');
+  fs.writeFileSync(path.join(root, 'skills/tdd-workflow', 'SKILL.md'), '---\nname: tdd-workflow\n---\n');
   fs.writeFileSync(path.join(root, 'agents', 'sample.md'), [
     '---',
     'name: sample',
@@ -61,7 +61,7 @@ function mkRepo({ branch = 'develop' } = {}) {
     path.join(root, 'manifests', 'distribution-inventory.json'),
     JSON.stringify({
       skills: [
-        { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+        { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
         { id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] },
       ],
       surface_membership: { 'agy-plugin': ['sample'] },
@@ -161,8 +161,8 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   const provenance = JSON.parse(fs.readFileSync(path.join(repo, 'plugins/dhpk', 'provenance.json'), 'utf8'));
   assert.strictEqual(provenance.sourceVersion, '1.1.0');
   assert.deepStrictEqual(provenance.selectedSkillIds, ['tdd']);
-  assert.deepStrictEqual(provenance.selectedSkillNames, ['dhpk-tdd-workflow']);
-  assert.ok(fs.existsSync(path.join(repo, 'plugins/dhpk/skills/dhpk-tdd-workflow/SKILL.md')));
+  assert.deepStrictEqual(provenance.selectedSkillNames, ['tdd-workflow']);
+  assert.ok(fs.existsSync(path.join(repo, 'plugins/dhpk/skills/tdd-workflow/SKILL.md')));
 
   assert.match(res.stdout, /plugins\/dhpk-agy\/ \(regenerated .*AGY/i);
   assert.ok(fs.existsSync(path.join(repo, 'plugins/dhpk-agy', 'plugin.json')));
@@ -411,9 +411,9 @@ test('write mode fails closed when an inventory-selected Agent/Cursor skill is s
   try {
     const inventoryPath = path.join(repo, 'manifests', 'distribution-inventory.json');
     fs.writeFileSync(inventoryPath, JSON.stringify({
-      skills: [{ id: 'portable', name: 'dhpk-portable', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['agent-plugin', 'cursor-plugin'] }],
+      skills: [{ id: 'portable', name: 'dhpk-portable', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['agent-plugin', 'cursor-plugin'] }],
     }));
-    fs.writeFileSync(path.join(repo, 'skills/dhpk-tdd-workflow', 'SKILL.md'), '---\nname: wrong-name\ndescription: broken\n---\n');
+    fs.writeFileSync(path.join(repo, 'skills/tdd-workflow', 'SKILL.md'), '---\nname: wrong-name\ndescription: broken\n---\n');
     fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
     const beforeChangelog = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8');
     const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);

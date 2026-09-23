@@ -14,7 +14,21 @@ except Exception:  # pragma: no cover - py3.10 fallback
     try:
         import tomli as tomllib  # type: ignore
     except Exception:
-        tomllib = None
+        try:
+            from .vendor.tomli import loads as _vendor_toml_loads  # type: ignore
+
+            class _VendoredTomllib:
+                @staticmethod
+                def load(fh):
+                    return _vendor_toml_loads(fh.read().decode("utf-8"))
+
+                @staticmethod
+                def loads(text):
+                    return _vendor_toml_loads(text)
+
+            tomllib = _VendoredTomllib
+        except Exception:
+            tomllib = None
 
 
 CLAUDE_PARITY_COVERAGE_KEYWORDS = {
@@ -161,7 +175,7 @@ def _load_target_metadata(repo_root, role):
     defaults = {
         "name": role,
         "description": "Claude parity role synced from .claude/agents/%s.md" % role,
-        "model": "gpt-5.3-codex",
+        "model": "gpt-6-luna",
         "model_reasoning_effort": "medium",
     }
     path = os.path.join(repo_root, codex_agent_target_rel(role))

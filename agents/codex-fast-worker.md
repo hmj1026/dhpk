@@ -4,7 +4,7 @@ description: 'One-release operational compatibility forwarder to codex-worker.'
 tools: Bash, Read, Write, Grep, Glob
 model: sonnet
 effort: low
-skills: ["dhpk-tdd-workflow"]
+skills: ["tdd-workflow"]
 ---
 
 # Codex Fast Worker Compatibility Forwarder

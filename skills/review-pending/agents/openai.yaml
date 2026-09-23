@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Pending"
+  short_description: "Relay a read-only pending-change review"
+  default_prompt: "Use $review-pending to relay a read-only review of pending changes."

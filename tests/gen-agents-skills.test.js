@@ -16,7 +16,7 @@ test('gen-agents-skills CLI materializes a project-local compatibility tree', ()
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /wrote 37 selected skills/);
+    assert.match(result.stdout, /wrote 55 selected skills/);
     assert.ok(fs.existsSync(path.join(outDir, '.dhpk-projection.json')));
     assert.ok(fs.existsSync(path.join(outDir, 'flow-guide', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(outDir, 'flow-guide.md')));

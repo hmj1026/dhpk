@@ -4,35 +4,13 @@
 const fs = require('fs');
 const path = require('path');
 
-// Resolve plugin root: validated env var → walk-up with marker → legacy fallback
-const _pluginRoot = (() => {
-  const sentinel = p => fs.existsSync(path.join(p, 'scripts', 'lib', 'utils.js'));
-  const marker = p => fs.existsSync(path.join(p, '.claude-plugin', 'plugin.json'));
-  const envRoot = process.env.PLUGIN_ROOT;
-  if (envRoot && sentinel(envRoot) && marker(envRoot)) return envRoot;
-  let d = __dirname;
-  while (d !== path.dirname(d)) {
-    if (sentinel(d) && marker(d)) return d;
-    d = path.dirname(d);
-  }
-  return path.resolve(__dirname, '..', '..', '..');
-})();
-
-const { runCapture, gitRepoRoot, qualifyCommand } = require(path.join(_pluginRoot, 'scripts', 'lib', 'utils'));
+const { runCapture, gitRepoRoot } = require('./lib/runner-utils');
+const { qualifyCommand } = require('./lib/command-namespace');
 
 // ---------------------------------------------------------------------------
-// File classification config (language-agnostic)
+// Built-in file classification defaults (language-agnostic)
 // ---------------------------------------------------------------------------
-function loadClassification() {
-  try {
-    const p = path.join(_pluginRoot, 'scripts', 'config', 'file-classification.json');
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-const CLASSIFICATION = loadClassification();
-const IGNORE_PREFIXES = CLASSIFICATION?.ignore_prefixes ?? [
+const IGNORE_PREFIXES = [
   'node_modules/', 'vendor/', 'dist/', 'build/', 'out/',
   'target/', '.next/', '.nuxt/', '__pycache__/', '.pytest_cache/',
   'venv/', '.venv/', '.git/',
@@ -153,8 +131,8 @@ function countFiles(dir, filter) {
 // ---------------------------------------------------------------------------
 
 function hasNonTestCodeFiles(root) {
-  const codeExts = CLASSIFICATION?.code_extensions ?? ['.ts', '.tsx', '.js', '.jsx'];
-  const testInd = CLASSIFICATION?.test_gap?.test_indicators ?? {
+  const codeExts = ['.ts', '.tsx', '.js', '.jsx'];
+  const testInd = {
     directory_prefixes: ['test/', 'tests/', '__tests__/', 'spec/', 'src/test/'],
     file_suffixes: ['.test.ts', '.test.tsx', '.test.js', '.test.jsx', '.spec.ts', '.spec.js', '_test.py', '_spec.rb', 'Test.java', 'Test.kt', '_test.go'],
   };
@@ -188,8 +166,8 @@ function hasTsFiles(root) {
 }
 
 function isDocsHeavy(root) {
-  const docExts = CLASSIFICATION?.doc_extensions ?? ['.md', '.mdx'];
-  const codeExts = CLASSIFICATION?.code_extensions ?? ['.ts', '.tsx', '.js', '.jsx'];
+  const docExts = ['.md', '.mdx'];
+  const codeExts = ['.ts', '.tsx', '.js', '.jsx'];
   const docs = countFiles(root, (name) => docExts.includes(path.extname(name)));
   const code = countFiles(root, (name) => codeExts.includes(path.extname(name)));
   const total = docs + code;
@@ -335,14 +313,14 @@ function checkRobustnessLintTypecheck(root, ecosystems) {
 
 // ROBUSTNESS-3: Test file ratio
 function checkRobustnessTestRatio(root) {
-  const testIndicators = CLASSIFICATION?.test_gap?.test_indicators ?? {
+  const testIndicators = {
     directory_prefixes: ['test/', 'tests/', '__tests__/', 'spec/', 'src/test/'],
     file_suffixes: ['.test.ts', '.test.tsx', '.test.js', '.test.jsx', '.spec.ts', '.spec.js', '_test.py', '_spec.rb', 'Test.java', 'Test.kt', '_test.go'],
   };
 
   const srcCount = countFiles(root, (name, rel) => {
     const ext = path.extname(name);
-    const codeExts = CLASSIFICATION?.code_extensions ?? ['.ts', '.tsx', '.js', '.jsx'];
+    const codeExts = ['.ts', '.tsx', '.js', '.jsx'];
     if (!codeExts.includes(ext)) return false;
     if (testIndicators.directory_prefixes.some(p => rel.startsWith(p))) return false;
     if (testIndicators.file_suffixes.some(s => name.endsWith(s))) return false;

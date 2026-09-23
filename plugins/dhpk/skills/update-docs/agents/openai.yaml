@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Docs"
+  short_description: "Refresh documentation from implementation evidence"
+  default_prompt: "Use $update-docs to refresh documentation from current implementation evidence."

@@ -4,10 +4,10 @@
 
 ## Available Scripts
 
-> **路徑**：scripts 隨 dhpk plugin 出貨於
-> `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/scripts/`。
-> 若 `CLAUDE_PLUGIN_ROOT` 未設定（手動安裝），fall back 到
-> `~/.claude/skills/flow-guide/scripts/`。以下用 `$SCRIPTS` 代表該目錄。
+> **路徑**：scripts 位於本 Skill 目錄內的 `$SKILL_DIR/scripts/`。
+> `$SKILL_DIR` 指含有所選 `SKILL.md` 的實體目錄；它是路徑記號，不是環境變數，
+> 也不向 plugin cache、repository root 或 `~/.claude` 推測。以下用 `$SCRIPTS`
+> 代表該目錄；目錄或腳本不存在時回報 `BLOCKED_RESOURCE_MISSING`。
 
 1. `python3 $SCRIPTS/prepare_workflow_profile.py`
    - 建立或更新 `profile.yaml`
@@ -24,7 +24,7 @@
 ## Command Templates
 
 ```bash
-SCRIPTS="${CLAUDE_PLUGIN_ROOT:-$HOME/.claude}/skills/flow-guide/scripts"
+SCRIPTS="$SKILL_DIR/scripts"
 
 # 建立/更新 profile
 python3 "$SCRIPTS/prepare_workflow_profile.py" \

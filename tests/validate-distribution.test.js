@@ -13,7 +13,7 @@ const { reconcileDistribution, verifyClaudeProjection } = require('../scripts/li
 function baseInventory() {
   return {
     skills: [
-      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-sync'] },
+      { id: 'tdd', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-sync'] },
     ],
     modules: [
       { id: 'vue-2', path: 'modules/vue-2', lifecycle: 'optional', surfaces: ['claude-module'] },
@@ -55,7 +55,7 @@ test('fails when a cursor-sync skill has no cursor/skills/ mirror', () => {
   const result = reconcileDistribution({
     inventory: {
       skills: [
-        { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['cursor-sync'] },
+        { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['cursor-sync'] },
       ],
       surface_membership: { 'cursor-sync': ['tdd'] },
       modules: [],

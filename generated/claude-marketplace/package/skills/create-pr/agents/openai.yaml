@@ -1,0 +1,6 @@
+interface:
+  display_name: "Create PR"
+  short_description: "Create a ticket-aware GitHub pull request"
+  default_prompt: "Use $create-pr to prepare a ticket-aware pull request."
+policy:
+  allow_implicit_invocation: false

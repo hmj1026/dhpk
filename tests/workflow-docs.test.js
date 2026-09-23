@@ -43,8 +43,12 @@ test('workflow guides expose the route-first user contract in both locales', () 
 
 test('update-docs command and doc-updater agent follow the writing contract', () => {
   const command = read('commands/update-docs.md');
+  const skill = read('skills/update-docs/SKILL.md');
   const agent = read('agents/doc-updater.md');
-  for (const [label, text] of [['commands/update-docs.md', command], ['agents/doc-updater.md', agent]]) {
+  // The command is a thin front door; the procedure contract lives in the Skill.
+  assert.match(command, /\$update-docs/);
+  assert.match(command, /\$ARGUMENTS` unchanged/);
+  for (const [label, text] of [['skills/update-docs/SKILL.md', skill], ['agents/doc-updater.md', agent]]) {
     assert.match(text, /writing-for-agents/i, `${label} must point to writing-for-agents`);
     assert.match(text, /Need Human|BLOCKED/i, `${label} must define an escalation boundary`);
     assert.match(text, /NOT_RUN|PASS/i, `${label} must define observable validation`);
@@ -55,8 +59,8 @@ test('update-docs command and doc-updater agent follow the writing contract', ()
   assert.match(command, /dhpk-invocation-class:\s*implicit-eligible/);
   assert.match(agent, /^model:\s*(?:haiku|sonnet|opus)$/m);
   assert.strictEqual(/\n\/update-docs\b/.test(command), false, 'command examples must keep the dhpk namespace');
-  assert.match(command, /manifests\/distribution-inventory\.json/);
-  assert.match(command, /rules\/execution-policy\.md/);
+  assert.match(skill, /manifests\/distribution-inventory\.json/);
+  assert.match(skill, /rules\/execution-policy\.md/);
   assert.match(agent, /cx overview/);
   assert.match(agent, /GitNexus/i);
 });

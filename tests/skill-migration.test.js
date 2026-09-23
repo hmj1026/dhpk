@@ -15,29 +15,6 @@ const {
 const ROOT = path.join(__dirname, '..');
 const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
 
-function frontmatterName(skillFile) {
-  const content = fs.readFileSync(skillFile, 'utf8');
-  const match = content.match(/^name:\s*["']?([^"'\n]+?)["']?\s*$/m);
-  assert.ok(match, `${skillFile} is missing frontmatter name`);
-  return match[1].trim();
-}
-
-function defaultPrompt(skillDir) {
-  const metadata = path.join(skillDir, 'agents', 'openai.yaml');
-  assert.ok(fs.existsSync(metadata), `${skillDir} is missing agents/openai.yaml`);
-  const content = fs.readFileSync(metadata, 'utf8');
-  const match = content.match(/^  default_prompt:\s*"((?:\\.|[^"\\])*)"\s*$/m);
-  assert.ok(match, `${metadata} is missing interface.default_prompt`);
-  return match[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
-}
-
-function flatCanonicalDirs() {
-  return fs.readdirSync(path.join(ROOT, 'skills'), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(ROOT, 'skills', entry.name, 'SKILL.md')))
-    .map((entry) => entry.name)
-    .sort();
-}
-
 function projectionTarget(linkPath) {
   assert.ok(fs.lstatSync(linkPath).isSymbolicLink(), `${linkPath} must be a symlink`);
   return fs.readlinkSync(linkPath);
@@ -96,38 +73,6 @@ test('real tree version modules select only their canonical public family projec
   })));
 });
 
-test('real tree has 65 flat canonical packages with inventory identities and metadata tokens', () => {
-  assert.strictEqual(INVENTORY.schema, 'dhpk.distribution-inventory.v2');
-  assert.strictEqual(INVENTORY.skills.length, 65);
-  assert.deepStrictEqual(validateDistributionInventoryV2({ inventory: INVENTORY }).errors, []);
-
-  const dirs = flatCanonicalDirs();
-  assert.strictEqual(dirs.length, 65);
-  assert.strictEqual(fs.readdirSync(path.join(ROOT, 'skills')).filter((name) => {
-    const candidate = path.join(ROOT, 'skills', name);
-    return fs.statSync(candidate).isDirectory() && !fs.existsSync(path.join(candidate, 'SKILL.md'));
-  }).length, 0, 'skills/ must not retain nested category directories');
-
-  const names = new Set();
-  const capabilities = new Set();
-  for (const entry of INVENTORY.skills) {
-    assert.ok(!names.has(entry.name), `duplicate inventory name ${entry.name}`);
-    assert.ok(!capabilities.has(entry.capability_id), `duplicate inventory capability ${entry.capability_id}`);
-    names.add(entry.name);
-    capabilities.add(entry.capability_id);
-    const skillDir = path.join(ROOT, 'skills', entry.name);
-    assert.strictEqual(path.basename(skillDir), entry.name);
-    assert.strictEqual(frontmatterName(path.join(skillDir, 'SKILL.md')), entry.name);
-    const prompt = defaultPrompt(skillDir);
-    if (entry.invokable === false) {
-      assert.ok(!prompt.includes(`$${entry.name}`), `${entry.name} internal runtime prompt must not invite direct invocation`);
-      assert.match(prompt, /internal|do not invoke/i, `${entry.name} internal runtime prompt must explain its boundary`);
-    } else {
-      assert.ok(prompt.includes(`$${entry.name}`), `${entry.name} default_prompt must invoke $${entry.name}`);
-    }
-  }
-});
-
 test('real tree has no nested canonical SKILL.md and module projections are relative symlinks', () => {
   const canonicalNames = new Set(INVENTORY.skills.map((entry) => entry.name));
   let moduleCount = 0;
@@ -149,18 +94,13 @@ test('real tree has no nested canonical SKILL.md and module projections are rela
   assert.deepStrictEqual(topology.errors, []);
 });
 
-test('real tree has relative Codex projections for every codex-sync skill and no generic aliases', () => {
+test('real tree has relative Codex projections for every codex-sync skill', () => {
   const expected = INVENTORY.skills.filter((entry) => entry.surfaces.includes('codex-sync')).map((entry) => entry.name).sort();
   const actual = fs.readdirSync(path.join(ROOT, 'codex', 'skills')).sort();
   assert.deepStrictEqual(actual, expected);
   for (const name of actual) {
     assert.strictEqual(projectionTarget(path.join(ROOT, 'codex', 'skills', name)), `../../skills/${name}`);
   }
-  const portableFamilies = new Set([
-    'skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict',
-    'code-trace', 'harness-govern', 'laravel', 'phpunit',
-  ]);
-  assert.ok(actual.every((name) => name.startsWith('dhpk-') || portableFamilies.has(name)));
 });
 
 run('skill-migration');

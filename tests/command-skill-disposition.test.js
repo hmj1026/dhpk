@@ -3,7 +3,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { validateCommandSkillDispositions } = require('../scripts/lib/command-skill-disposition');
+const {
+  commandSourceRevision,
+  validateCommandSkillDispositions,
+} = require('../scripts/lib/command-skill-disposition');
 
 const ROOT = path.join(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/command-skill-dispositions.json'), 'utf8'));
@@ -19,6 +22,21 @@ function copyManifest() {
   return JSON.parse(JSON.stringify(manifest));
 }
 
+function legacyManifest() {
+  const candidate = copyManifest();
+  candidate.schema = 'dhpk.command-skill-disposition.v2';
+  candidate.commands = candidate.commands
+    .filter((row) => /^commands\//.test(row.path))
+    .map((row) => {
+      const copy = { ...row };
+      delete copy.resource;
+      delete copy.forwarding;
+      return copy;
+    });
+  candidate.source_revision = commandSourceRevision(ROOT, candidate.commands.map((row) => row.path));
+  return candidate;
+}
+
 function validate(candidate) {
   return validateCommandSkillDispositions({
     manifest: candidate,
@@ -31,7 +49,7 @@ function validate(candidate) {
 test('all canonical commands have exactly one validated disposition', () => {
   const result = validate(manifest);
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
-  assert.strictEqual(result.canonicalPaths.length, 31);
+  assert.strictEqual(result.canonicalPaths.length, manifest.schema === 'dhpk.command-skill-disposition.v3' ? 32 : 31);
 });
 
 test('disposition validation rejects a missing canonical command', () => {
@@ -42,7 +60,7 @@ test('disposition validation rejects a missing canonical command', () => {
 });
 
 test('disposition validation rejects duplicate public names and conflicting owners', () => {
-  const candidate = copyManifest();
+  const candidate = legacyManifest();
   candidate.commands[1].public_name = candidate.commands[0].public_name;
   candidate.commands[1].skill_owner = 'git-smart-commit';
   const result = validate(candidate);
@@ -88,25 +106,26 @@ test('thin front doors identify one real Skill owner and Host-only rows explain 
 // removed-name ledger are separate sets: historical command records remain
 // useful for diagnostics but can never become executable discovery entries.
 test('v2 command disposition keeps 31 active commands disjoint from the exact removed wave', () => {
-  assert.strictEqual(manifest.schema, 'dhpk.command-skill-disposition.v2');
-  assert.ok(Array.isArray(manifest.commands));
-  assert.strictEqual(manifest.commands.length, 31);
-  assert.ok(manifest.commands.every((row) => row.disposition !== 'retired' && row.outcome !== 'remove'));
+  const legacy = legacyManifest();
+  assert.strictEqual(legacy.schema, 'dhpk.command-skill-disposition.v2');
+  assert.ok(Array.isArray(legacy.commands));
+  assert.strictEqual(legacy.commands.length, 31);
+  assert.ok(legacy.commands.every((row) => row.disposition !== 'retired' && row.outcome !== 'remove'));
 
-  assert.ok(Array.isArray(manifest.removed_commands));
-  assert.deepStrictEqual(manifest.removed_commands.map((row) => row.id).sort(), [...REMOVED_COMMAND_IDS].sort());
-  assert.ok(manifest.removed_commands.every((row) => row.outcome === 'remove' || row.disposition === 'removed'));
-  assert.ok(manifest.removed_commands.every((row) => Array.isArray(row.callers) && row.callers.length > 0));
-  assert.ok(manifest.removed_commands.every((row) => row.evidence && typeof row.evidence === 'object'));
-  assert.ok(typeof manifest.source_revision === 'string' && manifest.source_revision.startsWith('sha256:'));
-  assert.ok(typeof manifest.removed_source_revision === 'string' && manifest.removed_source_revision.startsWith('sha256:'));
+  assert.ok(Array.isArray(legacy.removed_commands));
+  assert.deepStrictEqual(legacy.removed_commands.map((row) => row.id).sort(), [...REMOVED_COMMAND_IDS].sort());
+  assert.ok(legacy.removed_commands.every((row) => row.outcome === 'remove' || row.disposition === 'removed'));
+  assert.ok(legacy.removed_commands.every((row) => Array.isArray(row.callers) && row.callers.length > 0));
+  assert.ok(legacy.removed_commands.every((row) => row.evidence && typeof row.evidence === 'object'));
+  assert.ok(typeof legacy.source_revision === 'string' && legacy.source_revision.startsWith('sha256:'));
+  assert.ok(typeof legacy.removed_source_revision === 'string' && legacy.removed_source_revision.startsWith('sha256:'));
 
-  const activeIds = new Set(manifest.commands.map((row) => row.id));
-  assert.ok(manifest.removed_commands.every((row) => !activeIds.has(row.id)));
+  const activeIds = new Set(legacy.commands.map((row) => row.id));
+  assert.ok(legacy.removed_commands.every((row) => !activeIds.has(row.id)));
 });
 
 test('v2 command validation rejects an omitted removal and a present removed path', () => {
-  const missing = copyManifest();
+  const missing = legacyManifest();
   missing.removed_commands = (Array.isArray(missing.removed_commands)
     ? missing.removed_commands
     : REMOVED_COMMAND_IDS.map((id) => ({ id }))).slice(1);
@@ -114,7 +133,7 @@ test('v2 command validation rejects an omitted removal and a present removed pat
   assert.ok(missingResult.errors.some((error) => /missing.*removed.*check-skill|check-skill.*missing/i.test(error)),
     `expected missing removed-command diagnostic, got:\n${missingResult.errors.join('\n')}`);
 
-  const present = copyManifest();
+  const present = legacyManifest();
   present.commands.push({
     id: 'check-skill',
     path: 'commands/check-skill.md',

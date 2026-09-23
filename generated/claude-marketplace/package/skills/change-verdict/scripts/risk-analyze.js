@@ -4,36 +4,13 @@
 const fs = require('fs');
 const path = require('path');
 
-// Resolve plugin root: validated env var → walk-up with marker → legacy fallback
-const _pluginRoot = (() => {
-  const sentinel = p => fs.existsSync(path.join(p, 'scripts', 'lib', 'utils.js'));
-  const marker = p => fs.existsSync(path.join(p, '.claude-plugin', 'plugin.json'));
-  const envRoot = process.env.PLUGIN_ROOT;
-  if (envRoot && sentinel(envRoot) && marker(envRoot)) return envRoot;
-  let d = __dirname;
-  while (d !== path.dirname(d)) {
-    if (sentinel(d) && marker(d)) return d;
-    d = path.dirname(d);
-  }
-  return path.resolve(__dirname, '..', '..', '..');
-})();
-
-const { runCapture, gitRepoRoot, gitShortHead, qualifyCommand } = require(path.join(_pluginRoot, 'scripts', 'lib', 'utils'));
+const { runCapture, gitRepoRoot, gitShortHead } = require('./lib/runner-utils');
+const { qualifyCommand } = require('./lib/command-namespace');
 
 // ---------------------------------------------------------------------------
-// File classification config (language-agnostic)
+// Built-in file classification defaults (language-agnostic)
 // ---------------------------------------------------------------------------
-function loadClassification() {
-  try {
-    const p = path.join(_pluginRoot, 'scripts', 'config', 'file-classification.json');
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-const CLASSIFICATION = loadClassification();
-const CODE_EXTS = (CLASSIFICATION?.code_extensions ?? ['.ts', '.tsx', '.js', '.jsx'])
-  .map(ext => ext.toLowerCase());
+const CODE_EXTS = ['.ts', '.tsx', '.js', '.jsx'].map(ext => ext.toLowerCase());
 // Keep a conservative source-language census separate from CODE_EXTS.  A
 // changed source file that has no configured adapter must not be scored as a
 // harmless documentation change; it is an explicit inconclusive result.
@@ -69,7 +46,7 @@ const NON_SOURCE_PATH_SEGMENTS = new Set([
   'snapshot', 'snapshots', 'node_modules', 'vendor', 'dist', 'build', 'out',
   'target', '.git',
 ]);
-const IGNORE_PREFIXES = CLASSIFICATION?.ignore_prefixes ?? [
+const IGNORE_PREFIXES = [
   'node_modules/', 'vendor/', 'dist/', 'build/', 'out/',
   'target/', '.next/', '.nuxt/', '__pycache__/', '.pytest_cache/',
   'venv/', '.venv/', '.git/',

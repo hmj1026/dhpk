@@ -12,8 +12,8 @@ TBD - created by archiving change orchestrator-token-economics. Update Purpose a
 tier and cost guidance and SHALL include a Codex projection map separate from
 Claude-side dispatch routing. The Codex map SHALL document each direct role's
 model, effort, workload rationale, and escalation condition. It SHALL state
-that `worker` and `tdd-guide` intentionally use `gpt-5.6-luna` at `max` as a
-quality-first exception, while the global default remains `gpt-5.6-luna` at
+that `worker` and `tdd-guide` intentionally use `gpt-6-luna` at `max` as a
+quality-first exception, while the global default remains `gpt-6-luna` at
 `medium`.
 
 #### Scenario: Codex tier guidance resolves to one document
@@ -116,25 +116,25 @@ map:
 
 | Roles | Model | Effort |
 |---|---|---|
-| `architect`, `bug-investigator`, `deep-reasoner`, `security-reviewer`, `migration-reviewer`, `planner`, `spec-miner` | `gpt-5.6-sol` | `high` |
-| `code-reviewer` | `gpt-5.6-terra` | `medium` |
-| `database-reviewer`, `frontend-reviewer`, `e2e-runner` | `gpt-5.6-terra` | `high` |
-| `explorer` | `gpt-5.6-terra` | `medium` |
-| `worker`, `tdd-guide` | `gpt-5.6-luna` | `max` |
-| `doc-reviewer` | `gpt-5.6-luna` | `medium` |
-| `monitor` | `gpt-5.6-luna` | `low` |
+| `architect`, `bug-investigator`, `deep-reasoner`, `security-reviewer`, `migration-reviewer`, `planner`, `spec-miner` | `gpt-6-sol` | `high` |
+| `code-reviewer` | `gpt-6-sol` | `medium` |
+| `database-reviewer`, `frontend-reviewer`, `e2e-runner` | `gpt-6-sol` | `high` |
+| `explorer` | `gpt-6-sol` | `medium` |
+| `worker`, `tdd-guide` | `gpt-6-luna` | `max` |
+| `doc-reviewer` | `gpt-6-luna` | `medium` |
+| `monitor` | `gpt-6-luna` | `low` |
 
 #### Scenario: Role metadata matches the approved map
 
 - **WHEN** runtime contract tests inspect every direct role
 - **THEN** each role's model and effort equal the map above
-- **AND** every active Codex role uses the GPT-5.6 family
+- **AND** every active Codex role uses the GPT-6 family
 
 #### Scenario: Global defaults do not erase role exceptions
 
 - **WHEN** a role file explicitly sets model or effort
 - **THEN** its explicit values take precedence over the global defaults
-- **AND** the global defaults are `gpt-5.6-luna` and `medium`
+- **AND** the global defaults are `gpt-6-luna` and `medium`
 
 ### Requirement: Model selection accounts for token and retry cost
 

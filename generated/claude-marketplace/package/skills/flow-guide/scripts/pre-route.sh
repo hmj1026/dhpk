@@ -17,8 +17,8 @@
 
 set -o pipefail
 
-PLUGIN_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-ROUTE_TABLE="${DHPK_ROUTE_TABLE:-$PLUGIN_ROOT/skills/flow-guide/references/route-table.json}"
+SKILL_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
+ROUTE_TABLE="${DHPK_ROUTE_TABLE:-$SKILL_ROOT/references/route-table.json}"
 
 # Query: prefer positional args; fall back to stdin so callers can pipe.
 QUERY="$*"

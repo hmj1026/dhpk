@@ -8,7 +8,7 @@ Every logic script under `scripts/` has owned assertions in the aggregate Node t
 
 ### Requirement: Every logic script under `scripts/` has a dedicated test
 
-Every logic script under `scripts/` — `*.sh`, `*.js`, `*.ts`, `*.py`, including `scripts/lib/`, `scripts/ci/`, `scripts/hooks/`, `scripts/hooks/_lib/`, `scripts/opsx-apply-resume/`, `scripts/statusline/`, and `scripts/validate/` — SHALL have owned assertions discoverable by `tests/run-all.js`. Coverage is satisfied when a flat `tests/*.test.js` file exercises that script, located either by stem heuristic (`tests/<stem>.test.js` or `tests/<stem>-<aspect>.test.js`) or by an explicit script-to-test mapping in the coverage check. Two or more scripts MAY share one discovered file when that file owns assertions for each mapped script. Unique scripts default to a stem-named file. A file that only `require`s another `*.test.js` file SHALL NOT count as owned assertions.
+Every logic script under `scripts/` — `*.sh`, `*.js`, `*.ts`, `*.py`, including `scripts/lib/`, `scripts/ci/`, `scripts/hooks/`, `scripts/hooks/_lib/`, `scripts/statusline/`, and `scripts/validate/` — SHALL have owned assertions discoverable by `tests/run-all.js`. Coverage is satisfied when a flat `tests/*.test.js` file exercises that script, located either by stem heuristic (`tests/<stem>.test.js` or `tests/<stem>-<aspect>.test.js`) or by an explicit script-to-test mapping in the coverage check. Two or more scripts MAY share one discovered file when that file owns assertions for each mapped script. Unique scripts default to a stem-named file. A file that only `require`s another `*.test.js` file SHALL NOT count as owned assertions.
 
 #### Scenario: An uncovered script gains a dedicated test
 

@@ -11,7 +11,7 @@ Current stable release of the 15.x line. **The 15.x line ends at
 v15.5.19** — 15.6 never shipped stable (canary-only) before the jump
 to 16.0, so there is **no `nextjs-15.6` module**.
 
-> Read `docs/agent-guidance/frontend-framework-routing.md` for family
+> Read [frontend-framework-routing.md](references/frontend-framework-routing.md) for family
 > selection and compatibility. This module owns Next.js 15.5 APIs and
 > migration traps after routing.
 

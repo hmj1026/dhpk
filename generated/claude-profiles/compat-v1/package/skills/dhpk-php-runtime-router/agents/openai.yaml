@@ -1,0 +1,4 @@
+interface:
+  display_name: "Php Pro"
+  short_description: "Use when building, debugging, refactoring, testing, or"
+  default_prompt: "Use $dhpk-php-runtime-router to apply the Php Pro workflow with its verification rules."

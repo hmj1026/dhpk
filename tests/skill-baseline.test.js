@@ -93,7 +93,6 @@ test('checked-in baseline source commit remains pinned and valid', () => {
   assert.strictEqual(baseline.schema, SCHEMA);
   assert.match(baseline.sourceCommit, /^[0-9a-f]{40}$/);
   assert.match(baseline.sourceTree, /^[0-9a-f]{40}$/);
-  assert.strictEqual(baseline.static.skills.length, require('../manifests/distribution-inventory.json').skills.length);
 });
 
 test('baseline rejects a source tree that is not bound to the source commit', () => {

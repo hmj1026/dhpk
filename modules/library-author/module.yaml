@@ -39,7 +39,7 @@ triggers:
 provides:
   agents: [polyfill-reviewer]
   skills:
-    - dhpk-matrix-cell-onboard
+    - matrix-cell-onboard
     - dhpk-openspec-artifact-guard
     - dhpk-library-dual-testsuite-map
   references:

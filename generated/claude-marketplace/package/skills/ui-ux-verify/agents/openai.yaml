@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI UX Verify"
+  short_description: "Verify one page against its UI specification"
+  default_prompt: "Use $ui-ux-verify to verify one page against its UI specification."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness Audit"
+  short_description: "Measure harness health with a deterministic scorecard"
+  default_prompt: "Use $harness-audit to measure harness health with its deterministic scorecard."

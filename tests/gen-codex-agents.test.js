@@ -166,12 +166,12 @@ test('generates exactly the 12-agent allowlist as .toml files with derived field
 
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
     assert.ok(architect.includes('name = "architect"'), architect);
-    assert.ok(architect.includes('model = "gpt-5.6-sol"'), architect);
+    assert.ok(architect.includes('model = "gpt-6-sol"'), architect);
     assert.ok(architect.includes('model_reasoning_effort = "high"'), architect);
     assert.ok(architect.includes('developer_instructions = """'), architect);
 
     const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
-    assert.ok(tddGuide.includes('model = "gpt-5.6-luna"'), tddGuide);
+    assert.ok(tddGuide.includes('model = "gpt-6-luna"'), tddGuide);
     assert.ok(tddGuide.includes('model_reasoning_effort = "max"'), tddGuide);
     const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
     assert.ok(e2eRunner.includes('sandbox_mode = "workspace-write"'), e2eRunner);

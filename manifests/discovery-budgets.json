@@ -23,7 +23,7 @@
   },
   "visibility": {
     "promoted": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true },
-    "optional": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true },
+    "optional": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true, "cursor-sync": true },
     "experimental": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true },
     "deprecated": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true }
   },

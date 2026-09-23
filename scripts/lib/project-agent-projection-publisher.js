@@ -267,8 +267,29 @@ function collectFiles(directory, relative = '', budget = createTraversalBudget()
   }
 }
 
+function validateLogicalFiles(sourceFiles, label) {
+  const files = [...sourceFiles];
+  const seen = new Set();
+  for (const file of files) {
+    assertSafeRelative(file.relative, `${label} file`);
+    if (seen.has(file.relative)) {
+      throw fail('DUPLICATE_OUTPUT', `${label} has a duplicate logical file: ${file.relative}`, { paths: [file.relative] });
+    }
+    seen.add(file.relative);
+  }
+  const sorted = files.sort((left, right) => left.relative.localeCompare(right.relative));
+  for (let index = 1; index < sorted.length; index += 1) {
+    const previous = sorted[index - 1].relative;
+    const current = sorted[index].relative;
+    if (current.startsWith(`${previous}/`)) {
+      throw fail('DUPLICATE_OUTPUT', `${label} has a file-prefix collision: ${previous} and ${current}`, { paths: [previous, current] });
+    }
+  }
+  return sorted;
+}
+
 function sourceManifest(sourceDirectory) {
-  const files = collectFiles(sourceDirectory).sort((left, right) => left.relative.localeCompare(right.relative));
+  const files = validateLogicalFiles(collectFiles(sourceDirectory), `skill '${path.basename(sourceDirectory)}'`);
   const manifest = [];
   const hash = crypto.createHash('sha256');
   for (const file of files) {
@@ -402,11 +423,21 @@ function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
   const receiptEntries = [];
   const sourceFingerprints = {};
   const usedDestinations = new Set();
+  const usedPrefixes = new Set();
 
-  const addRecord = ({ stableId, source, destination, content, transform, metadata = {}, sourceStableId = null, sourceFingerprint = null }) => {
+  const addRecord = ({ stableId, source, destination, content, transform, metadata = {}, sourceStableId = null, sourceFingerprint = null, mode = null }) => {
     assertSafeRelative(destination, 'generated destination');
     if (usedDestinations.has(destination)) throw fail('DUPLICATE_OUTPUT', `generated destination is duplicated: ${destination}`, { paths: [destination] });
+    if (usedPrefixes.has(destination)) throw fail('DUPLICATE_OUTPUT', `generated destination has a file-prefix collision: ${destination}`, { paths: [destination] });
+    const segments = destination.split('/');
+    for (let index = 1; index < segments.length; index += 1) {
+      const prefix = segments.slice(0, index).join('/');
+      if (usedDestinations.has(prefix)) {
+        throw fail('DUPLICATE_OUTPUT', `generated destination has a file-prefix collision: ${prefix} and ${destination}`, { paths: [prefix, destination] });
+      }
+    }
     usedDestinations.add(destination);
+    for (let index = 1; index < segments.length; index += 1) usedPrefixes.add(segments.slice(0, index).join('/'));
     const value = {
       stableId,
       source,
@@ -414,6 +445,7 @@ function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
       owner: plan.projectionOwner && plan.projectionOwner.owner || 'dhpk.project-agent-projection',
       transform: transform || { id: 'project-agent-generated', version: GENERATOR_VERSION },
       expectedFingerprint: digest(content),
+      mode,
       symlinkPolicy: 'forbid',
       ...(sourceFingerprint ? { sourceFingerprint } : {}),
       ...metadata,
@@ -432,6 +464,7 @@ function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
       throw fail('UNSAFE_SOURCE', `project entry '${planEntry.stableId}' has an unsafe canonical path`, { stableIds: [planEntry.stableId] });
     }
     assertPhysicalAncestors(sourceDirectory, `canonical skill '${name}'`, sourceRoot);
+    // The complete physical Skill directory is the projection unit.
     const manifest = sourceManifest(sourceDirectory);
     const skillFile = manifest.files.find((file) => file.relative === 'SKILL.md');
     if (!skillFile) throw fail('MISSING_SKILL', `canonical skill '${name}' is missing SKILL.md`, { stableIds: [planEntry.stableId] });
@@ -462,6 +495,7 @@ function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
           metadata,
           sourceStableId: planEntry.stableId,
           sourceFingerprint: manifest.sourceFingerprint,
+          mode: lstatOrNull(file.absolute).mode & 0o7777,
         });
         generatedPaths.push(destination);
       }
@@ -854,9 +888,37 @@ function validateManagedFiles(roots, receipt) {
   return true;
 }
 
-function sourceDrift(previous, currentSourceFingerprints, allowCanonicalChanges) {
+function approvedRenameIds(previous, inventory, plan) {
+  const entriesById = new Map(inventoryEntries(inventory).map((entry) => [entry.id, entry]));
+  const rowsById = new Map();
+  for (const row of (Array.isArray(inventory && inventory.renamed_skill_names) ? inventory.renamed_skill_names : [])) {
+    if (!row || typeof row.id !== 'string') continue;
+    if (rowsById.has(row.id)) throw fail('SOURCE_DRIFT', `renamed skill ledger has duplicate stable ID: ${row.id}`);
+    rowsById.set(row.id, row);
+  }
+  const selectedIds = new Set((plan.entries || []).map((entry) => entry.stableId));
+  const approved = new Set();
+  for (const entry of previous.entries || []) {
+    if (!selectedIds.has(entry.stableId)) continue;
+    const current = entriesById.get(entry.stableId);
+    if (!current || current.name === entry.name) continue;
+    const row = rowsById.get(entry.stableId);
+    if (!row
+      || row.oldName !== entry.name
+      || row.oldPath !== entry.source
+      || row.newName !== current.name
+      || row.newPath !== current.path) {
+      throw fail('SOURCE_DRIFT', `canonical source changed for receipt-owned entry '${entry.name}' without an approved rename ledger row`, { stableIds: [entry.stableId] });
+    }
+    approved.add(entry.stableId);
+  }
+  return approved;
+}
+
+function sourceDrift(previous, currentSourceFingerprints, allowCanonicalChanges, approvedRenames = new Set()) {
   if (allowCanonicalChanges) return;
   for (const entry of previous.entries || []) {
+    if (approvedRenames.has(entry.stableId)) continue;
     if (currentSourceFingerprints[entry.stableId] && currentSourceFingerprints[entry.stableId] !== entry.sourceFingerprint) {
       throw fail('SOURCE_DRIFT', `canonical source changed for receipt-owned entry '${entry.name}'; explicit update authority is required`, { stableIds: [entry.stableId] });
     }
@@ -1212,6 +1274,8 @@ function publishManagedCandidate({ roots, previous, candidateRoot, candidateFile
       fs.mkdirSync(path.dirname(target), { recursive: true });
       assertPhysicalAncestors(target, 'publish target', roots.managedRoot);
       fs.copyFileSync(source, target);
+      const sourceStat = lstatOrNull(source);
+      if (sourceStat && sourceStat.isFile()) fs.chmodSync(target, sourceStat.mode & 0o7777);
       if (digest(fs.readFileSync(target)) !== candidateFingerprints[relative]) throw fail('PUBLISH_FINGERPRINT_DRIFT', `published file fingerprint drifted: ${relative}`, { paths: [relative] });
     }
     installBindingPaths(roots, candidateBindingPaths);
@@ -1334,7 +1398,10 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
   const plan = compilePlan({ inventory: options.inventory, plan: options.plan, profileId: options.profileId || 'portable-core', requestedHosts: options.requestedHosts });
   const staged = stageArtifact({ roots, sourceRoot: roots.sourceRoot, inventory: options.inventory, plan });
   try {
-    if (previous) sourceDrift(previous, staged.inputs.sourceFingerprints, Boolean(options.allowCanonicalChanges || options.update));
+    if (previous) {
+      const approvedRenames = approvedRenameIds(previous, options.inventory, plan);
+      sourceDrift(previous, staged.inputs.sourceFingerprints, Boolean(options.allowCanonicalChanges || options.update), approvedRenames);
+    }
     const receipt = receiptForArtifact({ roots, plan, staged });
     const published = publishManagedCandidate({
       roots,

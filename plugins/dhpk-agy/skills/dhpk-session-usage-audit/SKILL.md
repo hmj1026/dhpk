@@ -59,10 +59,13 @@ verification and human confirmation.
 
 ## Collector contract
 
-Run from the plugin checkout or pass `--home`/`--output` explicitly:
+`$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`;
+it is path notation, not an ambient environment variable or repository-root
+lookup. The cwd selects the audited project and the default output location;
+pass `--home`/`--output` explicitly otherwise:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-session-usage-audit/scripts/session-usage-audit.js" \
+node "$SKILL_DIR/scripts/session-usage-audit.js" \
   --date 2026-08-06 --format json \
   --output .claude/artifacts/audits/session-usage/2026-08-06
 ```

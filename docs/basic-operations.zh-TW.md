@@ -246,11 +246,11 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | 路由/決策 | `flow-guide`、`flow-drive` | Discovery、提供建議，並只實作已確認工作 | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
 | 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore\|diagnose\|history` |
 | 只讀審閱 | `change-verdict`（`code\|pr\|security\|tests\|docs\|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
-| 交付前置 | `dhpk-tdd-workflow`、`dhpk-module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `dhpk-tdd-workflow` 做 RED |
+| 交付前置 | `tdd-workflow`、`dhpk-module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `tdd-workflow` 做 RED |
 | OpenSpec 續作 | `dhpk-opsx-load-context`、`dhpk-opsx-post-observation`、`dhpk-opsx-apply-goal` | 續接 / 交付長時間 `/opsx:apply` 工作流 | 長跑用 `dhpk-opsx-apply-goal <change-id>`，續場景用 `dhpk-opsx-load-context` |
 | Harness / 平台 | `harness-govern`（`health\|budget\|fill\|revise\|sync`） | 同步跨 host 的 harness、plugin、版本與規格 | 先 `$harness-govern health --dry-run` |
 | 技能治理 | `skill-forge`、`skill-scope` | 編寫、稽核、比較 skill 品質 | 快速盤點用 `skill-scope`，結構調整用 `skill-forge` |
-| Git / 發版準備 | `dhpk-git-smart-commit`、`dhpk-release-creator`、`dhpk-deploy-list`、`dhpk-project-setup` | 大量變更分群提交、發版、部署檔清單、專案初始化 | `dhpk-project-setup` 後接 `dhpk-git-smart-commit` / `dhpk-release-creator` |
+| Git / 發版準備 | `git-smart-commit`、`release-creator`、`dhpk-deploy-list`、`dhpk-project-setup` | 大量變更分群提交、發版、部署檔清單、專案初始化 | `dhpk-project-setup` 後接 `git-smart-commit` / `release-creator` |
 
 ### 參數速查
 
@@ -260,7 +260,7 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
-| `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
+| `tdd-workflow` | `test-generation` `fast-worker` `standard` |
 | `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
 | `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
@@ -274,7 +274,7 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | 功能、Bug、重構或大型變更 | `/dhpk:flow-guide route <task>` 後 `/dhpk:flow-drive <confirmed-spec-or-change-id>` | 一個命名 owner，接著是已確認 implementation 證據。 |
 | 檢查程式或 execution flow | `/dhpk:code-trace --mode explore <area>` | 有檔案／symbol 引用的證據說明。 |
 | Review 既有修改 | `/dhpk:review-pending` 或 `/dhpk:change-verdict --mode code` | Reviewer verdict 加上新鮮 artifact，或明確 blocker。 |
-| Commit、PR 或 release | `/dhpk:smart-commit`、`/dhpk:create-pr` 或 `/dhpk:dhpk-release-creator` | 明確的 command 結果；不會自動 commit、push 或 merge。 |
+| Commit、PR 或 release | `/dhpk:smart-commit`、`/dhpk:create-pr` 或 `/dhpk:create-release` | 明確的 command 結果；不會自動 commit、push 或 merge。 |
 
 `/dhpk:flow-guide` 可以識別 `implicit-eligible` target。若路由選到 `explicit-only` target，
 會印出確切的直接 invocation 後停止；route confidence 不能越過 target 的 invocation

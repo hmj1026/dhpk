@@ -500,26 +500,22 @@ test('rejects manifest escapes and provenance fingerprint drift', () => {
   }
 });
 
-test('keeps canonical skill package manifests out of the AGY projection', () => {
+test('publishes the complete physical Skill directory without descriptor selection', () => {
   const root = tempRoot();
   const outDir = path.join(root, 'package');
   try {
     const inventory = writeFixture(root);
     inventory.skills[0].id = 'dhpk-sample';
     inventory.surface_membership['agy-plugin'] = ['dhpk-sample'];
-    fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample', 'scripts'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample', 'scripts', 'lib'), { recursive: true });
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'scripts', 'run.sh'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
-    fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'skill-package.json'), `${JSON.stringify({
-      schema: 'dhpk.skill-package.v1',
-      id: 'dhpk-sample',
-      version: '1.0.0',
-      entry: 'SKILL.md',
-      resources: [
-        { path: 'SKILL.md', kind: 'entry', required: true },
-        { path: 'references', kind: 'reference', required: true },
-        { path: 'scripts', kind: 'runtime', required: true },
-      ],
-    })}\n`);
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'scripts', 'lib', 'helper.js'), 'module.exports = 1;\n');
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample', 'scripts', '__pycache__'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'scripts', '__pycache__', 'x.pyc'), 'bytecode');
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample', 'templates'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'templates', 'report.md'), '# Report\n');
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample', 'agents'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'agents', 'openai.yaml'), 'interface: {}\n');
 
     const result = materializeAgyPluginPackage({
       root,
@@ -530,10 +526,31 @@ test('keeps canonical skill package manifests out of the AGY projection', () => 
       sourceCommit: COMMIT,
     });
 
-    assert.ok(result.files.includes('skills/dhpk-sample/references/guide.md'));
-    assert.ok(result.files.includes('skills/dhpk-sample/scripts/run.sh'));
-    assert.ok(!result.files.includes('skills/dhpk-sample/skill-package.json'));
-    assert.strictEqual(fs.existsSync(path.join(outDir, 'skills', 'dhpk-sample', 'skill-package.json')), false);
+    for (const relative of ['references/guide.md', 'scripts/run.sh', 'scripts/lib/helper.js', 'templates/report.md']) {
+      assert.ok(result.files.includes(`skills/dhpk-sample/${relative}`), `missing ${relative}`);
+    }
+    assert.ok(!result.files.some((file) => /__pycache__|\.pyc$/.test(file)), 'ignored bytecode must not be published');
+    assert.ok(!result.files.includes('skills/dhpk-sample/agents/openai.yaml'), 'Codex-only interface metadata is not an AGY file');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('validation rejects files of an unselected Skill whose name extends a selected one', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    const inventory = writeFixture(root);
+    inventory.skills[0].id = 'dhpk-sample';
+    inventory.surface_membership['agy-plugin'] = ['dhpk-sample'];
+    materializeAgyPluginPackage({
+      root, inventory, outDir, version: '0.39.0', sourceVersion: '0.39.0', sourceCommit: COMMIT,
+    });
+    fs.mkdirSync(path.join(outDir, 'skills', 'dhpk-sample-extra'), { recursive: true });
+    fs.writeFileSync(path.join(outDir, 'skills', 'dhpk-sample-extra', 'SKILL.md'), '# injected\n');
+    const validation = validateAgyPluginPackage(outDir, { inventory });
+    assert.strictEqual(validation.ok, false);
+    assert.match(validation.errors.join('\n'), /undeclared AGY package file: skills\/dhpk-sample-extra\/SKILL\.md/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

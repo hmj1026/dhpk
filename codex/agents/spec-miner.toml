@@ -1,6 +1,6 @@
 name = "spec-miner"
 description = "Behavioral-spec extraction specialist. Mines flat Requirement / Invariant blocks (with id / entities / enforced / test metadata) from a brownfield codebase into openspec/specs/<capability>/spec.md. Self-bootstrapping — no codebase-onboarding dependency. Use when onboarding an existing project to spec-driven development (\"mine specs\", \"extract specs from the codebase\"). Complements the openspec-* authoring skills: those write change deltas, this extracts the baseline truth they reference."
-model = "gpt-5.6-sol"
+model = "gpt-6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 

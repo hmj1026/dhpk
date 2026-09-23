@@ -170,7 +170,7 @@ test('required cold packet carries identity and selected references without pare
     evidence_pointers: ['openspec/changes/example/tasks.md'],
     verification: ['node tests/example.test.js'],
     phase: 'green',
-    references: ['skills/dhpk-tdd-workflow/SKILL.md'],
+    references: ['skills/tdd-workflow/SKILL.md'],
     task_id: 'issue-534-p1',
     attempt_id: 'issue-534-p1-a1',
   };

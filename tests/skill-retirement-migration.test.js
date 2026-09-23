@@ -154,7 +154,7 @@ test('retirement rows reject compatibility aliases and active identity wins on c
     ...collision.retired_skills[0], id: 'tdd', name: 'dhpk-tdd-workflow', legacy_names: ['tdd'],
   }, ...collision.retired_skills.slice(1)];
   assert.deepStrictEqual(resolveSkillIdentity({ inventory: collision, identifier: 'tdd' }), {
-    state: 'active', stableId: 'tdd', publicName: 'dhpk-tdd-workflow',
+    state: 'active', stableId: 'tdd', publicName: 'tdd-workflow',
   });
 });
 
@@ -200,7 +200,7 @@ test('migration documentation mirrors all seven retirement rows and host limits'
 test('identity resolution distinguishes active, retired skill, retired model-default, and unknown', () => {
   const inventory = fixtureInventory();
   assert.deepStrictEqual(resolveSkillIdentity({ inventory, identifier: 'tdd' }), {
-    state: 'active', stableId: 'tdd', publicName: 'dhpk-tdd-workflow',
+    state: 'active', stableId: 'tdd', publicName: 'tdd-workflow',
   });
   assert.deepStrictEqual(resolveSkillIdentity({ inventory, identifier: 'dhpk-bug-fix' }), {
     state: 'retired', stableId: 'bug-fix', publicName: 'dhpk-bug-fix', retiredIn: '0.47.0',
@@ -295,7 +295,7 @@ test('flow guide owns complete bug and feature delivery behavior', () => {
   assert.match(guide, /route/);
   assert.match(bug, /root cause[\s\S]*regression test/i);
   assert.match(feature, /requirements[\s\S]*design[\s\S]*implement/i);
-  assert.match(bug, /dhpk-tdd-workflow/);
+  assert.match(bug, /(?<!dhpk-)tdd-workflow/);
   assert.match(gate, /change-verdict/);
   assert.match(gate, /test adequacy/i);
   assert.match(gate, /freshness/i);
@@ -310,7 +310,7 @@ test('post-development testing routes unit/integration to TDD and Playwright jou
   assert.match(e2eRoute.label, /UNAVAILABLE/);
   const gate = read('skills/flow-guide/references/delivery-loop-gate.md');
   assert.match(gate, /unit|integration/i);
-  assert.match(gate, /dhpk-tdd-workflow/);
+  assert.match(gate, /(?<!dhpk-)tdd-workflow/);
   assert.match(gate, /e2e-runner/);
   assert.match(gate, /UNAVAILABLE/);
 });
@@ -345,6 +345,8 @@ test('canonical source has no live delegation to retiring identities', () => {
     ['tests/fixtures/invocation-inventory-baseline.json', 'historical fixture'],
     ['tests/fixtures/distribution-surface-baseline.json', 'historical fixture'],
     ['scripts/ci/skill-size-allowlist.json', 'size baseline'],
+    ['skills/flow-guide/references/codex-usage-catalog.json', 'generated retirement diagnostics (legacy name -> target)'],
+    ['tests/_lib/skill-flow-family-fixtures.js', 'negative retired-name help fixture'],
   ]);
   const retiringPackageRoots = RETIRED_NAMES.map((name) => `skills/${name}/`);
   const findings = [];

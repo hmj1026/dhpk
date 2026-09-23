@@ -1,0 +1,31 @@
+# deploy-list schema=v1
+Update time: 2026/01/01
+Update tag: 2026/01/01 tester [GEN] node preset fixture
+Update project: synthetic-node
+Update files: (pinned 1 commit(s), 6 file(s) after filter)
+
+packages/api/src/index.ts
+
+apps/web/src/page.tsx
+
+src/types/User.ts
+
+src/core/router.ts
+
+src/index.ts
+
+public/favicon.ico
+
+---
+📊 Stats
+- Deployed files: 6 (TS: 5, JS: 0, CSS: 0, other: 1)
+- Diff range: master...develop (raw 11 files, 5 filtered out)
+- Pinned commits: 1
+
+🚫 Filtered out (not deployed)
+- Tests (tests/, __tests__/, *.test.*, *.spec.*): 1
+- Build artifacts (dist/, build/, coverage/, .next/, .nuxt/): 1
+- Docs (docs/, README, CLAUDE.md): 0
+- AI harness (.claude/, .codex/, .gemini/, .agents/): 0
+- CI / tooling / build config: 3
+# end deploy-list schema=v1

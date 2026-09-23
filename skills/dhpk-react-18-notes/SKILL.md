@@ -11,7 +11,7 @@ React 18 (March 2022) shipped the concurrent renderer. Its features are
 opt-in per update, unlocked by adopting the new `createRoot` API.
 
 > Family routing and the React/Next compatibility matrix live in
-> `docs/agent-guidance/frontend-framework-routing.md`. This module owns
+> [frontend-framework-routing.md](references/frontend-framework-routing.md). This module owns
 > standalone React 18 language guidance after the family is selected.
 
 ---

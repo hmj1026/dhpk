@@ -45,7 +45,8 @@ function localLinks(relative) {
 
 test('all canonical skills expose the writing-for-agents contract without route boilerplate', () => {
   const files = relativeFiles('skills', (file) => file.endsWith('/SKILL.md'));
-  assert.strictEqual(files.length, 65, 'skill inventory count drifted');
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  assert.strictEqual(files.length, inventory.skills.length, 'skill tree drifted from the distribution inventory');
   const findings = [];
   for (const relative of files) {
     const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');

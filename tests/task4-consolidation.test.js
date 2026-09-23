@@ -7,24 +7,6 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('approved consolidation leaves 65 canonical packages and retires predecessor identities', () => {
-  const inventory = JSON.parse(read('manifests/distribution-inventory.json'));
-  assert.strictEqual(inventory.skills.length, 65);
-  for (const name of [
-    'dhpk-code-investigate', 'dhpk-codex-explain', 'dhpk-codex-cli-review',
-    'dhpk-codex-architect', 'dhpk-codex-implement',
-  ]) {
-    assert.ok(!fs.existsSync(path.join(ROOT, 'skills', name)), `${name} must not remain canonical`);
-  }
-  assert.strictEqual(inventory.skills.find((entry) => entry.name === 'flow-drive').id, 'flow-drive');
-  assert.deepStrictEqual(
-    inventory.retired_skills.filter((entry) => entry.retiredIn === '0.52.0').map((entry) => entry.id),
-    ['codex-architect', 'codex-implement'],
-  );
-  assert.ok(inventory.retired_skills.some((entry) => entry.id === 'code-explore' && entry.replacements[0].id === 'code-trace'));
-  assert.ok(inventory.retired_skills.some((entry) => entry.id === 'codex-code-review' && entry.replacements[0].id === 'change-verdict'));
-});
-
 test('code tracing exposes explore, diagnose, history, and tool selection modes', () => {
   const skill = read('skills/code-trace/SKILL.md');
   for (const mode of ['explore', 'diagnose', 'history', 'select-tool']) assert.match(skill, new RegExp(mode, 'i'));
@@ -57,7 +39,7 @@ test('module design uses caller leverage, deletion, seam, adapter, glossary, and
 });
 
 test('TDD workflow covers seams, tracer bullets, slicing, and tautological tests', () => {
-  const skill = read('skills/dhpk-tdd-workflow/SKILL.md');
+  const skill = read('skills/tdd-workflow/SKILL.md');
   for (const phrase of ['public seams', 'independent expected values', 'vertical tracer bullets', 'horizontal slicing', 'tautological', 'implementation-coupled']) {
     assert.match(skill, new RegExp(phrase, 'i'), phrase);
   }

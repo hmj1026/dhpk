@@ -102,7 +102,9 @@ test('enabled provider reports stale receipt and owned broken links before migra
     const installed = runInstaller(scratch, ['--force'], fakePlugin);
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
 
-    const retired = 'dhpk-tdd-workflow';
+    // Keep this provider-gating fixture on a still-prefixed historical skill;
+    // the renamed tdd stable ID is covered by the dedicated migration cases.
+    const retired = 'dhpk-yii1-security-audit';
     const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
     const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
     const retiredEntry = inventory.skills.find((entry) => entry.name === retired);

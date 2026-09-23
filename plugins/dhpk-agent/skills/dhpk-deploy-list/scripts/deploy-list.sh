@@ -305,10 +305,14 @@ fi
 # Patterns checked in list order (first match wins for matching),
 # output sorted by key (lexicographic — keep keys monotonic).
 sort_groups() {
-    awk -v categories="$PRESET_CATEGORIES" '
+    # PRESET_CATEGORIES is multi-line; pass via ENVIRON, not -v, since -v
+    # values go through awk's lexer and some awk implementations (e.g. the
+    # BWK "one true awk" shipped as macOS's /usr/bin/awk) cannot parse a
+    # literal embedded newline in a -v assignment.
+    PRESET_CATEGORIES="$PRESET_CATEGORIES" awk '
     BEGIN {
         cat_count = 0
-        n = split(categories, lines, "\n")
+        n = split(ENVIRON["PRESET_CATEGORIES"], lines, "\n")
         for (i=1; i<=n; i++) {
             line = lines[i]
             if (line == "") continue

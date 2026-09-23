@@ -81,26 +81,24 @@ states.
 
 ## References
 
-- `rules/execution-policy.md` — invocation, planning, dispatch, and handoff
-  policy.
-- `scripts/lib/flow-handoff-contract.js` — shared neutral route handoff and
-  evidence boundary; it does not grant execution authority.
-- `docs/agent-guidance/writing-for-agents.md` — document boundaries when the
-  confirmed change edits agent-facing instructions.
-- `skill-package.json` — package-local invocation runtime and the declared
-  `flow-guide` dependency; projections must retain this closure without
-  duplicating editable authoring content.
-- `skills/flow-guide/references/execution-policy.md` — the package-local
-  dependency-closure projection of the invocation, planning, dispatch, and
-  handoff policy. It is sourced once from the canonical policy file; do not
-  infer it from an ambient checkout path.
-- `skills/flow-guide/SKILL.md` — route, rules, progression, closeout, and usage
-  discovery owner.
-- `docs/agent-guidance/writing-for-agents.md` — canonical-checkout-only
-  authoring guidance for changes to agent-facing instructions. Generated
-  packages do not promise this optional document; if it is requested outside
-  the canonical checkout, report `BLOCKED_RESOURCE_MISSING` rather than
-  traversing an ambient parent path.
+- `references/execution-bundle/rules/execution-policy.md` — selected local
+  invocation, planning, dispatch, and handoff policy. Its bundle base is the
+  real parent of that policy file's containing `rules` directory.
+- `references/execution-bundle/scripts/lib/flow-handoff-contract.js` — shared
+  neutral route handoff and evidence boundary; it does not grant execution
+  authority.
+- `references/execution-bundle/` — synchronized local copy of the policy,
+  contract, catalog, and dispatch files this Skill's scripts and policy depend
+  on. dhpk maintainers regenerate it with the repository's skill-resource
+  synchronizer; it is not a consumer step, so never edit it here.
+- `scripts/invocation.js` — local invocation parsing; `scripts/dispatch.js` —
+  dispatch-target resolution over the bundled contracts. Flow Drive has no
+  mandatory peer Skill dependency.
+- `skills/flow-guide/SKILL.md` — optional separately invoked route guidance;
+  Flow Drive does not load it as a prerequisite.
+- An optional consumer-project writing-for-agents guide may be supplied when the
+  confirmed change edits agent-facing instructions. A missing optional input
+  does not authorize an ambient parent lookup.
 
 ## Verification
 

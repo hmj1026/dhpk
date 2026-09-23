@@ -153,10 +153,36 @@ function collectFiles(directory, budget, relative = '') {
   }
 }
 
-function treeFingerprint(files, root, budget) {
+function mergeLogicalFiles(sourceFiles, runtimeFiles, label) {
+  const files = [...sourceFiles, ...runtimeFiles];
+  const seen = new Set();
+  for (const file of files) {
+    assertSafeRelative(file.relative, `${label} file`);
+    if (seen.has(file.relative)) throw new Error(`duplicate ${label} file: ${file.relative}`);
+    seen.add(file.relative);
+  }
+  const sorted = files.slice().sort((left, right) => left.relative.localeCompare(right.relative));
+  for (let index = 1; index < sorted.length; index += 1) {
+    const previous = sorted[index - 1].relative;
+    const current = sorted[index].relative;
+    if (current.startsWith(`${previous}/`)) {
+      throw new Error(`file-prefix collision in ${label}: ${previous} and ${current}`);
+    }
+  }
+  return sorted;
+}
+
+// A Skill publishes its complete physical directory; nothing is overlaid from
+// outside it.  The root and inventory parameters are kept for caller symmetry.
+function logicalSkillFiles(_root, skill, _availableEntries = []) {
+  const sourceFiles = collectFiles(skill.sourceDir, createTraversalBudget());
+  return mergeLogicalFiles(sourceFiles, [], `skill '${skill.name}'`);
+}
+
+function treeFingerprint(files, budget) {
   const hash = crypto.createHash('sha256');
   for (const file of files) {
-    const relative = path.relative(root, file.absolute).split(path.sep).join('/');
+    const relative = file.relative;
     const content = readPhysicalFile(file.absolute, budget, `canonical skill file: ${relative}`);
     hash.update(relative);
     hash.update('\0');
@@ -166,17 +192,17 @@ function treeFingerprint(files, root, budget) {
   return hash.digest('hex');
 }
 
-function copyFiles(files, sourceRoot, targetRoot, budget) {
+function copyFiles(files, targetRoot, budget) {
   const output = [];
   for (const file of files) {
     const relative = file.relative;
-    const source = path.join(sourceRoot, relative);
     const target = path.join(targetRoot, relative);
     assertSafeRelative(relative, 'generated skill file');
     if (!isInside(targetRoot, target)) throw new Error(`generated skill file escapes output root: ${relative}`);
-    const content = readPhysicalFile(source, budget, `canonical skill file: ${relative}`);
+    const content = readPhysicalFile(file.absolute, budget, `canonical skill file: ${relative}`);
+    const sourceStat = lstatOrNull(file.absolute);
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, content, { mode: 0o644 });
+    fs.writeFileSync(target, content, { mode: sourceStat ? sourceStat.mode & 0o7777 : 0o644 });
     output.push({ path: relative, digest: digest(content) });
   }
   return output;
@@ -211,7 +237,7 @@ function selectedSkills(root, inventory) {
     const skill = parseSelectedSkill(root, entry);
     if (seen.has(skill.name)) throw new Error(`duplicate selected skill name: ${skill.name}`);
     seen.add(skill.name);
-    return skill;
+    return { ...skill, entry };
   });
 }
 
@@ -235,7 +261,7 @@ function relativeFiles(directory, budget) {
   return collectFiles(directory, budget).map((file) => file.relative).sort();
 }
 
-function readReceipt(outDir, selected = null) {
+function readReceipt(outDir, selected = null, sourceRoot = null, availableEntries = []) {
   const receiptPath = path.join(outDir, RECEIPT_NAME);
   const stat = lstatOrNull(receiptPath);
   if (!stat) return null;
@@ -255,7 +281,9 @@ function readReceipt(outDir, selected = null) {
       .map((entry) => {
         if (Array.isArray(entry.sourceFiles)) return entry;
         const skill = selected.find((candidate) => candidate.id === entry.id && candidate.name === entry.name);
-        const sourceFiles = collectFiles(skill.sourceDir, createTraversalBudget())
+        const sourceFiles = (sourceRoot
+          ? logicalSkillFiles(sourceRoot, skill, availableEntries)
+          : collectFiles(skill.sourceDir, createTraversalBudget()))
           .sort((left, right) => left.relative.localeCompare(right.relative))
           .map((file) => ({ path: file.relative, digest: digest(readPhysicalFile(file.absolute, createTraversalBudget(), `canonical skill file: ${file.relative}`)) }));
         return { ...entry, sourceFiles };
@@ -278,10 +306,12 @@ function pathInOutput(outDir, relative) {
   return candidate;
 }
 
-function expectedGeneratedPaths(skills) {
+function expectedGeneratedPaths(skills, sourceRoot = null, availableEntries = []) {
   const expected = new Set();
   for (const skill of skills) {
-    const files = collectFiles(skill.sourceDir, createTraversalBudget());
+    const files = sourceRoot
+      ? logicalSkillFiles(sourceRoot, skill, availableEntries)
+      : collectFiles(skill.sourceDir, createTraversalBudget());
     for (const file of files) {
       assertSafeRelative(file.relative, 'canonical skill file');
       expected.add(`${skill.name}/${file.relative}`);
@@ -345,20 +375,23 @@ function validateReceiptShape(receipt) {
   return paths;
 }
 
-function canonicalSourceFingerprints(skills) {
+function canonicalSourceFingerprints(skills, sourceRoot = null, availableEntries = []) {
   const fingerprints = new Map();
   for (const skill of skills) {
-    for (const file of collectFiles(skill.sourceDir, createTraversalBudget())) {
+    const files = sourceRoot
+      ? logicalSkillFiles(sourceRoot, skill, availableEntries)
+      : collectFiles(skill.sourceDir, createTraversalBudget());
+    for (const file of files) {
       fingerprints.set(`${skill.name}/${file.relative}`, digest(readPhysicalFile(file.absolute, createTraversalBudget(), `canonical skill file: ${file.relative}`)));
     }
   }
   return fingerprints;
 }
 
-function validateExistingManagedFiles(outDir, receipt, managedPaths = receipt.managedPaths, selected = [], allowCanonicalChanges = false) {
+function validateExistingManagedFiles(outDir, receipt, managedPaths = receipt.managedPaths, selected = [], allowCanonicalChanges = false, sourceRoot = null, availableEntries = []) {
   const paths = [...managedPaths].sort();
   const sourceFingerprints = new Map();
-  const currentSourceFingerprints = canonicalSourceFingerprints(selected);
+  const currentSourceFingerprints = canonicalSourceFingerprints(selected, sourceRoot, availableEntries);
   for (const entry of receipt.entries) {
     for (const sourceFile of entry.sourceFiles || []) sourceFingerprints.set(`${entry.name}/${sourceFile.path}`, sourceFile.digest);
   }
@@ -389,6 +422,60 @@ function validateExistingManagedFiles(outDir, receipt, managedPaths = receipt.ma
     const stat = lstatOrNull(directory);
     if (!stat || !stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`receipt-owned skill directory is unsafe: ${top}`);
   }
+}
+
+function renamedReceiptPaths(outDir, receipt, selected, inventory) {
+  const currentById = new Map(selected.map((skill) => [skill.id, skill]));
+  const rows = Array.isArray(inventory && inventory.renamed_skill_names)
+    ? inventory.renamed_skill_names
+    : [];
+  const rowById = new Map();
+  for (const row of rows) {
+    if (!row || typeof row.id !== 'string') continue;
+    if (rowById.has(row.id)) throw new Error(`renamed skill ledger has duplicate stable ID: ${row.id}`);
+    rowById.set(row.id, row);
+  }
+  const migrations = [];
+  for (const entry of receipt.entries) {
+    const current = currentById.get(entry.id);
+    if (!current || current.name === entry.name) continue;
+    const row = rowById.get(entry.id);
+    const currentPath = current.entry && current.entry.path;
+    if (!row
+      || row.oldName !== entry.name
+      || row.oldPath !== entry.source
+      || row.newName !== current.name
+      || row.newPath !== currentPath) {
+      throw new Error(`receipt-owned skill '${entry.name}' changed public name for stable ID '${entry.id}' without an approved rename ledger row`);
+    }
+
+    const sourceFiles = Array.isArray(entry.sourceFiles)
+      ? entry.sourceFiles.map((sourceFile) => sourceFile.path)
+      : receipt.managedPaths
+        .filter((relative) => relative.startsWith(`${entry.name}/`))
+        .map((relative) => relative.slice(entry.name.length + 1));
+    const paths = new Set();
+    for (const relativeSource of sourceFiles) {
+      assertSafeRelative(relativeSource, `renamed receipt source path: ${entry.name}`);
+      paths.add(`${entry.name}/${relativeSource}`);
+    }
+    paths.add(`${entry.name}.md`);
+    for (const relative of paths) {
+      if (!receipt.managedPaths.includes(relative) || !DIGEST_PATTERN.test(receipt.generatedFingerprints[relative] || '')) {
+        throw new Error(`renamed receipt entry is not receipt-owned: ${relative}`);
+      }
+      const target = pathInOutput(outDir, relative);
+      const stat = lstatOrNull(target);
+      if (!stat || !stat.isFile() || stat.isSymbolicLink()) {
+        throw new Error(`receipt-owned renamed skill file is missing or unsafe: ${relative}`);
+      }
+      if (digest(fs.readFileSync(target)) !== receipt.generatedFingerprints[relative]) {
+        throw new Error(`receipt-owned renamed skill file was modified or fingerprinted as foreign: ${relative}`);
+      }
+    }
+    migrations.push({ entry, paths: [...paths] });
+  }
+  return migrations;
 }
 
 function outputFiles(outDir, budget = createTraversalBudget()) {
@@ -526,11 +613,10 @@ function materializeAgentsSkillsProjection(options = {}) {
   const entries = [];
   try {
     for (const skill of selected) {
-      const sourceBudget = createTraversalBudget();
-      const sourceFiles = collectFiles(skill.sourceDir, sourceBudget).sort((left, right) => left.relative.localeCompare(right.relative));
-      const sourceFingerprint = treeFingerprint(sourceFiles, skill.sourceDir, createTraversalBudget());
+      const sourceFiles = logicalSkillFiles(sourceRoot, skill, inventory.skills);
+      const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget());
       const cursorRoot = path.join(stage, skill.name);
-      const copied = copyFiles(sourceFiles, skill.sourceDir, cursorRoot, createTraversalBudget());
+      const copied = copyFiles(sourceFiles, cursorRoot, createTraversalBudget());
       if (!copied.some((file) => file.path === 'SKILL.md')) throw new Error(`generated Cursor skill is missing SKILL.md: ${skill.name}`);
       const sourceContent = readPhysicalFile(skill.sourceFile, createTraversalBudget(), `canonical skill ${skill.name}/SKILL.md`);
       const parsed = parseFrontmatter(sourceContent.toString('utf8'));
@@ -560,10 +646,17 @@ function materializeAgentsSkillsProjection(options = {}) {
     const currentPaths = stageManaged.map((file) => file.path);
     const currentPathSet = new Set(currentPaths);
     const currentNames = new Set(entries.map((entry) => entry.name));
-    const previous = readReceipt(outputRoot, selected);
-    if (previous) validateExistingManagedFiles(outputRoot, previous, previous.trustedManagedPaths, selected, allowCanonicalChanges);
-    const carriedEntries = previous ? previous.entries.filter((entry) => !currentNames.has(entry.name)) : [];
-    const carriedPaths = previous ? previous.managedPaths.filter((relative) => !currentPathSet.has(relative)) : [];
+    const previous = readReceipt(outputRoot, selected, sourceRoot, inventory.skills);
+    if (previous) validateExistingManagedFiles(outputRoot, previous, previous.trustedManagedPaths, selected, allowCanonicalChanges, sourceRoot, inventory.skills);
+    const renamed = previous ? renamedReceiptPaths(outputRoot, previous, selected, inventory) : [];
+    const renamedIds = new Set(renamed.map((migration) => migration.entry.id));
+    const renamedPaths = new Set(renamed.flatMap((migration) => migration.paths));
+    const carriedEntries = previous
+      ? previous.entries.filter((entry) => !currentNames.has(entry.name) && !renamedIds.has(entry.id))
+      : [];
+    const carriedPaths = previous
+      ? previous.managedPaths.filter((relative) => !currentPathSet.has(relative) && !renamedPaths.has(relative))
+      : [];
     const carriedFingerprints = previous
       ? Object.fromEntries(carriedPaths.map((relative) => [relative, previous.generatedFingerprints[relative]]))
       : {};
@@ -582,7 +675,9 @@ function materializeAgentsSkillsProjection(options = {}) {
     };
     writeJson(path.join(stage, RECEIPT_NAME), receipt);
 
-    const oldPaths = previous ? [...previous.trustedManagedPaths, RECEIPT_NAME] : [];
+    const oldPaths = previous
+      ? [...new Set([...previous.trustedManagedPaths, ...renamedPaths, RECEIPT_NAME])]
+      : [];
     const oldPathSet = new Set(oldPaths);
     const newPaths = [...stageManaged.map((file) => file.path), RECEIPT_NAME];
     const oldTopLevel = new Set(oldPaths.map((relative) => relative.split('/')[0]));
@@ -629,6 +724,8 @@ function materializeAgentsSkillsProjection(options = {}) {
         fs.mkdirSync(path.dirname(target), { recursive: true });
         assertPhysicalAncestors(target, 'agents-skills publish target', outputRoot);
         fs.copyFileSync(source, target);
+        const sourceStat = lstatOrNull(source);
+        if (sourceStat && sourceStat.isFile()) fs.chmodSync(target, sourceStat.mode & 0o7777);
       }
       journal.phase = 'published';
       writeAtomicJson(journalPath, journal);
@@ -669,12 +766,12 @@ function validateAgentsSkillsProjection(options = {}) {
     const stat = lstatOrNull(outputRoot);
     if (!stat || !stat.isDirectory() || stat.isSymbolicLink()) throw new Error('projection output root is missing or unsafe');
     const selected = selectedSkills(path.resolve(root), inventory);
-    const receipt = readReceipt(outputRoot, selected);
+    const receipt = readReceipt(outputRoot, selected, path.resolve(root), inventory.skills);
     if (!receipt) throw new Error(`projection receipt is missing: ${RECEIPT_NAME}`);
     const selectedIds = selected.map((skill) => skill.id).sort();
     if (stableStringify(receipt.selectedIds) !== stableStringify(selectedIds)) errors.push('receipt selected IDs do not match inventory selection');
     const selectedNames = new Set(selected.map((skill) => skill.name));
-    const expectedCurrentPaths = expectedGeneratedPaths(selected);
+    const expectedCurrentPaths = expectedGeneratedPaths(selected, path.resolve(root), inventory.skills);
     for (const relative of receipt.managedPaths) {
       const top = relative.split('/')[0];
       if (selectedNames.has(top.replace(/\.md$/, '')) && !expectedCurrentPaths.has(relative)) {
@@ -702,8 +799,8 @@ function validateAgentsSkillsProjection(options = {}) {
         errors.push(`receipt entry is missing: ${skill.id}`);
         continue;
       }
-      const sourceFiles = collectFiles(skill.sourceDir, createTraversalBudget()).sort((left, right) => left.relative.localeCompare(right.relative));
-      const sourceFingerprint = treeFingerprint(sourceFiles, skill.sourceDir, createTraversalBudget());
+      const sourceFiles = logicalSkillFiles(path.resolve(root), skill, inventory.skills);
+      const sourceFingerprint = treeFingerprint(sourceFiles, createTraversalBudget());
       if (entry.sourceFingerprint !== sourceFingerprint) errors.push(`source fingerprint drifted: ${skill.name}`);
       const source = readPhysicalFile(skill.sourceFile, createTraversalBudget(), `canonical skill ${skill.name}/SKILL.md`).toString('utf8');
       const parsed = parseFrontmatter(source);
@@ -727,6 +824,7 @@ function validateAgentsSkillsProjection(options = {}) {
 }
 
 module.exports = {
+  containsSecret,
   SCHEMA,
   GENERATOR_VERSION,
   RECEIPT_NAME,

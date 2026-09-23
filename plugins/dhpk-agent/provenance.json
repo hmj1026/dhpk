@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.62.4",
-  "sourceCommit": "47f7a40c8681396c9dcc48e0b23d2332d26f4447",
-  "generatedFromCommit": "47f7a40c8681396c9dcc48e0b23d2332d26f4447",
-  "generatedFromTree": "1546287927cce94e93554063be229813f84d7529",
-  "inventoryDigest": "ab3ac0a9f34b666ff92f10bcb5c96e9e5175890493a368a41d964aeccb0d81d3",
-  "inventoryRevision": "sha256:4870c6b34e8040a8dde5267d2b13e1f00f23fe44258b546900c23303a5d8300e",
+  "sourceCommit": "56482f4a483cf43a5f6e9440fe7314b66aa8a561",
+  "generatedFromCommit": "56482f4a483cf43a5f6e9440fe7314b66aa8a561",
+  "generatedFromTree": "b9b0977d184d9af22307b2ad5696888d5697baa0",
+  "inventoryDigest": "c02a3f05d66dd7991642490bc26b129b48abd7afe2d0f111526b8fcace31d31b",
+  "inventoryRevision": "sha256:b2de9604027d1af95634c4581547fcff1ac365bb2da114ebac0a754ea4ae4a7d",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -17,42 +17,63 @@
     "change-verdict",
     "cli-dispatch-context",
     "cli-transport",
+    "code-simplify",
     "code-trace",
     "codex-bridge",
     "composer-package-hygiene",
+    "create-pr",
+    "dep-audit",
     "deploy-list",
+    "doc-refactor",
     "feature-verify",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
+    "git-worktree",
     "gitnexus-cli",
     "gitnexus-debugging",
     "gitnexus-exploring",
     "gitnexus-guide",
     "gitnexus-impact-analysis",
     "gitnexus-refactoring",
+    "harness-audit",
     "harness-govern",
     "issue-analyze",
+    "js-static-check-strategy",
     "laravel-package-author",
     "laravel-testbench-matrix",
+    "matrix-cell-onboard",
+    "merge-prep",
     "opsx-apply-goal",
     "opsx-load-context",
     "opsx-post-obs",
     "polyfill-version-matrix-audit",
+    "pr-summary",
+    "precommit",
     "project-audit",
+    "project-brief",
     "project-setup",
     "prompt-optimize",
+    "proposal-analyze",
     "release-creator",
     "repo-intake",
+    "repo-verify",
+    "review-pending",
     "session-usage-audit",
     "skill-forge",
     "skill-scope",
     "software-architecture",
-    "tdd"
+    "spec-mine",
+    "tdd",
+    "update-codemaps",
+    "update-docs"
   ],
   "selectedSkillNames": [
     "change-verdict",
+    "code-simplify",
     "code-trace",
+    "create-pr",
+    "dep-audit",
     "dhpk-agent-architecture-audit",
     "dhpk-agy-fast-worker",
     "dhpk-cli-dispatch-context",
@@ -61,7 +82,6 @@
     "dhpk-composer-package-hygiene",
     "dhpk-deploy-list",
     "dhpk-feature-verify",
-    "dhpk-git-smart-commit",
     "dhpk-gitnexus-cli",
     "dhpk-gitnexus-debugging",
     "dhpk-gitnexus-exploring",
@@ -79,25 +99,31 @@
     "dhpk-project-audit",
     "dhpk-project-setup",
     "dhpk-prompt-optimize",
-    "dhpk-release-creator",
     "dhpk-repo-intake",
     "dhpk-session-usage-audit",
-    "dhpk-tdd-workflow",
+    "doc-refactor",
     "flow-drive",
     "flow-guide",
+    "git-smart-commit",
+    "git-worktree",
+    "harness-audit",
     "harness-govern",
+    "js-static-check-strategy",
+    "matrix-cell-onboard",
+    "merge-prep",
+    "pr-summary",
+    "precommit",
+    "project-brief",
+    "proposal-analyze",
+    "release-creator",
+    "repo-verify",
+    "review-pending",
     "skill-forge",
-    "skill-scope"
-  ],
-  "skillPackageClosure": [
-    {
-      "id": "flow-drive",
-      "version": "1.0.0"
-    },
-    {
-      "id": "flow-guide",
-      "version": "1.0.0"
-    }
+    "skill-scope",
+    "spec-mine",
+    "tdd-workflow",
+    "update-codemaps",
+    "update-docs"
   ],
   "selectedPlatformMatrixIds": [
     "dhpk.platform.agent-plugin.mcp",
@@ -106,17 +132,19 @@
   "skippedSkills": [],
   "mcpServerNames": [],
   "fingerprints": {
-    "change-verdict": "0a417791d21876a67568b4d6a63c990f1844f1cbca245101fb0aafe44cd9be83",
-    "code-trace": "3072c0ac73038a034df83f1524a2ac53d3c3f41a8c75fe3feaa7f062ab3e9cfa",
+    "change-verdict": "5aec715958f19be3644acd1231d1670a5163ba14b4a199db80b4920580628c05",
+    "code-simplify": "0e66e1a906b5fdd5875c636e59575ecd26589b5f4583aed34f1b0c53a2e113d1",
+    "code-trace": "1836d4f581a129bee62c95fef7ed930f3811a09e578253a2390484330ab138ef",
+    "create-pr": "1ca33c2fc3b8e50e740ee1e07d1fc34a9f6349c99f5afe326b0e3fcba6be4fa8",
+    "dep-audit": "3c49d8b02465f55af14cb47c8949c05fb3771fc89f37f00ab2fe8b84a06b41a5",
     "dhpk-agent-architecture-audit": "91815e5bb8f84d89c97caa4495d07dc25c0d81ab701758ff60c7ee55111d9b2a",
-    "dhpk-agy-fast-worker": "2e61b6e672c7d080254fe159c83978345d78f8ea34a93ebe2026805282c8916d",
-    "dhpk-cli-dispatch-context": "3458fea4c8d9707ef2a0e4a6a5483d2c195c5c10e94ca6b308ce08a91c2a60d1",
+    "dhpk-agy-fast-worker": "f210a5909fe4730d089af3a6cd143aab045a6ccbc471338366425e57eddee293",
+    "dhpk-cli-dispatch-context": "e1b74ef2ed3142c8256abe491c637c694c2b0a307604b266ad0535a79ff0662a",
     "dhpk-cli-transport": "65506d2795a747d7e2d878d0301db03b7875370b2ec33e1c6dd70fa50909a482",
-    "dhpk-codex-bridge": "b19acc6313889e9a2e3a2264c56022fcc69f1a073c069c6fb727c98fd2e333cf",
+    "dhpk-codex-bridge": "dfe15b5704e4f72d38cf307424ebe342c32e45ad2914568ecb021999e72bbee6",
     "dhpk-composer-package-hygiene": "548133d78c6f1d6256627d9c8dc960d5791500522112f55c6d51f2531196c375",
-    "dhpk-deploy-list": "bfefe6e62e336570c407fb8a4841b1e0d50e9dfebc81ed13a5d9930a2f7be499",
-    "dhpk-feature-verify": "1c9e2e0a9160a5366ceeb12ac5505bb182663af5eeacbcbfd614fcc1e11c3b33",
-    "dhpk-git-smart-commit": "28f65b5c243c7fbff245082d0e3e6869ce32cf635e1104a72a9ae919ea7aba5c",
+    "dhpk-deploy-list": "0da1332230afd6c42d469b8b4e2f9f518410c78374e90d580fe1414c82ba0e9f",
+    "dhpk-feature-verify": "881de6fcc9487fe2b96fd4c3d71a7e9202f36d1782130cd5934c5a12a5bc2794",
     "dhpk-gitnexus-cli": "12bd0ee3fab0d7a8383ee6b880304b36518ccb87e83599a106dcb76a18d5e6ad",
     "dhpk-gitnexus-debugging": "e4cb4987cc00ee90d88c383e4ffc8c0cf4d8c5034a7fbae818cb3974f50b2f97",
     "dhpk-gitnexus-exploring": "c1cad7d410cd9949bba6841228e3575b2c99fdc68f1b1e273e9a8a47defb3195",
@@ -127,26 +155,42 @@
     "dhpk-laravel-package-author": "7c3a42df9c11e1dfbe45d7c9e0c35f4183c85369c714728d9b624713630d8ef4",
     "dhpk-laravel-testbench-matrix": "bcaad0c43660c6626602e8c789d609c087fe9ab3619ace735394b9fe3e10aa79",
     "dhpk-module-design": "c9190c6495bf901212652e1bb9eb22a1cf53a6bef751f00016722e584b40fc27",
-    "dhpk-opsx-apply-goal": "72dbfc85122a3fcab62c09a376f94d71dad8aa1d95fd9986eeffa0063404d73a",
-    "dhpk-opsx-load-context": "127aa99ffc46360d9d6da4589b7838bc75d4447f3acf8e011ab6d6048cfd6604",
-    "dhpk-opsx-post-observation": "991b510f9fa18f457132221f0c5d507a06158b835cde7c57772b100f1a6dc882",
+    "dhpk-opsx-apply-goal": "e2be560c7623528a97d3872e4bdbb90b716c40b2a5abaf0cfdc4ed846a67d50f",
+    "dhpk-opsx-load-context": "300ef116e0cbb204480e54a0183a4886990041fa46d4f296b2c11554c09b8d80",
+    "dhpk-opsx-post-observation": "61d09727dac1b9758d74ad2b0fff1311f00ea850952fd1dfc1ada8b75d1d9400",
     "dhpk-polyfill-version-matrix-audit": "c18597d1bbc40c5691321f3490ff28a07ffa0f6ec665deb15f2698147d158d2b",
-    "dhpk-project-audit": "2068dd3ec3e9f0ee128ef6a569e070a956ca4ea71e4e61acdf9413ef8e2ebbb1",
-    "dhpk-project-setup": "4c761853626944703650a8b10ef4f9cd47778e1d668ffe474d7f48ee0eb2ce8f",
-    "dhpk-prompt-optimize": "7a84b49e66401c119c5558616f152d0a22f240bdcc815294654e00a571f10eef",
-    "dhpk-release-creator": "267c736e0fda4ed81aabb92a4c9b78a0b0d898904d0974c0a4a93b69c90e416f",
-    "dhpk-repo-intake": "d90f67ea707acae30e1c4c8d67a94b974bec5a4618a52c6bae8c6749e942d2e6",
-    "dhpk-session-usage-audit": "9c87600b97c9a9e49128b5e11d92c22a72d33b709d797b096899c79ef52b9833",
-    "dhpk-tdd-workflow": "6f69203e035cfb2431f1b8bdb9ef75288e62212177c9812a0f882d984614dd4f",
-    "flow-drive": "b8eee4a9236425c360b6e8054335804130dbbae417d4124a00de4a2d0885a947",
-    "flow-guide": "83ad1caf53cf679f6fbad4c85e246342cea43ce2a2ed75e4919e9221f55a07c7",
-    "harness-govern": "cbb298a79c6d933928d9fbe669c1d1aa120c2d9fdd3243622a8e0d95d2564f67",
+    "dhpk-project-audit": "a3426961b9149ebc86d76ec31d5080f5306aa837f0a1c5c6115bd4d6d542d3db",
+    "dhpk-project-setup": "bfe1892c7b100a3149924e5041cb0cf824ed857a7a8ed9408a83cef2fb0e5b5e",
+    "dhpk-prompt-optimize": "a9d91881566c0c05967a31334ce93cc1dcbe1bf0760dfed2a1f01c26b57223af",
+    "dhpk-repo-intake": "3ce6f9da5cb781d08cebfd90321b9e657e2dfe978873ebac960d1f11ed37191b",
+    "dhpk-session-usage-audit": "ad6e21ac72573e80cb06a1eb0f585f2c10f0f1557af015c932709cd6e542ac12",
+    "doc-refactor": "24188cc9a98a780ace387611e216335c8b6b664ec0c6995040538fffad7ef299",
+    "flow-drive": "da5f1db18ca75cff2b31372a3f22e4a91c5d8932a314bc0ae82f32922acb4b2d",
+    "flow-guide": "b4d52209bc72029d08f288a22f1fb13f4add8b5d492b2a547ef8b6f6f5079871",
+    "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
+    "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
+    "harness-audit": "b751eaa79e54539cfd41422c6eeea0c848d75256bf8f165f9273263658489091",
+    "harness-govern": "6f88d4d0cf6a79c536cf656b11fda6645015d73ab4b5113aaa18d10967238040",
+    "js-static-check-strategy": "6464d728360ec088489abc552a1f4e6a964d9e51a86883cead9f020ec399c9c9",
+    "matrix-cell-onboard": "f70958741c684fcd4acc1051e27b43c0aa1900225ba43fdfa2d8899a774c2e03",
+    "merge-prep": "480a57cf9f0733ab2b7f884175409202e811ca4def7fd3ba0e58854d06f1bead",
+    "pr-summary": "c32f62f3af215e5758aab24c92270882c1ab14855098acdca7dee0dc99e2d129",
+    "precommit": "64198cabda6f826b5b9c5d63e761256ba4ece088ff45582a0fba987718b9ca27",
+    "project-brief": "8a553041d9b8068f3fd60ba22c092717e9ca06cea7e644cd023c91c5fcbaffa4",
+    "proposal-analyze": "aab7f5f4c8363c5c47e3fb4c6dc4a7ee1dc3b1ce8ee7fa1e22d9503b494c66fa",
+    "release-creator": "2fcddd4c37f53f1ca3a8997c1cf4f9db17faee416ea24770e7a28c329f4747c5",
+    "repo-verify": "fce629f9198f4e9abba6077b3ebc9bce6caf32a2a1af52d7a2fe4cb8e3b620f2",
+    "review-pending": "d9baf7433bca224f9a2499af6c2b0242a4015a954fd24f759c8363ad0e499bc2",
     "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
-    "skill-scope": "01e0b2b56fe128836c1363909e18a6a9d15f420316b0ce0e7636a20fd9f1362f"
+    "skill-scope": "b1cdcb19ec5b09ee0d855b4aa45a84d5c657ed8b42aac2ffda21005fabe58921",
+    "spec-mine": "7bec895983b41759863a1eb6db2f91d0096180dc4d65844556d630e5befdc1a5",
+    "tdd-workflow": "76bbaea182879a1658b22798d72d48c2e6a23100953d758d78316a9894401dcb",
+    "update-codemaps": "f38f3424ae52c66c67effae3dfd03388c756e63466fd051911974e85c33e18d9",
+    "update-docs": "f229b2dfcde6e136d368087f90da6a9aa2879151c93896cf1c7d2964f1f13054"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "e01d7a509950811c7df6bac280c961ef38aa8aef0ae0aad253e2cffd530871db",
+    "planId": "4db2d3be2a87329abe705c4b9f53ae973e75160034e088625ad7867ac5f0bf6b",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -155,38 +199,56 @@
       "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-simplify",
       "code-trace",
       "codex-bridge",
       "composer-package-hygiene",
+      "create-pr",
+      "dep-audit",
       "deploy-list",
+      "doc-refactor",
       "feature-verify",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
+      "git-worktree",
       "gitnexus-cli",
       "gitnexus-debugging",
       "gitnexus-exploring",
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
+      "harness-audit",
       "harness-govern",
       "issue-analyze",
+      "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
+      "matrix-cell-onboard",
+      "merge-prep",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
+      "pr-summary",
+      "precommit",
       "project-audit",
+      "project-brief",
       "project-setup",
       "prompt-optimize",
+      "proposal-analyze",
       "release-creator",
       "repo-intake",
+      "repo-verify",
+      "review-pending",
       "session-usage-audit",
       "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd"
+      "spec-mine",
+      "tdd",
+      "update-codemaps",
+      "update-docs"
     ],
     "supportClosure": {
       "stableIds": [
@@ -195,38 +257,56 @@
         "change-verdict",
         "cli-dispatch-context",
         "cli-transport",
+        "code-simplify",
         "code-trace",
         "codex-bridge",
         "composer-package-hygiene",
+        "create-pr",
+        "dep-audit",
         "deploy-list",
+        "doc-refactor",
         "feature-verify",
         "flow-drive",
         "flow-guide",
         "git-smart-commit",
+        "git-worktree",
         "gitnexus-cli",
         "gitnexus-debugging",
         "gitnexus-exploring",
         "gitnexus-guide",
         "gitnexus-impact-analysis",
         "gitnexus-refactoring",
+        "harness-audit",
         "harness-govern",
         "issue-analyze",
+        "js-static-check-strategy",
         "laravel-package-author",
         "laravel-testbench-matrix",
+        "matrix-cell-onboard",
+        "merge-prep",
         "opsx-apply-goal",
         "opsx-load-context",
         "opsx-post-obs",
         "polyfill-version-matrix-audit",
+        "pr-summary",
+        "precommit",
         "project-audit",
+        "project-brief",
         "project-setup",
         "prompt-optimize",
+        "proposal-analyze",
         "release-creator",
         "repo-intake",
+        "repo-verify",
+        "review-pending",
         "session-usage-audit",
         "skill-forge",
         "skill-scope",
         "software-architecture",
-        "tdd"
+        "spec-mine",
+        "tdd",
+        "update-codemaps",
+        "update-docs"
       ]
     },
     "ownership": {
@@ -236,13 +316,138 @@
       ]
     },
     "fingerprints": {
-      "plan": "e01d7a509950811c7df6bac280c961ef38aa8aef0ae0aad253e2cffd530871db",
-      "inventory": "ab3ac0a9f34b666ff92f10bcb5c96e9e5175890493a368a41d964aeccb0d81d3"
+      "plan": "4db2d3be2a87329abe705c4b9f53ae973e75160034e088625ad7867ac5f0bf6b",
+      "inventory": "c02a3f05d66dd7991642490bc26b129b48abd7afe2d0f111526b8fcace31d31b"
     },
-    "rollbackIdentity": "409167f6b3633c3c1067c3743263ca92460b201fef429d0f67e8e1e2cb9edf31"
+    "rollbackIdentity": "999c432229d3fd087d447df4a2b1dbd3aa596cea1f1ece86087c8965708275ff"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
+    "change-verdict": {
+      "display_name": "Change Verdict",
+      "summary": "Return an evidence-backed read-only change verdict",
+      "syntax": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
+      "input_kind": "mixed",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "read-only",
+      "inputs": [
+        {
+          "id": "target",
+          "syntax": "<target>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Change, PR, test, document, or risk target"
+        }
+      ],
+      "actions": [
+        {
+          "id": "code",
+          "summary": "Judge code changes",
+          "syntax": "$change-verdict --mode=code [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "pr",
+          "summary": "Judge pull-request evidence",
+          "syntax": "$change-verdict --mode=pr [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "security",
+          "summary": "Judge security evidence",
+          "syntax": "$change-verdict --mode=security [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "tests",
+          "summary": "Judge test and coverage evidence",
+          "syntax": "$change-verdict --mode=tests [--coverage] [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "docs",
+          "summary": "Judge documentation evidence",
+          "syntax": "$change-verdict --mode=docs [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "risk",
+          "summary": "Judge change-risk evidence",
+          "syntax": "$change-verdict --mode=risk [<target>]",
+          "input_kind": "mixed",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [
+        {
+          "id": "mode",
+          "syntax": "--mode=<mode>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Select one verdict mode",
+          "enum_values": [
+            "code",
+            "pr",
+            "security",
+            "tests",
+            "docs",
+            "risk"
+          ]
+        },
+        {
+          "id": "coverage",
+          "syntax": "--coverage",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Include coverage evidence in tests mode",
+          "default": false
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$change-verdict --mode=tests --coverage",
+          "summary": "Use change verdict with its declared interface"
+        }
+      ]
+    },
+    "code-simplify": {
+      "display_name": "Code Simplify",
+      "summary": "Clean changed code without changing behavior",
+      "syntax": "$code-simplify [<target>]",
+      "input_kind": "free-text",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "target",
+          "syntax": "<target>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "PR, branch, file, or directory"
+        }
+      ],
+      "actions": [
+        {
+          "id": "simplify",
+          "summary": "Apply bounded cleanup with test evidence",
+          "syntax": "$code-simplify [<target>]",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$code-simplify src/",
+          "summary": "Use code simplify with its declared interface"
+        }
+      ]
+    },
     "code-trace": {
       "display_name": "Code Trace",
       "summary": "Trace code paths, causes, history, or navigation tools",
@@ -354,28 +559,114 @@
         }
       ]
     },
-    "git-smart-commit": {
-      "display_name": "Git Smart Commit",
-      "summary": "Group related changes into reviewable commits safely",
-      "syntax": "$dhpk-git-smart-commit",
+    "create-pr": {
+      "display_name": "Create PR",
+      "summary": "Create a ticket-aware pull request with a safe dry-run boundary",
+      "syntax": "$create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]",
       "input_kind": "none",
-      "inputs": [],
       "invocation_class": "explicit-only",
-      "effect_authority": "git-write",
+      "effect_authority": "external-write",
+      "inputs": [],
       "actions": [
         {
-          "id": "group",
-          "summary": "Analyze changes and produce grouped commit steps",
-          "syntax": "$dhpk-git-smart-commit",
+          "id": "create",
+          "summary": "Create or preview one pull request",
+          "syntax": "$create-pr [--execute]",
           "input_kind": "none",
-          "effect_authority": "git-write"
+          "effect_authority": "external-write"
         }
       ],
-      "options": [],
+      "options": [
+        {
+          "id": "head",
+          "syntax": "--head=<branch>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Use this source branch"
+        },
+        {
+          "id": "base",
+          "syntax": "--base=<branch>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Use this target branch"
+        },
+        {
+          "id": "title",
+          "syntax": "--title=<text>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Override the generated title"
+        },
+        {
+          "id": "execute",
+          "syntax": "--execute",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Perform the explicit remote create",
+          "default": false
+        },
+        {
+          "id": "dry-run",
+          "syntax": "--dry-run",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Preview without remote mutation",
+          "default": true
+        }
+      ],
       "examples": [
         {
-          "prompt": "$dhpk-git-smart-commit split these changes into logical commits",
-          "summary": "Prepare a safe grouped commit plan"
+          "prompt": "$create-pr --dry-run",
+          "summary": "Use create pr with its declared interface"
+        }
+      ]
+    },
+    "dep-audit": {
+      "display_name": "Dependency Audit",
+      "summary": "Audit dependency risks with a separate explicit fix boundary",
+      "syntax": "$dep-audit [--level=<severity>] [--fix]",
+      "input_kind": "none",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [],
+      "actions": [
+        {
+          "id": "audit",
+          "summary": "Audit dependency vulnerabilities and optional fixes",
+          "syntax": "$dep-audit",
+          "input_kind": "none",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "level",
+          "syntax": "--level=<severity>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Minimum severity to report",
+          "default": "moderate",
+          "enum_values": [
+            "low",
+            "moderate",
+            "high",
+            "critical"
+          ]
+        },
+        {
+          "id": "fix",
+          "syntax": "--fix",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Run the explicitly requested fix operation",
+          "default": false
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$dep-audit --level=high",
+          "summary": "Use dependency audit with its declared interface"
         }
       ]
     },
@@ -437,51 +728,27 @@
         }
       ]
     },
-    "tdd": {
-      "display_name": "TDD",
-      "summary": "Drive behavior-first tests through a minimal red-green loop",
-      "syntax": "$dhpk-tdd-workflow [test-generation] <task>",
-      "input_kind": "mixed",
-      "inputs": [
-        {
-          "id": "mode",
-          "syntax": "<test-generation>",
-          "value_kind": "enum",
-          "required": false,
-          "summary": "Optionally request test scaffold generation",
-          "enum_values": [
-            "test-generation"
-          ],
-          "applies_to": [
-            "test-generation"
-          ]
-        },
-        {
-          "id": "task",
-          "syntax": "<task>",
-          "value_kind": "string",
-          "required": true,
-          "summary": "Describe the behavior-first development task",
-          "applies_to": [
-            "tdd",
-            "test-generation"
-          ]
-        }
-      ],
+    "doc-refactor": {
+      "display_name": "Doc Refactor",
+      "summary": "Refactor one bounded Markdown document while preserving facts",
+      "syntax": "$doc-refactor <file-path>",
+      "input_kind": "path",
       "invocation_class": "implicit-eligible",
       "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "file-path",
+          "syntax": "<file-path>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "One Markdown document"
+        }
+      ],
       "actions": [
         {
-          "id": "tdd",
-          "summary": "Guide a behavior-first test and implementation loop",
-          "syntax": "$dhpk-tdd-workflow <task>",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        },
-        {
-          "id": "test-generation",
-          "summary": "Generate a focused failing-test scaffold",
-          "syntax": "$dhpk-tdd-workflow test-generation <target>",
+          "id": "refactor",
+          "summary": "Rewrite one bounded document and validate its links",
+          "syntax": "$doc-refactor <file-path>",
           "input_kind": "path",
           "effect_authority": "workspace-write"
         }
@@ -489,8 +756,8 @@
       "options": [],
       "examples": [
         {
-          "prompt": "$dhpk-tdd-workflow test-generation tests/OrderTest.php",
-          "summary": "Start with a behavior-focused test scaffold"
+          "prompt": "$doc-refactor docs/guide.md",
+          "summary": "Use doc refactor with its declared interface"
         }
       ]
     },
@@ -717,6 +984,185 @@
         }
       ]
     },
+    "git-smart-commit": {
+      "display_name": "Git Smart Commit",
+      "summary": "Group related changes into reviewable commits safely",
+      "syntax": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
+      "input_kind": "none",
+      "invocation_class": "explicit-only",
+      "effect_authority": "git-write",
+      "inputs": [],
+      "actions": [
+        {
+          "id": "group",
+          "summary": "Analyze changes and produce grouped commit steps",
+          "syntax": "$git-smart-commit [--scope=<path>] [--type=<type>] [--ai-co-author]",
+          "input_kind": "none",
+          "effect_authority": "git-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "scope",
+          "syntax": "--scope=<path>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Limit status and diff collection"
+        },
+        {
+          "id": "type",
+          "syntax": "--type=<type>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Force a conventional commit type",
+          "enum_values": [
+            "feat",
+            "fix",
+            "docs",
+            "refactor",
+            "style",
+            "chore",
+            "test"
+          ]
+        },
+        {
+          "id": "ai-co-author",
+          "syntax": "--ai-co-author",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Opt into the project-approved AI trailer",
+          "default": false
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$git-smart-commit --scope=src/",
+          "summary": "Use git smart commit with its declared interface"
+        }
+      ]
+    },
+    "git-worktree": {
+      "display_name": "Git Worktree",
+      "summary": "Manage native Git worktrees with confirmation boundaries",
+      "syntax": "$git-worktree [<operation>] [--branch=<name>] [--base=<ref>]",
+      "input_kind": "action-first",
+      "invocation_class": "explicit-only",
+      "effect_authority": "git-write",
+      "inputs": [
+        {
+          "id": "operation",
+          "syntax": "<operation>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Worktree operation",
+          "default": "list",
+          "enum_values": [
+            "add",
+            "list",
+            "remove",
+            "prune"
+          ],
+          "applies_to": [
+            "manage"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "manage",
+          "summary": "Add, list, remove, or prune a worktree",
+          "syntax": "$git-worktree [<operation>]",
+          "input_kind": "action-first",
+          "effect_authority": "git-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "branch",
+          "syntax": "--branch=<name>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Branch used by add or remove"
+        },
+        {
+          "id": "base",
+          "syntax": "--base=<ref>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Base ref used when adding"
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$git-worktree list",
+          "summary": "Use git worktree with its declared interface"
+        }
+      ]
+    },
+    "harness-audit": {
+      "display_name": "Harness Audit",
+      "summary": "Audit repository harness health with a deterministic scorecard",
+      "syntax": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
+      "input_kind": "action-first",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "read-only",
+      "inputs": [
+        {
+          "id": "scope",
+          "syntax": "<scope>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Harness area to inspect",
+          "default": "repo",
+          "enum_values": [
+            "repo",
+            "hooks",
+            "skills",
+            "commands",
+            "agents"
+          ],
+          "applies_to": [
+            "audit"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "audit",
+          "summary": "Run the deterministic harness audit",
+          "syntax": "$harness-audit [<scope>]",
+          "input_kind": "action-first",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [
+        {
+          "id": "format",
+          "syntax": "--format=<format>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Output format",
+          "default": "text",
+          "enum_values": [
+            "text",
+            "json"
+          ]
+        },
+        {
+          "id": "root",
+          "syntax": "--root=<path>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Consumer repository root"
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$harness-audit skills --format=json",
+          "summary": "Use harness audit with its declared interface"
+        }
+      ]
+    },
     "harness-govern": {
       "display_name": "Harness Govern",
       "summary": "Govern harness health, budget, filling, revision, and sync",
@@ -830,6 +1276,413 @@
         }
       ]
     },
+    "js-static-check-strategy": {
+      "display_name": "JS Static Check Strategy",
+      "summary": "Plan staged TypeScript checks and inspect strict-check progress",
+      "syntax": "$js-static-check-strategy status [--path=<path>]",
+      "input_kind": "none",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "read-only",
+      "inputs": [],
+      "actions": [
+        {
+          "id": "status",
+          "summary": "Report the current static-check status",
+          "syntax": "$js-static-check-strategy status [--path=<path>]",
+          "input_kind": "none",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [
+        {
+          "id": "path",
+          "syntax": "--path=<path>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Frontend root to scan"
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$js-static-check-strategy status --path=js/",
+          "summary": "Use js static check strategy with its declared interface"
+        }
+      ]
+    },
+    "matrix-cell-onboard": {
+      "display_name": "Matrix Cell Onboard",
+      "summary": "Plan and optionally apply one multi-major CI matrix cell",
+      "syntax": "$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]",
+      "input_kind": "mixed",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "php-version",
+          "syntax": "<php-version>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "PHP runtime version"
+        },
+        {
+          "id": "laravel-version",
+          "syntax": "<laravel-version>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Laravel version"
+        },
+        {
+          "id": "phpunit",
+          "syntax": "<phpunit>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "PHPUnit version"
+        },
+        {
+          "id": "monolog",
+          "syntax": "<monolog>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Monolog version"
+        }
+      ],
+      "actions": [
+        {
+          "id": "onboard",
+          "summary": "Plan and apply one matrix cell",
+          "syntax": "$matrix-cell-onboard <php-version> <laravel-version>",
+          "input_kind": "mixed",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$matrix-cell-onboard 8.3 12 11 3",
+          "summary": "Use matrix cell onboard with its declared interface"
+        }
+      ]
+    },
+    "merge-prep": {
+      "display_name": "Merge Prep",
+      "summary": "Analyze a branch merge without mutating the repository",
+      "syntax": "$merge-prep <source-branch> [--target=<branch>]",
+      "input_kind": "identifier",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "read-only",
+      "inputs": [
+        {
+          "id": "source-branch",
+          "syntax": "<source-branch>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Branch to analyze"
+        }
+      ],
+      "actions": [
+        {
+          "id": "prepare",
+          "summary": "Analyze merge conflicts and manual commands",
+          "syntax": "$merge-prep <source-branch>",
+          "input_kind": "identifier",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [
+        {
+          "id": "target",
+          "syntax": "--target=<branch>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Target branch for the analysis"
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$merge-prep feature/topic --target=main",
+          "summary": "Use merge prep with its declared interface"
+        }
+      ]
+    },
+    "pr-summary": {
+      "display_name": "PR Summary",
+      "summary": "Summarize open pull requests with evidence",
+      "syntax": "$pr-summary [--author=<user>] [--label=<label>]",
+      "input_kind": "none",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "read-only",
+      "inputs": [],
+      "actions": [
+        {
+          "id": "summarize",
+          "summary": "Group accessible open pull requests",
+          "syntax": "$pr-summary",
+          "input_kind": "none",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [
+        {
+          "id": "author",
+          "syntax": "--author=<user>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Filter by pull-request author"
+        },
+        {
+          "id": "label",
+          "syntax": "--label=<label>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Filter by pull-request label"
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$pr-summary --label=ready",
+          "summary": "Use pr summary with its declared interface"
+        }
+      ]
+    },
+    "precommit": {
+      "display_name": "Precommit",
+      "summary": "Run the packaged deterministic pre-commit pipeline",
+      "syntax": "$precommit [--fast]",
+      "input_kind": "none",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [],
+      "actions": [
+        {
+          "id": "run",
+          "summary": "Run fast or full pre-commit stages",
+          "syntax": "$precommit [--fast]",
+          "input_kind": "none",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "fast",
+          "syntax": "--fast",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Run the fast stage set",
+          "default": false
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$precommit --fast",
+          "summary": "Use precommit with its declared interface"
+        }
+      ]
+    },
+    "project-brief": {
+      "display_name": "Project Brief",
+      "summary": "Convert one technical specification into an executive brief",
+      "syntax": "$project-brief <tech-spec-path> [--output=<output-path>]",
+      "input_kind": "path",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "tech-spec-path",
+          "syntax": "<tech-spec-path>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Readable technical specification"
+        }
+      ],
+      "actions": [
+        {
+          "id": "brief",
+          "summary": "Write an executive summary without changing the source",
+          "syntax": "$project-brief <tech-spec-path>",
+          "input_kind": "path",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "output",
+          "syntax": "--output=<output-path>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Destination for the brief"
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$project-brief docs/spec.md --output=docs/brief.md",
+          "summary": "Use project brief with its declared interface"
+        }
+      ]
+    },
+    "proposal-analyze": {
+      "display_name": "Proposal Analyze",
+      "summary": "Turn a proposal into an evidence-backed implementation roadmap",
+      "syntax": "$proposal-analyze <proposal>",
+      "input_kind": "free-text",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "proposal",
+          "syntax": "<proposal>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Proposal text or file path"
+        }
+      ],
+      "actions": [
+        {
+          "id": "analyze",
+          "summary": "Research a proposal and produce a roadmap",
+          "syntax": "$proposal-analyze <proposal>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$proposal-analyze openspec/changes/example/proposal.md",
+          "summary": "Use proposal analyze with its declared interface"
+        }
+      ]
+    },
+    "release-creator": {
+      "display_name": "Release Creator",
+      "summary": "Prepare or publish a validated release with a human gate",
+      "syntax": "$release-creator <version> [--execute]",
+      "input_kind": "identifier",
+      "invocation_class": "explicit-only",
+      "effect_authority": "external-write",
+      "inputs": [
+        {
+          "id": "version",
+          "syntax": "<version>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Release version"
+        }
+      ],
+      "actions": [
+        {
+          "id": "release",
+          "summary": "Prepare or publish one release",
+          "syntax": "$release-creator <version> [--execute]",
+          "input_kind": "identifier",
+          "effect_authority": "external-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "execute",
+          "syntax": "--execute",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Proceed past the human release gate",
+          "default": false
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$release-creator 0.62.4 --execute",
+          "summary": "Use release creator with its declared interface"
+        }
+      ]
+    },
+    "repo-verify": {
+      "display_name": "Repo Verify",
+      "summary": "Run runner-first repository verification with explicit evidence",
+      "syntax": "$repo-verify [<mode>] [--integration=<path>] [--e2e=<path>]",
+      "input_kind": "action-first",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "read-only",
+      "inputs": [
+        {
+          "id": "mode",
+          "syntax": "<mode>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Verification depth",
+          "default": "full",
+          "enum_values": [
+            "fast",
+            "full"
+          ],
+          "applies_to": [
+            "verify"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "verify",
+          "summary": "Run fast or full repository verification",
+          "syntax": "$repo-verify [<mode>]",
+          "input_kind": "action-first",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [
+        {
+          "id": "integration",
+          "syntax": "--integration=<path>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Run the named integration stage"
+        },
+        {
+          "id": "e2e",
+          "syntax": "--e2e=<path>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Run the named end-to-end stage"
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$repo-verify fast",
+          "summary": "Use repo verify with its declared interface"
+        }
+      ]
+    },
+    "review-pending": {
+      "display_name": "Review Pending",
+      "summary": "Delegate a read-only pending-change review",
+      "syntax": "$review-pending [--files=<rel-paths>]",
+      "input_kind": "none",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "delegate",
+      "inputs": [],
+      "actions": [
+        {
+          "id": "review",
+          "summary": "Delegate the selected pending files to code-reviewer",
+          "syntax": "$review-pending",
+          "input_kind": "none",
+          "effect_authority": "delegate"
+        }
+      ],
+      "options": [
+        {
+          "id": "files",
+          "syntax": "--files=<rel-paths>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Comma-separated relative file paths"
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$review-pending --files=src/a.js",
+          "summary": "Use review pending with its declared interface"
+        }
+      ]
+    },
     "skill-scope": {
       "display_name": "Skill Scope",
       "summary": "Route skill governance to one focused mode with evidence",
@@ -901,18 +1754,186 @@
           "summary": "Run a focused health check for one skill"
         }
       ]
+    },
+    "spec-mine": {
+      "display_name": "Spec Mine",
+      "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
+      "syntax": "$spec-mine [<capability-or-path>]",
+      "input_kind": "free-text",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "capability-or-path",
+          "syntax": "<capability-or-path>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Capability or path to mine first"
+        }
+      ],
+      "actions": [
+        {
+          "id": "mine",
+          "summary": "Write one bounded behavioral baseline",
+          "syntax": "$spec-mine [<capability-or-path>]",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$spec-mine billing",
+          "summary": "Use spec mine with its declared interface"
+        }
+      ]
+    },
+    "tdd": {
+      "display_name": "TDD",
+      "summary": "Drive behavior-first tests through a minimal red-green loop",
+      "syntax": "$tdd-workflow [test-generation] <task>",
+      "input_kind": "mixed",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "mode",
+          "syntax": "<test-generation>",
+          "value_kind": "enum",
+          "required": false,
+          "summary": "Optionally request test scaffold generation",
+          "enum_values": [
+            "test-generation"
+          ],
+          "applies_to": [
+            "test-generation"
+          ]
+        },
+        {
+          "id": "task",
+          "syntax": "<task>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Describe the behavior-first development task",
+          "applies_to": [
+            "tdd",
+            "test-generation"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "id": "tdd",
+          "summary": "Guide a behavior-first test and implementation loop",
+          "syntax": "$tdd-workflow <task>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "test-generation",
+          "summary": "Generate a focused failing-test scaffold",
+          "syntax": "$tdd-workflow test-generation <target>",
+          "input_kind": "path",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$tdd-workflow test-generation tests/OrderTest.php",
+          "summary": "Use tdd with its declared interface"
+        }
+      ]
+    },
+    "update-codemaps": {
+      "display_name": "Update Codemaps",
+      "summary": "Refresh architecture codemaps from the live project structure",
+      "syntax": "$update-codemaps",
+      "input_kind": "none",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [],
+      "actions": [
+        {
+          "id": "update",
+          "summary": "Refresh the bounded architecture codemaps",
+          "syntax": "$update-codemaps",
+          "input_kind": "none",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$update-codemaps",
+          "summary": "Use update codemaps with its declared interface"
+        }
+      ]
+    },
+    "update-docs": {
+      "display_name": "Update Docs",
+      "summary": "Update a bounded user or agent document from live evidence",
+      "syntax": "$update-docs <docs-path-or-workflow-keyword>",
+      "input_kind": "free-text",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "inputs": [
+        {
+          "id": "target",
+          "syntax": "<docs-path-or-workflow-keyword>",
+          "value_kind": "string",
+          "required": true,
+          "summary": "Documentation path or workflow keyword"
+        }
+      ],
+      "actions": [
+        {
+          "id": "update",
+          "summary": "Update owned documentation and its locale pair",
+          "syntax": "$update-docs <docs-path-or-workflow-keyword>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$update-docs docs/configuration.md",
+          "summary": "Use update docs with its declared interface"
+        }
+      ]
     }
   },
   "usageFingerprints": {
+    "change-verdict": "6ca8496f176cb1bd7143d0091dcc876ddd44986763e5e3a685b73b7e8914f494",
+    "code-simplify": "2d93bfcf975a3ae16ddc754187f387ab1ef4ae4f25abe2aa6b9235ca2f6e0069",
     "code-trace": "48654b9393cc852db2f54b7801cc7b40eee7b13eeab8b85ee8244d8248a9d438",
-    "git-smart-commit": "148b517b9f9bdac3f6f388f928b2df36219e99736af7c064ed1c35537950bedb",
+    "create-pr": "f0da5b3f83857f6bb3b5f4a0cc91fde5a2e046f267c0899b0fce16276ba77ec0",
+    "dep-audit": "6ab9eeed7127559c6b5075f06b7284a7fad7f6d4aa68472b0d5e0f1a1075506a",
     "opsx-load-context": "91a653e1525bb1472134b8b10a1b0568821ebd1fda6e5ded2d88bdfb0e68a35c",
     "opsx-post-obs": "06a21db402817a9a45c8992ddb158c18a7d8fe256f73670e1486270c7c9461ea",
-    "tdd": "4ddd4af41c7b24ea004c4bc49ebe4c37e6b23214026e03052409a0e7dfcb9d00",
+    "doc-refactor": "8402542106387deb6c4f762a499aa8dba6f25ad73306294ebdcc047d1014a101",
     "flow-drive": "273601043089716809d58c172c0b9c63eb8cc75a411fee3a1e6512fbc7725dd9",
     "flow-guide": "5300a6121dae6a264abe9859a10cc42504b034b4908f06ca3343b2f88a7cd369",
+    "git-smart-commit": "bf7f04db7306d231b79a4e95374595c27fd56c8cd665f04394085a23af15b9f5",
+    "git-worktree": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689",
+    "harness-audit": "c332dbc616714f42745d0cfcddc112b0452ec09ecf7f8b09c9cefb7549dda7f1",
     "harness-govern": "34ce3d263ed23aa924ae39a95916f45d7b7054cac3cc48ad515b90173f065989",
-    "skill-scope": "e17a0ce771f9d79a874c482c9e968878e86ce9f7ac6a094a89db8151cb3c7017"
+    "js-static-check-strategy": "d2e1037f13fd04f5e5597aab46728ab58bf5cc02e1634e0edd262322a463b3b9",
+    "matrix-cell-onboard": "e942d1c111138d66292691d79093d7dac1be21ddfd7fe5898a8edba1f546f2d3",
+    "merge-prep": "879b43381a9bf9c0233b0f17e9392bd161317d0a1cd9971d3e07a634b6bdd326",
+    "pr-summary": "dcd0dbeea58a53a4a6f1947469a85b062a13f7f4580c33753c7d736cd141b670",
+    "precommit": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699",
+    "project-brief": "c9b320d28f4fb9dbd4c6b38dc2b376b847dd48102cbfd2f6f39f871f7ecbda8a",
+    "proposal-analyze": "89e3a151663d1389f14f9c10b547d09fb58dee3ab10a126491f546f0070f5e33",
+    "release-creator": "7e3c907d8a22657cdfb8f3ba4f4962b13368f6621905bf23e9b8210ef8ae0e8c",
+    "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
+    "review-pending": "1a8af23d3337618651c3a1408255e1e90b59445ef26b22ca5e6e4640755a83d8",
+    "skill-scope": "e17a0ce771f9d79a874c482c9e968878e86ce9f7ac6a094a89db8151cb3c7017",
+    "spec-mine": "918bc2cde6d9c328cbe8224867f68f3dc569b81f2434b0f04bcd598683c14a50",
+    "tdd": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d",
+    "update-codemaps": "0bf8b73840bccef16d4e4fbea12581029da9a48607769da14214b038f97ffa07",
+    "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
   },
   "externalSkillPackagesFingerprint": "3415fbb3be9c7095e796bab2ac6c87d96e26bfa8c90a89cf9fc1d63cbbbc664c"
 }

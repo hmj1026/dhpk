@@ -1,6 +1,6 @@
 # Review-gate mechanics — operational detail
 
-Operational detail for `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Mandatory
+Operational detail for `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Mandatory
 post-steps. The always-loaded SSOT keeps the reviewer trigger table, the
 post-implementation gate, the one consolidated parallel batch, the Review
 output gate, and the AI-judgment back-stop trigger list. This file defines the
@@ -49,10 +49,10 @@ Review Result before recording the obligation as resolved. A reviewer message,
 aggregate evidence object, terminal lifecycle event, path, file existence, or
 mtime is not completion evidence by itself.
 
-## `${CLAUDE_PLUGIN_ROOT}` command-path caveat
+## `${POLICY_BUNDLE_ROOT}` command-path caveat
 
-<!-- SSOT for the ${CLAUDE_PLUGIN_ROOT} interpolation-token caveat — rules/execution-policy.md and skills/flow-guide/SKILL.md point here. -->
-`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token, not a shell variable: the orchestrator resolves it when reading this document, and it is unset inside a subagent's Bash environment. A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — use the absolute path the orchestrator supplies, or, when a diagnostic command has printed an already-resolved command, use that command only when the orchestrator has explicitly authorized the diagnostic. On a 127 / "No such file or directory" failure, escalate to the orchestrator for the resolved path; never recover by scanning the filesystem with `find / -iname`.
+<!-- SSOT for the ${POLICY_BUNDLE_ROOT} interpolation-token caveat — rules/execution-policy.md and the selected entry Skill point here. -->
+`${POLICY_BUNDLE_ROOT}` is a markdown-interpolation token, not a shell variable: the orchestrator resolves it when reading this document, and it is not available inside a subagent's Bash environment. A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash command — use the absolute path the orchestrator supplies, or, when a diagnostic command has printed an already-resolved command, use that command only when the orchestrator has explicitly authorized the diagnostic. On a 127 / "No such file or directory" failure, escalate to the orchestrator for the resolved path; never recover by scanning the filesystem with `find / -iname`.
 
 ## Reviewer reuse and corrected retry
 
@@ -123,7 +123,7 @@ The counter-example this consolidation prevents is a six-dispatch goal-session t
 
 ## Reduced-tier dispatch for known-finding-mapped tiny deltas
 
-A delta of roughly **≤3 net changed lines** that maps 1:1 to a finding **already flagged in the current review round** (not new or uninspected work) MAY be dispatched to the required reviewer at a *reduced* tier — e.g. `haiku` — via the same `model` param the §Model tier rule uses to *escalate* a HIGH-risk dispatch, here reused symmetrically for a LOW-risk case, instead of the reviewer's frontmatter-default tier. Guards: never for a **security/db-sensitive file** or a **CRITICAL-severity** target finding (those stay at the default tier), and this lowers the gate's *cost*, not the gate itself — the reviewer dispatch still runs. SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Model tier.
+A delta of roughly **≤3 net changed lines** that maps 1:1 to a finding **already flagged in the current review round** (not new or uninspected work) MAY be dispatched to the required reviewer at a *reduced* tier — e.g. `haiku` — via the same `model` param the §Model tier rule uses to *escalate* a HIGH-risk dispatch, here reused symmetrically for a LOW-risk case, instead of the reviewer's frontmatter-default tier. Guards: never for a **security/db-sensitive file** or a **CRITICAL-severity** target finding (those stay at the default tier), and this lowers the gate's *cost*, not the gate itself — the reviewer dispatch still runs. SSOT: `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Model tier.
 
 ## Reviewer liveness — a no-op return is a failed gate
 
@@ -136,11 +136,11 @@ obligation complete. Re-dispatch exactly once with a corrected prompt. If that
 retry is still empty, use a replacement reviewer or leave an explicit blocker;
 never perform a third identical retry. A real review — inspection performed,
 findings or an explicit no-findings statement, and a parseable verdict — is
-evaluated on its contract as usual. SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Reviewer dispatch.
+evaluated on its contract as usual. SSOT: `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Reviewer dispatch.
 
 ## File-state ground truth — re-verify a file-state defect live before reporting it
 
-Before concluding a file was reverted, a regression exists, or the working tree is broken/inconsistent, re-verify live — `git status --porcelain` + a direct `Read` of the target file's current content — rather than treating a single injected file-snapshot (e.g. a `<system-reminder>` capturing a mid-operation, mid-branch-switch working tree) as proof. Such a snapshot can transiently show a stale or reverted-looking state that is not a real defect; the live re-check is the tie-breaker. A live-confirmed defect is still reported — the check confirms genuine defects, it does not suppress them. SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (File-state ground truth paragraph, §Agent dispatch).
+Before concluding a file was reverted, a regression exists, or the working tree is broken/inconsistent, re-verify live — `git status --porcelain` + a direct `Read` of the target file's current content — rather than treating a single injected file-snapshot (e.g. a `<system-reminder>` capturing a mid-operation, mid-branch-switch working tree) as proof. Such a snapshot can transiently show a stale or reverted-looking state that is not a real defect; the live re-check is the tie-breaker. A live-confirmed defect is still reported — the check confirms genuine defects, it does not suppress them. SSOT: `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` (File-state ground truth paragraph, §Agent dispatch).
 
 ## AI-judgment back-stop — explanatory notes
 

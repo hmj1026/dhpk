@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doc Refactor"
+  short_description: "Refactor bounded Markdown documents safely"
+  default_prompt: "Use $doc-refactor to refactor one bounded Markdown document safely."

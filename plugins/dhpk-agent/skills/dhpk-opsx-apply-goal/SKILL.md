@@ -31,10 +31,10 @@ command for a fresh session to run the change unattended.
 
 | File | Read when |
 |------|-----------|
-| `scripts/analyze-change.sh` | Step 1 — deterministic argument normalization, change-dir location, checkbox counts, and turn budget |
-| `scripts/goal-context.js` | Step 1 — helper I/O for fast-worker selection, E2E detection, and the task digest |
+| `scripts/analyze-change.sh` | Step 1 — deterministic argument normalization, physical Skill-root discovery, change-dir location, checkbox counts, and turn budget |
+| `scripts/goal-context.js` | Step 1 — local selector-closure I/O for fast-worker selection, E2E detection, and the task digest |
 | `references/detection.md` | Step 2 — test/build/lint/coverage/smoke signal tables, non-automatable-task signals, and Review Gate rationale |
-| `references/gate-contracts.md` | Step 3 — compact evidence contracts that every emitted gate must preserve |
+| `references/gate-contracts.md` | Step 3 — compact evidence contracts that every emitted gate must preserve; cited policy, reviewer, and dispatch sources are synchronized under `references/execution-bundle/` (never edit them here) |
 | `references/goal-templates.md` | Steps 3–4 — verbatim Part 0–4 `/goal` condition templates, including the single full variant |
 | `references/output-blocks.md` | Output — complete Block A/B/C/C2 contract, hard-stop branch, and session handoff |
 
@@ -51,13 +51,20 @@ verification evidence.
 
 ## Step 1 — Analyze the change (deterministic)
 
-Run the analyzer with `$ARGUMENTS` verbatim; it normalizes arguments (incl. the
-`--no-smoke > --smoke > auto` precedence), locates the change dir, counts the
+Run the analyzer with `$ARGUMENTS` verbatim. `$SKILL_DIR` denotes the physical
+directory containing the selected `SKILL.md` (path notation, not an ambient
+environment variable or repository-root lookup). The script self-locates from
+`BASH_SOURCE`, emits the Bash-safe `SKILL_ROOT_Q`, never searches a plugin
+cache, checkout, parent, sibling, or ambient source root, normalizes arguments
+(incl. `--no-smoke > --smoke > auto`), locates the change dir, counts the
 checkboxes, and computes the turn budget:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-opsx-apply-goal/scripts/analyze-change.sh" $ARGUMENTS
+bash "$SKILL_DIR/scripts/analyze-change.sh" $ARGUMENTS
 ```
+
+`$SKILL_DIR` only selects the entry point; every runtime resource resolves below the
+physical Skill root, and a missing one stops with `BLOCKED_RESOURCE_MISSING`.
 
 It prints a `# schema=v1` KEY=VALUE block. Act on `STATUS`:
 
@@ -159,6 +166,11 @@ Compose `GOAL_CONDITION` from the verbatim templates in
   `<E2E_ROSTER_CLAUSE>` below — see `references/goal-templates.md` for why.
   Substitute `<E2E_ROSTER_CLAUSE>` with `RED/E2E Playwright → dhpk:e2e-runner;`
   only when `HAS_E2E=true`; otherwise substitute the empty string.
+  Substitute `<SKILL_ROOT_Q>` with the analyzer's Bash-quoted physical Skill
+  root in every local policy, launcher, and Review Gate command. Dispatch-off
+  reads only the local execution-policy kernel; dispatch-on adds only the local
+  implementation-dispatch route reference. The consumer project cwd and its
+  OpenSpec paths remain unchanged.
 - **Parts 1, 2, 2b** — always (tasks-done, identity-bound Review Gate status,
   and explicit unresolved-obligation check).
 - **Part 3** — one line per detected gate (test runners per their flags, coverage,
@@ -210,6 +222,7 @@ Block C/C2 material from `output-blocks.md`, with `--dry-run` ending after C2.
 ## Verification
 
 - [ ] Analyzer run first; `STATUS` handled — `missing`/`archived`/`error`/exit-2 all stop with the script's message; only `active` proceeds
+- [ ] `SKILL_ROOT_Q` is the Bash-safe physical Skill root; local selector, policy, launcher, and Review Gate resources resolve below it, and a missing resource reports `BLOCKED_RESOURCE_MISSING` without ambient lookup
 - [ ] Block A shows correct task counts (from the schema block), detected runners, and manual-task count
 - [ ] Block B `/goal` string is entirely in English and opens with the Part 0 `openspec-apply-change` kickoff sentence before the stop conditions — single paste, no separate STEP 3
 - [ ] Part 0 carries the selector-resolved `<FAST_WORKER_CLAUSE>` (including CLI tier and fallback order), ONE consolidated reviewer batch wording, ≤200-byte `<TASK_DIGEST>`, and `<E2E_ROSTER_CLAUSE>` iff `HAS_E2E=true`; the orientation command does not preview tasks.md

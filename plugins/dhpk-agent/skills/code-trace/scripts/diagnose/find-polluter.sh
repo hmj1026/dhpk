@@ -77,7 +77,7 @@ while IFS= read -r TEST_FILE; do
     echo "  ${TEST_CMD[*]} $TEST_FILE"
     exit 1
   fi
-done <<'TESTFILES'
+done <<TESTFILES
 $TEST_FILES
 TESTFILES
 

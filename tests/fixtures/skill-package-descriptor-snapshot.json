@@ -1,0 +1,845 @@
+{
+  "schema": "dhpk.skill-package-descriptor-snapshot.v1",
+  "note": "Frozen before per-Skill skill-package.json removal (self-contained-skill-directories 7.5). Every required resource must stay physically local to its Skill.",
+  "skills": {
+    "code-simplify": {
+      "path": "skills/code-simplify",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/refactor-contract.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "create-pr": {
+      "path": "skills/create-pr",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "dep-audit": {
+      "path": "skills/dep-audit",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "opsx-apply-goal": {
+      "path": "skills/dhpk-opsx-apply-goal",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "agents/openai.yaml",
+          "kind": "agent",
+          "required": true
+        },
+        {
+          "path": "references/detection.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/docs/contracts/review-lifecycle.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/docs/contracts/reviewer-contract.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/docs/subagent-prompt-template.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/manifests/host-profiles.json",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/manifests/provider-model-catalog.json",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/rules/anti-rationalization.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/rules/execution-policy-kernel.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/rules/execution-policy.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/rules/model-economics.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/rules/tool-routing.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/scripts/fast-worker-selector.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/gate-contracts.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/goal-templates.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/output-blocks.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "scripts/analyze-change.sh",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/build-cli-dispatch-context.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/cli-role-resolver.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/cli-transport/prepare-cli-request.py",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/cli-transport/run-cli-transport.py",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/goal-context.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/launch-cli-dispatch.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/claude-review-gate-adapter.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/physical-file.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/receipt-json-primitives.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/receipt-primitives.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/redaction.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-evidence.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-receipt-store.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-attestation.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-checkpoint.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-composition.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-errors.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-evidence.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-storage.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate-store-budget.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/review-gate.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/reviewer-contract.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/risk-router.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/physical-file.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/physical-file.py",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/review-gate-runtime.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/run-agy.sh",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/run-codex.sh",
+          "kind": "runtime",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "blocked-resource-missing"
+      ]
+    },
+    "doc-refactor": {
+      "path": "skills/doc-refactor",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "flow-drive": {
+      "path": "skills/flow-drive",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "scripts/invocation.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/dispatch.js",
+          "kind": "runtime",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "blocked-resource-missing"
+      ]
+    },
+    "flow-guide": {
+      "path": "skills/flow-guide",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "scripts",
+          "kind": "runtime",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "blocked-resource-missing"
+      ]
+    },
+    "git-worktree": {
+      "path": "skills/git-worktree",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "harness-audit": {
+      "path": "skills/harness-audit",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "scripts/harness-audit.js",
+          "kind": "runtime",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "harness-setup": {
+      "path": "skills/harness-setup",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/claude-setup.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/codex-setup.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "merge-prep": {
+      "path": "skills/merge-prep",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "opsx-apply-resume": {
+      "path": "skills/opsx-apply-resume",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/resume.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "references/save.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "scripts/detect-phase.sh",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/set-handoff-state.sh",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/write-handoff.sh",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/extract-compact.sh",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/post-obs.sh",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/portable-sed.sh",
+          "kind": "runtime",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "pr-summary": {
+      "path": "skills/pr-summary",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "precommit": {
+      "path": "skills/precommit",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "scripts/precommit-runner.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/runner-utils.js",
+          "kind": "runtime",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "project-brief": {
+      "path": "skills/project-brief",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "proposal-analyze": {
+      "path": "skills/proposal-analyze",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "repo-verify": {
+      "path": "skills/repo-verify",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        },
+        {
+          "path": "scripts/verify-runner.js",
+          "kind": "runtime",
+          "required": true
+        },
+        {
+          "path": "scripts/lib/runner-utils.js",
+          "kind": "runtime",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "review-pending": {
+      "path": "skills/review-pending",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/workflow.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "spec-mine": {
+      "path": "skills/spec-mine",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/spec-miner-contract.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "ui-ux-verify": {
+      "path": "skills/ui-ux-verify",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        },
+        {
+          "path": "references/verification.md",
+          "kind": "reference",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "update-codemaps": {
+      "path": "skills/update-codemaps",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    },
+    "update-docs": {
+      "path": "skills/update-docs",
+      "entry": "SKILL.md",
+      "resources": [
+        {
+          "path": "SKILL.md",
+          "kind": "entry",
+          "required": true
+        }
+      ],
+      "fallback": [
+        "package-local",
+        "declared-dependency-closure",
+        "receipt-bound-project-projection",
+        "explicit-development-source-root",
+        "blocked-resource-missing"
+      ]
+    }
+  }
+}

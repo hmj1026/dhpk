@@ -1,0 +1,2294 @@
+{
+  "schema": "dhpk.skill-directory-coverage.v1",
+  "skills": {
+    "fastapi-pro": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "ios-platform": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/actor-persistence.md",
+        "references/coredata-encryption.md",
+        "references/cryptokit-keychain.md",
+        "references/healthkit-read.md",
+        "references/local-authentication.md",
+        "references/notifications.md",
+        "references/privacy-compliance.md",
+        "references/vision-ocr.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "js-lint-config": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/frontend-review-patterns.md",
+        "references/static-checks.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "js-static-check-strategy": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/frontend-review-patterns.md",
+        "references/static-checks.md",
+        "scripts/status.js"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/status.js",
+          "fixture_ids": [
+            "js-status-local-classification",
+            "js-status-missing-directory"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "laravel": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "compatibility.md",
+        "migration.md",
+        "references/10.md",
+        "references/11.md",
+        "references/5-4.md",
+        "references/6.md",
+        "references/7.md",
+        "references/8.md",
+        "references/9.md",
+        "references/mix.md",
+        "scripts/version-resolver.js"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/resolve-version.js",
+          "fixture_ids": [
+            "laravel-local-version-guidance",
+            "laravel-missing-version-blocked"
+          ]
+        }
+      ],
+      "host_capabilities": [],
+      "internal_helpers": [
+        {
+          "path": "scripts/version-resolver.js",
+          "required_by": [
+            "scripts/resolve-version.js"
+          ]
+        }
+      ]
+    },
+    "library-dual-testsuite-map": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "matrix-cell-onboard": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "openspec-artifact-guard": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "nextjs-15-5-notes": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/frontend-framework-routing.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "nextjs-16-notes": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/frontend-framework-routing.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "php-pro": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/agent-extracts/architect-code-examples.md",
+        "references/agent-extracts/security-owasp-examples.md",
+        "references/agent-extracts/tdd-code-templates.md",
+        "references/async-patterns.md",
+        "references/laravel-patterns.md",
+        "references/laravel-projects.md",
+        "references/laravel-v10.md",
+        "references/laravel-v11-v12.md",
+        "references/laravel-version-checks.md",
+        "references/modern-php-features.md",
+        "references/php56-legacy.md",
+        "references/phpunit57-php56-legacy.md",
+        "references/symfony-patterns.md",
+        "references/testing-quality.md",
+        "references/yii1-1.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "php-modern-pro": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "php-8x-features": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/feature-catalog.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "phpunit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/10.md",
+        "references/11.md",
+        "references/9.md",
+        "scripts/version-resolver.js"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/resolve-version.js",
+          "fixture_ids": [
+            "phpunit-local-version-guidance",
+            "phpunit-missing-version-blocked"
+          ]
+        }
+      ],
+      "host_capabilities": [],
+      "internal_helpers": [
+        {
+          "path": "scripts/version-resolver.js",
+          "required_by": [
+            "scripts/resolve-version.js"
+          ]
+        }
+      ]
+    },
+    "legacy-code-characterization": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "evals/evals.json"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "pytest-async": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "python-pro": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "python-static-checks": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "react-18-notes": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/frontend-framework-routing.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "react-19-notes": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/frontend-framework-routing.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "swift-test-strategy": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/protocol-di-host-testing.md",
+        "references/snapshot-testing.md",
+        "references/swift-testing-api.md",
+        "references/test-taxonomy.md",
+        "references/xctest-bridging.md",
+        "references/xcuitest.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "swift-language": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/approachable-concurrency.md",
+        "references/concurrency.md",
+        "references/error-handling.md",
+        "references/swift5-compat-notes.md",
+        "references/value-vs-reference.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "swiftui-architecture": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/interop.md",
+        "references/mvvm-coordinator.md",
+        "references/navigation.md",
+        "references/observation-state.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "vue-2-notes": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "ios-icon-gen": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/generate_icons.swift",
+          "fixture_ids": [
+            "remaining-ios-swift-list"
+          ]
+        },
+        {
+          "path": "scripts/iconify_gen.sh",
+          "fixture_ids": [
+            "remaining-ios-iconify-generate"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "xcode-build-tooling": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/scheme-signing.md",
+        "references/swiftlint-config.md",
+        "references/xcodebuild-spm.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "php56-yii-dev": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/context7-sources-and-query-rules.md",
+        "references/ddd-lite-for-yii1.md",
+        "references/php56-php7-safe-subset.md",
+        "references/phpunit57-legacy-test-traps.md",
+        "references/tdd-workflow-and-test-strategy.md",
+        "references/yii1-backend-patterns.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "yii1-security-audit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "evals/evals.json",
+        "references/yii1-security-patterns.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "flow-guide": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/anti-loop.md",
+        "references/codex-mode.md",
+        "references/codex-usage-catalog.json",
+        "references/component-addition-policy.md",
+        "references/delivery-core.md",
+        "references/delivery-loop-gate.md",
+        "references/deterministic-first.md",
+        "references/dispatch-and-gates.md",
+        "references/execution-bundle/docs/contracts/review-lifecycle.md",
+        "references/execution-bundle/docs/contracts/reviewer-contract.md",
+        "references/execution-bundle/docs/subagent-prompt-template.md",
+        "references/execution-bundle/manifests/host-profiles.json",
+        "references/execution-bundle/manifests/provider-model-catalog.json",
+        "references/execution-bundle/rules/anti-rationalization.md",
+        "references/execution-bundle/rules/execution-policy-kernel.md",
+        "references/execution-bundle/rules/execution-policy.md",
+        "references/execution-bundle/rules/model-economics.md",
+        "references/execution-bundle/rules/tool-routing.md",
+        "references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+        "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+        "references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+        "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+        "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+        "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+        "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+        "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+        "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+        "references/handoff-and-verification.md",
+        "references/implementation-dispatch.md",
+        "references/invocation-classification.md",
+        "references/invocation-precedence.md",
+        "references/output-shape.md",
+        "references/premise-verification.md",
+        "references/profile-and-project-overrides.md",
+        "references/progression-tables.md",
+        "references/projects-generic.md",
+        "references/projects-index.md",
+        "references/review-gate-mechanics.md",
+        "references/route-result.schema.json",
+        "references/route-table.json",
+        "references/script-operations.md",
+        "references/squash-merge-hygiene.md",
+        "references/task-modes.md",
+        "references/testing-policy.md",
+        "references/work-item-and-gates.md",
+        "references/workflow-analysis.md",
+        "references/workflow-bugfix.md",
+        "references/workflow-checklists.md",
+        "references/workflow-feature-delivery.md",
+        "references/workflow-lightweight.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/action-runner.js",
+          "fixture_ids": [
+            "flow-guide-help-unknown",
+            "flow-guide-help-known-non-codex",
+            "flow-guide-help-retired-name",
+            "flow-guide-rules-local-policy",
+            "flow-guide-close-local-resources"
+          ]
+        },
+        {
+          "path": "scripts/usage-card.js",
+          "fixture_ids": [
+            "flow-guide-usage-local-card"
+          ]
+        },
+        {
+          "path": "scripts/analyze.js",
+          "fixture_ids": [
+            "flow-guide-analyze-consumer"
+          ]
+        },
+        {
+          "path": "scripts/prepare_workflow_profile.py",
+          "fixture_ids": [
+            "flow-guide-prepare-consumer-profile"
+          ]
+        },
+        {
+          "path": "scripts/prepare_dev_scope.py",
+          "fixture_ids": [
+            "flow-guide-prepare-consumer-scope"
+          ]
+        },
+        {
+          "path": "scripts/workflow_gate_check.py",
+          "fixture_ids": [
+            "flow-guide-workflow-missing-evidence"
+          ]
+        },
+        {
+          "path": "scripts/openspec_gate_check.py",
+          "fixture_ids": [
+            "flow-guide-openspec-ready-fixture"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/fast-worker-selector.js",
+          "fixture_ids": [
+            "flow-guide-bundled-selector-native"
+          ]
+        },
+        {
+          "path": "scripts/pre-route.sh",
+          "fixture_ids": [
+            "remaining-flow-guide-pre-route-local-table"
+          ]
+        }
+      ],
+      "host_capabilities": [],
+      "api_entries": [
+        {
+          "path": "scripts/route-result.js",
+          "fixture_ids": [
+            "flow-guide-route-explicit-authority"
+          ]
+        }
+      ],
+      "internal_helpers": [
+        {
+          "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js",
+            "references/execution-bundle/scripts/lib/dispatch-engine.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+          "required_by": [
+            "scripts/route-result.js"
+          ]
+        },
+        {
+          "path": "scripts/_lib/runtime-loader.js",
+          "required_by": [
+            "scripts/analyze.js",
+            "scripts/usage-card.js",
+            "scripts/route-result.js"
+          ]
+        },
+        {
+          "path": "scripts/_lib/runner-utils.js",
+          "required_by": [
+            "scripts/analyze.js"
+          ]
+        },
+        {
+          "path": "scripts/_lib/command-namespace.js",
+          "required_by": [
+            "scripts/analyze.js"
+          ]
+        },
+        {
+          "path": "scripts/_lib/feature-resolver.js",
+          "required_by": [
+            "scripts/analyze.js"
+          ]
+        },
+        {
+          "path": "scripts/_lib/skill-usage.js",
+          "required_by": [
+            "scripts/usage-card.js"
+          ]
+        }
+      ]
+    },
+    "agent-architecture-audit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/layers-and-failure-patterns.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "agy-fast-worker": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "scripts/report-schema.json"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/run-agy.sh",
+          "fixture_ids": [
+            "bridge-agy-contained-success",
+            "bridge-agy-attestation-required",
+            "bridge-agy-tool-unavailable"
+          ]
+        }
+      ],
+      "host_capabilities": [
+        "agy-cli"
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/cli-transport/prepare-cli-request.py",
+          "required_by": [
+            "scripts/run-agy.sh"
+          ]
+        },
+        {
+          "path": "scripts/cli-transport/run-cli-transport.py",
+          "required_by": [
+            "scripts/run-agy.sh"
+          ]
+        }
+      ],
+      "host_evidence": {
+        "agy-cli": {
+          "status": "NOT_RUN",
+          "reason": "Only isolated stub-provider fixtures have executed; no real provider Host probe."
+        }
+      }
+    },
+    "code-trace": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/diagnose/checklists.md",
+        "references/diagnose/condition-based-waiting.md",
+        "references/diagnose/defense-in-depth.md",
+        "references/diagnose/examples.md",
+        "references/diagnose/phase-templates.md",
+        "references/diagnose/root-cause-tracing.md",
+        "references/diagnose/scripts.md",
+        "references/diagnose/wait-for-helper.ts",
+        "references/explore/dual-perspective.md",
+        "references/explore/explain.md",
+        "references/explore/search-patterns.md",
+        "references/history/commands.md",
+        "references/history/wsl-traps.md",
+        "references/select-tool/decision-tree.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/diagnose/find-polluter.sh",
+          "fixture_ids": [
+            "remaining-code-trace-find-polluter-multi-file"
+          ]
+        },
+        {
+          "path": "scripts/diagnose/analyze-function-calls.sh",
+          "fixture_ids": [
+            "remaining-code-trace-analyze-function-calls"
+          ]
+        },
+        {
+          "path": "scripts/diagnose/check-tools.sh",
+          "fixture_ids": [
+            "remaining-code-trace-check-tools-unavailable"
+          ]
+        },
+        {
+          "path": "scripts/diagnose/generate-flow-diagram.sh",
+          "fixture_ids": [
+            "remaining-code-trace-generate-flow-diagram"
+          ]
+        },
+        {
+          "path": "scripts/diagnose/search-database-queries.sh",
+          "fixture_ids": [
+            "remaining-code-trace-search-database-queries"
+          ]
+        },
+        {
+          "path": "scripts/diagnose/trace-data-flow.sh",
+          "fixture_ids": [
+            "remaining-code-trace-trace-data-flow"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "cli-dispatch-context": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/launch-cli-dispatch.js",
+          "fixture_ids": [
+            "bridge-dispatch-codex-local-closure",
+            "bridge-dispatch-agy-local-closure",
+            "bridge-dispatch-rejected-authority"
+          ]
+        }
+      ],
+      "host_capabilities": [],
+      "internal_helpers": [
+        {
+          "path": "scripts/run-codex.sh",
+          "required_by": [
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/run-agy.sh",
+          "required_by": [
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/cli-transport/prepare-cli-request.py",
+          "required_by": [
+            "scripts/run-codex.sh",
+            "scripts/run-agy.sh"
+          ]
+        },
+        {
+          "path": "scripts/cli-transport/run-cli-transport.py",
+          "required_by": [
+            "scripts/run-codex.sh",
+            "scripts/run-agy.sh"
+          ]
+        },
+        {
+          "path": "scripts/build-cli-dispatch-context.js",
+          "required_by": [
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/cli-role-resolver.js",
+          "required_by": [
+            "scripts/build-cli-dispatch-context.js",
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/physical-file.js",
+          "required_by": [
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/physical-file.py",
+          "required_by": [
+            "scripts/physical-file.js"
+          ]
+        }
+      ]
+    },
+    "cli-transport": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "scripts/prepare-cli-request.py",
+        "scripts/run-cli-transport.py"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/prepare-cli-request.py",
+          "fixture_ids": [
+            "bridge-transport-prepare-attested"
+          ]
+        },
+        {
+          "path": "scripts/run-cli-transport.py",
+          "fixture_ids": [
+            "bridge-transport-contained-success",
+            "bridge-transport-rejected-authority"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "codex-bridge": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "scripts/report-schema.json"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/run-codex.sh",
+          "fixture_ids": [
+            "bridge-codex-contained-success",
+            "bridge-codex-attestation-required",
+            "bridge-codex-tool-unavailable"
+          ]
+        }
+      ],
+      "host_capabilities": [
+        "codex-cli"
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/cli-transport/prepare-cli-request.py",
+          "required_by": [
+            "scripts/run-codex.sh"
+          ]
+        },
+        {
+          "path": "scripts/cli-transport/run-cli-transport.py",
+          "required_by": [
+            "scripts/run-codex.sh"
+          ]
+        }
+      ],
+      "host_evidence": {
+        "codex-cli": {
+          "status": "NOT_RUN",
+          "reason": "Only isolated stub-provider fixtures have executed; no real provider Host probe."
+        }
+      },
+      "api_entries": [
+        {
+          "path": "scripts/codex-timeout-envelope.js",
+          "fixture_ids": []
+        }
+      ]
+    },
+    "change-verdict": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/code/codex-prompt-branch.md",
+        "references/code/codex-prompt-fast.md",
+        "references/code/codex-prompt-full.md",
+        "references/docs/codex-prompt-doc.md",
+        "references/docs/review-loop-doc.md",
+        "references/risk/output-template.md",
+        "references/risk/risk-dimensions.md",
+        "references/security/codex-prompt-security.md",
+        "references/security/examples.md",
+        "references/shared/cli-backend.md",
+        "references/shared/codex-research-instructions.md",
+        "references/shared/command-context.md",
+        "references/shared/review-common.md",
+        "references/shared/review-rubric.md",
+        "references/shared/review-workflow.md",
+        "references/tests/codex-prompt-ac-trace.md",
+        "references/tests/codex-prompt-test-review.md",
+        "templates/review_output.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/check-unrelated-changes.sh",
+          "fixture_ids": [
+            "remaining-change-verdict-unrelated-squash-warning",
+            "remaining-change-verdict-unrelated-merge-skip"
+          ]
+        },
+        {
+          "path": "scripts/review-cli.sh",
+          "fixture_ids": [
+            "remaining-change-verdict-review-cli-stub"
+          ]
+        },
+        {
+          "path": "scripts/risk-analyze.js",
+          "fixture_ids": [
+            "audit-change-verdict-clean",
+            "audit-change-verdict-unsupported-source"
+          ]
+        }
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/lib/runner-utils.js",
+          "required_by": [
+            "scripts/risk-analyze.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/command-namespace.js",
+          "required_by": [
+            "scripts/risk-analyze.js"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "flow-drive": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/execution-bundle/docs/contracts/review-lifecycle.md",
+        "references/execution-bundle/docs/contracts/reviewer-contract.md",
+        "references/execution-bundle/docs/subagent-prompt-template.md",
+        "references/execution-bundle/manifests/host-profiles.json",
+        "references/execution-bundle/manifests/provider-model-catalog.json",
+        "references/execution-bundle/rules/anti-rationalization.md",
+        "references/execution-bundle/rules/execution-policy-kernel.md",
+        "references/execution-bundle/rules/execution-policy.md",
+        "references/execution-bundle/rules/model-economics.md",
+        "references/execution-bundle/rules/tool-routing.md",
+        "references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+        "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+        "references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+        "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+        "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+        "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+        "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+        "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+        "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/invocation.js",
+          "fixture_ids": [
+            "flow-drive-confirmed-input",
+            "flow-drive-retired-codex-block"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/fast-worker-selector.js",
+          "fixture_ids": [
+            "flow-drive-bundled-selector-native"
+          ]
+        }
+      ],
+      "host_capabilities": [],
+      "api_entries": [
+        {
+          "path": "scripts/dispatch.js",
+          "fixture_ids": [
+            "flow-drive-dispatch-valid",
+            "flow-drive-dispatch-invalid-authority"
+          ]
+        }
+      ],
+      "internal_helpers": [
+        {
+          "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js",
+            "scripts/dispatch.js",
+            "references/execution-bundle/scripts/lib/dispatch-engine.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js",
+            "scripts/dispatch.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+          "required_by": [
+            "scripts/dispatch.js"
+          ]
+        }
+      ]
+    },
+    "composer-package-hygiene": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/package-contracts.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "skill-forge": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/end-to-end-example.md",
+        "references/results-schema.md",
+        "references/subagent-prompt.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/scan-rules.sh",
+          "fixture_ids": [
+            "remaining-skill-forge-scan-rules"
+          ]
+        },
+        {
+          "path": "scripts/scan-skills.sh",
+          "fixture_ids": [
+            "remaining-skill-forge-scan-skills"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "deploy-list": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "config.sh.example",
+        "evals/evals.json",
+        "evals/generic/expected/expected-fixture-01-php-yii.txt",
+        "evals/generic/expected/expected-fixture-02-laravel.txt",
+        "evals/generic/expected/expected-fixture-03-node.txt",
+        "evals/generic/expected/expected-fixture-04-python.txt",
+        "evals/generic/expected/expected-fixture-05-generic.txt",
+        "evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+        "evals/generic/fixtures/fixture-01-php-yii.sh",
+        "evals/generic/fixtures/fixture-02-laravel.sh",
+        "evals/generic/fixtures/fixture-03-node.sh",
+        "evals/generic/fixtures/fixture-04-python.sh",
+        "evals/generic/fixtures/fixture-05-generic.sh",
+        "evals/generic/fixtures/fixture-07-anchor-mode.sh",
+        "i18n/en.sh",
+        "i18n/zh-TW.sh",
+        "presets/generic.sh",
+        "presets/laravel.sh",
+        "presets/node.sh",
+        "presets/php-yii.sh",
+        "presets/python.sh",
+        "references/extended-presets.example/php-yii-acmeshop.sh",
+        "references/presets.md",
+        "references/why-this-grouping.md",
+        "scripts/deploy-list.sh"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/check-golden.sh",
+          "fixture_ids": [
+            "remaining-deploy-list-check-golden"
+          ]
+        },
+        {
+          "path": "scripts/deploy-list.sh",
+          "fixture_ids": [
+            "remaining-deploy-list-generate"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "feature-verify": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/blackbox-testing.md",
+        "references/environments.md",
+        "references/output-template.md",
+        "references/safety-rules.md",
+        "references/verification-playbook.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/api-exec.sh",
+          "fixture_ids": [
+            "remaining-feature-verify-api-success",
+            "remaining-feature-verify-api-transport-failure"
+          ]
+        },
+        {
+          "path": "scripts/health-probe.sh",
+          "fixture_ids": [
+            "remaining-feature-verify-health-retry-success",
+            "remaining-feature-verify-health-retry-exhausted"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "git-smart-commit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "gitnexus-cli": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "gitnexus-debugging": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "gitnexus-exploring": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "gitnexus-guide": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "gitnexus-impact-analysis": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "gitnexus-refactoring": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "issue-analyze": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/classification.md",
+        "references/report-template.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "laravel-package-author": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/authoring-patterns.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "laravel-testbench-matrix": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/testbench-recipes.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "opsx-apply-goal": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/detection.md",
+        "references/execution-bundle/docs/contracts/review-lifecycle.md",
+        "references/execution-bundle/docs/contracts/reviewer-contract.md",
+        "references/execution-bundle/docs/subagent-prompt-template.md",
+        "references/execution-bundle/manifests/host-profiles.json",
+        "references/execution-bundle/manifests/provider-model-catalog.json",
+        "references/execution-bundle/rules/anti-rationalization.md",
+        "references/execution-bundle/rules/execution-policy-kernel.md",
+        "references/execution-bundle/rules/execution-policy.md",
+        "references/execution-bundle/rules/model-economics.md",
+        "references/execution-bundle/rules/tool-routing.md",
+        "references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+        "references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+        "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+        "references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+        "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+        "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+        "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+        "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+        "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+        "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+        "references/gate-contracts.md",
+        "references/goal-templates.md",
+        "references/output-blocks.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/analyze-change.sh",
+          "fixture_ids": [
+            "goal-analyzer-local-closure",
+            "goal-analyzer-missing-transitive-resource",
+            "goal-orientation-dispatch-off-local-policy",
+            "goal-orientation-dispatch-on-local-policy"
+          ]
+        },
+        {
+          "path": "scripts/launch-cli-dispatch.js",
+          "fixture_ids": [
+            "goal-dispatch-codex-local-success",
+            "goal-dispatch-agy-local-success",
+            "goal-dispatch-rejected-authority"
+          ]
+        },
+        {
+          "path": "scripts/review-gate-runtime.js",
+          "fixture_ids": [
+            "goal-review-gate-unresolved-evidence"
+          ]
+        }
+      ],
+      "host_capabilities": [
+        "claude-code-goal"
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/goal-context.js",
+          "required_by": [
+            "scripts/analyze-change.sh"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/fast-worker-selector.js",
+          "required_by": [
+            "scripts/goal-context.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/dispatch-contract.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js",
+            "references/execution-bundle/scripts/lib/dispatch-engine.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/dispatch-engine.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js"
+          ]
+        },
+        {
+          "path": "references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+          "required_by": [
+            "references/execution-bundle/scripts/fast-worker-selector.js"
+          ]
+        },
+        {
+          "path": "scripts/build-cli-dispatch-context.js",
+          "required_by": [
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/cli-role-resolver.js",
+          "required_by": [
+            "scripts/build-cli-dispatch-context.js",
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/physical-file.js",
+          "required_by": [
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/physical-file.py",
+          "required_by": [
+            "scripts/physical-file.js"
+          ]
+        },
+        {
+          "path": "scripts/run-codex.sh",
+          "required_by": [
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/run-agy.sh",
+          "required_by": [
+            "scripts/launch-cli-dispatch.js"
+          ]
+        },
+        {
+          "path": "scripts/cli-transport/prepare-cli-request.py",
+          "required_by": [
+            "scripts/run-codex.sh",
+            "scripts/run-agy.sh"
+          ]
+        },
+        {
+          "path": "scripts/cli-transport/run-cli-transport.py",
+          "required_by": [
+            "scripts/run-codex.sh",
+            "scripts/run-agy.sh"
+          ]
+        },
+        {
+          "path": "scripts/lib/claude-review-gate-adapter.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime-composition.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/physical-file.js",
+          "required_by": [
+            "scripts/lib/receipt-primitives.js",
+            "scripts/lib/review-gate-receipt-store.js",
+            "scripts/lib/review-gate-runtime-attestation.js",
+            "scripts/lib/review-gate-runtime-storage.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/receipt-json-primitives.js",
+          "required_by": [
+            "scripts/lib/receipt-primitives.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/receipt-primitives.js",
+          "required_by": [
+            "scripts/lib/claude-review-gate-adapter.js",
+            "scripts/lib/review-gate-evidence.js",
+            "scripts/lib/review-gate-receipt-store.js",
+            "scripts/lib/review-gate-runtime-attestation.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime-evidence.js",
+            "scripts/lib/review-gate-runtime-storage.js",
+            "scripts/lib/review-gate.js",
+            "scripts/lib/risk-router.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/redaction.js",
+          "required_by": [
+            "scripts/lib/receipt-primitives.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-evidence.js",
+          "required_by": [
+            "scripts/lib/review-gate.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-receipt-store.js",
+          "required_by": [
+            "scripts/lib/claude-review-gate-adapter.js",
+            "scripts/lib/review-gate-evidence.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-attestation.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime-storage.js",
+            "scripts/lib/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-checkpoint.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-composition.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-errors.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime-attestation.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime-evidence.js",
+            "scripts/lib/review-gate-runtime-storage.js",
+            "scripts/lib/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-evidence.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-storage.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime-evidence.js",
+            "scripts/lib/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime.js",
+          "required_by": [
+            "scripts/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-store-budget.js",
+          "required_by": [
+            "scripts/lib/receipt-primitives.js",
+            "scripts/lib/review-gate-receipt-store.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate.js",
+          "required_by": [
+            "scripts/lib/claude-review-gate-adapter.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-storage.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/reviewer-contract.js",
+          "required_by": [
+            "scripts/lib/claude-review-gate-adapter.js",
+            "scripts/lib/review-gate-evidence.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-evidence.js",
+            "scripts/lib/risk-router.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/risk-router.js",
+          "required_by": [
+            "scripts/lib/review-gate-evidence.js",
+            "scripts/lib/review-gate-runtime-composition.js"
+          ]
+        }
+      ],
+      "host_evidence": {
+        "claude-code-goal": {
+          "status": "NOT_RUN",
+          "reason": "Raw-directory fixtures and policy contracts do not execute the actual Claude goal Host."
+        }
+      }
+    },
+    "opsx-load-context": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/extractor-resolution.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/extract-compact.sh",
+          "fixture_ids": [
+            "resume-extract-compact-owner"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "opsx-post-obs": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/post-obs.sh",
+          "fixture_ids": [
+            "resume-post-observation-owner-unavailable"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "polyfill-version-matrix-audit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "project-audit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/check-catalog.md",
+        "references/output-template.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/audit.js",
+          "fixture_ids": [
+            "audit-project-audit-healthy",
+            "audit-project-audit-empty"
+          ]
+        }
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/lib/runner-utils.js",
+          "required_by": [
+            "scripts/audit.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/command-namespace.js",
+          "required_by": [
+            "scripts/audit.js"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "project-setup": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/detection-rules.md",
+        "references/env-config-phase.md",
+        "references/final-phase.md",
+        "references/install-hooks-scripts.md",
+        "references/install-rules-phase.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/install-project-assets.sh",
+          "fixture_ids": [
+            "setup-project-explicit-hooks-success",
+            "setup-project-explicit-artifact-required",
+            "setup-project-missing-local-writer"
+          ]
+        }
+      ],
+      "host_capabilities": [
+        "Read",
+        "Glob",
+        "AskUserQuestion",
+        "Edit",
+        "Write"
+      ],
+      "api_entries": [],
+      "internal_helpers": [
+        {
+          "path": "scripts/lib/install-assets-writer.sh",
+          "required_by": [
+            "scripts/install-project-assets.sh"
+          ]
+        }
+      ],
+      "host_evidence": {
+        "Read": {
+          "status": "NOT_RUN",
+          "reason": "Instruction-only Claude procedure; isolated install fixtures do not execute Host detection/render/confirmation/write."
+        },
+        "Glob": {
+          "status": "NOT_RUN",
+          "reason": "Instruction-only Claude procedure; isolated install fixtures do not execute Host detection/render/confirmation/write."
+        },
+        "AskUserQuestion": {
+          "status": "NOT_RUN",
+          "reason": "Instruction-only Claude procedure; isolated install fixtures do not execute Host detection/render/confirmation/write."
+        },
+        "Edit": {
+          "status": "NOT_RUN",
+          "reason": "Instruction-only Claude procedure; isolated install fixtures do not execute Host detection/render/confirmation/write."
+        },
+        "Write": {
+          "status": "NOT_RUN",
+          "reason": "Instruction-only Claude procedure; isolated install fixtures do not execute Host detection/render/confirmation/write."
+        }
+      }
+    },
+    "prompt-optimize": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/completeness-checklist.md",
+        "references/effort-guide.md",
+        "references/general-techniques.md",
+        "references/live-model-verification-2026-08-05.md",
+        "references/model-guides.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "release-creator": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/release-presets.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/release-runner.sh",
+          "fixture_ids": [
+            "release-unmerged-blocked",
+            "release-unrelated-change-blocked",
+            "release-prepare-explicit-files"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "repo-intake": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/archived/MIDWAY_HEURISTICS.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/intake_cached.js",
+          "fixture_ids": [
+            "audit-repo-intake-cached"
+          ]
+        },
+        {
+          "path": "scripts/scan_delta.js",
+          "fixture_ids": [
+            "audit-repo-intake-delta",
+            "audit-repo-intake-delta-no-git"
+          ]
+        },
+        {
+          "path": "scripts/scan_repo.js",
+          "fixture_ids": [
+            "audit-repo-intake-scan",
+            "audit-repo-intake-scan-no-git"
+          ]
+        }
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/lib/runner-utils.js",
+          "required_by": [
+            "scripts/scan_repo.js"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "session-usage-audit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/finding-taxonomy.md",
+        "references/issue-template.md",
+        "references/source-adapters.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/session-usage-audit.js",
+          "fixture_ids": [
+            "remaining-session-usage-audit-report",
+            "remaining-session-usage-audit-issue-approval",
+            "remaining-session-usage-audit-no-ambient-package-root"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "skill-scope": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/judge-failure-patterns.md",
+        "references/judge-philosophy.md",
+        "references/judge-scoring-rubric.md",
+        "references/routing-signature-guide.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/skill-lint.js",
+          "fixture_ids": [
+            "remaining-skill-scope-lint"
+          ]
+        },
+        {
+          "path": "scripts/scan.sh",
+          "fixture_ids": [
+            "remaining-skill-scope-scan"
+          ]
+        },
+        {
+          "path": "scripts/quick-diff.sh",
+          "fixture_ids": [
+            "remaining-skill-scope-quick-diff"
+          ]
+        },
+        {
+          "path": "scripts/save-results.sh",
+          "fixture_ids": [
+            "remaining-skill-scope-save-results"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "software-architecture": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "tdd": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "mocking.md",
+        "tests.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "harness-govern": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/best-practices.md",
+        "references/budget-workflow.md",
+        "references/capability-sources.md",
+        "references/execution-contract.md",
+        "references/fill-workflow.md",
+        "references/frontmatter-templates.md",
+        "references/harness-directory-contract.md",
+        "references/health-workflow.md",
+        "references/hygiene-checks.md",
+        "references/improvement-todo.md",
+        "references/platform-mapping.md",
+        "references/plugin-sync.md",
+        "references/revise-workflow.md",
+        "references/risk-policy.md",
+        "references/runtime-entrypoints.md",
+        "references/source-conflicts.json",
+        "references/sync-workflow.md",
+        "references/usage-examples.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/harness-inventory.sh",
+          "fixture_ids": [
+            "remaining-harness-govern-inventory"
+          ]
+        },
+        {
+          "path": "scripts/harness-scenarios.sh",
+          "fixture_ids": [
+            "remaining-harness-govern-scenarios-not-run"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync.py",
+          "fixture_ids": [
+            "remaining-harness-govern-sync-self-test"
+          ]
+        },
+        {
+          "path": "scripts/test-harness.sh",
+          "fixture_ids": [
+            "remaining-harness-govern-test-not-run"
+          ]
+        }
+      ],
+      "host_capabilities": [],
+      "internal_helpers": [
+        {
+          "path": "scripts/multi_ai_sync_lib/__init__.py",
+          "required_by": [
+            "scripts/multi_ai_sync.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/cli.py",
+          "required_by": [
+            "scripts/multi_ai_sync.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/apply_sync_v2.py",
+          "required_by": [
+            "scripts/multi_ai_sync_lib/cli.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/mapping.py",
+          "required_by": [
+            "scripts/multi_ai_sync_lib/cli.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/validation.py",
+          "required_by": [
+            "scripts/multi_ai_sync_lib/cli.py",
+            "scripts/multi_ai_sync_lib/apply_sync_v2.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/agent_sync.py",
+          "required_by": [
+            "scripts/multi_ai_sync_lib/apply_sync_v2.py",
+            "scripts/multi_ai_sync_lib/validation.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/sources.py",
+          "required_by": [
+            "scripts/multi_ai_sync_lib/mapping.py",
+            "scripts/multi_ai_sync_lib/validation.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/cursor_project_local.py",
+          "required_by": [
+            "scripts/multi_ai_sync_lib/validation.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/constants.py",
+          "required_by": [
+            "scripts/multi_ai_sync_lib/cli.py",
+            "scripts/multi_ai_sync_lib/apply_sync_v2.py",
+            "scripts/multi_ai_sync_lib/mapping.py",
+            "scripts/multi_ai_sync_lib/validation.py",
+            "scripts/multi_ai_sync_lib/sources.py"
+          ]
+        },
+        {
+          "path": "scripts/multi_ai_sync_lib/utils.py",
+          "required_by": [
+            "scripts/multi_ai_sync_lib/cli.py",
+            "scripts/multi_ai_sync_lib/apply_sync_v2.py",
+            "scripts/multi_ai_sync_lib/mapping.py",
+            "scripts/multi_ai_sync_lib/validation.py",
+            "scripts/multi_ai_sync_lib/sources.py",
+            "scripts/multi_ai_sync_lib/agent_sync.py"
+          ]
+        }
+      ],
+      "inert_scripts": [
+        {
+          "path": "scripts/multi_ai_sync_lib/apply_sync.py",
+          "reason": "deprecated v1 apply logic retained for reference only; cli.py imports apply_sync_v2.py and nothing loads this module"
+        }
+      ]
+    },
+    "create-pr": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "git-worktree": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "merge-prep": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "pr-summary": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "proposal-analyze": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "project-brief": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "doc-refactor": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "update-docs": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "update-codemaps": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "precommit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md",
+        "scripts/lib/runner-utils.js"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/precommit-runner.js",
+          "fixture_ids": [
+            "pilot-precommit-fast-success",
+            "pilot-precommit-full-success",
+            "pilot-precommit-first-step-failure",
+            "pilot-precommit-package-tool-unavailable"
+          ]
+        }
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/lib/runner-utils.js",
+          "required_by": [
+            "scripts/precommit-runner.js"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "dep-audit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": [
+        "independent-security-review"
+      ],
+      "host_evidence": {
+        "independent-security-review": {
+          "status": "NOT_RUN",
+          "reason": "Only isolated static instruction contract checked; no independent Host review executed."
+        }
+      }
+    },
+    "repo-verify": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md",
+        "scripts/lib/runner-utils.js"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/verify-runner.js",
+          "fixture_ids": [
+            "pilot-repo-verify-fast-success",
+            "pilot-repo-verify-full-forwarding",
+            "pilot-repo-verify-first-step-failure",
+            "pilot-repo-verify-package-tool-unavailable"
+          ]
+        }
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/lib/runner-utils.js",
+          "required_by": [
+            "scripts/verify-runner.js"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "code-simplify": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/refactor-contract.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": []
+    },
+    "harness-audit": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/harness-audit.js",
+          "fixture_ids": [
+            "audit-harness-json-scorecard",
+            "audit-harness-invalid-scope"
+          ]
+        }
+      ],
+      "host_capabilities": []
+    },
+    "review-pending": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/workflow.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": [
+        "code-reviewer-role"
+      ],
+      "host_evidence": {
+        "code-reviewer-role": {
+          "status": "NOT_RUN",
+          "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
+        }
+      }
+    },
+    "spec-mine": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/spec-miner-contract.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": [
+        "spec-miner-role"
+      ],
+      "host_evidence": {
+        "spec-miner-role": {
+          "status": "NOT_RUN",
+          "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
+        }
+      }
+    },
+    "harness-setup": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "data/module-catalog.json",
+        "references/claude-setup.md",
+        "references/codex-setup.md",
+        "templates/settings.local.json.example"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/install-assets.sh",
+          "fixture_ids": [
+            "setup-harness-explicit-hooks-success",
+            "setup-harness-missing-local-writer",
+            "setup-harness-explicit-artifact-required",
+            "setup-harness-invalid-artifact-no-mutation"
+          ]
+        },
+        {
+          "path": "scripts/install-codex-project.sh",
+          "fixture_ids": [
+            "setup-codex-local-wrapper-valid-artifact",
+            "setup-codex-pinned-artifact-root"
+          ]
+        },
+        {
+          "path": "scripts/review-gate-runtime.js",
+          "fixture_ids": [
+            "setup-harness-review-gate-local-closure"
+          ]
+        }
+      ],
+      "host_capabilities": [],
+      "api_entries": [],
+      "internal_helpers": [
+        {
+          "path": "scripts/lib/install-assets-writer.sh",
+          "required_by": [
+            "scripts/install-assets.sh"
+          ]
+        },
+        {
+          "path": "scripts/lib/install-codex-skills.sh",
+          "required_by": [
+            "scripts/install-codex-project.sh"
+          ]
+        },
+        {
+          "path": "scripts/lib/claude-review-gate-adapter.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime-composition.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/physical-file.js",
+          "required_by": [
+            "scripts/lib/receipt-primitives.js",
+            "scripts/lib/review-gate-receipt-store.js",
+            "scripts/lib/review-gate-runtime-attestation.js",
+            "scripts/lib/review-gate-runtime-storage.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/receipt-json-primitives.js",
+          "required_by": [
+            "scripts/lib/receipt-primitives.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/receipt-primitives.js",
+          "required_by": [
+            "scripts/lib/claude-review-gate-adapter.js",
+            "scripts/lib/review-gate-evidence.js",
+            "scripts/lib/review-gate-receipt-store.js",
+            "scripts/lib/review-gate-runtime-attestation.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime-evidence.js",
+            "scripts/lib/review-gate-runtime-storage.js",
+            "scripts/lib/review-gate.js",
+            "scripts/lib/risk-router.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/redaction.js",
+          "required_by": [
+            "scripts/lib/receipt-primitives.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-evidence.js",
+          "required_by": [
+            "scripts/lib/review-gate.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-receipt-store.js",
+          "required_by": [
+            "scripts/lib/claude-review-gate-adapter.js",
+            "scripts/lib/review-gate-evidence.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime.js",
+          "required_by": [
+            "scripts/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-attestation.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime.js",
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime-storage.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-checkpoint.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime.js",
+            "scripts/lib/review-gate-runtime-composition.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-composition.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-errors.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime.js",
+            "scripts/lib/review-gate-runtime-attestation.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime-evidence.js",
+            "scripts/lib/review-gate-runtime-storage.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-evidence.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime.js",
+            "scripts/lib/review-gate-runtime-composition.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-runtime-storage.js",
+          "required_by": [
+            "scripts/lib/review-gate-runtime.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-composition.js",
+            "scripts/lib/review-gate-runtime-evidence.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate-store-budget.js",
+          "required_by": [
+            "scripts/lib/receipt-primitives.js",
+            "scripts/lib/review-gate-receipt-store.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/review-gate.js",
+          "required_by": [
+            "scripts/lib/claude-review-gate-adapter.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-storage.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/reviewer-contract.js",
+          "required_by": [
+            "scripts/lib/claude-review-gate-adapter.js",
+            "scripts/lib/review-gate-evidence.js",
+            "scripts/lib/review-gate-runtime-checkpoint.js",
+            "scripts/lib/review-gate-runtime-evidence.js",
+            "scripts/lib/risk-router.js"
+          ]
+        },
+        {
+          "path": "scripts/lib/risk-router.js",
+          "required_by": [
+            "scripts/lib/review-gate-evidence.js",
+            "scripts/lib/review-gate-runtime-composition.js"
+          ]
+        }
+      ]
+    },
+    "opsx-apply-resume": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/resume.md",
+        "references/save.md"
+      ],
+      "executable_entries": [
+        {
+          "path": "scripts/detect-phase.sh",
+          "fixture_ids": [
+            "resume-detect-missing-handoff-save",
+            "resume-detect-saved-old-resume"
+          ]
+        },
+        {
+          "path": "scripts/set-handoff-state.sh",
+          "fixture_ids": [
+            "resume-set-state-consuming"
+          ]
+        },
+        {
+          "path": "scripts/write-handoff.sh",
+          "fixture_ids": [
+            "resume-write-create-explicit",
+            "resume-write-missing-leaf-dhpk-symlink",
+            "resume-write-missing-leaf-claude-symlink",
+            "resume-write-missing-leaf-explicit-symlink"
+          ]
+        },
+        {
+          "path": "scripts/extract-compact.sh",
+          "fixture_ids": [
+            "resume-extract-compact-copy"
+          ]
+        },
+        {
+          "path": "scripts/post-obs.sh",
+          "fixture_ids": [
+            "resume-post-observation-copy-unavailable"
+          ]
+        }
+      ],
+      "host_capabilities": [
+        "host-session-save-resume"
+      ],
+      "internal_helpers": [
+        {
+          "path": "scripts/lib/portable-sed.sh",
+          "required_by": [
+            "scripts/set-handoff-state.sh"
+          ]
+        }
+      ],
+      "host_evidence": {
+        "host-session-save-resume": {
+          "status": "NOT_RUN",
+          "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
+        }
+      }
+    },
+    "ui-ux-verify": {
+      "entry": "SKILL.md",
+      "references": [
+        "agents/openai.yaml",
+        "references/verification.md"
+      ],
+      "executable_entries": [],
+      "host_capabilities": [
+        "native-browser-capture"
+      ],
+      "host_evidence": {
+        "native-browser-capture": {
+          "status": "NOT_RUN",
+          "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
+        }
+      }
+    }
+  }
+}

@@ -149,7 +149,7 @@ grep -c '^- \[ \]' openspec/changes/<CHANGE_ID>/tasks.md   # open
 grep -c '^- \[x\]' openspec/changes/<CHANGE_ID>/tasks.md   # done
 # Review Gate status for the current task identity (RESOLVED or NOT_APPLICABLE)
 # Use the repository's runtime status command and record its bounded output.
-node scripts/review-gate-runtime.js status --work-id <WORK_ID> --wave-id <WAVE_ID>
+node <SKILL_ROOT_Q>/scripts/review-gate-runtime.js status --work-id <WORK_ID> --wave-id <WAVE_ID>
 ```
 
 Stall read: if two consecutive checks show the same `open` count with no new

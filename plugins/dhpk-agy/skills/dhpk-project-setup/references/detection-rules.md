@@ -1,5 +1,18 @@
 # Detection Rules
 
+## Host and resource boundary
+
+Detection is an instruction-driven Claude Host procedure. Use the declared
+`Read` and `Glob` capabilities to inspect only the consumer project and use
+the local `templates/CLAUDE.md` as the first-install shape. Do not create a
+detection or rendering executable and do not infer Host support from fixture
+execution. Until a supported Host probe observes the workflow, evidence stays
+`NOT_RUN`.
+
+Before a later phase writes, confirm `AskUserQuestion`, project `Edit`, and
+project `Write`. If any is unavailable, stop before mutation and report
+`BLOCKED` or `UNAVAILABLE` with `HOST_CAPABILITY_UNAVAILABLE: <capability>`.
+
 ## Ecosystem Detection
 
 | Priority | Manifest | Ecosystem |

@@ -10,15 +10,16 @@ metadata:
 
 Hand a **self-contained** mechanical task to the agy CLI (non-interactive print mode) and
 bring back the verification result plus the edited-file list. The bundled
-`scripts/run-agy.sh` owns the invocation mechanism; this skill and the
-`agents/agy-fast-worker.md` agent own *when* to offload and *how* to compose the prompt
-and enforce the gate.
+`$SKILL_DIR/scripts/run-agy.sh` owns the invocation mechanism; this document owns *when* to
+offload, *how* to compose the prompt, and *how* to enforce the gate. Here `$SKILL_DIR` is
+path notation for the installed directory containing this `SKILL.md`; it is not an ambient
+environment variable or a repository-root lookup.
 
 ## Invocation
 
 ```bash
 export DHPK_CLI_TRANSPORT_CONTEXT="<dispatcher-attested-context-0600.json>"
-bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-agy-fast-worker/scripts/run-agy.sh" \
+bash "$SKILL_DIR/scripts/run-agy.sh" \
   "<workdir>" "<prompt-file>" "<model>"
 ```
 
@@ -87,6 +88,6 @@ evidence.
   claim success for missing, empty, timed-out, or non-zero agy output.
 - [ ] After three failed attempts, the task is escalated instead of retried indefinitely.
 
-Full operational detail lives in `agents/agy-fast-worker.md`; this skill exists so the
-script-bearing directory carries the standard SKILL.md + allowed-tools surface (mirroring
-`skills/dhpk-codex-bridge/`).
+The Host may mention `agents/agy-fast-worker.md` as an integration detail, but this document
+is authoritative for the prompt, permission, availability, verification, and result procedure.
+The script-bearing directory carries the standard `SKILL.md` plus allowed-tools surface.

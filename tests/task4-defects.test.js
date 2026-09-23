@@ -115,7 +115,7 @@ test('release runner propagates a failed workflow through gh run watch --exit-st
   writeFile(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', 0o755);
   writeFile(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n\nif [ "$1 $2" = "pr list" ]; then printf "merge-commit-sha\\n"; fi\nif [ "$1 $2" = "run list" ]; then printf "run-123\\n"; fi\nif [ "$1 $2" = "run watch" ]; then exit 1; fi\n', 0o755);
   try {
-    const script = path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'release-runner.sh');
+    const script = path.join(ROOT, 'skills', 'release-creator', 'scripts', 'release-runner.sh');
     const res = spawnSync('bash', [script, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
       cwd: repo,
       encoding: 'utf8',
@@ -224,11 +224,13 @@ test('codex CLI review passes hostile values as literal arguments without eval',
   }
 });
 
-test('opsx context guidance resolves the extractor from a plugin root or reports unresolved', () => {
+test('opsx context guidance resolves only its local extractor or reports unresolved', () => {
   const skill = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-opsx-load-context', 'SKILL.md'), 'utf8');
-  assert.match(skill, /PLUGIN_ROOT|plugin root/i);
-  assert.match(skill, /installed|source checkout/i);
-  assert.match(skill, /unresolved/i);
+  const resolution = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-opsx-load-context', 'references', 'extractor-resolution.md'), 'utf8');
+  assert.match(skill, /references\/extractor-resolution\.md/);
+  assert.match(resolution, /own `scripts\/` directory; never search a parent checkout, ambient plugin root/);
+  assert.match(resolution, /CONTEXT_SOURCE=unresolved/);
+  assert.match(resolution, /continue to Tier 2 rather than/);
   assert.doesNotMatch(skill, /bash \.claude\/scripts\/opsx-apply-resume\/extract-compact\.sh/);
 });
 

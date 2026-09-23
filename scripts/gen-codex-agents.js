@@ -16,18 +16,18 @@ const ROLE_MAP = path.join(ROOT, 'codex', 'agent-role-map.json');
 // Claude runtime and must not silently overwrite the effective Codex model or
 // reasoning effort.
 const RUNTIME_METADATA = Object.freeze({
-  architect: { model: 'gpt-5.6-sol', effort: 'high' },
-  'code-reviewer': { model: 'gpt-5.6-terra', effort: 'medium' },
-  'security-reviewer': { model: 'gpt-5.6-sol', effort: 'high' },
-  'database-reviewer': { model: 'gpt-5.6-terra', effort: 'high' },
-  'tdd-guide': { model: 'gpt-5.6-luna', effort: 'max' },
-  'deep-reasoner': { model: 'gpt-5.6-sol', effort: 'high' },
-  'doc-reviewer': { model: 'gpt-5.6-luna', effort: 'medium' },
-  planner: { model: 'gpt-5.6-sol', effort: 'high' },
-  'spec-miner': { model: 'gpt-5.6-sol', effort: 'high' },
-  'frontend-reviewer': { model: 'gpt-5.6-terra', effort: 'high' },
-  'migration-reviewer': { model: 'gpt-5.6-sol', effort: 'high' },
-  'e2e-runner': { model: 'gpt-5.6-terra', effort: 'high' },
+  architect: { model: 'gpt-6-sol', effort: 'high' },
+  'code-reviewer': { model: 'gpt-6-sol', effort: 'medium' },
+  'security-reviewer': { model: 'gpt-6-sol', effort: 'high' },
+  'database-reviewer': { model: 'gpt-6-sol', effort: 'high' },
+  'tdd-guide': { model: 'gpt-6-luna', effort: 'max' },
+  'deep-reasoner': { model: 'gpt-6-sol', effort: 'high' },
+  'doc-reviewer': { model: 'gpt-6-luna', effort: 'medium' },
+  planner: { model: 'gpt-6-sol', effort: 'high' },
+  'spec-miner': { model: 'gpt-6-sol', effort: 'high' },
+  'frontend-reviewer': { model: 'gpt-6-sol', effort: 'high' },
+  'migration-reviewer': { model: 'gpt-6-sol', effort: 'high' },
+  'e2e-runner': { model: 'gpt-6-sol', effort: 'high' },
 });
 
 // Curated allowlist — EXACTLY these 12, in emit order. Each entry pins a

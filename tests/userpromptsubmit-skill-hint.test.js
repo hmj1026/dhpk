@@ -183,7 +183,7 @@ test('real explicit-only routes emit exact commands without Skill-tool advice', 
   const cases = [
     ['please run an unattended OpenSpec goal session', 'dhpk-opsx-apply-goal'],
     ['please create a PR for this branch', 'create-pr'],
-    ['please create a release', 'dhpk-release-creator'],
+    ['please create a release', 'release-creator'],
     ['please commit these changes', 'smart-commit'],
   ];
   for (const [prompt, name] of cases) {
@@ -213,7 +213,7 @@ test('real Playwright route emits an explicit unavailable agent dispatch hint wi
   assert.match(res.stdout, /UNAVAILABLE/);
   assert.match(res.stdout, /dispatch|agent/i, `expected an agent dispatch hint: ${res.stdout}`);
   assert.ok(!res.stdout.includes('dhpk-post-dev-test'), `retired route must not be suggested: ${res.stdout}`);
-  assert.ok(!res.stdout.includes('dhpk-tdd-workflow'), `Playwright route must not remap to TDD: ${res.stdout}`);
+  assert.ok(!res.stdout.includes('tdd'), `Playwright route must not remap to TDD: ${res.stdout}`);
   assert.ok(!/generic Skill tool/i.test(res.stdout), `agent route must not suggest Skill-tool invocation: ${res.stdout}`);
 });
 

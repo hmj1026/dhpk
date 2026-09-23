@@ -1,15 +1,18 @@
 ---
 description: 'Deprecated forwarding alias for Codex test coverage review.'
+argument-hint: '[<target>]'
 metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-**Deprecated forwarding alias.** For this minor release, run:
+**Deprecated forwarding alias.** Forward to the canonical read-only
+`$change-verdict` Skill with the fixed tests/coverage action:
 
-`$change-verdict --scope tests --coverage $ARGUMENTS`
+`$change-verdict --mode tests --coverage $ARGUMENTS`
 
-## Compatibility boundary
+Not for: implementing fixes, generating tests, or clearing gates; new callers use `$change-verdict` directly.
 
-This explicit-only alias is retained for legacy callers; new work uses the canonical target.
-See [the alias contract](../docs/agent-guidance/command-aliases.md); preserve the target, flags, and `$ARGUMENTS`.
-Completion: propagate the target's exit status and report its PASS/FAIL/verdict evidence.
+Preserve `$ARGUMENTS` unchanged after the fixed flags. Propagate the target
+status and report its PASS/FAIL/verdict evidence (the owner may classify that
+as `READY`, `BLOCKED`, or `INCONCLUSIVE`); a missing or invalid target remains
+a failure and is not treated as coverage proof.

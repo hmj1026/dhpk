@@ -135,9 +135,9 @@ node scripts/ci/gen-claude-manifest.js
 node scripts/ci/gen-distribution-inventory.js
 ```
 
-The raw compatibility commands report one registered Claude directory root, 63
-inventory-eligible Claude skill IDs, 65 canonical skills (including two
-non-invokable internal runtime packages), and 15 Codex-sync entries (13
+The raw compatibility commands report one registered Claude directory root, 82
+inventory-eligible Claude skill IDs, 84 canonical skills (including two
+non-invokable internal runtime packages), and 34 Codex-sync entries (32
 invokable skills plus internal transport and dispatch-context runtimes). These
 are independently derived scopes; a canonical total is not a default-install
 or runtime count. Clean default installs use the materialized `minimal` profile

@@ -28,7 +28,7 @@ workflow 的預設 discovery 使用實體化的 `minimal` profile；`full` 與
 | Planning（跨模組 / DDD） | `dhpk-module-design --mode design` | `--mode review\|compare\|adversarial`；需要額外 CLI 視角時使用 `--second-opinion=codex-exec` |
 | Planning（根因未知） | `code-trace` | `code-trace --dual` 的 isolated perspective，或明確使用 `--second-opinion=codex-exec`；多重原因才使用 `dhpk-module-design --mode adversarial` |
 | Implementation hand-off | `flow-drive`（current model） | `flow-drive --backend cli` 或 `--backend agy`；需要額外 blind 意見時使用 `--second-opinion=codex-exec` |
-| Test gate | `dhpk-tdd-workflow` + `change-verdict` | 依 owner 支援度選 isolated reviewer；或明確使用 `--second-opinion=codex-exec` |
+| Test gate | `tdd-workflow` + `change-verdict` | 依 owner 支援度選 isolated reviewer；或明確使用 `--second-opinion=codex-exec` |
 | Review gate | `change-verdict`（current model） | `change-verdict --backend cli`；額外意見使用 owner 支援的 `--second-opinion=codex-exec` |
 | Security gate | `change-verdict`（isolated read-only current-model audit） | 僅在明確要求且 owner 支援時使用 isolated reviewer 或 `--second-opinion=codex-exec` |
 

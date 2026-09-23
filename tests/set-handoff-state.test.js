@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for scripts/opsx-apply-resume/set-handoff-state.sh — atomically
+// Coverage for skills/opsx-apply-resume/scripts/set-handoff-state.sh — atomically
 // updates the `state:` frontmatter field in .claude/artifacts/apply-resume/latest.md.
 
 const fs = require('node:fs');
@@ -10,7 +10,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'opsx-apply-resume', 'set-handoff-state.sh');
+const SCRIPT = path.join(ROOT, 'skills', 'opsx-apply-resume', 'scripts', 'set-handoff-state.sh');
 
 function mkTmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'set-handoff-state-'));
@@ -78,6 +78,48 @@ test('missing latest.md file → error, exit 1', () => {
     assert.ok(res.stdout.includes('latest.md not found'));
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('existing leaf symlink is rejected without changing the external handoff', () => {
+  const tmp = mkTmp();
+  const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'set-handoff-external-')));
+  try {
+    const externalFile = path.join(external, 'latest.md');
+    fs.writeFileSync(externalFile, 'state: saved\nsaved_at: 2020-01-01T00:00:00Z\n');
+    const explicit = path.join(tmp, 'explicit', 'latest.md');
+    fs.mkdirSync(path.dirname(explicit), { recursive: true });
+    fs.symlinkSync(externalFile, explicit);
+    const before = fs.readFileSync(externalFile, 'utf8');
+    const res = runScript(tmp, ['consuming', path.relative(tmp, explicit)]);
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(`${res.stdout}\n${res.stderr}`, /symlink|unsafe|handoff/i);
+    assert.strictEqual(fs.readFileSync(externalFile, 'utf8'), before,
+      'a leaf symlink must not redirect the state update');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(external, { recursive: true, force: true });
+  }
+});
+
+test('existing symlinked parent is rejected without changing the external handoff', () => {
+  const tmp = mkTmp();
+  const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'set-handoff-parent-external-')));
+  try {
+    const externalFile = path.join(external, 'latest.md');
+    fs.writeFileSync(externalFile, 'state: saved\nsaved_at: 2020-01-01T00:00:00Z\n');
+    const explicitParent = path.join(tmp, 'explicit');
+    fs.symlinkSync(external, explicitParent, 'dir');
+    const explicit = path.join(explicitParent, 'latest.md');
+    const before = fs.readFileSync(externalFile, 'utf8');
+    const res = runScript(tmp, ['consuming', path.relative(tmp, explicit)]);
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(`${res.stdout}\n${res.stderr}`, /symlink|ancestor|unsafe|handoff/i);
+    assert.strictEqual(fs.readFileSync(externalFile, 'utf8'), before,
+      'a parent symlink must not redirect the state update');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(external, { recursive: true, force: true });
   }
 });
 

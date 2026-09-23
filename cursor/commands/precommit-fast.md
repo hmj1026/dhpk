@@ -2,12 +2,14 @@
 name: precommit-fast
 description: "Deprecated forwarding alias for fast pre-commit verification."
 ---
-**Deprecated forwarding alias.** For this minor release, run:
+**Deprecated forwarding alias.** Forward unchanged to the workspace-write
+`$precommit` Skill in fast mode:
 
-`/dhpk:precommit --fast $ARGUMENTS`
+`$precommit --fast $ARGUMENTS`
 
-## Compatibility boundary
+Not for: ad hoc replacement checks, dependency audits, or read-only verification; new callers use `$precommit --fast` directly.
 
-This explicit-only alias is retained for legacy callers; new work uses the canonical target.
-See [the alias contract](https://github.com/hmj1026/dhpk/blob/main/docs/agent-guidance/command-aliases.md); preserve the target, flags, and `$ARGUMENTS`.
-Completion: propagate the target's exit status and report its PASS/FAIL/verdict evidence.
+The owner controls runner resolution, mutation, stage order, changed-file
+reporting, and terminal evidence. Propagate its status and report PASS/FAIL/
+verdict evidence as `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE`; do
+not claim a pass from a plan or partial runner output.

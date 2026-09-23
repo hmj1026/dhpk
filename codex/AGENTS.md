@@ -15,7 +15,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 
 The default projection is hybrid: `codex/skills/` and inventory-declared supporting assets are symlinked into the project, while every `.codex/agents/*.toml` is materialized as a physical file. `--copy` makes the entire projection physical. `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-v3 `.dhpk-installed.json` receipt, including each entry's effective mode and each skill's stable ID/current public name, and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
 
-The current Codex projection contains 15 skill entries: 13 invokable skills and
+The current Codex projection contains 34 skill entries: 32 invokable skills and
 two internal transport/dispatch-context runtimes. The inventory and generated
 receipt, not this file, own that selection.
 
@@ -45,7 +45,7 @@ Every entry under `codex/skills/` is an **in-repo relative symlink** to a
 canonical flat package under `skills/<public-name>/`. Editing a projection edits
 the canonical source, and the change applies to both worlds. The projection
 names are the inventory's public `name` values (for example,
-`codex/skills/dhpk-tdd-workflow` -> `../../skills/dhpk-tdd-workflow`). There are
+`codex/skills/tdd-workflow` -> `../../skills/tdd-workflow`). There are
 no physical skill copies in this tree; the separate `plugins/dhpk/` package is
 the tracked physical `codex-native` publication artifact and is maintained by
 the native-package migration task.
@@ -96,7 +96,7 @@ slash-command router. The nine portable families
 (`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
 `code-trace`, `laravel`, `phpunit`, and `harness-govern`) use their unprefixed
 public names; other first-party skills retain the `dhpk-` prefix. The standalone
-`git-smart-commit` skill keeps its existing public name (`$dhpk-git-smart-commit`).
+`git-smart-commit` skill keeps its existing public name (`$git-smart-commit`).
 Codex built-in commands such as `/hooks` and `/agent` are not custom dhpk
 `/dhpk:*` commands; Claude plugin slash commands and sentinel hooks are
 Claude-only.
@@ -250,5 +250,5 @@ A physical file, valid metadata, and successful built-in `explorer` dispatch do
 not prove that the project custom-role registry loaded. Runtime PASS requires a
 fresh `codex exec` session with an observed custom-role spawn and targeted wait.
 On `unknown agent_type`, follow the Codex registry branch in
-`../rules/execution-policy.md`; retain the exact role ID and GPT-5.6 family model
+`../rules/execution-policy.md`; retain the exact role ID and GPT-6 family model
 instead of treating either as a speculative fix.

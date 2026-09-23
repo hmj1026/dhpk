@@ -7,10 +7,10 @@ const { collectCodexRoleNeighborErrors } = require('../../lib/codex-role-neighbo
 
 const TIER_LABEL = /\b(?:haiku|sonnet|opus)\b/i;
 const BACKTICKED_TOKEN = /`([a-z0-9]+(?:-[a-z0-9]+)*)`/g;
-const VALID_CODEX_MODELS = new Set(['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol']);
+const VALID_CODEX_MODELS = new Set(['gpt-6-luna', 'gpt-6-sol', 'gpt-6-astra', 'gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol']);
 const VALID_REASONING_EFFORTS = new Set(['low', 'medium', 'high', 'max', 'xhigh']);
 const VALID_SANDBOX_MODES = new Set(['read-only', 'workspace-write', 'danger-full-access']);
-const DEFAULT_SUBAGENT_MODEL = 'gpt-5.6-luna';
+const DEFAULT_SUBAGENT_MODEL = 'gpt-6-luna';
 const DEFAULT_SUBAGENT_EFFORT = 'medium';
 const ROLE_OWNERSHIP_MANIFEST = 'codex/agent-projection-manifest.json';
 

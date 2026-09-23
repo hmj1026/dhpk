@@ -24,7 +24,6 @@
 # Keep the repo-scoped marketplace descriptor under .agents/plugins/ tracked.
 .agents/skills/
 .agents/.dhpk-*
-.agents/.dhpk-projection-*
 .agent/
 .antigravity/
 .antigravitycli/
@@ -60,6 +59,9 @@ __pycache__/
 *.pyo
 *.pyd
 .pytest_cache/
+.venv/
+.ruff_cache/
+.mypy_cache/
 *.log
 
 # Secret hygiene (.env files)
@@ -67,8 +69,10 @@ __pycache__/
 .env.*
 !.env.example
 
-# Local knowledge drafts & notes
+# Local knowledge drafts, notes & planning scratch
 docs/knowledge/
+.scratch/
+IMPLEMENTATION_PLAN.md
 
 # OS / editor
 .DS_Store

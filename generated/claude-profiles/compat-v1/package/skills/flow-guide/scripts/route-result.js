@@ -17,6 +17,7 @@ const TOP_LEVEL_KEYS = Object.freeze([
   'availability', 'diagnostics', 'disposition', 'requiredEvidence', 'nextAction',
 ]);
 const DEFAULT_TABLE = path.join(__dirname, '..', 'references', 'route-table.json');
+const DEFAULT_CATALOG = path.join(__dirname, '..', 'references', 'codex-usage-catalog.json');
 
 function freezeDeep(value) {
   if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
@@ -33,6 +34,26 @@ function loadRouteTable(tablePath = DEFAULT_TABLE) {
     return JSON.parse(fs.readFileSync(tablePath, 'utf8'));
   } catch {
     return { schema: 'dhpk.route-table.v2', rules: [] };
+  }
+}
+
+function loadRuntimeIndex(catalogPath = DEFAULT_CATALOG) {
+  try {
+    const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+    const index = catalog && catalog.runtimeIndex;
+    if (!index || typeof index !== 'object' || Array.isArray(index)
+      || !index.targets || typeof index.targets !== 'object' || Array.isArray(index.targets)
+      || !index.aliases || typeof index.aliases !== 'object' || Array.isArray(index.aliases)) {
+      throw new Error('generated usage catalog is missing its closed runtimeIndex');
+    }
+    return index;
+  } catch (error) {
+    if (error && error.code === 'ENOENT') {
+      const missing = new Error(`workflow runtime resource '${catalogPath}' is unavailable in the selected Skill directory`);
+      missing.code = 'BLOCKED_RESOURCE_MISSING';
+      throw missing;
+    }
+    throw error;
   }
 }
 
@@ -93,103 +114,35 @@ function parseFlags(argv) {
   };
 }
 
-function readInvocationMetadata(id) {
-  const root = path.join(__dirname, '..', '..', '..');
-  const candidates = [
-    path.join(root, 'skills', id, 'SKILL.md'),
-    path.join(root, 'commands', `${id}.md`),
-  ];
-  for (const file of candidates) {
-    try {
-      const text = fs.readFileSync(file, 'utf8');
-      const invocation = text.match(/^metadata:\s*\n\s+dhpk-invocation-class:\s*(\S+)/m);
-      const name = text.match(/^name:\s*["']?([^"'\n]+?)["']?\s*$/m);
-      const argumentHint = text.match(/^argument-hint:\s*["']?([^"'\n]+?)["']?\s*$/m);
-      return {
-        invocationClass: invocation ? invocation[1] : null,
-        publicName: name ? name[1].trim() : id,
-        argumentHint: argumentHint ? argumentHint[1].trim() : '<input>',
-        kind: file.includes(`${path.sep}commands${path.sep}`) ? 'command' : 'skill',
-      };
-    } catch {
-      // The generated package may not carry every route target. Such a target
-      // remains visibly not-configured instead of receiving guessed authority.
-    }
-  }
-  return {
-    invocationClass: null,
-    publicName: id,
-    argumentHint: '<input>',
-    kind: null,
-  };
-}
-
-function observedTargetMetadata(raw, observed) {
-  const metadata = observed && observed.targets && observed.targets[raw.id];
-  return metadata && typeof metadata === 'object' ? metadata : {};
-}
-
-function invocationClassFor(raw, observed, metadata) {
-  const classes = observed && observed.invocationClasses;
-  if (classes && typeof classes === 'object') {
-    const candidate = classes[raw.id] || classes[raw.publicName];
-    if (candidate) return String(candidate);
-  }
-  const observedMetadata = observedTargetMetadata(raw, observed);
-  return String(
-    raw.invocationClass
-      || raw.invocation_class
-      || observedMetadata.invocationClass
-      || observedMetadata.invocation_class
-      || metadata.invocationClass
-      || 'not-configured',
-  );
-}
-
-function commandFor(raw, publicName, metadata, observed) {
-  if (typeof raw.command === 'string' && raw.command.trim()) return raw.command.trim();
-  const observedMetadata = observedTargetMetadata(raw, observed);
-  if (typeof observedMetadata.command === 'string' && observedMetadata.command.trim()) {
-    return observedMetadata.command.trim();
-  }
-  if (raw.id === 'flow-drive' || publicName === 'flow-drive') {
-    return '$flow-drive <confirmed-spec-or-change-id>';
-  }
-  if (raw.id === 'flow-guide' || publicName === 'flow-guide') {
-    return '$flow-guide <help|route|rules|next|close> <query>';
-  }
-  if (raw.kind === 'skill') return `$${publicName} <input>`;
-  if (raw.kind === 'command') return `/dhpk:${publicName} <input>`;
-  return `agent:${publicName} <input>`;
-}
-
-function targetFromRule(raw, observed) {
+function indexedTarget(raw, runtimeIndex) {
   if (!raw || typeof raw !== 'object' || !raw.id) return null;
-  const metadata = readInvocationMetadata(raw.id);
-  const publicName = String(
-    raw.publicName
-      || raw.public_name
-      || observedTargetMetadata(raw, observed).publicName
-      || observedTargetMetadata(raw, observed).public_name
-      || metadata.publicName
-      || raw.id,
-  );
+  const targets = runtimeIndex && runtimeIndex.targets;
+  if (!targets || typeof targets !== 'object') return null;
+  return targets[raw.id]
+    || Object.values(targets).find((entry) => entry && entry.publicName === raw.id)
+    || null;
+}
+
+function targetFromRule(raw, runtimeIndex) {
+  if (!raw || typeof raw !== 'object' || !raw.id) return null;
+  const metadata = indexedTarget(raw, runtimeIndex);
+  const publicName = metadata ? metadata.publicName : String(raw.id);
   return {
     id: String(raw.id),
     publicName,
-    invocationClass: invocationClassFor({ ...raw, publicName }, observed, metadata),
-    command: commandFor(raw, publicName, metadata, observed),
+    invocationClass: metadata ? metadata.invocationClass : 'not-configured',
+    command: metadata ? metadata.command : `$${publicName} <input>`,
   };
 }
 
-function matchTarget(cleanedQuery, table, observed) {
+function matchTarget(cleanedQuery, table, runtimeIndex) {
   if (!cleanedQuery) return null;
   for (const rule of table && Array.isArray(table.rules) ? table.rules : []) {
     const pattern = rule && rule.pattern;
     const raw = rule && rule.target && typeof rule.target === 'object' ? rule.target : null;
     if (!pattern || !raw || !raw.id) continue;
     try {
-      if (new RegExp(pattern, 'i').test(cleanedQuery)) return targetFromRule(raw, observed);
+      if (new RegExp(pattern, 'i').test(cleanedQuery)) return targetFromRule(raw, runtimeIndex);
     } catch {
       // Invalid patterns are ignored by the deterministic shell matcher too.
     }
@@ -254,7 +207,8 @@ function createRouteResult(input = {}) {
   const host = input.host == null || input.host === '' ? 'claude' : String(input.host);
   const parsed = parseFlags(input.argv);
   const table = input.routeTable || loadRouteTable(input.routeTablePath || DEFAULT_TABLE);
-  const target = matchTarget(parsed.cleanedQuery, table, input.observed);
+  const runtimeIndex = input.runtimeIndex || loadRuntimeIndex(input.catalogPath || DEFAULT_CATALOG);
+  const target = matchTarget(parsed.cleanedQuery, table, runtimeIndex);
   const availability = computeAvailability(target, input.observed);
   const disposition = resolveDisposition({ parsed, target, availability });
   const diagnostics = parsed.diagnostics.slice();

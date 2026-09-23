@@ -16,7 +16,7 @@ journeys; route those journeys to `e2e-runner`.
 
 ## When NOT
 
-- User/skill TDD guidance → skill `dhpk-tdd-workflow`. This agent is the dispatched RED/GREEN specialist.
+- User/skill TDD guidance → skill `tdd-workflow`. This agent is the dispatched RED/GREEN specialist.
 - Playwright journeys → `e2e-runner`
 
 > Before mocking: trace the unit's collaborators per `.cursor/rules/tool-routing.mdc` so you mock the *real* dependencies, not guesses.

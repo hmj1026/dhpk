@@ -4,34 +4,34 @@ Full detail for `/dhpk:dhpk-project-setup` Phase 5. **Skip if**: `--no-rules` or
 
 `/dhpk:dhpk-project-setup` uses **fresh-install semantics** (install new / skip identical / warn on conflict; no smart merge). For smart merge (section merge, legacy migration, `--legacy-strategy`), run `/install-rules` directly.
 
-## 5.1 Locate Plugin Rules Directory
+## 5.1 Locate Rule Data in the Explicit Artifact
 
-Find the plugin's `rules/` directory using this priority (short-circuit on first match):
+When this phase installs a selected group, require the caller to supply
+`--source-artifact <distribution-root>` and invoke the local
+`scripts/install-project-assets.sh` adapter. The adapter reads the artifact's
+`rules/` directory as data and never searches ambient Host locations or runs an
+artifact installer. A missing artifact or selected payload is a hard non-pass
+before target mutation. `--lite`, `--detect-only`, and `--env-only` do not need
+an artifact because they skip this phase.
 
-1. **Glob search** — search known Claude plugin locations:
-
-   ```
-   Glob: ~/.claude/plugins/**/dhpk/rules/execution-policy.md
-   Glob: ${REPO_ROOT}/node_modules/dhpk/rules/execution-policy.md
-   ```
-
-2. **Plugin-relative fallback** — try reading `@rules/execution-policy.md` to confirm accessibility. If readable, derive the rules directory.
-3. **Not found** → **hard error for this phase** (do not silently skip). Output explicit failure with remediation steps:
+If the selected artifact has no rule payload, output explicit failure with
+remediation steps:
 
    ```
    ⛔ Rule source not found. Rules cannot be installed.
 
    Remediation (choose one):
-   1. Install the plugin: claude plugin marketplace add hmj1026/dhpk && claude plugin install dhpk@dhpk
-   2. Copy rules manually from a machine that has the plugin installed
-   3. Re-run with --no-rules to skip (rules layer will be missing)
+   1. Supply a distribution artifact containing the four selected rule files
+   2. Re-run with `--no-rules` to skip (rules layer will be missing)
    ```
 
    Then skip Phase 5 and continue to Phase 6. Phase 7 will report this as `⚠️ Partial`.
 
 ## 5.2 Reference Rules (path-reference model)
 
-dhpk ships exactly 4 rules under `${CLAUDE_PLUGIN_ROOT}/rules/`. These are **not copied** into the consumer repo — the installer writes `${CLAUDE_PLUGIN_ROOT}/rules/<file>` path-references into the consumer's `.claude/CLAUDE.md`.
+dhpk ships exactly 4 rules under the selected artifact's `rules/` data. These
+are **not copied** into the consumer repo — the Host procedure writes the
+artifact-root path references into the consumer's `.claude/CLAUDE.md`.
 
 1. The 4 shipped rules:
 

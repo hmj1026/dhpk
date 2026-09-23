@@ -6,15 +6,25 @@ alwaysApply: false
 # Execution Policy
 
 dhpk's default execution policy for projects that adopt the harness. Read the
-always-visible kernel first (`./execution-policy-kernel.md`),
+always-visible kernel first (`${POLICY_BUNDLE_ROOT}/rules/execution-policy-kernel.md`),
 then load the conditional sections below as the selected route requires.
-Resource-layer markdown — referenced from the `flow-guide` skill and
-consumable directly by a project's own `CLAUDE.md` via the
-`.cursor/dhpk/policies/execution-policy.md` path. Not auto-loaded; opt-in.
+Resource-layer markdown is selected explicitly by the caller. The selected
+policy file has the shape `<bundle-root>/rules/execution-policy.md`. Resolve
+its real path, then derive `POLICY_BUNDLE_ROOT` as the real parent of that
+file's containing `rules` directory (equivalently, the file's real
+grandparent): the repository root for the canonical policy, or the Skill's
+`references/execution-bundle` directory for a raw Skill. Resolve required
+references beneath that base and fail closed with `BLOCKED_RESOURCE_MISSING`
+for missing, absolute, traversal, or symlink escaping paths. Do not infer the
+base from an active Skill, environment variable, checkout search, or fallback
+chain.
 
 > Project overrides: projects that adopt this policy should keep their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section) that only encodes deltas — e.g. extra reviewer trigger paths, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
 >
-> Resolution order for any reference to this file: use the project's `.claude/rules/execution-policy.md` first if present (it carries only deltas — extra reviewer trigger paths, hot tables, hook profile), otherwise resolve to `.cursor/dhpk/policies/execution-policy.md` (the plugin SSOT). Projects should keep their local copy short and cross-link rather than copying the body wholesale.
+> The project policy is an input delta: it may extend the selected base policy
+> with project-specific triggers or tables, but it cannot supply a missing base
+> resource. Keep the local copy short and cross-link rather than copying this
+> body wholesale.
 
 ## Glossary (inline)
 
@@ -60,7 +70,9 @@ precedence; an explicitly-invoked router may start an `implicit-eligible`
 target but must present-and-wait for an `explicit-only` target rather than
 calling it through the Skill tool. Full precedence order, Explicit Invocation
 definition, and the OpenSpec entry-point surface mapping:
+`${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/invocation-precedence.md`.
 Full classification rationale per entry:
+`${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/invocation-classification.md`.
 
 ## Agent dispatch
 
@@ -75,7 +87,7 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
 | `codex-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID, legacy alias: `codex-fast-worker`; see §Implementation dispatch | — |
 | `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID, legacy alias: `agy-fast-worker`; see §Implementation dispatch | — |
-| `codex-bridge` | **Explicit CLI `codex exec` path, not the legacy MCP peer** — outsource a self-contained clear-spec task, or a blind second opinion, to the GPT-5.6 family; output isolated in the subagent, relayed verbatim; mode-qualified alias (read-only → `codex-reviewer` → `gpt-5.6-sol`/`high`, workspace-write → `codex-worker` → `gpt-5.6-luna`/`xhigh`); `codex-reviewer` is internal-only in this rollout; see §Implementation dispatch | — |
+| `codex-bridge` | **Explicit CLI `codex exec` path, not the legacy MCP peer** — outsource a self-contained clear-spec task, or a blind second opinion, to the GPT-6 family; output isolated in the subagent, relayed verbatim; mode-qualified alias (read-only → `codex-reviewer` → `gpt-6-sol`/`high`, workspace-write → `codex-worker` → `gpt-6-luna`/`xhigh`); `codex-reviewer` is internal-only in this rollout; see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
 | `code-reviewer` | Code review — triggered by source-file edits | consolidated wave |
 | `database-reviewer` | SQL / Repository / migration (SQL correctness) — triggered or back-stop | consolidated wave |
@@ -92,11 +104,11 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Diff-scope mandate (all reviewers)**: reviewers audit the UNCOMMITTED working tree (`git diff --staged` + `git diff HEAD`), never committed history (`git diff <base>...HEAD` / merge-base diff). Under the no-auto-commit workflow the change-under-review sits uncommitted; a base-relative diff reviews the whole branch (often hundreds of files) — wasting tokens/time and misreporting committed-but-superseded code as unfixed. Orchestrators dispatching a reviewer MUST NOT instruct it to diff against a base branch unless an explicit full-branch/PR review is the intent.
 
-**File-state ground truth**: re-verify live before reporting a file-state defect. Full mechanics: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+**File-state ground truth**: re-verify live before reporting a file-state defect. Full mechanics: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
-**Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `.cursor/rules/model-economics.mdc`.
+**Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
 
-**Configured role models** (`deep-reasoner` / `fast-worker`): `session-start.sh` announces the effective `deep_reasoner_model` / `fast_worker_model` at session start only when they differ from the shipped default (opus / sonnet) — configured via the `deep_reasoner_model` / `fast_worker_model` / `orchestration_dispatch` `userConfig` keys in `.claude-plugin/plugin.json`. When announced, the orchestrator passes that value on the `Agent` call's `model` param for every dispatch of that role; frontmatter is never edited. An invalid configured value (not a model name the running Claude Code supports) triggers one warning per session and the dispatch falls back to the agent's frontmatter default — it never fails the dispatch. The judgment-based HIGH-risk escalation above still applies on top of a configured value and takes precedence for that single dispatch (e.g. a configured `fast_worker_model=haiku` may still be raised to sonnet/opus for one high-risk task). The two workers also carry effort keys (`deep_reasoner_effort` / `fast_worker_effort`), applied on the `Agent` call's `effort` param by the same announce-when-non-default mechanism; the cost rationale for both dials is in `.cursor/rules/model-economics.mdc`.
+**Configured role models** (`deep-reasoner` / `fast-worker`): `session-start.sh` announces the effective `deep_reasoner_model` / `fast_worker_model` at session start only when they differ from the shipped default (opus / sonnet) — configured via the `deep_reasoner_model` / `fast_worker_model` / `orchestration_dispatch` `userConfig` keys in `.claude-plugin/plugin.json`. When announced, the orchestrator passes that value on the `Agent` call's `model` param for every dispatch of that role; frontmatter is never edited. An invalid configured value (not a model name the running Claude Code supports) triggers one warning per session and the dispatch falls back to the agent's frontmatter default — it never fails the dispatch. The judgment-based HIGH-risk escalation above still applies on top of a configured value and takes precedence for that single dispatch (e.g. a configured `fast_worker_model=haiku` may still be raised to sonnet/opus for one high-risk task). The two workers also carry effort keys (`deep_reasoner_effort` / `fast_worker_effort`), applied on the `Agent` call's `effort` param by the same announce-when-non-default mechanism; the cost rationale for both dials is in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
 
 The CLI-backed Codex/AGY roles use the same normalized project-over-global configuration seam for timeout budgets: canonical keys `codex_worker_timeout_secs`, `codex_reasoner_timeout_secs`, `codex_reviewer_timeout_secs` override shared `codex_timeout_secs` within their scope (legacy aliases `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, `codex_bridge_timeout_secs` accepted for one release with canonical-key precedence), and the shared `agy_worker` role joins the selection; the shipped `360`-second default applies below both scopes. `0` is an intentional dispatcher-attested no-deadline request; malformed values fail closed before the affected dispatch. The portable runner reports the effective role, budget, source, disabled state, and explicit outer-budget unknown/warning status without changing Claude's external tool wait; it never falls back to a shell timeout tool.
 
@@ -108,7 +120,7 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
 
-**Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Completion requires both a terminal lifecycle result and every applicable reviewer's verdict recorded; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `.cursor/skills/flow-guide/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table.
+**Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Completion requires both a terminal lifecycle result and every applicable reviewer's verdict recorded; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md` and `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table.
 
 **Review Gate obligation order (current):** after each implementation wave, the
 orchestrator derives the applicable reviewer obligations from the complete
@@ -121,12 +133,13 @@ explicitly `NOT_APPLICABLE`; a message, artifact path, aggregate result, or
 lifecycle event alone is not completion. Missing, foreign, stale, malformed, or
 failed evidence remains unresolved and fails closed. Full identity, retry, and
 batching mechanics live in
-`.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+`${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 Historical migration-observation composition and phase vocabulary remain in
-`docs/contracts/review-lifecycle.md` and the associated ADRs for compatibility
-and audit only. They are not an active dispatch or completion path and must not
-be enabled or inferred by the current implementation route.
+`${POLICY_BUNDLE_ROOT}/docs/contracts/review-lifecycle.md` and the associated
+ADRs for compatibility and audit only. They are not an active dispatch or
+completion path and must not be enabled or inferred by the current
+implementation route.
 
 ### Context tiers and dispatch packet
 
@@ -162,7 +175,7 @@ so its success proves multi-agent availability, not project custom-role
 discovery. If the custom probes still return `unknown agent_type`, record
 `CUSTOM_AGENT_REGISTRY_UNAVAILABLE`, the Codex CLI version, and bounded redacted
 diagnostics; the consumer/release gate remains `FAIL` and dependent work remains
-`BLOCKED`. Keep the registered role names, GPT-5.6 family role models, and
+`BLOCKED`. Keep the registered role names, GPT-6 family role models, and
 configuration unchanged. A model-rejection error is separate evidence because
 `unknown agent_type` occurs before the child role model is selected.
 
@@ -181,7 +194,7 @@ exact owned files; settled interfaces, invariants, and constraints;
 verification and acceptance; task/attempt identity plus required evidence
 pointers. The packet is the context boundary: do not require a worker to
 reconstruct it from parent history. Use
-`.cursor/dhpk/docs/subagent-prompt-template.md` for the standalone
+`${POLICY_BUNDLE_ROOT}/docs/subagent-prompt-template.md` for the standalone
 message shape.
 
 File count remains a collision and safety gate. It does not by itself justify a
@@ -235,7 +248,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | Work shape | Dispatch |
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
-| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex-cli/<model>[:<effort>]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex-cli/<model>[:<effort>]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-6-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
 | Judgment-dense but standardizable work touching more than two files (bounded documentation migration, bilingual restructuring, or a known review-fix batch) | In-process `fast-worker` by default |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; the retired `CODEX=on`/`--codex` review-peer flags cannot select it. | `codex-worker` (canonical role ID; legacy alias: `codex-fast-worker`) |
@@ -263,10 +276,10 @@ When a validator reads or modifies shared ratchet/configuration state, workers M
 ### Provider-neutral dispatch baseline
 
 `rules/execution-policy.md` is the normative policy owner for delegated
-dispatch. The policy-level Dispatch Engine is implemented by the side-effect-
-free `scripts/lib/native-dispatch-policy.js` decision seam consumed by dispatch
-adapters; it is not a central orchestrator and must not grow orchestration
-state. `Host`, `Provider`, `Model`, `Role`, `Effort`, and `Transport` remain
+dispatch. The policy-level Dispatch Engine is implemented by the bundled,
+side-effect-free native-dispatch policy helper consumed by dispatch adapters;
+it is not a central orchestrator and must not grow orchestration state. `Host`,
+`Provider`, `Model`, `Role`, `Effort`, and `Transport` remain
 separate fields throughout resolution and receipt creation.
 
 Planner, reasoner, worker, and reviewer use the same native-only baseline:
@@ -327,6 +340,7 @@ resolution; it is policy state, not a coordinator.
 Mechanical implementation waves resolve through the canonical `worker` Role
 request. The following legacy selector remains a compatibility boundary and
 translates its backend vocabulary before invoking the Dispatch Engine:
+`${POLICY_BUNDLE_ROOT}/scripts/fast-worker-selector.js` and the three selector
 keys in `userConfig`:
 
 | Requested value | Resolution |
@@ -377,6 +391,12 @@ native-first fallback contract after confirmed no side effects; safety, task,
 and timeout failures remain `RESULT: BLOCKED` or on their existing recovery
 path — never silently switched.
 
+**Orchestrator posture**: implement-phase work defaults to **decide → dispatch → verify**; inline work is the narrow exception. Measure the **whole implement-step footprint**, so multi-file doc-consistency work is one batch; when unsure between inline and a worker, dispatch. Verify runtime premises with the applicable E2E lane or a scratch executable probe. The orientation step binds unattended goals to the kernel and selected route reference. Full routing, premise, verification, waiting, and plan-brief rules: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
+
+**Repository Discovery Gate**: before finalizing new DB, SQL, query-builder, criteria, model-persistence, or repository-like code, inspect and follow the established persistence boundary. Explicit project hard rules cannot be deferred; compliance is required unless the human records a human-approved exception. Full mechanics: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
+
+**Operational detail** (posture rationale, the ≤2-files measurement, `general-purpose` prohibition, gate-preservation back-stop, verify-worker-output cross-check, phase scoping, the premise-verification trio, kill switch, and explicit second-opinion path): load `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md` when dispatching implement-phase work.
+
 ### Retired `CODEX=on` / `$flow-drive --codex` interface
 
 `CODEX=on` and `$flow-drive --codex` are retired per-session flags. The parser
@@ -407,8 +427,11 @@ reviewer dispatch. Triggers include a first-seen query/repository pattern,
 framework-internal hack, or explicit-rule deferral. At wrap-up, a session that
 dispatched `codex-bridge` 0 times records that no independent CLI opinion ran;
 it does not infer one from the retired flags. Full triggers and mechanics:
+`${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`.
 
 ## Multi-AI independence and in-flight doubt
+
+Independent-perspective rules, the bounded adversarial doubt cycle, and premise-overturning reframe checks live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/premise-verification.md`.
 
 ## Mandatory post-steps
 
@@ -430,7 +453,7 @@ the same wave or measure the inline bound per finding.
 When the fix originated from `tdd-guide` or `e2e-runner`, acceptance returns to
 that specialist's scoped verification command or originating journey. A new
 implementation wave receives a new consolidated review batch. The prompt/output
-shape is canonicalized in `docs/contracts/reviewer-contract.md`.
+shape is canonicalized in the [reviewer contract](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md).
 
 ### Reviewer trigger table
 
@@ -441,7 +464,7 @@ for a semantic match the table misses. There is no hook-armed marker file or
 auto-clear step — dispatch and verdict tracking are the orchestrator's
 responsibility for the current implementation wave.
 
-A subagent must never paste the literal the plugin-root interpolation token into a Bash command — it is a markdown-interpolation token, unset in a subagent's shell. Full caveat (SSOT): `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash command — it is a markdown-interpolation token, not a shell variable. Full caveat (SSOT): `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|
@@ -453,11 +476,11 @@ A subagent must never paste the literal the plugin-root interpolation token into
 | `polyfill-reviewer` | Module-owned trigger only |
 | `migration-reviewer` | Module-owned migration: triggers or mig: extra paths only |
 
-**Skipped paths**: follow the self-edit and per-role path exclusions in `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+**Skipped paths**: follow the self-edit and per-role path exclusions in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ### Reviewer dispatch (when multiple roles are triggered)
 
-For each contiguous implementation wave, dispatch each applicable reviewer once as **triage → ONE consolidated parallel reviewer batch → merge**; CRITICAL blocks, and pure research skips. Known findings receive at most one confirm-only re-review; new substantive scope starts a new review decision. A missing or invalid reviewer result gets one corrected retry, then replacement or a pending gate with a recorded reason. `codex-bridge` remains escalation-only and runs at most once per change. Full batching, reminder, retry, and escalation mechanics: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+For each contiguous implementation wave, dispatch each applicable reviewer once as **triage → ONE consolidated parallel reviewer batch → merge**; CRITICAL blocks, and pure research skips. Known findings receive at most one confirm-only re-review; new substantive scope starts a new review decision. A missing or invalid reviewer result gets one corrected retry, then replacement or a pending gate with a recorded reason. `codex-bridge` remains escalation-only and runs at most once per change. Full batching, reminder, retry, and escalation mechanics: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 **Reviewer economy**: hold the review dispatch until the wave's edit batch is edit-complete — do not dispatch mid-batch and then re-review each micro-fix as its own round. The bounded fix loop batches a repair scope, runs worker verification, and rechecks diff scope. A findings set that is LOW/WARNING-only (no BLOCK/CRITICAL/HIGH) may close there without a dedicated confirm-only reviewer; BLOCK/CRITICAL/HIGH findings require that dedicated re-review. Batch any post-confirm micro-edits together before a single confirm dispatch. Split waves and confirm-only rounds are the dominant reviewer overspend — batching before dispatch is the primary lever.
 
@@ -478,7 +501,7 @@ optional events.
 | `SessionStart` → `session-start.sh` | module activation only | enabled; validate and activate configured modules |
 | Prompt hints, precompact/postcompact handoff, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
 
-**Reviewer liveness**: a no-op reviewer is a failed gate. Corrected-retry and replacement rules: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+**Reviewer liveness**: a no-op reviewer is a failed gate. Corrected-retry and replacement rules: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ### Review output gate
 
@@ -503,7 +526,7 @@ Semantically matches but path pattern did not trigger a reviewer role → self-t
 - `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
 - Editing version-specific dirs (`src/Laravel/`, `src/Symfony/`), composer version constraints, or `.github/workflows` CI matrices, or before tagging a release → `version-matrix-impact-reviewer` (library-author module).
 
-> **Notes** — why view-layer `<script>` uses a back-stop not a hook · when to upgrade a back-stop to a hook · why `tdd-guide` is not in the trigger table and how the coverage gate enforces tests-first for unattended `opsx-apply-goal` runs: `.cursor/skills/flow-guide/references/review-gate-mechanics.md`.
+> **Notes** — why view-layer `<script>` uses a back-stop not a hook · when to upgrade a back-stop to a hook · why `tdd-guide` is not in the trigger table and how the coverage gate enforces tests-first for unattended `opsx-apply-goal` runs: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ## Edit tool discipline
 
@@ -518,12 +541,14 @@ the task explicitly requires changing deployment topology.
 
 ## Pre-plan checklist (Feature / Bug)
 
-1. Past-decision search (claude-mem, if installed) — see `.cursor/rules/tool-routing.mdc` "claude-mem at planning start"
-2. Spawn Explore agents with `cx` instructions (→ `.cursor/rules/tool-routing.mdc`)
-3. Blast-radius check (gitnexus_impact, if installed) — see `.cursor/rules/tool-routing.mdc` "gitnexus_impact timing"
+1. Past-decision search (claude-mem, if installed) — see `${POLICY_BUNDLE_ROOT}/rules/tool-routing.md` "claude-mem at planning start"
+2. Spawn Explore agents with `cx` instructions (→ `${POLICY_BUNDLE_ROOT}/rules/tool-routing.md`)
+3. Blast-radius check (gitnexus_impact, if installed) — see `${POLICY_BUNDLE_ROOT}/rules/tool-routing.md` "gitnexus_impact timing"
 4. Database work → verify Repository routing via the project's query builder convention
 
 ## Deterministic first, judgment second
+
+For audit / setup / inventory / generation work, separate fact-collection from interpretation: **collect** deterministically (scripts / Grep / Glob, no judgment, baseline first) → **gate** (present facts; confirm before destructive or multi-file outcomes) → **judge** (AI evaluation last). **Tool output is immutable** — forward stdout verbatim, never hand-construct contract output (e.g. `deploy-list` schema=v1); a tool failure stops-and-reports, never simulates. Full detail: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/deterministic-first.md`. (skill-scope, skill-forge, flow-guide, change-verdict, deploy-list)
 
 ## Self-check (before reply)
 
@@ -533,7 +558,7 @@ Any applicable NO → fix first, then reply.
 
 ## Anti-rationalization
 
-Before skipping any TDD / reviewer mandated step, load `.cursor/rules/anti-rationalization.mdc` for self-rebuttal. On-demand load, not always-on. Trigger conditions: see that file's "When to load" table (SSOT).
+Before skipping any TDD / reviewer mandated step, load `${POLICY_BUNDLE_ROOT}/rules/anti-rationalization.md` for self-rebuttal. On-demand load, not always-on. Trigger conditions: see that file's "When to load" table (SSOT).
 
 ## Git pipeline
 
@@ -566,19 +591,24 @@ Output: `Conclusion → Changed files → Verification → Risks/Open questions`
 
 Run the project's standard test suite + browser verify (playwright-cli, manual, or stack-equivalent). For Docker projects: see your `${PHP_CONTAINER:-php}` workflow. Commands per stack live in the matching dhpk module reference (e.g. `modules/phpunit-5.7/references/testing.md`).
 
+Script-test requirements live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/testing-policy.md`.
+
 ## Component-addition gate
+
+Addition/removal justification and residue-cleanup requirements live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/component-addition-policy.md`.
 
 ## Not in scope
 
 - **Does not restate** stack-specific coding conventions — those live in each project's `.claude/rules/<stack>.md` or the matching dhpk module reference.
-- **Does not restate** the anti-rationalization phrasing table — see `.cursor/rules/anti-rationalization.mdc`.
-- **Does not restate** the tool-selection decision tree — see `.cursor/rules/tool-routing.mdc`.
-- **Does not restate** the full end-of-task self-check — see `skills/flow-guide/SKILL.md`.
+- **Does not restate** the anti-rationalization phrasing table — see `${POLICY_BUNDLE_ROOT}/rules/anti-rationalization.md`.
+- **Does not restate** the tool-selection decision tree — see `${POLICY_BUNDLE_ROOT}/rules/tool-routing.md`.
+- **Does not restate** the full end-of-task self-check — use the selected entry
+  Skill's own `Verification` section.
 
 ## Cross-references
 
-- `.cursor/rules/anti-rationalization.mdc` — self-rebuttal table for skipping a mandated step
-- `.cursor/rules/tool-routing.mdc` — code-exploration tool decision tree
-- `skills/flow-guide/SKILL.md` — full end-of-task self-check
-- `skills/flow-guide/SKILL.md` — skill-form entry point into this policy
-- `agents/INDEX.md` — agent roster, models, maxTurns rationale
+- `${POLICY_BUNDLE_ROOT}/rules/anti-rationalization.md` — self-rebuttal table for skipping a mandated step
+- `${POLICY_BUNDLE_ROOT}/rules/tool-routing.md` — code-exploration tool decision tree
+- The selected entry Skill's `Verification` section — end-of-task evidence
+  boundary.
+- The selected entry Skill's procedure — invocation-specific entry guidance.

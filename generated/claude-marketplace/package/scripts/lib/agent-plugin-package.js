@@ -24,7 +24,6 @@ const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
-const { resolveSkillPackageClosure, skillPackageClosureReceipt, runtimeAssetsForSkill } = require('./workflow-package-closure');
 
 const AGENT_PLUGIN_VERSION = '1.0.0';
 const AGENT_PLUGIN_SCHEMA = `https://agent-plugins.org/schemas/${AGENT_PLUGIN_VERSION}/plugin.schema.json`;
@@ -871,11 +870,6 @@ function buildAgentPluginProjection(options = {}) {
   const selected = [...profileSelected, ...runtimeSupportSkillIds(inventory, 'agent-plugin').map((id) => entriesById.get(id))]
     .filter((entry, index, all) => entry && all.findIndex((candidate) => candidate.id === entry.id) === index)
     .sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id)));
-  const selectedWithClosure = resolveSkillPackageClosure(resolvedRoot, selected, {
-    availableEntries: inventory.skills,
-    surface: 'agent-plugin',
-  });
-  const skillPackageClosure = skillPackageClosureReceipt(resolvedRoot, selectedWithClosure);
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
@@ -895,7 +889,8 @@ function buildAgentPluginProjection(options = {}) {
     ...projectionLimits,
   };
   const publishedSourcePaths = loadPublishedSourcePaths(resolvedRoot, sourceCommit);
-  for (const entry of selectedWithClosure) {
+  // Each Skill directory is complete; no peer Skill is added implicitly.
+  for (const entry of selected) {
     const publicName = entry.name || entry.id;
     const sourcePath = entry.path;
     if (!safeRelative(sourcePath)) throw new Error(`unsafe source path for '${publicName}': ${sourcePath}`);
@@ -930,12 +925,7 @@ function buildAgentPluginProjection(options = {}) {
       sourceScope: sourceDir,
       publishedSourcePaths,
     });
-    const runtimeAssets = runtimeAssetsForSkill(resolvedRoot, entry.id);
-    const fingerprintFiles = [...skillFiles];
-    for (const asset of runtimeAssets) {
-      fingerprintFiles.push({ relative: asset.destination, content: readFileBounded(asset.source) });
-    }
-    fingerprints[publicName] = fingerprintProjectedFiles(fingerprintFiles);
+    fingerprints[publicName] = fingerprintProjectedFiles(skillFiles);
     const skillTransform = { id: 'agent-plugin-skill', version: generatorVersion };
     const skillMetadata = skillProjectionMetadata(entry, {
       transform: skillTransform,
@@ -950,16 +940,6 @@ function buildAgentPluginProjection(options = {}) {
         file.content,
         path.posix.join(sourcePath, file.relative),
         skillTransform,
-        skillMetadata,
-      ));
-    }
-    for (const asset of runtimeAssets) {
-      files.push(outputRecord(
-        `runtime:${entry.id}:${asset.destination}`,
-        path.posix.join('skills', publicName, asset.destination),
-        readFileBounded(asset.source),
-        asset.source,
-        { id: 'agent-plugin-workflow-runtime', version: generatorVersion },
         skillMetadata,
       ));
     }
@@ -1029,7 +1009,6 @@ function buildAgentPluginProjection(options = {}) {
     schemaVersion: AGENT_PLUGIN_VERSION,
     selectedSkillIds,
     selectedSkillNames,
-    skillPackageClosure,
     selectedPlatformMatrixIds: selectedMatrixIds,
     skippedSkills: skipped,
     mcpServerNames: mcp.valid.map((entry) => entry.name).sort(),

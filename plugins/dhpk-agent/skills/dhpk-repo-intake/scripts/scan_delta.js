@@ -9,38 +9,13 @@
  * - changedFiles: { added/modified/deleted/renamed: [...] }
  */
 
-const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-// Resolve plugin root: validated env var → walk-up with marker → legacy fallback
-const _pluginRoot = (() => {
-  const sentinel = p => fs.existsSync(path.join(p, 'scripts', 'lib', 'utils.js'));
-  const marker = p => fs.existsSync(path.join(p, '.claude-plugin', 'plugin.json'));
-  const envRoot = process.env.PLUGIN_ROOT;
-  if (envRoot && sentinel(envRoot) && marker(envRoot)) return envRoot;
-  let d = __dirname;
-  while (d !== path.dirname(d)) {
-    if (sentinel(d) && marker(d)) return d;
-    d = path.dirname(d);
-  }
-  return path.resolve(__dirname, '..', '..', '..');
-})();
-
 // ---------------------------------------------------------------------------
-// Config loading
+// Built-in topology defaults
 // ---------------------------------------------------------------------------
-function loadIntakeConfig() {
-  try {
-    const p = path.join(_pluginRoot, 'scripts', 'config', 'repo-intake.json');
-    return JSON.parse(fs.readFileSync(p, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-const INTAKE_CONFIG = loadIntakeConfig();
-const TOPOLOGY_FILES = INTAKE_CONFIG?.topology_files ?? [
+const TOPOLOGY_FILES = [
   'package.json', 'pnpm-lock.yaml', 'yarn.lock', 'package-lock.json',
   'tsconfig.json', 'tsconfig.build.json',
   'go.mod', 'go.sum', 'Cargo.toml', 'Cargo.lock',
@@ -51,7 +26,7 @@ const TOPOLOGY_FILES = INTAKE_CONFIG?.topology_files ?? [
   'Makefile', 'justfile',
 ];
 const TOPOLOGY_SET = new Set(TOPOLOGY_FILES.map(f => f.toLowerCase()));
-const LARGE_DIFF_COUNT = INTAKE_CONFIG?.delta_thresholds?.large_diff_count ?? 80;
+const LARGE_DIFF_COUNT = 80;
 
 // ---------------------------------------------------------------------------
 // Shell helper
@@ -104,7 +79,7 @@ function classifyNameStatus(lines) {
 }
 
 // ---------------------------------------------------------------------------
-// Topology detection (config-driven)
+// Topology detection (built-in defaults)
 // ---------------------------------------------------------------------------
 function isTopologyFile(p) {
   const low = (p || '').toLowerCase();

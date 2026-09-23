@@ -51,6 +51,47 @@ test('check 5 does not flag a dual-path fallback block', () => {
   assert.ok(!checksHit(text).has(5));
 });
 
+// (2b) The four execution-bundle self-locating files (rules/execution-policy.md
+// and its 3 skill mirrors) use the POLICY_BUNDLE_ROOT derivation and explicitly
+// forbid a fallback chain, so check 5's dual-path requirement does not apply to
+// them — but reintroducing the old ${CLAUDE_PLUGIN_ROOT} fallback phrase into one
+// of them is itself a contract regression and must still be flagged.
+const BUNDLE_FILES = [
+  'rules/execution-policy.md',
+  'skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md',
+  'skills/flow-drive/references/execution-bundle/rules/execution-policy.md',
+  'skills/flow-guide/references/execution-bundle/rules/execution-policy.md',
+];
+
+for (const bundleFile of BUNDLE_FILES) {
+  test(`check 5 does not require dual-path fallback in ${bundleFile}`, () => {
+    const text = [
+      'Resolve its real path, then derive POLICY_BUNDLE_ROOT as the real parent',
+      'of that file\'s containing rules directory. Do not infer the base from',
+      'an active Skill, environment variable, checkout search, or fallback chain.',
+      '',
+      '> Project overrides: projects that adopt this policy should keep their own',
+      '> short .claude/rules/execution-policy.md (or CLAUDE.md section) that only',
+      '> encodes deltas.',
+    ].join('\n');
+    const findings = scanText(bundleFile, text);
+    assert.ok(!findings.some((f) => f.check === 5), `unexpected check 5 finding for ${bundleFile}`);
+  });
+
+  test(`check 5 flags reintroduced legacy fallback wording in ${bundleFile}`, () => {
+    const text = [
+      'Resolve its real path, then derive POLICY_BUNDLE_ROOT as the real parent',
+      'of that file\'s containing rules directory. Do not infer the base from',
+      'an active Skill, environment variable, checkout search, or fallback chain.',
+      '',
+      '> Project overrides: project .claude/rules/execution-policy.md if present,',
+      '> else ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md.',
+    ].join('\n');
+    const findings = scanText(bundleFile, text);
+    assert.ok(findings.some((f) => f.check === 5), `expected check 5 finding for ${bundleFile}`);
+  });
+}
+
 // (3) No false positives on legitimate / intentional refs.
 test('resolvable and intentional refs are not flagged', () => {
   const text = [

@@ -57,7 +57,26 @@
       "vue-2-notes",
       "xcode-build-tooling",
       "yii1-security-audit",
-      "harness-govern"
+      "harness-govern",
+      "create-pr",
+      "git-worktree",
+      "merge-prep",
+      "pr-summary",
+      "proposal-analyze",
+      "project-brief",
+      "doc-refactor",
+      "update-docs",
+      "update-codemaps",
+      "precommit",
+      "dep-audit",
+      "repo-verify",
+      "code-simplify",
+      "harness-audit",
+      "review-pending",
+      "spec-mine",
+      "harness-setup",
+      "opsx-apply-resume",
+      "ui-ux-verify"
     ],
     "excludes": [
       "laravel-10",
@@ -79,7 +98,7 @@
       "react-19"
     ],
     "id": "full",
-    "inventoryFingerprint": "18dd86fa66c4ac5eed8c1a32934f6644798a86f2f27ba9dc8fd8e725aded9533",
+    "inventoryFingerprint": "36798b20cfac504edbf53b6a265dd8a6c9ee797bdea5d5ab0050466be3707246",
     "mode": "profile",
     "modules": [
       "fastapi",
@@ -97,7 +116,7 @@
       "xcode-tooling",
       "yii-1.1"
     ],
-    "profileFingerprint": "7415422214d9b959789b7ed6e34c4cef7d46476e82be0f389f476618a4ed73b4",
+    "profileFingerprint": "27e6686a5b7e547ef1c962ee0d5c0e23a9a9f6c931de3db089b0935668ffded3",
     "profileId": "full",
     "selectedStableIds": [
       "flow-guide",
@@ -154,12 +173,31 @@
       "vue-2-notes",
       "xcode-build-tooling",
       "yii1-security-audit",
-      "harness-govern"
+      "harness-govern",
+      "create-pr",
+      "git-worktree",
+      "merge-prep",
+      "pr-summary",
+      "proposal-analyze",
+      "project-brief",
+      "doc-refactor",
+      "update-docs",
+      "update-codemaps",
+      "precommit",
+      "dep-audit",
+      "repo-verify",
+      "code-simplify",
+      "harness-audit",
+      "review-pending",
+      "spec-mine",
+      "harness-setup",
+      "opsx-apply-resume",
+      "ui-ux-verify"
     ],
-    "selectionFingerprint": "255a9d166d79b74143c6c427a276bf4c2d6fbc37a75f9dabff072ab3eeb70900",
+    "selectionFingerprint": "6292b53b7c9f5f881a49c402fd0c9dcbfa24980978dc8cb7ac3984f911061585",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "0852795c136a739657686ba229f7a445475d73996ff2161fc858f3fa491fe876",
+    "sourceFingerprint": "7a032e983fea20ed627802972812ca83c0b3bb79993d67b7adf5d6be35d02bb7",
     "supportClosure": {
       "assets": [],
       "files": [
@@ -201,7 +239,7 @@
       ],
       "skillStableIds": []
     },
-    "surfaceSelectionFingerprint": "9c2cc6fc018f38b298fc1b01db27568eb83ef2a64b032561684e5d4400a61f5c",
+    "surfaceSelectionFingerprint": "e239237d29a1d60d64a8967aae5d7344f3679309404da3822dcbfe0cbac85e2f",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -211,22 +249,29 @@
     "agent-architecture-audit",
     "agy-fast-worker",
     "change-verdict",
+    "code-simplify",
     "code-trace",
     "codex-bridge",
     "composer-package-hygiene",
+    "create-pr",
+    "dep-audit",
     "deploy-list",
+    "doc-refactor",
     "fastapi-pro",
     "feature-verify",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
+    "git-worktree",
     "gitnexus-cli",
     "gitnexus-debugging",
     "gitnexus-exploring",
     "gitnexus-guide",
     "gitnexus-impact-analysis",
     "gitnexus-refactoring",
+    "harness-audit",
     "harness-govern",
+    "harness-setup",
     "ios-icon-gen",
     "ios-platform",
     "issue-analyze",
@@ -237,29 +282,41 @@
     "legacy-code-characterization",
     "library-dual-testsuite-map",
     "matrix-cell-onboard",
+    "merge-prep",
     "openspec-artifact-guard",
     "opsx-apply-goal",
+    "opsx-apply-resume",
     "opsx-load-context",
     "opsx-post-obs",
     "php-pro",
     "php56-yii-dev",
     "polyfill-version-matrix-audit",
+    "pr-summary",
+    "precommit",
     "project-audit",
+    "project-brief",
     "project-setup",
     "prompt-optimize",
+    "proposal-analyze",
     "pytest-async",
     "python-pro",
     "python-static-checks",
     "release-creator",
     "repo-intake",
+    "repo-verify",
+    "review-pending",
     "session-usage-audit",
     "skill-forge",
     "skill-scope",
     "software-architecture",
+    "spec-mine",
     "swift-language",
     "swift-test-strategy",
     "swiftui-architecture",
     "tdd",
+    "ui-ux-verify",
+    "update-codemaps",
+    "update-docs",
     "vue-2-notes",
     "xcode-build-tooling",
     "yii1-security-audit"
@@ -282,52 +339,584 @@
       "destination": "skills/dhpk-agent-architecture-audit/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:agent-architecture-audit:agents/openai.yaml",
+      "destination": "skills/dhpk-agent-architecture-audit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:agent-architecture-audit:references/layers-and-failure-patterns.md",
+      "destination": "skills/dhpk-agent-architecture-audit/references/layers-and-failure-patterns.md"
+    },
+    {
       "stableId": "claude-profile:skill:agy-fast-worker",
       "destination": "skills/dhpk-agy-fast-worker/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:agy-fast-worker:agents/openai.yaml",
+      "destination": "skills/dhpk-agy-fast-worker/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:agy-fast-worker:scripts/cli-transport/prepare-cli-request.py",
+      "destination": "skills/dhpk-agy-fast-worker/scripts/cli-transport/prepare-cli-request.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:agy-fast-worker:scripts/cli-transport/run-cli-transport.py",
+      "destination": "skills/dhpk-agy-fast-worker/scripts/cli-transport/run-cli-transport.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:agy-fast-worker:scripts/report-schema.json",
+      "destination": "skills/dhpk-agy-fast-worker/scripts/report-schema.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:agy-fast-worker:scripts/run-agy.sh",
+      "destination": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh"
     },
     {
       "stableId": "claude-profile:skill:change-verdict",
       "destination": "skills/change-verdict/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:change-verdict:agents/openai.yaml",
+      "destination": "skills/change-verdict/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/code/codex-prompt-branch.md",
+      "destination": "skills/change-verdict/references/code/codex-prompt-branch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/code/codex-prompt-fast.md",
+      "destination": "skills/change-verdict/references/code/codex-prompt-fast.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/code/codex-prompt-full.md",
+      "destination": "skills/change-verdict/references/code/codex-prompt-full.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/docs/codex-prompt-doc.md",
+      "destination": "skills/change-verdict/references/docs/codex-prompt-doc.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/docs/review-loop-doc.md",
+      "destination": "skills/change-verdict/references/docs/review-loop-doc.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/risk/output-template.md",
+      "destination": "skills/change-verdict/references/risk/output-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/risk/risk-dimensions.md",
+      "destination": "skills/change-verdict/references/risk/risk-dimensions.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/security/codex-prompt-security.md",
+      "destination": "skills/change-verdict/references/security/codex-prompt-security.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/security/examples.md",
+      "destination": "skills/change-verdict/references/security/examples.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/cli-backend.md",
+      "destination": "skills/change-verdict/references/shared/cli-backend.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/codex-research-instructions.md",
+      "destination": "skills/change-verdict/references/shared/codex-research-instructions.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/command-context.md",
+      "destination": "skills/change-verdict/references/shared/command-context.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/review-common.md",
+      "destination": "skills/change-verdict/references/shared/review-common.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/review-rubric.md",
+      "destination": "skills/change-verdict/references/shared/review-rubric.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/shared/review-workflow.md",
+      "destination": "skills/change-verdict/references/shared/review-workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/tests/codex-prompt-ac-trace.md",
+      "destination": "skills/change-verdict/references/tests/codex-prompt-ac-trace.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:references/tests/codex-prompt-test-review.md",
+      "destination": "skills/change-verdict/references/tests/codex-prompt-test-review.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/check-unrelated-changes.sh",
+      "destination": "skills/change-verdict/scripts/check-unrelated-changes.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/lib/command-namespace.js",
+      "destination": "skills/change-verdict/scripts/lib/command-namespace.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/lib/runner-utils.js",
+      "destination": "skills/change-verdict/scripts/lib/runner-utils.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/review-cli.sh",
+      "destination": "skills/change-verdict/scripts/review-cli.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:scripts/risk-analyze.js",
+      "destination": "skills/change-verdict/scripts/risk-analyze.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:change-verdict:templates/review_output.md",
+      "destination": "skills/change-verdict/templates/review_output.md"
+    },
+    {
+      "stableId": "claude-profile:skill:code-simplify",
+      "destination": "skills/code-simplify/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-simplify:agents/openai.yaml",
+      "destination": "skills/code-simplify/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-simplify:references/refactor-contract.md",
+      "destination": "skills/code-simplify/references/refactor-contract.md"
+    },
+    {
       "stableId": "claude-profile:skill:code-trace",
       "destination": "skills/code-trace/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:agents/openai.yaml",
+      "destination": "skills/code-trace/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/checklists.md",
+      "destination": "skills/code-trace/references/diagnose/checklists.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/condition-based-waiting.md",
+      "destination": "skills/code-trace/references/diagnose/condition-based-waiting.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/defense-in-depth.md",
+      "destination": "skills/code-trace/references/diagnose/defense-in-depth.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/examples.md",
+      "destination": "skills/code-trace/references/diagnose/examples.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/phase-templates.md",
+      "destination": "skills/code-trace/references/diagnose/phase-templates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/root-cause-tracing.md",
+      "destination": "skills/code-trace/references/diagnose/root-cause-tracing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/scripts.md",
+      "destination": "skills/code-trace/references/diagnose/scripts.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/wait-for-helper.ts",
+      "destination": "skills/code-trace/references/diagnose/wait-for-helper.ts"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/explore/dual-perspective.md",
+      "destination": "skills/code-trace/references/explore/dual-perspective.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/explore/explain.md",
+      "destination": "skills/code-trace/references/explore/explain.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/explore/search-patterns.md",
+      "destination": "skills/code-trace/references/explore/search-patterns.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/history/commands.md",
+      "destination": "skills/code-trace/references/history/commands.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/history/wsl-traps.md",
+      "destination": "skills/code-trace/references/history/wsl-traps.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/select-tool/decision-tree.md",
+      "destination": "skills/code-trace/references/select-tool/decision-tree.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/analyze-function-calls.sh",
+      "destination": "skills/code-trace/scripts/diagnose/analyze-function-calls.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/check-tools.sh",
+      "destination": "skills/code-trace/scripts/diagnose/check-tools.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/find-polluter.sh",
+      "destination": "skills/code-trace/scripts/diagnose/find-polluter.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/generate-flow-diagram.sh",
+      "destination": "skills/code-trace/scripts/diagnose/generate-flow-diagram.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/search-database-queries.sh",
+      "destination": "skills/code-trace/scripts/diagnose/search-database-queries.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:scripts/diagnose/trace-data-flow.sh",
+      "destination": "skills/code-trace/scripts/diagnose/trace-data-flow.sh"
     },
     {
       "stableId": "claude-profile:skill:codex-bridge",
       "destination": "skills/dhpk-codex-bridge/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:codex-bridge:agents/openai.yaml",
+      "destination": "skills/dhpk-codex-bridge/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:codex-bridge:scripts/cli-transport/prepare-cli-request.py",
+      "destination": "skills/dhpk-codex-bridge/scripts/cli-transport/prepare-cli-request.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:codex-bridge:scripts/cli-transport/run-cli-transport.py",
+      "destination": "skills/dhpk-codex-bridge/scripts/cli-transport/run-cli-transport.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:codex-bridge:scripts/codex-timeout-envelope.js",
+      "destination": "skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:codex-bridge:scripts/report-schema.json",
+      "destination": "skills/dhpk-codex-bridge/scripts/report-schema.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:codex-bridge:scripts/run-codex.sh",
+      "destination": "skills/dhpk-codex-bridge/scripts/run-codex.sh"
+    },
+    {
       "stableId": "claude-profile:skill:composer-package-hygiene",
       "destination": "skills/dhpk-composer-package-hygiene/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:composer-package-hygiene:agents/openai.yaml",
+      "destination": "skills/dhpk-composer-package-hygiene/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:composer-package-hygiene:references/package-contracts.md",
+      "destination": "skills/dhpk-composer-package-hygiene/references/package-contracts.md"
+    },
+    {
+      "stableId": "claude-profile:skill:create-pr",
+      "destination": "skills/create-pr/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:create-pr:agents/openai.yaml",
+      "destination": "skills/create-pr/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:create-pr:references/workflow.md",
+      "destination": "skills/create-pr/references/workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill:dep-audit",
+      "destination": "skills/dep-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:dep-audit:agents/openai.yaml",
+      "destination": "skills/dep-audit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:dep-audit:references/workflow.md",
+      "destination": "skills/dep-audit/references/workflow.md"
     },
     {
       "stableId": "claude-profile:skill:deploy-list",
       "destination": "skills/dhpk-deploy-list/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:deploy-list:agents/openai.yaml",
+      "destination": "skills/dhpk-deploy-list/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:config.sh.example",
+      "destination": "skills/dhpk-deploy-list/config.sh.example"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/evals.json",
+      "destination": "skills/dhpk-deploy-list/evals/evals.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/expected/expected-fixture-01-php-yii.txt",
+      "destination": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-01-php-yii.txt"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/expected/expected-fixture-02-laravel.txt",
+      "destination": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-02-laravel.txt"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/expected/expected-fixture-03-node.txt",
+      "destination": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-03-node.txt"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/expected/expected-fixture-04-python.txt",
+      "destination": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-04-python.txt"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/expected/expected-fixture-05-generic.txt",
+      "destination": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-05-generic.txt"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/expected/expected-fixture-07-anchor-mode.txt",
+      "destination": "skills/dhpk-deploy-list/evals/generic/expected/expected-fixture-07-anchor-mode.txt"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/fixtures/fixture-01-php-yii.sh",
+      "destination": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-01-php-yii.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/fixtures/fixture-02-laravel.sh",
+      "destination": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-02-laravel.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/fixtures/fixture-03-node.sh",
+      "destination": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-03-node.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/fixtures/fixture-04-python.sh",
+      "destination": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-04-python.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/fixtures/fixture-05-generic.sh",
+      "destination": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-05-generic.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:evals/generic/fixtures/fixture-07-anchor-mode.sh",
+      "destination": "skills/dhpk-deploy-list/evals/generic/fixtures/fixture-07-anchor-mode.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:i18n/en.sh",
+      "destination": "skills/dhpk-deploy-list/i18n/en.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:i18n/zh-TW.sh",
+      "destination": "skills/dhpk-deploy-list/i18n/zh-TW.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:presets/generic.sh",
+      "destination": "skills/dhpk-deploy-list/presets/generic.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:presets/laravel.sh",
+      "destination": "skills/dhpk-deploy-list/presets/laravel.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:presets/node.sh",
+      "destination": "skills/dhpk-deploy-list/presets/node.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:presets/php-yii.sh",
+      "destination": "skills/dhpk-deploy-list/presets/php-yii.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:presets/python.sh",
+      "destination": "skills/dhpk-deploy-list/presets/python.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:references/extended-presets.example/php-yii-acmeshop.sh",
+      "destination": "skills/dhpk-deploy-list/references/extended-presets.example/php-yii-acmeshop.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:references/presets.md",
+      "destination": "skills/dhpk-deploy-list/references/presets.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:references/why-this-grouping.md",
+      "destination": "skills/dhpk-deploy-list/references/why-this-grouping.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:scripts/check-golden.sh",
+      "destination": "skills/dhpk-deploy-list/scripts/check-golden.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:deploy-list:scripts/deploy-list.sh",
+      "destination": "skills/dhpk-deploy-list/scripts/deploy-list.sh"
+    },
+    {
+      "stableId": "claude-profile:skill:doc-refactor",
+      "destination": "skills/doc-refactor/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:doc-refactor:agents/openai.yaml",
+      "destination": "skills/doc-refactor/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:fastapi-pro",
       "destination": "skills/dhpk-fastapi-pro/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:fastapi-pro:agents/openai.yaml",
+      "destination": "skills/dhpk-fastapi-pro/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill:feature-verify",
       "destination": "skills/dhpk-feature-verify/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:feature-verify:agents/openai.yaml",
+      "destination": "skills/dhpk-feature-verify/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:feature-verify:references/blackbox-testing.md",
+      "destination": "skills/dhpk-feature-verify/references/blackbox-testing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:feature-verify:references/environments.md",
+      "destination": "skills/dhpk-feature-verify/references/environments.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:feature-verify:references/output-template.md",
+      "destination": "skills/dhpk-feature-verify/references/output-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:feature-verify:references/safety-rules.md",
+      "destination": "skills/dhpk-feature-verify/references/safety-rules.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:feature-verify:references/verification-playbook.md",
+      "destination": "skills/dhpk-feature-verify/references/verification-playbook.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:feature-verify:scripts/api-exec.sh",
+      "destination": "skills/dhpk-feature-verify/scripts/api-exec.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:feature-verify:scripts/health-probe.sh",
+      "destination": "skills/dhpk-feature-verify/scripts/health-probe.sh"
+    },
+    {
       "stableId": "claude-profile:skill:flow-drive",
       "destination": "skills/flow-drive/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:agents/openai.yaml",
+      "destination": "skills/flow-drive/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/contracts/review-lifecycle.md",
+      "destination": "skills/flow-drive/references/execution-bundle/docs/contracts/review-lifecycle.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/contracts/reviewer-contract.md",
+      "destination": "skills/flow-drive/references/execution-bundle/docs/contracts/reviewer-contract.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/subagent-prompt-template.md",
+      "destination": "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/manifests/host-profiles.json",
+      "destination": "skills/flow-drive/references/execution-bundle/manifests/host-profiles.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/manifests/provider-model-catalog.json",
+      "destination": "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/anti-rationalization.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/execution-policy-kernel.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/execution-policy.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/model-economics.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/model-economics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/rules/tool-routing.md",
+      "destination": "skills/flow-drive/references/execution-bundle/rules/tool-routing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/fast-worker-selector.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/dispatch-contract.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/dispatch-engine.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+      "destination": "skills/flow-drive/references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-drive:scripts/dispatch.js",
+      "destination": "skills/flow-drive/scripts/dispatch.js"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-drive:scripts/invocation.js",
       "destination": "skills/flow-drive/scripts/invocation.js"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-drive:skill-package.json",
-      "destination": "skills/flow-drive/skill-package.json"
-    },
-    {
       "stableId": "claude-profile:skill:flow-guide",
       "destination": "skills/flow-guide/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:agents/openai.yaml",
+      "destination": "skills/flow-guide/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/anti-loop.md",
@@ -360,6 +949,102 @@
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/dispatch-and-gates.md",
       "destination": "skills/flow-guide/references/dispatch-and-gates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/contracts/review-lifecycle.md",
+      "destination": "skills/flow-guide/references/execution-bundle/docs/contracts/review-lifecycle.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/contracts/reviewer-contract.md",
+      "destination": "skills/flow-guide/references/execution-bundle/docs/contracts/reviewer-contract.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/subagent-prompt-template.md",
+      "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/manifests/host-profiles.json",
+      "destination": "skills/flow-guide/references/execution-bundle/manifests/host-profiles.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/manifests/provider-model-catalog.json",
+      "destination": "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/anti-rationalization.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/execution-policy-kernel.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy-kernel.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/execution-policy.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/model-economics.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/model-economics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/rules/tool-routing.md",
+      "destination": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/fast-worker-selector.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/dispatch-contract.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/dispatch-engine.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+      "destination": "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/handoff-and-verification.md",
@@ -454,8 +1139,24 @@
       "destination": "skills/flow-guide/references/workflow-lightweight.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/command-namespace.js",
+      "destination": "skills/flow-guide/scripts/_lib/command-namespace.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/feature-resolver.js",
+      "destination": "skills/flow-guide/scripts/_lib/feature-resolver.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/runner-utils.js",
+      "destination": "skills/flow-guide/scripts/_lib/runner-utils.js"
+    },
+    {
       "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/runtime-loader.js",
       "destination": "skills/flow-guide/scripts/_lib/runtime-loader.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:flow-guide:scripts/_lib/skill-usage.js",
+      "destination": "skills/flow-guide/scripts/_lib/skill-usage.js"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:scripts/action-runner.js",
@@ -494,208 +1195,1496 @@
       "destination": "skills/flow-guide/scripts/workflow_gate_check.py"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-guide:skill-package.json",
-      "destination": "skills/flow-guide/skill-package.json"
-    },
-    {
-      "stableId": "claude-profile:runtime:flow-guide:references/execution-policy.md",
-      "destination": "skills/flow-guide/references/execution-policy.md"
-    },
-    {
-      "stableId": "claude-profile:runtime:flow-guide:references/execution-policy-kernel.md",
-      "destination": "skills/flow-guide/references/execution-policy-kernel.md"
-    },
-    {
-      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/skill-usage.js",
-      "destination": "skills/flow-guide/scripts/_lib/skill-usage.js"
-    },
-    {
-      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/utils.js",
-      "destination": "skills/flow-guide/scripts/_lib/utils.js"
-    },
-    {
-      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/feature-resolver.js",
-      "destination": "skills/flow-guide/scripts/_lib/feature-resolver.js"
-    },
-    {
-      "stableId": "claude-profile:runtime:flow-guide:scripts/_lib/flow-handoff-contract.js",
-      "destination": "skills/flow-guide/scripts/_lib/flow-handoff-contract.js"
-    },
-    {
       "stableId": "claude-profile:skill:git-smart-commit",
-      "destination": "skills/dhpk-git-smart-commit/SKILL.md"
+      "destination": "skills/git-smart-commit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:git-smart-commit:agents/openai.yaml",
+      "destination": "skills/git-smart-commit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill:git-worktree",
+      "destination": "skills/git-worktree/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:git-worktree:agents/openai.yaml",
+      "destination": "skills/git-worktree/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:git-worktree:references/workflow.md",
+      "destination": "skills/git-worktree/references/workflow.md"
     },
     {
       "stableId": "claude-profile:skill:gitnexus-cli",
       "destination": "skills/dhpk-gitnexus-cli/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:gitnexus-cli:agents/openai.yaml",
+      "destination": "skills/dhpk-gitnexus-cli/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:gitnexus-debugging",
       "destination": "skills/dhpk-gitnexus-debugging/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:gitnexus-debugging:agents/openai.yaml",
+      "destination": "skills/dhpk-gitnexus-debugging/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill:gitnexus-exploring",
       "destination": "skills/dhpk-gitnexus-exploring/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:gitnexus-exploring:agents/openai.yaml",
+      "destination": "skills/dhpk-gitnexus-exploring/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:gitnexus-guide",
       "destination": "skills/dhpk-gitnexus-guide/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:gitnexus-guide:agents/openai.yaml",
+      "destination": "skills/dhpk-gitnexus-guide/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill:gitnexus-impact-analysis",
       "destination": "skills/dhpk-gitnexus-impact-analysis/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:gitnexus-impact-analysis:agents/openai.yaml",
+      "destination": "skills/dhpk-gitnexus-impact-analysis/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:gitnexus-refactoring",
       "destination": "skills/dhpk-gitnexus-refactoring/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:gitnexus-refactoring:agents/openai.yaml",
+      "destination": "skills/dhpk-gitnexus-refactoring/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill:harness-audit",
+      "destination": "skills/harness-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-audit:agents/openai.yaml",
+      "destination": "skills/harness-audit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-audit:references/workflow.md",
+      "destination": "skills/harness-audit/references/workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-audit:scripts/harness-audit.js",
+      "destination": "skills/harness-audit/scripts/harness-audit.js"
     },
     {
       "stableId": "claude-profile:skill:harness-govern",
       "destination": "skills/harness-govern/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:harness-govern:agents/openai.yaml",
+      "destination": "skills/harness-govern/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/best-practices.md",
+      "destination": "skills/harness-govern/references/best-practices.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/budget-workflow.md",
+      "destination": "skills/harness-govern/references/budget-workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/capability-sources.md",
+      "destination": "skills/harness-govern/references/capability-sources.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/execution-contract.md",
+      "destination": "skills/harness-govern/references/execution-contract.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/fill-workflow.md",
+      "destination": "skills/harness-govern/references/fill-workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/frontmatter-templates.md",
+      "destination": "skills/harness-govern/references/frontmatter-templates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/harness-directory-contract.md",
+      "destination": "skills/harness-govern/references/harness-directory-contract.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/health-workflow.md",
+      "destination": "skills/harness-govern/references/health-workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/hygiene-checks.md",
+      "destination": "skills/harness-govern/references/hygiene-checks.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/improvement-todo.md",
+      "destination": "skills/harness-govern/references/improvement-todo.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/platform-mapping.md",
+      "destination": "skills/harness-govern/references/platform-mapping.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/plugin-sync.md",
+      "destination": "skills/harness-govern/references/plugin-sync.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/revise-workflow.md",
+      "destination": "skills/harness-govern/references/revise-workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/risk-policy.md",
+      "destination": "skills/harness-govern/references/risk-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/runtime-entrypoints.md",
+      "destination": "skills/harness-govern/references/runtime-entrypoints.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/source-conflicts.json",
+      "destination": "skills/harness-govern/references/source-conflicts.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/sync-workflow.md",
+      "destination": "skills/harness-govern/references/sync-workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:references/usage-examples.md",
+      "destination": "skills/harness-govern/references/usage-examples.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/harness-inventory.sh",
+      "destination": "skills/harness-govern/scripts/harness-inventory.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/harness-scenarios.sh",
+      "destination": "skills/harness-govern/scripts/harness-scenarios.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/__init__.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/__init__.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/agent_sync.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/agent_sync.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/apply_sync.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/apply_sync_v2.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync_v2.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/cli.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/cli.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/constants.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/constants.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/cursor_project_local.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/cursor_project_local.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/mapping.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/mapping.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/sources.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/sources.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/utils.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/utils.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/validation.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/validation.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/vendor/__init__.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/__init__.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/vendor/tomli/LICENSE",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/LICENSE"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/vendor/tomli/__init__.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/__init__.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/vendor/tomli/_parser.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_parser.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/multi_ai_sync_lib/vendor/tomli/_re.py",
+      "destination": "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_re.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-govern:scripts/test-harness.sh",
+      "destination": "skills/harness-govern/scripts/test-harness.sh"
+    },
+    {
+      "stableId": "claude-profile:skill:harness-setup",
+      "destination": "skills/harness-setup/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:agents/openai.yaml",
+      "destination": "skills/harness-setup/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:data/module-catalog.json",
+      "destination": "skills/harness-setup/data/module-catalog.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:references/claude-setup.md",
+      "destination": "skills/harness-setup/references/claude-setup.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:references/codex-setup.md",
+      "destination": "skills/harness-setup/references/codex-setup.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/install-assets.sh",
+      "destination": "skills/harness-setup/scripts/install-assets.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/install-codex-project.sh",
+      "destination": "skills/harness-setup/scripts/install-codex-project.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/claude-review-gate-adapter.js",
+      "destination": "skills/harness-setup/scripts/lib/claude-review-gate-adapter.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/install-assets-writer.sh",
+      "destination": "skills/harness-setup/scripts/lib/install-assets-writer.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/install-codex-skills.sh",
+      "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/physical-file.js",
+      "destination": "skills/harness-setup/scripts/lib/physical-file.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/receipt-json-primitives.js",
+      "destination": "skills/harness-setup/scripts/lib/receipt-json-primitives.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/receipt-primitives.js",
+      "destination": "skills/harness-setup/scripts/lib/receipt-primitives.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/redaction.js",
+      "destination": "skills/harness-setup/scripts/lib/redaction.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-evidence.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-evidence.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-receipt-store.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-receipt-store.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-attestation.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-attestation.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-checkpoint.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-checkpoint.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-composition.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-composition.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-errors.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-errors.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-evidence.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-evidence.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-storage.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-storage.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-store-budget.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate-store-budget.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate.js",
+      "destination": "skills/harness-setup/scripts/lib/review-gate.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/reviewer-contract.js",
+      "destination": "skills/harness-setup/scripts/lib/reviewer-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/risk-router.js",
+      "destination": "skills/harness-setup/scripts/lib/risk-router.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:scripts/review-gate-runtime.js",
+      "destination": "skills/harness-setup/scripts/review-gate-runtime.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:harness-setup:templates/settings.local.json.example",
+      "destination": "skills/harness-setup/templates/settings.local.json.example"
+    },
+    {
       "stableId": "claude-profile:skill:ios-icon-gen",
       "destination": "skills/dhpk-ios-icon-gen/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-icon-gen:agents/openai.yaml",
+      "destination": "skills/dhpk-ios-icon-gen/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-icon-gen:scripts/generate_icons.swift",
+      "destination": "skills/dhpk-ios-icon-gen/scripts/generate_icons.swift"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-icon-gen:scripts/iconify_gen.sh",
+      "destination": "skills/dhpk-ios-icon-gen/scripts/iconify_gen.sh"
     },
     {
       "stableId": "claude-profile:skill:ios-platform",
       "destination": "skills/dhpk-ios-platform/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:ios-platform:agents/openai.yaml",
+      "destination": "skills/dhpk-ios-platform/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-platform:references/actor-persistence.md",
+      "destination": "skills/dhpk-ios-platform/references/actor-persistence.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-platform:references/coredata-encryption.md",
+      "destination": "skills/dhpk-ios-platform/references/coredata-encryption.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-platform:references/cryptokit-keychain.md",
+      "destination": "skills/dhpk-ios-platform/references/cryptokit-keychain.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-platform:references/healthkit-read.md",
+      "destination": "skills/dhpk-ios-platform/references/healthkit-read.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-platform:references/local-authentication.md",
+      "destination": "skills/dhpk-ios-platform/references/local-authentication.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-platform:references/notifications.md",
+      "destination": "skills/dhpk-ios-platform/references/notifications.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-platform:references/privacy-compliance.md",
+      "destination": "skills/dhpk-ios-platform/references/privacy-compliance.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ios-platform:references/vision-ocr.md",
+      "destination": "skills/dhpk-ios-platform/references/vision-ocr.md"
+    },
+    {
       "stableId": "claude-profile:skill:issue-analyze",
       "destination": "skills/dhpk-issue-analyze/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:issue-analyze:agents/openai.yaml",
+      "destination": "skills/dhpk-issue-analyze/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:issue-analyze:references/classification.md",
+      "destination": "skills/dhpk-issue-analyze/references/classification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:issue-analyze:references/report-template.md",
+      "destination": "skills/dhpk-issue-analyze/references/report-template.md"
     },
     {
       "stableId": "claude-profile:skill:js-lint-config",
       "destination": "skills/dhpk-js-lint-config/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:js-lint-config:agents/openai.yaml",
+      "destination": "skills/dhpk-js-lint-config/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:js-lint-config:references/frontend-review-patterns.md",
+      "destination": "skills/dhpk-js-lint-config/references/frontend-review-patterns.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:js-lint-config:references/static-checks.md",
+      "destination": "skills/dhpk-js-lint-config/references/static-checks.md"
+    },
+    {
       "stableId": "claude-profile:skill:js-static-check-strategy",
-      "destination": "skills/dhpk-js-static-check-strategy/SKILL.md"
+      "destination": "skills/js-static-check-strategy/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:js-static-check-strategy:agents/openai.yaml",
+      "destination": "skills/js-static-check-strategy/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:js-static-check-strategy:references/frontend-review-patterns.md",
+      "destination": "skills/js-static-check-strategy/references/frontend-review-patterns.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:js-static-check-strategy:references/static-checks.md",
+      "destination": "skills/js-static-check-strategy/references/static-checks.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:js-static-check-strategy:scripts/status.js",
+      "destination": "skills/js-static-check-strategy/scripts/status.js"
     },
     {
       "stableId": "claude-profile:skill:laravel-package-author",
       "destination": "skills/dhpk-laravel-package-author/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:laravel-package-author:agents/openai.yaml",
+      "destination": "skills/dhpk-laravel-package-author/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:laravel-package-author:references/authoring-patterns.md",
+      "destination": "skills/dhpk-laravel-package-author/references/authoring-patterns.md"
+    },
+    {
       "stableId": "claude-profile:skill:laravel-testbench-matrix",
       "destination": "skills/dhpk-laravel-testbench-matrix/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:laravel-testbench-matrix:agents/openai.yaml",
+      "destination": "skills/dhpk-laravel-testbench-matrix/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:laravel-testbench-matrix:references/testbench-recipes.md",
+      "destination": "skills/dhpk-laravel-testbench-matrix/references/testbench-recipes.md"
     },
     {
       "stableId": "claude-profile:skill:legacy-code-characterization",
       "destination": "skills/dhpk-legacy-characterization-tests/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:legacy-code-characterization:agents/openai.yaml",
+      "destination": "skills/dhpk-legacy-characterization-tests/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:legacy-code-characterization:evals/evals.json",
+      "destination": "skills/dhpk-legacy-characterization-tests/evals/evals.json"
+    },
+    {
       "stableId": "claude-profile:skill:library-dual-testsuite-map",
       "destination": "skills/dhpk-library-dual-testsuite-map/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:library-dual-testsuite-map:agents/openai.yaml",
+      "destination": "skills/dhpk-library-dual-testsuite-map/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:matrix-cell-onboard",
-      "destination": "skills/dhpk-matrix-cell-onboard/SKILL.md"
+      "destination": "skills/matrix-cell-onboard/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:matrix-cell-onboard:agents/openai.yaml",
+      "destination": "skills/matrix-cell-onboard/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill:merge-prep",
+      "destination": "skills/merge-prep/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:merge-prep:agents/openai.yaml",
+      "destination": "skills/merge-prep/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:merge-prep:references/workflow.md",
+      "destination": "skills/merge-prep/references/workflow.md"
     },
     {
       "stableId": "claude-profile:skill:openspec-artifact-guard",
       "destination": "skills/dhpk-openspec-artifact-guard/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:openspec-artifact-guard:agents/openai.yaml",
+      "destination": "skills/dhpk-openspec-artifact-guard/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:opsx-apply-goal",
       "destination": "skills/dhpk-opsx-apply-goal/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:agents/openai.yaml",
+      "destination": "skills/dhpk-opsx-apply-goal/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/detection.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/detection.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/docs/contracts/review-lifecycle.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/contracts/review-lifecycle.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/docs/contracts/reviewer-contract.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/contracts/reviewer-contract.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/docs/subagent-prompt-template.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/subagent-prompt-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/manifests/host-profiles.json",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/host-profiles.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/manifests/provider-model-catalog.json",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/provider-model-catalog.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/rules/anti-rationalization.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/anti-rationalization.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/rules/execution-policy-kernel.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy-kernel.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/rules/execution-policy.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/rules/model-economics.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/model-economics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/rules/tool-routing.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/tool-routing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/scripts/fast-worker-selector.js",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/fast-worker-selector.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/scripts/lib/dispatch-contract.js",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/dispatch-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/scripts/lib/dispatch-engine.js",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/dispatch-engine.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/flow-handoff-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/native-dispatch-policy.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/partial-writer-handoff.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/gate-contracts.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/gate-contracts.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/goal-templates.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/goal-templates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/output-blocks.md",
+      "destination": "skills/dhpk-opsx-apply-goal/references/output-blocks.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/analyze-change.sh",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/analyze-change.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/build-cli-dispatch-context.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/build-cli-dispatch-context.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/cli-role-resolver.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/cli-role-resolver.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/cli-transport/prepare-cli-request.py",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/cli-transport/prepare-cli-request.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/cli-transport/run-cli-transport.py",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/cli-transport/run-cli-transport.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/goal-context.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/goal-context.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/launch-cli-dispatch.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/launch-cli-dispatch.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/claude-review-gate-adapter.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/claude-review-gate-adapter.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/physical-file.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/physical-file.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/receipt-json-primitives.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/receipt-json-primitives.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/receipt-primitives.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/receipt-primitives.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/redaction.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/redaction.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-evidence.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-evidence.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-receipt-store.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-receipt-store.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-attestation.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-attestation.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-checkpoint.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-checkpoint.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-composition.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-composition.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-errors.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-errors.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-evidence.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-evidence.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-storage.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-storage.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-store-budget.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-store-budget.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/reviewer-contract.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/reviewer-contract.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/risk-router.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/risk-router.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/physical-file.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/physical-file.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/physical-file.py",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/physical-file.py"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/review-gate-runtime.js",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/review-gate-runtime.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/run-agy.sh",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/run-agy.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/run-codex.sh",
+      "destination": "skills/dhpk-opsx-apply-goal/scripts/run-codex.sh"
+    },
+    {
+      "stableId": "claude-profile:skill:opsx-apply-resume",
+      "destination": "skills/opsx-apply-resume/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:agents/openai.yaml",
+      "destination": "skills/opsx-apply-resume/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:references/resume.md",
+      "destination": "skills/opsx-apply-resume/references/resume.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:references/save.md",
+      "destination": "skills/opsx-apply-resume/references/save.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:scripts/detect-phase.sh",
+      "destination": "skills/opsx-apply-resume/scripts/detect-phase.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:scripts/extract-compact.sh",
+      "destination": "skills/opsx-apply-resume/scripts/extract-compact.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:scripts/lib/portable-sed.sh",
+      "destination": "skills/opsx-apply-resume/scripts/lib/portable-sed.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:scripts/post-obs.sh",
+      "destination": "skills/opsx-apply-resume/scripts/post-obs.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:scripts/set-handoff-state.sh",
+      "destination": "skills/opsx-apply-resume/scripts/set-handoff-state.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-apply-resume:scripts/write-handoff.sh",
+      "destination": "skills/opsx-apply-resume/scripts/write-handoff.sh"
     },
     {
       "stableId": "claude-profile:skill:opsx-load-context",
       "destination": "skills/dhpk-opsx-load-context/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:opsx-load-context:agents/openai.yaml",
+      "destination": "skills/dhpk-opsx-load-context/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-load-context:references/extractor-resolution.md",
+      "destination": "skills/dhpk-opsx-load-context/references/extractor-resolution.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-load-context:scripts/extract-compact.sh",
+      "destination": "skills/dhpk-opsx-load-context/scripts/extract-compact.sh"
+    },
+    {
       "stableId": "claude-profile:skill:opsx-post-obs",
       "destination": "skills/dhpk-opsx-post-observation/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-post-obs:agents/openai.yaml",
+      "destination": "skills/dhpk-opsx-post-observation/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:opsx-post-obs:scripts/post-obs.sh",
+      "destination": "skills/dhpk-opsx-post-observation/scripts/post-obs.sh"
     },
     {
       "stableId": "claude-profile:skill:php-pro",
       "destination": "skills/dhpk-php-runtime-router/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:php-pro:agents/openai.yaml",
+      "destination": "skills/dhpk-php-runtime-router/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/agent-extracts/architect-code-examples.md",
+      "destination": "skills/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/agent-extracts/security-owasp-examples.md",
+      "destination": "skills/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/agent-extracts/tdd-code-templates.md",
+      "destination": "skills/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/async-patterns.md",
+      "destination": "skills/dhpk-php-runtime-router/references/async-patterns.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/laravel-patterns.md",
+      "destination": "skills/dhpk-php-runtime-router/references/laravel-patterns.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/laravel-projects.md",
+      "destination": "skills/dhpk-php-runtime-router/references/laravel-projects.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/laravel-v10.md",
+      "destination": "skills/dhpk-php-runtime-router/references/laravel-v10.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/laravel-v11-v12.md",
+      "destination": "skills/dhpk-php-runtime-router/references/laravel-v11-v12.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/laravel-version-checks.md",
+      "destination": "skills/dhpk-php-runtime-router/references/laravel-version-checks.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/modern-php-features.md",
+      "destination": "skills/dhpk-php-runtime-router/references/modern-php-features.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/php56-legacy.md",
+      "destination": "skills/dhpk-php-runtime-router/references/php56-legacy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/phpunit57-php56-legacy.md",
+      "destination": "skills/dhpk-php-runtime-router/references/phpunit57-php56-legacy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/symfony-patterns.md",
+      "destination": "skills/dhpk-php-runtime-router/references/symfony-patterns.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/testing-quality.md",
+      "destination": "skills/dhpk-php-runtime-router/references/testing-quality.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php-pro:references/yii1-1.md",
+      "destination": "skills/dhpk-php-runtime-router/references/yii1-1.md"
+    },
+    {
       "stableId": "claude-profile:skill:php56-yii-dev",
       "destination": "skills/dhpk-yii1-php56-development/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php56-yii-dev:agents/openai.yaml",
+      "destination": "skills/dhpk-yii1-php56-development/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php56-yii-dev:references/context7-sources-and-query-rules.md",
+      "destination": "skills/dhpk-yii1-php56-development/references/context7-sources-and-query-rules.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php56-yii-dev:references/ddd-lite-for-yii1.md",
+      "destination": "skills/dhpk-yii1-php56-development/references/ddd-lite-for-yii1.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php56-yii-dev:references/php56-php7-safe-subset.md",
+      "destination": "skills/dhpk-yii1-php56-development/references/php56-php7-safe-subset.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php56-yii-dev:references/phpunit57-legacy-test-traps.md",
+      "destination": "skills/dhpk-yii1-php56-development/references/phpunit57-legacy-test-traps.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php56-yii-dev:references/tdd-workflow-and-test-strategy.md",
+      "destination": "skills/dhpk-yii1-php56-development/references/tdd-workflow-and-test-strategy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:php56-yii-dev:references/yii1-backend-patterns.md",
+      "destination": "skills/dhpk-yii1-php56-development/references/yii1-backend-patterns.md"
     },
     {
       "stableId": "claude-profile:skill:polyfill-version-matrix-audit",
       "destination": "skills/dhpk-polyfill-version-matrix-audit/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:polyfill-version-matrix-audit:agents/openai.yaml",
+      "destination": "skills/dhpk-polyfill-version-matrix-audit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill:pr-summary",
+      "destination": "skills/pr-summary/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:pr-summary:agents/openai.yaml",
+      "destination": "skills/pr-summary/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:pr-summary:references/workflow.md",
+      "destination": "skills/pr-summary/references/workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill:precommit",
+      "destination": "skills/precommit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:precommit:agents/openai.yaml",
+      "destination": "skills/precommit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:precommit:references/workflow.md",
+      "destination": "skills/precommit/references/workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:precommit:scripts/lib/runner-utils.js",
+      "destination": "skills/precommit/scripts/lib/runner-utils.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:precommit:scripts/precommit-runner.js",
+      "destination": "skills/precommit/scripts/precommit-runner.js"
+    },
+    {
       "stableId": "claude-profile:skill:project-audit",
       "destination": "skills/dhpk-project-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-audit:agents/openai.yaml",
+      "destination": "skills/dhpk-project-audit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-audit:references/check-catalog.md",
+      "destination": "skills/dhpk-project-audit/references/check-catalog.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-audit:references/output-template.md",
+      "destination": "skills/dhpk-project-audit/references/output-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-audit:scripts/audit.js",
+      "destination": "skills/dhpk-project-audit/scripts/audit.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-audit:scripts/lib/command-namespace.js",
+      "destination": "skills/dhpk-project-audit/scripts/lib/command-namespace.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-audit:scripts/lib/runner-utils.js",
+      "destination": "skills/dhpk-project-audit/scripts/lib/runner-utils.js"
+    },
+    {
+      "stableId": "claude-profile:skill:project-brief",
+      "destination": "skills/project-brief/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-brief:agents/openai.yaml",
+      "destination": "skills/project-brief/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill:project-setup",
       "destination": "skills/dhpk-project-setup/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:project-setup:agents/openai.yaml",
+      "destination": "skills/dhpk-project-setup/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:references/detection-rules.md",
+      "destination": "skills/dhpk-project-setup/references/detection-rules.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:references/env-config-phase.md",
+      "destination": "skills/dhpk-project-setup/references/env-config-phase.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:references/final-phase.md",
+      "destination": "skills/dhpk-project-setup/references/final-phase.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:references/host-boundary.md",
+      "destination": "skills/dhpk-project-setup/references/host-boundary.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:references/install-hooks-scripts.md",
+      "destination": "skills/dhpk-project-setup/references/install-hooks-scripts.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:references/install-rules-phase.md",
+      "destination": "skills/dhpk-project-setup/references/install-rules-phase.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:scripts/install-project-assets.sh",
+      "destination": "skills/dhpk-project-setup/scripts/install-project-assets.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:scripts/lib/install-assets-writer.sh",
+      "destination": "skills/dhpk-project-setup/scripts/lib/install-assets-writer.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:templates/CLAUDE.md",
+      "destination": "skills/dhpk-project-setup/templates/CLAUDE.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:project-setup:templates/claude-settings-hooks.json",
+      "destination": "skills/dhpk-project-setup/templates/claude-settings-hooks.json"
+    },
+    {
       "stableId": "claude-profile:skill:prompt-optimize",
       "destination": "skills/dhpk-prompt-optimize/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:prompt-optimize:agents/openai.yaml",
+      "destination": "skills/dhpk-prompt-optimize/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:prompt-optimize:references/completeness-checklist.md",
+      "destination": "skills/dhpk-prompt-optimize/references/completeness-checklist.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:prompt-optimize:references/effort-guide.md",
+      "destination": "skills/dhpk-prompt-optimize/references/effort-guide.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:prompt-optimize:references/general-techniques.md",
+      "destination": "skills/dhpk-prompt-optimize/references/general-techniques.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:prompt-optimize:references/live-model-verification-2026-08-05.md",
+      "destination": "skills/dhpk-prompt-optimize/references/live-model-verification-2026-08-05.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:prompt-optimize:references/model-guides.md",
+      "destination": "skills/dhpk-prompt-optimize/references/model-guides.md"
+    },
+    {
+      "stableId": "claude-profile:skill:proposal-analyze",
+      "destination": "skills/proposal-analyze/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:proposal-analyze:agents/openai.yaml",
+      "destination": "skills/proposal-analyze/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill:pytest-async",
       "destination": "skills/dhpk-pytest-async/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:pytest-async:agents/openai.yaml",
+      "destination": "skills/dhpk-pytest-async/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:python-pro",
       "destination": "skills/dhpk-python-pro/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:python-pro:agents/openai.yaml",
+      "destination": "skills/dhpk-python-pro/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill:python-static-checks",
       "destination": "skills/dhpk-python-static-checks/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:python-static-checks:agents/openai.yaml",
+      "destination": "skills/dhpk-python-static-checks/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:release-creator",
-      "destination": "skills/dhpk-release-creator/SKILL.md"
+      "destination": "skills/release-creator/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:release-creator:agents/openai.yaml",
+      "destination": "skills/release-creator/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:release-creator:references/release-presets.md",
+      "destination": "skills/release-creator/references/release-presets.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:release-creator:scripts/release-runner.sh",
+      "destination": "skills/release-creator/scripts/release-runner.sh"
     },
     {
       "stableId": "claude-profile:skill:repo-intake",
       "destination": "skills/dhpk-repo-intake/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:repo-intake:agents/openai.yaml",
+      "destination": "skills/dhpk-repo-intake/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-intake:references/archived/MIDWAY_HEURISTICS.md",
+      "destination": "skills/dhpk-repo-intake/references/archived/MIDWAY_HEURISTICS.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-intake:scripts/intake_cached.js",
+      "destination": "skills/dhpk-repo-intake/scripts/intake_cached.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-intake:scripts/lib/runner-utils.js",
+      "destination": "skills/dhpk-repo-intake/scripts/lib/runner-utils.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-intake:scripts/scan_delta.js",
+      "destination": "skills/dhpk-repo-intake/scripts/scan_delta.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-intake:scripts/scan_repo.js",
+      "destination": "skills/dhpk-repo-intake/scripts/scan_repo.js"
+    },
+    {
+      "stableId": "claude-profile:skill:repo-verify",
+      "destination": "skills/repo-verify/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-verify:agents/openai.yaml",
+      "destination": "skills/repo-verify/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-verify:references/workflow.md",
+      "destination": "skills/repo-verify/references/workflow.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-verify:scripts/lib/runner-utils.js",
+      "destination": "skills/repo-verify/scripts/lib/runner-utils.js"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:repo-verify:scripts/verify-runner.js",
+      "destination": "skills/repo-verify/scripts/verify-runner.js"
+    },
+    {
+      "stableId": "claude-profile:skill:review-pending",
+      "destination": "skills/review-pending/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:review-pending:agents/openai.yaml",
+      "destination": "skills/review-pending/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:review-pending:references/workflow.md",
+      "destination": "skills/review-pending/references/workflow.md"
+    },
+    {
       "stableId": "claude-profile:skill:session-usage-audit",
       "destination": "skills/dhpk-session-usage-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:session-usage-audit:agents/openai.yaml",
+      "destination": "skills/dhpk-session-usage-audit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:session-usage-audit:references/finding-taxonomy.md",
+      "destination": "skills/dhpk-session-usage-audit/references/finding-taxonomy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:session-usage-audit:references/issue-template.md",
+      "destination": "skills/dhpk-session-usage-audit/references/issue-template.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:session-usage-audit:references/source-adapters.md",
+      "destination": "skills/dhpk-session-usage-audit/references/source-adapters.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:session-usage-audit:scripts/session-usage-audit.js",
+      "destination": "skills/dhpk-session-usage-audit/scripts/session-usage-audit.js"
     },
     {
       "stableId": "claude-profile:skill:skill-forge",
       "destination": "skills/skill-forge/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:skill-forge:agents/openai.yaml",
+      "destination": "skills/skill-forge/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-forge:references/end-to-end-example.md",
+      "destination": "skills/skill-forge/references/end-to-end-example.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-forge:references/results-schema.md",
+      "destination": "skills/skill-forge/references/results-schema.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-forge:references/subagent-prompt.md",
+      "destination": "skills/skill-forge/references/subagent-prompt.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-forge:scripts/scan-rules.sh",
+      "destination": "skills/skill-forge/scripts/scan-rules.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-forge:scripts/scan-skills.sh",
+      "destination": "skills/skill-forge/scripts/scan-skills.sh"
+    },
+    {
       "stableId": "claude-profile:skill:skill-scope",
       "destination": "skills/skill-scope/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:agents/openai.yaml",
+      "destination": "skills/skill-scope/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:references/judge-failure-patterns.md",
+      "destination": "skills/skill-scope/references/judge-failure-patterns.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:references/judge-philosophy.md",
+      "destination": "skills/skill-scope/references/judge-philosophy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:references/judge-scoring-rubric.md",
+      "destination": "skills/skill-scope/references/judge-scoring-rubric.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:references/routing-signature-guide.md",
+      "destination": "skills/skill-scope/references/routing-signature-guide.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:scripts/quick-diff.sh",
+      "destination": "skills/skill-scope/scripts/quick-diff.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:scripts/save-results.sh",
+      "destination": "skills/skill-scope/scripts/save-results.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:scripts/scan.sh",
+      "destination": "skills/skill-scope/scripts/scan.sh"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:skill-scope:scripts/skill-lint.js",
+      "destination": "skills/skill-scope/scripts/skill-lint.js"
     },
     {
       "stableId": "claude-profile:skill:software-architecture",
       "destination": "skills/dhpk-module-design/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:software-architecture:agents/openai.yaml",
+      "destination": "skills/dhpk-module-design/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill:spec-mine",
+      "destination": "skills/spec-mine/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:spec-mine:agents/openai.yaml",
+      "destination": "skills/spec-mine/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:spec-mine:references/spec-miner-contract.md",
+      "destination": "skills/spec-mine/references/spec-miner-contract.md"
+    },
+    {
       "stableId": "claude-profile:skill:swift-language",
       "destination": "skills/dhpk-swift-language/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-language:agents/openai.yaml",
+      "destination": "skills/dhpk-swift-language/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-language:references/approachable-concurrency.md",
+      "destination": "skills/dhpk-swift-language/references/approachable-concurrency.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-language:references/concurrency.md",
+      "destination": "skills/dhpk-swift-language/references/concurrency.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-language:references/error-handling.md",
+      "destination": "skills/dhpk-swift-language/references/error-handling.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-language:references/swift5-compat-notes.md",
+      "destination": "skills/dhpk-swift-language/references/swift5-compat-notes.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-language:references/value-vs-reference.md",
+      "destination": "skills/dhpk-swift-language/references/value-vs-reference.md"
     },
     {
       "stableId": "claude-profile:skill:swift-test-strategy",
       "destination": "skills/dhpk-swift-test-strategy/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:swift-test-strategy:agents/openai.yaml",
+      "destination": "skills/dhpk-swift-test-strategy/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-test-strategy:references/protocol-di-host-testing.md",
+      "destination": "skills/dhpk-swift-test-strategy/references/protocol-di-host-testing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-test-strategy:references/snapshot-testing.md",
+      "destination": "skills/dhpk-swift-test-strategy/references/snapshot-testing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-test-strategy:references/swift-testing-api.md",
+      "destination": "skills/dhpk-swift-test-strategy/references/swift-testing-api.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-test-strategy:references/test-taxonomy.md",
+      "destination": "skills/dhpk-swift-test-strategy/references/test-taxonomy.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-test-strategy:references/xctest-bridging.md",
+      "destination": "skills/dhpk-swift-test-strategy/references/xctest-bridging.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swift-test-strategy:references/xcuitest.md",
+      "destination": "skills/dhpk-swift-test-strategy/references/xcuitest.md"
+    },
+    {
       "stableId": "claude-profile:skill:swiftui-architecture",
       "destination": "skills/dhpk-swiftui-architecture/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:swiftui-architecture:agents/openai.yaml",
+      "destination": "skills/dhpk-swiftui-architecture/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swiftui-architecture:references/interop.md",
+      "destination": "skills/dhpk-swiftui-architecture/references/interop.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swiftui-architecture:references/mvvm-coordinator.md",
+      "destination": "skills/dhpk-swiftui-architecture/references/mvvm-coordinator.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swiftui-architecture:references/navigation.md",
+      "destination": "skills/dhpk-swiftui-architecture/references/navigation.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:swiftui-architecture:references/observation-state.md",
+      "destination": "skills/dhpk-swiftui-architecture/references/observation-state.md"
+    },
+    {
       "stableId": "claude-profile:skill:tdd",
-      "destination": "skills/dhpk-tdd-workflow/SKILL.md"
+      "destination": "skills/tdd-workflow/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:tdd:agents/openai.yaml",
+      "destination": "skills/tdd-workflow/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:tdd:mocking.md",
+      "destination": "skills/tdd-workflow/mocking.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:tdd:tests.md",
+      "destination": "skills/tdd-workflow/tests.md"
+    },
+    {
+      "stableId": "claude-profile:skill:ui-ux-verify",
+      "destination": "skills/ui-ux-verify/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ui-ux-verify:agents/openai.yaml",
+      "destination": "skills/ui-ux-verify/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:ui-ux-verify:references/verification.md",
+      "destination": "skills/ui-ux-verify/references/verification.md"
+    },
+    {
+      "stableId": "claude-profile:skill:update-codemaps",
+      "destination": "skills/update-codemaps/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:update-codemaps:agents/openai.yaml",
+      "destination": "skills/update-codemaps/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill:update-docs",
+      "destination": "skills/update-docs/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:update-docs:agents/openai.yaml",
+      "destination": "skills/update-docs/agents/openai.yaml"
     },
     {
       "stableId": "claude-profile:skill:vue-2-notes",
       "destination": "skills/dhpk-vue-2-notes/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:vue-2-notes:agents/openai.yaml",
+      "destination": "skills/dhpk-vue-2-notes/agents/openai.yaml"
+    },
+    {
       "stableId": "claude-profile:skill:xcode-build-tooling",
       "destination": "skills/dhpk-xcode-build-tooling/SKILL.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:xcode-build-tooling:agents/openai.yaml",
+      "destination": "skills/dhpk-xcode-build-tooling/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:xcode-build-tooling:references/scheme-signing.md",
+      "destination": "skills/dhpk-xcode-build-tooling/references/scheme-signing.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:xcode-build-tooling:references/swiftlint-config.md",
+      "destination": "skills/dhpk-xcode-build-tooling/references/swiftlint-config.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:xcode-build-tooling:references/xcodebuild-spm.md",
+      "destination": "skills/dhpk-xcode-build-tooling/references/xcodebuild-spm.md"
+    },
+    {
       "stableId": "claude-profile:skill:yii1-security-audit",
       "destination": "skills/dhpk-yii1-security-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:yii1-security-audit:agents/openai.yaml",
+      "destination": "skills/dhpk-yii1-security-audit/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:yii1-security-audit:evals/evals.json",
+      "destination": "skills/dhpk-yii1-security-audit/evals/evals.json"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:yii1-security-audit:references/yii1-security-patterns.md",
+      "destination": "skills/dhpk-yii1-security-audit/references/yii1-security-patterns.md"
     },
     {
       "stableId": "claude-profile:command:check-coverage",
@@ -868,15 +2857,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "skillPackageClosure": [
-    {
-      "id": "flow-drive",
-      "version": "1.0.0"
-    },
-    {
-      "id": "flow-guide",
-      "version": "1.0.0"
-    }
-  ],
-  "planFingerprint": "48581740c5c2b24d3936d40629439eaaa90750d2a4d3c19db48fa6f1b064e62d"
+  "planFingerprint": "b0db460e6d212b4ee389fe6705f17b48ca6b206ed99016d6a27ba73d9ad1cf1e"
 }

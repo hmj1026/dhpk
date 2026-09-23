@@ -15,6 +15,12 @@ or retired entry. Each disposition SHALL identify the owning capability, Host
 surface, public name, argument contract, authority boundary, and evidence
 needed to support the classification.
 
+The v3 inventory SHALL include commands under both `commands/` and
+`modules/*/commands/`, excluding navigation indexes. A command has exactly one
+Skill owner; several command entry points MAY share that owner. A forwarding
+record names the selected action and fixed argument tokens. Legacy v2
+inventories remain readable with their historical root-only scope.
+
 #### Scenario: Command inventory is complete
 
 - **WHEN** the disposition compiler processes the canonical command inventory
@@ -65,20 +71,51 @@ Grammar.
 - **WHEN** a front door attempts to grant more authority than its Skill owner
 - **THEN** validation fails and the front door is not published
 
-### Requirement: Existing prefixed names are not renamed by this change
+### Requirement: Public skill renames preserve stable identity
 
-The disposition and projection change SHALL NOT rename existing
-`dhpk:dhpk-*` commands or create compatibility aliases for a broad rename.
-New approved front doors MAY use short names such as `/dhpk:flow-guide` and
-`/dhpk:flow-drive`; any broad migration SHALL be a separately approved change.
+A renamed Skill SHALL retain its stable ID and capability ID; the approved
+portable-command migration MAY rename its public name and canonical directory. Individual
+unprefixed workflows use `portable-skill`; capability families retain their
+existing `portable-family` classification. Claude command names remain stable.
 
-#### Scenario: Existing prefixed command is audited
+#### Scenario: An installed skill is renamed
 
-- **WHEN** an existing `dhpk:dhpk-*` command is included in the audit
-- **THEN** its current public name remains unchanged in this change
+- **WHEN** a receipt-owned unchanged skill has an approved public-name rename
+- **THEN** installation migrates it by stable identity, preserves edited or
+  unowned destinations, and reports collisions without overwriting them
 
-#### Scenario: New family front door is added
+#### Scenario: A previous public name is requested
 
-- **WHEN** a new front door is approved for a portable family
-- **THEN** it uses the canonical short name without creating a new
-  `dhpk:dhpk-*` identity
+- **WHEN** a retired public name has a rename-ledger entry
+- **THEN** discovery reports the current name without installing a duplicate
+  compatibility Skill
+
+### Requirement: Portable execution includes required resources
+
+A canonical Skill directory SHALL contain the required procedures, scripts,
+and bundled runtime dependencies for its supported workflows before publication.
+Copying the directory SHALL require no dhpk checkout, sibling Skill installation,
+repository manifest, consumer build, or packaging-time resource injection.
+Declared external tools, Host capabilities, and independent-review requirements
+SHALL remain explicit prerequisites. Consumer availability SHALL be based on
+observed execution, separately from structural and package checks.
+
+#### Scenario: Consumer has no source checkout
+
+- **WHEN** an installed portable command Skill runs without a dhpk checkout or
+  `CLAUDE_PLUGIN_ROOT`
+- **THEN** its required local resources resolve, or it reports the exact
+  unavailable capability without claiming execution success
+
+#### Scenario: Only the canonical Skill directory is copied
+
+- **WHEN** the raw canonical Skill directory is copied into an unrelated
+  location and run against a separate consumer project
+- **THEN** its required code and resources are already present and no dhpk
+  assembler, source-root fallback, or peer Skill supplies missing files
+
+#### Scenario: A retained command invokes a self-contained owner
+
+- **WHEN** a retained Claude command forwards to its migrated Skill owner
+- **THEN** the normalized arguments, authority and terminal evidence remain
+  unchanged despite removal of the legacy script path

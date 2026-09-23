@@ -117,7 +117,7 @@ test('every skill-local route-table.json target resolves to an invocation class 
 
 test('real route-table explicit-only targets retain their canonical classes', () => {
   const routeTable = JSON.parse(read('skills/flow-guide/references/route-table.json'));
-  const explicitTargets = new Set(['dhpk-opsx-apply-goal', 'create-pr', 'dhpk-release-creator', 'smart-commit']);
+  const explicitTargets = new Set(['dhpk-opsx-apply-goal', 'create-pr', 'release-creator', 'smart-commit']);
   const implicitTargets = new Set(['review-pending']);
   for (const target of explicitTargets) {
     assert.ok(routeTable.rules.some((rule) => rule.target && rule.target.id === target), `route table must contain ${target}`);
