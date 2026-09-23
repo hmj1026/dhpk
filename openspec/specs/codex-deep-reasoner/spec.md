@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change do-flags-and-harness-consolidation. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: codex-deep-reasoner is a CLI-backed read-only reasoning agent
 
 `agents/codex-reasoner.md` SHALL define a CLI-backed deep-reasoning agent mirroring `codex-worker`'s shell (one-shot `codex exec`, BLOCKED-never-simulated; legacy alias: `codex-fast-worker`) but with `deep-reasoner`'s read-only contract: it SHALL run codex in a read-only sandbox, SHALL NOT modify the working tree, and SHALL return the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Default model/effort SHALL be `gpt-6-sol` @ `high`, overridable per the `--reasoner` precedence chain.
@@ -35,4 +37,3 @@ Adding `codex-deep-reasoner` SHALL bump every catalog-enforced agent count in th
 
 - **WHEN** `node scripts/ci/catalog.js --check all` runs after the agent is added
 - **THEN** all exact-count claims match the live inventory
-

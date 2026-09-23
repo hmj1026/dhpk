@@ -116,6 +116,21 @@ function fixture(definition) {
   });
 }
 
+function isolatedSystemTool(name) {
+  return ['/usr/bin', '/bin'].some((directory) => {
+    try {
+      const stat = fs.statSync(path.join(directory, name));
+      return stat.isFile() && (stat.mode & 0o111) !== 0;
+    } catch (_error) {
+      return false;
+    }
+  });
+}
+
+function unavailableCodeTraceTools() {
+  return ['fd', 'yq', 'ast-grep'].filter((name) => !isolatedSystemTool(name));
+}
+
 function fixtureTools(...names) {
   const stubs = {};
   for (const name of names) {
@@ -380,7 +395,10 @@ function registerRemainingFixtures() {
     {
       id: 'remaining-code-trace-check-tools-unavailable', skill: 'code-trace', entry: 'scripts/diagnose/check-tools.sh',
       stubs: { jq: { status: 0, stdout: 'jq-fixture 1.0\n' }, rg: { status: 0, stdout: 'rg-fixture 1.0\n' } },
-      expected: { status: 3, output: ['缺少 3 個工具'] },
+      expected: {
+        status: unavailableCodeTraceTools().length,
+        output: [`缺少 ${unavailableCodeTraceTools().length} 個工具`],
+      },
     },
     {
       id: 'remaining-code-trace-find-polluter-multi-file', skill: 'code-trace', entry: 'scripts/diagnose/find-polluter.sh',

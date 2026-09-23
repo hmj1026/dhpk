@@ -54,7 +54,13 @@ process_dir() {
   while IFS= read -r file; do
     local mtime dp is_new
     mtime=$(date -u -r "$file" +%Y-%m-%dT%H:%M:%SZ)
-    dp="${file/#$HOME/~}"
+    # Literal prefix strip. ${file/#$HOME/~} treats slashes in the expanded
+    # HOME as pattern delimiters, so bash 5 leaves the absolute path unchanged.
+    if [[ "$file" == "$HOME/"* ]]; then
+      dp="~/${file#"$HOME/"}"
+    else
+      dp="$file"
+    fi
 
     # Check if this file is known to results.json (exact whole-line match to
     # avoid substring false-positives, e.g. "python-patterns" matching "python-patterns-v2").

@@ -64,6 +64,18 @@ function writeJson(filePath, value, mode = 0o600) {
   fs.chmodSync(filePath, mode);
 }
 
+function physicalRuntimePath(directories) {
+  const seen = new Set();
+  const resolved = [];
+  for (const directory of directories) {
+    const physical = fs.realpathSync(directory);
+    if (seen.has(physical)) continue;
+    seen.add(physical);
+    resolved.push(physical);
+  }
+  return resolved.join(path.delimiter);
+}
+
 function makeTrustedRuntime(context, provider, includeProvider = true) {
   const runtimeDir = path.join(context.projectDir, '.fixture-runtime');
   fs.mkdirSync(runtimeDir, { recursive: true, mode: 0o755 });
@@ -75,7 +87,7 @@ function makeTrustedRuntime(context, provider, includeProvider = true) {
     fs.copyFileSync(source, providerPath);
     fs.chmodSync(providerPath, 0o755);
   }
-  const runtimePath = [runtimeDir, path.dirname(SYSTEM_PYTHON), path.dirname(SYSTEM_BASH)].join(path.delimiter);
+  const runtimePath = physicalRuntimePath([runtimeDir, path.dirname(SYSTEM_PYTHON), path.dirname(SYSTEM_BASH)]);
   return { runtimeDir, runtimePath, providerPath: includeProvider ? providerPath : undefined };
 }
 

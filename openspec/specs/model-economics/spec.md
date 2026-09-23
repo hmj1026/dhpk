@@ -3,7 +3,9 @@
 ## Purpose
 
 TBD - created by archiving change orchestrator-token-economics. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Model-economics SSOT document
 
 `rules/model-economics.md` SHALL remain the single source of truth for model
@@ -153,4 +155,3 @@ Codex custom-agent token-limit field that the runtime does not support.
 - **WHEN** `worker` or `tdd-guide` is dispatched for implementation/test-first
   work
 - **THEN** it uses Luna/max as the approved quality-first exception
-

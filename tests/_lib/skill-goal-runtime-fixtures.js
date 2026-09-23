@@ -220,6 +220,18 @@ function assertOrientation(result, state) {
   }
 }
 
+function physicalRuntimePath(directories) {
+  const seen = new Set();
+  const resolved = [];
+  for (const directory of directories) {
+    const physical = fs.realpathSync(directory);
+    if (seen.has(physical)) continue;
+    seen.add(physical);
+    resolved.push(physical);
+  }
+  return resolved.join(path.delimiter);
+}
+
 function prepareDispatch(context, provider, { rejected = false } = {}) {
   const workdir = path.join(context.projectDir, `${provider} goal workspace`);
   const artifactRoot = path.join(workdir, '.dhpk', 'cli-receipts');
@@ -249,7 +261,7 @@ function prepareDispatch(context, provider, { rejected = false } = {}) {
     context_path: contextPath,
     assigned_files: assignedFiles,
     report_only: true,
-    runtime_path: `${context.binDir}${path.delimiter}/usr/bin${path.delimiter}/bin`,
+    runtime_path: physicalRuntimePath([context.binDir, '/usr/bin', '/bin']),
   });
   writeJson(configPath, provider === 'agy'
     ? { agy_worker_model: 'fixture-agy-model', agy_worker_timeout_secs: 3 }
