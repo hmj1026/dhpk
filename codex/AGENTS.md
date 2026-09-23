@@ -250,5 +250,5 @@ A physical file, valid metadata, and successful built-in `explorer` dispatch do
 not prove that the project custom-role registry loaded. Runtime PASS requires a
 fresh `codex exec` session with an observed custom-role spawn and targeted wait.
 On `unknown agent_type`, follow the Codex registry branch in
-`../rules/execution-policy.md`; retain the exact role ID and GPT-5.6 family model
+`../rules/execution-policy.md`; retain the exact role ID and GPT-6 family model
 instead of treating either as a speculative fix.

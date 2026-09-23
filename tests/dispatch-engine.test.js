@@ -81,20 +81,20 @@ test('explicit Cursor to Claude target preserves Provider, Model, and Route', ()
     },
   };
   const result = resolveTarget(request(availableCursor, {
-    target: { target_agent: 'claude-code', provider: 'anthropic', model_id: 'claude-opus-5-thinking-high', route: 'native', transport: 'native-runtime' },
+    target: { target_agent: 'claude-code', provider: 'anthropic', model_id: 'claude-opus-5-5-high', route: 'native', transport: 'native-runtime' },
   }), { catalog });
 
   assert.strictEqual(result.status, 'RESOLVED');
   assert.deepStrictEqual(result.target, {
     target_agent: 'claude-code',
     provider: 'anthropic',
-    model_id: 'claude-opus-5-thinking-high',
-    model: 'claude-opus-5-thinking-high',
+    model_id: 'claude-opus-5-5-high',
+    model: 'claude-opus-5-5-high',
     effort: 'high',
     route: 'native',
     transport: 'native-runtime',
     native: false,
-    identity: 'claude-code/claude-opus-5-thinking-high',
+    identity: 'claude-code/claude-opus-5-5-high',
   });
   assert.strictEqual(result.request.role, 'reasoner');
   assert.strictEqual(result.request.authority, 'read-only');
@@ -119,7 +119,7 @@ test('explicit target is blocked when the Host policy denies its Provider', () =
     },
   };
   const result = resolveTarget(request(denied, {
-    target: { target_agent: 'claude-code', provider: 'anthropic', model_id: 'claude-opus-5-thinking-high', route: 'native', transport: 'native-runtime' },
+    target: { target_agent: 'claude-code', provider: 'anthropic', model_id: 'claude-opus-5-5-high', route: 'native', transport: 'native-runtime' },
   }), { catalog });
 
   assert.strictEqual(result.status, 'BLOCKED');
@@ -300,7 +300,7 @@ test('unavailable explicit target may use contextual native fallback before side
   });
 
   assert.strictEqual(result.status, 'FALLBACK');
-  assert.strictEqual(result.target.identity, 'claude-code/claude-opus-5-thinking-high');
+  assert.strictEqual(result.target.identity, 'claude-code/claude-opus-5-5-high');
   assert.strictEqual(result.fallback_history[0].provider, 'openai');
   assert.strictEqual(result.fallback_history[0].model_id, 'gpt-5.6-sol-high');
   assert.strictEqual(result.retry_budget_remaining, 0);
@@ -383,7 +383,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   };
   const initial = resolveTarget(request(unavailable, {
     role: 'reviewer',
-    target: { target_agent: 'claude-code', provider: 'anthropic', model_id: 'opus5', route: 'headless-cli', transport: 'local-cli' },
+    target: { target_agent: 'claude-code', provider: 'anthropic', model_id: 'claude-opus-5-5', route: 'headless-cli', transport: 'local-cli' },
   }), { catalog });
   const result = decideFallback({
     request: initial.request,
@@ -394,7 +394,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   });
 
   assert.strictEqual(result.status, 'FALLBACK');
-  assert.strictEqual(result.target.identity, 'codex-cli/gpt-5.6-sol');
+  assert.strictEqual(result.target.identity, 'codex-cli/gpt-6-sol');
   assert.strictEqual(result.target.native, true);
 });
 

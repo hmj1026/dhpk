@@ -85,7 +85,7 @@ Codex session and dispatch a non-built-in custom role; built-in `explorer`
 cannot serve as the custom-registry canary. Until an actual spawn and targeted
 wait succeed, record named-role runtime as `NOT_RUN`, `UNAVAILABLE`, or the
 observed failure. An exact-ID `unknown agent_type` is a registry failure, not
-evidence to rename the role or replace its GPT-5.6 family model; see
+evidence to rename the role or replace its GPT-6 family model; see
 [`AGENTS.md`](AGENTS.md#role-discovery).
 
 The 12 generated roles come from `scripts/gen-codex-agents.js`, run as:
