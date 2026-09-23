@@ -671,14 +671,13 @@ def _validate_agy_package_structure(package_root):
                 continue
             rule_files.append(relative)
         elif base == "skills":
+            # A selected Skill publishes its complete physical directory.
             if re.match(r"^skills/[^/]+/SKILL\.md$", relative):
                 skill_files.append(relative)
-            elif re.match(r"^skills/[^/]+/references/.+$", relative):
-                pass
-            elif re.match(r"^skills/[^/]+/scripts/.+$", relative):
+            elif re.match(r"^skills/[^/]+/.+$", relative):
                 pass
             else:
-                errors.append("AGY skill path must be <skill>/SKILL.md, <skill>/references/..., or <skill>/scripts/...: %s" % relative)
+                errors.append("AGY skill path must stay inside a skill directory: %s" % relative)
                 continue
 
     for relative in sorted(agent_files):
