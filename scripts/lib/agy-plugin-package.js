@@ -702,4 +702,5 @@ module.exports = {
   digest,
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
+  sanitizeMarkdownLinks,
 };
