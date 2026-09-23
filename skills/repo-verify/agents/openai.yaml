@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repo Verify"
+  short_description: "Run staged repository verification"
+  default_prompt: "Use $repo-verify to run a fast or full repository verification loop."

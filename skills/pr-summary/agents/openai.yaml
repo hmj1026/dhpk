@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Summary"
+  short_description: "Summarize open pull requests with evidence"
+  default_prompt: "Use $pr-summary to summarize open pull requests with evidence."
