@@ -46,16 +46,18 @@ Wrapper degrade path (landed with `adapt-cli-wrappers-to-new-behaviors`):
 
 ## GPT-5.x section (codex-worker, codex-reasoner, codex-reviewer; aliases: codex-fast-worker, codex-deep-reasoner, codex-bridge skill)
 
-- **Source**: GPT-5.6 latest-model guide. Every active Codex bridge route stays
-  in the GPT-5.6 family: `codex-reviewer` uses `gpt-5.6-sol` / `high`, while
-  `codex-worker` uses `gpt-5.6-luna` / `xhigh`. A pre-GPT-5.6 parent is not a
-  fallback and its trace is not runtime acceptance evidence.
-- **Verified CLI baseline**: codex-cli 0.147.0 (`codex --version` and `codex exec
-  --help`, re-checked 2026-08-17). `model_reasoning_effort=ultra` is present but
-  intentionally unused by the wrapper.
+The heading name is a stable contract (`openspec/specs/cli-prompt-composition`); it covers the GPT-6 routes.
+
+- **Source**: OpenAI latest-model guide. Every active Codex bridge route stays
+  in the GPT-6 family: `codex-reviewer` uses `gpt-6-sol` / `high`, while
+  `codex-worker` uses `gpt-6-luna` / `xhigh`. A pre-GPT-6 parent is never an
+  automatic fallback (an explicit user override is still honored) and its trace is not runtime acceptance evidence.
+- **Verified CLI baseline**: codex-cli 0.156.0 (`codex --version` and `codex debug
+  models`, re-checked 2026-09-23). `model_reasoning_effort=ultra` is present on
+  `gpt-6-sol` but intentionally unused by the wrapper.
 - **Autonomy boundary**: `read-only` sandbox → inspect-and-report; `workspace-write`
   → in-scope-changes-only, naming exactly the files the task spec authorizes.
-- **Report shape**: conclusion first, then evidence, then next action — GPT-5.x
+- **Report shape**: conclusion first, then evidence, then next action — GPT-5.x/6
   models front-load better when the shape is stated explicitly rather than implied.
 - **`reasoning.effort` is already handled** — dhpk passes it via `codex exec -c
   model_reasoning_effort=<effort>`; this is not a prompt-text gap.
