@@ -1,0 +1,940 @@
+'use strict';
+
+// Inventory-owned public grammar for Codex-invokable skills.
+//
+// This module intentionally knows nothing about a skill's procedure. A usage
+// record is limited to the information needed to discover and invoke a skill:
+// identity, syntax, actions, options, authority, and examples. The canonical
+// SKILL.md remains the owner of safety rules, workflow steps, references, and
+// completion criteria.
+
+const crypto = require('node:crypto');
+
+const USAGE_SCHEMA = 'dhpk.skill-usage.v1';
+const CATALOG_SCHEMA = 'dhpk.skill-usage-catalog.v1';
+const CARD_SCHEMA = 'dhpk.skill-usage-card.v1';
+const RUNTIME_INDEX_TARGET_KEYS = Object.freeze([
+  'id', 'publicName', 'invocationClass', 'command', 'codexInvokable',
+]);
+const RUNTIME_INDEX_ALIAS_KEYS = Object.freeze(['target', 'disposition']);
+const RUNTIME_INDEX_DISPOSITIONS = Object.freeze(['legacy', 'renamed', 'retired']);
+
+const INPUT_KINDS = Object.freeze([
+  'none',
+  'free-text',
+  'identifier',
+  'path',
+  'action-first',
+  'mixed',
+]);
+const INVOCATION_CLASSES = Object.freeze(['implicit-eligible', 'explicit-only']);
+const EFFECT_AUTHORITIES = Object.freeze([
+  'read-only',
+  'delegate',
+  'workspace-write',
+  'git-write',
+  'external-write',
+]);
+const VALUE_KINDS = Object.freeze(['boolean', 'string', 'enum']);
+
+const USAGE_KEYS = Object.freeze([
+  'display_name',
+  'summary',
+  'syntax',
+  'input_kind',
+  'invocation_class',
+  'effect_authority',
+  'inputs',
+  'actions',
+  'options',
+  'examples',
+]);
+const INPUT_KEYS = Object.freeze([
+  'id',
+  'syntax',
+  'value_kind',
+  'required',
+  'summary',
+  'default',
+  'enum_values',
+  'applies_to',
+]);
+const ACTION_KEYS = Object.freeze([
+  'id',
+  'summary',
+  'syntax',
+  'input_kind',
+  'effect_authority',
+]);
+const OPTION_KEYS = Object.freeze([
+  'id',
+  'syntax',
+  'value_kind',
+  'required',
+  'summary',
+  'default',
+  'enum_values',
+  'legacy',
+  'applies_to',
+]);
+const EXAMPLE_KEYS = Object.freeze(['prompt', 'summary']);
+const LEGACY_KEYS = Object.freeze(['replacement_id', 'diagnostic_only', 'reason']);
+
+// Higher values carry more authority. A child action can never grant more
+// authority than the usage record itself.
+const AUTHORITY_RANK = Object.freeze({
+  'read-only': 0,
+  delegate: 1,
+  'workspace-write': 2,
+  'git-write': 3,
+  'external-write': 4,
+});
+
+const IDENTIFIER = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function clone(value) {
+  if (Array.isArray(value)) return value.map(clone);
+  if (isRecord(value)) {
+    const output = {};
+    for (const key of Object.keys(value)) output[key] = clone(value[key]);
+    return output;
+  }
+  return value;
+}
+
+function freezeDeep(value) {
+  if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) freezeDeep(child);
+  return Object.freeze(value);
+}
+
+function stableClone(value) {
+  if (Array.isArray(value)) return value.map(stableClone);
+  if (isRecord(value)) {
+    return Object.fromEntries(
+      Object.keys(value).sort().map((key) => [key, stableClone(value[key])]),
+    );
+  }
+  return value;
+}
+
+function stableStringify(value) {
+  return JSON.stringify(stableClone(value));
+}
+
+function fingerprint(value) {
+  return crypto.createHash('sha256').update(stableStringify(value)).digest('hex');
+}
+
+function skillId(skill) {
+  if (!isRecord(skill)) return '<unknown>';
+  const id = skill.id || skill.name || skill.publicName;
+  return typeof id === 'string' && id.trim() ? id.trim() : '<unknown>';
+}
+
+function publicName(skill) {
+  if (!isRecord(skill)) return '';
+  const name = skill.name || skill.publicName;
+  return typeof name === 'string' ? name.trim() : '';
+}
+
+function canonicalInvocationClass(skill) {
+  if (!isRecord(skill)) return null;
+  const value = skill.invocation_class !== undefined
+    ? skill.invocation_class
+    : skill.invocationClass;
+  return typeof value === 'string' ? value.trim() : value;
+}
+
+function hasCodexSurface(skill) {
+  return isRecord(skill)
+    && Array.isArray(skill.surfaces)
+    && skill.surfaces.some((surface) => surface === 'codex-native' || surface === 'codex-sync')
+    && skill.invokable !== false
+    && skill.lifecycle !== 'deprecated';
+}
+
+function hasOwn(value, key) {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function addUnknownKeys(errors, value, allowed, prefix, owner) {
+  for (const key of Object.keys(value)) {
+    if (!allowed.includes(key)) {
+      errors.push(owner + ' usage.' + prefix + key + ' is unsupported or unknown');
+    }
+  }
+}
+
+function requireString(errors, value, field, owner, limits) {
+  const options = limits || {};
+  if (typeof value !== 'string') {
+    errors.push(owner + ' usage.' + field + ' must be a string');
+    return false;
+  }
+  const min = options.min === undefined ? 1 : options.min;
+  const max = options.max === undefined ? 512 : options.max;
+  if (value.trim().length < min) errors.push(owner + ' usage.' + field + ' must not be empty');
+  if (value.length > max) errors.push(owner + ' usage.' + field + ' exceeds ' + max + ' characters');
+  if (/[\r\n]/.test(value) || value.includes(String.fromCharCode(0))) {
+    errors.push(owner + ' usage.' + field + ' must be a single line');
+  }
+  return value.trim().length >= min
+    && value.length <= max
+    && !/[\r\n]/.test(value)
+    && !value.includes(String.fromCharCode(0));
+}
+
+function requireEnum(errors, value, field, allowed, owner) {
+  if (typeof value !== 'string' || !allowed.includes(value)) {
+    errors.push(owner + ' usage.' + field + ' must be one of: ' + allowed.join(', '));
+    return false;
+  }
+  return true;
+}
+
+function startsWithPublicCommand(value, name) {
+  if (typeof value !== 'string' || !name) return false;
+  const prefix = '$' + name;
+  if (value === prefix) return true;
+  return value.startsWith(prefix + ' ') || value.startsWith(prefix + '\t');
+}
+
+function validateAction(errors, action, index, name, parentAuthority, actionIds, owner) {
+  const prefix = 'actions[' + index + ']';
+  if (!isRecord(action)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an object');
+    return;
+  }
+  addUnknownKeys(errors, action, ACTION_KEYS, prefix + '.', owner);
+
+  const idValid = requireString(errors, action.id, prefix + '.id', owner, { max: 64 });
+  if (idValid && !IDENTIFIER.test(action.id)) {
+    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
+  }
+  if (idValid && actionIds.has(action.id)) {
+    errors.push(owner + " usage has duplicate action id '" + action.id + "'");
+  } else if (idValid) {
+    actionIds.add(action.id);
+  }
+
+  requireString(errors, action.summary, prefix + '.summary', owner, { max: 256 });
+  const syntaxValid = requireString(errors, action.syntax, prefix + '.syntax', owner, { max: 512 });
+  if (syntaxValid && !startsWithPublicCommand(action.syntax, name)) {
+    errors.push(owner + ' usage.' + prefix + '.syntax must begin with $' + name);
+  }
+  requireEnum(errors, action.input_kind, 'input_kind', INPUT_KINDS, owner);
+  const authorityValid = requireEnum(
+    errors,
+    action.effect_authority,
+    'effect_authority',
+    EFFECT_AUTHORITIES,
+    owner,
+  );
+  if (authorityValid && AUTHORITY_RANK[action.effect_authority] > AUTHORITY_RANK[parentAuthority]) {
+    errors.push(
+      owner
+      + " usage."
+      + prefix
+      + ".effect_authority '"
+      + action.effect_authority
+      + "' exceeds parent maximum '"
+      + parentAuthority
+      + "'",
+    );
+  }
+}
+
+function validateAppliesTo(errors, value, prefix, actionIds, owner) {
+  if (!Array.isArray(value)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an array of action ids');
+    return;
+  }
+  const seen = new Set();
+  value.forEach((actionId, actionIndex) => {
+    if (typeof actionId !== 'string' || actionId.trim() === '') {
+      errors.push(owner + ' usage.' + prefix + '[' + actionIndex + '] must be a non-empty action id');
+    } else if (seen.has(actionId)) {
+      errors.push(owner + ' usage.' + prefix + " contains duplicate action id '" + actionId + "'");
+    } else {
+      seen.add(actionId);
+      if (!actionIds.has(actionId)) {
+        errors.push(owner + ' usage.' + prefix + " references unknown action '" + actionId + "'");
+      }
+    }
+  });
+}
+
+function validateValueDetails(errors, value, prefix, valueKindValid, owner) {
+  if (hasOwn(value, 'enum_values')) {
+    if (!Array.isArray(value.enum_values) || value.enum_values.length === 0) {
+      errors.push(owner + ' usage.' + prefix + '.enum_values must be a non-empty string array');
+    } else {
+      const values = new Set();
+      value.enum_values.forEach((item, itemIndex) => {
+        if (typeof item !== 'string' || item.trim() === '') {
+          errors.push(owner + ' usage.' + prefix + '.enum_values[' + itemIndex + '] must be a non-empty string');
+        } else if (values.has(item)) {
+          errors.push(owner + ' usage.' + prefix + ".enum_values contains duplicate '" + item + "'");
+        } else {
+          values.add(item);
+        }
+      });
+      if (valueKindValid && value.value_kind !== 'enum') {
+        errors.push(owner + ' usage.' + prefix + '.enum_values is only valid for value_kind enum');
+      }
+    }
+  } else if (valueKindValid && value.value_kind === 'enum') {
+    errors.push(owner + ' usage.' + prefix + '.enum_values is required for value_kind enum');
+  }
+
+  if (hasOwn(value, 'default')) {
+    if (value.value_kind === 'boolean' && typeof value.default !== 'boolean') {
+      errors.push(owner + ' usage.' + prefix + '.default must be boolean for value_kind boolean');
+    }
+    if (value.value_kind === 'string' && typeof value.default !== 'string') {
+      errors.push(owner + ' usage.' + prefix + '.default must be string for value_kind string');
+    }
+    if (value.value_kind === 'enum'
+        && (!Array.isArray(value.enum_values) || !value.enum_values.includes(value.default))) {
+      errors.push(owner + ' usage.' + prefix + '.default must be one of enum_values');
+    }
+  }
+}
+
+function validateInput(errors, input, index, actionIds, inputIds, owner) {
+  const prefix = 'inputs[' + index + ']';
+  if (!isRecord(input)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an object');
+    return;
+  }
+  addUnknownKeys(errors, input, INPUT_KEYS, prefix + '.', owner);
+
+  const idValid = requireString(errors, input.id, prefix + '.id', owner, { max: 64 });
+  if (idValid && !IDENTIFIER.test(input.id)) {
+    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
+  }
+  if (idValid && inputIds.has(input.id)) {
+    errors.push(owner + " usage has duplicate input id '" + input.id + "'");
+  } else if (idValid) {
+    inputIds.add(input.id);
+  }
+
+  const syntaxValid = requireString(errors, input.syntax, prefix + '.syntax', owner, { max: 256 });
+  if (syntaxValid && !/^<[^<>\r\n]+>$/.test(input.syntax)) {
+    errors.push(owner + ' usage.' + prefix + '.syntax must be one positional placeholder enclosed in angle brackets');
+  }
+  const valueKindValid = requireEnum(errors, input.value_kind, 'value_kind', VALUE_KINDS, owner);
+  if (typeof input.required !== 'boolean') {
+    errors.push(owner + ' usage.' + prefix + '.required must be boolean');
+  }
+  requireString(errors, input.summary, prefix + '.summary', owner, { max: 256 });
+  validateValueDetails(errors, input, prefix, valueKindValid, owner);
+  if (hasOwn(input, 'applies_to')) validateAppliesTo(errors, input.applies_to, prefix + '.applies_to', actionIds, owner);
+}
+
+function validateLegacy(errors, value, prefix, optionIds, currentId, owner) {
+  if (!isRecord(value)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an object');
+    return;
+  }
+  addUnknownKeys(errors, value, LEGACY_KEYS, prefix + '.', owner);
+  if (typeof value.replacement_id !== 'string'
+      || value.replacement_id === currentId
+      || !optionIds.has(value.replacement_id)) {
+    errors.push(owner + ' usage.' + prefix + '.replacement_id must reference another option id');
+  }
+  if (typeof value.diagnostic_only !== 'boolean') {
+    errors.push(owner + ' usage.' + prefix + '.diagnostic_only must be boolean');
+  }
+  requireString(errors, value.reason, prefix + '.reason', owner, { max: 256 });
+}
+
+function validateOption(errors, option, index, actionIds, optionIds, owner) {
+  const prefix = 'options[' + index + ']';
+  if (!isRecord(option)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an object');
+    return;
+  }
+  addUnknownKeys(errors, option, OPTION_KEYS, prefix + '.', owner);
+
+  const idValid = requireString(errors, option.id, prefix + '.id', owner, { max: 64 });
+  if (idValid && !IDENTIFIER.test(option.id)) {
+    errors.push(owner + ' usage.' + prefix + '.id must be a lower-case public identifier');
+  }
+  if (idValid && optionIds.has(option.id)) {
+    errors.push(owner + " usage has duplicate option id '" + option.id + "'");
+  } else if (idValid) {
+    optionIds.add(option.id);
+  }
+
+  const syntaxValid = requireString(errors, option.syntax, prefix + '.syntax', owner, { max: 512 });
+  if (syntaxValid && !/^--\S+$/.test(option.syntax)) {
+    errors.push(owner + ' usage.' + prefix + '.syntax must be a single command-line option beginning with --');
+  }
+  const valueKindValid = requireEnum(errors, option.value_kind, 'value_kind', VALUE_KINDS, owner);
+  if (typeof option.required !== 'boolean') {
+    errors.push(owner + ' usage.' + prefix + '.required must be boolean');
+  }
+  requireString(errors, option.summary, prefix + '.summary', owner, { max: 256 });
+
+  validateValueDetails(errors, option, prefix, valueKindValid, owner);
+  if (hasOwn(option, 'applies_to')) validateAppliesTo(errors, option.applies_to, prefix + '.applies_to', actionIds, owner);
+}
+
+function validateExample(errors, example, index, name, owner) {
+  const prefix = 'examples[' + index + ']';
+  if (!isRecord(example)) {
+    errors.push(owner + ' usage.' + prefix + ' must be an object');
+    return;
+  }
+  addUnknownKeys(errors, example, EXAMPLE_KEYS, prefix + '.', owner);
+  const promptValid = requireString(errors, example.prompt, prefix + '.prompt', owner, { max: 512 });
+  if (promptValid && !startsWithPublicCommand(example.prompt, name)) {
+    errors.push(owner + ' usage.' + prefix + '.prompt must begin with $' + name);
+  }
+  requireString(errors, example.summary, prefix + '.summary', owner, { max: 256 });
+}
+
+// Validate one inventory-owned usage record without reading the target skill.
+// The return value is structured so CI can report all contract errors in one
+// pass. No normalization or source mutation occurs here.
+function validateSkillUsage(input) {
+  const values = input || {};
+  const skill = values.skill;
+  const usage = values.usage;
+  const owner = skillId(skill);
+  const errors = [];
+  const name = publicName(skill);
+  const canonicalClass = canonicalInvocationClass(skill);
+  const codexSelected = hasCodexSurface(skill);
+
+  if (!isRecord(skill)) errors.push(owner + ' skill entry must be an object');
+  if (!name) {
+    errors.push(owner + ' skill entry is missing a public name');
+  } else if (!IDENTIFIER.test(name)) {
+    errors.push(owner + " skill public name '" + name + "' is not a lower-case identifier");
+  }
+
+  if (usage === undefined || usage === null) {
+    if (codexSelected) errors.push(owner + ' Codex-invokable skill is missing usage contract');
+    return Object.freeze({ ok: errors.length === 0, errors: Object.freeze(errors) });
+  }
+  if (!isRecord(usage)) {
+    errors.push(owner + ' usage must be an object');
+    return Object.freeze({ ok: false, errors: Object.freeze(errors) });
+  }
+
+  addUnknownKeys(errors, usage, USAGE_KEYS, '', owner);
+  requireString(errors, usage.display_name, 'display_name', owner, { max: 64 });
+  requireString(errors, usage.summary, 'summary', owner, { min: 25, max: 64 });
+  const syntaxValid = requireString(errors, usage.syntax, 'syntax', owner, { max: 512 });
+  if (syntaxValid && !startsWithPublicCommand(usage.syntax, name)) {
+    errors.push(owner + ' usage.syntax must begin with $' + name);
+  }
+  requireEnum(errors, usage.input_kind, 'input_kind', INPUT_KINDS, owner);
+  const invocationValid = requireEnum(
+    errors,
+    usage.invocation_class,
+    'invocation_class',
+    INVOCATION_CLASSES,
+    owner,
+  );
+  if (invocationValid && canonicalClass !== usage.invocation_class) {
+    errors.push(
+      owner
+      + " usage.invocation_class '"
+      + usage.invocation_class
+      + "' mismatches canonical invocation '"
+      + (canonicalClass || 'missing')
+      + "'",
+    );
+  }
+  const parentAuthorityValid = requireEnum(
+    errors,
+    usage.effect_authority,
+    'effect_authority',
+    EFFECT_AUTHORITIES,
+    owner,
+  );
+  if (parentAuthorityValid
+      && (usage.effect_authority === 'git-write' || usage.effect_authority === 'external-write')
+      && usage.invocation_class !== 'explicit-only') {
+    errors.push(owner + " usage.effect_authority '" + usage.effect_authority + "' requires explicit-only invocation");
+  }
+
+  if (!Array.isArray(usage.inputs)) errors.push(owner + ' usage.inputs must be an array');
+  if (!Array.isArray(usage.actions)) errors.push(owner + ' usage.actions must be an array');
+  if (!Array.isArray(usage.options)) errors.push(owner + ' usage.options must be an array');
+  if (!Array.isArray(usage.examples)) errors.push(owner + ' usage.examples must be an array');
+
+  const actionIds = new Set();
+  if (Array.isArray(usage.actions) && parentAuthorityValid) {
+    usage.actions.forEach((action, index) => validateAction(
+      errors,
+      action,
+      index,
+      name,
+      usage.effect_authority,
+      actionIds,
+      owner,
+    ));
+  }
+  const inputIds = new Set();
+  if (Array.isArray(usage.inputs)) {
+    usage.inputs.forEach((inputValue, index) => validateInput(
+      errors,
+      inputValue,
+      index,
+      actionIds,
+      inputIds,
+      owner,
+    ));
+    if (usage.input_kind === 'none' && usage.inputs.length > 0) {
+      errors.push(owner + ' usage.input_kind none must not declare positional inputs');
+    }
+    if (usage.input_kind !== 'none' && usage.inputs.length === 0) {
+      errors.push(owner + ' usage.input_kind ' + usage.input_kind + ' requires at least one positional input');
+    }
+  }
+  const optionIds = new Set();
+  if (Array.isArray(usage.options)) {
+    usage.options.forEach((option, index) => validateOption(
+      errors,
+      option,
+      index,
+      actionIds,
+      optionIds,
+      owner,
+    ));
+    usage.options.forEach((option, index) => {
+      if (isRecord(option) && hasOwn(option, 'legacy')) {
+        validateLegacy(errors, option.legacy, 'options[' + index + '].legacy', optionIds, option.id, owner);
+      }
+    });
+    const legacySyntaxes = usage.options
+      .filter((option) => isRecord(option) && hasOwn(option, 'legacy'))
+      .map((option) => option.syntax)
+      .filter((syntax) => typeof syntax === 'string');
+    for (const legacySyntax of legacySyntaxes) {
+      if ((typeof usage.syntax === 'string' && usage.syntax.includes(legacySyntax))
+          || (Array.isArray(usage.examples) && usage.examples.some((example) => isRecord(example) && typeof example.prompt === 'string' && example.prompt.includes(legacySyntax)))) {
+        errors.push(owner + ' usage legacy option ' + legacySyntax + ' must not appear in primary syntax or examples');
+      }
+    }
+  }
+  if (Array.isArray(usage.examples)) {
+    usage.examples.forEach((example, index) => validateExample(errors, example, index, name, owner));
+  }
+
+  return Object.freeze({ ok: errors.length === 0, errors: Object.freeze(errors) });
+}
+
+function normalizeAction(action) {
+  return {
+    id: action.id,
+    summary: action.summary,
+    syntax: action.syntax,
+    input_kind: action.input_kind,
+    effect_authority: action.effect_authority,
+  };
+}
+
+function normalizeOption(option) {
+  const normalized = {
+    id: option.id,
+    syntax: option.syntax,
+    value_kind: option.value_kind,
+    required: option.required,
+    summary: option.summary,
+  };
+  for (const field of ['default', 'enum_values', 'legacy', 'applies_to']) {
+    if (!hasOwn(option, field)) continue;
+    normalized[field] = clone(option[field]);
+    if (field === 'applies_to') normalized[field].sort();
+  }
+  return normalized;
+}
+
+function normalizeInput(input) {
+  const normalized = {
+    id: input.id,
+    syntax: input.syntax,
+    value_kind: input.value_kind,
+    required: input.required,
+    summary: input.summary,
+  };
+  for (const field of ['default', 'enum_values', 'applies_to']) {
+    if (!hasOwn(input, field)) continue;
+    normalized[field] = clone(input[field]);
+    if (field === 'applies_to') normalized[field].sort();
+  }
+  return normalized;
+}
+
+function normalizeExample(example) {
+  return { prompt: example.prompt, summary: example.summary };
+}
+
+// Return a closed, deeply immutable usage object. Invalid records throw a
+// descriptive error because normalization is a compiler boundary.
+function normalizeSkillUsage(input) {
+  const values = input || {};
+  const result = validateSkillUsage(values);
+  if (!result.ok) throw new Error(result.errors.join('; '));
+  const usage = values.usage;
+  const normalized = {
+    display_name: usage.display_name,
+    summary: usage.summary,
+    syntax: usage.syntax,
+    input_kind: usage.input_kind,
+    invocation_class: usage.invocation_class,
+    effect_authority: usage.effect_authority,
+    inputs: usage.inputs.map(normalizeInput),
+    actions: usage.actions.map(normalizeAction),
+    options: usage.options.map(normalizeOption),
+    examples: usage.examples.map(normalizeExample),
+  };
+  return freezeDeep(normalized);
+}
+
+function usageFingerprint(input) {
+  return fingerprint(normalizeSkillUsage(input));
+}
+
+// Render only the public grammar and catalog evidence. Procedure, safety, and
+// completion prose cannot enter this object because only normalized fields are
+// copied.
+function renderSkillUsageCard(input) {
+  const values = input || {};
+  const normalized = normalizeSkillUsage(values);
+  const skill = values.skill || {};
+  const card = {
+    schema: CARD_SCHEMA,
+    id: skillId(skill),
+    name: publicName(skill),
+    display_name: normalized.display_name,
+    summary: normalized.summary,
+    syntax: normalized.syntax,
+    input_kind: normalized.input_kind,
+    invocation_class: normalized.invocation_class,
+    effect_authority: normalized.effect_authority,
+    inputs: normalized.inputs,
+    actions: normalized.actions,
+    options: normalized.options,
+    examples: normalized.examples,
+  };
+  if (values.catalogEvidence !== null && values.catalogEvidence !== undefined) {
+    card.catalogEvidence = clone(values.catalogEvidence);
+  }
+  return freezeDeep(card);
+}
+
+function resolveInventoryRevision(inventory, requested) {
+  if (requested !== undefined && requested !== null && String(requested).trim() !== '') {
+    return requested;
+  }
+  if (isRecord(inventory)) {
+    for (const field of ['sourceInventoryRevision', 'inventoryRevision', 'revision', 'version']) {
+      if (inventory[field] !== undefined
+          && inventory[field] !== null
+          && String(inventory[field]).trim() !== '') {
+        return inventory[field];
+      }
+    }
+  }
+  // Older inventories have no explicit revision. Legacy skill/package
+  // artifacts bind to the skill inventory, while the project-agent policy is
+  // a separate compiler-owned plan contract and must not invalidate those
+  // artifacts merely because the new project projection is declared.
+  const source = isRecord(inventory) ? { ...inventory } : inventory;
+  if (isRecord(source)) delete source.project_agent_projection;
+  return 'sha256:' + fingerprint(source);
+}
+
+function isCodexInvokableSkill(skill) {
+  return hasCodexSurface(skill);
+}
+
+function runtimeInvocationClass(skill) {
+  const value = canonicalInvocationClass(skill);
+  return INVOCATION_CLASSES.includes(value) ? value : 'not-configured';
+}
+
+function runtimeCommand(name, usage) {
+  return usage && typeof usage.syntax === 'string' && usage.syntax.trim()
+    ? usage.syntax.trim()
+    : '$' + name + ' <input>';
+}
+
+function addRuntimeAlias(aliases, alias, target, disposition) {
+  if (typeof alias !== 'string' || alias.trim() === ''
+    || typeof target !== 'string' || target.trim() === ''
+    || alias === target || aliases[alias]) return;
+  aliases[alias] = { target, disposition };
+}
+
+function compileRuntimeIndex(inventory, normalizedUsageById) {
+  const targets = {};
+  const aliases = {};
+  const skills = Array.isArray(inventory.skills) ? inventory.skills : [];
+
+  for (const skill of skills) {
+    const id = skillId(skill);
+    const name = publicName(skill);
+    if (!name || targets[id]) continue;
+    const usage = normalizedUsageById.get(id) || null;
+    targets[id] = {
+      id,
+      publicName: name,
+      invocationClass: runtimeInvocationClass(skill),
+      command: runtimeCommand(name, usage),
+      codexInvokable: hasCodexSurface(skill),
+    };
+  }
+
+  for (const skill of skills) {
+    const id = skillId(skill);
+    const target = targets[id];
+    if (!target) continue;
+    const legacyNames = Array.isArray(skill.legacy_names) ? skill.legacy_names : [];
+    for (const legacyName of legacyNames) addRuntimeAlias(aliases, legacyName, target.publicName, 'legacy');
+  }
+
+  const renamed = Array.isArray(inventory.renamed_skill_names) ? inventory.renamed_skill_names : [];
+  for (const entry of renamed) {
+    if (!entry || typeof entry !== 'object') continue;
+    const target = targets[entry.id];
+    addRuntimeAlias(aliases, entry.oldName, target ? target.publicName : entry.newName, 'renamed');
+  }
+
+  const retired = Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [];
+  for (const entry of retired) {
+    if (!entry || typeof entry !== 'object') continue;
+    const replacement = Array.isArray(entry.replacements)
+      ? entry.replacements.find((candidate) => candidate && candidate.kind === 'skill')
+      : null;
+    const target = replacement && targets[replacement.id]
+      ? targets[replacement.id].publicName
+      : replacement && typeof replacement.id === 'string'
+        ? replacement.id
+        : 'flow-guide';
+    addRuntimeAlias(aliases, entry.name, target, 'retired');
+  }
+
+  const sortedTargets = Object.fromEntries(
+    Object.keys(targets).sort().map((id) => [id, targets[id]]),
+  );
+  const sortedAliases = Object.fromEntries(
+    Object.keys(aliases).sort().map((alias) => [alias, aliases[alias]]),
+  );
+  return freezeDeep({ targets: sortedTargets, aliases: sortedAliases });
+}
+
+function validateRuntimeIndex(runtimeIndex) {
+  const errors = [];
+  if (!isRecord(runtimeIndex) || Object.keys(runtimeIndex).sort().join(',') !== 'aliases,targets') {
+    return { ok: false, errors: Object.freeze(['runtimeIndex must contain exactly targets and aliases']) };
+  }
+  if (!isRecord(runtimeIndex.targets) || !isRecord(runtimeIndex.aliases)) {
+    return { ok: false, errors: Object.freeze(['runtimeIndex targets and aliases must be objects']) };
+  }
+  for (const [id, target] of Object.entries(runtimeIndex.targets)) {
+    if (!isRecord(target) || JSON.stringify(Object.keys(target).sort()) !== JSON.stringify([...RUNTIME_INDEX_TARGET_KEYS].sort())) {
+      errors.push(`runtimeIndex target '${id}' has an open or incomplete schema`);
+      continue;
+    }
+    if (target.id !== id || typeof target.publicName !== 'string' || target.publicName.trim() === ''
+      || typeof target.command !== 'string' || target.command.trim() === ''
+      || !['implicit-eligible', 'explicit-only', 'not-configured'].includes(target.invocationClass)
+      || typeof target.codexInvokable !== 'boolean') {
+      errors.push(`runtimeIndex target '${id}' is invalid`);
+    }
+  }
+  for (const [alias, value] of Object.entries(runtimeIndex.aliases)) {
+    if (!isRecord(value) || JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...RUNTIME_INDEX_ALIAS_KEYS].sort())
+      || typeof value.target !== 'string' || value.target.trim() === ''
+      || !RUNTIME_INDEX_DISPOSITIONS.includes(value.disposition)) {
+      errors.push(`runtimeIndex alias '${alias}' is invalid`);
+    }
+  }
+  return { ok: errors.length === 0, errors: Object.freeze(errors) };
+}
+
+// Compile the Codex usage catalog from an inventory object. The compiler is
+// pure: it neither reads SKILL.md nor writes generated files.
+function compileSkillUsageCatalog(input) {
+  const values = input || {};
+  const inventory = values.inventory;
+  if (!isRecord(inventory)) throw new Error('skill usage catalog requires an inventory object');
+  if (!Array.isArray(inventory.skills)) {
+    throw new Error('skill usage catalog inventory.skills must be an array');
+  }
+
+  const selected = inventory.skills.filter(isCodexInvokableSkill);
+  const entries = [];
+  const normalizedUsageById = new Map();
+  const ids = new Set();
+  const names = new Set();
+  const errors = [];
+
+  for (const skill of selected) {
+    const id = skillId(skill);
+    const name = publicName(skill);
+    if (ids.has(id)) errors.push(id + ' duplicate Codex stable id');
+    ids.add(id);
+    if (names.has(name)) errors.push(id + " duplicate Codex public name '" + name + "'");
+    names.add(name);
+
+    const validation = validateSkillUsage({ skill, usage: skill.usage });
+    if (!validation.ok) {
+      errors.push(...validation.errors);
+      continue;
+    }
+    let normalized;
+    try {
+      normalized = normalizeSkillUsage({ skill, usage: skill.usage });
+    } catch (error) {
+      errors.push(id + ' usage normalization failed: ' + error.message);
+      continue;
+    }
+    entries.push({
+      id,
+      name,
+      usage: normalized,
+      usageFingerprint: fingerprint(normalized),
+    });
+    normalizedUsageById.set(id, normalized);
+  }
+
+  if (errors.length > 0) throw new Error(errors.join('; '));
+  entries.sort((left, right) => (
+    left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+  ));
+
+  const catalog = {
+    schema: CATALOG_SCHEMA,
+    sourceInventoryRevision: resolveInventoryRevision(inventory, values.inventoryRevision),
+    entries,
+    runtimeIndex: compileRuntimeIndex(inventory, normalizedUsageById),
+  };
+  const runtimeValidation = validateRuntimeIndex(catalog.runtimeIndex);
+  if (!runtimeValidation.ok) throw new Error(runtimeValidation.errors.join('; '));
+  return freezeDeep(catalog);
+}
+
+function serializeSkillUsageCatalog(catalog) {
+  return JSON.stringify(catalog, null, 2) + '\n';
+}
+
+function deriveArgumentHint(name, syntax) {
+  const prefix = '$' + name;
+  if (typeof syntax !== 'string' || !syntax.startsWith(prefix)) return '';
+  return syntax.slice(prefix.length).trim();
+}
+
+function formatDocumentationValue(value) {
+  if (Array.isArray(value)) return value.join('|');
+  if (typeof value === 'boolean') return String(value);
+  return String(value);
+}
+
+function renderSkillUsageDocumentation(catalog, locale = 'en') {
+  const isChinese = locale === 'zh-TW';
+  const lines = isChinese
+    ? [
+      '# Codex 技能使用發現',
+      '',
+      '<!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->',
+      '',
+      '來源 inventory revision：`' + catalog.sourceInventoryRevision + '`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。',
+      '',
+      '## 可用技能',
+    ]
+    : [
+      '# Codex skill usage discovery',
+      '',
+      '<!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->',
+      '',
+      'Source inventory revision: `' + catalog.sourceInventoryRevision + '`. Use `$flow-guide help` for read-only progressive usage cards.',
+      '',
+      '## Available skills',
+    ];
+
+  for (const entry of catalog.entries) {
+    const usage = entry.usage;
+    lines.push('', '### `$' + entry.name + '`', '');
+    lines.push((isChinese ? '摘要：' : 'Summary: ') + usage.summary);
+    lines.push((isChinese ? '語法：' : 'Syntax: ') + '`' + usage.syntax + '`');
+    lines.push((isChinese ? '呼叫類別：' : 'Invocation class: ') + '`' + usage.invocation_class + '`');
+    lines.push((isChinese ? '最高 authority：' : 'Maximum authority: ') + '`' + usage.effect_authority + '`');
+    if (usage.inputs.length > 0) {
+      lines.push('', isChinese ? '輸入：' : 'Inputs:');
+      for (const input of usage.inputs) {
+        const details = [input.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), input.value_kind];
+        if (input.enum_values) details.push('values=' + input.enum_values.join('|'));
+        if (hasOwn(input, 'default')) details.push('default=' + formatDocumentationValue(input.default));
+        lines.push('- `' + input.id + '` `' + input.syntax + '` (' + details.join(', ') + ') — ' + input.summary);
+      }
+    }
+    if (usage.actions.length > 0) {
+      lines.push('', isChinese ? 'Actions：' : 'Actions:');
+      for (const action of usage.actions) lines.push('- `' + action.id + '` `' + action.syntax + '` — ' + action.summary);
+    }
+    const options = usage.options.filter((option) => !option.legacy);
+    if (options.length > 0) {
+      lines.push('', isChinese ? '選項：' : 'Options:');
+      for (const option of options) {
+        const details = [option.required ? (isChinese ? '必要' : 'required') : (isChinese ? '可選' : 'optional'), option.value_kind];
+        if (option.enum_values) details.push('values=' + option.enum_values.join('|'));
+        if (hasOwn(option, 'default')) details.push('default=' + formatDocumentationValue(option.default));
+        lines.push('- `' + option.id + '` `' + option.syntax + '` (' + details.join(', ') + ') — ' + option.summary);
+      }
+    }
+    const legacy = usage.options.filter((option) => option.legacy);
+    if (legacy.length > 0) {
+      lines.push('', isChinese ? 'Legacy diagnostic（非主要語法）：' : 'Legacy diagnostics (not primary syntax):');
+      for (const option of legacy) lines.push('- `' + option.syntax + '` — ' + option.legacy.reason);
+    }
+    if (usage.examples.length > 0) {
+      lines.push('', isChinese ? '範例：' : 'Examples:');
+      for (const example of usage.examples) lines.push('- `' + example.prompt + '` — ' + example.summary);
+    }
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+module.exports = {
+  ACTION_KEYS,
+  AUTHORITY_RANK,
+  CARD_SCHEMA,
+  CATALOG_SCHEMA,
+  deriveArgumentHint,
+  EFFECT_AUTHORITIES,
+  INPUT_KINDS,
+  INPUT_KEYS,
+  INVOCATION_CLASSES,
+  OPTION_KEYS,
+  LEGACY_KEYS,
+  USAGE_KEYS,
+  USAGE_SCHEMA,
+  VALUE_KINDS,
+  compileSkillUsageCatalog,
+  fingerprint,
+  hasCodexSurface,
+  isCodexInvokableSkill,
+  normalizeSkillUsage,
+  renderSkillUsageCard,
+  renderSkillUsageDocumentation,
+  resolveInventoryRevision,
+  validateRuntimeIndex,
+  serializeSkillUsageCatalog,
+  stableStringify,
+  usageFingerprint,
+  validateSkillUsage,
+};

@@ -1,14 +1,16 @@
 'use strict';
 
-const {
-  createDispatchRequest,
-  createFlowHandoff,
-} = (() => {
-  const dispatch = require('../../../scripts/lib/dispatch-contract');
-  const handoff = require('../../../scripts/lib/flow-handoff-contract');
-  return { ...dispatch, ...handoff };
-})();
-const { resolveTarget } = require('../../../scripts/lib/dispatch-engine');
+const path = require('node:path');
+
+const SKILL_ROOT = path.resolve(__dirname, '..');
+const EXECUTION_BUNDLE_ROOT = path.join(SKILL_ROOT, 'references', 'execution-bundle');
+const bundleModule = (relativePath) => require(path.join(EXECUTION_BUNDLE_ROOT, relativePath));
+
+const { createDispatchRequest } = bundleModule(path.join('scripts', 'lib', 'dispatch-contract'));
+const { createFlowHandoff } = bundleModule(path.join('scripts', 'lib', 'flow-handoff-contract'));
+const { resolveTarget } = bundleModule(path.join('scripts', 'lib', 'dispatch-engine'));
+const DEFAULT_CATALOG = require(path.join(EXECUTION_BUNDLE_ROOT, 'manifests', 'provider-model-catalog.json'));
+const HOST_PROFILES = require(path.join(EXECUTION_BUNDLE_ROOT, 'manifests', 'host-profiles.json'));
 
 const ROLE_AUTHORITY = Object.freeze({
   planner: 'read-only',
@@ -27,14 +29,27 @@ function requireConfirmedChange(change) {
   return change;
 }
 
+function bundledHostProfile(request) {
+  if (request && request.host_profile) return request.host_profile;
+  const host = request && (request.host || request.hostProfile);
+  const profiles = HOST_PROFILES && Array.isArray(HOST_PROFILES.profiles) ? HOST_PROFILES.profiles : [];
+  const profile = profiles.find((candidate) => candidate && candidate.host === host);
+  if (!profile) {
+    throw new Error(`flow-drive has no bundled Host profile for '${host || 'unspecified'}'; supply an explicit current profile`);
+  }
+  return profile;
+}
+
 function prepareDispatch({ change, request, catalog, preferenceOrder } = {}) {
   requireConfirmedChange(change);
+  if (!request || typeof request !== 'object') throw new TypeError('dispatch request is required');
   const normalized = createDispatchRequest({
     ...request,
+    host_profile: bundledHostProfile(request),
     role: request.role || 'worker',
     authority: request.authority || ROLE_AUTHORITY[request.role || 'worker'],
   });
-  const resolution = resolveTarget(normalized, { catalog, preferenceOrder });
+  const resolution = resolveTarget(normalized, { catalog: catalog || DEFAULT_CATALOG, preferenceOrder });
   const handoff = createFlowHandoff({
     handoff_id: `flow-drive-${normalized.task_id}-${normalized.attempt_id}`,
     owner: 'flow-drive',

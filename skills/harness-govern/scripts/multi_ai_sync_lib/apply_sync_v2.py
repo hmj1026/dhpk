@@ -541,7 +541,8 @@ def _load_toml_from_string(content):
             import tomli
             return tomli.loads(content)
         except Exception:
-            raise RuntimeError("沒有可用 TOML parser（tomllib/tomli）")
+            from .vendor.tomli import loads as _vendor_toml_loads
+            return _vendor_toml_loads(content)
 
 
 def run_self_tests(repo_root):

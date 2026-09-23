@@ -277,8 +277,9 @@ function isSupportedRecordType(value) {
 }
 
 function packageOwnedRoleSet(options = {}) {
-  const packageRoot = path.resolve(options.packageRoot || inferPluginRoot() || path.resolve(__dirname, '../../..'));
+  const packageRoot = options.packageRoot ? path.resolve(options.packageRoot) : '';
   const names = (relative, extensions) => {
+    if (!packageRoot) return [];
     const directory = path.join(packageRoot, relative);
     if (!fs.existsSync(directory)) return [];
     try {
@@ -1353,11 +1354,6 @@ function readJson(file) {
   }
 }
 
-function inferPluginRoot() {
-  const candidate = path.resolve(__dirname, '..', '..', '..');
-  return fs.existsSync(path.join(candidate, '.claude-plugin', 'plugin.json')) ? candidate : '';
-}
-
 function findDhpkEntries(value, output = [], keyHint = '') {
   if (!value || typeof value !== 'object') return output;
   if (!Array.isArray(value)) {
@@ -1577,10 +1573,7 @@ function runAudit(options = {}) {
     ...DEFAULT_KNOWN_AGENTS,
     ...discovery.installedAgents.map((agent) => agent.name),
   ]);
-  const inferredRoot = inferPluginRoot();
-  const pluginRoot = resolveLocalInput(parsed.pluginRoot || options.pluginRoot || (
-    inferredRoot && isWithin(path.resolve(parsed.home), inferredRoot) ? inferredRoot : ''
-  ), 'plugin-root');
+  const pluginRoot = resolveLocalInput(parsed.pluginRoot || options.pluginRoot || '', 'plugin-root');
   const additionalRedactionRoots = pluginRoot ? [[pluginRoot, '<PLUGIN_ROOT>']] : [];
   const installations = collectInstallEvidence(parsed.home, {
     ...options,
@@ -1692,7 +1685,7 @@ function runAudit(options = {}) {
     },
     coverage: {
       sourceRoots: { ...SOURCE_ROOT_PATTERNS },
-      packageOwnedRoleSet: packageOwnedRoleSet({ packageRoot: options.packageRoot }),
+      packageOwnedRoleSet: packageOwnedRoleSet({ packageRoot: options.packageRoot || pluginRoot }),
       installedAgents: discovery.installedAgents.map((agent) => {
         const name = safeAgent(agent.name, { knownAgents });
         const displayedPath = path.join(path.dirname(agent.path), `${name}${path.extname(agent.path)}`);

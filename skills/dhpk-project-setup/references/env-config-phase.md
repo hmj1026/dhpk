@@ -7,6 +7,13 @@ Full detail for `/dhpk:dhpk-project-setup` Phase 6.7.
 
 **Purpose**: Write recommended environment variables to `.claude/settings.json` `env` object, **independent of hook installation**. This phase runs even when `--no-hooks` is specified.
 
+This is a Claude Host procedure. Before any settings write, obtain an
+`AskUserQuestion` confirmation and verify project `Edit`/`Write` capability. If
+confirmation or write capability is unavailable, stop before mutation and
+report `BLOCKED` or `UNAVAILABLE` with
+`HOST_CAPABILITY_UNAVAILABLE: <capability>`. Static checks and fixtures leave
+Host evidence `NOT_RUN`.
+
 ## 6.7.1 Env Var Catalog
 
 | Variable | Default | Condition | Description |

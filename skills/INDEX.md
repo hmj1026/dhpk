@@ -4,7 +4,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills index
 
-This index describes the 65 canonical skill packages (all active in 0.54). The inventory is
+This index describes the 84 canonical skill packages currently published. The inventory is
 the source of truth for lifecycle, stable IDs, public names, profile selection,
 and publication surfaces; this page is a navigation aid. Every package lives
 under `skills/<public-name>/SKILL.md` and keeps its procedure and completion
@@ -40,6 +40,33 @@ are finite and disclosed by the family package.
 `git-smart-commit` remains a standalone capability with its existing public
 name. It is not replaced by a new commit family.
 
+## Portable command workflow skills
+
+These Skills own the procedures forwarded by the matching Claude command
+front doors. Invoke the public name directly from Codex.
+
+| Public skill | Stable ID | Purpose |
+| --- | --- | --- |
+| [code-simplify](code-simplify/SKILL.md) | `code-simplify` | Bounded behavior-preserving cleanup |
+| [create-pr](create-pr/SKILL.md) | `create-pr` | Dry-run or explicitly execute a pull request |
+| [dep-audit](dep-audit/SKILL.md) | `dep-audit` | Evidence-only dependency security audit |
+| [doc-refactor](doc-refactor/SKILL.md) | `doc-refactor` | Bounded Markdown refactoring |
+| [git-worktree](git-worktree/SKILL.md) | `git-worktree` | Safe native Git worktree lifecycle |
+| [harness-audit](harness-audit/SKILL.md) | `harness-audit` | Deterministic harness scorecard |
+| [harness-setup](harness-setup/SKILL.md) | `harness-setup` | Explicit harness setup and host assets |
+| [merge-prep](merge-prep/SKILL.md) | `merge-prep` | Read-only branch merge analysis |
+| [opsx-apply-resume](opsx-apply-resume/SKILL.md) | `opsx-apply-resume` | OpenSpec apply handoff and resume |
+| [pr-summary](pr-summary/SKILL.md) | `pr-summary` | Structured read-only open-PR summary |
+| [precommit](precommit/SKILL.md) | `precommit` | Packaged fast or full pre-commit pipeline |
+| [project-brief](project-brief/SKILL.md) | `project-brief` | Technical-spec executive brief |
+| [proposal-analyze](proposal-analyze/SKILL.md) | `proposal-analyze` | Evidence-backed proposal roadmap |
+| [repo-verify](repo-verify/SKILL.md) | `repo-verify` | Runner-first repository verification |
+| [review-pending](review-pending/SKILL.md) | `review-pending` | Delegate a read-only pending-change review |
+| [spec-mine](spec-mine/SKILL.md) | `spec-mine` | Mine one capability's behavioral baseline |
+| [ui-ux-verify](ui-ux-verify/SKILL.md) | `ui-ux-verify` | Read-only rendered UI verification |
+| [update-codemaps](update-codemaps/SKILL.md) | `update-codemaps` | Refresh structural code maps |
+| [update-docs](update-docs/SKILL.md) | `update-docs` | Refresh stale live workflow documentation |
+
 ## Promoted workflow and integration skills
 
 | Public skill | Stable ID | Purpose |
@@ -50,7 +77,7 @@ name. It is not replaced by a new commit family.
 | [dhpk-composer-package-hygiene](dhpk-composer-package-hygiene/SKILL.md) | `composer-package-hygiene` | Composer package and public API hygiene |
 | [dhpk-deploy-list](dhpk-deploy-list/SKILL.md) | `deploy-list` | Deployment file-list and checklist |
 | [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | `feature-verify` | Read-only post-deploy verification |
-| [dhpk-git-smart-commit](dhpk-git-smart-commit/SKILL.md) | `git-smart-commit` | Group and execute cohesive Git commits |
+| [git-smart-commit](git-smart-commit/SKILL.md) | `git-smart-commit` | Group and execute cohesive Git commits |
 | [dhpk-gitnexus-cli](dhpk-gitnexus-cli/SKILL.md) | `gitnexus-cli` | GitNexus index and wiki operations |
 | [dhpk-gitnexus-debugging](dhpk-gitnexus-debugging/SKILL.md) | `gitnexus-debugging` | GitNexus-assisted bug tracing |
 | [dhpk-gitnexus-exploring](dhpk-gitnexus-exploring/SKILL.md) | `gitnexus-exploring` | GitNexus architecture exploration |
@@ -60,6 +87,7 @@ name. It is not replaced by a new commit family.
 | [dhpk-issue-analyze](dhpk-issue-analyze/SKILL.md) | `issue-analyze` | GitHub issue and review-thread triage |
 | [dhpk-laravel-package-author](dhpk-laravel-package-author/SKILL.md) | `laravel-package-author` | Laravel package publication patterns |
 | [dhpk-laravel-testbench-matrix](dhpk-laravel-testbench-matrix/SKILL.md) | `laravel-testbench-matrix` | Laravel package Testbench matrix |
+| [dhpk-module-design](dhpk-module-design/SKILL.md) | `software-architecture` | Architecture boundaries and deep-module design |
 | [dhpk-opsx-apply-goal](dhpk-opsx-apply-goal/SKILL.md) | `opsx-apply-goal` | Bounded long-running OpenSpec apply goal |
 | [dhpk-opsx-load-context](dhpk-opsx-load-context/SKILL.md) | `opsx-load-context` | Resume context loading |
 | [dhpk-opsx-post-observation](dhpk-opsx-post-observation/SKILL.md) | `opsx-post-obs` | Save-phase observation posting |
@@ -67,10 +95,10 @@ name. It is not replaced by a new commit family.
 | [dhpk-project-audit](dhpk-project-audit/SKILL.md) | `project-audit` | Deterministic project health audit |
 | [dhpk-project-setup](dhpk-project-setup/SKILL.md) | `project-setup` | First-time project harness setup |
 | [dhpk-prompt-optimize](dhpk-prompt-optimize/SKILL.md) | `prompt-optimize` | Prompt completeness and effort guidance |
-| [dhpk-release-creator](dhpk-release-creator/SKILL.md) | `release-creator` | Release preparation workflow |
+| [release-creator](release-creator/SKILL.md) | `release-creator` | Release preparation workflow |
 | [dhpk-repo-intake](dhpk-repo-intake/SKILL.md) | `repo-intake` | Repository inventory onboarding |
 | [dhpk-session-usage-audit](dhpk-session-usage-audit/SKILL.md) | `session-usage-audit` | Session evidence and usage audit |
-| [dhpk-tdd-workflow](dhpk-tdd-workflow/SKILL.md) | `tdd` | Behavior-first test workflow |
+| [tdd-workflow](tdd-workflow/SKILL.md) | `tdd` | Behavior-first test workflow |
 
 ## Optional module and transport skills
 
@@ -86,10 +114,10 @@ transport contract.
 | [dhpk-ios-icon-gen](dhpk-ios-icon-gen/SKILL.md) | `ios-icon-gen` | iOS icon generation |
 | [dhpk-ios-platform](dhpk-ios-platform/SKILL.md) | `ios-platform` | iOS platform APIs |
 | [dhpk-js-lint-config](dhpk-js-lint-config/SKILL.md) | `js-lint-config` | JavaScript lint configuration |
-| [dhpk-js-static-check-strategy](dhpk-js-static-check-strategy/SKILL.md) | `js-static-check-strategy` | Incremental JS static checks |
+| [js-static-check-strategy](js-static-check-strategy/SKILL.md) | `js-static-check-strategy` | Incremental JS static checks |
 | [dhpk-legacy-characterization-tests](dhpk-legacy-characterization-tests/SKILL.md) | `legacy-code-characterization` | Legacy behavior locking |
 | [dhpk-library-dual-testsuite-map](dhpk-library-dual-testsuite-map/SKILL.md) | `library-dual-testsuite-map` | Dual test-suite mapping |
-| [dhpk-matrix-cell-onboard](dhpk-matrix-cell-onboard/SKILL.md) | `matrix-cell-onboard` | CI matrix cell onboarding |
+| [matrix-cell-onboard](matrix-cell-onboard/SKILL.md) | `matrix-cell-onboard` | CI matrix cell onboarding |
 | [dhpk-nextjs-15-5-notes](dhpk-nextjs-15-5-notes/SKILL.md) | `nextjs-15-5-notes` | Next.js 15.5 guidance |
 | [dhpk-nextjs-16-notes](dhpk-nextjs-16-notes/SKILL.md) | `nextjs-16-notes` | Next.js 16 guidance |
 | [dhpk-openspec-artifact-guard](dhpk-openspec-artifact-guard/SKILL.md) | `openspec-artifact-guard` | OpenSpec artifact guard |

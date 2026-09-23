@@ -54,3 +54,11 @@ source as approval.
 The remediation is a recommendation in the response. It is never executed by
 this skill. Re-running after a new user-supplied snapshot is a new read-only
 observation; there is no automatic fix loop or persisted review identity.
+
+## Related shared files
+
+- [`review-rubric.md`](review-rubric.md) — compact severity and response-gate table.
+- [`command-context.md`](command-context.md) — Claude command dynamic-context snippet; Host-bound
+  and optional elsewhere.
+- [`codex-research-instructions.md`](codex-research-instructions.md) — maintainer source of the research blocks
+  embedded in each mode prompt; not loaded at run time.

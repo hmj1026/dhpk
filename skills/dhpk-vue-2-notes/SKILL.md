@@ -213,7 +213,7 @@ relaxing the single-root rule, and converting global API calls
 Not for Vue 3 or the 2.7 Composition API — this baseline predates `setup()` /
 `<script setup>`, so `ref` / `reactive` / composables do not exist. Not for the
 build pipeline (see the `laravel` family skill's `mix` selector) or non-`.vue` JS (see
-`dhpk-js-static-check-strategy`). Load when touching `.vue` SFCs in a `vue ^2.5.x`
+`js-static-check-strategy`). Load when touching `.vue` SFCs in a `vue ^2.5.x`
 codebase, or planning a 2 → 3 migration.
 
 ## Output
@@ -237,5 +237,5 @@ Options-API `.vue` components with `data()` as a function, props-down /
 
 - `skills/laravel/SKILL.md` (`mix` selector) — the webpack build that compiles
   these `.vue` SFCs and maps them to `public/`
-- `skills/dhpk-js-static-check-strategy/SKILL.md` — ESLint /
+- `skills/js-static-check-strategy/SKILL.md` — ESLint /
   TypeScript tier strategy that governs the `.vue` and `.js` sources

@@ -17,7 +17,7 @@
    DDD 決策先取得 `architect` 結論。
 3. **Artifacts**：確認 work-item ready，建立或補齊 `profile`, `dev-scope`,
    `legacy-reference` 與測試策略。
-4. **Implementation**：先以 `dhpk-tdd-workflow` / `tdd-guide` 建立 RED，
+4. **Implementation**：先以 `tdd-workflow` / `tdd-guide` 建立 RED，
    再用 selector-resolved worker 或有界 inline path 完成 GREEN → REFACTOR。
 5. **Delivery loop**：依
    `references/delivery-loop-gate.md` 完成

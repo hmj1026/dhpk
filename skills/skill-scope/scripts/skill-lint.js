@@ -16,7 +16,7 @@
  */
 
 const { readdirSync, readFileSync, existsSync, statSync, lstatSync } = require('node:fs');
-const { join, basename, resolve, relative, isAbsolute, sep } = require('node:path');
+const { join, basename, dirname, resolve, relative, isAbsolute, sep, posix } = require('node:path');
 
 const PORTABLE_FAMILY_NAMES = new Set([
   'skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict', 'code-trace',
@@ -353,16 +353,265 @@ function checkVerificationSection(body) {
   };
 }
 
+function pathEscapes(root, target) {
+  const targetRelative = relative(root, target);
+  return targetRelative === '..'
+    || targetRelative.startsWith(`..${sep}`)
+    || isAbsolute(targetRelative);
+}
+
+function inspectPhysicalFile(root, fileRelative) {
+  if (typeof fileRelative !== 'string' || fileRelative.length === 0) {
+    return { ok: false, reason: 'is not a valid relative path' };
+  }
+  const target = resolve(root, fileRelative);
+  if (pathEscapes(root, target)) return { ok: false, reason: 'escapes its Skill boundary' };
+
+  const rootRelative = relative(root, target);
+  const parts = rootRelative.split(sep).filter(Boolean);
+  let current = root;
+  for (let index = 0; index < parts.length; index += 1) {
+    current = join(current, parts[index]);
+    const result = safeLstat(current);
+    if (!result.ok) {
+      return {
+        ok: false,
+        reason: result.error && result.error.code === 'ENOENT'
+          ? 'is missing'
+          : `could not be inspected (${result.error?.code || 'filesystem error'})`,
+      };
+    }
+    if (result.stat.isSymbolicLink()) return { ok: false, reason: 'is a symlink' };
+    if (index < parts.length - 1 && !result.stat.isDirectory()) {
+      return { ok: false, reason: 'has a non-directory ancestor' };
+    }
+    if (index === parts.length - 1 && !result.stat.isFile()) {
+      return { ok: false, reason: 'is not a regular file' };
+    }
+  }
+  return { ok: true, path: target };
+}
+
+function listFiles(root, include) {
+  const files = [];
+  function walk(directory, prefix = '') {
+    const readResult = safeReadDir(directory);
+    if (!readResult.ok) return;
+    for (const entry of readResult.entries.sort()) {
+      const fileRelative = prefix ? posix.join(prefix, entry) : entry;
+      const filePath = join(directory, entry);
+      const lstatResult = safeLstat(filePath);
+      if (!lstatResult.ok) continue;
+      if (lstatResult.stat.isDirectory() && !lstatResult.stat.isSymbolicLink()) {
+        walk(filePath, fileRelative);
+      } else if (!lstatResult.stat.isSymbolicLink() && include(fileRelative, lstatResult.stat)) {
+        files.push(fileRelative);
+      }
+    }
+  }
+  if (isDir(root)) walk(root);
+  return files;
+}
+
+// Mirror of listFiles that returns only symlinked leaf entries, so callers can
+// distinguish "no such script" from "a script exists but is a symlink" — the
+// latter must be reported, not silently treated as absent.
+function listSymlinkedFiles(root, include) {
+  const files = [];
+  function walk(directory, prefix = '') {
+    const readResult = safeReadDir(directory);
+    if (!readResult.ok) return;
+    for (const entry of readResult.entries.sort()) {
+      const fileRelative = prefix ? posix.join(prefix, entry) : entry;
+      const filePath = join(directory, entry);
+      const lstatResult = safeLstat(filePath);
+      if (!lstatResult.ok) continue;
+      if (lstatResult.stat.isDirectory() && !lstatResult.stat.isSymbolicLink()) {
+        walk(filePath, fileRelative);
+      } else if (lstatResult.stat.isSymbolicLink() && include(fileRelative, lstatResult.stat)) {
+        files.push(fileRelative);
+      }
+    }
+  }
+  if (isDir(root)) walk(root);
+  return files;
+}
+
+function markdownTargets(content, documentRelative = 'SKILL.md') {
+  const links = [];
+  const markdownSpans = [];
+  const add = (raw, documentRelativeTarget) => {
+    if (typeof raw !== 'string') return;
+    const value = raw.replace(/^<|>$/g, '').split(/[?#]/, 1)[0];
+    if (!value || /^(?:[a-z]+:|\/|#)/i.test(value) || !/\.md$/i.test(value)) return;
+    const candidate = posix.normalize(posix.join(
+      posix.dirname(documentRelativeTarget),
+      value,
+    ));
+    links.push({ path: candidate, raw: value, document: documentRelativeTarget });
+  };
+
+  const markdown = /\]\(\s*<?([^\s)>]+)>?/g;
+  let match;
+  while ((match = markdown.exec(String(content))) !== null) {
+    add(match[1], documentRelative);
+    markdownSpans.push([match.index, markdown.lastIndex]);
+  }
+
+  const maskedContent = String(content).split('');
+  for (const [start, end] of markdownSpans) {
+    for (let index = start; index < end; index += 1) {
+      if (maskedContent[index] !== '\n' && maskedContent[index] !== '\r') maskedContent[index] = ' ';
+    }
+  }
+  const textual = /(?<![A-Za-z0-9_@./-])references\/[A-Za-z0-9._/-]+\.md\b/g;
+  while ((match = textual.exec(maskedContent.join(''))) !== null) add(match[0], 'SKILL.md');
+  return links;
+}
+
+function collectReachableMarkdown(skillDir, body) {
+  const referencesRoot = join(skillDir, 'references');
+  const files = listFiles(referencesRoot, (fileRelative) => /\.md$/i.test(fileRelative))
+    .map((fileRelative) => posix.join('references', fileRelative));
+  const reachable = new Set();
+  const links = [];
+  const escapes = [];
+  const queue = [];
+  const queued = new Set();
+
+  const enqueue = (link) => {
+    if (!link || typeof link.path !== 'string') return;
+    // A normalized target that climbs above the Skill root (e.g. `../../outside.md`)
+    // is a boundary escape, not merely "outside references/" — flag it instead of
+    // silently dropping it, so a Skill cannot depend on an ambient file it doesn't own.
+    if (link.path === '..' || link.path.startsWith('../')) {
+      escapes.push(link);
+      return;
+    }
+    links.push(link);
+    if (!link.path.startsWith('references/')) {
+      return;
+    }
+    if (!queued.has(link.path)) {
+      queued.add(link.path);
+      queue.push(link.path);
+    }
+  };
+
+  const initialLinks = markdownTargets(body, 'SKILL.md');
+  for (const file of files) {
+    const fileName = basename(file);
+    if (body.includes(file) || body.includes(fileName)) {
+      enqueue({ path: file, raw: file, document: 'SKILL.md' });
+    }
+  }
+  for (const link of initialLinks) enqueue(link);
+
+  // A documented directory (e.g. `references/modes/`) routes every Markdown
+  // file beneath it; the reader chooses among them by the documented mode.
+  const corpus = [body];
+  const routedDirectories = new Set();
+  const noteDirectories = (content) => {
+    const pattern = /(?<![A-Za-z0-9_@./-])(references\/(?:[A-Za-z0-9._-]+\/)+)(?![A-Za-z0-9._-])/g;
+    let match;
+    while ((match = pattern.exec(String(content))) !== null) routedDirectories.add(match[1]);
+  };
+  noteDirectories(body);
+  for (;;) {
+    while (queue.length > 0) {
+      const document = queue.shift();
+      if (reachable.has(document)) continue;
+      reachable.add(document);
+      const physical = inspectPhysicalFile(skillDir, document);
+      if (!physical.ok) continue;
+      const readResult = safeReadFile(physical.path);
+      if (!readResult.ok) continue;
+      corpus.push(readResult.content);
+      noteDirectories(readResult.content);
+      for (const link of markdownTargets(readResult.content, document)) enqueue(link);
+    }
+    const routed = files.filter((file) => !reachable.has(file) && !queued.has(file)
+      && [...routedDirectories].some((directory) => file.startsWith(directory)));
+    if (routed.length === 0) break;
+    for (const file of routed) enqueue({ path: file, raw: file, document: 'SKILL.md' });
+  }
+
+  return { files, reachable, links, escapes, corpus: corpus.join('\n') };
+}
+
+function scriptImportSpecifiers(content) {
+  const specifiers = [];
+  const patterns = [
+    /\b(?:require|import)\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+    /\bfrom\s*['"]([^'"]+)['"]/g,
+    /\bimport\s*['"]([^'"]+)['"]/g,
+    /(?:^|[;\n])\s*(?:source|\.)\s+['"]?([./][^\s'";]+)/gm,
+  ];
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(String(content))) !== null) specifiers.push(match[1]);
+  }
+  return [...new Set(specifiers)];
+}
+
+function resolveScriptImport(importer, specifier, knownFiles) {
+  if (typeof specifier !== 'string' || !specifier.startsWith('.')) return null;
+  const candidate = posix.normalize(posix.join(posix.dirname(importer), specifier));
+  if (candidate === '..' || candidate.startsWith('../')) return null;
+  const candidates = [candidate];
+  if (!posix.extname(candidate)) {
+    for (const extension of ['.js', '.mjs', '.cjs', '.sh', '.py']) candidates.push(`${candidate}${extension}`);
+    for (const extension of ['.js', '.mjs', '.cjs', '.sh', '.py']) candidates.push(posix.join(candidate, `index${extension}`));
+  }
+  return candidates.find((value) => knownFiles.has(value)) || null;
+}
+
+// Textual evidence that `importer` loads `target` when no static import names
+// it: a path/basename mention (shell `"$DIR/lib/x.sh"`), an exact quoted
+// module stem (`loadRuntimeModule('runner-utils')`), or a Python package /
+// relative module import.  Mirrors the repository coverage validator.
+function scriptMentions(importerRelative, content, targetRelative) {
+  const text = String(content);
+  const p = posix;
+  const base = p.basename(targetRelative);
+  const extension = p.extname(targetRelative);
+  const relativePath = p.relative(p.dirname(importerRelative), targetRelative);
+  const relativeStem = relativePath.slice(0, relativePath.length - extension.length);
+  const stem = base.slice(0, base.length - extension.length);
+  const quote = `['"\`]`;
+  const before = '(?<![A-Za-z0-9_.-])';
+  const after = '(?![A-Za-z0-9_-])';
+  // 1. The basename or caller-relative path, extension included, as a token.
+  if (new RegExp(`${before}${escapeRegExp(base)}${after}`).test(text)) return true;
+  if (relativePath !== base && new RegExp(`${before}${escapeRegExp(relativePath)}${after}`).test(text)) return true;
+  // 2. An extensionless relative specifier such as require('./helper').
+  const specifier = relativeStem.startsWith('../') ? relativeStem : `./${relativeStem}`;
+  if (new RegExp(`${quote}${escapeRegExp(specifier)}${quote}`).test(text)) return true;
+  // 3. The exact stem as a quoted call argument, e.g. loadRuntimeModule('x')
+  //    or path.join('scripts', 'lib', 'x'); a bare quoted word is not enough.
+  if (stem.length > 1 && new RegExp(`[A-Za-z_$][\\w$]*\\s*\\([^()]*${quote}${escapeRegExp(stem)}${quote}`).test(text)) return true;
+  // 4. Python modules require import syntax, never a bare identifier.
+  if (extension === '.py') {
+    const parts = (base === '__init__.py' ? p.dirname(relativePath) : relativeStem).split('/').filter(Boolean);
+    if (parts.length > 0 && !parts.includes('..') && !parts.includes('.')) {
+      const dotted = escapeRegExp(parts.join('.'));
+      const moduleStem = escapeRegExp(parts[parts.length - 1]);
+      if (new RegExp(`^\\s*(?:from\\s+${dotted}(?:\\.[\\w.]+)?\\s+import\\b|import\\s+${dotted}(?![\\w]))`, 'm').test(text)) return true;
+      if (new RegExp(`^\\s*from\\s+\\.+${dotted}(?:\\.[\\w.]+)?\\s+import\\b`, 'm').test(text)) return true;
+      if (new RegExp(`^\\s*from\\s+\\.+\\s+import\\s+[^\\n]*\\b${moduleStem}\\b`, 'm').test(text)) return true;
+    }
+  }
+  return false;
+}
+
 function checkReferencesRouting(skillDir, body) {
   const refsDir = join(skillDir, 'references');
   if (!isDir(refsDir)) return { pass: true };
 
-  const readResult = safeReadDir(refsDir);
-  if (!readResult.ok) return { pass: true };
-  const refFiles = readResult.entries.filter((f) => f.endsWith('.md'));
+  const { files: refFiles, reachable } = collectReachableMarkdown(skillDir, body);
   if (refFiles.length === 0) return { pass: true };
 
-  const missing = refFiles.filter((f) => !body.includes(f));
+  const missing = refFiles.filter((file) => !reachable.has(file));
   if (missing.length === 0) return { pass: true };
 
   return {
@@ -377,14 +626,84 @@ function checkScriptsContract(skillDir, body) {
   const scriptsDir = join(skillDir, 'scripts');
   if (!isDir(scriptsDir)) return { pass: true };
 
-  const readResult = safeReadDir(scriptsDir);
-  if (!readResult.ok) return { pass: true };
-  const scripts = readResult.entries.filter(
-    (f) => f.endsWith('.js') || f.endsWith('.sh') || f.endsWith('.py')
-  );
+  const scriptPattern = (fileRelative) => /\.(?:js|mjs|cjs|sh|py)$/i.test(fileRelative);
+  const scripts = listFiles(scriptsDir, scriptPattern);
+
+  // A symlinked script is never a legitimate public entry — a Skill directory
+  // must be physically self-contained. Flag it as soon as SKILL.md documents
+  // it, rather than letting listFiles() quietly drop it from `scripts` and
+  // pass by omission.
+  // Public entries may be documented in SKILL.md or any Markdown reachable
+  // from it (e.g. a phase procedure under references/).
+  const documentation = collectReachableMarkdown(skillDir, body).corpus;
+  const documentedSymlinkedScripts = listSymlinkedFiles(scriptsDir, scriptPattern)
+    .filter((file) => documentation.includes(file) || documentation.includes(basename(file)));
+  if (documentedSymlinkedScripts.length > 0) {
+    return {
+      pass: false,
+      severity: 'P1',
+      message: `Documented script(s) are symlinks, not physically local regular files: ${documentedSymlinkedScripts.join(', ')}`,
+      fix: 'Replace the symlink with a physically local regular file under scripts/',
+    };
+  }
+
   if (scripts.length === 0) return { pass: true };
 
-  const missing = scripts.filter((f) => !body.includes(f));
+  // A bare basename in SKILL.md only documents a script when that basename is
+  // unique under scripts/ — otherwise two different scripts sharing a name in
+  // different subdirectories (e.g. scripts/a/run.js and scripts/b/run.js)
+  // would both be misclassified as documented from a single mention.
+  const basenameCounts = new Map();
+  for (const file of scripts) {
+    const name = basename(file);
+    basenameCounts.set(name, (basenameCounts.get(name) || 0) + 1);
+  }
+  const publicScripts = new Set(
+    scripts.filter((file) => {
+      if (documentation.includes(file)) return true;
+      const name = basename(file);
+      return basenameCounts.get(name) === 1 && documentation.includes(name);
+    }),
+  );
+  const importedHelpers = new Set();
+  const queue = [...publicScripts];
+  const knownScripts = new Set(scripts);
+  // Imports may also resolve to symlinked leaves; those are never followed,
+  // only reported, because a Skill must not execute code outside its tree.
+  const symlinkedScripts = new Set(listSymlinkedFiles(scriptsDir, scriptPattern));
+  const resolvable = new Set([...knownScripts, ...symlinkedScripts]);
+  const importedSymlinks = new Set();
+  while (queue.length > 0) {
+    const importer = queue.shift();
+    const readResult = safeReadFile(join(scriptsDir, importer));
+    if (!readResult.ok) continue;
+    const imports = new Set();
+    for (const specifier of scriptImportSpecifiers(readResult.content)) {
+      const imported = resolveScriptImport(importer, specifier, resolvable);
+      if (imported) imports.add(imported);
+    }
+    for (const candidate of resolvable) {
+      if (candidate !== importer && scriptMentions(importer, readResult.content, candidate)) imports.add(candidate);
+    }
+    for (const imported of imports) {
+      if (symlinkedScripts.has(imported)) {
+        importedSymlinks.add(imported);
+      } else if (!publicScripts.has(imported) && !importedHelpers.has(imported)) {
+        importedHelpers.add(imported);
+        queue.push(imported);
+      }
+    }
+  }
+  if (importedSymlinks.size > 0) {
+    return {
+      pass: false,
+      severity: 'P1',
+      message: `Imported helper script(s) are symlinks, not physically local regular files: ${[...importedSymlinks].sort().join(', ')}`,
+      fix: 'Replace the symlink with a physically local regular file under scripts/',
+    };
+  }
+
+  const missing = scripts.filter((file) => !publicScripts.has(file) && !importedHelpers.has(file));
   if (missing.length === 0) return { pass: true };
 
   return {
@@ -444,53 +763,86 @@ function checkTaskEntitlement(body, fm) {
   };
 }
 
+function skillsRootForSkill(skillDir) {
+  const absoluteSkillDir = resolve(skillDir);
+  const configuredRoot = resolve(skillsDir);
+  if (absoluteSkillDir === configuredRoot || absoluteSkillDir.startsWith(`${configuredRoot}${sep}`)) {
+    return configuredRoot;
+  }
+  let current = absoluteSkillDir;
+  while (current !== dirname(current)) {
+    if (basename(current) === 'skills') return current;
+    current = dirname(current);
+  }
+  return dirname(absoluteSkillDir);
+}
+
 function checkCrossSkillRefPaths(skillName, skillDir, body) {
-  const qualifiedPattern = /(?:@skills\/([^/`\s)]+)\/references\/([^`\s)]+\.md)|\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/([^/`\s)]+)\/references\/([^`\s)]+\.md))/g;
-  const qualifiedSpans = [];
-  let qualified;
-  while ((qualified = qualifiedPattern.exec(body)) !== null) {
-    const parentSkill = qualified[1] || qualified[3];
-    const refFile = qualified[2] || qualified[4];
-    const target = resolve(skillsDir, parentSkill, 'references', refFile);
-    const parentRoot = resolve(skillsDir, parentSkill);
-    const targetRelative = relative(parentRoot, target);
-    const escapesParent = targetRelative === '..'
-      || targetRelative.startsWith(`..${sep}`)
-      || isAbsolute(targetRelative);
-    if (escapesParent || !existsSync(target)) {
-      qualifiedSpans.push({ refFile, parentSkill, missing: true });
-    }
-  }
-
-  const unqualifiedBody = body.replace(qualifiedPattern, '');
-  // Same regex as skills-schema.test.js, now applied only after qualified
-  // spans are removed so their trailing references/<file> cannot be misread.
-  const refPattern = /`?@?(?:\.\/)?references\/([^`\s)]+\.md)`?/g;
+  const rootSkillsDir = skillsRootForSkill(skillDir);
+  const graph = collectReachableMarkdown(skillDir, body);
   const mismatches = [];
-  let match;
+  const seen = new Set();
+  const addMismatch = (mismatch) => {
+    const key = [mismatch.qualified ? 'qualified' : 'local', mismatch.parentSkill || '', mismatch.refFile || '', mismatch.reason || ''].join('|');
+    if (seen.has(key)) return;
+    seen.add(key);
+    mismatches.push(mismatch);
+  };
 
-  while ((match = refPattern.exec(unqualifiedBody)) !== null) {
-    const refFile = match[1];
-    const localPath = join(skillDir, 'references', refFile);
-    if (existsSync(localPath)) continue; // Exists locally — OK
-
-    // Not local — check if it lives in another skill's references/
-    const parentSkill = findRefInOtherSkills(refFile, skillName);
-    if (parentSkill) {
-      mismatches.push({ refFile, parentSkill });
-    }
+  for (const escape of graph.escapes) {
+    addMismatch({ refFile: escape.raw || escape.path, reason: 'escapes the Skill boundary', escape: true });
   }
 
-  for (const missing of qualifiedSpans) {
-    mismatches.push({ refFile: missing.refFile, parentSkill: missing.parentSkill, qualified: true });
+  for (const link of graph.links) {
+    if (!link.path.startsWith('references/')) continue;
+    const localPath = inspectPhysicalFile(skillDir, link.path);
+    if (localPath.ok) continue;
+    const refFile = link.path.slice('references/'.length);
+    const parentSkill = localPath.reason === 'is missing'
+      ? findRefInOtherSkills(refFile, skillName, rootSkillsDir)
+      : null;
+    addMismatch({ refFile, parentSkill, reason: localPath.reason });
+  }
+
+  const qualifiedPattern = /(?:@skills\/([^/`\s)]+)\/references\/([^`\s]+\.md)|\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/([^/`\s)]+)\/references\/([^`\s]+\.md))/g;
+  const documents = [body, ...[...graph.reachable]
+    .map((document) => {
+      const physical = inspectPhysicalFile(skillDir, document);
+      if (!physical.ok) return null;
+      const readResult = safeReadFile(physical.path);
+      return readResult.ok ? readResult.content : null;
+    })
+    .filter(Boolean)];
+  for (const content of documents) {
+    let qualified;
+    while ((qualified = qualifiedPattern.exec(content)) !== null) {
+      const parentSkill = qualified[1] || qualified[3];
+      const refFile = qualified[2] || qualified[4];
+      const parentRoot = resolve(rootSkillsDir, parentSkill);
+      const target = resolve(parentRoot, 'references', refFile);
+      let physical;
+      if (pathEscapes(rootSkillsDir, parentRoot)) {
+        physical = { ok: false, reason: 'escapes the Skills boundary' };
+      } else if (pathEscapes(parentRoot, target)) {
+        physical = { ok: false, reason: 'escapes the parent Skill boundary' };
+      } else {
+        physical = inspectPhysicalFile(rootSkillsDir, relative(rootSkillsDir, target));
+      }
+      if (!physical.ok) addMismatch({ refFile, parentSkill, qualified: true, reason: physical.reason });
+    }
+    qualifiedPattern.lastIndex = 0;
   }
 
   if (mismatches.length === 0) return { pass: true };
 
-  const details = [...new Map(mismatches.map((m) => [`${m.parentSkill}:${m.refFile}`, m])).values()]
-    .map((m) => m.qualified
-      ? `qualified reference ${m.parentSkill}/references/${m.refFile} is missing`
-      : `references/${m.refFile} → @skills/${m.parentSkill}/references/${m.refFile}`)
+  const details = mismatches
+    .map((m) => m.escape
+      ? `reference ${m.refFile} escapes the Skill boundary`
+      : m.qualified
+        ? `qualified reference ${m.parentSkill}/references/${m.refFile} ${m.reason || 'is invalid'}`
+        : m.parentSkill
+          ? `references/${m.refFile} → @skills/${m.parentSkill}/references/${m.refFile}`
+          : `local reference references/${m.refFile} ${m.reason || 'is invalid'}`)
     .join('; ');
   return {
     pass: false,
@@ -500,12 +852,12 @@ function checkCrossSkillRefPaths(skillName, skillDir, body) {
   };
 }
 
-function findRefInOtherSkills(refFile, excludeSkill) {
-  if (!isDir(skillsDir)) return null;
+function findRefInOtherSkills(refFile, excludeSkill, root = skillsDir) {
+  if (!isDir(root)) return null;
   const matches = [];
-  for (const p of findSkillDirs(skillsDir)) {
+  for (const p of findSkillDirs(root)) {
     if (basename(p) === excludeSkill) continue;
-    if (existsSync(join(p, 'references', refFile))) matches.push(basename(p));
+    if (inspectPhysicalFile(p, join('references', refFile)).ok) matches.push(basename(p));
   }
   // Ambiguous if 2+ skills share the same filename — not clearly cross-skill
   return matches.length === 1 ? matches[0] : null;
@@ -596,56 +948,33 @@ function lintSkill(skillName, skillDir, knownSkillNames = null) {
 function detectOrphans(skillNames, commandFiles, _commandsDir = commandsDir) {
   const findings = [];
   if (commandFiles.length === 0) return findings;
-
-  const commandSkillMap = {};
+  const knownSkills = new Set(skillNames);
+  const explicitSkillPatterns = [
+    /@skills\/([A-Za-z0-9][A-Za-z0-9-]*)(?=\/|[`\s)]|$)/g,
+    /\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/([A-Za-z0-9][A-Za-z0-9-]*)(?=\/|[`\s)]|$)/g,
+  ];
   for (const cmdFile of commandFiles) {
     const readResult = safeReadFile(join(_commandsDir, cmdFile));
-    if (!readResult.ok) continue; // detectCommandFrontmatter reports the stable P1 finding
-    const content = readResult.content;
-    const cmdName = basename(cmdFile, '.md');
-    const match = content.match(/@skills\/([^/]+)\//);
-    commandSkillMap[cmdName] = match ? match[1] : skillNameFromCommandContent(content, skillNames);
-  }
-
-  const utilityCommands = new Set([
-    'precommit',
-    'precommit-fast',
-    'verify',
-    'simplify',
-    'doc-refactor',
-    'zh-tw',
-    'install-hooks',
-    'install-rules',
-    'install-scripts',
-    'update-docs',
-    'project-brief',
-  ]);
-
-  for (const [cmd, skill] of Object.entries(commandSkillMap)) {
-    if (!skill && !utilityCommands.has(cmd)) {
+    if (!readResult.ok) continue;
+    const targets = new Set();
+    for (const pattern of explicitSkillPatterns) {
+      let match;
+      while ((match = pattern.exec(readResult.content)) !== null) {
+        targets.add(match[1]);
+      }
+      pattern.lastIndex = 0;
+    }
+    for (const target of targets) {
+      if (knownSkills.has(target)) continue;
       findings.push({
         check: 'orphan-command',
         pass: false,
-        severity: 'P2',
-        message: `Command "${cmd}" has no skill reference`,
+        severity: 'P1',
+        message: `Command "${basename(cmdFile, '.md')}" references missing Skill "${target}"`,
+        fix: `Add ${target} to the discovered Skills or remove the explicit command target`,
       });
     }
   }
-
-  const referencedSkills = new Set(Object.values(commandSkillMap).filter(Boolean));
-  const domainKB = new Set(['portfolio', 'request-tracking']);
-
-  for (const skill of skillNames) {
-    if (!referencedSkills.has(skill) && !domainKB.has(skill)) {
-      findings.push({
-        check: 'orphan-skill',
-        pass: false,
-        severity: 'P2',
-        message: `Skill "${skill}" has no command referencing it`,
-      });
-    }
-  }
-
   return findings;
 }
 
@@ -1040,6 +1369,7 @@ if (require.main === module) {
     checkVerificationSection,
     checkWhenNotSection,
     commandFilesForDir,
+    scriptMentions,
     countLines,
     capabilitySkip,
     detectAgentToolsSyntax,

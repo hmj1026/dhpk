@@ -3,7 +3,32 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const selector = require('../../../scripts/fast-worker-selector.js');
+
+// A relocated Skill owns its selector closure.  Resolve it from the physical
+// Skill tree next to this helper and never consult a checkout, plugin root, or
+// ambient NODE module path.  Keep the require lazy enough to turn a missing
+// transitive resource into the stable fail-closed diagnostic consumed by the
+// analyzer.
+const LOCAL_SELECTOR = path.resolve(__dirname, '..', 'references', 'execution-bundle', 'scripts', 'fast-worker-selector.js');
+let selector;
+let selectorLoadError;
+try {
+  selector = require('../references/execution-bundle/scripts/fast-worker-selector.js');
+} catch (error) {
+  selectorLoadError = error;
+}
+
+function requireLocalSelector() {
+  if (selectorLoadError) {
+    const detail = selectorLoadError && selectorLoadError.message
+      ? selectorLoadError.message.replace(/[\r\n]+/g, ' ')
+      : 'module could not be loaded';
+    const error = new Error(`BLOCKED_RESOURCE_MISSING: local selector closure unavailable at ${LOCAL_SELECTOR}: ${detail}`);
+    error.code = 'BLOCKED_RESOURCE_MISSING';
+    throw error;
+  }
+  return selector;
+}
 
 const VALID = ['claude', 'codex', 'agy', 'auto'];
 const MAX_INLINE_FILES = 2;
@@ -129,6 +154,7 @@ function clean(value) {
 }
 
 function buildContext(options) {
+  const localSelector = requireLocalSelector();
   const tasks = options.tasks;
   const proposal = options.proposal;
   const configured = process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND || 'claude';
@@ -139,7 +165,7 @@ function buildContext(options) {
     warning = `[opsx-goal] WARN: invalid --worker value '${rawFlag}'; using configured backend '${configured}'`;
     requested = configured;
   }
-  const order = process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER || selector.DEFAULT_ORDER.join(',');
+  const order = process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER || localSelector.DEFAULT_ORDER.join(',');
   const fallback = process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK || 'none';
   const footprint = scanFootprint(tasks);
   if (footprint.inconclusive) {
@@ -156,8 +182,8 @@ function buildContext(options) {
   const selectorArgs = ['--backend', requested, '--order', order, '--fallback', fallback];
   const crossProviderFlag = options.crossProvider === true || options.crossProvider === 'true';
   if (crossProviderFlag) selectorArgs.push('--cross-provider');
-  const parsed = selector.parseArgs(selectorArgs);
-  const selected = selector.select(parsed);
+  const parsed = localSelector.parseArgs(selectorArgs);
+  const selected = localSelector.select(parsed);
   const rejected = (selected.rejected_candidates || []).map((item) => `${item.backend}:${item.reason}`).join('|');
   const clause = selected.status === 'blocked'
     ? `BLOCKED fast-worker requested=${selected.requested_backend}; reason=${selected.reason}; fallback=${fallback}; action=STOP and report BLOCKED; dispatch sanctioned selected fallback only${rejected ? `; rejected=${rejected}` : ''}`
