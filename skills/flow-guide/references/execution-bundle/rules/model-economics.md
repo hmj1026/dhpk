@@ -10,15 +10,17 @@ SSOT for **which model tier each role runs on, and the cost rules that govern ti
 |---|---|---|
 | Orchestrator (main session) | opus | Owns decide → dispatch → verify; spends the expensive tier on judgment, risk, and evidence packets — never bulk discovery. |
 | `deep-reasoner` | opus | Reasoning-heavy judgment (root cause, algorithm, design synthesis), ideally on a distilled evidence packet rather than raw breadth. |
-| `codex-reasoner` (selector-driven) | external CLI — codex, default `gpt-5.6-sol` @ `high` (`codex_reasoner_*`); legacy alias: `codex-deep-reasoner` | Reasoning-heavy judgment offloaded to the codex CLI (read-only sandbox) via `--reasoner=codex-cli/<model>[:<effort>]`; the bare `--reasoner=codex` value is a compatibility shorthand; same conclusion contract as `deep-reasoner`; confirmed CLI or auth/model unavailability with no side effect follows the shared native-first fallback, while safety/task/timeout failures stay on their existing paths. |
+| `codex-reasoner` (selector-driven) | external CLI — codex, default `gpt-6-sol` @ `high` (`codex_reasoner_*`); legacy alias: `codex-deep-reasoner` | Reasoning-heavy judgment offloaded to the codex CLI (read-only sandbox) via `--reasoner=codex-cli/<model>[:<effort>]`; the bare `--reasoner=codex` value is a compatibility shorthand; same conclusion contract as `deep-reasoner`; confirmed CLI or auth/model unavailability with no side effect follows the shared native-first fallback, while safety/task/timeout failures stay on their existing paths. |
 | `fast-worker` | sonnet | Mechanical application of a clear spec — the cheaper execution tier the policy routes to by default. |
-| `codex-worker` (selector-driven) | external CLI — codex, default `gpt-5.6-luna` @ `xhigh` (`codex_worker_*`); legacy alias: `codex-fast-worker` | The strong mechanical tier: selected explicitly or by configured `auto` availability order; confirmed CLI or auth/model unavailability with no side effect follows the shared native-first fallback. |
+| `codex-worker` (selector-driven) | external CLI — codex, default `gpt-6-luna` @ `xhigh` (`codex_worker_*`); legacy alias: `codex-fast-worker` | The strong mechanical tier: selected explicitly or by configured `auto` availability order; confirmed CLI or auth/model unavailability with no side effect follows the shared native-first fallback. |
 | `agy-worker` (selector-driven) | external CLI — agy, default `Gemini 3.8 Flash (High)` (`agy_worker_model`); legacy alias: `agy-fast-worker` | The high-throughput tier: selected explicitly or by configured `auto` availability order; confirmed CLI or auth/model unavailability with no side effect follows the shared native-first fallback. |
-| `codex-reviewer` (opt-in, internal-only in this rollout) | external CLI — codex, default `gpt-5.6-sol` @ `high` (`codex_reviewer_*`); legacy alias: `codex-bridge` (mode-qualified) | Read-only peer review via codex CLI; `codex-bridge` is a mode-qualified alias resolving to `codex-reviewer` (read-only) or `codex-worker` (workspace-write); its dispatcher-attested deadline is enforced by the contained Python runner, never a shell timeout helper. |
+| `codex-reviewer` (opt-in, internal-only in this rollout) | external CLI — codex, default `gpt-6-sol` @ `high` (`codex_reviewer_*`); legacy alias: `codex-bridge` (mode-qualified) | Read-only peer review via codex CLI; `codex-bridge` is a mode-qualified alias resolving to `codex-reviewer` (read-only) or `codex-worker` (workspace-write); its dispatcher-attested deadline is enforced by the contained Python runner, never a shell timeout helper. |
 | Reviewers (code / db / security / frontend / polyfill / migration) | sonnet | High-frequency gate work; sonnet floor, raised to opus only for a HIGH-risk diff (up-only). |
 | `doc-reviewer` | haiku | Lightweight frontmatter / link / SSOT lint — the cheapest tier that passes. |
 | `architect` | fable @ low | Cheap architecture-consult tier — cross-module / DDD design judgment; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override. |
 | `spec-miner` | opus | Behavioral-spec extraction — reasoning-heavy, not discovery. |
+
+Claude tiers are aliases: Claude Code resolves `opus`, `sonnet`, `haiku`, and `fable` to the latest model in each line. As of 2026-09-23 `opus` is Claude Opus 5.5 (`claude-opus-5-5`, `$4/$20` per million input/output tokens — cheaper than Opus 5's `$5/$25`), `sonnet` is Sonnet 5 (`$2/$10`), `haiku` is Haiku 4.5 (`$1/$5`), and `fable` is Fable 5.1 (`$10/$50`). Opus 5.5 defaults to `medium` effort (one level below Opus 5) and cannot disable thinking, so set effort explicitly where a role depends on it (rule 4).
 
 ## Codex projection map
 
@@ -28,20 +30,23 @@ custom `max_output_tokens` field, so token economics are controlled through the
 model tier, effort, prompt scope, concurrency, and retry policy. The current
 standard API rates used for comparison are documented in the [OpenAI model
 catalog](https://developers.openai.com/api/docs/models) and [API pricing
-guide](https://developers.openai.com/api/docs/pricing): Sol `$5/$30`, Terra
-`$2/$12`, and Luna `$0.20/$1.20` per million input/output tokens.
+guide](https://developers.openai.com/api/docs/pricing) (checked 2026-09-23):
+GPT-6 Sol `$2/$10` and GPT-6 Luna `$0.10/$0.50` per million input/output
+tokens. GPT-6 has no Terra tier; former Terra roles move to Sol, which is
+cheaper than GPT-5.6 Terra (`$2/$12`). GPT-6 Astra (`$10/$50`) is the frontier
+tier and stays an explicit opt-in, never a role default.
 
 | Codex roles | Model | Effort | Cost/quality rationale |
 |---|---|---|---|
-| `architect`, `bug-investigator`, `deep-reasoner`, `migration-reviewer`, `planner`, `security-reviewer`, `spec-miner` | `gpt-5.6-sol` | `high` | Design, root-cause, migration-risk, and spec judgment have high failure/retry cost; use the frontier tier without defaulting to `max`. |
-| `code-reviewer` | `gpt-5.6-terra` | `medium` | High-frequency review baseline; enough reasoning for normal diffs, with explicit escalation for high-risk changes. |
-| `database-reviewer`, `e2e-runner`, `frontend-reviewer` | `gpt-5.6-terra` | `high` | Structured specialist checks benefit from more reasoning while avoiding frontier cost; E2E remains quality-sensitive and fail-loud when the browser capability is absent. |
-| `explorer` | `gpt-5.6-terra` | `medium` | Read-heavy evidence gathering needs breadth and coherent synthesis, but not frontier judgment by default. |
-| `worker`, `tdd-guide` | `gpt-5.6-luna` | `max` | Explicit quality-first exception: implementation and RED→GREEN guidance have high accepted-outcome and retry cost, so maximum effort on the efficient tier is cheaper than repeated weaker passes. |
-| `doc-reviewer` | `gpt-5.6-luna` | `medium` | Deterministic frontmatter/link/SSOT checks are narrow and frequent. |
-| `monitor` | `gpt-5.6-luna` | `low` | Polling and state-change reporting are low-complexity, high-volume work. |
+| `architect`, `bug-investigator`, `deep-reasoner`, `migration-reviewer`, `planner`, `security-reviewer`, `spec-miner` | `gpt-6-sol` | `high` | Design, root-cause, migration-risk, and spec judgment have high failure/retry cost; use the agentic-coding tier without defaulting to `max` or Astra. |
+| `code-reviewer` | `gpt-6-sol` | `medium` | High-frequency review baseline; enough reasoning for normal diffs, with explicit escalation for high-risk changes. |
+| `database-reviewer`, `e2e-runner`, `frontend-reviewer` | `gpt-6-sol` | `high` | Structured specialist checks benefit from more reasoning while avoiding Astra cost; E2E remains quality-sensitive and fail-loud when the browser capability is absent. |
+| `explorer` | `gpt-6-sol` | `medium` | Read-heavy evidence gathering needs breadth and coherent synthesis, but not frontier judgment by default. |
+| `worker`, `tdd-guide` | `gpt-6-luna` | `max` | Explicit quality-first exception: implementation and RED→GREEN guidance have high accepted-outcome and retry cost, so maximum effort on the efficient tier is cheaper than repeated weaker passes. |
+| `doc-reviewer` | `gpt-6-luna` | `medium` | Deterministic frontmatter/link/SSOT checks are narrow and frequent. |
+| `monitor` | `gpt-6-luna` | `low` | Polling and state-change reporting are low-complexity, high-volume work. |
 
-Global Codex defaults are `gpt-5.6-luna` at `medium`; every direct role pins
+Global Codex defaults are `gpt-6-luna` at `medium`; every direct role pins
 its own exception in its TOML file. `worker` and `tdd-guide` being `max` is
 intentional and does not make `max` the global default. Escalate only when the
 acceptance contract or observed retries justify it, and calculate accepted

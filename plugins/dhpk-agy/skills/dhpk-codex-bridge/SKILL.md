@@ -1,6 +1,6 @@
 ---
 name: dhpk-codex-bridge
-description: 'Use when an explicit CLI handoff or blind second opinion should go to the GPT-5.6 family through one-shot codex exec: gpt-5.6-sol/high for read-only or gpt-5.6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.'
+description: 'Use when an explicit CLI handoff or blind second opinion should go to the GPT-6 family through one-shot codex exec: gpt-6-sol/high for read-only or gpt-6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.'
 allowed-tools: 'Bash(bash:*), Bash(codex exec:*), Read, Write'
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -9,7 +9,7 @@ metadata:
 # Codex Bridge
 
 Use this skill only after routing has selected an explicit CLI handoff or second opinion. The dedicated `dhpk-codex-bridge`
-subagent hands a **self-contained** task to the GPT-5.6 family through the Codex CLI
+subagent hands a **self-contained** task to the GPT-6 family through the Codex CLI
 (`codex exec`) and relays its bounded, redacted output. The bundled `scripts/run-codex.sh` owns sandbox selection,
 approval policy, and output capture; this skill defines when to outsource, how to compose
 the prompt, and how to report the result.
@@ -64,9 +64,10 @@ another agent could execute it without seeing this conversation.
    ```
 
    - `mode` = `read-only` for investigation / review (`codex-reviewer` →
-     `gpt-5.6-sol` / `high`), `workspace-write` when Codex must edit files
-     (`codex-worker` → `gpt-5.6-luna` / `xhigh`). A pre-GPT-5.6 model is not
-     a fallback and cannot satisfy runtime acceptance evidence.
+     `gpt-6-sol` / `high`), `workspace-write` when Codex must edit files
+     (`codex-worker` → `gpt-6-luna` / `xhigh`). A pre-GPT-6 model is never
+     an automatic fallback and cannot satisfy runtime acceptance evidence; an
+     explicit user `codex_*_model` override is still honored.
    - `workdir` = the working root (absolute); `prompt-file` = the temp file from step 1.
    - The dispatcher MUST first set `DHPK_CLI_TRANSPORT_CONTEXT` to its private
      `dhpk.cli.context.v1`. It alone supplies the validated maximum role, scope,

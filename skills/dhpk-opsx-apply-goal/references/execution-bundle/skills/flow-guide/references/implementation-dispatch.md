@@ -223,10 +223,10 @@ bridge is an explicitly selected optional `codex-bridge` capability, with
 output quarantined in the subagent and relayed verbatim. Its host-provided
 CLI transport is separate from the retired in-session MCP `codex-*` identities
 and the external `codex:` app-server plugin. Read-only requests use
-`codex-reviewer` (`gpt-5.6-sol` / `high`) and workspace-write requests use
-`codex-worker` (`gpt-5.6-luna` / `xhigh`), per the §Implementation dispatch row.
-A pre-GPT-5.6 model is not a fallback and cannot satisfy runtime acceptance
-evidence. The default path never dispatches this bridge; a retired
+`codex-reviewer` (`gpt-6-sol` / `high`) and workspace-write requests use
+`codex-worker` (`gpt-6-luna` / `xhigh`), per the §Implementation dispatch row.
+A pre-GPT-6 model is never an automatic fallback and cannot satisfy runtime
+acceptance evidence; an explicit user `codex_*_model` override is still honored. The default path never dispatches this bridge; a retired
 `CODEX=on`/`--codex` flag is rejected with `DEPRECATED_CODEX_FLAG` instead of
 being reinterpreted as a second opinion. A goal may request the bridge only
 through an explicit second-opinion option and must record when no independent
