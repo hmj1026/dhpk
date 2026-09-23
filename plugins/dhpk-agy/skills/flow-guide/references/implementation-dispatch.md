@@ -1,6 +1,6 @@
 # Implementation dispatch — operational detail
 
-Operational detail for `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Implementation dispatch. The dispatch **table** and the decide→dispatch→verify posture summary live there (the always-loaded SSOT); this file carries the how/why the orchestrator needs **when actually dispatching implement-phase work**. Every "§X" below refers to a section of that SSOT file.
+Operational detail for `${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Implementation dispatch. The dispatch **table** and the decide→dispatch→verify posture summary live there (the always-loaded SSOT); this file carries the how/why the orchestrator needs **when actually dispatching implement-phase work**. Every "§X" below refers to a section of that SSOT file.
 
 ## Orchestrator posture
 
@@ -77,9 +77,9 @@ shared `retry_budget`. Every fallback consumes one unit, switching providers
 does not reset it, and unavailable candidates are not probed again. The
 handoff retains the original role, assigned scope, read/write authority,
 model/effort contract, and reviewer contract. The pure decision seam is
-`scripts/lib/native-dispatch-policy.js`; it is not a coordinator. Partial
+`${POLICY_BUNDLE_ROOT}/scripts/lib/native-dispatch-policy.js`; it is not a coordinator. Partial
 writer reconciliation is isolated in
-`scripts/lib/partial-writer-handoff.js`.
+`${POLICY_BUNDLE_ROOT}/scripts/lib/partial-writer-handoff.js`.
 
 ## Parallel dispatch contract
 
@@ -149,7 +149,7 @@ Treat first-seen query/repository patterns as discovery triggers, including
 framework-internal hacks that resemble a repository boundary, and resolve them
 before dispatch rather than rationalizing an explicit-rule deferral.
 
-Anti-rationalization handling is mandatory here. If the reason for bypassing a rule sounds like "disproportionate", "approved design already chose this", "small enough to defer", "no human is available", or another cost-based deferral, load `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` before proceeding. The outcome is one of two states: comply with the explicit hard rule, or stop and record a human-approved exception. In unattended goal mode, no human being present is never implicit approval; default to compliance, and if compliance is genuinely blocked, halt and report via the hard-rule escalation artifact named by `dhpk-opsx-apply-goal`.
+Anti-rationalization handling is mandatory here. If the reason for bypassing a rule sounds like "disproportionate", "approved design already chose this", "small enough to defer", "no human is available", or another cost-based deferral, load `${POLICY_BUNDLE_ROOT}/rules/anti-rationalization.md` before proceeding. The outcome is one of two states: comply with the explicit hard rule, or stop and record a human-approved exception. In unattended goal mode, no human being present is never implicit approval; default to compliance, and if compliance is genuinely blocked, halt and report via the hard-rule escalation artifact named by `dhpk-opsx-apply-goal`.
 
 ## Phase scoping (implement phase only)
 
@@ -211,7 +211,7 @@ copy the declared scope, producer, wave, adapter/stage, and optional fingerprint
 into the new Review Request and artifact. The runtime accepts only a durable
 artifact-ready marker and a matching Review Result; message finality, artifact
 mtime, or a prior passing result never resolves the new attempt. The full
-identity and retry mechanics live in `${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+identity and retry mechanics live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ## Explicit high-stakes second-opinion path
 
@@ -219,10 +219,9 @@ For a high-stakes implement-phase design/diagnosis decision, dispatch
 `deep-reasoner` and an explicitly requested `dhpk-codex-bridge` opinion in
 parallel, each blind to the other's findings, per §Multi-AI / dual-perspective
 independence. Do not feed one side's conclusion into the other's prompt. The
-bridge is a one-shot `codex exec` via
-`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh`, with
-output quarantined in the subagent and relayed verbatim. It is an optional
-CLI transport, separate from the retired in-session MCP `codex-*` identities
+bridge is an explicitly selected optional `codex-bridge` capability, with
+output quarantined in the subagent and relayed verbatim. Its host-provided
+CLI transport is separate from the retired in-session MCP `codex-*` identities
 and the external `codex:` app-server plugin. Read-only requests use
 `codex-reviewer` (`gpt-6-sol` / `high`) and workspace-write requests use
 `codex-worker` (`gpt-6-luna` / `xhigh`), per the §Implementation dispatch row.

@@ -54,3 +54,11 @@ source as approval.
 The remediation is a recommendation in the response. It is never executed by
 this skill. Re-running after a new user-supplied snapshot is a new read-only
 observation; there is no automatic fix loop or persisted review identity.
+
+## Related shared files
+
+- [`review-rubric.md`](https://github.com/hmj1026/dhpk/blob/main/skills/change-verdict/references/shared/review-rubric.md) — compact severity and response-gate table.
+- [`command-context.md`](https://github.com/hmj1026/dhpk/blob/main/skills/change-verdict/references/shared/command-context.md) — Claude command dynamic-context snippet; Host-bound
+  and optional elsewhere.
+- [`codex-research-instructions.md`](https://github.com/hmj1026/dhpk/blob/main/skills/change-verdict/references/shared/codex-research-instructions.md) — maintainer source of the research blocks
+  embedded in each mode prompt; not loaded at run time.

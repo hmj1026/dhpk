@@ -7,6 +7,10 @@ metadata:
 
 # Repo Intake
 
+`$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`;
+it is path notation, not an ambient environment variable or repository-root
+lookup. Resolve it before running intake from an arbitrary consumer cwd.
+
 ## When to Use
 
 - First time onboarding a project
@@ -28,7 +32,7 @@ Docs -> Entrypoints -> Tests Map -> Next Steps
 ## Usage
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-repo-intake intake_cached.js --mode auto --top 10
+node "$SKILL_DIR/scripts/intake_cached.js" --mode auto --top 10
 ```
 
 ## Cache Location

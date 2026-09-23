@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dependency Audit"
+  short_description: "Audit dependency security risks"
+  default_prompt: "Use $dep-audit to audit dependency security risks with explicit evidence."

@@ -259,23 +259,24 @@ Loading too little ◄───────────────────�
 - Knowledge is there but never accessed    - Unnecessary token overhead
 ```
 
-**Good loading trigger** (embedded in workflow):
+**Good loading trigger** (embedded in workflow). The uppercase reference names
+below are illustrative roles, not files required by this Skill:
 ```markdown
 ### Creating New Document
 
 **MANDATORY - READ ENTIRE FILE**: Before proceeding, you MUST read
-[`docx-js.md`] (~500 lines) completely from start to finish.
+the skill's CREATION_REFERENCE (~500 lines) completely from start to finish.
 **NEVER set any range limits when reading this file.**
 
-**Do NOT load** `ooxml.md` or `redlining.md` for this task.
+**Do NOT load** EDITING_REFERENCE or REDLINING_REFERENCE for this task.
 ```
 
 **Bad loading trigger** (just listed):
 ```markdown
 ## References
-- docx-js.md - for creating documents
-- ooxml.md - for editing
-- redlining.md - for tracking changes
+- CREATION_REFERENCE - for creating documents
+- EDITING_REFERENCE - for editing
+- REDLINING_REFERENCE - for tracking changes
 ```
 
 **For simple Skills** (no references, <100 lines): Score based on conciseness and self-containment.
@@ -318,9 +319,10 @@ Review priority:
 4. Maintainability (optional)
 ```
 
-**Low freedom** (specific scripts, exact steps):
+**Low freedom** (specific scripts, exact steps; DOCUMENT_CREATOR stands for
+the example skill's own verified executable):
 ```markdown
-**MANDATORY**: Use exact script in `scripts/create-doc.py`
+**MANDATORY**: Use the exact DOCUMENT_CREATOR executable.
 Parameters: --title "X" --author "Y"
 Do NOT modify the script.
 ```

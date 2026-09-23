@@ -44,8 +44,8 @@ Unknown and known non-Codex skill names receive different diagnostics.
    delegates to `scripts/route-result.js`.
 2. Match `references/route-table.json` through `scripts/pre-route.sh`; the
    first precise match wins. A miss remains a deliberate-classification case.
-3. Apply the package-local `references/execution-policy.md` projection and
-   the target's invocation class.
+3. Apply the selected policy's local `references/execution-bundle/rules/execution-policy.md`
+   projection and the target's invocation class.
 4. Without `--go`, return advice only. With `--go`, produce at most one
    bounded handoff for an available implicit-eligible target. An explicit-only
    target is reported as `explicit-required`; it is never dispatched here.
@@ -60,10 +60,10 @@ The result has exactly `schema`, `action`, `host`, `cleanedQuery`, `options`,
 
 ## `rules`
 
-Read the package-local `references/execution-policy.md` projection first (its
-canonical authoring source is `rules/execution-policy.md`). Use
-`references/invocation-precedence.md` when more than one owner appears to match,
-and load the phase-specific delivery reference only after the phase is known.
+Read the local `references/execution-bundle/rules/execution-policy.md` first.
+Use `references/execution-bundle/skills/flow-guide/references/invocation-precedence.md`
+when more than one owner appears to match, and load the phase-specific delivery
+reference only after the phase is known.
 Return the source pointer, applicable gate, and one next handoff.
 
 ## `next`
@@ -79,7 +79,7 @@ reason instead of treating the missing check as a pass.
 Account for changed files, TDD evidence when behavior changed, applicable
 reviewers, triggered security/database/frontend/runtime checks, unresolved
 risks, and the next handoff. Use `references/handoff-and-verification.md` and
-`references/review-gate-mechanics.md` only when their conditional detail is
+`references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md` only when their conditional detail is
 needed. Never claim commit, merge, release, deployment, or archive completion
 from a local closeout report.
 
@@ -98,36 +98,35 @@ execution and completion evidence.
 
 ## References
 
-`skill-package.json` is this skill's package boundary. Generated projections
-carry its declared resources/runtime assets; compilers materialize dependency
-closure and bind it to the surface receipt. Runtime lookup is fail-closed:
-package-local first; a canonical checkout marker permits `scripts/lib`, while
-an installed projection may use only explicit `DHPK_SOURCE_ROOT` or `PLUGIN_ROOT`.
-Ambient upward discovery and remote URLs are not fallbacks; missing resources report `BLOCKED_RESOURCE_MISSING`.
+`references/execution-bundle/` holds maintainer-synchronized policy copies; never edit them here.
+The selected policy file defines its bundle base, and every required policy
+resource resolves beneath it. Runtime lookup is fail-closed and Skill-local:
+missing resources report `BLOCKED_RESOURCE_MISSING`; no checkout, sibling Skill,
+repository inventory, environment variable, or upward search is consulted.
 
 - `references/route-table.json`, `references/route-result.schema.json`,
   `scripts/pre-route.sh`, `scripts/route-result.js`, and
   `scripts/action-runner.js` — deterministic route contract and matcher.
-- `scripts/lib/flow-handoff-contract.js` — shared neutral handoff and evidence
-  contract; it never grants execution authority.
+- `references/execution-bundle/scripts/lib/flow-handoff-contract.js` — shared
+  neutral handoff and evidence contract; it never grants execution authority.
 - `scripts/usage-card.js` and `references/codex-usage-catalog.json` —
   progressively disclosed Codex grammar.
-- `references/invocation-precedence.md` — competing-owner resolution.
+- `references/execution-bundle/skills/flow-guide/references/invocation-precedence.md` — competing-owner resolution.
 - `references/projects-index.md` — project-specific policy references.
 - `references/progression-tables.md` — fallback progression for `next`.
 - `references/handoff-and-verification.md` — conditional handoff evidence.
-- `references/review-gate-mechanics.md` — conditional reviewer mechanics.
-- `rules`: load `references/deterministic-first.md`,
-  `references/dispatch-and-gates.md`, `references/implementation-dispatch.md`,
-  `references/testing-policy.md`, or `references/component-addition-policy.md`
+- `references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md` — conditional reviewer mechanics.
+- `rules`: load `references/execution-bundle/skills/flow-guide/references/deterministic-first.md`,
+  `references/dispatch-and-gates.md`, `references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md`,
+  `references/execution-bundle/skills/flow-guide/references/testing-policy.md`, or `references/execution-bundle/skills/flow-guide/references/component-addition-policy.md`
   only for the matching policy question; use
-  `references/invocation-classification.md` or `references/codex-mode.md` only
+  `references/execution-bundle/skills/flow-guide/references/invocation-classification.md` or `references/codex-mode.md` only
   when invocation or Codex delegation is the disputed boundary.
 - `next`: after classification, choose at most one of
   `references/workflow-analysis.md`, `references/workflow-bugfix.md`,
   `references/workflow-feature-delivery.md`, or
   `references/workflow-lightweight.md`. Load
-  `references/task-modes.md`, `references/premise-verification.md`,
+  `references/task-modes.md`, `references/execution-bundle/skills/flow-guide/references/premise-verification.md`,
   `references/work-item-and-gates.md`, `references/delivery-core.md`, or
   `references/delivery-loop-gate.md` only when that selected branch points to
   it. Project overrides use `references/profile-and-project-overrides.md` and

@@ -1,24 +1,22 @@
 # Compact extractor resolution
 
-The extractor is shipped by the dhpk plugin. Resolve it from an explicit
-plugin root; never assume a consumer project has a `.claude/scripts` copy.
+The extractor is part of this Skill. Resolve it from the selected package's
+own `scripts/` directory; never search a parent checkout, ambient plugin root,
+consumer `.claude` directory, or peer Skill.
+`$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`;
+it is path notation, not an ambient environment variable or repository-root
+lookup. Resolve it before running this snippet from an arbitrary consumer cwd.
 
 ```bash
-extractor=""
-for root in "${CLAUDE_PLUGIN_ROOT:-}" "${PLUGIN_ROOT:-}" "${DHPK_PLUGIN_ROOT:-}" "${DHPK_SOURCE_ROOT:-}"; do
-  if [ -n "$root" ] && [ -x "$root/scripts/opsx-apply-resume/extract-compact.sh" ]; then
-    extractor="$root/scripts/opsx-apply-resume/extract-compact.sh"
-    break
-  fi
-done
-if [ -z "$extractor" ]; then
-  echo "CONTEXT_SOURCE=unresolved: set PLUGIN_ROOT (installed plugin) or DHPK_SOURCE_ROOT (source checkout)" >&2
+extractor="$SKILL_DIR/scripts/extract-compact.sh"
+if [ ! -x "$extractor" ]; then
+  echo "CONTEXT_SOURCE=unresolved: package-local scripts/extract-compact.sh is missing" >&2
 else
   "$extractor" "$COMPACT"
 fi
 ```
 
-`CLAUDE_PLUGIN_ROOT` is preferred for an installed plugin. `PLUGIN_ROOT` and
-`DHPK_PLUGIN_ROOT` are explicit caller overrides; `DHPK_SOURCE_ROOT` supports a
-source checkout. If none resolves, report the actionable `unresolved` state
-and continue to Tier 2 rather than guessing a path.
+The selected Skill package supplies `$SKILL_DIR` before this procedure runs, so
+the executable remains package-local. If it is absent or not executable,
+report the actionable `unresolved` state and continue to Tier 2 rather than
+guessing a path or loading a peer copy.

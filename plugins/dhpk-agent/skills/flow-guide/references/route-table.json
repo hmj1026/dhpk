@@ -128,7 +128,7 @@
       "label": "create release",
       "target": {
         "kind": "skill",
-        "id": "dhpk-release-creator"
+        "id": "release-creator"
       }
     },
     {
@@ -165,10 +165,10 @@
     },
     {
       "pattern": "((unit|integration)[ -]?(test|tests|testing|coverage|gap|gaps)|(unit[ /-]integration|integration[ /-]unit)(.{0,20}(test|tests|testing|coverage|gap|gaps))?)|((單元|整合).{0,8}(測試|test|覆蓋率|缺口)|(測試|test).{0,8}(單元|整合))",
-      "label": "Unit/integration testing (→ dhpk-tdd-workflow; UNAVAILABLE if TDD capability is unavailable)",
+      "label": "Unit/integration testing (→ tdd-workflow; UNAVAILABLE if TDD capability is unavailable)",
       "target": {
         "kind": "skill",
-        "id": "dhpk-tdd-workflow"
+        "id": "tdd-workflow"
       }
     },
     {

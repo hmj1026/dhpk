@@ -30,8 +30,8 @@ function parseAction(argv = []) {
 
 function manualReport(action, args) {
   const references = action === 'rules'
-    ? ['skills/flow-guide/references/execution-policy.md', 'skills/flow-guide/references/invocation-precedence.md']
-    : ['skills/flow-guide/references/handoff-and-verification.md', 'skills/flow-guide/references/review-gate-mechanics.md'];
+    ? ['references/execution-bundle/rules/execution-policy.md', 'references/execution-bundle/skills/flow-guide/references/invocation-precedence.md']
+    : ['references/handoff-and-verification.md', 'references/review-gate-mechanics.md'];
   return Object.freeze({
     schema: ACTION_SCHEMA,
     action,

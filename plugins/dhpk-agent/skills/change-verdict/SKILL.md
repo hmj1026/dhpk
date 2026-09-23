@@ -80,11 +80,11 @@ verification method.
 
 ### `tests`
 
-Read the source and corresponding tests at the public seam. Assess happy path,
-errors, edge cases, and mock quality. With `--ac-trace`, parse non-quality-gate
-acceptance criteria and map each to independent test/runtime evidence or a
-validated exception. Load the mode-specific prompts in `references/tests/`.
-Missing evidence is a gap, not an instruction to add tests in this skill.
+Read source/corresponding tests at the public seam; assess happy path, errors, edge cases, and mock quality.
+With `--ac-trace`, map each non-quality-gate acceptance criterion to independent test/runtime evidence or a validated exception.
+In tests mode, `--coverage` loads `references/tests/codex-prompt-test-review.md`; legacy `--scope tests` is accepted as `--mode tests`.
+Conflicting mode/scope values are `INCONCLUSIVE`. Coverage review is read-only: do not write tests, files, artifacts, or invoke an automatic CLI.
+Unavailable coverage evidence remains a gap, never a pass; missing evidence is not an instruction to add tests in this skill.
 
 ### `docs`
 
@@ -138,7 +138,7 @@ response is the only output; no file, state, or sentinel is created.
 - `references/shared/review-workflow.md` — read-only collection and aggregation sequence.
 - `references/shared/review-common.md` — severity, evidence, and degradation rules.
 - `references/shared/cli-backend.md` — explicit CLI transport contract.
-- `references/code/`, `security/`, `tests/`, `docs/`, `risk/` — mode-specific prompts and checklists.
+- `references/code/`, `references/security/`, `references/tests/`, `references/docs/`, `references/risk/` — mode-specific prompts and checklists.
 - `scripts/review-cli.sh`, `scripts/check-unrelated-changes.sh`, `scripts/risk-analyze.js` — read-only helpers.
 
 ## Verification

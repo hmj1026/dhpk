@@ -8,6 +8,10 @@ metadata:
 
 # Project Audit
 
+`$SKILL_DIR` denotes the physical directory containing the selected `SKILL.md`;
+it is path notation, not an ambient environment variable or repository-root
+lookup. Resolve it before running the audit from an arbitrary consumer cwd.
+
 ## When NOT to Use
 
 - Security-specific review (use `/dhpk:change-verdict --mode security`)
@@ -16,7 +20,7 @@ metadata:
 
 ## Procedure
 
-1. Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-project-audit audit.js --json` to collect deterministic scores
+1. Run `node "$SKILL_DIR/scripts/audit.js" --json` to collect deterministic scores
 2. Parse the JSON output — overall_score, status, dimensions, checks, findings, next_actions
 3. **If status = Blocked** (P0 findings) — highlight critical gaps, suggest immediate fixes
 4. **If status = Needs Work** (P1 findings) — format improvement roadmap by dimension
@@ -55,7 +59,7 @@ The audit script runs 12 deterministic checks across 5 dimensions:
 If the script fails, report the error and suggest running manually:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-project-audit audit.js --json
+node "$SKILL_DIR/scripts/audit.js" --json
 ```
 
 ## Output

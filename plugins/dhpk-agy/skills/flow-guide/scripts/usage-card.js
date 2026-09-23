@@ -2,8 +2,8 @@
 'use strict';
 
 // Read-only progressive help for Codex-invokable skills. This helper reads
-// only the generated catalog and inventory identity; it never loads a target
-// SKILL.md, executes a target, or grants target authority.
+// only the Skill-local generated catalog; it never loads a target SKILL.md,
+// consults a repository inventory, executes a target, or grants authority.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -14,13 +14,11 @@ const {
   validateSkillUsage,
 } = loadRuntimeModule('skill-usage');
 
-const DEFAULT_ROOT = path.resolve(__dirname, '../../..');
+const SKILL_ROOT = path.resolve(__dirname, '..');
+const DEFAULT_CATALOG = path.join(SKILL_ROOT, 'references', 'codex-usage-catalog.json');
 
 function parseArgs(argv) {
   const result = {
-    root: DEFAULT_ROOT,
-    catalog: null,
-    inventory: null,
     json: false,
     target: null,
     help: false,
@@ -31,26 +29,11 @@ function parseArgs(argv) {
     const arg = String(args[index]);
     if (arg === '--json') result.json = true;
     else if (arg === '--help' || arg === '-h') result.help = true;
-    else if (arg === '--root' || arg === '--catalog' || arg === '--inventory') {
-      const value = args[index + 1];
-      if (value === undefined || String(value).startsWith('--')) {
-        result.errors.push(arg + ' requires a value');
-      } else {
-        result[arg.slice(2)] = value;
-        index += 1;
-      }
-    } else if (arg.startsWith('--root=')) result.root = arg.slice('--root='.length);
-    else if (arg.startsWith('--catalog=')) result.catalog = arg.slice('--catalog='.length);
-    else if (arg.startsWith('--inventory=')) result.inventory = arg.slice('--inventory='.length);
     else if (arg.startsWith('--')) result.errors.push('unknown argument: ' + arg);
     else if (result.target === null) result.target = arg.replace(/^\$/, '');
     else result.errors.push('only one skill target is allowed: ' + arg);
   }
   return result;
-}
-
-function resolvePath(root, candidate, fallback) {
-  return path.resolve(root, candidate || fallback);
 }
 
 function readJson(filePath, label) {
@@ -62,18 +45,13 @@ function readJson(filePath, label) {
   }
 }
 
-function loadCatalog(root, candidate) {
-  const filePath = resolvePath(root, candidate, 'skills/flow-guide/references/codex-usage-catalog.json');
+function loadCatalog() {
+  const filePath = DEFAULT_CATALOG;
   const catalog = readJson(filePath, 'generated usage catalog');
   if (!catalog || catalog.schema !== CATALOG_SCHEMA || !Array.isArray(catalog.entries)) {
     throw new Error('generated usage catalog has invalid schema or entries: ' + filePath);
   }
   return { catalog, filePath };
-}
-
-function loadInventory(root, candidate) {
-  const filePath = resolvePath(root, candidate, 'manifests/distribution-inventory.json');
-  return readJson(filePath, 'distribution inventory');
 }
 
 function entryName(entry) {
@@ -95,6 +73,37 @@ function normalizedEntries(catalog) {
 }
 
 function validateCatalog(catalog) {
+  if (!catalog.runtimeIndex || typeof catalog.runtimeIndex !== 'object'
+    || Array.isArray(catalog.runtimeIndex)
+    || Object.keys(catalog.runtimeIndex).sort().join(',') !== 'aliases,targets') {
+    throw new Error('generated usage catalog is missing its closed runtimeIndex');
+  }
+  const targets = catalog.runtimeIndex.targets;
+  const aliases = catalog.runtimeIndex.aliases;
+  if (!targets || typeof targets !== 'object' || Array.isArray(targets)
+    || !aliases || typeof aliases !== 'object' || Array.isArray(aliases)) {
+    throw new Error('generated usage catalog runtimeIndex targets and aliases must be objects');
+  }
+  for (const [id, target] of Object.entries(targets)) {
+    const keys = Object.keys(target || {}).sort().join(',');
+    if (keys !== 'codexInvokable,command,id,invocationClass,publicName') {
+      throw new Error(`runtimeIndex target '${id}' has an open or incomplete schema`);
+    }
+    if (target.id !== id || typeof target.publicName !== 'string' || !target.publicName
+      || typeof target.command !== 'string' || !target.command
+      || !['implicit-eligible', 'explicit-only', 'not-configured'].includes(target.invocationClass)
+      || typeof target.codexInvokable !== 'boolean') {
+      throw new Error(`runtimeIndex target '${id}' is invalid`);
+    }
+  }
+  for (const [alias, value] of Object.entries(aliases)) {
+    const keys = Object.keys(value || {}).sort().join(',');
+    if (keys !== 'disposition,target'
+      || typeof value.target !== 'string' || !value.target
+      || !['legacy', 'renamed', 'retired'].includes(value.disposition)) {
+      throw new Error(`runtimeIndex alias '${alias}' is invalid`);
+    }
+  }
   for (const entry of catalog.entries) {
     const name = entryName(entry);
     if (!name) throw new Error('generated usage catalog contains an entry without a public name');
@@ -110,15 +119,20 @@ function validateCatalog(catalog) {
   }
 }
 
-function knownInventoryEntry(inventory, target) {
-  if (!inventory || !Array.isArray(inventory.skills)) return null;
-  // Exact public-name lookup only. Stable IDs and legacy_names are not aliases
-  // for help, which keeps retirement diagnostics honest.
-  return inventory.skills.find((entry) => entry && entry.name === target) || null;
-}
-
 function catalogEntry(catalog, target) {
   return catalog.entries.find((entry) => entryName(entry) === target) || null;
+}
+
+function runtimeIndexEntry(catalog, target) {
+  const index = catalog && catalog.runtimeIndex;
+  if (!index || !index.targets || typeof index.targets !== 'object') return null;
+  return Object.values(index.targets).find((entry) => entry && entry.publicName === target) || null;
+}
+
+function runtimeAlias(catalog, target) {
+  const aliases = catalog && catalog.runtimeIndex && catalog.runtimeIndex.aliases;
+  if (!aliases || typeof aliases !== 'object') return null;
+  return aliases[target] || null;
 }
 
 function renderList(catalog) {
@@ -209,10 +223,9 @@ function run(argv, io) {
     return 2;
   }
 
-  const root = path.resolve(args.root);
   let loaded;
   try {
-    loaded = loadCatalog(root, args.catalog);
+    loaded = loadCatalog();
     validateCatalog(loaded.catalog);
   } catch (error) {
     return diagnostic('catalog-invalid', error.message, stderr);
@@ -222,7 +235,7 @@ function run(argv, io) {
     schema: catalog.schema,
     state: 'PASS',
     sourceInventoryRevision: catalog.sourceInventoryRevision,
-    path: path.relative(root, loaded.filePath).split(path.sep).join('/'),
+    path: path.relative(SKILL_ROOT, loaded.filePath).split(path.sep).join('/'),
   };
 
   if (args.target === null) {
@@ -240,21 +253,37 @@ function run(argv, io) {
   }
   const entry = catalogEntry(catalog, target);
   if (!entry) {
-    let inventory;
-    try {
-      inventory = loadInventory(root, args.inventory);
-    } catch (error) {
-      return diagnostic('catalog-invalid', error.message, stderr);
-    }
-    const known = knownInventoryEntry(inventory, target);
-    if (known) {
+    const known = runtimeIndexEntry(catalog, target);
+    if (known && known.codexInvokable !== true) {
       return diagnostic(
         'not-codex-invokable',
         "skill '" + target + "' is known but absent from Codex surfaces",
         stderr,
       );
     }
-    return diagnostic('unknown-skill', "skill '" + target + "' is not in the distribution inventory", stderr);
+    const alias = runtimeAlias(catalog, target);
+    if (alias && alias.disposition === 'retired') {
+      return diagnostic(
+        'retired',
+        "skill '" + target + "' is retired; use '" + alias.target + "'",
+        stderr,
+      );
+    }
+    if (alias && alias.disposition === 'renamed') {
+      return diagnostic(
+        'renamed',
+        "skill '" + target + "' was renamed; use '" + alias.target + "'",
+        stderr,
+      );
+    }
+    if (alias && alias.disposition === 'legacy') {
+      return diagnostic(
+        'legacy-alias',
+        "skill '" + target + "' is a legacy alias; use '" + alias.target + "'",
+        stderr,
+      );
+    }
+    return diagnostic('unknown-skill', "skill '" + target + "' is not in the local usage catalog", stderr);
   }
 
   const usage = entryUsage(entry);

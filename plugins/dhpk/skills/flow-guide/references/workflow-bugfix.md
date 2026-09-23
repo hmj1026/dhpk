@@ -16,7 +16,7 @@
    已知時記錄檔案/行號、影響與 non-goals。
 3. **Artifacts**：確認 work-item ready，建立或確認 `legacy-reference`；
    `profile` 可選但不取代 evidence。
-4. **Regression-first fix**：先以 `dhpk-tdd-workflow` / `tdd-guide` 寫出
+4. **Regression-first fix**：先以 `tdd-workflow` / `tdd-guide` 寫出
    failing regression test，再做最小修復。
 5. **Delivery loop**：依
    `references/delivery-loop-gate.md` 完成

@@ -6,7 +6,7 @@ Part 0 branch by `DISPATCH_ON`, which Part 3
 gate lines to emit per detected flags, and the 4,000 UTF-8-byte length guard with its
 should-never-fire hard stop). This file owns the *text*. Copy it out verbatim —
 do not paraphrase; placeholders (`<CHANGE_ID>`,
-`<FAST_WORKER_CLAUSE>`, `<TASK_DIGEST>`, `<E2E_ROSTER_CLAUSE>`,
+`<FAST_WORKER_CLAUSE>`, `<TASK_DIGEST>`, `<E2E_ROSTER_CLAUSE>`, `<SKILL_ROOT_Q>`,
 `<TURN_BUDGET>`, `<MAX_DURATION>`) are substituted as noted.
 
 `GOAL_CONDITION` = Part 0 + Part 1 + Part 2 + Part 2b + Part 3 + Part 4, joined
@@ -53,7 +53,7 @@ Part 0 without naming the agent to dispatch.
 **`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — no implementation
 dispatch clause; the mandatory multi-task OpenSpec planner gate remains active:
 ```
-First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null|head -1)}; q(){ cat "$p/$1" 2>/dev/null||{ test -r ./.claude-plugin/plugin.json&&cat "./$1";};}; q rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED` — reads the
+First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED` — reads the
 compact dhpk execution-policy kernel (including the mandatory planner gate that
 remains active in off mode); never filesystem-scan; every reviewer dispatch (even
 confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
@@ -76,7 +76,7 @@ until all of the following hold,
 **`DISPATCH_ON=true`** (default) — the same kickoff with the bounded dispatch
 roster appended before the transition into the stop conditions:
 ```
-First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null|head -1)}; q(){ cat "$p/$1" 2>/dev/null||{ test -r ./.claude-plugin/plugin.json&&cat "./$1";};}; q rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q skills/flow-guide/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch (even
+First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch (even
 confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
 reply-only.
 Run openspec-apply-change <CHANGE_ID>. Tasks:<TASK_DIGEST>. gitnexus repo="<project>"; continue.
@@ -84,7 +84,7 @@ On "Unknown skill": retry once; implement under gates.
 Set DHPK_ORCHESTRATION_DISPATCH=on; cwd resets—use absolute paths or git -C.
 You are the orchestrator: mechanical→<FAST_WORKER_CLAUSE>; reasoning→dhpk:deep-reasoner;
 RED PHPUnit→dhpk:tdd-guide; <E2E_ROSTER_CLAUSE>never general-purpose.
-Explicit CLI packet via only `node "$p/skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js"`:
+Explicit CLI packet via only `node <SKILL_ROOT_Q>/scripts/launch-cli-dispatch.js`:
 dispatching_agent distinct from execution_provider; requested_role,mode,task_id,attempt_id, absolute
 workdir, existing prompt/scope, ordered config. Keep runtime binding + execution-policy decision;
 never infer authority. READY before adapter; never synthesize operational files.
@@ -95,8 +95,7 @@ when the caller selected `--second-opinion=codex-exec`.
 project hard rules cannot be deferred because a prior design chose a cheaper implementation.
 No sleep-poll; await notifications/Monitor.
 Retired `CODEX=on`/`--codex` => `DEPRECATED_CODEX_FLAG`; never selects
-peer/backend. Use `--worker=codex` for CLI work or named owner
-`--second-opinion=codex-exec` for additive opinion. Continue until:
+peer/backend; CLI work uses `--worker=codex`. Continue until:
 ```
 
 ---
@@ -146,8 +145,8 @@ are still caught) without letting one pre-existing red block the goal forever. D
 NOT narrow the gate to only the change's own spec — that would miss regressions
 elsewhere.
 
-**Pre-existing-warnings rule** (harness validators, e.g.
-`scripts/validate/validate-harness.sh`): a validator result of
+**Pre-existing-warnings rule** (the consumer project's `validate-harness.sh`
+harness validator): a validator result of
 **PASS-with-warnings** counts as green for this gate when every remaining warning
 is **proven pre-existing** — it reproduces identically on a `git stash`-ed clean
 HEAD AND is named in the completion summary. A warning that **disappears** when

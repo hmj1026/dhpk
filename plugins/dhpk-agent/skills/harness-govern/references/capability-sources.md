@@ -16,7 +16,11 @@ Last verified: 2026-03-02
 ## AGY native plugin
 
 - Official docs: `https://www.antigravity.google/docs/cli/plugins`
-- Repository guide: `docs/agy-subagent-plugin-guide.md`
+- Optional implementation background, only when supplied by the consumer
+  project: `$PROJECT_DIR/docs/agy-subagent-plugin-guide.md`. Here
+  `$PROJECT_DIR` means the selected consumer project directory, not an
+  environment variable or a required Skill resource. Its absence does not
+  block capability lookup from the official sources above.
 
 ## Antigravity
 
@@ -32,6 +36,6 @@ Last verified: 2026-03-02
 
 ## Conflict Registry
 
-- File: `.codex/skills/harness-govern/references/source-conflicts.json`
+- File: [source-conflicts.json](https://github.com/hmj1026/dhpk/blob/main/skills/harness-govern/references/source-conflicts.json), adjacent to this reference.
 - Purpose: explicitly record Context7 vs official doc conflicts and override decisions.
 - Each entry can scope by `target/category/feature_id/feature_name` and optionally override `status/reason/target_path`.

@@ -2,6 +2,10 @@
 
 此文件整理 `scripts/` 內工具與用法，供需要時查閱。
 
+`$PROJECT_DIR` 代表下方輸入與輸出範例中的消費者專案根目錄。這是路徑表示法，
+不是必須存在的環境變數；腳本路徑仍相對於技能目錄，專案檔案與產生的報告則使用
+`$PROJECT_DIR/...`。
+
 ## 快速開始
 
 1. 進入技能資料夾的 `scripts/` 目錄
@@ -69,7 +73,7 @@ chmod +x *.sh
 
 建議輸出路徑：
 ```text
-docs/knowledge/[feature-name]/function-analysis.txt
+$PROJECT_DIR/docs/knowledge/[feature-name]/function-analysis.txt
 ```
 
 ### generate-flow-diagram.sh
@@ -83,7 +87,7 @@ docs/knowledge/[feature-name]/function-analysis.txt
 
 建議輸出路徑：
 ```text
-docs/knowledge/[feature-name]/diagrams/flow.md
+$PROJECT_DIR/docs/knowledge/[feature-name]/diagrams/flow.md
 ```
 
 ### find-polluter.sh
@@ -108,8 +112,8 @@ docs/knowledge/[feature-name]/diagrams/flow.md
 ```bash
 ./trace-data-flow.sh orderStatus
 ./search-database-queries.sh orders
-./analyze-function-calls.sh protected/controllers/OrderController.php docs/knowledge/orders/function-analysis.txt
-./generate-flow-diagram.sh processOrder protected/controllers/OrderController.php docs/knowledge/orders/diagrams/flow.md
+./analyze-function-calls.sh $PROJECT_DIR/protected/controllers/OrderController.php $PROJECT_DIR/docs/knowledge/orders/function-analysis.txt
+./generate-flow-diagram.sh processOrder $PROJECT_DIR/protected/controllers/OrderController.php $PROJECT_DIR/docs/knowledge/orders/diagrams/flow.md
 ```
 
 ## 工具安裝指引

@@ -31,8 +31,8 @@ trusted writer with an explicit context path. That writer must atomically
 create a regular, non-symlink JSON file with mode `0600`; no default filesystem
 writer is provided by this package.
 
-The repository-owned launcher is executable at
-`scripts/launch-cli-dispatch.js`. Its public interface requires explicit
+The package-local launcher is executable at
+`$SKILL_DIR/scripts/launch-cli-dispatch.js`. Its public interface requires explicit
 `--dispatching-agent`, `--execution-provider`, `--requested-role`, `--mode`,
 `--task-id`, `--attempt-id`, `--workdir`, `--prompt`, and `--scope` values, plus
 zero or more ordered `--config-layer` JSON files. The scope JSON must explicitly
@@ -40,7 +40,9 @@ provide `artifact_root`, `receipt_path`, `context_path`, `assigned_files`,
 `report_only`, and `runtime_path`. Later config layers override earlier layers.
 The launcher creates the private context, exports
 `DHPK_CLI_TRANSPORT_CONTEXT`, and starts the selected compatibility adapter only
-after context construction returns `READY`.
+after context construction returns `READY`. Its provider adapters and transport
+runtime are bundled internal helpers resolved within this Skill directory; they
+are not direct public entries.
 
 ## When NOT to Use
 
@@ -69,7 +71,7 @@ The scripts expose these caller-visible results and do not grant authority:
   returns canonical-over-legacy values with their source, or `BLOCKED` for an
   unknown role. `resolvePublication` returns `AVAILABLE` or `UNAVAILABLE`.
   These are modules, so they do not exit the process.
-- `launch-cli-dispatch.js` accepts the required explicit CLI options documented
+- `$SKILL_DIR/scripts/launch-cli-dispatch.js` accepts the required explicit CLI options documented
   above and ordered `--config-layer` JSON files. It writes the private context,
   exports `DHPK_CLI_TRANSPORT_CONTEXT`, and forwards the selected adapter's
   stdout/stderr and exit status. `--help` exits `0`; malformed CLI input exits

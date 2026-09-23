@@ -4,7 +4,8 @@
 const fs = require('fs');
 const path = require('path');
 const { loadRuntimeModule, resolveRuntimeFile } = require('./_lib/runtime-loader');
-const { runCapture, gitRepoRoot, gitShortHead, qualifyCommand } = loadRuntimeModule('utils');
+const { runCapture, gitRepoRoot, gitShortHead } = loadRuntimeModule('runner-utils');
+const { qualifyCommand } = loadRuntimeModule('command-namespace');
 const { resolveFeature: _resolveFeature } = loadRuntimeModule('feature-resolver');
 
 // ---------------------------------------------------------------------------
