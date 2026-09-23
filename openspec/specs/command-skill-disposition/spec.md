@@ -92,14 +92,30 @@ existing `portable-family` classification. Claude command names remain stable.
 
 ### Requirement: Portable execution includes required resources
 
-A published Skill SHALL resolve required procedures, scripts, and runtime
-dependencies from its installed package or declared dependency closure.
-Consumer availability SHALL be based on observed execution, separately from
-structural and package checks.
+A canonical Skill directory SHALL contain the required procedures, scripts,
+and bundled runtime dependencies for its supported workflows before publication.
+Copying the directory SHALL require no dhpk checkout, sibling Skill installation,
+repository manifest, consumer build, or packaging-time resource injection.
+Declared external tools, Host capabilities, and independent-review requirements
+SHALL remain explicit prerequisites. Consumer availability SHALL be based on
+observed execution, separately from structural and package checks.
 
 #### Scenario: Consumer has no source checkout
 
 - **WHEN** an installed portable command Skill runs without a dhpk checkout or
   `CLAUDE_PLUGIN_ROOT`
-- **THEN** its required packaged resources resolve, or it reports the exact
+- **THEN** its required local resources resolve, or it reports the exact
   unavailable capability without claiming execution success
+
+#### Scenario: Only the canonical Skill directory is copied
+
+- **WHEN** the raw canonical Skill directory is copied into an unrelated
+  location and run against a separate consumer project
+- **THEN** its required code and resources are already present and no dhpk
+  assembler, source-root fallback, or peer Skill supplies missing files
+
+#### Scenario: A retained command invokes a self-contained owner
+
+- **WHEN** a retained Claude command forwards to its migrated Skill owner
+- **THEN** the normalized arguments, authority and terminal evidence remain
+  unchanged despite removal of the legacy script path
