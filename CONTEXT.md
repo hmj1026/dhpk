@@ -44,6 +44,16 @@ _Avoid_: Independent package, reverse-sync source
 A generated Host-facing representation of canonical skill content, with its own layout or packaging shape but the same ownership and stable capability identity.
 _Avoid_: Canonical source, mirror inventory
 
+## Skill Distribution
+
+**Self-Contained Skill**:
+A Skill whose required code and bundled resources are contained in its canonical directory and remain usable when that directory is relocated, given its declared external tools and Host capabilities. Self-containment is independent of which Hosts the Skill supports.
+_Avoid_: Dependency-free skill, packaged-only completeness, cross-Host support
+
+**Host-Bound Skill**:
+A Skill whose functionality requires capabilities specific to a declared Host. A Host-Bound Skill can also be a Self-Contained Skill.
+_Avoid_: Incomplete skill, unavailable skill
+
 ## Support and Evidence
 
 **Model Catalog**:
