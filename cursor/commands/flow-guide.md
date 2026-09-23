@@ -8,6 +8,8 @@ This is a thin Host front door to the canonical `$flow-guide` Skill. Forward
 the supplied arguments unchanged; the Skill owns the route, help, policy,
 progression, closeout, read-only boundary, and terminal evidence.
 
+Not for: implementation, review, code tracing, or skill authoring.
+
 The `help` action is metadata-only and may return the inventory-owned Codex
 usage catalog or one usage card. This front door does not add a mode, a second
 grammar, target procedure, or target authority.

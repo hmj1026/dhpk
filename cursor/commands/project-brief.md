@@ -7,5 +7,7 @@ Pass the supplied `$ARGUMENTS` unchanged, including an optional `--output
 <path>`. The skill reads one source specification, writes the executive-summary
 shape, and reports the saved path plus retained unresolved decisions.
 
+Not for: editing the source specification or preserving implementation detail.
+
 The source remains read-only. Preserve the skill’s `BLOCKED` result when the
 source or output is unavailable; do not inline a second conversion procedure.

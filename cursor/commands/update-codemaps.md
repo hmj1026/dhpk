@@ -9,5 +9,7 @@ with `$ARGUMENTS` unchanged (including an empty argument list). It owns the
 live structure scan, five codemap outputs, metadata header, 30% confirmation
 guard, and `.reports/codemap-diff.txt` report.
 
+Not for: rewriting application source or updating user documentation outside codemaps.
+
 Preserve `PASS`, `BLOCKED`, `CONFIRMATION_REQUIRED`, or `NOT_RUN` exactly. This
 command does not duplicate generation procedure or authorize source changes.

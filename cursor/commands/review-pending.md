@@ -9,5 +9,7 @@ canonical `$review-pending` Skill. It owns scope selection, `code-reviewer`
 availability, diff context, and direct report relay. No alternate reviewer or
 merge-gate clearance is added here.
 
+Not for: implementing findings, clearing a merge gate, or silently substituting another reviewer.
+
 Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
 `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

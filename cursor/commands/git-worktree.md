@@ -9,5 +9,7 @@ Forward the supplied sub-command and options unchanged to the canonical
 `wt-{repo-shortname}-{purpose}` naming, confirmation for remove/prune, and
 the resulting status. This command adds no lifecycle procedure.
 
+Not for: branch merging, broad cleanup, or removing or pruning without confirmation.
+
 Completion: relay the Skill result and preserve its `PASS`, `FAIL`,
 `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

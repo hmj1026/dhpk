@@ -13,6 +13,8 @@ This is a thin Claude front door to the canonical `$harness-setup` Skill.
 Forward `$ARGUMENTS` unchanged; the Skill owns host detection, configuration,
 asset-installation, Review Gate setup, and terminal evidence.
 
+Not for: ordinary harness audits, application changes, or silent credential/configuration changes.
+
 The Skill selects the native procedure for the current Host. Claude keeps its
 settings, `userConfig`, asset, and Review Gate behavior; Codex uses its
 receipt-owned project installer and reports Claude-only options explicitly.

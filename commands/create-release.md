@@ -12,6 +12,8 @@ Forward `$ARGUMENTS` unchanged to the explicit-only, external-write
 It owns release configuration, version/changelog edits, validation, the human
 merge gate, tag/CI sequence, and publication evidence.
 
+Not for: PHP package publication or ordinary commits.
+
 Preserve `<version> [--execute]`. Relay the owner’s blocked, prepared, merged,
 tagged, or CI result; never claim a release, tag, or publication from local
 edits or an unassociated workflow.

@@ -10,6 +10,8 @@ Forward to the canonical [`$doc-refactor` skill](../skills/doc-refactor/SKILL.md
 with `$ARGUMENTS` unchanged. It owns the bounded-file guard, fact/pointer map,
 structure edit, and Markdownlint/link validation.
 
+Not for: cross-file policy changes, generated projections, or broad documentation audits.
+
 Preserve its `PASS`, `NOT_RUN`, or `BLOCKED` result and the original/simplified
 line counts. This command does not add cross-file policy, generated-projection,
 or broad-audit procedure.
