@@ -431,6 +431,7 @@ test('verifies the Cursor project-local sync route in an isolated project', () =
   assert.strictEqual(cursorSync.stage, 'CONSUMER');
   assert.strictEqual(cursorSync.adapter.id, 'cursor-sync-installer');
   assert.ok(cursorSync.artifacts.some((artifact) => artifact.receipt === '<sandbox>/.cursor/.dhpk-installed.json'), JSON.stringify(cursorSync));
+  assert.ok(cursorSync.artifacts.some((artifact) => artifact.receipt === '<sandbox>/.agents/.dhpk-installed.json' && artifact.bindingShape === 'native-link'), JSON.stringify(cursorSync));
 });
 
 test('selected Cursor sync evidence keeps the gate pending without a Cursor client probe', () => {
