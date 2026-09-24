@@ -87,7 +87,7 @@
     ],
     "excludes": [],
     "id": "compat-v1",
-    "inventoryFingerprint": "36798b20cfac504edbf53b6a265dd8a6c9ee797bdea5d5ab0050466be3707246",
+    "inventoryFingerprint": "04453541f68cd1a82ecfe34a54a709460737db60bf032193f1e7fc7bea7e6319",
     "mode": "compat-v1",
     "modules": [],
     "profileFingerprint": "3c18557e293ff8bae8f888982330b74cbab183623d1b97542f4dfd01180275c2",
@@ -175,7 +175,7 @@
       "xcode-build-tooling",
       "yii1-security-audit"
     ],
-    "selectionFingerprint": "d12c988049478bf58b46b8d02dd59c70dc8b20a03eecd0fdae799ab28521cac8",
+    "selectionFingerprint": "728d6456f9371b358c694ebaace85e26f4fd2f401e412aa964e42375302689cc",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "151dc4fb83a7d4bd979491475e215d78e2014b26e613a8a78484fefbfa042c09",
@@ -220,7 +220,7 @@
       ],
       "skillStableIds": []
     },
-    "surfaceSelectionFingerprint": "6568b937a93c055d0a90877b7152453e95c6ae30a30ec9610a278dd9857657af",
+    "surfaceSelectionFingerprint": "a178683c202755cd8fdfaa2bb9bbf00bb52a12096d8b03ede512b984c14c7fec",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "compat-v1",
@@ -2977,5 +2977,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "53871bccf8d83126eff4b17701ab301529563818f2d66cccf26e8b857af16ff8"
+  "planFingerprint": "fa6acff743b78f7cd617448291d30b9b5c9231e2e6cc0d05c3c158cb32d45c82"
 }

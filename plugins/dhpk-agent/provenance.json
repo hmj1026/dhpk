@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.63.2",
-  "sourceCommit": "58707be906c13899729adfd0cb6f590afa74f798",
-  "generatedFromCommit": "58707be906c13899729adfd0cb6f590afa74f798",
-  "generatedFromTree": "c4eb93040fa54d06843df2848748ed4557258c9e",
-  "inventoryDigest": "c02a3f05d66dd7991642490bc26b129b48abd7afe2d0f111526b8fcace31d31b",
-  "inventoryRevision": "sha256:b2de9604027d1af95634c4581547fcff1ac365bb2da114ebac0a754ea4ae4a7d",
+  "sourceCommit": "92c70cf02e6ca4cc5d7111fb1cba39a802a57aff",
+  "generatedFromCommit": "92c70cf02e6ca4cc5d7111fb1cba39a802a57aff",
+  "generatedFromTree": "853bf78524185014a203fede973ef6b674a31b56",
+  "inventoryDigest": "4b9b266395b0db950d9db6093aabe4ce6c70602b83862743f3b1021fe24d8079",
+  "inventoryRevision": "sha256:cce5b750f0a8919f282d99784c312e0b6805aaf34b49c5a5e7296984fb829392",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -160,17 +160,17 @@
     "dhpk-opsx-post-observation": "61d09727dac1b9758d74ad2b0fff1311f00ea850952fd1dfc1ada8b75d1d9400",
     "dhpk-polyfill-version-matrix-audit": "c18597d1bbc40c5691321f3490ff28a07ffa0f6ec665deb15f2698147d158d2b",
     "dhpk-project-audit": "a3426961b9149ebc86d76ec31d5080f5306aa837f0a1c5c6115bd4d6d542d3db",
-    "dhpk-project-setup": "bfe1892c7b100a3149924e5041cb0cf824ed857a7a8ed9408a83cef2fb0e5b5e",
+    "dhpk-project-setup": "bb5a5c1efe375bb6ea3eef6df38a998f92413d8b52160fee490a3607aec23121",
     "dhpk-prompt-optimize": "a9d91881566c0c05967a31334ce93cc1dcbe1bf0760dfed2a1f01c26b57223af",
     "dhpk-repo-intake": "3ce6f9da5cb781d08cebfd90321b9e657e2dfe978873ebac960d1f11ed37191b",
     "dhpk-session-usage-audit": "ad6e21ac72573e80cb06a1eb0f585f2c10f0f1557af015c932709cd6e542ac12",
     "doc-refactor": "24188cc9a98a780ace387611e216335c8b6b664ec0c6995040538fffad7ef299",
     "flow-drive": "da5f1db18ca75cff2b31372a3f22e4a91c5d8932a314bc0ae82f32922acb4b2d",
-    "flow-guide": "b4d52209bc72029d08f288a22f1fb13f4add8b5d492b2a547ef8b6f6f5079871",
+    "flow-guide": "c80549e1ce4313750a2d24c4b7e0a036d09562247cbc022fde5933d33463a7be",
     "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "harness-audit": "b751eaa79e54539cfd41422c6eeea0c848d75256bf8f165f9273263658489091",
-    "harness-govern": "cb0d49fc0c06622f2ae1c0e4ac7fcbf19f9411d0a5ff41c15abaf3134aeddd84",
+    "harness-govern": "47ce3109ac48715194d591edc1e807165380a48f4873da4f166396ef03e8c700",
     "js-static-check-strategy": "6464d728360ec088489abc552a1f4e6a964d9e51a86883cead9f020ec399c9c9",
     "matrix-cell-onboard": "f70958741c684fcd4acc1051e27b43c0aa1900225ba43fdfa2d8899a774c2e03",
     "merge-prep": "480a57cf9f0733ab2b7f884175409202e811ca4def7fd3ba0e58854d06f1bead",
@@ -190,7 +190,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "adbbc6dbf0b33b99635c07b17431bb1b2f589985fdd896510b487f6feba0f649",
+    "planId": "d9bf904385b107a910e09d1c0a5fc3a2e5497853aeb1c6e0da4e4e7c2d40c9a1",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -316,10 +316,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "adbbc6dbf0b33b99635c07b17431bb1b2f589985fdd896510b487f6feba0f649",
-      "inventory": "c02a3f05d66dd7991642490bc26b129b48abd7afe2d0f111526b8fcace31d31b"
+      "plan": "d9bf904385b107a910e09d1c0a5fc3a2e5497853aeb1c6e0da4e4e7c2d40c9a1",
+      "inventory": "4b9b266395b0db950d9db6093aabe4ce6c70602b83862743f3b1021fe24d8079"
     },
-    "rollbackIdentity": "3422f37c871a574f73451ab65ef531182330f03e5154413e9a0224c831860001"
+    "rollbackIdentity": "cdf14bdfcbdc728942d3796febeaefab993fde640bedefeef51726b97189ac01"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

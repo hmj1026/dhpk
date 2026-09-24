@@ -25,6 +25,7 @@ function fixture() {
   fs.writeFileSync(path.join(source, 'scripts', 'hooks', 'guard.sh'), '#!/usr/bin/env bash\necho guard\n');
   fs.chmodSync(path.join(source, 'scripts', 'hooks', 'guard.sh'), 0o755);
   fs.writeFileSync(path.join(source, 'rules', 'execution-policy.md'), '# policy\n');
+  fs.writeFileSync(path.join(source, 'rules', 'tool-routing.md'), '# routing\n');
   fs.writeFileSync(path.join(source, 'scripts', 'lib', 'runner.js'), 'module.exports = 1;\n');
   for (const [skill, relative, content, mode] of [
     ['precommit', 'scripts/precommit-runner.js', '#!/usr/bin/env node\nconsole.log("precommit pilot");\n', 0o755],
@@ -69,6 +70,10 @@ function allowlistedToolPath(ctx, names) {
     fs.symlinkSync(resolved, path.join(bin, name));
   }
   return bin;
+}
+
+function rulesStubPath(target) {
+  return path.join(path.dirname(target), 'rules', 'dhpk-overrides.md');
 }
 
 function fileSnapshot(root) {
@@ -155,11 +160,11 @@ test('a conflicting target is reported without overwrite unless --force is expli
     fs.mkdirSync(path.join(ctx.target, 'rules'), { recursive: true });
     const target = path.join(ctx.target, 'rules', 'execution-policy.md');
     fs.writeFileSync(target, '# local policy\n');
-    const blocked = install(ctx, ['--install', 'rules']);
+    const blocked = install(ctx, ['--install', 'rules', '--vendor']);
     assert.strictEqual(blocked.status, 3, blocked.stderr);
     assert.match(blocked.stderr, /CONFLICT/);
     assert.strictEqual(fs.readFileSync(target, 'utf8'), '# local policy\n');
-    const forced = install(ctx, ['--install', 'rules', '--force']);
+    const forced = install(ctx, ['--install', 'rules', '--vendor', '--force']);
     assert.strictEqual(forced.status, 0, forced.stderr);
     assert.strictEqual(fs.readFileSync(target, 'utf8'), '# policy\n');
   } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
@@ -172,7 +177,7 @@ test('a symlinked destination is rejected without writing outside the selected t
     fs.mkdirSync(path.join(ctx.target, 'rules'), { recursive: true });
     fs.writeFileSync(outside, '# outside policy\n');
     fs.symlinkSync(outside, path.join(ctx.target, 'rules', 'execution-policy.md'));
-    const res = install(ctx, ['--install', 'rules', '--force']);
+    const res = install(ctx, ['--install', 'rules', '--vendor', '--force']);
     assert.strictEqual(res.status, 4, res.stderr);
     assert.match(res.stderr, /UNSAFE SYMLINK/);
     assert.strictEqual(fs.readFileSync(outside, 'utf8'), '# outside policy\n');
@@ -200,22 +205,106 @@ test('an existing directory at a required file destination is rejected even with
   const ctx = fixture();
   try {
     fs.mkdirSync(path.join(ctx.target, 'rules', 'execution-policy.md'), { recursive: true });
-    const res = install(ctx, ['--install', 'rules', '--force']);
+    const res = install(ctx, ['--install', 'rules', '--vendor', '--force']);
     assert.strictEqual(res.status, 4, res.stderr);
     assert.match(res.stderr, /UNSAFE DESTINATION/);
     assert.ok(fs.statSync(path.join(ctx.target, 'rules', 'execution-policy.md')).isDirectory());
   } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
 });
 
-test('--install all copies hooks, rules, and scripts to their deterministic targets', () => {
+test('--install all copies hooks and scripts and writes the rules stub', () => {
   const ctx = fixture();
   try {
     const res = install(ctx, ['--install', 'all']);
     assert.strictEqual(res.status, 0, res.stderr);
     assert.ok(fs.existsSync(path.join(ctx.target, 'hooks', 'hooks.json')));
-    assert.ok(fs.existsSync(path.join(ctx.target, 'rules', 'execution-policy.md')));
+    assert.ok(fs.existsSync(rulesStubPath(ctx.target)));
+    assert.ok(!fs.existsSync(path.join(ctx.target, 'rules')));
     assert.ok(fs.existsSync(path.join(ctx.target, 'scripts', 'lib', 'runner.js')));
     assert.ok(fs.existsSync(path.join(ctx.target, 'skills', 'harness-audit', 'scripts', 'harness-audit.js')));
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('--install rules writes a project-delta stub and does not vendor upstream rules', () => {
+  const ctx = fixture();
+  try {
+    const res = install(ctx, ['--install', 'rules']);
+    const stub = rulesStubPath(ctx.target);
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.ok(fs.existsSync(stub), `missing stub: ${stub}`);
+    const body = fs.readFileSync(stub, 'utf8');
+    assert.ok(Buffer.byteLength(body, 'utf8') < 2048, `stub must stay under 2 KB, got ${Buffer.byteLength(body, 'utf8')}`);
+    assert.match(body, /\$\{CLAUDE_PLUGIN_ROOT\}\/rules\//);
+    assert.match(body, /Hot tables/);
+    assert.match(body, /Extra reviewer trigger paths/);
+    assert.match(body, /Hook profile/);
+    assert.ok(!fs.existsSync(path.join(ctx.target, 'rules')), 'default rules install must not write .claude/dhpk/rules/');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('--install rules leaves an edited stub unchanged on re-run', () => {
+  const ctx = fixture();
+  try {
+    const stub = rulesStubPath(ctx.target);
+    fs.mkdirSync(path.dirname(stub), { recursive: true });
+    fs.writeFileSync(stub, '# edited override\n');
+    const res = install(ctx, ['--install', 'rules']);
+    assert.strictEqual(res.status, 3, `${res.stdout}\n${res.stderr}`);
+    assert.match(`${res.stdout}\n${res.stderr}`, /CONFLICT/);
+    assert.strictEqual(fs.readFileSync(stub, 'utf8'), '# edited override\n');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('--install rules --vendor copies the upstream rules tree byte for byte', () => {
+  const ctx = fixture();
+  try {
+    const res = install(ctx, ['--install', 'rules', '--vendor']);
+    const output = `${res.stdout}\n${res.stderr}`;
+    assert.strictEqual(res.status, 0, output);
+    assert.match(output, /VENDOR COPY|discouraged/i);
+    assert.deepStrictEqual(
+      fileSnapshot(path.join(ctx.target, 'rules')),
+      fileSnapshot(path.join(ctx.source, 'rules')),
+    );
+    assert.ok(!fs.existsSync(rulesStubPath(ctx.target)), 'vendor copy must not also write the delta stub');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('--install rules stages the stub through a physical temp path even when TMPDIR is a symlink', () => {
+  const ctx = fixture();
+  try {
+    const realTmp = path.join(ctx.root, 'real-tmp');
+    const linkedTmp = path.join(ctx.root, 'linked-tmp');
+    fs.mkdirSync(realTmp);
+    fs.symlinkSync(realTmp, linkedTmp);
+    const res = install(ctx, ['--install', 'rules'], { TMPDIR: linkedTmp });
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.ok(fs.existsSync(rulesStubPath(ctx.target)));
+    assert.ok(!fs.existsSync(path.join(ctx.target, 'rules')));
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('existing vendored rules are reported as legacy and left untouched', () => {
+  const ctx = fixture();
+  try {
+    const vendored = path.join(ctx.target, 'rules', 'execution-policy.md');
+    fs.mkdirSync(path.dirname(vendored), { recursive: true });
+    fs.writeFileSync(vendored, '# leftover vendor copy\n');
+    const planned = install(ctx, ['--install', 'rules', '--dry-run']);
+    const plannedOutput = `${planned.stdout}\n${planned.stderr}`;
+    assert.strictEqual(planned.status, 0, plannedOutput);
+    assert.match(plannedOutput, /LEGACY PRESERVED/);
+    assert.match(plannedOutput, /dhpk-overrides\.md/);
+    assert.strictEqual(fs.readFileSync(vendored, 'utf8'), '# leftover vendor copy\n');
+    assert.ok(!fs.existsSync(rulesStubPath(ctx.target)), 'dry-run must not write the stub');
+
+    const applied = install(ctx, ['--install', 'rules']);
+    const appliedOutput = `${applied.stdout}\n${applied.stderr}`;
+    assert.strictEqual(applied.status, 0, appliedOutput);
+    assert.match(appliedOutput, /LEGACY PRESERVED/);
+    assert.match(appliedOutput, /dhpk-overrides\.md/);
+    assert.strictEqual(fs.readFileSync(vendored, 'utf8'), '# leftover vendor copy\n');
+    assert.ok(fs.existsSync(rulesStubPath(ctx.target)));
   } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
 });
 

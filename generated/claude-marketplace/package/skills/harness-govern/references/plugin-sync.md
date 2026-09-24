@@ -77,11 +77,15 @@ The current `<selected-source-root>/scripts/setup/install-assets.sh` source/targ
 |---|---|---|
 | `hooks` | `<selected-source-root>/hooks/` | `<consumer-root>/.claude/dhpk/hooks/` |
 | `hooks` | `<selected-source-root>/scripts/hooks/` | `<consumer-root>/.claude/dhpk/scripts/hooks/` |
-| `rules` | `<selected-source-root>/rules/` | `<consumer-root>/.claude/dhpk/rules/` |
+| `rules` | stub template | `<consumer-root>/.claude/rules/dhpk-overrides.md` |
+| `rules --vendor` | `<selected-source-root>/rules/` | `<consumer-root>/.claude/dhpk/rules/` (discouraged) |
 | `scripts` | `<selected-source-root>/scripts/` | `<consumer-root>/.claude/dhpk/scripts/` |
 | `scripts` | `<selected-source-root>/skills/precommit/scripts/` | `<consumer-root>/.claude/dhpk/skills/precommit/scripts/` |
 | `scripts` | `<selected-source-root>/skills/repo-verify/scripts/` | `<consumer-root>/.claude/dhpk/skills/repo-verify/scripts/` |
 | `scripts` | `<selected-source-root>/skills/harness-audit/scripts/` | `<consumer-root>/.claude/dhpk/skills/harness-audit/scripts/` |
+
+Default `rules` does not create `<consumer-root>/.claude/dhpk/rules/`. If that
+tree already exists, the installer reports it as legacy and leaves it untouched.
 
 The current pilot runner files under the selected distribution source are:
 

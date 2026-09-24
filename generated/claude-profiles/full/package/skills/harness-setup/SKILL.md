@@ -1,6 +1,6 @@
 ---
 name: harness-setup
-argument-hint: '[--show] [--review-gate] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force]'
+argument-hint: '[--show] [--review-gate] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force] [--vendor]'
 description: 'Configure or inspect the dhpk harness, initialize its optional Review Gate, or install selected host assets. Not for: ordinary harness audits, application changes, or silent credential/configuration changes. Output: a host-specific setup report with preserved-file, receipt, and terminal evidence.'
 disable-model-invocation: true
 metadata:
@@ -59,7 +59,10 @@ is `BLOCKED_RESOURCE_MISSING`; a missing or invalid explicit artifact is
    work remain intact.
 2. If `--install` is present, run the local asset adapter with the explicit
    source artifact before configuration questions, then report its result and
-   stop. Do not combine asset installation with interactive reconfiguration.
+   stop. Default `--install rules` writes `.claude/rules/dhpk-overrides.md`
+   and does not vendor `.claude/dhpk/rules/`; pass `--vendor` only for the
+   discouraged verbatim copy. Do not combine asset installation with
+   interactive reconfiguration.
 3. If `--review-gate` is present, run only the host-supported Review Gate setup
    operation. Initialization is not reviewer dispatch, approval, or a later
    lifecycle observation.

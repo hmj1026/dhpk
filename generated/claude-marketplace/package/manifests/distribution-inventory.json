@@ -3758,7 +3758,7 @@
       "usage": {
         "display_name": "Harness Setup",
         "summary": "Inspect or configure host harness assets",
-        "syntax": "$harness-setup [--show] [--review-gate] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force]",
+        "syntax": "$harness-setup [--show] [--review-gate] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force] [--vendor]",
         "input_kind": "none",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
@@ -3823,6 +3823,14 @@
             "value_kind": "boolean",
             "required": false,
             "summary": "Confirm an overwrite boundary",
+            "default": false
+          },
+          {
+            "id": "vendor",
+            "syntax": "--vendor",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Copy upstream rules instead of writing a project-delta stub",
             "default": false
           }
         ],

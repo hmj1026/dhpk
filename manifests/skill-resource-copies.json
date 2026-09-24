@@ -460,13 +460,13 @@
     "skills/dhpk-project-setup/scripts/install-project-assets.sh": {
       "skill_id": "project-setup",
       "source": "skills/harness-setup/scripts/install-assets.sh",
-      "sha256": "sha256:aa00fe8e42becff9239e0d1c2bd6e163b1c4657aa9ccbcd9e0d8600fd1202b7a",
+      "sha256": "sha256:04bf6ce4758de8f1164ba674f76024b2eaa91c1d9379e41c8024e009342bc8e1",
       "mode": "0755"
     },
     "skills/dhpk-project-setup/scripts/lib/install-assets-writer.sh": {
       "skill_id": "project-setup",
       "source": "scripts/setup/install-assets.sh",
-      "sha256": "sha256:684a37e2771bc590b0c6dfc42eb964f2a6ff668faa7446d7502c99e8c59405e6",
+      "sha256": "sha256:8287f75ab620db413a63255d47acf487453b89e291f66fd2e276923333295edf",
       "mode": "0755"
     },
     "skills/dhpk-react-18-notes/references/frontend-framework-routing.md": {
@@ -922,7 +922,7 @@
     "skills/harness-setup/scripts/lib/install-assets-writer.sh": {
       "skill_id": "harness-setup",
       "source": "scripts/setup/install-assets.sh",
-      "sha256": "sha256:684a37e2771bc590b0c6dfc42eb964f2a6ff668faa7446d7502c99e8c59405e6",
+      "sha256": "sha256:8287f75ab620db413a63255d47acf487453b89e291f66fd2e276923333295edf",
       "mode": "0755"
     },
     "skills/harness-setup/scripts/lib/install-codex-skills.sh": {

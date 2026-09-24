@@ -53,8 +53,13 @@ runtime before changing hook argument paths. The source mapping remains
 ## Copying assets to a consumer project
 
 `/dhpk:setup --install hooks|rules|scripts|all` invokes
-`scripts/setup/install-assets.sh`. It copies selected source assets to
-`<project>/.claude/dhpk/{hooks,rules,scripts}` without editing consumer hook
-settings. Use `--dry-run` to inspect the full source/target plan; differing
-target files are conflicts and require explicit `--force`. Executable source
-files retain their executable bit.
+`scripts/setup/install-assets.sh`. Hooks and scripts copy into
+`<project>/.claude/dhpk/{hooks,scripts}`. Default `--install rules` writes
+`<project>/.claude/rules/dhpk-overrides.md` and does not copy upstream policy
+into `.claude/dhpk/rules/`; `--vendor` restores that discouraged verbatim
+copy. An existing `.claude/dhpk/rules/` tree is reported as legacy and left
+in place. The installer never edits consumer hook settings. Use `--dry-run` to
+inspect the full source/target plan; differing target files are conflicts and
+require explicit `--force`. Executable source files retain their executable
+bit. Any destination path with a symlink component is rejected even with
+`--force`, including the rules stub path.

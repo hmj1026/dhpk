@@ -43,9 +43,12 @@ runtime 重新確認。來源對應仍以 [`hooks/hooks.json`](../hooks/hooks.js
 ## 將 assets 複製到 consumer project
 
 `/dhpk:setup --install hooks|rules|scripts|all` 會呼叫
-`scripts/setup/install-assets.sh`，把選定 source asset 複製到
-`<project>/.claude/dhpk/{hooks,rules,scripts}`，但不會修改 consumer hook settings。
-使用 `--dry-run` 查看完整 source/target plan；不同內容的 target 是 conflict，只有
-明確加上 `--force` 才覆寫。Source 中可執行的檔案會保留 executable bit。Installer
-即使在 `--force` 下也拒絕 destination path 中的 symlink，避免寫出
-`<project>/.claude/dhpk`。
+`scripts/setup/install-assets.sh`。hooks 與 scripts 複製到
+`<project>/.claude/dhpk/{hooks,scripts}`。預設 `--install rules` 寫入
+`<project>/.claude/rules/dhpk-overrides.md`，不會把 upstream policy 複製到
+`.claude/dhpk/rules/`；`--vendor` 才會還原該不建議的 verbatim copy。既有的
+`.claude/dhpk/rules/` 會被報告為 legacy，且不會刪除。Installer
+不會修改 consumer hook settings。使用 `--dry-run` 查看完整 source/target plan；
+不同內容的 target 是 conflict，只有明確加上 `--force` 才覆寫。Source 中可執行的
+檔案會保留 executable bit。Installer 即使在 `--force` 下也拒絕 destination path
+中的 symlink，包含 rules stub 路徑。

@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.command-skill-disposition.v3",
-  "source_revision": "sha256:339bdadf2a8428e11c632057c19c252fb56dc4b5edfbccdc39d72ffce9f17051",
+  "source_revision": "sha256:d630c0a5a8baa2eb3fb2e41d7d73f1522b32fdc8e072f7121c700f96ece9d2f5",
   "commands": [
     {
       "id": "check-coverage",
@@ -554,7 +554,7 @@
       "path": "commands/setup.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:setup",
-      "argument_contract": "[--show] [--review-gate] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force]",
+      "argument_contract": "[--show] [--review-gate] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force] [--vendor]",
       "authority": "workspace-write",
       "skill_owner": "harness-setup",
       "disposition": "thin-front-door",
