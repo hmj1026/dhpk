@@ -23,6 +23,7 @@ const WORKFLOW_TIMEOUTS = Object.freeze({
   'ci.yml': Object.freeze({
     validate: 10,
     'macos-installer': 10,
+    'release-rehearsal': 10,
     lint: 5,
   }),
   'release.yml': Object.freeze({
@@ -55,6 +56,20 @@ function workflowFiles(root) {
     .filter((file) => /\.ya?ml$/i.test(file))
     .sort()
     .map((file) => path.join(directory, file));
+}
+
+// Composite actions carry their own `uses:` steps (for example setup-node), so
+// they must satisfy the same pin and runtime-baseline rules as workflows or
+// they become an unchecked side door. They have no jobs, so job rules skip them.
+function compositeActionFiles(root) {
+  const directory = path.join(root, '.github', 'actions');
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => ['action.yml', 'action.yaml'].map((name) => path.join(directory, entry.name, name)))
+    .flat()
+    .filter((file) => fs.existsSync(file))
+    .sort();
 }
 
 function jobBlocks(content) {
@@ -95,6 +110,9 @@ function validateActions(root, file, content, errors) {
     const match = line.match(/^\s*(?:-\s*)?uses:\s*([^\s#]+)(?:\s+#(.*))?\s*$/);
     if (!match) return;
     const reference = unquote(match[1]);
+    // A repository-local action or reusable workflow is pinned by the commit
+    // that contains it; only remote references need an immutable SHA.
+    if (reference.startsWith('./')) return;
     const at = reference.lastIndexOf('@');
     const revision = at === -1 ? '' : reference.slice(at + 1);
     if (at === -1 || !COMMIT_SHA.test(revision)) {
@@ -314,6 +332,12 @@ function main(root = ROOT) {
   if (files.length === 0) {
     errors.push('.github/workflows: no workflow files found');
   }
+  const actionFiles = compositeActionFiles(root);
+  for (const file of actionFiles) {
+    const content = fs.readFileSync(file, 'utf8');
+    validateActions(root, file, content, errors);
+    validateNodeBaseline(root, file, content, errors);
+  }
   for (const file of files) {
     const content = fs.readFileSync(file, 'utf8');
     validateActions(root, file, content, errors);
@@ -323,14 +347,14 @@ function main(root = ROOT) {
     validateCheckoutlessRepoContext(root, file, content, errors);
     validateReleasePolicy(root, file, content, errors);
   }
-  return { errors, warnings: [], files: files.map((file) => path.relative(root, file)) };
+  return { errors, warnings: [], files: [...files, ...actionFiles].map((file) => path.relative(root, file)) };
 }
 
 if (require.main === module) {
   const result = main();
   for (const error of result.errors) console.error(`workflow-policy: ${error}`);
   if (result.errors.length > 0) process.exitCode = 1;
-  else console.log(`workflow-policy: checked ${result.files.length} workflow file(s)`);
+  else console.log(`workflow-policy: checked ${result.files.length} workflow/action file(s)`);
 }
 
 module.exports = { main, NODE_BASELINE, LINUX_RUNNER_BASELINE, WORKFLOW_TIMEOUTS };
