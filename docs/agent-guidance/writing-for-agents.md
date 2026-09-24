@@ -2,13 +2,12 @@
 
 Use this page when editing any skill, agent, rule, command, trap sheet,
 `AGENTS.md`, or `CLAUDE.md`. It is a compact repository contract; detailed
-skill mechanics remain in the external `writing-for-agents` 1.2.x reference
-and the owning files. The pinned apply source is `/home/paul/projects/matt-pocock_skills`
-(`package.json` 1.2.3); the public mirror is
-`https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents`.
-Do not vendor that upstream skill into this repository.
+skill mechanics live in the upstream `writing-for-agents` skill
+(<https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents>,
+applied at 1.2.3) and in the owning files. Link to that upstream skill rather
+than copying it into this repository.
 
-## Five checks
+## Six checks
 
 1. **Pointer** — state the trigger and the nearest non-use boundary before
    pointing to detailed mechanics.
@@ -20,6 +19,9 @@ Do not vendor that upstream skill into this repository.
    prefer the repository command/config as the source when it is authoritative.
 5. **Boundary** — preserve invocation class, route target, agent/tool/model
    boundary, rule precedence, command flags, and Claude/Codex support tier.
+6. **Phrasing** — state the target behaviour positively and reuse one leading
+   word per concept; keep a prohibition only as a hard guardrail, paired with
+   the positive target.
 
 ## Document-class contract
 
