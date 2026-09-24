@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     outputs:
       release_pr_head_sha: ${{ steps.resolve-release-pr.outputs.head_sha }}
@@ -43,7 +43,7 @@ jobs:
           target_tree="$(git rev-parse "${TAG_SHA}^{tree}")"
           echo "target_tree=$target_tree" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
@@ -130,7 +130,7 @@ jobs:
             --version "${GITHUB_REF_NAME#v}"
 
       - name: Upload trusted release artifact manifest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact-manifest.json
@@ -173,7 +173,7 @@ jobs:
         run: echo "sha256=sha256:$(sha256sum scripts/release/verify-publication-bundle.js | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Upload trusted publication bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-release-publication-bundle-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle.json
@@ -184,7 +184,7 @@ jobs:
       # A future no-checkout publisher can download this anchor together with
       # the bundle and verifier without regenerating release notes.
       - name: Upload trusted publication notes digest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-release-publication-notes-digest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-notes-digest.json
@@ -195,7 +195,7 @@ jobs:
       # a separate run-bound artifact for a publisher that does not check out
       # repository code.
       - name: Upload trusted publication bundle verifier
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-release-publication-bundle-verifier-${{ github.run_id }}
           path: scripts/release/verify-publication-bundle.js
@@ -207,30 +207,30 @@ jobs:
   # the exact note bytes written by the downloaded standalone verifier.
   publish:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: write
     steps:
       - name: Download trusted publication bundle
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-release-publication-bundle-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle
 
       - name: Download trusted publication notes digest
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-release-publication-notes-digest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-notes-digest
 
       - name: Download trusted publication bundle verifier
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-release-publication-bundle-verifier-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle-verifier
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
@@ -287,7 +287,7 @@ jobs:
   # via the job summary only — never edits the immutable GitHub Release notes.
   consumer-verify:
     needs: [release, publish]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -296,12 +296,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
       - name: Download trusted release artifact manifest
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact
@@ -363,7 +363,7 @@ jobs:
   # still current and both branches have identical trees.
   sync-develop:
     needs: [release, publish]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: write
