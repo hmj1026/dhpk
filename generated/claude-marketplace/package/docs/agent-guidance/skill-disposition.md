@@ -1,6 +1,6 @@
 # Canonical skill disposition
 
-Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/home/paul/projects/matt-pocock_skills/package.json` version `1.2.3` (checked 2026-08-17). Historical baseline: 102 `skills/*/SKILL.md` packages and 101 active canonical packages at that snapshot; the current 0.54.0 inventory contains 65 active canonical packages. Generated projections are not disposition rows.
+Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/home/paul/projects/matt-pocock_skills/package.json` version `1.2.3` (checked 2026-08-17). Historical baseline: 102 `skills/*/SKILL.md` packages and 101 active canonical packages at that snapshot. `manifests/distribution-inventory.json` is the source for the current active set. Generated projections are not disposition rows.
 
 This is a historical disposition snapshot, not a live route registry. The five
 workflow identities marked `Retired in 0.47.0`, plus the two Codex MCP identities

@@ -171,10 +171,10 @@ registry。
 
 ## 目前 0.54 capability families 與 retirement
 
-0.54 的 live catalogue 有九個 portable family 與 65 個 active canonical skill。
-Family 名稱為 `skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、
-`change-verdict`、`code-trace`、`laravel`、`phpunit`、`harness-govern`；其他 56 個
-active public name 維持 `dhpk-*` 前綴。
+0.54 引入九個 portable family，至今仍是目前的 family：`skill-scope`、
+`skill-forge`、`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、
+`laravel`、`phpunit`、`harness-govern`。其他 active public name 維持 `dhpk-*`
+前綴；目前的 skill 清單以 `manifests/distribution-inventory.json` 為準。
 
 | 目前 family | Interface | 邊界 |
 |---|---|---|

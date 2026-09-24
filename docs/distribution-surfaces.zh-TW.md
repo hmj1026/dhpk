@@ -144,8 +144,11 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 | Profile | 意義 |
 |---|---|
 | `minimal` | 只含 `change-verdict`、`code-trace`、`flow-drive`、`flow-guide`；clean install 的預設。 |
-| `full` | 既有 conflict-aware module closure（55 個 skill）加上明確 stable IDs；不代表完整 catalog。 |
-| `compat-v1` | predecessor-compatible allowlist（62 個 stable ID）；未標註舊 receipt 的相容 fallback。 |
+| `full` | 既有 conflict-aware module closure 加上明確 stable IDs；不代表完整 catalog。 |
+| `compat-v1` | predecessor-compatible allowlist 的 stable ID；未標註舊 receipt 的相容 fallback。 |
+
+各 profile 目前的 `selectedStableIds` 請執行
+`node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan` 查詢。
 
 Distribution 與 project-local installer 支援 `--profile <id>` 及可重複的
 `--skill <stable-id>` additive overlay。unknown、retired、deprecated、surface

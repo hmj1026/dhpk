@@ -197,12 +197,13 @@ closed mapping; it is not a discovery or compatibility registry.
 | `git-investigate` | `dhpk-git-history-investigation` | `code-trace` / `history` | `capability-family-consolidation` | `0.52.0` |
 | `tool-routing` | `dhpk-tool-routing` | `code-trace` / `select-tool` | `capability-family-consolidation` | `0.52.0` |
 
-## Live 0.54 capability families and retirement
+## 0.54 capability families and retirement
 
-The 0.54 live catalogue has nine portable families and 65 active canonical
-skills. The family names are `skill-scope`, `skill-forge`, `flow-guide`,
-`flow-drive`, `change-verdict`, `code-trace`, `laravel`, `phpunit`, and
-`harness-govern`; 56 other active public names retain the `dhpk-` prefix.
+The 0.54 release introduced nine portable families, and they remain current:
+`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
+`code-trace`, `laravel`, `phpunit`, and `harness-govern`. Every other active
+public name retains the `dhpk-` prefix; `manifests/distribution-inventory.json`
+is the source for the current skill list.
 
 | Current family | Interface | Boundary |
 |---|---|---|
