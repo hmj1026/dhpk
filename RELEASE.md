@@ -32,6 +32,11 @@ authorities ([ADR-0021](docs/adr/0021-three-proof-release-model.md)):
 3. **Tag-triggered Release job** — on the immutable tag, producing publication
    provenance.
 
+The release PR's `release-rehearsal` CI job is not a fourth proof. It is an
+early run of the tag job's own verification script and consumer gate, so
+failures that previously appeared only after an immutable tag existed surface
+before merge.
+
 The final model removes the `develop` and `main` push runs; their rationale is
 recorded in [ADR-0021](docs/adr/0021-three-proof-release-model.md). During the
 staged rollout, the repository's `main` ruleset (the required pull-request
@@ -119,8 +124,8 @@ internal tooling) adds an empty marker instead:
 changelog.d/<slug>.none
 ```
 
-Continuous CI (`ci.yml`) validates fragment schema on every push, and on
-pull requests fails when a non-test-only diff carries neither a fragment nor
+Continuous CI (`ci.yml`) validates fragment schema on every pull request, and
+fails when a non-test-only diff carries neither a fragment nor
 a `.none` marker — see `scripts/ci/validate-changelog-fragments.js` and
 `scripts/lib/changelog-fragments.js`.
 
@@ -180,56 +185,64 @@ requirement stands.
      --version X.Y.Z --date YYYY-MM-DD --summary "One-line release summary"
    ```
 
-   The exact version-bearing surfaces it keeps in lockstep (`scripts/lib/release-parity.js`):
+   The version-bearing surfaces it keeps in lockstep are owned by
+   `scripts/lib/release-parity.js`; print the complete release scope with:
 
-   - `.claude-plugin/plugin.json`
-   - `.codex-plugin/plugin.json`
-   - `plugins/dhpk/.codex-plugin/plugin.json`
-   - `.agents/plugins/marketplace.json`
-   - `CHANGELOG.md` (`## X.Y.Z — YYYY-MM-DD — summary` heading)
-   - `plugins/dhpk/` (regenerated native manifest, 18 physical entries,
-     `fingerprints.json`, and `provenance.json`)
+   ```bash
+   node scripts/release/prepare-release.js paths
+   ```
 
-   All four manifests must contain the same SemVer version. The tag format is
-   exactly `vX.Y.Z`. Confirm the worktree contains only the expected manifest,
-   changelog/fragment, and regenerated `plugins/dhpk/` artifact changes
-   afterward; unrelated source changes do not belong in release preparation.
+   Each line is `file <path>` (field-patched manifests, the
+   `## X.Y.Z — YYYY-MM-DD — summary` heading in `CHANGELOG.md`, and the
+   version-pinned installation docs), `dir <prefix>` (the wholesale
+   regenerated `plugins/dhpk*/` and `generated/claude-marketplace/package/`
+   packages), or `deleted changelog.d/` (promoted fragments). A standard bump
+   touches about two dozen files. Every manifest must contain the same SemVer
+   version, and the tag format is exactly `vX.Y.Z`. Unrelated source changes do
+   not belong in release preparation; the runner below refuses them.
 
    **Failure remediation:** check mode's error list names every drifted file
    with its observed and expected version; re-run write mode (or hand-edit)
    until check mode passes. A write-mode failure on invalid fragments leaves
    every file unchanged — fix the named `changelog.d/` file and re-run.
 
-3. Run the release validation before creating the PR:
+3. Confirm release parity before creating the PR:
 
    ```bash
-   bash scripts/validate/validate-harness.sh
-   node scripts/ci/validate-agents.js --strict
-   node scripts/ci/validate-skills.js --strict
-   node scripts/ci/validate-commands.js --strict
-   node scripts/ci/validate-modules.js --strict
-   node scripts/ci/validate-plugin.js --strict
-   node scripts/ci/catalog.js --check all
    node scripts/release/prepare-release.js check --version X.Y.Z
-   node tests/run-all.js
    ```
 
-   The release PR must pass the `validate` and Markdown `lint` jobs. The tag
-   workflow does not replace pull-request validation.
+   Do not run the full suite locally here. It is not one of the three proofs:
+   release PR CI runs it before merge, and the publish runner runs it again in
+   the pre-tag gate. Optionally rehearse the tag-only path from a clean
+   checkout with `bash scripts/release/release-verify.sh --mode dry-run --out-dir <dir>`.
+   A local harness preflight reports `BLOCKED` on a dirty worktree, or when an
+   installed runtime such as the agy CLI has no session.
 
-4. Prepare the direct `develop` → `main` PR. Pass every intended release file
-   explicitly; the runner rejects unrelated worktree changes and never stages
-   the whole repository implicitly:
+4. Prepare the direct `develop` → `main` PR. Without a file list, the runner
+   stages exactly the changed paths inside `prepare-release.js paths`, refuses
+   any other worktree change, and never stages the whole repository
+   implicitly:
 
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
-     prepare X.Y.Z develop main v release.yml \
-     .claude-plugin/plugin.json \
-     .codex-plugin/plugin.json \
-     plugins/dhpk/.codex-plugin/plugin.json \
-     .agents/plugins/marketplace.json \
-     CHANGELOG.md
+   bash skills/release-creator/scripts/release-runner.sh \
+     prepare X.Y.Z develop main v release.yml
    ```
+
+   Use the in-repo runner for dhpk's own release. An installed plugin copy
+   older than this change still requires the explicit file list; pass the
+   changed paths that `prepare-release.js paths` covers if you must use it.
+
+   The release PR must pass the `validate`, `release-rehearsal`, and Markdown
+   `lint` jobs. `release-rehearsal` runs only on pull requests into `main`. It
+   runs `release-verify.sh --mode dry-run` and then the consumer gate:
+
+   - `release-verify.sh --mode dry-run` is the tag job's own verification,
+     including the standalone publication-bundle verifier.
+   - The consumer gate runs against the local checkout.
+
+   The rehearsal never tags or publishes. The tag workflow does not replace
+   pull-request validation.
 
 ## Merge and publish
 

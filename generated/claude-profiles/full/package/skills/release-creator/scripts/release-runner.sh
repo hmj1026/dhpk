@@ -23,35 +23,70 @@ fi
 
 case "$phase" in
     prepare)
+        # A project that publishes its release scope (dhpk: `prepare-release.js
+        # paths`) may omit the file list; every other project must name files.
+        scope_script="scripts/release/prepare-release.js"
+        scope_entries=""
         if [ "${#release_files[@]}" -eq 0 ]; then
-            echo "release-runner: prepare requires explicit release files" >&2
-            exit 2
+            if [ ! -f "$scope_script" ]; then
+                echo "release-runner: prepare requires explicit release files" >&2
+                exit 2
+            fi
         fi
 
         git checkout "$base_branch"
         git pull --ff-only
 
+        if [ "${#release_files[@]}" -eq 0 ]; then
+            scope_entries="$(node "$scope_script" paths)"
+            if [ -z "$scope_entries" ]; then
+                echo "release-runner: $scope_script paths returned an empty release scope" >&2
+                exit 1
+            fi
+        fi
+
         dirty="$(git status --porcelain --untracked-files=all)"
         unexpected_paths=""
         while IFS= read -r status_line; do
             [ -z "$status_line" ] && continue
+            status_code="${status_line:0:2}"
             path="${status_line:3}"
             case "$path" in
                 *" -> "*) path="${path##* -> }" ;;
             esac
             allowed=0
-            for release_file in "${release_files[@]}"; do
-                if [ "$path" = "$release_file" ]; then
-                    allowed=1
-                    break
-                fi
-            done
+            if [ -n "$scope_entries" ]; then
+                while read -r scope_kind scope_path; do
+                    case "$scope_kind" in
+                        file) [ "$path" = "$scope_path" ] && allowed=1 ;;
+                        dir) case "$path" in "$scope_path"*) allowed=1 ;; esac ;;
+                        deleted)
+                            case "$status_code" in
+                                *D*) case "$path" in "$scope_path"*) allowed=1 ;; esac ;;
+                            esac
+                            ;;
+                    esac
+                    [ "$allowed" -eq 1 ] && break
+                done <<< "$scope_entries"
+                [ "$allowed" -eq 1 ] && release_files+=("$path")
+            else
+                for release_file in "${release_files[@]}"; do
+                    if [ "$path" = "$release_file" ]; then
+                        allowed=1
+                        break
+                    fi
+                done
+            fi
             if [ "$allowed" -eq 0 ]; then
                 unexpected_paths="${unexpected_paths}${path}\n"
             fi
         done <<< "$dirty"
         if [ -n "$unexpected_paths" ]; then
             printf 'release-runner: unexpected worktree changes:\n%b' "$unexpected_paths" >&2
+            exit 1
+        fi
+        if [ "${#release_files[@]}" -eq 0 ]; then
+            echo "release-runner: no release changes found in the derived release scope; run prepare-release.js write first" >&2
             exit 1
         fi
 

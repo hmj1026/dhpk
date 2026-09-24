@@ -33,6 +33,13 @@ Module hook 仍可參與合併的 Bash dispatcher：active module 的 `pre-bash-
 `pre-commit-*.sh` 會收到 Bash payload；非零 exit status 會阻擋該 Bash 呼叫。這些
 script 必須在不適用的 project/file context 自行 skip。
 
+## Hook argument 展開
+
+Claude Code plugin runtime 呼叫 hook 時，會在啟動 subprocess 前把該 hook entry
+`args` 裡的 `${CLAUDE_PLUGIN_ROOT}` 展開成已安裝的 plugin root。這是觀察到的行為，
+不是公開或保證的契約；請視為相容性指引，修改 hook argument 路徑前先對照已安裝的
+runtime 重新確認。來源對應仍以 [`hooks/hooks.json`](../hooks/hooks.json) 為準。
+
 ## 將 assets 複製到 consumer project
 
 `/dhpk:setup --install hooks|rules|scripts|all` 會呼叫

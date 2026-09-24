@@ -1,0 +1,18 @@
+name: Set up dhpk test environment
+description: >-
+  Single definition of the runtime that tests/run-all.js needs. CI and the tag
+  release rerun both use it, so a tool present in one and missing in the other
+  (v0.63.0 ripgrep) can no longer surface only at tag time. Callers must run
+  actions/checkout first; a composite action cannot check out its own repo.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: '24'
+
+    # Ubuntu runners ship yq but not ripgrep. Several harness scripts
+    # require rg, and the isolated fixtures delegate to the host binary.
+    - name: Install ripgrep
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y ripgrep

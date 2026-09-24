@@ -518,6 +518,85 @@ fi
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+// Without explicit files, a dhpk checkout derives the permitted release scope
+// from `prepare-release.js paths` so the documented command cannot drift from
+// the 20+ files a version bump actually rewrites.
+function writeScopeFixture(root) {
+  const script = path.join(root, 'scripts', 'release', 'prepare-release.js');
+  fs.mkdirSync(path.dirname(script), { recursive: true });
+  fs.writeFileSync(script, [
+    "if (process.argv[2] !== 'paths') { process.exit(9); }",
+    "process.stdout.write('file CHANGELOG.md\\nfile .claude-plugin/plugin.json\\ndir plugins/dhpk-agy/\\ndeleted changelog.d/\\n');",
+    '',
+  ].join('\n'));
+}
+
+function runScopedPrepare(statusLines, { withScope = true } = {}) {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-scope-'));
+  const bin = path.join(tmp, 'bin');
+  const log = path.join(tmp, 'calls.log');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(log, '');
+  if (withScope) writeScopeFixture(tmp);
+  fs.writeFileSync(path.join(tmp, 'CHANGELOG.md'), '# Changelog\n');
+  fs.mkdirSync(path.join(tmp, '.claude-plugin'));
+  fs.writeFileSync(path.join(tmp, '.claude-plugin', 'plugin.json'), '{}\n');
+  fs.mkdirSync(path.join(tmp, 'plugins', 'dhpk-agy'), { recursive: true });
+  fs.writeFileSync(path.join(tmp, 'plugins', 'dhpk-agy', 'plugin.json'), '{}\n');
+  const status = statusLines.map((line) => `${line}\\n`).join('');
+  fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh
+printf "git %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1" = "status" ]; then printf "${status}"; fi
+if [ "$1" = "diff" ] && [ "$2" = "--cached" ] && [ "$3" = "--quiet" ]; then exit 0; fi
+if [ "$1" = "diff" ] && [ "$2" = "--cached" ] && [ "$3" = "--name-only" ]; then printf "%s\\n" "$5"; fi
+`, { mode: 0o755 });
+  fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+  const res = spawnSync('bash', [RUNNER, 'prepare', '1.2.7', 'develop', 'main', 'v', 'release.yml'], {
+    cwd: tmp,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
+  });
+  const calls = fs.readFileSync(log, 'utf8');
+  fs.rmSync(tmp, { recursive: true, force: true });
+  return { res, calls };
+}
+
+test('prepare without files derives release scope from prepare-release.js paths and stages only changed paths', () => {
+  const { res, calls } = runScopedPrepare([
+    ' M CHANGELOG.md',
+    ' M plugins/dhpk-agy/plugin.json',
+    ' D changelog.d/fix.promoted.md',
+  ]);
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.ok(calls.includes('git add -- CHANGELOG.md'), calls);
+  assert.ok(calls.includes('git add -- plugins/dhpk-agy/plugin.json'), calls);
+  assert.ok(calls.includes('git add -u -- changelog.d/fix.promoted.md'), calls);
+  assert.ok(!calls.includes('.claude-plugin/plugin.json'), 'unchanged scope paths must not be staged');
+  assert.ok(calls.includes('git commit -m chore(release): bump version to 1.2.7 and update changelog'), calls);
+});
+
+test('prepare without files refuses and names a changed path outside the derived release scope', () => {
+  const { res, calls } = runScopedPrepare([' M CHANGELOG.md', ' M scripts/unrelated.js', '?? changelog.d/new.md']);
+  assert.notStrictEqual(res.status, 0);
+  assert.ok(res.stderr.includes('scripts/unrelated.js'), res.stderr);
+  assert.ok(res.stderr.includes('changelog.d/new.md'), 'only deletions are permitted under changelog.d/');
+  assert.ok(!calls.includes('git commit'), calls);
+});
+
+test('prepare without files refuses a clean worktree instead of committing nothing', () => {
+  const { res, calls } = runScopedPrepare([]);
+  assert.strictEqual(res.status, 1, res.stderr);
+  assert.ok(res.stderr.includes('no release changes'), res.stderr);
+  assert.ok(!calls.includes('git commit'), calls);
+});
+
+test('prepare without files keeps requiring explicit files outside a dhpk checkout', () => {
+  const { res, calls } = runScopedPrepare([' M CHANGELOG.md'], { withScope: false });
+  assert.strictEqual(res.status, 2);
+  assert.ok(res.stderr.includes('prepare requires explicit release files'), res.stderr);
+  assert.ok(!calls.includes('git checkout'), calls);
+});
+
 test('prepare commits an already-staged changelog deletion in a real git repository', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-real-git-'));
   const repo = path.join(tmp, 'repo');

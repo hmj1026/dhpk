@@ -171,10 +171,10 @@ registry。
 
 ## 目前 0.54 capability families 與 retirement
 
-0.54 的 live catalogue 有九個 portable family 與 65 個 active canonical skill。
-Family 名稱為 `skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、
-`change-verdict`、`code-trace`、`laravel`、`phpunit`、`harness-govern`；其他 56 個
-active public name 維持 `dhpk-*` 前綴。
+0.54 引入九個 portable family，至今仍是目前的 family：`skill-scope`、
+`skill-forge`、`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、
+`laravel`、`phpunit`、`harness-govern`。其他 active public name 維持 `dhpk-*`
+前綴；目前的 skill 清單以 `manifests/distribution-inventory.json` 為準。
 
 | 目前 family | Interface | 邊界 |
 |---|---|---|
@@ -238,19 +238,6 @@ operator 必須執行 `op signout`、確認沒有 process 仍依賴舊 session�
 移除 legacy cache。Automation 不得代為讀取、輸出、複製、撤銷或刪除該檔案。
 後續存取改用互動式 `op signin` operator action，並限制在所需的最小 account 與
 vault scope。
-
-## 已整併的能力
-
-三組重疊能力改為合併，而不是把 alias 保留成獨立 skill：
-
-| 舊 skills | 目前 public skill | 保留內容 |
-|---|---|---|
-| `code-explore`、`code-investigate`、`codex-explain` | `dhpk-codebase-exploration` | symbol/flow 探索、深度可調的說明、可選第二觀點 |
-| `codex-cli-review` | `dhpk-change-review` | hardened CLI backend、merge-base diff 固定、standards/spec/security/test 軸線；預設不使用 MCP |
-| `software-architecture` | `dhpk-module-design` | deep-module 詞彙、deletion test、interface/test seam、architecture handoff |
-
-其他保留 skill 也全部取得 `dhpk-` public name。Stable inventory `id` 與 `name`
-刻意分離，因此未來重新命名不會破壞 receipt ownership。
 
 ## 整併後的 hooks 與 commands
 

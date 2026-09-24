@@ -144,8 +144,11 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 | Profile | 意義 |
 |---|---|
 | `minimal` | 只含 `change-verdict`、`code-trace`、`flow-drive`、`flow-guide`；clean install 的預設。 |
-| `full` | 既有 conflict-aware module closure（55 個 skill）加上明確 stable IDs；不代表完整 catalog。 |
-| `compat-v1` | predecessor-compatible allowlist（62 個 stable ID）；未標註舊 receipt 的相容 fallback。 |
+| `full` | 既有 conflict-aware module closure 加上明確 stable IDs；不代表完整 catalog。 |
+| `compat-v1` | predecessor-compatible allowlist 的 stable ID；未標註舊 receipt 的相容 fallback。 |
+
+各 profile 目前的 `selectedStableIds` 請執行
+`node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan` 查詢。
 
 Distribution 與 project-local installer 支援 `--profile <id>` 及可重複的
 `--skill <stable-id>` additive overlay。unknown、retired、deprecated、surface
@@ -166,6 +169,40 @@ Claude 的 default materialized package 由
 `dhpk@dhpk-profile-minimal`。`full` 與 `compat-v1` 仍須明確 opt-in；生成或 package
 validation 只代表 structural/package evidence，不代表 consumer runtime PASS；agent、hook、
 rule 與 `userConfig` 行為仍需獨立的 package／consumer validation。
+
+```bash
+node scripts/ci/gen-claude-profile-bundles.js --profile minimal --plan
+node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
+```
+
+`--plan` 只輸出編譯後的選取結果，不寫入檔案。`--check` 會重新產生到暫存目錄，
+若與已提交的 `generated/claude-profiles/<profile>/package` 不一致就失敗，並逐一
+列出缺少、多出或內容不同的檔案；CI 對 `minimal`、`full`、`compat-v1` 都會執行。
+
+## Claude userConfig metadata candidate 與 rollback
+
+`scripts/ci/gen-claude-user-config.js` 從
+`manifests/claude-user-config-metadata.json` 產生精簡描述。它保留所有 59 個已
+characterize 的 key、type、default、validation 相關欄位、alias 與 module 行為；
+對 active manifest 唯一改動的只有描述文字。詳細說明仍留在每個精簡 pointer
+所指向的 canonical 文件與 skill。
+
+在 focused contract、pointer、schema、behavior、deterministic-generation 與
+consumer gate 全部通過之前，已提交的 `.claude-plugin/plugin.json` 仍是 legacy
+rollback 路徑。要檢視 candidate 而不啟用它：
+
+```bash
+node scripts/ci/gen-claude-user-config.js
+node scripts/ci/gen-claude-user-config.js --check
+```
+
+啟用必須明確設定 `DHPK_ENABLE_COMPACT_USER_CONFIG=1`；rollback 使用 `--rollback`
+與已 characterize 的 `manifests/claude-user-config-legacy.json`。
+`claude-user-config` 類別與 skill discovery、profile bundle、agent、command 及
+runtime activation 分開量測；byte／word／token 的縮減只是 structural metadata
+evidence。若設定好的 Claude probe 無法把觀察到的 consumer 細節綁定到產生的
+manifest fingerprint，結果維持 `NOT_RUN`、`NOT_CONFIGURED`、`BLOCKED` 或
+`UNAVAILABLE` 並附 resume 指令，不宣稱任何實際的 context 縮減。
 
 ## Codex project sync
 

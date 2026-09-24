@@ -13,6 +13,8 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const releaseYml = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+// The tag job delegates its pre-publish verification to release-verify.sh.
+const releaseVerify = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'release-verify.sh'), 'utf8');
 const releaseRunner = fs.readFileSync(path.join(ROOT, 'skills', 'release-creator', 'scripts', 'release-runner.sh'), 'utf8');
 const prepareRelease = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'prepare-release.js'), 'utf8');
 const publishGate = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'publish-gate.js'), 'utf8');
@@ -22,16 +24,17 @@ test('release-branch origin: prepare-release.js refuses off develop (see prepare
   assert.match(prepareRelease, /REQUIRED_BRANCH = 'develop'/);
 });
 
-test('authorized main commit: release.yml verifies the tag commit is an ancestor of origin/main', () => {
-  assert.ok(releaseYml.includes('git merge-base --is-ancestor'), 'missing tag-to-main ancestry check');
-  assert.ok(releaseYml.indexOf('git merge-base --is-ancestor') < releaseYml.indexOf('gh release create'));
+test('authorized main commit: tag-mode release verification proves the tag commit is an ancestor of origin/main', () => {
+  assert.match(releaseYml, /release-verify\.sh --mode tag --tag "\$GITHUB_REF_NAME"/);
+  assert.ok(releaseYml.indexOf('release-verify.sh --mode tag') < releaseYml.indexOf('gh release create'));
+  assert.ok(releaseVerify.includes('git merge-base --is-ancestor'), 'missing tag-to-main ancestry check');
 });
 
-test('vX.Y.Z tag parity: release.yml rejects any tag not matching vX.Y.Z before doing anything else', () => {
-  assert.match(releaseYml, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/);
-  const tagCheckIdx = releaseYml.indexOf('tag must match vX.Y.Z');
-  const noteIdx = releaseYml.indexOf('Extract release notes');
-  assert.ok(tagCheckIdx !== -1 && tagCheckIdx < noteIdx, 'tag format must be verified before notes extraction');
+test('vX.Y.Z tag parity: tag-mode verification rejects any tag not matching vX.Y.Z before doing anything else', () => {
+  assert.match(releaseVerify, /\^v\[0-9\]\+\\\.\[0-9\]\+\\\.\[0-9\]\+\$/);
+  const tagCheckIdx = releaseVerify.indexOf('tag must match vX.Y.Z');
+  const firstStageIdx = releaseVerify.indexOf('stage provenance');
+  assert.ok(tagCheckIdx !== -1 && tagCheckIdx < firstStageIdx, 'tag format must be verified before any stage');
 });
 
 test('prohibited automatic actions: release-runner.sh prepare never tags, publish-gate.js never merges or tags', () => {

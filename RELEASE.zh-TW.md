@@ -51,6 +51,10 @@ commit 的 ancestry；publish runner 會確認 GitHub `mergeCommit.oid` 等於�
 3. **Tag-triggered Release job**：在 immutable tag 上執行，產生 publication
    provenance。
 
+Release PR 上的 `release-rehearsal` CI job 不是第四次 proof。它提前執行 tag job
+本身的驗證腳本與 consumer gate，讓過去要等 immutable tag 建立後才會出現的失敗，在
+merge 前就浮現。
+
 最終模型會移除 `develop` 與 `main` push runs；其理由記錄於
 [ADR-0021](docs/adr/0021-three-proof-release-model.md)。在分階段 rollout 期間，
 會先確認 repository 的 `main` ruleset（要求 pull-request check）有效，再由後續
@@ -73,40 +77,67 @@ note: <user-visible change>
 ## 準備 release candidate
 
 在乾淨的 `develop` 上執行 preparation script。它會更新所有版本 SSOT、產生
-changelog，並從 `manifests/distribution-inventory.json` 重新 materialize
-`plugins/dhpk/` native package：
+changelog，並重新產生 `prepare-release.js paths` 列出的 `dir` package
+（`plugins/dhpk*/` 與 `generated/claude-marketplace/package/`）：
 
 ```bash
 node scripts/release/prepare-release.js write \
   --version <X.Y.Z> --date YYYY-MM-DD --summary "One-line release summary"
 ```
 
-版本必須在下列位置一致：
+版本一致的範圍由 `scripts/lib/release-parity.js` 管理，可用下列指令列出完整的
+release scope：
 
-- `.claude-plugin/plugin.json`
-- `.codex-plugin/plugin.json`
-- `plugins/dhpk/.codex-plugin/plugin.json`
-- `.agents/plugins/marketplace.json`
-- `plugins/dhpk/provenance.json`
+```bash
+node scripts/release/prepare-release.js paths
+```
 
-Write mode 除版本 manifest 與 `CHANGELOG.md` 外，也會重新產生完整
-`plugins/dhpk/`（manifest、18 個 physical 項目、fingerprints、provenance）。
+每一行是下列三種之一：
+
+- `file <path>`：逐欄修改的 manifest、`CHANGELOG.md` heading、帶版本 pin 的安裝文件
+- `dir <prefix>`：整包重新產生的 `plugins/dhpk*/` 與 `generated/claude-marketplace/package/`
+- `deleted changelog.d/`：已編入 CHANGELOG 的 fragment
+
+一次標準 bump 大約改動二十多個檔案。所有 manifest 必須是同一個 SemVer 版本，tag 格式固定為
+`vX.Y.Z`；無關的 source 變更不屬於 release preparation，runner 會拒絕它們。
 Canonical skill 只能修改 `skills/dhpk-*/`。Module/Codex projection 是 symlink，
 native package 是 generated physical artifact，不可各自手改。
 
 ## 必跑驗證
 
+建立 release PR 前只需確認 parity：
+
 ```bash
-node scripts/ci/validate-plugin.js
-node scripts/ci/catalog.js --check all
-bash scripts/validate/validate-harness.sh
-node scripts/ci/validate-distribution.js
-node scripts/ci/validate-openai-metadata.js
-bin/dhpk distribution codex-native verify --json
-node scripts/ci/validate-references.js
-node scripts/ci/validate-changelog-fragments.js --diff-base develop
-node tests/run-all.js
+node scripts/release/prepare-release.js check --version X.Y.Z
 ```
+
+這裡不在本地跑全套測試。它不屬於三次 proof：release PR CI 在 merge 前會跑，
+publish runner 的 pre-tag gate 也會再跑一次。需要時，可以在乾淨的 checkout 上用
+`bash scripts/release/release-verify.sh --mode dry-run --out-dir <dir>` 預先演練
+tag 才會執行的路徑。本地 harness preflight 遇到下列情況會回報 `BLOCKED`：
+
+- worktree 不乾淨
+- 已安裝的 runtime 沒有 session（例如 agy CLI）
+
+建立 PR 時可以不列檔案：runner 會依 `prepare-release.js paths` 只 stage 有變更的
+路徑，並拒絕範圍以外的變更：
+
+```bash
+bash skills/release-creator/scripts/release-runner.sh \
+  prepare X.Y.Z develop main v release.yml
+```
+
+dhpk 自己發版時請使用 repo 內的 runner。早於此變更的已安裝 plugin 副本仍要求明確列出
+檔案；若必須使用它，請傳入 `prepare-release.js paths` 範圍內有變更的路徑。
+
+Release PR 必須通過 `validate`、`release-rehearsal` 與 Markdown `lint` job。
+`release-rehearsal` 只在 base 為 `main` 的 PR 上執行，依序做兩件事：
+
+- 以 dry-run 模式執行 tag job 使用的同一支 `release-verify.sh`，包含獨立的
+  publication-bundle verifier
+- 對本地 checkout 執行 consumer gate
+
+它不會建立 tag，也不會發布。Tag workflow 不取代 pull-request 驗證。
 
 Skill platform 的預期 topology：100 個 canonical package、62 個 Agent Plugin
 skill、31 modules、18 個 Codex project/native 項目（16 個可呼叫 skill 加上內部

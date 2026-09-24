@@ -21,7 +21,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { SEMVER_PATTERN, MANIFEST_PATHS, AGY_GENERATOR_DOC_PATHS, checkParity, writeAgyGeneratorDocPins } = require('../lib/release-parity');
+const { SEMVER_PATTERN, MANIFEST_PATHS, AGY_GENERATOR_DOC_PATHS, checkParity, releaseScope, writeAgyGeneratorDocPins } = require('../lib/release-parity');
 const { readFragments, validateFragments, promote } = require('../lib/changelog-fragments');
 const { materializeNativePackage } = require('../lib/codex-native-package');
 const { materializeAgentPluginPackage } = require('../lib/agent-plugin-package');
@@ -66,7 +66,7 @@ function parseArgs(argv) {
   const args = { root: DEFAULT_ROOT };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === 'check' || arg === 'write' || arg === 'rollback') args.mode = arg;
+    if (arg === 'check' || arg === 'write' || arg === 'rollback' || arg === 'paths') args.mode = arg;
     else if (arg === '--version') args.version = argv[++i];
     else if (arg === '--date') args.date = argv[++i];
     else if (arg === '--summary') args.summary = argv[++i];
@@ -80,7 +80,7 @@ function parseArgs(argv) {
     }
   }
   if (!args.mode) {
-    console.error('usage: prepare-release.js <check|write|rollback> --version X.Y.Z [--date YYYY-MM-DD] [--summary "..."] [--operation-key <id>] [--backup-reference <manifest>] [--repo-root <path>]');
+    console.error('usage: prepare-release.js <check|write|rollback|paths> --version X.Y.Z [--date YYYY-MM-DD] [--summary "..."] [--operation-key <id>] [--backup-reference <manifest>] [--repo-root <path>]');
     process.exit(2);
   }
   return args;
@@ -502,6 +502,12 @@ function rollbackReleaseTransaction(reference, { root = null } = {}) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+
+  // Read-only scope listing for release-runner.sh; needs no version or branch.
+  if (args.mode === 'paths') {
+    for (const entry of releaseScope()) console.log(`${entry.kind} ${entry.path}`);
+    return;
+  }
 
   if (args.mode === 'rollback') {
     if (!args.backupReference) {

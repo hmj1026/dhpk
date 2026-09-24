@@ -13,16 +13,14 @@ permissions:
 jobs:
   validate:
     name: Validate harness assets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '24'
+      - uses: ./.github/actions/setup-dhpk-test-env
 
       - name: Validate workflow syntax
         uses: reviewdog/action-actionlint@ab7138020abfe6cd20b742c82e5b7a9749fb5884 # v1.75.0
@@ -83,6 +81,11 @@ jobs:
         run: node scripts/ci/gen-claude-manifest.js --check
       - name: No-drift Claude marketplace package check
         run: node scripts/ci/gen-claude-marketplace-package.js --check
+      - name: No-drift Claude profile bundles check
+        run: |
+          for profile in minimal full compat-v1; do
+            node scripts/ci/gen-claude-profile-bundles.js --profile "$profile" --check
+          done
       - name: Validate invocation policy
         run: node scripts/ci/validate-invocation-policy.js
 
@@ -114,11 +117,6 @@ jobs:
           fi
           node scripts/ci/validate-changelog-fragments.js "${CHANGELOG_ARGS[@]}"
 
-      # Ubuntu runners ship yq but not ripgrep. Several harness scripts
-      # require rg, and the isolated fixtures delegate to the host binary.
-      - name: Install ripgrep
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
-
       # Regression tests (plugin paths, hook wiring, catalog<->modules).
       - name: Tests
         env:
@@ -143,7 +141,7 @@ jobs:
 
       - name: Upload test timing evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/dhpk-test-timing.json
@@ -157,7 +155,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
@@ -166,14 +164,81 @@ jobs:
       - name: macOS installer subset
         run: node tests/_lib/macos-installer-files.js
 
+  # Release PRs only (base main): rehearse the paths that otherwise run for
+  # the first time after the immutable tag exists (v0.60.0, v0.62.0, v0.62.1
+  # and v0.63.0 all failed there). It reuses the tag job's own verification
+  # script in dry-run mode and the post-publish consumer gate against the
+  # local checkout. The full suite is not repeated: `validate` runs it on the
+  # same tree in parallel. Read-only: it never tags, publishes, or pushes.
+  release-rehearsal:
+    name: Release rehearsal
+    if: github.base_ref == 'main'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-dhpk-test-env
+
+      - name: Rehearse release verification (dry-run)
+        run: bash scripts/release/release-verify.sh --mode dry-run --out-dir "$RUNNER_TEMP"
+
+      # Same CLI install and outcome mapping as the tag job's consumer-verify.
+      - name: Install claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+        continue-on-error: true
+
+      - name: Rehearse CONSUMER gate
+        env:
+          DHPK_RELEASE_ARTIFACT_MANIFEST: ${{ runner.temp }}/dhpk-release-artifact-manifest.json
+          DHPK_HARNESS_RELEASE_PROBE_CONCURRENCY: '2'
+          DHPK_HARNESS_RELEASE_PROBE_TIMEOUT_MS: '120000'
+        run: |
+          set +e
+          result_file="$RUNNER_TEMP/harness-release-rehearsal.json"
+          bin/dhpk harness release --json --task-id "release-rehearsal-${GITHUB_RUN_ID}" | tee "$result_file"
+          probe_exit="${PIPESTATUS[0]}"
+          set -e
+          outcome="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).outcome)" "$result_file")"
+          {
+            echo "## Release rehearsal consumer gate"
+            echo ""
+            echo "Outcome: \`$outcome\` (pre-merge rehearsal; no tag or release exists)"
+            echo ""
+            node -e "const r=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); for (const row of (r.surfaceResults || [])) console.log('- ' + row.surface + ': ' + row.status);" "$result_file"
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$outcome" in
+            COMPLETE)
+              [ "$probe_exit" -eq 0 ] || exit 1
+              exit 0
+              ;;
+            PUBLISHED_PENDING)
+              [ "$probe_exit" -eq 2 ] || exit 1
+              echo "Consumer runtime evidence is pending on the rehearsal runner; keeping the job non-blocking."
+              exit 0
+              ;;
+            PUBLISHED_UNHEALTHY|BLOCKED)
+              echo "::error::Consumer rehearsal outcome is $outcome; the tag-time consumer-verify job would fail the same way." >&2
+              exit 1
+              ;;
+            *)
+              echo "::error::Unexpected consumer rehearsal outcome: $outcome" >&2
+              exit 1
+              ;;
+          esac
+
   lint:
     name: Markdown lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: markdownlint
-        uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd # v23
+        uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24.2.0
         with:
           globs: |
             *.md

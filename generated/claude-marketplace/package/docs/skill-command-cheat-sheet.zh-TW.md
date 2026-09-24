@@ -4,7 +4,7 @@
 >
 > 安裝與支援狀態：[平台安裝 SSOT](./platform-installation.zh-TW.md)
 
-這是一頁式入口圖，不是技能 procedure 的複本。完整的 84 個 canonical package
+這是一頁式入口圖，不是技能 procedure 的複本。完整的 canonical package 清單
 請看 [`skills/INDEX.md`](../skills/INDEX.md)；Codex 的參數與可用性請看
 [`Codex 技能參數發現`](./codex-skill-usage.zh-TW.md)。
 
@@ -55,6 +55,7 @@ family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 colli
 $flow-drive <change-id> --plan
 $flow-drive <change-id> --plan=opus:xhigh
 $flow-drive <change-id> --worker=claude|codex|agy|auto
+$flow-drive <change-id> --worker-target=<provider>/<model>[:<effort>] [--cross-provider]
 $flow-drive <change-id> --reasoner=codex-cli/gpt-6-sol:high
 $flow-drive <change-id> --architect
 $flow-drive <change-id> --no-architect
@@ -112,8 +113,10 @@ Codex 可先執行 `install-codex-skills.sh --plan --json --skill <stable-id>`
 
 ## Profile 與證據
 
-目前 profile 為 `minimal=4`、`full=55`、`compat-v1=62`；Agent Plugin 與 AGY
-各有 55 個 selected stable ID；Cursor native overlay 為 4 個並共用 Agent
-Plugin skills；Codex native 為 34 個。Local usage card 或
-catalogue 只證明 metadata 已產生，不代表 skill runtime、測試、deployment、commit
-或 release 已完成；交接時分開標示 `PASS`、`BLOCKED`、`NOT_RUN`、`UNAVAILABLE`。
+預設 profile 是 `minimal`，只選上述四項能力；`full` 與 `compat-v1` 仍是明確
+選裝。profile 目前選了哪些 ID 請執行
+`node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan` 查詢，
+已產生 package 的選取清單見其 `provenance.json`（`selectedSkillIds`）；Cursor
+native overlay 共用 Agent Plugin skills。Local usage card 或 catalogue 只證明
+metadata 已產生，不代表 skill runtime、測試、deployment、commit 或 release 已完成；
+交接時分開標示 `PASS`、`BLOCKED`、`NOT_RUN`、`UNAVAILABLE`。

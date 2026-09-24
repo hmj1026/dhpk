@@ -213,9 +213,15 @@ legacy path. Finite aliases declared in `manifests/install-profiles.json` are
 compiled before discovery with:
 
 ```bash
-node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
+node scripts/ci/gen-claude-profile-bundles.js --profile minimal --plan
 node scripts/ci/gen-claude-profile-bundles.js --profile minimal --out /tmp/dhpk-profile
+node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
 ```
+
+`--plan` prints the compiled selection without writing files. `--check`
+regenerates into a temporary directory and fails when the committed
+`generated/claude-profiles/<profile>/package` differs, listing each missing,
+extra, or changed file; CI runs it for `minimal`, `full`, and `compat-v1`.
 
 The generated package has its own physical `./skills/` and `./commands/` roots
 and a `bundle-receipt.json` containing the profile, selected stable IDs, plan
@@ -242,8 +248,11 @@ scopes the discovery-facing skill and command roots; agent, hook, rule, and
 | Profile | Meaning |
 |---|---|
 | `minimal` | Exactly `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`; the default for a clean install. |
-| `full` | The existing conflict-aware module closure (55 skills) plus its explicit stable IDs; it is not the complete catalog. |
-| `compat-v1` | The 62 stable IDs carried by the predecessor-compatible allowlist; this is the compatibility fallback for an unannotated existing receipt. |
+| `full` | The existing conflict-aware module closure plus its explicit stable IDs; it is not the complete catalog. |
+| `compat-v1` | The stable IDs carried by the predecessor-compatible allowlist; this is the compatibility fallback for an unannotated existing receipt. |
+
+Run `node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan` for a
+profile's current `selectedStableIds`.
 
 Distribution and project-local installers accept `--profile <id>` and repeatable
 additive `--skill <stable-id>` overlays. Unknown, retired, deprecated,

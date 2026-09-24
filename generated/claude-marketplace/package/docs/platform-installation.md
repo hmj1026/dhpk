@@ -157,7 +157,7 @@ New installs without an explicit selection continue to use the inventory-owned
 
 ```bash
 dhpk-install codex-native plan --scope project --standalone flow-guide --json
-node scripts/ci/gen-claude-profile-bundles.js --standalone flow-guide --check
+node scripts/ci/gen-claude-profile-bundles.js --standalone flow-guide --plan
 ```
 
 `--standalone` accepts a stable ID or public skill name and may be repeated;
@@ -180,7 +180,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.63.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.63.2 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -849,7 +849,7 @@ Maintainers preparing a new distribution may generate and validate the tracked
 package from a clean checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.63.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.63.2 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -858,7 +858,7 @@ path and validate/install that same package:
 
 ```bash
 bin/dhpk distribution agy-plugin generate \
-  --output /tmp/dhpk-agy-staging --version=0.56.0 --json
+  --output /tmp/dhpk-agy-staging --version=<version> --json
 bin/dhpk distribution agy-plugin validate \
   --output /tmp/dhpk-agy-staging --json
 node scripts/ci/install-agy-plugin.js install \

@@ -76,6 +76,40 @@ evidence-verification mechanism and therefore more contract surface to go
 wrong. The local gate remains the simpler and more trustworthy proof before
 the irreversible tag operation.
 
+## Addendum (2026-09-24): release rehearsal and local deduplication
+
+Four of the twelve tags from v0.58.3 to v0.63.1 failed only after the
+immutable tag existed:
+
+| Tag | Failure |
+| --- | --- |
+| v0.60.0 | consumer gate reported `PUBLISHED_UNHEALTHY` |
+| v0.62.0 | publication bundle was rejected |
+| v0.62.1 | the no-checkout publish job ran git |
+| v0.63.0 | `release.yml` lacked the ripgrep that CI installed |
+
+Each failure consumed a version and repeated the full release cycle. The
+cause was not missing proofs. The failures came from code paths that ran for
+the first time on the tag, and from a test environment that CI and release
+defined twice.
+
+The three proofs, their authorities, and the rejected alternatives above are
+unchanged. The addendum adds:
+
+- **Release rehearsal.** The release PR runs a `release-rehearsal` CI job.
+  The job runs the tag job's own verification script,
+  `scripts/release/release-verify.sh`, in `dry-run` mode, including the
+  standalone publication-bundle verifier. It then runs the consumer gate
+  against the local checkout. This is an early run of the tag-only path, not
+  a fourth proof. It holds only `contents: read`, never tags or publishes, and
+  does not rerun the suite, which the same PR's `validate` job already proves.
+- **One test environment.** `.github/actions/setup-dhpk-test-env` is the only
+  definition of the test runtime used by CI and by the tag rerun, and the
+  workflow policy now governs composite actions.
+- **No local pre-PR full suite.** The manual full-suite run before opening
+  the release PR is removed from RELEASE.md. It had no proof authority; the
+  local pre-tag gate remains the local proof.
+
 ## Related decisions
 
 - [ADR-0004 — Direct develop-to-main release flow](0004-direct-develop-main-release-flow.md)

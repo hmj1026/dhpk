@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.63.2 — 2026-09-24 — Fix bounded runner systemd expansion and dep-audit empty counts, update CI workflows to Node 24 and Ubuntu 26.04
+
+- **fix(bounded-test-runner)** — Pass --expand-environment=no to systemd-run in the bounded Linux test runner, because systemd 259 (Ubuntu 26.04) expands ${VAR} in scope arguments and blanked the inline cgroup check, failing every bounded run with "cgroup v2 path is unavailable".
+- **fix(dep-audit)** — Report zero findings instead of blank severity counts when the package-manager audit produces no output (timeout, offline, or no lockfile), since jq prints nothing for an empty audit file.
+- **chore(ci-workflows)** — Move the pinned GitHub Actions to their Node 24 majors (upload-artifact v7.0.1, download-artifact v8.0.1, setup-node v7.0.0, markdownlint-cli2-action v24.2.0), pin every Linux job in CI and Release to ubuntu-26.04 ahead of the ubuntu-latest migration, and make the workflow policy reject any other Linux runner label so CI and Release cannot drift onto different images.
+- **ci(release)** — Release PRs now rehearse the tag-only verification (shared `release-verify.sh` dry-run plus the consumer gate) before merge, CI and the tag job share one test environment, and `release-runner.sh prepare` derives its file scope from `prepare-release.js paths`.
+
 ## 0.63.1 — 2026-09-23 — Release workflow installs ripgrep before repository tests
 
 - **fix(release-workflow)** — Install ripgrep in the Release workflow before rerunning the bounded repository tests, matching CI, so the isolated code-trace and deploy-list fixtures no longer fail on the Ubuntu runner.

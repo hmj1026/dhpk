@@ -11,14 +11,14 @@ concurrency:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     outputs:
       release_pr_head_sha: ${{ steps.resolve-release-pr.outputs.head_sha }}
-      release_target_commit: ${{ steps.release-provenance.outputs.target_commit }}
-      release_target_tree: ${{ steps.release-provenance.outputs.target_tree }}
-      release_verifier_sha256: ${{ steps.verifier-integrity.outputs.sha256 }}
-      release_notes_sha256: ${{ steps.notes.outputs.notes_sha256 }}
+      release_target_commit: ${{ steps.release-verify.outputs.target_commit }}
+      release_target_tree: ${{ steps.release-verify.outputs.target_tree }}
+      release_verifier_sha256: ${{ steps.release-verify.outputs.verifier_sha256 }}
+      release_notes_sha256: ${{ steps.release-verify.outputs.notes_sha256 }}
     permissions:
       contents: read
       pull-requests: read
@@ -27,30 +27,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify immutable tag provenance
-        id: release-provenance
-        run: |
-          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "release workflow: tag must match vX.Y.Z" >&2
-            exit 1
-          fi
-          TAG_SHA="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
-          if ! git merge-base --is-ancestor "$TAG_SHA" origin/main; then
-            echo "release workflow: tag commit is not contained in origin/main" >&2
-            exit 1
-          fi
-          echo "target_commit=$TAG_SHA" >> "$GITHUB_OUTPUT"
-          target_tree="$(git rev-parse "${TAG_SHA}^{tree}")"
-          echo "target_tree=$target_tree" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/setup-dhpk-test-env
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: '24'
-
-      # Ubuntu runners ship yq but not ripgrep. Several harness scripts
-      # require rg, and the isolated fixtures delegate to the host binary.
-      - name: Install ripgrep
-        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      # One implementation shared with the release-PR `release-rehearsal` CI
+      # job (dry-run mode), so these stages have already run on this tree
+      # before the tag existed. Tag mode first proves the tag is vX.Y.Z and
+      # contained in origin/main, then checks parity, harness preflight,
+      # packages, and writes the trusted artifact manifest, the exact
+      # release-note bytes, the publication bundle, and the verifier binding
+      # into $RUNNER_TEMP. It runs before the suite so a bad tag fails fast.
+      - name: Verify release candidate
+        id: release-verify
+        run: bash scripts/release/release-verify.sh --mode tag --tag "$GITHUB_REF_NAME" --out-dir "$RUNNER_TEMP"
 
       # Re-run the full source test suite on the immutable tag with the same
       # strong containment contract as CI. Local macOS publish preflight may
@@ -80,100 +68,23 @@ jobs:
           echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
           echo "release workflow: merged release PR head=$head_sha"
 
-      - name: Verify release parity
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          node scripts/ci/verify-release-parity.js --version "$VERSION"
-
-      - name: Verify harness facade preflight
-        run: |
-          set +e
-          output="$(bin/dhpk harness preflight --json)"
-          preflight_exit="$?"
-          echo "$output"
-          set -e
-          outcome="$(node -e "console.log(JSON.parse(process.argv[1]).outcome || '')" "$output")"
-          case "$outcome" in
-            PASS)
-              [ "$preflight_exit" -eq 0 ] || exit 1
-              ;;
-            UNAVAILABLE)
-              [ "$preflight_exit" -eq 2 ] || exit 1
-              echo "Harness facade preflight is UNAVAILABLE on standard runner; keeping CI job non-blocking."
-              ;;
-            BLOCKED|FAIL)
-              echo "::error::Harness facade preflight outcome is $outcome" >&2
-              exit 1
-              ;;
-            *)
-              echo "::error::Unexpected harness facade preflight outcome: $outcome" >&2
-              exit 1
-              ;;
-          esac
-
-      - name: Verify generated platform packages
-        run: |
-          for surface in agent-plugin cursor-plugin codex-native agy-plugin; do
-            bin/dhpk distribution "$surface" validate --json
-          done
-          node scripts/ci/verify-platform-packages.js
-
-      # Bind the exact tracked package bytes that passed the package gate to
-      # this workflow run. The post-publish job verifies this manifest against
-      # the immutable tag before it starts any consumer probe; it never
-      # regenerates a package or treats a generic cache hit as evidence.
-      - name: Write trusted release artifact manifest
-        run: |
-          node scripts/release/release-artifact-manifest.js \
-            --output "$RUNNER_TEMP/dhpk-release-artifact-manifest.json" \
-            --run-id "$GITHUB_RUN_ID" \
-            --version "${GITHUB_REF_NAME#v}"
-
+      # The post-publish job verifies this manifest against the immutable tag
+      # before it starts any consumer probe; it never regenerates a package or
+      # treats a generic cache hit as evidence.
       - name: Upload trusted release artifact manifest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact-manifest.json
           if-no-files-found: error
           retention-days: 7
 
-      - name: Extract release notes from CHANGELOG.md
-        id: notes
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          notes_file="$RUNNER_TEMP/dhpk-release-notes.txt"
-          bash scripts/release/extract-notes.sh CHANGELOG.md "$VERSION" > "$notes_file"
-          {
-            echo "notes<<EOF"
-            cat "$notes_file"
-            echo "EOF"
-            echo "notes_sha256=sha256:$(sha256sum "$notes_file" | cut -d' ' -f1)"
-          } >> "$GITHUB_OUTPUT"
-
-      # Bind the exact release-note bytes and publication identity that a
-      # later write-enabled publication job may consume. The bundle validator
-      # is repository-independent so that consumer can verify it without a
+      # The bundle binds the exact release-note bytes and publication identity
+      # that the write-enabled publication job may consume. Its validator is
+      # repository-independent so that consumer can verify it without a
       # checkout or release-note regeneration.
-      - name: Write trusted publication bundle
-        id: write-publication-bundle
-        run: |
-          node scripts/release/release-publication-bundle.js \
-            --output "$RUNNER_TEMP/dhpk-release-publication-bundle.json" \
-            --notes-file "$RUNNER_TEMP/dhpk-release-notes.txt" \
-            --run-id "$GITHUB_RUN_ID" \
-            --tag "$GITHUB_REF_NAME" \
-            --version "${GITHUB_REF_NAME#v}" \
-            --expected-notes-sha256 "${{ steps.notes.outputs.notes_sha256 }}" \
-            --digest-output "$RUNNER_TEMP/dhpk-release-publication-notes-digest.json" \
-            --target-commit "${{ steps.release-provenance.outputs.target_commit }}" \
-            --target-tree "${{ steps.release-provenance.outputs.target_tree }}"
-
-      - name: Bind trusted publication verifier
-        id: verifier-integrity
-        run: echo "sha256=sha256:$(sha256sum scripts/release/verify-publication-bundle.js | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-
       - name: Upload trusted publication bundle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-release-publication-bundle-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle.json
@@ -181,10 +92,8 @@ jobs:
           retention-days: 7
 
       # Keep the extraction digest as an independent, run-bound consumer input.
-      # A future no-checkout publisher can download this anchor together with
-      # the bundle and verifier without regenerating release notes.
       - name: Upload trusted publication notes digest
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-release-publication-notes-digest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-notes-digest.json
@@ -192,10 +101,9 @@ jobs:
           retention-days: 7
 
       # The consumer verifier has no repository dependencies and is shipped as
-      # a separate run-bound artifact for a publisher that does not check out
-      # repository code.
+      # a separate run-bound artifact; its digest is bound by release-verify.sh.
       - name: Upload trusted publication bundle verifier
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dhpk-release-publication-bundle-verifier-${{ github.run_id }}
           path: scripts/release/verify-publication-bundle.js
@@ -207,30 +115,30 @@ jobs:
   # the exact note bytes written by the downloaded standalone verifier.
   publish:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: write
     steps:
       - name: Download trusted publication bundle
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-release-publication-bundle-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle
 
       - name: Download trusted publication notes digest
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-release-publication-notes-digest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-notes-digest
 
       - name: Download trusted publication bundle verifier
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-release-publication-bundle-verifier-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-publication-bundle-verifier
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
@@ -287,7 +195,7 @@ jobs:
   # via the job summary only — never edits the immutable GitHub Release notes.
   consumer-verify:
     needs: [release, publish]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     permissions:
       contents: read
@@ -296,12 +204,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
 
       - name: Download trusted release artifact manifest
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-release-artifact-manifest-${{ github.run_id }}
           path: ${{ runner.temp }}/dhpk-release-artifact
@@ -363,7 +271,7 @@ jobs:
   # still current and both branches have identical trees.
   sync-develop:
     needs: [release, publish]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions:
       contents: write

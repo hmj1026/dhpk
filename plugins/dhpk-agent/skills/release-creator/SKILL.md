@@ -56,8 +56,11 @@ Config resolution, version editing, changelog synthesis, validation interpretati
 ## 3. Run the mechanical sequence
 
 After the release edits and validation are complete, prepare the release PR. Pass every
-intended release file explicitly; the runner rejects unrelated worktree changes and
-does not stage the whole repository implicitly:
+intended release file explicitly, unless the project's own release-preparation
+script (dhpk: `prepare-release.js` under the repository's release scripts) has a
+`paths` subcommand that prints its release scope (`file`/`dir`/`deleted` lines). With no file list, the runner then stages only
+the changed paths inside that scope. Either way it rejects unrelated worktree changes
+and does not stage the whole repository implicitly:
 
 ```bash
 bash "$SKILL_DIR/scripts/release-runner.sh" \
