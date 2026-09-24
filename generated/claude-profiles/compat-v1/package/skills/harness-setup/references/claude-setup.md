@@ -42,8 +42,15 @@ any configuration question and stop:
 bash scripts/install-assets.sh \
   --source-artifact <distribution-root> \
   --target <project-root>/.claude/dhpk \
-  --install <hooks|rules|scripts|all> [--dry-run] [--force]
+  --install <hooks|rules|scripts|all> [--dry-run] [--force] [--vendor]
 ```
+
+`--install rules` (and the `rules` part of `--install all`) writes
+`<project-root>/.claude/rules/dhpk-overrides.md`, a project-delta stub that
+points at the plugin runtime `rules/` directory. It does not copy upstream
+policy into `.claude/dhpk/rules/`. `--vendor` restores that discouraged
+verbatim copy. An existing `.claude/dhpk/rules/` tree is reported as legacy
+and left in place.
 
 The adapter prints a structured result containing `status`, `code`, the
 physical artifact and target, operation flags, and the Skill-relative writer.

@@ -7,17 +7,21 @@ When this phase performs a copy, the Host supplies an explicit distribution
 artifact and invokes the Skill-local `scripts/install-project-assets.sh` adapter.
 
 The local adapter reads selected artifact data and copies it to
-`<project>/.claude/dhpk/`:
+`<project>/.claude/dhpk/`, except default `rules` which writes a delta stub:
 
 | Selection | Source | Target |
 |---|---|---|
 | `hooks` | `hooks/hooks.json` | `.claude/dhpk/hooks/hooks.json` |
 | `hooks` | `scripts/hooks/` | `.claude/dhpk/scripts/hooks/` |
-| `rules` | `rules/` | `.claude/dhpk/rules/` |
+| `rules` | stub template | `.claude/rules/dhpk-overrides.md` |
+| `rules --vendor` | `rules/` | `.claude/dhpk/rules/` (discouraged verbatim copy) |
 | `scripts` | `scripts/` | `.claude/dhpk/scripts/` (shared setup scripts) |
 | `scripts` | `skills/precommit/scripts/` | `.claude/dhpk/skills/precommit/scripts/` |
 | `scripts` | `skills/repo-verify/scripts/` | `.claude/dhpk/skills/repo-verify/scripts/` |
 | `scripts` | `skills/harness-audit/scripts/` | `.claude/dhpk/skills/harness-audit/scripts/` |
+
+Default `rules` does not create `.claude/dhpk/rules/`. If that tree already
+exists, the installer reports it as legacy and leaves it untouched.
 
 It never edits `.claude/settings.json` or `.claude/settings.local.json`.
 Consumers register any copied hook explicitly, using their own desired policy.
@@ -31,7 +35,7 @@ Run the adapter as follows when a group remains after mode short-circuiting:
 bash scripts/install-project-assets.sh \
   --source-artifact <distribution-root> \
   --target <project-root>/.claude/dhpk \
-  --install hooks|rules|scripts|all [--dry-run] [--force]
+  --install hooks|rules|scripts|all [--dry-run] [--force] [--vendor]
 ```
 
 The artifact is data. The adapter executes only its adjacent synchronized
