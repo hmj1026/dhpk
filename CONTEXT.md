@@ -44,6 +44,22 @@ _Avoid_: Independent package, reverse-sync source
 A generated Host-facing representation of canonical skill content, with its own layout or packaging shape but the same ownership and stable capability identity.
 _Avoid_: Canonical source, mirror inventory
 
+**Shared Project Projection**:
+The single project-local Projection of portable skills that Hosts bind to, owned by one Projection Receipt.
+_Avoid_: Universal config root, `.agents` directory (when meaning the owned content)
+
+**Native Projection**:
+A Host-specific Projection in that Host's own configuration directory, holding the assets the Host cannot share, such as agents, rules, and commands.
+_Avoid_: Legacy projection, private copy
+
+**Projection Receipt**:
+The record that is the sole lifecycle owner of the Shared Project Projection's content and its Host Bindings.
+_Avoid_: Projection manifest, install log
+
+**Host Binding**:
+A receipt-owned record that one Host discovers one skill in the Shared Project Projection, either directly or through a per-skill link in its native directory. A Host Binding owns no content.
+_Avoid_: Directory symlink, native copy
+
 ## Skill Distribution
 
 **Self-Contained Skill**:
@@ -82,6 +98,7 @@ _Avoid_: Supported (when no environment-specific observation exists)
 - A Host such as AGY and a Provider or worker backend such as `agy-fast-worker` are distinct concepts even when their names are related.
 - A Target Agent is an agent identity (`claude-code`, `codex-cli`, `cursor`, `agy`); the Route to it is looked up, so the same target may be `native` on one Host and `headless-cli` on another.
 - A Role Alias carries a Role, never a backend; Host/Role Defaults remain the only automatic selection policy.
+- A Host reads portable skills through Host Bindings to the Shared Project Projection; its Native Projection holds only what cannot be shared. Removing a Host removes its bindings, not shared content another Host still binds.
 
 ## Release Evidence
 
