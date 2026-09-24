@@ -41,6 +41,33 @@ const AGY_GENERATOR_DOC_PATHS = [
 
 const AGY_GENERATOR_PIN_RE = /bin\/dhpk distribution agy-plugin generate --output plugins\/dhpk-agy --version=(\d+\.\d+\.\d+) --json/g;
 
+// Directories that `prepare-release.js write` regenerates wholesale, and the
+// fragment directory whose promoted entries it deletes. Together with the
+// field-patched manifests, doc pins, and CHANGELOG.md they form the complete
+// set of paths a release-preparation commit may touch.
+const REGENERATED_RELEASE_DIRS = [
+  'plugins/dhpk/',
+  'plugins/dhpk-agent/',
+  'plugins/dhpk-cursor/',
+  'plugins/dhpk-agy/',
+  'generated/claude-marketplace/package/',
+];
+
+const CHANGELOG_FRAGMENT_DIR = 'changelog.d/';
+
+// Release scope as ordered {kind, path} entries: `file` is an exact path,
+// `dir` a prefix any change under which is permitted, and `deleted` a prefix
+// under which only deletions are permitted.
+function releaseScope() {
+  const files = ['CHANGELOG.md', ...MANIFEST_PATHS, ...AGY_GENERATOR_DOC_PATHS]
+    .filter((relPath) => !REGENERATED_RELEASE_DIRS.some((dir) => relPath.startsWith(dir)));
+  return [
+    ...files.map((relPath) => ({ kind: 'file', path: relPath })),
+    ...REGENERATED_RELEASE_DIRS.map((dir) => ({ kind: 'dir', path: dir })),
+    { kind: 'deleted', path: CHANGELOG_FRAGMENT_DIR },
+  ];
+}
+
 function agyGeneratorCommand(version) {
   return `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json`;
 }
@@ -143,6 +170,8 @@ function checkParity(root, targetVersion) {
 
 module.exports = {
   MANIFEST_PATHS,
+  REGENERATED_RELEASE_DIRS,
+  releaseScope,
   AGY_GENERATOR_DOC_PATHS,
   SEMVER_PATTERN,
   agyGeneratorCommand,

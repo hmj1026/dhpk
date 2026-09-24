@@ -425,4 +425,37 @@ test('write mode fails closed when an inventory-selected Agent/Cursor skill is s
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
+// `paths` publishes the release scope for release-runner.sh. It must cover
+// every surface a real version bump rewrites (v0.63.1 bump shape below) and
+// needs neither a version nor the develop branch.
+test('paths prints the release scope covering every surface a version bump rewrites', () => {
+  const res = spawnSync(process.execPath, [CLI, 'paths'], { cwd: ROOT, encoding: 'utf8' });
+  assert.strictEqual(res.status, 0, res.stderr);
+  const entries = res.stdout.trim().split('\n').map((line) => line.split(' '));
+  for (const [kind, value] of entries) {
+    assert.ok(['file', 'dir', 'deleted'].includes(kind), `unknown scope kind '${kind}'`);
+    assert.ok(value && !value.startsWith('/') && !value.includes('..'), `scope path must be repo-relative: ${value}`);
+    if (kind !== 'file') assert.ok(value.endsWith('/'), `directory scope must end with '/': ${value}`);
+  }
+  const permits = (changed, deleted = false) => entries.some(([kind, value]) => (
+    (kind === 'file' && value === changed)
+    || (kind === 'dir' && changed.startsWith(value))
+    || (kind === 'deleted' && deleted && changed.startsWith(value))
+  ));
+  const bump = [
+    '.agents/plugins/marketplace.json', '.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'CHANGELOG.md',
+    'docs/platform-installation.md', 'docs/platform-installation.zh-TW.md',
+    'generated/claude-marketplace/package/.claude-plugin/plugin.json',
+    'generated/claude-marketplace/package/docs/platform-installation.md',
+    'generated/claude-profiles/compat-v1/package/plugin.json', 'generated/claude-profiles/full/package/plugin.json',
+    'generated/claude-profiles/minimal/package/plugin.json', 'plugins/dhpk-agent/provenance.json',
+    'plugins/dhpk-agy/fingerprints.json', 'plugins/dhpk-cursor/.cursor-plugin/marketplace.json',
+    'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk/provenance.json',
+  ];
+  for (const changed of bump) assert.ok(permits(changed), `release scope must permit ${changed}`);
+  assert.ok(permits('changelog.d/fix.promoted.md', true), 'promoted fragments may be deleted');
+  assert.ok(!permits('changelog.d/fix.promoted.md', false), 'changelog.d/ is deletion-only');
+  assert.ok(!permits('scripts/release/prepare-release.js'), 'source files are outside the release scope');
+});
+
 run('prepare-release-cli');
