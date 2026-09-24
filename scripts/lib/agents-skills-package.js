@@ -655,7 +655,11 @@ function materializeAgentsSkillsProjection(options = {}) {
       ? previous.entries.filter((entry) => !currentNames.has(entry.name) && !renamedIds.has(entry.id))
       : [];
     const carriedPaths = previous
-      ? previous.managedPaths.filter((relative) => !currentPathSet.has(relative) && !renamedPaths.has(relative))
+      ? previous.managedPaths.filter((relative) => {
+          if (currentPathSet.has(relative) || renamedPaths.has(relative)) return false;
+          const top = relative.split('/')[0].replace(/\.md$/, '');
+          return !currentNames.has(top);
+        })
       : [];
     const carriedFingerprints = previous
       ? Object.fromEntries(carriedPaths.map((relative) => [relative, previous.generatedFingerprints[relative]]))
