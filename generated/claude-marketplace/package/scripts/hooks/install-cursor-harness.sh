@@ -9,7 +9,8 @@
 #   install-cursor-harness.sh --migrate        adopt exact legacy destinations
 #   install-cursor-harness.sh --plan --json    report reconciliation evidence without writing
 #                                              (adds warnings[] when ~/.cursor/plugins/cache
-#                                              hash-cache plugin.json drifts from local SSOT)
+#                                              hash-cache plugin.json drifts from local SSOT;
+#                                              passes through excluded[] for unmet skill deps)
 #   install-cursor-harness.sh --adopt <path>@<destination-fingerprint>@<source-fingerprint> explicitly adopt one reported collision
 #   install-cursor-harness.sh --uninstall       remove unchanged owned entries
 #   install-cursor-harness.sh --force          bypass project-root heuristic

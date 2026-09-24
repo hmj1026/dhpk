@@ -521,6 +521,9 @@ SELECTION_RUNTIME_IDS = None
 SELECTION_FINGERPRINT = None
 SELECTION_SURFACE_FINGERPRINT = None
 SELECTION_MIGRATION = None
+DEPENDENCY_GATED_KINDS = ('commands', 'agents')
+SKILL_REF_RE = re.compile(r'skills/([A-Za-z0-9._-]+)/')
+EXCLUDED_SOURCE_ENTRIES = []
 # Relative Codex skill path -> validated package-local runtime assets.  The
 # map is populated while the selected source inventory is built, before any
 # transaction or destination mutation starts.
@@ -2206,6 +2209,8 @@ def inventory_supporting_sources():
 
 def source_fingerprint():
     digest = hashlib.sha256()
+    metadata = inventory_skill_metadata()
+    available = set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or [])
     for root_name in SOURCE_KINDS:
         root = os.path.join(CODEX_SRC, root_name)
         if not os.path.isdir(root):
@@ -2213,12 +2218,13 @@ def source_fingerprint():
         for name in sorted(os.listdir(root)):
             if is_ignored_distribution_name(name):
                 continue
-            metadata = inventory_skill_metadata() if root_name == 'skills' else {}
             if root_name == 'skills' and SELECTION_EMITTED_IDS is not None:
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
-                if stable_id not in set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or []):
+                if stable_id not in available:
                     continue
             child = os.path.join(root, name)
+            if unmet_skill_dependency_ids(root_name, child, metadata):
+                continue
             validate_source_tree(child, f'{root_name} source', allowed_roots=(PLUGIN_ROOT, INSTALLER_ROOT))
             relative = f'{root_name}/{name}'
             digest.update(relative.encode('utf-8'))
@@ -2788,8 +2794,88 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
     }
 
 
+def inventory_skill_token_map(metadata):
+    """Map inventory id, public name, and path basename to a stable skill id."""
+    tokens = {}
+    for name, record in (metadata or {}).items():
+        if not isinstance(record, dict):
+            continue
+        stable_id = record.get('id')
+        if not isinstance(stable_id, str) or not stable_id:
+            continue
+        tokens[stable_id] = stable_id
+        if isinstance(name, str) and name:
+            tokens[name] = stable_id
+        skill_path = record.get('path')
+        if isinstance(skill_path, str) and skill_path:
+            tokens[os.path.basename(skill_path.rstrip('/'))] = stable_id
+    return tokens
+
+
+def iter_source_texts(source):
+    """Yield UTF-8 text from a projected file or directory tree."""
+    real = source
+    try:
+        if os.path.islink(source):
+            real = os.path.realpath(source)
+    except OSError:
+        return
+    if os.path.isfile(real):
+        try:
+            with open(real, encoding='utf-8', errors='ignore') as handle:
+                yield handle.read()
+        except OSError:
+            return
+        return
+    if not os.path.isdir(real):
+        return
+    for root, dirs, files in os.walk(real):
+        dirs[:] = [name for name in dirs if not is_ignored_distribution_name(name)]
+        for name in files:
+            if is_ignored_distribution_name(name):
+                continue
+            path = os.path.join(root, name)
+            try:
+                if not os.path.isfile(path):
+                    continue
+                with open(path, encoding='utf-8', errors='ignore') as handle:
+                    yield handle.read()
+            except OSError:
+                continue
+
+
+def unmet_skill_dependency_ids(kind, source, metadata):
+    """Return inventory skill ids referenced by a command/agent but not selected."""
+    if kind not in DEPENDENCY_GATED_KINDS or SELECTION_EMITTED_IDS is None:
+        return []
+    available = set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or [])
+    tokens = inventory_skill_token_map(metadata)
+    missing = set()
+    for text in iter_source_texts(source):
+        if not isinstance(text, str):
+            continue
+        for match in SKILL_REF_RE.finditer(text):
+            stable_id = tokens.get(match.group(1))
+            if stable_id and stable_id not in available:
+                missing.add(stable_id)
+    return sorted(missing)
+
+
+def record_unmet_skill_exclusion(kind, name, missing):
+    EXCLUDED_SOURCE_ENTRIES.append({
+        'kind': kind,
+        'name': name,
+        'reason': 'unmet-skill-dependency',
+        'missing': list(missing),
+    })
+
+
 def current_sources():
+    global EXCLUDED_SOURCE_ENTRIES
+    EXCLUDED_SOURCE_ENTRIES = []
     result = {kind: {} for kind in MANAGED_KINDS}
+    metadata = inventory_skill_metadata()
+    available = set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or [])
     for kind in SOURCE_KINDS:
         root = os.path.join(CODEX_SRC, kind)
         if not os.path.isdir(root):
@@ -2797,13 +2883,16 @@ def current_sources():
         for name in sorted(os.listdir(root)):
             if is_ignored_distribution_name(name):
                 continue
-            metadata = inventory_skill_metadata() if kind == 'skills' else {}
             if kind == 'skills' and SELECTION_EMITTED_IDS is not None:
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
-                if stable_id not in set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or []):
+                if stable_id not in available:
                     continue
             source = os.path.join(root, name)
             if not lexists(source):
+                continue
+            missing = unmet_skill_dependency_ids(kind, source, metadata)
+            if missing:
+                record_unmet_skill_exclusion(kind, name, missing)
                 continue
             relative = f'{kind}/{name}'
             result[kind][name] = (source, relative)
@@ -3238,6 +3327,10 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'missing': sorted(missing, key=lambda item: item.get('path', '')),
         'updates': sorted(updates, key=lambda item: item.get('path', '')),
         'retired': sorted(retired, key=lambda item: item.get('path', '')),
+        'excluded': sorted(
+            [dict(item) for item in EXCLUDED_SOURCE_ENTRIES],
+            key=lambda item: (item.get('kind', ''), item.get('name', '')),
+        ),
         'next_action': next_action,
     }
 
@@ -3247,6 +3340,13 @@ def print_plan(report):
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(f"[install-codex-skills] plan: state={report['state']} receipt_state={report['receipt_state']}")
+        for item in report.get('excluded') or []:
+            missing = ','.join(item.get('missing') or [])
+            print(
+                '[install-codex-skills] excluded: '
+                f"{item.get('kind')}/{item.get('name')} "
+                f"reason={item.get('reason')} missing={missing}"
+            )
         for collision in report['collisions']:
             print(
                 '[install-codex-skills] collision: '
@@ -3549,6 +3649,13 @@ def print_summary(counts, collisions, orphaned):
         print(f'[install-codex-skills] collision preserved: {relative}')
     for relative in sorted(orphaned):
         print(f'[install-codex-skills] orphaned preserved: {relative}')
+    for item in EXCLUDED_SOURCE_ENTRIES:
+        missing = ','.join(item.get('missing') or [])
+        print(
+            '[install-codex-skills] excluded: '
+            f"{item.get('kind')}/{item.get('name')} "
+            f"reason={item.get('reason')} missing={missing}"
+        )
 
 
 def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, metadata):

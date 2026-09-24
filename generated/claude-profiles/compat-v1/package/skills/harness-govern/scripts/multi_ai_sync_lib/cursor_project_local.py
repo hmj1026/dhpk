@@ -205,18 +205,109 @@ def _selected_skill_names(plugin_root, receipt):
     return sorted(available[stable_id] for stable_id in emitted)
 
 
+DEPENDENCY_GATED_KINDS = ("commands", "agents")
+SKILL_REF_RE = re.compile(r"skills/([A-Za-z0-9._-]+)/")
+
+
+def _skill_token_map(plugin_root):
+    inventory_path = os.path.join(plugin_root, "manifests", "distribution-inventory.json")
+    try:
+        with open(inventory_path, encoding="utf-8") as handle:
+            inventory = json.load(handle)
+    except (OSError, ValueError):
+        raise CursorProjectLocalError("current distribution inventory is unavailable")
+    tokens = {}
+    for skill in inventory.get("skills") or []:
+        if not isinstance(skill, dict):
+            continue
+        stable_id = skill.get("id")
+        if not isinstance(stable_id, str) or not stable_id:
+            continue
+        tokens[stable_id] = stable_id
+        name = skill.get("name")
+        if isinstance(name, str) and name:
+            tokens[name] = stable_id
+        skill_path = skill.get("path")
+        if isinstance(skill_path, str) and skill_path:
+            tokens[os.path.basename(skill_path.rstrip("/"))] = stable_id
+    return tokens
+
+
+def _available_skill_ids(receipt):
+    ids = set()
+    for key in ("emittedStableIds", "runtimeSupportStableIds"):
+        values = receipt.get(key)
+        if not isinstance(values, list):
+            continue
+        ids.update(value for value in values if isinstance(value, str) and value)
+    return ids
+
+
+def _iter_source_texts(source):
+    real = source
+    try:
+        if os.path.islink(source):
+            real = os.path.realpath(source)
+    except OSError:
+        return
+    if os.path.isfile(real):
+        try:
+            with open(real, encoding="utf-8", errors="ignore") as handle:
+                yield handle.read()
+        except OSError:
+            return
+        return
+    if not os.path.isdir(real):
+        return
+    for root, dirs, files in os.walk(real):
+        dirs[:] = [name for name in dirs if not _ignored(name)]
+        for name in files:
+            if _ignored(name):
+                continue
+            path = os.path.join(root, name)
+            try:
+                if not os.path.isfile(path):
+                    continue
+                with open(path, encoding="utf-8", errors="ignore") as handle:
+                    yield handle.read()
+            except OSError:
+                continue
+
+
+def _unmet_skill_dependency_ids(kind, source, tokens, available_ids):
+    if kind not in DEPENDENCY_GATED_KINDS:
+        return []
+    missing = set()
+    for text in _iter_source_texts(source):
+        if not isinstance(text, str):
+            continue
+        for match in SKILL_REF_RE.finditer(text):
+            stable_id = tokens.get(match.group(1))
+            if stable_id and stable_id not in available_ids:
+                missing.add(stable_id)
+    return sorted(missing)
+
+
 def _expected_entries(plugin_root, source_root, receipt):
     expected = {}
+    tokens = _skill_token_map(plugin_root)
+    available_ids = _available_skill_ids(receipt)
+    filter_gated = receipt.get("emittedStableIds") is not None
     for kind in REQUIRED_KINDS[:-1]:
         kind_root = os.path.join(source_root, kind)
         if not os.path.isdir(kind_root):
             raise CursorProjectLocalError("current Cursor source is missing %s" % kind)
         names = _selected_skill_names(plugin_root, receipt) if kind == "skills" else sorted(os.listdir(kind_root))
-        expected[kind] = {
-            name: os.path.join(kind_root, name)
-            for name in names
-            if not _ignored(name) and os.path.lexists(os.path.join(kind_root, name))
-        }
+        expected[kind] = {}
+        for name in names:
+            if _ignored(name):
+                continue
+            path = os.path.join(kind_root, name)
+            if not os.path.lexists(path):
+                continue
+            if filter_gated and _unmet_skill_dependency_ids(kind, path, tokens, available_ids):
+                continue
+            expected[kind][name] = path
 
     supporting_root = os.path.join(source_root, "dhpk")
     supporting = {}

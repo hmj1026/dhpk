@@ -1,12 +1,19 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
-const HOOK = path.join(__dirname, '..', 'scripts', 'hooks', 'install-cursor-harness.sh');
+const REPO = path.join(__dirname, '..');
+const HOOK = path.join(REPO, 'scripts', 'hooks', 'install-cursor-harness.sh');
+const INVENTORY = JSON.parse(
+  fs.readFileSync(path.join(REPO, 'manifests', 'distribution-inventory.json'), 'utf8'),
+);
+const SKILL_REF_RE = /skills\/([A-Za-z0-9._-]+)\//g;
+const ROOT_INSTALL_TIMEOUT_MS = 60_000;
 
 function projectRoot() {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-project-')));
@@ -69,13 +76,100 @@ function descriptorPseudoPathBlocker() {
   return shim;
 }
 
-function runInstaller(project, args, pluginRoot, extraEnv) {
+function runInstaller(project, args, pluginRoot, extraEnv, timeoutMs) {
   return spawnSync('bash', [HOOK, ...args], {
     cwd: project,
     env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, ...(extraEnv || {}) },
     encoding: 'utf8',
-    timeout: 20000,
+    timeout: timeoutMs || 20000,
   });
+}
+
+function skillTokenMap() {
+  const tokens = new Map();
+  for (const skill of INVENTORY.skills || []) {
+    if (!skill || typeof skill.id !== 'string' || !skill.id) continue;
+    tokens.set(skill.id, skill);
+    if (typeof skill.name === 'string' && skill.name) tokens.set(skill.name, skill);
+    if (typeof skill.path === 'string' && skill.path) {
+      tokens.set(path.basename(skill.path.replace(/\/+$/, '')), skill);
+    }
+  }
+  return tokens;
+}
+
+function referencedSkillIds(text) {
+  const tokens = skillTokenMap();
+  const ids = new Set();
+  SKILL_REF_RE.lastIndex = 0;
+  let match;
+  while ((match = SKILL_REF_RE.exec(text))) {
+    const skill = tokens.get(match[1]);
+    if (skill) ids.add(skill.id);
+  }
+  return [...ids].sort();
+}
+
+function readProjectedText(target) {
+  const stat = fs.lstatSync(target);
+  if (stat.isSymbolicLink() || stat.isFile()) {
+    return fs.readFileSync(target, 'utf8');
+  }
+  if (!stat.isDirectory()) return '';
+  let text = '';
+  for (const name of fs.readdirSync(target).sort()) {
+    text += `\n${readProjectedText(path.join(target, name))}`;
+  }
+  return text;
+}
+
+function projectedSkillIds(cursorRoot) {
+  const skillsDir = path.join(cursorRoot, 'skills');
+  const names = fs.existsSync(skillsDir) ? fs.readdirSync(skillsDir) : [];
+  const ids = new Set();
+  for (const skill of INVENTORY.skills || []) {
+    if (skill && names.includes(skill.name)) ids.add(skill.id);
+  }
+  return ids;
+}
+
+function assertProjectedDependencyClosure(cursorRoot) {
+  const available = projectedSkillIds(cursorRoot);
+  for (const kind of ['commands', 'agents']) {
+    const dir = path.join(cursorRoot, kind);
+    if (!fs.existsSync(dir)) continue;
+    for (const name of fs.readdirSync(dir)) {
+      const missing = referencedSkillIds(readProjectedText(path.join(dir, name)))
+        .filter((id) => !available.has(id));
+      assert.deepStrictEqual(
+        missing,
+        [],
+        `${kind}/${name} references dhpk skills missing from the projected tree: ${missing.join(', ')}`,
+      );
+    }
+  }
+}
+
+function hashCopiedFile(file) {
+  const digest = crypto.createHash('sha256');
+  digest.update('file\0');
+  digest.update(fs.readFileSync(file));
+  return digest.digest('hex');
+}
+
+function copyManagedEntry(receipt, kind, name, source, destination) {
+  const fingerprint = hashCopiedFile(destination);
+  const relative = `${kind}/${name}`;
+  receipt.managed_entries[kind] = receipt.managed_entries[kind] || {};
+  receipt.managed_entries[kind][name] = {
+    destination: relative,
+    source: relative,
+    mode: 'copy',
+    source_fingerprint: hashCopiedFile(source),
+    destination_fingerprint: fingerprint,
+    fingerprint,
+    ownership_marker: `copy:${relative}`,
+  };
 }
 
 test('bash -n syntax check passes', () => {
@@ -331,6 +425,150 @@ test('--plan --json does not warn when hash cache version matches local packages
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
     fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('default minimal Cursor install keeps command and agent skill-path dependencies closed', () => {
+  const scratch = projectRoot();
+  try {
+    const planned = runInstaller(
+      scratch,
+      ['--copy', '--plan', '--json', '--force'],
+      REPO,
+      undefined,
+      ROOT_INSTALL_TIMEOUT_MS,
+    );
+    const report = JSON.parse(planned.stdout);
+    const excluded = report.excluded || [];
+    const ghostCommand = excluded.find((item) => item.kind === 'commands' && item.name === 'harness-govern.md');
+    const ghostAgent = excluded.find((item) => item.kind === 'agents' && item.name === 'harness-reviser.md');
+    assert.ok(ghostCommand, planned.stdout);
+    assert.strictEqual(ghostCommand.reason, 'unmet-skill-dependency');
+    assert.ok(ghostCommand.missing.includes('harness-govern'), JSON.stringify(ghostCommand));
+    assert.ok(ghostAgent, planned.stdout);
+    assert.strictEqual(ghostAgent.reason, 'unmet-skill-dependency');
+    assert.ok(ghostAgent.missing.includes('harness-govern'), JSON.stringify(ghostAgent));
+    assert.ok(
+      !excluded.some((item) => item.kind === 'agents' && item.name === 'ui-ux-verifier.md'),
+      'external skill paths must not exclude ui-ux-verifier.md',
+    );
+
+    const human = runInstaller(
+      scratch,
+      ['--copy', '--plan', '--force'],
+      REPO,
+      undefined,
+      ROOT_INSTALL_TIMEOUT_MS,
+    );
+    assert.match(`${human.stdout}\n${human.stderr}`, /excluded: commands\/harness-govern\.md/);
+    assert.match(`${human.stdout}\n${human.stderr}`, /reason=unmet-skill-dependency/);
+    assert.match(`${human.stdout}\n${human.stderr}`, /missing=harness-govern/);
+
+    const installed = runInstaller(
+      scratch,
+      ['--copy', '--force'],
+      REPO,
+      undefined,
+      ROOT_INSTALL_TIMEOUT_MS,
+    );
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const cursor = path.join(scratch, '.cursor');
+    assert.ok(!fs.existsSync(path.join(cursor, 'commands', 'harness-govern.md')));
+    assert.ok(!fs.existsSync(path.join(cursor, 'agents', 'harness-reviser.md')));
+    assert.ok(fs.existsSync(path.join(cursor, 'commands', 'verify.md')));
+    assertProjectedDependencyClosure(cursor);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('a profile that includes harness-govern projects the gated command and agent', () => {
+  const scratch = projectRoot();
+  try {
+    const res = runInstaller(
+      scratch,
+      ['--copy', '--force', '--profile', 'minimal', '--skill', 'harness-govern'],
+      REPO,
+      undefined,
+      ROOT_INSTALL_TIMEOUT_MS,
+    );
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const cursor = path.join(scratch, '.cursor');
+    assert.ok(fs.existsSync(path.join(cursor, 'skills', 'harness-govern')));
+    assert.ok(fs.existsSync(path.join(cursor, 'commands', 'harness-govern.md')));
+    assert.ok(fs.existsSync(path.join(cursor, 'agents', 'harness-reviser.md')));
+    assertProjectedDependencyClosure(cursor);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('--update removes unchanged excluded commands and keeps modified ones', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(
+      scratch,
+      ['--copy', '--force'],
+      REPO,
+      undefined,
+      ROOT_INSTALL_TIMEOUT_MS,
+    );
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const cursor = path.join(scratch, '.cursor');
+    const receiptPath = path.join(cursor, '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(receipt.profileId, 'minimal');
+
+    const unchangedSource = path.join(REPO, 'cursor', 'commands', 'harness-govern.md');
+    const unchangedDest = path.join(cursor, 'commands', 'harness-govern.md');
+    fs.copyFileSync(unchangedSource, unchangedDest);
+    copyManagedEntry(receipt, 'commands', 'harness-govern.md', unchangedSource, unchangedDest);
+
+    const modifiedSource = path.join(REPO, 'cursor', 'agents', 'harness-reviser.md');
+    const modifiedDest = path.join(cursor, 'agents', 'harness-reviser.md');
+    fs.copyFileSync(modifiedSource, modifiedDest);
+    copyManagedEntry(receipt, 'agents', 'harness-reviser.md', modifiedSource, modifiedDest);
+    fs.appendFileSync(modifiedDest, '\nuser edit\n');
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+
+    const planned = runInstaller(
+      scratch,
+      ['--copy', '--update', '--plan', '--json', '--force'],
+      REPO,
+      undefined,
+      ROOT_INSTALL_TIMEOUT_MS,
+    );
+    const report = JSON.parse(planned.stdout);
+    const excludedCommand = (report.excluded || []).find(
+      (item) => item.kind === 'commands' && item.name === 'harness-govern.md',
+    );
+    assert.ok(excludedCommand, planned.stdout);
+    assert.strictEqual(excludedCommand.reason, 'unmet-skill-dependency');
+    const retiredUnchanged = (report.retired || []).find((item) => item.path === 'commands/harness-govern.md');
+    const retiredModified = (report.retired || []).find((item) => item.path === 'agents/harness-reviser.md');
+    assert.ok(retiredUnchanged, planned.stdout);
+    assert.strictEqual(retiredUnchanged.reason, 'unchanged-receipt-owned');
+    assert.ok(retiredModified, planned.stdout);
+    assert.ok(/modified|unowned|orphaned/.test(retiredModified.reason || retiredModified.ownership || ''), JSON.stringify(retiredModified));
+
+    const updated = runInstaller(
+      scratch,
+      ['--copy', '--update', '--force'],
+      REPO,
+      undefined,
+      ROOT_INSTALL_TIMEOUT_MS,
+    );
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /orphaned preserved: agents\/harness-reviser\.md/);
+    assert.ok(!fs.existsSync(unchangedDest), 'unchanged excluded command must be pruned');
+    assert.ok(fs.existsSync(modifiedDest), 'modified excluded agent must be preserved');
+    assert.match(fs.readFileSync(modifiedDest, 'utf8'), /user edit/);
+    const nextReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.ok(!nextReceipt.managed_entries.commands['harness-govern.md']);
+    assert.ok(nextReceipt.managed_entries.agents['harness-reviser.md']);
+    assert.strictEqual(nextReceipt.managed_entries.agents['harness-reviser.md'].orphaned, true);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
   }
 });
 
