@@ -125,6 +125,25 @@ test('root guidance stays minimal and every local markdown link resolves', () =>
   assert.deepStrictEqual(missing, [], missing.join('\n'));
 });
 
+test('AGENTS.md and CLAUDE.md carry identical guidance pointers after the GitNexus block', () => {
+  const tail = (relative) => {
+    const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');
+    const marker = '<!-- gitnexus:end -->';
+    assert.ok(text.includes(marker), `${relative} missing ${marker}`);
+    return text.slice(text.indexOf(marker) + marker.length).trim();
+  };
+  assert.strictEqual(tail('CLAUDE.md'), tail('AGENTS.md'));
+});
+
+test('root guidance points only at domain files that exist', () => {
+  for (const relative of ['AGENTS.md', 'CLAUDE.md']) {
+    const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');
+    for (const [, name] of text.matchAll(/`((?:CONTEXT|CONTEXT-MAP)\.md)`/g)) {
+      assert.ok(fs.existsSync(path.join(ROOT, name)), `${relative} names missing ${name}`);
+    }
+  }
+});
+
 test('GitHub issue guidance streams shell-sensitive bodies through stdin', () => {
   const text = fs.readFileSync(path.join(ROOT, 'docs', 'agents', 'issue-tracker.md'), 'utf8');
   assert.match(text, /gh issue create[^\n]*--body-file -/);

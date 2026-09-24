@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **dhpk** (44247 symbols, 100814 relationships, 535 execution flows).
+This project is indexed by GitNexus as **dhpk**.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
@@ -43,7 +43,7 @@ This project is indexed by GitNexus as **dhpk** (44247 symbols, 100814 relations
 
 <!-- gitnexus:end -->
 
-## Agent docs
-
-- GitHub issues and specs: use `gh`; see `docs/agents/issue-tracker.md`, the [guidance index](docs/agent-guidance/README.md), [plugin development](docs/agent-guidance/plugin-development.md), and the canonical [execution policy](rules/execution-policy.md) for decision state, reasoner-before-writer routing, planner/review/CI/archive/PR checkpoints, and the unchanged external `/opsx:apply` boundary.
-- Triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`; see `docs/agents/triage-labels.md`, [writing for agents](docs/agent-guidance/writing-for-agents.md), and [Codex guidance](codex/AGENTS.md). Domain context: read root `CONTEXT.md` and relevant `docs/adr/`; see `docs/agents/domain.md`.
+- **Editing plugin sources, skills, agents, rules, or guidance:** load the matching page from the [agent guidance index](docs/agent-guidance/README.md), including [plugin development](docs/agent-guidance/plugin-development.md) and [writing for agents](docs/agent-guidance/writing-for-agents.md); Codex projection rules live in [Codex guidance](codex/AGENTS.md).
+- **Orchestrating implementation:** follow the canonical [execution policy](rules/execution-policy.md) — record decision state, run the read-only reasoner before a writer when required, keep planner/review/CI/archive/PR checkpoints, and leave external `/opsx:apply` unchanged.
+- **Issues and triage:** use `gh` per [issue-tracker.md](docs/agents/issue-tracker.md) and the labels in [triage-labels.md](docs/agents/triage-labels.md).
+- **Domain terms and decisions:** read root `CONTEXT.md` and the relevant `docs/adr/` entries; see [domain.md](docs/agents/domain.md).

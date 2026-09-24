@@ -4,8 +4,8 @@ This directory is the detailed guidance behind the minimal repository-root
 `AGENTS.md` and `CLAUDE.md` indexes. Load only the topic required by the
 current branch of work.
 
-- [GitNexus and repository exploration](gitnexus.md) — impact, query, context,
-  change detection, and fallback tool order.
+- [GitNexus and repository exploration](gitnexus.md) — exploration tool order
+  and recovery from stale, mismatched, or ambiguous GitNexus results.
 - [Plugin development](plugin-development.md) — source/consumer boundaries,
   validation gates, generated artifacts, and sentinel lifecycle.
 - [Writing for agents](writing-for-agents.md) — context pointers, disclosure,
