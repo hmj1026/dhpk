@@ -236,6 +236,31 @@ test('explicit update authority still refuses unmanaged collisions', () => {
   }
 });
 
+test('canonical skill file deletions are pruned from managedPaths and not carried across update', () => {
+  const root = makeFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  const deletedRelative = 'dhpk-sample/scripts/check.sh';
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    fs.rmSync(path.join(root, 'skills', 'dhpk-sample', 'scripts', 'check.sh'));
+    materializeAgentsSkillsProjection({
+      root,
+      inventory: fixtureInventory(),
+      outDir,
+      allowCanonicalChanges: true,
+    });
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'));
+    assert.strictEqual(fs.existsSync(path.join(outDir, 'dhpk-sample', 'scripts', 'check.sh')), false);
+    assert.ok(!receipt.managedPaths.includes(deletedRelative));
+    assert.ok(!Object.prototype.hasOwnProperty.call(receipt.generatedFingerprints, deletedRelative));
+    assert.ok(receipt.managedPaths.includes('dhpk-sample/SKILL.md'));
+    const checked = validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('legacy receipts migrate their source manifests before enforcing update authority', () => {
   const root = makeFixture();
   const outDir = path.join(root, '.agents', 'skills');
