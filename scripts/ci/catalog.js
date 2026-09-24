@@ -11,8 +11,13 @@
 //                                          or any script lacks a dedicated test
 //   node scripts/ci/catalog.js --check all  same as --check (the trailing `all`
 //                                          arg is accepted for callers that pass it)
-//   node scripts/ci/catalog.js --write    rewrite drifted exact claims in place
+//   node scripts/ci/catalog.js --write    rewrite drifted exact claims in place and
+//                                          regenerate manifests/profile-projection-sets.json
 //                                          (coverage is report-only, never auto-fixed)
+//
+// --check also fails when manifests/profile-projection-sets.json (the per-profile,
+// per-Host skill sets the native installers project into the Shared Project
+// Projection, ADR-0023) is stale against install-profiles + the inventory.
 //
 // Only claims phrased as an exact number are enforced ("24 role-based agents",
 // "27 opt-in stack modules", "23 root-level agents", "24 個角色導向 agent",
@@ -26,6 +31,13 @@ const fs = require('fs');
 const path = require('path');
 const { CODEX_MCP_COMMAND_NAMES, collectInventory, walkFiles } = require('../lib/asset-inventory');
 const { computeScopedCounts } = require('../lib/distribution-inventory');
+const {
+  MANIFEST_REL: PROJECTION_SETS_REL,
+  computeProfileProjectionSets,
+  formatProfileProjectionSets,
+  diffProfileProjectionSets,
+  describeDrift,
+} = require('../lib/profile-projection-sets');
 
 const ROOT = path.join(__dirname, '..', '..');
 const p = (...s) => path.join(ROOT, ...s);
@@ -168,6 +180,7 @@ const COVERAGE_MAP = {
   'scripts/hooks/_lib/detect-stack-hints.sh': 'session-start-advisories.test.js',
   'scripts/ci/sync-skill-resources.js': 'skill-resource-sync-security.test.js',
   'scripts/lib/runner-utils.js': 'utils.test.js',
+  'scripts/lib/profile-projection-sets.js': 'catalog-claims.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);
@@ -202,6 +215,53 @@ function findScriptCoverageGaps() {
     if (!resolveScriptCoverage(rel, testFiles, testFileSet)) uncovered.push(rel);
   }
   return uncovered;
+}
+
+function readJsonFile(rel) {
+  return JSON.parse(fs.readFileSync(p(rel), 'utf8'));
+}
+
+// Returns the number of stale (profile, Host) projection sets. --write
+// regenerates the manifest; --check reports each stale set by name.
+function checkOrWriteProjectionSets({ write }) {
+  let expected;
+  try {
+    expected = computeProfileProjectionSets({
+      inventory: readJsonFile('manifests/distribution-inventory.json'),
+      profiles: readJsonFile('manifests/install-profiles.json'),
+      moduleCatalog: readJsonFile('manifests/module-catalog.json'),
+    });
+  } catch (error) {
+    console.error(`DRIFT ${PROJECTION_SETS_REL}: cannot generate projection sets: ${error.message}`);
+    return 1;
+  }
+  const expectedText = formatProfileProjectionSets(expected);
+  const fp = p(PROJECTION_SETS_REL);
+  const actualText = fs.existsSync(fp) ? fs.readFileSync(fp, 'utf8') : null;
+  if (actualText === expectedText) return 0;
+  if (write) {
+    fs.writeFileSync(fp, expectedText);
+    console.log(`FIX ${PROJECTION_SETS_REL}: regenerated per-profile projection sets`);
+    return 0;
+  }
+  if (actualText === null) {
+    console.error(`DRIFT ${PROJECTION_SETS_REL}: file is missing; run catalog.js --write`);
+    return 1;
+  }
+  let declared;
+  try {
+    declared = JSON.parse(actualText);
+  } catch (error) {
+    console.error(`DRIFT ${PROJECTION_SETS_REL}: invalid JSON (${error.message}); run catalog.js --write`);
+    return 1;
+  }
+  const drift = diffProfileProjectionSets(declared, expected);
+  for (const entry of drift) console.error(`DRIFT ${PROJECTION_SETS_REL}: ${describeDrift(entry)}`);
+  if (drift.length === 0) {
+    console.error(`DRIFT ${PROJECTION_SETS_REL}: content differs from the generated manifest; run catalog.js --write`);
+    return 1;
+  }
+  return drift.length;
 }
 
 function checkOrWrite({ write }) {
@@ -246,9 +306,13 @@ function checkOrWrite({ write }) {
     if (write && text !== original) fs.writeFileSync(fp, text);
   }
 
+  const staleProjectionSets = checkOrWriteProjectionSets({ write });
+
   if (write) {
     console.log(`catalog --write: updated ${rewrites} claim group(s).`);
-    return 0;
+    // --write regenerates the projection sets, so a nonzero count here means
+    // they could not be generated at all.
+    return staleProjectionSets > 0 ? 1 : 0;
   }
 
   // Coverage is report-only: --write never touches test files, so it's only
@@ -259,7 +323,10 @@ function checkOrWrite({ write }) {
     console.error(`UNCOVERED ${rel}: no dedicated tests/${stem}*.test.js`);
   }
 
-  if (mismatches > 0 || uncovered.length > 0) {
+  if (mismatches > 0 || uncovered.length > 0 || staleProjectionSets > 0) {
+    if (staleProjectionSets > 0) {
+      console.error(`FAIL [catalog]: ${staleProjectionSets} projection set(s) in ${PROJECTION_SETS_REL} are stale.`);
+    }
     if (mismatches > 0) {
       console.error(`FAIL [catalog]: ${mismatches} exact claim(s) drifted from reality.`);
     }
@@ -269,7 +336,7 @@ function checkOrWrite({ write }) {
     return 1;
   }
   console.log(
-    `PASS [catalog]: all exact numeric claims match reality; all scripts have dedicated tests (0 uncovered).`
+    `PASS [catalog]: all exact numeric claims match reality; projection sets are current; all scripts have dedicated tests (0 uncovered).`
   );
   return 0;
 }

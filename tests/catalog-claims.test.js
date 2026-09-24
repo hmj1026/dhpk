@@ -208,7 +208,10 @@ test('canonical and Claude-published claims are evaluated against their own coun
   const invPath = path.join(repo, 'manifests', 'distribution-inventory.json');
   const surfaces = path.join(repo, 'docs', 'distribution-surfaces.md');
   const surfacesZh = path.join(repo, 'docs', 'distribution-surfaces.zh-TW.md');
-  const originals = [invPath, surfaces, surfacesZh].map((f) => [f, fs.readFileSync(f, 'utf8')]);
+  const profilesPath = path.join(repo, 'manifests', 'install-profiles.json');
+  const projectionSetsPath = path.join(repo, PROJECTION_SETS_REL);
+  const originals = [invPath, surfaces, surfacesZh, profilesPath, projectionSetsPath]
+    .map((f) => [f, fs.readFileSync(f, 'utf8')]);
   try {
     const inv = JSON.parse(originals[0][1]);
     const victim = inv.skills.find((s) => s.lifecycle === 'promoted');
@@ -220,6 +223,20 @@ test('canonical and Claude-published claims are evaluated against their own coun
       migrationNote: 'planted by catalog-claims test',
     };
     fs.writeFileSync(invPath, `${JSON.stringify(inv, null, 2)}\n`);
+
+    // A deprecated ID can no longer be selected, so drop it from the profiles that
+    // declare it and regenerate the projection sets; this test is about claims only.
+    const profiles = JSON.parse(originals[3][1]);
+    for (const profile of Object.values(profiles.profiles)) {
+      if (Array.isArray(profile.skillIds)) profile.skillIds = profile.skillIds.filter((id) => id !== victim.id);
+    }
+    fs.writeFileSync(profilesPath, `${JSON.stringify(profiles, null, 2)}\n`);
+    const projection = require(path.join(repo, 'scripts', 'lib', 'profile-projection-sets'));
+    fs.writeFileSync(projectionSetsPath, projection.formatProfileProjectionSets(projection.computeProfileProjectionSets({
+      inventory: inv,
+      profiles,
+      moduleCatalog: JSON.parse(fs.readFileSync(path.join(repo, 'manifests', 'module-catalog.json'), 'utf8')),
+    })));
 
     // Canonical is unchanged by a lifecycle move; only the published count drops.
     const { computeScopedCounts } = require(path.join(repo, 'scripts', 'lib', 'distribution-inventory'));
@@ -325,6 +342,130 @@ test('a nested tests/subdir/*.test.js file is not treated as coverage', () => {
 test('coverage ledger is named resolveScriptCoverage in catalog.js', () => {
   const catalogSource = fs.readFileSync(path.join(ROOT, 'scripts', 'ci', 'catalog.js'), 'utf8');
   assert.match(catalogSource, /function resolveScriptCoverage\b/);
+});
+
+// Per-profile projection sets (#618). The manifest declares, per install profile
+// and Host, the skill IDs the installers project into the Shared Project
+// Projection; catalog.js --check fails when a declared set is stale.
+const PROJECTION_SETS_REL = path.join('manifests', 'profile-projection-sets.json');
+// Kept independent of HOST_SURFACES in the library on purpose: the test is the
+// oracle for which Hosts and surfaces the manifest must cover.
+const PROJECTION_HOSTS = ['codex-sync', 'cursor'];
+
+function readProjectionSets(base) {
+  return JSON.parse(fs.readFileSync(path.join(base, PROJECTION_SETS_REL), 'utf8'));
+}
+
+function withProjectionSets(mutate, body) {
+  const fp = path.join(repo, PROJECTION_SETS_REL);
+  const original = fs.readFileSync(fp, 'utf8');
+  try {
+    const manifest = JSON.parse(original);
+    mutate(manifest);
+    fs.writeFileSync(fp, `${JSON.stringify(manifest, null, 2)}\n`);
+    body(fp, original);
+  } finally {
+    fs.writeFileSync(fp, original);
+  }
+}
+
+test('every install profile declares a projection set for the cursor and codex-sync Hosts', () => {
+  const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8')).profiles;
+  const declared = readProjectionSets(ROOT).profiles;
+  assert.deepStrictEqual(Object.keys(declared).sort(), Object.keys(profiles).sort());
+  for (const [profileId, sets] of Object.entries(declared)) {
+    assert.deepStrictEqual(Object.keys(sets).sort(), PROJECTION_HOSTS, `${profileId} must declare exactly the projection Hosts`);
+    for (const host of PROJECTION_HOSTS) {
+      assert.ok(Array.isArray(sets[host]), `${profileId}.${host} must be an array`);
+      assert.deepStrictEqual(sets[host], sets[host].slice().sort(), `${profileId}.${host} must be sorted`);
+    }
+  }
+});
+
+test('the minimal profile projects the same four core skills into Cursor as before', () => {
+  const declared = readProjectionSets(ROOT).profiles.minimal;
+  assert.deepStrictEqual(declared.cursor, ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide']);
+});
+
+test('a projection set only lists skills whose inventory entry names that Host surface', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const surfaceOf = { cursor: 'cursor-sync', 'codex-sync': 'codex-sync' };
+  const byId = new Map(inventory.skills.map((entry) => [entry.id, entry]));
+  for (const [profileId, sets] of Object.entries(readProjectionSets(ROOT).profiles)) {
+    for (const host of PROJECTION_HOSTS) {
+      for (const id of sets[host]) {
+        const entry = byId.get(id);
+        assert.ok(entry && entry.surfaces.includes(surfaceOf[host]), `${profileId}.${host} lists '${id}' without the ${surfaceOf[host]} surface`);
+      }
+    }
+  }
+});
+
+test('a stale projection set fails --check and names the profile and surface', () => {
+  withProjectionSets((manifest) => {
+    manifest.profiles.minimal.cursor = manifest.profiles.minimal.cursor.filter((id) => id !== 'code-trace');
+  }, () => {
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 1, `drifted projection set must fail --check, got:\n${out}`);
+    assert.match(out, /profile 'minimal' Host 'cursor' \(surface 'cursor-sync'\).*missing: code-trace/);
+  });
+});
+
+test('an extra ID in a projection set fails --check', () => {
+  withProjectionSets((manifest) => {
+    manifest.profiles.full['codex-sync'] = [...manifest.profiles.full['codex-sync'], 'zz-not-a-skill'].sort();
+  }, () => {
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 1, `extra projection ID must fail --check, got:\n${out}`);
+    assert.match(out, /profile 'full' Host 'codex-sync' \(surface 'codex-sync'\).*unexpected: zz-not-a-skill/);
+  });
+});
+
+test('a profile without a declared projection set fails --check', () => {
+  withProjectionSets((manifest) => {
+    delete manifest.profiles['js-only'];
+  }, () => {
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 1, `missing profile must fail --check, got:\n${out}`);
+    assert.match(out, /profile 'js-only' Host 'codex-sync'.*no declared projection set/);
+    assert.match(out, /profile 'js-only' Host 'cursor'.*no declared projection set/);
+  });
+});
+
+test('a projection set declared for an unknown profile fails --check', () => {
+  withProjectionSets((manifest) => {
+    manifest.profiles['zz-ghost'] = { cursor: [], 'codex-sync': [] };
+  }, () => {
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 1, `unknown profile must fail --check, got:\n${out}`);
+    assert.match(out, /profile 'zz-ghost' Host 'cursor'.*not generated/);
+  });
+});
+
+test('an unparseable projection manifest fails --check with a descriptive error', () => {
+  const fp = path.join(repo, PROJECTION_SETS_REL);
+  const original = fs.readFileSync(fp, 'utf8');
+  try {
+    fs.writeFileSync(fp, '{ not json');
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 1, `invalid JSON must fail --check, got:\n${out}`);
+    assert.match(out, /profile-projection-sets\.json: invalid JSON/);
+  } finally {
+    fs.writeFileSync(fp, original);
+  }
+});
+
+test('--write repairs a stale projection set and a second --write changes nothing', () => {
+  withProjectionSets((manifest) => {
+    manifest.profiles.minimal.cursor = [];
+  }, (fp, original) => {
+    assert.strictEqual(runCatalog(repo, '--write').status, 0);
+    const repaired = fs.readFileSync(fp, 'utf8');
+    assert.strictEqual(repaired, original, '--write must regenerate the declared manifest byte-for-byte');
+    assert.strictEqual(runCatalog(repo, '--write').status, 0);
+    assert.strictEqual(fs.readFileSync(fp, 'utf8'), repaired, 're-running --write must be a no-op');
+    assert.strictEqual(runCheck(repo).status, 0);
+  });
 });
 
 run('catalog-claims');
