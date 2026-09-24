@@ -157,7 +157,7 @@ New installs without an explicit selection continue to use the inventory-owned
 
 ```bash
 dhpk-install codex-native plan --scope project --standalone flow-guide --json
-node scripts/ci/gen-claude-profile-bundles.js --standalone flow-guide --check
+node scripts/ci/gen-claude-profile-bundles.js --standalone flow-guide --plan
 ```
 
 `--standalone` accepts a stable ID or public skill name and may be repeated;

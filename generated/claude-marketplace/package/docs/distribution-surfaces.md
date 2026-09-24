@@ -213,9 +213,15 @@ legacy path. Finite aliases declared in `manifests/install-profiles.json` are
 compiled before discovery with:
 
 ```bash
-node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
+node scripts/ci/gen-claude-profile-bundles.js --profile minimal --plan
 node scripts/ci/gen-claude-profile-bundles.js --profile minimal --out /tmp/dhpk-profile
+node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
 ```
+
+`--plan` prints the compiled selection without writing files. `--check`
+regenerates into a temporary directory and fails when the committed
+`generated/claude-profiles/<profile>/package` differs, listing each missing,
+extra, or changed file; CI runs it for `minimal`, `full`, and `compat-v1`.
 
 The generated package has its own physical `./skills/` and `./commands/` roots
 and a `bundle-receipt.json` containing the profile, selected stable IDs, plan
