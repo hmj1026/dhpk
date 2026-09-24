@@ -183,6 +183,11 @@ test('the agreed timeout budget is enforced for current CI jobs', () => {
   }
 });
 
+test('the release rehearsal job has an agreed timeout budget', () => {
+  const { WORKFLOW_TIMEOUTS } = require('../scripts/ci/validate-workflow-policy');
+  assert.strictEqual(WORKFLOW_TIMEOUTS['ci.yml']['release-rehearsal'], 10);
+});
+
 test('CI runs actionlint and the repository-owned policy gate', () => {
   const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
   assert.match(workflow, /reviewdog\/action-actionlint@[0-9a-f]{40}\s+#\s*v1\.75\.0/);
@@ -242,6 +247,53 @@ test('a job that checks out the repository may use git and gh without GH_REPO', 
   const workflow = `name: Generic\non: push\njobs:\n  build:\n    runs-on: ubuntu-26.04\n    timeout-minutes: 5\n    steps:\n      - uses: ${ACTIONS.checkout}\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n          gh pr list\n`;
   const result = runInTemp({ 'custom.yml': workflow });
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+});
+
+function compositeAction({ action = ACTIONS.setupNode, nodeVersion = '24' } = {}) {
+  return `name: Setup\nruns:\n  using: composite\n  steps:\n    - uses: ${action}\n      with:\n        node-version: ${nodeVersion}\n    - run: echo ok\n      shell: bash\n`;
+}
+
+function runWithAction(actionContent, workflows = { 'custom.yml': genericWorkflow() }) {
+  const root = makeRoot(workflows);
+  try {
+    const dir = path.join(root, '.github', 'actions', 'setup-env');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'action.yml'), actionContent);
+    return main(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('a composite action whose setup-node pins a non-baseline Node version fails closed', () => {
+  const result = runWithAction(compositeAction({ nodeVersion: "'20'" }));
+  assert.ok(
+    result.errors.some((error) => error.includes(path.join('.github', 'actions', 'setup-env', 'action.yml')) && /Node 24/.test(error)),
+    result.errors.join('\n'),
+  );
+});
+
+test('a composite action with a mutable remote action reference fails closed', () => {
+  const result = runWithAction(compositeAction({ action: 'actions/setup-node@v6 # v6' }));
+  assert.ok(result.errors.some((error) => /action\.yml.*full .*commit SHA/i.test(error)), result.errors.join('\n'));
+});
+
+test('a workflow may reference a repository-local composite action without a commit SHA', () => {
+  const workflow = genericWorkflow().replace(
+    `      - uses: ${ACTIONS.setupNode}\n        with:\n          node-version: 24\n`,
+    '      - uses: ./.github/actions/setup-env\n',
+  );
+  assert.ok(workflow.includes('./.github/actions/setup-env'), 'fixture must reference the local action');
+  const result = runWithAction(compositeAction(), { 'custom.yml': workflow });
+  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+});
+
+test('the real repository composite actions are covered by the policy scan', () => {
+  const result = realRepoResult();
+  assert.ok(
+    result.files.includes(path.join('.github', 'actions', 'setup-dhpk-test-env', 'action.yml')),
+    result.files.join('\n'),
+  );
 });
 
 run('workflow-policy');
