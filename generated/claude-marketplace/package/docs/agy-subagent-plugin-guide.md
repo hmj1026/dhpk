@@ -134,7 +134,7 @@ inventory-owned path contract：
 ```bash
 bin/dhpk distribution agy-plugin generate \
   --output /tmp/dhpk-agy-staging \
-  --version=0.45.0 --json
+  --version=<version> --json
 bin/dhpk distribution agy-plugin validate \
   --output /tmp/dhpk-agy-staging --json
 ```

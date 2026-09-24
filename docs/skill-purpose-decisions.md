@@ -10,20 +10,21 @@ paths, surfaces, successors, migration, and rollback facts.
 
 ## Active decision set
 
-The ledger contains exactly 65 active rows, all with `outcome: retain`. Every
+Every active inventory skill has exactly one ledger row, and every row has
+`outcome: retain`. Run `node scripts/ci/validate-skill-purpose-decisions.js`
+for the current count; it fails when a skill is missing or duplicated. Every
 row records reviewed `authority` plus a `duplicate_content` comparison fact,
 comparison statement, and structural evidence. Their purpose descriptions are
 copied from the canonical `SKILL.md` frontmatter; callers and structural
 evidence are required for every row.
 
-| Disposition | Count | Meaning |
-| --- | ---: | --- |
-| `retain-standalone` | 30 | A bounded capability remains independently selectable. |
-| `retain-family` | 2 | Family selectors retain the versioned capability contract. |
-| `retain-optional` | 25 | Specialized guidance remains explicit opt-in. |
-| `retain-internal` | 2 | Runtime support stays outside public discovery. |
-| `retain-external` | 6 | GitNexus remains under its external package owner. |
-| **Active skills covered** | **65** | Every active inventory skill is represented exactly once. |
+| Disposition | Meaning |
+| --- | --- |
+| `retain-standalone` | A bounded capability remains independently selectable. |
+| `retain-family` | Family selectors retain the versioned capability contract. |
+| `retain-optional` | Specialized guidance remains explicit opt-in. |
+| `retain-internal` | Runtime support stays outside public discovery. |
+| `retain-external` | GitNexus remains under its external package owner. |
 
 ## Current retirement wave
 
