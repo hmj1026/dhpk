@@ -6,6 +6,7 @@ const {
   AGY_PROJECT_PROBE_CLAIMS,
   AGY_PROJECT_PROBE_PRODUCER,
   createClaudeProjectDiscoveryAdapter,
+  createCursorProjectDiscoveryAdapter,
   createProjectAgentProviderAdapters,
   renderAgyDirectFile,
 } = require('../scripts/lib/project-agent-provider-adapters');
@@ -153,6 +154,43 @@ test('Claude discovery adapter binds generated packages without creating an auth
     () => createClaudeProjectDiscoveryAdapter({ entries: [{ stableId: 'bad', name: '../outside' }] }),
     /safe|name|path/i,
   );
+});
+
+test('Cursor native-link discovery adapter binds per-skill links into .cursor/skills', () => {
+  const adapter = createCursorProjectDiscoveryAdapter({
+    entries: [
+      { stableId: 'portable', name: 'dhpk-portable' },
+      { stableId: 'trace', name: 'dhpk-code-trace' },
+    ],
+  });
+  assert.strictEqual(adapter.id, 'cursor-project-discovery');
+  assert.strictEqual(adapter.kind, 'symlink');
+  assert.strictEqual(adapter.bindingShape, 'native-link');
+  assert.strictEqual(adapter.sourceRoot, '.agents/skills');
+  assert.strictEqual(adapter.destinationRoot, '.cursor/skills');
+  assert.deepStrictEqual(adapter.entries.map((entry) => entry.path), [
+    '.cursor/skills/dhpk-code-trace',
+    '.cursor/skills/dhpk-portable',
+  ]);
+  assert.deepStrictEqual(adapter.entries.map((entry) => entry.target), [
+    '../../.agents/skills/dhpk-code-trace',
+    '../../.agents/skills/dhpk-portable',
+  ]);
+});
+
+test('Cursor Host adapter exposes native-link discovery when cursor is bound', () => {
+  const adapters = createProjectAgentProviderAdapters(bindings(), {
+    entries: [{ stableId: 'sample', name: 'dhpk-sample' }],
+  });
+  assert.ok(adapters.forHost.cursor.discovery);
+  assert.strictEqual(adapters.forHost.cursor.discovery.bindingShape, 'native-link');
+  assert.strictEqual(adapters.forHost.cursor.discovery.destinationRoot, '.cursor/skills');
+  assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries, [{
+    stableId: 'sample',
+    name: 'dhpk-sample',
+    path: '.cursor/skills/dhpk-sample',
+    target: '../../.agents/skills/dhpk-sample',
+  }]);
 });
 
 run('project-agent-provider-adapters');

@@ -29,6 +29,7 @@ function write(file, content) {
 function fakePlugin() {
   const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-plugin-')));
   write(path.join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
+  write(path.join(plugin, 'skills', 'dhpk-portable', 'SKILL.md'), '---\nname: dhpk-portable\ndescription: portable\n---\n# Portable\n');
   write(path.join(plugin, 'cursor', 'skills', 'dhpk-portable', 'SKILL.md'), '---\nname: dhpk-portable\ndescription: portable\n---\n# Portable\n');
   write(path.join(plugin, 'cursor', 'agents', 'reviewer.md'), '---\nname: reviewer\ndescription: review\nmodel: inherit\nreadonly: true\n---\n# Reviewer\n');
   write(path.join(plugin, 'cursor', 'rules', 'prefer-const.mdc'), '---\nname: prefer-const\ndescription: prefer const\nalwaysApply: false\n---\n# Prefer const\n');
@@ -36,7 +37,14 @@ function fakePlugin() {
   write(path.join(plugin, 'agent-traps', '_common', 'prompt-defense.md'), '# defense\n');
   write(path.join(plugin, 'cursor', 'config.toml.example'), 'model = "fixture"\n');
   write(path.join(plugin, 'manifests', 'distribution-inventory.json'), `${JSON.stringify({
-    skills: [{ id: 'portable', name: 'dhpk-portable', path: 'skills/dhpk-portable', legacy_names: [] }],
+    skills: [{
+      id: 'portable',
+      name: 'dhpk-portable',
+      path: 'skills/dhpk-portable',
+      lifecycle: 'promoted',
+      surfaces: ['cursor-sync', 'cursor-plugin'],
+      legacy_names: [],
+    }],
     supporting_assets: [
       {
         id: 'cursor-trap',
@@ -49,6 +57,55 @@ function fakePlugin() {
         destination: 'config.toml.example',
       },
     ],
+    project_agent_projection: {
+      schema: 'dhpk.project-agent-projection.v1',
+      scope: 'project',
+      owner: 'dhpk.project-agent-projection',
+      managed_root: '.agents/skills',
+      receipt: '.agents/.dhpk-installed.json',
+      profiles: {
+        'portable-core': {
+          version: 'portable-core-v1',
+          compatibility_mode: 'portable-core',
+          stable_ids: ['portable'],
+          hosts: ['agy', 'claude', 'codex', 'cursor'],
+        },
+      },
+      hosts: {
+        claude: {
+          surface: 'claude-core',
+          evidence_source: 'entry_surfaces',
+          shape: 'project-skill-directory',
+          transform: { id: 'claude-project-skill', version: '1' },
+        },
+        codex: {
+          surface: 'codex-sync',
+          evidence_source: 'entry_surfaces',
+          shape: 'project-skill-directory',
+          transform: { id: 'codex-project-skill', version: '1' },
+        },
+        cursor: {
+          surface: 'cursor-plugin',
+          evidence_source: 'entry_surfaces',
+          shape: 'project-skill-directory',
+          transform: { id: 'cursor-project-skill', version: '1' },
+        },
+        agy: {
+          surface: 'agy-plugin',
+          evidence_source: 'entry_surfaces',
+          shape: 'project-skill-direct-file',
+          transform: { id: 'agy-project-direct-file', version: '1' },
+        },
+      },
+      dependencies: {},
+    },
+  }, null, 2)}\n`);
+  write(path.join(plugin, 'manifests', 'profile-projection-sets.json'), `${JSON.stringify({
+    schema: 'dhpk.profile-projection-sets.v1',
+    hostSurfaces: { cursor: 'cursor-sync' },
+    profiles: {
+      minimal: { cursor: ['portable'] },
+    },
   }, null, 2)}\n`);
   return plugin;
 }
@@ -123,20 +180,25 @@ function readProjectedText(target) {
   return text;
 }
 
-function projectedSkillIds(cursorRoot) {
-  const skillsDir = path.join(cursorRoot, 'skills');
-  const names = fs.existsSync(skillsDir) ? fs.readdirSync(skillsDir) : [];
+function projectedSkillIds(projectDir) {
   const ids = new Set();
+  const names = new Set();
+  const cursorSkills = path.join(projectDir, '.cursor', 'skills');
+  const sharedSkills = path.join(projectDir, '.agents', 'skills');
+  for (const dir of [cursorSkills, sharedSkills]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const name of fs.readdirSync(dir)) names.add(name);
+  }
   for (const skill of INVENTORY.skills || []) {
-    if (skill && names.includes(skill.name)) ids.add(skill.id);
+    if (skill && names.has(skill.name)) ids.add(skill.id);
   }
   return ids;
 }
 
-function assertProjectedDependencyClosure(cursorRoot) {
-  const available = projectedSkillIds(cursorRoot);
+function assertProjectedDependencyClosure(projectDir) {
+  const available = projectedSkillIds(projectDir);
   for (const kind of ['commands', 'agents']) {
-    const dir = path.join(cursorRoot, kind);
+    const dir = path.join(projectDir, '.cursor', kind);
     if (!fs.existsSync(dir)) continue;
     for (const name of fs.readdirSync(dir)) {
       const missing = referencedSkillIds(readProjectedText(path.join(dir, name)))
@@ -155,6 +217,30 @@ function hashCopiedFile(file) {
   digest.update('file\0');
   digest.update(fs.readFileSync(file));
   return digest.digest('hex');
+}
+
+function hashCopiedPath(target) {
+  const stat = fs.lstatSync(target);
+  if (stat.isFile()) return hashCopiedFile(target);
+  const digest = crypto.createHash('sha256');
+  digest.update('dir\0');
+  for (const name of fs.readdirSync(target).sort()) {
+    digest.update(name);
+    digest.update('\0');
+    digest.update(hashCopiedPath(path.join(target, name)));
+    digest.update('\0');
+  }
+  return digest.digest('hex');
+}
+
+function copyDir(source, destination) {
+  fs.mkdirSync(destination, { recursive: true });
+  for (const name of fs.readdirSync(source)) {
+    const from = path.join(source, name);
+    const to = path.join(destination, name);
+    if (fs.statSync(from).isDirectory()) copyDir(from, to);
+    else fs.copyFileSync(from, to);
+  }
 }
 
 function copyManagedEntry(receipt, kind, name, source, destination) {
@@ -195,14 +281,19 @@ test('--help is a no-op and documents Codex-parity flags', () => {
   }
 });
 
-test('copy mode materializes skills, .mdc rules, commands, dhpk support files, and a schema-v3 receipt', () => {
+test('copy mode materializes native assets and delegates skills via native-link bindings', () => {
   const scratch = projectRoot();
   const plugin = fakePlugin();
   try {
     const res = runInstaller(scratch, ['--copy', '--force'], plugin);
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     const cursor = path.join(scratch, '.cursor');
-    assert.ok(!fs.lstatSync(path.join(cursor, 'skills', 'dhpk-portable')).isSymbolicLink());
+    const sharedSkill = path.join(scratch, '.agents', 'skills', 'dhpk-portable');
+    const nativeSkill = path.join(cursor, 'skills', 'dhpk-portable');
+    assert.ok(fs.existsSync(path.join(sharedSkill, 'SKILL.md')));
+    assert.ok(!fs.lstatSync(sharedSkill).isSymbolicLink());
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-portable');
     assert.ok(fs.existsSync(path.join(cursor, 'agents', 'reviewer.md')));
     assert.ok(fs.existsSync(path.join(cursor, 'rules', 'prefer-const.mdc')));
     assert.ok(fs.existsSync(path.join(cursor, 'commands', 'review.md')));
@@ -212,12 +303,16 @@ test('copy mode materializes skills, .mdc rules, commands, dhpk support files, a
     const receipt = JSON.parse(fs.readFileSync(path.join(cursor, '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(receipt.schema_version, 3);
     assert.strictEqual(receipt.mode, 'copy');
-    assert.strictEqual(receipt.managed_entries.skills['dhpk-portable'].id, 'portable');
-    assert.strictEqual(receipt.managed_entries.skills['dhpk-portable'].name, 'dhpk-portable');
+    assert.ok(!receipt.managed_entries.skills || !receipt.managed_entries.skills['dhpk-portable']);
     assert.ok(receipt.managed_entries.rules['prefer-const.mdc']);
     assert.ok(receipt.managed_entries.commands['review.md']);
     assert.ok(receipt.managed_entries.supporting_assets['dhpk/agent-traps/_common/prompt-defense.md']);
     assert.ok(!receipt.managed_entries.supporting_assets['config.toml.example']);
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'native-link');
+    const binding = (projection.hostBindings.cursor.bindings || []).find((entry) => entry.stableId === 'portable');
+    assert.ok(binding, JSON.stringify(projection.hostBindings.cursor));
+    assert.strictEqual(binding.shape, 'native-link');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
@@ -237,7 +332,8 @@ test('copy and symlink installs do not require descriptor pseudo-path child trav
       const receipt = JSON.parse(fs.readFileSync(path.join(cursor, '.dhpk-installed.json'), 'utf8'));
       const skill = path.join(cursor, 'skills', 'dhpk-portable');
       assert.strictEqual(receipt.mode, args.includes('--copy') ? 'copy' : 'symlink');
-      assert.strictEqual(fs.lstatSync(skill).isSymbolicLink(), !args.includes('--copy'));
+      assert.ok(fs.lstatSync(skill).isSymbolicLink());
+      assert.strictEqual(fs.readlinkSync(skill), '../../.agents/skills/dhpk-portable');
       assert.match(fs.readFileSync(path.join(skill, 'SKILL.md'), 'utf8'), /# Portable/);
     } finally {
       fs.rmSync(scratch, { recursive: true, force: true });
@@ -279,29 +375,125 @@ test('cursor supporting assets prefer the rewritten cursor/dhpk projection', () 
   }
 });
 
-test('symlink mode links the projection and --update preserves edited copied content', () => {
+test('native-link cursor skills stay linked on --update and user-owned skills stay untouched', () => {
   const scratch = projectRoot();
   const plugin = fakePlugin();
   try {
     const linked = runInstaller(scratch, ['--force'], plugin);
     assert.strictEqual(linked.status, 0, `${linked.stdout}\n${linked.stderr}`);
-    assert.ok(fs.lstatSync(path.join(scratch, '.cursor', 'skills', 'dhpk-portable')).isSymbolicLink());
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    const userSkill = path.join(scratch, '.cursor', 'skills', 'my-own-skill');
+    fs.mkdirSync(userSkill, { recursive: true });
+    fs.writeFileSync(path.join(userSkill, 'SKILL.md'), '# mine\n');
 
-    const copied = runInstaller(scratch, ['--copy', '--force'], plugin);
-    assert.strictEqual(copied.status, 0, `${copied.stdout}\n${copied.stderr}`);
-    const edited = path.join(scratch, '.cursor', 'skills', 'dhpk-portable', 'SKILL.md');
-    fs.appendFileSync(edited, '\nuser edit\n');
     const updated = runInstaller(scratch, ['--copy', '--update', '--force'], plugin);
     assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
-    assert.match(fs.readFileSync(edited, 'utf8'), /user edit/);
-    assert.match(`${updated.stdout}\n${updated.stderr}`, /collision|orphaned|preserved/i);
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readFileSync(path.join(userSkill, 'SKILL.md'), 'utf8'), '# mine\n');
+    const rerun = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(rerun.status, 0, `${rerun.stdout}\n${rerun.stderr}`);
+    assert.strictEqual(fs.readFileSync(path.join(userSkill, 'SKILL.md'), 'utf8'), '# mine\n');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
   }
 });
 
-test('unowned collisions are preserved; --plan --json then --adopt promotes one path', () => {
+test('copy-mode --update replaces unchanged receipt-owned native skills with native-link bindings', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    fs.rmSync(path.join(scratch, '.agents'), { recursive: true, force: true });
+    fs.rmSync(nativeSkill, { recursive: true, force: true });
+    copyDir(path.join(plugin, 'skills', 'dhpk-portable'), nativeSkill);
+    const receiptPath = path.join(scratch, '.cursor', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const fingerprint = hashCopiedPath(nativeSkill);
+    receipt.managed_entries.skills = receipt.managed_entries.skills || {};
+    receipt.managed_entries.skills['dhpk-portable'] = {
+      destination: 'skills/dhpk-portable',
+      source: 'skills/dhpk-portable',
+      mode: 'copy',
+      source_fingerprint: fingerprint,
+      destination_fingerprint: fingerprint,
+      fingerprint,
+      ownership_marker: 'copy:skills/dhpk-portable',
+    };
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-portable');
+    const nextReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.ok(!nextReceipt.managed_entries.skills || !nextReceipt.managed_entries.skills['dhpk-portable']);
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'native-link');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('--update --adopt of a rule still replaces unchanged receipt-owned native skills with native-link bindings', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    fs.rmSync(path.join(scratch, '.agents'), { recursive: true, force: true });
+    fs.rmSync(nativeSkill, { recursive: true, force: true });
+    copyDir(path.join(plugin, 'skills', 'dhpk-portable'), nativeSkill);
+    const receiptPath = path.join(scratch, '.cursor', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const fingerprint = hashCopiedPath(nativeSkill);
+    receipt.managed_entries.skills = receipt.managed_entries.skills || {};
+    receipt.managed_entries.skills['dhpk-portable'] = {
+      destination: 'skills/dhpk-portable',
+      source: 'skills/dhpk-portable',
+      mode: 'copy',
+      source_fingerprint: fingerprint,
+      destination_fingerprint: fingerprint,
+      fingerprint,
+      ownership_marker: 'copy:skills/dhpk-portable',
+    };
+    delete receipt.managed_entries.rules['prefer-const.mdc'];
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const target = path.join(scratch, '.cursor', 'rules', 'prefer-const.mdc');
+    fs.writeFileSync(target, '# keep me\n');
+
+    const planned = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], plugin);
+    assert.notStrictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    const collision = report.collisions.find((entry) => entry.path === 'rules/prefer-const.mdc');
+    assert.ok(collision, planned.stdout);
+
+    const adopted = runInstaller(scratch, [
+      '--copy',
+      '--update',
+      `--adopt=rules/prefer-const.mdc@${collision.destination_fingerprint}@${collision.source_fingerprint}`,
+      '--force',
+    ], plugin);
+    assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-portable');
+    const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.ok(!after.managed_entries.skills || !after.managed_entries.skills['dhpk-portable']);
+    assert.ok(after.managed_entries.rules['prefer-const.mdc']);
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'native-link');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('unowned native skill directories are preserved; --plan --json then --adopt still works for rules', () => {
   const scratch = projectRoot();
   const plugin = fakePlugin();
   try {
@@ -309,31 +501,27 @@ test('unowned collisions are preserved; --plan --json then --adopt promotes one 
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const receiptPath = path.join(scratch, '.cursor', '.dhpk-installed.json');
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    delete receipt.managed_entries.skills['dhpk-portable'];
+    delete receipt.managed_entries.rules['prefer-const.mdc'];
     fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
-    const target = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
-    fs.writeFileSync(path.join(target, 'user-owned.txt'), 'keep me\n');
+    const target = path.join(scratch, '.cursor', 'rules', 'prefer-const.mdc');
+    fs.writeFileSync(target, '# keep me\n');
 
     const planned = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], plugin);
     assert.notStrictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
     const report = JSON.parse(planned.stdout);
-    const collision = report.collisions.find((entry) => entry.path === 'skills/dhpk-portable');
+    const collision = report.collisions.find((entry) => entry.path === 'rules/prefer-const.mdc');
     assert.ok(collision, planned.stdout);
-    assert.strictEqual(fs.readFileSync(path.join(target, 'user-owned.txt'), 'utf8'), 'keep me\n');
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), '# keep me\n');
 
     const adopted = runInstaller(scratch, [
       '--update',
-      `--adopt=skills/dhpk-portable@${collision.destination_fingerprint}@${collision.source_fingerprint}`,
+      `--adopt=rules/prefer-const.mdc@${collision.destination_fingerprint}@${collision.source_fingerprint}`,
       '--force',
     ], plugin);
     assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
     const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    assert.ok(after.managed_entries.skills['dhpk-portable']);
-    assert.ok(!fs.existsSync(path.join(target, 'user-owned.txt')));
+    assert.ok(after.managed_entries.rules['prefer-const.mdc']);
     assert.ok(after.reconciliation.adopted >= 1, JSON.stringify(after.reconciliation));
-    const backup = after.reconciliation.evidence.backups.find((item) => item.original === 'skills/dhpk-portable');
-    assert.ok(backup, JSON.stringify(after.reconciliation.evidence.backups));
-    assert.ok(fs.existsSync(path.join(scratch, backup.path, 'user-owned.txt')));
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
@@ -476,7 +664,13 @@ test('default minimal Cursor install keeps command and agent skill-path dependen
     assert.ok(!fs.existsSync(path.join(cursor, 'commands', 'harness-govern.md')));
     assert.ok(!fs.existsSync(path.join(cursor, 'agents', 'harness-reviser.md')));
     assert.ok(fs.existsSync(path.join(cursor, 'commands', 'verify.md')));
-    assertProjectedDependencyClosure(cursor);
+    const flowGuide = path.join(cursor, 'skills', 'flow-guide');
+    assert.ok(fs.lstatSync(flowGuide).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(flowGuide), '../../.agents/skills/flow-guide');
+    assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'flow-guide', 'SKILL.md')));
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'native-link');
+    assertProjectedDependencyClosure(scratch);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -497,7 +691,7 @@ test('a profile that includes harness-govern projects the gated command and agen
     assert.ok(fs.existsSync(path.join(cursor, 'skills', 'harness-govern')));
     assert.ok(fs.existsSync(path.join(cursor, 'commands', 'harness-govern.md')));
     assert.ok(fs.existsSync(path.join(cursor, 'agents', 'harness-reviser.md')));
-    assertProjectedDependencyClosure(cursor);
+    assertProjectedDependencyClosure(scratch);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

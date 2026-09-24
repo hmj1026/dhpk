@@ -319,7 +319,13 @@ function validateSupportingAsset(asset, assetId) {
   return errors;
 }
 
-function compileProjectAgentProjection({ inventory, profileId, requestedHosts } = {}) {
+function compileProjectAgentProjection({
+  inventory,
+  profileId,
+  requestedHosts,
+  selectedStableIds: selectedOverride,
+  declaredSelection = false,
+} = {}) {
   if (!isObject(inventory)) return fail('INVALID_INPUT', 'inventory is required for project-agent projection compilation');
   const configResult = configFrom(inventory);
   if (!configResult.present || !isObject(configResult.value)) {
@@ -358,7 +364,16 @@ function compileProjectAgentProjection({ inventory, profileId, requestedHosts } 
     else byId.set(entry.id, entry);
   }
 
-  const selectedStableIds = [...profile.stable_ids].sort();
+  const selectedStableIds = Array.isArray(selectedOverride)
+    ? [...selectedOverride].sort()
+    : [...profile.stable_ids].sort();
+  if (selectedOverride !== undefined) {
+    if (!Array.isArray(selectedOverride) || selectedOverride.length === 0
+      || selectedOverride.some((id) => !nonEmptyString(id))
+      || new Set(selectedOverride).size !== selectedOverride.length) {
+      return fail('INVALID_PROJECT_ENTRY', 'selectedStableIds must be a unique non-empty string array');
+    }
+  }
   const missingSelected = selectedStableIds.filter((id) => !byId.has(id));
   if (missingSelected.length > 0) {
     return fail('PROJECT_PROFILE_ENTRY_MISSING', 'portable-core references unknown inventory entries', { stableIds: missingSelected });
@@ -440,7 +455,11 @@ function compileProjectAgentProjection({ inventory, profileId, requestedHosts } 
       let supported = evidence.available && evidence.ids.has(id);
       let reasonCode = 'HOST_SUPPORTED';
       let reason = `declared ${host.evidence_source} evidence supports '${id}'`;
-      if (!evidence.available) {
+      if (declaredSelection) {
+        supported = true;
+        reasonCode = 'DECLARED_SELECTION';
+        reason = `declared projection set includes '${id}'`;
+      } else if (!evidence.available) {
         supported = false;
         reasonCode = 'HOST_EVIDENCE_MISSING';
         reason = `Host '${hostId}' has no ${host.evidence_source} evidence for '${host.surface}'`;
