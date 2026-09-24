@@ -144,6 +144,24 @@ diagnostic。尤其是 Codex project-local write 仍應使用既有
 `install-cursor-harness.sh`。Generic route 會持續 fail-closed，直到未來變更明確
 移交 ArtifactStore write ownership；只有 adapter characterization 絕不會啟用 mutation。
 
+### Standalone 選取與 profile 選取
+
+沒有明確選取的新安裝仍使用 inventory-owned 的 `minimal` profile。standalone
+request 是另一條獨立邊界：
+
+```bash
+dhpk-install codex-native plan --scope project --standalone flow-guide --json
+node scripts/ci/gen-claude-profile-bundles.js --standalone flow-guide --plan
+```
+
+`--standalone` 接受 stable ID 或 public skill name，可重複指定，重複值會被正規化；
+不能與 `--profile` 或 additive `--skill` overlay 併用。Standalone plan 會記錄
+requested IDs、emitted public names、supporting/runtime closure、unavailable
+capabilities 與 selection fingerprint。`required_core_ids` 只適用於 profile，因此
+standalone skill 不會偷偷安裝 core set。缺少、已退役、互相衝突、循環或無法解析的
+dependency 一律 fail closed。runtime-only support 只記錄為 support metadata，
+不會被發布成 public skill。
+
 ## Unified distribution CLI
 
 `bin/dhpk distribution <surface> <operation>` 是保留 native package surface

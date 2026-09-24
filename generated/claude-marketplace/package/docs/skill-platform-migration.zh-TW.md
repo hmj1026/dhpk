@@ -239,19 +239,6 @@ operator 必須執行 `op signout`、確認沒有 process 仍依賴舊 session�
 後續存取改用互動式 `op signin` operator action，並限制在所需的最小 account 與
 vault scope。
 
-## 已整併的能力
-
-三組重疊能力改為合併，而不是把 alias 保留成獨立 skill：
-
-| 舊 skills | 目前 public skill | 保留內容 |
-|---|---|---|
-| `code-explore`、`code-investigate`、`codex-explain` | `dhpk-codebase-exploration` | symbol/flow 探索、深度可調的說明、可選第二觀點 |
-| `codex-cli-review` | `dhpk-change-review` | hardened CLI backend、merge-base diff 固定、standards/spec/security/test 軸線；預設不使用 MCP |
-| `software-architecture` | `dhpk-module-design` | deep-module 詞彙、deletion test、interface/test seam、architecture handoff |
-
-其他保留 skill 也全部取得 `dhpk-` public name。Stable inventory `id` 與 `name`
-刻意分離，因此未來重新命名不會破壞 receipt ownership。
-
 ## 整併後的 hooks 與 commands
 
 預設 hook surface 現在只有四項明確責任：
