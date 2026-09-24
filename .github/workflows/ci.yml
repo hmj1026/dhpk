@@ -81,6 +81,11 @@ jobs:
         run: node scripts/ci/gen-claude-manifest.js --check
       - name: No-drift Claude marketplace package check
         run: node scripts/ci/gen-claude-marketplace-package.js --check
+      - name: No-drift Claude profile bundles check
+        run: |
+          for profile in minimal full compat-v1; do
+            node scripts/ci/gen-claude-profile-bundles.js --profile "$profile" --check
+          done
       - name: Validate invocation policy
         run: node scripts/ci/validate-invocation-policy.js
 

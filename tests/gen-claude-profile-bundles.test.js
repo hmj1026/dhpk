@@ -9,9 +9,9 @@ const { compileClaudeCapabilityBundle } = require('../scripts/lib/claude-capabil
 
 const ROOT = path.join(__dirname, '..');
 
-test('profile bundle generator checks a declared finite alias', () => {
+test('profile bundle generator previews a declared finite alias plan', () => {
   const result = spawnSync(process.execPath, [
-    path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'minimal', '--check',
+    path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'minimal', '--plan',
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, /"profile"/);
@@ -20,7 +20,7 @@ test('profile bundle generator checks a declared finite alias', () => {
 
 test('minimal generator reports the curated default selection', () => {
   const result = spawnSync(process.execPath, [
-    path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'minimal', '--check',
+    path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'minimal', '--plan',
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const payload = JSON.parse(result.stdout);
@@ -34,7 +34,7 @@ test('minimal generator reports the curated default selection', () => {
 
 test('compat-v1 generator preserves the predecessor-compatible allowlist', () => {
   const result = spawnSync(process.execPath, [
-    path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'compat-v1', '--check',
+    path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'compat-v1', '--plan',
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const payload = JSON.parse(result.stdout);
@@ -88,6 +88,62 @@ test('minimal profile keeps command owners in support closure without publishing
   ]);
   assert.ok(result.value.selection.supportClosure.skillStableIds.includes('git-smart-commit'));
   assert.ok(result.value.selection.supportClosure.skillStableIds.includes('repo-verify'));
+});
+
+const GENERATOR = path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js');
+
+function runGenerator(args) {
+  return spawnSync(process.execPath, [GENERATOR, ...args], { cwd: ROOT, encoding: 'utf8' });
+}
+
+function withCommittedMinimalCopy(mutate) {
+  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-profile-check-'));
+  try {
+    fs.cpSync(path.join(ROOT, 'generated/claude-profiles/minimal'), outputRoot, { recursive: true });
+    mutate(path.join(outputRoot, 'package'));
+    return runGenerator(['--profile', 'minimal', '--check', '--out', outputRoot]);
+  } finally {
+    fs.rmSync(outputRoot, { recursive: true, force: true });
+  }
+}
+
+test('--check passes when the committed minimal profile matches its sources', () => {
+  const result = runGenerator(['--profile', 'minimal', '--check']);
+  assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /PASS \[gen-claude-profile-bundles\]/);
+});
+
+test('--check fails and names a stale skill copy', () => {
+  const result = withCommittedMinimalCopy((packageRoot) => {
+    fs.appendFileSync(path.join(packageRoot, 'skills/flow-guide/SKILL.md'), '\nstale\n');
+  });
+  assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /out of date/);
+  assert.match(result.stderr, /changed: skills\/flow-guide\/SKILL\.md/);
+});
+
+test('--check fails on extra and missing files', () => {
+  const result = withCommittedMinimalCopy((packageRoot) => {
+    fs.writeFileSync(path.join(packageRoot, 'skills/extra.md'), 'extra\n');
+    fs.rmSync(path.join(packageRoot, 'commands/verify.md'));
+  });
+  assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /extra: skills\/extra\.md/);
+  assert.match(result.stderr, /missing: commands\/verify\.md/);
+});
+
+test('--check fails when the baseline package is absent', () => {
+  const outputRoot = path.join(os.tmpdir(), `dhpk-claude-profile-absent-${process.pid}`);
+  const result = runGenerator(['--profile', 'minimal', '--check', '--out', outputRoot]);
+  assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /baseline package is missing/);
+  assert.ok(!fs.existsSync(outputRoot));
+});
+
+test('--plan and --check are mutually exclusive', () => {
+  const result = runGenerator(['--profile', 'minimal', '--plan', '--check']);
+  assert.strictEqual(result.status, 2, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /mutually exclusive/);
 });
 
 run('gen-claude-profile-bundles');
