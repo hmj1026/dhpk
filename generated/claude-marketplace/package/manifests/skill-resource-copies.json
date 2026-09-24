@@ -928,7 +928,7 @@
     "skills/harness-setup/scripts/lib/install-codex-skills.sh": {
       "skill_id": "harness-setup",
       "source": "scripts/hooks/install-codex-skills.sh",
-      "sha256": "sha256:8989d1e2ba65dbbf6e7107670dbf24874c77483a14c405c39616156d3634c6ad",
+      "sha256": "sha256:90c1d0398f4f921e9666760ee664b601c7f29ee99e3f44b5c9af88d05d4f214a",
       "mode": "0755"
     },
     "skills/harness-setup/scripts/lib/physical-file.js": {
