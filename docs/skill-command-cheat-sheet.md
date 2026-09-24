@@ -70,9 +70,10 @@ package.
 
 ## Evidence boundary
 
-The canonical profile is `minimal=4`; `full=55` and `compat-v1=62` remain
-explicit opt-ins. Agent Plugin and AGY packages currently select 55 stable IDs,
-the Cursor native overlay selects four native IDs and shares the Agent Plugin
-skills, and Codex native selects 34 IDs. These are structural/package facts,
-not runtime `PASS`. Report unavailable probes as `NOT_RUN`, `BLOCKED`, or
-`UNAVAILABLE`.
+The canonical profile is `minimal`, which selects exactly the four capabilities
+above; `full` and `compat-v1` remain explicit opt-ins. Check a profile's
+selection with `node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan`
+and a generated package's selection in its `provenance.json`
+(`selectedSkillIds`). The Cursor native overlay shares the Agent Plugin skills.
+These are structural/package facts, not runtime `PASS`. Report unavailable
+probes as `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE`.
