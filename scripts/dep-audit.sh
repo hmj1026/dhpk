@@ -114,6 +114,12 @@ if [[ -f "$AUDIT_FILE" ]]; then
   fi
 fi
 
+# jq 讀到空的 audit 檔（timeout 或無輸出）時不印任何值，補回 0
+CRITICAL="${CRITICAL:-0}"
+HIGH="${HIGH:-0}"
+MODERATE="${MODERATE:-0}"
+LOW="${LOW:-0}"
+
 # 輸出摘要表格
 echo "| Severity | Count |" >> "$SUMMARY_FILE"
 echo "|:---------|------:|" >> "$SUMMARY_FILE"

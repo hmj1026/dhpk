@@ -73,6 +73,26 @@ test('npm project with no lockfile: fast local ENOLOCK, clean PASS report, exit 
   }
 });
 
+// A timed-out or silent audit leaves the JSON file empty; jq then prints
+// nothing (exit 0), which used to render blank counts instead of zero.
+test('an empty audit output is reported as zero findings, not blank counts', () => {
+  const tmp = mkTmp();
+  const bin = mkTmp();
+  try {
+    fs.writeFileSync(path.join(tmp, 'package.json'), JSON.stringify({ name: 'fixture', version: '1.0.0' }));
+    fs.writeFileSync(path.join(bin, 'npm'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`, DEP_AUDIT_TIMEOUT: '5' };
+    const res = spawnSync('bash', [SCRIPT], { cwd: tmp, env, encoding: 'utf8', timeout: 15000 });
+    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    for (const level of ['Critical', 'High', 'Moderate', 'Low']) {
+      assert.ok(res.stdout.includes(`| ${level} | 0 |`), `${level} count must be 0:\n${res.stdout}`);
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
 test('detects yarn via yarn.lock presence and still exits cleanly (yarn binary optional)', () => {
   const tmp = mkTmp();
   try {
