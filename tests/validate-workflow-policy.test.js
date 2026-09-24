@@ -10,7 +10,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { main } = require('../scripts/ci/validate-workflow-policy');
+const { main, LINUX_RUNNER_BASELINE } = require('../scripts/ci/validate-workflow-policy');
 
 const ROOT = path.join(__dirname, '..');
 const ACTIONS = {
@@ -40,8 +40,8 @@ function runInTemp(workflows, dependabot = null, nodeVersion = '24') {
   }
 }
 
-function genericWorkflow({ action = ACTIONS.checkout, nodeVersion = '24', timeout = 7 } = {}) {
-  return `name: Generic\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: ${action}\n      - uses: ${ACTIONS.setupNode}\n        with:\n          node-version: ${nodeVersion}\n    timeout-minutes: ${timeout}\n`;
+function genericWorkflow({ action = ACTIONS.checkout, nodeVersion = '24', timeout = 7, runner = 'ubuntu-26.04' } = {}) {
+  return `name: Generic\non: push\njobs:\n  build:\n    runs-on: ${runner}\n    steps:\n      - uses: ${action}\n      - uses: ${ACTIONS.setupNode}\n        with:\n          node-version: ${nodeVersion}\n    timeout-minutes: ${timeout}\n`;
 }
 
 function realRepoResult() {
@@ -141,6 +141,25 @@ test('every setup-node step must configure the Node 24 baseline', () => {
   assert.ok(result.errors.some((error) => /setup-node.*node-version/i.test(error)), result.errors.join('\n'));
 });
 
+// CI and Release must run on the same Linux image: a tool present on one
+// image and missing on the other (v0.63.0 ripgrep) only surfaces at tag time.
+test('every Linux job must use the pinned Linux runner baseline', () => {
+  for (const runner of ['ubuntu-latest', 'ubuntu-24.04']) {
+    const result = runInTemp({ 'custom.yml': genericWorkflow({ runner }) });
+    assert.ok(
+      result.errors.some((error) => error.includes(`'${runner}'`) && error.includes(LINUX_RUNNER_BASELINE)),
+      `${runner}: ${result.errors.join('\n')}`,
+    );
+  }
+});
+
+test('the pinned Linux runner baseline and non-Linux runners are accepted', () => {
+  for (const runner of [LINUX_RUNNER_BASELINE, 'macos-latest']) {
+    const result = runInTemp({ 'custom.yml': genericWorkflow({ runner }) });
+    assert.deepStrictEqual(result.errors, [], runner);
+  }
+});
+
 test('a job without an explicit timeout fails closed', () => {
   const result = runInTemp({ 'custom.yml': genericWorkflow({ timeout: null }).replace(/\n    timeout-minutes: null\n/, '\n') });
   assert.ok(result.errors.some((error) => /timeout-minutes/i.test(error)), result.errors.join('\n'));
@@ -211,7 +230,7 @@ test('a checkout-less job calling gh without GH_REPO fails closed', () => {
 });
 
 test('a checkout-less job invoking git fails closed', () => {
-  const workflow = `name: Generic\non: push\njobs:\n  publish:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n`;
+  const workflow = `name: Generic\non: push\njobs:\n  publish:\n    runs-on: ubuntu-26.04\n    timeout-minutes: 5\n    steps:\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n`;
   const result = runInTemp({ 'custom.yml': workflow });
   assert.ok(
     result.errors.some((error) => /publish.*must not invoke git/.test(error)),
@@ -220,7 +239,7 @@ test('a checkout-less job invoking git fails closed', () => {
 });
 
 test('a job that checks out the repository may use git and gh without GH_REPO', () => {
-  const workflow = `name: Generic\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - uses: ${ACTIONS.checkout}\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n          gh pr list\n`;
+  const workflow = `name: Generic\non: push\njobs:\n  build:\n    runs-on: ubuntu-26.04\n    timeout-minutes: 5\n    steps:\n      - uses: ${ACTIONS.checkout}\n      - name: Resolve\n        run: |\n          git rev-parse HEAD\n          gh pr list\n`;
   const result = runInTemp({ 'custom.yml': workflow });
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
 });

@@ -739,7 +739,21 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
+    // cpSync keeps nested directory symlinks (codex/skills/harness-govern ->
+    // skills/harness-govern) even with dereference, so materialize a real copy.
+    const skillDir = path.join(fakePlugin, 'codex', 'skills', 'harness-govern');
+    if (fs.lstatSync(skillDir).isSymbolicLink()) {
+      const source = fs.realpathSync(skillDir);
+      fs.rmSync(skillDir);
+      fs.cpSync(source, skillDir, { recursive: true });
+    }
     fs.mkdirSync(bytecodeDir, { recursive: true });
+    // The bytecode fixture must land in the scratch plugin, never in the
+    // canonical skills/ tree: a leak races concurrent source fingerprints.
+    for (const target of [bytecodeDir, path.dirname(standaloneBytecode)]) {
+      const real = fs.realpathSync(target);
+      assert.ok(real.startsWith(`${fakePlugin}${path.sep}`), `bytecode fixture escapes the scratch plugin via ${real}`);
+    }
     fs.writeFileSync(bytecode, 'fixture-bytecode-v1\n');
     fs.writeFileSync(standaloneBytecode, 'standalone-bytecode-v1\n');
 

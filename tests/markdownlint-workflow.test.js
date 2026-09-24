@@ -21,7 +21,7 @@ const validateJob = workflow.match(/\n  validate:\n([\s\S]*?)(?=\n  [a-z][a-z0-9
 
 test('Markdown lint job remains blocking and covers the intended asset globs', () => {
   assert.ok(
-    /uses:\s+DavidAnson\/markdownlint-cli2-action@[0-9a-f]{40}\s+#\s*v23/.test(lintJob),
+    /uses:\s+DavidAnson\/markdownlint-cli2-action@[0-9a-f]{40}\s+#\s*v\d+(?:\.\d+)*/.test(lintJob),
     'lint job must use the pinned markdownlint-cli2 action'
   );
   for (const glob of [

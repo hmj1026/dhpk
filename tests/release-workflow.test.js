@@ -62,10 +62,10 @@ test('release validation emits one run-bound publication bundle from the exact n
   assert.match(bundleBlock, /--target-commit/);
   assert.match(bundleBlock, /--target-tree/);
   const uploadBlock = raw.slice(uploadIdx, createIdx);
-  assert.match(uploadBlock, /actions\/upload-artifact@[0-9a-f]{40}\s+#\s*v4/);
+  assert.match(uploadBlock, /actions\/upload-artifact@[0-9a-f]{40}\s+#\s*v\d+(?:\.\d+)*/);
   assert.match(uploadBlock, /dhpk-release-publication-bundle-\$\{\{\s*github\.run_id\s*\}\}/);
   const digestUploadBlock = raw.slice(digestUploadIdx, verifierUploadIdx);
-  assert.match(digestUploadBlock, /actions\/upload-artifact@[0-9a-f]{40}\s+#\s*v4/);
+  assert.match(digestUploadBlock, /actions\/upload-artifact@[0-9a-f]{40}\s+#\s*v\d+(?:\.\d+)*/);
   assert.match(digestUploadBlock, /dhpk-release-publication-notes-digest-\$\{\{\s*github\.run_id\s*\}\}/);
   const verifierBindIdx = raw.indexOf('Bind trusted publication verifier');
   assert.ok(verifierBindIdx !== -1, 'missing verifier integrity binding');
@@ -88,7 +88,7 @@ test('release publication validates the bundle and streams only its validated no
   assert.ok(ghCreateIdx > validateIdx, 'bundle validation must precede release creation');
   assert.match(publishBlock, /needs:\s+release/);
   assert.doesNotMatch(publishBlock, /actions\/checkout@/, 'publication consumer must not checkout the repository');
-  assert.match(publishBlock, /actions\/download-artifact@[0-9a-f]{40}\s+#\s*v4/);
+  assert.match(publishBlock, /actions\/download-artifact@[0-9a-f]{40}\s+#\s*v\d+(?:\.\d+)*/);
   assert.match(publishBlock, /dhpk-release-publication-bundle-\$\{\{\s*github\.run_id\s*\}\}/);
   assert.match(publishBlock, /dhpk-release-publication-notes-digest-\$\{\{\s*github\.run_id\s*\}\}/);
   assert.match(publishBlock, /dhpk-release-publication-bundle-verifier-\$\{\{\s*github\.run_id\s*\}\}/);

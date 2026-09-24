@@ -2,9 +2,10 @@
 'use strict';
 
 // Validate the repository-owned GitHub Actions policy that actionlint cannot
-// express: immutable Action revisions, the shared Node baseline, and explicit
-// timeout budgets. This intentionally uses a small indentation-aware scanner
-// so the repository remains dependency-free and policy tests stay semantic.
+// express: immutable Action revisions, the shared Node baseline, one pinned
+// Linux runner image, and explicit timeout budgets. This intentionally uses a
+// small indentation-aware scanner so the repository remains dependency-free
+// and policy tests stay semantic.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -12,6 +13,9 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..', '..');
 const NODE_BASELINE = '24';
 const NODE_VERSION_FILE = '.nvmrc';
+// Every Linux job pins one explicit image so CI and Release never diverge and
+// a GitHub label migration (ubuntu-latest) is a reviewed change, not a surprise.
+const LINUX_RUNNER_BASELINE = 'ubuntu-26.04';
 const COMMIT_SHA = /^[0-9a-f]{40}$/i;
 const VERSION_COMMENT = /(?:^|\s)v?\d+(?:\.\d+){0,3}(?:[-+][\w.-]+)?(?:\s|$)/i;
 
@@ -187,6 +191,25 @@ function validateCheckoutlessRepoContext(root, file, content, errors) {
   }
 }
 
+function validateLinuxRunner(root, file, content, errors) {
+  for (const job of jobBlocks(content)) {
+    job.lines.forEach((line, offset) => {
+      const match = line.match(/^    runs-on:\s*(.+?)\s*$/);
+      if (!match) return;
+      const runner = unquote(match[1]);
+      if (/^ubuntu-/i.test(runner) && runner !== LINUX_RUNNER_BASELINE) {
+        addError(
+          errors,
+          root,
+          file,
+          job.line + offset,
+          `job '${job.name}' runs on '${runner}'; Linux jobs must use the pinned runner ${LINUX_RUNNER_BASELINE}`,
+        );
+      }
+    });
+  }
+}
+
 function timeoutValue(job) {
   const line = job.lines.find((entry) => /^    timeout-minutes:\s*/.test(entry));
   if (!line) return null;
@@ -296,6 +319,7 @@ function main(root = ROOT) {
     validateActions(root, file, content, errors);
     validateNodeBaseline(root, file, content, errors);
     validateTimeouts(root, file, content, errors);
+    validateLinuxRunner(root, file, content, errors);
     validateCheckoutlessRepoContext(root, file, content, errors);
     validateReleasePolicy(root, file, content, errors);
   }
@@ -309,4 +333,4 @@ if (require.main === module) {
   else console.log(`workflow-policy: checked ${result.files.length} workflow file(s)`);
 }
 
-module.exports = { main, NODE_BASELINE, WORKFLOW_TIMEOUTS };
+module.exports = { main, NODE_BASELINE, LINUX_RUNNER_BASELINE, WORKFLOW_TIMEOUTS };

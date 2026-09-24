@@ -208,6 +208,36 @@ test('failed scope creation never authorizes cleanup of a colliding unit name', 
   }
 });
 
+// systemd-run --scope expands ${VAR} in its own argv (default-on by systemd
+// 259 / Ubuntu 26.04), which blanked the inline script's ${cgroup_path} and
+// failed every bounded run with "cgroup v2 path is unavailable".
+test('scope launch disables systemd-run environment expansion for the inline script', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-scope-expand-'));
+  const bin = path.join(root, 'bin');
+  const log = path.join(root, 'systemd-run.log');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'systemd-run'), [
+    '#!/bin/sh',
+    'last=""',
+    'for arg in "$@"; do last="$arg"; done',
+    'if [ "$last" = true ]; then exit 0; fi',
+    `for arg in "$@"; do printf '%s\\n' "$arg" >> ${JSON.stringify(log)}; done`,
+    'exit 9',
+  ].join('\n'), { mode: 0o755 });
+  fs.writeFileSync(path.join(bin, 'systemctl'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  try {
+    runBounded(['node', '-e', 'process.exit(0);'], { PATH: `${bin}:${process.env.PATH}` });
+    const args = fs.readFileSync(log, 'utf8').split('\n');
+    const flagIdx = args.indexOf('--expand-environment=no');
+    const scriptIdx = args.findIndex((arg) => arg.includes('${cgroup_path}'));
+    assert.ok(scriptIdx !== -1, 'scope launch must pass the inline cgroup script');
+    assert.ok(flagIdx !== -1 && flagIdx < scriptIdx,
+      `--expand-environment=no must precede the inline script; argv: ${JSON.stringify(args.slice(0, 12))}`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('default batch timeout exceeds the per-file test timeout', () => {
   const script = fs.readFileSync(SCRIPT, 'utf8');
   assert.match(script, /TIMEOUT_SECONDS="\$\{TIMEOUT_SECONDS:-900s\}"/);
