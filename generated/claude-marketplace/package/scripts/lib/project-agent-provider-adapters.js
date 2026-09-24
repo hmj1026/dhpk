@@ -24,6 +24,10 @@ const CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID = 'claude-project-discovery';
 const CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION = '1.0.0';
 const CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT = '.agents/skills';
 const CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT = '.claude/skills';
+const CURSOR_PROJECT_DISCOVERY_ADAPTER_ID = 'cursor-project-discovery';
+const CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION = '1.0.0';
+const CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT = '.cursor/skills';
+const NATIVE_LINK_SHAPE = 'native-link';
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
@@ -109,30 +113,34 @@ function safeProjectRelative(value, label) {
   return value;
 }
 
-function createClaudeProjectDiscoveryAdapter({
+function createProjectDiscoveryAdapter({
+  id,
+  version,
   entries = [],
-  sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
-  destinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  sourceRoot,
+  destinationRoot,
+  hostLabel,
+  bindingShape = null,
 } = {}) {
-  safeProjectRelative(sourceRoot, 'Claude shared source root');
-  safeProjectRelative(destinationRoot, 'Claude discovery destination root');
+  safeProjectRelative(sourceRoot, `${hostLabel} shared source root`);
+  safeProjectRelative(destinationRoot, `${hostLabel} discovery destination root`);
   if (sourceRoot === destinationRoot || sourceRoot.startsWith(`${destinationRoot}/`)) {
-    throw adapterError('UNSAFE_PROVIDER_REFERENCE', 'Claude discovery source and destination roots must be distinct');
+    throw adapterError('UNSAFE_PROVIDER_REFERENCE', `${hostLabel} discovery source and destination roots must be distinct`);
   }
-  if (!Array.isArray(entries)) throw adapterError('INVALID_PROVIDER_OUTPUT', 'Claude discovery entries must be an array');
+  if (!Array.isArray(entries)) throw adapterError('INVALID_PROVIDER_OUTPUT', `${hostLabel} discovery entries must be an array`);
   const seenIds = new Set();
   const seenNames = new Set();
   const normalizedEntries = entries.map((entry) => {
     if (!isObject(entry) || !isNonEmptyString(entry.stableId) || !isNonEmptyString(entry.name)) {
-      throw adapterError('INVALID_PROVIDER_OUTPUT', 'Claude discovery entries require stableId and name');
+      throw adapterError('INVALID_PROVIDER_OUTPUT', `${hostLabel} discovery entries require stableId and name`);
     }
     const stableId = entry.stableId.trim();
     const name = entry.name.trim();
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) {
-      throw adapterError('UNSAFE_PROVIDER_REFERENCE', `Claude discovery skill name is unsafe: ${name}`);
+      throw adapterError('UNSAFE_PROVIDER_REFERENCE', `${hostLabel} discovery skill name is unsafe: ${name}`);
     }
     if (seenIds.has(stableId) || seenNames.has(name)) {
-      throw adapterError('DUPLICATE_PROVIDER_OUTPUT', `Claude discovery entry is duplicated: ${name}`);
+      throw adapterError('DUPLICATE_PROVIDER_OUTPUT', `${hostLabel} discovery entry is duplicated: ${name}`);
     }
     seenIds.add(stableId);
     seenNames.add(name);
@@ -140,19 +148,52 @@ function createClaudeProjectDiscoveryAdapter({
     const target = path.posix.relative(destinationRoot, `${sourceRoot}/${name}`);
     if (!target || path.posix.isAbsolute(target)
       || path.posix.normalize(path.posix.join(destinationRoot, target)) !== `${sourceRoot}/${name}`) {
-      throw adapterError('UNSAFE_PROVIDER_REFERENCE', `Claude discovery target is unsafe: ${name}`);
+      throw adapterError('UNSAFE_PROVIDER_REFERENCE', `${hostLabel} discovery target is unsafe: ${name}`);
     }
     return { stableId, name, path: pathName, target };
   }).sort((left, right) => left.name.localeCompare(right.name));
-  return {
-    id: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
-    version: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
+  const adapter = {
+    id,
+    version,
     kind: 'symlink',
     sourceRoot,
     destinationRoot,
     owner: 'dhpk.project-agent-projection',
     entries: normalizedEntries,
   };
+  if (bindingShape) adapter.bindingShape = bindingShape;
+  return adapter;
+}
+
+function createClaudeProjectDiscoveryAdapter({
+  entries = [],
+  sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
+  destinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+} = {}) {
+  return createProjectDiscoveryAdapter({
+    id: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
+    version: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    entries,
+    sourceRoot,
+    destinationRoot,
+    hostLabel: 'Claude',
+  });
+}
+
+function createCursorProjectDiscoveryAdapter({
+  entries = [],
+  sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
+  destinationRoot = CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT,
+} = {}) {
+  return createProjectDiscoveryAdapter({
+    id: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
+    version: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    entries,
+    sourceRoot,
+    destinationRoot,
+    hostLabel: 'Cursor',
+    bindingShape: NATIVE_LINK_SHAPE,
+  });
 }
 
 function createProjectAgentProviderAdapters(hostBindings = {}, {
@@ -180,6 +221,12 @@ function createProjectAgentProviderAdapters(hostBindings = {}, {
       entries,
       sourceRoot: claudeSourceRoot,
       destinationRoot: claudeDestinationRoot,
+    });
+  }
+  if (normalized.cursor) {
+    normalized.cursor.discovery = createCursorProjectDiscoveryAdapter({
+      entries,
+      sourceRoot: claudeSourceRoot,
     });
   }
   const directoryHosts = hostIds.filter((hostId) => normalized[hostId].kind === DIRECTORY_KIND);
@@ -321,7 +368,12 @@ module.exports = {
   CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
   CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
   CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
+  CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
+  CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  NATIVE_LINK_SHAPE,
   createClaudeProjectDiscoveryAdapter,
+  createCursorProjectDiscoveryAdapter,
   createProjectAgentProviderAdapters,
   isPassingAgyConsumerProbe,
   renderAgyDirectFile,

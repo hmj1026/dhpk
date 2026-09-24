@@ -605,6 +605,37 @@ test('Claude discovery uses receipt-owned symlinks to the shared artifact', () =
   }
 });
 
+test('Cursor Host Bindings use per-skill native-link discovery into .cursor/skills', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-cursor-native-link-');
+  try {
+    const result = materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      projectRoot,
+      inventory: projectInventory(),
+      profileId: 'portable-core',
+      requestedHosts: ['cursor'],
+    });
+    const adapterPath = path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample');
+    assert.strictEqual(fs.lstatSync(adapterPath).isSymbolicLink(), true);
+    assert.strictEqual(fs.readlinkSync(adapterPath), '../../.agents/skills/dhpk-sample');
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample', 'SKILL.md')), true);
+    assert.strictEqual(result.receipt.hostBindings.cursor.bindingShape, 'native-link');
+    const skillBinding = (result.receipt.hostBindings.cursor.bindings || []).find((entry) => entry.stableId === 'sample');
+    assert.ok(skillBinding, JSON.stringify(result.receipt.hostBindings.cursor));
+    assert.strictEqual(skillBinding.shape, 'native-link');
+    assert.deepStrictEqual(result.receipt.bindingPaths.cursor, [{
+      path: '.cursor/skills/dhpk-sample',
+      target: '../../.agents/skills/dhpk-sample',
+    }]);
+    assert.strictEqual(validateAgentsSkillsProjection({ projectRoot }).ok, true);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('Claude discovery refuses native or foreign overlap at the selected skill path', () => {
   const sourceRoot = makeFixture();
   const projectRoot = tmpDir('dhpk-agents-skills-claude-overlap-');
