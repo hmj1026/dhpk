@@ -284,7 +284,10 @@ run_in_scope() {
   PENDING_SCOPE_READY="$ready_file"
   export DHPK_BOUNDED_READY_FILE="$ready_file"
   export DHPK_BOUNDED_HANDSHAKE_TIMEOUT_SECONDS="$HANDSHAKE_TIMEOUT_SECONDS"
+  # --expand-environment=no: with --scope, systemd-run itself expands ${VAR}
+  # in argv (default-on by systemd 259), which would blank the inline script.
   systemd-run --user --scope \
+    --expand-environment=no \
     --unit="${scope_unit}" \
     --description="$(scope_description "$scope_token")" \
     -p "MemoryMax=${MEMORY_MAX}" \
