@@ -227,4 +227,48 @@ test('CLI installs Codex native-link bindings from a declared selection', () => 
   }
 });
 
+test('CLI uninstalls one Host and keeps the remaining Host bindings', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-install-native-uninstall-');
+  try {
+    const cursor = invoke([
+      'install',
+      '--source', sourceRoot,
+      '--project-root', projectRoot,
+      '--host', 'cursor',
+      '--selected-id', 'sample',
+      '--declared-selection',
+      '--json',
+    ]);
+    assert.strictEqual(cursor.status, 0, `${cursor.stdout}\n${cursor.stderr}`);
+    const codex = invoke([
+      'install',
+      '--source', sourceRoot,
+      '--project-root', projectRoot,
+      '--host', 'codex',
+      '--selected-id', 'sample',
+      '--declared-selection',
+      '--json',
+    ]);
+    assert.strictEqual(codex.status, 0, `${codex.stdout}\n${codex.stderr}`);
+    const removed = invoke([
+      'uninstall',
+      '--source', sourceRoot,
+      '--project-root', projectRoot,
+      '--host', 'cursor',
+      '--json',
+    ]);
+    assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
+    assert.ok(fs.lstatSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')).isSymbolicLink());
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+    const receipt = JSON.parse(fs.readFileSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(receipt.hostBindings.cursor, undefined);
+    assert.deepStrictEqual(receipt.hostBindings.codex.selectedStableIds, ['sample']);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 run('install-native-shared-skills');

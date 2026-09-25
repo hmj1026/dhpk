@@ -2,7 +2,7 @@
 'use strict';
 
 const path = require('node:path');
-const { installNativeSharedSkills } = require('../lib/native-shared-skill-install');
+const { installNativeSharedSkills, uninstallNativeSharedSkills } = require('../lib/native-shared-skill-install');
 const { classifyHostBinding } = require('../lib/cursor-consumer-evidence');
 
 function parseArgs(argv) {
@@ -19,7 +19,7 @@ function parseArgs(argv) {
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === 'install' || arg === 'update' || arg === 'classify') args.action = arg;
+    if (arg === 'install' || arg === 'update' || arg === 'classify' || arg === 'uninstall') args.action = arg;
     else if (arg === '--source' || arg === '--source-root') args.sourceRoot = argv[++index];
     else if (arg === '--project-root') args.projectRoot = argv[++index];
     else if (arg === '--host') args.host = argv[++index];
@@ -47,6 +47,27 @@ try {
     });
     if (args.json) console.log(JSON.stringify(classification));
     else console.log(`${args.host} bindingShape=${classification.bindingShape} reason=${classification.reason}`);
+    process.exit(0);
+  }
+  if (args.action === 'uninstall') {
+    if (!args.sourceRoot || !args.projectRoot) {
+      fail('usage: install-native-shared-skills.js uninstall --source <plugin> --project-root <dir> --host cursor|codex [--json]');
+    }
+    const result = uninstallNativeSharedSkills({
+      sourceRoot: path.resolve(args.sourceRoot),
+      projectRoot: path.resolve(args.projectRoot),
+      host: args.host,
+    });
+    if (args.json) {
+      console.log(JSON.stringify({
+        ok: result.ok !== false,
+        host: args.host,
+        state: result.state || 'UPDATED',
+        selectedIds: result.selectedIds || (result.receipt && result.receipt.selectedIds) || [],
+      }));
+    } else {
+      console.log(`install-native-shared-skills: uninstalled ${args.host} Host Bindings`);
+    }
     process.exit(0);
   }
   if (!args.sourceRoot || !args.projectRoot || args.selectedStableIds.length === 0) {

@@ -2823,6 +2823,40 @@ def unlink_cursor_native_links():
     return unlink_native_links()
 
 
+def uninstall_shared_projection():
+    if not shared_projection_available():
+        unlink_native_links()
+        return
+    host = shared_projection_host()
+    if not host:
+        return
+    cli = native_shared_skill_cli()
+    node = shutil.which('node')
+    if not node:
+        raise ValueError(f'{SURFACE_LABEL} shared projection uninstall requires node')
+    if not os.path.isfile(cli):
+        raise ValueError(f'{SURFACE_LABEL} shared projection uninstall requires {cli}')
+    command = [
+        node, cli, 'uninstall',
+        '--source', PLUGIN_ROOT,
+        '--project-root', PROJECT_ROOT,
+        '--host', host,
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f'{SURFACE_LABEL} shared projection uninstall failed: {exc}') from exc
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or '').strip()
+        raise ValueError(detail or f'{SURFACE_LABEL} shared projection uninstall failed')
+
+
 def inventory_retirement_metadata(active_metadata=None):
     """Return inventory-owned retirement rows keyed by every stable identity.
 
@@ -4289,7 +4323,7 @@ if UNINSTALL:
     try:
         ensure_codex_root_safe()
         if shared_projection_host():
-            unlink_native_links()
+            uninstall_shared_projection()
     except ValueError as error:
         print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
         sys.exit(2)
