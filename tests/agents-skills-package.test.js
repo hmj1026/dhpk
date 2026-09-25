@@ -236,6 +236,31 @@ test('explicit update authority still refuses unmanaged collisions', () => {
   }
 });
 
+test('canonical skill file deletions are pruned from managedPaths and not carried across update', () => {
+  const root = makeFixture();
+  const outDir = path.join(root, '.agents', 'skills');
+  const deletedRelative = 'dhpk-sample/scripts/check.sh';
+  try {
+    materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    fs.rmSync(path.join(root, 'skills', 'dhpk-sample', 'scripts', 'check.sh'));
+    materializeAgentsSkillsProjection({
+      root,
+      inventory: fixtureInventory(),
+      outDir,
+      allowCanonicalChanges: true,
+    });
+    const receipt = JSON.parse(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'));
+    assert.strictEqual(fs.existsSync(path.join(outDir, 'dhpk-sample', 'scripts', 'check.sh')), false);
+    assert.ok(!receipt.managedPaths.includes(deletedRelative));
+    assert.ok(!Object.prototype.hasOwnProperty.call(receipt.generatedFingerprints, deletedRelative));
+    assert.ok(receipt.managedPaths.includes('dhpk-sample/SKILL.md'));
+    const checked = validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
+    assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('legacy receipts migrate their source manifests before enforcing update authority', () => {
   const root = makeFixture();
   const outDir = path.join(root, '.agents', 'skills');
@@ -580,6 +605,37 @@ test('Claude discovery uses receipt-owned symlinks to the shared artifact', () =
   }
 });
 
+test('Cursor Host Bindings use per-skill native-link discovery into .cursor/skills', () => {
+  const sourceRoot = makeFixture();
+  const projectRoot = tmpDir('dhpk-agents-skills-cursor-native-link-');
+  try {
+    const result = materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      projectRoot,
+      inventory: projectInventory(),
+      profileId: 'portable-core',
+      requestedHosts: ['cursor'],
+    });
+    const adapterPath = path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample');
+    assert.strictEqual(fs.lstatSync(adapterPath).isSymbolicLink(), true);
+    assert.strictEqual(fs.readlinkSync(adapterPath), '../../.agents/skills/dhpk-sample');
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample', 'SKILL.md')), true);
+    assert.strictEqual(result.receipt.hostBindings.cursor.bindingShape, 'native-link');
+    const skillBinding = (result.receipt.hostBindings.cursor.bindings || []).find((entry) => entry.stableId === 'sample');
+    assert.ok(skillBinding, JSON.stringify(result.receipt.hostBindings.cursor));
+    assert.strictEqual(skillBinding.shape, 'native-link');
+    assert.deepStrictEqual(result.receipt.bindingPaths.cursor, [{
+      path: '.cursor/skills/dhpk-sample',
+      target: '../../.agents/skills/dhpk-sample',
+    }]);
+    assert.strictEqual(validateAgentsSkillsProjection({ projectRoot }).ok, true);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('Claude discovery refuses native or foreign overlap at the selected skill path', () => {
   const sourceRoot = makeFixture();
   const projectRoot = tmpDir('dhpk-agents-skills-claude-overlap-');
@@ -636,7 +692,7 @@ test('project receipt rejects divergent or unsupported binding claims', () => {
 
     const restored = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     restored.bindings = restored.hostBindings;
-    restored.bindingPaths.codex = [{ path: '.codex/skills/dhpk-sample', target: '../../.agents/skills/dhpk-sample' }];
+    restored.bindingPaths.windsurf = [{ path: '.windsurf/skills/dhpk-sample', target: '../../.agents/skills/dhpk-sample' }];
     resealProjectReceipt(restored);
     fs.writeFileSync(receiptPath, `${JSON.stringify(restored, null, 2)}\n`);
     checked = validateAgentsSkillsProjection({ projectRoot });
@@ -670,7 +726,7 @@ test('legacy project output is reported as legacy-unbound until explicit adoptio
   const sourceRoot = makeFixture();
   const projectRoot = tmpDir('dhpk-agents-skills-legacy-unbound-');
   try {
-    const options = { root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core' };
+    const options = { root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core', requestedHosts: ['claude'] };
     materializeAgentsSkillsProjection(options);
     fs.rmSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'));
     const observed = validateAgentsSkillsProjection({ projectRoot });

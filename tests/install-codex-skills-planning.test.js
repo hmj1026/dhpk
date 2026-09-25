@@ -25,6 +25,7 @@ const {
   waitForFile,
   rewriteAgentAsHistoricalManagedSymlink,
   materializeFixtureSkill,
+  firstNativeManagedSkill,
   collisionFixture,
   transactionMetadataSnapshot,
   provenanceDriftPlanFixture
@@ -199,11 +200,12 @@ for (const drift of ['version', 'fingerprint', 'both']) {
     try {
       assert.notStrictEqual(fixture.planned.status, 0, fixture.planned.stdout);
       const beforeReceipt = JSON.parse(fixture.before.receipt);
-      const beforeEntry = beforeReceipt.managed_entries.skills['tdd-workflow'];
+      const skillName = firstNativeManagedSkill(fixture.scratch);
+      const beforeEntry = beforeReceipt.managed_entries.skills[skillName];
       const updated = runInstaller(fixture.scratch, ['--migrate', '--update', '--force']);
       assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
       const repaired = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
-      const repairedEntry = repaired.managed_entries.skills['tdd-workflow'];
+      const repairedEntry = repaired.managed_entries.skills[skillName];
       assert.strictEqual(repaired.plugin_version, fixture.currentProvenance.pluginVersion);
       assert.strictEqual(repaired.source_fingerprint, fixture.currentProvenance.sourceFingerprint);
       assert.strictEqual(repaired.mode, beforeReceipt.mode);

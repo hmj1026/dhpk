@@ -6,6 +6,9 @@ const {
   AGY_PROJECT_PROBE_CLAIMS,
   AGY_PROJECT_PROBE_PRODUCER,
   createClaudeProjectDiscoveryAdapter,
+  createCursorProjectDiscoveryAdapter,
+  createCodexProjectDiscoveryAdapter,
+  DIRECT_SHAPE,
   createProjectAgentProviderAdapters,
   renderAgyDirectFile,
 } = require('../scripts/lib/project-agent-provider-adapters');
@@ -153,6 +156,85 @@ test('Claude discovery adapter binds generated packages without creating an auth
     () => createClaudeProjectDiscoveryAdapter({ entries: [{ stableId: 'bad', name: '../outside' }] }),
     /safe|name|path/i,
   );
+});
+
+test('Cursor native-link discovery adapter binds per-skill links into .cursor/skills', () => {
+  const adapter = createCursorProjectDiscoveryAdapter({
+    entries: [
+      { stableId: 'portable', name: 'dhpk-portable' },
+      { stableId: 'trace', name: 'dhpk-code-trace' },
+    ],
+  });
+  assert.strictEqual(adapter.id, 'cursor-project-discovery');
+  assert.strictEqual(adapter.kind, 'symlink');
+  assert.strictEqual(adapter.bindingShape, 'native-link');
+  assert.strictEqual(adapter.sourceRoot, '.agents/skills');
+  assert.strictEqual(adapter.destinationRoot, '.cursor/skills');
+  assert.deepStrictEqual(adapter.entries.map((entry) => entry.path), [
+    '.cursor/skills/dhpk-code-trace',
+    '.cursor/skills/dhpk-portable',
+  ]);
+  assert.deepStrictEqual(adapter.entries.map((entry) => entry.target), [
+    '../../.agents/skills/dhpk-code-trace',
+    '../../.agents/skills/dhpk-portable',
+  ]);
+});
+
+test('Cursor Host adapter exposes native-link discovery when cursor is bound', () => {
+  const adapters = createProjectAgentProviderAdapters(bindings(), {
+    entries: [{ stableId: 'sample', name: 'dhpk-sample' }],
+  });
+  assert.ok(adapters.forHost.cursor.discovery);
+  assert.strictEqual(adapters.forHost.cursor.discovery.bindingShape, 'native-link');
+  assert.strictEqual(adapters.forHost.cursor.discovery.destinationRoot, '.cursor/skills');
+  assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries, [{
+    stableId: 'sample',
+    name: 'dhpk-sample',
+    path: '.cursor/skills/dhpk-sample',
+    target: '../../.agents/skills/dhpk-sample',
+  }]);
+});
+
+test('Codex native-link discovery adapter binds per-skill links into .codex/skills', () => {
+  const adapter = createCodexProjectDiscoveryAdapter({
+    entries: [
+      { stableId: 'portable', name: 'dhpk-portable' },
+      { stableId: 'trace', name: 'dhpk-code-trace' },
+    ],
+  });
+  assert.strictEqual(adapter.id, 'codex-project-discovery');
+  assert.strictEqual(adapter.kind, 'symlink');
+  assert.strictEqual(adapter.bindingShape, 'native-link');
+  assert.strictEqual(adapter.destinationRoot, '.codex/skills');
+  assert.deepStrictEqual(adapter.entries.map((entry) => entry.path), [
+    '.codex/skills/dhpk-code-trace',
+    '.codex/skills/dhpk-portable',
+  ]);
+});
+
+test('Codex Host adapter binds only that Host\'s selectedStableIds', () => {
+  const hostBindings = bindings();
+  hostBindings.cursor.selectedStableIds = ['sample'];
+  hostBindings.codex.selectedStableIds = ['other'];
+  const adapters = createProjectAgentProviderAdapters(hostBindings, {
+    entries: [
+      { stableId: 'sample', name: 'dhpk-sample' },
+      { stableId: 'other', name: 'dhpk-other' },
+    ],
+  });
+  assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries.map((entry) => entry.stableId), ['sample']);
+  assert.deepStrictEqual(adapters.forHost.codex.discovery.entries.map((entry) => entry.stableId), ['other']);
+  assert.strictEqual(adapters.forHost.codex.discovery.destinationRoot, '.codex/skills');
+});
+
+test('Cursor discovery adapter can bind skills as evidence-gated direct Host Bindings', () => {
+  const adapter = createCursorProjectDiscoveryAdapter({
+    entries: [{ stableId: 'sample', name: 'dhpk-sample' }],
+    bindingShape: DIRECT_SHAPE,
+  });
+  assert.strictEqual(adapter.bindingShape, DIRECT_SHAPE);
+  assert.strictEqual(adapter.kind, 'direct');
+  assert.deepStrictEqual(adapter.entries, [{ stableId: 'sample', name: 'dhpk-sample' }]);
 });
 
 run('project-agent-provider-adapters');

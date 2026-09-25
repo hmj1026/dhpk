@@ -92,7 +92,7 @@ public function actionDelete() {
 
 ```php
 // ❌ 硬編碼密鑰
-$apiKey = 'sk_live_abc123def456';
+$apiKey = 'sk_live_xxx';
 
 // ✅ 環境變數
 $apiKey = getenv('STRIPE_API_KEY');

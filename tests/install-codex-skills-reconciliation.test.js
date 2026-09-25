@@ -25,6 +25,9 @@ const {
   waitForFile,
   rewriteAgentAsHistoricalManagedSymlink,
   materializeFixtureSkill,
+  firstRuntimeSupportSkillName,
+  firstNativeManagedSkill,
+  runtimeSupportSkillNames,
   collisionFixture,
   transactionMetadataSnapshot,
   provenanceDriftPlanFixture
@@ -215,11 +218,10 @@ test('copy mode materializes skills/agents and records the install manifest', ()
     const res = runInstaller(scratch, ['--copy', '--force']);
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     const codex = path.join(scratch, '.codex');
-    const skills = fs.readdirSync(path.join(codex, 'skills'));
+    const skillName = firstNativeManagedSkill(scratch);
     const agents = fs.readdirSync(path.join(codex, 'agents'));
-    assert.ok(skills.length > 0, 'expected copied Codex skills');
     assert.ok(agents.length > 0, 'expected copied Codex agents');
-    assert.ok(!fs.lstatSync(path.join(codex, 'skills', skills[0])).isSymbolicLink(), 'copy mode must materialize files');
+    assert.ok(!fs.lstatSync(path.join(codex, 'skills', skillName)).isSymbolicLink(), 'copy mode must materialize runtime-support files');
     const manifest = JSON.parse(fs.readFileSync(path.join(codex, '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(manifest.schema_version, 3);
     assert.ok(manifest.managed_entries && manifest.managed_entries.skills);
@@ -233,15 +235,15 @@ test('copy mode materializes skills/agents and records the install manifest', ()
     assert.ok(fs.existsSync(path.join(codex, supporting.destination)),
       'receipt-managed Codex supporting assets must materialize in the clean project');
     assert.match(supporting.source_fingerprint, /^[a-f0-9]{64}$/);
-    const skillEntry = manifest.managed_entries.skills[skills[0]];
-    assert.strictEqual(skillEntry.destination, `skills/${skills[0]}`);
-    assert.strictEqual(skillEntry.source, `skills/${skills[0]}`);
+    const skillEntry = manifest.managed_entries.skills[skillName];
+    assert.strictEqual(skillEntry.destination, `skills/${skillName}`);
+    assert.strictEqual(skillEntry.source, `skills/${skillName}`);
     assert.strictEqual(skillEntry.mode, 'copy');
     assert.match(skillEntry.source_fingerprint, /^[a-f0-9]{64}$/);
     assert.match(skillEntry.destination_fingerprint, /^[a-f0-9]{64}$/);
     assert.match(skillEntry.fingerprint, /^[a-f0-9]{64}$/);
     assert.ok(typeof skillEntry.id === 'string' && skillEntry.id.length > 0);
-    assert.strictEqual(skillEntry.name, skills[0]);
+    assert.strictEqual(skillEntry.name, skillName);
     assert.ok(skillEntry.ownership_marker);
     assert.strictEqual(manifest.mode, 'copy');
     assert.strictEqual(manifest.plugin_version, JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json'))).version);
@@ -257,12 +259,12 @@ test('default mode keeps skills linked but materializes Codex agent role files',
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
 
     const codex = path.join(scratch, '.codex');
-    const skillName = fs.readdirSync(path.join(codex, 'skills'))[0];
+    const skillName = firstNativeManagedSkill(scratch);
     const agentName = fs.readdirSync(path.join(codex, 'agents'))[0];
     const receipt = JSON.parse(fs.readFileSync(path.join(codex, '.dhpk-installed.json'), 'utf8'));
 
     assert.ok(fs.lstatSync(path.join(codex, 'skills', skillName)).isSymbolicLink(),
-      'default mode must preserve linked Codex skills');
+      'default mode must preserve linked Codex runtime-support skills');
     assert.ok(fs.lstatSync(path.join(codex, 'agents', agentName)).isFile(),
       'Codex agent role TOMLs must be physical files for runtime discovery');
     assert.strictEqual(receipt.mode, 'symlink');
@@ -805,13 +807,14 @@ test('copy update cleans legacy bytecode while preserving receipt ownership', ()
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    const skillTarget = path.join(scratch, '.codex', 'skills', 'harness-govern');
+    const skillName = firstNativeManagedSkill(scratch);
+    const skillTarget = path.join(scratch, '.codex', 'skills', skillName);
     const legacyBytecode = path.join(skillTarget, 'scripts', 'multi_ai_sync_lib', '__pycache__', 'legacy.pyc');
     fs.mkdirSync(path.dirname(legacyBytecode), { recursive: true });
     fs.writeFileSync(legacyBytecode, 'legacy-bytecode\n');
 
-    const entry = receipt.managed_entries.skills['harness-govern'];
-    assert.ok(entry, 'expected the harness-govern receipt entry to exist');
+    const entry = receipt.managed_entries.skills[skillName];
+    assert.ok(entry, 'expected the native runtime-support receipt entry to exist');
     const legacyDestinationFingerprint = completeTreeFingerprint(skillTarget);
     entry.destination_fingerprint = legacyDestinationFingerprint;
     entry.fingerprint = legacyDestinationFingerprint;
@@ -834,7 +837,7 @@ test('symlink mode links the target and --update preserves edited copied content
   try {
     const linked = runInstaller(scratch, ['--force']);
     assert.strictEqual(linked.status, 0, `${linked.stdout}\n${linked.stderr}`);
-    const skillName = fs.readdirSync(path.join(scratch, '.codex', 'skills'))[0];
+    const skillName = firstNativeManagedSkill(scratch);
     assert.ok(fs.lstatSync(path.join(scratch, '.codex', 'skills', skillName)).isSymbolicLink());
 
     const copied = runInstaller(scratch, ['--copy', '--update', '--force']);
@@ -936,7 +939,7 @@ test('managed-target replacement: re-sync replaces a dhpk-managed target regardl
   try {
     const symlinked = runInstaller(scratch, ['--force']);
     assert.strictEqual(symlinked.status, 0, `${symlinked.stdout}\n${symlinked.stderr}`);
-    const skillName = fs.readdirSync(path.join(scratch, '.codex', 'skills'))[0];
+    const skillName = firstNativeManagedSkill(scratch);
     const target = path.join(scratch, '.codex', 'skills', skillName);
     assert.ok(fs.lstatSync(target).isSymbolicLink(), 'first sync (symlink mode) must produce a symlink target');
 
@@ -1039,7 +1042,7 @@ test('inventory supporting sources reject unsafe paths before materialization', 
 test('fresh sync preserves an unowned copy collision and continues with other entries', () => {
   const scratch = projectRoot();
   try {
-    const skillName = fs.readdirSync(path.join(ROOT, 'codex', 'skills'))[0];
+    const skillName = firstRuntimeSupportSkillName();
     const target = path.join(scratch, '.codex', 'skills', skillName);
     fs.mkdirSync(target, { recursive: true });
     fs.writeFileSync(path.join(target, 'user-owned.txt'), 'keep me\n');
@@ -1079,7 +1082,7 @@ test('fresh sync beside the stable-id name installs the public name without crea
 test('a resolved collision is retried on the next idempotent sync', () => {
   const scratch = projectRoot();
   try {
-    const skillName = fs.readdirSync(path.join(ROOT, 'codex', 'skills'))[0];
+    const skillName = firstRuntimeSupportSkillName();
     const target = path.join(scratch, '.codex', 'skills', skillName);
     fs.mkdirSync(target, { recursive: true });
     fs.writeFileSync(path.join(target, 'user-owned.txt'), 'resolve me\n');
@@ -1100,7 +1103,7 @@ test('legacy receipt and unowned symlink are fail-closed until explicit --migrat
   const scratch = projectRoot();
   const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-external-')));
   try {
-    const skillName = fs.readdirSync(path.join(ROOT, 'codex', 'skills'))[0];
+    const skillName = firstRuntimeSupportSkillName();
     const target = path.join(scratch, '.codex', 'skills', skillName);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.symlinkSync(external, target, 'dir');
@@ -1167,12 +1170,13 @@ test('--update prunes only unchanged removed sources and preserves edited/unrela
 test('--migrate adopts exact legacy copies but never overwrites mismatches', () => {
   const scratch = projectRoot();
   try {
-    const skillName = fs.readdirSync(path.join(ROOT, 'codex', 'skills'))[0];
+    const names = runtimeSupportSkillNames();
+    const skillName = names[0];
     const source = path.join(ROOT, 'codex', 'skills', skillName);
     const exactTarget = path.join(scratch, '.codex', 'skills', skillName);
     fs.mkdirSync(path.dirname(exactTarget), { recursive: true });
     fs.cpSync(source, exactTarget, { recursive: true, dereference: true });
-    const mismatch = fs.readdirSync(path.join(ROOT, 'codex', 'skills'))[1];
+    const mismatch = names[1] || 'user-owned-skill';
     const mismatchTarget = path.join(scratch, '.codex', 'skills', mismatch);
     fs.mkdirSync(mismatchTarget, { recursive: true });
     fs.writeFileSync(path.join(mismatchTarget, 'user-owned.txt'), 'do not replace\n');
@@ -1194,7 +1198,7 @@ test('--migrate adopts exact legacy copies but never overwrites mismatches', () 
 test('legacy migration remains available after stale inspection', () => {
   const scratch = projectRoot();
   try {
-    const skillName = fs.readdirSync(path.join(ROOT, 'codex', 'skills'))[0];
+    const skillName = firstRuntimeSupportSkillName();
     const source = path.join(ROOT, 'codex', 'skills', skillName);
     const target = path.join(scratch, '.codex', 'skills', skillName);
     fs.mkdirSync(path.dirname(target), { recursive: true });

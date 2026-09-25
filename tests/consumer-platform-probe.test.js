@@ -347,6 +347,21 @@ test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
   }
 });
 
+test('Cursor checkout probe does not fail structural validation when --inventory is omitted', () => {
+  const packageRoot = path.join(ROOT, 'plugins/dhpk-cursor');
+  const inventory = path.join(ROOT, 'manifests', 'distribution-inventory.json');
+  const omitted = runProbe('cursor', packageRoot);
+  const omittedPayload = JSON.parse(omitted.stdout);
+  assert.strictEqual(omitted.status, 0, omitted.stdout + omitted.stderr);
+  assert.notStrictEqual(omittedPayload.status, 'FAIL', JSON.stringify(omittedPayload));
+  assert.ok(['UNAVAILABLE', 'NOT_RUN'].includes(omittedPayload.status), JSON.stringify(omittedPayload));
+
+  const explicit = runProbe('cursor', packageRoot, ['--inventory', inventory]);
+  const explicitPayload = JSON.parse(explicit.stdout);
+  assert.strictEqual(explicit.status, 0, explicit.stdout + explicit.stderr);
+  assert.strictEqual(explicitPayload.status, omittedPayload.status, JSON.stringify(explicitPayload));
+});
+
 test('Cursor probe converts sibling Agent Plugin validation exceptions into structured BLOCKED evidence', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-sibling-limit-'));
   const cursor = path.join(root, 'dhpk-cursor');

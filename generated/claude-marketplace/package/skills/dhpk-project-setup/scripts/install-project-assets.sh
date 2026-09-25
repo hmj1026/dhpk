@@ -25,14 +25,17 @@ TARGET=""
 INSTALL=""
 DRY_RUN=0
 FORCE=0
+VENDOR=0
 HELP=0
 
 usage() {
     cat <<EOF
-Usage: $SCRIPT_NAME --source-artifact DIR --target DIR --install hooks|rules|scripts|all [--dry-run] [--force]
+Usage: $SCRIPT_NAME --source-artifact DIR --target DIR --install hooks|rules|scripts|all [--dry-run] [--force] [--vendor]
 
 Copies selected assets from the explicit distribution artifact into TARGET.
 The artifact is read as data; only the Skill-local writer is executed.
+Default --install rules writes a project-delta stub; --vendor restores the
+discouraged verbatim copy of upstream rules.
 EOF
 }
 
@@ -85,6 +88,7 @@ operation_value() {
     local operation="install=$INSTALL"
     [ "$DRY_RUN" -eq 1 ] && operation="$operation dry-run=true"
     [ "$FORCE" -eq 1 ] && operation="$operation force=true"
+    [ "$VENDOR" -eq 1 ] && operation="$operation vendor=true"
     printf '%s' "$operation"
 }
 
@@ -147,6 +151,7 @@ while [ "$#" -gt 0 ]; do
         --install=*) INSTALL="${1#--install=}"; shift ;;
         --dry-run) DRY_RUN=1; shift ;;
         --force) FORCE=1; shift ;;
+        --vendor) VENDOR=1; shift ;;
         -h|--help) HELP=1; shift ;;
         *) printf '[%s] unknown argument: %s\n' "$ADAPTER_NAME" "$1" >&2; usage >&2; exit 64 ;;
     esac
@@ -179,6 +184,7 @@ trap cleanup EXIT
 writer_args=(--source "$SOURCE_ARTIFACT" --target "$TARGET" --install "$INSTALL")
 [ "$DRY_RUN" -eq 1 ] && writer_args+=(--dry-run)
 [ "$FORCE" -eq 1 ] && writer_args+=(--force)
+[ "$VENDOR" -eq 1 ] && writer_args+=(--vendor)
 "$WRITER" "${writer_args[@]}" >"$stdout_file" 2>"$stderr_file"
 writer_status="$?"
 cat "$stdout_file"

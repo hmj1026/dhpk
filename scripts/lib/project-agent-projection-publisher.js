@@ -24,6 +24,15 @@ const {
   createProjectAgentProviderAdapters,
   CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
   CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
+  CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
+  CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
+  CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  CODEX_PROJECT_DISCOVERY_ADAPTER_ID,
+  CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION,
+  CODEX_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  NATIVE_LINK_SHAPE,
+  DIRECT_SHAPE,
   renderAgyDirectFile,
 } = require('./project-agent-provider-adapters');
 
@@ -195,8 +204,9 @@ function validateReceiptBindings(receipt, roots) {
     throw fail('INVALID_RECEIPT', 'project projection receipt legacyUnbound flag is invalid');
   }
   const bindingPaths = normalizeBindingPaths(receipt.bindingPaths || {}, roots);
+  const allowedBindingHosts = new Set(['claude', 'codex', 'cursor']);
   for (const hostId of Object.keys(bindingPaths)) {
-    if (hostId !== 'claude') {
+    if (!allowedBindingHosts.has(hostId)) {
       throw fail('INVALID_RECEIPT', `project projection receipt has unsupported Host binding paths: ${hostId}`);
     }
   }
@@ -218,22 +228,107 @@ function validateReceiptBindings(receipt, roots) {
   for (const hostId of Object.keys(bindingPaths)) {
     if (!providers.forHost[hostId]) throw fail('INVALID_RECEIPT', `project projection receipt has an unbound Host path set: ${hostId}`);
   }
-  const discovery = providers.forHost.claude && providers.forHost.claude.discovery;
+  assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
+    hostId: 'claude',
+    adapterId: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
+    adapterVersion: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    label: 'Claude',
+  });
+  const cursorBinding = receipt.hostBindings && receipt.hostBindings.cursor;
+  const cursorShape = cursorBinding && (
+    cursorBinding.bindingShape === DIRECT_SHAPE || cursorBinding.bindingShape === NATIVE_LINK_SHAPE
+  ) ? cursorBinding.bindingShape : null;
+  const cursorDiscoveryRecorded = Boolean(
+    cursorBinding && (
+      cursorBinding.discovery
+      || cursorShape
+      || (bindingPaths.cursor && bindingPaths.cursor.length > 0)
+    )
+  );
+  assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
+    hostId: 'cursor',
+    adapterId: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
+    adapterVersion: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    label: 'Cursor',
+    bindingShape: cursorDiscoveryRecorded ? (cursorShape || NATIVE_LINK_SHAPE) : null,
+    required: cursorDiscoveryRecorded,
+  });
+  const codexBinding = receipt.hostBindings && receipt.hostBindings.codex;
+  const codexShape = codexBinding && (
+    codexBinding.bindingShape === DIRECT_SHAPE || codexBinding.bindingShape === NATIVE_LINK_SHAPE
+  ) ? codexBinding.bindingShape : null;
+  const codexDiscoveryRecorded = Boolean(
+    codexBinding && (
+      codexBinding.discovery
+      || codexShape
+      || (bindingPaths.codex && bindingPaths.codex.length > 0)
+    )
+  );
+  assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
+    hostId: 'codex',
+    adapterId: CODEX_PROJECT_DISCOVERY_ADAPTER_ID,
+    adapterVersion: CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    label: 'Codex',
+    bindingShape: codexDiscoveryRecorded ? (codexShape || NATIVE_LINK_SHAPE) : null,
+    required: codexDiscoveryRecorded,
+  });
+  return bindingPaths;
+}
+
+function assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
+  hostId,
+  adapterId,
+  adapterVersion,
+  label,
+  bindingShape = null,
+  required = true,
+}) {
+  const discovery = providers.forHost[hostId] && providers.forHost[hostId].discovery;
+  if (!required) {
+    if (bindingPaths[hostId] && bindingPaths[hostId].length > 0) {
+      throw fail('INVALID_RECEIPT', `project projection receipt has ${label} paths without a ${label} Host binding`);
+    }
+    return;
+  }
+  if (bindingShape === DIRECT_SHAPE) {
+    if ((bindingPaths[hostId] || []).length > 0) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} direct bindings must not publish native-link paths`);
+    }
+    const descriptor = receipt.hostBindings[hostId] && receipt.hostBindings[hostId].discovery;
+    if (!descriptor || descriptor.adapterId !== adapterId || descriptor.adapterVersion !== adapterVersion) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} discovery adapter identity is invalid`);
+    }
+    if (receipt.hostBindings[hostId].bindingShape !== DIRECT_SHAPE) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} bindingShape must be ${DIRECT_SHAPE}`);
+    }
+    const expectedNames = (discovery && discovery.entries ? discovery.entries : [])
+      .map((entry) => entry.name)
+      .slice()
+      .sort();
+    const bindings = Array.isArray(receipt.hostBindings[hostId].bindings) ? receipt.hostBindings[hostId].bindings : [];
+    const actualNames = bindings.map((entry) => entry && entry.name).slice().sort();
+    if (bindings.some((entry) => !entry || entry.shape !== DIRECT_SHAPE || entry.path || entry.target)
+      || actualNames.join('\0') !== expectedNames.join('\0')) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} direct bindings do not match the selected artifact`);
+    }
+    return;
+  }
   if (discovery) {
     const expected = discovery.entries.map((entry) => ({ path: entry.path, target: entry.target }));
-    const actual = bindingPaths.claude || [];
+    const actual = bindingPaths[hostId] || [];
     if (actual.length !== expected.length || actual.some((entry, index) => entry.path !== expected[index].path || entry.target !== expected[index].target)) {
-      throw fail('INVALID_RECEIPT', 'project projection receipt Claude discovery bindings do not match the selected artifact');
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} discovery bindings do not match the selected artifact`);
     }
-    const descriptor = receipt.hostBindings.claude.discovery;
-    if (!descriptor || descriptor.adapterId !== CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID
-      || descriptor.adapterVersion !== CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION) {
-      throw fail('INVALID_RECEIPT', 'project projection receipt Claude discovery adapter identity is invalid');
+    const descriptor = receipt.hostBindings[hostId] && receipt.hostBindings[hostId].discovery;
+    if (!descriptor || descriptor.adapterId !== adapterId || descriptor.adapterVersion !== adapterVersion) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} discovery adapter identity is invalid`);
     }
-  } else if (bindingPaths.claude && bindingPaths.claude.length > 0) {
-    throw fail('INVALID_RECEIPT', 'project projection receipt has Claude paths without a Claude Host binding');
+    if (bindingShape && receipt.hostBindings[hostId].bindingShape !== bindingShape) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} bindingShape must be ${bindingShape}`);
+    }
+  } else if (bindingPaths[hostId] && bindingPaths[hostId].length > 0) {
+    throw fail('INVALID_RECEIPT', `project projection receipt has ${label} paths without a ${label} Host binding`);
   }
-  return bindingPaths;
 }
 
 function safeName(value, label) {
@@ -382,10 +477,84 @@ function planValue(input) {
   return input;
 }
 
-function compilePlan({ inventory, plan, profileId = 'portable-core', requestedHosts }) {
+function stampDiscoveryHost(hostBindings, bindingPaths, providers, {
+  hostId,
+  adapterId,
+  adapterVersion,
+  bindingShape = null,
+  bindingReason = null,
+}) {
+  const discovery = providers.forHost[hostId] && providers.forHost[hostId].discovery;
+  if (!discovery) return;
+  if (bindingShape === DIRECT_SHAPE) {
+    bindingPaths[hostId] = [];
+    const stamped = {
+      ...hostBindings[hostId],
+      discovery: {
+        adapterId,
+        adapterVersion,
+        kind: 'direct',
+        sourceRoot: discovery.sourceRoot,
+        destinationRoot: discovery.destinationRoot,
+        paths: [],
+      },
+      bindingShape: DIRECT_SHAPE,
+      bindings: discovery.entries.map((entry) => ({
+        stableId: entry.stableId,
+        name: entry.name,
+        shape: DIRECT_SHAPE,
+      })),
+    };
+    if (bindingReason) stamped.bindingReason = bindingReason;
+    hostBindings[hostId] = stamped;
+    return;
+  }
+  bindingPaths[hostId] = discovery.entries.map(({ path: bindingPath, target }) => ({
+    path: bindingPath,
+    target,
+  }));
+  const stamped = {
+    ...hostBindings[hostId],
+    discovery: {
+      adapterId,
+      adapterVersion,
+      kind: discovery.kind,
+      sourceRoot: discovery.sourceRoot,
+      destinationRoot: discovery.destinationRoot,
+      paths: bindingPaths[hostId].map((entry) => entry.path),
+    },
+  };
+  if (bindingShape) {
+    stamped.bindingShape = bindingShape;
+    stamped.bindings = discovery.entries.map((entry) => ({
+      stableId: entry.stableId,
+      name: entry.name,
+      path: entry.path,
+      target: entry.target,
+      shape: bindingShape,
+    }));
+  }
+  if (bindingReason) stamped.bindingReason = bindingReason;
+  hostBindings[hostId] = stamped;
+}
+
+function compilePlan({
+  inventory,
+  plan,
+  profileId = 'portable-core',
+  requestedHosts,
+  selectedStableIds,
+  declaredSelection,
+}) {
   const supplied = planValue(plan);
   if (supplied && typeof supplied === 'object' && typeof supplied.planFingerprint === 'string') return supplied;
-  const compiled = compileProjectAgentProjection({ inventory, profileId, requestedHosts });
+  const compiled = compileProjectAgentProjection({
+    inventory,
+    profileId,
+    requestedHosts,
+    selectedStableIds,
+    declaredSelection,
+  });
   if (!compiled.ok) throw fail(compiled.error.code, compiled.error.message, compiled.error.details || {});
   return compiled.value;
 }
@@ -408,16 +577,66 @@ function sourceEntryFor(planEntry, byId) {
   return source;
 }
 
-function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
+function applyHostSelections(hostBindings, hostSelections) {
+  if (!hostSelections || typeof hostSelections !== 'object' || Array.isArray(hostSelections)) {
+    return hostBindings;
+  }
+  const next = clone(hostBindings);
+  for (const hostId of Object.keys(hostSelections)) {
+    if (!next[hostId]) continue;
+    const ids = Array.isArray(hostSelections[hostId])
+      ? [...new Set(hostSelections[hostId])].sort()
+      : [];
+    next[hostId] = {
+      ...next[hostId],
+      selectedStableIds: ids,
+      emittedStableIds: ids,
+    };
+  }
+  return next;
+}
+
+function restorePreservedHostBindings(hostBindings, preserveHostBindings) {
+  if (!preserveHostBindings || typeof preserveHostBindings !== 'object' || Array.isArray(preserveHostBindings)) {
+    return hostBindings;
+  }
+  const next = clone(hostBindings);
+  for (const hostId of Object.keys(preserveHostBindings)) {
+    next[hostId] = clone(preserveHostBindings[hostId]);
+  }
+  return next;
+}
+
+function nativeLinkShapeFrom(binding) {
+  return binding && binding.bindingShape === DIRECT_SHAPE ? DIRECT_SHAPE : NATIVE_LINK_SHAPE;
+}
+
+function buildArtifactInputs({
+  sourceRoot,
+  inventory,
+  plan,
+  roots,
+  cursorBinding = null,
+  codexBinding = null,
+  hostSelections = null,
+  preserveHostBindings = null,
+  preserveBindingPaths = null,
+} = {}) {
   const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.id, entry]));
   const adapterEntries = (plan.entries || []).map((planEntry) => {
     const sourceEntry = sourceEntryFor(planEntry, byId);
     const name = safeName(sourceEntry.name || sourceEntry.publicName || path.basename(sourceEntry.path), `inventory entry '${planEntry.stableId}' name`);
     return { stableId: planEntry.stableId, name };
   });
-  const providers = createProjectAgentProviderAdapters(plan.hostBindings, {
+  const cursorShape = nativeLinkShapeFrom(cursorBinding);
+  const codexShape = nativeLinkShapeFrom(codexBinding);
+  let hostBindings = applyHostSelections(clone(plan.hostBindings || {}), hostSelections);
+  hostBindings = restorePreservedHostBindings(hostBindings, preserveHostBindings);
+  const providers = createProjectAgentProviderAdapters(hostBindings, {
     entries: adapterEntries,
     claudeSourceRoot: roots.config.managed_root,
+    cursorBindingShape: cursorShape,
+    codexBindingShape: codexShape,
   });
   const records = [];
   const receiptEntries = [];
@@ -613,25 +832,37 @@ function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
   });
   if (!artifactPlanResult.ok) throw fail(artifactPlanResult.error.code, artifactPlanResult.error.message, artifactPlanResult.error.details || {});
 
-  const hostBindings = clone(plan.hostBindings || {});
   const bindingPaths = {};
-  const claudeDiscovery = providers.forHost.claude && providers.forHost.claude.discovery;
-  if (claudeDiscovery) {
-    bindingPaths.claude = claudeDiscovery.entries.map(({ path: bindingPath, target }) => ({
-      path: bindingPath,
-      target,
-    }));
-    hostBindings.claude = {
-      ...hostBindings.claude,
-      discovery: {
-        adapterId: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
-        adapterVersion: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
-        kind: claudeDiscovery.kind,
-        sourceRoot: claudeDiscovery.sourceRoot,
-        destinationRoot: claudeDiscovery.destinationRoot,
-        paths: bindingPaths.claude.map((entry) => entry.path),
-      },
-    };
+  if (preserveBindingPaths && typeof preserveBindingPaths === 'object' && !Array.isArray(preserveBindingPaths)) {
+    for (const hostId of Object.keys(preserveBindingPaths)) {
+      bindingPaths[hostId] = clone(preserveBindingPaths[hostId]);
+    }
+  }
+  const preservedHosts = new Set(Object.keys(preserveHostBindings || {}));
+  if (!preservedHosts.has('claude')) {
+    stampDiscoveryHost(hostBindings, bindingPaths, providers, {
+      hostId: 'claude',
+      adapterId: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
+      adapterVersion: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    });
+  }
+  if (!preservedHosts.has('cursor')) {
+    stampDiscoveryHost(hostBindings, bindingPaths, providers, {
+      hostId: 'cursor',
+      adapterId: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
+      adapterVersion: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
+      bindingShape: cursorShape,
+      bindingReason: cursorBinding && cursorBinding.reason ? cursorBinding.reason : null,
+    });
+  }
+  if (!preservedHosts.has('codex')) {
+    stampDiscoveryHost(hostBindings, bindingPaths, providers, {
+      hostId: 'codex',
+      adapterId: CODEX_PROJECT_DISCOVERY_ADAPTER_ID,
+      adapterVersion: CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION,
+      bindingShape: codexShape,
+      bindingReason: codexBinding && codexBinding.reason ? codexBinding.reason : null,
+    });
   }
 
   return {
@@ -780,19 +1011,29 @@ function legacyManifestPath(roots) {
 }
 
 function inferLegacyBindingPaths(roots, entries) {
-  const claude = roots.config.hosts && roots.config.hosts.claude;
-  if (!claude || claude.shape !== 'project-skill-directory') return {};
-  const bindingPaths = [];
-  for (const entry of entries) {
-    if (!entry || typeof entry.name !== 'string' || !SAFE_NAME.test(entry.name)) continue;
-    const relativePath = `.claude/skills/${entry.name}`;
-    const expectedTarget = path.posix.relative('.claude/skills', `${roots.config.managed_root}/${entry.name}`);
-    const target = bindingDestinationIn(roots, relativePath, 'legacy Claude binding path');
-    const stat = lstatOrNull(target);
-    if (!stat || !stat.isSymbolicLink()) continue;
-    if (fs.readlinkSync(target) === expectedTarget) bindingPaths.push({ path: relativePath, target: expectedTarget });
+  const hosts = [
+    { hostId: 'claude', destinationRoot: CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT },
+    { hostId: 'cursor', destinationRoot: CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT },
+  ];
+  const bindingPaths = {};
+  for (const { hostId, destinationRoot } of hosts) {
+    const host = roots.config.hosts && roots.config.hosts[hostId];
+    if (!host || host.shape !== 'project-skill-directory') continue;
+    const found = [];
+    for (const entry of entries) {
+      if (!entry || typeof entry.name !== 'string' || !SAFE_NAME.test(entry.name)) continue;
+      const relativePath = `${destinationRoot}/${entry.name}`;
+      const expectedTarget = path.posix.relative(destinationRoot, `${roots.config.managed_root}/${entry.name}`);
+      const target = bindingDestinationIn(roots, relativePath, `legacy ${hostId} binding path`);
+      const stat = lstatOrNull(target);
+      if (!stat || !stat.isSymbolicLink()) continue;
+      if (fs.readlinkSync(target) === expectedTarget) found.push({ path: relativePath, target: expectedTarget });
+    }
+    if (found.length > 0) {
+      bindingPaths[hostId] = found.sort((left, right) => left.path.localeCompare(right.path));
+    }
   }
-  return bindingPaths.length > 0 ? { claude: bindingPaths.sort((left, right) => left.path.localeCompare(right.path)) } : {};
+  return bindingPaths;
 }
 
 function adoptLegacyManifest(roots) {
@@ -862,7 +1103,7 @@ function adoptLegacyManifest(roots) {
   return adopted;
 }
 
-function validateManagedFiles(roots, receipt) {
+function validateManagedFiles(roots, receipt, { requireBindings = true } = {}) {
   for (const relative of receipt.managedPaths.slice().sort()) {
     const target = pathIn(roots.managedRoot, relative, 'receipt-owned managed path');
     const stat = lstatOrNull(target);
@@ -873,7 +1114,10 @@ function validateManagedFiles(roots, receipt) {
   for (const binding of flattenBindingPaths(normalizeBindingPaths(receipt.bindingPaths || {}, roots))) {
     const resolved = bindingTargetIn(roots, binding, `receipt-owned ${binding.hostId} binding`);
     const stat = lstatOrNull(resolved.destination);
-    if (!stat) throw fail('MANAGED_CONTENT_MISSING', `receipt-owned Host binding is missing: ${binding.path}`, { paths: [binding.path] });
+    if (!stat) {
+      if (!requireBindings) continue;
+      throw fail('MANAGED_CONTENT_MISSING', `receipt-owned Host binding is missing: ${binding.path}`, { paths: [binding.path] });
+    }
     if (!stat.isSymbolicLink()) throw fail('MANAGED_CONTENT_CHANGED', `receipt-owned Host binding was replaced: ${binding.path}`, { paths: [binding.path] });
     let actualTarget;
     try {
@@ -1255,6 +1499,7 @@ function publishManagedCandidate({ roots, previous, candidateRoot, candidateFile
     }
     for (const binding of flattenBindingPaths(previousBindingPaths)) {
       const source = bindingDestinationIn(roots, binding.path, 'transaction binding backup source');
+      if (!lstatOrNull(source)) continue;
       const target = path.join(backup, 'bindings', binding.path);
       fs.mkdirSync(path.dirname(target), { recursive: true });
       assertPhysicalAncestors(target, 'transaction binding backup target', backup);
@@ -1311,11 +1556,31 @@ function publishManagedCandidate({ roots, previous, candidateRoot, candidateFile
   }
 }
 
-function stageArtifact({ roots, sourceRoot, inventory, plan }) {
+function stageArtifact({
+  roots,
+  sourceRoot,
+  inventory,
+  plan,
+  cursorBinding = null,
+  codexBinding = null,
+  hostSelections = null,
+  preserveHostBindings = null,
+  preserveBindingPaths = null,
+}) {
   const artifactRoot = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-artifact-'));
   try {
     const publishedRoot = path.join(artifactRoot, 'published');
-    const inputs = buildArtifactInputs({ sourceRoot, inventory, plan, roots });
+    const inputs = buildArtifactInputs({
+      sourceRoot,
+      inventory,
+      plan,
+      roots,
+      cursorBinding,
+      codexBinding,
+      hostSelections,
+      preserveHostBindings,
+      preserveBindingPaths,
+    });
     const store = new ProjectionArtifactStore({ root: artifactRoot, sourceRoot, publishRoot: publishedRoot });
     const contentByPath = new Map(inputs.records.map((record) => [record.value.destination, record.content]));
     const adapter = {
@@ -1348,7 +1613,7 @@ function stageArtifact({ roots, sourceRoot, inventory, plan }) {
   }
 }
 
-function receiptForArtifact({ roots, plan, staged }) {
+function receiptForArtifact({ roots, plan, staged, declaredSelection = false }) {
   const inputs = staged.inputs;
   return sealReceipt({
     schema: PROJECT_RECEIPT_SCHEMA,
@@ -1365,6 +1630,7 @@ function receiptForArtifact({ roots, plan, staged }) {
     capabilityEvidenceFingerprint: plan.capabilityEvidenceFingerprint || null,
     planFingerprint: plan.planFingerprint,
     artifactFingerprint: staged.artifact.artifactFingerprint,
+    ...(declaredSelection ? { declaredSelection: true } : {}),
     selectedIds: inputs.selectedIds,
     emittedIds: inputs.emittedIds,
     dependencyClosure: clone(plan.dependencyClosure || null),
@@ -1394,15 +1660,37 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     }
     previous = adoptLegacyManifest(roots);
   }
-  if (previous) validateManagedFiles(roots, previous);
-  const plan = compilePlan({ inventory: options.inventory, plan: options.plan, profileId: options.profileId || 'portable-core', requestedHosts: options.requestedHosts });
-  const staged = stageArtifact({ roots, sourceRoot: roots.sourceRoot, inventory: options.inventory, plan });
+  if (previous) validateManagedFiles(roots, previous, { requireBindings: false });
+  const plan = compilePlan({
+    inventory: options.inventory,
+    plan: options.plan,
+    profileId: options.profileId || 'portable-core',
+    requestedHosts: options.requestedHosts,
+    selectedStableIds: options.selectedStableIds,
+    declaredSelection: options.declaredSelection,
+  });
+  const staged = stageArtifact({
+    roots,
+    sourceRoot: roots.sourceRoot,
+    inventory: options.inventory,
+    plan,
+    cursorBinding: options.cursorBinding || null,
+    codexBinding: options.codexBinding || null,
+    hostSelections: options.hostSelections || null,
+    preserveHostBindings: options.preserveHostBindings || null,
+    preserveBindingPaths: options.preserveBindingPaths || null,
+  });
   try {
     if (previous) {
       const approvedRenames = approvedRenameIds(previous, options.inventory, plan);
       sourceDrift(previous, staged.inputs.sourceFingerprints, Boolean(options.allowCanonicalChanges || options.update), approvedRenames);
     }
-    const receipt = receiptForArtifact({ roots, plan, staged });
+    const receipt = receiptForArtifact({
+      roots,
+      plan,
+      staged,
+      declaredSelection: options.declaredSelection === true,
+    });
     const published = publishManagedCandidate({
       roots,
       previous,
@@ -1526,7 +1814,14 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
     }
     if (options.inventory && (options.sourceRoot || options.root)) {
       const requestedHosts = options.requestedHosts || Object.keys(receipt.hostBindings || {}).sort();
-      const plan = compilePlan({ inventory: options.inventory, plan: options.plan, profileId: options.profileId || receipt.profileId || 'portable-core', requestedHosts });
+      const plan = compilePlan({
+        inventory: options.inventory,
+        plan: options.plan,
+        profileId: options.profileId || receipt.profileId || 'portable-core',
+        requestedHosts,
+        selectedStableIds: receipt.declaredSelection === true ? receipt.selectedIds : options.selectedStableIds,
+        declaredSelection: receipt.declaredSelection === true || options.declaredSelection,
+      });
       if (plan.planFingerprint !== receipt.planFingerprint) errors.push('receipt plan fingerprint does not match the compiler-owned plan');
       const byId = new Map(inventoryEntries(options.inventory).map((entry) => [entry.id, entry]));
       for (const entry of receipt.entries) {

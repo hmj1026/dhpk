@@ -521,6 +521,9 @@ SELECTION_RUNTIME_IDS = None
 SELECTION_FINGERPRINT = None
 SELECTION_SURFACE_FINGERPRINT = None
 SELECTION_MIGRATION = None
+DEPENDENCY_GATED_KINDS = ('commands', 'agents')
+SKILL_REF_RE = re.compile(r'skills/([A-Za-z0-9._-]+)/')
+EXCLUDED_SOURCE_ENTRIES = []
 # Relative Codex skill path -> validated package-local runtime assets.  The
 # map is populated while the selected source inventory is built, before any
 # transaction or destination mutation starts.
@@ -2206,19 +2209,29 @@ def inventory_supporting_sources():
 
 def source_fingerprint():
     digest = hashlib.sha256()
+    metadata = inventory_skill_metadata()
+    available = set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or [])
+    runtime_ids = native_runtime_skill_ids()
     for root_name in SOURCE_KINDS:
+        if skip_native_skill_kind(root_name) and not runtime_ids:
+            continue
         root = os.path.join(CODEX_SRC, root_name)
         if not os.path.isdir(root):
             continue
         for name in sorted(os.listdir(root)):
             if is_ignored_distribution_name(name):
                 continue
-            metadata = inventory_skill_metadata() if root_name == 'skills' else {}
-            if root_name == 'skills' and SELECTION_EMITTED_IDS is not None:
+            if root_name == 'skills' and skip_native_skill_kind(root_name):
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
-                if stable_id not in set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or []):
+                if stable_id not in runtime_ids:
+                    continue
+            elif root_name == 'skills' and SELECTION_EMITTED_IDS is not None:
+                stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
+                if stable_id not in available:
                     continue
             child = os.path.join(root, name)
+            if unmet_skill_dependency_ids(root_name, child, metadata):
+                continue
             validate_source_tree(child, f'{root_name} source', allowed_roots=(PLUGIN_ROOT, INSTALLER_ROOT))
             relative = f'{root_name}/{name}'
             digest.update(relative.encode('utf-8'))
@@ -2232,6 +2245,29 @@ def source_fingerprint():
         digest.update(b'\0')
         digest.update(hash_path(supporting, include_ignored=False).encode('ascii'))
         digest.update(b'\0')
+    if shared_projection_available():
+        by_id = {
+            value.get('id'): value
+            for value in metadata.values()
+            if isinstance(value, dict) and isinstance(value.get('id'), str) and value.get('id')
+        }
+        for stable_id in sorted(SELECTION_EMITTED_IDS or []):
+            record = by_id.get(stable_id)
+            if not isinstance(record, dict):
+                continue
+            skill_path = record.get('path')
+            if not isinstance(skill_path, str) or not skill_path:
+                name = record.get('name')
+                if not isinstance(name, str) or not name:
+                    continue
+                skill_path = f'skills/{name}'
+            source = os.path.join(PLUGIN_ROOT, *skill_path.split('/'))
+            if not is_within(source, PLUGIN_ROOT) or not lexists(source):
+                continue
+            digest.update(f'shared-skill:{stable_id}'.encode('utf-8'))
+            digest.update(b'\0')
+            digest.update(hash_path(source, include_ignored=False).encode('ascii'))
+            digest.update(b'\0')
     return digest.hexdigest()
 
 
@@ -2480,6 +2516,471 @@ def resolve_installer_selection(receipt, metadata):
             'fromSelectionFingerprint': old_fingerprint,
             'toSelectionFingerprint': selection_fingerprint,
         }
+
+
+def skip_native_skill_kind(kind):
+    return shared_projection_available() and kind == 'skills'
+
+
+def native_runtime_skill_ids():
+    return set(SELECTION_RUNTIME_IDS or [])
+
+
+def shared_projection_host():
+    if HARNESS_KIND == 'cursor':
+        return 'cursor'
+    if HARNESS_KIND == 'codex':
+        return 'codex'
+    return None
+
+
+def declared_projection_host_key():
+    if HARNESS_KIND == 'cursor':
+        return 'cursor'
+    if HARNESS_KIND == 'codex':
+        return 'codex-sync'
+    return None
+
+
+def consumer_evidence_env_key():
+    if HARNESS_KIND == 'cursor':
+        return 'DHPK_CURSOR_CONSUMER_EVIDENCE'
+    if HARNESS_KIND == 'codex':
+        return 'DHPK_CODEX_CONSUMER_EVIDENCE'
+    return None
+
+
+def read_profile_projection_sets():
+    sets_path = os.path.join(PLUGIN_ROOT, 'manifests', 'profile-projection-sets.json')
+    if not os.path.isfile(sets_path):
+        return None
+    try:
+        with open(sets_path, encoding='utf-8') as handle:
+            document = json.load(handle)
+    except Exception as exc:
+        raise ValueError(f'cannot read profile projection sets: {exc}')
+    if not isinstance(document, dict):
+        raise ValueError('profile-projection-sets.json must be an object')
+    return document
+
+
+def shared_projection_available():
+    if not shared_projection_host():
+        return False
+    if read_profile_projection_sets() is None:
+        return False
+    return os.path.isdir(os.path.join(PLUGIN_ROOT, 'skills'))
+
+
+def declared_skill_ids():
+    host_key = declared_projection_host_key()
+    if not host_key:
+        raise ValueError('declared projection selection requires a cursor or codex-sync Host')
+    document = read_profile_projection_sets()
+    if document is None:
+        raise ValueError('native-link install requires manifests/profile-projection-sets.json')
+    profiles = document.get('profiles')
+    if not isinstance(profiles, dict):
+        raise ValueError('profile-projection-sets.json must declare profiles')
+    default_profile = 'minimal' if HARNESS_KIND == 'cursor' else 'compat-v1'
+    profile_id = SELECTION_PROFILE_ID or default_profile
+    host_sets = profiles.get(profile_id)
+    if not isinstance(host_sets, dict):
+        raise ValueError(f"profile '{profile_id}' is not declared in profile-projection-sets.json")
+    declared = host_sets.get(host_key)
+    if (not isinstance(declared, list) or not declared
+            or any(not isinstance(item, str) or not item for item in declared)):
+        raise ValueError(f"profile '{profile_id}' has no declared {host_key} projection set")
+    if len(set(declared)) != len(declared):
+        raise ValueError(f"profile '{profile_id}' declares duplicate {host_key} projection ids")
+    selected = list(declared)
+    for stable_id in REQUESTED_SKILL_IDS:
+        if stable_id not in selected:
+            selected.append(stable_id)
+    return selected
+
+
+def apply_declared_projection_selection():
+    global SELECTION_EMITTED_IDS, SELECTION_CANONICAL_IDS, SELECTION_PROFILE_ID
+    selected = declared_skill_ids()
+    if SELECTION_PROFILE_ID is None:
+        SELECTION_PROFILE_ID = 'minimal' if HARNESS_KIND == 'cursor' else 'compat-v1'
+    if SELECTION_CANONICAL_IDS is None:
+        SELECTION_CANONICAL_IDS = list(selected)
+    SELECTION_EMITTED_IDS = list(selected)
+    return selected
+
+
+def cursor_declared_skill_ids():
+    return declared_skill_ids()
+
+
+def apply_cursor_declared_selection():
+    return apply_declared_projection_selection()
+
+
+def native_shared_skill_cli():
+    return os.path.join(INSTALLER_ROOT, 'scripts', 'ci', 'install-native-shared-skills.js')
+
+
+def classify_host_bindings():
+    host = shared_projection_host() or 'cursor'
+    label = SURFACE_LABEL
+    fallback = {
+        'bindingShape': 'native-link',
+        'reason': f'{label} discovery consumer probe classifier is unavailable',
+    }
+    cli = native_shared_skill_cli()
+    node = shutil.which('node')
+    if not node or not os.path.isfile(cli):
+        return fallback
+    command = [node, cli, 'classify', '--json', '--host', host]
+    evidence_key = consumer_evidence_env_key()
+    evidence = os.environ.get(evidence_key) if evidence_key else None
+    if evidence:
+        command.extend(['--consumer-evidence', evidence])
+    try:
+        result = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return fallback
+    if result.returncode != 0:
+        return {
+            'bindingShape': 'native-link',
+            'reason': f'{label} discovery consumer probe classifier failed',
+        }
+    try:
+        payload = json.loads(result.stdout)
+    except (TypeError, ValueError):
+        return fallback
+    shape = payload.get('bindingShape') if isinstance(payload, dict) else None
+    reason = payload.get('reason') if isinstance(payload, dict) else None
+    if shape not in ('direct', 'native-link') or not isinstance(reason, str) or not reason:
+        return fallback
+    return {'bindingShape': shape, 'reason': reason}
+
+
+def classify_cursor_host_bindings():
+    return classify_host_bindings()
+
+
+def install_shared_projection(selected=None):
+    host = shared_projection_host()
+    if not host:
+        raise ValueError('shared projection install requires a cursor or codex Host')
+    selected = list(SELECTION_EMITTED_IDS or []) if selected is None else list(selected)
+    if not selected:
+        raise ValueError(f'{SURFACE_LABEL} native-link install has an empty declared skill set')
+    cli = native_shared_skill_cli()
+    if not os.path.isfile(cli):
+        raise ValueError(f'{SURFACE_LABEL} native-link install requires {cli}')
+    node = shutil.which('node')
+    if not node:
+        raise ValueError(f'{SURFACE_LABEL} native-link install requires node to materialize the shared project projection')
+    command = [
+        node, cli, 'install',
+        '--source', PLUGIN_ROOT,
+        '--project-root', PROJECT_ROOT,
+        '--host', host,
+        '--declared-selection',
+    ]
+    for stable_id in selected:
+        command.extend(['--selected-id', stable_id])
+    if UPDATE:
+        command.append('--update')
+    evidence_key = consumer_evidence_env_key()
+    evidence = os.environ.get(evidence_key) if evidence_key else None
+    if evidence:
+        command.extend(['--consumer-evidence', evidence])
+    try:
+        result = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f'{SURFACE_LABEL} shared projection install failed: {exc}') from exc
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or '').strip()
+        raise ValueError(detail or f'{SURFACE_LABEL} shared projection install failed')
+
+
+def declared_skill_public_names():
+    metadata = inventory_skill_metadata()
+    by_id = {}
+    for name, record in metadata.items():
+        if not isinstance(record, dict):
+            continue
+        stable_id = record.get('id')
+        if not isinstance(stable_id, str) or not stable_id:
+            continue
+        public = record.get('name') if isinstance(record.get('name'), str) and record.get('name') else name
+        by_id[stable_id] = public
+    names = []
+    seen = set()
+    for stable_id in SELECTION_EMITTED_IDS or []:
+        public = by_id.get(stable_id)
+        if isinstance(public, str) and public and public not in seen:
+            seen.add(public)
+            names.append(public)
+    return names
+
+
+def plugin_skill_source_path(name):
+    record = inventory_skill_metadata().get(name) or {}
+    relative = record.get('path')
+    if not isinstance(relative, str) or not relative:
+        relative = f'skills/{name}'
+    return os.path.join(PLUGIN_ROOT, *relative.split('/'))
+
+
+def native_skill_receipt_entry(name):
+    try:
+        skills = entries.get('skills') if isinstance(entries, dict) else None
+        if isinstance(skills, dict) and name in skills:
+            return skills[name]
+    except NameError:
+        pass
+    if isinstance(receipt, dict):
+        managed = receipt.get('managed_entries')
+        if isinstance(managed, dict) and isinstance(managed.get('skills'), dict):
+            return managed['skills'].get(name)
+    return None
+
+
+def classify_legacy_native_declared_skills():
+    """Classify leftover native declared skill dests before shared Host Bindings."""
+    if not shared_projection_available():
+        return []
+    runtime_ids = native_runtime_skill_ids()
+    metadata = inventory_skill_metadata()
+    rows = []
+    for name in declared_skill_public_names():
+        record = metadata.get(name)
+        stable_id = record.get('id') if isinstance(record, dict) else None
+        if stable_id in runtime_ids:
+            continue
+        dest_rel = f'skills/{name}'
+        try:
+            destination = safe_destination(dest_rel)
+        except ValueError:
+            continue
+        if not lexists(destination):
+            continue
+        expected = f'../../.agents/skills/{name}'
+        if os.path.islink(destination) and os.readlink(destination) == expected:
+            continue
+        source = plugin_skill_source_path(name)
+        source_fp = source_fingerprint_for(source, dest_rel) if lexists(source) else ''
+        dest_fp = safe_destination_fingerprint(destination)
+        old = native_skill_receipt_entry(name)
+        if isinstance(old, dict) and is_owned(old, destination):
+            handling = 'migrate'
+            reason = 'unchanged-receipt-owned-native-copy'
+            action = '--update'
+        elif isinstance(old, dict):
+            handling = 'keep-modified'
+            reason = 'receipt-owned-native-copy-diverged'
+            action = f'--adopt={dest_rel}@{dest_fp}@{source_fp}'
+        else:
+            handling = 'unowned'
+            reason = 'native-skill-destination-not-in-receipt'
+            action = 'preserve'
+        rows.append({
+            'path': dest_rel,
+            'kind': 'skills',
+            'name': name,
+            'stableId': stable_id,
+            'handling': handling,
+            'reason': reason,
+            'action': action,
+            'source_fingerprint': source_fp,
+            'destination_fingerprint': dest_fp,
+        })
+    return rows
+
+
+def selected_shared_projection_ids(adopted=None):
+    adopted = adopted or {}
+    skip = set()
+    for item in classify_legacy_native_declared_skills():
+        if item.get('handling') not in ('keep-modified', 'unowned'):
+            continue
+        if item.get('path') in adopted:
+            continue
+        stable_id = item.get('stableId')
+        if isinstance(stable_id, str) and stable_id:
+            skip.add(stable_id)
+    return [stable_id for stable_id in (SELECTION_EMITTED_IDS or []) if stable_id not in skip]
+
+
+def handover_adopted_legacy_native_skills(adopted, counts):
+    """Remove adopted leftover native copies so Host Bindings can replace them."""
+    if not adopted:
+        return
+    for item in classify_legacy_native_declared_skills():
+        if item.get('handling') != 'keep-modified' or item.get('path') not in adopted:
+            continue
+        relative = item['path']
+        destination = target_for(relative)
+        expected = item.get('destination_fingerprint')
+        expected_source = adopted[relative]
+        if (safe_destination_fingerprint(destination) != expected
+                or item.get('source_fingerprint') != expected_source):
+            raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
+        name = item['name']
+        old = native_skill_receipt_entry(name)
+        backup = backup_destination(relative, destination, 'adopt-legacy-native')
+        if backup:
+            counts['backed_up'] += 1
+            register_pending_prune(relative, destination, backup)
+        remove_relative_path(relative, expected)
+        try:
+            if isinstance(entries.get('skills'), dict):
+                entries['skills'].pop(name, None)
+        except NameError:
+            pass
+        try:
+            orphaned.pop(relative, None)
+        except NameError:
+            pass
+        counts['adopted'] += 1
+        record_path('adopted', relative)
+        record_ownership(relative, 'dhpk-managed')
+
+
+def receipt_owned_native_declared_dests_block_shared_projection():
+    if UPDATE or UNINSTALL:
+        return False
+    skills = {}
+    if isinstance(receipt, dict):
+        managed = receipt.get('managed_entries')
+        if isinstance(managed, dict) and isinstance(managed.get('skills'), dict):
+            skills = managed['skills']
+    if not skills:
+        return False
+    runtime_ids = native_runtime_skill_ids()
+    metadata = inventory_skill_metadata()
+    blocking = set(declared_skill_public_names())
+    for name, old in skills.items():
+        if name not in blocking:
+            continue
+        record = metadata.get(name)
+        stable_id = record.get('id') if isinstance(record, dict) else None
+        if stable_id in runtime_ids:
+            continue
+        try:
+            destination = receipt_destination('skills', name, old)
+        except ValueError:
+            continue
+        if not lexists(destination):
+            continue
+        expected = f'../../.agents/skills/{name}'
+        if os.path.islink(destination) and os.readlink(destination) == expected:
+            continue
+        return True
+    return False
+
+
+def maybe_install_shared_projection(adopted=None):
+    if UNINSTALL or not shared_projection_available():
+        return
+    if receipt_owned_native_declared_dests_block_shared_projection():
+        return
+    selected = selected_shared_projection_ids(adopted)
+    if not selected:
+        return
+    install_shared_projection(selected)
+
+
+def install_cursor_shared_projection():
+    return install_shared_projection()
+
+
+def unlink_native_links():
+    host = shared_projection_host()
+    if not host:
+        return
+    ensure_codex_root_safe()
+    receipt_path = os.path.join(PROJECT_ROOT, '.agents', '.dhpk-installed.json')
+    if not os.path.isfile(receipt_path):
+        return
+    try:
+        with open(receipt_path, encoding='utf-8') as handle:
+            projection = json.load(handle)
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return
+    bindings = (projection.get('bindingPaths') or {}).get(host) or []
+    if not isinstance(bindings, list):
+        return
+    skill_name = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+    dest_prefix = f'{DEST_REL}/skills/'
+    for entry in bindings:
+        if not isinstance(entry, dict):
+            continue
+        relative = entry.get('path')
+        target = entry.get('target')
+        if not isinstance(relative, str) or not isinstance(target, str):
+            continue
+        name = relative.rsplit('/', 1)[-1]
+        if relative != f'{dest_prefix}{name}' or not skill_name.fullmatch(name):
+            continue
+        expected_target = f'../../.agents/skills/{name}'
+        if target != expected_target:
+            continue
+        dest_rel = f'skills/{name}'
+        try:
+            destination = safe_destination(dest_rel)
+            if not os.path.islink(destination) or os.readlink(destination) != expected_target:
+                continue
+            remove_relative_path(dest_rel)
+        except (OSError, ValueError):
+            continue
+
+
+def unlink_cursor_native_links():
+    return unlink_native_links()
+
+
+def uninstall_shared_projection():
+    if not shared_projection_available():
+        unlink_native_links()
+        return
+    host = shared_projection_host()
+    if not host:
+        return
+    cli = native_shared_skill_cli()
+    node = shutil.which('node')
+    if not node:
+        raise ValueError(f'{SURFACE_LABEL} shared projection uninstall requires node')
+    if not os.path.isfile(cli):
+        raise ValueError(f'{SURFACE_LABEL} shared projection uninstall requires {cli}')
+    command = [
+        node, cli, 'uninstall',
+        '--source', PLUGIN_ROOT,
+        '--project-root', PROJECT_ROOT,
+        '--host', host,
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ValueError(f'{SURFACE_LABEL} shared projection uninstall failed: {exc}') from exc
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or '').strip()
+        raise ValueError(detail or f'{SURFACE_LABEL} shared projection uninstall failed')
 
 
 def inventory_retirement_metadata(active_metadata=None):
@@ -2788,22 +3289,112 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
     }
 
 
+def inventory_skill_token_map(metadata):
+    """Map inventory id, public name, and path basename to a stable skill id."""
+    tokens = {}
+    for name, record in (metadata or {}).items():
+        if not isinstance(record, dict):
+            continue
+        stable_id = record.get('id')
+        if not isinstance(stable_id, str) or not stable_id:
+            continue
+        tokens[stable_id] = stable_id
+        if isinstance(name, str) and name:
+            tokens[name] = stable_id
+        skill_path = record.get('path')
+        if isinstance(skill_path, str) and skill_path:
+            tokens[os.path.basename(skill_path.rstrip('/'))] = stable_id
+    return tokens
+
+
+def iter_source_texts(source):
+    """Yield UTF-8 text from a projected file or directory tree."""
+    real = source
+    try:
+        if os.path.islink(source):
+            real = os.path.realpath(source)
+    except OSError:
+        return
+    if os.path.isfile(real):
+        try:
+            with open(real, encoding='utf-8', errors='ignore') as handle:
+                yield handle.read()
+        except OSError:
+            return
+        return
+    if not os.path.isdir(real):
+        return
+    for root, dirs, files in os.walk(real):
+        dirs[:] = [name for name in dirs if not is_ignored_distribution_name(name)]
+        for name in files:
+            if is_ignored_distribution_name(name):
+                continue
+            path = os.path.join(root, name)
+            try:
+                if not os.path.isfile(path):
+                    continue
+                with open(path, encoding='utf-8', errors='ignore') as handle:
+                    yield handle.read()
+            except OSError:
+                continue
+
+
+def unmet_skill_dependency_ids(kind, source, metadata):
+    """Return inventory skill ids referenced by a command/agent but not selected."""
+    if kind not in DEPENDENCY_GATED_KINDS or SELECTION_EMITTED_IDS is None:
+        return []
+    available = set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or [])
+    tokens = inventory_skill_token_map(metadata)
+    missing = set()
+    for text in iter_source_texts(source):
+        if not isinstance(text, str):
+            continue
+        for match in SKILL_REF_RE.finditer(text):
+            stable_id = tokens.get(match.group(1))
+            if stable_id and stable_id not in available:
+                missing.add(stable_id)
+    return sorted(missing)
+
+
+def record_unmet_skill_exclusion(kind, name, missing):
+    EXCLUDED_SOURCE_ENTRIES.append({
+        'kind': kind,
+        'name': name,
+        'reason': 'unmet-skill-dependency',
+        'missing': list(missing),
+    })
+
+
 def current_sources():
+    global EXCLUDED_SOURCE_ENTRIES
+    EXCLUDED_SOURCE_ENTRIES = []
     result = {kind: {} for kind in MANAGED_KINDS}
+    metadata = inventory_skill_metadata()
+    available = set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or [])
+    runtime_ids = native_runtime_skill_ids()
     for kind in SOURCE_KINDS:
+        if skip_native_skill_kind(kind) and not runtime_ids:
+            continue
         root = os.path.join(CODEX_SRC, kind)
         if not os.path.isdir(root):
             continue
         for name in sorted(os.listdir(root)):
             if is_ignored_distribution_name(name):
                 continue
-            metadata = inventory_skill_metadata() if kind == 'skills' else {}
-            if kind == 'skills' and SELECTION_EMITTED_IDS is not None:
+            if kind == 'skills' and skip_native_skill_kind(kind):
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
-                if stable_id not in set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or []):
+                if stable_id not in runtime_ids:
+                    continue
+            elif kind == 'skills' and SELECTION_EMITTED_IDS is not None:
+                stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
+                if stable_id not in available:
                     continue
             source = os.path.join(root, name)
             if not lexists(source):
+                continue
+            missing = unmet_skill_dependency_ids(kind, source, metadata)
+            if missing:
+                record_unmet_skill_exclusion(kind, name, missing)
                 continue
             relative = f'{kind}/{name}'
             result[kind][name] = (source, relative)
@@ -3132,6 +3723,23 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
                 item['canonical_identity'] = dict(retirement.get('canonical_identity') or {})
             retired.append(item)
 
+    legacy_native_skills = classify_legacy_native_declared_skills()
+    collision_paths = {item.get('path') for item in collisions}
+    for item in legacy_native_skills:
+        if item.get('handling') != 'keep-modified' or item.get('path') in collision_paths:
+            continue
+        collisions.append({
+            'path': item.get('path'),
+            'kind': item.get('kind'),
+            'name': item.get('name'),
+            'ownership': 'modified-legacy-native',
+            'source_fingerprint': item.get('source_fingerprint', ''),
+            'destination_fingerprint': item.get('destination_fingerprint', ''),
+            'action': item.get('action'),
+            'handling': 'keep-modified',
+        })
+        collision_paths.add(item.get('path'))
+
     # A ledger row can outlive its receipt entry.  If its former canonical
     # destination still exists, report it as an unowned collision rather than
     # treating a public name as permission to delete user data.
@@ -3215,7 +3823,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         next_action = 're-run with --migrate --update'
     elif state != 'current':
         next_action = 're-run with --update (and --migrate when the receipt is legacy)'
-    return {
+    report = {
         'schema_version': SCHEMA_VERSION,
         'plugin_version': plugin_version,
         'profileId': SELECTION_PROFILE_ID,
@@ -3238,8 +3846,22 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'missing': sorted(missing, key=lambda item: item.get('path', '')),
         'updates': sorted(updates, key=lambda item: item.get('path', '')),
         'retired': sorted(retired, key=lambda item: item.get('path', '')),
+        'legacyNativeSkills': sorted(legacy_native_skills, key=lambda item: item.get('path', '')),
+        'excluded': sorted(
+            [dict(item) for item in EXCLUDED_SOURCE_ENTRIES],
+            key=lambda item: (item.get('kind', ''), item.get('name', '')),
+        ),
         'next_action': next_action,
     }
+    if shared_projection_host():
+        host_binding = classify_host_bindings()
+        if HARNESS_KIND == 'cursor':
+            report['cursorBindingShape'] = host_binding.get('bindingShape')
+            report['cursorBindingReason'] = host_binding.get('reason')
+        else:
+            report['codexBindingShape'] = host_binding.get('bindingShape')
+            report['codexBindingReason'] = host_binding.get('reason')
+    return report
 
 
 def print_plan(report):
@@ -3247,11 +3869,24 @@ def print_plan(report):
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(f"[install-codex-skills] plan: state={report['state']} receipt_state={report['receipt_state']}")
+        for item in report.get('excluded') or []:
+            missing = ','.join(item.get('missing') or [])
+            print(
+                '[install-codex-skills] excluded: '
+                f"{item.get('kind')}/{item.get('name')} "
+                f"reason={item.get('reason')} missing={missing}"
+            )
         for collision in report['collisions']:
             print(
                 '[install-codex-skills] collision: '
                 f"{collision['path']} ownership={collision['ownership']} "
                 f"action={collision['action']}"
+            )
+        for item in report.get('legacyNativeSkills') or []:
+            print(
+                '[install-codex-skills] legacy-native-skill: '
+                f"{item.get('path')} handling={item.get('handling')} "
+                f"action={item.get('action')}"
             )
         if report.get('next_action'):
             print(f"[install-codex-skills] ACTION REQUIRED: {report['next_action']}")
@@ -3549,6 +4184,13 @@ def print_summary(counts, collisions, orphaned):
         print(f'[install-codex-skills] collision preserved: {relative}')
     for relative in sorted(orphaned):
         print(f'[install-codex-skills] orphaned preserved: {relative}')
+    for item in EXCLUDED_SOURCE_ENTRIES:
+        missing = ','.join(item.get('missing') or [])
+        print(
+            '[install-codex-skills] excluded: '
+            f"{item.get('kind')}/{item.get('name')} "
+            f"reason={item.get('reason')} missing={missing}"
+        )
 
 
 def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, metadata):
@@ -3737,6 +4379,8 @@ except ValueError as error:
 try:
     skill_metadata = inventory_skill_metadata()
     resolve_installer_selection(receipt, skill_metadata)
+    if shared_projection_available():
+        apply_declared_projection_selection()
     sources = current_sources()
     skill_retirements = inventory_retirement_metadata(skill_metadata)
     validate_skill_metadata(sources, skill_metadata)
@@ -3806,6 +4450,11 @@ if classification.get('requires_structural_migration') and not MIGRATE and UNINS
 prior_reconciliation = receipt.get('reconciliation') if isinstance(receipt, dict) else {}
 has_pending_conflicts = bool(orphaned) or bool(isinstance(prior_reconciliation, dict) and prior_reconciliation.get('skipped_collision'))
 if not UPDATE and not MIGRATE and not UNINSTALL and not legacy and not has_pending_conflicts and receipt.get('plugin_version') == plugin_version and receipt.get('source_fingerprint') == fingerprint:
+    try:
+        maybe_install_shared_projection(adopt_paths)
+    except ValueError as error:
+        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+        sys.exit(2)
     print(f'[install-codex-skills] already up-to-date for dhpk v{plugin_version}')
     sys.exit(0)
 
@@ -3823,6 +4472,8 @@ except (OSError, ValueError) as error:
 if UNINSTALL:
     try:
         ensure_codex_root_safe()
+        if shared_projection_host():
+            uninstall_shared_projection()
     except ValueError as error:
         print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
         sys.exit(2)
@@ -3915,8 +4566,12 @@ if (UPDATE or MIGRATE) and not ADOPT_PATHS:
     migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, skill_metadata)
 
 # Reconcile entries removed from the source only during an explicit update.
-if UPDATE and not ADOPT_PATHS:
+# Cursor native-link skills are no longer native sources, so they must still
+# prune on --update even when --adopt scopes the rest of the receipt.
+if UPDATE:
     for kind in MANAGED_KINDS:
+        if ADOPT_PATHS and not skip_native_skill_kind(kind):
+            continue
         for name in list(entries[kind]):
             if name in sources[kind]:
                 continue
@@ -3972,20 +4627,32 @@ if UPDATE and not ADOPT_PATHS:
                 record_ownership(relative, 'dhpk-managed')
             else:
                 entries[kind][name] = dict(old, orphaned=True)
-                orphaned_entry = dict(old, reason='modified-removed-source')
+                keep_modified_legacy = (
+                    skip_native_skill_kind(kind)
+                    and name in declared_skill_public_names()
+                )
+                orphaned_entry = dict(
+                    old,
+                    reason='keep-modified-legacy-native' if keep_modified_legacy else 'modified-removed-source',
+                )
                 if retirement:
                     orphaned_entry['reason'] = 'retired-entry-modified-or-retargeted'
                     orphaned_entry['retirement'] = dict(retirement)
+                    keep_modified_legacy = False
                 orphaned[relative] = orphaned_entry
                 counts['orphaned'] += 1
                 counts['preserved'] += 1
-                counts['skipped_collision'] += 1
-                if relative not in collisions:
-                    collisions.append(relative)
-                record_path('collisions', relative)
                 record_path('orphaned', relative)
-                record_ownership(relative, 'retired-orphaned' if retirement else 'orphaned')
+                if keep_modified_legacy:
+                    record_ownership(relative, 'keep-modified')
+                else:
+                    counts['skipped_collision'] += 1
+                    if relative not in collisions:
+                        collisions.append(relative)
+                    record_path('collisions', relative)
+                    record_ownership(relative, 'retired-orphaned' if retirement else 'orphaned')
 
+if UPDATE and not ADOPT_PATHS:
     # Preserve retired destinations that are present on disk but have no
     # receipt entry proving ownership.  The ledger is guidance, never a
     # deletion authority.
@@ -4038,6 +4705,15 @@ if UPDATE and not ADOPT_PATHS:
         record_path('collisions', relative)
         record_path('orphaned', relative)
         record_ownership(relative, 'unowned-collision')
+
+if shared_projection_available() and not UNINSTALL:
+    try:
+        handover_adopted_legacy_native_skills(adopt_paths, counts)
+        maybe_install_shared_projection(adopt_paths)
+    except ValueError as error:
+        rollback_pending()
+        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+        sys.exit(2)
 
 for kind in MANAGED_KINDS:
     for name, (source, relative) in sources[kind].items():

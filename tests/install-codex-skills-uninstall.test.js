@@ -25,6 +25,8 @@ const {
   waitForFile,
   rewriteAgentAsHistoricalManagedSymlink,
   materializeFixtureSkill,
+  firstNativeManagedSkill,
+  nativeManagedSkillNames,
   collisionFixture,
   transactionMetadataSnapshot,
   provenanceDriftPlanFixture
@@ -35,10 +37,10 @@ test('--uninstall removes only unchanged receipt-owned targets and retains orpha
   try {
     const first = runInstaller(scratch, ['--copy', '--force']);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const skills = fs.readdirSync(path.join(scratch, '.codex', 'skills'));
-    assert.ok(skills.length >= 2, 'fixture needs at least two installed skills');
-    const edited = skills[0];
-    const kept = skills[1];
+    const nativeSkills = nativeManagedSkillNames(scratch);
+    assert.ok(nativeSkills.length >= 2, 'fixture needs at least two installed runtime-support skills');
+    const edited = nativeSkills[0];
+    const kept = nativeSkills[1];
     const editedTarget = path.join(scratch, '.codex', 'skills', edited);
     fs.writeFileSync(path.join(editedTarget, 'user-edit.txt'), 'edited\n');
     const unrelatedTarget = path.join(scratch, '.codex', 'skills', 'unrelated');
@@ -113,7 +115,7 @@ test('a deleted orphaned destination is restored to managed ownership on reinsta
   try {
     const first = runInstaller(scratch, ['--copy', '--force']);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const skillName = fs.readdirSync(path.join(scratch, '.codex', 'skills'))[0];
+    const skillName = firstNativeManagedSkill(scratch);
     const target = path.join(scratch, '.codex', 'skills', skillName);
     fs.writeFileSync(path.join(target, 'user-edit.txt'), 'edited\n');
     const removed = runInstaller(scratch, ['--uninstall', '--force']);
@@ -174,15 +176,15 @@ test('uninstall rejects symlinked .codex parents without deleting the external t
   try {
     const first = runInstaller(scratch, ['--copy', '--force']);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const skillName = fs.readdirSync(path.join(scratch, '.codex', 'skills'))[0];
+    const skillName = firstNativeManagedSkill(scratch);
     const originalSkills = path.join(scratch, '.codex', 'skills');
     const externalSkills = path.join(external, 'skills');
     fs.renameSync(originalSkills, externalSkills);
     fs.symlinkSync(externalSkills, originalSkills, 'dir');
     const res = runInstaller(scratch, ['--uninstall', '--force']);
-    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     assert.ok(fs.existsSync(path.join(externalSkills, skillName, 'SKILL.md')));
-    assert.match(`${res.stdout}\n${res.stderr}`, /orphaned|unsafe|preserved/i);
+    assert.match(`${res.stdout}\n${res.stderr}`, /symlink|unsafe|ancestor/i);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(external, { recursive: true, force: true });
@@ -227,7 +229,7 @@ test('uninstall preserves a retargeted symlink even when the replacement has ide
   try {
     const first = runInstaller(scratch, ['--force']);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const skillName = fs.readdirSync(path.join(ROOT, 'codex', 'skills'))[0];
+    const skillName = firstNativeManagedSkill(scratch);
     const source = path.join(ROOT, 'codex', 'skills', skillName);
     const target = path.join(scratch, '.codex', 'skills', skillName);
     const replacement = path.join(userOwned, skillName);

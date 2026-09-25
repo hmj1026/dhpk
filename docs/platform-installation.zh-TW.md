@@ -171,7 +171,7 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.63.2 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.64.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -782,7 +782,7 @@ Maintainer 準備新的 distribution 時，才可在 clean checkout 產生與驗
 package：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.63.2 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.64.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

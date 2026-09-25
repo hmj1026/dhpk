@@ -91,6 +91,20 @@ test('runtime support remains selected in dependency closure rather than becomin
   assert.strictEqual(compiled.value.incompatible.some((entry) => entry.stableId === 'runtime-support'), false);
 });
 
+test('declared selectedStableIds emit even when Host surface evidence would skip them', () => {
+  const source = fixture();
+  source.project_agent_projection.hosts.cursor.surface = 'cursor-sync';
+  const compiled = compile(source, {
+    requestedHosts: ['cursor'],
+    selectedStableIds: ['portable-b'],
+    declaredSelection: true,
+  });
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.deepStrictEqual(compiled.value.selectedStableIds, ['portable-b']);
+  assert.ok(compiled.value.emittedStableIds.includes('portable-b'), JSON.stringify(compiled.value.emittedStableIds));
+  assert.deepStrictEqual(compiled.value.hostBindings.cursor.selectedStableIds, ['portable-b']);
+});
+
 test('missing profiles and unknown hosts fail closed without substitution', () => {
   const missing = fixture();
   delete missing.project_agent_projection.profiles['portable-core'];

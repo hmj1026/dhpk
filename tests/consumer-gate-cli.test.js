@@ -16,6 +16,7 @@ const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'consumer-gate.js');
 const {
   discoverCodexSurface,
+  discoverCodexSurfaces,
   evaluateCodexSurfaceMatrix,
   fingerprintDir,
   fingerprintPath,
@@ -431,6 +432,7 @@ test('verifies the Cursor project-local sync route in an isolated project', () =
   assert.strictEqual(cursorSync.stage, 'CONSUMER');
   assert.strictEqual(cursorSync.adapter.id, 'cursor-sync-installer');
   assert.ok(cursorSync.artifacts.some((artifact) => artifact.receipt === '<sandbox>/.cursor/.dhpk-installed.json'), JSON.stringify(cursorSync));
+  assert.ok(cursorSync.artifacts.some((artifact) => artifact.receipt === '<sandbox>/.agents/.dhpk-installed.json' && artifact.bindingShape === 'native-link'), JSON.stringify(cursorSync));
 });
 
 test('selected Cursor sync evidence keeps the gate pending without a Cursor client probe', () => {
@@ -728,6 +730,53 @@ test('Codex surface discovery includes both skill and agent inventories', () => 
     assert.ok(entries.every((entry) => entry.owned && entry.current));
   } finally {
     fs.rmSync(surfaceRoot, { recursive: true, force: true });
+  }
+});
+
+test('Codex native-link Host Bindings count as owned project-local skills', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-native-link-owned-'));
+  try {
+    const project = path.join(root, 'project');
+    const shared = path.join(project, '.agents', 'skills', 'demo-skill');
+    const dest = path.join(project, '.codex', 'skills', 'demo-skill');
+    const nativeRoot = path.join(root, 'plugins', 'dhpk');
+    const nativeSkill = path.join(nativeRoot, 'skills', 'demo-skill');
+    fs.mkdirSync(shared, { recursive: true });
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.mkdirSync(nativeSkill, { recursive: true });
+    fs.writeFileSync(path.join(shared, 'SKILL.md'), '# demo\n');
+    fs.writeFileSync(path.join(nativeSkill, 'SKILL.md'), '# demo\n');
+    fs.symlinkSync('../../.agents/skills/demo-skill', dest);
+    fs.writeFileSync(path.join(project, '.codex', '.dhpk-installed.json'), `${JSON.stringify({
+      schema_version: 3,
+      plugin_version: '1.0.0',
+      managed_entries: { skills: {}, agents: {}, supporting_assets: { x: {} } },
+    })}\n`);
+    fs.writeFileSync(path.join(project, '.agents', '.dhpk-installed.json'), `${JSON.stringify({
+      hostBindings: {
+        codex: {
+          bindingShape: 'native-link',
+          bindings: [{
+            shape: 'native-link',
+            path: '.codex/skills/demo-skill',
+            target: '../../.agents/skills/demo-skill',
+          }],
+        },
+      },
+    })}\n`);
+
+    const surfaces = discoverCodexSurfaces({
+      root,
+      project,
+      version: '1.0.0',
+      nativeRoot,
+    });
+    const skill = surfaces.project.find((entry) => entry.kind === 'skills' && entry.id === 'demo-skill');
+    assert.ok(skill, JSON.stringify(surfaces.project));
+    assert.strictEqual(skill.owned, true);
+    assert.strictEqual(skill.current, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

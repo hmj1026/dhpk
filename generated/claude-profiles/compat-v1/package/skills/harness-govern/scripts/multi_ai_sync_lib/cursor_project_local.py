@@ -13,6 +13,8 @@ HASH_ENTRY_LIMIT = 40000
 HASH_BYTE_LIMIT = 256 * 1024 * 1024
 HASH_DEPTH_LIMIT = 64
 REQUIRED_KINDS = ("skills", "agents", "rules", "commands", "supporting_assets")
+REQUIRED_NATIVE_KINDS = ("agents", "rules", "commands", "supporting_assets")
+SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 SHA256 = re.compile(r"^[a-f0-9]{64}$", re.IGNORECASE)
 SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 IGNORED_NAMES = {"__pycache__"}
@@ -205,18 +207,109 @@ def _selected_skill_names(plugin_root, receipt):
     return sorted(available[stable_id] for stable_id in emitted)
 
 
+DEPENDENCY_GATED_KINDS = ("commands", "agents")
+SKILL_REF_RE = re.compile(r"skills/([A-Za-z0-9._-]+)/")
+
+
+def _skill_token_map(plugin_root):
+    inventory_path = os.path.join(plugin_root, "manifests", "distribution-inventory.json")
+    try:
+        with open(inventory_path, encoding="utf-8") as handle:
+            inventory = json.load(handle)
+    except (OSError, ValueError):
+        raise CursorProjectLocalError("current distribution inventory is unavailable")
+    tokens = {}
+    for skill in inventory.get("skills") or []:
+        if not isinstance(skill, dict):
+            continue
+        stable_id = skill.get("id")
+        if not isinstance(stable_id, str) or not stable_id:
+            continue
+        tokens[stable_id] = stable_id
+        name = skill.get("name")
+        if isinstance(name, str) and name:
+            tokens[name] = stable_id
+        skill_path = skill.get("path")
+        if isinstance(skill_path, str) and skill_path:
+            tokens[os.path.basename(skill_path.rstrip("/"))] = stable_id
+    return tokens
+
+
+def _available_skill_ids(receipt):
+    ids = set()
+    for key in ("emittedStableIds", "runtimeSupportStableIds"):
+        values = receipt.get(key)
+        if not isinstance(values, list):
+            continue
+        ids.update(value for value in values if isinstance(value, str) and value)
+    return ids
+
+
+def _iter_source_texts(source):
+    real = source
+    try:
+        if os.path.islink(source):
+            real = os.path.realpath(source)
+    except OSError:
+        return
+    if os.path.isfile(real):
+        try:
+            with open(real, encoding="utf-8", errors="ignore") as handle:
+                yield handle.read()
+        except OSError:
+            return
+        return
+    if not os.path.isdir(real):
+        return
+    for root, dirs, files in os.walk(real):
+        dirs[:] = [name for name in dirs if not _ignored(name)]
+        for name in files:
+            if _ignored(name):
+                continue
+            path = os.path.join(root, name)
+            try:
+                if not os.path.isfile(path):
+                    continue
+                with open(path, encoding="utf-8", errors="ignore") as handle:
+                    yield handle.read()
+            except OSError:
+                continue
+
+
+def _unmet_skill_dependency_ids(kind, source, tokens, available_ids):
+    if kind not in DEPENDENCY_GATED_KINDS:
+        return []
+    missing = set()
+    for text in _iter_source_texts(source):
+        if not isinstance(text, str):
+            continue
+        for match in SKILL_REF_RE.finditer(text):
+            stable_id = tokens.get(match.group(1))
+            if stable_id and stable_id not in available_ids:
+                missing.add(stable_id)
+    return sorted(missing)
+
+
 def _expected_entries(plugin_root, source_root, receipt):
     expected = {}
+    tokens = _skill_token_map(plugin_root)
+    available_ids = _available_skill_ids(receipt)
+    filter_gated = receipt.get("emittedStableIds") is not None
     for kind in REQUIRED_KINDS[:-1]:
         kind_root = os.path.join(source_root, kind)
         if not os.path.isdir(kind_root):
             raise CursorProjectLocalError("current Cursor source is missing %s" % kind)
         names = _selected_skill_names(plugin_root, receipt) if kind == "skills" else sorted(os.listdir(kind_root))
-        expected[kind] = {
-            name: os.path.join(kind_root, name)
-            for name in names
-            if not _ignored(name) and os.path.lexists(os.path.join(kind_root, name))
-        }
+        expected[kind] = {}
+        for name in names:
+            if _ignored(name):
+                continue
+            path = os.path.join(kind_root, name)
+            if not os.path.lexists(path):
+                continue
+            if filter_gated and _unmet_skill_dependency_ids(kind, path, tokens, available_ids):
+                continue
+            expected[kind][name] = path
 
     supporting_root = os.path.join(source_root, "dhpk")
     supporting = {}
@@ -239,7 +332,7 @@ def _expected_entries(plugin_root, source_root, receipt):
 
 def _symlink_source(managed, plugin_version):
     source_root = None
-    for kind in REQUIRED_KINDS:
+    for kind in REQUIRED_NATIVE_KINDS:
         for entry in (managed.get(kind) or {}).values():
             if not isinstance(entry, dict):
                 continue
@@ -267,6 +360,227 @@ def _symlink_source(managed, plugin_version):
             or os.path.realpath(plugin_root) != os.path.abspath(plugin_root)):
         raise CursorProjectLocalError("symlink source root is not owned by the recorded dhpk version")
     return source_root, plugin_root
+
+
+def _symlinked_ancestor(path, root):
+    current = os.path.abspath(path)
+    stop = os.path.abspath(root)
+    while True:
+        try:
+            if stat.S_ISLNK(os.lstat(current).st_mode):
+                return current
+        except OSError:
+            pass
+        if current == stop:
+            return None
+        parent = os.path.dirname(current)
+        if parent == current:
+            return None
+        current = parent
+
+
+def _inside_real_root(candidate, root):
+    try:
+        real_candidate = os.path.realpath(candidate)
+        real_root = os.path.realpath(root)
+        return os.path.commonpath((real_candidate, real_root)) == real_root
+    except (OSError, ValueError):
+        return False
+
+
+def _leftover_native_skill_directories(cursor_root, required=True):
+    skills_root = os.path.join(cursor_root, "skills")
+    try:
+        root_stat = os.lstat(skills_root)
+    except OSError:
+        if not required:
+            return None, []
+        return "Cursor skills root is missing", []
+    if stat.S_ISLNK(root_stat.st_mode) or not stat.S_ISDIR(root_stat.st_mode):
+        return "Cursor skills root is a symlink or not a directory", []
+    leftovers = []
+    try:
+        names = os.listdir(skills_root)
+    except OSError:
+        return "Cursor skills root is unreadable", leftovers
+    for name in sorted(names):
+        if _ignored(name):
+            continue
+        path = os.path.join(skills_root, name)
+        try:
+            entry_stat = os.lstat(path)
+        except OSError:
+            continue
+        if stat.S_ISDIR(entry_stat.st_mode) and not stat.S_ISLNK(entry_stat.st_mode):
+            leftovers.append(name)
+    return None, leftovers
+
+
+def _skill_id_by_name(plugin_root, receipt):
+    names = _selected_skill_names(plugin_root, receipt)
+    inventory_path = os.path.join(plugin_root, "manifests", "distribution-inventory.json")
+    try:
+        with open(inventory_path, encoding="utf-8") as handle:
+            inventory = json.load(handle)
+    except (OSError, ValueError):
+        raise CursorProjectLocalError("current distribution inventory is unavailable")
+    ids = {}
+    for skill in inventory.get("skills") or []:
+        if (not isinstance(skill, dict)
+                or "cursor-sync" not in (skill.get("surfaces") or [])
+                or skill.get("lifecycle") not in ("promoted", "active")):
+            continue
+        stable_id = skill.get("id")
+        name = skill.get("name")
+        if isinstance(stable_id, str) and isinstance(name, str) and name in names:
+            ids[name] = stable_id
+    return ids
+
+
+def _validate_cursor_native_links(repo_root, plugin_root, expected_skills, skill_ids, budget):
+    errors = []
+    hashed = []
+    for relative in (".agents", os.path.join(".agents", "skills"), os.path.join(".cursor", "skills")):
+        linked = _symlinked_ancestor(os.path.join(repo_root, relative), repo_root)
+        if linked:
+            errors.append("Cursor native-link ancestor is a symlink: %s" % relative)
+            break
+    projection_path = os.path.join(repo_root, ".agents", ".dhpk-installed.json")
+    try:
+        projection_stat = os.lstat(projection_path)
+        if not stat.S_ISREG(projection_stat.st_mode) or stat.S_ISLNK(projection_stat.st_mode):
+            return errors + ["Cursor shared projection receipt is not a regular file"], hashed
+        if projection_stat.st_size > RECEIPT_LIMIT:
+            return errors + ["Cursor shared projection receipt exceeds the 1 MiB validation limit"], hashed
+        with open(projection_path, encoding="utf-8") as handle:
+            projection = json.load(handle)
+    except ValueError:
+        return errors + ["Cursor shared projection receipt is invalid JSON"], hashed
+    except OSError:
+        return errors + ["Cursor shared projection receipt is unreadable"], hashed
+    if not isinstance(projection, dict):
+        return errors + ["Cursor shared projection receipt must be a JSON object"], hashed
+    host_bindings = projection.get("hostBindings")
+    cursor_host = host_bindings.get("cursor") if isinstance(host_bindings, dict) else None
+    if not isinstance(cursor_host, dict) or cursor_host.get("bindingShape") not in ("native-link", "direct"):
+        return errors + ["Cursor shared projection is missing native-link Host Bindings"], hashed
+    shape = cursor_host.get("bindingShape")
+    leftover_reason, leftovers = _leftover_native_skill_directories(
+        os.path.join(repo_root, ".cursor"),
+        required=shape != "direct",
+    )
+    if leftover_reason:
+        errors.append(leftover_reason)
+    if leftovers:
+        errors.append("leftover native skill copies: %s" % ", ".join(leftovers[:10]))
+    bindings = cursor_host.get("bindings")
+    if not isinstance(bindings, list) or not bindings:
+        return errors + ["Cursor shared projection has no %s skill bindings" % shape], hashed
+    bound_names = {}
+    for binding in bindings:
+        if not isinstance(binding, dict) or binding.get("shape") != shape:
+            errors.append("Cursor %s binding is malformed" % shape)
+            continue
+        if shape == "direct":
+            name = binding.get("name")
+            if not isinstance(name, str) or binding.get("path") or binding.get("target") or not SKILL_NAME.fullmatch(name):
+                errors.append("Cursor direct binding is malformed" if not isinstance(name, str) else "Cursor direct binding is unsafe: %s" % name)
+                continue
+            if name in bound_names:
+                errors.append("Cursor direct binding duplicates %s" % name)
+                continue
+            bound_names[name] = name
+            destination = os.path.join(repo_root, ".cursor", "skills", name)
+            if os.path.lexists(destination):
+                errors.append("Cursor direct binding leftover native skill entry: %s" % name)
+                continue
+            shared = os.path.join(repo_root, ".agents", "skills", name)
+            try:
+                if _symlinked_ancestor(shared, repo_root):
+                    errors.append("Cursor native-link ancestor is a symlink: %s" % name)
+                    continue
+                if not _inside_real_root(shared, repo_root):
+                    errors.append("Cursor shared skill is missing: %s" % name)
+                    continue
+                shared_stat = os.lstat(shared)
+                skill_md = os.path.join(shared, "SKILL.md")
+                skill_stat = os.lstat(skill_md)
+                if (stat.S_ISLNK(shared_stat.st_mode) or not stat.S_ISDIR(shared_stat.st_mode)
+                        or stat.S_ISLNK(skill_stat.st_mode) or not stat.S_ISREG(skill_stat.st_mode)):
+                    errors.append("Cursor shared skill is missing: %s" % name)
+                    continue
+            except OSError:
+                errors.append("Cursor shared skill is missing: %s" % name)
+                continue
+        else:
+            destination = binding.get("path")
+            target = binding.get("target")
+            if not isinstance(destination, str) or not isinstance(target, str):
+                errors.append("Cursor native-link binding is malformed")
+                continue
+            name = destination.split("/")[-1]
+            expected_path = ".cursor/skills/%s" % name
+            expected_target = "../../.agents/skills/%s" % name
+            if destination != expected_path or target != expected_target or not SKILL_NAME.fullmatch(name):
+                errors.append("Cursor native-link binding is unsafe: %s" % destination)
+                continue
+            if name in bound_names:
+                errors.append("Cursor native-link binding duplicates %s" % destination)
+                continue
+            bound_names[name] = destination
+            projected = os.path.join(repo_root, *destination.split("/"))
+            shared = os.path.join(repo_root, ".agents", "skills", name)
+            try:
+                if not os.path.islink(projected) or os.readlink(projected) != expected_target:
+                    errors.append("Cursor native-link is missing or retargeted: %s" % destination)
+                    continue
+                if _symlinked_ancestor(os.path.dirname(projected), repo_root):
+                    errors.append("Cursor native-link ancestor is a symlink: %s" % destination)
+                    continue
+                if _symlinked_ancestor(shared, repo_root):
+                    errors.append("Cursor native-link ancestor is a symlink: %s" % name)
+                    continue
+                if not _inside_real_root(projected, repo_root) or not _inside_real_root(shared, repo_root):
+                    errors.append("Cursor native-link target escapes the project: %s" % destination)
+                    continue
+                if os.path.realpath(projected) != os.path.realpath(shared):
+                    errors.append("Cursor native-link is missing or retargeted: %s" % destination)
+                    continue
+                shared_stat = os.lstat(shared)
+                skill_md = os.path.join(shared, "SKILL.md")
+                skill_stat = os.lstat(skill_md)
+                if (stat.S_ISLNK(shared_stat.st_mode) or not stat.S_ISDIR(shared_stat.st_mode)
+                        or stat.S_ISLNK(skill_stat.st_mode) or not stat.S_ISREG(skill_stat.st_mode)):
+                    errors.append("Cursor shared skill is missing: %s" % name)
+                    continue
+            except OSError:
+                errors.append("Cursor native-link cannot be verified: %s" % destination)
+                continue
+        source = expected_skills.get(name)
+        stable_id = skill_ids.get(name)
+        if not source or not isinstance(stable_id, str):
+            errors.append("Cursor native-link skill is not in the current Cursor source: %s" % name)
+            continue
+        try:
+            shared_real = os.path.realpath(shared)
+            repo_real = os.path.realpath(repo_root)
+            current_source = _hash_path(source, plugin_root, False, False, budget)
+            observed = _hash_path(shared_real, repo_real, False, True, budget)
+        except CursorProjectLocalError as exc:
+            errors.append("native-link skill %s cannot be validated: %s" % (name, exc))
+            continue
+        except OSError:
+            errors.append("native-link skill %s is unreadable" % name)
+            continue
+        if current_source != observed:
+            errors.append("native-link skill %s fingerprint mismatch (current source)" % name)
+            continue
+        hashed.append((stable_id, current_source))
+    missing = sorted(set(expected_skills) - set(bound_names))
+    if missing:
+        errors.append("Cursor native-link is missing current skills entries: %s" % ", ".join(missing[:5]))
+    hashed.sort(key=lambda item: item[0])
+    return errors, hashed
 
 
 def validate_cursor_project_local(repo_root):
@@ -311,10 +625,13 @@ def validate_cursor_project_local(repo_root):
     unexpected_kinds = sorted(set(managed) - set(REQUIRED_KINDS))
     if unexpected_kinds:
         errors.append("unexpected managed entry kinds: %s" % ", ".join(unexpected_kinds[:10]))
-    missing_kinds = [kind for kind in REQUIRED_KINDS if not isinstance(managed.get(kind), dict) or not managed.get(kind)]
+    missing_kinds = [kind for kind in REQUIRED_NATIVE_KINDS if not isinstance(managed.get(kind), dict) or not managed.get(kind)]
     if missing_kinds:
         errors.append("missing managed entries: %s" % ", ".join(missing_kinds))
-    entry_count = sum(len(entries) for entries in managed.values() if isinstance(entries, dict))
+    leftover_managed_skills = sorted((managed.get("skills") or {}).keys()) if isinstance(managed.get("skills"), dict) else []
+    if leftover_managed_skills:
+        errors.append("leftover native skill copies: %s" % ", ".join(leftover_managed_skills[:10]))
+    entry_count = sum(len(entries) for kind, entries in managed.items() if kind != "skills" and isinstance(entries, dict))
     if entry_count > ENTRY_LIMIT:
         errors.append("receipt managed entry count exceeds %d" % ENTRY_LIMIT)
 
@@ -341,7 +658,7 @@ def validate_cursor_project_local(repo_root):
     except CursorProjectLocalError as exc:
         return False, "Cursor project-local validation failed: %s" % exc
 
-    for kind in REQUIRED_KINDS:
+    for kind in REQUIRED_NATIVE_KINDS:
         actual_names = set(managed.get(kind) or {}) if isinstance(managed.get(kind), dict) else set()
         expected_names = set(expected[kind])
         missing = sorted(expected_names - actual_names)
@@ -355,7 +672,7 @@ def validate_cursor_project_local(repo_root):
     hashed_entries = 0
     seen_destinations = set()
     budget = {"entries": 0, "bytes": 0}
-    for kind in REQUIRED_KINDS:
+    for kind in REQUIRED_NATIVE_KINDS:
         entries = managed.get(kind)
         if not isinstance(entries, dict):
             continue
@@ -436,6 +753,21 @@ def validate_cursor_project_local(repo_root):
             aggregate.update(current_source.encode("ascii"))
             aggregate.update(b"\0")
             hashed_entries += 1
+
+    try:
+        skill_ids = _skill_id_by_name(plugin_root, receipt)
+    except CursorProjectLocalError as exc:
+        return False, "Cursor project-local validation failed: %s" % exc
+    native_link_errors, native_link_hashes = _validate_cursor_native_links(
+        repo_root, plugin_root, expected.get("skills") or {}, skill_ids, budget,
+    )
+    errors.extend(native_link_errors)
+    for stable_id, current_source in native_link_hashes:
+        aggregate.update(("shared-skill:%s" % stable_id).encode("utf-8"))
+        aggregate.update(b"\0")
+        aggregate.update(current_source.encode("ascii"))
+        aggregate.update(b"\0")
+        hashed_entries += 1
 
     expected_count = sum(len(entries) for entries in expected.values())
     if hashed_entries == expected_count and source_fingerprint and aggregate.hexdigest() != source_fingerprint:

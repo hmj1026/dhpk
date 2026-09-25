@@ -1,6 +1,6 @@
 ---
 description: 'Short Claude front door for explicit-only $harness-setup host configuration and asset setup.'
-argument-hint: '[--show] [--review-gate] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force]'
+argument-hint: '[--show] [--review-gate] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force] [--vendor]'
 allowed-tools: 'Read, Grep, Glob, Bash(bash:*), Bash(node:*), Bash(git rev-parse:*), Bash(ls:*), Bash(mkdir:*), Bash(cp:*), Bash(chmod:*), Skill, AskUserQuestion'
 disable-model-invocation: true
 metadata:

@@ -24,6 +24,22 @@ const CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID = 'claude-project-discovery';
 const CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION = '1.0.0';
 const CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT = '.agents/skills';
 const CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT = '.claude/skills';
+const CURSOR_PROJECT_DISCOVERY_ADAPTER_ID = 'cursor-project-discovery';
+const CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION = '1.0.0';
+const CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT = '.cursor/skills';
+const CODEX_PROJECT_DISCOVERY_ADAPTER_ID = 'codex-project-discovery';
+const CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION = '1.0.0';
+const CODEX_PROJECT_DISCOVERY_DESTINATION_ROOT = '.codex/skills';
+const NATIVE_LINK_SHAPE = 'native-link';
+const DIRECT_SHAPE = 'direct';
+const CURSOR_PROJECT_PROBE_PRODUCER = 'consumer-platform-probe';
+const CURSOR_PROJECT_PROBE_ADAPTER = Object.freeze({ id: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID, version: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION });
+const CURSOR_PROJECT_PROBE_CLAIMS = Object.freeze(['project-artifact-structure', 'cursor-project-discovery', 'consumer-route']);
+const CURSOR_PROJECT_PROBE_SURFACE = 'cursor-project';
+const CODEX_PROJECT_PROBE_PRODUCER = 'consumer-platform-probe';
+const CODEX_PROJECT_PROBE_ADAPTER = Object.freeze({ id: CODEX_PROJECT_DISCOVERY_ADAPTER_ID, version: CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION });
+const CODEX_PROJECT_PROBE_CLAIMS = Object.freeze(['project-artifact-structure', 'codex-project-discovery', 'consumer-route']);
+const CODEX_PROJECT_PROBE_SURFACE = 'codex-project';
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
@@ -109,30 +125,34 @@ function safeProjectRelative(value, label) {
   return value;
 }
 
-function createClaudeProjectDiscoveryAdapter({
+function createProjectDiscoveryAdapter({
+  id,
+  version,
   entries = [],
-  sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
-  destinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  sourceRoot,
+  destinationRoot,
+  hostLabel,
+  bindingShape = null,
 } = {}) {
-  safeProjectRelative(sourceRoot, 'Claude shared source root');
-  safeProjectRelative(destinationRoot, 'Claude discovery destination root');
+  safeProjectRelative(sourceRoot, `${hostLabel} shared source root`);
+  safeProjectRelative(destinationRoot, `${hostLabel} discovery destination root`);
   if (sourceRoot === destinationRoot || sourceRoot.startsWith(`${destinationRoot}/`)) {
-    throw adapterError('UNSAFE_PROVIDER_REFERENCE', 'Claude discovery source and destination roots must be distinct');
+    throw adapterError('UNSAFE_PROVIDER_REFERENCE', `${hostLabel} discovery source and destination roots must be distinct`);
   }
-  if (!Array.isArray(entries)) throw adapterError('INVALID_PROVIDER_OUTPUT', 'Claude discovery entries must be an array');
+  if (!Array.isArray(entries)) throw adapterError('INVALID_PROVIDER_OUTPUT', `${hostLabel} discovery entries must be an array`);
   const seenIds = new Set();
   const seenNames = new Set();
   const normalizedEntries = entries.map((entry) => {
     if (!isObject(entry) || !isNonEmptyString(entry.stableId) || !isNonEmptyString(entry.name)) {
-      throw adapterError('INVALID_PROVIDER_OUTPUT', 'Claude discovery entries require stableId and name');
+      throw adapterError('INVALID_PROVIDER_OUTPUT', `${hostLabel} discovery entries require stableId and name`);
     }
     const stableId = entry.stableId.trim();
     const name = entry.name.trim();
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) {
-      throw adapterError('UNSAFE_PROVIDER_REFERENCE', `Claude discovery skill name is unsafe: ${name}`);
+      throw adapterError('UNSAFE_PROVIDER_REFERENCE', `${hostLabel} discovery skill name is unsafe: ${name}`);
     }
     if (seenIds.has(stableId) || seenNames.has(name)) {
-      throw adapterError('DUPLICATE_PROVIDER_OUTPUT', `Claude discovery entry is duplicated: ${name}`);
+      throw adapterError('DUPLICATE_PROVIDER_OUTPUT', `${hostLabel} discovery entry is duplicated: ${name}`);
     }
     seenIds.add(stableId);
     seenNames.add(name);
@@ -140,25 +160,123 @@ function createClaudeProjectDiscoveryAdapter({
     const target = path.posix.relative(destinationRoot, `${sourceRoot}/${name}`);
     if (!target || path.posix.isAbsolute(target)
       || path.posix.normalize(path.posix.join(destinationRoot, target)) !== `${sourceRoot}/${name}`) {
-      throw adapterError('UNSAFE_PROVIDER_REFERENCE', `Claude discovery target is unsafe: ${name}`);
+      throw adapterError('UNSAFE_PROVIDER_REFERENCE', `${hostLabel} discovery target is unsafe: ${name}`);
     }
     return { stableId, name, path: pathName, target };
   }).sort((left, right) => left.name.localeCompare(right.name));
-  return {
-    id: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
-    version: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
+  const adapter = {
+    id,
+    version,
     kind: 'symlink',
     sourceRoot,
     destinationRoot,
     owner: 'dhpk.project-agent-projection',
     entries: normalizedEntries,
   };
+  if (bindingShape) adapter.bindingShape = bindingShape;
+  return adapter;
+}
+
+function createClaudeProjectDiscoveryAdapter({
+  entries = [],
+  sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
+  destinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+} = {}) {
+  return createProjectDiscoveryAdapter({
+    id: CLAUDE_PROJECT_DISCOVERY_ADAPTER_ID,
+    version: CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    entries,
+    sourceRoot,
+    destinationRoot,
+    hostLabel: 'Claude',
+  });
+}
+
+function nativeLinkBindingShape(requested, recorded) {
+  return requested === DIRECT_SHAPE || recorded === DIRECT_SHAPE ? DIRECT_SHAPE : NATIVE_LINK_SHAPE;
+}
+
+function selectedAdapterEntries(entries, hostBinding) {
+  const selected = hostBinding && Array.isArray(hostBinding.selectedStableIds)
+    ? hostBinding.selectedStableIds
+    : null;
+  if (!selected) return entries;
+  const allowed = new Set(selected);
+  return entries.filter((entry) => allowed.has(entry.stableId));
+}
+
+function createNativeLinkDiscoveryAdapter({
+  id,
+  version,
+  hostLabel,
+  destinationRoot,
+  entries = [],
+  sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
+  bindingShape = NATIVE_LINK_SHAPE,
+} = {}) {
+  if (bindingShape !== NATIVE_LINK_SHAPE && bindingShape !== DIRECT_SHAPE) {
+    throw adapterError(
+      'INCOMPATIBLE_PROVIDER_SHAPE',
+      `${hostLabel} project skill adapter requires bindingShape '${NATIVE_LINK_SHAPE}' or '${DIRECT_SHAPE}'`,
+      { details: { bindingShape } },
+    );
+  }
+  const adapter = createProjectDiscoveryAdapter({
+    id,
+    version,
+    entries,
+    sourceRoot,
+    destinationRoot,
+    hostLabel,
+    bindingShape,
+  });
+  if (bindingShape === DIRECT_SHAPE) {
+    adapter.kind = 'direct';
+    adapter.entries = adapter.entries.map(({ stableId, name }) => ({ stableId, name }));
+  }
+  return adapter;
+}
+
+function createCursorProjectDiscoveryAdapter({
+  entries = [],
+  sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
+  destinationRoot = CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  bindingShape = NATIVE_LINK_SHAPE,
+} = {}) {
+  return createNativeLinkDiscoveryAdapter({
+    id: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
+    version: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    hostLabel: 'Cursor',
+    destinationRoot,
+    entries,
+    sourceRoot,
+    bindingShape,
+  });
+}
+
+function createCodexProjectDiscoveryAdapter({
+  entries = [],
+  sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
+  destinationRoot = CODEX_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  bindingShape = NATIVE_LINK_SHAPE,
+} = {}) {
+  return createNativeLinkDiscoveryAdapter({
+    id: CODEX_PROJECT_DISCOVERY_ADAPTER_ID,
+    version: CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION,
+    hostLabel: 'Codex',
+    destinationRoot,
+    entries,
+    sourceRoot,
+    bindingShape,
+  });
 }
 
 function createProjectAgentProviderAdapters(hostBindings = {}, {
   entries = [],
   claudeSourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
   claudeDestinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  cursorBindingShape = null,
+  codexBindingShape = null,
 } = {}) {
   if (!isObject(hostBindings)) {
     throw adapterError('INVALID_PROVIDER_BINDING', 'project Host bindings must be an object');
@@ -180,6 +298,28 @@ function createProjectAgentProviderAdapters(hostBindings = {}, {
       entries,
       sourceRoot: claudeSourceRoot,
       destinationRoot: claudeDestinationRoot,
+    });
+  }
+  if (normalized.cursor) {
+    const shape = nativeLinkBindingShape(
+      cursorBindingShape,
+      hostBindings.cursor && hostBindings.cursor.bindingShape,
+    );
+    normalized.cursor.discovery = createCursorProjectDiscoveryAdapter({
+      entries: selectedAdapterEntries(entries, hostBindings.cursor),
+      sourceRoot: claudeSourceRoot,
+      bindingShape: shape,
+    });
+  }
+  if (normalized.codex) {
+    const shape = nativeLinkBindingShape(
+      codexBindingShape,
+      hostBindings.codex && hostBindings.codex.bindingShape,
+    );
+    normalized.codex.discovery = createCodexProjectDiscoveryAdapter({
+      entries: selectedAdapterEntries(entries, hostBindings.codex),
+      sourceRoot: claudeSourceRoot,
+      bindingShape: shape,
     });
   }
   const directoryHosts = hostIds.filter((hostId) => normalized[hostId].kind === DIRECTORY_KIND);
@@ -321,7 +461,25 @@ module.exports = {
   CLAUDE_PROJECT_DISCOVERY_ADAPTER_VERSION,
   CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
   CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
+  CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
+  CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  CODEX_PROJECT_DISCOVERY_ADAPTER_ID,
+  CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION,
+  CODEX_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  NATIVE_LINK_SHAPE,
+  DIRECT_SHAPE,
+  CURSOR_PROJECT_PROBE_PRODUCER,
+  CURSOR_PROJECT_PROBE_ADAPTER,
+  CURSOR_PROJECT_PROBE_CLAIMS,
+  CURSOR_PROJECT_PROBE_SURFACE,
+  CODEX_PROJECT_PROBE_PRODUCER,
+  CODEX_PROJECT_PROBE_ADAPTER,
+  CODEX_PROJECT_PROBE_CLAIMS,
+  CODEX_PROJECT_PROBE_SURFACE,
   createClaudeProjectDiscoveryAdapter,
+  createCursorProjectDiscoveryAdapter,
+  createCodexProjectDiscoveryAdapter,
   createProjectAgentProviderAdapters,
   isPassingAgyConsumerProbe,
   renderAgyDirectFile,

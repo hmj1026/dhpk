@@ -26,6 +26,7 @@ function installCursorProjection(repo, options = {}) {
       DHPK_DEST_REL: '.cursor',
       DHPK_SOURCE_KINDS: 'skills,agents,rules,commands',
       DHPK_INSTALLER_NAME: 'install-cursor-harness',
+      ...(options.env || {}),
     },
   });
   assert.strictEqual(result.status, 0, result.stderr || result.stdout);
@@ -56,6 +57,18 @@ function projectLocalCapability(row) {
   return row.capabilities.find((item) => item.id === 'cursor.project_local.structure');
 }
 
+function firstNativeLinkBinding(repo) {
+  const projection = JSON.parse(fs.readFileSync(path.join(repo, '.agents/.dhpk-installed.json'), 'utf8'));
+  const bindings = (((projection.hostBindings || {}).cursor || {}).bindings) || [];
+  const binding = bindings.find((item) => item && item.shape === 'native-link' && item.path && item.target);
+  assert.ok(binding, 'Cursor native-link skill binding is required');
+  return binding;
+}
+
+function nativeLinkSkillRoot(repo, binding = firstNativeLinkBinding(repo)) {
+  return path.join(repo, binding.path);
+}
+
 function fingerprintPath(target) {
   if (fs.lstatSync(target).isSymbolicLink()) return fingerprintPath(fs.realpathSync(target));
   const digest = crypto.createHash('sha256');
@@ -77,8 +90,8 @@ function fingerprintPath(target) {
 
 function receiptSourceFingerprint(repo, receipt) {
   const digest = crypto.createHash('sha256');
-  for (const kind of ['skills', 'agents', 'rules', 'commands', 'supporting_assets']) {
-    for (const [name, entry] of Object.entries(receipt.managed_entries[kind]).sort(([left], [right]) => left.localeCompare(right))) {
+  for (const kind of ['agents', 'rules', 'commands', 'supporting_assets']) {
+    for (const [name, entry] of Object.entries(receipt.managed_entries[kind] || {}).sort(([left], [right]) => left.localeCompare(right))) {
       digest.update(kind === 'supporting_assets' ? entry.destination : `${kind}/${name}`);
       digest.update('\0');
       digest.update(fingerprintPath(path.join(repo, '.cursor', entry.destination)));
@@ -98,6 +111,36 @@ test('Cursor validates a current project-local receipt and projection without a 
     assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.portable.skills').status, 'NOT_CONFIGURED');
     assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.native.hooks').status, 'SKIP_INCOMPATIBLE');
     assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.runtime.launch').status, 'NOT_RUN');
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Cursor validates a direct-first project-local install without leftover native skill dests', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-direct-local-'));
+  const evidence = path.join(repo, 'cursor-consumer-evidence.json');
+  try {
+    fs.mkdirSync(repo, { recursive: true });
+    fs.writeFileSync(evidence, `${JSON.stringify({
+      stage: 'CONSUMER',
+      producer: 'consumer-platform-probe',
+      adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+      surfaceResults: [{
+        surface: 'cursor-project',
+        status: 'PASS',
+        adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+        commands: [{ cmd: 'node scripts/release/consumer-platform-probe.js --platform cursor-project', exitCode: 0 }],
+        environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+        artifacts: [],
+        diagnostics: [],
+        reasons: ['bounded Cursor project probe PASS'],
+        checkedClaims: ['project-artifact-structure', 'cursor-project-discovery', 'consumer-route'],
+      }],
+    })}\n`);
+    installCursorProjection(repo, { env: { DHPK_CURSOR_CONSUMER_EVIDENCE: evidence } });
+    const projection = JSON.parse(fs.readFileSync(path.join(repo, '.agents/.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'direct');
+    const { row } = runCursorValidation(repo);
+    assert.strictEqual(row.final_status, 'PASS', row.notes.join('\n'));
+    assert.strictEqual(projectLocalCapability(row).status, 'PASS');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
@@ -163,12 +206,8 @@ test('Cursor rejects a self-consistent old copy projection when current source c
     installCursorProjection(repo);
     const receiptPath = path.join(repo, '.cursor/.dhpk-installed.json');
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    const skill = Object.values(receipt.managed_entries.skills)[0];
-    fs.appendFileSync(path.join(repo, '.cursor', skill.destination, 'SKILL.md'), '\nold source fixture\n');
-    const changedFingerprint = fingerprintPath(path.join(repo, '.cursor', skill.destination));
-    skill.source_fingerprint = changedFingerprint;
-    skill.destination_fingerprint = changedFingerprint;
-    skill.fingerprint = changedFingerprint;
+    const skillRoot = nativeLinkSkillRoot(repo);
+    fs.appendFileSync(path.join(skillRoot, 'SKILL.md'), '\nold source fixture\n');
     receipt.source_fingerprint = receiptSourceFingerprint(repo, receipt);
     fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
     const { row } = runCursorValidation(repo);
@@ -181,17 +220,12 @@ test('Cursor rejects a receipt-owned symlink target outside an approved dhpk sou
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-symlink-escape-'));
   try {
     installCursorProjection(repo, { copy: false });
-    const receiptPath = path.join(repo, '.cursor/.dhpk-installed.json');
-    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    const skill = Object.values(receipt.managed_entries.skills)[0];
-    const projected = path.join(repo, '.cursor', skill.destination);
+    const projected = nativeLinkSkillRoot(repo);
     fs.unlinkSync(projected);
     fs.symlinkSync('/etc/passwd', projected);
-    skill.destination_target = '/etc/passwd';
-    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
     const { row } = runCursorValidation(repo);
     assert.strictEqual(row.final_status, 'FAIL');
-    assert.match(row.notes.join('\n'), /symlink receipt has inconsistent source roots|symlink target escapes/);
+    assert.match(row.notes.join('\n'), /native-link is missing or retargeted|native-link binding is unsafe|symlink target escapes/);
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
@@ -199,9 +233,7 @@ test('Cursor bounds traversal of a deeply nested copy projection', () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-depth-limit-'));
   try {
     installCursorProjection(repo);
-    const receipt = JSON.parse(fs.readFileSync(path.join(repo, '.cursor/.dhpk-installed.json'), 'utf8'));
-    const skill = Object.values(receipt.managed_entries.skills)[0];
-    let nested = path.join(repo, '.cursor', skill.destination, 'depth-fixture');
+    let nested = path.join(nativeLinkSkillRoot(repo), 'depth-fixture');
     for (let depth = 0; depth < 70; depth += 1) nested = path.join(nested, String(depth));
     fs.mkdirSync(nested, { recursive: true });
     fs.writeFileSync(path.join(nested, 'leaf.txt'), 'bounded traversal fixture\n');
@@ -227,13 +259,66 @@ test('Cursor reports a project-local receipt/projection mismatch as FAIL', () =>
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-projection-mismatch-'));
   try {
     installCursorProjection(repo);
-    const receipt = JSON.parse(fs.readFileSync(path.join(repo, '.cursor/.dhpk-installed.json'), 'utf8'));
-    const skill = Object.values(receipt.managed_entries.skills)[0];
-    fs.appendFileSync(path.join(repo, '.cursor', skill.destination, 'SKILL.md'), '\nfixture drift\n');
+    fs.appendFileSync(path.join(nativeLinkSkillRoot(repo), 'SKILL.md'), '\nfixture drift\n');
     const { row } = runCursorValidation(repo);
     assert.strictEqual(row.final_status, 'FAIL');
     assert.strictEqual(projectLocalCapability(row).status, 'FAIL');
     assert.match(row.notes.join('\n'), /fingerprint mismatch/);
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Cursor native-link fingerprint is independent of Host Binding order', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-binding-order-'));
+  try {
+    installCursorProjection(repo);
+    const projectionPath = path.join(repo, '.agents/.dhpk-installed.json');
+    const projection = JSON.parse(fs.readFileSync(projectionPath, 'utf8'));
+    projection.hostBindings.cursor.bindings.reverse();
+    fs.writeFileSync(projectionPath, `${JSON.stringify(projection, null, 2)}\n`);
+    const { row } = runCursorValidation(repo);
+    assert.strictEqual(row.final_status, 'PASS', row.notes.join('\n'));
+    assert.strictEqual(projectLocalCapability(row).status, 'PASS');
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Cursor rejects leftover native skill directories beside native-link bindings', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-leftover-dir-'));
+  try {
+    installCursorProjection(repo);
+    const leftover = path.join(repo, '.cursor/skills/leftover-native');
+    fs.mkdirSync(leftover, { recursive: true });
+    fs.writeFileSync(path.join(leftover, 'SKILL.md'), '# leftover\n');
+    const { row } = runCursorValidation(repo);
+    assert.strictEqual(row.final_status, 'FAIL');
+    assert.match(row.notes.join('\n'), /leftover native skill copies/);
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Cursor rejects a symlinked .agents ancestor', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-agents-symlink-'));
+  try {
+    installCursorProjection(repo);
+    const agents = path.join(repo, '.agents');
+    const relocated = path.join(repo, '.agents-real');
+    fs.renameSync(agents, relocated);
+    fs.symlinkSync(relocated, agents);
+    const { row } = runCursorValidation(repo);
+    assert.strictEqual(row.final_status, 'FAIL');
+    assert.match(row.notes.join('\n'), /native-link ancestor is a symlink|skills root is a symlink/);
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Cursor rejects a symlinked project-local skills root', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-skills-symlink-'));
+  try {
+    installCursorProjection(repo);
+    const skills = path.join(repo, '.cursor/skills');
+    const relocated = path.join(repo, 'skills-outside');
+    fs.renameSync(skills, relocated);
+    fs.symlinkSync(relocated, skills);
+    const { row } = runCursorValidation(repo);
+    assert.strictEqual(row.final_status, 'FAIL');
+    assert.match(row.notes.join('\n'), /skills root is a symlink|native-link ancestor is a symlink/);
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 

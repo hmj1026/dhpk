@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## 0.64.0 — 2026-09-25 — Delegate Cursor and Codex-sync skills to the shared project projection
+
+- **feat(installer)** — Uninstalling Cursor or Codex-sync now drops only that Host's Host Bindings and native assets. Shared skills stay until no remaining Host Binding references them; unowned files stay in place, and modified managed content fails closed.
+- **feat(installer)** — Codex-sync install now materializes the profile's declared projection set into `.agents/skills` and binds `.codex/skills/<name>` as per-skill Host Bindings. Internal runtime-support skills stay as native copies. A second Host unions the shared tree without rewriting the first Host's bindings.
+- **feat(installer)** — Cursor Host Bindings now choose `direct` only from a Cursor discovery consumer-probe PASS record; missing, failed, or non-discovery evidence keeps per-skill `native-link` fallbacks.
+- **feat(installer)** — Cursor project-local install now materializes skills into `.agents/skills` and binds `.cursor/skills/<name>` as per-skill native-link Host Bindings instead of copying native skill trees.
+- **feat(installer)** — Cursor and Codex-sync `--update` now migrates unchanged receipt-owned native skill copies onto shared Host Bindings, keeps hand-edited copies until `--adopt`, and leaves unowned dests in place; `--plan --json` lists each leftover as migrate, keep-modified, or unowned without writing.
+- **feat(distribution)** — `manifests/profile-projection-sets.json` declares each install profile's Cursor and codex-sync skill projection set; `catalog.js --write` generates it and `--check` fails CI when a set is stale.
+- **feat(installer)** — Default `--install rules` writes a project-delta stub instead of copying upstream policy; `--vendor` restores the discouraged verbatim copy.
+- **fix(agents-skills)** — Stop `--update` from carrying deleted skill files into managedPaths so validation passes after canonical source deletions.
+- **fix(consumer-probe)** — Load the checkout distribution inventory when probing Cursor packages if `--inventory` is omitted, so declared runtime-support overlays pass structural validation.
+- **fix(consumer-gate)** — Cursor project-local consumer validation now requires per-skill native-link Host Bindings and shared `.agents/skills` trees instead of native `managed_entries.skills` copies.
+- **fix(installer)** — Skip Cursor/Codex commands and agents whose `skills/<id>/` dependencies are outside the selected profile, and report them as excluded on plan.
+
 ## 0.63.2 — 2026-09-24 — Fix bounded runner systemd expansion and dep-audit empty counts, update CI workflows to Node 24 and Ubuntu 26.04
 
 - **fix(bounded-test-runner)** — Pass --expand-environment=no to systemd-run in the bounded Linux test runner, because systemd 259 (Ubuntu 26.04) expands ${VAR} in scope arguments and blanked the inline cgroup check, failing every bounded run with "cgroup v2 path is unavailable".

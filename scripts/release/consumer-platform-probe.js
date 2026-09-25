@@ -645,6 +645,13 @@ function runClaudeProjectProbe(root, structural, execute = false) {
   }
 }
 
+const DEFAULT_DISTRIBUTION_INVENTORY = path.join(__dirname, '..', '..', 'manifests', 'distribution-inventory.json');
+
+function resolveCursorInventoryPath(inventoryPath) {
+  if (inventoryPath) return inventoryPath;
+  return fs.existsSync(DEFAULT_DISTRIBUTION_INVENTORY) ? DEFAULT_DISTRIBUTION_INVENTORY : null;
+}
+
 function validatePackage(platform, root, inventoryPath = null) {
   if (platform === 'agy-project') {
     return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
@@ -653,8 +660,9 @@ function validatePackage(platform, root, inventoryPath = null) {
     return validateRelocatableAgentsSkillsProjection({ projectRoot: root });
   }
   let inventory = null;
-  if (platform === 'cursor' && inventoryPath) {
-    inventory = JSON.parse(fs.readFileSync(path.resolve(inventoryPath), 'utf8'));
+  if (platform === 'cursor') {
+    const resolved = resolveCursorInventoryPath(inventoryPath);
+    if (resolved) inventory = JSON.parse(fs.readFileSync(path.resolve(resolved), 'utf8'));
   }
   const result = platform === 'codex' || platform === 'agent-plugin'
     ? validateAgentPluginPackage(root)
