@@ -451,7 +451,49 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
   const nonInvokableSkillNames = inventory && Array.isArray(inventory.skills)
     ? inventory.skills.filter((skill) => skill.invokable === false).map((skill) => skill.name || skill.id).sort()
     : [];
-  return { project: projectEntries, native: nativeEntries, manifest, nonInvokableSkillNames };
+  return {
+    project: applyCodexHostBindingOwnership(project, projectEntries),
+    native: nativeEntries,
+    manifest,
+    nonInvokableSkillNames,
+  };
+}
+
+function applyCodexHostBindingOwnership(project, entries) {
+  const projectionPath = path.join(project, '.agents', '.dhpk-installed.json');
+  let projection;
+  try {
+    projection = JSON.parse(readFileBounded(projectionPath).toString('utf8'));
+  } catch {
+    return entries;
+  }
+  const host = projection && projection.hostBindings && projection.hostBindings.codex;
+  const bindings = host && Array.isArray(host.bindings) ? host.bindings : [];
+  const expectedByName = new Map();
+  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  for (const binding of bindings) {
+    if (!binding || binding.shape !== 'native-link' || typeof binding.path !== 'string' || typeof binding.target !== 'string') {
+      continue;
+    }
+    const name = binding.path.split('/').pop();
+    const expectedPath = `.codex/skills/${name}`;
+    const expectedTarget = `../../.agents/skills/${name}`;
+    if (binding.path !== expectedPath || binding.target !== expectedTarget || !skillName.test(name)) continue;
+    expectedByName.set(name, expectedTarget);
+  }
+  if (expectedByName.size === 0) return entries;
+  return entries.map((entry) => {
+    if (!entry || entry.kind !== 'skills' || entry.owned === true) return entry;
+    const expectedTarget = expectedByName.get(entry.id);
+    if (!expectedTarget) return entry;
+    const dest = path.join(project, '.codex', 'skills', entry.id);
+    try {
+      if (!fs.lstatSync(dest).isSymbolicLink() || fs.readlinkSync(dest) !== expectedTarget) return entry;
+    } catch {
+      return entry;
+    }
+    return { ...entry, owned: true };
+  });
 }
 
 function parseArgs(argv) {
