@@ -182,9 +182,9 @@ test('uninstall rejects symlinked .codex parents without deleting the external t
     fs.renameSync(originalSkills, externalSkills);
     fs.symlinkSync(externalSkills, originalSkills, 'dir');
     const res = runInstaller(scratch, ['--uninstall', '--force']);
-    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     assert.ok(fs.existsSync(path.join(externalSkills, skillName, 'SKILL.md')));
-    assert.match(`${res.stdout}\n${res.stderr}`, /orphaned|unsafe|preserved/i);
+    assert.match(`${res.stdout}\n${res.stderr}`, /symlink|unsafe|ancestor/i);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(external, { recursive: true, force: true });

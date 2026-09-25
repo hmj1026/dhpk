@@ -321,4 +321,55 @@ test('receipt-owned native Codex skill copies stay until --update', () => {
   }
 });
 
+test('uninstalling Cursor leaves Codex-bound shared skills and Codex native assets', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const cursor = runCursorInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(cursor.status, 0, `${cursor.stdout}\n${cursor.stderr}`);
+    const codex = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(codex.status, 0, `${codex.stdout}\n${codex.stderr}`);
+    write(path.join(scratch, '.agents', 'skills', 'foreign', 'keep.md'), '# keep\n');
+    write(path.join(scratch, '.cursor', 'skills', 'unrelated', 'keep.txt'), 'keep\n');
+    const removed = runCursorInstaller(scratch, ['--uninstall', '--force'], plugin);
+    assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+    assert.ok(!fs.existsSync(path.join(scratch, '.cursor', 'skills', 'dhpk-portable')));
+    assert.ok(!fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-portable', 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(scratch, '.cursor', 'agents', 'reviewer.md')));
+    assert.ok(fs.existsSync(path.join(scratch, '.cursor', 'skills', 'unrelated', 'keep.txt')));
+    assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md')));
+    assert.ok(fs.lstatSync(path.join(scratch, '.codex', 'skills', 'dhpk-codex-only')).isSymbolicLink());
+    assert.ok(fs.existsSync(path.join(scratch, '.codex', 'agents', 'explorer.toml')));
+    assert.strictEqual(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'foreign', 'keep.md'), 'utf8'), '# keep\n');
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor, undefined);
+    assert.deepStrictEqual(projection.hostBindings.codex.selectedStableIds, ['codex-only']);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('uninstalling the last Host removes shared skills and leaves unowned files', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    write(path.join(scratch, '.agents', 'skills', 'foreign', 'keep.md'), '# keep\n');
+    write(path.join(scratch, '.codex', 'skills', 'unrelated', 'keep.txt'), 'keep\n');
+    const removed = runCodexInstaller(scratch, ['--uninstall', '--force'], plugin);
+    assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', 'dhpk-codex-only')));
+    assert.ok(!fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-codex-only', 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(scratch, '.agents', '.dhpk-installed.json')));
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'agents', 'explorer.toml')));
+    assert.strictEqual(fs.readFileSync(path.join(scratch, '.agents', 'skills', 'foreign', 'keep.md'), 'utf8'), '# keep\n');
+    assert.ok(fs.existsSync(path.join(scratch, '.codex', 'skills', 'unrelated', 'keep.txt')));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
 run('install-codex-sync-shared');

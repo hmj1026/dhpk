@@ -4,7 +4,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { installNativeSharedSkills } = require('../scripts/lib/native-shared-skill-install');
+const { installNativeSharedSkills, uninstallNativeSharedSkills } = require('../scripts/lib/native-shared-skill-install');
+const {
+  validateRelocatableAgentsSkillsProjection,
+} = require('../scripts/lib/project-agent-projection-publisher');
 
 function tmpDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -258,6 +261,116 @@ test('installNativeSharedSkills recreates missing Host dests without --update', 
     fs.rmSync(sourceRoot, { recursive: true, force: true });
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }
+});
+
+test('uninstallNativeSharedSkills drops one Host and keeps skills the other Host still binds', () => {
+  const sourceRoot = dualFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-uninstall-keep-');
+  try {
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'cursor',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['other'],
+      declaredSelection: true,
+    });
+    write(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), '# keep\n');
+    const result = uninstallNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'cursor',
+    });
+    assert.strictEqual(result.ok, true, result.error && result.error.message);
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-other', 'SKILL.md')));
+    assert.ok(fs.lstatSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-other')).isSymbolicLink());
+    assert.strictEqual(fs.readFileSync(path.join(projectRoot, '.agents', 'skills', 'foreign', 'README.md'), 'utf8'), '# keep\n');
+    assert.strictEqual(result.receipt.hostBindings.cursor, undefined);
+    assert.deepStrictEqual(result.receipt.hostBindings.codex.selectedStableIds, ['other']);
+    const checked = validateRelocatableAgentsSkillsProjection({ projectRoot });
+    assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('uninstallNativeSharedSkills fails closed when remaining shared content was modified', () => {
+  const sourceRoot = dualFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-uninstall-modified-');
+  try {
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'cursor',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['other'],
+      declaredSelection: true,
+    });
+    fs.appendFileSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-other', 'SKILL.md'), '\n# edited\n');
+    assert.throws(
+      () => uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'cursor' }),
+      /modified|fingerprint|ownership/i,
+    );
+    assert.ok(fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-other', 'SKILL.md')));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('uninstallNativeSharedSkills removes shared content when the last Host unbinds', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-uninstall-last-');
+  try {
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    write(path.join(projectRoot, '.agents', 'skills', 'foreign', 'keep.md'), '# keep\n');
+    const result = uninstallNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+    });
+    assert.strictEqual(result.ok, true, result.error && result.error.message);
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')));
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')));
+    assert.strictEqual(fs.readFileSync(path.join(projectRoot, '.agents', 'skills', 'foreign', 'keep.md'), 'utf8'), '# keep\n');
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('uninstallNativeSharedSkills rejects an unsupported Host', () => {
+  assert.throws(
+    () => uninstallNativeSharedSkills({
+      sourceRoot: '/tmp/dhpk-native-shared-unused-source',
+      projectRoot: '/tmp/dhpk-native-shared-unused-project',
+      host: 'claude',
+    }),
+    /unsupported native shared-skill Host/,
+  );
 });
 
 run('native-shared-skill-install');
