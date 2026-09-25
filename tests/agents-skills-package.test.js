@@ -692,7 +692,7 @@ test('project receipt rejects divergent or unsupported binding claims', () => {
 
     const restored = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     restored.bindings = restored.hostBindings;
-    restored.bindingPaths.codex = [{ path: '.codex/skills/dhpk-sample', target: '../../.agents/skills/dhpk-sample' }];
+    restored.bindingPaths.windsurf = [{ path: '.windsurf/skills/dhpk-sample', target: '../../.agents/skills/dhpk-sample' }];
     resealProjectReceipt(restored);
     fs.writeFileSync(receiptPath, `${JSON.stringify(restored, null, 2)}\n`);
     checked = validateAgentsSkillsProjection({ projectRoot });
@@ -726,7 +726,7 @@ test('legacy project output is reported as legacy-unbound until explicit adoptio
   const sourceRoot = makeFixture();
   const projectRoot = tmpDir('dhpk-agents-skills-legacy-unbound-');
   try {
-    const options = { root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core' };
+    const options = { root: sourceRoot, projectRoot, inventory: projectInventory(), profileId: 'portable-core', requestedHosts: ['claude'] };
     materializeAgentsSkillsProjection(options);
     fs.rmSync(path.join(projectRoot, '.agents', '.dhpk-installed.json'));
     const observed = validateAgentsSkillsProjection({ projectRoot });
