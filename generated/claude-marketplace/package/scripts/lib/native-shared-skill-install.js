@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const {
   materializeRelocatableAgentsSkillsProjection,
+  uninstallAgentsSkillsProjection,
 } = require('./project-agent-projection-publisher');
 const { classifyHostBinding } = require('./cursor-consumer-evidence');
 
@@ -124,7 +125,82 @@ function installNativeSharedSkills({
   });
 }
 
+function throwIfUninstallFailed(result) {
+  if (result && result.ok === false) {
+    const detail = result.error && result.error.message
+      ? result.error.message
+      : 'shared projection uninstall failed';
+    throw new Error(detail);
+  }
+  return result;
+}
+
+function uninstallNativeSharedSkills({
+  sourceRoot,
+  projectRoot,
+  inventory,
+  host = 'cursor',
+} = {}) {
+  if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
+  if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
+    throw new Error(`unsupported native shared-skill Host: ${host}`);
+  }
+  const previous = readPreviousReceipt(projectRoot);
+  if (!previous) {
+    return { ok: true, state: 'ABSENT', removedPaths: [], preservedPaths: [], projectRoot };
+  }
+  const previousBindings = previous.hostBindings && typeof previous.hostBindings === 'object'
+    && !Array.isArray(previous.hostBindings)
+    ? previous.hostBindings
+    : {};
+  const remainingHosts = uniqueSorted(Object.keys(previousBindings).filter((other) => other !== host));
+  const resolvedInventory = inventory || readInventory(sourceRoot);
+  if (remainingHosts.length === 0) {
+    return throwIfUninstallFailed(uninstallAgentsSkillsProjection({
+      sourceRoot,
+      projectRoot,
+      inventory: resolvedInventory,
+    }));
+  }
+  const preserveHostBindings = {};
+  const preserveBindingPaths = {};
+  const remainingIds = [];
+  const hostSelections = {};
+  for (const other of remainingHosts) {
+    preserveHostBindings[other] = previousBindings[other];
+    const ids = boundStableIds(previousBindings[other]);
+    remainingIds.push(...ids);
+    hostSelections[other] = ids;
+    if (previous.bindingPaths && Array.isArray(previous.bindingPaths[other])) {
+      preserveBindingPaths[other] = previous.bindingPaths[other];
+    }
+  }
+  const unionIds = uniqueSorted(remainingIds);
+  if (unionIds.length === 0) {
+    return throwIfUninstallFailed(uninstallAgentsSkillsProjection({
+      sourceRoot,
+      projectRoot,
+      inventory: resolvedInventory,
+    }));
+  }
+  const published = materializeRelocatableAgentsSkillsProjection({
+    sourceRoot,
+    projectRoot,
+    inventory: resolvedInventory,
+    profileId: previous.profileId || 'portable-core',
+    requestedHosts: remainingHosts,
+    selectedStableIds: unionIds,
+    declaredSelection: true,
+    allowCanonicalChanges: true,
+    hostSelections,
+    preserveHostBindings,
+    preserveBindingPaths,
+  });
+  return { ok: true, ...published };
+}
+
 module.exports = {
   NATIVE_SHARED_SKILL_HOSTS,
   installNativeSharedSkills,
+  uninstallNativeSharedSkills,
 };
