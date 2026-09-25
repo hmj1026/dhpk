@@ -804,7 +804,11 @@ function verifyCodexSync(root, version) {
   const project = mkTempProject();
   try {
     const installer = path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh');
-    const res = spawnSync('bash', [installer, '--force'], { cwd: project, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_ROOT: root } });
+    const res = spawnSync('bash', [installer, '--force'], {
+      cwd: project,
+      encoding: 'utf8',
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: root, DHPK_CODEX_CONSUMER_EVIDENCE: '' },
+    });
     commands.push({ cmd: `bash ${path.relative(root, installer).split(path.sep).join('/')} --force (in clean project)`, exitCode: res.status });
     if (res.status !== 0) {
       return { verdict: VERDICTS.FAIL, commands, reasons: [`install-codex-skills.sh exited ${res.status}: ${redactEvidence((res.stderr || '').trim(), root)}`] };
@@ -814,27 +818,47 @@ function verifyCodexSync(root, version) {
       return { verdict: VERDICTS.FAIL, commands, reasons: ['no .codex/.dhpk-installed.json manifest after install'] };
     }
     const manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8'));
+    const runtimeNames = inventoryRuntimeSkillNames(root, 'codex-native');
+    const runtimeNameSet = new Set(runtimeNames);
+    const leftoverSkills = Object.keys((manifest.managed_entries && manifest.managed_entries.skills) || {})
+      .filter((name) => !runtimeNameSet.has(name));
+    const leftoverDirs = leftoverCodexNativeSkillDirectories(project, { ignore: runtimeNames });
+    const leftoverCopies = leftoverSkills.concat(leftoverDirs.ok ? leftoverDirs.leftovers : []);
     const hasPhysicalEntries = (directory) => {
       let stat;
       try { stat = fs.lstatSync(directory); } catch (_) { return false; }
       return stat.isDirectory() && readDirectoryEntries(directory, { sort: false }).length > 0;
     };
-    const skillsPresent = hasPhysicalEntries(path.join(project, '.codex', 'skills'));
     const agentsPresent = hasPhysicalEntries(path.join(project, '.codex', 'agents'));
     const supportingAssets = manifest.managed_entries && manifest.managed_entries.supporting_assets;
     const promptDefensePresent = fs.existsSync(path.join(project, '.codex', 'dhpk', 'agent-traps', '_common', 'prompt-defense.md'));
-    if (!skillsPresent || !agentsPresent || !supportingAssets || Object.keys(supportingAssets).length === 0 || !promptDefensePresent) {
+    if (!agentsPresent || !supportingAssets || Object.keys(supportingAssets).length === 0 || !promptDefensePresent) {
       return {
         verdict: VERDICTS.FAIL,
         commands,
-        reasons: ['expected skills, agents, and receipt-managed Codex supporting assets to materialize under .codex/ after install'],
+        reasons: ['expected agents and receipt-managed Codex supporting assets to materialize under .codex/ after install'],
       };
     }
     if (manifest.plugin_version !== version) {
       return { verdict: VERDICTS.FAIL, commands, reasons: [`installed manifest version '${manifest.plugin_version}' does not match target '${version}'`] };
     }
-    if (manifest.schema_version < 3 || !manifest.managed_entries || !manifest.managed_entries.skills || !manifest.managed_entries.agents || !manifest.managed_entries.supporting_assets) {
+    if (manifest.schema_version < 3 || !manifest.managed_entries || !manifest.managed_entries.agents || !manifest.managed_entries.supporting_assets) {
       return { verdict: VERDICTS.FAIL, commands, reasons: ['installed manifest is missing schema-v3 managed_entries ownership data'] };
+    }
+    if (leftoverCopies.length > 0 || !leftoverDirs.ok) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: [`Codex sync leftover native skill copies: ${leftoverCopies.slice(0, 10).join(', ') || leftoverDirs.reason}`],
+      };
+    }
+    const nativeLinks = verifyCodexNativeLinkProjection(project, { ignore: runtimeNames });
+    if (!nativeLinks.ok) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: [`codex-sync: ${redactEvidence(nativeLinks.reason, root)}`],
+      };
     }
     const agentMaterializationErrors = validateCodexAgentMaterialization(project, manifest);
     commands.push({ cmd: 'validate physical Codex agent materialization', exitCode: agentMaterializationErrors.length === 0 ? 0 : 1 });
@@ -844,30 +868,6 @@ function verifyCodexSync(root, version) {
         commands,
         reasons: agentMaterializationErrors.map((error) => `codex-sync: ${redactEvidence(error, root)}`),
       };
-    }
-    let expectedSyncNames = [];
-    try {
-      const inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
-      expectedSyncNames = (inventory.skills || [])
-        .filter((skill) => (skill.surfaces || []).includes('codex-sync') && skill.lifecycle !== 'deprecated')
-        .map((skill) => skill.name || skill.id)
-        .sort();
-    } catch (_) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: ['distribution inventory is unavailable for public-name Codex sync verification'] };
-    }
-    const installedSkillNames = Object.keys(manifest.managed_entries.skills).sort();
-    if (JSON.stringify(installedSkillNames) !== JSON.stringify(expectedSyncNames)) {
-      return {
-        verdict: VERDICTS.FAIL,
-        commands,
-        reasons: [`Codex sync installed skill names drifted: expected public names [${expectedSyncNames.join(', ')}], got [${installedSkillNames.join(', ')}]`],
-      };
-    }
-    for (const name of expectedSyncNames) {
-      const entry = manifest.managed_entries.skills[name];
-      if (!entry || entry.name !== name || typeof entry.id !== 'string' || !entry.fingerprint) {
-        return { verdict: VERDICTS.FAIL, commands, reasons: [`Codex sync receipt entry '${name}' is missing stable id, public name, or fingerprint`] };
-      }
     }
     const projectionErrors = collectCodexProjectionReferenceErrors(project, root);
     commands.push({ cmd: 'validate clean Codex supporting-asset reference closure', exitCode: projectionErrors.length === 0 ? 0 : 1 });
@@ -1007,19 +1007,21 @@ function verifyCodexSync(root, version) {
   }
 }
 
-function leftoverCursorNativeSkillDirectories(project, { required = true } = {}) {
-  const skillsRoot = path.join(project, '.cursor', 'skills');
+function leftoverNativeSkillDirectories(project, destRel, label, { required = true, ignore = [] } = {}) {
+  const skillsRoot = path.join(project, destRel, 'skills');
   try {
     const rootStat = fs.lstatSync(skillsRoot);
     if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
-      return { ok: false, reason: 'Cursor skills root is a symlink or not a directory', leftovers: [] };
+      return { ok: false, reason: `${label} skills root is a symlink or not a directory`, leftovers: [] };
     }
   } catch (error) {
     if (!required && error && error.code === 'ENOENT') return { ok: true, leftovers: [] };
-    return { ok: false, reason: `Cursor skills root is missing (${redactEvidence(error.message, project)})`, leftovers: [] };
+    return { ok: false, reason: `${label} skills root is missing (${redactEvidence(error.message, project)})`, leftovers: [] };
   }
+  const ignored = new Set(Array.isArray(ignore) ? ignore : []);
   const leftovers = [];
   for (const name of fs.readdirSync(skillsRoot).sort()) {
+    if (ignored.has(name)) continue;
     const entry = path.join(skillsRoot, name);
     try {
       const entryStat = fs.lstatSync(entry);
@@ -1029,6 +1031,30 @@ function leftoverCursorNativeSkillDirectories(project, { required = true } = {})
     }
   }
   return { ok: true, leftovers };
+}
+
+function leftoverCursorNativeSkillDirectories(project, options = {}) {
+  return leftoverNativeSkillDirectories(project, '.cursor', 'Cursor', options);
+}
+
+function leftoverCodexNativeSkillDirectories(project, options = {}) {
+  return leftoverNativeSkillDirectories(project, '.codex', 'Codex', options);
+}
+
+function inventoryRuntimeSkillNames(root, surface) {
+  try {
+    const inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+    const ids = new Set(
+      inventory && inventory.internal_runtime_skills && Array.isArray(inventory.internal_runtime_skills[surface])
+        ? inventory.internal_runtime_skills[surface]
+        : [],
+    );
+    return (Array.isArray(inventory && inventory.skills) ? inventory.skills : [])
+      .filter((skill) => skill && ids.has(skill.id) && typeof skill.name === 'string' && skill.name)
+      .map((skill) => skill.name);
+  } catch {
+    return [];
+  }
 }
 
 function cursorHostProjectionPreconditions(project) {
@@ -1144,6 +1170,125 @@ function verifyCursorNativeLinkProjection(project) {
       }
     } catch (error) {
       return { ok: false, reason: `Cursor native-link cannot be verified: ${binding.path} (${redactEvidence(error.message, project)})` };
+    }
+  }
+  return { ok: true, bindings, bindingShape: 'native-link' };
+}
+
+function codexHostProjectionPreconditions(project, options = {}) {
+  for (const relative of ['.agents', path.join('.agents', 'skills'), path.join('.codex', 'skills')]) {
+    if (hasSymlinkedAncestor(path.join(project, relative), project)) {
+      return { ok: false, reason: `Codex native-link ancestor is a symlink: ${relative}` };
+    }
+  }
+  const projectionPath = path.join(project, '.agents', '.dhpk-installed.json');
+  let projection;
+  try {
+    projection = JSON.parse(readFileBounded(projectionPath).toString('utf8'));
+  } catch (error) {
+    return { ok: false, reason: `Codex shared projection receipt is unreadable: ${redactEvidence(error.message, project)}` };
+  }
+  const codexHost = projection && projection.hostBindings && projection.hostBindings.codex;
+  if (!codexHost || (codexHost.bindingShape !== 'native-link' && codexHost.bindingShape !== 'direct')) {
+    return { ok: false, reason: 'Codex shared projection is missing native-link Host Bindings' };
+  }
+  const leftoverDirs = leftoverCodexNativeSkillDirectories(project, {
+    required: codexHost.bindingShape !== 'direct',
+    ignore: options.ignore || [],
+  });
+  if (!leftoverDirs.ok) return leftoverDirs;
+  if (leftoverDirs.leftovers.length > 0) {
+    return { ok: false, reason: `leftover native skill copies: ${leftoverDirs.leftovers.slice(0, 10).join(', ')}` };
+  }
+  return { ok: true, projection, codexHost };
+}
+
+function verifyCodexDirectProjection(project, codexHost) {
+  const bindings = Array.isArray(codexHost.bindings) ? codexHost.bindings : [];
+  if (bindings.length === 0) {
+    return { ok: false, reason: 'Codex shared projection has no direct skill bindings' };
+  }
+  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  for (const binding of bindings) {
+    if (!binding || binding.shape !== 'direct' || typeof binding.name !== 'string' || binding.path || binding.target) {
+      return { ok: false, reason: 'Codex direct binding is malformed' };
+    }
+    if (!skillName.test(binding.name)) {
+      return { ok: false, reason: `Codex direct binding is unsafe: ${binding.name}` };
+    }
+    const destination = path.join(project, '.codex', 'skills', binding.name);
+    try {
+      fs.lstatSync(destination);
+      return { ok: false, reason: `Codex direct binding leftover native skill entry: ${binding.name}` };
+    } catch (error) {
+      if (!error || error.code !== 'ENOENT') {
+        return { ok: false, reason: `Codex direct binding cannot be verified: ${binding.name} (${redactEvidence(error.message, project)})` };
+      }
+    }
+    const shared = path.join(project, '.agents', 'skills', binding.name);
+    try {
+      if (hasSymlinkedAncestor(shared, project)) {
+        return { ok: false, reason: `Codex native-link ancestor is a symlink: ${binding.name}` };
+      }
+      if (!insideRealRoot(shared, project)) {
+        return { ok: false, reason: `Codex shared skill is missing: ${binding.name}` };
+      }
+      const sharedStat = fs.lstatSync(shared);
+      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
+      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
+        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
+        return { ok: false, reason: `Codex shared skill is missing: ${binding.name}` };
+      }
+    } catch (error) {
+      return { ok: false, reason: `Codex shared skill is missing: ${binding.name} (${redactEvidence(error.message, project)})` };
+    }
+  }
+  return { ok: true, bindings, bindingShape: 'direct' };
+}
+
+function verifyCodexNativeLinkProjection(project, options = {}) {
+  const preconditions = codexHostProjectionPreconditions(project, options);
+  if (!preconditions.ok) return preconditions;
+  if (preconditions.codexHost.bindingShape === 'direct') {
+    return verifyCodexDirectProjection(project, preconditions.codexHost);
+  }
+  const codexHost = preconditions.codexHost;
+  const bindings = Array.isArray(codexHost.bindings) ? codexHost.bindings : [];
+  if (bindings.length === 0) {
+    return { ok: false, reason: 'Codex shared projection has no native-link skill bindings' };
+  }
+  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  for (const binding of bindings) {
+    if (!binding || binding.shape !== 'native-link' || typeof binding.path !== 'string' || typeof binding.target !== 'string') {
+      return { ok: false, reason: 'Codex native-link binding is malformed' };
+    }
+    const name = binding.path.split('/').pop();
+    const expectedPath = `.codex/skills/${name}`;
+    const expectedTarget = `../../.agents/skills/${name}`;
+    if (binding.path !== expectedPath || binding.target !== expectedTarget || !skillName.test(name)) {
+      return { ok: false, reason: `Codex native-link binding is unsafe: ${binding.path}` };
+    }
+    const destination = path.join(project, binding.path);
+    const shared = path.join(project, '.agents', 'skills', name);
+    try {
+      if (!fs.lstatSync(destination).isSymbolicLink() || fs.readlinkSync(destination) !== expectedTarget) {
+        return { ok: false, reason: `Codex native-link is missing or retargeted: ${binding.path}` };
+      }
+      if (hasSymlinkedAncestor(path.dirname(destination), project) || hasSymlinkedAncestor(shared, project)) {
+        return { ok: false, reason: `Codex native-link ancestor is a symlink: ${binding.path}` };
+      }
+      if (!insideRealRoot(destination, project) || !insideRealRoot(shared, project)
+        || fs.realpathSync(destination) !== fs.realpathSync(shared)) {
+        return { ok: false, reason: `Codex native-link is missing or retargeted: ${binding.path}` };
+      }
+      const sharedStat = fs.lstatSync(shared);
+      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
+      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
+        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
+        return { ok: false, reason: `Codex shared skill is missing: ${name}` };
+      }
+    } catch (error) {
+      return { ok: false, reason: `Codex native-link cannot be verified: ${binding.path} (${redactEvidence(error.message, project)})` };
     }
   }
   return { ok: true, bindings, bindingShape: 'native-link' };

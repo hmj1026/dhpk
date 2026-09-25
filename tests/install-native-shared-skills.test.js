@@ -152,4 +152,79 @@ test('CLI classify and install honor an injected Cursor PASS probe record', () =
   }
 });
 
+test('CLI classify --host codex honors Codex PASS and ignores Cursor PASS', () => {
+  const projectRoot = tmpDir('dhpk-install-native-codex-classify-');
+  const codexEvidence = path.join(projectRoot, 'codex-probe.json');
+  const cursorEvidence = path.join(projectRoot, 'cursor-probe.json');
+  try {
+    write(codexEvidence, `${JSON.stringify({
+      stage: 'CONSUMER',
+      producer: 'consumer-platform-probe',
+      adapter: { id: 'codex-project-discovery', version: '1.0.0' },
+      surfaceResults: [{
+        surface: 'codex-project',
+        status: 'PASS',
+        adapter: { id: 'codex-project-discovery', version: '1.0.0' },
+        commands: [{ cmd: 'node scripts/release/consumer-platform-probe.js --platform codex-project', exitCode: 0 }],
+        environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+        artifacts: [],
+        diagnostics: [],
+        reasons: ['bounded Codex project probe PASS'],
+        checkedClaims: ['project-artifact-structure', 'codex-project-discovery', 'consumer-route'],
+      }],
+    })}\n`);
+    write(cursorEvidence, `${JSON.stringify({
+      stage: 'CONSUMER',
+      producer: 'consumer-platform-probe',
+      adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+      surfaceResults: [{
+        surface: 'cursor-project',
+        status: 'PASS',
+        adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+        commands: [{ cmd: 'node scripts/release/consumer-platform-probe.js --platform cursor-project', exitCode: 0 }],
+        environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+        artifacts: [],
+        diagnostics: [],
+        reasons: ['bounded Cursor project probe PASS'],
+        checkedClaims: ['project-artifact-structure', 'cursor-project-discovery', 'consumer-route'],
+      }],
+    })}\n`);
+    const classified = invoke(['classify', '--json', '--host', 'codex', '--consumer-evidence', codexEvidence]);
+    assert.strictEqual(classified.status, 0, `${classified.stdout}\n${classified.stderr}`);
+    assert.strictEqual(JSON.parse(classified.stdout).bindingShape, 'direct');
+    const ignored = invoke(['classify', '--json', '--host', 'codex', '--consumer-evidence', cursorEvidence]);
+    assert.strictEqual(ignored.status, 0, `${ignored.stdout}\n${ignored.stderr}`);
+    assert.strictEqual(JSON.parse(ignored.stdout).bindingShape, 'native-link');
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('CLI installs Codex native-link bindings from a declared selection', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-install-native-codex-project-');
+  try {
+    const result = invoke([
+      'install',
+      '--source', sourceRoot,
+      '--project-root', projectRoot,
+      '--host', 'codex',
+      '--selected-id', 'sample',
+      '--declared-selection',
+      '--json',
+    ]);
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.ok, true);
+    assert.strictEqual(report.host, 'codex');
+    assert.strictEqual(report.bindingShape, 'native-link');
+    const nativeSkill = path.join(projectRoot, '.codex', 'skills', 'dhpk-sample');
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-sample');
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 run('install-native-shared-skills');

@@ -9,6 +9,7 @@ const {
   DIRECT_SHAPE,
   NATIVE_LINK_SHAPE,
   classifyCursorConsumerEvidence,
+  classifyCodexConsumerEvidence,
   loadCursorConsumerEvidence,
 } = require('../scripts/lib/cursor-consumer-evidence');
 
@@ -93,6 +94,28 @@ test('loadCursorConsumerEvidence reads a regular fixture file and ignores a stat
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('Codex PASS discovery probe record selects direct; Cursor PASS is not Codex evidence', () => {
+  const result = classifyCodexConsumerEvidence({
+    stage: 'CONSUMER',
+    producer: 'consumer-platform-probe',
+    adapter: { id: 'codex-project-discovery', version: '1.0.0' },
+    surfaceResults: [{
+      surface: 'codex-project',
+      status: 'PASS',
+      adapter: { id: 'codex-project-discovery', version: '1.0.0' },
+      commands: [],
+      environment: { CI: 'true' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: ['bounded Codex project probe PASS'],
+      checkedClaims: ['project-artifact-structure', 'codex-project-discovery', 'consumer-route'],
+    }],
+  });
+  assert.strictEqual(result.bindingShape, DIRECT_SHAPE);
+  const cursorPass = classifyCodexConsumerEvidence(passRecord());
+  assert.strictEqual(cursorPass.bindingShape, NATIVE_LINK_SHAPE);
 });
 
 run('cursor-consumer-evidence');

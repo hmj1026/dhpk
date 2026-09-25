@@ -9,9 +9,9 @@ const path = require('node:path');
 const {
   materializeRelocatableAgentsSkillsProjection,
 } = require('./project-agent-projection-publisher');
-const { classifyCursorHostBinding } = require('./cursor-consumer-evidence');
+const { classifyHostBinding } = require('./cursor-consumer-evidence');
 
-const NATIVE_SHARED_SKILL_HOSTS = Object.freeze(['cursor']);
+const NATIVE_SHARED_SKILL_HOSTS = Object.freeze(['codex', 'cursor']);
 
 function readInventory(sourceRoot) {
   const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
@@ -33,6 +33,34 @@ function uniqueIds(values) {
   return selected;
 }
 
+function uniqueSorted(values) {
+  return [...new Set(values.filter((id) => typeof id === 'string' && id.trim() !== '').map((id) => id.trim()))].sort();
+}
+
+function boundStableIds(hostBinding) {
+  if (!hostBinding || typeof hostBinding !== 'object' || Array.isArray(hostBinding)) return [];
+  if (Array.isArray(hostBinding.bindings)) {
+    const fromBindings = uniqueSorted(hostBinding.bindings.map((entry) => entry && entry.stableId));
+    if (fromBindings.length > 0) return fromBindings;
+  }
+  return uniqueSorted([
+    ...(Array.isArray(hostBinding.selectedStableIds) ? hostBinding.selectedStableIds : []),
+    ...(Array.isArray(hostBinding.emittedStableIds) ? hostBinding.emittedStableIds : []),
+  ]);
+}
+
+function readPreviousReceipt(projectRoot) {
+  const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
+  try {
+    const stat = fs.lstatSync(receiptPath);
+    if (stat.isSymbolicLink() || !stat.isFile()) return null;
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    return receipt && typeof receipt === 'object' && !Array.isArray(receipt) ? receipt : null;
+  } catch {
+    return null;
+  }
+}
+
 function installNativeSharedSkills({
   sourceRoot,
   projectRoot,
@@ -49,21 +77,50 @@ function installNativeSharedSkills({
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
     throw new Error(`unsupported native shared-skill Host: ${host}`);
   }
-  const cursorBinding = classifyCursorHostBinding({
+  const thisIds = uniqueIds(selectedStableIds);
+  const previous = readPreviousReceipt(projectRoot);
+  const preserveHostBindings = {};
+  const preserveBindingPaths = {};
+  const otherIds = [];
+  const previousBindings = previous && previous.hostBindings && typeof previous.hostBindings === 'object'
+    && !Array.isArray(previous.hostBindings)
+    ? previous.hostBindings
+    : {};
+  for (const other of Object.keys(previousBindings)) {
+    if (other === host) continue;
+    preserveHostBindings[other] = previousBindings[other];
+    otherIds.push(...boundStableIds(previousBindings[other]));
+    if (previous.bindingPaths && Array.isArray(previous.bindingPaths[other])) {
+      preserveBindingPaths[other] = previous.bindingPaths[other];
+    }
+  }
+  const unionIds = uniqueSorted([...thisIds, ...otherIds]);
+  const requestedHosts = uniqueSorted([host, ...Object.keys(preserveHostBindings)]);
+  const hostSelections = { [host]: thisIds };
+  for (const other of Object.keys(preserveHostBindings)) {
+    hostSelections[other] = boundStableIds(preserveHostBindings[other]);
+  }
+  const classified = classifyHostBinding(host, {
     consumerEvidence,
     consumerEvidencePath,
     env,
   });
+  const cursorBinding = host === 'cursor' ? classified : null;
+  const codexBinding = host === 'codex' ? classified : null;
   return materializeRelocatableAgentsSkillsProjection({
     sourceRoot,
     projectRoot,
     inventory: inventory || readInventory(sourceRoot),
     profileId: 'portable-core',
-    requestedHosts: [host],
-    selectedStableIds: uniqueIds(selectedStableIds),
+    requestedHosts,
+    selectedStableIds: unionIds,
     declaredSelection,
     allowCanonicalChanges: update,
     cursorBinding,
+    codexBinding,
+    hostSelections,
+    preserveHostBindings,
+    preserveBindingPaths,
   });
 }
 

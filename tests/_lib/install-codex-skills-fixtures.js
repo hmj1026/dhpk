@@ -220,6 +220,32 @@ function materializeFixtureSkill(fakePlugin, name) {
   fs.cpSync(resolvedSource, skillSource, { recursive: true, dereference: true });
 }
 
+function runtimeSupportSkillNames() {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const ids = new Set((inventory.internal_runtime_skills && inventory.internal_runtime_skills['codex-native']) || []);
+  return (inventory.skills || [])
+    .filter((skill) => skill && ids.has(skill.id) && typeof skill.name === 'string')
+    .map((skill) => skill.name)
+    .sort();
+}
+
+function firstRuntimeSupportSkillName() {
+  const names = runtimeSupportSkillNames();
+  if (names.length === 0) throw new Error('expected Codex native runtime-support skills in inventory');
+  return names[0];
+}
+
+function nativeManagedSkillNames(scratch) {
+  const receipt = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+  return Object.keys((receipt.managed_entries && receipt.managed_entries.skills) || {}).sort();
+}
+
+function firstNativeManagedSkill(scratch) {
+  const names = nativeManagedSkillNames(scratch);
+  assert.ok(names.length > 0, 'expected native runtime-support skills in the Codex receipt');
+  return names[0];
+}
+
 function collisionFixture() {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
@@ -317,6 +343,10 @@ module.exports = {
   waitForFile,
   rewriteAgentAsHistoricalManagedSymlink,
   materializeFixtureSkill,
+  runtimeSupportSkillNames,
+  firstRuntimeSupportSkillName,
+  nativeManagedSkillNames,
+  firstNativeManagedSkill,
   collisionFixture,
   transactionMetadataSnapshot,
   provenanceDriftPlanFixture,

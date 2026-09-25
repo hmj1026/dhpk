@@ -3,7 +3,7 @@
 
 const path = require('node:path');
 const { installNativeSharedSkills } = require('../lib/native-shared-skill-install');
-const { classifyCursorHostBinding } = require('../lib/cursor-consumer-evidence');
+const { classifyHostBinding } = require('../lib/cursor-consumer-evidence');
 
 function parseArgs(argv) {
   const args = {
@@ -42,15 +42,15 @@ function fail(message) {
 try {
   const args = parseArgs(process.argv.slice(2));
   if (args.action === 'classify') {
-    const classification = classifyCursorHostBinding({
+    const classification = classifyHostBinding(args.host, {
       consumerEvidencePath: args.consumerEvidencePath,
     });
     if (args.json) console.log(JSON.stringify(classification));
-    else console.log(`cursor bindingShape=${classification.bindingShape} reason=${classification.reason}`);
+    else console.log(`${args.host} bindingShape=${classification.bindingShape} reason=${classification.reason}`);
     process.exit(0);
   }
   if (!args.sourceRoot || !args.projectRoot || args.selectedStableIds.length === 0) {
-    fail('usage: install-native-shared-skills.js install --source <plugin> --project-root <dir> --host cursor --selected-id <id> [--declared-selection] [--update] [--consumer-evidence <file>] [--json]');
+    fail('usage: install-native-shared-skills.js install --source <plugin> --project-root <dir> --host cursor|codex --selected-id <id> [--declared-selection] [--update] [--consumer-evidence <file>] [--json]');
   }
   const result = installNativeSharedSkills({
     sourceRoot: path.resolve(args.sourceRoot),
