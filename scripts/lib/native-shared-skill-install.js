@@ -9,6 +9,7 @@ const path = require('node:path');
 const {
   materializeRelocatableAgentsSkillsProjection,
 } = require('./project-agent-projection-publisher');
+const { classifyCursorHostBinding } = require('./cursor-consumer-evidence');
 
 const NATIVE_SHARED_SKILL_HOSTS = Object.freeze(['cursor']);
 
@@ -40,11 +41,19 @@ function installNativeSharedSkills({
   selectedStableIds,
   declaredSelection = true,
   update = false,
+  consumerEvidence = null,
+  consumerEvidencePath = null,
+  env = process.env,
 } = {}) {
   if (!sourceRoot || !projectRoot) throw new Error('sourceRoot and projectRoot are required');
   if (!NATIVE_SHARED_SKILL_HOSTS.includes(host)) {
     throw new Error(`unsupported native shared-skill Host: ${host}`);
   }
+  const cursorBinding = classifyCursorHostBinding({
+    consumerEvidence,
+    consumerEvidencePath,
+    env,
+  });
   return materializeRelocatableAgentsSkillsProjection({
     sourceRoot,
     projectRoot,
@@ -54,6 +63,7 @@ function installNativeSharedSkills({
     selectedStableIds: uniqueIds(selectedStableIds),
     declaredSelection,
     allowCanonicalChanges: update,
+    cursorBinding,
   });
 }
 

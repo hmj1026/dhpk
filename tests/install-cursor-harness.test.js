@@ -26,6 +26,36 @@ function write(file, content) {
   fs.writeFileSync(file, content);
 }
 
+function cursorDiscoveryEvidence(status, extra = {}) {
+  return {
+    stage: 'CONSUMER',
+    producer: 'consumer-platform-probe',
+    adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+    surfaceResults: [{
+      surface: 'cursor-project',
+      status,
+      adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+      commands: [{
+        cmd: 'node scripts/release/consumer-platform-probe.js --platform cursor-project',
+        exitCode: status === 'PASS' ? 0 : 1,
+      }],
+      environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: extra.reasons || [status === 'PASS'
+        ? 'bounded Cursor project probe PASS'
+        : 'Cursor project probe failed'],
+      checkedClaims: ['project-artifact-structure', 'cursor-project-discovery', 'consumer-route'],
+    }],
+  };
+}
+
+function writeCursorEvidence(dir, record) {
+  const file = path.join(dir, 'cursor-consumer-evidence.json');
+  write(file, `${JSON.stringify(record)}\n`);
+  return file;
+}
+
 function fakePlugin() {
   const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-plugin-')));
   write(path.join(plugin, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
@@ -763,6 +793,113 @@ test('--update removes unchanged excluded commands and keeps modified ones', () 
     assert.strictEqual(nextReceipt.managed_entries.agents['harness-reviser.md'].orphaned, true);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('PASS probe record installs Cursor direct bindings without native skill entries', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  const evidence = writeCursorEvidence(scratch, cursorDiscoveryEvidence('PASS'));
+  try {
+    const res = runInstaller(scratch, ['--copy', '--force'], plugin, {
+      DHPK_CURSOR_CONSUMER_EVIDENCE: evidence,
+    });
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    assert.ok(!fs.existsSync(nativeSkill), 'direct bindings must not create dhpk native skill entries');
+    assert.ok(fs.existsSync(path.join(scratch, '.agents', 'skills', 'dhpk-portable', 'SKILL.md')));
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'direct');
+    assert.deepStrictEqual(projection.bindingPaths.cursor || [], []);
+    const binding = (projection.hostBindings.cursor.bindings || []).find((entry) => entry.stableId === 'portable');
+    assert.ok(binding, JSON.stringify(projection.hostBindings.cursor));
+    assert.strictEqual(binding.shape, 'direct');
+    assert.ok(!binding.path && !binding.target);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('FAIL or missing probe record keeps Cursor native-link bindings', () => {
+  for (const evidence of [null, cursorDiscoveryEvidence('FAIL')]) {
+    const scratch = projectRoot();
+    const plugin = fakePlugin();
+    const extraEnv = {};
+    if (evidence) extraEnv.DHPK_CURSOR_CONSUMER_EVIDENCE = writeCursorEvidence(scratch, evidence);
+    try {
+      const res = runInstaller(scratch, ['--copy', '--force'], plugin, extraEnv);
+      assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+      const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+      assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+      const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+      assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'native-link');
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(plugin, { recursive: true, force: true });
+    }
+  }
+});
+
+test('--plan --json reports the Cursor binding shape and evidence reason', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const missing = runInstaller(scratch, ['--copy', '--plan', '--json', '--force'], plugin);
+    const missingReport = JSON.parse(missing.stdout);
+    assert.strictEqual(missingReport.cursorBindingShape, 'native-link');
+    assert.match(String(missingReport.cursorBindingReason || ''), /missing/i);
+
+    const evidence = writeCursorEvidence(scratch, cursorDiscoveryEvidence('PASS'));
+    const passing = runInstaller(scratch, ['--copy', '--plan', '--json', '--force'], plugin, {
+      DHPK_CURSOR_CONSUMER_EVIDENCE: evidence,
+    });
+    const passingReport = JSON.parse(passing.stdout);
+    assert.strictEqual(passingReport.cursorBindingShape, 'direct');
+    assert.match(String(passingReport.cursorBindingReason || ''), /PASS/i);
+    assert.ok(!fs.existsSync(path.join(scratch, '.agents', '.dhpk-installed.json')));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('reinstall after PASS converts native-link bindings to direct and removes the links', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    const evidence = writeCursorEvidence(scratch, cursorDiscoveryEvidence('PASS'));
+    const second = runInstaller(scratch, ['--copy', '--force'], plugin, {
+      DHPK_CURSOR_CONSUMER_EVIDENCE: evidence,
+    });
+    assert.strictEqual(second.status, 0, `${second.stdout}\n${second.stderr}`);
+    assert.ok(!fs.existsSync(nativeSkill), 'PASS reinstall must remove previous native-link dests');
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'direct');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('a static .agents skill tree is not treated as Cursor discovery PASS evidence', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    write(path.join(scratch, '.agents', 'notes.md'), 'planted\n');
+    const res = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'native-link');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
   }
 });
 
