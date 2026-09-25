@@ -2669,11 +2669,11 @@ def classify_cursor_host_bindings():
     return classify_host_bindings()
 
 
-def install_shared_projection():
+def install_shared_projection(selected=None):
     host = shared_projection_host()
     if not host:
         raise ValueError('shared projection install requires a cursor or codex Host')
-    selected = list(SELECTION_EMITTED_IDS or [])
+    selected = list(SELECTION_EMITTED_IDS or []) if selected is None else list(selected)
     if not selected:
         raise ValueError(f'{SURFACE_LABEL} native-link install has an empty declared skill set')
     cli = native_shared_skill_cli()
@@ -2733,6 +2733,129 @@ def declared_skill_public_names():
     return names
 
 
+def plugin_skill_source_path(name):
+    record = inventory_skill_metadata().get(name) or {}
+    relative = record.get('path')
+    if not isinstance(relative, str) or not relative:
+        relative = f'skills/{name}'
+    return os.path.join(PLUGIN_ROOT, *relative.split('/'))
+
+
+def native_skill_receipt_entry(name):
+    try:
+        skills = entries.get('skills') if isinstance(entries, dict) else None
+        if isinstance(skills, dict) and name in skills:
+            return skills[name]
+    except NameError:
+        pass
+    if isinstance(receipt, dict):
+        managed = receipt.get('managed_entries')
+        if isinstance(managed, dict) and isinstance(managed.get('skills'), dict):
+            return managed['skills'].get(name)
+    return None
+
+
+def classify_legacy_native_declared_skills():
+    """Classify leftover native declared skill dests before shared Host Bindings."""
+    if not shared_projection_available():
+        return []
+    runtime_ids = native_runtime_skill_ids()
+    metadata = inventory_skill_metadata()
+    rows = []
+    for name in declared_skill_public_names():
+        record = metadata.get(name)
+        stable_id = record.get('id') if isinstance(record, dict) else None
+        if stable_id in runtime_ids:
+            continue
+        dest_rel = f'skills/{name}'
+        try:
+            destination = safe_destination(dest_rel)
+        except ValueError:
+            continue
+        if not lexists(destination):
+            continue
+        expected = f'../../.agents/skills/{name}'
+        if os.path.islink(destination) and os.readlink(destination) == expected:
+            continue
+        source = plugin_skill_source_path(name)
+        source_fp = source_fingerprint_for(source, dest_rel) if lexists(source) else ''
+        dest_fp = safe_destination_fingerprint(destination)
+        old = native_skill_receipt_entry(name)
+        if isinstance(old, dict) and is_owned(old, destination):
+            handling = 'migrate'
+            reason = 'unchanged-receipt-owned-native-copy'
+            action = '--update'
+        elif isinstance(old, dict):
+            handling = 'keep-modified'
+            reason = 'receipt-owned-native-copy-diverged'
+            action = f'--adopt={dest_rel}@{dest_fp}@{source_fp}'
+        else:
+            handling = 'unowned'
+            reason = 'native-skill-destination-not-in-receipt'
+            action = 'preserve'
+        rows.append({
+            'path': dest_rel,
+            'kind': 'skills',
+            'name': name,
+            'stableId': stable_id,
+            'handling': handling,
+            'reason': reason,
+            'action': action,
+            'source_fingerprint': source_fp,
+            'destination_fingerprint': dest_fp,
+        })
+    return rows
+
+
+def selected_shared_projection_ids(adopted=None):
+    adopted = adopted or {}
+    skip = set()
+    for item in classify_legacy_native_declared_skills():
+        if item.get('handling') not in ('keep-modified', 'unowned'):
+            continue
+        if item.get('path') in adopted:
+            continue
+        stable_id = item.get('stableId')
+        if isinstance(stable_id, str) and stable_id:
+            skip.add(stable_id)
+    return [stable_id for stable_id in (SELECTION_EMITTED_IDS or []) if stable_id not in skip]
+
+
+def handover_adopted_legacy_native_skills(adopted, counts):
+    """Remove adopted leftover native copies so Host Bindings can replace them."""
+    if not adopted:
+        return
+    for item in classify_legacy_native_declared_skills():
+        if item.get('handling') != 'keep-modified' or item.get('path') not in adopted:
+            continue
+        relative = item['path']
+        destination = target_for(relative)
+        expected = item.get('destination_fingerprint')
+        expected_source = adopted[relative]
+        if (safe_destination_fingerprint(destination) != expected
+                or item.get('source_fingerprint') != expected_source):
+            raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
+        name = item['name']
+        old = native_skill_receipt_entry(name)
+        backup = backup_destination(relative, destination, 'adopt-legacy-native')
+        if backup:
+            counts['backed_up'] += 1
+            register_pending_prune(relative, destination, backup)
+        remove_relative_path(relative, expected)
+        try:
+            if isinstance(entries.get('skills'), dict):
+                entries['skills'].pop(name, None)
+        except NameError:
+            pass
+        try:
+            orphaned.pop(relative, None)
+        except NameError:
+            pass
+        counts['adopted'] += 1
+        record_path('adopted', relative)
+        record_ownership(relative, 'dhpk-managed')
+
+
 def receipt_owned_native_declared_dests_block_shared_projection():
     if UPDATE or UNINSTALL:
         return False
@@ -2766,12 +2889,15 @@ def receipt_owned_native_declared_dests_block_shared_projection():
     return False
 
 
-def maybe_install_shared_projection():
+def maybe_install_shared_projection(adopted=None):
     if UNINSTALL or not shared_projection_available():
         return
     if receipt_owned_native_declared_dests_block_shared_projection():
         return
-    install_shared_projection()
+    selected = selected_shared_projection_ids(adopted)
+    if not selected:
+        return
+    install_shared_projection(selected)
 
 
 def install_cursor_shared_projection():
@@ -3597,6 +3723,23 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
                 item['canonical_identity'] = dict(retirement.get('canonical_identity') or {})
             retired.append(item)
 
+    legacy_native_skills = classify_legacy_native_declared_skills()
+    collision_paths = {item.get('path') for item in collisions}
+    for item in legacy_native_skills:
+        if item.get('handling') != 'keep-modified' or item.get('path') in collision_paths:
+            continue
+        collisions.append({
+            'path': item.get('path'),
+            'kind': item.get('kind'),
+            'name': item.get('name'),
+            'ownership': 'modified-legacy-native',
+            'source_fingerprint': item.get('source_fingerprint', ''),
+            'destination_fingerprint': item.get('destination_fingerprint', ''),
+            'action': item.get('action'),
+            'handling': 'keep-modified',
+        })
+        collision_paths.add(item.get('path'))
+
     # A ledger row can outlive its receipt entry.  If its former canonical
     # destination still exists, report it as an unowned collision rather than
     # treating a public name as permission to delete user data.
@@ -3703,6 +3846,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'missing': sorted(missing, key=lambda item: item.get('path', '')),
         'updates': sorted(updates, key=lambda item: item.get('path', '')),
         'retired': sorted(retired, key=lambda item: item.get('path', '')),
+        'legacyNativeSkills': sorted(legacy_native_skills, key=lambda item: item.get('path', '')),
         'excluded': sorted(
             [dict(item) for item in EXCLUDED_SOURCE_ENTRIES],
             key=lambda item: (item.get('kind', ''), item.get('name', '')),
@@ -3737,6 +3881,12 @@ def print_plan(report):
                 '[install-codex-skills] collision: '
                 f"{collision['path']} ownership={collision['ownership']} "
                 f"action={collision['action']}"
+            )
+        for item in report.get('legacyNativeSkills') or []:
+            print(
+                '[install-codex-skills] legacy-native-skill: '
+                f"{item.get('path')} handling={item.get('handling')} "
+                f"action={item.get('action')}"
             )
         if report.get('next_action'):
             print(f"[install-codex-skills] ACTION REQUIRED: {report['next_action']}")
@@ -4301,7 +4451,7 @@ prior_reconciliation = receipt.get('reconciliation') if isinstance(receipt, dict
 has_pending_conflicts = bool(orphaned) or bool(isinstance(prior_reconciliation, dict) and prior_reconciliation.get('skipped_collision'))
 if not UPDATE and not MIGRATE and not UNINSTALL and not legacy and not has_pending_conflicts and receipt.get('plugin_version') == plugin_version and receipt.get('source_fingerprint') == fingerprint:
     try:
-        maybe_install_shared_projection()
+        maybe_install_shared_projection(adopt_paths)
     except ValueError as error:
         print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
         sys.exit(2)
@@ -4477,19 +4627,30 @@ if UPDATE:
                 record_ownership(relative, 'dhpk-managed')
             else:
                 entries[kind][name] = dict(old, orphaned=True)
-                orphaned_entry = dict(old, reason='modified-removed-source')
+                keep_modified_legacy = (
+                    skip_native_skill_kind(kind)
+                    and name in declared_skill_public_names()
+                )
+                orphaned_entry = dict(
+                    old,
+                    reason='keep-modified-legacy-native' if keep_modified_legacy else 'modified-removed-source',
+                )
                 if retirement:
                     orphaned_entry['reason'] = 'retired-entry-modified-or-retargeted'
                     orphaned_entry['retirement'] = dict(retirement)
+                    keep_modified_legacy = False
                 orphaned[relative] = orphaned_entry
                 counts['orphaned'] += 1
                 counts['preserved'] += 1
-                counts['skipped_collision'] += 1
-                if relative not in collisions:
-                    collisions.append(relative)
-                record_path('collisions', relative)
                 record_path('orphaned', relative)
-                record_ownership(relative, 'retired-orphaned' if retirement else 'orphaned')
+                if keep_modified_legacy:
+                    record_ownership(relative, 'keep-modified')
+                else:
+                    counts['skipped_collision'] += 1
+                    if relative not in collisions:
+                        collisions.append(relative)
+                    record_path('collisions', relative)
+                    record_ownership(relative, 'retired-orphaned' if retirement else 'orphaned')
 
 if UPDATE and not ADOPT_PATHS:
     # Preserve retired destinations that are present on disk but have no
@@ -4547,7 +4708,8 @@ if UPDATE and not ADOPT_PATHS:
 
 if shared_projection_available() and not UNINSTALL:
     try:
-        maybe_install_shared_projection()
+        handover_adopted_legacy_native_skills(adopt_paths, counts)
+        maybe_install_shared_projection(adopt_paths)
     except ValueError as error:
         rollback_pending()
         print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)

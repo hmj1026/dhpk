@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
@@ -315,6 +316,145 @@ test('receipt-owned native Codex skill copies stay until --update', () => {
     assert.ok(!nextReceipt.managed_entries.skills || !nextReceipt.managed_entries.skills['dhpk-codex-only']);
     const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(projection.hostBindings.codex.bindingShape, 'native-link');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+function snapshotTree(root) {
+  const lines = [];
+  function walk(current) {
+    for (const name of fs.readdirSync(current).sort()) {
+      const full = path.join(current, name);
+      const rel = path.relative(root, full).split(path.sep).join('/');
+      const stat = fs.lstatSync(full);
+      if (stat.isSymbolicLink()) lines.push(`${rel}->${fs.readlinkSync(full)}`);
+      else if (stat.isDirectory()) walk(full);
+      else lines.push(`${rel}:${crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex')}`);
+    }
+  }
+  if (fs.existsSync(root)) walk(root);
+  return lines.join('\n');
+}
+
+test('--plan --json reports a legacy Codex native skill copy as migrate without writing', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.codex', 'skills', 'dhpk-codex-only');
+    fs.rmSync(path.join(scratch, '.agents'), { recursive: true, force: true });
+    fs.rmSync(nativeSkill, { recursive: true, force: true });
+    fs.cpSync(path.join(plugin, 'skills', 'dhpk-codex-only'), nativeSkill, { recursive: true });
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const fingerprint = completeTreeFingerprint(nativeSkill);
+    receipt.managed_entries.skills = receipt.managed_entries.skills || {};
+    receipt.managed_entries.skills['dhpk-codex-only'] = {
+      destination: 'skills/dhpk-codex-only',
+      source: 'skills/dhpk-codex-only',
+      mode: 'copy',
+      source_fingerprint: fingerprint,
+      destination_fingerprint: fingerprint,
+      fingerprint,
+      ownership_marker: 'copy:skills/dhpk-codex-only',
+    };
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const before = snapshotTree(scratch);
+    const planned = runCodexInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], plugin);
+    assert.notStrictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    const row = (report.legacyNativeSkills || []).find((entry) => entry.path === 'skills/dhpk-codex-only');
+    assert.ok(row, planned.stdout);
+    assert.strictEqual(row.handling, 'migrate');
+    assert.strictEqual(before, snapshotTree(scratch));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('a hand-edited legacy Codex skill survives --update and migrates only with --adopt', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.codex', 'skills', 'dhpk-codex-only');
+    fs.rmSync(path.join(scratch, '.agents'), { recursive: true, force: true });
+    fs.rmSync(nativeSkill, { recursive: true, force: true });
+    fs.cpSync(path.join(plugin, 'skills', 'dhpk-codex-only'), nativeSkill, { recursive: true });
+    fs.appendFileSync(path.join(nativeSkill, 'SKILL.md'), '\n# local edit\n');
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const recorded = completeTreeFingerprint(path.join(plugin, 'skills', 'dhpk-codex-only'));
+    receipt.managed_entries.skills = receipt.managed_entries.skills || {};
+    receipt.managed_entries.skills['dhpk-codex-only'] = {
+      destination: 'skills/dhpk-codex-only',
+      source: 'skills/dhpk-codex-only',
+      mode: 'copy',
+      source_fingerprint: recorded,
+      destination_fingerprint: recorded,
+      fingerprint: recorded,
+      ownership_marker: 'copy:skills/dhpk-codex-only',
+    };
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const planned = runCodexInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], plugin);
+    const report = JSON.parse(planned.stdout);
+    const row = (report.legacyNativeSkills || []).find((entry) => entry.path === 'skills/dhpk-codex-only');
+    assert.ok(row, planned.stdout);
+    assert.strictEqual(row.handling, 'keep-modified');
+    assert.match(String(row.action || ''), /--adopt=skills\/dhpk-codex-only@/);
+    const updated = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.ok(!fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.match(fs.readFileSync(path.join(nativeSkill, 'SKILL.md'), 'utf8'), /# local edit/);
+    const collision = (report.collisions || []).find((entry) => entry.path === 'skills/dhpk-codex-only') || row;
+    const adopted = runCodexInstaller(scratch, [
+      '--copy',
+      '--update',
+      `--adopt=skills/dhpk-codex-only@${collision.destination_fingerprint}@${collision.source_fingerprint}`,
+      '--force',
+    ], plugin);
+    assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-codex-only');
+    const checked = require('../scripts/lib/project-agent-projection-publisher')
+      .validateRelocatableAgentsSkillsProjection({ projectRoot: scratch });
+    assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('unowned Codex native skill copies stay put and are reported as unowned', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.codex', 'skills', 'dhpk-codex-only');
+    fs.rmSync(path.join(scratch, '.agents'), { recursive: true, force: true });
+    fs.rmSync(nativeSkill, { recursive: true, force: true });
+    fs.cpSync(path.join(plugin, 'skills', 'dhpk-codex-only'), nativeSkill, { recursive: true });
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    if (receipt.managed_entries && receipt.managed_entries.skills) {
+      delete receipt.managed_entries.skills['dhpk-codex-only'];
+    }
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const planned = runCodexInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], plugin);
+    const report = JSON.parse(planned.stdout);
+    const row = (report.legacyNativeSkills || []).find((entry) => entry.path === 'skills/dhpk-codex-only');
+    assert.ok(row, planned.stdout);
+    assert.strictEqual(row.handling, 'unowned');
+    const updated = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.ok(!fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.ok(fs.existsSync(path.join(nativeSkill, 'SKILL.md')));
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });

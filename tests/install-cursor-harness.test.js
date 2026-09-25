@@ -263,6 +263,22 @@ function hashCopiedPath(target) {
   return digest.digest('hex');
 }
 
+function snapshotTree(root) {
+  const lines = [];
+  function walk(current) {
+    for (const name of fs.readdirSync(current).sort()) {
+      const full = path.join(current, name);
+      const rel = path.relative(root, full).split(path.sep).join('/');
+      const stat = fs.lstatSync(full);
+      if (stat.isSymbolicLink()) lines.push(`${rel}->${fs.readlinkSync(full)}`);
+      else if (stat.isDirectory()) walk(full);
+      else lines.push(`${rel}:${crypto.createHash('sha256').update(fs.readFileSync(full)).digest('hex')}`);
+    }
+  }
+  if (fs.existsSync(root)) walk(root);
+  return lines.join('\n');
+}
+
 function copyDir(source, destination) {
   fs.mkdirSync(destination, { recursive: true });
   for (const name of fs.readdirSync(source)) {
@@ -897,6 +913,129 @@ test('a static .agents skill tree is not treated as Cursor discovery PASS eviden
     assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
     const projection = JSON.parse(fs.readFileSync(path.join(scratch, '.agents', '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'native-link');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('--plan --json reports a legacy native skill copy as migrate without writing', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    fs.rmSync(path.join(scratch, '.agents'), { recursive: true, force: true });
+    fs.rmSync(nativeSkill, { recursive: true, force: true });
+    copyDir(path.join(plugin, 'skills', 'dhpk-portable'), nativeSkill);
+    const receiptPath = path.join(scratch, '.cursor', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const fingerprint = hashCopiedPath(nativeSkill);
+    receipt.managed_entries.skills = receipt.managed_entries.skills || {};
+    receipt.managed_entries.skills['dhpk-portable'] = {
+      destination: 'skills/dhpk-portable',
+      source: 'skills/dhpk-portable',
+      mode: 'copy',
+      source_fingerprint: fingerprint,
+      destination_fingerprint: fingerprint,
+      fingerprint,
+      ownership_marker: 'copy:skills/dhpk-portable',
+    };
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const before = snapshotTree(scratch);
+    const planned = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], plugin);
+    assert.notStrictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    const row = (report.legacyNativeSkills || []).find((entry) => entry.path === 'skills/dhpk-portable');
+    assert.ok(row, planned.stdout);
+    assert.strictEqual(row.handling, 'migrate');
+    assert.strictEqual(before, snapshotTree(scratch));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('a hand-edited legacy Cursor skill survives --update and migrates only with --adopt', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    fs.rmSync(path.join(scratch, '.agents'), { recursive: true, force: true });
+    fs.rmSync(nativeSkill, { recursive: true, force: true });
+    copyDir(path.join(plugin, 'skills', 'dhpk-portable'), nativeSkill);
+    fs.appendFileSync(path.join(nativeSkill, 'SKILL.md'), '\n# local edit\n');
+    const receiptPath = path.join(scratch, '.cursor', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const recorded = hashCopiedPath(path.join(plugin, 'skills', 'dhpk-portable'));
+    receipt.managed_entries.skills = receipt.managed_entries.skills || {};
+    receipt.managed_entries.skills['dhpk-portable'] = {
+      destination: 'skills/dhpk-portable',
+      source: 'skills/dhpk-portable',
+      mode: 'copy',
+      source_fingerprint: recorded,
+      destination_fingerprint: recorded,
+      fingerprint: recorded,
+      ownership_marker: 'copy:skills/dhpk-portable',
+    };
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const planned = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], plugin);
+    const report = JSON.parse(planned.stdout);
+    const row = (report.legacyNativeSkills || []).find((entry) => entry.path === 'skills/dhpk-portable');
+    assert.ok(row, planned.stdout);
+    assert.strictEqual(row.handling, 'keep-modified');
+    assert.match(String(row.action || ''), /--adopt=skills\/dhpk-portable@/);
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.ok(!fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.match(fs.readFileSync(path.join(nativeSkill, 'SKILL.md'), 'utf8'), /# local edit/);
+    const collision = (report.collisions || []).find((entry) => entry.path === 'skills/dhpk-portable') || row;
+    const adopted = runInstaller(scratch, [
+      '--copy',
+      '--update',
+      `--adopt=skills/dhpk-portable@${collision.destination_fingerprint}@${collision.source_fingerprint}`,
+      '--force',
+    ], plugin);
+    assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-portable');
+    const checked = require('../scripts/lib/project-agent-projection-publisher')
+      .validateRelocatableAgentsSkillsProjection({ projectRoot: scratch });
+    assert.strictEqual(checked.ok, true, (checked.errors || []).join('\n'));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('unowned Cursor native skill copies stay put and are reported as unowned', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const nativeSkill = path.join(scratch, '.cursor', 'skills', 'dhpk-portable');
+    fs.rmSync(path.join(scratch, '.agents'), { recursive: true, force: true });
+    fs.rmSync(nativeSkill, { recursive: true, force: true });
+    copyDir(path.join(plugin, 'skills', 'dhpk-portable'), nativeSkill);
+    const receiptPath = path.join(scratch, '.cursor', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    if (receipt.managed_entries && receipt.managed_entries.skills) {
+      delete receipt.managed_entries.skills['dhpk-portable'];
+    }
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const planned = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], plugin);
+    const report = JSON.parse(planned.stdout);
+    const row = (report.legacyNativeSkills || []).find((entry) => entry.path === 'skills/dhpk-portable');
+    assert.ok(row, planned.stdout);
+    assert.strictEqual(row.handling, 'unowned');
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], plugin);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.ok(!fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.ok(fs.existsSync(path.join(nativeSkill, 'SKILL.md')));
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
