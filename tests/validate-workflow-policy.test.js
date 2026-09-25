@@ -190,7 +190,7 @@ test('the release rehearsal job has an agreed timeout budget', () => {
 
 test('CI runs actionlint and the repository-owned policy gate', () => {
   const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
-  assert.match(workflow, /reviewdog\/action-actionlint@[0-9a-f]{40}\s+#\s*v1\.75\.0/);
+  assert.match(workflow, /reviewdog\/action-actionlint@[0-9a-f]{40}\s+#\s*v1\.76\.3/);
   assert.match(workflow, /actionlint_flags:\s*-color[\s\S]*fail_level:\s*error/);
   assert.match(workflow, /node scripts\/ci\/validate-workflow-policy\.js/);
 });
