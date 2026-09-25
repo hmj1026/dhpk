@@ -87,6 +87,43 @@ test('installNativeSharedSkills materializes shared skills and Cursor native-lin
   }
 });
 
+test('installNativeSharedSkills records direct bindings when a PASS probe record is injected', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-direct-');
+  try {
+    const result = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'cursor',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+      consumerEvidence: {
+        stage: 'CONSUMER',
+        producer: 'consumer-platform-probe',
+        adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+        surfaceResults: [{
+          surface: 'cursor-project',
+          status: 'PASS',
+          adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+          commands: [{ cmd: 'node scripts/release/consumer-platform-probe.js --platform cursor-project', exitCode: 0 }],
+          environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+          artifacts: [],
+          diagnostics: [],
+          reasons: ['bounded Cursor project probe PASS'],
+          checkedClaims: ['project-artifact-structure', 'cursor-project-discovery', 'consumer-route'],
+        }],
+      },
+    });
+    assert.strictEqual(result.receipt.hostBindings.cursor.bindingShape, 'direct');
+    assert.deepStrictEqual(result.receipt.bindingPaths.cursor || [], []);
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('installNativeSharedSkills rejects an unsupported Host', () => {
   assert.throws(
     () => installNativeSharedSkills({

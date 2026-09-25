@@ -2570,6 +2570,45 @@ def native_shared_skill_cli():
     return os.path.join(INSTALLER_ROOT, 'scripts', 'ci', 'install-native-shared-skills.js')
 
 
+def classify_cursor_host_bindings():
+    fallback = {
+        'bindingShape': 'native-link',
+        'reason': 'Cursor discovery consumer probe classifier is unavailable',
+    }
+    cli = native_shared_skill_cli()
+    node = shutil.which('node')
+    if not node or not os.path.isfile(cli):
+        return fallback
+    command = [node, cli, 'classify', '--json']
+    evidence = os.environ.get('DHPK_CURSOR_CONSUMER_EVIDENCE')
+    if evidence:
+        command.extend(['--consumer-evidence', evidence])
+    try:
+        result = subprocess.run(
+            command,
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return fallback
+    if result.returncode != 0:
+        return {
+            'bindingShape': 'native-link',
+            'reason': 'Cursor discovery consumer probe classifier failed',
+        }
+    try:
+        payload = json.loads(result.stdout)
+    except (TypeError, ValueError):
+        return fallback
+    shape = payload.get('bindingShape') if isinstance(payload, dict) else None
+    reason = payload.get('reason') if isinstance(payload, dict) else None
+    if shape not in ('direct', 'native-link') or not isinstance(reason, str) or not reason:
+        return fallback
+    return {'bindingShape': shape, 'reason': reason}
+
+
 def install_cursor_shared_projection():
     selected = list(SELECTION_EMITTED_IDS or [])
     if not selected:
@@ -2591,6 +2630,9 @@ def install_cursor_shared_projection():
         command.extend(['--selected-id', stable_id])
     if UPDATE:
         command.append('--update')
+    evidence = os.environ.get('DHPK_CURSOR_CONSUMER_EVIDENCE')
+    if evidence:
+        command.extend(['--consumer-evidence', evidence])
     try:
         result = subprocess.run(
             command,
@@ -3461,7 +3503,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         next_action = 're-run with --migrate --update'
     elif state != 'current':
         next_action = 're-run with --update (and --migrate when the receipt is legacy)'
-    return {
+    report = {
         'schema_version': SCHEMA_VERSION,
         'plugin_version': plugin_version,
         'profileId': SELECTION_PROFILE_ID,
@@ -3490,6 +3532,11 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         ),
         'next_action': next_action,
     }
+    if HARNESS_KIND == 'cursor':
+        cursor_binding = classify_cursor_host_bindings()
+        report['cursorBindingShape'] = cursor_binding.get('bindingShape')
+        report['cursorBindingReason'] = cursor_binding.get('reason')
+    return report
 
 
 def print_plan(report):
@@ -4072,6 +4119,12 @@ if classification.get('requires_structural_migration') and not MIGRATE and UNINS
 prior_reconciliation = receipt.get('reconciliation') if isinstance(receipt, dict) else {}
 has_pending_conflicts = bool(orphaned) or bool(isinstance(prior_reconciliation, dict) and prior_reconciliation.get('skipped_collision'))
 if not UPDATE and not MIGRATE and not UNINSTALL and not legacy and not has_pending_conflicts and receipt.get('plugin_version') == plugin_version and receipt.get('source_fingerprint') == fingerprint:
+    if HARNESS_KIND == 'cursor':
+        try:
+            install_cursor_shared_projection()
+        except ValueError as error:
+            print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+            sys.exit(2)
     print(f'[install-codex-skills] already up-to-date for dhpk v{plugin_version}')
     sys.exit(0)
 

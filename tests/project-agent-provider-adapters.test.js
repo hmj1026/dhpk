@@ -7,6 +7,7 @@ const {
   AGY_PROJECT_PROBE_PRODUCER,
   createClaudeProjectDiscoveryAdapter,
   createCursorProjectDiscoveryAdapter,
+  DIRECT_SHAPE,
   createProjectAgentProviderAdapters,
   renderAgyDirectFile,
 } = require('../scripts/lib/project-agent-provider-adapters');
@@ -191,6 +192,16 @@ test('Cursor Host adapter exposes native-link discovery when cursor is bound', (
     path: '.cursor/skills/dhpk-sample',
     target: '../../.agents/skills/dhpk-sample',
   }]);
+});
+
+test('Cursor discovery adapter can bind skills as evidence-gated direct Host Bindings', () => {
+  const adapter = createCursorProjectDiscoveryAdapter({
+    entries: [{ stableId: 'sample', name: 'dhpk-sample' }],
+    bindingShape: DIRECT_SHAPE,
+  });
+  assert.strictEqual(adapter.bindingShape, DIRECT_SHAPE);
+  assert.strictEqual(adapter.kind, 'direct');
+  assert.deepStrictEqual(adapter.entries, [{ stableId: 'sample', name: 'dhpk-sample' }]);
 });
 
 run('project-agent-provider-adapters');

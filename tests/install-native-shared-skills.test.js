@@ -105,4 +105,51 @@ test('CLI usage fails closed without a source, project, or selected id', () => {
   assert.match(`${result.stdout}\n${result.stderr}`, /usage: install-native-shared-skills/);
 });
 
+test('CLI classify and install honor an injected Cursor PASS probe record', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-install-native-direct-');
+  const evidence = path.join(projectRoot, 'cursor-probe.json');
+  try {
+    write(evidence, `${JSON.stringify({
+      stage: 'CONSUMER',
+      producer: 'consumer-platform-probe',
+      adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+      surfaceResults: [{
+        surface: 'cursor-project',
+        status: 'PASS',
+        adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+        commands: [{ cmd: 'node scripts/release/consumer-platform-probe.js --platform cursor-project', exitCode: 0 }],
+        environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+        artifacts: [],
+        diagnostics: [],
+        reasons: ['bounded Cursor project probe PASS'],
+        checkedClaims: ['project-artifact-structure', 'cursor-project-discovery', 'consumer-route'],
+      }],
+    })}\n`);
+    const classified = invoke(['classify', '--json', '--consumer-evidence', evidence]);
+    assert.strictEqual(classified.status, 0, `${classified.stdout}\n${classified.stderr}`);
+    const classification = JSON.parse(classified.stdout);
+    assert.strictEqual(classification.bindingShape, 'direct');
+    assert.match(String(classification.reason || ''), /PASS/i);
+
+    const result = invoke([
+      'install',
+      '--source', sourceRoot,
+      '--project-root', projectRoot,
+      '--host', 'cursor',
+      '--selected-id', 'sample',
+      '--declared-selection',
+      '--consumer-evidence', evidence,
+      '--json',
+    ]);
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.bindingShape, 'direct');
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')));
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 run('install-native-shared-skills');

@@ -388,11 +388,13 @@ def _inside_real_root(candidate, root):
         return False
 
 
-def _leftover_native_skill_directories(cursor_root):
+def _leftover_native_skill_directories(cursor_root, required=True):
     skills_root = os.path.join(cursor_root, "skills")
     try:
         root_stat = os.lstat(skills_root)
     except OSError:
+        if not required:
+            return None, []
         return "Cursor skills root is missing", []
     if stat.S_ISLNK(root_stat.st_mode) or not stat.S_ISDIR(root_stat.st_mode):
         return "Cursor skills root is a symlink or not a directory", []
@@ -438,11 +440,6 @@ def _skill_id_by_name(plugin_root, receipt):
 def _validate_cursor_native_links(repo_root, plugin_root, expected_skills, skill_ids, budget):
     errors = []
     hashed = []
-    leftover_reason, leftovers = _leftover_native_skill_directories(os.path.join(repo_root, ".cursor"))
-    if leftover_reason:
-        errors.append(leftover_reason)
-    if leftovers:
-        errors.append("leftover native skill copies: %s" % ", ".join(leftovers[:10]))
     for relative in (".agents", os.path.join(".agents", "skills"), os.path.join(".cursor", "skills")):
         linked = _symlinked_ancestor(os.path.join(repo_root, relative), repo_root)
         if linked:
@@ -465,59 +462,100 @@ def _validate_cursor_native_links(repo_root, plugin_root, expected_skills, skill
         return errors + ["Cursor shared projection receipt must be a JSON object"], hashed
     host_bindings = projection.get("hostBindings")
     cursor_host = host_bindings.get("cursor") if isinstance(host_bindings, dict) else None
-    if not isinstance(cursor_host, dict) or cursor_host.get("bindingShape") != "native-link":
+    if not isinstance(cursor_host, dict) or cursor_host.get("bindingShape") not in ("native-link", "direct"):
         return errors + ["Cursor shared projection is missing native-link Host Bindings"], hashed
+    shape = cursor_host.get("bindingShape")
+    leftover_reason, leftovers = _leftover_native_skill_directories(
+        os.path.join(repo_root, ".cursor"),
+        required=shape != "direct",
+    )
+    if leftover_reason:
+        errors.append(leftover_reason)
+    if leftovers:
+        errors.append("leftover native skill copies: %s" % ", ".join(leftovers[:10]))
     bindings = cursor_host.get("bindings")
     if not isinstance(bindings, list) or not bindings:
-        return errors + ["Cursor shared projection has no native-link skill bindings"], hashed
+        return errors + ["Cursor shared projection has no %s skill bindings" % shape], hashed
     bound_names = {}
     for binding in bindings:
-        if not isinstance(binding, dict) or binding.get("shape") != "native-link":
-            errors.append("Cursor native-link binding is malformed")
+        if not isinstance(binding, dict) or binding.get("shape") != shape:
+            errors.append("Cursor %s binding is malformed" % shape)
             continue
-        destination = binding.get("path")
-        target = binding.get("target")
-        if not isinstance(destination, str) or not isinstance(target, str):
-            errors.append("Cursor native-link binding is malformed")
-            continue
-        name = destination.split("/")[-1]
-        expected_path = ".cursor/skills/%s" % name
-        expected_target = "../../.agents/skills/%s" % name
-        if destination != expected_path or target != expected_target or not SKILL_NAME.fullmatch(name):
-            errors.append("Cursor native-link binding is unsafe: %s" % destination)
-            continue
-        if name in bound_names:
-            errors.append("Cursor native-link binding duplicates %s" % destination)
-            continue
-        bound_names[name] = destination
-        projected = os.path.join(repo_root, *destination.split("/"))
-        shared = os.path.join(repo_root, ".agents", "skills", name)
-        try:
-            if not os.path.islink(projected) or os.readlink(projected) != expected_target:
-                errors.append("Cursor native-link is missing or retargeted: %s" % destination)
+        if shape == "direct":
+            name = binding.get("name")
+            if not isinstance(name, str) or binding.get("path") or binding.get("target") or not SKILL_NAME.fullmatch(name):
+                errors.append("Cursor direct binding is malformed" if not isinstance(name, str) else "Cursor direct binding is unsafe: %s" % name)
                 continue
-            if _symlinked_ancestor(os.path.dirname(projected), repo_root):
-                errors.append("Cursor native-link ancestor is a symlink: %s" % destination)
+            if name in bound_names:
+                errors.append("Cursor direct binding duplicates %s" % name)
                 continue
-            if _symlinked_ancestor(shared, repo_root):
-                errors.append("Cursor native-link ancestor is a symlink: %s" % name)
+            bound_names[name] = name
+            destination = os.path.join(repo_root, ".cursor", "skills", name)
+            if os.path.lexists(destination):
+                errors.append("Cursor direct binding leftover native skill entry: %s" % name)
                 continue
-            if not _inside_real_root(projected, repo_root) or not _inside_real_root(shared, repo_root):
-                errors.append("Cursor native-link target escapes the project: %s" % destination)
-                continue
-            if os.path.realpath(projected) != os.path.realpath(shared):
-                errors.append("Cursor native-link is missing or retargeted: %s" % destination)
-                continue
-            shared_stat = os.lstat(shared)
-            skill_md = os.path.join(shared, "SKILL.md")
-            skill_stat = os.lstat(skill_md)
-            if (stat.S_ISLNK(shared_stat.st_mode) or not stat.S_ISDIR(shared_stat.st_mode)
-                    or stat.S_ISLNK(skill_stat.st_mode) or not stat.S_ISREG(skill_stat.st_mode)):
+            shared = os.path.join(repo_root, ".agents", "skills", name)
+            try:
+                if _symlinked_ancestor(shared, repo_root):
+                    errors.append("Cursor native-link ancestor is a symlink: %s" % name)
+                    continue
+                if not _inside_real_root(shared, repo_root):
+                    errors.append("Cursor shared skill is missing: %s" % name)
+                    continue
+                shared_stat = os.lstat(shared)
+                skill_md = os.path.join(shared, "SKILL.md")
+                skill_stat = os.lstat(skill_md)
+                if (stat.S_ISLNK(shared_stat.st_mode) or not stat.S_ISDIR(shared_stat.st_mode)
+                        or stat.S_ISLNK(skill_stat.st_mode) or not stat.S_ISREG(skill_stat.st_mode)):
+                    errors.append("Cursor shared skill is missing: %s" % name)
+                    continue
+            except OSError:
                 errors.append("Cursor shared skill is missing: %s" % name)
                 continue
-        except OSError:
-            errors.append("Cursor native-link cannot be verified: %s" % destination)
-            continue
+        else:
+            destination = binding.get("path")
+            target = binding.get("target")
+            if not isinstance(destination, str) or not isinstance(target, str):
+                errors.append("Cursor native-link binding is malformed")
+                continue
+            name = destination.split("/")[-1]
+            expected_path = ".cursor/skills/%s" % name
+            expected_target = "../../.agents/skills/%s" % name
+            if destination != expected_path or target != expected_target or not SKILL_NAME.fullmatch(name):
+                errors.append("Cursor native-link binding is unsafe: %s" % destination)
+                continue
+            if name in bound_names:
+                errors.append("Cursor native-link binding duplicates %s" % destination)
+                continue
+            bound_names[name] = destination
+            projected = os.path.join(repo_root, *destination.split("/"))
+            shared = os.path.join(repo_root, ".agents", "skills", name)
+            try:
+                if not os.path.islink(projected) or os.readlink(projected) != expected_target:
+                    errors.append("Cursor native-link is missing or retargeted: %s" % destination)
+                    continue
+                if _symlinked_ancestor(os.path.dirname(projected), repo_root):
+                    errors.append("Cursor native-link ancestor is a symlink: %s" % destination)
+                    continue
+                if _symlinked_ancestor(shared, repo_root):
+                    errors.append("Cursor native-link ancestor is a symlink: %s" % name)
+                    continue
+                if not _inside_real_root(projected, repo_root) or not _inside_real_root(shared, repo_root):
+                    errors.append("Cursor native-link target escapes the project: %s" % destination)
+                    continue
+                if os.path.realpath(projected) != os.path.realpath(shared):
+                    errors.append("Cursor native-link is missing or retargeted: %s" % destination)
+                    continue
+                shared_stat = os.lstat(shared)
+                skill_md = os.path.join(shared, "SKILL.md")
+                skill_stat = os.lstat(skill_md)
+                if (stat.S_ISLNK(shared_stat.st_mode) or not stat.S_ISDIR(shared_stat.st_mode)
+                        or stat.S_ISLNK(skill_stat.st_mode) or not stat.S_ISREG(skill_stat.st_mode)):
+                    errors.append("Cursor shared skill is missing: %s" % name)
+                    continue
+            except OSError:
+                errors.append("Cursor native-link cannot be verified: %s" % destination)
+                continue
         source = expected_skills.get(name)
         stable_id = skill_ids.get(name)
         if not source or not isinstance(stable_id, str):

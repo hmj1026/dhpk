@@ -3,6 +3,7 @@
 
 const path = require('node:path');
 const { installNativeSharedSkills } = require('../lib/native-shared-skill-install');
+const { classifyCursorHostBinding } = require('../lib/cursor-consumer-evidence');
 
 function parseArgs(argv) {
   const args = {
@@ -14,10 +15,11 @@ function parseArgs(argv) {
     declaredSelection: false,
     update: false,
     json: false,
+    consumerEvidencePath: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === 'install' || arg === 'update') args.action = arg;
+    if (arg === 'install' || arg === 'update' || arg === 'classify') args.action = arg;
     else if (arg === '--source' || arg === '--source-root') args.sourceRoot = argv[++index];
     else if (arg === '--project-root') args.projectRoot = argv[++index];
     else if (arg === '--host') args.host = argv[++index];
@@ -25,6 +27,7 @@ function parseArgs(argv) {
     else if (arg === '--declared-selection') args.declaredSelection = true;
     else if (arg === '--update') args.update = true;
     else if (arg === '--json') args.json = true;
+    else if (arg === '--consumer-evidence') args.consumerEvidencePath = argv[++index];
     else throw new Error(`unknown argument: ${arg}`);
   }
   if (args.action === 'update') args.update = true;
@@ -38,8 +41,16 @@ function fail(message) {
 
 try {
   const args = parseArgs(process.argv.slice(2));
+  if (args.action === 'classify') {
+    const classification = classifyCursorHostBinding({
+      consumerEvidencePath: args.consumerEvidencePath,
+    });
+    if (args.json) console.log(JSON.stringify(classification));
+    else console.log(`cursor bindingShape=${classification.bindingShape} reason=${classification.reason}`);
+    process.exit(0);
+  }
   if (!args.sourceRoot || !args.projectRoot || args.selectedStableIds.length === 0) {
-    fail('usage: install-native-shared-skills.js install --source <plugin> --project-root <dir> --host cursor --selected-id <id> [--declared-selection] [--update] [--json]');
+    fail('usage: install-native-shared-skills.js install --source <plugin> --project-root <dir> --host cursor --selected-id <id> [--declared-selection] [--update] [--consumer-evidence <file>] [--json]');
   }
   const result = installNativeSharedSkills({
     sourceRoot: path.resolve(args.sourceRoot),
@@ -48,11 +59,12 @@ try {
     selectedStableIds: args.selectedStableIds,
     declaredSelection: args.declaredSelection,
     update: args.update,
+    consumerEvidencePath: args.consumerEvidencePath,
   });
-  const bindingShape = result.receipt
+  const hostBinding = result.receipt
     && result.receipt.hostBindings
-    && result.receipt.hostBindings[args.host]
-    && result.receipt.hostBindings[args.host].bindingShape;
+    && result.receipt.hostBindings[args.host];
+  const bindingShape = hostBinding && hostBinding.bindingShape;
   if (args.json) {
     console.log(JSON.stringify({
       ok: true,
@@ -60,6 +72,7 @@ try {
       selectedIds: result.selectedIds,
       emittedIds: result.emittedIds,
       bindingShape: bindingShape || null,
+      reason: (hostBinding && hostBinding.bindingReason) || null,
     }));
   } else {
     console.log(`install-native-shared-skills: wrote ${result.selectedIds.length} selected skills for ${args.host}`);

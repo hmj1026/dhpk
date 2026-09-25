@@ -1007,7 +1007,7 @@ function verifyCodexSync(root, version) {
   }
 }
 
-function leftoverCursorNativeSkillDirectories(project) {
+function leftoverCursorNativeSkillDirectories(project, { required = true } = {}) {
   const skillsRoot = path.join(project, '.cursor', 'skills');
   try {
     const rootStat = fs.lstatSync(skillsRoot);
@@ -1015,6 +1015,7 @@ function leftoverCursorNativeSkillDirectories(project) {
       return { ok: false, reason: 'Cursor skills root is a symlink or not a directory', leftovers: [] };
     }
   } catch (error) {
+    if (!required && error && error.code === 'ENOENT') return { ok: true, leftovers: [] };
     return { ok: false, reason: `Cursor skills root is missing (${redactEvidence(error.message, project)})`, leftovers: [] };
   }
   const leftovers = [];
@@ -1030,41 +1031,11 @@ function leftoverCursorNativeSkillDirectories(project) {
   return { ok: true, leftovers };
 }
 
-function hasSymlinkedAncestor(candidate, boundary) {
-  let current = path.resolve(candidate);
-  const stop = path.resolve(boundary);
-  while (true) {
-    try {
-      if (fs.lstatSync(current).isSymbolicLink()) return current;
-    } catch {
-      return null;
-    }
-    if (current === stop) return null;
-    const parent = path.dirname(current);
-    if (parent === current) return null;
-    current = parent;
-  }
-}
-
-function insideRealRoot(candidate, root) {
-  try {
-    const relative = path.relative(fs.realpathSync(root), fs.realpathSync(candidate));
-    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-  } catch {
-    return false;
-  }
-}
-
-function verifyCursorNativeLinkProjection(project) {
+function cursorHostProjectionPreconditions(project) {
   for (const relative of ['.agents', path.join('.agents', 'skills'), path.join('.cursor', 'skills')]) {
     if (hasSymlinkedAncestor(path.join(project, relative), project)) {
       return { ok: false, reason: `Cursor native-link ancestor is a symlink: ${relative}` };
     }
-  }
-  const leftoverDirs = leftoverCursorNativeSkillDirectories(project);
-  if (!leftoverDirs.ok) return leftoverDirs;
-  if (leftoverDirs.leftovers.length > 0) {
-    return { ok: false, reason: `leftover native skill copies: ${leftoverDirs.leftovers.slice(0, 10).join(', ')}` };
   }
   const projectionPath = path.join(project, '.agents', '.dhpk-installed.json');
   let projection;
@@ -1074,9 +1045,69 @@ function verifyCursorNativeLinkProjection(project) {
     return { ok: false, reason: `Cursor shared projection receipt is unreadable: ${redactEvidence(error.message, project)}` };
   }
   const cursorHost = projection && projection.hostBindings && projection.hostBindings.cursor;
-  if (!cursorHost || cursorHost.bindingShape !== 'native-link') {
+  if (!cursorHost || (cursorHost.bindingShape !== 'native-link' && cursorHost.bindingShape !== 'direct')) {
     return { ok: false, reason: 'Cursor shared projection is missing native-link Host Bindings' };
   }
+  const leftoverDirs = leftoverCursorNativeSkillDirectories(project, {
+    required: cursorHost.bindingShape !== 'direct',
+  });
+  if (!leftoverDirs.ok) return leftoverDirs;
+  if (leftoverDirs.leftovers.length > 0) {
+    return { ok: false, reason: `leftover native skill copies: ${leftoverDirs.leftovers.slice(0, 10).join(', ')}` };
+  }
+  return { ok: true, projection, cursorHost };
+}
+
+function verifyCursorDirectProjection(project, cursorHost) {
+  const bindings = Array.isArray(cursorHost.bindings) ? cursorHost.bindings : [];
+  if (bindings.length === 0) {
+    return { ok: false, reason: 'Cursor shared projection has no direct skill bindings' };
+  }
+  const skillName = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  for (const binding of bindings) {
+    if (!binding || binding.shape !== 'direct' || typeof binding.name !== 'string' || binding.path || binding.target) {
+      return { ok: false, reason: 'Cursor direct binding is malformed' };
+    }
+    if (!skillName.test(binding.name)) {
+      return { ok: false, reason: `Cursor direct binding is unsafe: ${binding.name}` };
+    }
+    const destination = path.join(project, '.cursor', 'skills', binding.name);
+    try {
+      fs.lstatSync(destination);
+      return { ok: false, reason: `Cursor direct binding leftover native skill entry: ${binding.name}` };
+    } catch (error) {
+      if (!error || error.code !== 'ENOENT') {
+        return { ok: false, reason: `Cursor direct binding cannot be verified: ${binding.name} (${redactEvidence(error.message, project)})` };
+      }
+    }
+    const shared = path.join(project, '.agents', 'skills', binding.name);
+    try {
+      if (hasSymlinkedAncestor(shared, project)) {
+        return { ok: false, reason: `Cursor native-link ancestor is a symlink: ${binding.name}` };
+      }
+      if (!insideRealRoot(shared, project)) {
+        return { ok: false, reason: `Cursor shared skill is missing: ${binding.name}` };
+      }
+      const sharedStat = fs.lstatSync(shared);
+      const skillStat = fs.lstatSync(path.join(shared, 'SKILL.md'));
+      if (sharedStat.isSymbolicLink() || !sharedStat.isDirectory()
+        || skillStat.isSymbolicLink() || !skillStat.isFile()) {
+        return { ok: false, reason: `Cursor shared skill is missing: ${binding.name}` };
+      }
+    } catch (error) {
+      return { ok: false, reason: `Cursor shared skill is missing: ${binding.name} (${redactEvidence(error.message, project)})` };
+    }
+  }
+  return { ok: true, bindings, bindingShape: 'direct' };
+}
+
+function verifyCursorNativeLinkProjection(project) {
+  const preconditions = cursorHostProjectionPreconditions(project);
+  if (!preconditions.ok) return preconditions;
+  if (preconditions.cursorHost.bindingShape === 'direct') {
+    return verifyCursorDirectProjection(project, preconditions.cursorHost);
+  }
+  const cursorHost = preconditions.cursorHost;
   const bindings = Array.isArray(cursorHost.bindings) ? cursorHost.bindings : [];
   if (bindings.length === 0) {
     return { ok: false, reason: 'Cursor shared projection has no native-link skill bindings' };
@@ -1115,7 +1146,32 @@ function verifyCursorNativeLinkProjection(project) {
       return { ok: false, reason: `Cursor native-link cannot be verified: ${binding.path} (${redactEvidence(error.message, project)})` };
     }
   }
-  return { ok: true, bindings };
+  return { ok: true, bindings, bindingShape: 'native-link' };
+}
+
+function hasSymlinkedAncestor(candidate, boundary) {
+  let current = path.resolve(candidate);
+  const stop = path.resolve(boundary);
+  while (true) {
+    try {
+      if (fs.lstatSync(current).isSymbolicLink()) return current;
+    } catch {
+      return null;
+    }
+    if (current === stop) return null;
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+function insideRealRoot(candidate, root) {
+  try {
+    const relative = path.relative(fs.realpathSync(root), fs.realpathSync(candidate));
+    return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  } catch {
+    return false;
+  }
 }
 
 function verifyCursorSync(root, version) {
@@ -1146,6 +1202,7 @@ function verifyCursorSync(root, version) {
         DHPK_DEST_REL: '.cursor',
         DHPK_SOURCE_KINDS: 'skills,agents,rules,commands',
         DHPK_INSTALLER_NAME: 'install-cursor-harness',
+        DHPK_CURSOR_CONSUMER_EVIDENCE: '',
       },
     });
     commands.push({ cmd: 'bash scripts/hooks/install-cursor-harness.sh --copy --force (in clean project)', exitCode: install.status });
@@ -1230,7 +1287,7 @@ function verifyCursorSync(root, version) {
         managedCounts: Object.fromEntries(nativeKinds.map((kind) => [kind, Object.keys(managedEntries[kind]).length])),
       }, {
         receipt: '<sandbox>/.agents/.dhpk-installed.json',
-        bindingShape: 'native-link',
+        bindingShape: nativeLinks.bindingShape || 'native-link',
         nativeLinkBindings: nativeLinks.bindings.length,
       }],
       reasons: ['isolated Cursor project-local sync receipt verified; Cursor client runtime/loader was not invoked'],

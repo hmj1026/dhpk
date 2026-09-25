@@ -26,6 +26,7 @@ function installCursorProjection(repo, options = {}) {
       DHPK_DEST_REL: '.cursor',
       DHPK_SOURCE_KINDS: 'skills,agents,rules,commands',
       DHPK_INSTALLER_NAME: 'install-cursor-harness',
+      ...(options.env || {}),
     },
   });
   assert.strictEqual(result.status, 0, result.stderr || result.stdout);
@@ -110,6 +111,36 @@ test('Cursor validates a current project-local receipt and projection without a 
     assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.portable.skills').status, 'NOT_CONFIGURED');
     assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.native.hooks').status, 'SKIP_INCOMPATIBLE');
     assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.runtime.launch').status, 'NOT_RUN');
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('Cursor validates a direct-first project-local install without leftover native skill dests', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-direct-local-'));
+  const evidence = path.join(repo, 'cursor-consumer-evidence.json');
+  try {
+    fs.mkdirSync(repo, { recursive: true });
+    fs.writeFileSync(evidence, `${JSON.stringify({
+      stage: 'CONSUMER',
+      producer: 'consumer-platform-probe',
+      adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+      surfaceResults: [{
+        surface: 'cursor-project',
+        status: 'PASS',
+        adapter: { id: 'cursor-project-discovery', version: '1.0.0' },
+        commands: [{ cmd: 'node scripts/release/consumer-platform-probe.js --platform cursor-project', exitCode: 0 }],
+        environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+        artifacts: [],
+        diagnostics: [],
+        reasons: ['bounded Cursor project probe PASS'],
+        checkedClaims: ['project-artifact-structure', 'cursor-project-discovery', 'consumer-route'],
+      }],
+    })}\n`);
+    installCursorProjection(repo, { env: { DHPK_CURSOR_CONSUMER_EVIDENCE: evidence } });
+    const projection = JSON.parse(fs.readFileSync(path.join(repo, '.agents/.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(projection.hostBindings.cursor.bindingShape, 'direct');
+    const { row } = runCursorValidation(repo);
+    assert.strictEqual(row.final_status, 'PASS', row.notes.join('\n'));
+    assert.strictEqual(projectLocalCapability(row).status, 'PASS');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
