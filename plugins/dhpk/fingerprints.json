@@ -1,7 +1,7 @@
 {
   "js-static-check-strategy": "d1d6dd33f5734e89a15e6e6b25101f8fe0416ea09b29a434c5fc8884d564064a",
   "matrix-cell-onboard": "9b8c22f41cfe6ea67ab483485cf52942dd995e20c7e5f3af34617927f9518454",
-  "dhpk-php-runtime-router": "8481cd28956a81e1a6b6180cf08615b0ab7f735e8532f0ffd8b076c19ad23cf4",
+  "dhpk-php-runtime-router": "7b4640779caaba0383a716957a487f5f330e3019b4a496a4aab18b6dfc59bba2",
   "dhpk-legacy-characterization-tests": "2a2df71423e54c8e24f10c645b917eb070aa728905171da6783dd23af16f8cf6",
   "dhpk-yii1-php56-development": "8af02d34fca4f9eaee43d4ceb72851dfe494462955af1b08f7cb74a2f703f2bc",
   "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",

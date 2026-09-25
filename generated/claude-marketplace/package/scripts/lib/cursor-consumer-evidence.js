@@ -10,7 +10,30 @@ const {
   CURSOR_PROJECT_PROBE_ADAPTER,
   CURSOR_PROJECT_PROBE_CLAIMS,
   CURSOR_PROJECT_PROBE_SURFACE,
+  CODEX_PROJECT_PROBE_PRODUCER,
+  CODEX_PROJECT_PROBE_ADAPTER,
+  CODEX_PROJECT_PROBE_CLAIMS,
+  CODEX_PROJECT_PROBE_SURFACE,
 } = require('./project-agent-provider-adapters');
+
+const HOST_PROBES = Object.freeze({
+  cursor: Object.freeze({
+    label: 'Cursor',
+    envKey: 'DHPK_CURSOR_CONSUMER_EVIDENCE',
+    producer: CURSOR_PROJECT_PROBE_PRODUCER,
+    adapter: CURSOR_PROJECT_PROBE_ADAPTER,
+    claims: CURSOR_PROJECT_PROBE_CLAIMS,
+    surface: CURSOR_PROJECT_PROBE_SURFACE,
+  }),
+  codex: Object.freeze({
+    label: 'Codex',
+    envKey: 'DHPK_CODEX_CONSUMER_EVIDENCE',
+    producer: CODEX_PROJECT_PROBE_PRODUCER,
+    adapter: CODEX_PROJECT_PROBE_ADAPTER,
+    claims: CODEX_PROJECT_PROBE_CLAIMS,
+    surface: CODEX_PROJECT_PROBE_SURFACE,
+  }),
+});
 
 function isObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
@@ -24,114 +47,156 @@ function sameSortedList(left, right) {
     && left.slice().sort().every((value, index) => value === right.slice().sort()[index]);
 }
 
-function adapterMatches(adapter) {
-  return isObject(adapter)
-    && adapter.id === CURSOR_PROJECT_PROBE_ADAPTER.id
-    && adapter.version === CURSOR_PROJECT_PROBE_ADAPTER.version;
+function probeSpec(host) {
+  const spec = HOST_PROBES[host];
+  if (!spec) throw new Error(`unsupported discovery Host: ${host}`);
+  return spec;
 }
 
-function normalizeCursorConsumerEvidence(raw) {
-  if (!isObject(raw)) throw new Error('Cursor discovery consumer probe record is missing');
+function adapterMatches(adapter, spec) {
+  return isObject(adapter)
+    && adapter.id === spec.adapter.id
+    && adapter.version === spec.adapter.version;
+}
+
+function normalizeHostConsumerEvidence(host, raw) {
+  const spec = probeSpec(host);
+  if (!isObject(raw)) throw new Error(`${spec.label} discovery consumer probe record is missing`);
   if (raw.stage !== 'CONSUMER') {
-    throw new Error('Cursor discovery consumer probe record is not a PASS record');
+    throw new Error(`${spec.label} discovery consumer probe record is not a PASS record`);
   }
   return normalizeConsumerEvidence(raw);
 }
 
-function isPassingCursorConsumerProbe(evidence) {
+function isPassingHostConsumerProbe(host, evidence) {
+  const spec = probeSpec(host);
   if (!isObject(evidence) || evidence.stage !== 'CONSUMER') return false;
-  if (evidence.producer !== CURSOR_PROJECT_PROBE_PRODUCER) return false;
-  if (!adapterMatches(evidence.adapter)) return false;
+  if (evidence.producer !== spec.producer) return false;
+  if (!adapterMatches(evidence.adapter, spec)) return false;
   if (!Array.isArray(evidence.surfaceResults) || evidence.surfaceResults.length !== 1) return false;
   const row = evidence.surfaceResults[0];
-  if (!isObject(row) || row.surface !== CURSOR_PROJECT_PROBE_SURFACE || row.status !== 'PASS') return false;
-  if (row.producer && row.producer !== CURSOR_PROJECT_PROBE_PRODUCER) return false;
-  if (!adapterMatches(row.adapter || evidence.adapter)) return false;
-  return sameSortedList(row.checkedClaims, CURSOR_PROJECT_PROBE_CLAIMS);
+  if (!isObject(row) || row.surface !== spec.surface || row.status !== 'PASS') return false;
+  if (row.producer && row.producer !== spec.producer) return false;
+  if (!adapterMatches(row.adapter || evidence.adapter, spec)) return false;
+  return sameSortedList(row.checkedClaims, spec.claims);
 }
 
-function classifyCursorConsumerEvidence(raw) {
+function classifyHostConsumerEvidence(host, raw) {
+  const spec = probeSpec(host);
   if (raw == null) {
     return {
       bindingShape: NATIVE_LINK_SHAPE,
-      reason: 'Cursor discovery consumer probe record is missing',
+      reason: `${spec.label} discovery consumer probe record is missing`,
     };
   }
   let evidence;
   try {
-    evidence = normalizeCursorConsumerEvidence(raw);
+    evidence = normalizeHostConsumerEvidence(host, raw);
   } catch (error) {
     const message = String(error && error.message ? error.message : error);
     if (/stale/i.test(message)) {
       return {
         bindingShape: NATIVE_LINK_SHAPE,
-        reason: 'Cursor discovery consumer probe record is stale',
+        reason: `${spec.label} discovery consumer probe record is stale`,
       };
     }
     if (/not a PASS record/i.test(message)) {
       return {
         bindingShape: NATIVE_LINK_SHAPE,
-        reason: 'Cursor discovery consumer probe is not a PASS record',
+        reason: `${spec.label} discovery consumer probe is not a PASS record`,
       };
     }
     return {
       bindingShape: NATIVE_LINK_SHAPE,
-      reason: 'Cursor discovery consumer probe record is unreadable',
+      reason: `${spec.label} discovery consumer probe record is unreadable`,
     };
   }
-  if (isPassingCursorConsumerProbe(evidence)) {
+  if (isPassingHostConsumerProbe(host, evidence)) {
     return {
       bindingShape: DIRECT_SHAPE,
-      reason: 'Cursor discovery consumer probe PASS',
+      reason: `${spec.label} discovery consumer probe PASS`,
     };
   }
   const status = evidence.surfaceResults && evidence.surfaceResults[0] && evidence.surfaceResults[0].status;
   if (status === 'FAIL') {
     return {
       bindingShape: NATIVE_LINK_SHAPE,
-      reason: 'Cursor discovery consumer probe failed',
+      reason: `${spec.label} discovery consumer probe failed`,
     };
   }
   return {
     bindingShape: NATIVE_LINK_SHAPE,
-    reason: 'Cursor discovery consumer probe is not a PASS record',
+    reason: `${spec.label} discovery consumer probe is not a PASS record`,
   };
 }
 
-function loadCursorConsumerEvidence({
+function loadHostConsumerEvidence(host, {
   consumerEvidence = null,
   consumerEvidencePath = null,
   env = process.env,
 } = {}) {
+  const spec = probeSpec(host);
   if (consumerEvidence != null) return consumerEvidence;
-  const file = consumerEvidencePath || (env && env.DHPK_CURSOR_CONSUMER_EVIDENCE) || '';
+  const file = consumerEvidencePath || (env && env[spec.envKey]) || '';
   if (!file || typeof file !== 'string') return null;
   const resolved = path.resolve(file);
   let stat;
   try {
     stat = fs.lstatSync(resolved);
   } catch (error) {
-    throw new Error(`Cursor discovery consumer probe record is unreadable: ${error.message}`);
+    throw new Error(`${spec.label} discovery consumer probe record is unreadable: ${error.message}`);
   }
   if (stat.isSymbolicLink() || !stat.isFile()) {
-    throw new Error('Cursor discovery consumer probe record must be a regular file');
+    throw new Error(`${spec.label} discovery consumer probe record must be a regular file`);
   }
   try {
     return JSON.parse(fs.readFileSync(resolved, 'utf8'));
   } catch (error) {
-    throw new Error(`Cursor discovery consumer probe record is unreadable: ${error.message}`);
+    throw new Error(`${spec.label} discovery consumer probe record is unreadable: ${error.message}`);
   }
 }
 
-function classifyCursorHostBinding(options = {}) {
+function classifyHostBinding(host, options = {}) {
   try {
-    return classifyCursorConsumerEvidence(loadCursorConsumerEvidence(options));
+    return classifyHostConsumerEvidence(host, loadHostConsumerEvidence(host, options));
   } catch (error) {
     return {
       bindingShape: NATIVE_LINK_SHAPE,
       reason: String(error && error.message ? error.message : error),
     };
   }
+}
+
+function normalizeCursorConsumerEvidence(raw) {
+  return normalizeHostConsumerEvidence('cursor', raw);
+}
+
+function isPassingCursorConsumerProbe(evidence) {
+  return isPassingHostConsumerProbe('cursor', evidence);
+}
+
+function classifyCursorConsumerEvidence(raw) {
+  return classifyHostConsumerEvidence('cursor', raw);
+}
+
+function loadCursorConsumerEvidence(options = {}) {
+  return loadHostConsumerEvidence('cursor', options);
+}
+
+function classifyCursorHostBinding(options = {}) {
+  return classifyHostBinding('cursor', options);
+}
+
+function classifyCodexConsumerEvidence(raw) {
+  return classifyHostConsumerEvidence('codex', raw);
+}
+
+function loadCodexConsumerEvidence(options = {}) {
+  return loadHostConsumerEvidence('codex', options);
+}
+
+function classifyCodexHostBinding(options = {}) {
+  return classifyHostBinding('codex', options);
 }
 
 module.exports = {
@@ -141,8 +206,16 @@ module.exports = {
   CURSOR_PROJECT_PROBE_ADAPTER,
   CURSOR_PROJECT_PROBE_CLAIMS,
   CURSOR_PROJECT_PROBE_SURFACE,
+  CODEX_PROJECT_PROBE_PRODUCER,
+  CODEX_PROJECT_PROBE_ADAPTER,
+  CODEX_PROJECT_PROBE_CLAIMS,
+  CODEX_PROJECT_PROBE_SURFACE,
   isPassingCursorConsumerProbe,
   classifyCursorConsumerEvidence,
   classifyCursorHostBinding,
   loadCursorConsumerEvidence,
+  classifyCodexConsumerEvidence,
+  classifyCodexHostBinding,
+  loadCodexConsumerEvidence,
+  classifyHostBinding,
 };

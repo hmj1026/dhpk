@@ -7,6 +7,7 @@ const {
   AGY_PROJECT_PROBE_PRODUCER,
   createClaudeProjectDiscoveryAdapter,
   createCursorProjectDiscoveryAdapter,
+  createCodexProjectDiscoveryAdapter,
   DIRECT_SHAPE,
   createProjectAgentProviderAdapters,
   renderAgyDirectFile,
@@ -192,6 +193,38 @@ test('Cursor Host adapter exposes native-link discovery when cursor is bound', (
     path: '.cursor/skills/dhpk-sample',
     target: '../../.agents/skills/dhpk-sample',
   }]);
+});
+
+test('Codex native-link discovery adapter binds per-skill links into .codex/skills', () => {
+  const adapter = createCodexProjectDiscoveryAdapter({
+    entries: [
+      { stableId: 'portable', name: 'dhpk-portable' },
+      { stableId: 'trace', name: 'dhpk-code-trace' },
+    ],
+  });
+  assert.strictEqual(adapter.id, 'codex-project-discovery');
+  assert.strictEqual(adapter.kind, 'symlink');
+  assert.strictEqual(adapter.bindingShape, 'native-link');
+  assert.strictEqual(adapter.destinationRoot, '.codex/skills');
+  assert.deepStrictEqual(adapter.entries.map((entry) => entry.path), [
+    '.codex/skills/dhpk-code-trace',
+    '.codex/skills/dhpk-portable',
+  ]);
+});
+
+test('Codex Host adapter binds only that Host\'s selectedStableIds', () => {
+  const hostBindings = bindings();
+  hostBindings.cursor.selectedStableIds = ['sample'];
+  hostBindings.codex.selectedStableIds = ['other'];
+  const adapters = createProjectAgentProviderAdapters(hostBindings, {
+    entries: [
+      { stableId: 'sample', name: 'dhpk-sample' },
+      { stableId: 'other', name: 'dhpk-other' },
+    ],
+  });
+  assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries.map((entry) => entry.stableId), ['sample']);
+  assert.deepStrictEqual(adapters.forHost.codex.discovery.entries.map((entry) => entry.stableId), ['other']);
+  assert.strictEqual(adapters.forHost.codex.discovery.destinationRoot, '.codex/skills');
 });
 
 test('Cursor discovery adapter can bind skills as evidence-gated direct Host Bindings', () => {

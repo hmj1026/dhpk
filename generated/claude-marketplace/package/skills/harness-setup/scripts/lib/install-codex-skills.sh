@@ -2211,8 +2211,9 @@ def source_fingerprint():
     digest = hashlib.sha256()
     metadata = inventory_skill_metadata()
     available = set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or [])
+    runtime_ids = native_runtime_skill_ids()
     for root_name in SOURCE_KINDS:
-        if skip_native_skill_kind(root_name):
+        if skip_native_skill_kind(root_name) and not runtime_ids:
             continue
         root = os.path.join(CODEX_SRC, root_name)
         if not os.path.isdir(root):
@@ -2220,7 +2221,11 @@ def source_fingerprint():
         for name in sorted(os.listdir(root)):
             if is_ignored_distribution_name(name):
                 continue
-            if root_name == 'skills' and SELECTION_EMITTED_IDS is not None:
+            if root_name == 'skills' and skip_native_skill_kind(root_name):
+                stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
+                if stable_id not in runtime_ids:
+                    continue
+            elif root_name == 'skills' and SELECTION_EMITTED_IDS is not None:
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
                 if stable_id not in available:
                     continue
@@ -2240,7 +2245,7 @@ def source_fingerprint():
         digest.update(b'\0')
         digest.update(hash_path(supporting, include_ignored=False).encode('ascii'))
         digest.update(b'\0')
-    if HARNESS_KIND == 'cursor':
+    if shared_projection_available():
         by_id = {
             value.get('id'): value
             for value in metadata.values()
@@ -2514,7 +2519,35 @@ def resolve_installer_selection(receipt, metadata):
 
 
 def skip_native_skill_kind(kind):
-    return HARNESS_KIND == 'cursor' and kind == 'skills'
+    return shared_projection_available() and kind == 'skills'
+
+
+def native_runtime_skill_ids():
+    return set(SELECTION_RUNTIME_IDS or [])
+
+
+def shared_projection_host():
+    if HARNESS_KIND == 'cursor':
+        return 'cursor'
+    if HARNESS_KIND == 'codex':
+        return 'codex'
+    return None
+
+
+def declared_projection_host_key():
+    if HARNESS_KIND == 'cursor':
+        return 'cursor'
+    if HARNESS_KIND == 'codex':
+        return 'codex-sync'
+    return None
+
+
+def consumer_evidence_env_key():
+    if HARNESS_KIND == 'cursor':
+        return 'DHPK_CURSOR_CONSUMER_EVIDENCE'
+    if HARNESS_KIND == 'codex':
+        return 'DHPK_CODEX_CONSUMER_EVIDENCE'
+    return None
 
 
 def read_profile_projection_sets():
@@ -2531,23 +2564,35 @@ def read_profile_projection_sets():
     return document
 
 
-def cursor_declared_skill_ids():
+def shared_projection_available():
+    if not shared_projection_host():
+        return False
+    if read_profile_projection_sets() is None:
+        return False
+    return os.path.isdir(os.path.join(PLUGIN_ROOT, 'skills'))
+
+
+def declared_skill_ids():
+    host_key = declared_projection_host_key()
+    if not host_key:
+        raise ValueError('declared projection selection requires a cursor or codex-sync Host')
     document = read_profile_projection_sets()
     if document is None:
-        raise ValueError('Cursor native-link install requires manifests/profile-projection-sets.json')
+        raise ValueError('native-link install requires manifests/profile-projection-sets.json')
     profiles = document.get('profiles')
     if not isinstance(profiles, dict):
         raise ValueError('profile-projection-sets.json must declare profiles')
-    profile_id = SELECTION_PROFILE_ID or 'minimal'
+    default_profile = 'minimal' if HARNESS_KIND == 'cursor' else 'compat-v1'
+    profile_id = SELECTION_PROFILE_ID or default_profile
     host_sets = profiles.get(profile_id)
     if not isinstance(host_sets, dict):
         raise ValueError(f"profile '{profile_id}' is not declared in profile-projection-sets.json")
-    declared = host_sets.get('cursor')
+    declared = host_sets.get(host_key)
     if (not isinstance(declared, list) or not declared
             or any(not isinstance(item, str) or not item for item in declared)):
-        raise ValueError(f"profile '{profile_id}' has no declared cursor projection set")
+        raise ValueError(f"profile '{profile_id}' has no declared {host_key} projection set")
     if len(set(declared)) != len(declared):
-        raise ValueError(f"profile '{profile_id}' declares duplicate cursor projection ids")
+        raise ValueError(f"profile '{profile_id}' declares duplicate {host_key} projection ids")
     selected = list(declared)
     for stable_id in REQUESTED_SKILL_IDS:
         if stable_id not in selected:
@@ -2555,32 +2600,43 @@ def cursor_declared_skill_ids():
     return selected
 
 
-def apply_cursor_declared_selection():
+def apply_declared_projection_selection():
     global SELECTION_EMITTED_IDS, SELECTION_CANONICAL_IDS, SELECTION_PROFILE_ID
-    selected = cursor_declared_skill_ids()
+    selected = declared_skill_ids()
     if SELECTION_PROFILE_ID is None:
-        SELECTION_PROFILE_ID = 'minimal'
+        SELECTION_PROFILE_ID = 'minimal' if HARNESS_KIND == 'cursor' else 'compat-v1'
     if SELECTION_CANONICAL_IDS is None:
         SELECTION_CANONICAL_IDS = list(selected)
     SELECTION_EMITTED_IDS = list(selected)
     return selected
 
 
+def cursor_declared_skill_ids():
+    return declared_skill_ids()
+
+
+def apply_cursor_declared_selection():
+    return apply_declared_projection_selection()
+
+
 def native_shared_skill_cli():
     return os.path.join(INSTALLER_ROOT, 'scripts', 'ci', 'install-native-shared-skills.js')
 
 
-def classify_cursor_host_bindings():
+def classify_host_bindings():
+    host = shared_projection_host() or 'cursor'
+    label = SURFACE_LABEL
     fallback = {
         'bindingShape': 'native-link',
-        'reason': 'Cursor discovery consumer probe classifier is unavailable',
+        'reason': f'{label} discovery consumer probe classifier is unavailable',
     }
     cli = native_shared_skill_cli()
     node = shutil.which('node')
     if not node or not os.path.isfile(cli):
         return fallback
-    command = [node, cli, 'classify', '--json']
-    evidence = os.environ.get('DHPK_CURSOR_CONSUMER_EVIDENCE')
+    command = [node, cli, 'classify', '--json', '--host', host]
+    evidence_key = consumer_evidence_env_key()
+    evidence = os.environ.get(evidence_key) if evidence_key else None
     if evidence:
         command.extend(['--consumer-evidence', evidence])
     try:
@@ -2596,7 +2652,7 @@ def classify_cursor_host_bindings():
     if result.returncode != 0:
         return {
             'bindingShape': 'native-link',
-            'reason': 'Cursor discovery consumer probe classifier failed',
+            'reason': f'{label} discovery consumer probe classifier failed',
         }
     try:
         payload = json.loads(result.stdout)
@@ -2609,28 +2665,36 @@ def classify_cursor_host_bindings():
     return {'bindingShape': shape, 'reason': reason}
 
 
-def install_cursor_shared_projection():
+def classify_cursor_host_bindings():
+    return classify_host_bindings()
+
+
+def install_shared_projection():
+    host = shared_projection_host()
+    if not host:
+        raise ValueError('shared projection install requires a cursor or codex Host')
     selected = list(SELECTION_EMITTED_IDS or [])
     if not selected:
-        raise ValueError('Cursor native-link install has an empty declared skill set')
+        raise ValueError(f'{SURFACE_LABEL} native-link install has an empty declared skill set')
     cli = native_shared_skill_cli()
     if not os.path.isfile(cli):
-        raise ValueError(f'Cursor native-link install requires {cli}')
+        raise ValueError(f'{SURFACE_LABEL} native-link install requires {cli}')
     node = shutil.which('node')
     if not node:
-        raise ValueError('Cursor native-link install requires node to materialize the shared project projection')
+        raise ValueError(f'{SURFACE_LABEL} native-link install requires node to materialize the shared project projection')
     command = [
         node, cli, 'install',
         '--source', PLUGIN_ROOT,
         '--project-root', PROJECT_ROOT,
-        '--host', 'cursor',
+        '--host', host,
         '--declared-selection',
     ]
     for stable_id in selected:
         command.extend(['--selected-id', stable_id])
     if UPDATE:
         command.append('--update')
-    evidence = os.environ.get('DHPK_CURSOR_CONSUMER_EVIDENCE')
+    evidence_key = consumer_evidence_env_key()
+    evidence = os.environ.get(evidence_key) if evidence_key else None
     if evidence:
         command.extend(['--consumer-evidence', evidence])
     try:
@@ -2642,13 +2706,82 @@ def install_cursor_shared_projection():
             timeout=90,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise ValueError(f'Cursor shared projection install failed: {exc}') from exc
+        raise ValueError(f'{SURFACE_LABEL} shared projection install failed: {exc}') from exc
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or '').strip()
-        raise ValueError(detail or 'Cursor shared projection install failed')
+        raise ValueError(detail or f'{SURFACE_LABEL} shared projection install failed')
 
 
-def unlink_cursor_native_links():
+def declared_skill_public_names():
+    metadata = inventory_skill_metadata()
+    by_id = {}
+    for name, record in metadata.items():
+        if not isinstance(record, dict):
+            continue
+        stable_id = record.get('id')
+        if not isinstance(stable_id, str) or not stable_id:
+            continue
+        public = record.get('name') if isinstance(record.get('name'), str) and record.get('name') else name
+        by_id[stable_id] = public
+    names = []
+    seen = set()
+    for stable_id in SELECTION_EMITTED_IDS or []:
+        public = by_id.get(stable_id)
+        if isinstance(public, str) and public and public not in seen:
+            seen.add(public)
+            names.append(public)
+    return names
+
+
+def receipt_owned_native_declared_dests_block_shared_projection():
+    if UPDATE or UNINSTALL:
+        return False
+    skills = {}
+    if isinstance(receipt, dict):
+        managed = receipt.get('managed_entries')
+        if isinstance(managed, dict) and isinstance(managed.get('skills'), dict):
+            skills = managed['skills']
+    if not skills:
+        return False
+    runtime_ids = native_runtime_skill_ids()
+    metadata = inventory_skill_metadata()
+    blocking = set(declared_skill_public_names())
+    for name, old in skills.items():
+        if name not in blocking:
+            continue
+        record = metadata.get(name)
+        stable_id = record.get('id') if isinstance(record, dict) else None
+        if stable_id in runtime_ids:
+            continue
+        try:
+            destination = receipt_destination('skills', name, old)
+        except ValueError:
+            continue
+        if not lexists(destination):
+            continue
+        expected = f'../../.agents/skills/{name}'
+        if os.path.islink(destination) and os.readlink(destination) == expected:
+            continue
+        return True
+    return False
+
+
+def maybe_install_shared_projection():
+    if UNINSTALL or not shared_projection_available():
+        return
+    if receipt_owned_native_declared_dests_block_shared_projection():
+        return
+    install_shared_projection()
+
+
+def install_cursor_shared_projection():
+    return install_shared_projection()
+
+
+def unlink_native_links():
+    host = shared_projection_host()
+    if not host:
+        return
     ensure_codex_root_safe()
     receipt_path = os.path.join(PROJECT_ROOT, '.agents', '.dhpk-installed.json')
     if not os.path.isfile(receipt_path):
@@ -2658,10 +2791,11 @@ def unlink_cursor_native_links():
             projection = json.load(handle)
     except (OSError, json.JSONDecodeError, UnicodeError):
         return
-    bindings = (projection.get('bindingPaths') or {}).get('cursor') or []
+    bindings = (projection.get('bindingPaths') or {}).get(host) or []
     if not isinstance(bindings, list):
         return
     skill_name = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
+    dest_prefix = f'{DEST_REL}/skills/'
     for entry in bindings:
         if not isinstance(entry, dict):
             continue
@@ -2670,7 +2804,7 @@ def unlink_cursor_native_links():
         if not isinstance(relative, str) or not isinstance(target, str):
             continue
         name = relative.rsplit('/', 1)[-1]
-        if relative != f'{DEST_REL}/skills/{name}' or not skill_name.fullmatch(name):
+        if relative != f'{dest_prefix}{name}' or not skill_name.fullmatch(name):
             continue
         expected_target = f'../../.agents/skills/{name}'
         if target != expected_target:
@@ -2683,6 +2817,10 @@ def unlink_cursor_native_links():
             remove_relative_path(dest_rel)
         except (OSError, ValueError):
             continue
+
+
+def unlink_cursor_native_links():
+    return unlink_native_links()
 
 
 def inventory_retirement_metadata(active_metadata=None):
@@ -3073,8 +3211,9 @@ def current_sources():
     result = {kind: {} for kind in MANAGED_KINDS}
     metadata = inventory_skill_metadata()
     available = set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or [])
+    runtime_ids = native_runtime_skill_ids()
     for kind in SOURCE_KINDS:
-        if skip_native_skill_kind(kind):
+        if skip_native_skill_kind(kind) and not runtime_ids:
             continue
         root = os.path.join(CODEX_SRC, kind)
         if not os.path.isdir(root):
@@ -3082,7 +3221,11 @@ def current_sources():
         for name in sorted(os.listdir(root)):
             if is_ignored_distribution_name(name):
                 continue
-            if kind == 'skills' and SELECTION_EMITTED_IDS is not None:
+            if kind == 'skills' and skip_native_skill_kind(kind):
+                stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
+                if stable_id not in runtime_ids:
+                    continue
+            elif kind == 'skills' and SELECTION_EMITTED_IDS is not None:
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
                 if stable_id not in available:
                     continue
@@ -3532,10 +3675,14 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         ),
         'next_action': next_action,
     }
-    if HARNESS_KIND == 'cursor':
-        cursor_binding = classify_cursor_host_bindings()
-        report['cursorBindingShape'] = cursor_binding.get('bindingShape')
-        report['cursorBindingReason'] = cursor_binding.get('reason')
+    if shared_projection_host():
+        host_binding = classify_host_bindings()
+        if HARNESS_KIND == 'cursor':
+            report['cursorBindingShape'] = host_binding.get('bindingShape')
+            report['cursorBindingReason'] = host_binding.get('reason')
+        else:
+            report['codexBindingShape'] = host_binding.get('bindingShape')
+            report['codexBindingReason'] = host_binding.get('reason')
     return report
 
 
@@ -4048,8 +4195,8 @@ except ValueError as error:
 try:
     skill_metadata = inventory_skill_metadata()
     resolve_installer_selection(receipt, skill_metadata)
-    if HARNESS_KIND == 'cursor':
-        apply_cursor_declared_selection()
+    if shared_projection_available():
+        apply_declared_projection_selection()
     sources = current_sources()
     skill_retirements = inventory_retirement_metadata(skill_metadata)
     validate_skill_metadata(sources, skill_metadata)
@@ -4119,12 +4266,11 @@ if classification.get('requires_structural_migration') and not MIGRATE and UNINS
 prior_reconciliation = receipt.get('reconciliation') if isinstance(receipt, dict) else {}
 has_pending_conflicts = bool(orphaned) or bool(isinstance(prior_reconciliation, dict) and prior_reconciliation.get('skipped_collision'))
 if not UPDATE and not MIGRATE and not UNINSTALL and not legacy and not has_pending_conflicts and receipt.get('plugin_version') == plugin_version and receipt.get('source_fingerprint') == fingerprint:
-    if HARNESS_KIND == 'cursor':
-        try:
-            install_cursor_shared_projection()
-        except ValueError as error:
-            print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
-            sys.exit(2)
+    try:
+        maybe_install_shared_projection()
+    except ValueError as error:
+        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+        sys.exit(2)
     print(f'[install-codex-skills] already up-to-date for dhpk v{plugin_version}')
     sys.exit(0)
 
@@ -4142,8 +4288,8 @@ except (OSError, ValueError) as error:
 if UNINSTALL:
     try:
         ensure_codex_root_safe()
-        if HARNESS_KIND == 'cursor':
-            unlink_cursor_native_links()
+        if shared_projection_host():
+            unlink_native_links()
     except ValueError as error:
         print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
         sys.exit(2)
@@ -4365,18 +4511,13 @@ if UPDATE and not ADOPT_PATHS:
         record_path('orphaned', relative)
         record_ownership(relative, 'unowned-collision')
 
-if HARNESS_KIND == 'cursor' and not UNINSTALL:
-    native_skills = (
-        ((receipt.get('managed_entries') or {}).get('skills') or {})
-        if isinstance(receipt, dict) else {}
-    )
-    if UPDATE or not native_skills:
-        try:
-            install_cursor_shared_projection()
-        except ValueError as error:
-            rollback_pending()
-            print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
-            sys.exit(2)
+if shared_projection_available() and not UNINSTALL:
+    try:
+        maybe_install_shared_projection()
+    except ValueError as error:
+        rollback_pending()
+        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+        sys.exit(2)
 
 for kind in MANAGED_KINDS:
     for name, (source, relative) in sources[kind].items():

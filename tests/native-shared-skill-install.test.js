@@ -33,7 +33,7 @@ function fixture() {
       name: 'dhpk-sample',
       path: 'skills/dhpk-sample',
       lifecycle: 'promoted',
-      surfaces: ['cursor-sync', 'cursor-plugin'],
+      surfaces: ['cursor-sync', 'cursor-plugin', 'codex-sync'],
     }],
     project_agent_projection: {
       schema: 'dhpk.project-agent-projection.v1',
@@ -134,6 +134,130 @@ test('installNativeSharedSkills rejects an unsupported Host', () => {
     }),
     /unsupported native shared-skill Host/,
   );
+});
+
+function dualFixture() {
+  const sourceRoot = fixture();
+  write(path.join(sourceRoot, 'skills', 'dhpk-other', 'SKILL.md'), [
+    '---',
+    'name: dhpk-other',
+    'description: Other',
+    '---',
+    '',
+    '# Other skill',
+    '',
+  ].join('\n'));
+  const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+  inventory.skills.push({
+    id: 'other',
+    name: 'dhpk-other',
+    path: 'skills/dhpk-other',
+    lifecycle: 'promoted',
+    surfaces: ['codex-sync'],
+  });
+  inventory.project_agent_projection.profiles['portable-core'].stable_ids = ['other', 'sample'];
+  fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  return sourceRoot;
+}
+
+test('installNativeSharedSkills materializes Codex native-link bindings', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-codex-');
+  try {
+    const result = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    const nativeSkill = path.join(projectRoot, '.codex', 'skills', 'dhpk-sample');
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-sample');
+    assert.strictEqual(result.receipt.hostBindings.codex.bindingShape, 'native-link');
+    assert.deepStrictEqual(result.receipt.bindingPaths.codex, [{
+      path: '.codex/skills/dhpk-sample',
+      target: '../../.agents/skills/dhpk-sample',
+    }]);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('installNativeSharedSkills unions shared skills and preserves the first Host bindings', () => {
+  const sourceRoot = dualFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-union-');
+  try {
+    const cursor = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'cursor',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    const cursorBindings = JSON.parse(JSON.stringify(cursor.receipt.hostBindings.cursor));
+    const cursorPaths = JSON.parse(JSON.stringify(cursor.receipt.bindingPaths.cursor));
+    const second = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['other'],
+      declaredSelection: true,
+    });
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-other', 'SKILL.md')));
+    assert.ok(fs.lstatSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-sample')).isSymbolicLink());
+    assert.ok(fs.lstatSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-other')).isSymbolicLink());
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.cursor', 'skills', 'dhpk-other')));
+    assert.ok(!fs.existsSync(path.join(projectRoot, '.codex', 'skills', 'dhpk-sample')));
+    assert.deepStrictEqual(second.receipt.hostBindings.cursor, cursorBindings);
+    assert.deepStrictEqual(second.receipt.bindingPaths.cursor, cursorPaths);
+    assert.deepStrictEqual(second.receipt.hostBindings.codex.selectedStableIds, ['other']);
+    const again = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['other'],
+      declaredSelection: true,
+    });
+    assert.deepStrictEqual(again.receipt.hostBindings.cursor, cursorBindings);
+    assert.deepStrictEqual(again.receipt.hostBindings.codex.selectedStableIds, ['other']);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('installNativeSharedSkills recreates missing Host dests without --update', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-native-shared-rebind-');
+  try {
+    installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    const nativeSkill = path.join(projectRoot, '.codex', 'skills', 'dhpk-sample');
+    fs.rmSync(nativeSkill, { force: true });
+    const again = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['sample'],
+      declaredSelection: true,
+    });
+    assert.ok(fs.lstatSync(nativeSkill).isSymbolicLink());
+    assert.strictEqual(fs.readlinkSync(nativeSkill), '../../.agents/skills/dhpk-sample');
+    assert.deepStrictEqual(again.receipt.hostBindings.codex.selectedStableIds, ['sample']);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
 });
 
 run('native-shared-skill-install');
