@@ -28,6 +28,11 @@ const CURSOR_PROJECT_DISCOVERY_ADAPTER_ID = 'cursor-project-discovery';
 const CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION = '1.0.0';
 const CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT = '.cursor/skills';
 const NATIVE_LINK_SHAPE = 'native-link';
+const DIRECT_SHAPE = 'direct';
+const CURSOR_PROJECT_PROBE_PRODUCER = 'consumer-platform-probe';
+const CURSOR_PROJECT_PROBE_ADAPTER = Object.freeze({ id: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID, version: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION });
+const CURSOR_PROJECT_PROBE_CLAIMS = Object.freeze(['project-artifact-structure', 'cursor-project-discovery', 'consumer-route']);
+const CURSOR_PROJECT_PROBE_SURFACE = 'cursor-project';
 
 function clone(value) {
   if (Array.isArray(value)) return value.map(clone);
@@ -184,22 +189,36 @@ function createCursorProjectDiscoveryAdapter({
   entries = [],
   sourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
   destinationRoot = CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  bindingShape = NATIVE_LINK_SHAPE,
 } = {}) {
-  return createProjectDiscoveryAdapter({
+  if (bindingShape !== NATIVE_LINK_SHAPE && bindingShape !== DIRECT_SHAPE) {
+    throw adapterError(
+      'INCOMPATIBLE_PROVIDER_SHAPE',
+      `Cursor project skill adapter requires bindingShape '${NATIVE_LINK_SHAPE}' or '${DIRECT_SHAPE}'`,
+      { details: { bindingShape } },
+    );
+  }
+  const adapter = createProjectDiscoveryAdapter({
     id: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
     version: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
     entries,
     sourceRoot,
     destinationRoot,
     hostLabel: 'Cursor',
-    bindingShape: NATIVE_LINK_SHAPE,
+    bindingShape,
   });
+  if (bindingShape === DIRECT_SHAPE) {
+    adapter.kind = 'direct';
+    adapter.entries = adapter.entries.map(({ stableId, name }) => ({ stableId, name }));
+  }
+  return adapter;
 }
 
 function createProjectAgentProviderAdapters(hostBindings = {}, {
   entries = [],
   claudeSourceRoot = CLAUDE_PROJECT_DISCOVERY_SOURCE_ROOT,
   claudeDestinationRoot = CLAUDE_PROJECT_DISCOVERY_DESTINATION_ROOT,
+  cursorBindingShape = null,
 } = {}) {
   if (!isObject(hostBindings)) {
     throw adapterError('INVALID_PROVIDER_BINDING', 'project Host bindings must be an object');
@@ -224,9 +243,14 @@ function createProjectAgentProviderAdapters(hostBindings = {}, {
     });
   }
   if (normalized.cursor) {
+    const recordedShape = hostBindings.cursor && hostBindings.cursor.bindingShape;
+    const shape = cursorBindingShape === DIRECT_SHAPE || recordedShape === DIRECT_SHAPE
+      ? DIRECT_SHAPE
+      : NATIVE_LINK_SHAPE;
     normalized.cursor.discovery = createCursorProjectDiscoveryAdapter({
       entries,
       sourceRoot: claudeSourceRoot,
+      bindingShape: shape,
     });
   }
   const directoryHosts = hostIds.filter((hostId) => normalized[hostId].kind === DIRECTORY_KIND);
@@ -372,6 +396,11 @@ module.exports = {
   CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
   CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT,
   NATIVE_LINK_SHAPE,
+  DIRECT_SHAPE,
+  CURSOR_PROJECT_PROBE_PRODUCER,
+  CURSOR_PROJECT_PROBE_ADAPTER,
+  CURSOR_PROJECT_PROBE_CLAIMS,
+  CURSOR_PROJECT_PROBE_SURFACE,
   createClaudeProjectDiscoveryAdapter,
   createCursorProjectDiscoveryAdapter,
   createProjectAgentProviderAdapters,

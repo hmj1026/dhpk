@@ -29,6 +29,7 @@ const {
   CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
   CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT,
   NATIVE_LINK_SHAPE,
+  DIRECT_SHAPE,
   renderAgyDirectFile,
 } = require('./project-agent-provider-adapters');
 
@@ -231,10 +232,13 @@ function validateReceiptBindings(receipt, roots) {
     label: 'Claude',
   });
   const cursorBinding = receipt.hostBindings && receipt.hostBindings.cursor;
+  const cursorShape = cursorBinding && (
+    cursorBinding.bindingShape === DIRECT_SHAPE || cursorBinding.bindingShape === NATIVE_LINK_SHAPE
+  ) ? cursorBinding.bindingShape : null;
   const cursorDiscoveryRecorded = Boolean(
     cursorBinding && (
       cursorBinding.discovery
-      || cursorBinding.bindingShape === NATIVE_LINK_SHAPE
+      || cursorShape
       || (bindingPaths.cursor && bindingPaths.cursor.length > 0)
     )
   );
@@ -243,7 +247,7 @@ function validateReceiptBindings(receipt, roots) {
     adapterId: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
     adapterVersion: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
     label: 'Cursor',
-    bindingShape: cursorDiscoveryRecorded ? NATIVE_LINK_SHAPE : null,
+    bindingShape: cursorDiscoveryRecorded ? (cursorShape || NATIVE_LINK_SHAPE) : null,
     required: cursorDiscoveryRecorded,
   });
   return bindingPaths;
@@ -261,6 +265,29 @@ function assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
   if (!required) {
     if (bindingPaths[hostId] && bindingPaths[hostId].length > 0) {
       throw fail('INVALID_RECEIPT', `project projection receipt has ${label} paths without a ${label} Host binding`);
+    }
+    return;
+  }
+  if (bindingShape === DIRECT_SHAPE) {
+    if ((bindingPaths[hostId] || []).length > 0) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} direct bindings must not publish native-link paths`);
+    }
+    const descriptor = receipt.hostBindings[hostId] && receipt.hostBindings[hostId].discovery;
+    if (!descriptor || descriptor.adapterId !== adapterId || descriptor.adapterVersion !== adapterVersion) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} discovery adapter identity is invalid`);
+    }
+    if (receipt.hostBindings[hostId].bindingShape !== DIRECT_SHAPE) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} bindingShape must be ${DIRECT_SHAPE}`);
+    }
+    const expectedNames = (discovery && discovery.entries ? discovery.entries : [])
+      .map((entry) => entry.name)
+      .slice()
+      .sort();
+    const bindings = Array.isArray(receipt.hostBindings[hostId].bindings) ? receipt.hostBindings[hostId].bindings : [];
+    const actualNames = bindings.map((entry) => entry && entry.name).slice().sort();
+    if (bindings.some((entry) => !entry || entry.shape !== DIRECT_SHAPE || entry.path || entry.target)
+      || actualNames.join('\0') !== expectedNames.join('\0')) {
+      throw fail('INVALID_RECEIPT', `project projection receipt ${label} direct bindings do not match the selected artifact`);
     }
     return;
   }
@@ -433,9 +460,33 @@ function stampDiscoveryHost(hostBindings, bindingPaths, providers, {
   adapterId,
   adapterVersion,
   bindingShape = null,
+  bindingReason = null,
 }) {
   const discovery = providers.forHost[hostId] && providers.forHost[hostId].discovery;
   if (!discovery) return;
+  if (bindingShape === DIRECT_SHAPE) {
+    bindingPaths[hostId] = [];
+    const stamped = {
+      ...hostBindings[hostId],
+      discovery: {
+        adapterId,
+        adapterVersion,
+        kind: 'direct',
+        sourceRoot: discovery.sourceRoot,
+        destinationRoot: discovery.destinationRoot,
+        paths: [],
+      },
+      bindingShape: DIRECT_SHAPE,
+      bindings: discovery.entries.map((entry) => ({
+        stableId: entry.stableId,
+        name: entry.name,
+        shape: DIRECT_SHAPE,
+      })),
+    };
+    if (bindingReason) stamped.bindingReason = bindingReason;
+    hostBindings[hostId] = stamped;
+    return;
+  }
   bindingPaths[hostId] = discovery.entries.map(({ path: bindingPath, target }) => ({
     path: bindingPath,
     target,
@@ -461,6 +512,7 @@ function stampDiscoveryHost(hostBindings, bindingPaths, providers, {
       shape: bindingShape,
     }));
   }
+  if (bindingReason) stamped.bindingReason = bindingReason;
   hostBindings[hostId] = stamped;
 }
 
@@ -503,16 +555,20 @@ function sourceEntryFor(planEntry, byId) {
   return source;
 }
 
-function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
+function buildArtifactInputs({ sourceRoot, inventory, plan, roots, cursorBinding = null }) {
   const byId = new Map(inventoryEntries(inventory).map((entry) => [entry.id, entry]));
   const adapterEntries = (plan.entries || []).map((planEntry) => {
     const sourceEntry = sourceEntryFor(planEntry, byId);
     const name = safeName(sourceEntry.name || sourceEntry.publicName || path.basename(sourceEntry.path), `inventory entry '${planEntry.stableId}' name`);
     return { stableId: planEntry.stableId, name };
   });
+  const cursorShape = cursorBinding && cursorBinding.bindingShape === DIRECT_SHAPE
+    ? DIRECT_SHAPE
+    : NATIVE_LINK_SHAPE;
   const providers = createProjectAgentProviderAdapters(plan.hostBindings, {
     entries: adapterEntries,
     claudeSourceRoot: roots.config.managed_root,
+    cursorBindingShape: cursorShape,
   });
   const records = [];
   const receiptEntries = [];
@@ -719,7 +775,8 @@ function buildArtifactInputs({ sourceRoot, inventory, plan, roots }) {
     hostId: 'cursor',
     adapterId: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID,
     adapterVersion: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION,
-    bindingShape: NATIVE_LINK_SHAPE,
+    bindingShape: cursorShape,
+    bindingReason: cursorBinding && cursorBinding.reason ? cursorBinding.reason : null,
   });
 
   return {
@@ -1409,11 +1466,11 @@ function publishManagedCandidate({ roots, previous, candidateRoot, candidateFile
   }
 }
 
-function stageArtifact({ roots, sourceRoot, inventory, plan }) {
+function stageArtifact({ roots, sourceRoot, inventory, plan, cursorBinding = null }) {
   const artifactRoot = fs.mkdtempSync(path.join(roots.agentsRoot, '.dhpk-projection-artifact-'));
   try {
     const publishedRoot = path.join(artifactRoot, 'published');
-    const inputs = buildArtifactInputs({ sourceRoot, inventory, plan, roots });
+    const inputs = buildArtifactInputs({ sourceRoot, inventory, plan, roots, cursorBinding });
     const store = new ProjectionArtifactStore({ root: artifactRoot, sourceRoot, publishRoot: publishedRoot });
     const contentByPath = new Map(inputs.records.map((record) => [record.value.destination, record.content]));
     const adapter = {
@@ -1502,7 +1559,13 @@ function materializeRelocatableAgentsSkillsProjection(options = {}) {
     selectedStableIds: options.selectedStableIds,
     declaredSelection: options.declaredSelection,
   });
-  const staged = stageArtifact({ roots, sourceRoot: roots.sourceRoot, inventory: options.inventory, plan });
+  const staged = stageArtifact({
+    roots,
+    sourceRoot: roots.sourceRoot,
+    inventory: options.inventory,
+    plan,
+    cursorBinding: options.cursorBinding || null,
+  });
   try {
     if (previous) {
       const approvedRenames = approvedRenameIds(previous, options.inventory, plan);
