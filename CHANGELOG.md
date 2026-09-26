@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.64.1 — 2026-09-27 — Fix shared projection and symlink installer errors
+
+- **fix(installer)** — Report conflicting skill symlinks and symlinked Cursor managed directories with actionable errors instead of misleading diagnostics or a Python traceback.
+- **fix(installer)** — Skip relocatable Shared Project Projection when the plugin or source root overlaps the project root, keep Native Projection, and mark leftover Host transaction journals rolled_back instead of leaving them active.
+
 ## 0.64.0 — 2026-09-25 — Delegate Cursor and Codex-sync skills to the shared project projection
 
 - **feat(installer)** — Uninstalling Cursor or Codex-sync now drops only that Host's Host Bindings and native assets. Shared skills stay until no remaining Host Binding references them; unowned files stay in place, and modified managed content fails closed.

@@ -201,6 +201,7 @@ REQUESTED_SKILL_IDS = [value for value in os.environ.get('DHPK_SKILL_IDS', '').s
 # receipt-failure rollback path without relying on host permissions.
 FAIL_RECEIPT_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_RECEIPT') == '1'
 FAIL_UNINSTALL_RECEIPT_FSYNC_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC') == '1'
+FAIL_SHARED_PROJECTION_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_SHARED_PROJECTION') == '1'
 ABORT_ADOPTION_PHASE_FOR_TEST = os.environ.get('DHPK_TEST_ABORT_ADOPTION_PHASE')
 SCHEMA_VERSION = 3
 BACKUP_DIR = '.dhpk-backups'
@@ -652,6 +653,13 @@ def open_relative_directory(relative, create=False):
         for component in components:
             try:
                 child = os.open(component, _DIRECTORY_FLAGS, dir_fd=fd)
+            except NotADirectoryError:
+                if stat.S_ISLNK(os.stat(component, dir_fd=fd, follow_symlinks=False).st_mode):
+                    raise ValueError(
+                        f'symlinked managed directory {DEST_REL}/{relative}; '
+                        'replace it with a physical directory before retrying'
+                    ) from None
+                raise
             except FileNotFoundError:
                 if not create:
                     raise
@@ -1191,10 +1199,30 @@ def rollback_pending():
     return errors
 
 
+def finish_open_transaction(errors=None):
+    """Record terminal journal phase after a started Host transaction rolls back."""
+    if not isinstance(TRANSACTION_JOURNAL, dict) or not TRANSACTION_JOURNAL.get('started'):
+        return
+    phase = 'rollback_incomplete' if errors else 'rolled_back'
+    try:
+        finish_transaction(phase)
+    except (OSError, ValueError):
+        pass
+
+
+def fail_open_transaction(error):
+    """Roll back an open Host transaction, persist journal phase, then exit 2."""
+    errors = rollback_pending()
+    finish_open_transaction(errors)
+    print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+    sys.exit(2)
+
+
 def rollback_uncaught_exception(exc_type, exc_value, traceback):
     """Restore staged removals even when a later mutation raises unexpectedly."""
     try:
-        rollback_pending()
+        errors = rollback_pending()
+        finish_open_transaction(errors)
     finally:
         sys.__excepthook__(exc_type, exc_value, traceback)
 
@@ -2245,7 +2273,7 @@ def source_fingerprint():
         digest.update(b'\0')
         digest.update(hash_path(supporting, include_ignored=False).encode('ascii'))
         digest.update(b'\0')
-    if shared_projection_available():
+    if shared_projection_relocatable():
         by_id = {
             value.get('id'): value
             for value in metadata.values()
@@ -2519,7 +2547,7 @@ def resolve_installer_selection(receipt, metadata):
 
 
 def skip_native_skill_kind(kind):
-    return shared_projection_available() and kind == 'skills'
+    return shared_projection_relocatable() and kind == 'skills'
 
 
 def native_runtime_skill_ids():
@@ -2570,6 +2598,21 @@ def shared_projection_available():
     if read_profile_projection_sets() is None:
         return False
     return os.path.isdir(os.path.join(PLUGIN_ROOT, 'skills'))
+
+
+def relocatable_project_overlaps_source():
+    return is_within(PROJECT_ROOT, PLUGIN_ROOT) or is_within(PLUGIN_ROOT, PROJECT_ROOT)
+
+
+def shared_projection_relocatable():
+    return shared_projection_available() and not relocatable_project_overlaps_source()
+
+
+def note_shared_projection_skip(action):
+    print(
+        f'[install-codex-skills] note: Shared Project Projection {action} skipped: '
+        'project root overlaps the canonical source checkout'
+    )
 
 
 def declared_skill_ids():
@@ -2670,6 +2713,8 @@ def classify_cursor_host_bindings():
 
 
 def install_shared_projection(selected=None):
+    if FAIL_SHARED_PROJECTION_FOR_TEST:
+        raise ValueError('test-injected shared projection failure')
     host = shared_projection_host()
     if not host:
         raise ValueError('shared projection install requires a cursor or codex Host')
@@ -2757,7 +2802,7 @@ def native_skill_receipt_entry(name):
 
 def classify_legacy_native_declared_skills():
     """Classify leftover native declared skill dests before shared Host Bindings."""
-    if not shared_projection_available():
+    if not shared_projection_relocatable():
         return []
     runtime_ids = native_runtime_skill_ids()
     metadata = inventory_skill_metadata()
@@ -2892,6 +2937,9 @@ def receipt_owned_native_declared_dests_block_shared_projection():
 def maybe_install_shared_projection(adopted=None):
     if UNINSTALL or not shared_projection_available():
         return
+    if relocatable_project_overlaps_source():
+        note_shared_projection_skip('install')
+        return
     if receipt_owned_native_declared_dests_block_shared_projection():
         return
     selected = selected_shared_projection_ids(adopted)
@@ -2950,6 +2998,10 @@ def unlink_cursor_native_links():
 
 
 def uninstall_shared_projection():
+    if relocatable_project_overlaps_source() and shared_projection_available():
+        note_shared_projection_skip('uninstall')
+        unlink_native_links()
+        return
     if not shared_projection_available():
         unlink_native_links()
         return
@@ -4475,8 +4527,7 @@ if UNINSTALL:
         if shared_projection_host():
             uninstall_shared_projection()
     except ValueError as error:
-        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
-        sys.exit(2)
+        fail_open_transaction(error)
     if not entries and not orphaned:
         try:
             archive_receipt_for_uninstall()
@@ -4491,9 +4542,7 @@ if UNINSTALL:
             print(f'[install-codex-skills] ERROR: uninstall receipt quarantine committed but durability flush failed: {error}', file=sys.stderr)
             sys.exit(2)
         except Exception as error:
-            rollback_pending()
-            print(f'[install-codex-skills] ERROR: uninstall receipt quarantine failed: {error}', file=sys.stderr)
-            sys.exit(2)
+            fail_open_transaction(f'uninstall receipt quarantine failed: {error}')
     remaining = {kind: {} for kind in MANAGED_KINDS}
     try:
         for kind in MANAGED_KINDS:
@@ -4544,9 +4593,7 @@ if UNINSTALL:
         print(f'[install-codex-skills] ERROR: uninstall receipt commit completed but durability flush failed: {error}', file=sys.stderr)
         sys.exit(2)
     except Exception as error:
-        rollback_pending()
-        print(f'[install-codex-skills] ERROR: uninstall failed; removed entries restored where possible: {error}', file=sys.stderr)
-        sys.exit(2)
+        fail_open_transaction(f'uninstall failed; removed entries restored where possible: {error}')
     print_summary(counts, collisions, sorted(orphaned))
     sys.exit(0)
 
@@ -4555,9 +4602,13 @@ try:
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
-for kind in sorted(set(SOURCE_KINDS) | {'skills', 'agents'}):
-    directory_fd = open_relative_directory(kind, create=True)
-    os.close(directory_fd)
+try:
+    for kind in sorted(set(SOURCE_KINDS) | {'skills', 'agents'}):
+        directory_fd = open_relative_directory(kind, create=True)
+        os.close(directory_fd)
+except (OSError, ValueError) as error:
+    print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+    sys.exit(2)
 
 # Public-name migration must run before the generic update-prune pass: an old
 # receipt key is not a current source name, but it remains protected when the
@@ -4711,18 +4762,14 @@ if shared_projection_available() and not UNINSTALL:
         handover_adopted_legacy_native_skills(adopt_paths, counts)
         maybe_install_shared_projection(adopt_paths)
     except ValueError as error:
-        rollback_pending()
-        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
-        sys.exit(2)
+        fail_open_transaction(error)
 
 for kind in MANAGED_KINDS:
     for name, (source, relative) in sources[kind].items():
         try:
             destination = target_for(relative)
         except ValueError as error:
-            rollback_pending()
-            print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
-            sys.exit(2)
+            fail_open_transaction(error)
         old = entries[kind].get(name)
         if ADOPT_PATHS and relative not in adopt_paths:
             # An explicit adoption authorizes only the reported paths. Leave
@@ -4764,12 +4811,7 @@ for kind in MANAGED_KINDS:
                     expected_source = adopt_paths[relative]
                     if (safe_destination_fingerprint(destination) != expected
                             or source_fingerprint_for(source, relative) != expected_source):
-                        print(
-                            f'[install-codex-skills] ERROR: adoption preflight changed: {relative}; run a fresh plan',
-                            file=sys.stderr,
-                        )
-                        rollback_pending()
-                        sys.exit(2)
+                        fail_open_transaction(f'adoption preflight changed: {relative}; run a fresh plan')
                     counts['backed_up'] += 1
 
                     def persist_adopted():
@@ -4818,17 +4860,11 @@ for kind in MANAGED_KINDS:
                             persist_adoption=persist_adopted,
                         )
                     except ReceiptCommitError as error:
-                        print(f'[install-codex-skills] ERROR: adoption receipt commit completed but durability flush failed: {error}', file=sys.stderr)
-                        rollback_pending()
-                        sys.exit(2)
+                        fail_open_transaction(f'adoption receipt commit completed but durability flush failed: {error}')
                     except AdoptionCommittedError as error:
-                        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
-                        rollback_pending()
-                        sys.exit(2)
+                        fail_open_transaction(error)
                     except (OSError, ValueError) as error:
-                        print(f'[install-codex-skills] ERROR: adoption rolled back: {error}', file=sys.stderr)
-                        rollback_pending()
-                        sys.exit(2)
+                        fail_open_transaction(f'adoption rolled back: {error}')
                     continue
                 collisions.append(relative)
                 counts['skipped_collision'] += 1
@@ -4901,9 +4937,7 @@ except ReceiptCommitError as error:
     print(f'[install-codex-skills] ERROR: receipt commit completed but durability flush failed: {error}', file=sys.stderr)
     sys.exit(2)
 except Exception as error:
-    rollback_pending()
-    print(f'[install-codex-skills] ERROR: reconciliation receipt update failed; retired entries restored where possible: {error}', file=sys.stderr)
-    sys.exit(2)
+    fail_open_transaction(f'reconciliation receipt update failed; retired entries restored where possible: {error}')
 counts['collided'] = counts.get('skipped_collision', 0)
 counts['backed_up'] = counts.get('backed_up', 0)
 print_summary(counts, collisions, sorted(orphaned))

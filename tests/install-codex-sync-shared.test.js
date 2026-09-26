@@ -512,4 +512,121 @@ test('uninstalling the last Host removes shared skills and leaves unowned files'
   }
 });
 
+function selfOverlapPlugin() {
+  const plugin = fakePlugin();
+  fs.mkdirSync(path.join(plugin, '.git'));
+  return plugin;
+}
+
+function activeTransactionJournals(hostRoot) {
+  if (!fs.existsSync(hostRoot)) return [];
+  return fs.readdirSync(hostRoot).filter((name) => {
+    if (!/^\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json$/.test(name)) return false;
+    try {
+      return JSON.parse(fs.readFileSync(path.join(hostRoot, name), 'utf8')).phase === 'active';
+    } catch {
+      return true;
+    }
+  });
+}
+
+function latestTransactionJournal(hostRoot) {
+  if (!fs.existsSync(hostRoot)) return null;
+  const names = fs.readdirSync(hostRoot)
+    .filter((name) => /^\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json$/.test(name))
+    .sort();
+  if (names.length === 0) return null;
+  const name = names[names.length - 1];
+  return {
+    name,
+    journal: JSON.parse(fs.readFileSync(path.join(hostRoot, name), 'utf8')),
+  };
+}
+
+test('Codex --update inside the canonical source checkout skips relocatable Shared Project Projection', () => {
+  const project = selfOverlapPlugin();
+  try {
+    const first = runCodexInstaller(project, ['--copy', '--force'], project);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    assert.match(`${first.stdout}\n${first.stderr}`, /Shared Project Projection install skipped:.*canonical source checkout/);
+    assert.doesNotMatch(`${first.stdout}\n${first.stderr}`, /PROJECT_ROOT_OVERLAP|relocatable projectRoot must not overlap/);
+    assert.ok(!fs.existsSync(path.join(project, '.agents', '.dhpk-installed.json')));
+    assert.ok(fs.existsSync(path.join(project, '.codex', 'agents', 'explorer.toml')));
+    assert.ok(fs.existsSync(path.join(project, '.codex', 'skills', 'dhpk-codex-only', 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(project, '.codex', 'skills', 'dhpk-codex-only'))
+      || !fs.lstatSync(path.join(project, '.codex', 'skills', 'dhpk-codex-only')).isSymbolicLink()
+      || fs.readlinkSync(path.join(project, '.codex', 'skills', 'dhpk-codex-only')) !== '../../.agents/skills/dhpk-codex-only');
+    assert.deepStrictEqual(activeTransactionJournals(path.join(project, '.codex')), []);
+
+    const updated = runCodexInstaller(project, ['--copy', '--update', '--force'], project);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /Shared Project Projection install skipped:.*canonical source checkout/);
+    assert.ok(!fs.existsSync(path.join(project, '.agents', '.dhpk-installed.json')));
+    assert.deepStrictEqual(activeTransactionJournals(path.join(project, '.codex')), []);
+
+    const planned = runCodexInstaller(project, ['--copy', '--update', '--plan', '--json', '--force'], project);
+    assert.notStrictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    assert.notStrictEqual(report.state, 'blocked');
+    assert.ok(!report.blocking_recovery);
+
+    const removed = runCodexInstaller(project, ['--uninstall', '--force'], project);
+    assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+    assert.match(`${removed.stdout}\n${removed.stderr}`, /Shared Project Projection uninstall skipped:.*canonical source checkout/);
+    assert.doesNotMatch(`${removed.stdout}\n${removed.stderr}`, /PROJECT_ROOT_OVERLAP|relocatable projectRoot must not overlap/);
+    assert.ok(!fs.existsSync(path.join(project, '.codex', 'agents', 'explorer.toml')));
+    assert.ok(!fs.existsSync(path.join(project, '.agents', '.dhpk-installed.json')));
+    assert.deepStrictEqual(activeTransactionJournals(path.join(project, '.codex')), []);
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('Cursor --update inside the canonical source checkout skips relocatable Shared Project Projection', () => {
+  const project = selfOverlapPlugin();
+  try {
+    const first = runCursorInstaller(project, ['--copy', '--force'], project);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    assert.match(`${first.stdout}\n${first.stderr}`, /Shared Project Projection install skipped:.*canonical source checkout/);
+    assert.doesNotMatch(`${first.stdout}\n${first.stderr}`, /PROJECT_ROOT_OVERLAP|relocatable projectRoot must not overlap/);
+    assert.ok(!fs.existsSync(path.join(project, '.agents', '.dhpk-installed.json')));
+    assert.ok(fs.existsSync(path.join(project, '.cursor', 'agents', 'reviewer.md')));
+    assert.ok(fs.existsSync(path.join(project, '.cursor', 'skills', 'dhpk-portable', 'SKILL.md')));
+    assert.deepStrictEqual(activeTransactionJournals(path.join(project, '.cursor')), []);
+
+    const updated = runCursorInstaller(project, ['--copy', '--update', '--force'], project);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.ok(!fs.existsSync(path.join(project, '.agents', '.dhpk-installed.json')));
+    assert.deepStrictEqual(activeTransactionJournals(path.join(project, '.cursor')), []);
+
+    const planned = runCursorInstaller(project, ['--copy', '--update', '--plan', '--json', '--force'], project);
+    assert.notStrictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    assert.notStrictEqual(report.state, 'blocked');
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('shared projection failure after a Host transaction records rolled_back', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const failed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, {
+      DHPK_TEST_FAIL_SHARED_PROJECTION: '1',
+    });
+    assert.notStrictEqual(failed.status, 0, `${failed.stdout}\n${failed.stderr}`);
+    assert.match(`${failed.stdout}\n${failed.stderr}`, /shared projection/i);
+    assert.deepStrictEqual(activeTransactionJournals(path.join(scratch, '.codex')), []);
+    const latest = latestTransactionJournal(path.join(scratch, '.codex'));
+    assert.ok(latest, 'expected a Host transaction journal after the failed update');
+    assert.strictEqual(latest.journal.phase, 'rolled_back');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
 run('install-codex-sync-shared');
