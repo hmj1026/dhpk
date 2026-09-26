@@ -105,6 +105,24 @@ test('CLI usage fails closed without a source, project, or selected id', () => {
   assert.match(`${result.stdout}\n${result.stderr}`, /usage: install-native-shared-skills/);
 });
 
+test('CLI explains how to resolve a conflicting skill symlink', () => {
+  const sourceRoot = fixture();
+  const projectRoot = tmpDir('dhpk-install-native-conflict-');
+  try {
+    fs.mkdirSync(path.join(projectRoot, '.agents', 'skills'), { recursive: true });
+    fs.symlinkSync(sourceRoot, path.join(projectRoot, '.agents', 'skills', 'dhpk-sample'));
+    const result = invoke(['install', '--source', sourceRoot, '--project-root', projectRoot,
+      '--host', 'cursor', '--selected-id', 'sample', '--declared-selection', '--json']);
+    assert.notStrictEqual(result.status, 0);
+    assert.match(result.stderr, /conflicting skill symlink|symlink at candidate/i);
+    assert.match(result.stderr, /remove|adopt/i);
+    assert.ok(fs.lstatSync(path.join(projectRoot, '.agents', 'skills', 'dhpk-sample')).isSymbolicLink());
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 test('CLI classify and install honor an injected Cursor PASS probe record', () => {
   const sourceRoot = fixture();
   const projectRoot = tmpDir('dhpk-install-native-direct-');

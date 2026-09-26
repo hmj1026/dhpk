@@ -99,11 +99,17 @@ function assertSafeRelative(relative, label) {
 }
 
 function assertPhysicalAncestors(candidate, label, boundary = null) {
-  let current = path.resolve(candidate);
+  const resolvedCandidate = path.resolve(candidate);
+  let current = resolvedCandidate;
   const stop = boundary ? path.resolve(boundary) : null;
   while (true) {
     const stat = lstatOrNull(current);
-    if (stat && stat.isSymbolicLink()) throw fail('UNSAFE_PATH', `${label} has a symlinked ancestor: ${current}`, { paths: [current] });
+    if (stat && stat.isSymbolicLink()) {
+      const message = current === resolvedCandidate
+        ? `${label} is a symlink at candidate path: ${current}; remove the conflicting symlink before retrying`
+        : `${label} has a symlinked ancestor: ${current}; remove a conflicting skill symlink or replace the symlinked directory with a physical directory before retrying`;
+      throw fail('UNSAFE_PATH', message, { paths: [current] });
+    }
     if (stop && current === stop) break;
     const parent = path.dirname(current);
     if (parent === current) break;
