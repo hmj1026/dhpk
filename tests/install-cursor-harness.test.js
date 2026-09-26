@@ -446,6 +446,25 @@ test('native-link cursor skills stay linked on --update and user-owned skills st
   }
 });
 
+test('symlinked Cursor skills directory fails with a clean diagnostic', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  try {
+    fs.mkdirSync(path.join(scratch, '.cursor'), { recursive: true });
+    fs.mkdirSync(path.join(scratch, '.agents', 'skills'), { recursive: true });
+    fs.symlinkSync('../../.agents/skills', path.join(scratch, '.cursor', 'skills'));
+    const result = runInstaller(scratch, ['--copy', '--update', '--force', '--json'], plugin);
+    assert.notStrictEqual(result.status, 0);
+    assert.match(result.stderr, /symlinked managed directory|symlinked directory/i);
+    assert.match(result.stderr, /replace|physical directory/i);
+    assert.doesNotMatch(result.stderr, /Traceback|NotADirectoryError/);
+    assert.ok(fs.lstatSync(path.join(scratch, '.cursor', 'skills')).isSymbolicLink());
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
 test('copy-mode --update replaces unchanged receipt-owned native skills with native-link bindings', () => {
   const scratch = projectRoot();
   const plugin = fakePlugin();
