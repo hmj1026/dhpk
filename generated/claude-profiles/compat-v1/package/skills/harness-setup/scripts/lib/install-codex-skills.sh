@@ -653,6 +653,13 @@ def open_relative_directory(relative, create=False):
         for component in components:
             try:
                 child = os.open(component, _DIRECTORY_FLAGS, dir_fd=fd)
+            except NotADirectoryError:
+                if stat.S_ISLNK(os.stat(component, dir_fd=fd, follow_symlinks=False).st_mode):
+                    raise ValueError(
+                        f'symlinked managed directory {DEST_REL}/{relative}; '
+                        'replace it with a physical directory before retrying'
+                    ) from None
+                raise
             except FileNotFoundError:
                 if not create:
                     raise
@@ -4595,9 +4602,13 @@ try:
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
-for kind in sorted(set(SOURCE_KINDS) | {'skills', 'agents'}):
-    directory_fd = open_relative_directory(kind, create=True)
-    os.close(directory_fd)
+try:
+    for kind in sorted(set(SOURCE_KINDS) | {'skills', 'agents'}):
+        directory_fd = open_relative_directory(kind, create=True)
+        os.close(directory_fd)
+except (OSError, ValueError) as error:
+    print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+    sys.exit(2)
 
 # Public-name migration must run before the generic update-prune pass: an old
 # receipt key is not a current source name, but it remains protected when the
