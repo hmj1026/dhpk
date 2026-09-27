@@ -524,10 +524,12 @@ directories:
 | `scripts/lib/native-shared-skill-install.js` | 172/206 → 172/206 | 30/50 → 30/50 |
 | `scripts/lib/cursor-consumer-evidence.js` | 161/221 → 161/221 | 31/49 → 31/49 |
 
-Three suites were rewritten; the batch's assigned helper,
-`tests/_lib/install-codex-skills-fixtures.js`, remains unchanged and has seven
-consumers. No primary fixture was assigned. No production source, helper, or
-fixture changed. Five disposable mutation controls all made their matching
+Three suites were rewritten. The batch's assigned helper,
+`tests/_lib/install-codex-skills-fixtures.js`, was audited and kept unchanged:
+it centralizes the Codex installer stub, isolated roots, receipts, packages,
+and symlink fixtures shared by seven importing suites, with no stale or
+duplicate behavior. No primary fixture was assigned. No production source,
+helper, or fixture changed. Five disposable mutation controls all made their matching
 suite fail: removing each of the three required-argument guards, writing a
 marker during missing-catalog initialization, or invoking the Claude stub
 while printing the dry-run message. GitNexus impact returned `UNKNOWN` for all
@@ -808,6 +810,60 @@ results are recorded with the PR evidence.
 
 **Progress after #661:** 198 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
+
+### Issue #682 — Cohort A integration
+
+All twenty batch ledgers (#642–#661) reconcile to the 196 unique formal
+inventory rows: 119 keep, 76 rewrite, and one delete. The cohort's 23 helper
+and fixture assets are now all dispositioned: 13 audited keep, nine audited
+rewrite, and one additional audited keep. That last asset is
+`tests/_lib/install-codex-skills-fixtures.js`, assigned to #656; the batch
+ledger records its seven consumers and shared fixture role. No production
+source changed across Cohort A.
+
+Deleted contracts retain explicit behavioral owners. The prevalidated #644
+deletion, `tests/claude-capability-bundle.test.js`, is covered by
+`tests/profile-scoped-claude-capability-bundle.test.js`, and the CI catalog
+maps `scripts/lib/claude-capability-bundle.js` to that replacement. Paired
+coverage remained 679/797 lines and 227/314 branches for the affected module.
+The #661 deletion's config behavior is owned by `runtime-config` and
+`load-project-config`; metadata remains owned by
+`plugin-user-config-metadata`.
+
+The batch sections above carry forward the paired production-coverage
+comparisons. Across #655–#659 there was no covered-line-count loss; #656's
+three measured paths were stable. Two branch reports in #657 changed their
+denominators (`cursor-plugin-package.js` 1 to 148 and
+`issue-237-runtime-proof.js` 101 to 103), so the branch counts are not strict
+like-for-like percentage comparisons. #658 measured all 32 production paths;
+its only changed row gained one covered branch while the denominator also
+grew (9/12 to 10/13). In #659, all 211 measured paths retained covered-line
+counts; `goal-context.js` reported 50/60 to 49/59 because c8 merged V8 ranges
+when the module ran as both an imported library and a child entry point. That
+is report-map drift, not lost behavior coverage. #660 and #661 changed no
+production source, so a new production c8 comparison did not apply.
+
+The canonical discovery route remains `tests/run-all.js`, which accepts an
+explicit file list; CI runs it at `.github/workflows/ci.yml:120-134`, and
+release runs the aggregate at `.github/workflows/release.yml:43-50`. Darwin
+also has a separate 11-file installer subset at
+`.github/workflows/ci.yml:151-165`, sourced from
+`tests/_lib/macos-installer-files.js`. The prevalidated replacement is
+included in the integrated aggregate so the deletion's contract remains
+executable. The integrated aggregate passed all 196/196 test files. The
+separate Darwin subset passed all 11/11 files and 239/239 cases. The catalog
+check passed with no uncovered required scripts.
+
+GitNexus could not resolve the shared helper path (`UNKNOWN`); text confirms
+its seven importing suites, so the empty graph result remains unresolved. The
+named `runInstaller` impact was LOW but partial with no indexed callers; text
+search confirms the suite consumers. No source behavior changed in this
+integration, and the B-cohort boundary remains reserved for issue #641 and
+issues #662–#681.
+
+**Progress after #682:** all 196 Cohort A inventory rows are reconciled,
+including the replacement owner for the prevalidated deletion. Its integrated
+aggregate and Darwin-specific verification passed.
 
 ## Frozen review queues
 
