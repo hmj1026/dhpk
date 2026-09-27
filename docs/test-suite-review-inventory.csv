@@ -179,15 +179,15 @@ formal-suite,,,176,175,tests/native-shared-skill-install.test.js,A,18,659,review
 formal-suite,,,177,176,tests/openspec-gitignore.test.js,A,18,659,reviewed: keep,no,0,0,3,,13,0,0,0,0,0,91,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,178,177,tests/opsx-apply-goal-guardrails.test.js,A,18,659,reviewed: rewrite,no,0,0,12,,78,0,4,0,0,0,179,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,179,178,tests/opsx-goal-analyze.test.js,A,18,659,reviewed: rewrite,no,0,0,12,,47,0,0,624,111,5,160,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,180,179,tests/opsx-goal-budget.test.js,A,19,660,queued,no,0,0,3,,11,0,0,0,0,0,72,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,181,180,tests/opsx-goal-footprint.test.js,A,19,660,queued,no,0,0,8,,27,0,0,591,75,5,128,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,182,181,tests/opsx-goal-policy-fallback.test.js,A,19,660,queued,no,0,0,8,,29,0,0,0,0,0,131,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,183,182,tests/opsx-orchestration-decision-policy.test.js,A,19,660,queued,no,0,0,16,,66,0,6,0,0,0,175,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,184,183,tests/package-gate-cli.test.js,A,19,660,queued,no,0,1,3,exits non-zero and reports failurereasons when a step fails,10,0,1,188,24,4,9,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,185,184,tests/parallel-consumer-probes.test.js,A,19,660,queued,no,0,0,1,,4,0,1,109,22,3,29,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,186,185,tests/parallel-dispatch-contract.test.js,A,19,660,queued,no,0,0,6,,24,0,2,0,0,0,118,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,187,186,tests/parallel-dispatch-scope.test.js,A,19,660,queued,no,0,0,3,,12,0,0,0,0,0,86,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,188,187,tests/partial-writer-handoff.test.js,A,19,660,queued,no,0,0,4,,21,0,1,131,25,1,111,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,180,179,tests/opsx-goal-budget.test.js,A,19,660,reviewed: rewrite,no,0,0,3,,11,0,0,0,0,0,72,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,181,180,tests/opsx-goal-footprint.test.js,A,19,660,reviewed: keep,no,0,0,8,,27,0,0,591,75,5,128,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,182,181,tests/opsx-goal-policy-fallback.test.js,A,19,660,reviewed: keep,no,0,0,8,,29,0,0,0,0,0,131,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,183,182,tests/opsx-orchestration-decision-policy.test.js,A,19,660,reviewed: keep,no,0,0,16,,66,0,6,0,0,0,175,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,184,183,tests/package-gate-cli.test.js,A,19,660,reviewed: keep,no,0,1,3,exits non-zero and reports failurereasons when a step fails,10,0,1,188,24,4,9,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,185,184,tests/parallel-consumer-probes.test.js,A,19,660,reviewed: rewrite,no,0,0,1,,4,0,1,109,22,3,29,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,186,185,tests/parallel-dispatch-contract.test.js,A,19,660,reviewed: keep,no,0,0,6,,24,0,2,0,0,0,118,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,187,186,tests/parallel-dispatch-scope.test.js,A,19,660,reviewed: rewrite,no,0,0,3,,12,0,0,0,0,0,86,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,188,187,tests/partial-writer-handoff.test.js,A,19,660,reviewed: keep,no,0,0,4,,21,0,1,131,25,1,111,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,189,188,tests/physical-file.test.js,A,20,661,queued,no,0,0,9,,17,0,0,390,76,1,102,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,190,189,tests/physical-tmpdir.test.js,A,20,661,queued,no,0,0,2,,2,0,0,0,0,0,26,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,191,190,tests/physical-tree-publication.test.js,A,20,661,queued,no,0,0,13,,26,2,0,3739,442,24,122,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
@@ -394,11 +394,11 @@ formal-suite,,,391,389,tests/workflow-package-closure.test.js,B,,,reserved for i
 formal-suite,,,392,390,tests/workflow-package-runtime.test.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,393,391,tests/write-handoff.test.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 helper,,,,,tests/_lib/fixture-assertions.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,8,lowest-original-ordinal B consumer
-helper,,,,,tests/_lib/hookharness.js,A,19,660,assigned,,,,,,,,,,,,,tests/parallel-dispatch-contract.test.js,12,lowest-original-ordinal A consumer
+helper,,,,,tests/_lib/hookharness.js,A,19,660,audited: keep,,,,,,,,,,,,,tests/parallel-dispatch-contract.test.js,12,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/host-projection-conformance.js,A,20,661,assigned,,,,,,,,,,,,,tests/platform-conformance.test.js,1,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/install-codex-skills-fixtures.js,A,15,656,assigned,,,,,,,,,,,,,tests/install-codex-runtime-assets.test.js,7,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/macos-installer-files.js,A,17,658,audited: keep,,,,,,,,,,,,,tests/macos-installer-files.test.js,1,lowest-original-ordinal A consumer
-helper,,,,,tests/_lib/opsx-goal-fixtures.js,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
+helper,,,,,tests/_lib/opsx-goal-fixtures.js,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/restricted-path.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/run-agy.test.js,2,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/review-gate-fixture.js,A,03,644,audited: keep,,,,,,,,,,,,,tests/claude-review-gate-adapter.test.js,8,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/review-gate-host-attestation-fixture.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
@@ -424,13 +424,13 @@ fixture,,,,,tests/fixtures/doc-reviewer/one-artifact-reporting.json,A,10,651,aud
 fixture,,,,,tests/fixtures/doc-reviewer/separate-evidence.json,A,10,651,audited: keep,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/doc-reviewer/uncoupled-out-of-batch.json,A,10,651,audited: keep,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/invocation-inventory-baseline.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-retirement-migration.test.js,2,lowest-original-ordinal B consumer
-fixture,,,,,tests/fixtures/opsx-goal/codex.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/opsx-goal/maximum-gate.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/opsx-goal/minimal.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/opsx-goal/no-dispatch.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/opsx-goal/normal.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/opsx-goal/over-cap.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/opsx-goal/smoke.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/opsx-goal/codex.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/opsx-goal/maximum-gate.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/opsx-goal/minimal.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/opsx-goal/no-dispatch.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/opsx-goal/normal.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/opsx-goal/over-cap.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/opsx-goal/smoke.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/plugin-user-config-contract.json,A,20,661,assigned,,,,,,,,,,,,,tests/plugin-user-config-metadata.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/project-agent-projection-baseline.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/project-agent-projection-baseline.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/project-agent-projection-plan.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/project-agent-projection-plan.test.js,1,lowest-original-ordinal B consumer

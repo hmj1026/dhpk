@@ -1,4 +1,4 @@
 {
   "name": "normal",
-  "gates": ["test", "review", "artifact"]
+  "test_command": "node tests/run-all.js --jobs 4"
 }
