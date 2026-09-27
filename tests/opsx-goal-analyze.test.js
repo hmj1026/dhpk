@@ -6,7 +6,7 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const analyzer = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'utf8');
+const ANALYZER = path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh');
 const context = require(path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'goal-context.js'));
 
 function fakeCli(name) {
@@ -18,7 +18,18 @@ function fakeCli(name) {
 }
 
 function withEnv(values, callback) {
-  const keys = [...Object.keys(values), 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK', 'DHPK_CLAUDE_BACKEND_AVAILABLE'];
+  const keys = [
+    ...Object.keys(values),
+    'CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND',
+    'CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER',
+    'CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK',
+    'CLAUDE_PLUGIN_OPTION_CROSS_PROVIDER',
+    'DHPK_PROJECT_OPTION_FAST_WORKER_BACKEND',
+    'DHPK_PROJECT_OPTION_FAST_WORKER_BACKEND_ORDER',
+    'DHPK_PROJECT_OPTION_FAST_WORKER_FALLBACK',
+    'DHPK_PROJECT_OPTION_CROSS_PROVIDER',
+    'DHPK_CLAUDE_BACKEND_AVAILABLE',
+  ];
   const prior = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
   try {
     for (const key of keys) delete process.env[key];
@@ -29,9 +40,41 @@ function withEnv(values, callback) {
   }
 }
 
-test('analyzer strips the invocation override and delegates deterministic context generation', () => {
-  assert.ok(analyzer.includes('--worker=*'));
-  assert.ok(analyzer.includes('goal-context.js'));
+test('analyzer invocation override selects available AGY over the configured default', () => {
+  const { spawnSync } = require('node:child_process');
+  const cli = fakeCli('agy');
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-analyze-worker-override-')));
+  try {
+    const change = path.join(repo, 'openspec', 'changes', 'demo-change');
+    fs.mkdirSync(change, { recursive: true });
+    fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] 1.1 select the requested worker\n');
+    fs.writeFileSync(path.join(change, 'proposal.md'), '# Demo\n');
+
+    const result = withEnv({
+      CLAUDE_PROJECT_DIR: repo,
+      PATH: `${cli.bin}:${process.env.PATH}`,
+      CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'claude',
+    }, () => {
+      const env = { ...process.env };
+      delete env.CLAUDE_PLUGIN_ROOT;
+      return spawnSync('bash', [ANALYZER, 'demo-change', '--worker=agy'], {
+        cwd: repo,
+        env,
+        encoding: 'utf8',
+      });
+    });
+
+    assert.strictEqual(result.status, 0, `analyzer exited ${result.status}:\n${result.stderr}`);
+    const fields = Object.fromEntries(result.stdout.split('\n')
+      .filter((line) => line.includes('='))
+      .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
+    assert.strictEqual(fields.STATUS, 'active', result.stdout);
+    assert.strictEqual(fields.FAST_WORKER_SELECTED, 'agy', result.stdout);
+    assert.strictEqual(fields.FAST_WORKER_AGENT, 'dhpk:agy-worker', result.stdout);
+  } finally {
+    fs.rmSync(cli.root, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });
 
 test('analyzer rejects retired --codex before active analysis and names exact replacements', () => {
@@ -184,7 +227,7 @@ test('analyzer emits the full block when CLAUDE_PLUGIN_ROOT is unset (its real i
     const env = { ...process.env, CLAUDE_PROJECT_DIR: repo };
     delete env.CLAUDE_PLUGIN_ROOT;
     const res = spawnSync('bash',
-      [path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'demo-change'],
+      [ANALYZER, 'demo-change'],
       { cwd: repo, env, encoding: 'utf8' });
 
     assert.strictEqual(res.status, 0, `analyzer exited ${res.status}:\n${res.stderr}`);
@@ -218,7 +261,7 @@ test('analyzer forwards --cross-provider as a one-shot auto-selection opt-in', (
     };
     delete env.CLAUDE_PLUGIN_ROOT;
     const res = spawnSync('bash', [
-      path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'),
+      ANALYZER,
       'demo-change', '--worker=auto', '--cross-provider',
     ], { cwd: repo, env, encoding: 'utf8' });
 

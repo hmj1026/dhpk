@@ -645,6 +645,63 @@ unresolved. No HIGH or CRITICAL warning was returned.
 **Progress after #658:** 171 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #659 — Cohort A batch 18
+
+This batch keeps five suites and rewrites four; none is redundant, and no
+helper or fixture is assigned. The Node `v24.21.0` baseline and final focused
+aggregate each passed 9/9 suites and 70/70 cases. Inventory metrics remain
+frozen.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/multi-ai-sync-parity.test.js` | Rewrite | The symlinked Codex entry runs the four self-tests once against a scratch root with exact named PASS rows; content drift disappears after synchronization with equal mtimes. | 2 |
+| `tests/multi-ai-sync-skill-contract.test.js` | Keep | Canonical/Codex workflow tree, references, status vocabulary, and model literals remain covered. | 7 |
+| `tests/multi-ai-sync-source-validation.test.js` | Rewrite | Source PASS exits 0; FAIL/BLOCKED exits 2, while invalid markers, FIFO, size boundary, symlink, and root-layout controls remain covered. | 9 |
+| `tests/native-dispatch-policy.test.js` | Keep | Native-only defaults, explicit selection, retry state, quota pool, and v2 request policy remain covered. | 10 |
+| `tests/native-fallback-contract.test.js` | Keep | All six fallback failure classes, role preservation, and policy documentation remain covered. | 5 |
+| `tests/native-shared-skill-install.test.js` | Keep | Host bindings, shared ownership, reinstall/uninstall, modified-content refusal, and foreign-file preservation remain covered. | 10 |
+| `tests/openspec-gitignore.test.js` | Keep | Actual `git check-ignore` behavior and tracked OpenSpec boundaries remain covered. | 3 |
+| `tests/opsx-apply-goal-guardrails.test.js` | Rewrite | Required dispatch and Part markers must exist in order before section slicing; Review Gate and stop assertions are scoped to their owning sections. | 12 |
+| `tests/opsx-goal-analyze.test.js` | Rewrite | A real analyzer invocation proves `--worker=agy` overrides configured `claude`; project/global cross-provider variables are cleared in the environment helper. | 12 |
+
+The focused tests run through the same aggregate on the baseline commit and
+after the rewrites under c8 `10.1.3` and Node `v24.21.0`. We compared all 211
+measured production JavaScript paths (181 `scripts/` paths and 30 paths in the
+goal skill package); none was missing or newly introduced. Covered line counts
+did not decrease. The only changed coverage rows were:
+
+| Production file | Lines before → after | Branches before → after |
+| --- | ---: | ---: |
+| `scripts/lib/cross-cli-parity.js` | 122/129 → 122/129 | 17/28 → 19/30 |
+| `skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/native-dispatch-policy.js` | 99/245 → 99/245 | 13/18 → 15/20 |
+| `skills/dhpk-opsx-apply-goal/scripts/goal-context.js` | 186/229 → 186/229 | 50/60 → 49/59 |
+
+The parity and native-dispatch package rows each added two covered branches
+along with two denominator branches. The `goal-context.js` difference is
+coverage-map drift from the new CLI integration assertion: c8 merged the
+`taskDigest` return branch's separate V8 ranges at lines 62–63 into one mapped
+range when the module ran both as an imported library and a child entrypoint.
+The before report had two positive-count mapped entries (8 and 9 hits); the
+after report has one positive-count merged entry (9 hits), so the summary's
+covered count and denominator each fell by one. The source is unchanged;
+existing short-input and overflow cases still exercise both return and
+continuation paths. This is recorded as report-map drift rather than lost
+behavior coverage.
+
+The suite paths were not target-resolvable in GitNexus: upstream impact was
+`UNKNOWN` for all nine, and this remains unresolved rather than an all-clear.
+Text confirms recursive discovery in `tests/run-all.js:43`, the CI test job at
+`.github/workflows/ci.yml:120`, and its aggregate command at line 134. Named
+impacts for `_validate_claude_source`, `taskDigest`, and `compareHarnesses` were
+LOW with one indexed caller each. Dispatch and shared-install symbols were
+LOW with zero graph callers; text confirms their consumers at
+`scripts/fast-worker-selector.js:137` and
+`scripts/ci/install-native-shared-skills.js:56`. No HIGH or CRITICAL warning
+was returned. No production source, shared helper, or fixture changed.
+
+**Progress after #659:** 180 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

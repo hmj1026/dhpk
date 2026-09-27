@@ -33,7 +33,14 @@ function reportFor(root, extraArgs = []) {
   const result = runValidate(root, extraArgs);
   assert.ifError(result.error);
   assert.ok(result.stdout, `expected JSON stdout, stderr=${result.stderr}`);
-  return JSON.parse(result.stdout);
+  const report = JSON.parse(result.stdout);
+  const expectedExit = report.gate === 'PASS'
+    ? 0
+    : ['FAIL', 'BLOCKED'].includes(report.gate) ? 2 : null;
+  assert.notStrictEqual(expectedExit, null, `unknown validation gate: ${report.gate}`);
+  assert.strictEqual(result.status, expectedExit,
+    `${report.gate} must exit ${expectedExit}; stderr=${result.stderr}`);
+  return report;
 }
 
 function claudeRow(report) {

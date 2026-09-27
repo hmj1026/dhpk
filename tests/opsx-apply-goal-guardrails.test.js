@@ -32,22 +32,46 @@ const goalTemplatesRaw = fs.readFileSync(path.join(refsDir, 'goal-templates.md')
 // assertions cannot be broken by a line-wrap position change.
 const flat = (s) => s.replace(/\s+/g, ' ');
 const goalTemplates = flat(goalTemplatesRaw);
-const part0End = goalTemplatesRaw.indexOf('## Part 1 (always)');
-const dispatchPart0 = flat(goalTemplatesRaw.slice(
-  goalTemplatesRaw.indexOf('**`DISPATCH_ON=true`**'),
-  part0End,
-));
-const noDispatchPart0 = flat(goalTemplatesRaw.slice(
-  goalTemplatesRaw.indexOf('**`DISPATCH_ON=false`**'),
-  goalTemplatesRaw.indexOf('**`DISPATCH_ON=true`**'),
-));
+
+function readGoalSections() {
+  const markers = [
+    ['dispatch-off', '**`DISPATCH_ON=false`**'],
+    ['dispatch-on', '**`DISPATCH_ON=true`**'],
+    ['part-1', '## Part 1 (always)'],
+    ['part-2', '## Part 2 (always'],
+    ['part-2b', '## Part 2b (always'],
+    ['part-3', '## Part 3'],
+    ['part-4', '## Part 4 (always'],
+  ];
+  const offsets = markers.map(([name, marker]) => {
+    const offset = goalTemplatesRaw.indexOf(marker);
+    assert.ok(offset >= 0, `goal template is missing ${name} marker: ${marker}`);
+    return offset;
+  });
+  for (let index = 1; index < offsets.length; index += 1) {
+    assert.ok(offsets[index - 1] < offsets[index],
+      `${markers[index][0]} must follow ${markers[index - 1][0]}`);
+  }
+
+  const [dispatchOff, dispatchOn, part1, part2, part2b, part3, part4] = offsets;
+  return {
+    noDispatchPart0: flat(goalTemplatesRaw.slice(dispatchOff, dispatchOn)),
+    dispatchPart0: flat(goalTemplatesRaw.slice(dispatchOn, part1)),
+    part2: flat(goalTemplatesRaw.slice(part2, part2b)),
+    part2b: flat(goalTemplatesRaw.slice(part2b, part3)),
+    part3: flat(goalTemplatesRaw.slice(part3, part4)),
+    part4: flat(goalTemplatesRaw.slice(part4)),
+  };
+}
 
 test('goal dispatch mode enables the runtime batch gate and carries cwd-safe Bash guidance', () => {
+  const { dispatchPart0 } = readGoalSections();
   assert.ok(dispatchPart0.includes('DHPK_ORCHESTRATION_DISPATCH=on'));
   assert.ok(dispatchPart0.includes('absolute paths') && dispatchPart0.includes('git -C'));
 });
 
 test('dispatch-on Part 0 names the repo launcher and requires an explicit READY packet', () => {
+  const { dispatchPart0, noDispatchPart0 } = readGoalSections();
   const launcher = 'node <SKILL_ROOT_Q>/scripts/launch-cli-dispatch.js';
   assert.ok(dispatchPart0.includes(launcher), 'dispatch-on roster must name the repo-owned launcher command');
   for (const field of [
@@ -70,6 +94,7 @@ test('dispatch-on Part 0 names the repo launcher and requires an explicit READY 
 const policy = flat(fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8'));
 
 test('retired --codex has no goal-template ON/OFF branch and keeps explicit replacements', () => {
+  const { dispatchPart0 } = readGoalSections();
   for (const phrase of ['<CODEX_STATEMENT>', '### CODEX_STATEMENT', 'CODEX is ON', 'CODEX is OFF']) {
     assert.ok(!goalTemplates.includes(phrase), `obsolete goal-template branch remains: ${phrase}`);
   }
@@ -93,6 +118,7 @@ test('retired --codex has no goal-template ON/OFF branch and keeps explicit repl
 });
 
 test('relocated dispatch elaborations exist in execution-policy, not the emitted Part 0', () => {
+  const { dispatchPart0 } = readGoalSections();
   for (const phrase of [
     'when unsure between inline and a worker, dispatch',
     'scratch executable probe',
@@ -109,6 +135,7 @@ test('relocated dispatch elaborations exist in execution-policy, not the emitted
 });
 
 test('emitted Part 0 carries the compact directive inline survivors', () => {
+  const { dispatchPart0 } = readGoalSections();
   assert.ok(dispatchPart0.includes('You are the orchestrator'), 'missing orchestrator naming');
   assert.ok(dispatchPart0.includes('repo="<project>"') && dispatchPart0.includes('gitnexus'),
     'missing explicit multi-repo gitnexus guidance');
@@ -167,6 +194,7 @@ test('flow-drive carries the implementation route while flow-guide owns workflow
 });
 
 test('Part 0 and verification checklist carve hard-rule conflicts out of unattended confirmation', () => {
+  const { dispatchPart0 } = readGoalSections();
   assert.ok(skill.includes('without stopping for confirmation'), 'baseline kickoff phrase missing');
   assert.ok(skill.includes('ordinary implementation judgment calls only'),
     'missing hard-rule carve-out wording');
@@ -177,13 +205,14 @@ test('Part 0 and verification checklist carve hard-rule conflicts out of unatten
 });
 
 test('Part 2 and Part 4 include unresolved Review Gate and hard-rule escalation gates', () => {
-  assert.ok(goalTemplates.includes('Claude checked the Review Gate status for `<CHANGE_ID>`'),
+  const { part2, part2b } = readGoalSections();
+  assert.ok(part2.includes('Claude checked the Review Gate status for `<CHANGE_ID>`'),
     'missing identity-bound Review Gate status gate');
-  assert.ok(goalTemplates.includes('confirmed every applicable reviewer obligation is resolved'),
+  assert.ok(part2.includes('confirmed every applicable reviewer obligation is resolved'),
     'missing resolved-obligation wording');
-  assert.ok(goalTemplates.includes('Claude confirmed no applicable Review Gate obligation is pending, foreign, stale, malformed, or message-only'),
+  assert.ok(part2b.includes('Claude confirmed no applicable Review Gate obligation is pending, foreign, stale, malformed, or message-only'),
     'missing unresolved-obligation gate');
-  assert.ok(goalTemplates.includes('status is `RESOLVED` or `NOT_APPLICABLE`'),
+  assert.ok(part2b.includes('status is `RESOLVED` or `NOT_APPLICABLE`'),
     'missing resolved/NOT_APPLICABLE status wording');
   assert.ok(!skill.includes('.unresolved-verdict'),
     'retired unresolved-verdict sidecar wording remains');
@@ -194,22 +223,23 @@ test('Part 2 and Part 4 include unresolved Review Gate and hard-rule escalation 
 });
 
 test('stop and verification clauses use mechanical formulations, not judgment adjectives', () => {
+  const { part3, part4 } = readGoalSections();
   // turn budget: finish the current item, no half-edited file (no "next safe point")
-  assert.ok(goalTemplates.includes('stop after finishing the current tasks.md item'),
+  assert.ok(part4.includes('stop after finishing the current tasks.md item'),
     'missing finish-current-item turn checkpoint');
-  assert.ok(goalTemplates.includes('no half-edited file'), 'missing no-half-edited-file clause');
-  assert.ok(!goalTemplates.includes('next safe point'), 'stale "next safe point" phrasing remains');
+  assert.ok(part4.includes('no half-edited file'), 'missing no-half-edited-file clause');
+  assert.ok(!part4.includes('next safe point'), 'stale "next safe point" phrasing remains');
   // pre-existing failure/warning: git stash reappearance + named in summary (no "unrelated" judgment)
-  assert.ok(/reproduces identically on a `git stash`-ed clean HEAD/.test(goalTemplates),
+  assert.ok(/reproduces identically on a `git stash`-ed clean HEAD/.test(part3),
     'missing mechanical git-stash pre-existing test');
-  assert.ok(goalTemplates.includes('named in the completion summary'),
+  assert.ok(part3.includes('named in the completion summary'),
     'missing completion-summary naming requirement');
-  assert.ok(!goalTemplates.includes('unrelated to the change'),
+  assert.ok(!part3.includes('unrelated to the change'),
     'stale "unrelated to the change" judgment clause remains');
   // smoke evidence: Verdict line + observed output line (no "key observed value")
-  assert.ok(goalTemplates.includes('at least one observed output line'),
+  assert.ok(part3.includes('at least one observed output line'),
     'missing observed-output-line smoke evidence requirement');
-  assert.ok(!goalTemplates.includes('key observed value'),
+  assert.ok(!part3.includes('key observed value'),
     'stale "key observed value" phrasing remains');
 });
 
