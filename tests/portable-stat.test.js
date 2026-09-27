@@ -10,27 +10,130 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const LIB = path.join(ROOT, 'scripts', 'hooks', '_lib', 'portable-stat.sh');
+const FIXED_EPOCH = 1580702706;
+const FIXED_DATE = new Date('2020-02-03T04:05:06Z');
 
-function sh(cmd) {
-  return spawnSync('bash', ['-c', `source "${LIB}"; ${cmd}`], { encoding: 'utf8', timeout: 10000 });
+function makeTempDir() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-stat-'));
 }
 
-test('file_mtime_epoch returns a plausible epoch seconds value for an existing file', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-stat-'));
-  const f = path.join(dir, 'x.txt');
-  fs.writeFileSync(f, 'hello');
-  const before = Math.floor(Date.now() / 1000) - 5;
-  const res = sh(`file_mtime_epoch "${f}"`);
+function writeExecutable(file, content) {
+  fs.writeFileSync(file, content, { mode: 0o755 });
+  fs.chmodSync(file, 0o755);
+}
+
+function setFixedMtime(file) {
+  fs.writeFileSync(file, 'fixed timestamp\n');
+  fs.utimesSync(file, FIXED_DATE, FIXED_DATE);
+}
+
+function runStat(file, env = process.env, command) {
+  return spawnSync('bash', [
+    '-c',
+    command || 'source "$PORTABLE_STAT_LIB"; file_mtime_epoch "$STAT_FILE"',
+  ], {
+    encoding: 'utf8',
+    timeout: 10000,
+    env: { ...env, PORTABLE_STAT_LIB: LIB, STAT_FILE: file },
+  });
+}
+
+function probeDialect(dir, unameValue, file) {
+  const bin = path.join(dir, 'bin');
+  const argvFile = path.join(dir, 'stat-argv.json');
+  fs.mkdirSync(bin);
+  writeExecutable(path.join(bin, 'uname'), '#!/bin/sh\nprintf "%s\\n" "$STAT_FAKE_UNAME"\n');
+  const fakeStat = [
+    '#!/usr/bin/env node',
+    'const fs = require("node:fs");',
+    'const args = process.argv.slice(2);',
+    'const expected = process.env.STAT_FAKE_UNAME === "Darwin"',
+    '  ? ["-f", "%m", process.env.STAT_FILE]',
+    '  : ["-c", "%Y", process.env.STAT_FILE];',
+    'fs.writeFileSync(process.env.STAT_ARGV_FILE, JSON.stringify(args));',
+    'if (JSON.stringify(args) !== JSON.stringify(expected)) {',
+    '  console.error("unexpected stat arguments: " + JSON.stringify(args));',
+    '  process.exit(92);',
+    '}',
+    'console.log(Math.floor(fs.statSync(process.env.STAT_FILE).mtimeMs / 1000));',
+  ].join('\n');
+  writeExecutable(path.join(bin, 'stat'), fakeStat);
+
+  const res = runStat(file, {
+    ...process.env,
+    PATH: bin + path.delimiter + process.env.PATH,
+    STAT_FAKE_UNAME: unameValue,
+    STAT_ARGV_FILE: argvFile,
+  });
   assert.strictEqual(res.status, 0, res.stderr);
-  const mtime = parseInt(res.stdout.trim(), 10);
-  assert.ok(Number.isInteger(mtime), `not an integer: ${res.stdout}`);
-  assert.ok(mtime >= before, `mtime ${mtime} looks too old (before=${before})`);
+  assert.strictEqual(res.stdout.trim(), String(FIXED_EPOCH));
+  assert.strictEqual(fs.readFileSync(argvFile, 'utf8'), JSON.stringify(
+    unameValue === 'Darwin'
+      ? ['-f', '%m', file]
+      : ['-c', '%Y', file],
+  ));
+}
+
+test('file_mtime_epoch returns the exact fixed epoch from the host stat dialect', () => {
+  const dir = makeTempDir();
+  try {
+    const file = path.join(dir, 'fixed.txt');
+    setFixedMtime(file);
+    const res = runStat(file);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout.trim(), String(FIXED_EPOCH));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
-test('file_mtime_epoch on a missing file (edge case) prints nothing and exits 0', () => {
-  const res = sh('file_mtime_epoch "/nonexistent/path/does-not-exist.txt"; echo "EXIT:$?"');
-  assert.strictEqual(res.status, 0, res.stderr);
-  assert.strictEqual(res.stdout.trim(), 'EXIT:0');
+test('file_mtime_epoch selects GNU stat arguments and returns the exact fixed epoch', () => {
+  const dir = makeTempDir();
+  try {
+    const file = path.join(dir, 'fixed.txt');
+    setFixedMtime(file);
+    probeDialect(dir, 'Linux', file);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('file_mtime_epoch selects BSD stat arguments and returns the exact fixed epoch', () => {
+  const dir = makeTempDir();
+  try {
+    const file = path.join(dir, 'fixed.txt');
+    setFixedMtime(file);
+    probeDialect(dir, 'Darwin', file);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('file_mtime_epoch returns empty output successfully for a missing file without calling stat', () => {
+  const dir = makeTempDir();
+  try {
+    const bin = path.join(dir, 'bin');
+    const missing = path.join(dir, 'missing.txt');
+    const called = path.join(dir, 'stat-called');
+    fs.mkdirSync(bin);
+    writeExecutable(path.join(bin, 'uname'), '#!/bin/sh\nprintf "Darwin\\n"\n');
+    const fakeStat = [
+      '#!/usr/bin/env node',
+      'require("node:fs").writeFileSync(process.env.STAT_CALLED_FILE, "called");',
+      'console.log("incorrectly called");',
+    ].join('\n');
+    writeExecutable(path.join(bin, 'stat'), fakeStat);
+    const res = runStat(missing, {
+      ...process.env,
+      PATH: bin + path.delimiter + process.env.PATH,
+      STAT_CALLED_FILE: called,
+    }, 'source "$PORTABLE_STAT_LIB"; file_mtime_epoch "$STAT_FILE"; printf "EXIT:%s\\n" "$?"');
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, 'EXIT:0\n');
+    assert.ok(!fs.existsSync(called), 'stat must not run when the file is absent');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 run('portable-stat');

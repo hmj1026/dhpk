@@ -865,6 +865,56 @@ issues #662–#681.
 including the replacement owner for the prevalidated deletion. Its integrated
 aggregate and Darwin-specific verification passed.
 
+### Issue #662 — Cohort B batch 01
+
+This batch keeps five independent suites and rewrites five weak suites; no
+complete duplicate justified deletion. The baseline run on the assigned HEAD
+passed all ten paths at 40/40 cases. The rewritten batch passes all ten paths
+at 44/44 cases.
+
+| Test file | Disposition | Owned contract and assertion evidence | Final cases |
+| --- | --- | --- | ---: |
+| `tests/policy-static-guardrails.test.js` | Keep | Exact execution-policy wording, ordering, and source ownership; the assertions protect policy text consumed by agents. | 5 |
+| `tests/portable-sed.test.js` | Rewrite | Retains replacement and no-match behavior. Controlled Linux and Darwin probes require the exact GNU and BSD `sed -i` argument vectors and verify the replacement result. | 3 |
+| `tests/portable-skill-mirrors.test.js` | Keep | Mirror reconciliation accepts the public `portable-skill` name independently from the stable skill ID. | 1 |
+| `tests/portable-skill-names.test.js` | Keep | Public names, stable IDs, collision rejection, migration ledger, rollback pins, and unsafe-path rejection remain covered. | 8 |
+| `tests/portable-stat.test.js` | Rewrite | Sets a fixed mtime and asserts epoch `1580702706`. Controlled GNU and BSD stat probes validate their exact flags and derive the epoch from that file; the missing-file case proves stat is not called. | 4 |
+| `tests/portable-timeout.test.js` | Rewrite | Retains completion, timeout exit 124, exit propagation, and empty-command behavior. A constrained lookup probes the `gtimeout` arguments and the actual Perl fallback, including its alarm exit 124. | 5 |
+| `tests/portable-workflow-runtime.test.js` | Keep | Explicit handoff isolation, legacy default paths, and standalone JavaScript status behavior remain covered. | 6 |
+| `tests/post-edit-advisory.test.js` | Keep | CRLF normalization, clean-file no-op, root package reminders, nested-package exclusion, and Composer lockfile reminder remain covered. | 5 |
+| `tests/post-obs.test.js` | Rewrite | A local fake curl returns healthy status and observation ID, captures the exact `-d @file` payload bytes, and proves a repeated observation is deduplicated. Unavailable service, missing input, and `TMPDIR` contracts remain covered; no network is used. | 4 |
+| `tests/postcompact-restore.test.js` | Rewrite | Reads `handoff-latest.md`, parses the hook JSON, checks `hookEventName === "PostCompact"` and included handoff content, and preserves no-handoff silence plus minimal-profile suppression. | 3 |
+
+All ten paths remain recursively discovered by `tests/run-all.js`. On Node
+`v24.21.0` / Darwin, the explicit ten-suite aggregate passed 44/44 cases.
+The required neighboring-owner run also passed: `set-handoff-state` 6/6,
+`skill-retirement-migration` 16/16, `gen-cursor-sync` 14/14, `detect-phase`
+8/8, and `skill-resume-family-isolation` 12/12. Combined with the assigned
+batch, the 15-path run passed 100/100 cases.
+
+The GNU sed/stat branches are exercised with controlled command shims; BSD
+sed/stat run on the host and their alternate argument contracts are separately
+checked with the same constrained probes. The gtimeout and Perl fallback
+probes restrict command lookup. The post-observation tests put a local curl
+stub first in `PATH` and make no network requests. Each of the five rewritten
+suites rejected an isolated wrong-behavior mutation in a temporary copy of
+its source script; no production file in the worktree was mutated.
+
+The production line/branch paired comparison is **NOT_APPLICABLE**: no
+production path changed. The five source scripts and shared helpers remain
+unchanged. Pre-edit GitNexus impact for the suite paths was `UNKNOWN`; text
+search confirmed inventory-only references, and `tests/run-all.js` discovers
+suites recursively. The recorded `validateRenamedSkillNames` CRITICAL and
+`resolveSkillIdentity` HIGH warnings are preserved by keeping those
+production functions unchanged. No support assets were assigned to this
+batch.
+
+Final gates passed: `node scripts/ci/catalog.js --check` reported zero
+uncovered scripts; `node scripts/ci/gen-claude-marketplace-package.js --check`
+passed; `node scripts/ci/validate-changelog-fragments.js` passed with 0
+fragments and 24 markers; Markdownlint reported 0 errors for the canonical and
+generated review documents; and `git diff --check` passed.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
