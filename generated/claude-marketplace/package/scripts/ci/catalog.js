@@ -164,6 +164,7 @@ const COVERAGE_MAP = {
   'scripts/hooks/_lib/install-health.sh': 'session-install-health-version.test.js',
   'scripts/validate/test-hooks.sh': 'validate-test-hooks.test.js',
   'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
+  'scripts/lib/claude-capability-bundle.js': 'profile-scoped-claude-capability-bundle.test.js',
   'skills/flow-guide/scripts/route-result.js': 'reference-route-policy.test.js',
   'skills/flow-guide/scripts/usage-card.js': 'flow-guide-usage-help.test.js',
   'scripts/lib/harness-receipt.js': 'harness-operation-receipts.test.js',

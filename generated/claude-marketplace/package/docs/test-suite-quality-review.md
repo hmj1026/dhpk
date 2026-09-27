@@ -39,7 +39,7 @@ and the named safety branch obligations in
 
 | Test file | Disposition | Contract and replacement evidence | Verification |
 | --- | --- | --- | --- |
-| `tests/claude-capability-bundle.test.js` | Delete | Only checked four exports; `tests/profile-scoped-claude-capability-bundle.test.js` calls the API and verifies profile selection, compilation, materialization, and verification behavior. `scripts/lib/claude-capability-bundle.js` maps to that test in `COVERAGE_MAP`. | Focused before/after suites passed. Affected module: 679/797 covered lines and 227/314 covered branches on both sides. |
+| `tests/claude-capability-bundle.test.js` | Delete | Only checked four exports; `tests/profile-scoped-claude-capability-bundle.test.js` calls the API and verifies profile selection, compilation, materialization, and verification behavior. `scripts/ci/catalog.js` explicitly maps `scripts/lib/claude-capability-bundle.js` to that behavioral suite in `COVERAGE_MAP`. | Implemented in #644. Paired focused runs retained 679/797 covered lines and 227/314 covered branches for the affected module before and after deletion. |
 | `tests/retirement-closure.test.js` | Delete | Only checked an export and two property names; `tests/validate-retirement-closure.test.js` exercises acceptance and rejection cases through the validator. `scripts/lib/retirement-closure.js` maps to that test in `COVERAGE_MAP`. | Focused before/after suites passed. Affected module: 478/515 covered lines and 150/201 covered branches on both sides. |
 
 ### Issue #642 — Cohort A batch 01
@@ -98,7 +98,42 @@ coverage comparison does not apply. `node scripts/ci/catalog.js --check`
 passed with all required scripts covered. The frozen inventory assigns no
 primary helper or fixture to issue #643, so there was no support asset to edit.
 
-**Progress:** 22 of 79 files reviewed; 57 more reviews required. The coverage
+### Issue #644 — Cohort A batch 03
+
+| Test file | Disposition | Owned contract and overlapping owner | Discovery and verification |
+| --- | --- | --- | --- |
+| `tests/check-cross-cli-drift.test.js` | Keep | Silent behavior when either CLI tree is absent, retired Gemini exclusion, and advisory threshold/output; no other suite owns this drift policy. | Discovered by `tests/run-all.js`; 6/6 passed. |
+| `tests/check-plugin-version.test.js` | Keep | Silent verified/no-pin outcomes, incompatible and unverified advisories, and safe handling guidance; no other suite owns this check's result matrix. | Discovered by `tests/run-all.js`; 4/4 passed. |
+| `tests/check-portability.test.js` | Keep | Bash syntax gate, prohibited idiom detection, and empty-tree failure; these portability contracts are independent of the cross-CLI scripts. | Discovered by `tests/run-all.js`; 5/5 passed. |
+| `tests/ci-report.test.js` | Keep | Warning/error exit behavior, strict-mode override, and accumulated errors; no other suite fully asserts the report API. | Discovered by `tests/run-all.js`; 6/6 passed. |
+| `tests/ci-review-gate-adapter.test.js` | Keep | Typed CI verification receipt, malformed/incomplete identity rejection, freshness invalidation, and separation from semantic review; no other suite owns this CI adapter contract. | Discovered by `tests/run-all.js`; 9/9 passed. |
+| `tests/claude-profile-probe.test.js` | Rewrite | Retains the closed status vocabulary, unsafe-alias refusal, and path redaction. Adds behavioral rejection of a symlinked profile-tree entry and an existing receipt output outside the package root; the previous checks only established exported function types. | Discovered by `tests/run-all.js`; 3/3 passed. Two controlled mutations that ignored symlinks or allowed `../outside.json` made the corresponding assertions fail; production source was restored byte-for-byte. |
+| `tests/claude-review-gate-adapter.test.js` | Keep | Lifecycle/verdict agreement, provenance and identity refusal, retry identity, fail-closed submission, and durable receipt integration; no other suite fully owns this adapter lifecycle. | Discovered by `tests/run-all.js`; 11/11 passed. |
+| `tests/claude-user-config-probe.test.js` | Keep | Exact fingerprint/details binding, version and identity checks, prerelease mismatch, and conflicting fingerprint refusal; no other suite owns these configured-consumer checks. | Discovered by `tests/run-all.js`; 6/6 passed. |
+| `tests/cli-dispatch-context.test.js` | Keep | Dispatch/execution identity binding, cross-provider and malformed-evidence refusal, bounded report data, AGY transport binding, and package-local projection; launcher checks do not replace context construction. | Discovered by `tests/run-all.js`; 10/10 passed. |
+| `tests/cli-dispatch-launcher.test.js` | Keep | Pinned-parent writes, authority refusal before side effects, symlink containment, restricted runtime PATH, and bounded redacted diagnostics; no other suite owns the public launcher boundary. | Discovered by `tests/run-all.js` and the separate Darwin installer subset; 6/6 passed. |
+
+All ten formal suites are discovered by the recursive `tests/run-all.js` route
+used in CI. `tests/cli-dispatch-launcher.test.js` is also in the separate Darwin
+installer subset; the other nine are not. The focused Node `v24.21.0` run with
+`DHPK_TEST_JOBS=4` covered the ten formal suites plus the replacement
+`tests/profile-scoped-claude-capability-bundle.test.js`: 11 files and 89/89
+cases passed. In paired c8 runs, `scripts/release/claude-profile-probe.js`
+coverage was 204/217 lines and 78/128 branches before, then 206/217 lines and
+91/137 branches after. The deleted export-only test's replacement owner kept
+`scripts/lib/claude-capability-bundle.js` at 679/797 covered lines and 227/314
+covered branches on both sides.
+
+The three assigned support assets are audited and kept. `tests/_lib/review-gate-fixture.js`
+has 8 consumers and supplies typed events, trust policies, authority receipts,
+and store setup. `tests/_lib/workflow-coordinator-fixture.js` has 6 consumers
+and builds isolated receipt histories plus authority/freshness receipts.
+`tests/fixtures/review-gate/workflow-coordinator-v1.json` has 18 consumers;
+its nine receipt IDs and eight named histories are all referenced, with no
+dangling history IDs. None required an edit. `node scripts/ci/catalog.js --check`
+passed with all required scripts covered.
+
+**Progress:** 32 of 79 files reviewed; 47 more reviews required. The coverage
 comparison above used V8 data converted with c8. The full-suite local run did
 not provide a clean pass: provenance tests require a clean checkout, and one
 baseline run had an additional intermittent audit assertion. Aggregate covered

@@ -20,17 +20,17 @@ formal-suite,,,17,17,tests/capability-bundle-selection.test.js,A,02,643,reviewed
 formal-suite,,,18,18,tests/catalog-claims.test.js,A,02,643,reviewed: keep,no,0,1,21,faithful temp copy passes --check as-is,56,0,11,2252,213,18,15,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,19,19,tests/changelog-fragments.test.js,A,02,643,reviewed: keep,no,0,0,22,,40,0,1,176,39,1,152,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,20,20,tests/check-codex-discovery.test.js,A,02,643,reviewed: keep,no,0,0,9,,94,0,28,2682,277,28,185,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,21,21,tests/check-cross-cli-drift.test.js,A,03,644,queued,no,0,1,6,bash -n syntax check passes,13,0,0,255,36,2,11,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,22,22,tests/check-plugin-version.test.js,A,03,644,queued,no,0,0,4,,9,0,0,0,0,0,57,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,23,23,tests/check-portability.test.js,A,03,644,queued,no,0,1,5,bash -n syntax check passes,9,0,0,0,0,0,8,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,24,24,tests/ci-report.test.js,A,03,644,queued,no,0,0,6,,6,0,0,51,10,1,40,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,25,25,tests/ci-review-gate-adapter.test.js,A,03,644,queued,no,0,2,9,refuses to record while inactive; rejects an incomplete identity,17,0,0,2808,447,10,2,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-prevalidated-deletion,,,26,,tests/claude-capability-bundle.test.js,A,03,644,prevalidated; implementation pending owning batch PR,,,,,,,,,,,,,,,Original-order insertion point within A active batch; prior ledger evidence retained
-formal-suite,,,27,26,tests/claude-profile-probe.test.js,A,03,644,queued,no,0,0,1,,5,2,1,104,5,2,31,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,28,27,tests/claude-review-gate-adapter.test.js,A,03,644,queued,no,0,0,11,,50,2,0,3856,603,11,163,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,29,28,tests/claude-user-config-probe.test.js,A,03,644,queued,no,0,0,6,,12,0,5,470,39,5,83,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,30,29,tests/cli-dispatch-context.test.js,A,03,644,queued,no,0,0,10,,60,2,5,367,126,2,173,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,31,30,tests/cli-dispatch-launcher.test.js,A,03,644,queued,yes,0,0,6,,42,0,3,30,2,1,155,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,21,21,tests/check-cross-cli-drift.test.js,A,03,644,reviewed: keep,no,0,1,6,bash -n syntax check passes,13,0,0,255,36,2,11,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,22,22,tests/check-plugin-version.test.js,A,03,644,reviewed: keep,no,0,0,4,,9,0,0,0,0,0,57,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,23,23,tests/check-portability.test.js,A,03,644,reviewed: keep,no,0,1,5,bash -n syntax check passes,9,0,0,0,0,0,8,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,24,24,tests/ci-report.test.js,A,03,644,reviewed: keep,no,0,0,6,,6,0,0,51,10,1,40,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,25,25,tests/ci-review-gate-adapter.test.js,A,03,644,reviewed: keep,no,0,2,9,refuses to record while inactive; rejects an incomplete identity,17,0,0,2808,447,10,2,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+prevalidated-deletion,,,26,,tests/claude-capability-bundle.test.js,A,03,644,reviewed: delete,,,,,,,,,,,,,,,Original-order insertion point within A active batch; prior ledger evidence retained
+formal-suite,,,27,26,tests/claude-profile-probe.test.js,A,03,644,reviewed: rewrite,no,0,0,1,,5,2,1,104,5,2,31,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,28,27,tests/claude-review-gate-adapter.test.js,A,03,644,reviewed: keep,no,0,0,11,,50,2,0,3856,603,11,163,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,29,28,tests/claude-user-config-probe.test.js,A,03,644,reviewed: keep,no,0,0,6,,12,0,5,470,39,5,83,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,30,29,tests/cli-dispatch-context.test.js,A,03,644,reviewed: keep,no,0,0,10,,60,2,5,367,126,2,173,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,31,30,tests/cli-dispatch-launcher.test.js,A,03,644,reviewed: keep,yes,0,0,6,,42,0,3,30,2,1,155,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,32,31,tests/cli-role-resolver.test.js,A,04,645,queued,no,0,0,9,,34,0,0,174,55,2,140,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,33,32,tests/cli-worker-timeout-recovery.test.js,A,04,645,queued,no,0,0,13,,45,0,1,0,0,0,158,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,34,33,tests/codemaps-generate.test.js,A,04,645,queued,no,0,0,3,,8,0,4,324,40,1,48,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
@@ -400,7 +400,7 @@ helper,,,,,tests/_lib/install-codex-skills-fixtures.js,A,15,656,assigned,,,,,,,,
 helper,,,,,tests/_lib/macos-installer-files.js,A,17,658,assigned,,,,,,,,,,,,,tests/macos-installer-files.test.js,1,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/opsx-goal-fixtures.js,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/restricted-path.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/run-agy.test.js,2,lowest-original-ordinal B consumer
-helper,,,,,tests/_lib/review-gate-fixture.js,A,03,644,assigned,,,,,,,,,,,,,tests/claude-review-gate-adapter.test.js,8,lowest-original-ordinal A consumer
+helper,,,,,tests/_lib/review-gate-fixture.js,A,03,644,audited: keep,,,,,,,,,,,,,tests/claude-review-gate-adapter.test.js,8,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/review-gate-host-attestation-fixture.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-audit-family-fixtures.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,1,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-bridge-family-fixtures.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-bridge-family-isolation.test.js,1,lowest-original-ordinal B consumer
@@ -416,7 +416,7 @@ helper,,,,,tests/_lib/skill-remaining-entry-fixtures.js,B,,,reserved for issue #
 helper,,,,,tests/_lib/skill-resume-family-fixtures.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-resume-family-isolation.test.js,1,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-setup-family-fixtures.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-setup-family-isolation.test.js,1,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/tinytest.js,A,01,642,audited: keep,,,,,,,,,,,,,tests/activate-modules.test.js,393,lowest-original-ordinal A consumer
-helper,,,,,tests/_lib/workflow-coordinator-fixture.js,A,03,644,assigned,,,,,,,,,,,,,tests/ci-review-gate-adapter.test.js,6,lowest-original-ordinal A consumer
+helper,,,,,tests/_lib/workflow-coordinator-fixture.js,A,03,644,audited: keep,,,,,,,,,,,,,tests/ci-review-gate-adapter.test.js,6,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/distribution-surface-baseline.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-retirement-migration.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/doc-reviewer/ambiguous-relationship.json,A,10,651,assigned,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/doc-reviewer/coupled-same-finding.json,A,10,651,assigned,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
@@ -438,7 +438,7 @@ fixture,,,,,tests/fixtures/review-gate/cross-platform-differential-v1.json,B,,,r
 fixture,,,,,tests/fixtures/review-gate/reviewer-contract-v2.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,12,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/review-gate/runtime-work-request-v1.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/review-gate/sentinel-differential-v1.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
-fixture,,,,,tests/fixtures/review-gate/workflow-coordinator-v1.json,A,03,644,assigned,,,,,,,,,,,,,tests/ci-review-gate-adapter.test.js,18,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/review-gate/workflow-coordinator-v1.json,A,03,644,audited: keep,,,,,,,,,,,,,tests/ci-review-gate-adapter.test.js,18,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/session-audit/agent-inventory.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/session-audit/baseline-v0.37.0.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/session-audit/generic-verification.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
