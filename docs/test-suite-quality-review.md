@@ -385,6 +385,41 @@ helper or fixture edits in this batch.
 **Progress after #652:** 112 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #653 — Cohort A batch 12
+
+This batch keeps three suites and rewrites seven. It retains the baseline case
+count of 131 across all ten suites.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/gen-claude-manifest-generate.test.js` | Rewrite | Exact Claude roots, registered skill IDs, and generated skill IDs are derived from the inventory. | 6 |
+| `tests/gen-claude-manifest.test.js` | Rewrite | A clean manifest passes; isolated extra-root and missing-root drift each produce the exact diagnostic. | 3 |
+| `tests/gen-claude-marketplace-package.test.js` | Rewrite | Marketplace entry names the canonical physical package and every manifest asset exists in that package. | 5 |
+| `tests/gen-claude-profile-bundles.test.js` | Rewrite | Plan identity and SHA-256 fingerprints are bound; `--plan` is read-only; compat-v1 IDs equal the manifest allowlist. | 10 |
+| `tests/gen-claude-user-config.test.js` | Rewrite | `--check` reports a candidate fingerprint without changing the active manifest; malformed authoritative metadata is rejected. | 1 |
+| `tests/gen-codex-agents.test.js` | Keep | Exact role allowlist, executable-neighbor refusals, byte determinism, references, and role-specific policy remain covered. | 12 |
+| `tests/gen-codex-native-package.test.js` | Keep | Package selection, bytes and modes, stale-file removal, provenance, traversal limits, symlink rejection, and CLI materialization remain covered. | 18 |
+| `tests/gen-cursor-plugin-package.test.js` | Rewrite | Credential rejection uses a valid output path, and output overlap independently reports its own failure. | 59 |
+| `tests/gen-cursor-sync.test.js` | Keep | Linked mirror, frontmatter, validator, install, source-protection, and path-mapping contracts remain covered. | 14 |
+| `tests/gen-dispatch-projection.test.js` | Rewrite | Payload fingerprint binds all data; stdout matches `--out`; `--all` emits the exact seven unique surfaces. | 3 |
+
+The focused aggregate passed all 10 suites and retained 131/131 cases. Ten
+byte-restored negative controls were detected in an isolated disposable
+worktree: an extra Claude root, an unreported missing root, marketplace source
+redirection, plan output creation, compat identity substitution, activation
+during `--check`, acceptance of malformed metadata, URL credential acceptance,
+host data changed without a fingerprint update, and a duplicate dispatch
+surface. `scripts/ci/catalog.js --check`, marketplace generation and `--check`,
+and `git diff --check` passed. The batch changes tests and review documentation
+only; no production code, helper, or fixture changed. The ten suites are
+recursively discovered by `tests/run-all.js` in CI and release; none is in the
+macOS installer subset. GitNexus returned `risk: UNKNOWN` for every test path
+in a fresh isolated index. Text confirms recursive runner and CI/release
+discovery, while UNKNOWN remains unresolved and is not an unused-path verdict.
+
+**Progress after #653:** 122 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

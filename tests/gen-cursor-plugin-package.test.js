@@ -681,13 +681,21 @@ test('Cursor rejects executable configuration that is not closed and safe', () =
 
 test('Cursor variable URL credentials and output overlap fail closed', () => {
   const root = tmpDir('dhpk-cursor-overlap-source-');
+  const out = tmpDir('dhpk-cursor-credential-output-');
   try {
     assert.throws(
-      () => materializeCursorPackage({ inventory: { skills: [] }, root, outDir: root, variables: { type: 'object', properties: { endpoint: { type: 'string', default: 'https://user:pass@example.test' } } } }),
-      /credential|canonical root|overlap/i
+      () => materializeCursorPackage({ inventory: { skills: [] }, root, outDir: out, variables: { type: 'object', properties: { endpoint: { type: 'string', default: 'https://user:pass@example.test' } } } }),
+      /must not contain URL credentials/i,
+    );
+    assert.throws(
+      () => materializeCursorPackage({ inventory: { skills: [] }, root, outDir: root }),
+      /output must not be the canonical root or its ancestor/i,
     );
     assert.ok(fs.existsSync(root));
-  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
 });
 
 test('generation is byte-stable and consumer probe is unavailable without Cursor tooling', () => {

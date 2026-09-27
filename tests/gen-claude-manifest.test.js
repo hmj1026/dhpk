@@ -22,38 +22,56 @@ function makeTempRepo() {
 }
 
 function runCheck(repo) {
-  const res = spawnSync('node', [path.join(repo, 'scripts', 'ci', 'gen-claude-manifest.js'), '--check'], { encoding: 'utf8' });
+  const res = spawnSync(process.execPath, [path.join(repo, 'scripts', 'ci', 'gen-claude-manifest.js'), '--check'], { encoding: 'utf8' });
   return { status: res.status, out: (res.stdout || '') + (res.stderr || '') };
 }
 
-const repo = makeTempRepo();
-process.on('exit', () => { try { fs.rmSync(repo, { recursive: true, force: true }); } catch { /* best effort */ } });
+function withTempRepo(action) {
+  const repo = makeTempRepo();
+  try {
+    action(repo);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+}
 
 test('faithful temp copy passes --check as-is', () => {
-  const { status, out } = runCheck(repo);
-  assert.strictEqual(status, 0, `baseline temp copy should pass --check, got:\n${out}`);
+  withTempRepo((repo) => {
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 0, `baseline temp copy should pass --check, got:\n${out}`);
+  });
 });
 
 test('an extra manually-added root not backed by the inventory fails --check', () => {
-  const pluginPath = path.join(repo, '.claude-plugin', 'plugin.json');
-  const plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
-  plugin.skills.push('./modules/totally-manual-addition/skills/');
-  fs.writeFileSync(pluginPath, JSON.stringify(plugin, null, 2));
+  withTempRepo((repo) => {
+    const pluginPath = path.join(repo, '.claude-plugin', 'plugin.json');
+    const plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
+    plugin.skills.push('./modules/totally-manual-addition/skills/');
+    fs.writeFileSync(pluginPath, JSON.stringify(plugin, null, 2));
 
-  const { status, out } = runCheck(repo);
-  assert.notStrictEqual(status, 0, 'an inventory-unbacked root should fail --check');
-  assert.match(out, /totally-manual-addition/);
+    const { status, out } = runCheck(repo);
+    assert.notStrictEqual(status, 0, 'an inventory-unbacked root should fail --check');
+    assert.match(
+      out,
+      /DRIFT \[gen-claude-manifest\]: plugin\.json skills\[\] registers '\.\/modules\/totally-manual-addition\/skills\/' with no inventory-eligible skill backing it/,
+    );
+  });
 });
 
 test('a manually-removed root that the inventory still expects fails --check', () => {
-  const pluginPath = path.join(repo, '.claude-plugin', 'plugin.json');
-  const plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
-  plugin.skills = plugin.skills.filter((s) => s !== './skills/');
-  fs.writeFileSync(pluginPath, JSON.stringify(plugin, null, 2));
+  withTempRepo((repo) => {
+    const pluginPath = path.join(repo, '.claude-plugin', 'plugin.json');
+    const plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
+    plugin.skills = plugin.skills.filter((s) => s !== './skills/');
+    fs.writeFileSync(pluginPath, JSON.stringify(plugin, null, 2));
 
-  const { status, out } = runCheck(repo);
-  assert.notStrictEqual(status, 0, 'dropping an inventory-expected root should fail --check');
-  assert.match(out, /\.\/skills\//);
+    const { status, out } = runCheck(repo);
+    assert.notStrictEqual(status, 0, 'dropping an inventory-expected root should fail --check');
+    assert.match(
+      out,
+      /DRIFT \[gen-claude-manifest\]: inventory expects root '\.\/skills\/' but plugin\.json skills\[\] does not register it/,
+    );
+  });
 });
 
 run('gen-claude-manifest');

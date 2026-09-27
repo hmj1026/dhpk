@@ -29,7 +29,7 @@ function assertNoSymlinks(directory) {
 
 test('Claude marketplace points at a physical package without root project context', () => {
   assert.ok(ENTRY, 'Claude marketplace must declare the dhpk plugin');
-  assert.notStrictEqual(ENTRY.source, './', 'Claude marketplace must not publish the repository root');
+  assert.strictEqual(ENTRY.source, './generated/claude-marketplace/package', 'marketplace must publish the canonical physical package path');
 
   const packageRoot = resolvePackagePath(ENTRY.source);
   assert.ok(fs.existsSync(path.join(packageRoot, '.claude-plugin', 'plugin.json')),
