@@ -13,8 +13,6 @@ function createHostProjectionConformance({ root, assert }) {
     {
       platform: 'claude',
       manifest: '.claude-plugin/plugin.json',
-      invocationSource: 'scripts/release/consumer-gate.js',
-      invocation: /claude plugin validate <manifest> --strict|claude plugin install dhpk@dhpk --scope project/,
       assertFormat(value) {
         assert.match(value.version, /^\d+\.\d+\.\d+/, `version='${value.version}'`);
         assert.ok(Array.isArray(value.skills), 'Claude manifest must expose skills');
@@ -35,8 +33,6 @@ function createHostProjectionConformance({ root, assert }) {
     {
       platform: 'codex',
       manifest: 'plugins/dhpk/.codex-plugin/plugin.json',
-      invocationSource: 'scripts/release/consumer-platform-probe.js',
-      invocation: /codex plugin marketplace add <package-root>/,
       assertFormat(value) {
         assert.strictEqual(value.name, 'dhpk');
         assert.strictEqual(value.skills, './skills/');
@@ -46,8 +42,6 @@ function createHostProjectionConformance({ root, assert }) {
     {
       platform: 'agy',
       manifest: 'plugins/dhpk-agy/plugin.json',
-      invocationSource: 'scripts/lib/harness.js',
-      invocation: /validate --targets agy --agy-runtime-probe --format json/,
       assertFormat(value) {
         assert.deepStrictEqual(value.agents, ['./agents/']);
         assert.deepStrictEqual(value.rules, ['./rules/']);
@@ -57,8 +51,6 @@ function createHostProjectionConformance({ root, assert }) {
     {
       platform: 'cursor',
       manifest: 'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
-      invocationSource: 'scripts/release/consumer-platform-probe.js',
-      invocation: /cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>/,
       assertFormat(value) {
         for (const field of ['skills', 'rules', 'agents', 'commands', 'hooks']) {
           assert.ok(typeof value[field] === 'string', `Cursor manifest must expose ${field}`);

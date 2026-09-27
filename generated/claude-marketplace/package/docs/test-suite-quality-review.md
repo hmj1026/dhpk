@@ -745,6 +745,70 @@ HIGH or CRITICAL warning was returned.
 **Progress after #660:** 189 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #661 — Cohort A batch 20
+
+This batch keeps five suites, rewrites three, and deletes one fully repeated
+suite. The baseline passed 9/9 suites and 71/71 cases. The final assigned
+suite set contains eight suites and 69 cases. Frozen inventory metrics remain
+unchanged.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/physical-file.test.js` | Keep | Private physical reads, immutable writes, required flags, link identity, symlink rejection, and size limits exercise the filesystem helpers directly. | 9 |
+| `tests/physical-tmpdir.test.js` | Keep | The test harness exposes a normalized temp root with no symlinked ancestor and supports `mkdtemp`. | 2 |
+| `tests/physical-tree-publication.test.js` | Keep | Physical Skill traversal, fail-closed symlink handling, publication completeness, historical receipt compatibility, and the frozen descriptor snapshot remain independent contracts. | 13 |
+| `tests/platform-boundary.test.js` | Rewrite | Real validators reject native Codex and Cursor packages as portable Agent Plugin packages; removed a third case that only compared two different path strings. | 2 |
+| `tests/platform-conformance.test.js` | Rewrite | Four host projections retain table-driven manifest-format assertions. Removed source-text invocation regexes; executable consumer behavior belongs to `consumer-platform-probe` and `consumer-gate-cli`. | 1 |
+| `tests/platform-installation-docs.test.js` | Keep | Bilingual installation status, route ownership, package metadata, verification roots, and generated-document links remain protected. | 16 |
+| `tests/platform-provenance.test.js` | Keep | Receipt ownership, generated-input ancestry, target-tree identity, dirty-checkout rejection, and rollback-owner boundaries remain covered. | 12 |
+| `tests/plugin-user-config-behavior.test.js` | Delete | It invoked the same project-config probe twice with identical options and compared the results. Runtime parsing is owned by `runtime-config` and `load-project-config`; manifest contract preservation is owned by `plugin-user-config-metadata`. | 0 |
+| `tests/plugin-user-config-metadata.test.js` | Rewrite | The 59-entry legacy and 76-key active contracts, metadata validation, deterministic generation, and rollback stay covered. Rollback now includes a sibling projection sentinel and proves its bytes are untouched. | 14 |
+
+The assigned helper `tests/_lib/host-projection-conformance.js` was rewritten
+to contain only platform-specific manifest format contracts. Its removed
+`invocationSource` regexes were source-text heuristics; executable consumer
+tests already own those behaviors. Both assigned fixtures were kept:
+`plugin-user-config-contract.json` preserves the 59-entry legacy option
+contract, and `skill-package-descriptor-snapshot.json` preserves 22 historical
+Skills and 113 required resources.
+
+All retained suites are recursively discovered by `tests/run-all.js` and run
+by CI at `.github/workflows/ci.yml:134` and release at
+`.github/workflows/release.yml:50`. The deleted behavior suite had no direct
+repository consumer beyond its own runner; text search confirmed the generic
+runner discovers suites by suffix. None of the nine assigned suites belongs
+to the macOS installer subset. The full verification also runs
+`runtime-config`, `load-project-config`, `consumer-platform-probe`, and
+`consumer-gate-cli` to protect the neighboring config and consumer contracts.
+
+The batch changes tests, one test helper, the audit ledger, and its inventory;
+production code is unchanged, so production c8 line/branch comparison does not
+apply. GitNexus test-file impacts were `UNKNOWN`; text search confirms the
+discovery and neighboring owners. On the exact base commit, named impacts were
+HIGH for `physicalSkillTree` (14 affected, four direct), CRITICAL and partial
+for `validateSurfaceReceipt` (17 direct), and HIGH for
+`validateAgentPluginPackage` (15 affected, 11 direct). These warnings are
+preserved by leaving production behavior untouched and keeping the physical,
+provenance, and package-validator tests. `readPhysicalFile` and
+`writePhysicalImmutable` returned LOW with no graph callers despite visible
+text consumers, so those zero-caller results remain unresolved rather than an
+all-clear. After editing, `detect_changes(scope=all)` reported low risk, 8
+changed files, five changed symbols, and zero affected processes. Git reports
+nine changed tracked files, so GitNexus's file summary is one lower than the
+working-tree diff; test-file symbol resolution remains incomplete. No
+production edits were made.
+
+The focused aggregate passed 12/12 suites and 159/159 cases: the eight
+retained assigned suites passed 69 cases, and four neighboring config/consumer
+suites passed 90 cases. The marketplace-package generator check, catalog
+check, changelog validation, and `git diff --check` passed. The full precommit
+runner returned semantic FAIL with no steps executed because `package.json`
+has no recognized lint, build, or test scripts. Code and documentation review
+results are recorded with the PR evidence.
+
+**Progress after #661:** 198 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
