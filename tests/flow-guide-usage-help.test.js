@@ -52,19 +52,22 @@ test('$flow-guide help lists Codex-invokable public names in deterministic order
   const result = runHelp([]);
   assert.strictEqual(result.status, 0, output(result));
   const text = output(result);
+  const catalog = JSON.parse(fs.readFileSync(CATALOG, 'utf8'));
+  const expectedNames = catalog.entries
+    .map((entry) => entry.name || entry.publicName)
+    .filter((name) => typeof name === 'string')
+    .sort((left, right) => left.localeCompare(right));
   assert.match(text, /flow-guide/i);
   assert.match(text, /flow-drive/i);
   assert.match(text, /git-smart-commit/i);
   assert.match(text, /(?:usage|available|codex)/i);
 
   const names = text.split(/\r?\n/)
-    .map((line) => line.match(/^\s*[-*]?\s*([a-z][a-z0-9-]*)\s*(?:[|:—-]|$)/i))
+    .map((line) => line.match(/^\s*-\s+([a-z][a-z0-9-]*):\s+/i))
     .filter(Boolean)
     .map((match) => match[1]);
-  if (names.length > 1) {
-    assert.deepStrictEqual(names, [...names].sort((left, right) => left.localeCompare(right)),
-      'help list must be deterministic public-name order');
-  }
+  assert.deepStrictEqual(names, expectedNames,
+    'help list must include every catalog public name exactly once in deterministic order');
   assert.doesNotMatch(text, /implementation dispatch|review-gate-mechanics|workflow-feature-delivery/i,
     'catalog listing must not load target procedural references');
 });

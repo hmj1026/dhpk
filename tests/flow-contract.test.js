@@ -63,7 +63,15 @@ test('flow-guide adapts its closed route result into the shared handoff contract
   });
   const handoff = require('../skills/flow-guide/scripts/route-result').createRouteHandoff(route);
   assert.strictEqual(handoff.schema, SCHEMA);
-  assert.strictEqual(handoff.owner, 'flow-drive');
+  assert.strictEqual(handoff.owner, route.target.id);
+  assert.strictEqual(handoff.host, route.host);
+  assert.strictEqual(handoff.disposition, route.disposition);
+  assert.deepStrictEqual(handoff.evidence, [{
+    kind: 'route-availability',
+    state: route.availability,
+    detail: route.requiredEvidence[0],
+  }]);
+  assert.strictEqual(handoff.next_action, route.nextAction);
   assert.strictEqual(handoff.execution, 'not-started');
 });
 

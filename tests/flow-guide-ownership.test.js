@@ -55,9 +55,9 @@ test('flow-guide exposes exactly help, route, rules, next, and close actions', (
   const frontmatter = skill.match(/^argument-hint:\s*["']?([^"'\n]+)["']?\s*$/m);
   assert.ok(frontmatter, 'flow-guide must publish an argument hint');
   const hint = frontmatter[1];
-  for (const action of ['help', 'route', 'rules', 'next', 'close']) {
-    assert.match(hint, new RegExp(`\\b${action}\\b`), `flow-guide argument hint missing ${action}`);
-  }
+  const alternatives = hint.match(/^<([^>]+)>/)?.[1].split('|');
+  assert.deepStrictEqual(alternatives, ['help', 'route', 'rules', 'next', 'close'],
+    'flow-guide argument hint must expose exactly the supported action alternatives in order');
   for (const removed of ['classify', 'policy', 'checklist']) {
     assert.doesNotMatch(hint, new RegExp(`\\b${removed}\\b`),
       `retired flow-guide action ${removed} must not remain public`);

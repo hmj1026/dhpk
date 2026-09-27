@@ -351,6 +351,40 @@ covered.
 **Progress after #651:** 102 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #652 — Cohort A batch 11
+
+This batch keeps three suites and rewrites seven. It retains the baseline case
+count of 77 across all ten suites.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/flow-contract.test.js` | Rewrite | A route result adapts to the neutral handoff without losing owner, Host, disposition, availability evidence, or next action. | 6 |
+| `tests/flow-drive-invocation.test.js` | Keep | Flow Drive's documented options, immutable context, worker target separation, malformed-target refusal, and retired-option rejection. | 6 |
+| `tests/flow-guide-ownership.test.js` | Rewrite | Flow Guide owns routing and publishes exactly the five supported actions in the declared order. | 9 |
+| `tests/flow-guide-usage-help.test.js` | Rewrite | Help output contains every generated catalog name exactly once in deterministic order; per-skill cards and diagnostic distinctions remain covered. | 6 |
+| `tests/flow-handoff-contract.test.js` | Rewrite | The shared handoff validates Host and evidence vocabularies, rejects private fields, preserves role/provider/model/effort/transport, and freezes nested values. | 3 |
+| `tests/frontmatter.test.js` | Keep | YAML frontmatter parsing, duplicate-key detection, scalar and BOM/CRLF handling, and nested invocation-class behavior. | 16 |
+| `tests/gate-runner.test.js` | Rewrite | The runner records exact commands and exit codes, names failing steps, and executes a real later-step side effect after an earlier failure. | 5 |
+| `tests/gemini-cli-retirement.test.js` | Keep | Retired Gemini CLI references stay absent while the AGY adapter and native package remain documented. | 5 |
+| `tests/gen-agent-plugin-package.test.js` | Rewrite | Matrix selection emits only selected skills; MCP transport/path and credentials failures identify the exact invalid servers and reasons. | 19 |
+| `tests/gen-agents-skills.test.js` | Rewrite | Compatibility and external project generation bind selected/emitted skill identity, profile fingerprints, managed paths, file fingerprints, and representative output. | 2 |
+
+The Node `v24.21.0` focused aggregate run passed all 10 suites and 77/77
+cases. Seven byte-restored negative controls were detected: route handoff
+mapping, the exact Flow Guide action set, omission from the generated help
+catalog, handoff transport normalization, fail-fast gate execution, MCP invalid
+sibling acceptance, and external project profile identity. All ten suites are
+recursively discovered by `tests/run-all.js` in CI and release; none belongs to
+the macOS installer subset. No production source changed, so production-file
+coverage comparison does not apply. The GitNexus impact walk returned
+`risk: UNKNOWN` for all ten test paths in a fresh isolated worktree index;
+text confirms aggregate-runner and CI/release discovery, while UNKNOWN remains
+unresolved and is not an unused-path verdict. There are no assigned primary
+helper or fixture edits in this batch.
+
+**Progress after #652:** 112 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

@@ -155,6 +155,10 @@ test('matrix-selected IDs are accepted while an unselected inventory skill remai
     };
     const result = materializeAgentPluginPackage({ inventory, root, outDir: out });
     assert.deepStrictEqual(result.skillIds, ['two']);
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-two', 'SKILL.md')));
+    assert.match(fs.readFileSync(path.join(out, 'skills', 'dhpk-two', 'SKILL.md'), 'utf8'), /^name: dhpk-two$/m);
+    assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-one')),
+      'inventory skills outside the selected matrix must not be emitted');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(out, { recursive: true, force: true });
@@ -228,10 +232,10 @@ test('missing MCP remains valid and invalid sibling MCP entries are isolated', (
       },
     };
     const checked = validateMcpConfig(config, out);
-    assert.ok(checked.valid.some((entry) => entry.name === 'valid'));
-    assert.ok(checked.invalid.length >= 2);
-    assert.ok(checked.errors.some((error) => /transport|type/i.test(error)));
-    assert.ok(checked.errors.some((error) => /outside|escape|relative/i.test(error)));
+    assert.deepStrictEqual(checked.valid.map((entry) => entry.name), ['valid']);
+    assert.deepStrictEqual(checked.invalid.map((entry) => entry.name), ['badTransport', 'escaping']);
+    assert.ok(checked.invalid[0].errors.some((error) => /MCP server 'badTransport'.*transport/i.test(error)));
+    assert.ok(checked.invalid[1].errors.some((error) => /MCP server 'escaping'.*(outside|escape|relative)/i.test(error)));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(out, { recursive: true, force: true });
@@ -287,7 +291,10 @@ test('MCP paths fail closed for dot-segment placeholders, missing files, and sou
       },
     }, out);
     assert.strictEqual(invalid.ok, false);
-    assert.ok(invalid.errors.some((error) => /placeholder|contained|dot|exist|escape/i.test(error)));
+    assert.deepStrictEqual(invalid.valid, []);
+    assert.deepStrictEqual(invalid.invalid.map((entry) => entry.name), ['escape', 'missing']);
+    assert.ok(invalid.invalid[0].errors.some((error) => /MCP server 'escape'.*(placeholder|contained|dot|escape)/i.test(error)));
+    assert.ok(invalid.invalid[1].errors.some((error) => /MCP server 'missing'.*(exist|file)/i.test(error)));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(out, { recursive: true, force: true });
@@ -306,7 +313,11 @@ test('MCP executable configuration rejects credentials in args, env, and headers
       },
     }, out);
     assert.strictEqual(checked.ok, false);
-    assert.ok(checked.errors.some((error) => /args|env|credential|placeholder/i.test(error)));
+    assert.deepStrictEqual(checked.valid, []);
+    assert.deepStrictEqual(checked.invalid.map((entry) => entry.name), ['http', 'stdio']);
+    assert.ok(checked.invalid.find((entry) => entry.name === 'stdio').errors.some((error) => /args\[0\].*credential/i.test(error)));
+    assert.ok(checked.invalid.find((entry) => entry.name === 'stdio').errors.some((error) => /env\.API_TOKEN.*credential|placeholder/i.test(error)));
+    assert.ok(checked.invalid.find((entry) => entry.name === 'http').errors.some((error) => /header 'Authorization'.*credentials/i.test(error)));
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });
 
