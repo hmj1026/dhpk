@@ -10,7 +10,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
@@ -85,24 +84,6 @@ function runNode(relative, args = []) {
   return {
     status: result.status,
     output: `${result.stdout || ''}${result.stderr || ''}`,
-  };
-}
-
-function runMcpFreeSettingsCheck(filePath) {
-  let content;
-  try {
-    content = fs.readFileSync(filePath, 'utf8');
-  } catch (error) {
-    return {
-      status: 2,
-      output: error && error.message ? error.message : String(error),
-    };
-  }
-
-  // A detected grant fails the policy check; an absent grant passes it.
-  return {
-    status: content.match(CODEX_MCP) ? 1 : 0,
-    output: '',
   };
 }
 
@@ -236,27 +217,11 @@ test('canonical skill and command frontmatter has no Codex MCP grants after reti
   assert.deepStrictEqual(findings, [], `active allowed-tools MCP grants remain:\n${findings.join('\n')}`);
 });
 
-test('Claude project settings stay MCP-free and reject a reintroduced grant', () => {
+test('Claude project settings contain no Codex MCP namespace grants', () => {
   const settingsPath = path.join(ROOT, '.claude', 'settings.json');
   assert.ok(fs.existsSync(settingsPath), 'canonical Claude settings must exist');
-  const baseline = runMcpFreeSettingsCheck(settingsPath);
-  assert.strictEqual(baseline.status, 0, `canonical Claude settings contain a retired MCP grant:\n${baseline.output}`);
-
-  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-settings-'));
-  const fixturePath = path.join(fixtureRoot, '.claude', 'settings.json');
-  try {
-    fs.mkdirSync(path.dirname(fixturePath), { recursive: true });
-    const fixture = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-    fixture.permissions = fixture.permissions || {};
-    fixture.permissions.allow = [...(fixture.permissions.allow || []), 'mcp__codex__codex'];
-    fs.writeFileSync(fixturePath, `${JSON.stringify(fixture, null, 2)}\n`);
-
-    const reintroduced = runMcpFreeSettingsCheck(fixturePath);
-    assert.strictEqual(reintroduced.status, 1,
-      'the MCP-free settings scanner must fail when a retired grant is reintroduced');
-  } finally {
-    fs.rmSync(fixtureRoot, { recursive: true, force: true });
-  }
+  const settings = fs.readFileSync(settingsPath, 'utf8');
+  assert.doesNotMatch(settings, /mcp__codex__/, 'canonical Claude settings must not grant any Codex MCP namespace capability');
 });
 
 test('catalog and invocation validators execute successfully with a zero MCP surface', () => {

@@ -133,7 +133,33 @@ its nine receipt IDs and eight named histories are all referenced, with no
 dangling history IDs. None required an edit. `node scripts/ci/catalog.js --check`
 passed with all required scripts covered.
 
-**Progress:** 32 of 79 files reviewed; 47 more reviews required. The coverage
+### Issue #645 — Cohort A batch 04
+
+| Test file | Disposition | Owned contract and overlapping owner | Discovery and verification |
+| --- | --- | --- | --- |
+| `tests/cli-role-resolver.test.js` | Keep | Canonical provider roles resolve to fixed modes and immutable contracts; aliases, conflicting identities, and authority/provider constraints fail closed. This owns the CLI role vocabulary. | Discovered by `tests/run-all.js`; 9/9 passed. |
+| `tests/cli-worker-timeout-recovery.test.js` | Rewrite | Removed a hardcoded sample filename check for the retired `.pending-` prefix. `tests/partial-writer-handoff.test.js` owns generated marker naming and behavior; this suite retains its independent recovery documentation contract. | Discovered by `tests/run-all.js`; 12/12 passed. |
+| `tests/codemaps-generate.test.js` | Keep | Codemap generation, expected fixture classification, and the empty-tree output contract. No other suite owns these generator outputs. | Discovered by `tests/run-all.js`; 3/3 passed. |
+| `tests/codex-discovery-registry.test.js` | Keep | Provider identity, fingerprint arbitration, duplicate invokable-name blocking, precedence, and active/inactive native-provider behavior. These runtime registry semantics are distinct from package validation. | Discovered by `tests/run-all.js`; 16/16 passed. |
+| `tests/codex-mcp-retirement.test.js` | Rewrite | Replaced a test-local imitation of the MCP-free settings scanner with a direct assertion that canonical Claude settings contain no `mcp__codex__` namespace grant; retained parity, route, owner, and validator checks. | Discovered by `tests/run-all.js`; 9/9 passed. |
+| `tests/codex-native-activation.test.js` | Keep | Live activation result normalization, timeout configuration precedence, malformed output, and missing CLI behavior. No other suite owns this probe contract. | Discovered by `tests/run-all.js`; 15/15 passed. |
+| `tests/codex-native-experimental-gate.test.js` | Rewrite | Retains native-candidate and inventory checks, and now checks the specific experimental-status statements in `docs/distribution-surfaces.md`, `README.md` → `## Sync Codex CLI content`, and `.codex-plugin/README.md` → `## Structure`. | Discovered by `tests/run-all.js`; 4/4 passed. Three controlled document mutations—one per statement—each failed at its matching assertion. |
+| `tests/codex-native-install-smoke.test.js` | Rewrite | After deleting the staged source tree, compares each installed skill's relative file set and bytes against the tracked physical `plugins/dhpk/skills/` artifact; retains the live CLI, cache containment, and no-symlink checks. | Discovered by `tests/run-all.js`; 4/4 passed with `codex-cli` 0.157.1 and no skip. |
+| `tests/codex-native-package-validate.test.js` | Keep | Candidate validation rejects path escapes, symlinks, membership drift, and lifecycle aggregates while accepting a physical tracked native package. Distinct from live installation and marketplace-manifest checks. | Discovered by `tests/run-all.js`; 10/10 passed. |
+| `tests/codex-plugin-manifest.test.js` | Rewrite | Anchors semantic version to the complete `major.minor.patch` form and verifies marketplace name/version plus an exact source path to the tracked `plugins/dhpk` wrapper. | Discovered by `tests/run-all.js`; 9/9 passed. |
+
+All ten suites are recursively discovered by the `tests/run-all.js` route used
+by CI; none is in the separate Darwin installer subset. The focused baseline
+was 10 files and 92 cases; the final Node `v24.21.0` run with
+`DHPK_TEST_JOBS=4` passed 10 files and 91 cases. The assigned helper/fixture
+inventory contains no support assets for this batch. No production source
+changed, so production-file line and branch coverage did not apply. The
+GitNexus could not resolve the five rewritten test files (`risk: UNKNOWN`);
+repository text search confirmed the recursive test-discovery route, and the
+focused aggregate run exercised all ten suites. The catalog check passed with
+all required scripts covered.
+
+**Progress:** 42 of 79 files reviewed; 37 more reviews required. The coverage
 comparison above used V8 data converted with c8. The full-suite local run did
 not provide a clean pass: provenance tests require a clean checkout, and one
 baseline run had an additional intermittent audit assertion. Aggregate covered
@@ -159,7 +185,7 @@ Issue #640 owns the first 196 active paths. Issues #642–#661 receive those
 paths in stable order: batches 01–16 have 10 suites each and batches 17–20
 have 9 each. The prevalidated deletion at original ordinal 26,
 `tests/claude-capability-bundle.test.js`, is attached to A batch 03 / issue
-number #644, pending implementation in that batch PR. The deletion at original
+number #644, implemented and reviewed in PR #688. The deletion at original
 ordinal 247, `tests/retirement-closure.test.js`, is attached to B batch 05 / issue
 number #666, pending implementation there. Neither file is counted as an
 active suite or silently removed from the inventory.
