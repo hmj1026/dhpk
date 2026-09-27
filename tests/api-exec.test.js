@@ -30,9 +30,23 @@ test('executes one request with evidence fields and a request ID', () => {
 });
 
 test('rejects mutating methods before invoking curl', () => {
-  const res = spawnSync('bash', [SCRIPT, 'DELETE', 'https://test.invalid/resource'], { encoding: 'utf8' });
-  assert.strictEqual(res.status, 2);
-  assert.ok(res.stderr.includes('GET or allowlisted POST'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-api-exec-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const invocationMarker = path.join(tmp, 'curl-invoked');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'curl'), '#!/bin/sh\nprintf "invoked\\n" >> "$CURL_INVOKED"\n', { mode: 0o755 });
+
+    for (const method of ['PUT', 'PATCH', 'DELETE']) {
+      const res = spawnSync('bash', [SCRIPT, method, 'https://test.invalid/resource'], {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CURL_INVOKED: invocationMarker },
+      });
+      assert.strictEqual(res.status, 2, `${method}: ${res.stderr}`);
+      assert.ok(res.stderr.includes('GET or allowlisted POST'), `${method}: ${res.stderr}`);
+      assert.strictEqual(fs.existsSync(invocationMarker), false, `${method} must be rejected before curl is invoked`);
+    }
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
 test('propagates curl transport failures without emitting evidence', () => {

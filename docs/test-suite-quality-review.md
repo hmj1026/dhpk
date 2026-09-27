@@ -73,7 +73,32 @@ normalization; `tests/physical-tmpdir.test.js` separately protects that
 normalization contract. It is useful shared infrastructure, not stale or
 duplicated behavior, and was not edited in this batch.
 
-**Progress:** 12 of 79 files reviewed; 67 more reviews required. The coverage
+### Issue #643 — Cohort A batch 02
+
+| Test file | Disposition | Owned contract and assertion owner | Discovery and verification |
+| --- | --- | --- | --- |
+| `tests/api-exec.test.js` | Rewrite | `skills/dhpk-feature-verify/scripts/api-exec.sh` must reject PUT, PATCH, and DELETE before calling curl. The old DELETE-only assertion checked status/message but had no invocation sentinel; it now tests all three methods against a temporary curl stub and asserts no marker. Entry-isolation fixtures cover success/transport failure, not this no-invocation contract. | Discovered by `tests/run-all.js`; 3/3 passed. A controlled curl-before-rejection mutation failed on the no-invocation assertion; the source script was restored. |
+| `tests/asset-inventory.test.js` | Keep | `scripts/lib/asset-inventory.js` inventory counts and paths, optional manifest fallback, and file/entry/depth budgets; this suite owns inventory traversal assertions. | Discovered by `tests/run-all.js`; 6/6 passed. |
+| `tests/bootstrap-dhpk-plugin-validation.test.js` | Keep | The bootstrap validator's documented Claude-root versus Codex-native validation boundary; no other suite fully asserts this boundary. | Discovered by `tests/run-all.js`; 3/3 passed. |
+| `tests/bounded-child-process.test.js` | Keep | `scripts/lib/bounded-child-process.js` timeout cleanup of descendant process groups, including children that ignore SIGTERM; `tests/run-all.js` imports this runner. | Discovered by `tests/run-all.js`; 4/4 passed. |
+| `tests/bounded-filesystem.test.js` | Keep | `scripts/lib/bounded-filesystem.js` byte and entry budgets, real-directory cycle detection, symlink refusal, and changed-size refusal; these traversal safety contracts have no full replacement owner. | Discovered by `tests/run-all.js`; 5/5 passed. |
+| `tests/capability-bundle-activation.test.js` | Keep | `scripts/lib/capability-bundle-activation.js` preserves staged artifacts unless verification is PASS and activates only a passing artifact; distinct from bundle selection. | Discovered by `tests/run-all.js`; 2/2 passed. |
+| `tests/capability-bundle-selection.test.js` | Keep | `scripts/lib/capability-bundle-selection.js` profile/standalone selection, fail-closed errors, fingerprints, receipt migration, and checked-in manifest contracts; no other suite fully owns these selection semantics. | Discovered by `tests/run-all.js`; 18/18 passed. |
+| `tests/catalog-claims.test.js` | Keep | `scripts/ci/catalog.js` planted count drift and repair, script ownership, and projection-set drift. The catalog maps this suite as its ownership test; other catalog checks do not replace the drift cases. | Discovered by `tests/run-all.js`; 39/39 passed. |
+| `tests/changelog-fragments.test.js` | Keep | `scripts/lib/changelog-fragments.js` parsing, validation, deterministic promotion, release coverage rules, and `.none` markers; no other suite owns the fragment lifecycle. | Discovered by `tests/run-all.js`; 22/22 passed. |
+| `tests/check-codex-discovery.test.js` | Keep | `scripts/ci/check-codex-discovery.js` active/inactive/unknown provider verdicts, dangling-provider blocking, and redacted evidence; these provider-integrity contracts are independent. | Discovered by `tests/run-all.js`; 9/9 passed. |
+
+All ten paths are discovered by the recursive `tests/run-all.js` route used by
+CI. None is in the separate Darwin installer subset. The baseline and final
+focused aggregate runs used Node `v24.21.0` with `DHPK_TEST_JOBS=4`; the final
+run passed all 10 files and 111 tests. The temporary negative-control mutation
+proved the rewritten no-curl assertion fails when curl is called before the
+method rejection. No production file changed, so production-area line/branch
+coverage comparison does not apply. `node scripts/ci/catalog.js --check`
+passed with all required scripts covered. The frozen inventory assigns no
+primary helper or fixture to issue #643, so there was no support asset to edit.
+
+**Progress:** 22 of 79 files reviewed; 57 more reviews required. The coverage
 comparison above used V8 data converted with c8. The full-suite local run did
 not provide a clean pass: provenance tests require a clean checkout, and one
 baseline run had an additional intermittent audit assertion. Aggregate covered
