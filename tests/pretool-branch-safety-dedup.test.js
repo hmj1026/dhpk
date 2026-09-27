@@ -31,9 +31,9 @@ function mkTempRepo() {
   return dir;
 }
 
-function runHook(cwd, tmpdir, extraEnv) {
+function runHook(cwd, tmpdir, extraEnv, sessionId = 'testsess1') {
   const payload = {
-    session_id: 'testsess1',
+    session_id: sessionId,
     tool_input: { command: 'git commit -m x' },
   };
   return runHookRaw(HOOK, {
@@ -57,6 +57,32 @@ test('warn mode dedups the REMINDER to once per session (5.1)', () => {
     assert.strictEqual(second.status, 0, `second run exited non-zero: ${second.stderr}`);
     assert.ok(!second.stdout.includes('[branch-safety] REMINDER'),
       `second run should be deduped (no REMINDER); stdout: ${second.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('warn reminder state is isolated between session IDs', () => {
+  const repo = mkTempRepo();
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-state-'));
+  try {
+    const firstSession = runHook(repo, stateDir, {}, 'session-one');
+    assert.strictEqual(firstSession.status, 0, `first session exited non-zero: ${firstSession.stderr}`);
+    assert.ok(firstSession.stdout.includes('[branch-safety] REMINDER'),
+      `first session should warn; stdout: ${firstSession.stdout}`);
+
+    const repeatedFirstSession = runHook(repo, stateDir, {}, 'session-one');
+    assert.strictEqual(repeatedFirstSession.status, 0, `repeated first session exited non-zero: ${repeatedFirstSession.stderr}`);
+    assert.ok(!repeatedFirstSession.stdout.includes('[branch-safety] REMINDER'),
+      `first session should dedup its repeat; stdout: ${repeatedFirstSession.stdout}`);
+
+    const secondSession = runHook(repo, stateDir, {}, 'session-two');
+    assert.strictEqual(secondSession.status, 0, `second session exited non-zero: ${secondSession.stderr}`);
+    assert.ok(secondSession.stdout.includes('[branch-safety] REMINDER'),
+      `second session must receive its own reminder; stdout: ${secondSession.stdout}`);
+    assert.ok(fs.existsSync(path.join(stateDir, 'dhpk-branch-safety-session-one.state')));
+    assert.ok(fs.existsSync(path.join(stateDir, 'dhpk-branch-safety-session-two.state')));
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
     fs.rmSync(stateDir, { recursive: true, force: true });
