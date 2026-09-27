@@ -6,18 +6,20 @@
 // mirrors the core guard exactly.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const { ROOT, mkRepo, rmRepo, sessionsDir, runHook: runHookRaw } = require('./_lib/hookharness');
+const { ROOT, mkRepo, rmRepo, runHook: runHookRaw } = require('./_lib/hookharness');
 
 const HOOK = 'pre-bash-dispatch.sh';
 
-function runHook(command, cwd, env = {}) {
+function runHook(command, cwd, env = {}, pluginRoot = ROOT) {
   return runHookRaw(HOOK, {
     payload: { tool_input: { command } },
     cwd: cwd || ROOT,
     projectDir: cwd || ROOT,
+    pluginRoot,
     env,
     deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_MODULES'],
   });
@@ -43,25 +45,41 @@ test('deep workspace path under /home still passes through the dispatcher', () =
   assert.strictEqual(res.status, 0, `expected allowed, got: ${res.status} / ${res.stderr}`);
 });
 
-function repoOnMainWithPendingReview() {
-  const repo = mkRepo({ prefix: 'dhpk-pre-bash-compose-', gitConfig: true });
-  fs.writeFileSync(path.join(repo, 'seed.txt'), 'seed\n');
-  spawnSync('git', ['add', '.'], { cwd: repo });
-  spawnSync('git', ['commit', '-qm', 'seed'], { cwd: repo });
-  spawnSync('git', ['branch', '-M', 'main'], { cwd: repo });
-  fs.writeFileSync(path.join(repo, 'seed.txt'), 'edited\n');
-  fs.mkdirSync(sessionsDir(repo), { recursive: true });
-  fs.writeFileSync(path.join(sessionsDir(repo), '.pending-review'), 'seed.txt\n');
-  return repo;
-}
-
 test('combined dispatcher preserves protected-branch commit block', () => {
-  const repo = repoOnMainWithPendingReview();
+  const repo = mkRepo({ prefix: 'dhpk-pre-bash-compose-' });
   try {
+    spawnSync('git', ['branch', '-M', 'main'], { cwd: repo });
     const res = runHook('git commit -m guarded', repo, { DHPK_BRANCH_SAFETY: 'block' });
     assert.strictEqual(res.status, 2, res.stderr);
     assert.match(res.stderr, /branch-safety/i);
   } finally { rmRepo(repo); }
+});
+
+test('active module pass hooks compose in order and a block stops later hooks', () => {
+  const repo = mkRepo({ prefix: 'dhpk-pre-bash-module-repo-' });
+  let pluginRoot;
+  try {
+    pluginRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-pre-bash-module-plugin-'));
+    const marker = path.join(pluginRoot, 'module-order.txt');
+    fs.cpSync(path.join(ROOT, 'scripts', 'hooks'), path.join(pluginRoot, 'scripts', 'hooks'), { recursive: true });
+    const hooksDir = path.join(pluginRoot, 'modules', 'batch-probe', 'hooks');
+    fs.mkdirSync(hooksDir, { recursive: true });
+    for (const [name, exitCode] of [['10-pass', 0], ['20-block', 2], ['30-unreachable', 0]]) {
+      const label = name.split('-').slice(1).join('-');
+      fs.writeFileSync(path.join(hooksDir, `pre-bash-${name}.sh`), `#!/usr/bin/env bash\nprintf '%s\\n' '${label}' >> "$DHPK_TEST_MARKER"\nexit ${exitCode}\n`);
+    }
+
+    const res = runHook('echo active module composition', repo, {
+      DHPK_ACTIVE_MODULES: 'batch-probe',
+      DHPK_BRANCH_SAFETY: 'off',
+      DHPK_TEST_MARKER: marker,
+    }, pluginRoot);
+    assert.strictEqual(res.status, 2, `expected active module block to bubble up: ${res.stderr}`);
+    assert.deepStrictEqual(fs.readFileSync(marker, 'utf8').trim().split('\n'), ['pass', 'block']);
+  } finally {
+    rmRepo(repo);
+    if (pluginRoot) fs.rmSync(pluginRoot, { recursive: true, force: true });
+  }
 });
 
 run('pre-bash-dispatch');

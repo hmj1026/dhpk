@@ -22,66 +22,72 @@ function fileFingerprint(file) {
 
 function mkRepo({ branch = 'develop' } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-')));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package', 'agent-traps', 'commands', 'hooks', 'modules', 'scripts', 'templates']) {
-    fs.mkdirSync(path.join(root, rel), { recursive: true });
-  }
-  for (const profile of ['minimal', 'full', 'compat-v1']) {
-    fs.writeFileSync(path.join(root, 'generated/claude-profiles', profile, 'package', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
-  }
-  fs.writeFileSync(path.join(root, 'generated/claude-marketplace/package/.claude-plugin/plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
-  fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
-  fs.writeFileSync(path.join(root, '.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
-  fs.writeFileSync(path.join(root, 'plugins/dhpk/.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
-  fs.writeFileSync(path.join(root, '.agents/plugins', 'marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version: '1.0.0' }] }));
-  fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n## 1.0.0 — 2026-01-01 — Prior\n\nPrior notes.\n');
-  fs.writeFileSync(path.join(root, 'skills/tdd-workflow', 'SKILL.md'), '---\nname: tdd-workflow\n---\n');
-  fs.writeFileSync(path.join(root, 'agents', 'sample.md'), [
-    '---',
-    'name: sample',
-    'description: Sample agent',
-    'tools: Read, Bash',
-    'model: sonnet',
-    'color: blue',
-    '---',
-    '',
-    '# Sample',
-    '',
-  ].join('\n'));
-  fs.writeFileSync(path.join(root, 'rules', 'sample.md'), '# Rule\n');
-  fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), [
-    '---',
-    'name: dhpk-sample',
-    'description: Sample skill',
-    '---',
-    '',
-    '# Skill',
-    '',
-  ].join('\n'));
-  fs.writeFileSync(
-    path.join(root, 'manifests', 'distribution-inventory.json'),
-    JSON.stringify({
-      skills: [
-        { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-        { id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] },
-      ],
-      surface_membership: { 'agy-plugin': ['sample'] },
-      agy_plugin: { agents: ['sample.md'], rules: ['rules/sample.md'] },
-    })
-  );
-  fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
-  const agyPin = 'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.0.0 --json\n';
-  fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
-  fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
-  fs.mkdirSync(path.join(root, 'docs', 'knowledge'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'docs', 'knowledge', 'marketplace-sync.md'), 'Marketplace package must stay in sync.\n');
+  let ready = false;
+  try {
+    for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package', 'agent-traps', 'commands', 'hooks', 'modules', 'scripts', 'templates']) {
+      fs.mkdirSync(path.join(root, rel), { recursive: true });
+    }
+    for (const profile of ['minimal', 'full', 'compat-v1']) {
+      fs.writeFileSync(path.join(root, 'generated/claude-profiles', profile, 'package', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
+    }
+    fs.writeFileSync(path.join(root, 'generated/claude-marketplace/package/.claude-plugin/plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
+    fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
+    fs.writeFileSync(path.join(root, '.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
+    fs.writeFileSync(path.join(root, 'plugins/dhpk/.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
+    fs.writeFileSync(path.join(root, '.agents/plugins', 'marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version: '1.0.0' }] }));
+    fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n## 1.0.0 — 2026-01-01 — Prior\n\nPrior notes.\n');
+    fs.writeFileSync(path.join(root, 'skills/tdd-workflow', 'SKILL.md'), '---\nname: tdd-workflow\n---\n');
+    fs.writeFileSync(path.join(root, 'agents', 'sample.md'), [
+      '---',
+      'name: sample',
+      'description: Sample agent',
+      'tools: Read, Bash',
+      'model: sonnet',
+      'color: blue',
+      '---',
+      '',
+      '# Sample',
+      '',
+    ].join('\n'));
+    fs.writeFileSync(path.join(root, 'rules', 'sample.md'), '# Rule\n');
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), [
+      '---',
+      'name: dhpk-sample',
+      'description: Sample skill',
+      '---',
+      '',
+      '# Skill',
+      '',
+    ].join('\n'));
+    fs.writeFileSync(
+      path.join(root, 'manifests', 'distribution-inventory.json'),
+      JSON.stringify({
+        skills: [
+          { id: 'tdd', name: 'tdd-workflow', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+          { id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] },
+        ],
+        surface_membership: { 'agy-plugin': ['sample'] },
+        agy_plugin: { agents: ['sample.md'], rules: ['rules/sample.md'] },
+      })
+    );
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    const agyPin = 'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.0.0 --json\n';
+    fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
+    fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
+    fs.mkdirSync(path.join(root, 'docs', 'knowledge'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'knowledge', 'marketplace-sync.md'), 'Marketplace package must stay in sync.\n');
 
-  spawnSync('git', ['init', '-q'], { cwd: root });
-  spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
-  spawnSync('git', ['config', 'user.name', 'Test'], { cwd: root });
-  spawnSync('git', ['add', '-A'], { cwd: root });
-  spawnSync('git', ['commit', '-q', '-m', 'init'], { cwd: root });
-  spawnSync('git', ['checkout', '-q', '-b', branch], { cwd: root });
-  return root;
+    spawnSync('git', ['init', '-q'], { cwd: root });
+    spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
+    spawnSync('git', ['config', 'user.name', 'Test'], { cwd: root });
+    spawnSync('git', ['add', '-A'], { cwd: root });
+    spawnSync('git', ['commit', '-q', '-m', 'init'], { cwd: root });
+    spawnSync('git', ['checkout', '-q', '-b', branch], { cwd: root });
+    ready = true;
+    return root;
+  } finally {
+    if (!ready) fs.rmSync(root, { recursive: true, force: true });
+  }
 }
 
 function runCli(repo, args, extraEnv = {}) {
@@ -92,23 +98,69 @@ function runCli(repo, args, extraEnv = {}) {
   });
 }
 
-test('rejects a non-semver version before touching anything', () => {
-  const repo = mkRepo();
+function testWithRepo(title, callback, options) {
+  test(title, () => {
+    const repo = mkRepo(options);
+    try {
+      return callback(repo);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+}
+
+function releaseTargetPaths() {
+  const res = spawnSync(process.execPath, [CLI, 'paths'], { cwd: ROOT, encoding: 'utf8' });
+  assert.strictEqual(res.status, 0, `could not read release target scope: ${res.stderr}`);
+  return [...new Set(res.stdout.trim().split('\n').map((line) => line.split(' ')[1]).filter(Boolean))];
+}
+
+function snapshotTree(target) {
+  let stat;
+  try {
+    stat = fs.lstatSync(target);
+  } catch (error) {
+    if (error.code === 'ENOENT') return { type: 'missing' };
+    throw error;
+  }
+  const mode = stat.mode & 0o777;
+  if (stat.isSymbolicLink()) return { type: 'symlink', mode, target: fs.readlinkSync(target) };
+  if (stat.isDirectory()) {
+    return {
+      type: 'directory',
+      mode,
+      entries: fs.readdirSync(target).sort().map((name) => [name, snapshotTree(path.join(target, name))]),
+    };
+  }
+  return { type: 'file', mode, fingerprint: fileFingerprint(target) };
+}
+
+function snapshotReleaseTargets(repo) {
+  return releaseTargetPaths().map((relative) => [relative, snapshotTree(path.join(repo, relative))]);
+}
+
+function assertReleaseTargetsEqual(repo, expected, message) {
+  assert.deepStrictEqual(snapshotReleaseTargets(repo), expected, message);
+}
+
+testWithRepo('rejects a non-semver version before touching anything', (repo) => {
+  const before = snapshotReleaseTargets(repo);
   const res = runCli(repo, ['check', '--version', '1.2']);
   assert.notStrictEqual(res.status, 0);
   assert.match(res.stderr, /semver/i);
+  assertReleaseTargetsEqual(repo, before, 'invalid versions must leave every release target unchanged');
 });
 
-test('refuses to prepare a release on main', () => {
-  const repo = mkRepo({ branch: 'main' });
+testWithRepo('refuses to prepare a release on main', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  const before = snapshotReleaseTargets(repo);
   const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget'], { DHPK_RELEASE_TARGET_BRANCH: 'main' });
   assert.notStrictEqual(res.status, 0);
   assert.match(res.stderr, /develop/i);
-});
+  assertReleaseTargetsEqual(repo, before, 'branch rejection must leave every release target unchanged');
+}, { branch: 'main' });
 
-test('allows read-only parity checks on the merged publish target', () => {
-  const repo = mkRepo({ branch: 'main' });
+testWithRepo('allows read-only parity checks on the merged publish target', (repo) => {
   for (const [relative, data] of [
     ['plugins/dhpk/provenance.json', { sourceVersion: '1.0.0' }],
     ['plugins/dhpk-agent/plugin.json', { version: '1.0.0' }],
@@ -122,22 +174,22 @@ test('allows read-only parity checks on the merged publish target', () => {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, `${JSON.stringify(data)}\n`);
   }
+  const before = snapshotReleaseTargets(repo);
   const res = runCli(repo, ['check', '--version', '1.0.0'], { DHPK_RELEASE_TARGET_BRANCH: 'main' });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.match(res.stdout, /check PASS/);
-});
+  assertReleaseTargetsEqual(repo, before, 'read-only parity check must leave every release target unchanged');
+}, { branch: 'main' });
 
-test('check mode reports drift without modifying files', () => {
-  const repo = mkRepo();
-  const before = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8');
+testWithRepo('check mode reports drift without modifying files', (repo) => {
+  const before = snapshotReleaseTargets(repo);
   const res = runCli(repo, ['check', '--version', '1.1.0']);
   assert.notStrictEqual(res.status, 0);
   assert.match(res.stderr, /1\.1\.0/);
-  assert.strictEqual(fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8'), before);
+  assertReleaseTargetsEqual(repo, before, 'check mode must leave every release target unchanged');
 });
 
-test('write mode updates every manifest, promotes fragments, and reports the full changed-file list', () => {
-  const repo = mkRepo();
+testWithRepo('write mode updates every manifest, promotes fragments, and reports the full changed-file list', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
 
   const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
@@ -184,8 +236,7 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   assert.ok(fs.readFileSync(path.join(repo, 'docs', 'platform-installation.zh-TW.md'), 'utf8').includes(expectedPin));
 });
 
-test('write mode regenerates a drifted Claude marketplace package', () => {
-  const repo = mkRepo();
+testWithRepo('write mode regenerates a drifted Claude marketplace package', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
   const generatedSync = path.join(repo, 'generated', 'claude-marketplace', 'package', 'docs', 'knowledge', 'marketplace-sync.md');
   try {
@@ -205,9 +256,9 @@ test('write mode regenerates a drifted Claude marketplace package', () => {
   }
 });
 
-test('write mode retains a durable rollback manifest and rollback restores the prior release tree', () => {
-  const repo = mkRepo();
+testWithRepo('write mode retains a durable rollback manifest and rollback restores the prior release tree', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  const before = snapshotReleaseTargets(repo);
   try {
     const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'release-test-1']);
     assert.strictEqual(write.status, 0, write.stderr);
@@ -226,14 +277,15 @@ test('write mode retains a durable rollback manifest and rollback restores the p
     assert.match(fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8'), /## 1\.0\.0/);
     const rolledBack = JSON.parse(fs.readFileSync(reference, 'utf8'));
     assert.ok(rolledBack.rolledBackAt);
+    assertReleaseTargetsEqual(repo, before, 'rollback must restore every release target to its original state');
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });
 
-test('rollback resumes safely after an earlier entry was already restored', () => {
-  const repo = mkRepo();
+testWithRepo('rollback resumes safely after an earlier entry was already restored', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  const before = snapshotReleaseTargets(repo);
   try {
     const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'resume-rollback']);
     assert.strictEqual(write.status, 0, write.stderr);
@@ -254,12 +306,13 @@ test('rollback resumes safely after an earlier entry was already restored', () =
     assert.strictEqual(rollback.status, 0, rollback.stderr);
     assert.ok(JSON.parse(fs.readFileSync(reference, 'utf8')).rolledBackAt);
     assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
+    assertReleaseTargetsEqual(repo, before, 'resumed rollback must restore every release target');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
-test('rollback recovers a publication interrupted before progress persistence', () => {
-  const repo = mkRepo();
+testWithRepo('rollback recovers a publication interrupted before progress persistence', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  const before = snapshotReleaseTargets(repo);
   try {
     const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'crash-window']);
     assert.strictEqual(write.status, 0, write.stderr);
@@ -278,12 +331,13 @@ test('rollback recovers a publication interrupted before progress persistence', 
     assert.strictEqual(rollback.status, 0, rollback.stderr);
     assert.ok(JSON.parse(fs.readFileSync(reference, 'utf8')).rolledBackAt);
     assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
+    assertReleaseTargetsEqual(repo, before, 'crash recovery must restore every release target');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
-test('rollback cleans a recovery slot left after RESTORED progress was persisted', () => {
-  const repo = mkRepo();
+testWithRepo('rollback cleans a recovery slot left after RESTORED progress was persisted', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  const before = snapshotReleaseTargets(repo);
   try {
     const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'cleanup-window']);
     assert.strictEqual(write.status, 0, write.stderr);
@@ -303,16 +357,17 @@ test('rollback cleans a recovery slot left after RESTORED progress was persisted
     assert.strictEqual(rollback.status, 0, rollback.stderr);
     assert.ok(JSON.parse(fs.readFileSync(reference, 'utf8')).rolledBackAt);
     assert.strictEqual(fs.existsSync(entry.recovery), false);
+    assertReleaseTargetsEqual(repo, before, 'recovery-slot cleanup must restore every release target');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
-test('write mode refuses to replace an existing rollback manifest for the same operation key', () => {
-  const repo = mkRepo();
+testWithRepo('write mode refuses to replace an existing rollback manifest for the same operation key', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
   const backupRoot = path.join(repo, '.claude', 'artifacts', 'release-backups');
   fs.mkdirSync(backupRoot, { recursive: true });
   const reference = path.join(backupRoot, 'release-collision.json');
   fs.writeFileSync(reference, '{"sentinel":true}\n');
+  const before = snapshotReleaseTargets(repo);
   try {
     const res = runCli(repo, [
       'write', '--version', '1.1.0', '--date', '2026-07-27',
@@ -322,11 +377,11 @@ test('write mode refuses to replace an existing rollback manifest for the same o
     assert.match(res.stderr, /already exists|operation/i);
     assert.strictEqual(fs.readFileSync(reference, 'utf8'), '{"sentinel":true}\n');
     assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
+    assertReleaseTargetsEqual(repo, before, 'operation-key collision must not change release targets');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
-test('rollback rejects a manifest target outside the canonical release target set', () => {
-  const repo = mkRepo();
+testWithRepo('rollback rejects a manifest target outside the canonical release target set', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
   try {
     const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'target-allowlist']);
@@ -337,15 +392,16 @@ test('rollback rejects a manifest target outside the canonical release target se
     manifest.entries[0].target = config;
     manifest.entries[0].publishedFingerprint = fileFingerprint(config);
     fs.writeFileSync(reference, `${JSON.stringify(manifest, null, 2)}\n`);
+    const before = snapshotReleaseTargets(repo);
     const rollback = runCli(repo, ['rollback', '--backup-reference', reference]);
     assert.notStrictEqual(rollback.status, 0, rollback.stdout);
     assert.match(rollback.stderr, /canonical|release target|allowlist|target/i);
     assert.ok(fs.existsSync(config), 'rollback must not remove arbitrary repository files');
+    assertReleaseTargetsEqual(repo, before, 'rejected noncanonical target must leave release targets unchanged');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
-test('rollback rejects duplicate target or backup entries before mutating the tree', () => {
-  const repo = mkRepo();
+testWithRepo('rollback rejects duplicate target or backup entries before mutating the tree', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
   try {
     const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'duplicate-entry']);
@@ -355,59 +411,58 @@ test('rollback rejects duplicate target or backup entries before mutating the tr
     const duplicate = { ...manifest.entries[0] };
     manifest.entries.push(duplicate);
     fs.writeFileSync(reference, `${JSON.stringify(manifest, null, 2)}\n`);
+    const before = snapshotReleaseTargets(repo);
     const rollback = runCli(repo, ['rollback', '--backup-reference', reference]);
     assert.notStrictEqual(rollback.status, 0, rollback.stdout);
     assert.match(rollback.stderr, /duplicate|target|backup/i);
     assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.1.0');
+    assertReleaseTargetsEqual(repo, before, 'rejected duplicate entries must leave release targets unchanged');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
-test('rollback refuses a manifest outside the repository backup root', () => {
-  const repo = mkRepo();
-  const externalRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-external-rollback-')));
-  const reference = path.join(externalRoot, 'external.json');
-  fs.writeFileSync(reference, JSON.stringify({
-    schema: 'dhpk.release.rollback.v1',
-    operationKey: 'external',
-    backupDirectory: path.join(externalRoot, 'external'),
-    entries: [],
-  }));
-  fs.mkdirSync(path.join(externalRoot, 'external'));
+testWithRepo('rollback refuses a manifest outside the repository backup root', (repo) => {
+  let externalRoot;
   try {
+    externalRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-external-rollback-')));
+    const reference = path.join(externalRoot, 'external.json');
+    fs.writeFileSync(reference, JSON.stringify({
+      schema: 'dhpk.release.rollback.v1',
+      operationKey: 'external',
+      backupDirectory: path.join(externalRoot, 'external'),
+      entries: [],
+    }));
+    fs.mkdirSync(path.join(externalRoot, 'external'));
+    const before = snapshotReleaseTargets(repo);
     const res = runCli(repo, ['rollback', '--backup-reference', reference]);
     assert.notStrictEqual(res.status, 0, res.stdout);
     assert.match(res.stderr, /repository backup root/i);
+    assertReleaseTargetsEqual(repo, before, 'external manifest rejection must leave release targets unchanged');
   } finally {
-    fs.rmSync(repo, { recursive: true, force: true });
-    fs.rmSync(externalRoot, { recursive: true, force: true });
+    if (externalRoot) fs.rmSync(externalRoot, { recursive: true, force: true });
   }
 });
 
-test('write mode fails closed when the bilingual AGY generator pin is missing', () => {
-  const repo = mkRepo();
+testWithRepo('write mode fails closed when the bilingual AGY generator pin is missing', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
   fs.writeFileSync(path.join(repo, 'docs', 'platform-installation.md'), '# no generator command\n');
   fs.writeFileSync(path.join(repo, 'docs', 'platform-installation.zh-TW.md'), '# no generator command\n');
-  const before = JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version;
+  const before = snapshotReleaseTargets(repo);
   const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
   assert.notStrictEqual(res.status, 0, res.stdout);
   assert.match(res.stderr, /AGY generator pin|dhpk distribution/i);
-  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, before);
+  assertReleaseTargetsEqual(repo, before, 'missing generator pins must leave every release target unchanged');
 });
 
-test('write mode fails and changes nothing when fragments are invalid', () => {
-  const repo = mkRepo();
+testWithRepo('write mode fails and changes nothing when fragments are invalid', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'bogus.widget.md'), 'scope: widget\nnote: x\n');
-  const before = JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version;
+  const before = snapshotReleaseTargets(repo);
 
   const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
   assert.notStrictEqual(res.status, 0);
-  const after = JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version;
-  assert.strictEqual(after, before);
+  assertReleaseTargetsEqual(repo, before, 'invalid fragments must leave every release target unchanged');
 });
 
-test('write mode fails closed when an inventory-selected Agent/Cursor skill is skipped', () => {
-  const repo = mkRepo();
+testWithRepo('write mode fails closed when an inventory-selected Agent/Cursor skill is skipped', (repo) => {
   try {
     const inventoryPath = path.join(repo, 'manifests', 'distribution-inventory.json');
     fs.writeFileSync(inventoryPath, JSON.stringify({
@@ -415,13 +470,11 @@ test('write mode fails closed when an inventory-selected Agent/Cursor skill is s
     }));
     fs.writeFileSync(path.join(repo, 'skills/tdd-workflow', 'SKILL.md'), '---\nname: wrong-name\ndescription: broken\n---\n');
     fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
-    const beforeChangelog = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8');
+    const before = snapshotReleaseTargets(repo);
     const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
     assert.notStrictEqual(res.status, 0, res.stdout);
     assert.match(res.stderr, /skipped selected skills|validation failed/i);
-    assert.strictEqual(fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8'), beforeChangelog);
-    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
-    assert.ok(fs.existsSync(path.join(repo, 'changelog.d', 'feat.widget.md')));
+    assertReleaseTargetsEqual(repo, before, 'skipped selected skills must leave every release target unchanged');
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 

@@ -915,6 +915,69 @@ passed; `node scripts/ci/validate-changelog-fragments.js` passed with 0
 fragments and 24 markers; Markdownlint reported 0 errors for the canonical and
 generated review documents; and `git diff --check` passed.
 
+### Issue #663 — Cohort B batch 02
+
+This batch keeps five independent suites and rewrites five weak suites; no
+suite is deleted. The ten assigned paths pass at 105/105 cases. Inventory rows
+208–217 retain every frozen rank, count, and assignment metric; only their
+disposition status changed.
+
+| Test file | Disposition | Owned contract and assertion evidence | Final cases |
+| --- | --- | --- | ---: |
+| `tests/pre-agent-warmstart.test.js` | Rewrite | Invokes the hook as a subprocess and parses its JSON. Covers the opt-out response plus reviewer, worker, explorer, and monitor context filtering and character budgets. | 6 |
+| `tests/pre-bash-dispatch.test.js` | Keep | Preserves core-guard and protected-branch composition; removes the retired pending-review fixture and proves active module hooks pass in order, then block later hooks. | 6 |
+| `tests/pre-bash-guard.test.js` | Rewrite | Retains root deletion and `.env` target-scoped security cases; observes remote-download pipes, chmod 777/666, commit/push `--no-verify`, exact template writes, suffixed template-name blocking, and mixed `tee` targets with quoted paths. | 38 |
+| `tests/pre-edit-batch-gate.test.js` | Keep | Independent edit batch gate thresholds, session bookkeeping, override, fast-worker marker, and fail-open contracts remain unchanged. | 6 |
+| `tests/pre-edit-guard.test.js` | Keep | Independent sensitive-path, template, lockfile, lint-config, and path-sanitization contracts remain unchanged. | 12 |
+| `tests/pre-route.test.js` | Keep | Retains route ranking and the sole create-PR forwarding/ahead-count contract. | 8 |
+| `tests/precommit-runner.test.js` | Rewrite | Scratch commands write ordered markers; parsed summary JSON verifies step status, changed paths, overall result, and redirected cache files. Existing non-repository, skipped-step, full/fast, and failure cases remain covered. | 5 |
+| `tests/precompact-archive.test.js` | Rewrite | Reads the scratch handoff artifact and checks branch, active OpenSpec task counts, working-tree status, recent commit message, and commit ID; syntax check and real-repository isolation remain covered. | 2 |
+| `tests/prepare-release-cli.test.js` | Rewrite | Snapshots every `prepare-release.js paths` target for read-only/rejected operations and compares complete release-tree state after normal, resumed, interrupted, and recovery-slot rollbacks. Branch, publication, docs, and security contracts remain covered. | 18 |
+| `tests/pretool-branch-safety-dedup.test.js` | Keep | Adds a second session ID and proves a reminder is deduplicated within one session while remaining independent in another. | 4 |
+
+`tests/run-all.js:43` recursively discovers these suites, and CI runs the
+aggregate at `.github/workflows/ci.yml:134`. The exact ten-path run passed
+105/105 cases. The neighboring owner checks passed: `hooks-wiring` 8/8,
+`documentation-platform-parity` 11/11, `harness-govern-security` 7/7, and
+`release-runner` 25/25. The hook registration file remains unchanged: warmstart,
+the edit batch gate, and precompact are deliberately not registered there;
+`pre-route` remains the create-PR forwarding owner. No support helper or
+fixture asset was assigned to this batch or changed.
+
+The `.env.template` regression was first observed RED: the guard suite passed
+27/28, with only the template write blocked. Two later mixed-target `tee`
+regressions also ran RED (32/34): each allowed a secret `.env` destination when
+paired with a template path. Four suffix regressions then ran RED (34/38):
+`.env.template.production` and `.env.template2` were wrongly allowed by both
+redirection and `tee`. The Bash change aligns the allowlist with the exact
+template names in `pre-edit-guard.sh`, preserves `tee` while removing exact
+allowlisted template path tokens, and checks every remaining secret target
+within each `tee` command. It leaves the `.env` redirection block intact. The
+focused guard suite passed 38/38, including `.env` path-prefix blocking,
+template-only redirection/`tee` allowlisting, suffixed-name blocking, and
+mixed-target blocking in either order with quoted paths containing spaces. A
+negative control restoring the former `tee` filter reproduced the mixed-target
+bypass.
+
+GitNexus upstream impact could not resolve
+`scripts/hooks/pre-bash-guard.sh` (`risk: UNKNOWN`). Repository text search
+confirmed `pre-bash-dispatch.sh` invokes it and `hooks-wiring` owns registration
+coverage, so the unresolved graph result is not treated as evidence of no
+callers. The issue-worktree `detect_changes --scope all` report covered 43
+changed symbols across 13 files, with 0 affected processes and low overall
+risk; that overall result does not resolve the hook file's UNKNOWN impact.
+
+Production Bash line/branch comparison is **BLOCKED** on this macOS runner.
+The available kcov 43 attempt failed with `task_for_pid failed with 5`, even
+after its documented ad-hoc debugger entitlement. Node c8 does not instrument
+the Bash file and is not used as a substitute. Direct guard behavior was
+verified by the 38-case focused suite and the aggregate suite.
+
+The generator synchronized the canonical inventory and this quality review
+into the Claude marketplace package byte-for-byte and regenerated its packaged
+Bash guard from the canonical hook. No other production or support source
+changed, and the frozen queue metrics remain unchanged.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
