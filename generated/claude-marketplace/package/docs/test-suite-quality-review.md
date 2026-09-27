@@ -537,6 +537,57 @@ while `UNKNOWN` remains unresolved and is not evidence that a path is unused.
 **Progress after #656:** 152 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #657 — Cohort A batch 16
+
+This batch rewrites five suites and keeps five. The focused Node `v24.21.0`
+baseline passed 10/10 suites and 60/60 live cases. The final aggregate passed
+10/10 suites and 61/61 cases; the one-case increase is the always-running
+Cursor missing-sandbox contract test. The frozen inventory remains unchanged;
+`learning-db.test.js` registers 12 live cases in this environment because its
+`jq` and no-`jq` test branches are mutually exclusive.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/internal-cli-transport-inventory.test.js` | Keep | Internal transport registration stays distinct from the generated invokable command inventory. | 1 |
+| `tests/internal-runtime-skills.test.js` | Keep | Internal runtime support remains visible without becoming an invokable skill selection. | 2 |
+| `tests/invocation-precedence.test.js` | Keep | Precedence SSOT, route resolution, invocation classes, and flow-guide routing remain independently covered. | 13 |
+| `tests/issue-237-cursor-runtime-contract.test.js` | Rewrite | Keep the sandboxed positive probe and add an always-running authenticated missing-sandbox case that blocks without invoking the client. | 2 |
+| `tests/issue-237-runtime-proof.test.js` | Rewrite | Release proof rejects changed target commit, preflight attempt identity, duplicate surfaces, and omitted required surfaces. | 7 |
+| `tests/issue-534-p1-dispatch-contract.test.js` | Rewrite | Complete Codex and AGY argv assertions bind authority, workdir, model/effort, timeout, and prompt placement. | 7 |
+| `tests/issue-534-p1-failure-matrix.test.js` | Keep | Cold start, provider/effort denial, retry/fallback, side-effect reconciliation, adapter rejection, and scope collision remain covered. | 5 |
+| `tests/json-out.test.js` | Rewrite | The manual JSON escape fallback runs with a process-wide restricted PATH and round-trips quote, backslash, and newline through JSON parsing. | 7 |
+| `tests/learning-db.test.js` | Rewrite | Rotation preserves exact archived bytes, and an under-cap log remains byte-for-byte unchanged. | 12 |
+| `tests/legacy-cli-role-agent-contract.test.js` | Keep | Legacy role capability, identity, provider separation, independent verification, and timeout guidance remain covered. | 5 |
+
+The same ten-suite aggregate was used for before/after c8 `10.1.3` coverage on
+Node `v24.21.0`, with fresh output directories. Covered line counts did not
+decrease. Covered branch counts also did not decrease in these reports, but
+the measured branch denominator expanded for `cursor-plugin-package.js`
+(1 to 148) and `issue-237-runtime-proof.js` (101 to 103), so those rows are
+not strict like-for-like branch coverage comparisons:
+
+| Production file | Lines before → after | Branches before → after |
+| --- | ---: | ---: |
+| `scripts/lib/cursor-plugin-package.js` | 277/2440 → 671/2440 | 1/1 → 37/148 |
+| `scripts/release/issue-237-runtime-proof.js` | 405/489 → 407/489 | 43/101 → 49/103 |
+| `scripts/lib/consumer-runtime-preflight.js` | 472/574 → 474/574 | 76/143 → 77/143 |
+| `scripts/lib/provider-cli-adapters.js` | 74/87 → 74/87 | 16/37 → 16/37 |
+| `scripts/lib/dispatch-contract.js` | 696/809 → 696/809 | 149/265 → 149/265 |
+
+Seven disposable mutation controls all made their matching suite fail:
+allowing an unrestricted Cursor fallback, accepting a changed runtime-proof
+target commit, changing the Codex model, removing its sandbox/approval flags,
+changing the AGY mode, disabling the manual JSON fallback, or archiving an
+empty learning log. No primary helper or fixture is assigned to this batch;
+no helper, fixture, or production file changed. GitNexus upstream impact was
+`UNKNOWN` for all ten test paths; text confirms recursive suite discovery and
+the CI/release aggregate routes. None of these ten suites is in the macOS
+installer subset. `UNKNOWN` remains unresolved and is not evidence that a path
+is unused.
+
+**Progress after #657:** 162 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

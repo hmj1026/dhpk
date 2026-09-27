@@ -135,6 +135,7 @@ test('ldb_rotate_if_needed archives the log once it exceeds the byte cap', () =>
   assert.ok(fs.existsSync(archiveDir), 'archive dir not created');
   const archived = fs.readdirSync(archiveDir);
   assert.strictEqual(archived.length, 1, `expected 1 archived file, got: ${archived.join(',')}`);
+  assert.strictEqual(fs.readFileSync(path.join(archiveDir, archived[0]), 'utf8'), 'x'.repeat(200));
 });
 
 test('ldb_rotate_if_needed is a no-op when file is under the cap (edge case)', () => {
@@ -145,6 +146,7 @@ test('ldb_rotate_if_needed is a no-op when file is under the cap (edge case)', (
   const res = sh(root, `ldb_rotate_if_needed "${file}"`, { DHPK_LEARNING_CAP_BYTES: '52428800' });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.ok(fs.existsSync(file), 'file should remain in place');
+  assert.strictEqual(fs.readFileSync(file, 'utf8'), 'small');
 });
 
 run('learning-db');
