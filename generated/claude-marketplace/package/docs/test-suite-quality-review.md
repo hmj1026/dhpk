@@ -184,13 +184,40 @@ test files (`risk: UNKNOWN`); repository search and the focused run confirm
 their discovery, while the graph verdict remains unresolved. The catalog check
 passed with all required scripts covered.
 
-**Progress:** 52 of 79 files reviewed; 27 more reviews required. The coverage
+**Progress after #646:** 52 of 79 files reviewed; 27 more reviews required. The coverage
 comparison above used V8 data converted with c8. The full-suite local run did
 not provide a clean pass: provenance tests require a clean checkout, and one
 baseline run had an additional intermittent audit assertion. Aggregate covered
 line and branch counts increased after the two deletions, but 13 unchanged
 files showed small branch-count drift. The focused comparison above is the
 evidence for those two dispositions; clean CI remains the full-suite gate.
+
+### Issue #647 — Cohort A batch 06
+
+| Test file | Disposition | Owned contract and overlapping owner | Discovery and verification |
+| --- | --- | --- | --- |
+| `tests/command-skill-disposition.test.js` | Keep | The canonical command disposition ledger, required owners, permissions, thin front doors, and exact removed-command set. The portability suite validates a synthetic v3 contract and does not replace these checks against the actual ledger. | Discovered by `tests/run-all.js`; 9/9 passed. |
+| `tests/command-skill-portability.test.js` | Keep | v3 portability, shared Skill owners, forwarding authority, readable resources, and v2 migration compatibility. The disposition suite owns the canonical v2 inventory and removed wave. | Discovered by `tests/run-all.js`; 5/5 passed. |
+| `tests/consolidate-remaining-dhpk-skill-families.test.js` | Keep | The frozen 21-row retirement map, active-name renames, profile identity, and mutation rejection cases. No neighboring suite owns this complete historical mapping. | Discovered by `tests/run-all.js`; 4/4 passed. |
+| `tests/consumer-evidence-normalization.test.js` | Keep | Closed consumer status vocabulary, redaction, stage and surface identity, projection binding, and separation of structural from runtime evidence. Preflight tests own runner readiness rather than normalization. | Discovered by `tests/run-all.js`; 14/14 passed. |
+| `tests/consumer-gate-cli.test.js` | Keep | Consumer gate routing, receipt ownership, Claude install and teardown, Codex named roles, fingerprints, and failure evidence. It is also the only batch suite in the Darwin installer subset. | Discovered by `tests/run-all.js` and the Darwin subset; 42/42 passed. |
+| `tests/consumer-platform-probe.test.js` | Rewrite | Replaced a broad `UNAVAILABLE`/`NOT_RUN`/`BLOCKED` allowance with an executable-contract check for a valid Agent Plugin package: exit 0, top-level and per-surface `UNAVAILABLE`, and no consumer commands without `--execute`. Other platform and sandbox contracts remain. | Discovered by `tests/run-all.js`; 26/26 passed. |
+| `tests/consumer-runtime-preflight.test.js` | Keep | Checkout identity, credential redaction, tool and sandbox readiness, receipt binding, and the separation of preflight from runtime evidence. The platform-probe suite owns platform-specific probe behavior. | Discovered by `tests/run-all.js`; 9/9 passed. |
+| `tests/context-budget.test.js` | Keep | Discovery visibility, frozen aggregate counts and reductions, invalid-budget behavior, and the aggregate CLI wired into CI. No other suite owns this budget contract. | Discovered by `tests/run-all.js`; 7/7 passed. |
+| `tests/cross-cli-parity.test.js` | Rewrite | Makes the shared file differ, verifies drift before allowlisting, then proves the exact allowlist entry suppresses that difference while retaining source-only and target-only file behavior. | Discovered by `tests/run-all.js`; 2/2 passed. |
+| `tests/current-changelog.test.js` | Rewrite | Counts only an exact current-version heading followed by a space and rejects a controlled adjacent `<version>.1` heading; still asserts the real changelog has exactly one current section. | Discovered by `tests/run-all.js`; 1/1 passed. |
+
+The Node `v24.21.0` focused baseline and final runs with `DHPK_TEST_JOBS=4`
+both passed 10 suites and 119 cases. CI and release recursively discover these
+tests through `tests/run-all.js`. The frozen inventory assigns no helper or
+fixture assets to this batch. No production source changed, so production-file
+line and branch coverage did not apply. GitNexus returned `risk: UNKNOWN` for
+the three rewritten test-file impacts because those paths are absent from the
+graph; repository search confirmed runner discovery in CI and release, while
+the graph verdict remains unresolved. `node scripts/ci/catalog.js --check`
+passed with all required scripts covered.
+
+**Progress:** 62 of 79 files reviewed; 17 more reviews required.
 
 ## Frozen review queues
 

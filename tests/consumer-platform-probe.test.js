@@ -132,14 +132,19 @@ test('release probe converts traversal-limit validation failures into structured
   }
 });
 
-test('present package reports UNAVAILABLE or NOT_RUN, never static PASS, when consumer evidence is absent', () => {
+test('valid Agent Plugin package is UNAVAILABLE without running a consumer command unless opted in', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-present-'));
   try {
     writeAgentManifest(root);
-    const result = runProbe('codex', root);
+    const result = runProbe('agent-plugin', root);
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
     const payload = JSON.parse(result.stdout);
-    assert.ok(['UNAVAILABLE', 'NOT_RUN', 'BLOCKED'].includes(payload.status));
-    assert.notStrictEqual(payload.status, 'PASS');
+    assert.strictEqual(payload.status, 'UNAVAILABLE', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults.length, 1, JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].status, 'UNAVAILABLE', JSON.stringify(payload));
+    assert.deepStrictEqual(payload.commands, [], JSON.stringify(payload));
+    assert.deepStrictEqual(payload.surfaceResults[0].commands, [], JSON.stringify(payload));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

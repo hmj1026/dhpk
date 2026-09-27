@@ -16,25 +16,41 @@ function fixture() {
 
 test('reports content differences and source-only files', () => {
   const root = fixture();
-  fs.writeFileSync(path.join(root, '.claude', 'skills', 'same.md'), 'canonical\n');
-  fs.writeFileSync(path.join(root, '.codex', 'skills', 'same.md'), 'stale\n');
-  fs.writeFileSync(path.join(root, '.claude', 'skills', 'missing.md'), 'new\n');
-  const result = compareHarnesses(root);
-  assert.deepStrictEqual(result.different, ['skills/same.md']);
-  assert.deepStrictEqual(result.missing, ['skills/missing.md']);
-  assert.strictEqual(result.drift, true);
+  try {
+    fs.writeFileSync(path.join(root, '.claude', 'skills', 'same.md'), 'canonical\n');
+    fs.writeFileSync(path.join(root, '.codex', 'skills', 'same.md'), 'stale\n');
+    fs.writeFileSync(path.join(root, '.claude', 'skills', 'missing.md'), 'new\n');
+    const result = compareHarnesses(root);
+    assert.deepStrictEqual(result.different, ['skills/same.md']);
+    assert.deepStrictEqual(result.missing, ['skills/missing.md']);
+    assert.strictEqual(result.drift, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('target-only files and explicit allowlist entries do not create false drift', () => {
   const root = fixture();
-  fs.writeFileSync(path.join(root, '.claude', 'skills', 'shared.md'), 'same\n');
-  fs.writeFileSync(path.join(root, '.codex', 'skills', 'shared.md'), 'same\n');
-  fs.writeFileSync(path.join(root, '.codex', 'skills', 'native.md'), 'native\n');
-  fs.writeFileSync(path.join(root, '.cross-cli-allowlist.json'), JSON.stringify({ '.codex': ['skills/shared.md'] }));
-  const result = compareHarnesses(root);
-  assert.deepStrictEqual(result.different, []);
-  assert.deepStrictEqual(result.missing, []);
-  assert.strictEqual(result.drift, false);
+  try {
+    fs.writeFileSync(path.join(root, '.claude', 'skills', 'shared.md'), 'canonical\n');
+    fs.writeFileSync(path.join(root, '.codex', 'skills', 'shared.md'), 'stale\n');
+    fs.writeFileSync(path.join(root, '.codex', 'skills', 'native.md'), 'native\n');
+
+    const unallowlisted = compareHarnesses(root);
+    assert.deepStrictEqual(unallowlisted.different, ['skills/shared.md']);
+    assert.deepStrictEqual(unallowlisted.missing, []);
+    assert.strictEqual(unallowlisted.drift, true);
+
+    fs.writeFileSync(path.join(root, '.cross-cli-allowlist.json'), JSON.stringify({ '.codex': ['skills/shared.md'] }));
+    const result = compareHarnesses(root);
+    assert.deepStrictEqual(result.different, []);
+    assert.deepStrictEqual(result.missing, []);
+    assert.strictEqual(result.source_files, 1);
+    assert.strictEqual(result.target_files, 2);
+    assert.strictEqual(result.drift, false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 run('cross-cli-parity');
