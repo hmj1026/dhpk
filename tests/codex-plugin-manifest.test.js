@@ -20,7 +20,7 @@ const wrapperManifest = JSON.parse(fs.readFileSync(path.join(wrapperDir, '.codex
 const marketplace = JSON.parse(fs.readFileSync(path.join(ROOT, '.agents', 'plugins', 'marketplace.json'), 'utf8'));
 
 test('root .codex-plugin/plugin.json has a semver version', () => {
-  assert.match(rootManifest.version, /^\d+\.\d+\.\d+/, `version='${rootManifest.version}'`);
+  assert.match(rootManifest.version, /^\d+\.\d+\.\d+$/, `version='${rootManifest.version}'`);
 });
 
 test('root .codex-plugin/plugin.json version matches .claude-plugin/plugin.json', () => {
@@ -53,19 +53,20 @@ test('thin wrapper vendors the tracked physical native package, not a symlink mi
   assert.ok(!fs.lstatSync(wrapperSkillsDir).isSymbolicLink(), 'plugins/dhpk/skills/ must be a real directory, not a symlink');
 });
 
-test('marketplace.json plugin version matches the root manifest', () => {
+test('marketplace.json plugin name/version match the marketplace-target wrapper manifest', () => {
   const entry = marketplace.plugins && marketplace.plugins[0];
   assert.ok(entry, 'marketplace.json has no plugins[0]');
-  assert.strictEqual(entry.version, rootManifest.version);
+  assert.strictEqual(entry.name, wrapperManifest.name);
+  assert.strictEqual(entry.version, wrapperManifest.version);
 });
 
-test('marketplace.json source.path resolves to a concrete plugin subdirectory, never the repo root', () => {
+test('marketplace.json source.path resolves exactly to the tracked plugins/dhpk wrapper', () => {
   const entry = marketplace.plugins[0];
   const sourcePath = fs.realpathSync(resolve(ROOT, entry.source.path));
-  assert.notStrictEqual(sourcePath, fs.realpathSync(ROOT), 'source.path must not resolve to the marketplace/repo root (openai/codex#26037)');
-  assert.ok(
-    fs.existsSync(path.join(sourcePath, '.codex-plugin', 'plugin.json')),
-    `${sourcePath} must contain a .codex-plugin/plugin.json`
+  assert.strictEqual(
+    sourcePath,
+    fs.realpathSync(wrapperDir),
+    'source.path must resolve exactly to the tracked codex-native publication artifact at plugins/dhpk',
   );
 });
 
