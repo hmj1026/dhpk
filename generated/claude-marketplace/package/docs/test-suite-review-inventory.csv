@@ -396,7 +396,7 @@ formal-suite,,,393,391,tests/write-handoff.test.js,B,,,reserved for issue #641 q
 helper,,,,,tests/_lib/fixture-assertions.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,8,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/hookharness.js,A,19,660,audited: keep,,,,,,,,,,,,,tests/parallel-dispatch-contract.test.js,12,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/host-projection-conformance.js,A,20,661,audited: rewrite,,,,,,,,,,,,,tests/platform-conformance.test.js,1,lowest-original-ordinal A consumer
-helper,,,,,tests/_lib/install-codex-skills-fixtures.js,A,15,656,assigned,,,,,,,,,,,,,tests/install-codex-runtime-assets.test.js,7,lowest-original-ordinal A consumer
+helper,,,,,tests/_lib/install-codex-skills-fixtures.js,A,15,656,audited: keep,,,,,,,,,,,,,tests/install-codex-runtime-assets.test.js,7,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/macos-installer-files.js,A,17,658,audited: keep,,,,,,,,,,,,,tests/macos-installer-files.test.js,1,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/opsx-goal-fixtures.js,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/restricted-path.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/run-agy.test.js,2,lowest-original-ordinal B consumer
