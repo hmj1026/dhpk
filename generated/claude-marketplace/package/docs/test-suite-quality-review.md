@@ -159,7 +159,32 @@ repository text search confirmed the recursive test-discovery route, and the
 focused aggregate run exercised all ten suites. The catalog check passed with
 all required scripts covered.
 
-**Progress:** 42 of 79 files reviewed; 37 more reviews required. The coverage
+### Issue #646 — Cohort A batch 05
+
+| Test file | Disposition | Owned contract and overlapping owner | Discovery and verification |
+| --- | --- | --- | --- |
+| `tests/codex-review-gate-adapter.test.js` | Keep | Unit-level Codex adapter capability, activation, identity binding, readiness, lifecycle, verdict, and receipt rules. The neighboring E2E suite covers durable gate behavior, not this adapter conformance surface. | Discovered by `tests/run-all.js`; 20/20 passed. |
+| `tests/codex-review-gate-e2e.test.js` | Rewrite | Real Review Gate PASS and CHANGES_REQUIRED journeys now reopen the receipt store at the returned revision and chain digest, then assert the persisted obligation, lane, verdict, and findings; CHANGES_REQUIRED also must disallow progress. | Discovered by `tests/run-all.js`; 4/4 passed. |
+| `tests/codex-role-neighbors.test.js` | Keep | Neighbor policy across wrapped executable references, tables, case matching, escaped delimiters, and prose/path/version false positives. The runtime-contract suite checks committed role projections, not this parser boundary. | Discovered by `tests/run-all.js`; 8/8 passed. |
+| `tests/codex-runtime-contract.test.js` | Keep | Committed and installed Codex role projections, runtime metadata, handoffs, invalid targets, and clean-consumer failure cases. This is broader than the neighboring-reference parser. | Discovered by `tests/run-all.js`; 19/19 passed. |
+| `tests/codex-skill-layout.test.js` | Rewrite | Derives expected Codex mirror names from distribution-inventory skills on `codex-sync` and asserts exact set equality before checking canonical symlink targets; retains the README entry-count assertion. | Discovered by `tests/run-all.js`; 3/3 passed. An extra mirror entry was detected by a controlled negative mutation. |
+| `tests/codex-skill-metadata.test.js` | Rewrite | Requires inventory skill names and paths to be unique and checks each canonical skill directory against its exact inventory path, while retaining Codex interface metadata and invocation checks. | Discovered by `tests/run-all.js`; 1/1 passed. A mutated inventory path failed the exact-path assertion. |
+| `tests/codex-supporting-parity.test.js` | Rewrite | Replaces a hardcoded 37-file count with exact equality between manifest-derived Codex supporting destinations and the recursively materialized projection tree, including `codex/config.toml.example`; rejects symlinks and retains direct byte parity and transformed-source digest checks. | Discovered by `tests/run-all.js`; 3/3 passed. An unlisted projected file and a symlink each failed the membership check. |
+| `tests/codex-timeout-envelope.test.js` | Keep | Versioned contained timeout envelope construction/parsing, bounded diagnostic tails, credential redaction, and malformed-envelope rejection. No other suite owns this serialization contract. | Discovered by `tests/run-all.js`; 9/9 passed. |
+| `tests/command-front-door-parity.test.js` | Keep | Public command short-front-door identity, invocation class, usage grammar, forwarding authority, and non-use boundaries across command files. The namespace qualifier suite owns only the helper API. | Discovered by `tests/run-all.js`; 6/6 passed. |
+| `tests/command-namespace.test.js` | Keep | Approved `dhpk` namespace constant and qualifier behavior for slash commands, already-qualified commands, dollar values, non-command values, and other namespaces. | Discovered by `tests/run-all.js`; 5/5 passed. |
+
+All ten suites are recursively discovered by the `tests/run-all.js` route used
+by CI and release; none is in the Darwin installer subset. The focused baseline
+and final Node `v24.21.0` runs with `DHPK_TEST_JOBS=4` each passed 10 files and
+78 cases. The frozen inventory assigns no helper or fixture assets to this
+batch. No production source changed, so per-production-file line and branch
+coverage comparison did not apply. GitNexus could not resolve the four rewritten
+test files (`risk: UNKNOWN`); repository search and the focused run confirm
+their discovery, while the graph verdict remains unresolved. The catalog check
+passed with all required scripts covered.
+
+**Progress:** 52 of 79 files reviewed; 27 more reviews required. The coverage
 comparison above used V8 data converted with c8. The full-suite local run did
 not provide a clean pass: provenance tests require a clean checkout, and one
 baseline run had an additional intermittent audit assertion. Aggregate covered

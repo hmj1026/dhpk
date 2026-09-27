@@ -134,6 +134,21 @@ test('a Codex PASS submission reaches the real Review Gate and is durably record
     assert.ok(reviewGate.decision.accepted, 'real Review Gate must accept a well-formed Codex PASS submission');
     assert.strictEqual(reviewGate.decision.semanticVerdict, 'PASS');
     assert.ok(reviewGate.revision > state.revision, 'the receipt store head must advance');
+
+    const history = fixture.makeStore().inspect({
+      workId: plan.workId,
+      waveId: plan.waveId,
+      expectedRevision: reviewGate.revision,
+      expectedChainDigest: reviewGate.chainDigest,
+    });
+    assert.strictEqual(history.receipts.length, 1, 'a fresh store must replay the durable PASS receipt');
+    const persistedReceipt = history.receipts[0];
+    assert.strictEqual(persistedReceipt.kind, 'review');
+    assert.strictEqual(persistedReceipt.payload.eventId, receipt.eventId);
+    assert.strictEqual(persistedReceipt.obligationId, obligation.obligationId);
+    assert.strictEqual(persistedReceipt.lane, obligation.lane);
+    assert.strictEqual(persistedReceipt.payload.semanticVerdict, 'PASS');
+    assert.strictEqual(reviewGate.decision.allowsProgress, true);
   } finally {
     fixture.cleanup();
   }
@@ -279,7 +294,7 @@ test('a Codex CHANGES_REQUIRED submission is recorded without being treated as a
     }];
 
     const adapter = makeAdapter(fixture.gate);
-    const { receipt } = adapter.record({
+    const { receipt, reviewGate } = adapter.record({
       plan,
       identity: ids,
       lifecycleEvents,
@@ -295,6 +310,22 @@ test('a Codex CHANGES_REQUIRED submission is recorded without being treated as a
     for (const field of ['authorizesApproval', 'clearsSentinel', 'blocksSentinel', 'allowsTargetProgress', 'authority', 'effect']) {
       assert.ok(!Object.prototype.hasOwnProperty.call(receipt, field), `${field} is a retired compatibility field`);
     }
+    assert.strictEqual(reviewGate.decision.allowsProgress, false);
+
+    const history = fixture.makeStore().inspect({
+      workId: plan.workId,
+      waveId: plan.waveId,
+      expectedRevision: reviewGate.revision,
+      expectedChainDigest: reviewGate.chainDigest,
+    });
+    assert.strictEqual(history.receipts.length, 1, 'a fresh store must replay the durable CHANGES_REQUIRED receipt');
+    const persistedReceipt = history.receipts[0];
+    assert.strictEqual(persistedReceipt.kind, 'review');
+    assert.strictEqual(persistedReceipt.payload.eventId, receipt.eventId);
+    assert.strictEqual(persistedReceipt.obligationId, obligation.obligationId);
+    assert.strictEqual(persistedReceipt.lane, obligation.lane);
+    assert.strictEqual(persistedReceipt.payload.semanticVerdict, 'CHANGES_REQUIRED');
+    assert.deepStrictEqual(persistedReceipt.payload.findings, reviewResult.findings);
   } finally {
     fixture.cleanup();
   }
