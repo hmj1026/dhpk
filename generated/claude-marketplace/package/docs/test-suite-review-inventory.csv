@@ -188,15 +188,15 @@ formal-suite,,,185,184,tests/parallel-consumer-probes.test.js,A,19,660,reviewed:
 formal-suite,,,186,185,tests/parallel-dispatch-contract.test.js,A,19,660,reviewed: keep,no,0,0,6,,24,0,2,0,0,0,118,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,187,186,tests/parallel-dispatch-scope.test.js,A,19,660,reviewed: rewrite,no,0,0,3,,12,0,0,0,0,0,86,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,188,187,tests/partial-writer-handoff.test.js,A,19,660,reviewed: keep,no,0,0,4,,21,0,1,131,25,1,111,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,189,188,tests/physical-file.test.js,A,20,661,queued,no,0,0,9,,17,0,0,390,76,1,102,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,190,189,tests/physical-tmpdir.test.js,A,20,661,queued,no,0,0,2,,2,0,0,0,0,0,26,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,191,190,tests/physical-tree-publication.test.js,A,20,661,queued,no,0,0,13,,26,2,0,3739,442,24,122,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,192,191,tests/platform-boundary.test.js,A,20,661,queued,no,0,0,3,,8,0,0,2475,179,24,56,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,193,192,tests/platform-conformance.test.js,A,20,661,queued,no,0,0,1,,2,0,1,0,0,0,22,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,194,193,tests/platform-installation-docs.test.js,A,20,661,queued,no,0,0,16,,99,0,4,0,0,0,189,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,195,194,tests/platform-provenance.test.js,A,20,661,queued,no,0,0,12,,34,0,6,278,69,1,138,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,196,195,tests/plugin-user-config-behavior.test.js,A,20,661,queued,no,0,0,1,,5,0,0,468,26,4,34,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,197,196,tests/plugin-user-config-metadata.test.js,A,20,661,queued,no,0,0,14,,71,3,11,775,108,5,178,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,189,188,tests/physical-file.test.js,A,20,661,reviewed: keep,no,0,0,9,,17,0,0,390,76,1,102,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,190,189,tests/physical-tmpdir.test.js,A,20,661,reviewed: keep,no,0,0,2,,2,0,0,0,0,0,26,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,191,190,tests/physical-tree-publication.test.js,A,20,661,reviewed: keep,no,0,0,13,,26,2,0,3739,442,24,122,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,192,191,tests/platform-boundary.test.js,A,20,661,reviewed: rewrite,no,0,0,3,,8,0,0,2475,179,24,56,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,193,192,tests/platform-conformance.test.js,A,20,661,reviewed: rewrite,no,0,0,1,,2,0,1,0,0,0,22,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,194,193,tests/platform-installation-docs.test.js,A,20,661,reviewed: keep,no,0,0,16,,99,0,4,0,0,0,189,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,195,194,tests/platform-provenance.test.js,A,20,661,reviewed: keep,no,0,0,12,,34,0,6,278,69,1,138,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,196,195,tests/plugin-user-config-behavior.test.js,A,20,661,reviewed: delete,no,0,0,1,,5,0,0,468,26,4,34,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,197,196,tests/plugin-user-config-metadata.test.js,A,20,661,reviewed: rewrite,no,0,0,14,,71,3,11,775,108,5,178,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,198,197,tests/policy-static-guardrails.test.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,199,198,tests/portable-sed.test.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,200,199,tests/portable-skill-mirrors.test.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
@@ -395,7 +395,7 @@ formal-suite,,,392,390,tests/workflow-package-runtime.test.js,B,,,reserved for i
 formal-suite,,,393,391,tests/write-handoff.test.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 helper,,,,,tests/_lib/fixture-assertions.js,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,8,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/hookharness.js,A,19,660,audited: keep,,,,,,,,,,,,,tests/parallel-dispatch-contract.test.js,12,lowest-original-ordinal A consumer
-helper,,,,,tests/_lib/host-projection-conformance.js,A,20,661,assigned,,,,,,,,,,,,,tests/platform-conformance.test.js,1,lowest-original-ordinal A consumer
+helper,,,,,tests/_lib/host-projection-conformance.js,A,20,661,audited: rewrite,,,,,,,,,,,,,tests/platform-conformance.test.js,1,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/install-codex-skills-fixtures.js,A,15,656,assigned,,,,,,,,,,,,,tests/install-codex-runtime-assets.test.js,7,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/macos-installer-files.js,A,17,658,audited: keep,,,,,,,,,,,,,tests/macos-installer-files.test.js,1,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/opsx-goal-fixtures.js,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
@@ -431,7 +431,7 @@ fixture,,,,,tests/fixtures/opsx-goal/no-dispatch.json,A,19,660,audited: rewrite,
 fixture,,,,,tests/fixtures/opsx-goal/normal.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/opsx-goal/over-cap.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/opsx-goal/smoke.json,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/plugin-user-config-contract.json,A,20,661,assigned,,,,,,,,,,,,,tests/plugin-user-config-metadata.test.js,1,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/plugin-user-config-contract.json,A,20,661,audited: keep,,,,,,,,,,,,,tests/plugin-user-config-metadata.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/project-agent-projection-baseline.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/project-agent-projection-baseline.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/project-agent-projection-plan.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/project-agent-projection-plan.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/review-gate/cross-platform-differential-v1.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-cross-platform-differential.test.js,12,lowest-original-ordinal B consumer
@@ -444,6 +444,6 @@ fixture,,,,,tests/fixtures/session-audit/baseline-v0.37.0.json,B,,,reserved for 
 fixture,,,,,tests/fixtures/session-audit/generic-verification.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/session-audit/source-coverage.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/session-audit/typed-runtime-records.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
-fixture,,,,,tests/fixtures/skill-package-descriptor-snapshot.json,A,20,661,assigned,,,,,,,,,,,,,tests/physical-tree-publication.test.js,1,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/skill-package-descriptor-snapshot.json,A,20,661,audited: keep,,,,,,,,,,,,,tests/physical-tree-publication.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/subagent-stop/lin-blog-2026-07-17.json,B,,,unreferenced; explicit audit required in issue #641 queue,,,,,,,,,,,,,,0,unreferenced; assign for explicit audit
 fixture,,,,,tests/fixtures/trap-sheet-detection/cases.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/trap-sheet-detection.test.js,1,lowest-original-ordinal B consumer
