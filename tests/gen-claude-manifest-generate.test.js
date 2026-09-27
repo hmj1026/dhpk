@@ -25,8 +25,9 @@ test('promoted-core root skill stays registered under ./skills/', () => {
     { id: 'tdd', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
-  assert.ok(gen.roots.includes('./skills/'));
-  assert.ok(gen.generatedSkillIds.includes('tdd'));
+  assert.deepStrictEqual(gen.roots, ['./skills/']);
+  assert.deepStrictEqual(gen.registeredSkillIds, ['tdd']);
+  assert.deepStrictEqual(gen.generatedSkillIds, ['tdd']);
 });
 
 test('optional module skill stays registered under its module root', () => {
@@ -34,8 +35,9 @@ test('optional module skill stays registered under its module root', () => {
     { id: 'vue-2-notes', path: 'modules/vue-2/skills/dhpk-vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
-  assert.ok(gen.roots.includes('./modules/vue-2/skills/'));
-  assert.ok(gen.generatedSkillIds.includes('vue-2-notes'));
+  assert.deepStrictEqual(gen.roots, ['./modules/vue-2/skills/']);
+  assert.deepStrictEqual(gen.registeredSkillIds, ['vue-2-notes']);
+  assert.deepStrictEqual(gen.generatedSkillIds, ['vue-2-notes']);
 });
 
 test('experimental skill still stays registered (host cannot hide at discovery time)', () => {
@@ -43,8 +45,9 @@ test('experimental skill still stays registered (host cannot hide at discovery t
     { id: 'new-thing', path: 'skills/new-thing', lifecycle: 'experimental', surfaces: ['claude-core'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
-  assert.ok(gen.roots.includes('./skills/'));
-  assert.ok(gen.generatedSkillIds.includes('new-thing'));
+  assert.deepStrictEqual(gen.roots, ['./skills/']);
+  assert.deepStrictEqual(gen.registeredSkillIds, ['new-thing']);
+  assert.deepStrictEqual(gen.generatedSkillIds, ['new-thing']);
 });
 
 test('a deprecated skill is excluded from generatedSkillIds', () => {
@@ -53,8 +56,9 @@ test('a deprecated skill is excluded from generatedSkillIds', () => {
     { id: 'tdd', path: 'skills/tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
-  assert.ok(!gen.generatedSkillIds.includes('old-thing'));
-  assert.ok(gen.generatedSkillIds.includes('tdd'));
+  assert.deepStrictEqual(gen.roots, ['./skills/']);
+  assert.deepStrictEqual(gen.registeredSkillIds, ['tdd']);
+  assert.deepStrictEqual(gen.generatedSkillIds, ['tdd']);
 });
 
 test('a module root drops out only when every one of its skills is deprecated', () => {
@@ -62,8 +66,9 @@ test('a module root drops out only when every one of its skills is deprecated', 
     { id: 'vue-2-notes', path: 'modules/vue-2/skills/dhpk-vue-2-notes', lifecycle: 'deprecated', surfaces: ['claude-module'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
-  assert.ok(!gen.roots.includes('./modules/vue-2/skills/'));
-  assert.ok(!gen.generatedSkillIds.includes('vue-2-notes'));
+  assert.deepStrictEqual(gen.roots, []);
+  assert.deepStrictEqual(gen.registeredSkillIds, []);
+  assert.deepStrictEqual(gen.generatedSkillIds, []);
 });
 
 test('against the real checked-in inventory, generated roots equal the current plugin.json skills[] set (nothing is deprecated yet)', () => {
@@ -71,6 +76,12 @@ test('against the real checked-in inventory, generated roots equal the current p
   const plugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
   const gen = generateClaudeSkillRoots(inv);
   assert.deepStrictEqual([...gen.roots].sort(), [...plugin.skills].sort());
+  const registered = inv.skills.filter((skill) => skill.lifecycle !== 'deprecated');
+  assert.deepStrictEqual(gen.registeredSkillIds, registered.map((skill) => skill.id).sort());
+  assert.deepStrictEqual(
+    gen.generatedSkillIds,
+    registered.filter((skill) => skill.invokable !== false).map((skill) => skill.id).sort(),
+  );
 });
 
 run('gen-claude-manifest-generate');

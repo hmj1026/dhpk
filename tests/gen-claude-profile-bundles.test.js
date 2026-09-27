@@ -9,13 +9,41 @@ const { compileClaudeCapabilityBundle } = require('../scripts/lib/claude-capabil
 
 const ROOT = path.join(__dirname, '..');
 
+function snapshotFiles(directory, prefix = '') {
+  const snapshot = new Map();
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const relative = path.join(prefix, entry.name);
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      for (const [file, contents] of snapshotFiles(absolute, relative)) snapshot.set(file, contents);
+    } else {
+      assert.ok(entry.isFile(), `profile plan source must contain only regular files: ${absolute}`);
+      snapshot.set(relative, fs.readFileSync(absolute));
+    }
+  }
+  return snapshot;
+}
+
 test('profile bundle generator previews a declared finite alias plan', () => {
-  const result = spawnSync(process.execPath, [
-    path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'minimal', '--plan',
-  ], { cwd: ROOT, encoding: 'utf8' });
-  assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stdout, /"profile"/);
-  assert.match(result.stdout, /"planFingerprint"/);
+  const generatedRoot = path.join(ROOT, 'generated/claude-profiles/minimal');
+  const before = snapshotFiles(generatedRoot);
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-profile-plan-output-'));
+  try {
+    const absentOutput = path.join(temporary, 'must-not-be-created');
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'minimal', '--plan', '--out', absentOutput,
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.profile.id, 'minimal');
+    assert.strictEqual(payload.profile.profileId, 'minimal');
+    assert.match(payload.profile.profileFingerprint, /^[a-f0-9]{64}$/);
+    assert.match(payload.planFingerprint, /^[a-f0-9]{64}$/);
+    assert.ok(!fs.existsSync(absentOutput), '--plan must not create its requested output directory');
+    assert.deepStrictEqual(snapshotFiles(generatedRoot), before, '--plan must not mutate generated profile files');
+  } finally {
+    fs.rmSync(temporary, { recursive: true, force: true });
+  }
 });
 
 test('minimal generator reports the curated default selection', () => {
@@ -24,6 +52,8 @@ test('minimal generator reports the curated default selection', () => {
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const payload = JSON.parse(result.stdout);
+  assert.strictEqual(payload.profile.id, 'minimal');
+  assert.match(payload.profile.profileFingerprint, /^[a-f0-9]{64}$/);
   assert.deepStrictEqual(payload.selectedStableIds, [
     'change-verdict',
     'code-trace',
@@ -38,7 +68,12 @@ test('compat-v1 generator preserves the predecessor-compatible allowlist', () =>
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const payload = JSON.parse(result.stdout);
-  assert.strictEqual(payload.selectedStableIds.length, 81);
+  const manifestProfiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/install-profiles.json'), 'utf8'));
+  const expectedIds = manifestProfiles.profiles['compat-v1'].skillIds;
+  assert.strictEqual(new Set(payload.selectedStableIds).size, payload.selectedStableIds.length);
+  assert.deepStrictEqual([...payload.selectedStableIds].sort(), [...expectedIds].sort());
+  assert.strictEqual(payload.profile.id, 'compat-v1');
+  assert.match(payload.profile.profileFingerprint, /^[a-f0-9]{64}$/);
   assert.ok(!payload.selectedStableIds.includes('opsx-post-obs'));
   assert.strictEqual(payload.compatibilityMode, 'compat-v1');
 });
