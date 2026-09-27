@@ -58,6 +58,7 @@ const laterGenerated = generateClaudeSkillRoots(laterInventory);
 test('the later (deprecated) inventory revision drops the skill from promotion without removing the flat root', () => {
   assert.ok(priorGenerated.roots.includes('./skills/'));
   assert.ok(laterGenerated.roots.includes('./skills/'));
+  assert.ok(priorGenerated.generatedSkillIds.includes('fastapi-pro'));
   assert.ok(!laterGenerated.generatedSkillIds.includes('fastapi-pro'));
 });
 
@@ -69,8 +70,10 @@ test('rollback: regenerating from the prior revision again reproduces the origin
   assert.ok(fs.existsSync(canonicalSourcePath), 'canonical fastapi-pro/SKILL.md must remain on disk throughout');
 
   const rolledBackGenerated = generateClaudeSkillRoots(priorInventory);
+  assert.ok(rolledBackGenerated.generatedSkillIds.includes('fastapi-pro'));
   assert.deepStrictEqual(rolledBackGenerated, priorGenerated);
   assert.ok(rolledBackGenerated.roots.includes('./skills/'));
+  assert.notDeepStrictEqual(rolledBackGenerated.generatedSkillIds, laterGenerated.generatedSkillIds);
 });
 
 test('failed Claude inventory reconciliation retains the previously accepted generated view', () => {
@@ -128,6 +131,7 @@ test('failed Agent Plugin staging retains the previously accepted package tree',
     materializeAgentPluginPackage({ inventory, root, outDir: output, sourceCommit: 'fixture-source' });
     const beforeManifest = fs.readFileSync(path.join(output, 'plugin.json'));
     const beforeSkill = fs.readFileSync(path.join(output, 'skills', 'dhpk-stable', 'SKILL.md'));
+    const beforeTree = snapshotTree(output);
 
     const realStore = new ProjectionArtifactStore({
       root: outputParent,
@@ -153,6 +157,8 @@ test('failed Agent Plugin staging retains the previously accepted package tree',
     );
     assert.deepStrictEqual(fs.readFileSync(path.join(output, 'plugin.json')), beforeManifest);
     assert.deepStrictEqual(fs.readFileSync(path.join(output, 'skills', 'dhpk-stable', 'SKILL.md')), beforeSkill);
+    assert.deepStrictEqual(snapshotTree(output), beforeTree);
+    assert.deepStrictEqual(fs.readdirSync(outputParent).filter((entry) => entry.startsWith('.projection-stage-')), []);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(outputParent, { recursive: true, force: true });

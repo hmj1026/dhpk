@@ -114,10 +114,17 @@ test('execution scheduler reports timeout and cancellation without fallback subs
   assert.strictEqual(timeoutResult.results[0].fallback, undefined);
 
   controller.abort();
+  let dispatchCalls = 0;
   const cancelled = await executeSchedule([request('cancelled', ['src/cancelled.js'])], {
-    catalog, signal: controller.signal, dispatch: async () => ({ status: 'SUCCEEDED' }),
+    catalog,
+    signal: controller.signal,
+    dispatch: async () => {
+      dispatchCalls += 1;
+      return { status: 'SUCCEEDED' };
+    },
   });
   assert.strictEqual(cancelled.results[0].status, 'CANCELLED');
+  assert.strictEqual(dispatchCalls, 0, 'pre-aborted work must not invoke dispatch');
 });
 
 test('execution scheduler preserves launch identity and distinguishes crash from unknown lifecycle state', async () => {

@@ -282,6 +282,40 @@ does not establish that a path is unused.
 **Progress after #649:** 82 suites reviewed against the 79-suite minimum; the
 target is met. Remaining numbered Cohort A issues continue afterward.
 
+### Issue #650 — Cohort A batch 09
+
+This batch keeps eight suites and rewrites two. The final case counts are
+listed per suite.
+
+| Test file | Disposition | Protected contract and overlap | Final cases |
+| --- | --- | --- | ---: |
+| `tests/dispatch-projection.test.js` | Keep | One canonical dispatch contract per configured surface, parity across surfaces, drift rejection, and Provider-independent role definitions. The dispatch contract suite owns the canonical shape rather than its projected copies. | 4 |
+| `tests/dispatch-scheduler.test.js` | Rewrite | Provider quotas, conflicting scopes, Host-native fallback, dependency ordering, and lifecycle outcomes. The pre-aborted cancellation case now proves it returns `CANCELLED` without invoking `dispatch`; dispatch tests own target selection and adapter behavior. | 8 |
+| `tests/dispatch.test.js` | Keep | Target resolution and receipts, fallback only before side effects, capability-blocked outcomes, and unsupported-target diagnostics. The scheduler suite owns wave planning and cancellation. | 4 |
+| `tests/distribution-compiler.test.js` | Keep | Plan compilation, artifact materialization, consumer-stage verification, and external ownership provenance through the evidence result. Projection contract suites own the lower-level plan constraints. | 2 |
+| `tests/distribution-inventory-regeneration.test.js` | Keep | Policy bootstrap and refresh behavior, path classification, fail-closed malformed inputs, and preservation of external ownership, usage contracts, and rename history during regeneration. Validation suites own acceptance of a supplied inventory. | 12 |
+| `tests/distribution-inventory-validate.test.js` | Keep | Lifecycle and routing-family invariants, safe references, Claude projections, canonical inventory membership, supporting-asset digests, usage policy, external package ledger, and installation operation matrix. Regeneration suites own preserving those contracts across writes. | 31 |
+| `tests/distribution-projection-contract.test.js` | Keep | Frozen deterministic plans, selection identity, surface policies, Native Codex allowlists, symlink policy, materialization aborts, stage-bound evidence, and external ownership fingerprints. Inventory suites own the checked-in source contract. | 20 |
+| `tests/distribution-projection-inventory.test.js` | Keep | Checked-in projection declarations and rejection of missing, unsupported, or broadened selection policy. The larger projection contract suite tests compiler behavior on synthetic plans. | 3 |
+| `tests/distribution-projection-parity.test.js` | Keep | Structural parity across equivalent declared inputs, fingerprint drift, duplicate IDs, stage validity, surface/profile binding, and external ownership provenance. Compiler tests own materialization and verification. | 6 |
+| `tests/distribution-rollback-proof.test.js` | Rewrite | Prior-inventory rollback and preservation of published package trees after failed staging across Claude, Agent Plugin, Codex, and Cursor. It now proves `fastapi-pro` is present before deprecation, absent in the later generated set, and restored by rollback; failed Agent Plugin staging compares the full package tree and rejects leftover staging siblings. | 7 |
+
+The focused baseline passed 10 suites and 97/97 cases. The final focused run
+passed 10 suites and 97/97 cases; the two rewrites strengthen existing cases
+without adding new test cases. CI and release recursively discover these tests
+through `tests/run-all.js`. None belongs to the macOS installer subset, and the
+frozen helper/fixture inventory assigns no primary support assets to this
+batch. No production source changed, so production-file line and branch
+coverage comparison did not apply. GitNexus impact listed both test files but
+returned no caller edges or affected processes. Since `tests/run-all.js`
+discovers suites through filesystem recursion, the graph does not establish
+their discovery edges; treat that graph coverage as `UNKNOWN`/unresolved. Text
+search confirms the aggregate runner and its CI and release entry points, and
+the empty graph result does not imply a test is unused.
+
+**Progress after #650:** 92 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
