@@ -495,6 +495,48 @@ discovery, while UNKNOWN remains unresolved and is not an unused-path verdict.
 **Progress after #655:** 142 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #656 — Cohort A batch 15
+
+This batch rewrites three suites and keeps seven. The focused baseline and
+final runs both passed 10/10 suites and 156/156 live cases.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/install-codex-runtime-assets.test.js` | Keep | Skill-local runtime bytes, copy refresh, ignored bytecode, staged-mutation refusal, and symlink rejection remain covered. | 5 |
+| `tests/install-codex-skills-planning.test.js` | Keep | Read-only plans, provenance drift, collision adoption, crash recovery, and path safety remain covered. | 27 |
+| `tests/install-codex-skills-reconciliation.test.js` | Keep | Codex materialization, migration, rollback, retirement, bytecode filtering, and reconciliation evidence remain covered. | 38 |
+| `tests/install-codex-skills-uninstall.test.js` | Keep | Receipt-limited removal, quarantine recovery, reinstall, traversal and symlink refusal, and retargeted-link preservation remain covered. | 9 |
+| `tests/install-codex-skills.test.js` | Keep | Provider conflict gating, bounded queries, blocked JSON, timeout descendant cleanup, and update behavior remain covered. | 16 |
+| `tests/install-codex-sync-shared.test.js` | Keep | Shared Codex projection, cross-Host union, migration, edited/unowned preservation, Host-specific uninstall, and rollback remain covered. | 13 |
+| `tests/install-cursor-harness.test.js` | Keep | Cursor native assets, evidence-gated bindings, migration, profile dependencies, uninstall, and user-content preservation remain covered. | 25 |
+| `tests/install-native-shared-skills.test.js` | Rewrite | Each required install argument is independently omitted; every invocation must return usage failure without mutating the project. | 7 |
+| `tests/install-prompts.test.js` | Rewrite | Missing-catalog initialization returns failure and leaves isolated working and home directory snapshots unchanged. | 3 |
+| `tests/install.test.js` | Rewrite | The normal dry-run prints its command but neither invokes the Claude stub nor reports an installed result. | 13 |
+
+The same focused aggregate was used before and after the edits. Coverage for the
+three production files measured by the native shared-skills suite did not lose
+covered lines or branches, using Node `v24.21.0`, c8 `10.1.3`, and fresh output
+directories:
+
+| Production file | Lines before → after | Branches before → after |
+| --- | ---: | ---: |
+| `scripts/ci/install-native-shared-skills.js` | 95/103 → 95/103 | 39/51 → 39/51 |
+| `scripts/lib/native-shared-skill-install.js` | 172/206 → 172/206 | 30/50 → 30/50 |
+| `scripts/lib/cursor-consumer-evidence.js` | 161/221 → 161/221 | 31/49 → 31/49 |
+
+Three suites were rewritten; the batch's assigned helper,
+`tests/_lib/install-codex-skills-fixtures.js`, remains unchanged and has seven
+consumers. No primary fixture was assigned. No production source, helper, or
+fixture changed. Five disposable mutation controls all made their matching
+suite fail: removing each of the three required-argument guards, writing a
+marker during missing-catalog initialization, or invoking the Claude stub
+while printing the dry-run message. GitNexus impact returned `UNKNOWN` for all
+ten test paths; text confirms recursive discovery by the aggregate runner,
+while `UNKNOWN` remains unresolved and is not evidence that a path is unused.
+
+**Progress after #656:** 152 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

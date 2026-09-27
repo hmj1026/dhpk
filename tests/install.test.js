@@ -20,11 +20,16 @@ const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'install.sh');
 
 // The prerequisite gate requires `claude` on PATH, which CI runners lack.
-// A stub is safe because --dry-run/--print always exits before the real
-// `claude plugin install` exec line — the stub exists only to pass the
-// `command -v claude` check, never to be executed.
+// The stub can log an invocation when a test supplies DHPK_TEST_CLAUDE_LOG.
 const STUB_BIN = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-stub-'));
-fs.writeFileSync(path.join(STUB_BIN, 'claude'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 });
+fs.writeFileSync(path.join(STUB_BIN, 'claude'), [
+  '#!/usr/bin/env bash',
+  'if [[ -n "${DHPK_TEST_CLAUDE_LOG:-}" ]]; then',
+  '  printf "called\\n" > "$DHPK_TEST_CLAUDE_LOG"',
+  'fi',
+  'exit 0',
+  '',
+].join('\n'), { mode: 0o755 });
 const TEMP_FIXTURES = [STUB_BIN];
 process.on('exit', () => {
   for (const fixture of TEMP_FIXTURES) fs.rmSync(fixture, { recursive: true, force: true });
@@ -125,12 +130,17 @@ test('--dry-run walks the full custom flow (scripted stdin) and stops before exe
   //   4. "Override default review agents?" -> blank (default n)
   //   5. Hook profile single-select        -> "1" (first listed profile)
   const stdin = ['', '', '', '', '1', ''].join('\n');
-  const res = runScript(['--dry-run'], stdin);
+  const probeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-dry-run-'));
+  TEMP_FIXTURES.push(probeRoot);
+  const claudeLog = path.join(probeRoot, 'claude-called.log');
+  const res = runScript(['--dry-run'], stdin, { claudeLog });
   assert.strictEqual(res.status, 0, res.stderr + '\n---stdout---\n' + res.stdout);
   assert.ok(res.stdout.includes('Resolved configuration'), res.stdout);
   assert.ok(res.stdout.includes('Command to run:'), res.stdout);
   assert.ok(res.stdout.includes('claude plugin install dhpk@dhpk-profile-minimal'), res.stdout);
   assert.ok(res.stdout.includes('(--dry-run set — not executing.)'), res.stdout);
+  assert.ok(!res.stdout.includes('✓ Installed.'), res.stdout);
+  assert.strictEqual(fs.existsSync(claudeLog), false, 'claude stub was invoked during dry-run');
 });
 
 test('--print is accepted as an alias for --dry-run', () => {
