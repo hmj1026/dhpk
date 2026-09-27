@@ -944,3 +944,89 @@ recursive `tests/**/*.test.js` files while excluding `_lib`; the aggregate
 runner accepts one explicit suite path for focused measurements. CI also runs
 the macOS subset. Every PR still needs a clean full CI pass because local runs
 from a modified checkout can fail provenance checks.
+
+### Cohort B — issue #641
+
+The B queue uses the same frozen source commit,
+`be3008af83d31e67a7c37797fd397deaf9726cc4`, and inventory SHA-256 recorded
+above. The 391 active suites are split without overlap: Cohort A owns active
+ordinals 1–196; Cohort B owns 197–391 (original ordinals 198–393). B assigns
+its active paths in order to issues #662–#681:
+
+| Batch | Issue | Active ordinals | Formal suites |
+| --- | ---: | ---: | ---: |
+| 01 | #662 | 197–206 | 10 |
+| 02 | #663 | 207–216 | 10 |
+| 03 | #664 | 217–226 | 10 |
+| 04 | #665 | 227–236 | 10 |
+| 05 | #666 | 237–246 | 10 |
+| 06 | #667 | 247–256 | 10 |
+| 07 | #668 | 257–266 | 10 |
+| 08 | #669 | 267–276 | 10 |
+| 09 | #670 | 277–286 | 10 |
+| 10 | #671 | 287–296 | 10 |
+| 11 | #672 | 297–306 | 10 |
+| 12 | #673 | 307–316 | 10 |
+| 13 | #674 | 317–326 | 10 |
+| 14 | #675 | 327–336 | 10 |
+| 15 | #676 | 337–346 | 10 |
+| 16 | #677 | 347–355 | 9 |
+| 17 | #678 | 356–364 | 9 |
+| 18 | #679 | 365–373 | 9 |
+| 19 | #680 | 374–382 | 9 |
+| 20 | #681 | 383–391 | 9 |
+
+The prevalidated deletion of `tests/retirement-closure.test.js` remains attached
+to B batch 05 / issue #666 at its original-order insertion point. It is not a
+formal suite and consumes no active ordinal. The B queue records ownership and
+baseline signals only; it makes no `keep`, `rewrite`, or `delete` decisions.
+
+The inventory's B metrics are measured from the frozen source, before any A
+suite rewrites. Candidate ranks sort by static forwarding-test reuse count
+(descending), repeated lowercased test-title count (descending), assertion-call
+count (ascending), API-shape assertion count (descending), static-artifact
+matcher assertion count (descending), covered `scripts/` lines (ascending),
+covered `scripts/` branches (ascending), and active ordinal. These lexical
+counts reproduce all 196 A rows. The test-title count includes each distinct
+lowercased title that appears in more than one of the original 393 flat suites.
+`test_case_count` extracts single- or double-quoted titles after `test(` using
+`\btest\s*\(\s*(['"])(.*?)\1`. `duplicate_test_titles` stores the repeated
+lowercased title strings sorted per row. The assertion-call scan uses
+`\bassert(?:\.[A-Za-z_$][\w$]*)?\s*\(` and includes matches in comments.
+An API-shape match is an assertion call whose opening source line contains
+`typeof` or `hasOwnProperty`; a static-artifact match is an
+`assert.match` or `assert.doesNotMatch` call. These are triage signals, not
+semantic judgments.
+
+The forwarding-test signal counts only literal static `require` or `import`
+specifiers resolving to another `.test.js` suite. No B suite has such a
+static reference, so every B value is zero; this scan cannot rule out dynamic
+forwarding. For measured suites, the coverage tail is `(0, lines, branches)`;
+an unavailable run sorts as `(1,)` only after all earlier signals tie, then
+active ordinal breaks any remaining tie.
+
+Each B suite was measured independently through `tests/run-all.js` on Node
+`v24.21.0` / Darwin with c8 `10.1.3`, using fresh V8 and report directories.
+The inventory sums covered lines and branches for `scripts/` files and excludes
+`scripts/lib/bounded-child-process.js`, which the aggregate runner loads for
+every suite. `specific_script_modules_touched` counts the remaining script
+files with at least one covered line or branch. The 195 accepted isolated runs
+passed. The Darwin subset entries are `tests/run-bounded-node-test.test.js`
+(batch 08 / #669) and `tests/session-usage-audit.test.js` (batch 10 / #671);
+their measurements used `TMPDIR=/private/tmp`. The first default-TMPDIR run of
+`session-usage-audit` failed 37/38 at the exact status assertion
+(`verified` expected, `needs-verification` actual); rerunning with the
+subset's `TMPDIR=/private/tmp` passed 38/38. The inventory uses the successful
+rerun's coverage, and the row preserves that initial failure note. The
+bounded-node suite passed 3/3 on Darwin and reported `SKIP_INCOMPATIBLE` for
+its Linux-only cgroup case.
+
+The aggregate suite runs in CI at `.github/workflows/ci.yml:120-134` and in
+release verification at `.github/workflows/release.yml:43-50`. The separate
+Darwin installer subset runs at `.github/workflows/ci.yml:151-165` and is
+listed in `tests/_lib/macos-installer-files.js`. A clean CI run remains
+required because local runs from a dirty checkout can fail provenance checks.
+The 31 B support assets (16 helpers and 15 fixtures) are assigned to the batch
+and issue of their lowest-original-ordinal B primary consumer. The
+unreferenced `tests/fixtures/subagent-stop/lin-blog-2026-07-17.json` stays
+unreferenced and has explicit audit ownership in batch 15 / issue #676.
