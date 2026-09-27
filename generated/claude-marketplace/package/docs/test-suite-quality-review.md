@@ -702,6 +702,49 @@ was returned. No production source, shared helper, or fixture changed.
 **Progress after #659:** 180 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #660 — Cohort A batch 19
+
+This batch keeps six suites and rewrites three; none is deleted. The Node
+`v24.21.0` baseline passed 9/9 suites and 52/52 cases. The final focused
+aggregate passed 9/9 suites and 53/53 cases. Inventory metrics remain frozen.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/opsx-goal-budget.test.js` | Rewrite | Full composed goal includes configured runner, coverage, build, lint, smoke, worker, and E2E clauses; the hard cap measures the exact UTF-8 goal string with no extra newline and suppresses actionable output when over cap. | 5 |
+| `tests/opsx-goal-footprint.test.js` | Keep | `goal-context.js` footprint eligibility, distinct-file count, verification-heading exclusion, and fail-open warning behavior remain independently asserted. | 8 |
+| `tests/opsx-goal-policy-fallback.test.js` | Keep | Both dispatch orientations read only their root-bound kernel/route resources and preserve the unresolved-policy fallback contract; it also checks the no-dispatch goal budget. | 8 |
+| `tests/opsx-orchestration-decision-policy.test.js` | Keep | Canonical policy, projection, bilingual lifecycle documentation, planner/reasoner handoff, and non-terminal review/consumer boundaries remain covered as document contracts. | 16 |
+| `tests/package-gate-cli.test.js` | Keep | Real package-gate CLI PASS/FAIL JSON, failure reason, and shared-copy drift ordering remain covered. | 3 |
+| `tests/parallel-consumer-probes.test.js` | Rewrite | The coordinator CLI starts one child per requested surface, aggregates their results and unique namespaces, gives each child a private home/receipt environment, preserves host paths, and removes the temporary roots. | 2 |
+| `tests/parallel-dispatch-contract.test.js` | Keep | Worker cleanup prohibitions, shared wrapper, dispatch tiers, whole-tree validator constraints, and the shared-state reporting rule remain covered. Source-text checks are explicitly described as policy heuristics. | 6 |
+| `tests/parallel-dispatch-scope.test.js` | Rewrite | A real temporary git repo confirms the assigned pathspec excludes a sibling edit while leaving its content intact; hand-written “reconciliation” state assertions were removed because no executable dispatcher owns them. | 1 |
+| `tests/partial-writer-handoff.test.js` | Keep | The production completion ledger and handoff API preserve assigned/confirmed/unconfirmed/out-of-scope classification, required stop/scope/diff evidence, partial markers, and the zero-confirmed BLOCKED outcome. | 4 |
+
+The primary helper `tests/_lib/opsx-goal-fixtures.js` was rewritten. Its former
+composer used short hand-typed gate tokens instead of the configured Part 3
+commands, ignored `codex`/`smoke` fixture flags, duplicated review/artifact
+markers, and counted an extra newline. It now emits only the configured
+test/coverage/build/lint/smoke gates, uses the fixture's worker/E2E choices, and
+measures the exact composed string with `wc -c`. All seven assigned goal
+fixtures were updated to represent distinct inputs. The shared
+`tests/_lib/hookharness.js` was audited and kept unchanged; it remains useful to
+12 suites and supplies real temporary git repositories.
+
+All nine paths are recursively discovered by `tests/run-all.js` and run through
+the CI aggregate in `.github/workflows/ci.yml`; none is in the separate macOS
+installer subset. No production file changed, so per-production-area c8
+comparison is not applicable. The test and helper paths were not resolvable as
+GitNexus file targets (`UNKNOWN`); text confirms their discovery route. Named
+impacts for `composeGoal`, `generateFixture`, and `measureBytes` were LOW. The
+shared `rmRepo` helper had MEDIUM impact across six callers and was not edited.
+`node scripts/ci/catalog.js --check` passed. The full precommit runner reported
+semantic FAIL without executing steps because `package.json` has no recognized
+npm lint/build/test script; the focused aggregate was run independently. No
+HIGH or CRITICAL warning was returned.
+
+**Progress after #660:** 189 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

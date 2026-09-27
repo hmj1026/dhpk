@@ -32,34 +32,34 @@ const STOP_LIMITS = fencedAfter('## Part 4 (always').replace(
   '\n',
 );
 
-const GATE_TOKENS = {
-  test: 'TEST: command result has 0 failures.',
-  coverage: 'COVERAGE: configured threshold met.',
-  build: 'BUILD: command result has 0 errors.',
-  lint: 'LINT: command result has 0 errors.',
-  smoke: 'SMOKE: Verdict: PASS plus one observed output line, or evidenced escape hatch.',
-  review: 'REVIEW: applicable reviewers run once per wave; known findings are confirm-only.',
-  artifact: 'ARTIFACT: edited files and fresh review artifact are listed.',
-  verdict: 'VERDICT: unresolved reviewer verdicts are absent.',
-  // Part 4 is the production TURN contract and is always appended below.
-  turn: '',
-};
-
 const readFixture = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, `${name}.json`), 'utf8'));
 
 const composeGoal = (fixture) => {
   const core = fixture.dispatch_on === false ? FIXED_CORE_NO_DISPATCH : FIXED_CORE;
+  const fastWorkerClause = fixture.fast_worker_clause
+    || 'dhpk:fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker';
   const parts = core.map((part) => part
     .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
-    .replaceAll('<TASK_DIGEST>', 'T'.repeat(200))
+    .replaceAll('<TASK_DIGEST>', fixture.task_digest || 'T'.repeat(200))
     // A realistic Bash-quoted relocated root keeps the byte budget honest.
     .replaceAll('<SKILL_ROOT_Q>', '/Users/example/.claude/plugins/cache/dhpk/dhpk/0.62.4/skills/dhpk-opsx-apply-goal')
-    .replaceAll('<FAST_WORKER_CLAUSE>', 'dhpk:codex-fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker')
-    .replaceAll('<E2E_ROSTER_CLAUSE>', fixture.has_e2e === false ? '' : 'RED/E2E Playwright → dhpk:e2e-runner; '));
-  for (const gate of fixture.gates || []) {
-    const contract = Object.prototype.hasOwnProperty.call(GATE_TOKENS, gate) ? GATE_TOKENS[gate] : `GATE: ${gate}.`;
-    if (contract) parts.push(contract);
+    .replaceAll('<FAST_WORKER_CLAUSE>', fastWorkerClause)
+    .replaceAll('<E2E_ROSTER_CLAUSE>', fixture.has_e2e === true ? 'RED/E2E Playwright → dhpk:e2e-runner; ' : ''));
+
+  const verification = [];
+  if (fixture.test_command) {
+    if (fixture.coverage_threshold !== undefined && fixture.coverage_threshold !== null) {
+      verification.push(`COVERAGE: ${fixture.test_command} --coverage output shows 0 failures AND total coverage ≥ ${fixture.coverage_threshold}%.`);
+    } else {
+      verification.push(`TEST: ${fixture.test_command} output shows 0 failures.`);
+    }
   }
+  if (fixture.build_command) verification.push(`BUILD: ${fixture.build_command} output shows 0 errors.`);
+  if (fixture.lint_command) verification.push(`LINT: ${fixture.lint_command} output shows 0 errors.`);
+  if (fixture.smoke === true) {
+    verification.push('SMOKE: read-only runtime probe via dhpk:smoke-tester; require first-line Verdict: PASS and one pasted observed output line, or paste the failing launch command and output.');
+  }
+  parts.push(...verification);
   if (fixture.padding_bytes) parts.push('x'.repeat(fixture.padding_bytes));
   parts.push(STOP_LIMITS
     .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
@@ -69,7 +69,7 @@ const composeGoal = (fixture) => {
 
 const measureBytes = (goal) => {
   const scratch = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-goal-bytes-')), 'goal.txt');
-  fs.writeFileSync(scratch, `${goal}\n`, 'utf8');
+  fs.writeFileSync(scratch, goal, 'utf8');
   try {
     const result = spawnSync('wc', ['-c', scratch], { encoding: 'utf8' });
     if (result.status !== 0) throw new Error(result.stderr || 'wc -c failed');
@@ -93,7 +93,6 @@ module.exports = {
   FIXED_CORE_NO_DISPATCH,
   DISPATCH_TRUE_FENCE,
   DISPATCH_FALSE_FENCE,
-  GATE_TOKENS,
   composeGoal,
   generateFixture,
   measureBytes,

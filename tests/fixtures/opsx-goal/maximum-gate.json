@@ -1,5 +1,11 @@
 {
   "name": "maximum-gate",
-  "codex": true,
-  "gates": ["test", "coverage", "build", "lint", "smoke", "review", "artifact", "verdict", "turn"]
+  "fast_worker_clause": "dhpk:codex-fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker",
+  "test_command": "node tests/run-all.js",
+  "coverage_threshold": 80,
+  "build_command": "npm run build",
+  "lint_command": "npm run lint",
+  "smoke": true,
+  "has_e2e": true,
+  "turn_budget": 40
 }
