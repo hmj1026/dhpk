@@ -182,9 +182,28 @@ test('all four adapters expose explicit argv contracts and Claude reads prompt f
   assert.ok(!claude.argv.includes('--prompt-file'));
 
   const codex = buildInvocation({ target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-5.6-luna', model: 'gpt-5.6-luna', effort: 'high', route: 'headless-cli', transport: 'local-cli' }, request);
-  assert.ok(codex.argv.includes('-m') && codex.argv.includes('gpt-5.6-luna'));
-  const agy = buildInvocation({ target_agent: 'agy', provider: 'google', model_id: 'gemini-3.8-flash-high', model: 'gemini-3.8-flash-high', effort: 'high', route: 'headless-cli', transport: 'local-cli' }, { ...request, authority: 'workspace-write' });
-  assert.ok(agy.argv.includes('--model'));
+  assert.strictEqual(codex.executable, 'codex');
+  assert.deepStrictEqual(codex.argv, [
+    'exec', '--skip-git-repo-check', '--sandbox', 'read-only',
+    '-c', 'approval_policy=never', '--cd', '/workspace',
+    '-m', 'gpt-5.6-luna', '-c', 'model_reasoning_effort=high',
+    '--output-last-message', '{transport_output}', '-',
+  ]);
+  assert.strictEqual(codex.stdin_mode, 'prompt');
+  assert.strictEqual(codex.output, 'transport-file');
+
+  const agy = buildInvocation(
+    { target_agent: 'agy', provider: 'google', model_id: 'gemini-3.8-flash-high', model: 'gemini-3.8-flash-high', effort: 'high', route: 'headless-cli', transport: 'local-cli' },
+    { ...request, authority: 'workspace-write' },
+    { catalog },
+  );
+  assert.strictEqual(agy.executable, 'agy');
+  assert.deepStrictEqual(agy.argv, [
+    '--dangerously-skip-permissions', '--mode', 'accept-edits', '--add-dir', '/workspace',
+    '--model', 'Gemini 3.8 Flash (High)', '--print-timeout', '300s', '-p', '{prompt}',
+  ]);
+  assert.strictEqual(agy.stdin_mode, 'agy-confirmation');
+  assert.strictEqual(agy.output, 'none');
   const cursor = buildInvocation({ target_agent: 'cursor', provider: 'xai', model_id: 'cursor-grok-4.6-high', model: 'cursor-grok-4.6-high', effort: 'high', route: 'native', transport: 'native-runtime' }, request);
   assert.deepStrictEqual(cursor.argv, []);
 });

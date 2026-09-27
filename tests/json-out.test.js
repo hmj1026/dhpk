@@ -54,14 +54,20 @@ test('emit_additional_context is a no-op on empty context (edge case)', () => {
   assert.strictEqual(res.stdout.trim(), 'OUT:[0]');
 });
 
-test('json_escape falls back gracefully when python3/jq unavailable (still produces valid-ish output)', () => {
-  // Force PATH without python3/jq to exercise the manual bash-escape fallback.
-  const res = spawnSync('bash', ['-c', `PATH=/nonexistent source "${LIB}"; json_escape 'a"b'`], {
+test('json_escape emits valid JSON through the manual fallback without python3 or jq', () => {
+  const input = 'quote " slash \\\nline';
+  const res = spawnSync('/bin/bash', ['-c', 'source "$DHPK_JSON_OUT_LIB"; json_escape "$DHPK_JSON_OUT_INPUT"'], {
     encoding: 'utf8',
     timeout: 10000,
+    env: {
+      ...process.env,
+      PATH: '/dhpk-test-path-without-python-or-jq',
+      DHPK_JSON_OUT_LIB: LIB,
+      DHPK_JSON_OUT_INPUT: input,
+    },
   });
   assert.strictEqual(res.status, 0, res.stderr);
-  assert.strictEqual(res.stdout.trim(), '"a\\"b"');
+  assert.strictEqual(JSON.parse(res.stdout.trim()), input);
 });
 
 run('json-out');

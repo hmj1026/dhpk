@@ -183,6 +183,54 @@ test('release evidence accepts only the canonical six runtime PASS rows and exac
       expectedPreflight: preflight,
       payload: incomplete,
     }).join('; '), /agy-plugin.*PASS/i);
+
+    const wrongTargetCommit = { ...payload, targetCommit: 'f'.repeat(40) };
+    assert.ok(runnerApi.validateReleaseEvidence({
+      root,
+      binding,
+      required,
+      expectedPreflight: preflight,
+      payload: wrongTargetCommit,
+    }).includes('harness targetCommit does not match exact checkout'));
+
+    const wrongAttempt = {
+      ...payload,
+      preflight: {
+        ...payload.preflight,
+        identity: { ...payload.preflight.identity, attemptId: 'runtime-proof-other-attempt' },
+      },
+    };
+    assert.match(runnerApi.validateReleaseEvidence({
+      root,
+      binding,
+      required,
+      expectedPreflight: preflight,
+      payload: wrongAttempt,
+    }).join('; '), /harness preflight identity: .*attemptId/i);
+
+    const duplicateSurface = {
+      ...payload,
+      surfaceResults: [...payload.surfaceResults, payload.surfaceResults[0]],
+    };
+    assert.match(runnerApi.validateReleaseEvidence({
+      root,
+      binding,
+      required,
+      expectedPreflight: preflight,
+      payload: duplicateSurface,
+    }).join('; '), /duplicate surface/i);
+
+    const omittedSurface = {
+      ...payload,
+      surfaceResults: payload.surfaceResults.filter((row) => row.surface !== 'agy-plugin'),
+    };
+    assert.match(runnerApi.validateReleaseEvidence({
+      root,
+      binding,
+      required,
+      expectedPreflight: preflight,
+      payload: omittedSurface,
+    }).join('; '), /omitted required surface 'agy-plugin'/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
