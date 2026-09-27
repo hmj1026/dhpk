@@ -91,16 +91,16 @@ formal-suite,,,88,87,tests/distribution-projection-contract.test.js,A,09,650,rev
 formal-suite,,,89,88,tests/distribution-projection-inventory.test.js,A,09,650,reviewed: keep,no,0,0,3,,12,2,0,2524,307,15,80,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,90,89,tests/distribution-projection-parity.test.js,A,09,650,reviewed: keep,no,0,0,6,,24,0,6,658,88,3,117,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,91,90,tests/distribution-rollback-proof.test.js,A,09,650,reviewed: rewrite,no,0,0,7,,26,0,1,5236,562,26,124,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,92,91,tests/distribution-scoped-counts.test.js,A,10,651,queued,no,0,0,8,,18,0,0,1828,112,16,105,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,93,92,tests/distribution-selection-plan-binding.test.js,A,10,651,queued,no,0,0,1,,5,0,0,4882,724,26,35,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,94,93,tests/doc-reviewer-coupled-check.test.js,A,10,651,queued,no,0,0,9,,33,0,0,0,0,0,137,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,95,94,tests/documentation-platform-parity.test.js,A,10,651,queued,no,0,0,11,,41,0,11,0,0,0,154,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,96,95,tests/emit-review-gate.test.js,A,10,651,queued,no,0,1,6,bash -n syntax check passes,11,0,0,0,0,0,10,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,97,96,tests/execution-policy-kernel.test.js,A,10,651,queued,no,0,0,3,,10,0,2,0,0,0,65,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,98,97,tests/extract-compact.test.js,A,10,651,queued,no,0,0,4,,15,0,0,0,0,0,95,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,99,98,tests/extract-notes.test.js,A,10,651,queued,no,0,0,5,,12,0,6,0,0,0,82,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,100,99,tests/fast-worker-selection.test.js,A,10,651,queued,no,0,0,14,,59,0,0,1081,160,4,172,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
-formal-suite,,,101,100,tests/feature-resolver.test.js,A,10,651,queued,no,0,0,5,,24,0,0,255,35,1,119,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,92,91,tests/distribution-scoped-counts.test.js,A,10,651,reviewed: keep,no,0,0,8,,18,0,0,1828,112,16,105,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,93,92,tests/distribution-selection-plan-binding.test.js,A,10,651,reviewed: keep,no,0,0,1,,5,0,0,4882,724,26,35,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,94,93,tests/doc-reviewer-coupled-check.test.js,A,10,651,reviewed: rewrite,no,0,0,9,,33,0,0,0,0,0,137,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,95,94,tests/documentation-platform-parity.test.js,A,10,651,reviewed: rewrite,no,0,0,11,,41,0,11,0,0,0,154,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,96,95,tests/emit-review-gate.test.js,A,10,651,reviewed: keep,no,0,1,6,bash -n syntax check passes,11,0,0,0,0,0,10,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,97,96,tests/execution-policy-kernel.test.js,A,10,651,reviewed: rewrite,no,0,0,3,,10,0,2,0,0,0,65,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,98,97,tests/extract-compact.test.js,A,10,651,reviewed: keep,no,0,0,4,,15,0,0,0,0,0,95,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,99,98,tests/extract-notes.test.js,A,10,651,reviewed: keep,no,0,0,5,,12,0,6,0,0,0,82,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,100,99,tests/fast-worker-selection.test.js,A,10,651,reviewed: keep,no,0,0,14,,59,0,0,1081,160,4,172,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
+formal-suite,,,101,100,tests/feature-resolver.test.js,A,10,651,reviewed: keep,no,0,0,5,,24,0,0,255,35,1,119,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,102,101,tests/flow-contract.test.js,A,11,652,queued,no,0,0,6,,19,0,4,1380,261,8,107,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,103,102,tests/flow-drive-invocation.test.js,A,11,652,queued,no,0,0,6,,26,0,1,468,109,4,123,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
 formal-suite,,,104,103,tests/flow-guide-ownership.test.js,A,11,652,queued,no,0,0,9,,54,5,10,392,140,3,168,,,first 196 active sorted paths after the two prevalidated deletions; stable batch order by active ordinal
@@ -418,11 +418,11 @@ helper,,,,,tests/_lib/skill-setup-family-fixtures.js,B,,,reserved for issue #641
 helper,,,,,tests/_lib/tinytest.js,A,01,642,audited: keep,,,,,,,,,,,,,tests/activate-modules.test.js,393,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/workflow-coordinator-fixture.js,A,03,644,audited: keep,,,,,,,,,,,,,tests/ci-review-gate-adapter.test.js,6,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/distribution-surface-baseline.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-retirement-migration.test.js,1,lowest-original-ordinal B consumer
-fixture,,,,,tests/fixtures/doc-reviewer/ambiguous-relationship.json,A,10,651,assigned,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/doc-reviewer/coupled-same-finding.json,A,10,651,assigned,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/doc-reviewer/one-artifact-reporting.json,A,10,651,assigned,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/doc-reviewer/separate-evidence.json,A,10,651,assigned,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/doc-reviewer/uncoupled-out-of-batch.json,A,10,651,assigned,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/doc-reviewer/ambiguous-relationship.json,A,10,651,audited: keep,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/doc-reviewer/coupled-same-finding.json,A,10,651,audited: keep,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/doc-reviewer/one-artifact-reporting.json,A,10,651,audited: keep,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/doc-reviewer/separate-evidence.json,A,10,651,audited: keep,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
+fixture,,,,,tests/fixtures/doc-reviewer/uncoupled-out-of-batch.json,A,10,651,audited: keep,,,,,,,,,,,,,tests/doc-reviewer-coupled-check.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/invocation-inventory-baseline.json,B,,,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-retirement-migration.test.js,2,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/opsx-goal/codex.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/opsx-goal/maximum-gate.json,A,19,660,assigned,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer

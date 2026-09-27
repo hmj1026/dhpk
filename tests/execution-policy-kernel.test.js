@@ -24,8 +24,15 @@ test('always-visible execution kernel preserves safety and completion boundaries
 test('policy skill and rule bind the same kernel before conditional references', () => {
   const skill = read('skills/flow-guide/SKILL.md');
   const policy = read('rules/execution-policy.md');
-  assert.ok(skill.indexOf('execution-policy-kernel.md') < skill.indexOf('execution-policy.md'));
-  assert.ok(policy.includes('execution-policy-kernel.md'));
+  assert.ok(
+    skill.includes('references/execution-bundle/rules/execution-policy.md'),
+    'flow-guide must point to its local policy bundle',
+  );
+  assert.match(
+    policy,
+    /always-visible kernel first\s+\(`\$\{POLICY_BUNDLE_ROOT\}\/rules\/execution-policy-kernel\.md`\),\s+then load the conditional sections below/i,
+    'the policy must name the kernel before its conditional sections',
+  );
   assert.match(skill, /source of truth|authoritative|SSOT/i);
 });
 

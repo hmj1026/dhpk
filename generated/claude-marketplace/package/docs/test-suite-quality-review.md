@@ -316,6 +316,41 @@ the empty graph result does not imply a test is unused.
 **Progress after #650:** 92 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #651 — Cohort A batch 10
+
+This batch keeps seven suites and rewrites three. Each suite retains its
+baseline case count; the focused aggregate covers 66 cases before and after.
+
+| Test file | Disposition | Protected contract and assertion owner | Baseline cases | Final cases |
+| --- | --- | --- | ---: | ---: |
+| `tests/distribution-scoped-counts.test.js` | Keep | Canonical, promoted-core, optional, experimental, deprecated, Claude-published, Codex-published, and module lifecycle totals are independently derived; bilingual README prose cannot label canonical total as the default-install count. | 8 | 8 |
+| `tests/distribution-selection-plan-binding.test.js` | Keep | Every migrated adapter preserves the compiler's canonical selection identity in its output plan. | 1 | 1 |
+| `tests/doc-reviewer-coupled-check.test.js` | Rewrite | Normative coupling requires the same in-batch finding pattern, one finding with both locations, and no second dispatch or rewrite. Each of the five assigned fixture filenames now maps to test-owned expected coupling, finding, and artifact counts. | 9 | 9 |
+| `tests/documentation-platform-parity.test.js` | Rewrite | Bilingual platform documents, command namespaces, install receipts, locale parity, host boundaries, and lifecycle guidance. README count checks now bind canonical, Codex native, and hook counts to their semantic table rows and module count to each opening introduction. | 11 | 11 |
+| `tests/emit-review-gate.test.js` | Keep | Shell syntax, PENDING/READY/BLOCKED receipt output and exit status, and usage errors for unknown or missing states. | 6 | 6 |
+| `tests/execution-policy-kernel.test.js` | Rewrite | The always-visible kernel retains its safety/completion boundaries; flow-guide points to its local policy bundle, whose text names the kernel before conditional sections; context tiers and the cold packet remain complete. | 3 | 3 |
+| `tests/extract-compact.test.js` | Keep | Compact extraction preserves populated and empty-array output contracts and reports missing or nonexistent input paths as errors. | 4 | 4 |
+| `tests/extract-notes.test.js` | Keep | Release-note extraction selects the target heading body through the next heading or end of file, and rejects missing, empty, or whitespace-only sections. | 5 | 5 |
+| `tests/fast-worker-selection.test.js` | Keep | Native defaults, project/user/one-shot precedence, explicit external selection, opt-in external auto-probing, fallback limits, authorization failures, normalized selectors, activation-only session start, and report schemas. | 14 | 14 |
+| `tests/feature-resolver.test.js` | Keep | Slug validation and document confidence classification, explicit feature-key scanning, and invalid-key/no-signal behavior that returns an empty Gate:Need-Human result. | 5 | 5 |
+
+All five assigned `tests/fixtures/doc-reviewer/*.json` files are actively read
+and checked by `tests/doc-reviewer-coupled-check.test.js`; their verification
+annotations remain static-only and do not claim a reviewer was run. The fixture
+files themselves are unchanged. All ten suites are recursively discovered by
+`tests/run-all.js` in CI and release; none is in the separate macOS installer
+subset. The Node `v24.21.0` focused baseline passed 10 suites and 66/66 cases;
+the final aggregate passed 10 suites and 66/66 cases. No production source
+changed, so production coverage comparison does not apply. GitNexus returned
+`risk: UNKNOWN` for the three rewritten test paths because they are not
+resolvable in the graph. Text search confirms recursive test discovery and
+the CI/release entry points; `UNKNOWN` remains unresolved and is not evidence
+that the paths are unused. The catalog check passed with all required scripts
+covered.
+
+**Progress after #651:** 102 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
