@@ -323,28 +323,37 @@ test('Cursor rejects a symlinked project-local skills root', () => {
 });
 
 test('Cursor validation keeps portable and native capability rows independent', () => {
-  const result = spawnSync('python3', [
-    path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync.py'),
-    '--root', ROOT,
-    'validate', '--targets', 'cursor', '--format', 'json',
-  ], { encoding: 'utf8' });
-  assert.ok(result.stdout, result.stderr);
-  const report = JSON.parse(result.stdout);
-  const row = report.results.find((item) => item.platform === 'cursor');
-  assert.ok(row, 'cursor result row is required');
-  const ids = row.capabilities.map((item) => item.id);
-  assert.deepStrictEqual(ids, [
-    'cursor.project_local.structure',
-    'cursor.portable.skills',
-    'cursor.portable.mcp',
-    'cursor.native.rules',
-    'cursor.native.agents',
-    'cursor.native.commands',
-    'cursor.native.hooks',
-    'cursor.native.variables',
-    'cursor.runtime.launch',
-  ]);
-  assert.ok(row.capabilities.every((item) => typeof item.fallback === 'string'));
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-independent-rows-'));
+  try {
+    installCursorProjection(repo);
+    const packageRoot = path.join(repo, 'plugins/dhpk-agent');
+    fs.mkdirSync(path.join(packageRoot, 'skills/broken'), { recursive: true });
+    fs.writeFileSync(path.join(packageRoot, 'plugin.json'), '{not-json');
+    fs.writeFileSync(path.join(packageRoot, 'skills/broken/SKILL.md'), 'not frontmatter');
+
+    const { row } = runCursorValidation(repo);
+    assert.strictEqual(row.final_status, 'FAIL', row.notes.join('\n'));
+    assert.strictEqual(projectLocalCapability(row).status, 'PASS', row.notes.join('\n'));
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.portable.skills').status, 'FAIL');
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.native.hooks').status, 'SKIP_INCOMPATIBLE');
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'cursor.runtime.launch').status, 'NOT_RUN');
+
+    const validRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-valid-package-'));
+    try {
+      fs.cpSync(path.join(ROOT, 'plugins/dhpk-agent'), path.join(validRepo, 'plugins/dhpk-agent'), { recursive: true });
+      fs.cpSync(path.join(ROOT, 'plugins/dhpk-cursor'), path.join(validRepo, 'plugins/dhpk-cursor'), { recursive: true });
+      fs.mkdirSync(path.join(validRepo, 'manifests'), { recursive: true });
+      fs.copyFileSync(
+        path.join(ROOT, 'manifests/distribution-inventory.json'),
+        path.join(validRepo, 'manifests/distribution-inventory.json'),
+      );
+      const { row: validRow } = runCursorValidation(validRepo);
+      assert.strictEqual(projectLocalCapability(validRow).status, 'NOT_CONFIGURED');
+      assert.strictEqual(validRow.capabilities.find((item) => item.id === 'cursor.portable.skills').status, 'PASS');
+      assert.strictEqual(validRow.capabilities.find((item) => item.id === 'cursor.native.agents').status, 'PASS');
+      assert.strictEqual(validRow.capabilities.find((item) => item.id === 'cursor.runtime.launch').status, 'NOT_RUN');
+    } finally { fs.rmSync(validRepo, { recursive: true, force: true }); }
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 
 test('Cursor validation reports malformed configured packages as FAIL rather than presence PASS', () => {

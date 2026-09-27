@@ -588,6 +588,63 @@ is unused.
 **Progress after #657:** 162 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #658 — Cohort A batch 17
+
+This batch rewrites seven suites and keeps two. The focused Node
+`v24.21.0` baseline passed 9/9 suites and 82/82 live cases. The final
+aggregate passed 9/9 suites and 83/83 cases; the additional case exercises
+the shared macOS installer runner's ordered calls, environment overrides, and
+first-failure stop behavior. Frozen inventory metrics remain unchanged.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/load-project-config.test.js` | Rewrite | With no project settings, a known global option survives and no project-scope marker is introduced. | 9 |
+| `tests/macos-installer-files.test.js` | Rewrite | Exact Darwin subset and CI wiring remain covered; the runner's order, executable, cwd, per-entry environment, inherited values, and failure short-circuit are exercised. | 3 |
+| `tests/markdownlint-workflow.test.js` | Keep | Blocking Markdown lint, asset globs, pinned action, and table validation remain covered. | 3 |
+| `tests/module-catalog.test.js` | Keep | Nonempty catalog, shipped-module membership, and full-profile partition remain covered. | 4 |
+| `tests/modules.test.js` | Rewrite | Explicit active modules take precedence when the fallback option is also set; normalization and empty cases remain covered. | 5 |
+| `tests/multi-ai-sync-agy-platform.test.js` | Rewrite | Deterministic discovery/runtime probes require exact PASS, import-only results require SKIP_INCOMPATIBLE, and the real package path is read-only bound at the resolved consumer path. | 22 |
+| `tests/multi-ai-sync-configured-platform-validation.test.js` | Rewrite | Missing configured Claude source fails through the CLI; discovery finds the exact role and explicit selection returns the requested platform set. | 17 |
+| `tests/multi-ai-sync-cursor-capabilities.test.js` | Rewrite | A valid project-local projection stays PASS beside a malformed portable package; portable failure, native incompatibility, and unrun runtime stay distinct. | 19 |
+| `tests/multi-ai-sync-cursor-discovery.test.js` | Rewrite | Discovery unions all three documented roots, sorts and deduplicates roles, and ignores navigation, receipt, and resource Markdown. | 1 |
+
+The nine suites were run through the same aggregate before and after under
+c8 `10.1.3`, Node `v24.21.0`, with fresh report directories. All 32 measured
+`scripts/` paths were compared: covered line and branch counts did not
+decrease in any path. The only changed row was:
+
+| Production file | Lines before → after | Branches before → after |
+| --- | ---: | ---: |
+| `scripts/ci/validate-agent-plugin-package.js` | 55/60 → 55/60 | 9/12 → 10/13 |
+
+The covered branch count rose by one, and the report's total branch
+denominator also rose by one. Because the denominators differ, these raw
+counts do not support a strict percentage comparison; the evidence is one
+additional covered branch with no covered-count decrease across measured
+paths.
+
+The shared helper `tests/_lib/macos-installer-files.js` was audited and kept:
+CI calls it directly, and its injected spawn seam supports deterministic
+ordering, environment, and fail-fast assertions. No production source,
+shared helper, or fixture changed. GitNexus file-path impact returned `UNKNOWN` for
+all nine suites and the helper; the paths are not resolvable in the index, so
+this remains unresolved rather than an all-clear. Text confirms recursive
+discovery in `tests/run-all.js:43`, the CI aggregate at
+`.github/workflows/ci.yml:120`, and the separate macOS helper route at
+`.github/workflows/ci.yml:165`. Named impacts for `runMacosInstallerSubset`,
+`validate_agy`, and `cursor_agent_roles` were LOW with one direct caller
+and no indexed processes. `writeBwrapStub` impact was LOW with zero graph
+callers; text confirms its 11 call sites are local to the AGY suite.
+`validate_cursor` had no resolved graph caller,
+but `validation.py:1483` reaches it through a validator dictionary; that
+empty graph result is incomplete. The local loader helper `sh` impact was
+partial on two attempts after a read-only traversal error; its context and
+text references show only local suite calls, so that graph result also remains
+unresolved. No HIGH or CRITICAL warning was returned.
+
+**Progress after #658:** 171 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

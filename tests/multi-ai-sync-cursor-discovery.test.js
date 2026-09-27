@@ -14,15 +14,28 @@ function write(file, content) {
   fs.writeFileSync(file, content);
 }
 
-test('harness-govern sync Cursor discovery excludes navigation, receipts, and resource Markdown', () => {
+test('harness-govern sync Cursor discovery unions all roots and filters metadata', () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-discovery-'));
   try {
-    const agents = path.join(repo, 'plugins/dhpk-cursor/agents');
-    write(path.join(agents, 'reviewer.md'), '---\nname: reviewer\ndescription: Review\n---\n# Reviewer\n');
-    write(path.join(agents, 'INDEX.md'), '# index\n');
-    write(path.join(agents, 'README.md'), '# readme\n');
-    write(path.join(agents, 'provenance.md'), '# receipt\n');
-    write(path.join(agents, '_resource.md'), '# resource\n');
+    const roots = [
+      path.join(repo, 'plugins/dhpk-cursor/agents'),
+      path.join(repo, '.cursor/plugins/local/dhpk-cursor/agents'),
+      path.join(repo, '.cursor/agents'),
+    ];
+    const filesByRoot = [
+      ['reviewer.md', 'architect.md'],
+      ['writer.md'],
+      ['reviewer.md', 'security.md'],
+    ];
+    for (let index = 0; index < roots.length; index += 1) {
+      for (const role of filesByRoot[index]) {
+        const name = path.basename(role, '.md');
+        write(path.join(roots[index], role), `---\nname: ${name}\ndescription: Test role\n---\n# Test role\n`);
+      }
+      for (const metadata of ['INDEX.md', 'README.md', 'provenance.md', 'fingerprints.md', 'receipt.md', 'receipts.md', '_resource.md']) {
+        write(path.join(roots[index], metadata), '# metadata, not a role\n');
+      }
+    }
     const code = [
       'from multi_ai_sync_lib.agent_sync import cursor_agent_roles',
       'import json',
@@ -30,7 +43,7 @@ test('harness-govern sync Cursor discovery excludes navigation, receipts, and re
     ].join('\n');
     const result = spawnSync('python3', ['-c', code], { cwd: SCRIPT_ROOT, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr || result.stdout);
-    assert.deepStrictEqual(JSON.parse(result.stdout), ['reviewer']);
+    assert.deepStrictEqual(JSON.parse(result.stdout), ['architect', 'reviewer', 'security', 'writer']);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

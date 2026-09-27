@@ -27,6 +27,7 @@ function writeSettings(root, filename, options) {
 function sh(root, cmd, extraEnv) {
   const env = { ...process.env, ROOT: root, ...(extraEnv || {}) };
   delete env.DHPK_HOOK_PROFILE;
+  delete env.DHPK_PROJECT_OPTION_HOOK_PROFILE;
   return spawnSync('bash', ['-c', `source "${LIB}"; ${cmd}`], { encoding: 'utf8', timeout: 10000, env });
 }
 
@@ -63,11 +64,16 @@ test('boolean option is converted to lowercase true/false string', () => {
   assert.strictEqual(res.stdout.trim(), 'true');
 });
 
-test('no settings file present (edge case) leaves env untouched, no error', () => {
+test('no settings file preserves a global option without creating a project marker', () => {
   const root = tmpRoot();
-  const res = sh(root, 'echo "OUT:[${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-unset}]"; echo "EXIT:$?"');
+  const res = sh(
+    root,
+    'echo "OUT:[${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-unset}]"; echo "PROJECT:[${DHPK_PROJECT_OPTION_HOOK_PROFILE:-unset}]"',
+    { CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'global-profile' },
+  );
   assert.strictEqual(res.status, 0, res.stderr);
-  assert.ok(res.stdout.includes('OUT:[unset]'), res.stdout);
+  assert.ok(res.stdout.includes('OUT:[global-profile]'), res.stdout);
+  assert.ok(res.stdout.includes('PROJECT:[unset]'), res.stdout);
 });
 
 test('CLI-backed fast-worker model/effort keys pass through with standard layering', () => {
