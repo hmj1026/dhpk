@@ -14,12 +14,23 @@ const DOC = path.join(ROOT, 'docs', 'harness-workflow.md');
 test('documents the stable facade phases, outcomes, exits, and receipt boundary', () => {
   assert.strictEqual(fs.existsSync(DOC), true);
   const content = fs.readFileSync(DOC, 'utf8');
-  for (const phase of ['preflight', 'plan', 'generate', 'validate', 'test', 'probe', 'verify', 'release']) {
-    assert.match(content, new RegExp(`\\b${phase}\\b`));
-  }
-  for (const token of ['PASS', 'FAIL', 'BLOCKED', 'NOT_RUN', 'UNAVAILABLE', 'NO_SHIP', 'COMPLETE', '64', '70', 'dhpk.harness.receipt.v1']) {
-    assert.match(content, new RegExp(token.replace(/[.]/g, '\\.'), 'i'));
-  }
+  const phaseOrder = content.match(/Release-capable work follows this order:\s*```text\s*([^`]+)```/);
+  assert.ok(phaseOrder, 'workflow must publish the ordered release phases');
+  assert.deepStrictEqual(phaseOrder[1].trim().split(/\s*->\s*/), [
+    'preflight', 'plan', 'generate', 'validate', 'test', 'probe', 'verify', 'release',
+  ]);
+
+  const rows = new Map([...content.matchAll(/^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$/gm)]
+    .map((match) => [match[1].replace(/`/g, '').trim(), match[3].trim()]));
+  assert.strictEqual(rows.get('PASS, COMPLETE'), '0');
+  assert.strictEqual(rows.get('FAIL'), '1');
+  assert.strictEqual(
+    rows.get('BLOCKED, NOT_RUN, NOT_CONFIGURED, SKIP_INCOMPATIBLE, UNAVAILABLE, NO_SHIP, PARTIAL, PUBLISHED_PENDING, PUBLISHED_UNHEALTHY, OVERRIDDEN'),
+    '2',
+  );
+  assert.strictEqual(rows.get('invalid usage'), '64');
+  assert.strictEqual(rows.get('unexpected harness error'), '70');
+  assert.match(content, /dhpk\.harness\.receipt\.v1/);
   assert.match(content, /structural|package/i);
   assert.match(content, /runtime|consumer/i);
 });

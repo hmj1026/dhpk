@@ -420,6 +420,33 @@ discovery, while UNKNOWN remains unresolved and is not an unused-path verdict.
 **Progress after #653:** 122 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #654 — Cohort A batch 13
+
+This batch rewrites six suites and keeps four. The ten suites retain all 96
+baseline cases.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/gen-distribution-inventory.test.js` | Rewrite | The classifier path set exactly matches on-disk canonical `SKILL.md` files in both directions, so an omitted skill is detected. | 25 |
+| `tests/gen-skill-usage.test.js` | Rewrite | A valid copied catalog passes first; drift to only the temporary catalog copy fails with the generated-catalog drift diagnostic. | 6 |
+| `tests/git-flow-governance.test.js` | Keep | Git-flow governance document and policy ownership remain independently covered. | 5 |
+| `tests/git-provider-review-gate-adapter.test.js` | Rewrite | Each of the five required identity fields is rejected when missing, before the store can append a receipt. | 7 |
+| `tests/harness-audit.test.js` | Rewrite | Hooks scope includes a hook check and excludes a non-hook repo check. | 9 |
+| `tests/harness-docs.test.js` | Rewrite | Published phase order and every outcome-to-exit row are pinned to the public workflow document. | 2 |
+| `tests/harness-facade-cli.test.js` | Keep | The facade CLI's command-line behavior and exit contract remain independently covered. | 29 |
+| `tests/harness-facade-contract.test.js` | Keep | The facade's public phase, result, and receipt contracts remain independently covered. | 4 |
+| `tests/harness-govern-security.test.js` | Keep | Harness governance security boundaries remain independently covered. | 7 |
+| `tests/harness-govern-toml-fallback.test.js` | Rewrite | The fallback parser is compared with stdlib `tomllib` using tracked `codex/agents` TOMLs; an empty fixture set cannot silently skip the check. | 2 |
+
+The focused aggregate passed all ten suites and retained 96/96 cases. The
+recursive `tests/run-all.js` route discovers these suites in CI and release.
+No production source, helper, or fixture changed. GitNexus impact returned
+`UNKNOWN` for all ten test paths. Text confirms recursive discovery, but
+`UNKNOWN` remains unresolved and is not evidence that a path is unused.
+
+**Progress after #654:** 132 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

@@ -192,12 +192,22 @@ test('every Codex-selected inventory entry has one validated usage contract', ()
   }
 });
 
-test('generator check mode rejects a manually edited generated catalog', () => {
+test('generator check mode rejects a drifted catalog after accepting a valid baseline copy', () => {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-usage-catalog-'));
   try {
-    const result = runGenerator(['--check', '--root', fixtureRoot]);
-    assert.notStrictEqual(result.status, 0, 'a root with no generated catalog must fail closed');
-    assert.match(`${result.stdout || ''}${result.stderr || ''}`, /catalog|missing|root|inventory/i);
+    const catalogCopy = path.join(fixtureRoot, 'codex-usage-catalog.json');
+    const checkedInCatalog = path.join(ROOT, 'skills', 'flow-guide', 'references', 'codex-usage-catalog.json');
+    fs.copyFileSync(checkedInCatalog, catalogCopy);
+
+    const baseline = runGenerator(['--check', '--root', ROOT, '--out', catalogCopy]);
+    assert.strictEqual(baseline.status, 0, `${baseline.stdout || ''}${baseline.stderr || ''}`);
+
+    fs.appendFileSync(catalogCopy, '\nmanual drift\n');
+    const drifted = runGenerator(['--check', '--root', ROOT, '--out', catalogCopy]);
+    const output = `${drifted.stdout || ''}${drifted.stderr || ''}`;
+    assert.strictEqual(drifted.status, 1, output);
+    assert.match(output, /FAIL \[gen-skill-usage\]: generated catalog drifted from inventory:/);
+    assert.ok(output.includes(catalogCopy), `diagnostic must identify the corrupted temporary catalog: ${output}`);
   } finally {
     fs.rmSync(fixtureRoot, { recursive: true, force: true });
   }

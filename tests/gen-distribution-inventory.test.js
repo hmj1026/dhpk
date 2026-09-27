@@ -64,6 +64,29 @@ function statusOf(result) {
   return typeof result === 'number' ? result : result.status;
 }
 
+function canonicalSkillMarkdownPaths(root) {
+  const paths = [];
+  const collect = (directory) => {
+    if (!fs.existsSync(directory)) return;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) collect(absolute);
+      else if (entry.isFile() && entry.name === 'SKILL.md') {
+        paths.push(path.relative(root, absolute).split(path.sep).join('/'));
+      }
+    }
+  };
+
+  collect(path.join(root, 'skills'));
+  const modulesRoot = path.join(root, 'modules');
+  if (fs.existsSync(modulesRoot)) {
+    for (const moduleEntry of fs.readdirSync(modulesRoot, { withFileTypes: true })) {
+      if (moduleEntry.isDirectory()) collect(path.join(modulesRoot, moduleEntry.name, 'skills'));
+    }
+  }
+  return paths.sort();
+}
+
 test('refresh with missing output returns status 2 and does not write', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-refresh-missing-'));
   const output = path.join(temp, 'inventory.json');
@@ -342,10 +365,14 @@ test('checked-in manifest exists and declares the v2 schema', () => {
 
 test('every canonical skill directory (skills/, modules/*/skills/) is classified', () => {
   const generated = classifyCanonicalInventory(ROOT);
-  assert.ok(generated.skills.length > 0);
-  for (const s of generated.skills) {
-    assert.ok(fs.existsSync(path.join(ROOT, s.path, 'SKILL.md')), `${s.path}/SKILL.md missing on disk`);
-  }
+  const onDisk = canonicalSkillMarkdownPaths(ROOT);
+  const classified = generated.skills.map((skill) => `${skill.path}/SKILL.md`).sort();
+  assert.ok(onDisk.length > 0, 'canonical root/module skill trees must contain SKILL.md files');
+  const onDiskSet = new Set(onDisk);
+  const classifiedSet = new Set(classified);
+  assert.deepStrictEqual(onDisk.filter((file) => !classifiedSet.has(file)), [], 'every canonical SKILL.md must be classified');
+  assert.deepStrictEqual(classified.filter((file) => !onDiskSet.has(file)), [], 'classified paths must exist as canonical SKILL.md files');
+  assert.deepStrictEqual(classified, onDisk, 'canonical SKILL.md paths and classified paths must match exactly');
 });
 
 test('root skills classify promoted/claude-core; module skills classify optional/claude-module', () => {

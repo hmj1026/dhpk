@@ -9,7 +9,7 @@ const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync.py');
 const LIB_DIR = path.join(ROOT, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync_lib');
 const SYSTEM_PYTHON3 = '/usr/bin/python3';
-const CODEX_AGENTS_DIR = path.join(ROOT, '.codex', 'agents');
+const CODEX_AGENTS_DIR = path.join(ROOT, 'codex', 'agents');
 
 function haveSystemPython3() {
   return fs.existsSync(SYSTEM_PYTHON3);
@@ -28,12 +28,12 @@ test('multi_ai_sync self-test passes under the isolation harness interpreter (no
 });
 
 test('vendored tomli fallback parses real Codex agent TOML files identically to stdlib tomllib', () => {
-  if (!fs.existsSync(CODEX_AGENTS_DIR)) return;
+  assert.ok(fs.existsSync(CODEX_AGENTS_DIR), `tracked Codex agent TOML directory is missing: ${CODEX_AGENTS_DIR}`);
   const tomlFiles = fs
     .readdirSync(CODEX_AGENTS_DIR)
     .filter((name) => name.endsWith('.toml'))
     .slice(0, 5);
-  assert.ok(tomlFiles.length > 0, 'expected at least one .codex/agents/*.toml fixture');
+  assert.ok(tomlFiles.length > 0, 'expected at least one codex/agents/*.toml fixture');
 
   const script = `
 import json, sys
