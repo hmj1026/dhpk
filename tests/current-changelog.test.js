@@ -13,11 +13,19 @@ const version = JSON.parse(fs.readFileSync(
   path.join(ROOT, '.claude-plugin', 'plugin.json'),
   'utf8',
 )).version;
-test('current release has one changelog section', () => {
-  const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+
+function currentVersionHeadings(text) {
   const escapedVersion = version.split('.').join('\\.');
-  const heading = new RegExp(`^## ${escapedVersion}(?=[\\s.])`, 'gm');
-  const matches = changelog.match(heading) || [];
+  const heading = new RegExp(`^## ${escapedVersion}(?= )`, 'gm');
+  return text.match(heading) || [];
+}
+
+test('current release has one changelog section', () => {
+  const controlled = `## ${version} — exact\n\n## ${version}.1 — longer version\n`;
+  assert.deepStrictEqual(currentVersionHeadings(controlled), [`## ${version}`]);
+
+  const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
+  const matches = currentVersionHeadings(changelog);
   assert.strictEqual(matches.length, 1,
     `expected exactly one CHANGELOG.md heading for ${version}, found ${matches.length}`);
 });
