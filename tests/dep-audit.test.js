@@ -1,11 +1,10 @@
 'use strict';
 
 // Coverage for scripts/dep-audit.sh — dependency security audit wrapper over
-// npm/yarn/pnpm audit. Always run in a scratch temp dir (never the repo) with
-// NPM_CONFIG_OFFLINE=true so `npm audit` fails fast locally (ENOLOCK, no
-// lockfile) instead of touching the network; the script doesn't check the
-// audit-command exit code, so a fast local failure still produces a clean
-// "0 vulnerabilities / PASS" report — safe and deterministic for CI.
+// npm/yarn/pnpm audit. Tests run in scratch temp dirs (never the repo). The
+// empty/offline failure cases characterize a known fail-open defect: the
+// wrapper ignores the audit-command exit code and can report zero findings
+// and PASS after an audit failure.
 
 const path = require('node:path');
 const fs = require('node:fs');
@@ -58,7 +57,7 @@ test('unknown flag prints usage to stderr and exits 2', () => {
   }
 });
 
-test('npm project with no lockfile: fast local ENOLOCK, clean PASS report, exit 0', () => {
+test('known fail-open: offline audit failure can produce zero counts and PASS', () => {
   const tmp = mkTmp();
   try {
     fs.writeFileSync(path.join(tmp, 'package.json'), JSON.stringify({ name: 'fixture', version: '1.0.0' }));
@@ -73,9 +72,9 @@ test('npm project with no lockfile: fast local ENOLOCK, clean PASS report, exit 
   }
 });
 
-// A timed-out or silent audit leaves the JSON file empty; jq then prints
-// nothing (exit 0), which used to render blank counts instead of zero.
-test('an empty audit output is reported as zero findings, not blank counts', () => {
+// Characterize the known defect: a nonzero audit exit with empty output is
+// converted to zero counts, and the wrapper still exits 0 instead of blocking.
+test('known fail-open: empty output after audit failure renders zero counts and exits 0', () => {
   const tmp = mkTmp();
   const bin = mkTmp();
   try {
@@ -87,6 +86,56 @@ test('an empty audit output is reported as zero findings, not blank counts', () 
     for (const level of ['Critical', 'High', 'Moderate', 'Low']) {
       assert.ok(res.stdout.includes(`| ${level} | 0 |`), `${level} count must be 0:\n${res.stdout}`);
     }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('critical audit findings fail the high threshold gate', () => {
+  const tmp = mkTmp();
+  const bin = mkTmp();
+  try {
+    fs.writeFileSync(path.join(tmp, 'package.json'), JSON.stringify({ name: 'fixture', version: '1.0.0' }));
+    fs.writeFileSync(path.join(bin, 'npm'), [
+      '#!/bin/sh',
+      'cat <<\'JSON\'',
+      JSON.stringify({
+        auditReportVersion: 2,
+        vulnerabilities: {
+          'fixture-critical': {
+            name: 'fixture-critical',
+            severity: 'critical',
+            via: [{ source: 1, name: 'fixture-critical', title: 'Fixture critical vulnerability', url: 'https://example.invalid/advisory', severity: 'critical', range: '*' }],
+            effects: [],
+            range: '*',
+            nodes: ['node_modules/fixture-critical'],
+            fixAvailable: false,
+          },
+        },
+        metadata: {
+          vulnerabilities: { info: 0, low: 0, moderate: 0, high: 0, critical: 1, total: 1 },
+          dependencies: { prod: 1, dev: 0, optional: 0, peer: 0, peerOptional: 0, total: 1 },
+        },
+      }),
+      'JSON',
+      'exit 1',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const env = {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+      DEP_AUDIT_TIMEOUT: '5',
+    };
+    const res = spawnSync('bash', [SCRIPT, '--level', 'high'], {
+      cwd: tmp,
+      env,
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+    assert.strictEqual(res.status, 1, res.stdout + res.stderr);
+    assert.ok(res.stdout.includes('| Critical | 1 |'), res.stdout);
+    assert.ok(res.stdout.includes('FAIL'), res.stdout);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
     fs.rmSync(bin, { recursive: true, force: true });

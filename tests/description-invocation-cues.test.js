@@ -20,6 +20,7 @@ const ROOT = path.join(__dirname, '..');
 const TRIGGER_RE = /Use (when|after|for)/i;
 const NOT_FOR_RE = /Not for/i;
 const OUTPUT_RE = /Output[:：]|output is/i;
+const EFFECT_RE = /Output[:：]|produces/i;
 
 function loadSkills() {
   const inv = collectInventory(ROOT);
@@ -50,12 +51,20 @@ test('every explicit-only skill description drops the Use-when trigger phrase (d
   assert.deepStrictEqual(stale, [], `explicit-only skills still carry a Use-when trigger phrase: ${stale.join(', ')}`);
 });
 
-test('every explicit-only skill description is non-empty and states an effect', () => {
+test('every explicit-only skill description is non-empty and long enough to describe its purpose', () => {
   const empty = skills
     .filter((s) => s.ic.value === 'explicit-only')
     .filter((s) => s.description.trim().length < 20)
     .map((s) => s.rel);
   assert.deepStrictEqual(empty, [], `explicit-only skills with a too-short description: ${empty.join(', ')}`);
+});
+
+test('every explicit-only skill description states an effect', () => {
+  const missing = skills
+    .filter((s) => s.ic.value === 'explicit-only')
+    .filter((s) => !EFFECT_RE.test(s.description))
+    .map((s) => s.rel);
+  assert.deepStrictEqual(missing, [], `explicit-only skills without an Output or produces effect cue: ${missing.join(', ')}`);
 });
 
 test('sanity: every inventory skill carries a known invocation class', () => {
