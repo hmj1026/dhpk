@@ -63,6 +63,8 @@ test('--scope hooks filters checks to the hooks scope only', () => {
   const report = JSON.parse(res.stdout);
   assert.strictEqual(report.scope, 'hooks');
   assert.ok(report.checks.length > 0);
+  assert.ok(report.checks.some((check) => check.id === 'tool-hooks-config'), 'hooks scope must include a hook-specific check');
+  assert.ok(!report.checks.some((check) => check.id === 'tool-agent-count'), 'hooks scope must exclude a non-hook repo check');
 });
 
 test('text format prints a human report (non-JSON) for the real repo root', () => {
