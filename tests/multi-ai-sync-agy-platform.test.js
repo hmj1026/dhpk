@@ -95,10 +95,16 @@ function validate(root, extra = [], env = process.env) {
   });
 }
 
-function writeBwrapStub(root, { runtime = 'pass' } = {}) {
+function writeBwrapStub(root, {
+  runtime = 'pass',
+  discoveryPluginsOutput = 'dhpk 0.39.0',
+  discoveryAgentsOutput = 'sample',
+} = {}) {
   const bin = path.join(root, 'bin');
   const log = path.join(root, 'bwrap-argv.log');
   const modes = path.join(root, 'bwrap-source-modes.log');
+  const pluginsOutput = JSON.stringify(discoveryPluginsOutput);
+  const agentsOutput = JSON.stringify(discoveryAgentsOutput);
   fs.mkdirSync(bin, { recursive: true });
   const logLiteral = JSON.stringify(log);
   const modesLiteral = JSON.stringify(modes);
@@ -153,8 +159,8 @@ function writeBwrapStub(root, { runtime = 'pass' } = {}) {
     '  esac',
     '  previous="$argument"',
     'done',
-    'if [ "$has_plugins" = 1 ]; then printf \'%s\\n\' \'dhpk 0.39.0\'; exit 0; fi',
-    'if [ "$has_agents" = 1 ]; then printf \'%s\\n\' sample; exit 0; fi',
+    `if [ "$has_plugins" = 1 ]; then printf '%s\\n' ${pluginsOutput}; exit 0; fi`,
+    `if [ "$has_agents" = 1 ]; then printf '%s\\n' ${agentsOutput}; exit 0; fi`,
     'if [ "$has_runtime" = 1 ]; then',
     ...runtimeBranch,
     'fi',
@@ -292,14 +298,14 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
     const discovery = JSON.parse(validate(root, [], env).stdout).results.find((item) => item.platform === 'agy');
     const discoveryPluginsStatus = discovery.capabilities.find((item) => item.id === 'agy.discovery.plugins').status;
     const discoveryAgentsStatus = discovery.capabilities.find((item) => item.id === 'agy.discovery.agents').status;
-    assert.ok(['PASS', 'UNAVAILABLE'].includes(discoveryPluginsStatus), `unexpected plugin discovery status: ${discoveryPluginsStatus}`);
-    assert.ok(['PASS', 'UNAVAILABLE'].includes(discoveryAgentsStatus), `unexpected agent discovery status: ${discoveryAgentsStatus}`);
+    assert.strictEqual(discoveryPluginsStatus, 'PASS', JSON.stringify(discovery));
+    assert.strictEqual(discoveryAgentsStatus, 'PASS', JSON.stringify(discovery));
     assert.strictEqual(discovery.capabilities.find((item) => item.id === 'agy.runtime.subagent').status, 'NOT_RUN');
 
     const runtime = JSON.parse(validate(root, ['--agy-runtime-probe'], env).stdout).results.find((item) => item.platform === 'agy');
     const runtimeStatus = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').status;
-    assert.ok(['PASS', 'UNAVAILABLE'].includes(runtimeStatus), `unexpected runtime probe status: ${runtimeStatus}`);
-    assert.strictEqual(runtime.final_status, runtimeStatus === 'PASS' ? 'PASS' : 'UNAVAILABLE');
+    assert.strictEqual(runtimeStatus, 'PASS', JSON.stringify(runtime));
+    assert.strictEqual(runtime.final_status, 'PASS', JSON.stringify(runtime));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -366,26 +372,26 @@ test('AGY diagnostics redact private paths and arbitrary client payloads', () =>
 
 test('import-only agy plugins list is not native plugin discovery PASS', () => {
   const root = tempRoot('agy-import-only');
-  const bin = path.join(root, 'bin');
   try {
     agyPackage(root);
-    write(path.join(bin, 'agy'), [
-      '#!/bin/sh',
-      'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then',
-      '  printf \'%s\\n\' \'{"imports":[{"name":"dhpk","source":"claude-code","importedAt":"2026-08-07T07:51:05Z","components":["skills","agents"]}]}\'',
-      '  exit 0',
-      'fi',
-      'if [ "$1" = "agents" ]; then printf \'%s\\n\' \'unrelated-host-agent\'; exit 0; fi',
-      'exit 2',
-      '',
-    ].join('\n'), 0o755);
-    const result = validate(root, [], { ...process.env, PATH: `${bin}:/usr/bin:/bin` });
+    const imports = JSON.stringify({
+      imports: [{
+        name: 'dhpk',
+        source: 'claude-code',
+        importedAt: '2026-08-07T07:51:05Z',
+        components: ['skills', 'agents'],
+      }],
+    });
+    const stub = writeBwrapStub(root, {
+      discoveryPluginsOutput: imports,
+      discoveryAgentsOutput: 'unrelated-host-agent',
+    });
+    const result = validate(root, [], { ...process.env, PATH: `${stub.bin}:/usr/bin:/bin` });
     const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
     const plugins = row.capabilities.find((item) => item.id === 'agy.discovery.plugins').status;
     const agents = row.capabilities.find((item) => item.id === 'agy.discovery.agents').status;
-    assert.ok(['SKIP_INCOMPATIBLE', 'UNAVAILABLE'].includes(plugins), `import-only plugins list must not PASS: ${plugins}`);
-    assert.ok(['SKIP_INCOMPATIBLE', 'UNAVAILABLE'].includes(agents), `unrelated agents must not PASS: ${agents}`);
-    assert.notStrictEqual(plugins, 'PASS');
+    assert.strictEqual(plugins, 'SKIP_INCOMPATIBLE', JSON.stringify(row));
+    assert.strictEqual(agents, 'SKIP_INCOMPATIBLE', JSON.stringify(row));
     assert.notStrictEqual(row.final_status, 'FAIL', JSON.stringify(row));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -756,11 +762,41 @@ test('AGY package structure rejects a file that is not inside a skill directory'
   }
 });
 
-test('AGY sandbox binds the native package at the consumer plugin path', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync_lib/validation.py'), 'utf8');
-  assert.match(source, /consumer_path = os\.path\.join\(contract\["sandbox_home"\], contract\["canonical_relative"\]\)/);
-  assert.match(source, /"--ro-bind", os\.path\.realpath\(package_root\), consumer_path/);
-  assert.doesNotMatch(source, /--ro-bind.*\/workspace\/plugins\/dhpk-agy/);
+test('AGY sandbox read-only binds the real package at the resolved consumer path', () => {
+  const root = tempRoot('agy-readonly-consumer-path');
+  try {
+    agyPackage(root);
+    const stub = writeBwrapStub(root);
+    const result = validate(root, [], {
+      ...process.env,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
+    });
+    assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
+    const invocations = bwrapInvocations(stub.log);
+    assert.strictEqual(invocations.length, 2, 'discovery should invoke plugins and agents only');
+
+    const packageRoot = fs.realpathSync(path.join(root, 'plugins/dhpk-agy'));
+    const consumerPath = resolveAgyConsumerPath(loadAgyPathContract());
+    for (const invocation of invocations) {
+      const readOnlyBind = invocation.findIndex((argument, index) => (
+        argument === '--ro-bind'
+        && invocation[index + 1] === packageRoot
+        && invocation[index + 2] === consumerPath
+      ));
+      assert.ok(readOnlyBind > -1, `expected real package ${packageRoot} read-only at ${consumerPath}: ${invocation.join(' ')}`);
+      assert.ok(!invocation.some((argument, index) => (
+        argument === '--bind'
+        && invocation[index + 1] === packageRoot
+        && invocation[index + 2] === consumerPath
+      )), 'package must not be writable from the sandbox');
+    }
+
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.path_contract.canonical_relative, '.gemini/antigravity-cli/plugins/dhpk');
+    assert.deepStrictEqual(row.path_contract.legacy_relatives, ['.gemini/config/plugins/dhpk']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 run('multi-ai-sync-agy-platform');
