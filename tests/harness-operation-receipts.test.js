@@ -56,7 +56,7 @@ test('creates an exact-checkout-bound attempt envelope and immutable event chain
   }
 });
 
-test('rejects a receipt event whose bytes or chain predecessor was rewritten', () => {
+test('rejects a receipt event whose digest or stored chain hash was rewritten', () => {
   const root = temporaryReceiptRoot();
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   try {
@@ -69,13 +69,25 @@ test('rejects a receipt event whose bytes or chain predecessor was rewritten', (
       sourceTree: receipts.resolveGitTree(ROOT, sourceCommit),
     });
     receipts.appendEvent(attempt, { lifecyclePhase: 'PLANNED', outcome: 'PASS' });
-    const eventPath = path.join(attempt.path, 'events', '0001.json');
-    const event = JSON.parse(fs.readFileSync(eventPath, 'utf8'));
-    event.outcome = 'COMPLETE';
-    fs.writeFileSync(eventPath, JSON.stringify(event, null, 2) + '\n');
-    const result = receipts.validateReceipt(attempt.path);
-    assert.strictEqual(result.ok, false);
-    assert.match(result.errors.join('\n'), /digest|chain|event/i);
+    const firstEventPath = path.join(attempt.path, 'events', '0001.json');
+    const originalFirstEvent = fs.readFileSync(firstEventPath);
+    const firstEvent = JSON.parse(originalFirstEvent.toString('utf8'));
+    firstEvent.outcome = 'COMPLETE';
+    fs.writeFileSync(firstEventPath, JSON.stringify(firstEvent, null, 2) + '\n');
+    const digestResult = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(digestResult.ok, false);
+    assert.ok(digestResult.errors.includes('event 1 digest mismatch'), digestResult.errors.join('\n'));
+
+    fs.writeFileSync(firstEventPath, originalFirstEvent);
+    receipts.appendEvent(attempt, { lifecyclePhase: 'VERIFIED', outcome: 'PASS' });
+    const secondEventPath = path.join(attempt.path, 'events', '0002.json');
+    const secondEvent = JSON.parse(fs.readFileSync(secondEventPath, 'utf8'));
+    secondEvent.chain_sha256 = '0'.repeat(64);
+    fs.writeFileSync(secondEventPath, JSON.stringify(secondEvent, null, 2) + '\n');
+    const chainResult = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(chainResult.ok, false);
+    assert.ok(chainResult.errors.includes('event 2 chain mismatch'), chainResult.errors.join('\n'));
+    assert.ok(!chainResult.errors.some((error) => /event 2 digest mismatch/.test(error)), chainResult.errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -115,6 +127,7 @@ test('redacts secrets before receipt values are persisted', () => {
   const redacted = receipts.redact({ token: marker, diagnostics: `Authorization: Bearer ${marker}` });
   assert.doesNotMatch(JSON.stringify(redacted), new RegExp(marker));
   assert.match(JSON.stringify(redacted), /redacted/i);
+  assert.deepStrictEqual(receipts.redact([{ token: marker }]), [{ token: '<redacted>' }]);
 });
 
 run('harness-operation-receipts');

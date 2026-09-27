@@ -447,6 +447,54 @@ No production source, helper, or fixture changed. GitNexus impact returned
 **Progress after #654:** 132 suites reviewed against the 79-suite minimum.
 Remaining numbered Cohort A issues continue afterward.
 
+### Issue #655 — Cohort A batch 14
+
+This batch rewrites four suites and keeps six. The focused baseline and final
+runs both passed 10/10 suites and 81/81 live cases. The frozen inventory's
+`test_case_count` for unchanged `tests/install-assets.test.js` is 18, while its
+live suite registers 28 cases. The frozen metric therefore undercounts the live
+aggregate by ten; the suite and frozen numeric metric remain unchanged.
+
+| Test file | Disposition | Protected contract and assertion owner | Final cases |
+| --- | --- | --- | ---: |
+| `tests/harness-operation-receipts.test.js` | Rewrite | The receipt validator separately identifies first-event digest corruption and second-event chain-hash corruption. | 4 |
+| `tests/harness-platform-matrix.test.js` | Rewrite | A required surface without a matching projection contract is reported by the validator; the test no longer compares fabricated status literals. | 5 |
+| `tests/harness-receipt-identity-lifecycle.test.js` | Keep | Receipt identity and lifecycle transitions remain independently covered. | 9 |
+| `tests/harness-release-aggregation.test.js` | Keep | Aggregate release outcome and per-surface evidence remain independently covered. | 15 |
+| `tests/harness-surfaces.test.js` | Keep | Public harness surface declarations remain independently covered. | 1 |
+| `tests/harness-workflow-config.test.js` | Keep | Harness workflow configuration and validation remain independently covered. | 4 |
+| `tests/health-probe.test.js` | Keep | Health probe outcome classification remains independently covered. | 2 |
+| `tests/hooks-wiring.test.js` | Rewrite | Each hook event asserts its exact command, type, and argument list, rejecting extra or changed wiring. | 8 |
+| `tests/install-agy-plugin.test.js` | Rewrite | Install report paths stay within the target and exist before rollback; rollback reports those files as removed and leaves none behind. | 5 |
+| `tests/install-assets.test.js` | Keep | Installer asset discovery and materialization remain independently covered. | 28 |
+
+The focused aggregate passed all ten suites and 81/81 live cases. All ten
+suites remain recursively discovered by `tests/run-all.js` in CI and release.
+The paired coverage runs used Node `v24.21.0`, c8 `10.1.3`, the same ten-suite
+aggregate with two workers, and fresh output directories at baseline commit
+`c402ce432afa9bd7a6cdc575832e8f5671c26df0` and the final tree. No measured
+production file lost covered lines or branches; relevant files were:
+
+| Production file | Lines before → after | Branches before → after |
+| --- | ---: | ---: |
+| `scripts/lib/harness-receipt.js` | 527/639 → 527/639 | 146/251 → 147/252 |
+| `scripts/lib/receipt-primitives.js` | 385/797 → 385/797 | 89/146 → 89/146 |
+| `scripts/lib/distribution-inventory.js` | 581/2518 → 581/2518 | 62/96 → 62/96 |
+| `scripts/ci/install-agy-plugin.js` | 51/59 → 51/59 | 18/25 → 18/25 |
+| `scripts/lib/agy-plugin-install.js` | 611/837 → 611/837 | 128/223 → 128/223 |
+| `scripts/lib/agy-plugin-package.js` | 565/706 → 565/706 | 100/214 → 100/214 |
+
+No helper or fixture was assigned to this batch as a primary owner, and no
+production source, helper, or fixture changed. Four disposable mutation
+controls all made their matching suite fail: suppressing chain validation,
+skipping the `agy-plugin` projection check, adding an extra edit-hook argument,
+or retaining an installed `agents/` file after rollback. GitNexus impact returned
+`UNKNOWN` for all four rewritten test paths; text confirms recursive suite
+discovery, while UNKNOWN remains unresolved and is not an unused-path verdict.
+
+**Progress after #655:** 142 suites reviewed against the 79-suite minimum.
+Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

@@ -111,7 +111,7 @@ test('required surface plan rejects incomplete or foreign full-release lists and
   assert.deepStrictEqual(scoped.errors, []);
 });
 
-test('required surfaces must have matching projection contracts without upgrading runtime evidence', () => {
+test('required surfaces must have matching projection contracts', () => {
   const contract = projectionContract();
   delete contract.surfaces['agy-plugin'];
   const result = validateRequiredSurfacePlan({
@@ -122,12 +122,6 @@ test('required surfaces must have matching projection contracts without upgradin
     fullRelease: true,
   });
   assert.ok(result.errors.some((error) => /agy-plugin.*projection|projection.*agy-plugin/i.test(error)), result.errors.join('\n'));
-
-  const structuralPass = { stage: 'structural', status: 'PASS', surface: 'agent-plugin' };
-  const runtimeUnavailable = { stage: 'consumer-runtime', status: 'UNAVAILABLE', surface: 'agent-plugin' };
-  assert.strictEqual(structuralPass.status, 'PASS');
-  assert.strictEqual(runtimeUnavailable.status, 'UNAVAILABLE');
-  assert.notStrictEqual(structuralPass.status, runtimeUnavailable.status);
 });
 
 test('required runtime surfaces are an ordered subset and exclude cursor-sync', () => {

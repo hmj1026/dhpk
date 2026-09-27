@@ -51,29 +51,42 @@ test('Edit|Write|MultiEdit wires only the protected-path guard', () => {
   const parsed = JSON.parse(raw);
   const edit = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Edit|Write|MultiEdit');
   assert.ok(edit, 'missing edit PreToolUse entry');
-  assert.strictEqual(edit.hooks.length, 1);
-  assert.ok(edit.hooks[0].args.some((arg) => arg.includes('pre-edit-guard.sh')));
+  assert.deepStrictEqual(edit.hooks, [{
+    type: 'command',
+    command: 'bash',
+    args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh'],
+    timeout: 5,
+  }]);
 });
 
 test('Bash and SubagentStop each wire one consolidated deterministic hook', () => {
   const parsed = JSON.parse(raw);
   const bash = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash');
   assert.ok(bash, 'missing Bash PreToolUse entry');
-  assert.strictEqual(bash.hooks.length, 1);
-  assert.ok(bash.hooks[0].args.some((arg) => arg.includes('pre-bash-dispatch.sh')));
-
-  const subagentStopArgs = (parsed.hooks.SubagentStop || [])
-    .flatMap((entry) => entry.hooks || [])
-    .flatMap((hook) => hook.args || []);
-  assert.deepStrictEqual(subagentStopArgs,
-    ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-verify.sh']);
+  assert.deepStrictEqual(bash.hooks, [{
+    type: 'command',
+    command: 'bash',
+    args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-bash-dispatch.sh'],
+  }]);
+  assert.deepStrictEqual(parsed.hooks.SubagentStop, [{
+    hooks: [{
+      type: 'command',
+      command: 'bash',
+      args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-verify.sh'],
+    }],
+  }]);
 });
 
 test('SessionStart wires only module activation', () => {
   const parsed = JSON.parse(raw);
-  const sessionStart = parsed.hooks.SessionStart[0].hooks;
-  assert.strictEqual(sessionStart.length, 1);
-  assert.ok(sessionStart[0].args.some((arg) => arg.includes('session-start.sh')));
+  assert.deepStrictEqual(parsed.hooks.SessionStart, [{
+    hooks: [{
+      type: 'command',
+      command: 'bash',
+      args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/session-start.sh'],
+      timeout: 20,
+    }],
+  }]);
 });
 
 run('hooks-wiring');

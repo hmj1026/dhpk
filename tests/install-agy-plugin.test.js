@@ -108,13 +108,27 @@ test('CLI installs and rolls back the receipt-owned AGY package', () => {
   const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-install-'));
   const target = path.join(temp, 'target');
   try {
-    const installed = invoke('install', target);
-    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const installed = invokeReport('install', target);
+    assert.strictEqual(installed.result.status, 0, `${installed.result.stdout}\n${installed.result.stderr}`);
+    assert.ok(installed.report.installed.length > 0, 'install report must identify receipt-owned package files');
+    const targetRoot = path.resolve(target);
+    for (const relative of installed.report.installed) {
+      const installedPath = path.resolve(targetRoot, relative);
+      const targetRelative = path.relative(targetRoot, installedPath);
+      assert.ok(targetRelative && !targetRelative.startsWith(`..${path.sep}`)
+        && targetRelative !== '..' && !path.isAbsolute(targetRelative),
+      `install report path escapes target: ${relative}`);
+      assert.ok(fs.existsSync(installedPath), `install report path was not created: ${relative}`);
+    }
     assert.ok(fs.existsSync(path.join(target, 'provenance.json')));
 
-    const rolledBack = invoke('rollback', target);
-    assert.strictEqual(rolledBack.status, 0, `${rolledBack.stdout}\n${rolledBack.stderr}`);
-    assert.ok(!fs.existsSync(path.join(target, 'provenance.json')));
+    const rolledBack = invokeReport('rollback', target);
+    assert.strictEqual(rolledBack.result.status, 0, `${rolledBack.result.stdout}\n${rolledBack.result.stderr}`);
+    assert.deepStrictEqual(rolledBack.report.removed, installed.report.installed);
+    for (const relative of installed.report.installed) {
+      assert.strictEqual(fs.existsSync(path.join(target, relative)), false, `rollback retained owned path ${relative}`);
+    }
+    assert.strictEqual(fs.existsSync(path.join(target, 'provenance.json')), false);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
