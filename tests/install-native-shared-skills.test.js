@@ -99,10 +99,44 @@ test('CLI installs Cursor native-link bindings from a declared selection', () =>
   }
 });
 
-test('CLI usage fails closed without a source, project, or selected id', () => {
-  const result = invoke(['install', '--json']);
-  assert.notStrictEqual(result.status, 0);
-  assert.match(`${result.stdout}\n${result.stderr}`, /usage: install-native-shared-skills/);
+test('CLI usage fails closed when each required install argument is missing', () => {
+  const sourceRoot = fixture();
+  const bareInstall = invoke(['install', '--json']);
+  assert.notStrictEqual(bareInstall.status, 0, `${bareInstall.stdout}\n${bareInstall.stderr}`);
+  assert.match(`${bareInstall.stdout}\n${bareInstall.stderr}`, /usage: install-native-shared-skills/);
+  const cases = [
+    { name: 'source', option: '--source' },
+    { name: 'project root', option: '--project-root' },
+    { name: 'selected id', option: '--selected-id' },
+  ];
+  try {
+    for (const { name, option } of cases) {
+      const projectRoot = tmpDir(`dhpk-install-native-missing-${name.replaceAll(' ', '-')}-`);
+      const args = [
+        'install',
+        '--source', sourceRoot,
+        '--project-root', projectRoot,
+        '--host', 'cursor',
+        '--selected-id', 'sample',
+        '--declared-selection',
+        '--json',
+      ];
+      const index = args.indexOf(option);
+      assert.notStrictEqual(index, -1, `could not find ${name} argument`);
+      args.splice(index, 2);
+
+      try {
+        const result = invoke(args);
+        assert.notStrictEqual(result.status, 0, `${name}: ${result.stdout}\n${result.stderr}`);
+        assert.match(`${result.stdout}\n${result.stderr}`, /usage: install-native-shared-skills/);
+        assert.deepStrictEqual(fs.readdirSync(projectRoot), [], `${name} failure mutated the project`);
+      } finally {
+        fs.rmSync(projectRoot, { recursive: true, force: true });
+      }
+    }
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+  }
 });
 
 test('CLI explains how to resolve a conflicting skill symlink', () => {
