@@ -83,6 +83,41 @@ test('cursor-sync installer PASS is not discovery evidence', () => {
   assert.match(result.reason, /not a PASS|discovery/i);
 });
 
+test('wrong envelope producer is not Cursor discovery evidence', () => {
+  const result = classifyCursorConsumerEvidence(passRecord({
+    envelope: { producer: 'other-probe' },
+  }));
+  assert.strictEqual(result.bindingShape, NATIVE_LINK_SHAPE);
+});
+
+test('wrong envelope adapter is not Cursor discovery evidence', () => {
+  const result = classifyCursorConsumerEvidence(passRecord({
+    envelope: { adapter: { id: 'other-adapter', version: '1.0.0' } },
+  }));
+  assert.strictEqual(result.bindingShape, NATIVE_LINK_SHAPE);
+});
+
+test('missing checked claims are not Cursor discovery evidence', () => {
+  const result = classifyCursorConsumerEvidence(passRecord({
+    surface: { checkedClaims: ['project-artifact-structure', 'consumer-route'] },
+  }));
+  assert.strictEqual(result.bindingShape, NATIVE_LINK_SHAPE);
+});
+
+test('duplicate checked claims are not Cursor discovery evidence', () => {
+  const result = classifyCursorConsumerEvidence(passRecord({
+    surface: {
+      checkedClaims: [
+        'project-artifact-structure',
+        'cursor-project-discovery',
+        'consumer-route',
+        'consumer-route',
+      ],
+    },
+  }));
+  assert.strictEqual(result.bindingShape, NATIVE_LINK_SHAPE);
+});
+
 test('loadCursorConsumerEvidence reads a regular fixture file and ignores a static tree', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-evidence-'));
   try {
@@ -90,6 +125,12 @@ test('loadCursorConsumerEvidence reads a regular fixture file and ignores a stat
     fs.writeFileSync(file, `${JSON.stringify(passRecord())}\n`);
     const loaded = loadCursorConsumerEvidence({ consumerEvidencePath: file });
     assert.strictEqual(loaded.stage, 'CONSUMER');
+    const symlink = path.join(dir, 'probe-link.json');
+    fs.symlinkSync(file, symlink, 'file');
+    assert.throws(
+      () => loadCursorConsumerEvidence({ consumerEvidencePath: symlink }),
+      /regular file/,
+    );
     assert.strictEqual(loadCursorConsumerEvidence({ env: {} }), null);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

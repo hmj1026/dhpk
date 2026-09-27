@@ -219,6 +219,36 @@ passed with all required scripts covered.
 
 **Progress:** 62 of 79 files reviewed; 17 more reviews required.
 
+### Issue #648 — Cohort A batch 07
+
+| Test file | Disposition | Owned contract and overlapping owner | Discovery and verification |
+| --- | --- | --- | --- |
+| `tests/cursor-agent-probe.test.js` | Keep | Cursor agent probe output and command gating. The consumer-evidence suite owns evidence-envelope normalization, while this suite protects the agent probe contract. | Discovered by `tests/run-all.js`; 9/9 passed. |
+| `tests/cursor-consumer-evidence.test.js` | Rewrite | Rejects evidence from the wrong producer or adapter, missing and duplicate claims, and symlinked evidence JSON; each invalid receipt selects `NATIVE_LINK`. | Discovered by `tests/run-all.js`; 11/11 passed. |
+| `tests/cursor-harness-adapt.test.js` | Keep | Cursor harness adaptation behavior; package and consumer evidence suites cover separate package and receipt contracts. | Discovered by `tests/run-all.js`; 7/7 passed. |
+| `tests/cursor-plugin-package.test.js` | Keep | Cursor plugin package construction and manifest contract, separate from sync-package behavior. | Discovered by `tests/run-all.js`; 3/3 passed. |
+| `tests/cursor-session-home.test.js` | Rewrite | Verifies copied session-home files byte-for-byte against sources and confirms symlinked destination ancestors do not create the auth file. | Discovered by `tests/run-all.js`; 3/3 passed. |
+| `tests/cursor-sync-package.test.js` | Keep | Cursor sync-package behavior and its owned package contract. | Discovered by `tests/run-all.js`; 4/4 passed. |
+| `tests/default-hook-events.test.js` | Keep | Default hook event inventory; no other batch suite asserts this exact default set. | Discovered by `tests/run-all.js`; 1/1 passed. |
+| `tests/dep-audit.test.js` | Rewrite | Adds a deterministic critical-vulnerability report case that must fail at `--level high`; existing command-failure cases are now explicitly characterized as a known fail-open defect tracked separately by issue #692. This batch does not change production audit behavior. | Discovered by `tests/run-all.js`; 9/9 passed. |
+| `tests/description-invocation-cues.test.js` | Rewrite | Preserves the description-length check and requires an explicit effect cue such as `Output:` or `produces`, reporting offending skill paths. | Discovered by `tests/run-all.js`; 5/5 passed. |
+| `tests/detect-phase.test.js` | Keep | Detect-phase behavior and its command contract, distinct from the dependency-audit and skill-description checks. | Discovered by `tests/run-all.js`; 8/8 passed. |
+
+The Node `v24.21.0` baseline run passed 10 suites and 54 cases. The final run
+passed 10 suites and 60 cases. CI and release recursively discover these tests
+through `tests/run-all.js`. None of the ten suites belongs to the macOS installer
+subset, and the frozen inventory assigns no helper or fixture assets to this
+batch. No production source changed, so per-production-file line and branch
+coverage comparison did not apply. GitNexus returned `risk: UNKNOWN` for the
+four rewritten test-file impacts because those paths are absent from the graph;
+repository search confirmed recursive runner discovery, while the graph verdict
+remains unresolved. The catalog check passed with all required scripts covered.
+
+The fail-open dependency-audit behavior is not fixed by this test-quality batch.
+Issue #692 separately tracks the production security repair and its validation.
+
+**Progress after #648:** 72 of 79 files reviewed; 7 more reviews required.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
