@@ -249,6 +249,39 @@ Issue #692 separately tracks the production security repair and its validation.
 
 **Progress after #648:** 72 of 79 files reviewed; 7 more reviews required.
 
+### Issue #649 — Cohort A batch 08
+
+This batch keeps seven suites and rewrites three. The final case counts are
+listed per suite.
+
+| Test file | Disposition | Protected contract and overlap | Final cases |
+| --- | --- | --- | ---: |
+| `tests/dhpk-distribution.test.js` | Keep | Retained distribution surfaces, package validation and verification boundaries, generated output protections, and Flow Guide dependency closure. Neighboring compiler and projection suites cover narrower artifact stages. | 12 |
+| `tests/dhpk-do-portable.test.js` | Keep | Flow Guide v3 route parsing, typed host and target results, availability, explicit-only dispatch, authority, and fail-closed handling. The lifecycle and dispatch suites own separate install and target-selection contracts. | 29 |
+| `tests/dhpk-install-lifecycle.test.js` | Keep | Lifecycle plan identity, scope normalization, evidence result boundaries, inventory membership, recovery contract, and blocked write actions across host surfaces. | 10 |
+| `tests/discover-models.test.js` | Rewrite | Asserts the exact returned agent, executable, source, fixed observation time, and both runner command/argument pairs while retaining parser, version, status, and missing-observation checks. | 3 |
+| `tests/discovery-budget-parity-separation.test.js` | Keep | Keeps discovery-budget accounting independent from projection parity, including identity binding, unknown visibility, overflow, drift, and the legacy summary route. | 8 |
+| `tests/dispatch-config-report.test.js` | Rewrite | Captures `main({})` and requires no output for defaults; explicit non-default settings must emit one parseable JSON line, while invalid-value diagnostics remain covered. | 2 |
+| `tests/dispatch-config.test.js` | Keep | Canonical role-target precedence, bounded legacy inputs, invalid-target handling, and distinct catalog, Host access, runtime, and fallback diagnostics. The report suite owns only the opt-in output boundary. | 8 |
+| `tests/dispatch-contract.test.js` | Keep | Canonical target and evidence shapes, closed Role/authority/Effort/transport vocabularies, Provider capability versus Host access, compatibility translation, and private-field rejection. | 13 |
+| `tests/dispatch-engine.test.js` | Keep | Explicit and automatic target selection, Host-native preference, external Provider opt-in, evidence recording, and fallback constraints that prevent silent downgrade or repeated side effects. | 16 |
+| `tests/dispatch-platform-validation.test.js` | Rewrite | Adds a SUCCEEDED/PASSED receipt with no probe and proves Host access and runtime remain NOT_RUN; existing cases continue to cover supplied access and probe evidence and incomplete catalog support. | 4 |
+
+The initial focused baseline passed 10 suites and 104/104 cases. The final
+focused run passed the three changed suites and 9/9 cases; the seven unchanged
+suites retain 96 cases from the baseline, for 105 cases across the batch. CI
+and release recursively discover these suites through `tests/run-all.js`; none
+is in the macOS installer subset. The frozen helper/fixture inventory assigns
+no primary support assets to this batch. No production source changed, so a
+production-file coverage comparison did not apply. GitNexus returned
+`risk: UNKNOWN` for the three edited test paths because the graph could not
+resolve them. Repository text confirms recursive runner discovery and the CI
+and release entry points; UNKNOWN remains unresolved, and the empty caller set
+does not establish that a path is unused.
+
+**Progress after #649:** 82 suites reviewed against the 79-suite minimum; the
+target is met. Remaining numbered Cohort A issues continue afterward.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
@@ -272,7 +305,12 @@ ordinal 247, `tests/retirement-closure.test.js`, is attached to B batch 05 / iss
 number #666, pending implementation there. Neither file is counted as an
 active suite or silently removed from the inventory.
 
-The CSV records candidate signals and stable ranks for triage. The rank sorts
+The CSV records candidate signals and stable ranks for triage. Numeric signals
+such as `test_case_count`, assertion counts, and coverage values are measured
+at the frozen `source_commit` and remain baseline data after a suite rewrite;
+the batch tables above record the final case counts separately. For example,
+`tests/dispatch-platform-validation.test.js` has 3 baseline cases in the
+inventory and 4 after issue #649 adds a receipt case. The rank sorts
 by forwarding-test reuse count (descending), repeated test-title count
 (descending), total assertion-call count (ascending, to surface low-assertion
 suites), API-shape assertion count (descending), static-artifact matcher

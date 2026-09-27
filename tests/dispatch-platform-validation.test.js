@@ -34,6 +34,20 @@ test('runtime and verification evidence are recorded without turning a receipt i
   assert.strictEqual(evidence.status.verification, 'PASSED');
 });
 
+test('successful receipt leaves Host access and runtime unproved without a probe', () => {
+  const evidence = validateDispatchPlatformEvidence({
+    hostProfile: profile,
+    catalog,
+    target,
+    receipt: { receipt_id: 'receipt-platform-2', status: 'SUCCEEDED', verification: 'PASSED' },
+  });
+  assert.strictEqual(evidence.status.host_access, 'NOT_RUN');
+  assert.strictEqual(evidence.status.runtime, 'NOT_RUN');
+  assert.strictEqual(evidence.status.terminal, 'SUCCEEDED');
+  assert.strictEqual(evidence.status.verification, 'PASSED');
+  assert.strictEqual(evidence.evidence.probe, 'runtime probe not run');
+});
+
 test('surface validation marks missing catalog support incomplete', () => {
   const result = validateDispatchSurfaceSet([{
     hostProfile: profile,
