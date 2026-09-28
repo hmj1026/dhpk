@@ -37,10 +37,20 @@ test('falls back to CLAUDE_TRANSCRIPT_PATH env when payload has neither key', ()
   assert.strictEqual(res.stdout.trim(), '/tmp/env-fallback.jsonl');
 });
 
-test('malformed JSON payload (edge case) returns empty string, not a crash', () => {
-  const res = sh("extract_transcript_path 'not json{{{'; echo \"EXIT:$?\"");
+test('transcript_path takes precedence over legacy transcript and environment fallback', () => {
+  const payload = JSON.stringify({
+    transcript_path: '/tmp/primary.jsonl',
+    transcript: '/tmp/legacy.jsonl',
+  });
+  const res = sh(`extract_transcript_path '${payload}'`, { CLAUDE_TRANSCRIPT_PATH: '/tmp/env-fallback.jsonl' });
   assert.strictEqual(res.status, 0, res.stderr);
-  assert.ok(res.stdout.endsWith('EXIT:0\n') || res.stdout.trim() === 'EXIT:0', res.stdout);
+  assert.strictEqual(res.stdout.trim(), '/tmp/primary.jsonl');
+});
+
+test('malformed JSON payload (edge case) returns empty string, not a crash', () => {
+  const res = sh("extract_transcript_path 'not json{{{'");
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout, '');
 });
 
 run('transcript');

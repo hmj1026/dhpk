@@ -348,15 +348,15 @@ formal-suite,,,345,343,tests/sync-develop.test.js,B,15,676,reviewed: keep,no,0,0
 formal-suite,,,346,344,tests/task4-consolidation.test.js,B,15,676,reviewed: keep,no,0,0,7,,16,0,16,0,0,0,91,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,347,345,tests/task4-defects.test.js,B,15,676,reviewed: keep,no,0,0,11,,45,0,17,1247,103,8,166,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,348,346,tests/tdd-e2e-contracts.test.js,B,15,676,reviewed: keep,no,0,0,4,,9,0,0,0,0,0,60,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,349,347,tests/test-entrypoint-dedup.test.js,B,16,677,reserved for issue #641 queue,no,0,0,2,,9,0,5,2225,205,18,56,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,350,348,tests/timestamps.test.js,B,16,677,reserved for issue #641 queue,no,0,0,3,,6,0,2,0,0,0,36,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,351,349,tests/transcript.test.js,B,16,677,reserved for issue #641 queue,no,0,0,4,,8,0,0,0,0,0,52,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,352,350,tests/trap-sheet-detection.test.js,B,16,677,reserved for issue #641 queue,no,0,0,7,,7,0,0,0,0,0,47,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,353,351,tests/userpromptsubmit-skill-hint.test.js,B,16,677,reserved for issue #641 queue,no,0,0,15,,43,0,3,173,34,2,163,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,354,352,tests/utils.test.js,B,16,677,reserved for issue #641 queue,no,0,0,16,,38,0,2,226,52,2,151,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,355,353,tests/validate-agent-plugin-package.test.js,B,16,677,reserved for issue #641 queue,no,0,0,3,,11,0,0,2037,138,21,71,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,356,354,tests/validate-agents-behavior.test.js,B,16,677,reserved for issue #641 queue,no,0,0,16,,35,0,11,1140,286,6,142,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,357,355,tests/validate-agents-skills.test.js,B,16,677,reserved for issue #641 queue,no,0,0,2,,6,0,2,5163,754,24,37,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,349,347,tests/test-entrypoint-dedup.test.js,B,16,677,reviewed: keep,no,0,0,2,,9,0,5,2225,205,18,56,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,350,348,tests/timestamps.test.js,B,16,677,reviewed: keep,no,0,0,3,,6,0,2,0,0,0,36,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,351,349,tests/transcript.test.js,B,16,677,reviewed: rewrite,no,0,0,4,,8,0,0,0,0,0,52,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,352,350,tests/trap-sheet-detection.test.js,B,16,677,reviewed: rewrite,no,0,0,7,,7,0,0,0,0,0,47,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,353,351,tests/userpromptsubmit-skill-hint.test.js,B,16,677,reviewed: rewrite,no,0,0,15,,43,0,3,173,34,2,163,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,354,352,tests/utils.test.js,B,16,677,reviewed: rewrite,no,0,0,16,,38,0,2,226,52,2,151,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,355,353,tests/validate-agent-plugin-package.test.js,B,16,677,reviewed: rewrite,no,0,0,3,,11,0,0,2037,138,21,71,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,356,354,tests/validate-agents-behavior.test.js,B,16,677,reviewed: rewrite,no,0,0,16,,35,0,11,1140,286,6,142,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,357,355,tests/validate-agents-skills.test.js,B,16,677,reviewed: keep,no,0,0,2,,6,0,2,5163,754,24,37,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,358,356,tests/validate-changelog-fragments-cli.test.js,B,17,678,reserved for issue #641 queue,no,0,0,13,,27,0,11,320,61,2,127,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,359,357,tests/validate-commands.test.js,B,17,678,reserved for issue #641 queue,no,0,0,12,,38,0,24,148,16,3,148,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,360,358,tests/validate-cursor-plugin-package.test.js,B,17,678,reserved for issue #641 queue,no,0,0,3,,14,0,0,2521,170,25,89,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
@@ -446,4 +446,4 @@ fixture,,,,,tests/fixtures/session-audit/source-coverage.json,B,09,670,reviewed:
 fixture,,,,,tests/fixtures/session-audit/typed-runtime-records.json,B,09,670,reviewed: keep,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/skill-package-descriptor-snapshot.json,A,20,661,audited: keep,,,,,,,,,,,,,tests/physical-tree-publication.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/subagent-stop/lin-blog-2026-07-17.json,B,15,676,reviewed: delete,,,,,,,,,,,,,,0,unreferenced; assign for explicit audit in batch 15 / issue #676
-fixture,,,,,tests/fixtures/trap-sheet-detection/cases.json,B,16,677,reserved for issue #641 queue,,,,,,,,,,,,,tests/trap-sheet-detection.test.js,1,lowest-original-ordinal B consumer
+fixture,,,,,tests/fixtures/trap-sheet-detection/cases.json,B,16,677,reviewed: delete,,,,,,,,,,,,,tests/trap-sheet-detection.test.js,1,lowest-original-ordinal B consumer

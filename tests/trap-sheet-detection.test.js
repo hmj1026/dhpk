@@ -9,77 +9,37 @@ const loader = fs.readFileSync(
   path.join(ROOT, 'agent-traps', '_common', 'trap-sheet-loader.md'),
   'utf8'
 );
-const fixtures = JSON.parse(fs.readFileSync(
-  path.join(ROOT, 'tests', 'fixtures', 'trap-sheet-detection', 'cases.json'),
-  'utf8'
-));
-
-function detectFixtureSignals(fixture) {
-  if (fixture.activeModules) return fixture.activeModules.split(',').map((item) => item.trim());
-  const signals = [];
-  if (fixture.package) {
-    signals.push('js');
-    const dependencyGroups = ['dependencies', 'devDependencies', 'peerDependencies'];
-    if (dependencyGroups.some((group) => fixture.package[group] && fixture.package[group].vue)) {
-      signals.push('vue');
-    }
-  }
-  if (fixture.composer || (fixture.rootFiles || []).some((file) => /^[^/]+\.php$/.test(file))) {
-    signals.push('php');
-  }
-  return signals;
-}
-
-test('root package.json emits the generic js signal', () => {
-  assert.ok(
-    /root[^\n]*package\.json[^\n]*generic[^\n]*\bjs\b/i.test(loader),
-    'loader contract missing root package.json -> generic js detection'
-  );
+test('DHPK_ACTIVE_MODULES overrides fallback detection', () => {
+  assert.ok(loader.includes('read `$DHPK_ACTIVE_MODULES` (comma list) if set; it takes precedence over everything else'));
 });
 
-test('vue dependency keys additionally emit vue', () => {
-  assert.ok(
-    /vue[^\n]*(?:dependencies|devDependencies|peerDependencies)[^\n]*(?:also|additionally)[^\n]*vue/i.test(loader),
-    'loader contract missing vue dependency-key -> vue detection'
-  );
+test('fallback detection is limited to project-root manifests and files', () => {
+  assert.ok(loader.includes('detect only from PROJECT-ROOT manifests/files via Bash'));
+});
+
+test('root package.json emits generic js and Vue dependency keys additionally emit vue', () => {
+  assert.ok(loader.includes('a root `package.json` emits the generic `js` signal'));
+  assert.ok(loader.includes('a `vue` key present in its `dependencies`, `devDependencies`, or `peerDependencies` additionally emits `vue`'));
+});
+
+test('root composer.json or PHP files directly under the root emit php', () => {
+  assert.ok(loader.includes('A root `composer.json` or PHP files directly under the repository root (`./*.php`) emits `php`'));
+});
+
+test('root xcode project or Swift manifest emits swift and pyproject.toml emits python', () => {
+  assert.ok(loader.includes('`*.xcodeproj` / `Package.swift` emits `swift`; `pyproject.toml` emits `python`'));
 });
 
 test('next and react remain covered by generic js', () => {
-  assert.ok(
-    /(?:next[^\n]*react|react[^\n]*next)[^\n]*generic[^\n]*\bjs\b[^\n]*(?:not|never|explicitly configured)/i.test(loader),
-    'loader contract missing next/react generic-js fallback wording'
-  );
+  assert.ok(loader.includes('`next` and `react` keys remain covered by generic `js`'));
 });
 
-test('root composer.json or root PHP files emit php', () => {
-  assert.ok(
-    /root[^\n]*(?:composer\.json|\.\/\*\.php)[^\n]*(?:or|and)[^\n]*(?:composer\.json|\.\/\*\.php)[^\n]*\bphp\b/i.test(loader),
-    'loader contract missing root composer.json or ./*.php -> php detection'
-  );
+test('fallback detection does not recurse into vendored trees', () => {
+  assert.ok(loader.includes('Detection MUST NOT recurse into `node_modules/`, `vendor/`, or other vendored trees'));
 });
 
-test('fallback detection forbids vendored-tree recursion', () => {
-  assert.ok(
-    /(?:must not|do not|never)[^\n]*(?:recurse|recursive)[^\n]*(?:node_modules|vendor)[^\n]*(?:node_modules|vendor|vendored)/i.test(loader),
-    'loader contract missing node_modules/vendor recursion prohibition'
-  );
-});
-
-test('configured active modules take precedence', () => {
-  assert.ok(
-    /DHPK_ACTIVE_MODULES[^\n]*(?:precedence|takes precedence)/i.test(loader),
-    'loader contract missing DHPK_ACTIVE_MODULES precedence'
-  );
-});
-
-test('root-only fallback fixtures produce the specified signals', () => {
-  for (const fixture of fixtures) {
-    assert.deepStrictEqual(
-      detectFixtureSignals(fixture),
-      fixture.expected,
-      fixture.name
-    );
-  }
+test('SessionStart activation is a separate, unchanged mechanism', () => {
+  assert.ok(loader.includes("SessionStart's configured/versioned-module activation (`scripts/hooks/session-start.sh`) is a separate, unrelated mechanism and is unchanged by this fallback contract"));
 });
 
 run('trap-sheet-detection');

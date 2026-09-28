@@ -1652,6 +1652,49 @@ all-clear. No proposed edit had HIGH or CRITICAL risk. Final GitNexus
 **0 affected symbols**, **LOW** risk, and no affected processes. The result was
 complete with no partial or truncated output.
 
+### Issue #677 — Cohort B batch 16
+
+The nine assigned suites are **3 keep / 6 rewrite**. The explicitly assigned
+trap-sheet fixture is **deleted** after its only runtime consumer was rewritten
+to assert the public loader contract directly. The frozen inventory retains
+both the suite ownership and the fixture's `reviewed: delete` disposition.
+The focused Darwin aggregate passed **68/68 cases before the edits** and
+**66/66 after them**.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/test-entrypoint-dedup.test.js` | Keep | Retains the fast-worker aggregate entry/catalog mapping and SessionStart advisory ownership contracts. | 2 |
+| `tests/timestamps.test.js` | Keep | Retains timestamp format, canonical UTC ISO output, and integer epoch proximity checks. | 3 |
+| `tests/transcript.test.js` | Rewrite | Checks JSON path extraction, legacy and environment fallbacks, key precedence, and empty output on malformed JSON. | 5 |
+| `tests/trap-sheet-detection.test.js` | Rewrite | Checks active-module override; root-only manifest/file signals for JS, Vue, PHP, Swift, and Python; no vendor recursion; and separation from SessionStart activation. | 8 |
+| `tests/userpromptsubmit-skill-hint.test.js` | Rewrite | Parses emitted JSON and asserts the UserPromptSubmit event and additionalContext, alongside negative filters, real-route wording, and fail-closed metadata behavior. | 15 |
+| `tests/utils.test.js` | Rewrite | Checks canonical UTC timestamps, filesystem round trips, logging/error behavior, line and ANSI handling, package-manager command selection, and subprocess helpers. | 16 |
+| `tests/validate-agent-plugin-package.test.js` | Rewrite | Requires semantically invalid parsed provenance to exit 1 with structural PASS, provenance FAIL, and a schema diagnostic; retains valid, alias, and malformed-receipt cases. | 4 |
+| `tests/validate-agents-behavior.test.js` | Rewrite | Exercises fable and inherit model acceptance and distinct validator behavior for names, tools, discovery, INDEX.md, effort, maxTurns, and optional fields. Parser-only duplication is covered by `tests/frontmatter.test.js`. | 11 |
+| `tests/validate-agents-skills.test.js` | Keep | Retains structural PASS/runtime-boundary reporting and validation of an external project receipt. | 2 |
+
+The deleted fixture was `tests/fixtures/trap-sheet-detection/cases.json`.
+Before editing, GitNexus upstream impacts for the nine suite files and
+`scripts/ci/validate-agent-plugin-package.js` were **LOW**, with zero resolved
+callers and processes. The fixture path was **UNKNOWN** because JSON fixtures
+are not indexed; a repository search found its only runtime consumer in
+`tests/trap-sheet-detection.test.js` and no additional test, script, or loader
+consumer. That UNKNOWN result was resolved with the text search, not treated as
+an all-clear. No pre-edit impact was HIGH or CRITICAL.
+
+The implement-step decision was **REASONER_REQUIRED**. The read-only reasoner
+returned **READY_FOR_DISPATCH**; `planner=skipped` because this is not an
+OpenSpec apply. CI and release use recursive `tests/run-all.js` discovery, and
+none of these nine suites is in the explicit macOS installer subset. Because
+the validator CLI changed, production line/branch coverage comparison is
+required. On Node `v26.10.0` / Darwin with c8 `10.1.3`, the exact nine-suite
+aggregate covered **55/60 lines and 11/14 branches before** and **56/61 lines
+and 11/14 branches after** in `scripts/ci/validate-agent-plugin-package.js`;
+the rewrite added one covered line and lost no covered lines or branches.
+GitNexus `detect-changes --scope all` reported **20 changed symbols across 12
+files**, **0 affected processes**, and **LOW** risk, with no partial or
+truncated result.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
@@ -1724,7 +1767,11 @@ assets with B consumers are reserved for the B queue. The remaining fixture,
 and was explicitly held for an ownership audit in issue #676. That audit
 confirmed no test, loader, or runtime consumer, and batch 15 deletes it. These
 assignments are recorded per path in the CSV; batch owners must verify actual
-ownership before changing shared support files.
+ownership before changing shared support files. The assigned
+`tests/fixtures/trap-sheet-detection/cases.json` fixture remained owned by B
+batch 16 / issue #677; after its only runtime consumer was rewritten to check
+the documented loader contract, batch 16 deletes it while preserving its
+inventory row and ownership history.
 
 Nine A suites are also in the macOS installer subset listed by
 `tests/_lib/macos-installer-files.js` (11 files total). Discovery uses sorted
