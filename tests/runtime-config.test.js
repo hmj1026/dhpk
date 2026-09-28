@@ -27,7 +27,7 @@ function settings(root, options) {
 
 function sh(root, command, extraEnv = {}) {
   const env = { ...process.env, ROOT: root, ...extraEnv };
-  return spawnSync('bash', ['-c', `source "${LOADER}"; source "${RUNTIME}"; ${command}`], {
+  return spawnSync('/bin/bash', ['-c', `source "${LOADER}"; source "${RUNTIME}"; ${command}`], {
     env,
     encoding: 'utf8',
     timeout: 10000,
@@ -69,11 +69,23 @@ test('config_csv trims blanks and emits a stable comma-separated value', () => {
   assert.strictEqual(res.stdout.trim(), 'php,laravel');
 });
 
-test('runtime config is safe when no project settings or Python are available', () => {
+test('runtime config falls back safely when project settings exist but Python is unavailable', () => {
   const root = tmpRoot();
-  const res = sh(root, 'dhpk_config_profile; printf "\\n"; dhpk_config_bool absent false; printf "\\n"; dhpk_config_csv absent fallback; printf "\\n"');
-  assert.strictEqual(res.status, 0, res.stderr);
-  assert.deepStrictEqual(res.stdout.trim().split('\n'), ['standard', 'false', 'fallback']);
+  const noPythonBin = tmpRoot();
+  settings(root, { hook_profile: 'strict', modules: ['php'] });
+  fs.symlinkSync(fs.realpathSync('/usr/bin/tr'), path.join(noPythonBin, 'tr'));
+  fs.symlinkSync(fs.realpathSync('/usr/bin/awk'), path.join(noPythonBin, 'awk'));
+  try {
+    assert.ok(!fs.existsSync(path.join(noPythonBin, 'python3')));
+    const res = sh(root,
+      'dhpk_config_profile; printf "\\n"; dhpk_config_bool absent false; printf "\\n"; dhpk_config_csv absent fallback; printf "\\n"',
+      { PATH: noPythonBin });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.deepStrictEqual(res.stdout.trim().split('\n'), ['standard', 'false', 'fallback']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(noPythonBin, { recursive: true, force: true });
+  }
 });
 
 test('codex timeout selection is scope-first and role-specific within a scope', () => {

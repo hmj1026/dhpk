@@ -144,12 +144,18 @@ test('rejects a script symlink that resolves outside the canonical skills root',
   }
 });
 
-test('unsupported script extension on an existing file is rejected as unsupported type', () => {
-  const res = runScript(['dhpk-skill-health-audit', '__pycache__/health-cli.cpython-314.pyc']);
-  // Path contains a `/`, so the path-component guard fires first (exit 2) —
-  // this still exercises the same "reject non .js/.py/.sh" outcome end-to-end.
-  assert.strictEqual(res.status, 2);
-  assert.ok(res.stderr.includes('illegal path component'), res.stderr);
+test('an existing bare unsupported script is rejected without executing its contents', () => {
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const helper = { skill: 'dhpk-repo-intake', file: 'retained.txt' };
+  const { result, scratch, outside } = isolatedRunSkill({ inventory, helper });
+  try {
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.strictEqual(result.stderr.trim(), 'run-skill: unsupported script type: retained.txt');
+    assert.strictEqual(result.stdout, '');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
 });
 
 run('run-skill');

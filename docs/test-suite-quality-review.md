@@ -1287,6 +1287,63 @@ absent. The catalog check reports zero uncovered scripts. Changelog validation
 passes with `changelog.d/test-quality-batch-23.none`, and generated marketplace
 copies pass the generator check.
 
+### Issue #670 — Cohort B batch 09
+
+This batch keeps five suites and rewrites five; all ten remain discovered.
+The focused aggregate passed **114/114 cases** on Darwin, compared with the
+frozen baseline of 112. Two runtime cases were added to prove SessionEnd's
+default and opt-in behavior and the current-session identity fallbacks. No
+suite was deleted, and frozen ranks and case counts remain unchanged.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/run-portable-bounded-command.test.js` | Keep | Owns heap forwarding, exit 124 at the wall-time bound, descendant SIGKILL escalation, and malformed runner configuration. | 4 |
+| `tests/run-skill.test.js` | Rewrite | An existing bare `.txt` helper now reaches the unsupported-type branch; the suite asserts the exact error and proves the helper emitted no output. | 11 |
+| `tests/runtime-config.test.js` | Rewrite | Project settings are present while a controlled `PATH` omits Python; runtime accessors must return their documented defaults. Existing timeout precedence checks remain. | 13 |
+| `tests/session-audit-integrity-fixtures.test.js` | Rewrite | Source discovery must return the exact selected Orca session, report each unavailable active-account root with redacted identity, and remain incomplete. Stale RED labels were removed. | 11 |
+| `tests/session-end.test.js` | Rewrite | Controlled `pgrep`, `ps`, and `kill` seams prove default-off skips discovery and opt-in kills an orphan candidate while preserving a live-parent candidate. | 3 |
+| `tests/session-env.test.js` | Rewrite | Sourcing twice preserves the exported environment, working directory, and scratch tree; session identity prefers the canonical value, falls back to the legacy value, and stays empty when absent. | 9 |
+| `tests/session-install-health-ask.test.js` | Keep | Owns one-question composition, patch advisories, state-keyed suppression, configuration non-mutation, confirmation-before-write guidance, and SessionStart separation. | 21 |
+| `tests/session-install-health-modules.test.js` | Keep | Owns mixed stack evidence, no-manifest inference, inherited module handling, and `laravel-mix` family routing. | 13 |
+| `tests/session-install-health-version.test.js` | Keep | Owns version thresholds, malformed or missing state, project/user installation selection, age-qualified messaging, exact update commands, and pin precedence. | 23 |
+| `tests/session-start-advisories.test.js` | Keep | Owns PHP module mismatch guidance and `dhpk_advise_once` per-session behavior. | 6 |
+
+The five assigned fixtures are kept and remain referenced by
+`tests/session-audit-integrity-fixtures.test.js`:
+
+| Fixture | Disposition | Protected evidence |
+| --- | --- | --- |
+| `tests/fixtures/session-audit/agent-inventory.json` | Keep | Separates installation rows, package-owned role counts, and navigation entries. |
+| `tests/fixtures/session-audit/baseline-v0.37.0.json` | Keep | Pins historical roots, report schema, and package-owned role sets. |
+| `tests/fixtures/session-audit/generic-verification.json` | Keep | Shows that generic help and date scans cannot verify an arbitrary finding. |
+| `tests/fixtures/session-audit/source-coverage.json` | Keep | Covers selected, unselected, and missing Orca accounts plus malformed and unsupported records. |
+| `tests/fixtures/session-audit/typed-runtime-records.json` | Keep | Distinguishes typed runtime failures from historical prose and prompt context. |
+
+The implement-step decision was **REASONER_REQUIRED** because the audit crossed
+runtime, process-lifecycle, source-selection, and public shell-contract
+boundaries; the read-only reasoner returned **READY_FOR_DISPATCH**. The scoped
+work followed the in-process fast-worker route. All ten suites are discovered
+by `tests/run-all.js` and run by CI and release; none is in the Darwin installer
+subset. The catalog check confirms required script ownership. No production
+source changed, so production-file line and branch coverage comparison is
+**NOT_APPLICABLE**.
+
+GitNexus resolved `discoverSources` at LOW risk with one direct caller,
+`runAudit`, and no affected process; the changed test helpers also resolved
+LOW with no affected process. Pre-edit Bash-file targets returned `UNKNOWN`;
+text search confirmed each test's direct source path and the recursive test
+runner. These unknown graph results are not treated as an all-clear. Final
+`detect_changes --scope all` completed without partial or truncated results:
+24 changed symbols across 9 indexed files, zero affected processes, LOW risk.
+
+The catalog, generated marketplace package, changelog, and `git diff --check`
+validations pass. Representative mutations for each rewritten contract were
+caught by the corresponding suite; all temporarily mutated production files
+were restored byte-for-byte. The full precommit runner reports **FAIL** because no
+`lint:fix`, `build`, or test script exists, so it executes no steps. The full
+repo-verify runner reports **PASS**, with lint, typecheck, unit, integration,
+and e2e stages skipped because their scripts or configuration are absent.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
