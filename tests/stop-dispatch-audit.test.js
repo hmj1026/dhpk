@@ -56,8 +56,9 @@ test('orchestration_dispatch=off stays silent even with many inline files', () =
 test('fewer than 3 distinct inline files stays silent even under orchestration_dispatch=on', () => {
   const repo = mkRepo();
   try {
-    writeCounter(repo, 'audit-two', ['src/A.php', 'src/B.php']);
+    writeCounter(repo, 'audit-two', ['src/A.php', 'src/B.php', 'src/A.php', 'src/B.php']);
     const res = runStop(repo, 'audit-two', 'on');
+    assert.strictEqual(res.status, 0, `Stop must remain non-blocking; stderr:\n${res.stderr}`);
     assert.ok(!res.stdout.includes(SIG), `advisory must not fire below the 3-file threshold:\n${res.stdout}`);
   } finally {
     rmRepo(repo);

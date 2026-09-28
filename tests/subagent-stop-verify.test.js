@@ -31,14 +31,15 @@ test('a stopped fast-worker removes its own active-liveness entry, leaving other
     const sess = sessionsDir(repo);
     fs.mkdirSync(sess, { recursive: true });
     const activeFile = path.join(sess, '.active-fast-worker');
-    fs.writeFileSync(activeFile, 'line1\tdhpk:fast-worker\nline2\tdhpk:codex-worker\n');
+    fs.writeFileSync(activeFile,
+      'line1\tdhpk:fast-worker\nline2\tdhpk:fast-worker\nline3\tdhpk:codex-worker\n');
 
     const res = runHook(HOOK, { payload: { agent_type: 'dhpk:fast-worker' }, projectDir: repo });
     assert.strictEqual(res.status, 0, res.stderr);
 
     const remaining = fs.readFileSync(activeFile, 'utf8');
-    assert.ok(!remaining.includes('dhpk:fast-worker'), `expected the fast-worker entry removed, got: ${remaining}`);
-    assert.ok(remaining.includes('dhpk:codex-worker'), `expected the unrelated entry to survive, got: ${remaining}`);
+    const lines = remaining.trimEnd().split('\n');
+    assert.deepStrictEqual(lines, ['line2\tdhpk:fast-worker', 'line3\tdhpk:codex-worker']);
   } finally {
     rmRepo(repo);
   }
