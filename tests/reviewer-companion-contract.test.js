@@ -37,9 +37,18 @@ const INLINE_COMPANION = [
   /structured JSON.*directly|directly.*structured JSON/is,
 ];
 
+const COMPANION_SECTION = '## Historical structured migration companion';
+
+function sectionForHeading(text, heading) {
+  const match = new RegExp('^' + heading.replaceAll(' ', '\\s+') + '\\s*$', 'm').exec(text);
+  if (!match) return '';
+  const start = match.index + match[0].length;
+  const nextHeading = /^## /m.exec(text.slice(start));
+  return text.slice(start, nextHeading ? start + nextHeading.index : text.length);
+}
+
 function isPointerCompanion(text) {
-  return /docs\/contracts\/reviewer-contract\.md/.test(text)
-    && /Structured (migration )?companion/i.test(text)
+  return /\[[^\]]+\]\((?:\.\.\/)*docs\/contracts\/reviewer-contract\.md\)\s+§Structured migration companion/i.test(text)
     && /Review Gate opt-in/i.test(text)
     && /ordinary invocation.*no companion/i.test(text);
 }
@@ -97,14 +106,26 @@ test('canonical prompts advertise exact command outcomes and keep CHANGES_REQUIR
     const text = readReviewer(relative);
     if (isPointerCompanion(text)) {
       const contract = readReviewer('docs/contracts/reviewer-contract.md');
+      const companion = sectionForHeading(contract, COMPANION_SECTION);
+      const outcomeStatement = companion.match(/one canonical bounded outcome:([\s\S]*?)(?:\.|$)/i);
+      const actualOutcomes = outcomeStatement
+        ? [...outcomeStatement[1].matchAll(/[\x60]([^\x60]+)[\x60]/g)].map((match) => match[1])
+        : [];
       for (const name of expectedOutcomes) {
-        if (!contract.includes(name)) {
-          findings.push(`${relative}: contract SSOT missing command outcome ${name}`);
-        }
+        if (!actualOutcomes.includes(name)) findings.push(relative + ': companion section missing command outcome ' + name);
+      }
+      if (JSON.stringify(actualOutcomes) !== JSON.stringify(expectedOutcomes)) {
+        findings.push(relative + ': companion section command outcomes ' + JSON.stringify(actualOutcomes));
+      }
+      if (!companion.includes('dhpk.claude-review-result.v1')
+        || !companion.includes('requestDigest')
+        || !companion.includes('artifact.identity')
+        || !/companion contains no prompts.*credentials.*raw logs/is.test(companion)) {
+        findings.push(relative + ': companion section is missing its scoped schema or digest-only constraints');
       }
       if (!/CHANGES_REQUIRED[\s\S]{0,160}reviewResult\.semanticVerdict|reviewResult\.semanticVerdict[\s\S]{0,160}CHANGES_REQUIRED/i.test(text)
-        && !/CHANGES_REQUIRED[\s\S]{0,160}reviewResult\.semanticVerdict|reviewResult\.semanticVerdict[\s\S]{0,160}CHANGES_REQUIRED/i.test(contract)) {
-        findings.push(`${relative}: CHANGES_REQUIRED is not identified as reviewResult.semanticVerdict-only`);
+        && !/CHANGES_REQUIRED[\s\S]{0,160}reviewResult\.semanticVerdict|reviewResult\.semanticVerdict[\s\S]{0,160}CHANGES_REQUIRED/i.test(companion)) {
+        findings.push(relative + ': CHANGES_REQUIRED is not identified as reviewResult.semanticVerdict-only');
       }
       continue;
     }

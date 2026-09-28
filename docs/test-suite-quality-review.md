@@ -1237,6 +1237,56 @@ verdicts: code review **APPROVE**, security review **PASS**, and document review
 table-driven runtime registrations. The final document review confirmed the
 99-case total and byte-identical generated copies.
 
+### Issue #669 — Cohort B batch 08
+
+This batch keeps two suites and rewrites eight; all ten remain in the
+discovered suite. The focused aggregate passed **93/93 cases** on Darwin:
+the bounded-node suite registers its two portable cases and one explicit
+incompatibility case there. The frozen inventory's 108 cases include the
+Linux-only bounded-runner cases; the changed heap-forwarding assertion requires
+verification by the Linux CI run. One helper regression case raises this batch's
+Darwin runtime total from 92 to 93. The frozen case counts and ranks remain
+unchanged.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/review-gate.test.js` | Rewrite | Rejected producer, lane, missing-evidence, and revision-conflict events now assert their exact blocking reason while retaining unchanged revision, digest, events, and receipts checks. | 10 |
+| `tests/reviewer-companion-contract.test.js` | Rewrite | Reviewer pointers must link to the canonical contract; command outcomes and digest-only requirements are checked inside its structured-companion section. | 3 |
+| `tests/reviewer-contract-v2.test.js` | Rewrite | Required conformance tokens must occur inside the active v2 contract, before the historical dispatch section. | 4 |
+| `tests/reviewer-contract.test.js` | Keep | Owns the older shared-prompt, single-run artifact, retired Sentinel, orchestrator ownership, and reviewer-frequency guidance. | 4 |
+| `tests/risk-router.test.js` | Rewrite | Each generated lane request is compared against the full decision, scope, identities, diff, risks, governing inputs, exclusions, and prior-findings binding. | 12 |
+| `tests/run-agy.test.js` | Rewrite | Checks the exact ordered AGY argv and stdin; adds shell-injection and partial-helper-directory cleanup regressions for `restricted-path.js`. | 10 |
+| `tests/run-all.test.js` | Keep | Owns option validation, deterministic sharding and worker assignment, timing evidence, output failures, and recursive discovery. | 13 |
+| `tests/run-bounded-node-test.test.js` | Rewrite | The portable fallback child now asserts the configured `--max-old-space-size` value; the other timeout and fail-closed contracts remain. | 3 |
+| `tests/run-cli-transport.test.js` | Rewrite | Replaces source-text matching with a controlled path substitution and verifies returned workdir/artifact descriptors still identify the original directories. | 25 |
+| `tests/run-codex.test.js` | Rewrite | Checks the ordered Codex argv, exact workspace and sandbox values, private output destination, and model/effort binding. | 9 |
+
+The assigned helper `tests/_lib/restricted-path.js` is kept and hardened:
+tool names are validated and passed as an argument to `command -v`, resolved
+targets must be executable regular files, and setup failures remove the
+partially built directory. Its two consumers are the AGY and Codex wrapper
+suites. All ten suites are recursively discovered by `tests/run-all.js` and
+run in the CI aggregate. `run-bounded-node-test.test.js` is also in the
+separate Darwin installer subset; its Linux-only branches remain CI-owned.
+No production source changed, so production-file line and branch coverage is
+**NOT_APPLICABLE**.
+
+GitNexus resolved named helper impacts as LOW, with the two wrapper suites as
+callers and no affected execution processes. Test-file targets returned
+`UNKNOWN`; text search confirmed the recursive aggregate runner and both CI
+aggregate/release routes. This unknown graph result is not treated as an
+all-clear. Final `detect_changes --scope all` completed without partial or
+truncated results: 31 changed symbols across 13 files, zero affected processes,
+LOW risk.
+
+The full precommit runner reports **FAIL** because the project has no
+`lint:fix`, `build`, or test script; it executes no precommit steps. The
+full repo-verify runner reports **PASS**, with lint, typecheck, unit,
+integration, and e2e stages skipped because their scripts or configuration are
+absent. The catalog check reports zero uncovered scripts. Changelog validation
+passes with `changelog.d/test-quality-batch-23.none`, and generated marketplace
+copies pass the generator check.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

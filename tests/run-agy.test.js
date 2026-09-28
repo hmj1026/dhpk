@@ -109,19 +109,53 @@ test('restricted PATH explicitly supplies python3, omits timeout/gtimeout, and p
     try {
       const result = runWrapper(ctx, [ctx.dir, ctx.promptFile, 'Gemini 3.8 Flash (High)'], { contextPath, toolsDir });
       assert.strictEqual(result.status, 0, result.stderr);
-      const argv = fs.readFileSync(ctx.argvOut, 'utf8');
-      for (const flag of ['--dangerously-skip-permissions', '--mode', 'accept-edits', '--add-dir', '--model', '--print-timeout', '-p']) {
-        assert.ok(argv.includes(flag), `missing ${flag}: ${argv}`);
-      }
-      assert.ok(!argv.includes('--cwd'), argv);
-      assert.ok(!argv.includes('--effort'), argv);
-      assert.ok(argv.includes('apply the fix spec'), argv);
+      const argv = fs.readFileSync(ctx.argvOut, 'utf8').trimEnd().split('\n');
+      assert.deepStrictEqual(argv, [
+        '--dangerously-skip-permissions',
+        '--mode', 'accept-edits',
+        '--add-dir', ctx.dir,
+        '--model', 'Gemini 3.8 Flash (High)',
+        '--print-timeout', '300s',
+        '-p', 'apply the fix spec',
+      ]);
       assert.strictEqual(fs.readFileSync(ctx.stdinOut, 'utf8'), 'Y\n');
       const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
       assert.strictEqual(receipt.status, 'SUCCEEDED');
       assert.strictEqual(fs.statSync(receiptPath).mode & 0o777, 0o600);
     } finally { fs.rmSync(toolsDir, { recursive: true, force: true }); }
   });
+});
+
+test('restricted-path rejects shell syntax and removes a partial tools directory after lookup failure', () => {
+  const sentinel = path.join(os.tmpdir(), 'restricted-path-injection-' + process.pid);
+  let toolsDir;
+  const originalMkdtempSync = fs.mkdtempSync;
+  fs.mkdtempSync = (...args) => {
+    toolsDir = originalMkdtempSync(...args);
+    return toolsDir;
+  };
+  try {
+    assert.throws(
+      () => buildToolsOnlyDir(['missing; touch ' + sentinel + ' #']),
+      /invalid tool name/i,
+    );
+    assert.ok(!fs.existsSync(sentinel), 'tool name must not execute shell syntax');
+    const injectionToolsDir = toolsDir;
+    if (injectionToolsDir) {
+      assert.ok(!fs.existsSync(injectionToolsDir), 'invalid tool names must not leave a partial directory');
+    }
+    toolsDir = undefined;
+    assert.throws(
+      () => buildToolsOnlyDir(['node', 'missing-' + process.pid + '-restricted-path']),
+      /could not resolve required tool/i,
+    );
+    assert.ok(toolsDir, 'the helper should create a private tools directory before resolving names');
+    assert.ok(!fs.existsSync(toolsDir), 'failed helper setup must remove its partial directory');
+  } finally {
+    fs.mkdtempSync = originalMkdtempSync;
+    fs.rmSync(sentinel, { force: true });
+    if (toolsDir) fs.rmSync(toolsDir, { recursive: true, force: true });
+  }
 });
 
 test('attested runtime path without named python3 blocks before AGY can execute', () => {

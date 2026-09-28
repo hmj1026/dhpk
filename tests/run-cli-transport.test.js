@@ -199,13 +199,44 @@ test('direct runner input without attested context is BLOCKED before launch', ()
   });
 });
 
-test('validation pins physical workdir and artifact-root descriptors before path-derived use', () => {
-  const source = fs.readFileSync(RUNNER, 'utf8');
-  const validation = source.slice(source.indexOf('def validate(request):'), source.indexOf('\ndef receipt('));
-  assert.ok(validation.includes('workdir, workdir_fd = pinned_workdir(request.get("workdir", ""))'));
-  assert.ok(validation.includes('artifact_root, artifact_fd = pinned_artifact_root(request.get("artifact_root", ""), workdir, workdir_fd)'));
-  assert.ok(!validation.includes('workdir = nofollow_real_directory(request.get("workdir", ""), "workdir")'));
-  assert.ok(!validation.includes('artifact_root = nofollow_real_directory(request.get("artifact_root", ""), "artifact_root", private=True)'));
+test('validation retains physical directory descriptors across path substitution', () => {
+  withRequest(({ root, request }) => {
+    const movedRoot = root + '.descriptor-test-moved';
+    try {
+      const result = invokeWithRunnerPatch(root, request, [
+        'import json, os',
+        'request = module.read_private_request(request_path)',
+        'expected_workdir = os.stat(request["workdir"]).st_ino',
+        'expected_artifact_root = os.stat(request["artifact_root"]).st_ino',
+        'original = module.provider_command_validation',
+        'def replace_paths_after_validation(request, workdir, executable):',
+        '    original(request, workdir, executable)',
+        '    moved_root = workdir + ".descriptor-test-moved"',
+        '    os.rename(workdir, moved_root)',
+        '    os.mkdir(workdir, 0o700)',
+        '    os.makedirs(request["artifact_root"], mode=0o700)',
+        'module.provider_command_validation = replace_paths_after_validation',
+        'validated = module.validate(request)',
+        'workdir_fd, artifact_fd = validated[-2:]',
+        'print(json.dumps({',
+        '    "workdir_descriptor_matches_original": os.fstat(workdir_fd).st_ino == expected_workdir,',
+        '    "artifact_descriptor_matches_original": os.fstat(artifact_fd).st_ino == expected_artifact_root,',
+        '    "both_paths_now_name_replacements": os.stat(validated[0]).st_ino != expected_workdir and os.stat(validated[1]).st_ino != expected_artifact_root,',
+        '}))',
+        'os.close(workdir_fd)',
+        'os.close(artifact_fd)',
+        'raise SystemExit(0)',
+      ].join('\n'));
+      assert.strictEqual(result.status, 0, result.stderr);
+      assert.deepStrictEqual(JSON.parse(result.stdout), {
+        workdir_descriptor_matches_original: true,
+        artifact_descriptor_matches_original: true,
+        both_paths_now_name_replacements: true,
+      });
+    } finally {
+      fs.rmSync(movedRoot, { recursive: true, force: true });
+    }
+  });
 });
 
 test('out-of-scope writes and all workspace links fail closed', () => {
