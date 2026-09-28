@@ -59,12 +59,6 @@ test('bash -n syntax check passes', () => {
   assert.strictEqual(res.status, 0, res.stderr);
 });
 
-test('agent containment uses a portable canonicalizer rather than GNU readlink flags', () => {
-  const source = fs.readFileSync(SCRIPT, 'utf8');
-  assert.doesNotMatch(source, /readlink\s+-f/);
-  assert.match(source, /os\.path\.realpath/);
-});
-
 test('running against the real repo reports the section headers + a PASS/WARN/FAIL summary', () => {
   const res = spawnSync('bash', [SCRIPT], { cwd: ROOT, encoding: 'utf8', timeout: 60000 });
   // The checked-in repository is expected to be green; only warning-only exit 2

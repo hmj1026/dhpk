@@ -1695,6 +1695,50 @@ GitNexus `detect-changes --scope all` reported **20 changed symbols across 12
 files**, **0 affected processes**, and **LOW** risk, with no partial or
 truncated result.
 
+### Issue #678 — Cohort B batch 17
+
+The nine assigned suites are **6 keep / 3 rewrite**. The focused Darwin
+aggregate passed **78/78 cases before the edits** and **79/79 after them**.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/validate-changelog-fragments-cli.test.js` | Keep | Retains its changelog-fragment CLI and failure-reporting contracts. | 13 |
+| `tests/validate-commands.test.js` | Keep | Retains command discovery and invocation-policy checks; removed the stale RED comment and a redundant assertion without changing the suite's disposition. | 12 |
+| `tests/validate-cursor-plugin-package.test.js` | Rewrite | Adds a parsed-invalid receipt regression requiring exit 1, structural PASS, provenance FAIL, consumer NOT_RUN, and a provenance-schema diagnostic. | 4 |
+| `tests/validate-cursor-sync.test.js` | Keep | Retains dedicated CLI exit and `PASS [cursor-sync]` output ownership required by the catalog; generator and CI also validate the checked-in package. | 1 |
+| `tests/validate-distribution.test.js` | Keep | Retains strict distribution boundary and package validation contracts. | 7 |
+| `tests/validate-harness.test.js` | Rewrite | Removes the source-regex assertion; keeps executable shell checks, including the route and symlink cases. | 12 |
+| `tests/validate-invocation-policy.test.js` | Keep | Retains independent checks for invocation policy behavior and its protected artifacts. | 17 |
+| `tests/validate-json-cli-termination.test.js` | Rewrite | Builds entrypoint fixtures from the exported registry and verifies a missing registered entrypoint fails with its identity. | 3 |
+| `tests/validate-modules.test.js` | Keep | Retains module validation behavior and boundary checks. | 10 |
+
+The read-only reasoner recommended deleting `tests/validate-cursor-sync.test.js`
+because the package tree is also checked by the generator test and direct CI
+invocation. Final verification showed that `node scripts/ci/catalog.js --check`
+requires a dedicated `tests/validate-cursor-sync*.test.js` owner for that CLI;
+deleting the suite left one script uncovered. The suite therefore remains
+**Keep** to preserve script ownership and its direct CLI output contract. No
+primary helper or fixture is assigned to this batch.
+
+The implement-step decision was **REASONER_REQUIRED**. The read-only reasoner
+returned **READY_FOR_DISPATCH**; `planner=skipped` because this is not an
+OpenSpec apply. CI and release use recursive `tests/run-all.js` discovery, and
+none of the nine assigned suites is in the explicit macOS installer subset.
+The Cursor validator CLI changed. Its saved same-runtime pre-edit coverage
+report is `/tmp/dhpk-issue-678-cov-before/coverage-summary.json`; the CLI
+started at **60/65 covered lines and 2/15 branches** and finished at **62/67
+covered lines and 14/22 branches**. The aggregate added two covered lines and
+twelve covered branches. Final GitNexus `detect_changes --scope all` reported
+**6 changed symbols across 11 files**, **0 affected processes**, and **LOW**
+risk; the response had no partial or truncated result marker.
+
+Pre-edit GitNexus upstream impacts for all nine suite files and
+`scripts/ci/validate-cursor-plugin-package.js` were **LOW**, with zero resolved
+callers and affected processes. A repository text search confirmed the
+validator's direct CI workflow invocation despite the empty graph caller set.
+No pre-edit impact was HIGH or CRITICAL. The disposition values are updated in
+the inventory without changing its frozen numeric fields or ranks.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
