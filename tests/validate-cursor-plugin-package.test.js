@@ -1,6 +1,8 @@
 'use strict';
 
 const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { verifyCursorPackage } = require('../scripts/lib/cursor-plugin-package');
@@ -50,6 +52,34 @@ test('Cursor package validator reports structural PASS and consumer NOT_RUN sepa
   const report = JSON.parse(result.stdout);
   assert.strictEqual(report.structural, 'PASS');
   assert.strictEqual(report.consumer.status, 'NOT_RUN');
+  assert.strictEqual(report.provenance, 'PASS');
+});
+
+test('Cursor package validator reports invalid provenance as FAIL independently of structural PASS', () => {
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'validate-cursor-provenance-'));
+  const packageRoot = path.join(temporaryRoot, 'plugins', 'dhpk-cursor');
+  fs.cpSync(path.join(ROOT, 'plugins', 'dhpk-cursor'), packageRoot, { recursive: true });
+
+  try {
+    const provenancePath = path.join(packageRoot, 'provenance.json');
+    const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+    provenance.schema = 'invalid-schema';
+    fs.writeFileSync(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`);
+
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'validate-cursor-plugin-package.js'),
+      '--package-root', packageRoot,
+      '--repo-root', ROOT,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.structural, 'PASS');
+    assert.strictEqual(report.provenance, 'FAIL');
+    assert.strictEqual(report.consumer.status, 'NOT_RUN');
+    assert.ok(report.errors.some((error) => /provenance schema must be/i.test(error)), report.errors.join('\n'));
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
 });
 
 run('validate-cursor-plugin-package');
