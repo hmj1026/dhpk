@@ -1922,9 +1922,10 @@ The first local focused aggregate launched all 195 suites and passed 193. The
 required environment passed 38/38. `tests/verify-platform-packages.test.js`
 requires a clean source checkout for provenance-bound generation, so its
 failure on this uncommitted integration worktree is not a clean verification
-result. Rerun the integrated aggregate from a clean commit with the required
-Darwin temp directory before reporting the focused gate as passed.
-`node scripts/ci/catalog.js --check` reported zero uncovered scripts. CI
+result. After commit `20d4c4a7`, the clean-checkout aggregate with
+`TMPDIR=/private/tmp` passed **195/195 suites**; the provenance-bound package
+verification passed in that clean run. `node scripts/ci/catalog.js --check`
+reported zero uncovered scripts. CI
 recursively discovers these suites through `tests/run-all.js`; the explicit
 Darwin subset and all changed production areas are represented in the batch
 records above. The clean full CI run for this integration PR is the final
@@ -1958,8 +1959,8 @@ paths in stable order: batches 01–16 have 10 suites each and batches 17–20
 have 9 each. The prevalidated deletion at original ordinal 26,
 `tests/claude-capability-bundle.test.js`, is attached to A batch 03 / issue
 number #644, implemented and reviewed in PR #688. The deletion at original
-ordinal 247, `tests/retirement-closure.test.js`, is attached to B batch 05 / issue
-number #666, pending implementation there. Neither file is counted as an
+ordinal 247, `tests/retirement-closure.test.js`, was implemented by B batch 05 /
+issue #666. Neither file is counted as an
 active suite or silently removed from the inventory.
 
 The CSV records candidate signals and stable ranks for triage. Numeric signals
