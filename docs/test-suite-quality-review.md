@@ -1458,6 +1458,59 @@ imports and fixture registrations that the graph did not enumerate. These
 filtered caller counts are not evidence that the suites are unused. Final
 `detect_changes --scope all` evidence is recorded after implementation checks.
 
+### Issue #673 — Cohort B batch 12
+
+All ten assigned suites remain discoverable. Five are rewritten and five are
+kept. The focused Darwin aggregate passed **51/51 cases before the edits** and
+**50/50 after them**. The frozen inventory's lexical count remains 40; the
+additional executed cases come from literal fixture loops. No production file
+changed.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/skill-health-self-containment.test.js` | Rewrite | Keeps optional-directory, reachable-reference, internal-helper, orphan, containment, symlink-boundary, and independent command/Skill contracts. Removes duplicate-basename and symlinked-script cases already covered more strongly by `skill-coverage-integrity.test.js`. | 13 |
+| `tests/skill-local-tool-isolation.test.js` | Rewrite | Keeps six relocated behavior fixtures. Version selection now binds `reference`, `loadedReferences`, and the loaded file to the exact requested version; JS status pins the structured strict/nocheck/unmarked buckets. | 6 |
+| `tests/skill-migration.test.js` | Keep | Verifies version-module family selection and relative projections for canonical Skill and Codex paths. | 3 |
+| `tests/skill-pilot-install-migration.test.js` | Keep | Exercises installer migration, receipt fingerprints, preservation of edited/unowned files, and rollback after materialization failure. | 3 |
+| `tests/skill-pilot-isolation.test.js` | Rewrite | Retains the registry contract and all eight raw-directory behavior cases. Pilot assertions now require summary files inside the isolated project, exact step names/codes including the skipped typecheck step, and forwarded paths on their intended integration/e2e commands. | 9 |
+| `tests/skill-policy-bundle-contract.test.js` | Keep | Pins canonical policy-root binding and the physical, declared resource closure for flow-guide and flow-drive bundles. | 3 |
+| `tests/skill-public-name-routing.test.js` | Rewrite | Parses nonempty inline or folded frontmatter descriptions. Controlled cases prove a real alias is detected while ambiguous domain words and the documented subagent role are exempt. | 2 |
+| `tests/skill-purpose-additions.test.js` | Rewrite | Validates the complete error list and requires one defect-specific diagnostic for missing, duplicate, baseline, unknown, unsafe, and absent-provenance cases; the historical 65-skill baseline remains pinned. | 2 |
+| `tests/skill-purpose-decisions.test.js` | Keep | Retains full ledger validity, ownership boundaries, identity-drift rejection, and the separate retirement-wave contract. | 6 |
+| `tests/skill-release-isolation.test.js` | Keep | Keeps blocked-release no-mutation behavior and exact preparation staging/PR evidence. | 3 |
+
+The three primarily assigned helpers are audited: `tests/_lib/skill-local-tool-fixtures.js`
+and `tests/_lib/skill-pilot-fixtures.js` are **rewritten** to strengthen
+assertion ownership and scope. `tests/_lib/skill-release-fixtures.js` is
+**kept**; its blocked and prepare fixtures already pin non-mutation and
+release-scoped staging behavior.
+
+The implement-step decision was **REASONER_REQUIRED**. The read-only reasoner
+returned **READY_FOR_DISPATCH** and found no wholly redundant suite; only the
+two repeated linter cases were removed. `planner=skipped` because this is not
+an OpenSpec apply. All ten suites are found by the recursive
+`tests/run-all.js` route used by CI and release, and none is in the explicit
+macOS installer subset. `node scripts/ci/catalog.js --check` and
+`node scripts/ci/validate-skill-directory-coverage.js --check` pass. Production
+line/branch comparison is **NOT_APPLICABLE** because no production file
+changed. The full precommit runner reports **FAIL** without executing steps
+because the root package has no `lint:fix`, `build`, or supported test script;
+repo-verify reports **PASS** with those unconfigured stages skipped.
+
+Pre-edit GitNexus upstream impact resolved
+`registerLocalToolFixtures`, `registerPilotFixtures`, and
+`registerReleaseFixtures` as **LOW**, each with two direct callers (its suite
+and the coverage validator) and zero affected processes. `summaryFor`,
+`assertRunnerContract`, `escapeRegExp`, and the purpose-additions `errors`
+helper each resolved **LOW**; their graph callers stayed within the assigned
+test/helper files. The changed test-file targets resolved **UNKNOWN**. Text
+search confirmed that `tests/run-all.js` recursively discovers them and CI
+and release run that aggregate; the explicit macOS subset omits all ten.
+UNKNOWN file targets are not treated as unused. Final
+`detect_changes --scope all` reported **24 changed symbols across 9 files**,
+**0 affected symbols**, **LOW** risk, and no affected processes; the result was
+complete with no partial or truncated output.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

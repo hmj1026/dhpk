@@ -19,8 +19,10 @@ function registerLocalToolFixtures() {
         assert.strictEqual(report.family, family);
         assert.strictEqual(report.selector, selector);
         assert.strictEqual(report.source, 'explicit');
-        assert.deepStrictEqual(report.loadedReferences, [`references/${selector}.md`]);
-        assert.strictEqual(report.guidance, fs.readFileSync(path.join(context.skillDir, report.reference), 'utf8'));
+        const expectedReference = `references/${selector}.md`;
+        assert.strictEqual(report.reference, expectedReference);
+        assert.deepStrictEqual(report.loadedReferences, [expectedReference]);
+        assert.strictEqual(report.guidance, fs.readFileSync(path.join(context.skillDir, expectedReference), 'utf8'));
         assert.ok(report.guidance.length > 100, 'local version guidance must contain substantive content');
       },
     });
@@ -45,6 +47,11 @@ function registerLocalToolFixtures() {
       assert.strictEqual(result.status, 0, result.stderr);
       const report = JSON.parse(result.stdout);
       assert.strictEqual(report.summary, 'total=3 strict=1 nocheck=1 unmarked=1');
+      assert.deepStrictEqual(report.files, {
+        strict: ['strict.js'],
+        nocheck: ['transition.js'],
+        unmarked: ['plain.js'],
+      });
       for (const name of ['strict.js', 'transition.js', 'plain.js']) assert.ok(result.stdout.includes(name));
       assert.ok(!result.stdout.includes('nested.js'), 'status scans only immediate leaves');
     },

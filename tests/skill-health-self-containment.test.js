@@ -232,51 +232,6 @@ test('a documented reference directory routes the files beneath it', () => {
   }
 });
 
-test('two scripts sharing a basename in different subdirectories are not both documented by one mention', () => {
-  const root = physicalTemp('dhpk skill health duplicate basename-');
-  try {
-    const result = lint.lintSkill(
-      'duplicate-basename',
-      writeSkill(root, 'duplicate-basename', validBody(
-        '\nRun `run.js` to produce the report.\n',
-      ), {
-        scripts: {
-          'a/run.js': '#!/usr/bin/env node\n',
-          'b/run.js': '#!/usr/bin/env node\n',
-        },
-      }),
-      ['duplicate-basename'],
-    );
-    const scriptsContract = finding(result, 'scripts-contract');
-
-    assert.strictEqual(scriptsContract.pass, false);
-    assert.match(scriptsContract.message, /run\.js/);
-  } finally {
-    remove(root);
-  }
-});
-
-test('a symlinked script under scripts/ is not accepted as a documented public entry', () => {
-  const root = physicalTemp('dhpk skill health symlinked script-');
-  try {
-    const skillRoot = writeSkill(root, 'symlinked-script', validBody(
-      '\nRun `scripts/public.js` to produce the report.\n',
-    ));
-    const real = writeFile(root, 'outside-scripts/public.js', '#!/usr/bin/env node\n');
-    const link = path.join(skillRoot, 'scripts', 'public.js');
-    fs.mkdirSync(path.dirname(link), { recursive: true });
-    fs.symlinkSync(real, link);
-
-    const result = lint.lintSkill('symlinked-script', skillRoot, ['symlinked-script']);
-    const scriptsContract = finding(result, 'scripts-contract');
-
-    assert.strictEqual(scriptsContract.pass, false);
-    assert.match(scriptsContract.message, /public\.js/);
-  } finally {
-    remove(root);
-  }
-});
-
 test('a Markdown link that normalizes outside the Skill boundary is rejected, not silently dropped', () => {
   const root = physicalTemp('dhpk skill health markdown escape-');
   try {
