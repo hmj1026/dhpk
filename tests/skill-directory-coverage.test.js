@@ -112,9 +112,7 @@ function validate(input) {
   return coverageModule.validateSkillDirectoryCoverage(input);
 }
 
-test('coverage validator exposes its API and accepts complete instruction-only coverage', () => {
-  assert.ifError(coverageLoadError);
-  assert.strictEqual(typeof coverageModule.validateSkillDirectoryCoverage, 'function');
+test('coverage accepts complete instruction-only Skill coverage', () => {
   const root = physicalTemp('skill coverage instruction with spaces-');
   try {
     writeSkill(root, 'skills/instruction-only', {

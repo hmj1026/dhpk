@@ -1,8 +1,7 @@
 'use strict';
 
-// RED contracts for the raw-directory Skill harness.  The helper modules are
-// deliberately loaded lazily so the first run reports the missing public
-// seams instead of turning the whole file into a module-loader/setup error.
+// The helper modules are loaded lazily so a missing module is attributed to
+// the behavioral contracts below instead of becoming a suite setup error.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -144,16 +143,6 @@ function registerFixtures() {
   };
   return registeredFixtures;
 }
-
-test('isolation and fixture helper modules expose the agreed public seams', () => {
-  assert.ifError(isolationLoadError);
-  assert.ifError(fixtureRegistryLoadError);
-  assert.strictEqual(typeof isolation.withIsolatedSkill, 'function');
-  assert.strictEqual(typeof fixtureRegistry.registerFixture, 'function');
-  const fixtures = registerFixtures();
-  assert.strictEqual(fixtures.local.id, 'isolation-local-resource');
-  assert.strictEqual(fixtures.tools.id, 'isolation-external-tools');
-});
 
 test('a Skill relocates into paths with spaces and keeps observable behavior isolated', () => {
   assert.ifError(isolationLoadError);

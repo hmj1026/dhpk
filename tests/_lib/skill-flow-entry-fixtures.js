@@ -37,14 +37,17 @@ const definitions = [
   })),
 ];
 
+let registered = false;
+
 function registerFlowEntryFixtures() {
-  const existing = getFixtures();
-  for (const item of definitions) {
-    if (existing[item.id]) continue;
-    registerFixture({ ...item, assert(result, context) {
-      assertExpected(result, item.expected, item.id);
-      if (item.verify) item.verify(result, context);
-    } });
+  if (!registered) {
+    for (const item of definitions) {
+      registerFixture({ ...item, assert(result, context) {
+        assertExpected(result, item.expected, item.id);
+        if (item.verify) item.verify(result, context);
+      } });
+    }
+    registered = true;
   }
   return getFixtures();
 }

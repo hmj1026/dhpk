@@ -1400,6 +1400,64 @@ implementation checks: the complete run reported three indexed documentation
 sections touched across ten changed files, zero affected processes, and LOW
 risk, with no partial or truncated result.
 
+### Issue #672 — Cohort B batch 11
+
+All ten assigned suites remain. Six are rewritten and four are kept. The
+focused Darwin aggregate passed **77/77 cases before the edits** and
+**78/78 after them**. The frozen inventory's lexical count remains 37; the
+final runner count includes dynamically registered dependency, entry, family,
+and goal-runtime fixtures. No production file changed.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/skill-declared-entry-coverage.test.js` | Rewrite | Keeps the canonical script-basename inventory scan and adds controlled public-invocation versus helper/prose cases. A runnable command must map to an executable/API role; prose mentioning a helper or example filename does not make it public. | 2 |
+| `tests/skill-dep-audit-contract.test.js` | Keep | Relocated dependency-audit instructions preserve the independent review boundary, blocked/error behavior, explicit fix permission, and empty-project read behavior. | 1 |
+| `tests/skill-dependency-evidence.test.js` | Keep | Fourteen executed cases require the coverage validator and Skill-local linter to agree on JavaScript, Python, shell, real dependency forms, and false-positive lookalikes. | 14 |
+| `tests/skill-directory-coverage.test.js` | Keep | Retains complete instruction-only acceptance, path containment, missing-resource rejection, fixture binding, helper reachability, and inert-script classification. Removes the duplicate API-shape assertion already owned by the validation helper. | 15 |
+| `tests/skill-directory-isolation.test.js` | Rewrite | Retains relocated execution, environment scrubbing, hostile-lookalike refusal, cache omission, symlink/escape rejection, and unavailable-tool behavior. Removes the export-only case because those seams are exercised by the behavior cases. | 4 |
+| `tests/skill-flow-entry-isolation.test.js` | Rewrite | Pins all eight fixture IDs and their Skill-local entry paths before execution; repeated registration preserves the original local fixture instances. All eight relocated public-entry fixtures still execute. | 9 |
+| `tests/skill-flow-family-isolation.test.js` | Rewrite | Pins the exact six `flow-guide` and four `flow-drive` fixture IDs and entry paths before execution; relocated family behavior and source immutability remain covered. | 12 |
+| `tests/skill-goal-runtime-isolation.test.js` | Rewrite | Compares the 19 physical Review Gate files with the dependency closure independently declared by the `opsx-apply-goal` coverage manifest. Removes a literal self-comparison; each relocated fixture still asserts fixture-only, `NOT_RUN` host evidence. | 11 |
+| `tests/skill-health-check-lint.test.js` | Keep | Owns capability skips for absent agents, non-invocable command filtering, and the independent command/Skill pairing boundary. | 3 |
+| `tests/skill-health-check-resilience.test.js` | Rewrite | Requires each planted malformed Skill, agent, and command to produce its exact path/check, P1 severity, and nonempty safe fix hint; deterministic output and host-path redaction remain. | 7 |
+
+The three primarily assigned helpers are audited: `tests/_lib/skill-flow-entry-fixtures.js`
+is **rewritten** to make its own repeated registration idempotent while allowing
+the shared registry to reject foreign ID collisions. The flow-family and
+goal-runtime fixture helpers are **kept**; their ten and eight behavioral
+fixtures remain consumed by the isolated suites and coverage validator.
+
+The implement-step decision was **REASONER_REQUIRED**. The read-only reasoner
+returned **READY_FOR_DISPATCH**; its bounded scope keeps every suite, rewrites
+weak assertions in six suites, removes redundant checks, and makes no
+production change.
+`planner=skipped` because this is not an OpenSpec apply. All ten suites are
+discovered by the recursive `tests/run-all.js` route used by CI and release.
+`node scripts/ci/catalog.js --check` and
+`node scripts/ci/validate-skill-directory-coverage.js --check` pass. Production
+line/branch coverage comparison is **NOT_APPLICABLE** because no production
+file changed. The full precommit runner reports **FAIL** without executing
+steps because the root package defines no `lint:fix`, `build`, or supported
+test script. Repo-verify reports **PASS** with lint, typecheck, unit,
+integration, and e2e stages skipped because their scripts/configuration are
+absent.
+
+Pre-edit GitNexus upstream impact resolved `registerFlowEntryFixtures`,
+`registerFlowFamilyFixtures`, and `registerGoalRuntimeFixtures` as **LOW**,
+each with one direct graph caller in the coverage validator and zero affected
+processes. `withIsolatedSkill` resolved **LOW** with one direct and one
+transitive graph caller and zero affected processes when GitNexus used its
+default `includeTests=false` filter. Re-running the same indexed worktree with
+`includeTests=true` resolved **HIGH** with 25 upstream dependents, including
+16 direct test callers, and zero affected processes. The earlier HIGH result
+uses the test-inclusive scope; the LOW result excludes those test-suite
+consumers. The shared helper was not changed. The edited
+`validateSkillDirectoryCoverage` consumer resolved **LOW** with one direct
+caller and zero affected processes. Text search confirmed the test-suite
+imports and fixture registrations that the graph did not enumerate. These
+filtered caller counts are not evidence that the suites are unused. Final
+`detect_changes --scope all` evidence is recorded after implementation checks.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
