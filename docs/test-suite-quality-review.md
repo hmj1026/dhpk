@@ -967,11 +967,34 @@ callers. The issue-worktree `detect_changes --scope all` report covered 43
 changed symbols across 13 files, with 0 affected processes and low overall
 risk; that overall result does not resolve the hook file's UNKNOWN impact.
 
-Production Bash line/branch comparison is **BLOCKED** on this macOS runner.
-The available kcov 43 attempt failed with `task_for_pid failed with 5`, even
-after its documented ad-hoc debugger entitlement. Node c8 does not instrument
-the Bash file and is not used as a substitute. Direct guard behavior was
-verified by the 38-case focused suite and the aggregate suite.
+The initial macOS kcov 43 attempt failed with `task_for_pid failed with 5`,
+even after its documented ad-hoc debugger entitlement. That remains the
+historical kcov result; a later paired Bash-native measurement supersedes the
+earlier coverage blocker. Node c8 does not instrument this Bash file and is not
+used as a substitute.
+
+The paired guard measurement used Bash 5.2.37 on Darwin and the same final
+38-case `tests/pre-bash-guard.test.js` corpus and helpers on both source
+revisions. The before source is `0310bca8^` (SHA-256
+`ac262d6847de7be5533c2a772e835ea70e510e8e9f36db6df2ecad40e7bc6325`); the
+after source is `0310bca80251fafc3b6e29737b9ae568fe02d3bc` (SHA-256
+`7275d17004f473058b84a3fd85b8d2ff28131e1f441373f383417e3203e98bf8`).
+The Bashcov 4.0.0 lexer supplied the executable-line denominator; a
+`BASH_ENV`-installed Bash `DEBUG` trap recorded only executed lines whose
+`BASH_SOURCE` was the guard. Disposable copies with status-preserving
+predicate wrappers measured the nine primitive Boolean predicates (18
+possible outcomes). Both revisions covered **30/33 executable lines and
+15/18 branch outcomes**. The three uncovered outcomes are identical on both
+sides: the empty-command predicate's true outcome, the nonzero
+`DHPK_ALLOW_NO_VERIFY` predicate's false outcome, and the unmatched
+git/no-verify gate's false outcome.
+
+The baseline guard passed **35/38** cases; the three expected failures are the
+new `.env.template` allowlist regressions. The revised guard passed **38/38**.
+Traced and plain runs had identical output and exit status. The disposable
+branch probe also passed true, false, and short-circuited-operand controls,
+rejected a changed source hash, and matched pristine versus instrumented test
+output and status. No production guard copy was instrumented or modified.
 
 The generator synchronized the canonical inventory and this quality review
 into the Claude marketplace package byte-for-byte and regenerated its packaged
@@ -1851,6 +1874,70 @@ File-target impacts for the nine suites remained **UNKNOWN**; text search
 confirmed recursive test discovery, CI execution, and the script ownership
 mapping. The inventory changes only these nine disposition cells; frozen
 metrics, ranks, and all other rows remain unchanged.
+
+### Issue #683 — Cohort B integration
+
+Decision: **REASONER_REQUIRED**; reasoner result: **READY_FOR_DISPATCH**;
+`planner=skipped` because this is not an OpenSpec apply. The reasoner approved
+the Bash-native paired measurement and its output, source-identity, line-trace,
+branch-control, and instrumentation-parity checks before this integration
+entry was written.
+
+The 20 closed batch ledgers (#662–#681) reconcile to all **195 assigned formal
+suites**: **100 keep, 95 rewrite, 0 active-suite delete**. Every formal-suite
+inventory row has one disposition. The separately tracked, prevalidated
+`tests/retirement-closure.test.js` deletion in #666 is not an active suite and
+uses no queue ordinal; its acceptance and rejection contract is now owned by
+`tests/validate-retirement-closure.test.js`, with an explicit catalog mapping.
+
+All **31 primarily assigned support assets** were audited. The 16 helpers are
+**10 reviewed keep, 1 audited keep, and 5 reviewed rewrite**. The 15 fixtures
+are **7 reviewed keep, 5 audited keep, 1 audited rewrite, and 2 reviewed
+delete**. The inventory records each path's primary consumer and disposition.
+The batch ledgers retain replacement behavior evidence and controlled negative
+checks for rewritten assertions; independent document, configuration,
+publication, installation, and safety contracts remain explicitly covered.
+
+The affected production-area comparisons retain or increase covered counts:
+
+| Production area | Covered lines before → after | Covered branches before → after | Integration result |
+| --- | ---: | ---: | --- |
+| `scripts/hooks/pre-bash-guard.sh` (#663) | 30/33 → 30/33 | 15/18 → 15/18 | Bash 5.2.37 paired measurement; method and source hashes recorded in #663 above. |
+| `scripts/ci/catalog.js` (#666) | 297/371 → 298/372 | 23/46 → 23/46 | Catalog ownership map adds one covered line; branch coverage is retained. |
+| `scripts/ci/validate-agent-plugin-package.js` (#677) | 55/60 → 56/61 | 11/14 → 11/14 | One additional covered line; no covered branch lost. |
+| `scripts/ci/validate-cursor-plugin-package.js` (#678) | 60/65 → 62/67 | 2/15 → 14/22 | Two additional covered lines and twelve additional covered branches. |
+
+Known measurement differences are recorded with their owners. The #666 paired
+comparison used Node v26.10.0 on both sides, while the frozen inventory used
+Node v24.21.0; this environment difference does not affect the within-batch
+comparison. In #667, adding exercised scenarios raised the aggregate branch
+denominator from 2598 to 2608 while covered branches rose from 1688 to 1700;
+the three affected production modules gained coverage and none lost covered
+lines or branches. The c8 report-map merge documented in #659 is likewise
+report-map drift, not lost execution; it is not a Cohort B production change.
+
+The first local focused aggregate launched all 195 suites and passed 193. The
+`tests/session-usage-audit.test.js` failure was the documented Darwin
+`TMPDIR=/private/tmp` requirement from #671; rerunning that suite with the
+required environment passed 38/38. `tests/verify-platform-packages.test.js`
+requires a clean source checkout for provenance-bound generation, so its
+failure on this uncommitted integration worktree is not a clean verification
+result. Rerun the integrated aggregate from a clean commit with the required
+Darwin temp directory before reporting the focused gate as passed.
+`node scripts/ci/catalog.js --check` reported zero uncovered scripts. CI
+recursively discovers these suites through `tests/run-all.js`; the explicit
+Darwin subset and all changed production areas are represented in the batch
+records above. The clean full CI run for this integration PR is the final
+release gate and will be recorded after it reaches a terminal conclusion.
+Issue #679's `scripts/validate/test-hooks.sh` change is an embedded test
+support suite, not a runtime production path; its assigned focused tests pass.
+
+Pre-edit GitNexus impact on the canonical ledger path returned **UNKNOWN**
+(`target not found`), so it was not treated as an all-clear. Repository text
+search found no direct path references to this ledger; canonical-to-marketplace
+copying is owned by `scripts/ci/gen-claude-marketplace-package.js`. Only the
+canonical ledger was edited directly; the generated package copy is refreshed
+by that generator.
 
 ## Frozen review queues
 
