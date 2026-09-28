@@ -11,29 +11,45 @@ const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
 
 let registered = false;
 
-function summaryFor(result) {
+function summaryFor(result, context) {
   assert.strictEqual(result.status, 0, result.stderr || result.stdout);
   const match = String(result.stdout || '').match(/- logs: `([^`]+)`/);
   assert.ok(match, 'runner output must expose its log directory');
-  const summaryPath = path.join(match[1], 'summary.json');
+  assert.ok(context && context.projectDir, 'isolated project context is required');
+  assert.ok(path.isAbsolute(match[1]), 'runner log directory must be absolute');
+  const summaryPath = path.resolve(match[1], 'summary.json');
   assert.ok(fs.existsSync(summaryPath), `runner summary is missing: ${summaryPath}`);
-  return JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
+  const projectRoot = fs.realpathSync(context.projectDir);
+  const realSummaryPath = fs.realpathSync(summaryPath);
+  const relativeSummaryPath = path.relative(projectRoot, realSummaryPath);
+  assert.ok(
+    relativeSummaryPath !== '..'
+      && !relativeSummaryPath.startsWith(`..${path.sep}`)
+      && !path.isAbsolute(relativeSummaryPath),
+    `runner summary escaped isolated project: ${realSummaryPath}`,
+  );
+  return JSON.parse(fs.readFileSync(realSummaryPath, 'utf8'));
 }
 
-function assertRunnerContract(result, expected) {
-  const summary = summaryFor(result);
+function assertRunnerContract(result, expected, context) {
+  const summary = summaryFor(result, context);
   assert.strictEqual(summary.overallPass, expected.overallPass, 'summary overallPass mismatch');
-  for (const [name, code] of Object.entries(expected.steps || {})) {
-    const step = summary.steps.find((entry) => entry.name === name);
-    assert.ok(step, `summary is missing step ${name}`);
-    assert.strictEqual(step.code, code, `${name} step code mismatch`);
-  }
+  assert.ok(Array.isArray(summary.steps), 'runner summary must include step results');
+  assert.deepStrictEqual(
+    summary.steps.map((step) => [step.name, step.status === 'skip' ? 'skip' : step.code]),
+    Object.entries(expected.steps || {}),
+    'runner step names and exit codes must match exactly',
+  );
   for (const text of expected.output || []) {
     assert.ok(String(result.stdout).includes(text), `runner output is missing: ${text}`);
   }
   for (const forwarded of expected.forwarded || []) {
-    assert.ok(summary.commands.some((command) => command.includes(forwarded)),
-      `runner did not forward argument: ${forwarded}`);
+    assert.ok(Array.isArray(summary.commands), 'runner summary must include commands');
+    const command = summary.commands.find((entry) => entry.split(/\s+/).includes(forwarded.script));
+    assert.ok(command, `runner did not execute ${forwarded.script}`);
+    const finalArgument = command.trim().split(/\s+/).pop();
+    assert.strictEqual(finalArgument, forwarded.argument,
+      `${forwarded.script} must receive exactly ${forwarded.argument}: ${command}`);
   }
 }
 
@@ -45,7 +61,7 @@ function definition(definition) {
   return {
     ...definition,
     expected,
-    assert: (result) => assertRunnerContract(result, expected),
+    assert: (result, context) => assertRunnerContract(result, expected, context),
   };
 }
 
@@ -127,8 +143,11 @@ function registerPilotFixtures() {
       },
       expected: {
         overallPass: true,
-        steps: { lint: 0, test_unit: 0, test_integration: 0, test_e2e: 0 },
-        forwarded: ['integration/example.js', 'e2e/example.js'],
+        steps: { lint: 0, typecheck: 'skip', test_unit: 0, test_integration: 0, test_e2e: 0 },
+        forwarded: [
+          { script: 'test:integration', argument: 'integration/example.js' },
+          { script: 'test:e2e', argument: 'e2e/example.js' },
+        ],
         output: ['# Verify (full)', '## Overall: ✅ PASS'],
       },
     }),
