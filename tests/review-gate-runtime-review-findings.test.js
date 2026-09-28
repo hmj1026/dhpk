@@ -307,7 +307,15 @@ test('observe accepts documented BLOCKED command outcome as bounded companion da
     writeHostAttestation(repoRoot, prepared, evidence, host, { label: 'command-blocked' });
     const result = runObserve(repoRoot, prepared, evidence);
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.strictEqual(JSON.parse(result.stdout).status, 'OBSERVED');
+    const observed = JSON.parse(result.stdout);
+    assert.strictEqual(observed.status, 'OBSERVED');
+    assert.strictEqual(observed.semanticVerdict, 'PASS');
+    const status = readStatus(repoRoot, prepared);
+    assert.strictEqual(status.semanticVerdict, 'PASS');
+    assert.deepStrictEqual(status.receiptSummary, {
+      total: 1,
+      byKind: { review: 1 },
+    });
   });
 });
 
@@ -320,7 +328,15 @@ test('observe accepts documented UNAVAILABLE command outcome as bounded companio
     writeHostAttestation(repoRoot, prepared, evidence, host, { label: 'command-unavailable' });
     const result = runObserve(repoRoot, prepared, evidence);
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.strictEqual(JSON.parse(result.stdout).status, 'OBSERVED');
+    const observed = JSON.parse(result.stdout);
+    assert.strictEqual(observed.status, 'OBSERVED');
+    assert.strictEqual(observed.semanticVerdict, 'PASS');
+    const status = readStatus(repoRoot, prepared);
+    assert.strictEqual(status.semanticVerdict, 'PASS');
+    assert.deepStrictEqual(status.receiptSummary, {
+      total: 1,
+      byKind: { review: 1 },
+    });
   });
 });
 

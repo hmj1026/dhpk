@@ -1,8 +1,7 @@
 'use strict';
 
-// RED contract for the extracted store-budget accounting boundary.  The
-// implementation is intentionally absent until the production worker owns the
-// bounded counters; keep this test free of filesystem or store fixtures.
+// Contract for bounded store-budget accounting. Keep these boundary tests
+// independent of filesystem and receipt-store fixtures.
 
 const { test, run, assert } = require('./_lib/tinytest');
 const budget = require('../scripts/lib/review-gate-store-budget');
@@ -56,6 +55,37 @@ test('store budget exports the exact immutable ceilings', () => {
 test('store budget accepts each counter at its limit and rejects one over without echoing payload', () => {
   for (const [field, code] of [...DATA_LIMIT_FIELDS, ...LEASE_LIMIT_FIELDS]) {
     assertLimitCase(field, code);
+  }
+});
+
+test('store budget rejects invalid counters and increments without mutation or payload disclosure', () => {
+  const invalidValues = [-1, 0.5, Number.MAX_SAFE_INTEGER + 1, Number.NaN, '1'];
+  const secretPayload = 'STORE_BUDGET_INVALID_PRIVATE_PAYLOAD';
+  for (const field of Object.keys(LIMITS)) {
+    const expectedCode = LEASE_LIMIT_FIELDS.some(([leaseField]) => leaseField === field)
+      ? 'LEASE_CONFLICT'
+      : 'MALFORMED_EVIDENCE';
+    for (const invalidValue of invalidValues) {
+      const initial = emptyAccounting();
+      const originalInitial = { ...initial };
+      assert.throws(
+        () => budget.addAccounting(initial, { [field]: invalidValue }, secretPayload),
+        (error) => error
+          && error.code === expectedCode
+          && !String(error.message).includes(secretPayload),
+      );
+      assert.deepStrictEqual(initial, originalInitial);
+
+      const malformedAccounting = { ...initial, [field]: invalidValue };
+      const originalMalformedAccounting = { ...malformedAccounting };
+      assert.throws(
+        () => budget.addAccounting(malformedAccounting, {}, secretPayload),
+        (error) => error
+          && error.code === expectedCode
+          && !String(error.message).includes(secretPayload),
+      );
+      assert.deepStrictEqual(malformedAccounting, originalMalformedAccounting);
+    }
   }
 });
 

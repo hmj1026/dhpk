@@ -322,6 +322,13 @@ test('observe records CHANGES_REQUIRED as a Review Gate result', () => {
     assert.strictEqual(status.semanticVerdict, 'CHANGES_REQUIRED');
     assert.strictEqual(status.executionStatus, 'COMPLETE');
     assert.strictEqual(status.reviewRequests.length, 1);
+    assert.deepStrictEqual(status.reviewRequests[0].priorFindings, [{
+      id: 'finding-390-changes-required',
+      severity: 'HIGH',
+      disposition: 'MUST_FIX',
+      summary: 'The review still requires a named remediation.',
+      evidence: [evidence.artifactRelativePath],
+    }]);
     assertBoundedReceiptSummary(status, {
       total: 1,
       byKind: { review: 1 },
