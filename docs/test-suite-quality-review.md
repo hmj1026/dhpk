@@ -1774,6 +1774,44 @@ changes only the nine assigned status values; its numeric signals, rank
 columns, and all other rows remain frozen. Final detect-changes evidence is
 left to the parent flow, which owns that pre-commit check.
 
+### Issue #680 — Cohort B batch 19
+
+The nine assigned suites are **8 keep / 1 rewrite / 0 delete**. The focused
+baseline and final aggregates each passed **81/81 cases** on Node `v26.10.0`
+and Darwin.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/validate-workflow-policy.test.js` | Keep | Retains workflow action pins, runner and Node baselines, permissions, timeouts, and checkout-less command policy. | 26 |
+| `tests/verify-codex-native-package.test.js` | Keep | Retains generated package parity, membership/content/frontmatter drift, routing provenance, and consumer evidence states. | 8 |
+| `tests/verify-platform-packages.test.js` | Keep | Retains four-platform package outputs, declared runtime overlaps, and rewritten policy links. | 4 |
+| `tests/verify-publication-bundle.test.js` | Rewrite | Replaces a self-computed hash comparison with execution of the release workflow's producer-bound digest guard; a tampered downloaded verifier must fail before Node runs. | 4 |
+| `tests/verify-release-parity-cli.test.js` | Keep | Retains branch-independent tag-version parity across package provenance, manifests, and bilingual generator pins. | 4 |
+| `tests/verify-runner.test.js` | Keep | Retains installed runner mode selection, local typecheck fallback, skips, and failure reporting against scratch repositories. | 6 |
+| `tests/verify-staged-package-version.test.js` | Keep | Retains tracked manifest/provenance version parity and invalid-target rejection. | 5 |
+| `tests/version-diff.test.js` | Keep | Retains verified, incompatible, missing-pin, and unverified advisory output behavior. | 7 |
+| `tests/version-family-skills.test.js` | Keep | Retains Laravel/PHPUnit selector and CLI behavior, copied-package independence, retirement checks, and routing rejection. | 17 |
+
+No helper or fixture was assigned to this batch, and no production file changed;
+production line and branch coverage comparison is N/A. CI recursively discovers
+these suites through `tests/run-all.js`; the script ownership check passed with
+`node scripts/ci/catalog.js --check`. The rewritten publication case passes the
+real workflow guard with the original verifier, then rejects a tampered
+downloaded copy before the mock Node command runs. A temporary workflow copy
+with the digest comparison removed made the rewritten suite fail at its
+producer-binding assertion; the mutation was removed afterward.
+
+The implement-step decision was **REASONER_REQUIRED**; the read-only reasoner
+returned **READY_FOR_DISPATCH**; `planner=skipped` because this is not an
+OpenSpec apply. The reasoner's indexed-worktree impacts for the nine test files
+were **LOW**, with zero resolved callers and affected processes/modules and no
+HIGH/CRITICAL result. A separate test-file query returned **UNKNOWN**, so text
+search confirmed aggregate-runner discovery and CI use instead of treating an
+empty caller set as proof of non-use. The release verifier itself had **LOW**
+impact with three direct callers and zero affected processes. The inventory
+changes only these nine disposition cells; frozen numeric fields, ranks, and
+all other rows remain unchanged.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
