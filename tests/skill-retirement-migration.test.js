@@ -90,6 +90,11 @@ function walkTextFiles(relative) {
 test('checked-in inventory owns historical and capability-family alias-free retirement records', () => {
   assert.ok(Array.isArray(INVENTORY.retired_skills), 'checked-in inventory must declare retired_skills');
   assert.deepStrictEqual(validateSkillRetirements({ inventory: INVENTORY }).errors, []);
+  for (const expected of RETIREMENTS) {
+    const actual = INVENTORY.retired_skills.find((entry) => entry.id === expected.id);
+    assert.ok(actual, `checked-in inventory is missing retirement ${expected.id}`);
+    assert.deepStrictEqual(actual, expected, `checked-in retirement record drifted: ${expected.id}`);
+  }
   assert.deepStrictEqual(
     INVENTORY.retired_skills.filter((entry) => entry.retiredIn === '0.47.0').map((entry) => entry.name).sort(),
     [...RETIRED_NAMES.slice(0, 5)].sort(),

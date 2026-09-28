@@ -38,18 +38,41 @@ function fixture(callback) {
   saveMap();
   const output = path.join(root, 'skills/example/scripts/runtime.js');
   const ledger = path.join(root, 'manifests/skill-resource-copies.json');
-  try { callback({ root, put, map, saveMap, output, ledger }); }
+  try { callback({ outer, root, put, map, saveMap, output, ledger }); }
   finally { fs.rmSync(outer, { recursive: true, force: true }); }
+}
+
+function snapshotTree(root) {
+  const rows = [];
+  function visit(directory, relative) {
+    for (const name of fs.readdirSync(directory).sort()) {
+      const absolute = path.join(directory, name);
+      const child = relative ? path.join(relative, name) : name;
+      const stat = fs.lstatSync(absolute);
+      const row = {
+        path: child.split(path.sep).join('/'),
+        type: stat.isSymbolicLink() ? 'symlink' : stat.isDirectory() ? 'directory' : 'file',
+        mode: (stat.mode & 0o7777).toString(8),
+      };
+      if (stat.isSymbolicLink()) row.target = fs.readlinkSync(absolute);
+      else if (stat.isFile()) row.bytes = fs.readFileSync(absolute).toString('base64');
+      rows.push(row);
+      if (stat.isDirectory()) visit(absolute, child);
+    }
+  }
+  visit(root, '');
+  return JSON.stringify(rows);
 }
 
 function rejectWithoutPublishing(ctx) {
   const api = synchronizer();
-  const beforeLedger = fs.readFileSync(ctx.ledger);
-  const beforeOutput = fs.existsSync(ctx.output) ? fs.readFileSync(ctx.output) : null;
-  assert.throws(() => api.writeSkillResources({ root: ctx.root }));
-  assert.deepStrictEqual(fs.readFileSync(ctx.ledger), beforeLedger);
-  if (beforeOutput === null) assert.ok(!fs.existsSync(ctx.output));
-  else assert.deepStrictEqual(fs.readFileSync(ctx.output), beforeOutput);
+  const before = snapshotTree(ctx.outer);
+  assert.throws(() => api.writeSkillResources({ root: ctx.root }), (error) => {
+    assert.ok(error instanceof Error, 'rejection must be an Error');
+    assert.match(error.message, /^skill-resource-sync: /, 'rejection must come from the synchronizer');
+    return true;
+  });
+  assert.strictEqual(snapshotTree(ctx.outer), before, 'rejection must preserve the entire fixture tree');
 }
 
 for (const [label, source, destination] of [
