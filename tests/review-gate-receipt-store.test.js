@@ -511,6 +511,11 @@ test('secret fields are redacted before persistence', () => {
       } }),
       receipts: [],
     });
+    const digest = appended.eventDigest.replace(/^sha256:/, '');
+    const objectPath = path.join(root, 'objects', 'sha256', digest.slice(0, 2), `${digest}.json`);
+    const rawPersisted = fs.readFileSync(objectPath, 'utf8');
+    assert.doesNotMatch(rawPersisted, new RegExp(marker));
+    assert.match(rawPersisted, /redacted/i);
     const persisted = JSON.stringify(store.inspect({ workId: 'work-365', ...trustedHead(appended) }));
     assert.doesNotMatch(persisted, new RegExp(marker));
     assert.match(persisted, /redacted/i);

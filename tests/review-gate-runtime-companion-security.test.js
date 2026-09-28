@@ -321,6 +321,7 @@ function assertNoDurableObservation(fixture, marker = SECRET_MARKER) {
   const status = JSON.parse(statusResult.stdout);
   assert.strictEqual(status.status, 'PENDING');
   if (Object.prototype.hasOwnProperty.call(status, 'receipts')) assert.deepStrictEqual(status.receipts, []);
+  if (status.receiptSummary) assert.strictEqual(status.receiptSummary.total, 0);
   assert.ok(!Object.prototype.hasOwnProperty.call(status, 'migrationObservation'));
   for (const file of stateFiles(fixture.repoRoot)) {
     const content = fs.readFileSync(file, 'utf8');
@@ -333,6 +334,13 @@ function mutateCompanion(fixture, mutation) {
   const companion = JSON.parse(fs.readFileSync(file, 'utf8'));
   mutation(companion);
   writeJsonFixture(fixture.repoRoot, fixture.companionRelativePath, companion);
+  writeHostAttestation(
+    fixture.repoRoot,
+    fixture.prepared,
+    fixture,
+    fixture.host,
+    { label: 'companion-security-mutated' },
+  );
 }
 
 function withObserveFixture(callback) {
@@ -360,6 +368,53 @@ function assertGenericWriterFailure(fixture, result, marker = SECRET_MARKER) {
     assert.doesNotMatch(content, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
 }
+
+function assertDiagnosticCode(fixture, expectedCode) {
+  const files = diagnosticFiles(fixture.repoRoot);
+  assert.strictEqual(files.length, 1, 'the rejected observation must leave one bounded diagnostic');
+  const diagnostic = JSON.parse(fs.readFileSync(files[0], 'utf8'));
+  assert.strictEqual(diagnostic.code, expectedCode);
+}
+
+test('observe reports MISSING_ARTIFACT when the requested review artifact is absent', () => {
+  withObserveFixture((fixture) => {
+    const args = observeArgs(fixture);
+    args[args.indexOf('--artifact') + 1] = '.claude/artifacts/reviews/missing-review-390.md';
+    const result = runCli(fixture.repoRoot, args);
+    assertRedactedFailure(fixture, result);
+    assertDiagnosticCode(fixture, 'MISSING_ARTIFACT');
+    assertNoDurableObservation(fixture);
+  });
+});
+
+test('observe rejects a valid companion file stored outside its artifact sibling path', () => {
+  withObserveFixture((fixture) => {
+    const misplacedRelativePath = '.claude/artifacts/reviews/sidecars/code-reviewer-390-companion.result.json';
+    const companion = JSON.parse(fs.readFileSync(
+      path.join(fixture.repoRoot, fixture.companionRelativePath),
+      'utf8',
+    ));
+    writeJsonFixture(fixture.repoRoot, misplacedRelativePath, companion);
+    const args = observeArgs(fixture);
+    args[args.indexOf('--companion') + 1] = misplacedRelativePath;
+    const result = runCli(fixture.repoRoot, args);
+    assertRedactedFailure(fixture, result);
+    assertDiagnosticCode(fixture, 'FOREIGN_EVIDENCE');
+    assertNoDurableObservation(fixture);
+  });
+});
+
+test('observe rejects an invalid structured semantic verdict after authenticating its companion', () => {
+  withObserveFixture((fixture) => {
+    mutateCompanion(fixture, (companion) => {
+      companion.reviewResult.semanticVerdict = 'APPROVED';
+    });
+    const result = runCli(fixture.repoRoot, observeArgs(fixture));
+    assertRedactedFailure(fixture, result);
+    assertDiagnosticCode(fixture, 'MALFORMED_COMPANION');
+    assertNoDurableObservation(fixture);
+  });
+});
 
 test('observe rejects a finding summary containing a newline, raw-log marker, or secret-like payload', () => {
   withObserveFixture((fixture) => {
@@ -580,13 +635,6 @@ test('observe accepts bounded repo-relative, digest, and symbolic test/command r
         'command:node-tests',
       ];
     });
-    writeHostAttestation(
-      fixture.repoRoot,
-      fixture.prepared,
-      fixture,
-      fixture.host,
-      { label: 'companion-security-bounded' },
-    );
     const result = runCli(fixture.repoRoot, observeArgs(fixture));
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     const observed = JSON.parse(result.stdout);

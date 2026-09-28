@@ -9,7 +9,9 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { findTests } = require('./run-all');
 const {
   createFinding,
   makePlan,
@@ -32,7 +34,187 @@ const conformance = require('../scripts/lib/review-gate-conformance');
 
 const ROOT = path.join(__dirname, '..');
 const CORPUS_PATH = path.join(__dirname, 'fixtures', 'review-gate', 'cross-platform-differential-v1.json');
+const SENTINEL_CORPUS_PATH = path.join(__dirname, 'fixtures', 'review-gate', 'sentinel-differential-v1.json');
 const CORPUS = JSON.parse(fs.readFileSync(CORPUS_PATH, 'utf8'));
+const SENTINEL_CORPUS = JSON.parse(fs.readFileSync(SENTINEL_CORPUS_PATH, 'utf8'));
+const TEST_DISCOVERY_SCRIPT = String.raw`
+const Module = require('node:module');
+const path = require('node:path');
+const tests = [];
+const originalLoad = Module._load;
+Module._load = function load(request, parent, isMain) {
+  if (request === './_lib/tinytest' && parent
+      && parent.filename.startsWith(path.join(process.cwd(), 'tests') + path.sep)) {
+    return {
+      test: (name, fn) => tests.push({ name, source: Function.prototype.toString.call(fn) }),
+      run: () => {},
+      assert: require('node:assert'),
+    };
+  }
+  return originalLoad.call(this, request, parent, isMain);
+};
+require(path.resolve(process.argv[1]));
+process.stdout.write(JSON.stringify(tests));
+`;
+const EXPECTED_SCENARIO_KINDS = ['FAILURE', 'PROVIDER', 'RECEIPT', 'REPLAY', 'RESULT', 'WORKFLOW'];
+const EXPECTED_ADAPTER_KEYS = ['CI', 'CLAUDE', 'CODEX', 'CORE', 'GIT_PROVIDER'];
+const EXPECTED_ACTIVE_CASES = {
+  'claude-codex-pass-agree': {
+    scenarioKind: 'RESULT', adapters: ['CLAUDE', 'CODEX'],
+    expected: { semanticVerdict: 'PASS', executionStatus: 'COMPLETE', applicability: 'REQUIRED', accepted: true, lifecycleStatus: 'RESOLVED', allowsTargetProgress: true },
+  },
+  'claude-codex-changes-required-parity': {
+    scenarioKind: 'RESULT', adapters: ['CLAUDE', 'CODEX'],
+    expected: { semanticVerdict: 'CHANGES_REQUIRED', executionStatus: 'COMPLETE', applicability: 'REQUIRED', accepted: true, lifecycleStatus: 'PENDING', allowsTargetProgress: false },
+  },
+  'claude-codex-unavailable-review-result': {
+    scenarioKind: 'RESULT', adapters: ['CLAUDE', 'CODEX'],
+    expected: { executionStatus: 'UNAVAILABLE', applicability: 'REQUIRED', accepted: true, lifecycleStatus: 'PENDING', allowsTargetProgress: false },
+  },
+  'claude-codex-shared-receipt-decision': {
+    scenarioKind: 'RECEIPT', adapters: ['CLAUDE', 'CODEX'],
+    expected: { semanticVerdict: 'PASS', executionStatus: 'COMPLETE', applicability: 'REQUIRED', accepted: true, lifecycleStatus: 'RESOLVED', allowsTargetProgress: true },
+  },
+  'codex-adapter-inactive-unavailable': {
+    scenarioKind: 'FAILURE', adapters: ['CODEX'],
+    expected: { activation: 'INACTIVE', errorCode: 'ADAPTER_INACTIVE' },
+  },
+  'ci-adapter-inactive-unavailable': {
+    scenarioKind: 'FAILURE', adapters: ['CI'],
+    expected: { activation: 'INACTIVE', errorCode: 'ADAPTER_INACTIVE' },
+  },
+  'git-provider-adapter-inactive-unavailable': {
+    scenarioKind: 'FAILURE', adapters: ['GIT_PROVIDER'],
+    expected: { activation: 'INACTIVE', errorCode: 'ADAPTER_INACTIVE' },
+  },
+  'ci-provider-delivery-archive-ready': {
+    scenarioKind: 'PROVIDER', adapters: ['CI', 'GIT_PROVIDER'],
+    expected: { deliveryState: 'ARCHIVE_READY', completionDelivery: 'COMPLETE', tier: 'ARCHIVE' },
+  },
+  'git-provider-merge-alone-post-merge-pending': {
+    scenarioKind: 'PROVIDER', adapters: ['GIT_PROVIDER'],
+    expected: { deliveryState: 'POST_MERGE_PENDING', completionDelivery: 'PENDING', reasonCode: 'POST_MERGE_CI_UNOBSERVED', tier: 'DELIVERY' },
+  },
+  'ci-alone-merge-unobserved-pending': {
+    scenarioKind: 'PROVIDER', adapters: ['CI'],
+    expected: { deliveryState: 'POST_MERGE_PENDING', completionDelivery: 'PENDING', reasonCode: 'MERGE_UNOBSERVED', tier: 'REMOTE' },
+  },
+  'ci-provider-ambiguous-post-merge': {
+    scenarioKind: 'PROVIDER', adapters: ['CI'],
+    expected: { deliveryState: 'POST_MERGE_PENDING', completionDelivery: 'PENDING', reasonCode: 'AMBIGUOUS_POST_MERGE_CI', tier: 'DELIVERY' },
+  },
+  'provider-missing-transport-blocked': {
+    scenarioKind: 'FAILURE', adapters: ['CORE'],
+    expected: { completionDelivery: 'PENDING', conditionType: 'BLOCKED', tier: 'LOCAL' },
+  },
+  'workflow-merge-ready-authorizes-pull-request': {
+    scenarioKind: 'WORKFLOW', adapters: ['CORE'],
+    expected: { state: 'MERGE_READY', authorizesPullRequest: true, authority: 'REVIEW_GATE', allowsTargetProgress: true },
+  },
+  'post-merge-ci-corrected-rerun-supersedes-failure': {
+    scenarioKind: 'REPLAY', adapters: ['CI'],
+    expected: { deliveryState: 'ARCHIVE_READY', completionDelivery: 'COMPLETE' },
+  },
+  'post-merge-ci-regression-not-masked': {
+    scenarioKind: 'REPLAY', adapters: ['CI'],
+    expected: { deliveryState: 'POST_MERGE_PENDING', completionDelivery: 'PENDING', reasonCode: 'POST_MERGE_CI_UNOBSERVED' },
+  },
+};
+const EXPECTED_SENTINEL_COVERAGE = {
+  'no-op-not-applicable': {
+    currentMatch: 'ANALOGUE',
+    activeOwners: [{ file: 'tests/review-gate.test.js', test: 'an exact empty plan is NOT_APPLICABLE with EMPTY_DIFF and no review work' }],
+  },
+  'fresh-pass': {
+    currentMatch: 'DIRECT',
+    activeOwners: [{ file: 'tests/review-gate.test.js', test: 'trusted same-lane PASS persists a typed receipt and replay derives RESOLVED/REVIEW_PASS' }],
+  },
+  'missing-artifact': {
+    currentMatch: 'ANALOGUE',
+    activeOwners: [{ file: 'tests/review-gate-runtime-companion-security.test.js', test: 'observe reports MISSING_ARTIFACT when the requested review artifact is absent' }],
+  },
+  'stale-artifact': {
+    currentMatch: 'DIRECT',
+    activeOwners: [
+      { file: 'tests/review-gate-runtime-observe-security.test.js', test: 'observe rejects a tampered artifact digest without creating a receipt' },
+      { file: 'tests/review-gate-runtime-observe-security.test.js', test: 'observe rejects stale readiness digest before recording a review receipt' },
+    ],
+  },
+  'malformed-native-artifact': {
+    currentMatch: 'ANALOGUE',
+    activeOwners: [
+      { file: 'tests/review-gate-runtime-companion-security.test.js', test: 'observe rejects an invalid structured semantic verdict after authenticating its companion' },
+      { file: 'tests/reviewer-contract-v2.test.js', test: 'v2 keeps execution, applicability, and semantic verdict axes distinct' },
+    ],
+  },
+  'misplaced-artifact': {
+    currentMatch: 'DIRECT',
+    activeOwners: [{ file: 'tests/review-gate-runtime-companion-security.test.js', test: 'observe rejects a valid companion file stored outside its artifact sibling path' }],
+  },
+  'foreign-identity': {
+    currentMatch: 'DIRECT',
+    activeOwners: [{ file: 'tests/review-gate-runtime-observe-security.test.js', test: 'observe rejects a sidecar identity mismatch without recording evidence' }],
+  },
+  'concurrent-session': {
+    currentMatch: 'ANALOGUE',
+    activeOwners: [
+      { file: 'tests/review-gate-evidence-continuity.test.js', test: 'foreign-session receipt evidence cannot clear a pending review before a trusted same-lane PASS' },
+      { file: 'tests/review-gate-receipt-store.test.js', test: 'receipts from a foreign session cannot bind to an event' },
+    ],
+  },
+  'resumed-pass': {
+    currentMatch: 'ANALOGUE',
+    activeOwners: [
+      { file: 'tests/review-gate-runtime-consumer-e2e.test.js', test: 'materialized package records a direct review observation in an isolated consumer' },
+      { file: 'tests/review-gate-runtime-host-attestation-security.test.js', test: 'observe permits an exact host-attested retry without a second receipt' },
+    ],
+  },
+  'resumed-intermediate': {
+    currentMatch: 'ANALOGUE',
+    activeOwners: [{ file: 'tests/review-gate-runtime-cli.test.js', test: 'prepare reads a bounded Work Request from stdin and status returns its bounded projection' }],
+  },
+  'resumed-malformed': {
+    currentMatch: 'HISTORICAL_ONLY',
+    activeOwners: [],
+  },
+  'interrupted-reviewer': {
+    currentMatch: 'DIRECT',
+    activeOwners: [{ file: 'tests/review-gate.test.js', test: 'non-passing or non-complete results remain PENDING with independent axes' }],
+  },
+  'retry-allowed': {
+    currentMatch: 'HISTORICAL_ONLY',
+    activeOwners: [],
+  },
+  'retry-exhausted': {
+    currentMatch: 'HISTORICAL_ONLY',
+    activeOwners: [],
+  },
+  'unresolved-fail': {
+    currentMatch: 'DIRECT',
+    activeOwners: [{ file: 'tests/review-gate-security.test.js', test: 'MUST_FIX findings survive every intermediate result and cannot be laundered from the next request' }],
+  },
+  'unresolved-resumed-block': {
+    currentMatch: 'HISTORICAL_ONLY',
+    activeOwners: [],
+  },
+  'unresolved-clean-follow-up': {
+    currentMatch: 'DIRECT',
+    activeOwners: [{ file: 'tests/review-gate-security.test.js', test: 'MUST_FIX findings survive every intermediate result and cannot be laundered from the next request' }],
+  },
+};
+
+function registeredExecutableTests(file) {
+  const env = { ...process.env };
+  delete env.NODE_V8_COVERAGE;
+  const result = spawnSync(process.execPath, ['-e', TEST_DISCOVERY_SCRIPT, file], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env,
+  });
+  assert.ifError(result.error);
+  assert.strictEqual(result.status, 0, result.stderr);
+  return new Map(JSON.parse(result.stdout).map(({ name, source }) => [name, source]));
+}
 
 function identity(overrides = {}) {
   return {
@@ -687,15 +869,125 @@ test('one active corpus drives every applicable adapter into one direct parity r
   assert.strictEqual(report.promotionEligible, false);
 });
 
-test('corpus enumerates every active scenario kind and remains platform-neutral', () => {
+test('corpus binds independent scenario, adapter, active-case, and historical Sentinel contracts', () => {
   assert.strictEqual(CORPUS.schema, 'dhpk.cross-platform-differential-corpus.v1');
-  const seenKinds = new Set(CORPUS.cases.map((row) => row.scenarioKind));
-  for (const kind of CORPUS.scenarioKinds) assert.ok(seenKinds.has(kind), `no case exercises scenario kind ${kind}`);
+  assert.deepStrictEqual([...CORPUS.scenarioKinds].sort(), EXPECTED_SCENARIO_KINDS);
+  assert.deepStrictEqual([...CORPUS.adapterKeys].sort(), EXPECTED_ADAPTER_KEYS);
+  assert.deepStrictEqual(
+    Object.fromEntries(CORPUS.cases.map(({ caseId, scenarioKind, adapters, expected }) => (
+      [caseId, { scenarioKind, adapters: [...adapters].sort(), expected }]
+    ))),
+    Object.fromEntries(Object.entries(EXPECTED_ACTIVE_CASES).map(([caseId, value]) => (
+      [caseId, { ...value, adapters: [...value.adapters].sort() }]
+    ))),
+  );
+  assert.deepStrictEqual(
+    [...new Set(CORPUS.cases.map(({ scenarioKind }) => scenarioKind))].sort(),
+    EXPECTED_SCENARIO_KINDS,
+  );
+  assert.deepStrictEqual(
+    [...new Set(CORPUS.cases.flatMap(({ adapters }) => adapters))].sort(),
+    EXPECTED_ADAPTER_KEYS,
+  );
   assert.doesNotMatch(JSON.stringify(CORPUS.cases), /\.claude|\/home\/|\\Users\\/);
   for (const entry of CORPUS.cases) {
     for (const adapterKey of entry.adapters) {
-      assert.ok(conformance.ADAPTER_KEYS.includes(adapterKey), `${entry.caseId} names an unknown adapter`);
+      assert.ok(EXPECTED_ADAPTER_KEYS.includes(adapterKey), `${entry.caseId} names an unknown adapter`);
     }
+  }
+
+  const historicalIds = SENTINEL_CORPUS.cases.map(({ input }) => input.caseId).sort();
+  assert.deepStrictEqual(Object.keys(CORPUS.sentinelCoverage).sort(), historicalIds);
+  const historicalOnlyIds = [
+    'resumed-malformed',
+    'retry-allowed',
+    'retry-exhausted',
+    'unresolved-resumed-block',
+  ];
+  assert.deepStrictEqual(
+    Object.entries(CORPUS.sentinelCoverage)
+      .filter(([, row]) => row.currentMatch === 'HISTORICAL_ONLY')
+      .map(([caseId]) => caseId)
+      .sort(),
+    historicalOnlyIds,
+  );
+  const discoveredTests = new Set(findTests(path.join(ROOT, 'tests')).map((file) => (
+    path.relative(ROOT, file).split(path.sep).join('/')
+  )));
+  const executableTestsByFile = new Map();
+  for (const sentinelCase of SENTINEL_CORPUS.cases) {
+    const { input } = sentinelCase;
+    const coverage = CORPUS.sentinelCoverage[input.caseId];
+    const expectedCoverage = EXPECTED_SENTINEL_COVERAGE[input.caseId];
+    assert.ok(expectedCoverage, `${input.caseId} must have an independent match expectation`);
+    assert.deepStrictEqual({
+      currentMatch: coverage.currentMatch,
+      activeOwners: coverage.activeOwners,
+    }, expectedCoverage);
+    const expectedKeys = [
+      'caseId', 'completion', 'evidenceCondition', 'lifecycleClearance',
+      'reasonCodes', 'schema', 'semanticApproval', 'sentinelAuthority', 'unresolvedVerdict',
+    ];
+    assert.deepStrictEqual(Object.keys(coverage.normalizedExpected).sort(), expectedKeys);
+    assert.deepStrictEqual(coverage.normalizedExpected, {
+      schema: 'dhpk.sentinel-outcome.v1',
+      caseId: input.caseId,
+      evidenceCondition: input.evidenceCondition,
+      lifecycleClearance: input.lifecycleClearance,
+      semanticApproval: input.semanticApproval,
+      completion: input.completion,
+      sentinelAuthority: true,
+      unresolvedVerdict: input.unresolvedVerdict,
+      reasonCodes: input.reasonCodes,
+    });
+    assert.strictEqual(
+      coverage.currentMatch === 'HISTORICAL_ONLY',
+      historicalOnlyIds.includes(input.caseId),
+      `${input.caseId} must keep the reasoned active-match classification`,
+    );
+    if (coverage.currentMatch === 'HISTORICAL_ONLY') {
+      assert.deepStrictEqual(coverage.activeOwners, []);
+      assert.ok(coverage.gap, `${input.caseId} must explain its historical-only status`);
+      continue;
+    }
+    assert.ok(coverage.activeOwners.length > 0, `${input.caseId} needs a current test owner`);
+    for (const owner of coverage.activeOwners) {
+      assert.ok(discoveredTests.has(owner.file), `${owner.file} must remain in the test runner`);
+      if (!executableTestsByFile.has(owner.file)) {
+        executableTestsByFile.set(owner.file, registeredExecutableTests(owner.file));
+      }
+      const assertionSource = executableTestsByFile.get(owner.file).get(owner.test);
+      assert.ok(assertionSource, `${owner.file} must register the named test: ${owner.test}`);
+      assert.match(
+        assertionSource,
+        /\bassert\.[A-Za-z]+\s*\(|\bassert[A-Z][A-Za-z0-9_]*\s*\(/,
+        `${owner.file} test must execute an assertion: ${owner.test}`,
+      );
+    }
+  }
+
+  const expectedProtections = [
+    ['secret', 'tests/pre-edit-guard.test.js', 'Write/Edit to .env is blocked'],
+    ['path', 'tests/pre-edit-guard.test.js', '.git/ internals are blocked'],
+    ['shell', 'tests/pre-bash-guard.test.js', 'rm -rf /home is blocked (whole-home deletion)'],
+    ['session-health', 'tests/session-start.test.js', 'configured modules are validated and reported without lifecycle diagnostics'],
+  ];
+  assert.deepStrictEqual(
+    SENTINEL_CORPUS.deterministicProtections.map(({ kind, file, test: title }) => [kind, file, title]),
+    expectedProtections,
+  );
+  for (const [, file, title] of expectedProtections) {
+    assert.ok(discoveredTests.has(file), `${file} must remain in the test runner`);
+    if (!executableTestsByFile.has(file)) {
+      executableTestsByFile.set(file, registeredExecutableTests(file));
+    }
+    const assertionSource = executableTestsByFile.get(file).get(title);
+    assert.ok(assertionSource, `${file} must register the protection test: ${title}`);
+    assert.match(
+      assertionSource,
+      /\bassert\.[A-Za-z]+\s*\(|\bassert[A-Z][A-Za-z0-9_]*\s*\(/,
+      `${title} must execute an assertion`,
+    );
   }
 });
 
