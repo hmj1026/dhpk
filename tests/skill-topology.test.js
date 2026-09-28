@@ -10,9 +10,7 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   validateDistributionInventoryV2,
-  validateInventoryV2,
   validateSkillTopology,
-  validateTopology,
   generateClaudeSkillRoots,
 } = require('../scripts/lib/distribution-inventory');
 
@@ -77,9 +75,8 @@ function makeTopologyFixture() {
 }
 
 function topologyResult(root, inv = inventory()) {
-  const validator = validateSkillTopology || validateTopology;
-  assert.strictEqual(typeof validator, 'function', 'Task 1 topology validator is not implemented');
-  return validator({ root, inventory: inv, nativeRoots: ['plugins/dhpk'] });
+  assert.strictEqual(typeof validateSkillTopology, 'function', 'canonical Task 1 topology validator is required');
+  return validateSkillTopology({ root, inventory: inv, nativeRoots: ['plugins/dhpk'] });
 }
 
 function errorsFor(root, inv = inventory()) {
@@ -87,14 +84,12 @@ function errorsFor(root, inv = inventory()) {
 }
 
 test('v2 inventory accepts the required naming, identity, lifecycle, tier, profile, and surface fields', () => {
-  const validator = validateDistributionInventoryV2 || validateInventoryV2;
-  assert.strictEqual(typeof validator, 'function', 'Task 1 inventory v2 validator is not implemented');
-  assert.deepStrictEqual(validator({ inventory: inventory() }).errors, []);
+  assert.strictEqual(typeof validateDistributionInventoryV2, 'function', 'canonical v2 inventory validator is required');
+  assert.deepStrictEqual(validateDistributionInventoryV2({ inventory: inventory() }).errors, []);
 });
 
 test('v2 inventory rejects schema drift, invalid public names, duplicate names/capabilities, and flat-path violations', () => {
-  const validator = validateDistributionInventoryV2 || validateInventoryV2;
-  assert.strictEqual(typeof validator, 'function', 'Task 1 inventory v2 validator is not implemented');
+  assert.strictEqual(typeof validateDistributionInventoryV2, 'function', 'canonical v2 inventory validator is required');
 
   const bad = inventory([
     skill({
@@ -107,7 +102,7 @@ test('v2 inventory rejects schema drift, invalid public names, duplicate names/c
     skill({ id: 'other', name: 'dhpk-tdd', path: 'skills/dhpk-tdd', capability_id: 'dhpk.tdd' }),
   ]);
   bad.schema = 'dhpk.distribution-inventory.v1';
-  const result = validator({ inventory: bad });
+  const result = validateDistributionInventoryV2({ inventory: bad });
   assert.ok(result.errors.some((error) => /schema/i.test(error)), result.errors.join('\n'));
   assert.ok(result.errors.some((error) => /name/i.test(error) && /dhpk/i.test(error)), result.errors.join('\n'));
   assert.ok(result.errors.some((error) => /duplicate.*name/i.test(error)), result.errors.join('\n'));
@@ -118,8 +113,7 @@ test('v2 inventory rejects schema drift, invalid public names, duplicate names/c
 });
 
 test('v2 inventory rejects missing required fields and invalid tier/capability/profile values', () => {
-  const validator = validateDistributionInventoryV2 || validateInventoryV2;
-  assert.strictEqual(typeof validator, 'function', 'Task 1 inventory v2 validator is not implemented');
+  assert.strictEqual(typeof validateDistributionInventoryV2, 'function', 'canonical v2 inventory validator is required');
   const malformed = inventory([
     skill({
       id: '',
@@ -130,7 +124,7 @@ test('v2 inventory rejects missing required fields and invalid tier/capability/p
       surfaces: 'claude-core',
     }),
   ]);
-  const result = validator({ inventory: malformed });
+  const result = validateDistributionInventoryV2({ inventory: malformed });
   assert.ok(result.errors.some((error) => /required|id/i.test(error)), result.errors.join('\n'));
   assert.ok(result.errors.some((error) => /name/i.test(error)), result.errors.join('\n'));
   assert.ok(result.errors.some((error) => /capability/i.test(error)), result.errors.join('\n'));

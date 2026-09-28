@@ -5,6 +5,7 @@
 // fixture distribution.  The suite never executes a repository installer,
 // performs a Host workflow, or uses a real network/provider.
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
@@ -114,6 +115,28 @@ test('setup-family fixture registry exposes stable public entries', () => {
     assert.ok(Number.isSafeInteger(fixture.expected.status), fixture.id);
     assert.ok(Array.isArray(fixture.expected.output) && fixture.expected.output.length > 0, fixture.id);
     assert.ok(fixture.expected.output.every((fragment) => typeof fragment === 'string' && fragment.length > 0), fixture.id);
+  }
+});
+
+test('setup fixture snapshots observe dangling symlinks and mode-only changes', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-setup-snapshot-')));
+  try {
+    const absent = path.join(root, 'absent');
+    assert.strictEqual(fileSnapshot(absent), null);
+
+    const dangling = path.join(root, 'dangling-link');
+    fs.symlinkSync(path.join(root, 'missing-target'), dangling);
+    const snapshot = fileSnapshot(dangling);
+    assert.ok(snapshot, 'lstat must observe a dangling symlink as an entry');
+    assert.deepStrictEqual(snapshot[0].slice(0, 2), ['', 'symlink']);
+
+    const executable = path.join(root, 'fixture.sh');
+    fs.writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o644 });
+    const beforeModeChange = fingerprint(root);
+    fs.chmodSync(executable, 0o755);
+    assert.notStrictEqual(fingerprint(root), beforeModeChange, 'fingerprint must include executable mode');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -356,13 +379,24 @@ test('relocated project setup keeps Host procedure resources local and declares 
       path.join(context.skillDir, 'templates', 'claude-settings-hooks.json'),
       'utf8',
     );
-    assert.ok(settingsTemplate.trim().startsWith('{'), 'settings template must be JSON-shaped');
+    const settings = JSON.parse(settingsTemplate);
+    assert.ok(settings && settings.hooks && typeof settings.hooks === 'object', 'settings template must be JSON');
     for (const placeholder of AUTO_DETECTED_PLACEHOLDERS) {
       assert.ok(template.includes(placeholder), `first-install template is missing ${placeholder}`);
     }
-    for (const tag of ECOSYSTEM_TAGS) {
-      assert.ok(template.includes(`<!-- block:${tag} -->`), `template is missing ${tag} block marker`);
-      assert.ok(template.includes('<!-- /block -->'), 'template is missing ecosystem block closing marker');
+    const blocks = Array.from(template.matchAll(/<!-- block:([^ ]+) -->/g));
+    const closings = Array.from(template.matchAll(/<!-- \/block -->/g));
+    assert.deepStrictEqual(
+      blocks.map((match) => match[1]).sort(),
+      [...ECOSYSTEM_TAGS].sort(),
+      'each ecosystem must own exactly one block marker',
+    );
+    assert.strictEqual(closings.length, blocks.length, 'every ecosystem block must have one closing marker');
+    for (let index = 0; index < blocks.length; index += 1) {
+      assert.ok(blocks[index].index < closings[index].index, `${blocks[index][1]} must close after it opens`);
+      if (blocks[index + 1]) {
+        assert.ok(closings[index].index < blocks[index + 1].index, `${blocks[index][1]} must close before the next block`);
+      }
     }
 
     const body = skill.replace(/^---\n[\s\S]*?\n---\n/, '');
@@ -404,6 +438,7 @@ test('setup asset adapters are one manifest-synchronized source that names itsel
     assert.strictEqual(result.status, 0, outputOf(result));
     assert.match(result.stdout, new RegExp(`^Usage: ${path.basename(rel).replace('.', '\\.')} `, 'm'));
     const missing = spawnSync('bash', [path.join(ROOT, rel)], { encoding: 'utf8' });
+    assert.notStrictEqual(missing.status, 0, `${name} adapter must reject missing arguments`);
     assert.match(missing.stderr, new RegExp(`\\[${name}\\] --source-artifact is required`));
   }
 });
