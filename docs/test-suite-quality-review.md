@@ -124,6 +124,13 @@ coverage was 204/217 lines and 78/128 branches before, then 206/217 lines and
 `scripts/lib/claude-capability-bundle.js` at 679/797 covered lines and 227/314
 covered branches on both sides.
 
+The same #644 change added the replacement suite to the CI coverage ownership
+map in `scripts/ci/catalog.js`. Paired c8 runs of the ten formal suites, the
+replacement suite, and the catalog's mapped `tests/catalog-claims.test.js`
+passed 12/12 files on Node `v26.10.0` / Darwin with c8 `10.1.3` on both
+`989f72bf` and `c6f237b2`. Catalog coverage increased from 296/370 to 297/371
+covered lines and retained 23/46 covered branches.
+
 The three assigned support assets are audited and kept. `tests/_lib/review-gate-fixture.js`
 has 8 consumers and supplies typed events, trust policies, authority receipts,
 and store setup. `tests/_lib/workflow-coordinator-fixture.js` has 6 consumers
@@ -818,8 +825,11 @@ inventory rows: 119 keep, 76 rewrite, and one delete. The cohort's 23 helper
 and fixture assets are now all dispositioned: 13 audited keep, nine audited
 rewrite, and one additional audited keep. That last asset is
 `tests/_lib/install-codex-skills-fixtures.js`, assigned to #656; the batch
-ledger records its seven consumers and shared fixture role. No production
-source changed across Cohort A.
+ledger records its seven consumers and shared fixture role. No
+application/runtime production module changed across Cohort A. Issue #644 did
+change the CI coverage ownership map in `scripts/ci/catalog.js` by adding the
+replacement bundle mapping; its paired line and branch coverage is recorded in
+the #644 ledger above.
 
 Deleted contracts retain explicit behavioral owners. The prevalidated #644
 deletion, `tests/claude-capability-bundle.test.js`, is covered by
@@ -1925,13 +1935,17 @@ failure on this uncommitted integration worktree is not a clean verification
 result. After commit `20d4c4a7`, the clean-checkout aggregate with
 `TMPDIR=/private/tmp` passed **195/195 suites**; the provenance-bound package
 verification passed in that clean run. `node scripts/ci/catalog.js --check`
-reported zero uncovered scripts. CI
-recursively discovers these suites through `tests/run-all.js`; the explicit
-Darwin subset and all changed production areas are represented in the batch
-records above. The clean full CI run for this integration PR is the final
-release gate and will be recorded after it reaches a terminal conclusion.
-Issue #679's `scripts/validate/test-hooks.sh` change is an embedded test
-support suite, not a runtime production path; its assigned focused tests pass.
+reported zero uncovered scripts. CI recursively discovers these suites
+through `tests/run-all.js`; the explicit Darwin subset and all changed
+production areas are represented in the batch records above. The clean full
+GitHub CI run for PR #729 completed successfully as run
+[`36482524115`](https://github.com/hmj1026/dhpk/actions/runs/36482524115):
+390/390 test files passed, the catalog reported zero uncovered scripts,
+Markdown lint passed, and the macOS installer harness passed. The conditional
+Release rehearsal job was skipped. PR #729 merged into `develop` at
+`3559f82a` on 2026-09-28. Issue #679's `scripts/validate/test-hooks.sh` change
+is an embedded test support suite, not a runtime production path; its assigned
+focused tests pass.
 
 Pre-edit GitNexus impact on the canonical ledger path returned **UNKNOWN**
 (`target not found`), so it was not treated as an all-clear. Repository text
@@ -1939,6 +1953,57 @@ search found no direct path references to this ledger; canonical-to-marketplace
 copying is owned by `scripts/ci/gen-claude-marketplace-package.js`. Only the
 canonical ledger was edited directly; the generated package copy is refreshed
 by that generator.
+
+### Issue #684 — Full inventory and clean CI verdict
+
+Decision: **REASONER_REQUIRED**; read-only reasoner result:
+**READY_FOR_DISPATCH**; `planner=skipped` because this issue is not an OpenSpec
+apply. The reasoner verified the frozen inventory, both cohort ledgers, support
+asset assignments, aggregate discovery, CI subsets, deletion owners, and the
+integrated CI evidence before this verdict was written.
+
+The frozen inventory contains 393 original formal suites: 391 assigned active
+rows plus the two separately tracked prevalidated deletions. Every original
+row has exactly one disposition: **219 keep, 171 rewrite, and 3 delete**. The
+active rows account for 219 keep, 171 rewrite, and one deletion; the remaining
+two deletions are `tests/claude-capability-bundle.test.js` (#644) and
+`tests/retirement-closure.test.js` (#666). Their discovered replacement
+assertion owners are `tests/profile-scoped-claude-capability-bundle.test.js`
+and `tests/validate-retirement-closure.test.js`. The active deleted duplicate,
+`tests/plugin-user-config-behavior.test.js` (#661), has runtime behavior owned
+by `runtime-config` and `load-project-config`, while
+`plugin-user-config-metadata` protects its independent manifest contract.
+
+All **54 support assets** have one inventory row and a recorded disposition:
+the 24 helpers are **17 keep and 7 rewrite**; the 30 fixtures are **20 keep,
+8 rewrite, and 2 delete**. Each helper and 29 fixtures have a recorded primary
+consumer. The one fixture without a consumer,
+`tests/fixtures/subagent-stop/lin-blog-2026-07-17.json`, was audited and deleted
+in #676. Batch ledgers record the observable assertions and controlled
+negative checks for rewrites. Independent document, configuration,
+installation, publication, and safety contracts remain owned by retained
+suites. Shared helpers and fixtures are support assets, not extra formal
+suites.
+
+The current aggregate discovers sorted recursive `tests/**/*.test.js` files
+while excluding `tests/_lib`; CI and release invoke `tests/run-all.js`. The
+separate Darwin installer job runs its explicit 11-file subset from
+`tests/_lib/macos-installer-files.js`; those files are also members of the
+aggregate, not additional suites. The marketplace package's copies of the
+review ledger and inventory are generated projections from the canonical
+files, not separate suite rows. The final clean CI evidence and catalog result
+for the integrated cohort is recorded above. The batch ledgers record each
+affected production-file comparison: covered lines and branches were retained
+or increased except for the documented #659 c8 report-map merge on
+`goal-context.js` (50/60 to 49/59), which reflects merged V8 ranges rather than
+lost execution coverage. No other affected production path lost covered
+lines or branches. This includes #644's catalog ownership-map line.
+
+The pre-edit GitNexus impact for this documentation target returned
+**UNKNOWN** because the indexed graph could not resolve the file; that result
+was not treated as an all-clear. Text search found no direct import or path
+references. The marketplace generator owns the generated documentation copy,
+and this change edits only the canonical review ledger before regeneration.
 
 ## Frozen review queues
 
