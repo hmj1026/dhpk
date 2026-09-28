@@ -1607,6 +1607,51 @@ caller results were not treated as an all-clear. Final GitNexus
 **0 affected symbols**, **LOW** risk, and no affected processes. The result was
 complete with no partial or truncated output.
 
+### Issue #676 — Cohort B batch 15
+
+All ten assigned suites remain discoverable. Four are rewritten and six are
+kept; one explicitly assigned, unreferenced historical fixture is deleted.
+The focused Darwin aggregate passed **57/57 cases before the edits** and
+**58/58 after them**. No production file changed.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/stop-advisory-dispatch-modules.test.js` | Rewrite | Parses the surfaced event as JSON and asserts the exact `systemMessage` shape, prefix, and findings content. | 3 |
+| `tests/stop-dispatch-audit.test.js` | Rewrite | Repeats two source paths across four ledger lines and verifies the below-threshold result is silent and non-blocking. | 4 |
+| `tests/subagent-context-budget.test.js` | Keep | Retains independent static/observed usage, cold-context, scenario, and fail-closed packet checks. | 5 |
+| `tests/subagent-stop-quality.test.js` | Rewrite | Adds an evidence-rich reviewer report that must pass silently, alongside the existing block and retry contracts. | 13 |
+| `tests/subagent-stop-verify.test.js` | Rewrite | Starts with two liveness entries for the same worker type and asserts Stop removes exactly one while retaining the other and an unrelated worker. | 3 |
+| `tests/symlink-write-guidance.test.js` | Keep | Retains the distinct symlink-safe destination guidance contract. | 1 |
+| `tests/sync-develop.test.js` | Keep | Retains real Git remote alignment, force-with-lease, stale-head refusal, divergent-tree, and unchanged-ref checks. | 7 |
+| `tests/task4-consolidation.test.js` | Keep | Retains its independent skill and read-only permission text contracts. | 7 |
+| `tests/task4-defects.test.js` | Keep | Retains observable CLI and workflow regressions, including the named hostile-argument security invariant. | 11 |
+| `tests/tdd-e2e-contracts.test.js` | Keep | Retains independent TDD and E2E routing and handback policy contracts. | 4 |
+
+The assigned fixture `tests/fixtures/subagent-stop/lin-blog-2026-07-17.json` is
+**deleted**. It records a retired Sentinel incident; exact-path, distinctive
+field, and fixture-directory searches found no test, loader, or runtime
+consumer. No helper is assigned to this batch.
+
+The implement-step decision was **REASONER_REQUIRED**. The read-only reasoner
+returned **READY_FOR_DISPATCH** and found no production change. `planner=skipped`
+because this is not an OpenSpec apply. The recursive `tests/run-all.js`
+discovery route is used by CI and release; none of these suites is in the
+explicit macOS installer subset. The JSON fixture is not a discovered test.
+Catalog, skill-directory coverage, resource-sync, strict distribution, strict
+retirement-closure, changelog, and generated marketplace checks are run for
+this batch. Production line/branch coverage comparison is **NOT_APPLICABLE**
+because no production file changed.
+
+Pre-edit GitNexus upstream impacts for the four rewritten suite files were
+**LOW**, each with zero indexed callers and zero affected processes. The
+fixture path resolved **UNKNOWN** because it is not indexed. A repository-wide
+search found only its inventory and review-ledger references, with no test,
+script, or fixture-loader consumer; the UNKNOWN result was not treated as an
+all-clear. No proposed edit had HIGH or CRITICAL risk. Final GitNexus
+`detect_changes --scope all` reported **7 changed symbols across 8 files**,
+**0 affected symbols**, **LOW** risk, and no affected processes. The result was
+complete with no partial or truncated output.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
@@ -1675,10 +1720,11 @@ The static ownership scan found 24 helpers in `tests/_lib/` and 30 fixtures in
 fixture names, and exact fixture-directory loads. It assigns 23 assets with A
 consumers to the lowest-original-ordinal A consumer as primary owner. Thirty
 assets with B consumers are reserved for the B queue. The remaining fixture,
-`tests/fixtures/subagent-stop/lin-blog-2026-07-17.json`, has no static consumer
-and is explicitly held for an ownership audit in issue #641. These assignments
-are recorded per path in the CSV; batch owners must verify actual ownership
-before changing shared support files.
+`tests/fixtures/subagent-stop/lin-blog-2026-07-17.json`, had no static consumer
+and was explicitly held for an ownership audit in issue #676. That audit
+confirmed no test, loader, or runtime consumer, and batch 15 deletes it. These
+assignments are recorded per path in the CSV; batch owners must verify actual
+ownership before changing shared support files.
 
 Nine A suites are also in the macOS installer subset listed by
 `tests/_lib/macos-installer-files.js` (11 files total). Discovery uses sorted
@@ -1769,7 +1815,9 @@ release verification at `.github/workflows/release.yml:43-50`. The separate
 Darwin installer subset runs at `.github/workflows/ci.yml:151-165` and is
 listed in `tests/_lib/macos-installer-files.js`. A clean CI run remains
 required because local runs from a dirty checkout can fail provenance checks.
-The 31 B support assets (16 helpers and 15 fixtures) are assigned to the batch
-and issue of their lowest-original-ordinal B primary consumer. The
-unreferenced `tests/fixtures/subagent-stop/lin-blog-2026-07-17.json` stays
-unreferenced and has explicit audit ownership in batch 15 / issue #676.
+At the frozen baseline, 31 B support assets (16 helpers and 15 fixtures) were
+assigned to the batch and issue of their lowest-original-ordinal B primary
+consumer. The previously unreferenced
+`tests/fixtures/subagent-stop/lin-blog-2026-07-17.json` was audited in batch 15
+under issue #676 and deleted; all remaining support assets retain their
+primary-consumer assignments.

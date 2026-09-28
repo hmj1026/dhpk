@@ -338,16 +338,16 @@ formal-suite,,,335,333,tests/standalone-package-assets.test.js,B,14,675,reviewed
 formal-suite,,,336,334,tests/statusline.test.js,B,14,675,reviewed: rewrite,no,0,0,2,,4,0,0,0,0,0,30,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,337,335,tests/stop-advisory-dispatch-completion-evidence.test.js,B,14,675,reviewed: keep,no,0,0,5,,8,0,0,0,0,0,51,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,338,336,tests/stop-advisory-dispatch-graduation.test.js,B,14,675,reviewed: rewrite,no,0,0,4,,11,0,0,0,0,0,68,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,339,337,tests/stop-advisory-dispatch-modules.test.js,B,15,676,reserved for issue #641 queue,no,0,0,3,,9,0,0,0,0,0,59,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,340,338,tests/stop-dispatch-audit.test.js,B,15,676,reserved for issue #641 queue,no,0,0,4,,6,0,0,0,0,0,39,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,341,339,tests/subagent-context-budget.test.js,B,15,676,reserved for issue #641 queue,no,0,0,5,,25,0,0,741,183,2,126,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,342,340,tests/subagent-stop-quality.test.js,B,15,676,reserved for issue #641 queue,no,0,0,12,,8,1,0,0,0,0,48,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,343,341,tests/subagent-stop-verify.test.js,B,15,676,reserved for issue #641 queue,no,0,0,3,,6,0,0,0,0,0,40,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,344,342,tests/symlink-write-guidance.test.js,B,15,676,reserved for issue #641 queue,no,0,0,1,,9,0,3,0,0,0,58,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,345,343,tests/sync-develop.test.js,B,15,676,reserved for issue #641 queue,no,0,0,7,,29,0,8,0,0,0,134,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,346,344,tests/task4-consolidation.test.js,B,15,676,reserved for issue #641 queue,no,0,0,7,,16,0,16,0,0,0,91,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,347,345,tests/task4-defects.test.js,B,15,676,reserved for issue #641 queue,no,0,0,11,,45,0,17,1247,103,8,166,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,348,346,tests/tdd-e2e-contracts.test.js,B,15,676,reserved for issue #641 queue,no,0,0,4,,9,0,0,0,0,0,60,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,339,337,tests/stop-advisory-dispatch-modules.test.js,B,15,676,reviewed: rewrite,no,0,0,3,,9,0,0,0,0,0,59,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,340,338,tests/stop-dispatch-audit.test.js,B,15,676,reviewed: rewrite,no,0,0,4,,6,0,0,0,0,0,39,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,341,339,tests/subagent-context-budget.test.js,B,15,676,reviewed: keep,no,0,0,5,,25,0,0,741,183,2,126,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,342,340,tests/subagent-stop-quality.test.js,B,15,676,reviewed: rewrite,no,0,0,12,,8,1,0,0,0,0,48,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,343,341,tests/subagent-stop-verify.test.js,B,15,676,reviewed: rewrite,no,0,0,3,,6,0,0,0,0,0,40,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,344,342,tests/symlink-write-guidance.test.js,B,15,676,reviewed: keep,no,0,0,1,,9,0,3,0,0,0,58,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,345,343,tests/sync-develop.test.js,B,15,676,reviewed: keep,no,0,0,7,,29,0,8,0,0,0,134,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,346,344,tests/task4-consolidation.test.js,B,15,676,reviewed: keep,no,0,0,7,,16,0,16,0,0,0,91,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,347,345,tests/task4-defects.test.js,B,15,676,reviewed: keep,no,0,0,11,,45,0,17,1247,103,8,166,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,348,346,tests/tdd-e2e-contracts.test.js,B,15,676,reviewed: keep,no,0,0,4,,9,0,0,0,0,0,60,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,349,347,tests/test-entrypoint-dedup.test.js,B,16,677,reserved for issue #641 queue,no,0,0,2,,9,0,5,2225,205,18,56,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,350,348,tests/timestamps.test.js,B,16,677,reserved for issue #641 queue,no,0,0,3,,6,0,2,0,0,0,36,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,351,349,tests/transcript.test.js,B,16,677,reserved for issue #641 queue,no,0,0,4,,8,0,0,0,0,0,52,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
@@ -445,5 +445,5 @@ fixture,,,,,tests/fixtures/session-audit/generic-verification.json,B,09,670,revi
 fixture,,,,,tests/fixtures/session-audit/source-coverage.json,B,09,670,reviewed: keep,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/session-audit/typed-runtime-records.json,B,09,670,reviewed: keep,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/skill-package-descriptor-snapshot.json,A,20,661,audited: keep,,,,,,,,,,,,,tests/physical-tree-publication.test.js,1,lowest-original-ordinal A consumer
-fixture,,,,,tests/fixtures/subagent-stop/lin-blog-2026-07-17.json,B,15,676,unreferenced; explicit audit required in issue #641 queue,,,,,,,,,,,,,,0,unreferenced; assign for explicit audit in batch 15 / issue #676
+fixture,,,,,tests/fixtures/subagent-stop/lin-blog-2026-07-17.json,B,15,676,reviewed: delete,,,,,,,,,,,,,,0,unreferenced; assign for explicit audit in batch 15 / issue #676
 fixture,,,,,tests/fixtures/trap-sheet-detection/cases.json,B,16,677,reserved for issue #641 queue,,,,,,,,,,,,,tests/trap-sheet-detection.test.js,1,lowest-original-ordinal B consumer
