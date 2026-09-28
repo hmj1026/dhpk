@@ -27,6 +27,25 @@ test('store stages planned bytes, publishes atomically, and reports fingerprints
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('store rejects an unplanned staged-tree entry before activation and preserves the published tree', () => {
+  const root = tempRoot();
+  try {
+    const store = new ProjectionArtifactStore({ root });
+    const initial = store.begin(plan([{ stableId: 'one', destination: 'one', symlink: { policy: 'forbid' } }]));
+    initial.write({ stableId: 'one', destination: 'one', content: 'old published bytes' });
+    initial.publish();
+
+    const replacement = store.begin(plan([{ stableId: 'one', destination: 'one', symlink: { policy: 'forbid' } }]));
+    replacement.write({ stableId: 'one', destination: 'one', content: 'new candidate bytes' });
+    fs.writeFileSync(path.join(replacement.stageRoot, 'unplanned.txt'), 'unplanned');
+
+    assert.throws(() => replacement.stage(), /staged entry is absent from the compiled plan/);
+    replacement.abort();
+    assert.strictEqual(fs.readFileSync(path.join(root, 'published/one'), 'utf8'), 'old published bytes');
+    assert.strictEqual(fs.existsSync(path.join(replacement.stageRoot, 'unplanned.txt')), false);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test('store rejects unplanned output and traversal before writing', () => {
   const root = tempRoot();
   try {
