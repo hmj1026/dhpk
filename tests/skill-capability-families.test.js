@@ -161,10 +161,25 @@ test('reborn skills expose exact modes and invocation metadata', () => {
 test('harness-govern retains the five consolidated governance modes', () => {
   const body = read('skills/harness-govern/SKILL.md');
   const metadata = read('skills/harness-govern/agents/openai.yaml');
-  for (const mode of ['health', 'budget', 'fill', 'revise', 'sync']) {
-    assert.match(body, new RegExp(`\\b${mode}\\b`), `harness-govern:${mode}`);
+  const procedures = {
+    health: 'references/health-workflow.md',
+    budget: 'references/budget-workflow.md',
+    fill: 'references/fill-workflow.md',
+    revise: 'references/revise-workflow.md',
+    sync: 'references/sync-workflow.md',
+  };
+  const modeSectionStart = body.indexOf('## Mode selection');
+  assert.notStrictEqual(modeSectionStart, -1, 'missing the mode-selection section');
+  const modeSectionEnd = body.indexOf('\n## ', modeSectionStart + '## Mode selection'.length);
+  const modeSection = body.slice(modeSectionStart, modeSectionEnd === -1 ? undefined : modeSectionEnd);
+  const modeRows = modeSection.split(/\r?\n/).filter((line) => /^\| `[^`]+` \|/.test(line));
+  assert.deepStrictEqual(modeRows.map((line) => line.split('|')[1].trim().replaceAll('`', '')), Object.keys(procedures));
+  for (const [mode, procedure] of Object.entries(procedures)) {
+    const row = modeRows.find((line) => line.startsWith(`| \`${mode}\` |`));
+    assert.ok(row, `missing harness-govern mode row: ${mode}`);
+    assert.strictEqual(row.split('|')[3].trim(), `\`${procedure}\``, `wrong procedure for harness-govern:${mode}`);
   }
-  assert.ok(metadata.includes('$harness-govern'));
+  assert.match(metadata, /^  default_prompt: "Use \$harness-govern\b[^\"]*"$/m);
   assert.match(metadata, /allow_implicit_invocation:\s*false/);
 });
 

@@ -69,9 +69,23 @@ test('explicit canonical dispatch targets are reported without runtime probing',
       timeout: 10000,
     });
     assert.strictEqual(report.status, 0, report.stderr);
-    assert.match(report.stdout, /dispatch config/);
-    assert.match(report.stdout, /catalog_support":"NOT_RUN/);
-    assert.match(report.stdout, /fallback":"allowed/);
+    const prefix = '[session-start] dispatch config: ';
+    const reportLines = report.stdout.split(/\r?\n/).filter((line) => line.startsWith(prefix));
+    assert.strictEqual(reportLines.length, 1, report.stdout);
+    const config = JSON.parse(reportLines[0].slice(prefix.length));
+    assert.strictEqual(config.schema, 'dhpk.dispatch.config-report.v1');
+    assert.deepStrictEqual(config.targets.worker, {
+      target_agent: 'codex-cli',
+      model_id: 'sol5.6',
+      effort: 'high',
+    });
+    assert.strictEqual(config.sources.worker_target, 'environment.worker_target');
+    assert.deepStrictEqual(config.status, {
+      catalog_support: 'NOT_RUN',
+      host_access: 'NOT_RUN',
+      runtime: 'NOT_RUN',
+      fallback: 'allowed',
+    });
     assert.strictEqual(res.status, 0);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
