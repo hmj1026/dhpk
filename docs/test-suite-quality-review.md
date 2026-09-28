@@ -1739,6 +1739,41 @@ validator's direct CI workflow invocation despite the empty graph caller set.
 No pre-edit impact was HIGH or CRITICAL. The disposition values are updated in
 the inventory without changing its frozen numeric fields or ranks.
 
+### Issue #679 — Cohort B batch 18
+
+The nine assigned suites are **7 keep / 2 rewrite / 0 delete**. The focused
+aggregate passed **70/70 cases on the committed baseline** and **71/71 after
+the edits**; the baseline was run from a detached worktree at `HEAD`.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/validate-openai-metadata.test.js` | Keep | Retains canonical OpenAI metadata, mirror parity, invocation-policy, and validator diagnostic coverage. | 17 |
+| `tests/validate-plugin.test.js` | Keep | Retains plugin path/reverse-registration checks and goal-script dependency-boundary validation. | 19 |
+| `tests/validate-references.test.js` | Keep | Retains real-tree CLI success plus dangling and whitelisted-reference behavior. | 5 |
+| `tests/validate-retirement-closure.test.js` | Keep | Retains exact retirement-wave closure and mutation rejection for routes, packages, projections, and renamed entries. | 6 |
+| `tests/validate-skill-directory-coverage.test.js` | Keep | Retains per-identity coverage reporting and unknown-argument exit behavior. | 2 |
+| `tests/validate-skill-purpose-decisions.test.js` | Rewrite | Replaces duplicate library-only happy-path coverage with real CI CLI subprocess checks: clean ledger exits 0 with `PASS [skill-purpose-decisions]`; malformed isolated ledger exits 1 with an actionable `ERROR [skill-purpose-decisions]` naming the ledger. | 2 |
+| `tests/validate-skills-size.test.js` | Keep | Retains size thresholds, shrink-only allowlist boundaries, module-owned skill discovery, and final-line counting. | 6 |
+| `tests/validate-skills.test.js` | Keep | Retains skill discovery, orphan handling, strict frontmatter behavior, and structural validation. | 11 |
+| `tests/validate-test-hooks.test.js` | Rewrite | Requires the shell suite to exit 0 with a positive-count PASS summary; the embedded shell contract covers valid module activation, silent no-module behavior, and no Docker diagnostics for startup/compact while keeping the independent learning-db library checks. | 3 |
+
+The reasoner assigned no helper or fixture as a primary support asset to this
+batch. No production source changed, so production line/branch coverage is
+**N/A**. CI discovers these suites recursively through `tests/run-all.js`.
+The implement-step decision was **REASONER_REQUIRED**; the read-only reasoner
+returned **READY_FOR_DISPATCH**; `planner=skipped` because this is not an
+OpenSpec apply.
+
+Pre-edit GitNexus file-level upstream impacts for the changed test and script
+targets returned **UNKNOWN** because those paths are not indexed. Those empty
+caller sets remain unresolved, not an all-clear. Text search independently
+confirmed recursive `tests/run-all.js` discovery, the `scripts/ci/catalog.js`
+coverage mapping for `scripts/validate/test-hooks.sh`, and the CI workflow's
+direct invocation of `validate-skill-purpose-decisions.js`. The inventory
+changes only the nine assigned status values; its numeric signals, rank
+columns, and all other rows remain frozen. Final detect-changes evidence is
+left to the parent flow, which owns that pre-commit check.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
