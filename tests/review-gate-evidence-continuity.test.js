@@ -343,6 +343,81 @@ test('an UNAVAILABLE result may be replaced by a trusted same-lane reviewer, but
   });
 });
 
+test('foreign-session receipt evidence cannot clear a pending review before a trusted same-lane PASS', () => {
+  withGate(({ gate, store }) => {
+    const plan = makePlan({ materialRisks: ['BEHAVIOR_CHANGE'] });
+    const registration = registerPlan(gate, plan, 'plan-registered-foreign-session-continuity');
+    const code = plan.obligations.find(({ lane }) => lane === 'code-reviewer');
+    const unavailable = gate.handle({
+      expectedRevision: registration.revision,
+      expectedChainDigest: registration.chainDigest,
+      event: makeReviewEvent(plan, code, requestFor(registration, code), {
+        eventId: 'review-result-foreign-session-unavailable',
+        executionStatus: 'UNAVAILABLE',
+        sessionId: 'session-367-unavailable-owner',
+      }),
+    });
+    assert.strictEqual(unavailable.decision.lifecycleStatus, 'PENDING');
+    assert.strictEqual(
+      unavailable.decision.obligations.find(({ lane }) => lane === 'code-reviewer').lifecycleStatus,
+      'PENDING',
+    );
+
+    const history = store.inspect({
+      workId: plan.workId,
+      expectedRevision: unavailable.revision,
+      expectedChainDigest: unavailable.chainDigest,
+    });
+    const priorReceipt = history.receipts.at(-1);
+    const foreignEvent = makeReviewEvent(plan, code, requestFor(unavailable, code), {
+      eventId: 'review-result-foreign-session-pass',
+      semanticVerdict: 'PASS',
+      sessionId: 'session-367-foreign-event',
+    });
+    const foreignReceipt = {
+      ...priorReceipt,
+      receiptId: 'review-receipt-foreign-session-pass',
+      payload: { ...priorReceipt.payload, eventId: foreignEvent.eventId },
+    };
+    assert.throws(
+      () => store.append({
+        expectedRevision: unavailable.revision,
+        event: foreignEvent,
+        receipts: [foreignReceipt],
+      }),
+      (error) => error && error.code === 'FOREIGN_EVIDENCE',
+    );
+    assertSameHead(store, plan, unavailable, 'foreign-session evidence must leave the pending head unchanged');
+    assert.strictEqual(store.inspect({
+      workId: plan.workId,
+      expectedRevision: unavailable.revision,
+      expectedChainDigest: unavailable.chainDigest,
+    }).receipts.length, history.receipts.length);
+
+    const replacement = gate.handle({
+      expectedRevision: unavailable.revision,
+      expectedChainDigest: unavailable.chainDigest,
+      event: makeReviewEvent(plan, code, requestFor(unavailable, code), {
+        eventId: 'review-result-foreign-session-trusted-replacement',
+        semanticVerdict: 'PASS',
+        producer: 'replacement-reviewer',
+        adapter: 'replacement-adapter',
+        sessionId: 'session-367-trusted-replacement',
+      }),
+    });
+    assert.strictEqual(replacement.decision.accepted, true);
+    assert.strictEqual(
+      replacement.decision.obligations.find(({ lane }) => lane === 'code-reviewer').lifecycleStatus,
+      'RESOLVED',
+    );
+    assert.strictEqual(store.inspect({
+      workId: plan.workId,
+      expectedRevision: replacement.revision,
+      expectedChainDigest: replacement.chainDigest,
+    }).receipts.length, history.receipts.length + 1);
+  });
+});
+
 const chronologyFixture = (gate) => {
   const planA = makePlan({
     requestId: 'github:issue:367-plan-chronology',

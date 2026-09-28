@@ -227,11 +227,25 @@ const assertReplayRejected = (history, head, label) => {
 const assertAncestorSwapRejected = (history, head, target, outsideDirectory, label) => {
   const originalReadFileSync = fs.readFileSync;
   const originalOpenSync = fs.openSync;
+  const originalReadSync = fs.readSync;
+  const originalFstatSync = fs.fstatSync;
+  const originalRealpathSync = fs.realpathSync;
   const targetPath = path.resolve(target);
+  const outsideFile = path.join(outsideDirectory, path.basename(targetPath));
+  const outsideStat = fs.statSync(outsideFile);
   const ancestor = path.dirname(targetPath);
   const backup = `${ancestor}.security-test-backup`;
   let swapped = false;
   let thrown = null;
+  let outsideReads = 0;
+  const resolvesOutside = (file) => {
+    if (typeof file !== 'string') return false;
+    try {
+      return originalRealpathSync(file) === originalRealpathSync(outsideFile);
+    } catch (_) {
+      return false;
+    }
+  };
   const swapBeforeOpen = (file) => {
     if (!swapped && typeof file === 'string' && path.resolve(file) === targetPath) {
       fs.renameSync(ancestor, backup);
@@ -241,11 +255,18 @@ const assertAncestorSwapRejected = (history, head, target, outsideDirectory, lab
   };
   fs.readFileSync = (file, ...args) => {
     swapBeforeOpen(file);
+    if (resolvesOutside(file)) outsideReads += 1;
     return originalReadFileSync(file, ...args);
   };
   fs.openSync = (file, ...args) => {
     swapBeforeOpen(file);
     return originalOpenSync(file, ...args);
+  };
+  fs.readSync = (descriptor, ...args) => {
+    const stat = originalFstatSync(descriptor);
+    if (String(stat.dev) === String(outsideStat.dev)
+      && String(stat.ino) === String(outsideStat.ino)) outsideReads += 1;
+    return originalReadSync(descriptor, ...args);
   };
   try {
     makeStore(history.root, history.integrityKey).replay({ workId: WORK_ID, ...head });
@@ -254,13 +275,15 @@ const assertAncestorSwapRejected = (history, head, target, outsideDirectory, lab
   } finally {
     fs.readFileSync = originalReadFileSync;
     fs.openSync = originalOpenSync;
+    fs.readSync = originalReadSync;
     if (swapped) {
       fs.unlinkSync(ancestor);
       fs.renameSync(backup, ancestor);
     }
   }
   assert.ok(swapped, `${label}: replay did not exercise the injected open/read seam`);
-  assert.ok(thrown, `${label}: ancestor swap was accepted`);
+  assert.strictEqual(thrown && thrown.code, 'MALFORMED_EVIDENCE', `${label}: replay must fail closed for unreadable evidence`);
+  assert.strictEqual(outsideReads, 0, `${label}: replay read bytes from outside the store root`);
 };
 
 const assertLeaseRejected = (root, integrityKey, label) => {

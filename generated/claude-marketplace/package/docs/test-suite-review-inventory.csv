@@ -248,16 +248,16 @@ formal-suite,,,245,244,tests/resolve-feature.test.js,B,05,666,reviewed: keep,no,
 formal-suite,,,246,245,tests/resolve-invocation-class.test.js,B,05,666,reviewed: keep,no,0,0,7,,11,0,0,168,39,2,70,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 prevalidated-deletion,,,247,,tests/retirement-closure.test.js,B,05,666,reviewed: delete,,,,,,,,,,,,,,,Original-order insertion point within B active batch; prior ledger evidence retained
 formal-suite,,,248,246,tests/review-gate-authority-semantics.test.js,B,05,666,reviewed: keep,no,0,0,1,,5,0,0,3177,478,10,34,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,249,247,tests/review-gate-conformance.test.js,B,06,667,reserved for issue #641 queue,no,0,0,13,,49,2,0,254,110,1,170,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,250,248,tests/review-gate-cross-platform-differential.test.js,B,06,667,reserved for issue #641 queue,no,0,0,15,,34,1,1,5978,975,17,140,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,251,249,tests/review-gate-evidence-continuity.test.js,B,06,667,reserved for issue #641 queue,no,0,0,8,,56,0,0,3174,553,10,179,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,252,250,tests/review-gate-receipt-bundle.test.js,B,06,667,reserved for issue #641 queue,no,0,0,11,,14,0,0,1440,232,9,88,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,253,251,tests/review-gate-receipt-store-security.test.js,B,06,667,reserved for issue #641 queue,no,0,0,16,,44,0,0,1572,275,6,164,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,254,252,tests/review-gate-receipt-store.test.js,B,06,667,reserved for issue #641 queue,no,0,0,23,,56,0,4,1633,342,6,178,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,255,253,tests/review-gate-runtime-attestation.test.js,B,06,667,reserved for issue #641 queue,no,0,0,7,,12,2,1,721,89,7,72,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,256,254,tests/review-gate-runtime-cli.test.js,B,06,667,reserved for issue #641 queue,no,0,0,6,,42,2,5,4477,507,19,161,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,257,255,tests/review-gate-runtime-companion-security.test.js,B,06,667,reserved for issue #641 queue,no,0,0,18,,54,8,12,5793,841,19,176,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,258,256,tests/review-gate-runtime-consumer-e2e.test.js,B,06,667,reserved for issue #641 queue,no,0,0,2,,52,3,0,592,25,7,172,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,249,247,tests/review-gate-conformance.test.js,B,06,667,reviewed: rewrite,no,0,0,13,,49,2,0,254,110,1,170,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,250,248,tests/review-gate-cross-platform-differential.test.js,B,06,667,reviewed: rewrite,no,0,0,15,,34,1,1,5978,975,17,140,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,251,249,tests/review-gate-evidence-continuity.test.js,B,06,667,reviewed: keep,no,0,0,8,,56,0,0,3174,553,10,179,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,252,250,tests/review-gate-receipt-bundle.test.js,B,06,667,reviewed: keep,no,0,0,11,,14,0,0,1440,232,9,88,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,253,251,tests/review-gate-receipt-store-security.test.js,B,06,667,reviewed: rewrite,no,0,0,16,,44,0,0,1572,275,6,164,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,254,252,tests/review-gate-receipt-store.test.js,B,06,667,reviewed: rewrite,no,0,0,23,,56,0,4,1633,342,6,178,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,255,253,tests/review-gate-runtime-attestation.test.js,B,06,667,reviewed: rewrite,no,0,0,7,,12,2,1,721,89,7,72,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,256,254,tests/review-gate-runtime-cli.test.js,B,06,667,reviewed: keep,no,0,0,6,,42,2,5,4477,507,19,161,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,257,255,tests/review-gate-runtime-companion-security.test.js,B,06,667,reviewed: rewrite,no,0,0,18,,54,8,12,5793,841,19,176,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,258,256,tests/review-gate-runtime-consumer-e2e.test.js,B,06,667,reviewed: keep,no,0,0,2,,52,3,0,592,25,7,172,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,259,257,tests/review-gate-runtime-host-attestation-security.test.js,B,07,668,reserved for issue #641 queue,no,0,0,7,,22,0,0,5799,842,19,118,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,260,258,tests/review-gate-runtime-host-trust-security.test.js,B,07,668,reserved for issue #641 queue,no,0,0,6,,17,0,0,2682,173,19,101,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,261,259,tests/review-gate-runtime-init-security.test.js,B,07,668,reserved for issue #641 queue,no,0,0,17,,52,0,4,2727,199,19,173,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
@@ -401,7 +401,7 @@ helper,,,,,tests/_lib/macos-installer-files.js,A,17,658,audited: keep,,,,,,,,,,,
 helper,,,,,tests/_lib/opsx-goal-fixtures.js,A,19,660,audited: rewrite,,,,,,,,,,,,,tests/opsx-goal-budget.test.js,2,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/restricted-path.js,B,08,669,reserved for issue #641 queue,,,,,,,,,,,,,tests/run-agy.test.js,2,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/review-gate-fixture.js,A,03,644,audited: keep,,,,,,,,,,,,,tests/claude-review-gate-adapter.test.js,8,lowest-original-ordinal A consumer
-helper,,,,,tests/_lib/review-gate-host-attestation-fixture.js,B,06,667,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
+helper,,,,,tests/_lib/review-gate-host-attestation-fixture.js,B,06,667,audited: keep,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-audit-family-fixtures.js,B,10,671,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,1,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-bridge-family-fixtures.js,B,10,671,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-bridge-family-isolation.test.js,1,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-directory-fixtures.js,B,10,671,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,12,lowest-original-ordinal B consumer
@@ -434,10 +434,10 @@ fixture,,,,,tests/fixtures/opsx-goal/smoke.json,A,19,660,audited: rewrite,,,,,,,
 fixture,,,,,tests/fixtures/plugin-user-config-contract.json,A,20,661,audited: keep,,,,,,,,,,,,,tests/plugin-user-config-metadata.test.js,1,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/project-agent-projection-baseline.json,B,03,664,audited: keep,,,,,,,,,,,,,tests/project-agent-projection-baseline.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/project-agent-projection-plan.json,B,03,664,audited: keep,,,,,,,,,,,,,tests/project-agent-projection-plan.test.js,1,lowest-original-ordinal B consumer
-fixture,,,,,tests/fixtures/review-gate/cross-platform-differential-v1.json,B,06,667,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-cross-platform-differential.test.js,12,lowest-original-ordinal B consumer
-fixture,,,,,tests/fixtures/review-gate/reviewer-contract-v2.json,B,06,667,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,12,lowest-original-ordinal B consumer
-fixture,,,,,tests/fixtures/review-gate/runtime-work-request-v1.json,B,06,667,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
-fixture,,,,,tests/fixtures/review-gate/sentinel-differential-v1.json,B,06,667,reserved for issue #641 queue,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
+fixture,,,,,tests/fixtures/review-gate/cross-platform-differential-v1.json,B,06,667,audited: rewrite,,,,,,,,,,,,,tests/review-gate-cross-platform-differential.test.js,12,lowest-original-ordinal B consumer
+fixture,,,,,tests/fixtures/review-gate/reviewer-contract-v2.json,B,06,667,audited: keep,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,12,lowest-original-ordinal B consumer
+fixture,,,,,tests/fixtures/review-gate/runtime-work-request-v1.json,B,06,667,audited: keep,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
+fixture,,,,,tests/fixtures/review-gate/sentinel-differential-v1.json,B,06,667,audited: keep,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/review-gate/workflow-coordinator-v1.json,A,03,644,audited: keep,,,,,,,,,,,,,tests/ci-review-gate-adapter.test.js,18,lowest-original-ordinal A consumer
 fixture,,,,,tests/fixtures/session-audit/agent-inventory.json,B,09,670,reserved for issue #641 queue,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer
 fixture,,,,,tests/fixtures/session-audit/baseline-v0.37.0.json,B,09,670,reserved for issue #641 queue,,,,,,,,,,,,,tests/session-audit-integrity-fixtures.test.js,1,lowest-original-ordinal B consumer

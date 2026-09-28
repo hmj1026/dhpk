@@ -1113,6 +1113,77 @@ confirmed the map feeds `resolveScriptCoverage`, the script-coverage gap scan,
 0 affected processes, and low risk. No runtime behavior or execution flow
 changed; only the CI coverage-map constant changed.
 
+### Issue #667 — Cohort B batch 06
+
+This batch keeps four suites and rewrites six; no suite is deleted. The ten
+assigned suites pass 123/123 focused cases after adding four cases. Inventory
+rows 249–258 retain their frozen ranks, baseline case counts, and assignment
+metrics; only disposition statuses changed. The frozen inventory counts total
+119; the final cases column below totals 123 after one new continuity case and
+three new companion-security cases.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final cases |
+| --- | --- | --- | ---: |
+| `tests/review-gate-conformance.test.js` | Rewrite | The public report builder loads no workflow or receipt state and attempts no filesystem mutation; dynamic load and write probes replace the cwd and source-substring checks. | 13 |
+| `tests/review-gate-cross-platform-differential.test.js` | Rewrite | Independent literals pin all 15 active case IDs, scenario kinds, adapter keys, and expected outcomes; every historical Sentinel outcome maps to a discovered direct, analogue, or historical-only owner. | 15 |
+| `tests/review-gate-evidence-continuity.test.js` | Keep | Adds an event/receipt session-binding rejection between UNAVAILABLE and a trusted same-lane PASS; the rejected append leaves the pending head and receipts unchanged. | 9 |
+| `tests/review-gate-receipt-bundle.test.js` | Keep | Portable bundle export/import, exact receipt bindings, and invalid or incomplete bundle rejection remain covered. | 11 |
+| `tests/review-gate-receipt-store-security.test.js` | Rewrite | Ancestor swaps must fail at the public replay boundary with `MALFORMED_EVIDENCE`; descriptor identity proves no bytes were read from the outside file. | 16 |
+| `tests/review-gate-receipt-store.test.js` | Rewrite | Redaction is asserted against raw content-addressed event bytes as well as the derived `inspect()` projection. | 23 |
+| `tests/review-gate-runtime-attestation.test.js` | Rewrite | Every plan, obligation, source, identity, and evidence input is independently changed and must change its attested subject field or digest. | 7 |
+| `tests/review-gate-runtime-cli.test.js` | Keep | Bounded Work Request preparation, status projection, private key creation, and repeat initialization statuses remain covered. | 6 |
+| `tests/review-gate-runtime-companion-security.test.js` | Rewrite | Three public `observe` cases assert `MISSING_ARTIFACT`, misplaced-sidecar `FOREIGN_EVIDENCE`, and invalid structured verdict `MALFORMED_COMPANION`; mutated companions are re-signed and all cases leave status pending with zero receipts. | 21 |
+| `tests/review-gate-runtime-consumer-e2e.test.js` | Keep | Materialized and installed consumers record durable, idempotent direct Review Gate observations. | 2 |
+
+The active differential corpus carries all 17 original normalized Sentinel
+outcomes without implying that retired lifecycle behavior is still live. Four
+cases are explicitly historical-only (`resumed-malformed`, `retry-allowed`,
+`retry-exhausted`, and `unresolved-resumed-block`); direct and analogue entries
+name exact current test owners. Its four deterministic protections still name
+the `.env`, `.git`, whole-home deletion, and session-start assertions.
+
+| Primary support asset | Disposition | Ownership evidence |
+| --- | --- | --- |
+| `tests/_lib/review-gate-host-attestation-fixture.js` | Keep | Shared key enrollment, signing, and host-attestation setup used by 11 assigned consumers. |
+| `tests/fixtures/review-gate/cross-platform-differential-v1.json` | Rewrite | Adds independent active-case expectations and the complete historical outcome/owner map. |
+| `tests/fixtures/review-gate/reviewer-contract-v2.json` | Keep | Runtime CLI tests consume the fixture to verify the structured reviewer contract. |
+| `tests/fixtures/review-gate/runtime-work-request-v1.json` | Keep | Runtime CLI and companion tests use it as the bounded prepare input. |
+| `tests/fixtures/review-gate/sentinel-differential-v1.json` | Keep | Retains all 17 historical cases and four deterministic protections; the differential test verifies every named owner is discovered. |
+
+All ten suites are discovered recursively by `tests/run-all.js` and run through
+the CI aggregate; none belongs to the separate macOS installer subset. The
+required script ownership check `node scripts/ci/catalog.js --check` passes
+with zero uncovered scripts. No production source changed, so the comparison
+for changed production files is **NOT_APPLICABLE**. For measurement evidence,
+the same focused aggregate on Node `v26.10.0` / Darwin improved overall lines
+from 8395/9775 (85.88%) to 8402/9775 (85.95%) and branches from 1688/2598
+(64.97%) to 1700/2608 (65.18%). Three exercised modules gained coverage:
+`review-gate-runtime-evidence.js` (+2 lines, +4 branches),
+`review-gate-runtime-storage.js` (+4 lines, +4 branches), and
+`reviewer-contract.js` (+1 line, +4 branches). The branch denominator rose by
+10 as these focused scenarios exercised additional instrumented paths; no
+production module lost covered lines or branches.
+
+The full precommit runner reports **FAIL** because this repository has no
+`lint:fix`, `build`, or `test:unit`/`test` package scripts, so it executed no
+steps. The full repo-verify runner reports **PASS** with lint, typecheck, unit,
+integration, and e2e stages skipped because their scripts/configuration are
+absent. The focused aggregate above is the executed test evidence. Changelog
+validation accepts the internal-change marker
+`changelog.d/test-quality-batch-21.none`.
+
+Pre-edit GitNexus file impacts for test suites and fixture paths were
+`UNKNOWN`; text search corroborates recursive runner and CI ownership, and the
+historical Sentinel fixture had no code consumer before this batch. `UNKNOWN`
+is unresolved, not evidence of no callers. Final GitNexus
+`detect_changes --scope all` reports 12 changed indexed files, zero affected
+processes, and LOW risk; it reports no HIGH or CRITICAL risk.
+The consolidated review checkpoint is complete: code review **APPROVE** after
+confirming the owner-test assertion guard, security review **PASS** with no
+production vulnerability or material coverage gap, and document review
+**CONFIRMED** after reconciling 119 frozen cases plus four additions to 123 and
+checking the generated copies.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

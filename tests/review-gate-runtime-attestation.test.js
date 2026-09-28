@@ -138,7 +138,7 @@ test('buildHostTrust enrolls an Ed25519 SPKI with a derived immutable identity',
   }
 });
 
-test('buildObserveSubject binds plan identity and every evidence digest', () => {
+test('buildObserveSubject binds every plan, obligation, source identity, and evidence input', () => {
   const inputs = subjectInputs();
   const subject = buildObserveSubject(inputs);
 
@@ -158,11 +158,46 @@ test('buildObserveSubject binds plan identity and every evidence digest', () => 
     assert.match(subject[field], /^sha256:[a-f0-9]{64}$/);
   }
 
-  const changedResult = buildObserveSubject({
-    ...inputs,
-    reviewResult: { ...inputs.reviewResult, semanticVerdict: 'FAIL' },
-  });
-  assert.notStrictEqual(subject.resultDigest, changedResult.resultDigest);
+  const bindingChanges = [
+    ['plan work ID', 'workId', { plan: { ...inputs.plan, workId: 'work-attestation-unit-changed' } }],
+    ['plan wave ID', 'waveId', { plan: { ...inputs.plan, waveId: 'wave-attestation-unit-changed' } }],
+    ['plan ID', 'planId', { plan: { ...inputs.plan, planId: 'plan-attestation-unit-changed' } }],
+    ['decision ID', 'decisionId', { plan: { ...inputs.plan, decisionId: 'decision-attestation-unit-changed' } }],
+    ['obligation ID', 'obligationId', { obligation: { ...inputs.obligation, obligationId: 'obligation-attestation-unit-changed' } }],
+    ['review lane', 'lane', { obligation: { ...inputs.obligation, lane: 'security-reviewer' } }],
+    ['source commit', 'sourceCommit', { plan: { ...inputs.plan, headIdentity: { ...inputs.plan.headIdentity, commit: 'commit-attestation-unit-changed' } } }],
+    ['source tree', 'sourceTree', { plan: { ...inputs.plan, headIdentity: { ...inputs.plan.headIdentity, tree: 'tree-attestation-unit-changed' } } }],
+    ['policy version', 'policyVersion', { plan: { ...inputs.plan, policyVersion: 'policy-v2' } }],
+    ['contract version', 'contractVersion', { plan: { ...inputs.plan, contractVersion: 'dhpk.reviewer-contract.v3' } }],
+    ['task identity', 'identity.taskId', { identity: { ...inputs.identity, taskId: 'task-attestation-unit-changed' } }],
+    ['attempt identity', 'identity.attemptId', { identity: { ...inputs.identity, attemptId: 'attempt-attestation-unit-changed' } }],
+    ['attempt number', 'identity.attempt', { identity: { ...inputs.identity, attempt: 2 } }],
+    ['session identity', 'identity.sessionId', { identity: { ...inputs.identity, sessionId: 'session-attestation-unit-changed' } }],
+    ['dispatch identity', 'identity.dispatchId', { identity: { ...inputs.identity, dispatchId: 'dispatch-attestation-unit-changed' } }],
+    ['scope identity', 'identity.scopeId', { identity: { ...inputs.identity, scopeId: 'scope-attestation-unit-changed' } }],
+    ['diff identity', 'identity.diffId', { identity: { ...inputs.identity, diffId: 'diff-attestation-unit-changed' } }],
+  ];
+  for (const [label, field, change] of bindingChanges) {
+    const changedSubject = buildObserveSubject({ ...inputs, ...change });
+    if (field.startsWith('identity.')) {
+      assert.notStrictEqual(subject.identity[field.slice('identity.'.length)], changedSubject.identity[field.slice('identity.'.length)], label);
+    } else {
+      assert.notStrictEqual(subject[field], changedSubject[field], label);
+    }
+  }
+
+  const evidenceChanges = [
+    ['requestDigest', { reviewRequest: { ...inputs.reviewRequest, scope: { paths: [...inputs.reviewRequest.scope.paths, 'tests/another-reviewer.test.js'] } } }],
+    ['resultDigest', { reviewResult: { ...inputs.reviewResult, semanticVerdict: 'FAIL' } }],
+    ['artifactDigest', { artifactDigest: `sha256:${'b'.repeat(64)}` }],
+    ['lifecycleDigest', { lifecycleEvents: [...inputs.lifecycleEvents, { state: 'started', event_id: 'event-attestation-unit-changed' }] }],
+    ['readinessDigest', { readinessEvents: [...inputs.readinessEvents, { state: 'artifact-ready', event_id: 'ready-attestation-unit-changed' }] }],
+    ['executedCommandsDigest', { executedCommands: [...inputs.executedCommands, { command: 'node tests/second.test.js', outcome: 'FAIL' }] }],
+  ];
+  for (const [field, change] of evidenceChanges) {
+    const changedSubject = buildObserveSubject({ ...inputs, ...change });
+    assert.notStrictEqual(subject[field], changedSubject[field], `${field} must bind its corresponding evidence`);
+  }
 });
 
 test('verifyHostAttestation accepts a valid host signature and returns metadata only', () => {
