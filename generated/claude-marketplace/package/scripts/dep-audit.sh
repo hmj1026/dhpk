@@ -24,7 +24,14 @@ EOF
 # --- args ---
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --level) LEVEL="${2:-moderate}"; shift 2 ;;
+    --level)
+      if [[ $# -lt 2 || ! "${2:-}" =~ ^(low|moderate|high|critical)$ ]]; then
+        echo "ERROR: --level requires one of: low, moderate, high, critical" >&2
+        exit 2
+      fi
+      LEVEL="$2"
+      shift 2
+      ;;
     --fix) FIX="yes"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2 ;;
@@ -50,19 +57,48 @@ SUMMARY_FILE="$TMP_DIR/summary.txt"
 # 執行審計
 echo "[INFO] Running $PM audit..." >&2
 
-# Bound the audit so a registry stall can never wedge the wrapper: npm/yarn/pnpm
-# `audit` reach the network, and with no connectivity (CI runners, offline dev)
-# they can block indefinitely. `timeout` caps the call; on a timeout the audit
-# file stays empty and is parsed as zero findings, so the wrapper still reports
-# the package manager and exits cleanly. Override the cap with DEP_AUDIT_TIMEOUT.
+# Bound the audit so a registry stall can never wedge the wrapper. On macOS,
+# where GNU `timeout` is not installed by default, Perl's alarm provides a
+# portable watchdog. Override the cap with DEP_AUDIT_TIMEOUT.
 AUDIT_TIMEOUT="${DEP_AUDIT_TIMEOUT:-120}"
 run_audit() {  # "$@" = the audit command + args
   if command -v timeout >/dev/null 2>&1; then
     timeout "$AUDIT_TIMEOUT" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$AUDIT_TIMEOUT" "$@"
+  elif command -v perl >/dev/null 2>&1; then
+    perl -e '
+      use POSIX qw(:sys_wait_h);
+      my $limit = shift;
+      my $pid = fork();
+      die "fork failed: $!" unless defined $pid;
+      if ($pid == 0) {
+        setpgrp(0, 0);
+        exec @ARGV or exit 127;
+      }
+      $SIG{ALRM} = sub {
+        kill "TERM", -$pid;
+        sleep 1;
+        kill "KILL", -$pid;
+        waitpid($pid, 0);
+        exit 124;
+      };
+      alarm $limit;
+      waitpid($pid, 0);
+      alarm 0;
+      my $status = $?;
+      exit WIFEXITED($status) ? WEXITSTATUS($status) : 128 + WTERMSIG($status);
+    ' "$AUDIT_TIMEOUT" "$@"
   else
-    "$@"
+    echo "ERROR: a timeout utility or Perl is required to bound the audit." >&2
+    return 127
   fi
 }
+
+if [[ ! "$AUDIT_TIMEOUT" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ERROR: DEP_AUDIT_TIMEOUT must be a positive whole number of seconds." >&2
+  exit 1
+fi
 
 set +e
 case "$PM" in
@@ -81,44 +117,116 @@ case "$PM" in
 esac
 set -e
 
-# 解析結果
-echo "## 審計結果" >> "$SUMMARY_FILE"
-echo "" >> "$SUMMARY_FILE"
+# Evidence is required before a result can be counted, gated, or fixed.
+fail_audit() {
+  echo "ERROR: $1" >&2
+  echo ""
+  echo "## Gate"
+  echo ""
+  echo "❌ **FAIL** - 審計未完成，不能確認依賴安全狀態"
+  exit 1
+}
 
-# 統計各等級數量
-CRITICAL=0
-HIGH=0
-MODERATE=0
-LOW=0
-
-if [[ -f "$AUDIT_FILE" ]]; then
-  # 嘗試解析 npm/yarn audit 的 JSON 格式
-  if command -v jq >/dev/null 2>&1; then
-    # npm audit 格式
-    CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' "$AUDIT_FILE" 2>/dev/null || echo "0")
-    HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' "$AUDIT_FILE" 2>/dev/null || echo "0")
-    MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' "$AUDIT_FILE" 2>/dev/null || echo "0")
-    LOW=$(jq -r '.metadata.vulnerabilities.low // 0' "$AUDIT_FILE" 2>/dev/null || echo "0")
-
-    # yarn audit 格式（可能不同）
-    if [[ "$PM" == "yarn" ]]; then
-      # yarn audit --json 輸出多行 JSON
-      CRITICAL=$(grep -c '"severity":"critical"' "$AUDIT_FILE" 2>/dev/null || true)
-      HIGH=$(grep -c '"severity":"high"' "$AUDIT_FILE" 2>/dev/null || true)
-      MODERATE=$(grep -c '"severity":"moderate"' "$AUDIT_FILE" 2>/dev/null || true)
-      LOW=$(grep -c '"severity":"low"' "$AUDIT_FILE" 2>/dev/null || true)
-    fi
-  else
-    echo "ERROR: jq is required to parse audit output but was not found." >&2
-    exit 1
-  fi
+if ! command -v jq >/dev/null 2>&1; then
+  fail_audit "jq is required to validate audit output."
+fi
+if [[ ! -s "$AUDIT_FILE" ]]; then
+  fail_audit "The package manager produced no audit output (exit $AUDIT_EXIT)."
 fi
 
-# jq 讀到空的 audit 檔（timeout 或無輸出）時不印任何值，補回 0
-CRITICAL="${CRITICAL:-0}"
-HIGH="${HIGH:-0}"
-MODERATE="${MODERATE:-0}"
-LOW="${LOW:-0}"
+if [[ "$PM" == "yarn" ]]; then
+  if ! jq -s -e '
+    def count: type == "number" and . >= 0 and floor == . and . <= 2147483647;
+    def severity: . == "info" or . == "low" or . == "moderate" or . == "high" or . == "critical";
+    def valid_counts:
+      type == "object"
+      and (.info | count)
+      and (.low | count)
+      and (.moderate | count)
+      and (.high | count)
+      and (.critical | count)
+      and (.total | count)
+      and (.total == (.info + .low + .moderate + .high + .critical));
+    length > 0
+    and all(.[]; type == "object" and (.type | type == "string"))
+    and all(.[]; .type == "auditAdvisory" or .type == "auditSummary" or .type == "info" or .type == "warning")
+    and ([.[] | select(.type == "auditSummary")] | length == 1)
+    and all(.[] | select(.type == "auditAdvisory");
+      .data.advisory.severity as $severity
+      | ($severity | severity))
+    and (
+      [.[] | select(.type == "auditSummary")][0].data.vulnerabilities as $counts
+      | ($counts | valid_counts)
+      and ($counts.info == ([.[] | select(.type == "auditAdvisory" and .data.advisory.severity == "info")] | length))
+      and ($counts.low == ([.[] | select(.type == "auditAdvisory" and .data.advisory.severity == "low")] | length))
+      and ($counts.moderate == ([.[] | select(.type == "auditAdvisory" and .data.advisory.severity == "moderate")] | length))
+      and ($counts.high == ([.[] | select(.type == "auditAdvisory" and .data.advisory.severity == "high")] | length))
+      and ($counts.critical == ([.[] | select(.type == "auditAdvisory" and .data.advisory.severity == "critical")] | length))
+    )
+  ' "$AUDIT_FILE" >/dev/null 2>&1; then
+    fail_audit "The package manager produced malformed Yarn audit output."
+  fi
+  read -r INFO CRITICAL HIGH MODERATE LOW REPORT_TOTAL < <(
+    jq -s -r '[.[] | select(.type == "auditSummary")][0].data.vulnerabilities | [.info, .critical, .high, .moderate, .low, .total] | @tsv' "$AUDIT_FILE"
+  )
+else
+  if ! jq -s -e '
+    def count: type == "number" and . >= 0 and floor == . and . <= 2147483647;
+    def severity: . == "info" or . == "low" or . == "moderate" or . == "high" or . == "critical";
+    length == 1
+    and (
+      .[0] as $report
+      | ($report | type == "object")
+      and ($report.auditReportVersion == 2)
+      and ($report.vulnerabilities | type == "object")
+      and all($report.vulnerabilities[]; type == "object" and (.severity | severity))
+      and ($report.metadata.vulnerabilities | type == "object")
+      and ($report.metadata.vulnerabilities.info | count)
+      and ($report.metadata.vulnerabilities.low | count)
+      and ($report.metadata.vulnerabilities.moderate | count)
+      and ($report.metadata.vulnerabilities.high | count)
+      and ($report.metadata.vulnerabilities.critical | count)
+      and ($report.metadata.vulnerabilities.total | count)
+      and ($report.metadata.vulnerabilities.total == (
+        $report.metadata.vulnerabilities.info
+        + $report.metadata.vulnerabilities.low
+        + $report.metadata.vulnerabilities.moderate
+        + $report.metadata.vulnerabilities.high
+        + $report.metadata.vulnerabilities.critical
+      ))
+      and ($report.metadata.vulnerabilities.info == ([$report.vulnerabilities[] | select(.severity == "info")] | length))
+      and ($report.metadata.vulnerabilities.low == ([$report.vulnerabilities[] | select(.severity == "low")] | length))
+      and ($report.metadata.vulnerabilities.moderate == ([$report.vulnerabilities[] | select(.severity == "moderate")] | length))
+      and ($report.metadata.vulnerabilities.high == ([$report.vulnerabilities[] | select(.severity == "high")] | length))
+      and ($report.metadata.vulnerabilities.critical == ([$report.vulnerabilities[] | select(.severity == "critical")] | length))
+    )
+  ' "$AUDIT_FILE" >/dev/null 2>&1; then
+    fail_audit "The package manager produced malformed $PM audit JSON."
+  fi
+  read -r INFO CRITICAL HIGH MODERATE LOW REPORT_TOTAL < <(
+    jq -s -r '.[0].metadata.vulnerabilities | [.info, .critical, .high, .moderate, .low, .total] | @tsv' "$AUDIT_FILE"
+  )
+fi
+
+if [[ "$PM" == "yarn" ]]; then
+  # Yarn Classic returns a sum of one flag per severity with findings:
+  # info=1, low=2, moderate=4, high=8, critical=16.
+  EXPECTED_AUDIT_EXIT=0
+  [[ "$INFO" -gt 0 ]] && EXPECTED_AUDIT_EXIT=$((EXPECTED_AUDIT_EXIT + 1))
+  [[ "$LOW" -gt 0 ]] && EXPECTED_AUDIT_EXIT=$((EXPECTED_AUDIT_EXIT + 2))
+  [[ "$MODERATE" -gt 0 ]] && EXPECTED_AUDIT_EXIT=$((EXPECTED_AUDIT_EXIT + 4))
+  [[ "$HIGH" -gt 0 ]] && EXPECTED_AUDIT_EXIT=$((EXPECTED_AUDIT_EXIT + 8))
+  [[ "$CRITICAL" -gt 0 ]] && EXPECTED_AUDIT_EXIT=$((EXPECTED_AUDIT_EXIT + 16))
+  if [[ "$AUDIT_EXIT" -ne "$EXPECTED_AUDIT_EXIT" ]]; then
+    fail_audit "The yarn audit command failed or returned an exit code inconsistent with its report (exit $AUDIT_EXIT, expected $EXPECTED_AUDIT_EXIT)."
+  fi
+elif [[ "$AUDIT_EXIT" -ne 0 && ( "$AUDIT_EXIT" -ne 1 || "$REPORT_TOTAL" -eq 0 ) ]]; then
+  # npm and pnpm use exit 1 for valid reports containing findings.
+  fail_audit "The $PM audit command failed (exit $AUDIT_EXIT)."
+fi
+
+echo "## 審計結果" >> "$SUMMARY_FILE"
+echo "" >> "$SUMMARY_FILE"
 
 # 輸出摘要表格
 echo "| Severity | Count |" >> "$SUMMARY_FILE"
@@ -155,18 +263,7 @@ if [[ $TOTAL -gt 0 ]]; then
   echo "" >> "$SUMMARY_FILE"
 
   if [[ "$PM" == "yarn" ]]; then
-    # 解析 yarn audit 格式
-    grep -E '"type":"auditAdvisory"' "$AUDIT_FILE" 2>/dev/null | while read -r line; do
-      TITLE=$(echo "$line" | jq -r '.data.advisory.title // "Unknown"' 2>/dev/null || echo "Unknown")
-      SEVERITY=$(echo "$line" | jq -r '.data.advisory.severity // "unknown"' 2>/dev/null || echo "unknown")
-      MODULE=$(echo "$line" | jq -r '.data.advisory.module_name // "unknown"' 2>/dev/null || echo "unknown")
-      URL=$(echo "$line" | jq -r '.data.advisory.url // ""' 2>/dev/null || echo "")
-
-      echo "### [$SEVERITY] $TITLE" >> "$SUMMARY_FILE"
-      echo "- **Package**: $MODULE" >> "$SUMMARY_FILE"
-      echo "- **URL**: $URL" >> "$SUMMARY_FILE"
-      echo "" >> "$SUMMARY_FILE"
-    done || true
+    jq -r 'select(.type == "auditAdvisory") | "### [\(.data.advisory.severity)] \(.data.advisory.title // "Unknown")\n- **Package**: \(.data.advisory.module_name // "unknown")\n- **URL**: \(.data.advisory.url // "")\n"' "$AUDIT_FILE" >> "$SUMMARY_FILE"
   else
     # npm audit 格式
     if command -v jq >/dev/null 2>&1; then
