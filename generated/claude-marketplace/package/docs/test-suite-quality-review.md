@@ -1557,6 +1557,56 @@ as unused. Final GitNexus `detect_changes --scope all` reported **14 changed
 symbols across 11 files**, **0 affected symbols**, **LOW** risk, and no affected
 processes. The complete result contained no partial or truncated output.
 
+### Issue #675 — Cohort B batch 14
+
+All ten assigned suites remain discoverable. Nine are rewritten and one is
+kept; one duplicate sorted-help-list assertion is removed while the suite and
+its other contracts remain. The focused Darwin aggregate passed **69/69 cases
+before the edits** and **77/77 after them**. The frozen inventory's lexical
+count is 70 because the completion-evidence file contains a test-shaped string
+literal. No production file changed.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/skill-setup-family-isolation.test.js` | Rewrite | Parses the settings template as JSON, pairs every ecosystem opening marker with its own generic closure, checks every adapter's missing-argument exit, and verifies dangling-symlink and mode-only snapshot changes. | 14 |
+| `tests/skill-topology.test.js` | Rewrite | Calls the canonical v2 topology and inventory validators directly, without fallback aliases. | 9 |
+| `tests/skill-usage-contract.test.js` | Rewrite | Requires the frozen `{ok, errors}` validator result shape and exact fault-specific diagnostics across malformed contracts. | 13 |
+| `tests/skill-usage-projections.test.js` | Rewrite | Keeps projection and generator checks; removes only the sorted help list duplicate owned by `tests/flow-guide-usage-help.test.js`. | 5 |
+| `tests/source-gate-cli.test.js` | Rewrite | Checks exact command, exit, environment, and failure evidence; removes temporary step files and scratch repositories in `finally` cleanup. | 6 |
+| `tests/stack-evidence.test.js` | Rewrite | Uses `DHPK_STACK_CENSUS_FILES=1` to verify the file cap deterministically instead of asserting a wall-clock limit. | 12 |
+| `tests/standalone-package-assets.test.js` | Rewrite | Checks complete dependency and supporting-asset records, unsafe sources and destinations, duplicate destinations, unknown asset IDs, and symlinked files plus directory ancestors. | 7 |
+| `tests/statusline.test.js` | Rewrite | Verifies one staged file is rendered as `[main] +1 ~0 | profile=standard`. | 3 |
+| `tests/stop-advisory-dispatch-completion-evidence.test.js` | Keep | Retains the independent completion-evidence behavior and warning boundary. | 4 |
+| `tests/stop-advisory-dispatch-graduation.test.js` | Rewrite | Verifies generated candidate report content and exact seeded count increment; missing backing files remain uncounted and no draft is created. | 4 |
+
+The assigned `tests/_lib/skill-setup-family-fixtures.js` helper is **rewritten**
+to snapshot dangling symlinks, entry types, and mode bits while preserving its
+fixture registry metadata and assertion. No other helper or fixture row is
+assigned in this batch.
+
+The implement-step decision was **REASONER_REQUIRED**. The read-only reasoner
+returned **READY_FOR_DISPATCH** and found no production changes. `planner=skipped`
+because this is not an OpenSpec apply. The recursive `tests/run-all.js`
+discovery route is used by CI and release; none of these suites is in the
+explicit macOS installer subset. The fixture registry is consumed by
+`scripts/ci/validate-skill-directory-coverage.js`. Catalog, directory-coverage,
+resource-sync, strict distribution, and strict retirement-closure validations
+are run for this batch. Production line/branch coverage comparison is
+**NOT_APPLICABLE** because no production file changed.
+
+Pre-edit GitNexus upstream impact for the changed shared helper's
+`registerSetupFixtures` was **LOW**, with two direct callers and zero affected
+processes. Test-local helper symbols resolved **LOW** within their assigned
+test paths. `fileSnapshot` and `fingerprint` had no graph callers, so text
+search confirmed their exports, imports, and uses in the isolation suite.
+The unchanged production `collectStandalonePackageAssets` impact was
+**CRITICAL**, with five direct callers, one process, and eight modules; its
+result was partial. That production symbol was not edited. UNKNOWN and empty
+caller results were not treated as an all-clear. Final GitNexus
+`detect_changes --scope all` reported **43 changed symbols across 14 files**,
+**0 affected symbols**, **LOW** risk, and no affected processes. The result was
+complete with no partial or truncated output.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

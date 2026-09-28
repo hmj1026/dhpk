@@ -38,14 +38,6 @@ test('$flow-guide help cards disclose inputs, enums, defaults, and retired marke
 });
 
 test('$flow-guide help variants remain metadata-only and deterministic', () => {
-  const list = help([]);
-  assert.strictEqual(list.status, 0, (list.stdout || '') + (list.stderr || ''));
-  const names = (list.stdout || '').split(/\r?\n/)
-    .map((line) => line.match(/^[-*] ([a-z][a-z0-9-]*):/))
-    .filter(Boolean)
-    .map((match) => match[1]);
-  assert.deepStrictEqual(names, [...names].sort((left, right) => left.localeCompare(right)));
-
   for (const name of ['flow-guide', 'flow-drive']) {
     const result = help([name]);
     assert.strictEqual(result.status, 0, (result.stdout || '') + (result.stderr || ''));
