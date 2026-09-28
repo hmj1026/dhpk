@@ -5,7 +5,6 @@ const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { inspectDiscoveryContext } = require('../scripts/ci/context-budget');
-const { resolveSkillRoutingReference } = require('../scripts/lib/distribution-inventory');
 
 const ROUTING_INVENTORY = {
   skill_routing_families: [{
@@ -81,18 +80,6 @@ const ROUTING_INVENTORY = {
     },
   ],
 };
-
-test('progressive routing resolves only the selected conditional reference', () => {
-  const selected = resolveSkillRoutingReference({
-    inventory: ROUTING_INVENTORY,
-    families: ROUTING_INVENTORY.skill_routing_families,
-    familyId: 'laravel',
-    selector: '10',
-  });
-
-  assert.strictEqual(selected, 'skills/dhpk-laravel/references/10.md');
-  assert.notStrictEqual(selected, 'skills/dhpk-laravel/references/9.md');
-});
 
 test('canonical family descriptions stay discovery-visible while legacy aliases remain hidden', () => {
   const report = inspectDiscoveryContext({

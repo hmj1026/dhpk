@@ -1511,6 +1511,52 @@ UNKNOWN file targets are not treated as unused. Final
 **0 affected symbols**, **LOW** risk, and no affected processes; the result was
 complete with no partial or truncated output.
 
+### Issue #674 — Cohort B batch 13
+
+All ten assigned suites remain discoverable. Seven are rewritten and three
+are kept; one repeated selector test is removed. The focused Darwin aggregate
+passed **122/122 cases before the edits** and **121/121 after them**. The
+frozen inventory's lexical count remains 75. No production file changed.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/skill-remaining-entry-isolation.test.js` | Rewrite | Swift fixture fallback now requires the expected Swift shebang and a missing-interpreter diagnostic with exit 127; physical-entry and symlink checks remain. | 33 |
+| `tests/skill-resource-sync-security.test.js` | Rewrite | Rejections must carry the synchronizer-specific error prefix and leave a complete snapshot of the disposable fixture tree unchanged, including symlink targets and file bytes. | 36 |
+| `tests/skill-resource-sync.test.js` | Rewrite | Asserts typed `copy`, `orphan`, and `ledger` records by exact type and destination instead of matching JSON text. | 7 |
+| `tests/skill-resume-family-isolation.test.js` | Keep | Retains the existing isolated resume-family behavior and shared fixture ownership. | 12 |
+| `tests/skill-retirement-migration.test.js` | Rewrite | Binds each of seven literal retirement records to its corresponding frozen inventory record; independent migration and routing checks remain. | 16 |
+| `tests/skill-routing-contract.test.js` | Keep | Retains the selector contract and its independent routing assertions. | 2 |
+| `tests/skill-routing-frontend-regression.test.js` | Rewrite | Requires the complete profile list to equal the expected one-item list, rejecting unintended extra profiles. | 2 |
+| `tests/skill-routing-progressive-loading.test.js` | Rewrite | Removes the duplicate selected-reference resolution case already owned by the routing-contract suite; discovery visibility and frontmatter-budget checks remain. | 2 |
+| `tests/skill-routing-projection-parity.test.js` | Keep | Retains the independent projection-parity contract. | 7 |
+| `tests/skill-runtime-path-contract.test.js` | Rewrite | Checks each resume and save helper path independently, preventing one match from satisfying multiple path expectations. | 4 |
+
+The primarily assigned `tests/_lib/skill-remaining-entry-fixtures.js` helper
+is **rewritten** to narrowly recognize the unavailable Swift interpreter;
+`tests/_lib/skill-resume-family-fixtures.js` is **kept**. Both historical
+baseline fixtures, `tests/fixtures/distribution-surface-baseline.json` and
+`tests/fixtures/invocation-inventory-baseline.json`, are **kept** unchanged.
+
+The implement-step decision was **REASONER_REQUIRED**. The read-only reasoner
+returned **READY_FOR_DISPATCH** and found no production changes. `planner=skipped`
+because this is not an OpenSpec apply. The recursive `tests/run-all.js`
+discovery route is used by CI and release; none of these suites is in the
+explicit macOS installer subset. The fixture registries are consumed by
+`scripts/ci/validate-skill-directory-coverage.js`. Catalog, directory-coverage,
+resource-sync, strict distribution, and strict retirement-closure validations
+pass. Production line/branch coverage comparison is **NOT_APPLICABLE** because
+no production file changed.
+
+Pre-edit GitNexus upstream impacts for the changed shared helper symbols were
+**LOW**, with at most two direct callers and zero affected processes. Test
+suite/helper symbols also resolved **LOW** within their assigned test paths.
+Changed test-file targets resolved **UNKNOWN**; text search confirmed the
+recursive test runner, CI/release aggregate ownership, fixture registry
+consumers, and omission from the macOS subset. UNKNOWN targets are not treated
+as unused. Final GitNexus `detect_changes --scope all` reported **14 changed
+symbols across 11 files**, **0 affected symbols**, **LOW** risk, and no affected
+processes. The complete result contained no partial or truncated output.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
