@@ -978,6 +978,53 @@ into the Claude marketplace package byte-for-byte and regenerated its packaged
 Bash guard from the canonical hook. No other production or support source
 changed, and the frozen queue metrics remain unchanged.
 
+### Issue #664 — Cohort B batch 03
+
+This batch keeps seven independent suites and rewrites three weak suites; no
+suite is deleted. The ten assigned paths pass at 76/76 cases. Inventory rows
+218–227 retain every frozen rank, count, and assignment metric; only their
+disposition status changed.
+
+| Test file | Disposition | Owned contract and assertion evidence | Final cases |
+| --- | --- | --- | ---: |
+| `tests/profile-scoped-claude-capability-bundle.test.js` | Keep | Profile selection, safe rejection, deterministic planning, publication, and probe binding remain covered; the standalone fixture now removes its temporary source root in `finally`. | 23 |
+| `tests/project-agent-projection-baseline.test.js` | Keep | Historical selection, the portable core boundary, Host evidence, redaction, and read-only behavior remain covered. The fixture's `evidenceFields` and `runtimeStatuses` values still have no assertion consumer and are not credited as coverage. | 4 |
+| `tests/project-agent-projection-plan.test.js` | Keep | Dependency closure, Host evidence, malformed-input failures, identity changes, and inventory validation remain covered. | 15 |
+| `tests/project-agent-projection-publisher.test.js` | Rewrite | Calls the public publisher lifecycle with a temporary project: verifies install receipt schema and managed paths, successful validation, authorized update and rollback to prior bytes, and uninstall that removes owned output while preserving foreign content. Missing-input rejection remains covered. | 2 |
+| `tests/project-agent-provider-adapters.test.js` | Keep | Shared directory and AGY direct-file shapes, evidence-gated sibling references, and Claude, Cursor, and Codex discovery bindings remain covered. | 9 |
+| `tests/project-agent-runtime-assets.test.js` | Keep | Source-independent execution, tamper and source drift detection, stale-descriptor and symlink refusal, and rename migration remain covered. | 4 |
+| `tests/project-workflow-resources.test.js` | Keep | Legacy runner closure, rename migration, and preservation of edited receipt-owned content remain covered. | 3 |
+| `tests/projection-artifact-store.test.js` | Rewrite | Publishes old bytes, injects an unplanned file into the next staged tree before `stage()`, verifies staging rejects it, aborts, and confirms the previously published bytes remain unchanged. | 5 |
+| `tests/projection-usage-binding.test.js` | Keep | Usage fingerprints remain bound through compilation, materialization refusal, and parity diagnostics. | 4 |
+| `tests/provider-adapter.test.js` | Rewrite | Uses separate registry probe and executor callbacks; confirms one probe, no executor call, mismatched-provider refusal, and rejection of an invalid capability status. Existing receipt, timeout, side-effect, attestation, and provider mapping cases remain covered. | 7 |
+
+`tests/run-all.js:43` recursively discovers the ten suites, and CI invokes the
+aggregate at `.github/workflows/ci.yml:134`. The exact ten-path run passed
+76/76 cases. The four changed suites passed 37/37 focused cases; the adjacent
+owner checks passed `agents-skills-package` 33/33,
+`distribution-projection-contract` 20/20, `distribution-rollback-proof` 7/7,
+`capability-bundle-activation` 2/2, and `provider-cli-adapters` 5/5, for
+67/67 neighboring cases.
+
+Negative controls used in-memory module overrides and did not modify
+production files. A rollback implementation that leaves updated bytes failed
+the publisher test (1/2); a stage operation that accepts an unplanned entry
+failed the artifact-store test (4/5); and a probe that accepts an unrecognized
+status failed the provider-adapter test (6/7). The checks failed on the new
+assertions as intended.
+
+Both assigned fixtures remain. The baseline fixture's `evidenceFields` and
+`runtimeStatuses` keys have no assertion consumer and are explicitly not counted
+as protected behavior. `tests/run-all.js` discovers every assigned suite;
+none belongs to the macOS installer subset. No production path changed, so a
+production line/branch comparison is **NOT_APPLICABLE**. GitNexus pre-edit
+impact for the store and publisher APIs reported CRITICAL risk for
+`ProjectionArtifactStore` and HIGH/partial impact for `stageArtifact`; the
+provider registry reported LOW impact. Those production APIs were left
+unchanged. GitNexus `detect_changes --scope all` reports 33 changed symbols
+across 8 files, 0 affected processes, and low overall risk. No production
+symbols or execution flows changed.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

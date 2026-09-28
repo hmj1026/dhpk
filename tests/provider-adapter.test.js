@@ -40,16 +40,39 @@ test('Probe is separate from execution and conservatively defaults to NOT_RUN', 
   });
 });
 
-test('Probe returns bounded explicit availability evidence without launching a SubAgent', () => {
-  let launches = 0;
-  const probe = createCapabilityProbe({
-    provider: 'codex-cli', version: 'codex-probe.v1',
-    probe: () => ({ status: 'AVAILABLE', evidence: 'fixture executable and auth check' }),
+test('Probe returns explicit availability evidence without launching a SubAgent', () => {
+  let probeCalls = 0;
+  let executorCalls = 0;
+  const registry = createAdapterRegistry({
+    probes: {
+      'codex-cli': () => {
+        probeCalls += 1;
+        return { status: 'AVAILABLE', evidence: 'fixture executable and auth check' };
+      },
+    },
+    executors: {
+      'codex-cli': () => {
+        executorCalls += 1;
+        return { status: 'SUCCEEDED' };
+      },
+    },
   });
-  const result = probe.probe(target, request);
+  const result = registry.probe('codex-cli').probe(target, request);
   assert.strictEqual(result.status, 'AVAILABLE');
-  assert.strictEqual(launches, 0);
-  assert.throws(() => probe.probe({ ...target, provider: 'agy' }, request), /target|provider/i);
+  assert.strictEqual(result.evidence, 'fixture executable and auth check');
+  assert.strictEqual(probeCalls, 1);
+  assert.strictEqual(executorCalls, 0);
+  assert.throws(() => registry.probe('codex-cli').probe({ ...target, provider: 'agy' }, request), /target|provider/i);
+  assert.strictEqual(probeCalls, 1);
+  assert.strictEqual(executorCalls, 0);
+
+  const invalidProbeRegistry = createAdapterRegistry({
+    probes: { 'codex-cli': () => ({ status: 'UNRECOGNIZED', evidence: 'fixture status' }) },
+  });
+  assert.throws(
+    () => invalidProbeRegistry.probe('codex-cli').probe(target, request),
+    /explicit capability status/,
+  );
 });
 
 test('Execution Adapter consumes one resolved target and returns a canonical receipt', () => {
