@@ -14,12 +14,23 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 function resolveOnRealPath(name) {
-  const res = spawnSync('bash', ['-c', `command -v ${name}`], { encoding: 'utf8' });
-  const resolved = (res.stdout || '').trim();
-  if (!resolved) {
-    throw new Error(`restricted-path: could not resolve required tool '${name}' on the real PATH`);
+  if (typeof name !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(name)) {
+    throw new Error("restricted-path: invalid tool name '" + name + "'");
   }
-  return resolved;
+  const res = spawnSync('bash', ['-c', 'command -v -- "$1"', 'restricted-path', name], { encoding: 'utf8' });
+  const resolved = (res.stdout || '').trim();
+  if (res.error || res.status !== 0 || !resolved) {
+    throw new Error("restricted-path: could not resolve required tool '" + name + "' on the real PATH");
+  }
+  try {
+    if (!path.isAbsolute(resolved)) throw new Error('resolved path is not absolute');
+    const realPath = fs.realpathSync(resolved);
+    if (!fs.statSync(realPath).isFile()) throw new Error('resolved path is not a regular file');
+    fs.accessSync(realPath, fs.constants.X_OK);
+    return realPath;
+  } catch (error) {
+    throw new Error("restricted-path: required tool '" + name + "' is not an executable file: " + error.message);
+  }
 }
 
 // Returns a directory containing symlinks (named `name`) to the real resolved
@@ -27,10 +38,15 @@ function resolveOnRealPath(name) {
 // plus any stub dir — deliberately NOT the inherited process.env.PATH.
 function buildToolsOnlyDir(names) {
   const toolsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'restricted-path-tools-'));
-  for (const name of names) {
-    fs.symlinkSync(resolveOnRealPath(name), path.join(toolsDir, name));
+  try {
+    for (const name of names) {
+      fs.symlinkSync(resolveOnRealPath(name), path.join(toolsDir, name));
+    }
+    return toolsDir;
+  } catch (error) {
+    fs.rmSync(toolsDir, { recursive: true, force: true });
+    throw error;
   }
-  return toolsDir;
 }
 
 module.exports = { buildToolsOnlyDir };

@@ -108,11 +108,25 @@ test('restricted PATH explicitly supplies python3, omits timeout/gtimeout, and k
     try {
       const result = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile], { contextPath, toolsDir });
       assert.strictEqual(result.status, 0, result.stderr);
-      const argv = fs.readFileSync(ctx.argvOut, 'utf8');
-      assert.ok(!argv.includes('do the thing'), argv);
-      for (const flag of ['exec', '--skip-git-repo-check', '--sandbox', 'workspace-write', '-c', 'approval_policy=never', '--cd', '--output-last-message', '-']) {
-        assert.ok(argv.includes(flag), `missing ${flag}: ${argv}`);
-      }
+      const argv = fs.readFileSync(ctx.argvOut, 'utf8').trimEnd().split('\n');
+      const outputIndex = argv.indexOf('--output-last-message');
+      assert.ok(outputIndex >= 0, 'missing output destination flag: ' + JSON.stringify(argv));
+      assert.deepStrictEqual(argv.slice(0, outputIndex), [
+        'exec',
+        '--skip-git-repo-check',
+        '--sandbox', 'workspace-write',
+        '-c', 'approval_policy=never',
+        '--cd', ctx.dir,
+      ]);
+      assert.ok(path.isAbsolute(argv[outputIndex + 1]), 'output destination must be absolute');
+      const outputRoot = path.resolve(ctx.dir, '.dhpk', 'cli-receipts');
+      const outputPath = path.resolve(argv[outputIndex + 1]);
+      const relativeOutput = path.relative(outputRoot, outputPath);
+      assert.ok(relativeOutput && relativeOutput !== '..'
+        && !relativeOutput.startsWith('..' + path.sep)
+        && !path.isAbsolute(relativeOutput),
+      'output destination must remain inside the private artifact root');
+      assert.deepStrictEqual(argv.slice(outputIndex + 2), ['-']);
       assert.strictEqual(fs.readFileSync(ctx.stdinOut, 'utf8'), 'do the thing');
       const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
       assert.strictEqual(receipt.status, 'SUCCEEDED');
@@ -171,8 +185,18 @@ test('attested model and effort bind the Codex argv', () => {
     const { contextPath } = writeContext(ctx, { model: 'gpt-5.6-luna', effort: 'xhigh' });
     const result = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile, 'gpt-5.6-luna', 'xhigh'], { contextPath });
     assert.strictEqual(result.status, 0, result.stderr);
-    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
-    assert.ok(argv.includes('gpt-5.6-luna') && argv.includes('model_reasoning_effort=xhigh'), argv);
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8').trimEnd().split('\n');
+    const outputIndex = argv.indexOf('--output-last-message');
+    assert.deepStrictEqual(argv.slice(0, outputIndex), [
+      'exec',
+      '--skip-git-repo-check',
+      '--sandbox', 'workspace-write',
+      '-c', 'approval_policy=never',
+      '--cd', ctx.dir,
+      '-m', 'gpt-5.6-luna',
+      '-c', 'model_reasoning_effort=xhigh',
+    ]);
+    assert.deepStrictEqual(argv.slice(outputIndex + 2), ['-']);
     const mismatch = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile, 'other-model', 'xhigh'], { contextPath });
     assert.strictEqual(mismatch.status, 65, mismatch.stderr);
   });

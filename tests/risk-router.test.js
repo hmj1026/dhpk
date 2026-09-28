@@ -314,7 +314,21 @@ test('obligations retain their named reasons and populate Reviewer Contract v2 r
       priorFindings: [],
       contractVersion: plan.contractVersion,
     });
-    assert.strictEqual(reviewRequest.obligationId, obligation.obligationId);
+    assert.deepStrictEqual(reviewRequest, {
+      decisionId: plan.decisionId,
+      waveId: plan.waveId,
+      obligationId: obligation.obligationId,
+      lane: obligation.lane,
+      scope: plan.scope,
+      baseIdentity: plan.baseIdentity,
+      headIdentity: plan.headIdentity,
+      diff: plan.diff,
+      materialRisks: plan.materialRisks,
+      governingInputs: plan.governingInputs,
+      exclusions: [],
+      priorFindings: [],
+      contractVersion: plan.contractVersion,
+    });
   }
 });
 
