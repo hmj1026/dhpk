@@ -40,7 +40,7 @@ and the named safety branch obligations in
 | Test file | Disposition | Contract and replacement evidence | Verification |
 | --- | --- | --- | --- |
 | `tests/claude-capability-bundle.test.js` | Delete | Only checked four exports; `tests/profile-scoped-claude-capability-bundle.test.js` calls the API and verifies profile selection, compilation, materialization, and verification behavior. `scripts/ci/catalog.js` explicitly maps `scripts/lib/claude-capability-bundle.js` to that behavioral suite in `COVERAGE_MAP`. | Implemented in #644. Paired focused runs retained 679/797 covered lines and 227/314 covered branches for the affected module before and after deletion. |
-| `tests/retirement-closure.test.js` | Delete | Only checked an export and two property names; `tests/validate-retirement-closure.test.js` exercises acceptance and rejection cases through the validator. `scripts/lib/retirement-closure.js` maps to that test in `COVERAGE_MAP`. | Focused before/after suites passed. Affected module: 478/515 covered lines and 150/201 covered branches on both sides. |
+| `tests/retirement-closure.test.js` | Delete | Only checked an export and two property names; `tests/validate-retirement-closure.test.js` exercises acceptance and rejection cases through the validator. `scripts/lib/retirement-closure.js` now maps to that test in `COVERAGE_MAP`. | Implemented in #666. Paired focused runs retained 478/515 covered lines and 150/201 covered branches for the validator module. `scripts/ci/catalog.js` rose from 297/371 to 298/372 covered lines while retaining 23/46 covered branches. |
 
 ### Issue #642 — Cohort A batch 01
 
@@ -1063,6 +1063,56 @@ governance consumers. No production API changed. GitNexus
 0 affected processes, and low risk. Every changed symbol belongs to a test or
 review document; no production symbol or execution flow changed.
 
+### Issue #666 — Cohort B batch 05
+
+This batch keeps all ten active suites and implements the separately
+prevalidated deletion; no active suite is deleted. The ten assigned paths pass
+at 84/84 cases. Inventory rows 238–246 and 248 retain every frozen rank, count,
+and assignment metric; only their disposition status changed. The separate
+deletion remains row 247 and consumes no active ordinal.
+
+| Test file | Disposition | Owned contract and assertion evidence | Final cases |
+| --- | --- | --- | ---: |
+| `tests/release-probe-batch.test.js` | Keep | Result ordering, bounded live workers, configured concurrency clamping, and invalid worker counts remain covered. | 2 |
+| `tests/release-publication-bundle.test.js` | Keep | Exact release-note bytes, identity and tamper rejection, malformed types, writer rehash resistance, empty input refusal, and portable CLI publication remain covered. | 7 |
+| `tests/release-runner.test.js` | Keep | Prepare/publish ordering, pre-tag gates, release-head identity, scoped staging, and real Git changelog-deletion handling remain covered. | 25 |
+| `tests/release-verify-cli.test.js` | Keep | Dry-run and tag-mode parity, out-of-checkout verification, tag ancestry, blocked preflight, and non-blocking unavailable preflight remain covered. | 9 |
+| `tests/release-workflow.test.js` | Keep | Workflow queueing, artifact-bound publication, consumer verification, immutable release recovery, and operator documentation remain covered. | 24 |
+| `tests/render-test-timing.test.js` | Keep | Timing identity and runtime, slow or failed files, and missing or malformed evidence remain covered. | 2 |
+| `tests/resolve-feature-cli.test.js` | Keep | Both feature argument forms, traversal rejection, and no-signal output remain covered. | 4 |
+| `tests/resolve-feature.test.js` | Keep | Bash syntax, wrapper forwarding from an unrelated working directory, and JSON no-argument output remain covered. | 3 |
+| `tests/resolve-invocation-class.test.js` | Keep | Route target classification, malformed or unknown target refusal, and symlink-escape prevention remain covered. | 7 |
+| `tests/review-gate-authority-semantics.test.js` | Keep | A code-review PASS paired with a security-authority override does not synthesize semantic PASS; adjacent security tests do not own this exact composition. | 1 |
+
+The separate prevalidated `tests/retirement-closure.test.js` deletion is
+complete. Its export-only assertion is superseded by the acceptance and
+rejection cases in `tests/validate-retirement-closure.test.js` (6/6). The
+catalog had lacked the explicit owner map despite the earlier ledger claim;
+after deleting the smoke suite, `catalog.js --check` failed on
+`scripts/lib/retirement-closure.js`. Adding the map to
+`tests/validate-retirement-closure.test.js` restored the check with zero
+uncovered scripts. `catalog-claims` passed 39/39.
+
+The recursive `tests/run-all.js` discovers every assigned suite; CI runs that
+aggregate at `.github/workflows/ci.yml:134`. None belongs to the macOS subset.
+No helper or fixture is primarily assigned to this batch, and none changed.
+There is no runtime production behavior change. Paired `c8@10.1.3` reports on
+Darwin / Node v26.10.0 used `catalog-claims` plus the retirement validator
+before and after removing only the export smoke test. The validator module
+retained 478/515 covered lines and 150/201 covered branches. `catalog.js`
+increased from 297/371 to 298/372 covered lines and retained 23/46 covered
+branches. The frozen queue baseline used Node v24.21.0; this local Node version
+difference is unrelated measurement drift and both sides of the paired check
+used the same runtime.
+
+Pre-edit GitNexus impact resolved `COVERAGE_MAP` at LOW risk with no indexed
+callers, processes, or modules. File-level impact was UNKNOWN; text search
+confirmed the map feeds `resolveScriptCoverage`, the script-coverage gap scan,
+`catalog.js --check`, and the CI validation job. GitNexus final
+`detect_changes --scope all` reports 6 changed symbols, 6 changed files,
+0 affected processes, and low risk. No runtime behavior or execution flow
+changed; only the CI coverage-map constant changed.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
@@ -1174,10 +1224,11 @@ its active paths in order to issues #662–#681:
 | 19 | #680 | 374–382 | 9 |
 | 20 | #681 | 383–391 | 9 |
 
-The prevalidated deletion of `tests/retirement-closure.test.js` remains attached
-to B batch 05 / issue #666 at its original-order insertion point. It is not a
-formal suite and consumes no active ordinal. The B queue records ownership and
-baseline signals only; it makes no `keep`, `rewrite`, or `delete` decisions.
+The prevalidated deletion of `tests/retirement-closure.test.js` was implemented
+by B batch 05 / issue #666 at its original-order insertion point. It is not a
+formal suite and consumes no active ordinal. The frozen inventory records
+ownership and baseline signals; per-issue ledger sections record the final
+`keep`, `rewrite`, and `delete` decisions.
 
 The inventory's B metrics are measured from the frozen source, before any A
 suite rewrites. Candidate ranks sort by static forwarding-test reuse count
