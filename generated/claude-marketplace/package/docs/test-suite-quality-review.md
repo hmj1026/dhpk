@@ -1812,6 +1812,46 @@ impact with three direct callers and zero affected processes. The inventory
 changes only these nine disposition cells; frozen numeric fields, ranks, and
 all other rows remain unchanged.
 
+### Issue #681 — Cohort B batch 20
+
+The nine assigned suites are **6 keep / 3 rewrite / 0 delete**. The focused
+baseline and final aggregates each passed **9/9 suites and 180/180 cases** on
+Node `v26.10.0` / Darwin.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/worker-context-benchmark.test.js` | Rewrite | Uses fixed oracle expectations, fixture-specific replies, and verifies all nine scores; a negative-control response stays transport-PASS but scores fail. | 23 |
+| `tests/workflow-coordinator-delivery.test.js` | Keep | Retains PR authorization and provider/CI adapter behavior for merge identity, reruns, ambiguity, and missing transport. | 12 |
+| `tests/workflow-coordinator-evidence-continuity.test.js` | Keep | Retains selective lane refresh, freshness expiry, premise invalidation, and exact authority override contracts. | 27 |
+| `tests/workflow-coordinator-security.test.js` | Keep | Retains hostile-object and secret non-disclosure checks, evidence bindings, gate ownership, routing, and review-finding safety contracts. | 76 |
+| `tests/workflow-coordinator.test.js` | Rewrite | Removes a duplicate freeze/input-preservation test; the history loop already checks those properties for every history, including merge-ready. | 18 |
+| `tests/workflow-docs.test.js` | Keep | Retains bilingual route guidance, update-docs contracts, README links, and command-index coverage. | 3 |
+| `tests/workflow-package-closure.test.js` | Keep | Retains inventory escape, symlink, renamed-ID, cache, and source-bundle closure checks. | 5 |
+| `tests/workflow-package-runtime.test.js` | Rewrite | Parses the analyzer JSON and checks schema version, nonempty phase, nonnegative P0/P1 counts, and the exact exit status derived from those counts. | 7 |
+| `tests/write-handoff.test.js` | Keep | Retains explicit destinations, full payloads, atomic replacement, symlink safety, detect/write revalidation, and unavailable-Python behavior. | 9 |
+
+No helper or fixture was assigned to this batch, and no production file changed;
+production line and branch coverage comparison is N/A. CI recursively discovers
+these suites through `tests/run-all.js`; the required script ownership check
+passed. The benchmark's score-mutation control failed when the score was forced
+to pass, the runtime suite rejected a mutated analyzer exit status, and the
+coordinator history loop rejected unfrozen output. Each mutation ran in a
+disposable copy and was removed.
+
+The implement-step decision was **REASONER_REQUIRED**; the read-only reasoner
+returned **READY_FOR_DISPATCH**; `planner=skipped` because this is not an
+OpenSpec apply. GitNexus impact on `WorkflowCoordinator` was **MEDIUM** with
+nine direct graph callers and zero identified processes; `runBenchmark` and
+`scoreResponse` were **LOW**, each with two direct callers and zero identified
+processes. The analyzer entry point had **LOW** impact with one direct caller.
+Impact on `physicalSkillTree` was **HIGH, partial**, with callers in package
+closure/publication and indirect CI, release, and packaging paths. That result
+does not clear the surface: neither the symbol nor its callers were changed.
+File-target impacts for the nine suites remained **UNKNOWN**; text search
+confirmed recursive test discovery, CI execution, and the script ownership
+mapping. The inventory changes only these nine disposition cells; frozen
+metrics, ranks, and all other rows remain unchanged.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

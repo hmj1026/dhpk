@@ -52,8 +52,17 @@ test('fixed fixture and independent oracle score deterministically', () => {
     technique: 'Use a test-local spy instead of editing vendor code.',
     reason_codes: ['SHARED_SOURCE_PROHIBITED'],
   });
-  assert.deepStrictEqual(scoreResponse(response, fixture.oracle), scoreResponse(response, fixture.oracle));
-  assert.strictEqual(scoreResponse(response, fixture.oracle).passed, true);
+  assert.deepStrictEqual(scoreResponse(response, fixture.oracle), {
+    passed: true,
+    checks: {
+      validJson: true,
+      decision: true,
+      mayEdit: true,
+      reasonCodes: true,
+      forbiddenReasonCodes: true,
+      technique: true,
+    },
+  });
   assert.strictEqual(scoreResponse('{"decision":"APPLY","may_edit":true}', fixture.oracle).passed, false);
 });
 
@@ -126,7 +135,7 @@ test('execute invokes every client fixture and variant cell exactly once', async
         status: 'PASS',
         requestedModel: 'claude-sonnet-5',
         effectiveModel: 'claude-sonnet-5',
-        rawResponse: JSON.stringify({ decision: 'BLOCKED', may_edit: false, technique: 'test-local spy', reason_codes: ['SHARED_SOURCE_PROHIBITED'] }),
+        rawResponse: JSON.stringify(PASS_RESPONSES[request.fixture.id]),
         usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
       };
     },
@@ -141,7 +150,7 @@ test('execute invokes every client fixture and variant cell exactly once', async
     'out-of-scope-file-blocked-v1',
   ]);
   assert.ok(receipt.runs.every((entry) => entry.status === 'PASS'));
-  assert.ok(receipt.runs.filter((entry) => entry.fixtureId === 'vendor-parser-red-v1').every((entry) => entry.score.passed));
+  assert.ok(receipt.runs.every((entry) => entry.score.passed));
 });
 
 test('execute marks an empty model response as blocked', async () => {
@@ -236,6 +245,28 @@ test('failure matrix carries a negative control that an always-blocked answer fa
 
   const correct = JSON.stringify(PASS_RESPONSES['test-local-seam-allowed-v1']);
   assert.strictEqual(scoreResponse(correct, control.oracle).passed, true);
+});
+
+test('execute keeps a negative-control response from scoring as a pass', async () => {
+  const alwaysBlocked = JSON.stringify(PASS_RESPONSES['vendor-parser-red-v1']);
+  const receipt = await runBenchmark({
+    root: ROOT,
+    argv: ['--execute'],
+    clients: ['claude'],
+    fixtures: ['test-local-seam-allowed-v1'],
+    invoke: async () => ({
+      status: 'PASS',
+      requestedModel: 'stub-model',
+      effectiveModel: null,
+      rawResponse: alwaysBlocked,
+      usage: { inputTokens: 10, outputTokens: 5, totalTokens: 15 },
+    }),
+    gitInfo: () => ({ commit: 'abc123', tree: 'def456', dirty: false }),
+  });
+
+  assert.strictEqual(receipt.runs.length, 3);
+  assert.ok(receipt.runs.every((entry) => entry.status === 'PASS'));
+  assert.ok(receipt.runs.every((entry) => entry.score.passed === false));
 });
 
 test('oracle rejects a forbidden reason code and tolerates an absent technique pattern', () => {
