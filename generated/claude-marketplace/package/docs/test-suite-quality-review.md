@@ -1575,7 +1575,7 @@ literal. No production file changed.
 | `tests/source-gate-cli.test.js` | Rewrite | Checks exact command, exit, environment, and failure evidence; removes temporary step files and scratch repositories in `finally` cleanup. | 6 |
 | `tests/stack-evidence.test.js` | Rewrite | Uses `DHPK_STACK_CENSUS_FILES=1` to verify the file cap deterministically instead of asserting a wall-clock limit. | 12 |
 | `tests/standalone-package-assets.test.js` | Rewrite | Checks complete dependency and supporting-asset records, unsafe sources and destinations, duplicate destinations, unknown asset IDs, and symlinked files plus directory ancestors. | 7 |
-| `tests/statusline.test.js` | Rewrite | Verifies one staged file is rendered as `[main] +1 ~0 | profile=standard`. | 3 |
+| `tests/statusline.test.js` | Rewrite | Verifies one staged file renders a staged count of 1 and a modified count of 0. | 3 |
 | `tests/stop-advisory-dispatch-completion-evidence.test.js` | Keep | Retains the independent completion-evidence behavior and warning boundary. | 4 |
 | `tests/stop-advisory-dispatch-graduation.test.js` | Rewrite | Verifies generated candidate report content and exact seeded count increment; missing backing files remain uncounted and no draft is created. | 4 |
 
