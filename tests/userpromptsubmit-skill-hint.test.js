@@ -109,6 +109,18 @@ function runHookAgainstRealRoutes(prompt, extraEnv = {}) {
   });
 }
 
+function assertHintOutput(result, expectedAdditionalContext, label) {
+  assert.strictEqual(result.status, 0, `${label} expected exit 0: ${result.stderr}`);
+  const output = JSON.parse(result.stdout);
+  assert.deepStrictEqual(output, {
+    hookSpecificOutput: {
+      hookEventName: 'UserPromptSubmit',
+      additionalContext: expectedAdditionalContext,
+    },
+  }, `${label} emitted an unexpected hook payload`);
+  return output.hookSpecificOutput.additionalContext;
+}
+
 function resolveInvocationClass(name) {
   const skillFile = path.join(ROOT, 'skills', name, 'SKILL.md');
   const cmdFile = path.join(ROOT, 'commands', `${name}.md`);
@@ -120,9 +132,11 @@ function resolveInvocationClass(name) {
 
 test('prompt matching the route pattern emits an additionalContext hint', () => {
   const res = runHook('please deploy to production now');
-  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-  assert.ok(res.stdout.includes('additionalContext'), `expected additionalContext JSON, got: ${res.stdout}`);
-  assert.ok(res.stdout.includes('production deploy'), `expected label in hint, got: ${res.stdout}`);
+  assertHintOutput(
+    res,
+    '[skill-hint] This prompt looks like a production deploy task — the /dhpk:dhpk-deploy-list workflow may fit. Suggest it (or run it) if appropriate.',
+    'production deploy hint'
+  );
 });
 
 test('prompt with no match → no hint emitted', () => {
@@ -169,8 +183,11 @@ test('<task-notification> input → no hint (system-generated turn)', () => {
 
 test('normal matching prompt still hints after notification filter added', () => {
   const res = runHook('please deploy to production now');
-  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-  assert.ok(res.stdout.includes('additionalContext'), `expected hint preserved, got: ${res.stdout}`);
+  assertHintOutput(
+    res,
+    '[skill-hint] This prompt looks like a production deploy task — the /dhpk:dhpk-deploy-list workflow may fit. Suggest it (or run it) if appropriate.',
+    'production deploy hint after notification filter'
+  );
 });
 
 test('minimal hook_profile suppresses the hint even for a matching prompt', () => {
@@ -181,40 +198,64 @@ test('minimal hook_profile suppresses the hint even for a matching prompt', () =
 
 test('real explicit-only routes emit exact commands without Skill-tool advice', () => {
   const cases = [
-    ['please run an unattended OpenSpec goal session', 'dhpk-opsx-apply-goal'],
-    ['please create a PR for this branch', 'create-pr'],
-    ['please create a release', 'release-creator'],
-    ['please commit these changes', 'smart-commit'],
+    [
+      'please run an unattended OpenSpec goal session',
+      'dhpk-opsx-apply-goal',
+      '[skill-hint] This prompt looks like a unattended OpenSpec goal session task — run /dhpk:dhpk-opsx-apply-goal directly; do not call the generic Skill tool.',
+    ],
+    [
+      'please create a PR for this branch',
+      'create-pr',
+      '[skill-hint] This prompt looks like a create PR task — run /dhpk:create-pr directly; do not call the generic Skill tool.',
+    ],
+    [
+      'please create a release',
+      'release-creator',
+      '[skill-hint] This prompt looks like a create release task — run /dhpk:release-creator directly; do not call the generic Skill tool.',
+    ],
+    [
+      'please commit these changes',
+      'smart-commit',
+      '[skill-hint] This prompt looks like a smart commit task — run /dhpk:smart-commit directly; do not call the generic Skill tool.',
+    ],
   ];
-  for (const [prompt, name] of cases) {
+  for (const [prompt, name, expectedAdditionalContext] of cases) {
     assert.strictEqual(resolveInvocationClass(name), 'explicit-only', `${name} must be explicit-only in canonical metadata`);
     const res = runHookAgainstRealRoutes(prompt);
-    assert.strictEqual(res.status, 0, `${name} expected exit 0: ${res.stderr}`);
-    assert.ok(res.stdout.includes(`/dhpk:${name}`), `${name} must show exact command: ${res.stdout}`);
-    assert.match(res.stdout, /do not call the generic Skill tool/i, `${name} must forbid Skill-tool invocation: ${res.stdout}`);
-    assert.ok(!res.stdout.includes('/dhpk:dhpk:'), `${name} must not duplicate route namespace: ${res.stdout}`);
-    assert.ok(!res.stdout.includes('Suggest it (or run it)'), `${name} must not use generic implicit wording: ${res.stdout}`);
+    const context = assertHintOutput(res, expectedAdditionalContext, name);
+    assert.ok(context.includes(`/dhpk:${name}`), `${name} must show exact command: ${context}`);
+    assert.match(context, /do not call the generic Skill tool/i, `${name} must forbid Skill-tool invocation: ${context}`);
+    assert.ok(!context.includes('/dhpk:dhpk:'), `${name} must not duplicate route namespace: ${context}`);
+    assert.ok(!context.includes('Suggest it (or run it)'), `${name} must not use generic implicit wording: ${context}`);
   }
 });
 
 test('real implicit-eligible route retains generic advisory wording', () => {
   assert.strictEqual(resolveInvocationClass('review-pending'), 'implicit-eligible');
   const res = runHookAgainstRealRoutes('please review this diff');
-  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-  assert.ok(res.stdout.includes('/dhpk:review-pending'), `expected implicit route command: ${res.stdout}`);
-  assert.ok(res.stdout.includes('Suggest it (or run it)'), `expected generic wording: ${res.stdout}`);
-  assert.ok(!/do not call the generic Skill tool/i.test(res.stdout), `implicit route must not get explicit-only restriction: ${res.stdout}`);
+  const context = assertHintOutput(
+    res,
+    '[skill-hint] This prompt looks like a manual code review task — the /dhpk:review-pending workflow may fit. Suggest it (or run it) if appropriate.',
+    'implicit route hint'
+  );
+  assert.ok(context.includes('/dhpk:review-pending'), `expected implicit route command: ${context}`);
+  assert.ok(context.includes('Suggest it (or run it)'), `expected generic wording: ${context}`);
+  assert.ok(!/do not call the generic Skill tool/i.test(context), `implicit route must not get explicit-only restriction: ${context}`);
 });
 
 test('real Playwright route emits an explicit unavailable agent dispatch hint without remapping', () => {
   const res = runHookAgainstRealRoutes('please author a Playwright journey for checkout');
-  assert.strictEqual(res.status, 0, `agent:e2e-runner expected exit 0: ${res.stderr}`);
-  assert.ok(res.stdout.includes('agent:e2e-runner'), `expected agent target in hint: ${res.stdout}`);
-  assert.match(res.stdout, /UNAVAILABLE/);
-  assert.match(res.stdout, /dispatch|agent/i, `expected an agent dispatch hint: ${res.stdout}`);
-  assert.ok(!res.stdout.includes('dhpk-post-dev-test'), `retired route must not be suggested: ${res.stdout}`);
-  assert.ok(!res.stdout.includes('tdd'), `Playwright route must not remap to TDD: ${res.stdout}`);
-  assert.ok(!/generic Skill tool/i.test(res.stdout), `agent route must not suggest Skill-tool invocation: ${res.stdout}`);
+  const context = assertHintOutput(
+    res,
+    '[skill-hint] This prompt looks like a Playwright E2E journey (→ e2e-runner; UNAVAILABLE if the Playwright agent capability is unavailable) task — dispatch agent:e2e-runner when available; if that capability is unavailable, report UNAVAILABLE and do not remap it to another workflow.',
+    'Playwright agent hint'
+  );
+  assert.ok(context.includes('agent:e2e-runner'), `expected agent target in hint: ${context}`);
+  assert.match(context, /UNAVAILABLE/);
+  assert.match(context, /dispatch|agent/i, `expected an agent dispatch hint: ${context}`);
+  assert.ok(!context.includes('dhpk-post-dev-test'), `retired route must not be suggested: ${context}`);
+  assert.ok(!context.includes('tdd'), `Playwright route must not remap to TDD: ${context}`);
+  assert.ok(!/generic Skill tool/i.test(context), `agent route must not suggest Skill-tool invocation: ${context}`);
 });
 
 test('matching a route with missing canonical metadata fails closed', () => {

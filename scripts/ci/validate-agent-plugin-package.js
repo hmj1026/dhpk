@@ -34,12 +34,13 @@ const packageRoot = path.resolve(args.packageRoot);
 const structural = verifyAgentPluginPackage(packageRoot);
 const errors = [...structural.errors];
 const provenancePath = path.join(packageRoot, 'provenance.json');
-let provenance = null;
+let provenanceOk = false;
 if (!fs.existsSync(provenancePath)) errors.push('provenance.json is missing');
 else {
   try {
-    provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
-    const checked = validateSurfaceReceipt(provenance, 'agent-plugin');
+    const receipt = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+    const checked = validateSurfaceReceipt(receipt, 'agent-plugin');
+    provenanceOk = checked.ok;
     errors.push(...checked.errors);
   } catch (error) {
     errors.push(`provenance.json is not valid JSON: ${error.message}`);
@@ -54,7 +55,7 @@ const report = {
   warnings: structural.warnings,
   skills: structural.skills,
   mcp: structural.mcp,
-  provenance: provenance ? 'PASS' : 'FAIL',
+  provenance: provenanceOk ? 'PASS' : 'FAIL',
 };
 console.log(JSON.stringify(report, null, 2));
 process.exit(errors.length === 0 ? 0 : 1);
