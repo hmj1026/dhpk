@@ -17,13 +17,14 @@ function tmpDir(prefix) {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
 }
 
-function sh(cmd, { cwd, projectDir, input } = {}) {
-  const env = { ...process.env };
+function sh(cmd, { cwd, projectDir, input, sourceLib = true, extraEnv = {} } = {}) {
+  const env = { ...process.env, ...extraEnv };
   delete env.GIT_DIR;
   delete env.GIT_WORK_TREE;
   if (projectDir === undefined) delete env.CLAUDE_PROJECT_DIR;
   else env.CLAUDE_PROJECT_DIR = projectDir;
-  return spawnSync('bash', ['-c', `set -euo pipefail; source "${LIB}"; ${cmd}`], {
+  const source = sourceLib ? `source "${LIB}"; ` : '';
+  return spawnSync('/bin/bash', ['-c', `set -euo pipefail; ${source}${cmd}`], {
     encoding: 'utf8',
     timeout: 10000,
     cwd: cwd || ROOT,
@@ -90,10 +91,49 @@ test('sidecar basename registry constants are defined', () => {
   ]);
 });
 
-test('sourcing is side-effect free and idempotent under set -euo pipefail', () => {
-  const res = sh(`source "${LIB}"; echo ok`, {});
-  assert.strictEqual(res.status, 0, res.stderr);
-  assert.strictEqual(res.stdout.trim(), 'ok');
+test('sourcing twice leaves exported environment and project files unchanged', () => {
+  const scratch = tmpDir('dhpk-senv-source-');
+  try {
+    const res = sh([
+      'before_env="$(export -p)"',
+      'before_files="$(find . -mindepth 1 -print | LC_ALL=C sort)"',
+      'before_pwd="$PWD"',
+      `source "${LIB}"`,
+      `source "${LIB}"`,
+      'after_env="$(export -p)"',
+      'after_files="$(find . -mindepth 1 -print | LC_ALL=C sort)"',
+      'test "$before_env" = "$after_env"',
+      'test "$before_files" = "$after_files"',
+      'test "$before_pwd" = "$PWD"',
+      'test "$DHPK_SIDECAR_MODULE_FINDINGS" = ".module-findings"',
+      'test "$DHPK_SIDECAR_FAST_WORKER_ACTIVE" = ".active-fast-worker"',
+      'printf ok',
+    ].join('; '), { cwd: scratch, projectDir: scratch, sourceLib: false });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, 'ok');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('current session identity prefers the canonical value, falls back, and stays empty when absent', () => {
+  const canonical = sh('dhpk_current_session_id', {
+    extraEnv: { CLAUDE_CODE_SESSION_ID: 'canonical-session', CLAUDE_SESSION_ID: 'legacy-session' },
+  });
+  assert.strictEqual(canonical.status, 0, canonical.stderr);
+  assert.strictEqual(canonical.stdout, 'canonical-session');
+
+  const fallback = sh('dhpk_current_session_id', {
+    extraEnv: { CLAUDE_CODE_SESSION_ID: '', CLAUDE_SESSION_ID: 'legacy-session' },
+  });
+  assert.strictEqual(fallback.status, 0, fallback.stderr);
+  assert.strictEqual(fallback.stdout, 'legacy-session');
+
+  const empty = sh('dhpk_current_session_id', {
+    extraEnv: { CLAUDE_CODE_SESSION_ID: '', CLAUDE_SESSION_ID: '' },
+  });
+  assert.strictEqual(empty.status, 0, empty.stderr);
+  assert.strictEqual(empty.stdout, '');
 });
 
 run('session-env');
