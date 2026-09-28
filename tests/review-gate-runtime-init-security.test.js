@@ -494,7 +494,7 @@ test('prepare refuses to create integrity key or config before explicit init', (
 test('observe refuses to create integrity key or config before explicit init', () => {
   const repoRoot = temporaryDirectory('dhpk-runtime-observe-no-lazy-init-');
   try {
-    const result = runCli(repoRoot, [
+    const args = [
       'observe',
       '--work-id', 'work-390',
       '--wave-id', 'wave-390',
@@ -502,9 +502,23 @@ test('observe refuses to create integrity key or config before explicit init', (
       '--companion', 'artifact.result.json',
       '--lifecycle-events', 'lifecycle.jsonl',
       '--readiness-events', 'readiness.jsonl',
-      '--sentinel-outcome', 'sentinel.json',
-    ]);
+      '--host-attestation', 'host-attestation.json',
+    ];
+    const result = runCli(repoRoot, args);
     assertGenericFailure(result, [repoRoot]);
+    assert.throws(
+      () => runtime.observe({
+        repoRoot,
+        workId: 'work-390',
+        waveId: 'wave-390',
+        artifact: 'artifact.md',
+        companion: 'artifact.result.json',
+        lifecycleEvents: 'lifecycle.jsonl',
+        readinessEvents: 'readiness.jsonl',
+        hostAttestation: 'host-attestation.json',
+      }),
+      (error) => error && error.code === 'SETUP_REQUIRED',
+    );
     assert.strictEqual(fs.existsSync(repoPath(repoRoot, KEY_RELATIVE_PATH)), false);
     assert.strictEqual(fs.existsSync(repoPath(repoRoot, CONFIG_RELATIVE_PATH)), false);
     assert.strictEqual(fs.existsSync(repoPath(repoRoot, '.dhpk')), false);

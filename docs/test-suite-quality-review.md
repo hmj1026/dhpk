@@ -1184,6 +1184,59 @@ production vulnerability or material coverage gap, and document review
 **CONFIRMED** after reconciling 119 frozen cases plus four additions to 123 and
 checking the generated copies.
 
+### Issue #668 — Cohort B batch 07
+
+This batch keeps three suites and rewrites seven; no suite is deleted. The ten
+assigned suites pass 99/99 focused cases. The frozen inventory rows 259–268
+total 94 baseline cases under the inventory's quoted-title counting rule.
+The pre-edit aggregate registers three additional cases from the
+`RETRY_INTEGRITY_VARIANTS` loop in
+`tests/review-gate-runtime-observe-security.test.js`, so its executed baseline
+is 97. This batch adds two directly declared cases (host key-ID mismatch and
+invalid store-budget input), producing the verified final runtime total of 99.
+The runner output, rather than a text count of `test(` spellings, is the case
+total source. Inventory ranks, frozen case counts, and assignment metrics
+remain unchanged; only dispositions were updated.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final cases |
+| --- | --- | --- | ---: |
+| `tests/review-gate-runtime-host-attestation-security.test.js` | Rewrite | The no-trust case now removes enrolled trust while signing with the enrolled fixture key; every rejected attestation asserts pending status, unchanged revision and chain digest, and zero receipts. | 7 |
+| `tests/review-gate-runtime-host-trust-security.test.js` | Rewrite | A valid Ed25519 DER key paired with a different valid SHA-256 key ID is rejected before `.dhpk` state is created. | 7 |
+| `tests/review-gate-runtime-init-security.test.js` | Rewrite | The no-lazy-init observe case uses current valid arguments; direct runtime evidence requires `SETUP_REQUIRED`, and the CLI leaves key, config, and state absent. | 17 |
+| `tests/review-gate-runtime-observe-cli.test.js` | Keep | Successful observe envelope, bounded provenance, exact retry, status, and lifecycle verdict mismatch remain independently covered. | 2 |
+| `tests/review-gate-runtime-observe-security.test.js` | Rewrite | Redaction markers are the actual foreign work and wave selectors or hostile evidence values checked against output and diagnostics. | 10 |
+| `tests/review-gate-runtime-observe-states.test.js` | Keep | `CHANGES_REQUIRED` now asserts the exact persisted `MUST_FIX` finding (id, disposition, summary, and evidence); `BLOCKED`, idempotence, plan ordering, and tampered trust-policy rejection remain covered. | 5 |
+| `tests/review-gate-runtime-review-findings.test.js` | Rewrite | `BLOCKED` and `UNAVAILABLE` command outcomes remain separate from the companion's semantic `PASS`; both produce exactly one review receipt. | 6 |
+| `tests/review-gate-runtime-storage-security.test.js` | Rewrite | Deterministic race tests prove the symlink swap reaches the open boundary, is rejected with the bounded code, and leaves outside bytes unchanged; oversized config asserts `SETUP_REQUIRED`. | 22 |
+| `tests/review-gate-security.test.js` | Keep | Authority override semantics, `MUST_FIX` continuity, and persisted command redaction retain their independent coverage. | 18 |
+| `tests/review-gate-store-budget.test.js` | Rewrite | Invalid counters and increments across every budget field reject negative, fractional, unsafe-integer, `NaN`, and string values without mutation or payload disclosure. | 5 |
+
+No shared helper or fixture is assigned to this batch; the previously audited
+host-attestation helper and runtime work-request fixture remain unchanged. All
+ten suites are discovered recursively by `tests/run-all.js`, run in the CI
+aggregate, and are outside the separate macOS installer subset. The focused
+aggregate passes **99/99** and `node scripts/ci/catalog.js --check` passes with
+zero uncovered scripts. No production source changed, so production coverage
+comparison is **NOT_APPLICABLE**.
+
+Pre-edit GitNexus impact for named test helpers was LOW with no affected
+execution processes or modules; unresolved file or symbol targets returned
+UNKNOWN and were cross-checked against the recursive runner and CI workflow.
+No production symbol changed. Final GitNexus `detect_changes --scope all`
+reports 18 changed symbols across 12 changed files, zero affected processes,
+and LOW risk; the result is complete and reports no HIGH or CRITICAL risk.
+The full precommit runner reports **FAIL** because no configured lint, build,
+or unit-test step exists; no precommit steps executed. The full repo-verify
+runner reports **PASS**, with lint, typecheck, unit, integration, and e2e
+stages skipped because their scripts or configuration are absent. Changelog
+validation passes with the internal marker
+`changelog.d/test-quality-batch-22.none`; generator consistency and
+`git diff --check` also pass. Consolidated code, security, and document review
+verdicts: code review **APPROVE**, security review **PASS**, and document review
+**APPROVE** after clarifying the frozen quoted-title count against the three
+table-driven runtime registrations. The final document review confirmed the
+99-case total and byte-identical generated copies.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

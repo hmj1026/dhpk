@@ -31,6 +31,7 @@ const RUNTIME_SCHEMA = 'dhpk.review-gate.runtime.v1';
 const COMPANION_SCHEMA = 'dhpk.claude-review-result.v1';
 const REVIEWER_CONTRACT_VERSION = 'dhpk.reviewer-contract.v2';
 const FIXTURE_TIME = '2026-09-07T00:00:02.000Z';
+const CONFIG_RELATIVE_PATH = path.join('.dhpk', 'review-gate', 'v1', 'config.json');
 
 function runCli(repoRoot, args = [], input = undefined) {
   return spawnSync(process.execPath, [CLI, ...args, '--repo-root', repoRoot], {
@@ -246,6 +247,20 @@ function assertAttestationFailure(fixture, result, expectedCode) {
   const diagnostic = JSON.parse(fs.readFileSync(diagnostics[0], 'utf8'));
   assert.strictEqual(diagnostic.command, 'observe');
   assert.strictEqual(diagnostic.code, expectedCode);
+
+  const statusResult = runCli(fixture.repoRoot, [
+    'status',
+    '--work-id', fixture.prepared.workId,
+    '--wave-id', fixture.prepared.waveId,
+  ]);
+  assert.strictEqual(statusResult.status, 0, `${statusResult.stdout}\n${statusResult.stderr}`);
+  const status = JSON.parse(statusResult.stdout);
+  assert.strictEqual(status.schema, RUNTIME_SCHEMA);
+  assert.strictEqual(status.status, 'PENDING');
+  assert.strictEqual(status.revision, fixture.prepared.revision);
+  assert.strictEqual(status.chainDigest, fixture.prepared.chainDigest);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'receipts'), false);
+  assert.deepStrictEqual(status.receiptSummary, { total: 0, byKind: {} });
 }
 
 function attestedFixture() {
@@ -376,7 +391,10 @@ test('observe permits an exact host-attested retry without a second receipt', ()
 test('observe rejects a valid host attestation when the checkout has no enrolled trust', () => {
   const fixture = makeFixture();
   try {
-    fixture.host = createHostKey(fixture.repoRoot, 'host-attestation-no-trust');
+    const configPath = path.join(fixture.repoRoot, CONFIG_RELATIVE_PATH);
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    config.hostTrust = null;
+    writeJson(fixture.repoRoot, CONFIG_RELATIVE_PATH, config);
     writeHostAttestation(
       fixture.repoRoot,
       fixture.prepared,
