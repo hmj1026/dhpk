@@ -1344,6 +1344,62 @@ were restored byte-for-byte. The full precommit runner reports **FAIL** because 
 repo-verify runner reports **PASS**, with lint, typecheck, unit, integration,
 and e2e stages skipped because their scripts or configuration are absent.
 
+### Issue #671 — Cohort B batch 10
+
+This batch keeps four suites and rewrites six. The baseline and final focused
+Darwin aggregate passed **103/103 executed cases** across all ten suites. The
+frozen inventory's lexical total remains 91; `skill-bridge-family-isolation`
+registers twelve fixture cases dynamically, so its two lexical cases execute
+as fourteen. All suites remain discovered, and no production file changed.
+
+| Test file | Disposition | Protected contract and assertion evidence | Final Darwin cases |
+| --- | --- | --- | ---: |
+| `tests/session-start.test.js` | Rewrite | Parses the single prefixed dispatch report and binds the configured worker target, source, catalog/host/runtime `NOT_RUN` statuses, and allowed fallback. Silent default and module validation remain. | 4 |
+| `tests/session-usage-audit.test.js` | Rewrite | Issue-gate checks assert exact auth-unavailable and unverified reasons. The coverage fixture asserts complete scan versus incomplete source coverage, malformed count, redacted active account, and exact installation/identity/navigation counts across two cached versions. | 38 |
+| `tests/set-handoff-state.test.js` | Rewrite | Compares the entire handoff after a state transition with the original bytes changed only in `state:`; invalid-state and leaf/parent symlink protections remain. | 6 |
+| `tests/simplify-command-contract.test.js` | Rewrite | Degraded nested-worker handling and heavy-cleanup escalation now match their complete instruction clauses; canonical command and generated Cursor/Claude parity remain. | 7 |
+| `tests/skill-audit-family-isolation.test.js` | Keep | Executes relocated family runners and binds the exact fixture IDs to the audit entries; behavioral fixtures remain distinct from authoring validation. | 12 |
+| `tests/skill-baseline.test.js` | Rewrite | Pins the checked-in source commit and tree to the documented historical values. Removes one duplicate scratch-root rejection while retaining the provenance-root and non-current-root failures. | 6 |
+| `tests/skill-bridge-family-isolation.test.js` | Keep | Runs the twelve registered bridge fixtures in relocated Skill trees, verifies authority and evidence boundaries, and checks source immutability. | 14 |
+| `tests/skill-capability-families.test.js` | Rewrite | Matches each of the five governance modes to its procedure within the mode table, and binds implicit-invocation metadata to the `default_prompt`; retirement and external package protections remain. | 5 |
+| `tests/skill-codemap-contract.test.js` | Keep | Owns the five documented output files, project-local write boundary, overwrite approval, and no-project-side-effect contract. | 1 |
+| `tests/skill-coverage-integrity.test.js` | Keep | Owns helper-graph reachability and rejection behavior plus physical publication and ambiguous-script boundaries. | 10 |
+
+The five primarily assigned helper assets are audited and kept unchanged:
+
+| Helper | Disposition | Owned contract |
+| --- | --- | --- |
+| `tests/_lib/fixture-assertions.js` | Keep | Shared exact expected/present/absent fixture checks across eight consumers. |
+| `tests/_lib/skill-audit-family-fixtures.js` | Keep | Audit-family registration and fixtures consumed by the runner suite and coverage validator. |
+| `tests/_lib/skill-bridge-family-fixtures.js` | Keep | Bridge fixture registration and authority, transport, containment, and redaction evidence. |
+| `tests/_lib/skill-directory-fixtures.js` | Keep | Shared directory registration and fixture-only evidence metadata. |
+| `tests/_lib/skill-directory-isolation.js` | Keep | Physical Skill copying, environment scrubbing, local entry execution, and cleanup; separate consumers cover its isolation contract. |
+
+The implement-step decision was **REASONER_REQUIRED** because the six rewrites
+cross public shell output, issue-creation gates, filesystem integrity,
+documentation contracts, and baseline provenance. The read-only reasoner
+returned **READY_FOR_DISPATCH** and recommended no production or helper edits.
+All ten suites are discovered by the recursive `tests/run-all.js` route used
+by CI and release. `session-usage-audit.test.js` also runs in the Darwin
+installer subset and passed with `TMPDIR=/private/tmp`. Both
+`node scripts/ci/catalog.js --check` and
+`node scripts/ci/validate-skill-directory-coverage.js --check` pass. No
+production source changed, so production-file line and branch coverage
+comparison is **NOT_APPLICABLE**.
+
+GitNexus upstream impact resolved `withIsolatedSkill` at **HIGH** risk (25
+upstream dependents, including 16 direct callers, and zero affected processes);
+the shared helper was kept unchanged. `registerAuditFamilyFixtures` and
+`registerBridgeFamilyFixtures` each resolved LOW with two direct callers,
+including their suite and the coverage validator. `assertExpected` resolved
+LOW with no graph callers and was kept unchanged. GitNexus returned `UNKNOWN`
+for the six test-file targets; text search confirmed their assignment and the
+recursive test discovery route. These graph results are not treated as an
+all-clear. Final `detect_changes --scope all` evidence is recorded after the
+implementation checks: the complete run reported three indexed documentation
+sections touched across ten changed files, zero affected processes, and LOW
+risk, with no partial or truncated result.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640

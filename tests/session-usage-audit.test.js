@@ -388,6 +388,19 @@ test('buildIssueDraft is sanitized and issueGate requires verification, dedupe, 
   assert.strictEqual(audit.evaluateIssueGate({ finding, duplicate: false, ghAuth: true, confirmed: false }).allowed, false);
   assert.strictEqual(audit.evaluateIssueGate({ finding, duplicate: true, ghAuth: true, confirmed: true }).allowed, false);
   assert.strictEqual(audit.evaluateIssueGate({ finding, duplicate: false, ghAuth: true, confirmed: true }).allowed, true);
+  assert.deepStrictEqual(
+    audit.evaluateIssueGate({ finding, duplicate: false, ghAuth: false, confirmed: true }).reasons,
+    ['github-auth-unavailable'],
+  );
+  assert.deepStrictEqual(
+    audit.evaluateIssueGate({
+      finding: { ...finding, status: 'candidate' },
+      duplicate: false,
+      ghAuth: true,
+      confirmed: true,
+    }).reasons,
+    ['finding-not-verified'],
+  );
 });
 
 test('collectInstallEvidence separates Claude registry and project Codex receipt versions', () => {
@@ -851,19 +864,50 @@ test('report exposes independent source coverage and installation identity count
   fs.writeFileSync(path.join(home, '.config', 'orca', 'codex-accounts', 'acct-b', 'home', 'sessions', 'unselected.jsonl'), '{}\n');
   fs.mkdirSync(path.join(home, '.claude', 'projects', 'demo'), { recursive: true });
   fs.writeFileSync(path.join(home, '.claude', 'projects', 'demo', 'bad.jsonl'), '{not-json}\n');
-  fs.mkdirSync(path.join(home, '.claude', 'plugins', 'cache', 'dhpk', 'dhpk', '0.37.0', 'agents'), { recursive: true });
-  fs.writeFileSync(path.join(home, '.claude', 'plugins', 'cache', 'dhpk', 'dhpk', '0.37.0', 'agents', 'code-reviewer.md'), '# reviewer\n');
+  const pluginCache = path.join(home, '.claude', 'plugins', 'cache', 'dhpk', 'dhpk');
+  const latestInstall = path.join(pluginCache, '0.37.0');
+  const previousInstall = path.join(pluginCache, '0.36.0');
+  fs.mkdirSync(path.join(latestInstall, 'agents'), { recursive: true });
+  fs.mkdirSync(path.join(previousInstall, 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(latestInstall, 'agents', 'code-reviewer.md'), '# reviewer\n');
+  fs.writeFileSync(path.join(previousInstall, 'agents', 'code-reviewer.md'), '# reviewer\n');
+  fs.writeFileSync(path.join(previousInstall, 'agents', 'INDEX.md'), '# navigation\n');
+  fs.mkdirSync(path.join(home, '.claude', 'plugins'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.claude', 'plugins', 'installed_plugins.json'), JSON.stringify({
+    version: 2,
+    plugins: {
+      'dhpk@dhpk': [
+        { version: '0.37.0', scope: 'user', installPath: latestInstall },
+        { version: '0.36.0', scope: 'user', installPath: previousInstall },
+      ],
+    },
+  }));
   const result = audit.runAudit({ argv: ['--date', '2026-08-06'], home, testFixtureHome: true, timeZone: 'UTC', activeOrcaAccounts: ['acct-a'] });
-  assert.ok(result.coverage.sourceCoverageComplete !== undefined);
-  assert.ok(result.coverage.scanComplete !== undefined);
-  assert.ok(Number.isInteger(result.coverage.malformedCount));
-  assert.ok(Number.isInteger(result.coverage.unsupportedCount));
-  assert.ok(Array.isArray(result.coverage.omittedSourceReasons));
-  assert.ok(result.coverage.activeOrcaAccounts.some((account) => account.startsWith('account:')));
+  assert.strictEqual(result.stats.scanComplete, true);
+  assert.strictEqual(result.stats.sourceCoverageComplete, false);
+  assert.strictEqual(result.coverage.scanComplete, true);
+  assert.strictEqual(result.coverage.sourceCoverageComplete, false);
+  assert.strictEqual(result.coverage.malformedCount, 1);
+  assert.strictEqual(result.coverage.unsupportedCount, 0);
+  assert.ok(result.coverage.omittedSourceReasons.includes('configured-active-account-missing'));
+  assert.deepStrictEqual(result.coverage.activeOrcaAccounts.length, 1);
+  assert.ok(result.coverage.activeOrcaAccounts[0].startsWith('account:'));
+  assert.ok(!result.coverage.activeOrcaAccounts[0].includes('acct-a'));
   assert.ok(!JSON.stringify(result).includes('acct-a'));
   assert.ok(!JSON.stringify(result).includes('acct-b'));
-  assert.ok(result.coverage.installationRows >= result.coverage.uniqueRoleIdentities);
-  assert.ok(Array.isArray(result.coverage.excludedIndexRows));
+  assert.strictEqual(result.coverage.installationRows, 3);
+  assert.strictEqual(result.coverage.uniqueRoleIdentities, 1);
+  assert.strictEqual(result.coverage.cacheVersionDuplicates, 1);
+  assert.strictEqual(result.coverage.excludedIndexRowCount, 1);
+  assert.deepStrictEqual(result.coverage.agentCounts, {
+    installationRows: 3,
+    uniqueCanonicalRoles: 1,
+    excludedIndexRows: 1,
+    displayedCount: 1,
+    displayedCountScope: 'unique-canonical-role',
+  });
+  assert.strictEqual(result.coverage.excludedIndexRows.length, 1);
+  assert.ok(result.coverage.excludedIndexRows[0].path.endsWith('/agents/INDEX.md'));
 });
 
 run('session-usage-audit');

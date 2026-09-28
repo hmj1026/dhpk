@@ -288,16 +288,16 @@ formal-suite,,,285,283,tests/session-install-health-ask.test.js,B,09,670,reviewe
 formal-suite,,,286,284,tests/session-install-health-modules.test.js,B,09,670,reviewed: keep,no,0,0,13,,23,0,0,0,0,0,119,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,287,285,tests/session-install-health-version.test.js,B,09,670,reviewed: keep,no,0,0,23,,45,0,0,0,0,0,167,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,288,286,tests/session-start-advisories.test.js,B,09,670,reviewed: keep,no,0,0,6,,12,0,0,0,0,0,77,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,289,287,tests/session-start.test.js,B,10,671,reserved for issue #641 queue,no,0,1,4,bash -n syntax check passes,13,0,5,384,28,4,8,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,290,288,tests/session-usage-audit.test.js,B,10,671,reserved for issue #641 queue,yes,0,0,38,,180,0,6,1803,702,1,195,,,"remaining active sorted paths after A boundary; exact B batches reserved for issue #641; initial default-TMPDIR c8 run failed 37/38 (expected verified, actual needs-verification); rerun with TMPDIR=/private/tmp passed 38/38; see Cohort B measurement note"
-formal-suite,,,291,289,tests/set-handoff-state.test.js,B,10,671,reserved for issue #641 queue,no,0,0,6,,16,0,3,0,0,0,93,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,292,290,tests/simplify-command-contract.test.js,B,10,671,reserved for issue #641 queue,no,0,0,7,,47,0,45,0,0,0,169,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,293,291,tests/skill-audit-family-isolation.test.js,B,10,671,reserved for issue #641 queue,no,0,0,12,,15,2,0,118,11,1,90,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,294,292,tests/skill-baseline.test.js,B,10,671,reserved for issue #641 queue,no,0,0,6,,53,2,4,643,180,2,174,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,295,293,tests/skill-bridge-family-isolation.test.js,B,10,671,reserved for issue #641 queue,no,0,0,2,,19,0,0,118,11,1,110,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,296,294,tests/skill-capability-families.test.js,B,10,671,reserved for issue #641 queue,no,0,0,5,,20,1,12,1446,103,15,111,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,297,295,tests/skill-codemap-contract.test.js,B,10,671,reserved for issue #641 queue,no,0,0,1,,7,0,3,118,11,1,44,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-formal-suite,,,298,296,tests/skill-coverage-integrity.test.js,B,10,671,reserved for issue #641 queue,no,0,0,10,,24,0,9,1110,167,3,122,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,289,287,tests/session-start.test.js,B,10,671,reviewed: rewrite,no,0,1,4,bash -n syntax check passes,13,0,5,384,28,4,8,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,290,288,tests/session-usage-audit.test.js,B,10,671,reviewed: rewrite,yes,0,0,38,,180,0,6,1803,702,1,195,,,"remaining active sorted paths after A boundary; exact B batches reserved for issue #641; initial default-TMPDIR c8 run failed 37/38 (expected verified, actual needs-verification); rerun with TMPDIR=/private/tmp passed 38/38; see Cohort B measurement note"
+formal-suite,,,291,289,tests/set-handoff-state.test.js,B,10,671,reviewed: rewrite,no,0,0,6,,16,0,3,0,0,0,93,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,292,290,tests/simplify-command-contract.test.js,B,10,671,reviewed: rewrite,no,0,0,7,,47,0,45,0,0,0,169,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,293,291,tests/skill-audit-family-isolation.test.js,B,10,671,reviewed: keep,no,0,0,12,,15,2,0,118,11,1,90,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,294,292,tests/skill-baseline.test.js,B,10,671,reviewed: rewrite,no,0,0,6,,53,2,4,643,180,2,174,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,295,293,tests/skill-bridge-family-isolation.test.js,B,10,671,reviewed: keep,no,0,0,2,,19,0,0,118,11,1,110,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,296,294,tests/skill-capability-families.test.js,B,10,671,reviewed: rewrite,no,0,0,5,,20,1,12,1446,103,15,111,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,297,295,tests/skill-codemap-contract.test.js,B,10,671,reviewed: keep,no,0,0,1,,7,0,3,118,11,1,44,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
+formal-suite,,,298,296,tests/skill-coverage-integrity.test.js,B,10,671,reviewed: keep,no,0,0,10,,24,0,9,1110,167,3,122,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,299,297,tests/skill-declared-entry-coverage.test.js,B,11,672,reserved for issue #641 queue,no,0,0,1,,2,0,0,0,0,0,21,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,300,298,tests/skill-dep-audit-contract.test.js,B,11,672,reserved for issue #641 queue,no,0,0,1,,9,0,8,118,11,1,55,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,301,299,tests/skill-dependency-evidence.test.js,B,11,672,reserved for issue #641 queue,no,0,0,0,,2,0,0,300,42,3,24,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
@@ -393,7 +393,7 @@ formal-suite,,,390,388,tests/workflow-docs.test.js,B,20,681,reserved for issue #
 formal-suite,,,391,389,tests/workflow-package-closure.test.js,B,20,681,reserved for issue #641 queue,no,0,0,5,,14,0,0,113,52,1,86,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,392,390,tests/workflow-package-runtime.test.js,B,20,681,reserved for issue #641 queue,no,0,0,3,,25,0,4,5436,829,32,125,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
 formal-suite,,,393,391,tests/write-handoff.test.js,B,20,681,reserved for issue #641 queue,no,0,0,6,,25,0,6,0,0,0,124,,,remaining active sorted paths after A boundary; exact B batches reserved for issue #641
-helper,,,,,tests/_lib/fixture-assertions.js,B,10,671,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,8,lowest-original-ordinal B consumer
+helper,,,,,tests/_lib/fixture-assertions.js,B,10,671,reviewed: keep,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,8,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/hookharness.js,A,19,660,audited: keep,,,,,,,,,,,,,tests/parallel-dispatch-contract.test.js,12,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/host-projection-conformance.js,A,20,661,audited: rewrite,,,,,,,,,,,,,tests/platform-conformance.test.js,1,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/install-codex-skills-fixtures.js,A,15,656,audited: keep,,,,,,,,,,,,,tests/install-codex-runtime-assets.test.js,7,lowest-original-ordinal A consumer
@@ -402,10 +402,10 @@ helper,,,,,tests/_lib/opsx-goal-fixtures.js,A,19,660,audited: rewrite,,,,,,,,,,,
 helper,,,,,tests/_lib/restricted-path.js,B,08,669,reviewed: keep,,,,,,,,,,,,,tests/run-agy.test.js,2,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/review-gate-fixture.js,A,03,644,audited: keep,,,,,,,,,,,,,tests/claude-review-gate-adapter.test.js,8,lowest-original-ordinal A consumer
 helper,,,,,tests/_lib/review-gate-host-attestation-fixture.js,B,06,667,audited: keep,,,,,,,,,,,,,tests/review-gate-runtime-cli.test.js,11,lowest-original-ordinal B consumer
-helper,,,,,tests/_lib/skill-audit-family-fixtures.js,B,10,671,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,1,lowest-original-ordinal B consumer
-helper,,,,,tests/_lib/skill-bridge-family-fixtures.js,B,10,671,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-bridge-family-isolation.test.js,1,lowest-original-ordinal B consumer
-helper,,,,,tests/_lib/skill-directory-fixtures.js,B,10,671,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,12,lowest-original-ordinal B consumer
-helper,,,,,tests/_lib/skill-directory-isolation.js,B,10,671,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,15,lowest-original-ordinal B consumer
+helper,,,,,tests/_lib/skill-audit-family-fixtures.js,B,10,671,reviewed: keep,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,1,lowest-original-ordinal B consumer
+helper,,,,,tests/_lib/skill-bridge-family-fixtures.js,B,10,671,reviewed: keep,,,,,,,,,,,,,tests/skill-bridge-family-isolation.test.js,1,lowest-original-ordinal B consumer
+helper,,,,,tests/_lib/skill-directory-fixtures.js,B,10,671,reviewed: keep,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,12,lowest-original-ordinal B consumer
+helper,,,,,tests/_lib/skill-directory-isolation.js,B,10,671,reviewed: keep,,,,,,,,,,,,,tests/skill-audit-family-isolation.test.js,15,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-flow-entry-fixtures.js,B,11,672,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-flow-entry-isolation.test.js,1,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-flow-family-fixtures.js,B,11,672,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-flow-family-isolation.test.js,1,lowest-original-ordinal B consumer
 helper,,,,,tests/_lib/skill-goal-runtime-fixtures.js,B,11,672,reserved for issue #641 queue,,,,,,,,,,,,,tests/skill-goal-runtime-isolation.test.js,1,lowest-original-ordinal B consumer
