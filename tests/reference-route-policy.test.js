@@ -87,7 +87,6 @@ test('route result carries context and has a stable terminal shape', () => {
 
 test('v3 skill-local parser keeps only the bounded --go option', () => {
   const skillParser = path.join(ROOT, 'skills', 'flow-guide', 'scripts', 'route-result.js');
-  if (!fs.existsSync(skillParser)) return;
   const skillMod = require(skillParser);
   const parsed = skillMod.parseInvocationContext(['--execute-explicit', '--codex', 'task']);
   assert.deepStrictEqual(parsed.options, { go: false });

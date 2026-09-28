@@ -75,6 +75,15 @@ function mkRepo({ versions, changelogHeading, agyDocVersion = '1.0.0' } = {}) {
   return root;
 }
 
+function withRepo(options, callback) {
+  const root = mkRepo(options);
+  try {
+    return callback(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 function allAtVersion(version) {
   return {
     '.claude-plugin/plugin.json': version,
@@ -102,19 +111,21 @@ test('checkParity fails when a tracked Claude profile manifest lags the target',
     'generated/claude-profiles/full/package/plugin.json',
     'generated/claude-profiles/compat-v1/package/plugin.json',
   ]) {
-    const root = mkRepo({
+    withRepo({
       versions: { ...allAtVersion('1.2.3'), [rel]: '1.2.2' },
       changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
       agyDocVersion: '1.2.3',
+    }, (root) => {
+      const result = checkParity(root, '1.2.3');
+      assert.strictEqual(result.ok, false);
+      assert.ok(result.errors.some((e) => e.includes(rel) && e.includes('1.2.2') && e.includes('1.2.3')));
     });
-    const result = checkParity(root, '1.2.3');
-    assert.strictEqual(result.ok, false);
-    assert.ok(result.errors.some((e) => e.includes(rel) && e.includes('1.2.2') && e.includes('1.2.3')));
   }
 });
 
 test('MANIFEST_PATHS lists every version-bearing manifest, including native package provenance', () => {
-  assert.deepStrictEqual(MANIFEST_PATHS.sort(), [
+  const originalPaths = [...MANIFEST_PATHS];
+  const expectedPaths = [
     '.agents/plugins/marketplace.json',
     '.claude-plugin/plugin.json',
     '.codex-plugin/plugin.json',
@@ -130,45 +141,52 @@ test('MANIFEST_PATHS lists every version-bearing manifest, including native pack
     'generated/claude-profiles/minimal/package/plugin.json',
     'generated/claude-profiles/full/package/plugin.json',
     'generated/claude-profiles/compat-v1/package/plugin.json',
-  ].sort());
+  ];
+  assert.deepStrictEqual([...MANIFEST_PATHS].sort(), [...expectedPaths].sort());
+  assert.deepStrictEqual(MANIFEST_PATHS, originalPaths);
 });
 
 test('checkParity rejects a non-semver target version', () => {
-  const root = mkRepo();
-  const result = checkParity(root, '1.0');
-  assert.strictEqual(result.ok, false);
-  assert.ok(result.errors.some((e) => /semver/i.test(e)));
+  withRepo({}, (root) => {
+    const result = checkParity(root, '1.0');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => /semver/i.test(e)));
+  });
 });
 
 test('checkParity passes when every manifest, native package provenance, and the changelog heading match the target', () => {
-  const root = mkRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.3', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' });
-  const result = checkParity(root, '1.2.3');
-  assert.strictEqual(result.ok, true, JSON.stringify(result.errors));
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.3', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, true, JSON.stringify(result.errors));
+  });
 });
 
 test('checkParity fails when native package provenance drifts from the target', () => {
-  const root = mkRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' });
-  const result = checkParity(root, '1.2.3');
-  assert.strictEqual(result.ok, false);
-  assert.ok(result.errors.some((e) => e.includes('plugins/dhpk/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.2' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes('plugins/dhpk/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
+  });
 });
 
 test('checkParity fails when native AGY package provenance drifts from the target', () => {
-  const root = mkRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.2', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' });
-  const result = checkParity(root, '1.2.3');
-  assert.strictEqual(result.ok, false);
-  assert.ok(result.errors.some((e) => e.includes('plugins/dhpk-agy/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
+  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.2', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes('plugins/dhpk-agy/provenance.json') && e.includes('1.2.2') && e.includes('1.2.3')));
+  });
 });
 
 test('checkParity reports every manifest that drifts from the target, with observed values', () => {
-  const root = mkRepo({ versions: { '.codex-plugin/plugin.json': '1.2.4' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' });
-  const result = checkParity(root, '1.2.3');
-  assert.strictEqual(result.ok, false);
-  assert.ok(result.errors.some((e) => e.includes('.codex-plugin/plugin.json') && e.includes('1.2.4') && e.includes('1.2.3')));
+  withRepo({ versions: { '.codex-plugin/plugin.json': '1.2.4' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes('.codex-plugin/plugin.json') && e.includes('1.2.4') && e.includes('1.2.3')));
+  });
 });
 
 test('checkParity fails when the bilingual AGY generator pin lags the target', () => {
-  const root = mkRepo({
+  withRepo({
     versions: {
       '.claude-plugin/plugin.json': '1.2.3',
       '.codex-plugin/plugin.json': '1.2.3',
@@ -184,18 +202,20 @@ test('checkParity fails when the bilingual AGY generator pin lags the target', (
     },
     changelogHeading: '## 1.2.3 — 2026-07-27 — Summary',
     agyDocVersion: '1.2.2',
+  }, (root) => {
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => e.includes('docs/platform-installation.md') && e.includes('1.2.2') && e.includes('1.2.3')));
+    assert.ok(result.errors.some((e) => e.includes('docs/platform-installation.zh-TW.md')));
   });
-  const result = checkParity(root, '1.2.3');
-  assert.strictEqual(result.ok, false);
-  assert.ok(result.errors.some((e) => e.includes('docs/platform-installation.md') && e.includes('1.2.2') && e.includes('1.2.3')));
-  assert.ok(result.errors.some((e) => e.includes('docs/platform-installation.zh-TW.md')));
 });
 
 test('checkParity fails when the changelog heading for the target version is missing', () => {
-  const root = mkRepo({ changelogHeading: '## 0.9.0 — 2026-01-01 — Old', agyDocVersion: '1.2.3' });
-  const result = checkParity(root, '1.2.3');
-  assert.strictEqual(result.ok, false);
-  assert.ok(result.errors.some((e) => /changelog/i.test(e) && /heading/i.test(e)));
+  withRepo({ changelogHeading: '## 0.9.0 — 2026-01-01 — Old', agyDocVersion: '1.2.3' }, (root) => {
+    const result = checkParity(root, '1.2.3');
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((e) => /changelog/i.test(e) && /heading/i.test(e)));
+  });
 });
 
 run('release-parity');

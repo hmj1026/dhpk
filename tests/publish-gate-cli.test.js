@@ -16,10 +16,20 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'publish-gate.js');
 
-function mkStageFile(stage) {
-  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-publish-gate-')), 'stage.json');
-  fs.writeFileSync(file, JSON.stringify(stage));
-  return file;
+function withStageFiles(stages, callback) {
+  const roots = [];
+  try {
+    const files = stages.map((stage) => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-publish-gate-'));
+      roots.push(root);
+      const file = path.join(root, 'stage.json');
+      fs.writeFileSync(file, JSON.stringify(stage));
+      return file;
+    });
+    return callback(files);
+  } finally {
+    for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
+  }
 }
 
 function passStage() {
@@ -53,61 +63,78 @@ function mkPublishRepo() {
   spawnSync('git', ['add', '-A'], { cwd: root });
   spawnSync('git', ['commit', '-q', '-m', 'init'], { cwd: root });
   spawnSync('git', ['checkout', '-q', '-b', 'main'], { cwd: root });
+  spawnSync('git', ['tag', 'baseline-v1'], { cwd: root });
   return root;
 }
 
+function gitState(root) {
+  const head = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' });
+  const tags = spawnSync('git', ['tag', '--list'], { cwd: root, encoding: 'utf8' });
+  assert.strictEqual(head.status, 0, head.stderr);
+  assert.strictEqual(tags.status, 0, tags.stderr);
+  return { head: head.stdout.trim(), tags: tags.stdout.trim() };
+}
+
 test('allows publication when SOURCE and PACKAGE both PASS', () => {
-  const res = spawnSync('node', [
-    CLI, '--version', '1.0.0',
-    '--source-gate-json', mkStageFile(passStage()),
-    '--package-gate-json', mkStageFile(passStage()),
-  ], { encoding: 'utf8' });
-  assert.strictEqual(res.status, 0, res.stderr);
-  const evidence = JSON.parse(res.stdout);
-  assert.notStrictEqual(evidence.overall, 'BLOCKED');
+  withStageFiles([passStage(), passStage()], ([sourceFile, packageFile]) => {
+    const res = spawnSync('node', [
+      CLI, '--version', '1.0.0',
+      '--source-gate-json', sourceFile,
+      '--package-gate-json', packageFile,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const evidence = JSON.parse(res.stdout);
+    assert.strictEqual(evidence.overall, 'PUBLISHED_PENDING');
+    assert.strictEqual(evidence.stages.CONSUMER.verdict, 'PENDING');
+  });
 });
 
-test('passes the merged publish target branch context to SOURCE', () => {
+test('passes target branch context without mutating refs or publishing', () => {
+  const source = fs.readFileSync(CLI, 'utf8');
+  assert.ok(!source.includes('git tag'), 'publish-gate must never create a tag itself');
+  assert.ok(!source.includes('git push'), 'publish-gate must never push anything itself');
+  assert.ok(!source.includes('gh pr merge') && !source.includes('pr merge'), 'publish-gate must never merge a PR itself');
+
   const repo = mkPublishRepo();
   try {
+    const before = gitState(repo);
     const res = spawnSync('node', [CLI, '--version', '1.0.0', '--repo-root', repo], { encoding: 'utf8' });
     assert.strictEqual(res.status, 0, res.stderr);
     const evidence = JSON.parse(res.stdout);
     assert.strictEqual(evidence.stages.SOURCE.verdict, 'PASS');
     assert.strictEqual(evidence.stages.PACKAGE.verdict, 'PASS');
+    assert.deepStrictEqual(gitState(repo), before);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });
 
 test('blocks publication when PACKAGE fails, even though SOURCE passes', () => {
-  const res = spawnSync('node', [
-    CLI, '--version', '1.0.0',
-    '--source-gate-json', mkStageFile(passStage()),
-    '--package-gate-json', mkStageFile(failStage('staged package missing declared asset')),
-  ], { encoding: 'utf8' });
-  assert.notStrictEqual(res.status, 0);
-  const evidence = JSON.parse(res.stdout);
-  assert.strictEqual(evidence.overall, 'BLOCKED');
-  assert.strictEqual(evidence.stages.SOURCE.verdict, 'PASS');
-  assert.strictEqual(evidence.stages.PACKAGE.verdict, 'FAIL');
+  withStageFiles([passStage(), failStage('staged package missing declared asset')], ([sourceFile, packageFile]) => {
+    const res = spawnSync('node', [
+      CLI, '--version', '1.0.0',
+      '--source-gate-json', sourceFile,
+      '--package-gate-json', packageFile,
+    ], { encoding: 'utf8' });
+    assert.notStrictEqual(res.status, 0);
+    const evidence = JSON.parse(res.stdout);
+    assert.strictEqual(evidence.overall, 'BLOCKED');
+    assert.strictEqual(evidence.stages.SOURCE.verdict, 'PASS');
+    assert.strictEqual(evidence.stages.PACKAGE.verdict, 'FAIL');
+  });
 });
 
 test('blocks publication when SOURCE fails', () => {
-  const res = spawnSync('node', [
-    CLI, '--version', '1.0.0',
-    '--source-gate-json', mkStageFile(failStage('tests/run-all.js failed')),
-    '--package-gate-json', mkStageFile(passStage()),
-  ], { encoding: 'utf8' });
-  assert.notStrictEqual(res.status, 0);
-  const evidence = JSON.parse(res.stdout);
-  assert.strictEqual(evidence.overall, 'BLOCKED');
-});
-
-test('never merges a PR or creates a tag itself (advisory gate only)', () => {
-  const raw = fs.readFileSync(CLI, 'utf8');
-  assert.ok(!raw.includes('git tag'), 'publish-gate must not create tags itself');
-  assert.ok(!raw.includes('pr merge') && !raw.includes('gh pr merge'), 'publish-gate must not merge PRs itself');
+  withStageFiles([failStage('tests/run-all.js failed'), passStage()], ([sourceFile, packageFile]) => {
+    const res = spawnSync('node', [
+      CLI, '--version', '1.0.0',
+      '--source-gate-json', sourceFile,
+      '--package-gate-json', packageFile,
+    ], { encoding: 'utf8' });
+    assert.notStrictEqual(res.status, 0);
+    const evidence = JSON.parse(res.stdout);
+    assert.strictEqual(evidence.overall, 'BLOCKED');
+  });
 });
 
 run('publish-gate-cli');

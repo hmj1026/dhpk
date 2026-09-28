@@ -1025,6 +1025,44 @@ unchanged. GitNexus `detect_changes --scope all` reports 33 changed symbols
 across 8 files, 0 affected processes, and low overall risk. No production
 symbols or execution flows changed.
 
+### Issue #665 — Cohort B batch 04
+
+This batch keeps six independent suites and rewrites four weak suites; no
+suite is deleted. The ten assigned paths pass at 83/83 cases. Inventory rows
+228–237 retain every frozen rank, count, and assignment metric; only their
+disposition status changed.
+
+| Test file | Disposition | Owned contract and assertion evidence | Final cases |
+| --- | --- | --- | ---: |
+| `tests/provider-cli-adapters.test.js` | Keep | Bounded Codex argv and effort, AGY confirmation transport, explicit Claude Code and Cursor adapters, native Host routing, and target-specific callback arguments remain covered. | 5 |
+| `tests/publish-gate-cli.test.js` | Rewrite | Publication requires both SOURCE and PACKAGE PASS and reports `PUBLISHED_PENDING` with a pending CONSUMER. The repository invocation verifies target-branch context while HEAD and tags stay unchanged; failure cases assert blocked evidence. Temporary stage inputs are removed. | 4 |
+| `tests/receipt-json-primitives.test.js` | Keep | Descriptor-safe traversal, plain data shape and dense-array policy, cycle handling, configurable bounds, detached frozen clones, safe paths, and caller error context remain covered. | 10 |
+| `tests/receipt-primitives.test.js` | Keep | Canonical bytes and digests, redaction, immutable writes, physical-root swap refusal, sequenced replay, process-lock ownership, bounded lease journals, and the compatibility facade remain covered. | 15 |
+| `tests/redaction.test.js` | Keep | Authorization and connection-string values, tail truncation ordering, JSON-shaped keys, and Cursor session token names remain covered. | 4 |
+| `tests/reference-integrity.test.js` | Keep | Dangling command/rule/path references, legacy branding, execution-policy fallback rules, and intentional references remain covered. | 16 |
+| `tests/reference-route-policy.test.js` | Rewrite | Canonical and legacy route resolution, handoff parsing, immutable route context, terminal shape, bounded `--go`, and resume forwarding remain covered. The required skill-local parser can no longer be silently skipped when absent. | 7 |
+| `tests/release-artifact-manifest.test.js` | Rewrite | The manifest binds all four package surfaces. Independent resealed mutations prove stale target, untrusted producer, and altered mode fingerprints are refused; scratch-package checks distinguish byte and mode changes. | 3 |
+| `tests/release-evidence.test.js` | Keep | Required SOURCE/PACKAGE/CONSUMER stages, unavailable and failed gates, pending publication, completion, unhealthy post-publication state, and evidence validation remain covered. | 10 |
+| `tests/release-parity.test.js` | Rewrite | Version parity and drift diagnostics cover package manifests, provenance, AGY pins, and changelog headings. The exported manifest list is asserted unchanged after comparison; every scratch repository is removed in `finally`. | 9 |
+
+`tests/run-all.js` recursively discovers the assigned paths, and CI invokes the
+aggregate at `.github/workflows/ci.yml:134`. `node scripts/ci/catalog.js
+--check` passed with all required scripts covered. The frozen queue assigns no
+primary helper or fixture to this batch. The four rewritten suites passed
+23/23 focused cases; adjacent `git-flow-governance` and `release-runner` owner
+checks are recorded with the batch verification. No production path changed,
+so production line/branch comparison is **NOT_APPLICABLE**.
+
+Pre-edit GitNexus impact was LOW for `runGate`,
+`validateReleaseArtifactManifest`, and `checkParity`. The parser symbol also
+reported LOW, while text search found additional consumers missing from the
+graph. The initial file-level publish-gate result was UNKNOWN; a follow-up
+symbol impact was LOW, and text search confirmed its release-runner and
+governance consumers. No production API changed. GitNexus
+`detect_changes --scope all` reports 41 changed symbols across 8 files,
+0 affected processes, and low risk. Every changed symbol belongs to a test or
+review document; no production symbol or execution flow changed.
+
 ## Frozen review queues
 
 ### Cohort A — issue #640
