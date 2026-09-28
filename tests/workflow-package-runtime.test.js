@@ -63,8 +63,20 @@ for (const surface of SURFACES) {
 
 test('action-runner wires next to the package-local analyzer', () => {
   const next = runIsolated('plugins/dhpk/skills/flow-guide/scripts/action-runner.js', ['next']);
-  assert.ok([0, 1, 2].includes(next.status), `${next.stdout}\n${next.stderr}`);
-  assert.match(next.stdout, /"phase"/);
+  const report = JSON.parse(next.stdout);
+  assert.strictEqual(report.version, 2);
+  assert.ok(typeof report.phase === 'string' && report.phase.trim().length > 0);
+  assert.ok(Number.isInteger(report.finding_count && report.finding_count.P0)
+    && report.finding_count.P0 >= 0);
+  assert.ok(Number.isInteger(report.finding_count && report.finding_count.P1)
+    && report.finding_count.P1 >= 0);
+
+  const expectedStatus = report.finding_count.P0 > 0
+    ? 2
+    : report.finding_count.P1 > 0
+      ? 1
+      : 0;
+  assert.strictEqual(next.status, expectedStatus, `${next.stdout}\n${next.stderr}`);
 });
 
 test('action-runner rejects multiple or cross-action options', () => {
