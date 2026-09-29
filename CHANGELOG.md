@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.64.3 — 2026-09-29 — Avoid Codex runtime skill collisions in project projection
+
+- **fix(agents-skills)** — Keep Codex runtime support skills under the native installer when generating project Host Bindings.
+
 ## 0.64.2 — 2026-09-29 — Fail dependency audits on invalid package manager evidence
 
 - **fix(dep-audit)** — Fail dependency audits when the package manager returns invalid or incomplete evidence, while preserving severity gating for valid findings.
