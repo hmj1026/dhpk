@@ -260,7 +260,7 @@ function createCodexProjectDiscoveryAdapter({
   destinationRoot = CODEX_PROJECT_DISCOVERY_DESTINATION_ROOT,
   bindingShape = NATIVE_LINK_SHAPE,
 } = {}) {
-  return createNativeLinkDiscoveryAdapter({
+  const adapter = createNativeLinkDiscoveryAdapter({
     id: CODEX_PROJECT_DISCOVERY_ADAPTER_ID,
     version: CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION,
     hostLabel: 'Codex',
@@ -269,6 +269,9 @@ function createCodexProjectDiscoveryAdapter({
     sourceRoot,
     bindingShape,
   });
+  const hiddenIds = new Set(entries.filter((entry) => entry.discoveryVisible === false).map((entry) => entry.stableId));
+  adapter.entries = adapter.entries.filter((entry) => !hiddenIds.has(entry.stableId));
+  return adapter;
 }
 
 function createProjectAgentProviderAdapters(hostBindings = {}, {
