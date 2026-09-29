@@ -166,21 +166,32 @@ test('a job without an explicit timeout fails closed', () => {
 });
 
 test('the agreed timeout budget is enforced for current CI jobs', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-workflow-policy-timeout-'));
-  try {
-    fs.mkdirSync(path.join(root, '.github', 'workflows'), { recursive: true });
-    for (const file of ['ci.yml', 'release.yml']) {
-      const original = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
-      fs.writeFileSync(path.join(root, '.github', 'workflows', file), original);
+  for (const job of ['preflight', 'tests', 'validate']) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-workflow-policy-timeout-' + job + '-'));
+    try {
+      fs.mkdirSync(path.join(root, '.github', 'workflows'), { recursive: true });
+      for (const file of ['ci.yml', 'release.yml']) {
+        const original = fs.readFileSync(path.join(ROOT, '.github', 'workflows', file), 'utf8');
+        fs.writeFileSync(path.join(root, '.github', 'workflows', file), original);
+      }
+      const ciPath = path.join(root, '.github', 'workflows', 'ci.yml');
+      const ci = fs.readFileSync(ciPath, 'utf8');
+      const changed = ci.replace(new RegExp('(\\n  ' + job + ':\\n[\\s\\S]*?\\n    timeout-minutes:) 10'), '$1 9');
+      assert.notStrictEqual(changed, ci, 'fixture must contain the ' + job + ' timeout');
+      fs.writeFileSync(ciPath, changed);
+      const result = main(root);
+      assert.ok(result.errors.some((error) => error.includes("job '" + job + "' timeout-minutes must be 10")), result.errors.join('\n'));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
-    const ciPath = path.join(root, '.github', 'workflows', 'ci.yml');
-    const ci = fs.readFileSync(ciPath, 'utf8');
-    fs.writeFileSync(ciPath, ci.replace(/(\n  validate:\n[\s\S]*?\n    timeout-minutes:) 10/, '$1 9'));
-    const result = main(root);
-    assert.ok(result.errors.some((error) => /validate.*timeout|timeout.*validate/i.test(error)), result.errors.join('\n'));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the CI timeout policy retains the aggregate required-check budget and assigns preflight and test budgets', () => {
+  const { WORKFLOW_TIMEOUTS } = require('../scripts/ci/validate-workflow-policy');
+  assert.strictEqual(WORKFLOW_TIMEOUTS['ci.yml'].preflight, 10);
+  assert.strictEqual(WORKFLOW_TIMEOUTS['ci.yml'].tests, 10);
+  assert.strictEqual(WORKFLOW_TIMEOUTS['ci.yml'].validate, 10);
 });
 
 test('the release rehearsal job has an agreed timeout budget', () => {
