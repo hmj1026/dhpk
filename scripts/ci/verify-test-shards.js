@@ -7,6 +7,7 @@ const { findTests } = require('../../tests/run-all');
 
 const TIMING_SCHEMA = 'dhpk.test-timing.v1';
 const EXPECTED_JOBS = 4;
+const SHARD_IMBALANCE_WARNING_RATIO = 2.0;
 const ARTIFACT_PREFIX = 'dhpk-test-timing-';
 const EMPTY_ASSERTIONS = Object.freeze({ total: 0, passed: 0, failed: 0, skipped: 0 });
 
@@ -314,6 +315,7 @@ function verifyShardReports(input = {}) {
       ok: true,
       errors: [],
       durationMs: Math.max(...shardDurations),
+      shardDurations: shardDurations.slice(),
       files: allFiles.length,
       assertions,
     };
@@ -356,7 +358,28 @@ function parseArgs(argv = process.argv.slice(2)) {
 }
 
 function formatSummary(result) {
-  return `## CI test shard timing verification\n\nPASS: ${result.files} discovered test file(s), ${result.assertions.total} assertion(s); parallel duration ${result.durationMs} ms.\n`;
+  const lines = [
+    '## CI test shard timing verification',
+    '',
+    `PASS: ${result.files} discovered test file(s), ${result.assertions.total} assertion(s); parallel duration ${result.durationMs} ms.`,
+  ];
+  const shardDurations = Array.isArray(result.shardDurations) ? result.shardDurations : [];
+  let fastest = null;
+  let slowest = null;
+  shardDurations.forEach((durationMs, shardIndex) => {
+    if (!isNonNegativeNumber(durationMs)) return;
+    if (!fastest || durationMs < fastest.durationMs) fastest = { shardIndex, durationMs };
+    if (!slowest || durationMs > slowest.durationMs) slowest = { shardIndex, durationMs };
+  });
+  if (fastest && slowest && shardDurations.filter(isNonNegativeNumber).length >= 2) {
+    const imbalanced = fastest.durationMs === 0
+      ? slowest.durationMs > 0
+      : slowest.durationMs / fastest.durationMs > SHARD_IMBALANCE_WARNING_RATIO;
+    if (imbalanced) {
+      lines.push(`WARNING: shard timing imbalance; slowest shard ${slowest.shardIndex} took ${slowest.durationMs} ms, fastest shard ${fastest.shardIndex} took ${fastest.durationMs} ms.`);
+    }
+  }
+  return `${lines.join('\n')}\n`;
 }
 
 function main(argv = process.argv.slice(2)) {

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { verifyShardReports } = require('../scripts/ci/verify-test-shards');
+const { verifyShardReports, main } = require('../scripts/ci/verify-test-shards');
 
 const SHARD_COUNT = 4;
 const RUN_ID = '123';
@@ -142,6 +142,32 @@ function verify({ root, directory, overrides = {} }) {
   });
 }
 
+function setShardDurations(directory, durations) {
+  durations.forEach((durationMs, shardIndex) => {
+    writeChangedReport(directory, shardIndex, (report) => { report.duration_ms = durationMs; });
+  });
+}
+
+function runMainSummary({ root, directory }) {
+  const summaryPath = path.join(root, 'summary.md');
+  const previousDirectory = process.cwd();
+  try {
+    process.chdir(root);
+    const exitCode = main([
+      '--directory', directory,
+      '--count', String(SHARD_COUNT),
+      '--run-id', RUN_ID,
+      '--run-attempt', RUN_ATTEMPT,
+      '--checkout-sha', CHECKOUT_SHA,
+      '--head-sha', HEAD_SHA,
+      '--summary', summaryPath,
+    ]);
+    return { exitCode, summary: fs.readFileSync(summaryPath, 'utf8') };
+  } finally {
+    process.chdir(previousDirectory);
+  }
+}
+
 function assertRejected(result) {
   assert.strictEqual(result.ok, false);
   assert.ok(Array.isArray(result.errors) && result.errors.length > 0, 'rejection must include an error');
@@ -164,6 +190,41 @@ test('valid four-shard reports aggregate files, assertions, and parallel wall ti
     assert.strictEqual(result.durationMs, 1700);
     assert.strictEqual(result.files, 4);
     assert.deepStrictEqual(result.assertions, { total: 12, passed: 12, failed: 0, skipped: 0 });
+  });
+});
+
+test('validated shard summary warns above a max/min ratio of 2.0 without failing verification', () => {
+  withFixture(({ root, directory }) => {
+    setShardDurations(directory, [43.3, 86.7, 43.3, 43.3]);
+    const result = verify({ root, directory });
+    assert.strictEqual(result.ok, true, (result.errors || []).join('\n'));
+    const { exitCode, summary } = runMainSummary({ root, directory });
+    assert.strictEqual(exitCode, 0);
+    assert.match(summary, /imbalance/i);
+  });
+});
+
+test('validated shard summary does not warn when max/min ratio is exactly 2.0', () => {
+  withFixture(({ root, directory }) => {
+    const durations = [43.3, 86.6, 43.3, 43.3];
+    setShardDurations(directory, durations);
+    assert.strictEqual(Math.max(...durations) / Math.min(...durations), 2.0);
+    const result = verify({ root, directory });
+    assert.strictEqual(result.ok, true, (result.errors || []).join('\n'));
+    const { exitCode, summary } = runMainSummary({ root, directory });
+    assert.strictEqual(exitCode, 0);
+    assert.ok(!/imbalance/i.test(summary), 'a ratio equal to 2.0 must not warn');
+  });
+});
+
+test('validated shard summary warns when a positive duration has a zero minimum', () => {
+  withFixture(({ root, directory }) => {
+    setShardDurations(directory, [0, 10, 3, 4]);
+    const result = verify({ root, directory });
+    assert.strictEqual(result.ok, true, (result.errors || []).join('\n'));
+    const { exitCode, summary } = runMainSummary({ root, directory });
+    assert.strictEqual(exitCode, 0);
+    assert.match(summary, /imbalance/i);
   });
 });
 

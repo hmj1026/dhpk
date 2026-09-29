@@ -9,6 +9,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const FILE_DURATION_WARNING_THRESHOLD_MS = 180000;
+
 function readTimingFile(file, filesystem = fs) {
   const target = path.resolve(file);
   if (!filesystem.existsSync(target)) {
@@ -83,6 +85,12 @@ function summarizeTiming(observed) {
     .filter((entry) => Number.isFinite(Number(entry.duration_ms)))
     .sort((left, right) => Number(right.duration_ms) - Number(left.duration_ms))
     .slice(0, 5);
+  const longRunning = files.filter((entry) => (
+    typeof entry.duration_ms === 'number'
+    && Number.isFinite(entry.duration_ms)
+    && entry.duration_ms >= 0
+    && entry.duration_ms > FILE_DURATION_WARNING_THRESHOLD_MS
+  ));
   lines.push('### Slowest files');
   if (slowest.length === 0) lines.push('- none recorded');
   else for (const entry of slowest) lines.push(`- \`${entry.file}\`: ${formatDuration(entry.duration_ms)} (${entry.status || 'unknown'})`);
@@ -91,6 +99,13 @@ function summarizeTiming(observed) {
   if (failed.length === 0) lines.push('- none recorded');
   else for (const entry of failed) lines.push(`- \`${entry.file}\`: ${entry.status || 'FAIL'}`);
   lines.push('');
+  if (longRunning.length > 0) {
+    lines.push('### Per-file runtime warnings');
+    for (const entry of longRunning) {
+      lines.push(`- WARNING: \`${entry.file}\` took ${entry.duration_ms} ms, exceeding ${FILE_DURATION_WARNING_THRESHOLD_MS} ms.`);
+    }
+    lines.push('');
+  }
   lines.push('Timing is diagnostic evidence; the test command remains the authoritative pass/fail gate.');
   return `${lines.join('\n')}\n`;
 }
