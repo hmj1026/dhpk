@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.64.2 — 2026-09-29 — Fail dependency audits on invalid package manager evidence
+
+- **fix(dep-audit)** — Fail dependency audits when the package manager returns invalid or incomplete evidence, while preserving severity gating for valid findings.
+
 ## 0.64.1 — 2026-09-27 — Fix shared projection and symlink installer errors
 
 - **fix(installer)** — Report conflicting skill symlinks and symlinked Cursor managed directories with actionable errors instead of misleading diagnostics or a Python traceback.
