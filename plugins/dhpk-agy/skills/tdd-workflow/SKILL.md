@@ -137,6 +137,7 @@ include the TDD-relevant test/verification result in its existing report.
 
 ## References
 
-- [tests.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/tests.md) — behavior-focused good/bad test shapes and
-  implementation-coupling traps.
+- [tests.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/tests.md) — behavior-focused good/bad test shapes,
+  implementation-coupling traps, independent oracles, discrimination, and the
+  rejection checklist.
 - [mocking.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/mocking.md) — boundary mocking and dependency-injection rules.
