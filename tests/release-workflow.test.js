@@ -170,12 +170,16 @@ test('release workflow reruns repository tests under the required Linux bounded 
 // Ubuntu runners do not ship ripgrep, and the isolated skill fixtures delegate
 // to the host rg binary. v0.63.0 failed at tag time because only CI installed
 // it; both test-running jobs must now share one environment definition.
-test('CI validate and the release rerun share one test environment action and no inline ripgrep install', () => {
+test('CI test shards and the release rerun share one test environment action and no inline ripgrep install', () => {
   const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
   const action = fs.readFileSync(path.join(ROOT, '.github', 'actions', 'setup-dhpk-test-env', 'action.yml'), 'utf8');
   const releaseJob = raw.slice(raw.indexOf('\n  release:\n'), raw.indexOf('\n  publish:\n'));
-  const validateJob = ci.slice(ci.indexOf('\n  validate:\n'), ci.indexOf('\n  macos-installer:\n'));
-  for (const [name, job] of [['release', releaseJob], ['validate', validateJob]]) {
+  const testsStart = ci.indexOf('\n  tests:\n');
+  const testsRest = ci.slice(testsStart + 1);
+  const nextJob = testsRest.slice(1).search(/\n  [a-z][a-z0-9-]*:\n/);
+  const testsJob = nextJob === -1 ? testsRest : testsRest.slice(0, nextJob + 1);
+  assert.ok(testsStart !== -1, 'CI must define the tests matrix');
+  for (const [name, job] of [['release', releaseJob], ['tests', testsJob]]) {
     const actionIdx = job.indexOf('uses: ./.github/actions/setup-dhpk-test-env');
     assert.ok(actionIdx !== -1, `${name} job must use the shared test environment action`);
     assert.ok(job.indexOf('actions/checkout@') < actionIdx, `${name} job must check out before using the local action`);
@@ -213,6 +217,20 @@ test('release PRs run a read-only release rehearsal of the tag-only path', () =>
   assert.ok(/PUBLISHED_PENDING[\s\S]{0,240}exit 0/.test(job), 'pending consumer evidence stays green');
   assert.ok(/PUBLISHED_UNHEALTHY\|BLOCKED[\s\S]{0,240}exit 1/.test(job), 'unhealthy or blocked evidence fails the rehearsal');
   assert.ok(/Unexpected consumer rehearsal outcome[\s\S]{0,120}exit 1/.test(job), 'unknown evidence fails closed');
+});
+
+test('CI preserves the required Validate harness assets check as the shard aggregate', () => {
+  const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const start = ci.indexOf('\n  validate:\n');
+  assert.ok(start !== -1, 'ci.yml must keep the validate job id for required-check compatibility');
+  const rest = ci.slice(start + 1);
+  const next = rest.slice(1).search(/\n  [a-z][a-z0-9-]*:\n/);
+  const job = next === -1 ? rest : rest.slice(0, next + 1);
+  assert.match(job, /name: Validate harness assets/);
+  assert.match(job, /needs:\s*\[\s*preflight,\s*tests\s*\]/);
+  assert.match(job, /if:\s*always\(\)/);
+  assert.match(job, /Verify all preflight and test shards passed/);
+  assert.match(job, /node scripts\/ci\/verify-test-shards\.js/);
 });
 
 test('a post-publish consumer-verify job runs the full harness release probe and reports via the job summary, never editing the release', () => {

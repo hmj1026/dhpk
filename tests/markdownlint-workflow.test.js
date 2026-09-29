@@ -17,7 +17,9 @@ const markdownlint = JSON.parse(fs.readFileSync(CONFIG, 'utf8'));
 const lintMatch = workflow.match(/\n  lint:\n([\s\S]*?)(?=\n  [a-z][a-z0-9-]*:\n|$)/);
 assert.ok(lintMatch, 'ci.yml must define a lint job');
 const lintJob = lintMatch[1];
-const validateJob = workflow.match(/\n  validate:\n([\s\S]*?)(?=\n  [a-z][a-z0-9-]*:\n|$)/)[1];
+const testsMatch = workflow.match(/\n  tests:\n([\s\S]*?)(?=\n  [a-z][a-z0-9-]*:\n|$)/);
+assert.ok(testsMatch, 'ci.yml must define the required tests matrix');
+const testsJob = testsMatch[1];
 
 test('Markdown lint job remains blocking and covers the intended asset globs', () => {
   assert.ok(
@@ -47,9 +49,12 @@ test('Markdown table column validation remains enabled', () => {
   assert.notStrictEqual(markdownlint.MD056, false, 'MD056 must not be disabled');
 });
 
-test('repository tests run through the bounded Node wrapper', () => {
-  assert.match(validateJob, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js/);
-  assert.match(validateJob, /DHPK_BOUNDED_REQUIRE_CGROUP:\s*['"]?1/);
+test('repository tests run through the bounded Node wrapper on all four shards', () => {
+  assert.match(testsJob, /fail-fast:\s*false/);
+  assert.match(testsJob, /shard:\s*\[\s*0,\s*1,\s*2,\s*3\s*\]/);
+  assert.match(testsJob, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js\s+--shard-index\s+\$\{\{\s*matrix\.shard\s*\}\}\s+--shard-count\s+4/);
+  assert.match(testsJob, /DHPK_BOUNDED_REQUIRE_CGROUP:\s*['"]?1/);
+  assert.match(testsJob, /DHPK_TEST_JOBS:\s*['"]?4/);
 });
 
 run('markdownlint-workflow');

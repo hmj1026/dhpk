@@ -52,9 +52,11 @@ require('node:fs').writeFileSync(${JSON.stringify(probe)}, process.env.DHPK_TEST
 
 function ciWorkerPool() {
   const workflow = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
-  const match = workflow.match(/name:\s+Tests[\s\S]*?DHPK_TEST_JOBS:\s*[\"']?(\d+)/);
-  assert.ok(match, 'CI must declare a worker-pool size for the Tests stage');
-  return match[1];
+  const match = workflow.match(/\n  tests:\n([\s\S]*?)(?=\n  [a-z][a-z0-9-]*:\n|$)/);
+  assert.ok(match, 'CI must declare a tests matrix job');
+  const workers = match[1].match(/DHPK_TEST_JOBS:\s*[\"']?(\d+)/);
+  assert.ok(workers, 'CI must declare a worker-pool size for the tests matrix');
+  return workers[1];
 }
 
 test('prints a PASS SOURCE stage as JSON when every step succeeds', () => {
