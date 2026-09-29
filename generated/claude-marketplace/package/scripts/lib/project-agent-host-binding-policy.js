@@ -82,42 +82,18 @@ function stampDiscoveryHost(hostBindings, bindingPaths, providers, {
   const discovery = providers.forHost[hostId] && providers.forHost[hostId].discovery;
   if (!discovery) return { hostBindings, bindingPaths };
 
+  const direct = bindingShape === DIRECT_SHAPE;
   const nextHostBindings = { ...hostBindings };
   const nextBindingPaths = { ...bindingPaths };
-  if (bindingShape === DIRECT_SHAPE) {
-    nextBindingPaths[hostId] = [];
-    const stamped = {
-      ...hostBindings[hostId],
-      discovery: {
-        adapterId: discovery.id,
-        adapterVersion: discovery.version,
-        kind: 'direct',
-        sourceRoot: discovery.sourceRoot,
-        destinationRoot: discovery.destinationRoot,
-        paths: [],
-      },
-      bindingShape: DIRECT_SHAPE,
-      bindings: discovery.entries.map((entry) => ({
-        stableId: entry.stableId,
-        name: entry.name,
-        shape: DIRECT_SHAPE,
-      })),
-    };
-    if (bindingReason) stamped.bindingReason = bindingReason;
-    nextHostBindings[hostId] = stamped;
-    return { hostBindings: nextHostBindings, bindingPaths: nextBindingPaths };
-  }
-
-  nextBindingPaths[hostId] = discovery.entries.map(({ path: bindingPath, target }) => ({
-    path: bindingPath,
-    target,
-  }));
+  nextBindingPaths[hostId] = direct
+    ? []
+    : discovery.entries.map(({ path: bindingPath, target }) => ({ path: bindingPath, target }));
   const stamped = {
     ...hostBindings[hostId],
     discovery: {
       adapterId: discovery.id,
       adapterVersion: discovery.version,
-      kind: discovery.kind,
+      kind: direct ? DIRECT_SHAPE : discovery.kind,
       sourceRoot: discovery.sourceRoot,
       destinationRoot: discovery.destinationRoot,
       paths: nextBindingPaths[hostId].map((entry) => entry.path),
@@ -125,13 +101,9 @@ function stampDiscoveryHost(hostBindings, bindingPaths, providers, {
   };
   if (bindingShape) {
     stamped.bindingShape = bindingShape;
-    stamped.bindings = discovery.entries.map((entry) => ({
-      stableId: entry.stableId,
-      name: entry.name,
-      path: entry.path,
-      target: entry.target,
-      shape: bindingShape,
-    }));
+    stamped.bindings = discovery.entries.map((entry) => (direct
+      ? { stableId: entry.stableId, name: entry.name, shape: DIRECT_SHAPE }
+      : { stableId: entry.stableId, name: entry.name, path: entry.path, target: entry.target, shape: bindingShape }));
   }
   if (bindingReason) stamped.bindingReason = bindingReason;
   nextHostBindings[hostId] = stamped;
@@ -191,10 +163,9 @@ function assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
     }
     const expectedNames = (discovery && discovery.entries ? discovery.entries : [])
       .map((entry) => entry.name)
-      .slice()
       .sort();
     const bindings = Array.isArray(receipt.hostBindings[hostId].bindings) ? receipt.hostBindings[hostId].bindings : [];
-    const actualNames = bindings.map((entry) => entry && entry.name).slice().sort();
+    const actualNames = bindings.map((entry) => entry && entry.name).sort();
     if (bindings.some((entry) => !entry || entry.shape !== DIRECT_SHAPE || entry.path || entry.target)
       || actualNames.join('\0') !== expectedNames.join('\0')) {
       throw policyError(`project projection receipt ${label} direct bindings do not match the selected artifact`);
@@ -231,40 +202,25 @@ function validateReceiptBindings(receipt, providers, bindingPaths) {
     hostId: 'claude',
     label: 'Claude',
   });
-  const cursorBinding = receipt.hostBindings && receipt.hostBindings.cursor;
-  const cursorShape = cursorBinding && (
-    cursorBinding.bindingShape === DIRECT_SHAPE || cursorBinding.bindingShape === NATIVE_LINK_SHAPE
-  ) ? cursorBinding.bindingShape : null;
-  const cursorDiscoveryRecorded = Boolean(
-    cursorBinding && (
-      cursorBinding.discovery
-      || cursorShape
-      || (bindingPaths.cursor && bindingPaths.cursor.length > 0)
-    )
-  );
-  assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
-    hostId: 'cursor',
-    label: 'Cursor',
-    bindingShape: cursorDiscoveryRecorded ? (cursorShape || NATIVE_LINK_SHAPE) : null,
-    required: cursorDiscoveryRecorded,
-  });
-  const codexBinding = receipt.hostBindings && receipt.hostBindings.codex;
-  const codexShape = codexBinding && (
-    codexBinding.bindingShape === DIRECT_SHAPE || codexBinding.bindingShape === NATIVE_LINK_SHAPE
-  ) ? codexBinding.bindingShape : null;
-  const codexDiscoveryRecorded = Boolean(
-    codexBinding && (
-      codexBinding.discovery
-      || codexShape
-      || (bindingPaths.codex && bindingPaths.codex.length > 0)
-    )
-  );
-  assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
-    hostId: 'codex',
-    label: 'Codex',
-    bindingShape: codexDiscoveryRecorded ? (codexShape || NATIVE_LINK_SHAPE) : null,
-    required: codexDiscoveryRecorded,
-  });
+  for (const [hostId, label] of [['cursor', 'Cursor'], ['codex', 'Codex']]) {
+    const binding = receipt.hostBindings && receipt.hostBindings[hostId];
+    const shape = binding && (
+      binding.bindingShape === DIRECT_SHAPE || binding.bindingShape === NATIVE_LINK_SHAPE
+    ) ? binding.bindingShape : null;
+    const discoveryRecorded = Boolean(
+      binding && (
+        binding.discovery
+        || shape
+        || (bindingPaths[hostId] && bindingPaths[hostId].length > 0)
+      )
+    );
+    assertDiscoveryBindingSet(receipt, providers, bindingPaths, {
+      hostId,
+      label,
+      bindingShape: discoveryRecorded ? (shape || NATIVE_LINK_SHAPE) : null,
+      required: discoveryRecorded,
+    });
+  }
   return bindingPaths;
 }
 
