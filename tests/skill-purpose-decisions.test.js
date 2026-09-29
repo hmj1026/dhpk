@@ -1,7 +1,9 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   CONTRACT_VERSION,
@@ -135,5 +137,116 @@ test('v2 purpose validation rejects missing outcome rows and duplicated inventor
   assert.ok(duplicateResult.errors.some((error) => /identity|path|distribution inventory/i.test(error)),
     `expected inventory-derived identity diagnostic, got:\n${duplicateResult.errors.join('\n')}`);
 });
+
+function registerAdditionTests() {
+  const inventory = INVENTORY;
+  const ledger = LEDGER;
+  const ids = ['create-pr', 'git-worktree', 'merge-prep', 'pr-summary', 'proposal-analyze',
+    'project-brief', 'doc-refactor', 'update-docs', 'update-codemaps', 'precommit',
+    'dep-audit', 'repo-verify', 'code-simplify', 'harness-audit', 'review-pending',
+    'spec-mine', 'harness-setup', 'opsx-apply-resume', 'ui-ux-verify'];
+  const additions = ids.map((id) => ({ id, source: 'docs/adr/0022-portable-command-skills-and-public-names.md' }));
+  function validateRows(rows) {
+    return validateSkillPurposeDecisions({ root: ROOT, inventory, ledger: { ...ledger, additions: rows } });
+  }
+
+  function assertOnlyDiagnostic(rows, pattern, label) {
+    const errors = validateRows(rows).errors;
+    assert.strictEqual(errors.length, 1, `${label}: ${JSON.stringify(errors)}`);
+    assert.match(errors[0], pattern, label);
+  }
+
+  test('post-baseline skills require explicit additions without rewriting historical evidence', () => {
+    assert.deepStrictEqual(validateRows(additions).errors, []);
+    assertOnlyDiagnostic(
+      additions.slice(1),
+      /active skill 'create-pr' requires an addition decision beyond the issue #467 baseline/,
+      'a missing addition must identify the skill and baseline rule',
+    );
+    const baseline = JSON.parse(fs.readFileSync(path.join(ROOT, ledger.baseline.path), 'utf8'));
+    assert.strictEqual(baseline.static.skills.length, 65);
+    assert.ok(!baseline.static.skills.some((skill) => skill.id === 'precommit'));
+  });
+
+  test('addition provenance rejects duplicates, old or unknown IDs, and missing or unsafe evidence', () => {
+    assertOnlyDiagnostic(
+      [...additions, additions[0]],
+      /duplicates addition 'create-pr'/,
+      'a duplicate addition must name its identity error',
+    );
+    assertOnlyDiagnostic(
+      [...additions, { id: 'tdd', source: additions[0].source }],
+      /cannot redeclare baseline skill 'tdd'/,
+      'a baseline skill cannot be re-added',
+    );
+    assertOnlyDiagnostic(
+      [...additions, { id: 'unregistered', source: additions[0].source }],
+      /does not resolve to active skill 'unregistered'/,
+      'an unknown ID must be distinguished from a baseline ID',
+    );
+    assertOnlyDiagnostic(
+      [{ ...additions[0], source: '../outside.md' }, ...additions.slice(1)],
+      /contains an unsafe caller path '\.\.\/outside\.md'/,
+      'parent traversal must be rejected',
+    );
+    assertOnlyDiagnostic(
+      [{ ...additions[0], source: '/tmp/outside.md' }, ...additions.slice(1)],
+      /contains an unsafe caller path '\/tmp\/outside\.md'/,
+      'absolute paths must be rejected',
+    );
+    assertOnlyDiagnostic(
+      [{ ...additions[0], source: 'docs/not-present-addition.md' }, ...additions.slice(1)],
+      /caller does not exist: docs\/not-present-addition\.md/,
+      'missing provenance documents must be rejected',
+    );
+  });
+}
+
+function registerValidatorCliTests() {
+  const CLI = path.join(ROOT, 'scripts', 'ci', 'validate-skill-purpose-decisions.js');
+  function runCli(root) {
+    const res = spawnSync('node', [path.join(root, 'scripts', 'ci', 'validate-skill-purpose-decisions.js')], {
+      encoding: 'utf8',
+    });
+    return { status: res.status, out: `${res.stdout || ''}${res.stderr || ''}` };
+  }
+
+  test('real CI validator CLI exits 0 and reports PASS for the checked-in ledger', () => {
+    const { status, out } = runCli(ROOT);
+    assert.strictEqual(status, 0, out);
+    assert.match(out, /PASS \[skill-purpose-decisions\]:/);
+  });
+
+  test('malformed isolated ledger fails through the real CLI with an actionable ledger error', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-skill-purpose-decisions-'));
+    try {
+      const files = [
+        'scripts/ci/validate-skill-purpose-decisions.js',
+        'scripts/ci/_lib/report.js',
+        'scripts/ci/_lib/frontmatter.js',
+        'scripts/lib/skill-purpose-decisions.js',
+        'manifests/distribution-inventory.json',
+      ];
+      for (const rel of files) {
+        const destination = path.join(tmp, rel);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.copyFileSync(path.join(ROOT, rel), destination);
+      }
+
+      const ledgerPath = path.join(tmp, 'manifests', 'skill-purpose-decisions.json');
+      fs.writeFileSync(ledgerPath, '{ "schema": ');
+
+      const { status, out } = runCli(tmp);
+      assert.strictEqual(status, 1, out);
+      assert.match(out, /ERROR \[skill-purpose-decisions\]: manifests\/skill-purpose-decisions\.json cannot be read:/);
+      assert.match(out, /JSON|Unexpected end|end of JSON/i);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+}
+
+registerAdditionTests();
+registerValidatorCliTests();
 
 run('skill-purpose-decisions');
