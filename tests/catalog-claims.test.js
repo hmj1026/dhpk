@@ -45,6 +45,97 @@ function runCheck(repo) {
   return runCatalog(repo, '--check');
 }
 
+// The suite-admission tests need real Git history because catalog only considers
+// tests added after an explicit base commit. Keep the fixture small: copy the CLI,
+// let it resolve its read-only library dependencies through a symlink, and provide
+// only the manifests required for an otherwise-clean --check.
+function makeAdmissionGitRepo() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-admission-'));
+  fs.mkdirSync(path.join(tmp, 'scripts', 'ci'), { recursive: true });
+  fs.copyFileSync(
+    path.join(ROOT, 'scripts', 'ci', 'catalog.js'),
+    path.join(tmp, 'scripts', 'ci', 'catalog.js')
+  );
+  fs.symlinkSync(path.join(ROOT, 'scripts', 'lib'), path.join(tmp, 'scripts', 'lib'), 'dir');
+  for (const dir of ['agents', 'modules', 'skills', 'commands', 'tests', 'manifests']) {
+    fs.mkdirSync(path.join(tmp, dir), { recursive: true });
+  }
+  // The existing coverage ledger maps catalog.js to this flat suite. It is
+  // deliberately committed at the base so it cannot count as a newly added suite.
+  fs.writeFileSync(path.join(tmp, 'tests', 'catalog-claims.test.js'), '// fixture baseline\n');
+  for (const name of [
+    'distribution-inventory.json',
+    'install-profiles.json',
+    'module-catalog.json',
+    'profile-projection-sets.json',
+  ]) {
+    fs.copyFileSync(path.join(ROOT, 'manifests', name), path.join(tmp, 'manifests', name));
+  }
+
+  runGit(tmp, ['init', '--quiet', '--initial-branch=main']);
+  runGit(tmp, ['config', 'user.name', 'Catalog admission fixture']);
+  runGit(tmp, ['config', 'user.email', 'catalog-admission@example.invalid']);
+  commitAdmissionFixture(tmp, 'baseline');
+  return tmp;
+}
+
+function runGit(repo, args) {
+  const result = spawnSync('git', ['-C', repo, ...args], { encoding: 'utf8' });
+  const out = (result.stdout || '') + (result.stderr || '');
+  assert.strictEqual(result.status, 0, `git ${args.join(' ')} failed:\n${out}`);
+  return (result.stdout || '').trim();
+}
+
+function commitAdmissionFixture(repo, message) {
+  runGit(repo, ['add', '-A']);
+  runGit(repo, ['commit', '--quiet', '-m', message]);
+}
+
+function admissionBase(repo) {
+  return runGit(repo, ['rev-parse', 'HEAD']);
+}
+
+function addAdmissionSuite(repo, rel) {
+  const fp = path.join(repo, rel);
+  fs.mkdirSync(path.dirname(fp), { recursive: true });
+  fs.writeFileSync(fp, '// newly added fixture suite\n');
+}
+
+function addSuiteOwnerRegistration(repo, suiteRel, ownerRel) {
+  const catalogPath = path.join(repo, 'scripts', 'ci', 'catalog.js');
+  const source = fs.readFileSync(catalogPath, 'utf8');
+  const table = /const SUITE_OWNER_REGISTRY\s*=\s*(?:Object\.freeze\s*\(\s*)?\{/;
+  const match = source.match(table);
+  const row = `\n  ${JSON.stringify(suiteRel)}: ${JSON.stringify(ownerRel)},`;
+  let updated;
+  if (match) {
+    const openingBrace = source.indexOf('{', match.index);
+    updated = `${source.slice(0, openingBrace + 1)}${row}${source.slice(openingBrace + 1)}`;
+  } else {
+    // Keep the fixture executable against the pre-feature CLI during RED. Once
+    // the registry exists, the branch above inserts a row into that real table.
+    updated = source.replace(
+      "'use strict';",
+      `'use strict';\n\nconst SUITE_OWNER_REGISTRY = {${row}\n};`
+    );
+  }
+  assert.notStrictEqual(updated, source, 'fixture should add a suite owner registration');
+  fs.writeFileSync(catalogPath, updated);
+}
+
+function runAdmissionCheck(repo, baseSha) {
+  const result = spawnSync('node', [
+    path.join(repo, 'scripts', 'ci', 'catalog.js'),
+    '--check', 'all', '--diff-base', baseSha,
+  ], { cwd: repo, encoding: 'utf8' });
+  return { status: result.status, out: (result.stdout || '') + (result.stderr || '') };
+}
+
+function suiteWarningPattern(suiteRel) {
+  const escaped = suiteRel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:warn(?:ing)?[^\\n]*${escaped}|${escaped}[^\\n]*warn(?:ing)?)`, 'i');
+}
+
 const repo = makeTempRepo();
 process.on('exit', () => { try { fs.rmSync(repo, { recursive: true, force: true }); } catch { /* best effort */ } });
 
@@ -466,6 +557,108 @@ test('--write repairs a stale projection set and a second --write changes nothin
     assert.strictEqual(fs.readFileSync(fp, 'utf8'), repaired, 're-running --write must be a no-op');
     assert.strictEqual(runCheck(repo).status, 0);
   });
+});
+
+test('a newly added suite without an owner warns without changing --check status', () => {
+  const admissionRepo = makeAdmissionGitRepo();
+  const suiteRel = 'tests/zz-admission-unregistered.test.js';
+  try {
+    const base = admissionBase(admissionRepo);
+    const baseline = runAdmissionCheck(admissionRepo, base);
+    assert.strictEqual(baseline.status, 0, `Git fixture baseline should pass, got:\n${baseline.out}`);
+
+    addAdmissionSuite(admissionRepo, suiteRel);
+    commitAdmissionFixture(admissionRepo, 'add unregistered suite');
+    const result = runAdmissionCheck(admissionRepo, base);
+
+    assert.strictEqual(result.status, baseline.status,
+      `an admission warning must not change catalog status, got:\n${result.out}`);
+    assert.match(result.out, suiteWarningPattern(suiteRel),
+      `expected a warning naming the new unregistered suite, got:\n${result.out}`);
+  } finally {
+    fs.rmSync(admissionRepo, { recursive: true, force: true });
+  }
+});
+
+test('a newly added suite with a valid owner registration stays silent', () => {
+  const admissionRepo = makeAdmissionGitRepo();
+  const suiteRel = 'tests/zz-admission-valid.test.js';
+  try {
+    const base = admissionBase(admissionRepo);
+    addAdmissionSuite(admissionRepo, suiteRel);
+    addSuiteOwnerRegistration(admissionRepo, suiteRel, 'scripts/ci/catalog.js');
+    commitAdmissionFixture(admissionRepo, 'add registered suite');
+
+    const result = runAdmissionCheck(admissionRepo, base);
+    assert.strictEqual(result.status, 0, `valid owner registration should pass, got:\n${result.out}`);
+    assert.doesNotMatch(result.out, suiteWarningPattern(suiteRel),
+      `valid owner registration should not warn for ${suiteRel}, got:\n${result.out}`);
+  } finally {
+    fs.rmSync(admissionRepo, { recursive: true, force: true });
+  }
+});
+
+test('a malformed owner registration fails closed with a warn-only signal', () => {
+  const admissionRepo = makeAdmissionGitRepo();
+  const suiteRel = 'tests/zz-admission-malformed.test.js';
+  try {
+    const base = admissionBase(admissionRepo);
+    const baseline = runAdmissionCheck(admissionRepo, base);
+    assert.strictEqual(baseline.status, 0, `Git fixture baseline should pass, got:\n${baseline.out}`);
+
+    addAdmissionSuite(admissionRepo, suiteRel);
+    addSuiteOwnerRegistration(admissionRepo, suiteRel, '../scripts/ci/catalog.js');
+    commitAdmissionFixture(admissionRepo, 'add malformed registration');
+    const result = runAdmissionCheck(admissionRepo, base);
+
+    assert.strictEqual(result.status, baseline.status,
+      `malformed registration warnings must remain warn-only, got:\n${result.out}`);
+    assert.match(result.out, suiteWarningPattern(suiteRel),
+      `malformed registration should warn for ${suiteRel}, got:\n${result.out}`);
+  } finally {
+    fs.rmSync(admissionRepo, { recursive: true, force: true });
+  }
+});
+
+test('an owner registration pointing to a symlink warns without changing --check status', () => {
+  const admissionRepo = makeAdmissionGitRepo();
+  const suiteRel = 'tests/zz-admission-symlink-owner.test.js';
+  const ownerRel = 'scripts/ci/catalog-owner-link.js';
+  try {
+    const base = admissionBase(admissionRepo);
+    const baseline = runAdmissionCheck(admissionRepo, base);
+    assert.strictEqual(baseline.status, 0, `Git fixture baseline should pass, got:\n${baseline.out}`);
+    addAdmissionSuite(admissionRepo, suiteRel);
+    fs.symlinkSync(
+      path.join(admissionRepo, 'scripts', 'ci', 'catalog.js'),
+      path.join(admissionRepo, ownerRel),
+      'file'
+    );
+    addSuiteOwnerRegistration(admissionRepo, suiteRel, ownerRel);
+    commitAdmissionFixture(admissionRepo, 'add suite with symlink owner');
+
+    const result = runAdmissionCheck(admissionRepo, base);
+
+    assert.strictEqual(result.status, baseline.status,
+      `a symlink owner warning must not change catalog status, got:\n${result.out}`);
+    assert.match(result.out, suiteWarningPattern(suiteRel),
+      `a symlink owner must fail closed and warn for ${suiteRel}, got:\n${result.out}`);
+  } finally {
+    fs.rmSync(admissionRepo, { recursive: true, force: true });
+  }
+});
+
+test('an existing unchanged suite does not trigger an admission warning', () => {
+  const admissionRepo = makeAdmissionGitRepo();
+  try {
+    const base = admissionBase(admissionRepo);
+    const result = runAdmissionCheck(admissionRepo, base);
+    assert.strictEqual(result.status, 0, `unchanged Git fixture should pass, got:\n${result.out}`);
+    assert.doesNotMatch(result.out, suiteWarningPattern('tests/catalog-claims.test.js'),
+      `a suite already present at the Git base should not warn, got:\n${result.out}`);
+  } finally {
+    fs.rmSync(admissionRepo, { recursive: true, force: true });
+  }
 });
 
 run('catalog-claims');
