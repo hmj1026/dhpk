@@ -13,6 +13,31 @@ function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-timing-summary-'));
 }
 
+function summarizeFiles(files) {
+  const root = tempDir();
+  try {
+    const file = path.join(root, 'timing.json');
+    fs.writeFileSync(file, JSON.stringify({
+      schema: 'dhpk.test-timing.v1',
+      source_commit: 'abc123',
+      ci: { run_id: '42', run_attempt: '2', event: 'pull_request', ref: 'refs/pull/1/merge', base_ref: 'develop', base_sha: 'base456' },
+      runner: { node: 'v20.1.0', platform: 'linux', command: 'node tests/run-all.js', jobs: 4, shard_index: 0, shard_count: 1 },
+      duration_ms: files.reduce((sum, entry) => sum + entry.duration_ms, 0),
+      totals: { files: files.length, failed: 0 },
+      suites: {
+        smoke: { status: 'OBSERVED', files: 0, assertions: { total: 0, passed: 0, failed: 0, skipped: 0 } },
+        full_suite: { status: 'OBSERVED', files: files.length, assertions: { total: files.length, passed: files.length, failed: 0, skipped: 0 } },
+      },
+      files,
+    }));
+    const observed = readTimingFile(file);
+    assert.strictEqual(observed.status, 'OBSERVED');
+    return summarizeTiming(observed);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test('valid timing evidence renders identity, runtime, slowest, and failed files', () => {
   const root = tempDir();
   try {
@@ -62,6 +87,22 @@ test('missing and malformed timing evidence remain explicit without becoming a t
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('valid timing summary warns when a file duration exceeds 180000ms', () => {
+  const output = summarizeFiles([
+    { file: 'over-threshold.test.js', duration_ms: 180001, status: 'PASS' },
+  ]);
+  assert.match(output, /warning/i);
+  assert.match(output, /over-threshold\.test\.js/);
+});
+
+test('valid timing summary omits per-file warnings at and below 180000ms', () => {
+  const output = summarizeFiles([
+    { file: 'at-threshold.test.js', duration_ms: 180000, status: 'PASS' },
+    { file: 'under-threshold.test.js', duration_ms: 179999, status: 'PASS' },
+  ]);
+  assert.ok(!/warning/i.test(output), 'files at or under the threshold must not warn');
 });
 
 run('render-test-timing');
