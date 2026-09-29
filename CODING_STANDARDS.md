@@ -24,6 +24,15 @@ surface; commands and generated-file inventories remain the source of truth.
   an unavailable runtime is not static PASS, and a valid package must retain
   its structural evidence.
 
+## Commits
+
+- A commit message describes only the change. It carries no author, tool,
+  agent, or model identity: no `Co-authored-by`, `Signed-off-by`, or
+  generated-by trailer, and no attribution line in the body.
+- Before pushing, check the branch with
+  `git log --format=%B origin/develop..HEAD | grep -iE '^(co-authored-by|signed-off-by):'`;
+  a match must be removed by rewording the local commit.
+
 ## Tests
 
 - Apply the rejection checklist in

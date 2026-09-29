@@ -46,6 +46,20 @@ test('TDD workflow covers seams, tracer bullets, slicing, and tautological tests
   assert.match(skill, /RED.*GREEN.*REFACTOR/s);
 });
 
+test('TDD test guidance owns oracle, discrimination, ownership, and rejection rules', () => {
+  const guide = read('skills/tdd-workflow/tests.md');
+  for (const heading of ['Independent Oracles', 'Discriminating Tests', 'One Contract, One Owner', 'Rejection Checklist']) {
+    assert.match(guide, new RegExp(`^## ${heading}$`, 'm'), heading);
+  }
+  for (const phrase of ['controlled mutation', 'fail-closed negative path', 'constants of the\\s+module under test']) {
+    assert.match(guide, new RegExp(phrase, 'i'), phrase);
+  }
+  const skill = read('skills/tdd-workflow/SKILL.md');
+  const tautology = skill.split(/^## Tautological tests considered harmful$/m)[1].split(/^## /m)[0];
+  assert.match(tautology, /\[tests\.md\]\(tests\.md\)/);
+  assert.doesNotMatch(tautology, /helper on both sides/i, 'rules stay in tests.md, not restated in SKILL.md');
+});
+
 test('root-cause workflow starts with a symptom-specific red loop and ranked falsifiable hypotheses', () => {
   const skill = read('skills/code-trace/SKILL.md');
   for (const phrase of ['diagnose', 'hypoth', 'evidence', 'verify']) {
