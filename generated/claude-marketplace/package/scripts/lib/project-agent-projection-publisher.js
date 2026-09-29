@@ -221,16 +221,11 @@ function validateReceiptBindings(receipt, roots) {
   }
   if (legacyUnbound) return bindingPaths;
 
-  let providers;
   try {
-    providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
+    const providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
       entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible })),
       claudeSourceRoot: roots.config.managed_root,
     });
-  } catch (error) {
-    throw fail('INVALID_RECEIPT', error.message);
-  }
-  try {
     validateHostReceiptBindings(receipt, providers, bindingPaths);
   } catch (error) {
     throw fail('INVALID_RECEIPT', error.message);
