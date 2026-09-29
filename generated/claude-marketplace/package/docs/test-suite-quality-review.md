@@ -2178,3 +2178,299 @@ consumer. The previously unreferenced
 `tests/fixtures/subagent-stop/lin-blog-2026-07-17.json` was audited in batch 15
 under issue #676 and deleted; all remaining support assets retain their
 primary-consumer assignments.
+
+## Test consolidation — issue #739
+
+This section records the consolidation effort planned in
+[#739](https://github.com/hmj1026/dhpk/issues/739): merge small, fast suites into
+the suite that owns their contract, and apply the test-writing standard in
+`skills/tdd-workflow/tests.md` to every moved assertion. Batch
+tickets append their keep, rewrite, or delete outcomes below the baseline.
+
+### Issue #740 — Baseline inventory, family map, and timing
+
+Decision: **REASONER_REQUIRED**; read-only reasoner result:
+**READY_FOR_DISPATCH**; `planner=skipped` because this issue is not an OpenSpec
+apply. The reasoner checked the draft family map against the test files and
+found batches grouped by name prefix instead of by production contract. Its
+corrections are applied: it split or narrowed those batches, excluded two
+suites that skip without a host tool, added the runtime cap, and computed
+catalog entries across all batches at once.
+
+#### Baseline
+
+The baseline commit is `a8d40727e199fcd7aaed0358221fd6cff3b04231` on `docs/test-writing-standard`, the
+branch that carries the test-writing standard. It was not yet merged into
+`develop` when this baseline was taken. Later suite additions are tracked
+separately and do not change this denominator.
+
+`tests/run-all.js` discovers **393 suites** at that commit: every
+`tests/**/*.test.js` except `tests/_lib`. All 393 are flat
+`tests/*.test.js` files and total 86,916 lines. The count is one lower than the
+394 estimated in #739.
+
+The per-suite inventory is [the consolidation baseline](test-consolidation-baseline.csv).
+Each row records the line count, measured runtime, test count, CI shard,
+catalog production owner, and family-map disposition. The CI shard is the
+`partitionFiles(files, 4)` bucket that CI's `--shard-index` selects. The catalog
+owner lists every `scripts/` file that `scripts/ci/catalog.js` resolves to the
+suite, through `COVERAGE_MAP` (marked) or the `<stem>.test.js` and
+`<stem>-*.test.js` naming rule. 140 suites own no script.
+
+#### Timing
+
+Runtime comes from `DHPK_TEST_TIMING_FILE`. Each shard ran the same way as the
+CI test job, one shard at a time on a clean checkout:
+
+```sh
+OUT="$(mktemp -d)"
+for s in 0 1 2 3; do
+  DHPK_TEST_JOBS=4 DHPK_TEST_SOURCE_COMMIT="$(git rev-parse HEAD)" \
+  DHPK_TEST_TIMING_FILE="$OUT/timing-shard-$s.json" \
+  node tests/run-all.js --shard-index "$s" --shard-count 4
+done
+```
+
+The run used Node `v26.9.0` on Linux (WSL2, 8 CPUs), without the CI
+cgroup wrapper `scripts/ci/run-bounded-node-test.sh`. Absolute values differ from
+CI runners, so use them for relative cost. Each batch re-measures its own
+suites before and after the merge. All four shards passed.
+
+| Shard | Files | Wall time | Slowest worker |
+| --- | --- | --- | --- |
+| 0 | 98 | 43.3 s | 43.3 s |
+| 1 | 99 | 49.1 s | 49.0 s |
+| 2 | 98 | 64.9 s | 64.8 s |
+| 3 | 98 | 86.6 s | 86.6 s |
+
+Per-suite runtime has a median of 152 ms, a 75th percentile of 651 ms,
+and a 90th percentile of 2503 ms. Shard 3 is the longest because it holds
+`install-codex-skills-reconciliation.test.js` (78.8 s).
+
+#### Coverage
+
+The per-production-file line and branch coverage baseline is
+[the coverage baseline](test-consolidation-coverage-baseline.csv). One full
+aggregate run produced it on the same commit and machine:
+
+```sh
+V8_DIR="$(mktemp -d)" REPORT_DIR="$(mktemp -d)"
+DHPK_TEST_JOBS=4 npx --yes c8@10.1.3 \
+  --temp-directory "$V8_DIR" \
+  --report-dir "$REPORT_DIR" \
+  --reporter=json-summary \
+  node tests/run-all.js
+```
+
+The run passed 393/393 suites. The CSV keeps the 220 canonical production files
+under `scripts/` and `skills/`. It omits 32 generated package copies under
+`generated/` and `plugins/`, which are projections of those sources.
+Together the 220 files have 63,829/74,964 lines (85.15%) and
+18,542/25,400 branches (73.00%) covered. c8 measures only
+JavaScript loaded under the repository root. Shell and Python production
+files are not instrumented and have no row. A batch compares each affected
+file against a fresh focused run, as the review rules above require; this
+aggregate baseline is the reference point, not a substitute for that.
+
+#### Exclusion rules
+
+A suite is excluded from every batch when at least one rule applies. 81 suites are
+excluded; a suite can match more than one rule.
+
+- **Slow** (42): measured runtime of at least 2,500 ms (about the 90th
+  percentile), or an entry in `WEIGHT_HINTS` or `TIMEOUT_HINTS` in
+  `tests/run-all.js`. A slow suite may be split or optimized instead.
+- **Safety-critical** (42): suites that own ADR-0017 safety branches or
+  fail-closed invariants: Review Gate core, runtime, and receipt store; Risk
+  Router; Workflow Coordinator; Platform Adapters; receipt primitives and
+  redaction; the reviewer contract; and the focused Sentinel cases that
+  ADR-0017 carries into the differential corpus.
+- **Environment-isolated** (13): members of the Darwin installer subset in
+  `tests/_lib/macos-installer-files.js`, where a merge would change that explicit
+  file list and its per-file environment overrides, and suites that skip or
+  exit when a host tool is missing. A merged owner would silently inherit
+  that skip.
+
+| Suite | Runtime | Reason |
+| --- | --- | --- |
+| `tests/bounded-child-process.test.js` | 5686 ms | slow: 5686 ms measured (>= 2500 ms) |
+| `tests/catalog-claims.test.js` | 6344 ms | slow: 6344 ms measured (>= 2500 ms) |
+| `tests/ci-review-gate-adapter.test.js` | 536 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/claude-review-gate-adapter.test.js` | 220 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/cli-dispatch-launcher.test.js` | 456 ms | environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/codex-native-install-smoke.test.js` | 198 ms | environment-isolated: exits the whole process when the live codex CLI is absent, so merging would skip the owner too |
+| `tests/codex-review-gate-adapter.test.js` | 73 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/codex-review-gate-e2e.test.js` | 361 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/codex-runtime-contract.test.js` | 17621 ms | slow: 17621 ms measured (>= 2500 ms) |
+| `tests/consumer-gate-cli.test.js` | 22107 ms | slow: 22107 ms measured (>= 2500 ms); environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/consumer-platform-probe.test.js` | 6314 ms | slow: 6314 ms measured (>= 2500 ms) |
+| `tests/dep-audit.test.js` | 2553 ms | slow: 2553 ms measured (>= 2500 ms) |
+| `tests/dhpk-distribution.test.js` | 10001 ms | slow: 10001 ms measured (>= 2500 ms) |
+| `tests/emit-review-gate.test.js` | 114 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/gen-cursor-plugin-package.test.js` | 2422 ms | slow: carries a tests/run-all.js scheduling hint |
+| `tests/git-provider-review-gate-adapter.test.js` | 185 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/harness-facade-cli.test.js` | 14427 ms | slow: 14427 ms measured (>= 2500 ms) |
+| `tests/harness-operation-receipts.test.js` | 191 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/harness-receipt-identity-lifecycle.test.js` | 812 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/install-assets.test.js` | 3842 ms | slow: 3842 ms measured (>= 2500 ms) |
+| `tests/install-codex-runtime-assets.test.js` | 15553 ms | slow: 15553 ms measured (>= 2500 ms) |
+| `tests/install-codex-skills-planning.test.js` | 41726 ms | slow: 41726 ms measured (>= 2500 ms); environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/install-codex-skills-reconciliation.test.js` | 78777 ms | slow: 78777 ms measured (>= 2500 ms); environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/install-codex-skills-uninstall.test.js` | 33193 ms | slow: 33193 ms measured (>= 2500 ms); environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/install-codex-skills.test.js` | 19466 ms | slow: 19466 ms measured (>= 2500 ms); environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/install-codex-sync-shared.test.js` | 10050 ms | slow: 10050 ms measured (>= 2500 ms) |
+| `tests/install-cursor-harness.test.js` | 21085 ms | slow: 21085 ms measured (>= 2500 ms); environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/install.test.js` | 1992 ms | environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/issue-237-cursor-runtime-contract.test.js` | 255 ms | environment-isolated: requires Linux bwrap with a shared network namespace and returns early otherwise |
+| `tests/issue-733-codex-runtime-binding.test.js` | 3076 ms | slow: 3076 ms measured (>= 2500 ms) |
+| `tests/multi-ai-sync-agy-platform.test.js` | 3549 ms | slow: 3549 ms measured (>= 2500 ms); environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/multi-ai-sync-configured-platform-validation.test.js` | 2915 ms | slow: 2915 ms measured (>= 2500 ms) |
+| `tests/multi-ai-sync-cursor-capabilities.test.js` | 31430 ms | slow: 31430 ms measured (>= 2500 ms) |
+| `tests/multi-ai-sync-source-validation.test.js` | 3426 ms | slow: 3426 ms measured (>= 2500 ms) |
+| `tests/prepare-release-cli.test.js` | 5602 ms | slow: 5602 ms measured (>= 2500 ms) |
+| `tests/receipt-json-primitives.test.js` | 41 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/receipt-primitives.test.js` | 157 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/redaction.test.js` | 31 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-authority-semantics.test.js` | 335 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-conformance.test.js` | 51 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-cross-platform-differential.test.js` | 5203 ms | slow: 5203 ms measured (>= 2500 ms); safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-evidence-continuity.test.js` | 2329 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-receipt-bundle.test.js` | 73 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-receipt-store-security.test.js` | 1732 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-receipt-store.test.js` | 3306 ms | slow: 3306 ms measured (>= 2500 ms); safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-attestation.test.js` | 70 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-cli.test.js` | 699 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-companion-security.test.js` | 6783 ms | slow: 6783 ms measured (>= 2500 ms); safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-consumer-e2e.test.js` | 12954 ms | slow: 12954 ms measured (>= 2500 ms); safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-host-attestation-security.test.js` | 2515 ms | slow: 2515 ms measured (>= 2500 ms); safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-host-trust-security.test.js` | 442 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-init-security.test.js` | 1600 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-observe-cli.test.js` | 786 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-observe-security.test.js` | 4093 ms | slow: 4093 ms measured (>= 2500 ms); safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-observe-states.test.js` | 2426 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-review-findings.test.js` | 2387 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-runtime-storage-security.test.js` | 5403 ms | slow: 5403 ms measured (>= 2500 ms); safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-security.test.js` | 4479 ms | slow: 4479 ms measured (>= 2500 ms); safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate-store-budget.test.js` | 34 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/review-gate.test.js` | 1068 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/reviewer-contract-v2.test.js` | 47 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/reviewer-contract.test.js` | 43 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/risk-router.test.js` | 63 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/run-bounded-node-test.test.js` | 18081 ms | slow: 18081 ms measured (>= 2500 ms); environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/run-cli-transport.test.js` | 5598 ms | slow: 5598 ms measured (>= 2500 ms) |
+| `tests/run-codex.test.js` | 2258 ms | slow: carries a tests/run-all.js scheduling hint |
+| `tests/run-portable-bounded-command.test.js` | 13855 ms | slow: 13855 ms measured (>= 2500 ms) |
+| `tests/session-install-health-ask.test.js` | 2601 ms | slow: 2601 ms measured (>= 2500 ms) |
+| `tests/session-usage-audit.test.js` | 996 ms | environment-isolated: member of the Darwin installer subset in tests/_lib/macos-installer-files.js |
+| `tests/skill-pilot-install-migration.test.js` | 11406 ms | slow: 11406 ms measured (>= 2500 ms) |
+| `tests/skill-pilot-isolation.test.js` | 2837 ms | slow: 2837 ms measured (>= 2500 ms) |
+| `tests/skill-remaining-entry-isolation.test.js` | 10707 ms | slow: 10707 ms measured (>= 2500 ms) |
+| `tests/subagent-stop-quality.test.js` | 701 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/subagent-stop-verify.test.js` | 99 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/validate-harness.test.js` | 3760 ms | slow: 3760 ms measured (>= 2500 ms) |
+| `tests/validate-retirement-closure.test.js` | 15355 ms | slow: 15355 ms measured (>= 2500 ms) |
+| `tests/verify-platform-packages.test.js` | 2503 ms | slow: 2503 ms measured (>= 2500 ms) |
+| `tests/workflow-coordinator-delivery.test.js` | 517 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/workflow-coordinator-evidence-continuity.test.js` | 102 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/workflow-coordinator-security.test.js` | 137 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+| `tests/workflow-coordinator.test.js` | 79 ms | safety-critical: ADR-0017 named safety branch or fail-closed invariant |
+
+#### Family map
+
+The map names **67 batches**. They merge 152 source suites into 67 owner
+suites, which would take the suite from 393 to 241 files if every batch merged. The
+remaining 93 eligible suites have no same-contract partner and stay
+standalone; the CSV lists them. Each batch has one owner and at most 10
+sources. The owner is the existing suite for the shared production script or
+contract, so no batch creates a new owner file.
+
+Merged runtime is the sum of measured member runtimes. Each batch is capped
+at 5,000 ms, twice the slow threshold, so a merged file does not become a new
+slow unit that unbalances a shard. The largest batch is 4.2 s. That is far
+below the 180 s default per-file budget, so no batch needs a `TIMEOUT_HINTS` entry.
+"Catalog entries" lists the scripts whose catalog test owner the batch
+removes: scripts left with no owner once every batch is applied, and existing
+`COVERAGE_MAP` entries that point at one of the batch's sources. The batch adds
+or repoints each listed entry to its owner suite in the same change, so
+`node scripts/ci/catalog.js --check all` stays green. 64 entries are listed in total.
+
+| Batch | Owner | Sources | Contract | Merged runtime | Catalog entries |
+| --- | --- | --- | --- | --- | --- |
+| F01 `skill-isolation` | `skill-directory-isolation` | 6: `skill-bridge-family-isolation`, `skill-flow-entry-isolation`, `skill-flow-family-isolation`, `skill-local-tool-isolation`, `skill-release-isolation`, `skill-resume-family-isolation` | Relocated Skill directory isolation through the shared skill-directory-isolation harness | 4.2 s | none |
+| F02 `skill-relocated-contracts` | `skill-runtime-path-contract` | 3: `skill-codemap-contract`, `skill-dep-audit-contract`, `skill-policy-bundle-contract` | Relocated Skill documents keep physical, self-contained runtime paths | 0.3 s | none |
+| F03 `skill-directory-coverage` | `skill-directory-coverage` | 4: `skill-coverage-integrity`, `skill-declared-entry-coverage`, `skill-dependency-evidence`, `validate-skill-directory-coverage` | scripts/lib/skill-directory-coverage.js and its CI validator | 0.7 s | `scripts/ci/validate-skill-directory-coverage.js` |
+| F04 `skill-health` | `skill-health-self-containment` | 2: `skill-health-check-lint`, `skill-health-check-resilience` | Skill health checks (lint, resilience, self-containment) | 1.5 s | none |
+| F05 `skill-routing` | `skill-routing-projection-parity` | 5: `skill-routing-contract`, `skill-routing-frontend-regression`, `skill-routing-progressive-loading`, `skill-public-name-routing`, `version-family-skills` | Normalized family router and public-name routing (scripts/lib/skill-routing-projection.js) | 0.6 s | none |
+| F06 `skill-lifecycle` | `skill-retirement-migration` | 4: `skill-migration`, `skill-capability-families`, `consolidate-remaining-dhpk-skill-families`, `portable-skill-names` | Skill retirement, migration, and naming in the distribution inventory | 0.8 s | none |
+| F07 `skill-purpose` | `skill-purpose-decisions` | 2: `skill-purpose-additions`, `validate-skill-purpose-decisions` | scripts/lib/skill-purpose-decisions.js and its CI validator | 0.5 s | `scripts/ci/validate-skill-purpose-decisions.js` |
+| F08 `skill-usage` | `skill-usage-contract` | 1: `skill-usage-projections` | scripts/lib/skill-usage.js contract and projections | 0.3 s | none |
+| F09 `skill-resource-sync` | `skill-resource-sync-security` | 1: `skill-resource-sync` | scripts/lib/skill-resource-sync.js and scripts/ci/sync-skill-resources.js | 1.1 s | none |
+| F10 `distribution-inventory` | `distribution-inventory-validate` | 5: `distribution-scoped-counts`, `distribution-projection-inventory`, `internal-cli-transport-inventory`, `internal-runtime-skills`, `harness-platform-matrix` | scripts/lib/distribution-inventory.js checked-in inventory views | 0.4 s | `scripts/lib/internal-runtime-skills.js` |
+| F11 `distribution-projection` | `distribution-projection-contract` | 5: `distribution-compiler`, `distribution-projection-parity`, `distribution-rollback-proof`, `distribution-selection-plan-binding`, `projection-usage-binding` | Distribution compiler and projection contract | 0.9 s | `scripts/lib/distribution-compiler.js`, `scripts/lib/distribution-projection-parity.js` |
+| F12 `validate-agents` | `validate-agents-behavior` | 1: `validate-agents-skills` | scripts/ci/validate-agents.js and validate-agents-skills.js | 2.9 s | `scripts/ci/validate-agents-skills.js` |
+| F13 `validate-skills` | `validate-skills` | 1: `validate-skills-size` | scripts/ci/validate-skills.js | 1.0 s | none |
+| F14 `validate-tree` | `validate-plugin` | 2: `validate-commands`, `validate-modules` | Real-tree plugin, command, and module validators | 1.7 s | `scripts/ci/validate-commands.js`, `scripts/ci/validate-modules.js` |
+| F15 `cursor-sync` | `gen-cursor-sync` | 2: `cursor-sync-package`, `validate-cursor-sync` | Cursor sync package generator, library, and validator | 1.0 s | `scripts/ci/validate-cursor-sync.js`, `scripts/lib/cursor-sync-package.js` |
+| F16 `references` | `validate-references` | 1: `reference-integrity` | scripts/ci/validate-references.js and real-tree reference integrity | 0.5 s | none |
+| F17 `changelog` | `changelog-fragments` | 2: `validate-changelog-fragments-cli`, `current-changelog` | Changelog fragments library, CLI, and current section | 1.0 s | `scripts/ci/validate-changelog-fragments.js` |
+| F18 `codex-native` | `codex-native-package-validate` | 5: `codex-native-activation`, `codex-native-experimental-gate`, `codex-plugin-manifest`, `gen-codex-native-package`, `verify-codex-native-package` | Codex native package, activation, and manifest | 1.9 s | `scripts/ci/gen-codex-native-package.js`, `scripts/ci/verify-codex-native-package.js`, `scripts/lib/codex-native-activation.js` |
+| F19 `codex-discovery` | `check-codex-discovery` | 1: `codex-discovery-registry` | Codex discovery registry and read-only discovery check | 1.1 s | `scripts/lib/codex-discovery-registry.js` |
+| F20 `context-budget` | `context-budget` | 1: `discovery-budget-parity-separation` | Discovery context budgets and budget-parity separation | 0.2 s | `scripts/lib/discovery-budget.js` |
+| F21 `claude-user-config` | `plugin-user-config-metadata` | 2: `claude-user-config-probe`, `gen-claude-user-config` | Claude plugin userConfig metadata, generator, and consumer probe | 0.3 s | `scripts/ci/gen-claude-user-config.js`, `scripts/release/claude-user-config-probe.js` |
+| F22 `claude-profile-bundle` | `profile-scoped-claude-capability-bundle` | 2: `claude-profile-probe`, `gen-claude-profile-bundles` | Profile-scoped Claude capability bundle, generator, and probe | 2.2 s | `scripts/ci/gen-claude-profile-bundles.js`, `scripts/release/claude-profile-probe.js` |
+| F23 `capability-bundle` | `capability-bundle-selection` | 1: `capability-bundle-activation` | Capability bundle selection and activation | 0.1 s | `scripts/lib/capability-bundle-activation.js` |
+| F24 `workflow-package` | `workflow-package-closure` | 1: `workflow-package-runtime` | Flow workflow package closure and self-contained runtime | 1.4 s | none |
+| F25 `project-agent-projection` | `project-agent-projection-plan` | 1: `project-agent-projection-baseline` | Project agent projection plan and baseline | 0.5 s | `scripts/ci/project-agent-projection-baseline.js` |
+| F26 `consumer-probes` | `parallel-consumer-probes` | 1: `release-probe-batch` | Parallel consumer probes and bounded probe batch | 0.2 s | `scripts/lib/release-probe-batch.js` |
+| F27 `hook-events` | `hooks-wiring` | 1: `default-hook-events` | hooks.json wiring and default hook events | 0.1 s | none |
+| F28 `codex-skill-surface` | `codex-skill-metadata` | 2: `codex-skill-layout`, `codex-supporting-parity` | Codex skill layout, metadata, and supporting-asset parity | 0.1 s | none |
+| F29 `gen-claude-manifest` | `gen-claude-manifest` | 1: `gen-claude-manifest-generate` | scripts/ci/gen-claude-manifest.js | 0.3 s | none |
+| F30 `agent-plugin` | `gen-agent-plugin-package` | 2: `agent-plugin-package`, `validate-agent-plugin-package` | Agent Plugin package library, generator, and validator | 1.2 s | `scripts/ci/validate-agent-plugin-package.js`, `scripts/lib/agent-plugin-package.js` |
+| F31 `cursor-package` | `cursor-plugin-package` | 4: `validate-cursor-plugin-package`, `cursor-consumer-evidence`, `cursor-harness-adapt`, `cursor-session-home` | Cursor plugin package library and Cursor runtime helpers | 0.6 s | `scripts/ci/validate-cursor-plugin-package.js`, `scripts/lib/cursor-consumer-evidence.js`, `scripts/lib/cursor-harness-adapt.js`, `scripts/lib/cursor-session-home.js` |
+| F32 `agy-plugin` | `agy-plugin-install` | 3: `agy-plugin-package`, `agy-path-contract`, `install-agy-plugin` | AGY plugin package, install lifecycle, path contract, and CLI | 3.2 s | `scripts/ci/install-agy-plugin.js`, `scripts/lib/agy-path-contract.js`, `scripts/lib/agy-plugin-package.js` |
+| F33 `agy-adapt` | `agy-adapt-agents` | 1: `agy-adapt-agents-extended` | scripts/agy-adapt-agents.js | 0.7 s | none |
+| F34 `native-shared-skills` | `native-shared-skill-install` | 1: `install-native-shared-skills` | Native shared-skill install library and CLI | 2.1 s | `scripts/ci/install-native-shared-skills.js` |
+| F35 `native-dispatch` | `native-dispatch-policy` | 1: `native-fallback-contract` | Native-only dispatch policy and fallback contract | 0.1 s | none |
+| F36 `dispatch` | `dispatch-engine` | 10: `dispatch`, `dispatch-config`, `dispatch-config-report`, `dispatch-contract`, `dispatch-platform-validation`, `dispatch-projection`, `dispatch-scheduler`, `issue-534-p1-dispatch-contract`, `issue-534-p1-failure-matrix`, `gen-dispatch-projection` | scripts/lib/dispatch*.js contract, engine, scheduler, config, and projection | 0.9 s | `scripts/ci/gen-dispatch-projection.js`, `scripts/dispatch-config-report.js`, `scripts/lib/dispatch-config.js`, `scripts/lib/dispatch-contract.js`, `scripts/lib/dispatch-platform-validation.js`, `scripts/lib/dispatch-projection.js`, `scripts/lib/dispatch-scheduler.js` |
+| F37 `provider-adapters` | `provider-adapter` | 1: `provider-cli-adapters` | Provider adapter and provider CLI adapters | 0.1 s | `scripts/lib/provider-cli-adapters.js` |
+| F38 `harness-facade` | `harness-facade-contract` | 4: `harness-docs`, `harness-release-aggregation`, `harness-surfaces`, `harness-workflow-config` | scripts/lib/harness.js facade, surfaces, and release aggregation | 0.3 s | `scripts/lib/harness-result.js`, `scripts/lib/harness-surfaces.js` |
+| F39 `multi-ai-sync` | `multi-ai-sync-skill-contract` | 3: `multi-ai-sync-cursor-discovery`, `multi-ai-sync-parity`, `harness-govern-toml-fallback` | harness-govern multi_ai_sync fast contracts | 0.5 s | none |
+| F40 `session-start` | `session-start` | 2: `session-start-advisories`, `trap-sheet-detection` | scripts/hooks/session-start.sh advisories and trap-sheet detection | 0.5 s | `scripts/hooks/_lib/advise-once.sh`, `scripts/hooks/_lib/detect-stack-hints.sh` |
+| F41 `session-install-health` | `session-install-health-version` | 1: `session-install-health-modules` | scripts/hooks/_lib/install-health.sh | 1.4 s | none |
+| F42 `stop-advisory` | `stop-advisory-dispatch-graduation` | 3: `stop-advisory-dispatch-completion-evidence`, `stop-advisory-dispatch-modules`, `stop-dispatch-audit` | Stop-hook dispatch advisory and audit | 1.9 s | `scripts/hooks/_lib/stop-dispatch-audit.sh` |
+| F43 `bash-guards` | `pre-bash-guard` | 1: `pre-bash-dispatch` | PreToolUse Bash guard and its dispatch wrapper | 2.2 s | `scripts/hooks/pre-bash-dispatch.sh` |
+| F44 `edit-guards` | `pre-edit-guard` | 1: `pre-edit-batch-gate` | PreToolUse Edit guard and batch gate | 1.5 s | `scripts/hooks/pre-edit-batch-gate.sh` |
+| F45 `project-config` | `load-project-config` | 2: `runtime-config`, `session-env` | Project config loading and the libraries it sources | 0.9 s | `scripts/hooks/_lib/runtime-config.sh`, `scripts/hooks/_lib/session-env.sh` |
+| F46 `portable-shell` | `portable-stat` | 2: `portable-sed`, `portable-timeout` | Portable sed, stat, and timeout shell helpers | 2.3 s | `scripts/hooks/_lib/portable-sed.sh`, `scripts/hooks/_lib/portable-timeout.sh` |
+| F47 `handoff-resume` | `write-handoff` | 3: `set-handoff-state`, `detect-phase`, `portable-workflow-runtime` | opsx-apply-resume handoff write, state, and phase detection | 0.7 s | none |
+| F48 `compaction-hooks` | `postcompact-restore` | 1: `precompact-archive` | PreCompact archive and PostCompact restore hooks | 0.3 s | `scripts/hooks/precompact-archive.sh` |
+| F49 `flow-handoff` | `flow-handoff-contract` | 4: `flow-contract`, `flow-drive-invocation`, `flow-guide-ownership`, `flow-guide-usage-help` | Flow handoff contract, flow-drive invocation, and flow-guide ownership | 0.6 s | `skills/flow-guide/scripts/usage-card.js` |
+| F50 `opsx-goal` | `opsx-goal-analyze` | 4: `opsx-goal-budget`, `opsx-goal-footprint`, `opsx-goal-policy-fallback`, `opsx-apply-goal-guardrails` | OpenSpec apply-goal analyzer, budget, footprint, and guardrails | 0.6 s | none |
+| F51 `policy-docs` | `opsx-orchestration-decision-policy` | 6: `execution-policy-kernel`, `policy-static-guardrails`, `tdd-e2e-contracts`, `cli-worker-timeout-recovery`, `parallel-dispatch-contract`, `legacy-cli-role-agent-contract` | Execution policy and dispatch prompt static contracts | 0.5 s | none |
+| F52 `platform-docs` | `documentation-platform-parity` | 2: `platform-installation-docs`, `workflow-docs` | Bilingual platform, installation, and workflow documentation | 0.2 s | none |
+| F53 `command-disposition` | `command-skill-disposition` | 4: `command-skill-portability`, `command-front-door-parity`, `simplify-command-contract`, `command-namespace` | Command-to-Skill disposition, portability, and namespace | 0.3 s | `scripts/lib/command-namespace.js` |
+| F54 `platform-provenance` | `platform-provenance` | 2: `platform-boundary`, `platform-conformance` | Platform provenance, boundary, and conformance | 0.5 s | none |
+| F55 `release-workflow` | `release-workflow` | 1: `git-flow-governance` | Static release workflow and git-flow policy | 0.1 s | none |
+| F56 `release-evidence` | `release-evidence` | 1: `consumer-evidence-normalization` | scripts/lib/release-evidence.js consumer status vocabulary | 0.1 s | none |
+| F57 `release-publication` | `release-publication-bundle` | 1: `verify-publication-bundle` | Release publication bundle and standalone verifier | 0.4 s | `scripts/release/verify-publication-bundle.js` |
+| F58 `release-parity` | `release-parity` | 1: `verify-release-parity-cli` | Release parity library and CLI | 0.3 s | `scripts/ci/verify-release-parity.js` |
+| F59 `release-gates` | `gate-runner` | 3: `source-gate-cli`, `package-gate-cli`, `publish-gate-cli` | Gate runner and SOURCE, PACKAGE, PUBLISH gate CLIs | 1.7 s | `scripts/release/package-gate.js`, `scripts/release/publish-gate.js`, `scripts/release/source-gate.js` |
+| F60 `test-infra` | `verify-test-shards` | 2: `render-test-timing`, `run-all` | Aggregate runner, shard verification, and timing rendering | 0.3 s | `scripts/ci/render-test-timing.js` |
+| F61 `repo-runners` | `precommit-runner` | 1: `verify-runner` | Skill-local precommit and verify runners | 2.4 s | none |
+| F62 `cli-dispatch` | `cli-role-resolver` | 1: `cli-dispatch-context` | CLI role resolver and dispatch context | 0.1 s | none |
+| F63 `resolve-feature` | `resolve-feature-cli` | 2: `resolve-feature`, `feature-resolver` | Feature resolution library, shell entry, and CLI | 0.4 s | `scripts/lib/feature-resolver.js` |
+| F64 `project-agent-publisher` | `project-agent-projection-publisher` | 2: `project-agent-runtime-assets`, `project-workflow-resources` | Project projection publisher runtime closure | 0.6 s | none |
+| F65 `project-agent-providers` | `project-agent-provider-adapters` | 1: `project-agent-host-binding-policy` | Project agent provider adapters and Host binding policy | 0.1 s | `scripts/lib/project-agent-host-binding-policy.js` |
+| F66 `cross-cli` | `cross-cli-parity` | 1: `check-cross-cli-drift` | Cross-CLI parity library and drift check | 0.2 s | `scripts/check-cross-cli-drift.sh` |
+| F67 `task4` | `task4-defects` | 1: `task4-consolidation` | Task 4 consolidation and defect regressions | 0.9 s | none |
+
+Suite names in the table omit the `tests/` prefix and `.test.js` suffix. Each
+batch ticket records test-name parity, before-and-after coverage for every
+affected production file, per-file runtime, and a keep, rewrite, or delete
+outcome for each moved assertion, as #739 requires.
+
+The pre-edit GitNexus impact for this ledger returned **UNKNOWN**
+(`target not found`), so it was not treated as an all-clear. Text search
+found no reference to the ledger outside its generated marketplace copy.
+This change adds only documentation and the two CSV files. No test, runner,
+or catalog mapping changed.
