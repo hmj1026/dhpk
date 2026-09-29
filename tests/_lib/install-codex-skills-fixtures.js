@@ -249,11 +249,42 @@ function firstNativeManagedSkill(scratch) {
 function collisionFixture() {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
-  fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
-  materializeFixtureSkill(fakePlugin, 'harness-govern');
+  // Keep only the collision target and sibling skills used by planning cases.
+  const collisionSkills = ['harness-govern', 'tdd-workflow', 'dhpk-legacy-characterization-tests'];
+  const fakeCodexSkills = path.join(fakePlugin, 'codex', 'skills');
+  fs.mkdirSync(fakeCodexSkills, { recursive: true });
+  for (const name of collisionSkills) {
+    fs.cpSync(
+      path.join(ROOT, 'plugins', 'dhpk', 'skills', name),
+      path.join(fakeCodexSkills, name),
+      { recursive: true, dereference: true },
+    );
+  }
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
-  copyDistributionInventory(fakePlugin);
+  const distributionInventory = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'),
+  );
+  const skillMetadata = collisionSkills.map((name) => {
+    const skill = distributionInventory.skills.find((entry) => entry.name === name);
+    assert.ok(skill, `expected distribution inventory entry for ${name}`);
+    return {
+      id: skill.id,
+      name: skill.name,
+      path: skill.path,
+      legacy_names: skill.legacy_names || [],
+      lifecycle: skill.lifecycle,
+      tier: skill.tier,
+      invokable: skill.invokable,
+      profiles: skill.profiles || [],
+      surfaces: skill.surfaces || [],
+    };
+  });
+  fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });
+  fs.writeFileSync(path.join(fakePlugin, 'manifests', 'distribution-inventory.json'), JSON.stringify({
+    skills: skillMetadata,
+    supporting_assets: [],
+  }, null, 2));
   const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
   assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
   const collision = 'harness-govern';

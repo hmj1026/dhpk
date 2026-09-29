@@ -38,12 +38,17 @@ test('returns 124 and terminates a command after the portable wall-time bound', 
   assert.match(res.stderr, /timed out/i);
 });
 
-test('keeps SIGKILL escalation alive after the group leader exits on SIGTERM', () => {
+test('keeps SIGKILL escalation alive after the group leader exits on SIGTERM', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-portable-descendant-'));
   const marker = path.join(root, 'late-descendant');
+  const startMarker = path.join(root, 'late-descendant-start');
+  const markerDelayMs = 7000;
+  const markerMarginMs = 500;
   const descendant = [
     "process.on('SIGTERM', () => {});",
-    `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'late'), 7000);`,
+    "const fs = require('node:fs');",
+    `setTimeout(() => fs.writeFileSync(${JSON.stringify(marker)}, 'late'), ${markerDelayMs});`,
+    `fs.writeFileSync(${JSON.stringify(startMarker)}, String(Date.now()));`,
   ].join('\n');
   const child = [
     "const { spawn } = require('node:child_process');",
@@ -53,7 +58,11 @@ test('keeps SIGKILL escalation alive after the group leader exits on SIGTERM', (
   try {
     const res = runPortable(['--timeout', '1s', '--node-heap-mb', '512', '--', process.execPath, '-e', child]);
     assert.strictEqual(res.status, 124, `${res.stdout}\n${res.stderr}`);
-    spawnSync('sleep', ['7']);
+    assert.strictEqual(fs.existsSync(startMarker), true, 'descendant should arm its late marker timer');
+    const timerArmedAt = Number(fs.readFileSync(startMarker, 'utf8'));
+    assert.ok(Number.isSafeInteger(timerArmedAt) && timerArmedAt > 0, 'descendant should record when its late marker timer was armed');
+    const remainingMs = timerArmedAt + markerDelayMs + markerMarginMs - Date.now();
+    if (remainingMs > 0) await new Promise((resolve) => setTimeout(resolve, remainingMs));
     assert.strictEqual(fs.existsSync(marker), false, 'portable timeout must kill descendants after the leader exits');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });

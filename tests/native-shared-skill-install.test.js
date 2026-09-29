@@ -164,6 +164,52 @@ function dualFixture() {
   return sourceRoot;
 }
 
+function hiddenVisibleFixture() {
+  const sourceRoot = fixture();
+  const visiblePath = path.join(sourceRoot, 'skills', 'dhpk-sample');
+  const renamedVisiblePath = path.join(sourceRoot, 'skills', 'dhpk-visible');
+  fs.renameSync(visiblePath, renamedVisiblePath);
+  write(path.join(renamedVisiblePath, 'SKILL.md'), [
+    '---',
+    'name: dhpk-visible',
+    'description: Visible Codex skill',
+    '---',
+    '',
+    '# Visible Codex skill',
+    '',
+  ].join('\n'));
+  write(path.join(sourceRoot, 'skills', 'dhpk-hidden', 'SKILL.md'), [
+    '---',
+    'name: dhpk-hidden',
+    'description: Hidden Codex support skill',
+    '---',
+    '',
+    '# Hidden Codex support skill',
+    '',
+  ].join('\n'));
+
+  const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
+  const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+  inventory.skills[0] = {
+    ...inventory.skills[0],
+    id: 'visible',
+    name: 'dhpk-visible',
+    path: 'skills/dhpk-visible',
+    discoveryVisible: true,
+  };
+  inventory.skills.push({
+    id: 'hidden',
+    name: 'dhpk-hidden',
+    path: 'skills/dhpk-hidden',
+    lifecycle: 'promoted',
+    surfaces: ['codex-sync'],
+    discoveryVisible: false,
+  });
+  inventory.project_agent_projection.profiles['portable-core'].stable_ids = ['hidden', 'visible'];
+  fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  return sourceRoot;
+}
+
 test('installNativeSharedSkills materializes Codex native-link bindings', () => {
   const sourceRoot = fixture();
   const projectRoot = tmpDir('dhpk-native-shared-codex-');
@@ -228,6 +274,51 @@ test('installNativeSharedSkills unions shared skills and preserves the first Hos
     });
     assert.deepStrictEqual(again.receipt.hostBindings.cursor, cursorBindings);
     assert.deepStrictEqual(again.receipt.hostBindings.codex.selectedStableIds, ['other']);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('installNativeSharedSkills keeps a hidden Codex skill materialized across another Host lifecycle', () => {
+  const sourceRoot = hiddenVisibleFixture();
+  const projectRoot = tmpDir('dhpk-native-shared-hidden-codex-');
+  const hiddenSkill = path.join(projectRoot, '.agents', 'skills', 'dhpk-hidden', 'SKILL.md');
+  const visibleSkill = path.join(projectRoot, '.agents', 'skills', 'dhpk-visible', 'SKILL.md');
+  const foreignSkill = path.join(projectRoot, '.agents', 'skills', 'user-owned', 'README.md');
+  try {
+    const codex = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'codex',
+      selectedStableIds: ['hidden', 'visible'],
+      declaredSelection: true,
+    });
+    assert.deepStrictEqual(codex.receipt.hostBindings.codex.selectedStableIds, ['hidden', 'visible']);
+    assert.deepStrictEqual(
+      codex.receipt.hostBindings.codex.bindings.map((binding) => binding.stableId),
+      ['visible'],
+    );
+    assert.ok(fs.existsSync(hiddenSkill), 'Codex hidden selection should be materialized initially');
+
+    write(foreignSkill, '# User-owned skill\n');
+    const cursor = installNativeSharedSkills({
+      sourceRoot,
+      projectRoot,
+      host: 'cursor',
+      selectedStableIds: ['visible'],
+      declaredSelection: true,
+    });
+    assert.deepStrictEqual(cursor.receipt.hostBindings.codex.selectedStableIds, ['hidden', 'visible']);
+    assert.ok(fs.existsSync(hiddenSkill), 'installing Cursor should retain the selected Codex hidden skill');
+    assert.ok(fs.existsSync(visibleSkill), 'installing Cursor should retain the visible skill');
+    assert.strictEqual(fs.readFileSync(foreignSkill, 'utf8'), '# User-owned skill\n');
+
+    const removed = uninstallNativeSharedSkills({ sourceRoot, projectRoot, host: 'cursor' });
+    assert.strictEqual(removed.ok, true, removed.error && removed.error.message);
+    assert.ok(fs.existsSync(hiddenSkill), 'removing Cursor should retain the selected Codex hidden skill');
+    assert.ok(fs.existsSync(visibleSkill), 'removing Cursor should retain the visible skill');
+    assert.strictEqual(fs.readFileSync(foreignSkill, 'utf8'), '# User-owned skill\n');
   } finally {
     fs.rmSync(sourceRoot, { recursive: true, force: true });
     fs.rmSync(projectRoot, { recursive: true, force: true });

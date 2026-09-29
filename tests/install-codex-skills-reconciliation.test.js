@@ -42,10 +42,13 @@ function tddRenamePlugin() {
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-tdd-rename-plugin-')));
   const currentName = 'tdd-workflow';
   const legacyName = 'dhpk-tdd-workflow';
-  fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
-  for (const name of fs.readdirSync(path.join(fakePlugin, 'codex', 'skills'))) {
-    if (name !== currentName) fs.rmSync(path.join(fakePlugin, 'codex', 'skills', name), { recursive: true, force: true });
-  }
+  const codexSkills = path.join(fakePlugin, 'codex', 'skills');
+  fs.mkdirSync(codexSkills, { recursive: true });
+  fs.cpSync(
+    path.join(ROOT, 'plugins', 'dhpk', 'skills', currentName),
+    path.join(codexSkills, currentName),
+    { recursive: true, dereference: true },
+  );
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
   fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });

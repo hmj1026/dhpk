@@ -11,6 +11,7 @@ const {
   uninstallAgentsSkillsProjection,
 } = require('./project-agent-projection-publisher');
 const { classifyHostBinding } = require('./cursor-consumer-evidence');
+const { boundStableIds, uniqueSorted } = require('./project-agent-host-binding-policy');
 
 const NATIVE_SHARED_SKILL_HOSTS = Object.freeze(['codex', 'cursor']);
 
@@ -32,22 +33,6 @@ function uniqueIds(values) {
     throw new Error('selectedStableIds must be a unique non-empty string array');
   }
   return selected;
-}
-
-function uniqueSorted(values) {
-  return [...new Set(values.filter((id) => typeof id === 'string' && id.trim() !== '').map((id) => id.trim()))].sort();
-}
-
-function boundStableIds(hostBinding) {
-  if (!hostBinding || typeof hostBinding !== 'object' || Array.isArray(hostBinding)) return [];
-  if (Array.isArray(hostBinding.bindings)) {
-    const fromBindings = uniqueSorted(hostBinding.bindings.map((entry) => entry && entry.stableId));
-    if (fromBindings.length > 0) return fromBindings;
-  }
-  return uniqueSorted([
-    ...(Array.isArray(hostBinding.selectedStableIds) ? hostBinding.selectedStableIds : []),
-    ...(Array.isArray(hostBinding.emittedStableIds) ? hostBinding.emittedStableIds : []),
-  ]);
 }
 
 function readPreviousReceipt(projectRoot) {
