@@ -137,6 +137,7 @@ include the TDD-relevant test/verification result in its existing report.
 
 ## References
 
-- [tests.md](tests.md) — behavior-focused good/bad test shapes and
-  implementation-coupling traps.
+- [tests.md](tests.md) — behavior-focused good/bad test shapes,
+  implementation-coupling traps, independent oracles, discrimination, and the
+  rejection checklist.
 - [mocking.md](mocking.md) — boundary mocking and dependency-injection rules.
