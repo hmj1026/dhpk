@@ -6,6 +6,12 @@
 // output.
 
 const path = require('node:path');
+const {
+  DIRECT_SHAPE,
+  NATIVE_LINK_SHAPE,
+  discoveryVisibleEntries,
+  selectedAdapterEntries,
+} = require('./project-agent-host-binding-policy');
 
 const PROJECT_AGENT_PROVIDER_ADAPTER_SCHEMA = 'dhpk.project-agent-provider-adapters.v1';
 const PROJECT_AGENT_PROVIDER_ADAPTER_VERSION = '1.0.0';
@@ -30,8 +36,6 @@ const CURSOR_PROJECT_DISCOVERY_DESTINATION_ROOT = '.cursor/skills';
 const CODEX_PROJECT_DISCOVERY_ADAPTER_ID = 'codex-project-discovery';
 const CODEX_PROJECT_DISCOVERY_ADAPTER_VERSION = '1.0.0';
 const CODEX_PROJECT_DISCOVERY_DESTINATION_ROOT = '.codex/skills';
-const NATIVE_LINK_SHAPE = 'native-link';
-const DIRECT_SHAPE = 'direct';
 const CURSOR_PROJECT_PROBE_PRODUCER = 'consumer-platform-probe';
 const CURSOR_PROJECT_PROBE_ADAPTER = Object.freeze({ id: CURSOR_PROJECT_DISCOVERY_ADAPTER_ID, version: CURSOR_PROJECT_DISCOVERY_ADAPTER_VERSION });
 const CURSOR_PROJECT_PROBE_CLAIMS = Object.freeze(['project-artifact-structure', 'cursor-project-discovery', 'consumer-route']);
@@ -196,15 +200,6 @@ function nativeLinkBindingShape(requested, recorded) {
   return requested === DIRECT_SHAPE || recorded === DIRECT_SHAPE ? DIRECT_SHAPE : NATIVE_LINK_SHAPE;
 }
 
-function selectedAdapterEntries(entries, hostBinding) {
-  const selected = hostBinding && Array.isArray(hostBinding.selectedStableIds)
-    ? hostBinding.selectedStableIds
-    : null;
-  if (!selected) return entries;
-  const allowed = new Set(selected);
-  return entries.filter((entry) => allowed.has(entry.stableId));
-}
-
 function createNativeLinkDiscoveryAdapter({
   id,
   version,
@@ -269,8 +264,7 @@ function createCodexProjectDiscoveryAdapter({
     sourceRoot,
     bindingShape,
   });
-  const hiddenIds = new Set(entries.filter((entry) => entry.discoveryVisible === false).map((entry) => entry.stableId));
-  adapter.entries = adapter.entries.filter((entry) => !hiddenIds.has(entry.stableId));
+  adapter.entries = discoveryVisibleEntries(adapter.entries, entries);
   return adapter;
 }
 
