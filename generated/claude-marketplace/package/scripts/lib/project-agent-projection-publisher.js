@@ -225,7 +225,7 @@ function validateReceiptBindings(receipt, roots) {
   let providers;
   try {
     providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
-      entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name })),
+      entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible })),
       claudeSourceRoot: roots.config.managed_root,
     });
   } catch (error) {
@@ -632,7 +632,7 @@ function buildArtifactInputs({
   const adapterEntries = (plan.entries || []).map((planEntry) => {
     const sourceEntry = sourceEntryFor(planEntry, byId);
     const name = safeName(sourceEntry.name || sourceEntry.publicName || path.basename(sourceEntry.path), `inventory entry '${planEntry.stableId}' name`);
-    return { stableId: planEntry.stableId, name };
+    return { stableId: planEntry.stableId, name, discoveryVisible: sourceEntry.discoveryVisible };
   });
   const cursorShape = nativeLinkShapeFrom(cursorBinding);
   const codexShape = nativeLinkShapeFrom(codexBinding);
@@ -751,6 +751,7 @@ function buildArtifactInputs({
     receiptEntries.push({
       stableId: planEntry.stableId,
       name,
+      ...(sourceEntry.discoveryVisible === false ? { discoveryVisible: false } : {}),
       source: sourceEntry.path,
       sourceFingerprint: manifest.sourceFingerprint,
       sourceFiles: manifest.sourceFiles,
@@ -1779,7 +1780,7 @@ function validateRelocatableAgentsSkillsProjection(options = {}) {
     let providers = null;
     try {
       providers = createProjectAgentProviderAdapters(receipt.hostBindings, {
-        entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name })),
+        entries: receipt.entries.map((entry) => ({ stableId: entry.stableId, name: entry.name, discoveryVisible: entry.discoveryVisible })),
         claudeSourceRoot: roots.config.managed_root,
       });
     } catch (error) {
