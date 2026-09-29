@@ -2632,3 +2632,131 @@ runtime `*.test.js` discovery, and source/reference checks were used for those
 UNKNOWN results. GitNexus impact for `validateSkillDirectoryCoverage` was
 **LOW** (eight impacted symbols); the `COVERAGE_MAP` consumer impact was also
 **LOW**. These findings did not indicate an unreviewed caller.
+
+### Issue #788 — Skill routing, lifecycle, purpose, usage, and resource sync
+
+Decision: **CLEAR**; read-only reasoner result: **READY_FOR_DISPATCH**;
+`planner=skipped` because this issue is not an OpenSpec apply. The issue merges
+five contract families across 13 source suites. Every baseline test name is
+retained: the exact name multiset is **139 before and 139 after**, with no
+deleted or added names. Each owner has one final `run()` call. The only
+`COVERAGE_MAP` change assigns
+`scripts/ci/validate-skill-purpose-decisions.js` to
+`skill-purpose-decisions.test.js`.
+
+#### Source-suite disposition
+
+`KEEP` preserves the assertion, `REWRITE` changes its oracle and has a
+controlled mutation proof, and `DELETE` removes a source file after all of its
+tests have moved. There were no assertion deletions.
+
+| Batch / source suite | Outcome and owner |
+| --- | --- |
+| F05 `skill-routing-contract` (2 tests) | KEEP unchanged; `skill-routing-projection-parity.test.js` |
+| F05 `skill-routing-frontend-regression` (2 tests) | KEEP unchanged; `skill-routing-projection-parity.test.js` |
+| F05 `skill-routing-progressive-loading` (2 tests) | KEEP unchanged; `skill-routing-projection-parity.test.js` |
+| F05 `skill-public-name-routing` (2 tests) | KEEP unchanged; `skill-routing-projection-parity.test.js` |
+| F05 `version-family-skills` (17 tests) | KEEP unchanged; `skill-routing-projection-parity.test.js` |
+| F06 `skill-migration` (3 tests) | KEEP unchanged; `skill-retirement-migration.test.js` |
+| F06 `skill-capability-families` (5 tests) | KEEP unchanged; `skill-retirement-migration.test.js` |
+| F06 `consolidate-remaining-dhpk-skill-families` (4 tests) | KEEP unchanged; `skill-retirement-migration.test.js` |
+| F06 `portable-skill-names` (8 tests) | KEEP unchanged; `skill-retirement-migration.test.js` |
+| F07 `skill-purpose-additions` (2 tests) | KEEP unchanged; `skill-purpose-decisions.test.js` |
+| F07 `validate-skill-purpose-decisions` (2 tests) | KEEP unchanged; `skill-purpose-decisions.test.js` |
+| F08 `skill-usage-projections` (5 tests) | Three KEEP; two REWRITE; `skill-usage-contract.test.js` |
+| F09 `skill-resource-sync` (7 tests) | Six KEEP; one REWRITE; `skill-resource-sync-security.test.js` |
+
+F05 and F06 owners are 1,247 and 1,237 lines, above the usual 800-line
+guideline. The issue requires one owner suite for each family and assigns all
+13 source suites; these two files are the scoped exceptions. F09's owner is
+799 lines.
+
+#### Controlled mutation evidence
+
+| Batch | Mutated contract and expected RED test | Restored GREEN |
+| --- | --- | --- |
+| F05 | `skill routing descriptions use public dhpk names, never legacy aliases` | `skill-routing-projection-parity.test.js`: 32/32; `/tmp/dhpk-issue788-f05-public-name-mutation.log` |
+| F08 | `generated usage artifacts bind to one catalog revision and derive Argument Hints` | RED 17/18, then `skill-usage-contract.test.js`: 18/18; `/tmp/issue788-f08-revision-red.log`, `/tmp/issue788-f08-revision-green.log` |
+| F08 | `$flow-guide help variants remain metadata-only and deterministic` | RED 17/18, then `skill-usage-contract.test.js`: 18/18; `/tmp/issue788-f08-determinism-red.log`, `/tmp/issue788-f08-determinism-green.log` |
+| F09 | `skill-resource-sync exports the four foundation API functions` | RED in a disposable archive when the planner omitted the copy action, then `skill-resource-sync-security.test.js`: 43/43; `/tmp/dhpk-issue788-f09-a1-full-mutation-FIIokU/mutation-red.log`, `mutation-green.log` |
+
+F06 and F07 assertions were not rewritten, so no mutation run was required.
+F06 had one intermediate assembly-only failure caused by its editing script
+expanding a literal `$` in a regex; the original assertion was restored and
+the final owner passed 36/36.
+
+#### Focused timing and c8 comparison
+
+The baseline and final runs used Node v26.9.0, Linux, four jobs, fresh timing
+files, and fresh c8 10.1.3 directories. The baseline was reproduced from clean
+commit `b51784e4135b2ce6b2ffc1e101f1d5b65796e1a1`; the final run used the five
+owner suites. The exact test-name multiset remains 139/139.
+
+| Batch | Baseline files / runtime sum | Final owner / runtime | Final tests | New `TIMEOUT_HINTS` |
+| --- | ---: | ---: | ---: | --- |
+| F05 | 6 / 721 ms | `skill-routing-projection-parity.test.js` / 455 ms | 32/32 | none |
+| F06 | 5 / 820 ms | `skill-retirement-migration.test.js` / 568 ms | 36/36 | none |
+| F07 | 3 / 514 ms | `skill-purpose-decisions.test.js` / 320 ms | 10/10 | none |
+| F08 | 2 / 418 ms | `skill-usage-contract.test.js` / 576 ms | 18/18 | none |
+| F09 | 2 / 873 ms | `skill-resource-sync-security.test.js` / 751 ms | 43/43 | none |
+| **Total** | **18 / 3,346 ms** | **5 / 2,670 ms** | **139/139** | **none** |
+
+The runner's measured elapsed time was 1,101 ms before and 1,027 ms after;
+the table sums per-file runtimes rather than wall-clock time. Every owner is
+below the 180-second default. `node scripts/ci/catalog.js --check all` passes
+with zero uncovered entries.
+
+| Affected production file | Baseline lines | Final lines | Baseline branches | Final branches |
+| --- | ---: | ---: | ---: | ---: |
+| `scripts/ci/_lib/frontmatter.js` | 70/129 | 70/129 | 8/12 | 8/12 |
+| `scripts/ci/_lib/report.js` | 36/51 | 36/51 | 3/6 | 3/6 |
+| `scripts/ci/context-budget.js` | 197/365 | 197/365 | 29/83 | 29/83 |
+| `scripts/ci/gen-skill-usage.js` | 127/245 | 145/245 | 13/31 | 23/40 |
+| `scripts/ci/sync-skill-resources.js` | 51/76 | 51/76 | 11/16 | 11/16 |
+| `scripts/ci/validate-skill-purpose-decisions.js` | 41/48 | 41/48 | 3/9 | 3/9 |
+| `scripts/lib/agy-path-contract.js` | 55/97 | 55/97 | 4/14 | 4/14 |
+| `scripts/lib/asset-inventory.js` | 45/201 | 45/201 | 1/1 | 1/1 |
+| `scripts/lib/bounded-child-process.js` | 36/50 | 36/50 | 2/8 | 2/8 |
+| `scripts/lib/bounded-filesystem.js` | 109/169 | 109/169 | 11/26 | 11/26 |
+| `scripts/lib/capability-bundle-selection.js` | 448/849 | 448/849 | 96/208 | 96/208 |
+| `scripts/lib/discovery-budget.js` | 158/245 | 158/245 | 38/67 | 38/67 |
+| `scripts/lib/distribution-compiler.js` | 85/494 | 85/494 | 2/22 | 2/22 |
+| `scripts/lib/distribution-inventory-regeneration.js` | 13/40 | 13/40 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory.js` | 1786/2518 | 1786/2518 | 544/876 | 562/894 |
+| `scripts/lib/distribution-projection-contract.js` | 317/585 | 317/585 | 40/114 | 40/114 |
+| `scripts/lib/distribution-projection-parity.js` | 155/461 | 155/461 | 29/49 | 29/49 |
+| `scripts/lib/harness-surfaces.js` | 25/25 | 25/25 | 1/1 | 1/1 |
+| `scripts/lib/internal-runtime-skills.js` | 64/77 | 64/77 | 15/31 | 17/33 |
+| `scripts/lib/project-agent-host-binding-policy.js` | 35/240 | 35/240 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-projection-plan.js` | 146/647 | 146/647 | 15/46 | 15/46 |
+| `scripts/lib/project-agent-provider-adapters.js` | 102/483 | 102/483 | 1/1 | 1/1 |
+| `scripts/lib/skill-purpose-decisions.js` | 420/486 | 420/486 | 93/177 | 93/177 |
+| `scripts/lib/skill-resource-sync.js` | 1074/1172 | 1074/1172 | 251/349 | 249/347 |
+| `scripts/lib/skill-routing-projection.js` | 165/201 | 165/201 | 24/55 | 24/55 |
+| `scripts/lib/skill-topology.js` | 214/281 | 214/281 | 24/65 | 24/65 |
+| `scripts/lib/skill-usage.js` | 843/940 | 843/940 | 211/308 | 207/304 |
+| `skills/flow-guide/scripts/_lib/runtime-loader.js` | 42/52 | 42/52 | 6/10 | 6/10 |
+| `skills/flow-guide/scripts/_lib/skill-usage.js` | 552/940 | 552/940 | 78/152 | 78/152 |
+| `skills/flow-guide/scripts/usage-card.js` | 211/316 | 211/316 | 34/69 | 34/69 |
+| `skills/laravel/scripts/resolve-version.js` | 37/44 | 37/44 | 8/10 | 8/10 |
+| `skills/laravel/scripts/version-resolver.js` | 213/276 | 213/276 | 46/72 | 46/72 |
+| `skills/phpunit/scripts/resolve-version.js` | 30/54 | 30/54 | 3/8 | 3/8 |
+| `skills/phpunit/scripts/version-resolver.js` | 183/195 | 183/195 | 41/70 | 41/70 |
+
+All 34 files have unchanged line coverage or an improvement. The only raw c8
+branch decreases are `skill-resource-sync.js` (251/349 to 249/347; 71.92% to
+71.76%) and `skill-usage.js` (211/308 to 207/304; 68.51% to 68.09%). Both are
+unrelated V8 range-map drift: every production source file is byte-identical
+to the baseline, and a coordinate comparison of the 2,932 branch locations
+present on both sides found no previously covered common arm becoming
+uncovered. In `skill-resource-sync.js`, c8 no longer emits the two broad
+enclosing ranges at lines 685–694 and 1008–1029; the narrower child ranges
+remain covered and the existing uncovered arm remains uncovered. In
+`skill-usage.js`, four overlapping enclosing ranges at lines 427–476 are
+omitted, while their child ranges remain. Raw c8 counts and percentages are
+reported without normalization; this is instrumentation mapping drift rather
+than an assertion or production-path loss.
+
+The generated marketplace package is regenerated from this ledger in a clean
+tracked-source snapshot and checked with
+`node scripts/ci/gen-claude-marketplace-package.js --check` before delivery.

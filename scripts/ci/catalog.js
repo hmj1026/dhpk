@@ -188,6 +188,7 @@ const COVERAGE_MAP = {
   'scripts/hooks/_lib/advise-once.sh': 'session-start-advisories.test.js',
   'scripts/hooks/_lib/detect-stack-hints.sh': 'session-start-advisories.test.js',
   'scripts/ci/sync-skill-resources.js': 'skill-resource-sync-security.test.js',
+  'scripts/ci/validate-skill-purpose-decisions.js': 'skill-purpose-decisions.test.js',
   'scripts/lib/runner-utils.js': 'utils.test.js',
   'scripts/lib/profile-projection-sets.js': 'catalog-claims.test.js',
 };
