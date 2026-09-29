@@ -29,9 +29,11 @@ surface; commands and generated-file inventories remain the source of truth.
 - A commit message describes only the change. It carries no author, tool,
   agent, or model identity: no `Co-authored-by`, `Signed-off-by`, or
   generated-by trailer, and no attribution line in the body.
-- Before pushing, check the branch with
-  `git log --format=%B origin/develop..HEAD | grep -iE '^(co-authored-by|signed-off-by):'`;
-  a match must be removed by rewording the local commit.
+- Before pushing, inspect branch messages with
+  `git log --format=%B origin/develop..HEAD` for author, tool, agent, or model
+  attribution anywhere in the body. Check named trailers with
+  `git log --format=%B origin/develop..HEAD | grep -iE '^(co-authored-by|signed-off-by|generated-by):'`;
+  reword any matching commit.
 
 ## Tests
 
