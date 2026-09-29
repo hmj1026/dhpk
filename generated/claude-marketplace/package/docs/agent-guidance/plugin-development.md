@@ -92,12 +92,7 @@ Report the result with the other gates.
 
 ## Test quality rule
 
-**Tautological tests considered harmful.** A passing test is not evidence when
-its expected value is recomputed with the production algorithm, when it calls
-the same helper on both sides of an assertion, or when a mock is configured to
-return the value that the test immediately expects without proving a caller-
-visible behavior. Test through a public seam with a literal, worked example,
-independent specification, or observable side effect. If the implementation
-and the test could share the same defect and still pass, rewrite the test
-before treating it as coverage; see the canonical
-`skills/tdd-workflow/tests.md` guidance.
+**Tautological tests considered harmful.** Apply the canonical
+[`skills/tdd-workflow/tests.md`](../../skills/tdd-workflow/tests.md) rules and
+the repository reviewer checklist in
+[`CODING_STANDARDS.md`](../../CODING_STANDARDS.md#tests).
