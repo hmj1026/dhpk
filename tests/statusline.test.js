@@ -71,4 +71,20 @@ test('modified file is reflected in the ~N modified count', () => {
   }
 });
 
+test('staged file is reflected in the +N staged count', () => {
+  const repo = mkRepo();
+  const home = mkHome();
+  try {
+    fs.writeFileSync(path.join(repo, 'staged.txt'), 'staged\n');
+    const add = spawnSync('git', ['-C', repo, 'add', 'staged.txt'], { encoding: 'utf8' });
+    assert.strictEqual(add.status, 0, add.stderr);
+    const res = runStatusline(repo, home);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, '[main] +1 ~0 | profile=standard');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
 run('statusline');

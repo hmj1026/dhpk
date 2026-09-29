@@ -407,6 +407,7 @@ test('evidence, trust, lane, and revision failures return immutable rejected Gat
     const assertRejected = (
       rejected,
       label,
+      expectedReason,
       { expectedRevision = registration.revision, expectedChainDigest = registration.chainDigest } = {},
     ) => {
       assert.strictEqual(rejected.decision.accepted, false, label);
@@ -414,12 +415,7 @@ test('evidence, trust, lane, and revision failures return immutable rejected Gat
       assert.deepStrictEqual(rejected.receipts, [], label);
       assert.strictEqual(rejected.revision, expectedRevision, label);
       assert.strictEqual(rejected.chainDigest, expectedChainDigest, label);
-      assert.ok(Array.isArray(rejected.decision.blockingReasons), label);
-      assert.deepStrictEqual(
-        rejected.decision.blockingReasons,
-        [...rejected.decision.blockingReasons].sort(),
-        label,
-      );
+      assert.deepStrictEqual(rejected.decision.blockingReasons, [expectedReason], label);
       assert.ok(isDeepFrozen(rejected.decision), label);
     };
 
@@ -431,7 +427,7 @@ test('evidence, trust, lane, and revision failures return immutable rejected Gat
         producer: 'untrusted-reviewer',
         semanticVerdict: 'PASS',
       }),
-    }), 'untrusted producer');
+    }), 'untrusted producer', 'UNTRUSTED_PRODUCER');
     assertHeadUnchanged();
 
     assertRejected(gate.handle({
@@ -442,7 +438,7 @@ test('evidence, trust, lane, and revision failures return immutable rejected Gat
         lane: 'security-reviewer',
         semanticVerdict: 'PASS',
       }),
-    }), 'wrong lane');
+    }), 'wrong lane', 'FOREIGN_EVIDENCE');
     assertHeadUnchanged();
 
     const malformedEvidence = makeReviewEvent(
@@ -456,7 +452,7 @@ test('evidence, trust, lane, and revision failures return immutable rejected Gat
       expectedRevision: registration.revision,
       expectedChainDigest: registration.chainDigest,
       event: malformedEvidence,
-    }), 'missing evidence');
+    }), 'missing evidence', 'MALFORMED_EVIDENCE');
     assertHeadUnchanged();
 
     assertRejected(gate.handle({
@@ -466,7 +462,7 @@ test('evidence, trust, lane, and revision failures return immutable rejected Gat
         eventId: 'review-result-revision-conflict',
         semanticVerdict: 'PASS',
       }),
-    }), 'revision conflict', { expectedRevision: 0, expectedChainDigest: null });
+    }), 'revision conflict', 'TAMPERED_EVIDENCE', { expectedRevision: 0, expectedChainDigest: null });
     assertHeadUnchanged();
   });
 });

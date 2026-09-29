@@ -116,6 +116,7 @@ test('frontend inventory mappings point to the declared source skills and claude
     assert.deepStrictEqual(skill.surfaces, ['claude-module'], expected.skillId);
     assert.strictEqual(skill.lifecycle, 'optional', expected.skillId);
     assert.strictEqual(skill.tier, 'optional', expected.skillId);
+    assert.deepStrictEqual(skill.profiles, [expected.profile], `${expected.skillId} must own exactly its expected profile`);
     assert.strictEqual(skillFrontmatterName(skill.path), expected.skillName);
     assert.deepStrictEqual(providedSkills(module.id), [expected.moduleSkill], expected.moduleId);
   }

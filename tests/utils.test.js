@@ -29,14 +29,22 @@ test('sha1 is deterministic and matches known digest', () => {
   assert.strictEqual(utils.sha1('hello'), h);
 });
 
-test('nowISO returns a valid ISO-8601 timestamp', () => {
+test('nowISO returns a canonical UTC ISO-8601 timestamp', () => {
   const s = utils.nowISO();
-  assert.ok(!Number.isNaN(Date.parse(s)), `not parseable: ${s}`);
+  assert.match(s, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  assert.strictEqual(new Date(s).toISOString(), s);
 });
 
 test('ensureDir/writeText/writeJson/appendLog round-trip through the filesystem', () => {
   const tmp = mkTmp();
   try {
+    const textDir = path.join(tmp, 'nested', 'direct');
+    utils.ensureDir(textDir);
+    assert.ok(fs.statSync(textDir).isDirectory());
+    const textPath = path.join(textDir, 'message.txt');
+    utils.writeText(textPath, 'round trip\n');
+    assert.strictEqual(fs.readFileSync(textPath, 'utf8'), 'round trip\n');
+
     const jsonPath = path.join(tmp, 'nested', 'data.json');
     utils.writeJson(jsonPath, { a: 1 });
     assert.deepStrictEqual(JSON.parse(fs.readFileSync(jsonPath, 'utf8')), { a: 1 });

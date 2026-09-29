@@ -126,8 +126,8 @@ function assertResult(result, label, expectedOk) {
   return result;
 }
 
-function mentions(result, relative) {
-  return result.changes.some((change) => JSON.stringify(change).includes(relative));
+function mentions(result, type, destination) {
+  return result.changes.some((change) => change.type === type && change.destination === destination);
 }
 
 async function expectFailure(action) {
@@ -163,7 +163,12 @@ test('write copies one source with literal bytes and mode 0755 into the ledger',
   try {
     const api = loadLibrary();
     const result = assertResult(await writeFixture(api, fixture), 'writeSkillResources', true);
-    assert.ok(result.changes.length >= 1, 'first write must report the copied resource');
+    assert.ok(mentions(result, 'copy', DESTINATION), 'first write must report the copied resource destination');
+    assert.ok(mentions(result, 'ledger', DESTINATION), 'first write must report its destination ledger record');
+    assert.ok(
+      mentions(result, 'ledger', 'manifests/skill-resource-copies.json'),
+      'first write must report the updated ledger file',
+    );
     const source = path.join(fixture.root, SOURCE);
     const destination = path.join(fixture.root, DESTINATION);
     assert.strictEqual(fs.readFileSync(destination, 'utf8'), fs.readFileSync(source, 'utf8'));
@@ -190,14 +195,14 @@ test('check reports missing and stale resources read-only', async () => {
     fs.rmSync(destination);
     const beforeMissing = snapshot(fixture.root);
     const missing = assertResult(await api.checkSkillResources({ root: fixture.root }), 'missing check', false);
-    assert.ok(mentions(missing, 'scripts/runtime.js'));
+    assert.ok(mentions(missing, 'copy', DESTINATION));
     assert.strictEqual(snapshot(fixture.root), beforeMissing, 'check must not repair missing output');
 
     await writeFixture(api, fixture);
     fs.appendFileSync(path.join(fixture.root, SOURCE), '// stale source\n');
     const beforeStale = snapshot(fixture.root);
     const stale = assertResult(await api.checkSkillResources({ root: fixture.root }), 'stale check', false);
-    assert.ok(mentions(stale, 'scripts/runtime.js'));
+    assert.ok(mentions(stale, 'copy', DESTINATION));
     assert.strictEqual(snapshot(fixture.root), beforeStale, 'check must not rewrite stale output');
   } finally {
     fs.rmSync(fixture.root, { recursive: true, force: true });
@@ -253,7 +258,7 @@ test('removing a map entry reports an owned orphan in check and removes it on wr
     replaceMap(fixture.root, mapFixture([]));
     const beforeCheck = snapshot(fixture.root);
     const orphan = assertResult(await api.checkSkillResources({ root: fixture.root }), 'orphan check', false);
-    assert.ok(mentions(orphan, 'scripts/runtime.js'));
+    assert.ok(mentions(orphan, 'orphan', DESTINATION));
     assert.strictEqual(snapshot(fixture.root), beforeCheck, 'check must not remove an orphan');
     const result = assertResult(await writeFixture(api, fixture), 'orphan removal write', true);
     assert.ok(result.changes.length >= 1, 'write must report orphan removal');

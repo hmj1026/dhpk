@@ -81,4 +81,37 @@ test('Cursor authenticated shared-network runtime probes use bwrap --share-net w
   }
 });
 
+test('Cursor authenticated shared-network probes fail closed when bwrap is unavailable', () => {
+  const root = tempDir('dhpk-issue-237-cursor-missing-sandbox-');
+  const packageRoot = path.join(root, 'cursor-package');
+  const bin = path.join(root, 'bin');
+  const hostHome = writeCursorAuthHome(root);
+  const marker = path.join(root, 'cursor-agent-invoked');
+  try {
+    fs.mkdirSync(bin, { recursive: true });
+    writeCursorPackage(packageRoot);
+    write(path.join(bin, 'cursor-agent'), `#!/usr/bin/env bash\nprintf invoked > '${marker}'\n`, 0o755);
+    const probe = runCursorConsumerProbe({
+      packageRoot,
+      pathValue: '/dhpk-test-path-without-bwrap',
+      executable: path.join(bin, 'cursor-agent'),
+      args: ['--plugin-dir', packageRoot, '--output-format', 'json'],
+      timeoutMs: 500,
+      requireOutput: true,
+      requireJson: true,
+      requireDiscovery: true,
+      requirePackageChallenge: true,
+      networkMode: 'shared',
+      hostHome,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED', JSON.stringify(probe));
+    assert.strictEqual(probe.reason_code, 'SANDBOX_UNAVAILABLE', JSON.stringify(probe));
+    assert.strictEqual(probe.network, 'unknown', JSON.stringify(probe));
+    assert.ok(probe.session_files.includes('.config/cursor/auth.json'), JSON.stringify(probe));
+    assert.strictEqual(fs.existsSync(marker), false, 'Cursor client ran without the required sandbox');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 run('issue-237-cursor-runtime-contract');

@@ -105,6 +105,8 @@ function restoreRegularFile(file, bytes) {
 function assertRejectsReadSwap(read, target, outside, expectedCode) {
   const originalReadFileSync = fs.readFileSync;
   const originalOpenSync = fs.openSync;
+  const originalTargetBytes = originalReadFileSync(target);
+  const outsideBytes = originalReadFileSync(outside);
   let swapped = false;
   let thrown = null;
   const swapBeforeOpen = (file) => {
@@ -129,17 +131,12 @@ function assertRejectsReadSwap(read, target, outside, expectedCode) {
   } finally {
     fs.readFileSync = originalReadFileSync;
     fs.openSync = originalOpenSync;
-    restoreRegularFile(target, originalReadFileSync(target));
+    restoreRegularFile(target, originalTargetBytes);
   }
-  // An implementation may avoid the injected read entirely by opening the
-  // descriptor with O_NOFOLLOW.  If it does use the read path, it must reject
-  // the swapped symlink with the caller's bounded storage error.
-  if (swapped) {
-    assert.ok(thrown, 'a check-then-open symlink swap must fail closed');
-    assert.strictEqual(thrown.code, expectedCode);
-  } else {
-    assert.strictEqual(thrown, null);
-  }
+  assert.ok(swapped, 'the deterministic symlink swap must reach the open boundary');
+  assert.ok(thrown, 'a check-then-open symlink swap must fail closed');
+  assert.strictEqual(thrown.code, expectedCode);
+  assert.deepStrictEqual(originalReadFileSync(outside), outsideBytes);
 }
 
 function runCli(repoRoot, args = [], input = undefined) {
@@ -389,7 +386,7 @@ test('config read rejects bytes above its bounded storage limit', () => {
     createState(repoRoot);
     const configPath = statePath(repoRoot, 'config.json');
     writePrivate(configPath, Buffer.alloc(storage.MAX_STDIN_BYTES + 1, 0x20));
-    assert.throws(() => storage.readConfig(repoRoot));
+    assertCode(() => storage.readConfig(repoRoot), 'SETUP_REQUIRED');
   } finally {
     cleanup(repoRoot);
   }

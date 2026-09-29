@@ -57,11 +57,27 @@ test('runtime examples quote Skill-local executable paths', () => {
     ['audit', /node "\$SKILL_DIR\/scripts\/audit\.js"/],
     ['intake', /node "\$SKILL_DIR\/scripts\/intake_cached\.js"/],
     ['resumeSkill', /"\$SKILL_DIR\/scripts\/"/],
-    ['resume', /"\$SKILL_DIR\/scripts\/(?:extract-compact|set-handoff-state)\.sh"/],
-    ['save', /"\$SKILL_DIR\/scripts\/(?:detect-phase|extract-compact|post-obs|set-handoff-state|write-handoff)\.sh"/],
   ];
   for (const [name, pattern] of executablePaths) {
     assert.match(docs[name], pattern, `${name} must quote its Skill-local path`);
+  }
+
+  for (const [name, scripts] of [
+    ['resume', ['extract-compact.sh', 'set-handoff-state.sh']],
+    ['save', [
+      'detect-phase.sh',
+      'extract-compact.sh',
+      'post-obs.sh',
+      'set-handoff-state.sh',
+      'write-handoff.sh',
+    ]],
+  ]) {
+    for (const script of scripts) {
+      assert.ok(
+        docs[name].includes(`"$SKILL_DIR/scripts/${script}"`),
+        `${name} must quote its Skill-local ${script} path`,
+      );
+    }
   }
 
   assert.doesNotMatch(

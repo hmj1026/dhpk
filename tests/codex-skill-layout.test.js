@@ -10,6 +10,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const ROOT_SKILLS = path.join(ROOT, 'skills');
 const CODEX_SKILLS = path.join(ROOT, 'codex', 'skills');
+const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
 const PHYSICAL_SKILLS = new Set();
 
 function directoryEntries(dir) {
@@ -20,9 +21,15 @@ function directoryEntries(dir) {
 }
 
 test('every Codex skill uses the root canonical skill', () => {
+  const expectedNames = INVENTORY.skills
+    .filter((entry) => entry.surfaces.includes('codex-sync'))
+    .map((entry) => path.posix.basename(entry.path));
+  const actualNames = directoryEntries(CODEX_SKILLS);
+  assert.deepStrictEqual([...actualNames].sort(), [...expectedNames].sort(), 'Codex skill entries drifted from codex-sync inventory membership');
+
   const rootNames = new Set(directoryEntries(ROOT_SKILLS));
 
-  for (const name of directoryEntries(CODEX_SKILLS)) {
+  for (const name of actualNames) {
     if (PHYSICAL_SKILLS.has(name) || !rootNames.has(name)) continue;
 
     const codexEntry = path.join(CODEX_SKILLS, name);

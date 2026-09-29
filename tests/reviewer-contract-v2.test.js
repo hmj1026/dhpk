@@ -34,6 +34,15 @@ const hydrateResult = (name) => ({
   findings: fixture.results[name].findings.map((findingName) => fixture.findings[findingName]),
 });
 
+function activeContractSection(text) {
+  const startHeading = '## Review Request';
+  const start = text.indexOf(startHeading);
+  if (start === -1) return '';
+  const legacyDispatch = /^## Legacy .*dispatch compatibility/m.exec(text.slice(start + startHeading.length));
+  const end = legacyDispatch ? start + startHeading.length + legacyDispatch.index : text.length;
+  return text.slice(start, end);
+}
+
 test('v2 creates an immutable fully bound Review Request without mutating its input', () => {
   const input = { ...fixture.request, contractVersion: fixture.contractVersion };
   const before = JSON.stringify(input);
@@ -178,8 +187,10 @@ test('canonical and projected reviewer definitions conform to the same v2 fixtur
   ];
   for (const relativePath of contractPaths) {
     const text = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+    const activeSection = activeContractSection(text);
+    assert.ok(activeSection, relativePath + ' missing the active v2 contract section');
     for (const token of requiredTokens) {
-      assert.ok(text.includes(token), `${relativePath} missing v2 conformance token ${token}`);
+      assert.ok(activeSection.includes(token), relativePath + ' active v2 contract missing ' + token);
     }
   }
 

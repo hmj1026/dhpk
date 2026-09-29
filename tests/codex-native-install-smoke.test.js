@@ -39,6 +39,19 @@ function findSymlinks(dir) {
   return found;
 }
 
+function relativeFiles(dir) {
+  const files = [];
+  function visit(currentDir) {
+    for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
+      const absolutePath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) visit(absolutePath);
+      else if (entry.isFile()) files.push(path.relative(dir, absolutePath));
+    }
+  }
+  visit(dir);
+  return files.sort();
+}
+
 if (!codexAvailable()) {
   console.log('SKIP - codex CLI not found on PATH; codex-native-install-smoke requires a live codex binary');
   console.log('codex-native-install-smoke: 0/0 passed (skipped)');
@@ -135,6 +148,19 @@ test('every expected codex-native skill materialized as a real (non-symlink) fil
   for (const name of expectedSkillNames) {
     const skillMd = path.join(installedSkillsDir, name, 'SKILL.md');
     assert.ok(fs.existsSync(skillMd) && fs.statSync(skillMd).size > 0, `${name}/SKILL.md missing or empty in installed cache`);
+
+    const sourceSkillDir = path.join(trackedPluginDir, 'skills', name);
+    const installedSkillDir = path.join(installedSkillsDir, name);
+    const sourceFiles = relativeFiles(sourceSkillDir);
+    const installedFiles = relativeFiles(installedSkillDir);
+    assert.deepStrictEqual(installedFiles, sourceFiles, `${name}: installed relative file set must match the tracked codex-native artifact`);
+    for (const relativePath of sourceFiles) {
+      assert.deepStrictEqual(
+        fs.readFileSync(path.join(installedSkillDir, relativePath)),
+        fs.readFileSync(path.join(sourceSkillDir, relativePath)),
+        `${name}/${relativePath}: installed bytes must match the tracked codex-native artifact`,
+      );
+    }
   }
 });
 

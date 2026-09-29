@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
+const goalCoverage = require('../manifests/skill-directory-coverage.json').skills['opsx-apply-goal'];
 const {
   SOURCE,
   REVIEW_GATE_CLOSURE,
@@ -20,6 +21,22 @@ const {
 } = require('./_lib/skill-goal-runtime-fixtures');
 
 const ROOT = path.join(__dirname, '..');
+
+function manifestReviewGateClosure() {
+  const closure = new Set(['scripts/review-gate-runtime.js']);
+  const helpers = goalCoverage.internal_helpers || [];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const helper of helpers) {
+      if (!closure.has(helper.path) && helper.required_by.some((dependency) => closure.has(dependency))) {
+        closure.add(helper.path);
+        changed = true;
+      }
+    }
+  }
+  return [...closure].sort();
+}
 
 function ignored(name) {
   return name === '.git' || name === '.cache' || name === '__pycache__' || name.endsWith('.pyc');
@@ -83,6 +100,11 @@ test('goal runtime registry exposes bounded entries and exact fixture contracts'
   assert.strictEqual(REVIEW_GATE_CLOSURE.length, 19, 'Review Gate closure must contain the approved 19 files');
   assert.strictEqual(new Set(REVIEW_GATE_CLOSURE).size, REVIEW_GATE_CLOSURE.length,
     'Review Gate closure must not duplicate a destination');
+  assert.deepStrictEqual(
+    [...REVIEW_GATE_CLOSURE].sort(),
+    manifestReviewGateClosure(),
+    'physical Review Gate files must match the independent skill coverage dependency graph',
+  );
 });
 
 function isolatedFixture(fixtureId, callback) {
@@ -143,11 +165,6 @@ test('relocated goal Skill contains the complete local 19-file Review Gate closu
     }
     return { evidenceKind: 'fixture', hostStatus: 'NOT_RUN' };
   });
-});
-
-test('goal runtime fixture evidence does not claim actual Claude Host execution', () => {
-  const evidence = { evidenceKind: 'fixture', hostStatus: 'NOT_RUN' };
-  assert.deepStrictEqual(evidence, { evidenceKind: 'fixture', hostStatus: 'NOT_RUN' });
 });
 
 test('canonical goal Skill source remains unchanged after every relocation', () => {

@@ -91,8 +91,8 @@ test('checked-in baseline source commit remains pinned and valid', () => {
   const baselinePath = path.join(ROOT, 'docs', 'baselines', 'issue-467-develop-bba2873.json');
   const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
   assert.strictEqual(baseline.schema, SCHEMA);
-  assert.match(baseline.sourceCommit, /^[0-9a-f]{40}$/);
-  assert.match(baseline.sourceTree, /^[0-9a-f]{40}$/);
+  assert.strictEqual(baseline.sourceCommit, 'bba2873facb429057d319ce74514077447ae0eb1');
+  assert.strictEqual(baseline.sourceTree, '169fcc5be42c401b245da734c9bd90548aa6696f');
 });
 
 test('baseline rejects a source tree that is not bound to the source commit', () => {
@@ -110,10 +110,6 @@ test('baseline rejects a source tree that is not bound to the source commit', ()
   );
   const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-baseline-root-'));
   try {
-    assert.throws(
-      () => buildBaseline({ root: scratchRoot, sourceCommit: SOURCE_COMMIT, provenanceRoot: ROOT }),
-      /collection root does not match source commit|collection root file .* does not match source commit/i,
-    );
     assert.throws(
       () => buildBaseline({ root: scratchRoot, sourceCommit: SOURCE_COMMIT, provenanceRoot: ROOT }),
       /collection root does not match source commit|collection root file .* does not match source commit/i,

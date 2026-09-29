@@ -139,7 +139,7 @@ function fixtureParityManagedCodex() {
   return root;
 }
 
-test('task 1.1: five clean-repository fixtures build without error', () => {
+test('fixture matrix builds and missing Claude source fails through the CLI', () => {
   const builders = [
     fixtureClaudeAndCodexOnly,
     fixtureRetainedTargetsConfigured,
@@ -151,6 +151,15 @@ test('task 1.1: five clean-repository fixtures build without error', () => {
     const root = build();
     try {
       assert.ok(fs.existsSync(root), `${build.name} produced no root`);
+      if (build !== fixtureMissingClaudeSource) continue;
+      const res = runValidate(root);
+      assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
+      const report = JSON.parse(res.stdout);
+      const claude = report.results.find((row) => row.platform === 'claude');
+      assert.ok(claude, 'Claude result row is required');
+      assert.strictEqual(claude.final_status, 'FAIL', JSON.stringify(claude));
+      assert.strictEqual(report.gate, 'FAIL', JSON.stringify(report));
+      assert.notStrictEqual(res.status, 0, 'missing configured Claude source must fail validation');
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -205,6 +214,7 @@ test('task 1.4 (RED): agent discovery excludes INDEX.md/README.md navigation fil
     );
     assert.strictEqual(res.status, 0, res.stderr || res.stdout);
     const roles = JSON.parse(res.stdout);
+    assert.deepStrictEqual(roles, ['architect']);
     assert.ok(!roles.includes('INDEX'), `INDEX.md must not be treated as an agent role, got roles=${JSON.stringify(roles)}`);
     assert.ok(!roles.includes('README'), `README.md must not be treated as an agent role, got roles=${JSON.stringify(roles)}`);
   } finally {
@@ -230,14 +240,17 @@ test('task 1.5 (RED): installer-only Codex validates without requiring .codex/ag
   }
 });
 
-test('task 1.6a (RED): validate has no --targets/--all-targets flag to distinguish an explicit request from auto-discovery', () => {
+test('task 1.6a: explicit target selection returns only Claude and the requested Antigravity row', () => {
   const root = fixtureRetainedTargetsConfigured();
   try {
     const res = runValidate(root, ['--targets', 'antigravity']);
     assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
     const report = JSON.parse(res.stdout);
-    assert.strictEqual(typeof report.gate, 'string');
-    assert.notStrictEqual(report.gate, 'BLOCKED', 'BLOCKED must be reachable once --targets is wired to validate');
+    assert.deepStrictEqual(
+      report.results.map((row) => row.platform).sort(),
+      ['antigravity', 'claude'],
+    );
+    assert.strictEqual(report.results.find((row) => row.platform === 'antigravity').final_status, 'PASS');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

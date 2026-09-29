@@ -59,9 +59,11 @@ test('pre-populated findings file is surfaced via systemMessage, then cleared', 
     fs.writeFileSync(findingsPath(repo), 'eslint: 2 problems in foo.js\n');
     const res = runHook(repo);
     assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-    assert.ok(res.stdout.includes('"systemMessage"'), `expected systemMessage JSON, got: ${res.stdout}`);
-    assert.ok(res.stdout.includes('eslint: 2 problems in foo.js'),
-      `expected findings content in message, got: ${res.stdout}`);
+    const event = JSON.parse(res.stdout.trim());
+    assert.deepStrictEqual(Object.keys(event), ['systemMessage']);
+    assert.match(event.systemMessage, /^\[module-checks\] findings from this turn:\n/);
+    assert.ok(event.systemMessage.includes('eslint: 2 problems in foo.js'),
+      `expected findings content in systemMessage, got: ${event.systemMessage}`);
     assert.ok(!fs.existsSync(findingsPath(repo)), 'expected findings file cleared after surfacing');
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });

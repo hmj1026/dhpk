@@ -1,11 +1,8 @@
 'use strict';
 
-// RED fixtures for openspec/changes/harden-session-audit-and-agent-orchestration
-// tasks 1.1-1.4. These tests define the evidence contract before the collector
-// implementation is changed. They intentionally fail against the v0.37.0
-// collector when it promotes text to runtime failures, verifies generic
-// commands, omits active Orca account homes, or conflates inventory rows with
-// unique package-owned roles.
+// Historical fixtures for openspec/changes/harden-session-audit-and-agent-orchestration.
+// These tests preserve the report, source-selection, verification, and inventory
+// contracts that distinguish runtime evidence from historical or untrusted text.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -76,7 +73,7 @@ function materializeInventoryFixture(fixture, home) {
   }
 }
 
-test('task 1.1 fixture records v0.37.0 roots, report schema, and package-owned role sets', () => {
+test('fixture records v0.37.0 roots, report schema, and package-owned role sets', () => {
   const fixture = readFixture('baseline-v0.37.0.json');
   assert.strictEqual(fixture.schema, 'dhpk.session-usage-audit.fixture.v1');
   assert.strictEqual(fixture.release, '0.37.0');
@@ -98,7 +95,7 @@ test('task 1.1 fixture records v0.37.0 roots, report schema, and package-owned r
   assert.deepStrictEqual(fixture.packageOwnedRoleSet.excludedNavigationFiles, ['INDEX']);
 });
 
-test('task 1.1 (RED): audit report exposes the baseline contract and independent coverage fields', () => {
+test('audit report exposes the baseline contract and independent coverage fields', () => {
   const fixture = readFixture('baseline-v0.37.0.json');
   const home = fixtureHome('baseline');
   try {
@@ -128,28 +125,28 @@ test('task 1.1 (RED): audit report exposes the baseline contract and independent
   }
 });
 
-test('task 1.2 (RED): successful hook text with historical timeout wording is not a runtime finding', () => {
+test('successful hook text with historical timeout wording is not a runtime finding', () => {
   const fixture = readFixture('typed-runtime-records.json');
   const fixtureCase = fixture.cases.find((item) => item.id === 'successful-hook-historical-timeout');
   const result = scanRecordCase(fixtureCase);
   assert.strictEqual(result.findings.length, fixtureCase.expected.findingCount);
 });
 
-test('task 1.2 (RED): prompt or inherited-memory sentinel text remains context, not a failure', () => {
+test('prompt or inherited-memory sentinel text remains context, not a failure', () => {
   const fixture = readFixture('typed-runtime-records.json');
   const fixtureCase = fixture.cases.find((item) => item.id === 'prompt-memory-sentinel-text');
   const result = scanRecordCase(fixtureCase);
   assert.strictEqual(result.findings.length, fixtureCase.expected.findingCount);
 });
 
-test('task 1.2 (RED): historical projection prose is retained without becoming a failure', () => {
+test('historical projection prose is retained without becoming a failure', () => {
   const fixture = readFixture('typed-runtime-records.json');
   const fixtureCase = fixture.cases.find((item) => item.id === 'historical-projection-prose');
   const result = scanRecordCase(fixtureCase);
   assert.strictEqual(result.findings.length, fixtureCase.expected.findingCount);
 });
 
-test('task 1.2 (RED): structured non-zero hook failure keeps stable event provenance', () => {
+test('structured non-zero hook failure keeps stable event provenance', () => {
   const fixture = readFixture('typed-runtime-records.json');
   const fixtureCase = fixture.cases.find((item) => item.id === 'structured-hook-failure');
   const result = scanRecordCase(fixtureCase);
@@ -159,46 +156,75 @@ test('task 1.2 (RED): structured non-zero hook failure keeps stable event proven
   assert.ok(result.findings[0].evidence.some((item) => item.sessionId === fixtureCase.expected.sessionId));
 });
 
-test('task 1.3 (RED): generic --help and date-scan commands cannot verify an arbitrary finding', () => {
+test('generic --help and date-scan commands cannot verify an arbitrary finding', () => {
   const fixture = readFixture('generic-verification.json');
   const result = audit.verifyFinding(fixture.finding, fixture.verification, { home: os.tmpdir() });
   assert.strictEqual(result.status, fixture.expected.status);
   assert.notStrictEqual(result.status, 'verified', fixture.expected.reason);
 });
 
-test('task 1.4 (RED): only explicitly selected active Orca account sessions are discovered', () => {
+test('only explicitly selected active Orca account sessions are discovered', () => {
   const fixture = readFixture('source-coverage.json');
   const home = fixtureHome('orca-selected');
   try {
     materializeSourceCoverageFixture(fixture, home);
     const discovery = audit.discoverSources(home, { activeOrcaAccounts: fixture.activeAccounts });
-    const active = discovery.sources.filter((source) => source.path.includes('/selected-account/'));
-    const ignored = discovery.sources.filter((source) => source.path.includes('/ignored-account/'));
-    assert.ok(active.length > 0, 'selected active Orca account must be included');
-    assert.strictEqual(ignored.length, 0, 'unselected Orca account must not be wildcard-scanned');
-    assert.ok(active.every((source) => source.kind === fixture.expected.activeSourceKind));
-    assert.ok(active.every((source) => source.accountId.startsWith(fixture.expected.redactedAccountPrefix)));
-    assert.ok(active.every((source) => !source.accountId.includes('selected-account')));
+    assert.deepStrictEqual(discovery.sources.map((source) => ({
+      kind: source.kind,
+      path: path.relative(home, source.path).split(path.sep).join('/'),
+    })), [{
+      kind: fixture.expected.activeSourceKind,
+      path: fixture.activeSession.relativePath,
+    }], 'only the explicitly selected Orca session is scanned');
+    assert.ok(discovery.sources[0].accountId.startsWith(fixture.expected.redactedAccountPrefix));
+    assert.ok(!discovery.sources[0].accountId.includes('selected-account'));
+    assert.deepStrictEqual(discovery.activeOrcaAccounts.length, 1);
+    assert.ok(discovery.activeOrcaAccounts[0].startsWith(fixture.expected.redactedAccountPrefix));
+    assert.ok(!discovery.activeOrcaAccounts[0].includes('selected-account'));
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
 
-test('task 1.4 (RED): missing active Orca source is omitted explicitly and blocks completeness', () => {
+test('missing active Orca sources report their exact redacted identities and block completeness', () => {
   const fixture = readFixture('source-coverage.json');
   const home = fixtureHome('orca-missing');
   try {
     const discovery = audit.discoverSources(home, { activeOrcaAccounts: fixture.missingAccounts });
-    assert.ok(discovery.omittedSources.some((source) => (
-      source.kind === fixture.expected.activeSourceKind && source.status === 'UNAVAILABLE'
-    )));
+    const missingAccounts = discovery.omittedSources
+      .filter((source) => source.reason === 'configured-active-account-missing')
+      .map((source) => ({
+        kind: source.kind,
+        path: path.relative(home, source.path).split(path.sep).join('/'),
+        status: source.status,
+        reason: source.reason,
+        accountRedacted: source.account.startsWith(fixture.expected.redactedAccountPrefix)
+          && !source.account.includes('missing-account'),
+      }))
+      .sort((left, right) => left.path.localeCompare(right.path));
+    assert.deepStrictEqual(missingAccounts, [
+      {
+        kind: fixture.expected.activeSourceKind,
+        path: '.config/orca/codex-accounts/missing-account/home/sessions',
+        status: 'UNAVAILABLE',
+        reason: 'configured-active-account-missing',
+        accountRedacted: true,
+      },
+      {
+        kind: fixture.expected.activeSourceKind,
+        path: '.orca/codex-accounts/missing-account/home/sessions',
+        status: 'UNAVAILABLE',
+        reason: 'configured-active-account-missing',
+        accountRedacted: true,
+      },
+    ]);
     assert.strictEqual(discovery.sourceCoverageComplete, false);
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
 
-test('task 1.4 (RED): malformed and unsupported records are counted independently in the report', () => {
+test('malformed and unsupported records are counted independently in the report', () => {
   const fixture = readFixture('source-coverage.json');
   const home = fixtureHome('orca-record-stats');
   try {
@@ -219,7 +245,7 @@ test('task 1.4 (RED): malformed and unsupported records are counted independentl
   }
 });
 
-test('task 1.4 (RED): installation rows, unique roles, and INDEX rows use separate count scopes', () => {
+test('installation rows, unique roles, and INDEX rows use separate count scopes', () => {
   const fixture = readFixture('agent-inventory.json');
   const home = fixtureHome('agent-counts');
   try {

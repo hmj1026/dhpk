@@ -29,9 +29,10 @@ function write(repo, rel, content) {
 }
 
 // evidence(repo) -> array of detected family names.
-function evidence(repo) {
+function evidence(repo, env = {}) {
   const res = spawnSync('bash', ['-c', '. "$1"; dhpk_collect_stack_evidence "$2"', '_', DETECT, repo], {
     encoding: 'utf8',
+    env: { ...process.env, ...env },
   });
   assert.strictEqual(res.status, 0, res.stderr);
   return res.stdout.trim().split(',').filter(Boolean);
@@ -132,16 +133,15 @@ test('stack files only under version-control-ignored paths contribute no evidenc
   });
 });
 
-test('evidence is bounded: a wide tree does not scan without limit', () => {
+test('evidence census respects the configured file cap without relying on timing', () => {
   withRepo((repo) => {
-    for (let i = 0; i < 40; i += 1) write(repo, `pkg${i}/src/mod.js`, 'export default 1;\n');
-    const started = Date.now();
-    const fams = evidence(repo);
-    const elapsed = Date.now() - started;
-    assert.ok(fams.includes('js'), `expected js in ${fams}`);
-    // Generous ceiling: the point is that the census is bounded, not fast-path
-    // timing. An unbounded recursive scan of a real project blows past this.
-    assert.ok(elapsed < 3000, `evidence collection took ${elapsed}ms`);
+    for (let i = 0; i < 20; i += 1) {
+      write(repo, `pkg${i}/src/mod.js`, 'export default 1;\n');
+      write(repo, `pkg${i}/src/Controller.php`, '<?php class Controller {}\n');
+    }
+    const fams = evidence(repo, { DHPK_STACK_CENSUS_FILES: '1' });
+    assert.strictEqual(fams.length, 1, `a one-file census can discover at most one source family: ${fams}`);
+    assert.ok(['js', 'php'].includes(fams[0]), `unexpected single family ${fams[0]}`);
   });
 });
 

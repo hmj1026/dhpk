@@ -27,7 +27,9 @@ test('clones only allowlisted Cursor session files with private permissions', ()
     const result = cloneCursorSessionFiles({ hostHome, probeHome });
     assert.deepStrictEqual(result.copiedFiles, [...CURSOR_SESSION_ALLOWLIST]);
     for (const relative of CURSOR_SESSION_ALLOWLIST) {
+      const source = path.join(hostHome, relative);
       const destination = path.join(probeHome, relative);
+      assert.deepStrictEqual(fs.readFileSync(destination), fs.readFileSync(source));
       assert.strictEqual(fs.statSync(destination).mode & 0o777, 0o600);
     }
     assert.strictEqual(fs.existsSync(path.join(probeHome, '.config', 'cursor', 'unlisted.json')), false);
@@ -44,8 +46,9 @@ test('skips symlinked session ancestors and rejects non-absolute probe homes', (
   try {
     fs.mkdirSync(path.join(outside, 'cursor'), { recursive: true });
     fs.writeFileSync(path.join(outside, 'cursor', 'auth.json'), '{"token":"outside"}\n');
-    fs.symlinkSync(path.join(outside, 'cursor'), path.join(hostHome, '.config'), 'dir');
+    fs.symlinkSync(outside, path.join(hostHome, '.config'), 'dir');
     assert.deepStrictEqual(cloneCursorSessionFiles({ hostHome, probeHome }).copiedFiles, []);
+    assert.strictEqual(fs.existsSync(path.join(probeHome, '.config', 'cursor', 'auth.json')), false);
     assert.throws(() => cloneCursorSessionFiles({ hostHome, probeHome: 'relative-home' }), /absolute path/);
   } finally {
     fs.rmSync(hostHome, { recursive: true, force: true });

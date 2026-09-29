@@ -51,8 +51,11 @@ function makeStore() {
 }
 
 function makeAdapter(overrides = {}) {
+  const store = Object.prototype.hasOwnProperty.call(overrides, 'store')
+    ? overrides.store
+    : makeStore();
   return new GitProviderReviewGateAdapter({
-    store: makeStore(),
+    store,
     activation: 'ACTIVE',
     now: NOW,
     ...overrides,
@@ -136,14 +139,28 @@ test('rejects a malformed merge identity', () => {
   );
 });
 
-test('rejects an incomplete identity', () => {
-  const adapter = makeAdapter();
-  const { sessionId, ...withoutSession } = IDENTITY;
-  expectRejected(
-    () => adapter.record(submissionInput({ identity: withoutSession })),
-    'MALFORMED_INPUT',
-    'every identity field is required',
-  );
+test('rejects every missing identity field before appending a receipt', () => {
+  const fields = ['workId', 'waveId', 'planId', 'decisionId', 'sessionId'];
+  assert.deepStrictEqual(Object.keys(IDENTITY), fields);
+  let appendCalls = 0;
+  const store = {
+    append() {
+      appendCalls += 1;
+      return { status: 'APPENDED' };
+    },
+  };
+
+  for (const field of fields) {
+    const identity = { ...IDENTITY };
+    delete identity[field];
+    const adapter = makeAdapter({ store });
+    expectRejected(
+      () => adapter.record(submissionInput({ identity })),
+      'MALFORMED_INPUT',
+      `missing identity field ${field} must be rejected`,
+    );
+    assert.strictEqual(appendCalls, 0, `missing ${field} must be rejected before receipt append`);
+  }
 });
 
 run('git-provider-review-gate-adapter');

@@ -10,6 +10,19 @@ function read(relative) {
   return fs.readFileSync(path.join(ROOT, relative), 'utf8');
 }
 
+function tableRow(text, firstCell, relative) {
+  const row = text.split('\n').find((line) => line.startsWith(`| ${firstCell} |`));
+  assert.ok(row, `${relative} is missing the ${firstCell} table row`);
+  return row;
+}
+
+function introduction(text, opening, relative) {
+  const start = text.indexOf(opening);
+  assert.ok(start >= 0, `${relative} is missing its opening introduction`);
+  const end = text.indexOf('\n\n', start);
+  return text.slice(start, end < 0 ? undefined : end);
+}
+
 const BILINGUAL_PAIRS = [
   ['README.md', 'README.zh-TW.md'],
   ['RELEASE.md', 'RELEASE.zh-TW.md'],
@@ -59,15 +72,47 @@ test('overview documents the current canonical, projection, native, hook, and co
 
   for (const relative of ['README.md', 'README.zh-TW.md']) {
     const text = read(relative);
-    assert.ok(text.includes(`${canonicalCount}`), `${relative} missing canonical skill count`);
-    assert.ok(text.includes(`${moduleCount}`), `${relative} missing module count`);
-    assert.ok(text.includes(`${nativeCount}`), `${relative} missing native skill count`);
+    const canonicalRow = tableRow(text, 'Canonical skills', relative);
+    const nativeRow = tableRow(text, relative === 'README.md' ? 'Codex dual-track' : 'Codex 雙軌', relative);
+    const hookRow = tableRow(text, 'Hooks', relative);
+    assert.match(
+      canonicalRow,
+      relative === 'README.md'
+        ? new RegExp(`\\|\\s*${canonicalCount}\\s+flat packages\\b`)
+        : new RegExp(`\\|\\s*${canonicalCount}\\s+個扁平 package\\b`),
+      `${relative} must attach the canonical count to the canonical-skills claim`,
+    );
+    assert.match(
+      nativeRow,
+      relative === 'README.md'
+        ? new RegExp(`\\|\\s*${nativeCount}\\s+entries \\(\\d+ invokable\\)`)
+        : new RegExp(`\\|\\s*${nativeCount}\\s+筆項目（\\d+ 個可呼叫）`),
+      `${relative} must attach the native count to the Codex package claim`,
+    );
+    assert.match(
+      hookRow,
+      relative === 'README.md'
+        ? new RegExp(`\\|\\s*${hookEvents.length}\\s+events\\b`)
+        : new RegExp(`\\|\\s*${hookEvents.length}\\s+個事件`),
+      `${relative} must attach the event count to the Hooks claim`,
+    );
+    for (const event of hookEvents) {
+      assert.ok(hookRow.includes(event), `${relative} Hooks row missing event ${event}`);
+    }
+
+    const intro = relative === 'README.md'
+      ? introduction(text, 'A generic, install-and-go Claude Code harness.', relative)
+      : introduction(text, '通用、安裝即用的 Claude Code harness。', relative);
+    assert.match(
+      intro,
+      relative === 'README.md'
+        ? new RegExp(`\\b${moduleCount} opt-in stack modules\\b`)
+        : new RegExp(`${moduleCount} 個可選技術棧模組`),
+      `${relative} must attach the module count to the introduction's module claim`,
+    );
     assert.ok(text.includes('manifests/distribution-inventory.json'), `${relative} missing inventory SSOT`);
     assert.ok(text.includes('plugins/dhpk/'), `${relative} missing physical native package`);
     assert.ok(text.includes('skills/dhpk-'), `${relative} missing flat public-name contract`);
-    for (const event of hookEvents) {
-      assert.ok(text.includes(event), `${relative} missing hook event ${event}`);
-    }
   }
 });
 

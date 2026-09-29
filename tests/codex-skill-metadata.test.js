@@ -54,6 +54,8 @@ test('every canonical skill package has valid Codex interface metadata', () => {
 
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   assert.strictEqual(canonicalDirs.length, inventory.skills.length, 'canonical package tree drifted from the distribution inventory');
+  assert.strictEqual(new Set(inventory.skills.map((entry) => entry.name)).size, inventory.skills.length, 'inventory skill names must be unique');
+  assert.strictEqual(new Set(inventory.skills.map((entry) => entry.path)).size, inventory.skills.length, 'inventory skill paths must be unique');
 
   for (const skillDir of canonicalDirs) {
     const metadataPath = path.join(skillDir, 'agents', 'openai.yaml');
@@ -61,8 +63,10 @@ test('every canonical skill package has valid Codex interface metadata', () => {
     const metadata = parseInterface(metadataPath);
     const skillName = parseSkillName(skillDir);
     const inventoryEntry = INVENTORY_BY_NAME.get(skillName);
+    const skillPath = path.relative(ROOT, skillDir).split(path.sep).join('/');
 
     assert.ok(inventoryEntry, `${skillDir} is not registered in the inventory`);
+    assert.strictEqual(inventoryEntry.path, skillPath, `${skillDir} must match the exact inventory path for ${skillName}`);
     assert.ok(metadata.display_name.length > 0, `${skillDir} display_name is empty`);
     assert.ok(metadata.short_description.length >= 25, `${skillDir} short_description is too short`);
     assert.ok(metadata.short_description.length <= 64, `${skillDir} short_description is too long`);

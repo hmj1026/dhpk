@@ -15,6 +15,7 @@ const {
 
 const ROOT = path.join(__dirname, '..');
 const VERIFIER = path.join(ROOT, 'scripts', 'release', 'verify-publication-bundle.js');
+const RELEASE_WORKFLOW = path.join(ROOT, '.github', 'workflows', 'release.yml');
 const IDENTITY = Object.freeze({
   runId: '550-run-123',
   tag: 'v0.62.0',
@@ -60,6 +61,58 @@ function digestFile(filePath) {
   return `sha256:${crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex')}`;
 }
 
+function extractPublicationVerifierGuard(workflowText) {
+  const stepHeader = '      - name: Validate trusted publication bundle';
+  const stepStart = workflowText.indexOf(stepHeader);
+  assert.notStrictEqual(stepStart, -1, 'release workflow is missing the trusted publication validation step');
+  assert.strictEqual(
+    workflowText.indexOf(stepHeader, stepStart + stepHeader.length),
+    -1,
+    'release workflow has duplicate trusted publication validation steps',
+  );
+
+  const nextStepStart = workflowText.indexOf('\n      - name: ', stepStart + stepHeader.length);
+  const stepText = workflowText.slice(stepStart, nextStepStart === -1 ? workflowText.length : nextStepStart);
+  assert.match(
+    stepText,
+    /^\s+VERIFIER_SHA256:\s*\$\{\{\s*needs\.release\.outputs\.release_verifier_sha256\s*\}\}\s*$/m,
+    'release workflow no longer binds the verifier digest to the release producer output',
+  );
+
+  const runMarker = '        run: |';
+  const runStart = stepText.indexOf(runMarker);
+  assert.notStrictEqual(runStart, -1, 'trusted publication validation step is missing its Bash run block');
+  assert.strictEqual(stepText.indexOf(runMarker, runStart + runMarker.length), -1, 'trusted publication step has multiple run blocks');
+
+  const runLines = stepText.slice(runStart + runMarker.length).replace(/^\r?\n/, '').split(/\r?\n/);
+  const shellLines = [];
+  for (const line of runLines) {
+    if (line.startsWith('          ')) {
+      shellLines.push(line.slice(10));
+    } else if (line.trim() === '') {
+      if (shellLines.length > 0) shellLines.push('');
+    } else {
+      break;
+    }
+  }
+  const shell = shellLines.join('\n').trimEnd();
+  assert.ok(shell.length > 0, 'trusted publication validation step has an empty Bash run block');
+
+  const digestAssignment = shell.indexOf('actual_verifier_sha256=');
+  const sha256sum = shell.indexOf('sha256sum "$verifier"');
+  const comparison = shell.indexOf('if [ "$actual_verifier_sha256" != "$VERIFIER_SHA256" ]; then');
+  const diagnostic = shell.indexOf('publication consumer: downloaded verifier digest does not match the producer binding');
+  const failureExit = diagnostic === -1 ? -1 : shell.indexOf('exit 1', diagnostic);
+  const comparisonEnd = failureExit === -1 ? -1 : shell.indexOf('\nfi', failureExit);
+  const verifierExecution = shell.indexOf('node "$verifier"');
+
+  assert.ok(digestAssignment !== -1 && sha256sum > digestAssignment, 'trusted publication step no longer computes the downloaded verifier digest');
+  assert.ok(comparison > sha256sum, 'trusted publication step no longer compares the downloaded digest with the producer binding');
+  assert.ok(diagnostic > comparison && failureExit > diagnostic, 'trusted publication digest mismatch no longer fails with the producer-binding diagnostic');
+  assert.ok(comparisonEnd > failureExit && verifierExecution > comparisonEnd, 'trusted publication verifier execution must follow the digest mismatch guard');
+  return shell;
+}
+
 test('standalone verifier consumes only downloaded bundle, digest, and verifier inputs', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-publication-verifier-'));
   try {
@@ -96,14 +149,69 @@ test('standalone verifier rejects a stale or foreign downloaded digest anchor', 
   }
 });
 
-test('a changed downloaded verifier no longer matches the producer binding', () => {
+test('publish consumer rejects a changed downloaded verifier before executing it', () => {
+  const workflowPath = process.env.DHPK_VERIFY_PUBLICATION_WORKFLOW_PATH || RELEASE_WORKFLOW;
+  const workflowText = fs.readFileSync(workflowPath, 'utf8');
+  const shellGuard = extractPublicationVerifierGuard(workflowText);
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-publication-verifier-'));
   try {
+    const verifierDir = path.join(temp, 'dhpk-release-publication-bundle-verifier');
+    const bundleDir = path.join(temp, 'dhpk-release-publication-bundle');
+    const digestDir = path.join(temp, 'dhpk-release-publication-notes-digest');
+    fs.mkdirSync(verifierDir);
+    fs.mkdirSync(bundleDir);
+    fs.mkdirSync(digestDir);
+
     const copiedVerifier = path.join(temp, 'verify-publication-bundle.js');
     fs.copyFileSync(VERIFIER, copiedVerifier);
     const expectedVerifierSha256 = digestFile(copiedVerifier);
-    fs.appendFileSync(copiedVerifier, '\n// tampered verifier\n');
-    assert.notStrictEqual(digestFile(copiedVerifier), expectedVerifierSha256);
+    fs.copyFileSync(copiedVerifier, path.join(verifierDir, 'verify-publication-bundle.js'));
+    fs.writeFileSync(path.join(bundleDir, 'dhpk-release-publication-bundle.json'), '{}\n');
+    fs.writeFileSync(path.join(digestDir, 'dhpk-release-publication-notes-digest.json'), '{}\n');
+
+    const mockBin = path.join(temp, 'mock-bin');
+    fs.mkdirSync(mockBin);
+    const nodeTrace = path.join(temp, 'node-invocations.log');
+    const mockNode = path.join(mockBin, 'node');
+    fs.writeFileSync(mockNode, '#!/bin/sh\nprintf "%s\\n" "$*" >> "$MOCK_NODE_TRACE"\n', { mode: 0o755 });
+    fs.chmodSync(mockNode, 0o755);
+    const mockSha256sum = path.join(mockBin, 'sha256sum');
+    fs.writeFileSync(mockSha256sum, '#!/bin/sh\nexec shasum -a 256 "$@"\n', { mode: 0o755 });
+    fs.chmodSync(mockSha256sum, 0o755);
+
+    const runGuard = () => spawnSync('bash', [
+      '--noprofile',
+      '--norc',
+      '-e',
+      '-o', 'pipefail',
+      '-c', shellGuard,
+    ], {
+      cwd: temp,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        RUNNER_TEMP: temp,
+        VERIFIER_SHA256: expectedVerifierSha256,
+        EXPECTED_NOTES_SHA256: digestBytes(notes()),
+        TARGET_COMMIT: IDENTITY.targetCommit,
+        TARGET_TREE: IDENTITY.targetTree,
+        GITHUB_RUN_ID: IDENTITY.runId,
+        GITHUB_REF_NAME: IDENTITY.tag,
+        MOCK_NODE_TRACE: nodeTrace,
+        PATH: `${mockBin}${path.delimiter}${process.env.PATH || ''}`,
+      },
+    });
+
+    const originalResult = runGuard();
+    assert.strictEqual(originalResult.status, 0, `${originalResult.stdout}${originalResult.stderr}`);
+    assert.match(fs.readFileSync(nodeTrace, 'utf8'), /verify-publication-bundle\.js/);
+
+    fs.rmSync(nodeTrace, { force: true });
+    fs.appendFileSync(path.join(verifierDir, 'verify-publication-bundle.js'), '\n// tampered downloaded verifier\n');
+    const tamperedResult = runGuard();
+    assert.notStrictEqual(tamperedResult.status, 0);
+    assert.match(tamperedResult.stderr, /downloaded verifier digest does not match the producer binding/);
+    assert.strictEqual(fs.existsSync(nodeTrace), false, 'the downloaded verifier ran before its producer binding was checked');
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

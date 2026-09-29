@@ -8,12 +8,12 @@
 // tests/review-gate-cross-platform-differential.test.js.
 
 const fs = require('node:fs');
+const Module = require('node:module');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const conformance = require('../scripts/lib/review-gate-conformance');
 
-const ROOT = path.join(__dirname, '..');
 const NOW = '2026-09-07T04:00:00.000Z';
 
 const MINI_CORPUS = Object.freeze({
@@ -216,18 +216,106 @@ test('report clones a JSON __proto__ key as data without changing the result pro
 test('the conformance report is pure: no filesystem writes or workflow-state access', () => {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-conformance-purity-'));
   const previous = process.cwd();
+  const modulePath = require.resolve('../scripts/lib/review-gate-conformance');
+  const cachedModule = require.cache[modulePath];
+  const originalLoad = Module._load;
+  const mutations = [];
+  const workflowLoads = [];
+  const mutationMethods = [
+    'appendFile',
+    'appendFileSync',
+    'chmod',
+    'chmodSync',
+    'chown',
+    'chownSync',
+    'copyFileSync',
+    'createWriteStream',
+    'linkSync',
+    'mkdir',
+    'mkdirSync',
+    'mkdtempSync',
+    'open',
+    'openSync',
+    'rename',
+    'renameSync',
+    'rm',
+    'rmSync',
+    'rmdir',
+    'rmdirSync',
+    'symlink',
+    'symlinkSync',
+    'truncate',
+    'truncateSync',
+    'unlink',
+    'unlinkSync',
+    'write',
+    'writeFile',
+    'writeFileSync',
+    'writeSync',
+  ];
+  const originalFsMethods = Object.fromEntries(
+    mutationMethods.map((method) => [method, fs[method]]),
+  );
+  const fsPromises = fs.promises;
+  const promiseMutationMethods = [
+    'appendFile',
+    'chmod',
+    'chown',
+    'copyFile',
+    'link',
+    'mkdir',
+    'open',
+    'rename',
+    'rm',
+    'rmdir',
+    'symlink',
+    'truncate',
+    'unlink',
+    'writeFile',
+  ];
+  const originalPromiseMethods = Object.fromEntries(
+    promiseMutationMethods.map((method) => [method, fsPromises[method]]),
+  );
   try {
     process.chdir(temporary);
-    conformance.buildConformanceReport({ corpus: MINI_CORPUS, observations: MINI_OBSERVATIONS, generatedAt: NOW });
+    delete require.cache[modulePath];
+    Module._load = function loadWithoutWorkflowState(request, parent, isMain) {
+      if (/(?:workflow-coordinator|migration-coordinator|review-gate(?:-receipt-store|-runtime)?)(?:\.js)?$/.test(request)) {
+        workflowLoads.push(request);
+        throw new Error(`workflow state access is forbidden: ${request}`);
+      }
+      return originalLoad.call(this, request, parent, isMain);
+    };
+    for (const method of mutationMethods) {
+      fs[method] = (...args) => {
+        mutations.push({ method, path: args[0] });
+        throw new Error(`filesystem mutation is forbidden: ${method}`);
+      };
+    }
+    for (const method of promiseMutationMethods) {
+      fsPromises[method] = (...args) => {
+        mutations.push({ method: `promises.${method}`, path: args[0] });
+        throw new Error(`filesystem mutation is forbidden: promises.${method}`);
+      };
+    }
+    const pureConformance = require('../scripts/lib/review-gate-conformance');
+    pureConformance.buildConformanceReport({
+      corpus: MINI_CORPUS,
+      observations: MINI_OBSERVATIONS,
+      generatedAt: NOW,
+    });
     assert.deepStrictEqual(fs.readdirSync(temporary), []);
   } finally {
+    Module._load = originalLoad;
+    for (const method of mutationMethods) fs[method] = originalFsMethods[method];
+    for (const method of promiseMutationMethods) fsPromises[method] = originalPromiseMethods[method];
+    delete require.cache[modulePath];
+    if (cachedModule) require.cache[modulePath] = cachedModule;
     process.chdir(previous);
     fs.rmSync(temporary, { recursive: true, force: true });
   }
-  assert.ok(
-    !fs.readFileSync(path.join(ROOT, 'scripts', 'lib', 'review-gate-conformance.js'), 'utf8').includes('workflow-coordinator'),
-    'the report builder must never import workflow state',
-  );
+  assert.deepStrictEqual(workflowLoads, [], 'the report builder must not load workflow state');
+  assert.deepStrictEqual(mutations, [], 'the report builder must not mutate filesystem state');
 });
 
 const COMPLETE_METRICS = {

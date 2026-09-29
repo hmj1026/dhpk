@@ -105,7 +105,12 @@ function fixture(definition) {
     expected,
     assert(result, context, state) {
       const unavailable = definition.allowUnavailable
-        && (result.error || result.status === null || result.status === 127);
+        && definition.entry === 'scripts/generate_icons.swift'
+        && /^#!\/usr\/bin\/env\s+swift\s*$/.test(
+          fs.readFileSync(path.join(context.skillDir, definition.entry), 'utf8').split(/\r?\n/, 1)[0],
+        )
+        && result.status === 127
+        && /\bswift\b.*(?:not found|no such file or directory)/i.test(String(result.stderr || ''));
       if (unavailable) {
         assert.strictEqual(context.hostStatus, 'NOT_RUN', `${definition.id}: unavailable capability must be NOT_RUN`);
         return;

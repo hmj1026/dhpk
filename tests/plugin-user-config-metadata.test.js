@@ -1,9 +1,7 @@
 'use strict';
 
-// RED acceptance coverage for compact-plugin-user-config-metadata.  The
-// fixture locks the legacy contract before any compact description is
-// generated; production generators and probes belong to the implementation
-// wave.
+// Contract coverage for compact plugin user-config metadata. The fixture locks
+// the legacy contract while generation and rollback behavior stay observable.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -278,8 +276,11 @@ test('rollback restores the characterized legacy manifest and leaves unrelated p
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-user-config-rollback-'));
   try {
     const manifestPath = path.join(root, 'plugin.json');
+    const unrelatedProjectionPath = path.join(root, 'unrelated-projection.json');
+    const unrelatedProjectionBytes = '{"owner":"other-projection","version":1}\n';
     const legacyBytes = `${JSON.stringify(legacyManifest, null, 2)}\n`;
     fs.writeFileSync(manifestPath, legacyBytes);
+    fs.writeFileSync(unrelatedProjectionPath, unrelatedProjectionBytes);
     const generated = api().generateUserConfigMetadata({ root: ROOT, legacyManifest, source: compactSource() });
     assert.strictEqual(generated.ok, true, resultText(generated));
     fs.writeFileSync(manifestPath, `${JSON.stringify(candidateManifest(generated), null, 2)}\n`);
@@ -291,6 +292,7 @@ test('rollback restores the characterized legacy manifest and leaves unrelated p
     });
     assert.strictEqual(rollback.ok, true, resultText(rollback));
     assert.strictEqual(fs.readFileSync(manifestPath, 'utf8'), legacyBytes);
+    assert.strictEqual(fs.readFileSync(unrelatedProjectionPath, 'utf8'), unrelatedProjectionBytes);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

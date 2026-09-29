@@ -130,18 +130,21 @@ test('malformed entries produce deterministic P1 findings with safe fix hints', 
 
     const report = JSON.parse(first.stdout);
     const malformed = report.findings.filter((finding) => /(?:entry|frontmatter)/.test(finding.check));
-    assert.ok(malformed.length >= 5, JSON.stringify(report, null, 2));
-    for (const finding of malformed) {
+    const expectedMalformed = [
+      ['invalid-skill/SKILL.md', 'frontmatter'],
+      ['broken-skill/SKILL.md', 'skill-entry'],
+      ['broken-agent.md', 'agent-entry'],
+      ['unreadable-agent.md', 'agent-entry'],
+      ['invalid-agent.md', 'agent-frontmatter'],
+      ['invalid-command.md', 'command-frontmatter'],
+    ];
+    for (const [expectedPath, expectedCheck] of expectedMalformed) {
+      const finding = malformed.find((item) => item.path === expectedPath && item.check === expectedCheck);
+      assert.ok(finding, `missing ${expectedCheck} finding for ${expectedPath}: ${JSON.stringify(report, null, 2)}`);
       assert.strictEqual(finding.severity, 'P1', JSON.stringify(finding));
-      assert.ok(finding.fix, JSON.stringify(finding));
+      assert.ok(typeof finding.fix === 'string' && finding.fix.trim(), JSON.stringify(finding));
+      assert.ok(!finding.fix.includes(tmp), `fix hint leaked the host path: ${JSON.stringify(finding)}`);
     }
-    assert.ok(malformed.some((finding) => /broken-agent\.md/.test(finding.message)), JSON.stringify(report, null, 2));
-    assert.ok(malformed.some((finding) => /unreadable-agent\.md/.test(finding.message)), JSON.stringify(report, null, 2));
-    assert.ok(malformed.some((finding) => /invalid-command\.md/.test(finding.message)), JSON.stringify(report, null, 2));
-    const invalidSkill = malformed.find((finding) => finding.skill === 'invalid-skill' && finding.check === 'frontmatter');
-    assert.ok(invalidSkill, JSON.stringify(report, null, 2));
-    assert.strictEqual(invalidSkill.path, 'invalid-skill/SKILL.md', JSON.stringify(invalidSkill));
-    assert.ok(malformed.some((finding) => finding.path === 'broken-skill/SKILL.md'), JSON.stringify(report, null, 2));
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

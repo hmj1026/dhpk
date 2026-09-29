@@ -394,7 +394,7 @@ test('observe rejects a foreign work selector without touching the prepared work
     assert.notStrictEqual(foreign.workId, fixture.prepared.workId);
     assert.notStrictEqual(foreign.waveId, fixture.prepared.waveId);
 
-    const payloadMarker = 'foreign-work-selector-390';
+    const payloadMarker = foreign.workId;
     const result = runCli(fixture.repoRoot, observeArgs(fixture, {
       workId: foreign.workId,
       waveId: fixture.prepared.waveId,
@@ -406,9 +406,9 @@ test('observe rejects a foreign work selector without touching the prepared work
 
 test('observe rejects a foreign wave selector without recording evidence', () => {
   withFixture((fixture) => {
-    const payloadMarker = 'foreign-wave-selector-390';
+    const payloadMarker = 'wave-foreign-selector-390';
     const result = runCli(fixture.repoRoot, observeArgs(fixture, {
-      waveId: 'wave-foreign-selector-390',
+      waveId: payloadMarker,
     }));
     assertRedactedFailure(fixture, result, 'FOREIGN_EVIDENCE', payloadMarker);
     assertNoDurableObservation(fixture);

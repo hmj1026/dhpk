@@ -77,16 +77,17 @@ fi
 # Pattern 6: shell writes into .env files (redirection / tee) — closes the
 # bypass where a blocked Write/Edit against .env is retried via Bash
 # (D6, harvest-advice-20260711). Mirrors pre-edit-guard.sh's allowlist:
-# .env.example / .env.sample / .env.dist are version-controlled templates
-# carrying no secrets and remain writable.
+# .env.example / .env.sample / .env.dist / .env.template are version-controlled
+# templates carrying no secrets and remain writable.
 #
 # Target-scoped allowlisting (fix, harvest-advice-20260711 fix round): the
 # allowlist must only exempt commands whose write TARGET is an allowlisted
 # file, not any command that merely mentions an allowlisted filename anywhere
 # in its text — otherwise `echo SECRET=x > .env ; cat .env.example` bypasses
 # the block because the whole-command grep sees `.env.example` and skips.
-# Strip allowlisted redirection/tee targets from a copy of the command first,
-# then test what remains for a real `.env` write.
+# Strip allowlisted redirection targets and template path mentions from a copy
+# of the command first. Preserve `tee` and its other arguments so every output
+# target is still checked; allowing one template must not hide another target.
 #
 # Path-prefix tolerance (fix round 2, harvest-advice-20260711): the redirect
 # target may carry a directory prefix (`api/.env`, `./.env`, `/tmp/foo/.env`,
@@ -94,11 +95,11 @@ fi
 # the allowlist-strip patterns and the block patterns below, so `> .env` and
 # `> some/dir/.env` are treated identically.
 _env_cmd="$(printf '%s' "$CMD_STRIPPED" | sed -E \
-    -e "s/(>>?)[[:space:]]*[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist)[\"']?([[:space:];&|]|\$)/ /g" \
-    -e "s/(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist)[\"']?([[:space:];&|]|\$)/\1 /g")"
+    -e "s/(>>?)[[:space:]]*[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist|template)[\"']?([[:space:];&|]|\$)/ /g" \
+    -e "s/[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist|template)[\"']?([[:space:];&|]|\$)/\3/g")"
 if printf '%s' "$_env_cmd" | grep -Eq "(>>?)[[:space:]]*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)" || \
-   printf '%s' "$_env_cmd" | grep -Eq "(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)"; then
-    echo "[bash-guard] blocked: writing to .env via shell redirection/tee. .env files hold secrets and must not be written via Bash. Ask the user for the value, or use .env.example as a template." >&2
+   printf '%s' "$_env_cmd" | grep -Eq "(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?([^;&|]*[[:space:]])*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)"; then
+    echo "[bash-guard] blocked: writing to .env via shell redirection/tee. .env files hold secrets and must not be written via Bash. Ask the user for the value, or use .env.example/.env.template as a template." >&2
     exit 2
 fi
 

@@ -95,6 +95,31 @@ function isolatedFixture(fixtureId, callback) {
 
 const fixtures = registerFlowFamilyFixtures();
 const fixtureIds = [...flowGuideFixtureIds, ...flowDriveFixtureIds];
+const EXPECTED_FLOW_GUIDE = [
+  ['flow-guide-help-unknown', 'scripts/action-runner.js'],
+  ['flow-guide-help-known-non-codex', 'scripts/action-runner.js'],
+  ['flow-guide-help-retired-name', 'scripts/action-runner.js'],
+  ['flow-guide-route-explicit-authority', 'scripts/route-result.js'],
+  ['flow-guide-rules-local-policy', 'scripts/action-runner.js'],
+  ['flow-guide-close-local-resources', 'scripts/action-runner.js'],
+];
+const EXPECTED_FLOW_DRIVE = [
+  ['flow-drive-confirmed-input', 'scripts/invocation.js'],
+  ['flow-drive-retired-codex-block', 'scripts/invocation.js'],
+  ['flow-drive-dispatch-valid', 'scripts/dispatch.js'],
+  ['flow-drive-dispatch-invalid-authority', 'scripts/dispatch.js'],
+];
+
+test('flow-family registry pins every expected fixture ID and Skill-local entry', () => {
+  assert.deepStrictEqual(flowGuideFixtureIds, EXPECTED_FLOW_GUIDE.map(([id]) => id));
+  assert.deepStrictEqual(flowDriveFixtureIds, EXPECTED_FLOW_DRIVE.map(([id]) => id));
+  for (const [id, entry] of EXPECTED_FLOW_GUIDE) {
+    assert.strictEqual(fixtures[id].entry, entry, `${id} must use its flow-guide-local entry`);
+  }
+  for (const [id, entry] of EXPECTED_FLOW_DRIVE) {
+    assert.strictEqual(fixtures[id].entry, entry, `${id} must use its flow-drive-local entry`);
+  }
+});
 
 for (const fixtureId of fixtureIds) {
   test(`isolated flow-family fixture ${fixtureId}`, () => {

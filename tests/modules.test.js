@@ -18,7 +18,10 @@ function sh(cmd, extraEnv) {
 }
 
 test('DHPK_ACTIVE_MODULES lists modules one per line', () => {
-  const res = sh('active_modules_list', { DHPK_ACTIVE_MODULES: 'php,laravel' });
+  const res = sh('active_modules_list', {
+    DHPK_ACTIVE_MODULES: 'php,laravel',
+    CLAUDE_PLUGIN_OPTION_MODULES: 'fallback',
+  });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.deepStrictEqual(res.stdout.trim().split('\n'), ['php', 'laravel']);
 });

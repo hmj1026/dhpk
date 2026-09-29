@@ -37,14 +37,16 @@ let inventory = null;
 try { inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8')); } catch (_) { /* validation remains fail-closed for runtime overlap */ }
 const verification = verifyCursorPackage({ packageRoot, stage: 'structural', inventory });
 const structural = verification.structural || verification;
-let provenance = null;
+let provenanceOk = false;
 const provenancePath = path.join(packageRoot, 'provenance.json');
 const provenanceErrors = [];
 if (!fs.existsSync(provenancePath)) provenanceErrors.push('provenance.json is missing');
 else {
   try {
-    provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
-    provenanceErrors.push(...validateSurfaceReceipt(provenance, 'cursor-plugin').errors);
+    const receipt = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+    const provenanceValidation = validateSurfaceReceipt(receipt, 'cursor-plugin');
+    provenanceOk = provenanceValidation.ok;
+    provenanceErrors.push(...provenanceValidation.errors);
   } catch (error) {
     provenanceErrors.push(`provenance.json is not valid JSON: ${error.message}`);
   }
@@ -59,7 +61,7 @@ const report = {
   errors: [...structural.errors, ...provenanceErrors],
   skippedSkills: structural.skippedSkills,
   consumer,
-  provenance: provenance ? 'PASS' : 'FAIL',
+  provenance: provenanceOk ? 'PASS' : 'FAIL',
 };
 console.log(JSON.stringify(report, null, 2));
 if (report.errors.length > 0 || consumer.status === 'FAIL' || consumer.status === 'BLOCKED') process.exit(1);

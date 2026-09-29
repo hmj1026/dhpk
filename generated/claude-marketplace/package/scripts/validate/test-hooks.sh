@@ -168,30 +168,9 @@ if [ -f "$lj" ] && [ "$(wc -l < "$lj")" -eq 4 ]; then ok "ldb_record appended 4 
 if head -1 "$repo/_top.txt" | grep -q 'review:code-reviewer'; then ok "ldb_top ranks 3x success highest"; else fail "ldb_top ordering wrong ($(cat "$repo/_top.txt"))"; fi
 if grep -q 'review:code-reviewer' "$repo/_grad.txt" && ! grep -q 'db-reviewer' "$repo/_grad.txt"; then ok "graduation filters by confidence+obs"; else fail "graduation filter wrong ($(cat "$repo/_grad.txt"))"; fi
 
-# 8b/8c/8d: clear-sentinel.sh, subagent-stop-verify.sh's reviewer-failure
-# logging, and stop-failure-log.sh were all learning-db producers keyed to
-# Review Sentinel state and were retired with it (#376/#377). learning-db.sh
-# itself (8a) and its SessionStart consumer (8f) are unaffected.
-
-# 8f. SessionStart surfaces [learned-context] when enabled.
-repo="$(make_repo)"
-(
-    cd "$repo" || exit 1
-    export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" DHPK_LEARNING_DB=1
-    . "$HOOKS/_lib/learning-db.sh"
-    ldb_record success "review:code-reviewer"
-    ldb_record success "review:code-reviewer"
-    printf '{"source":"startup"}' | bash "$HOOKS/session-start.sh" > "$repo/_ss.out" 2>/dev/null
-)
-if grep -q 'learned-context' "$repo/_ss.out"; then ok "SessionStart injects [learned-context]"; else fail "no learned-context block emitted"; fi
-# Disabled → no block.
-repo="$(make_repo)"
-(
-    cd "$repo" || exit 1
-    export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
-    printf '{"source":"startup"}' | bash "$HOOKS/session-start.sh" > "$repo/_ss2.out" 2>/dev/null
-)
-if ! grep -q 'learned-context' "$repo/_ss2.out"; then ok "SessionStart silent when DB disabled"; else fail "learned-context emitted while disabled"; fi
+# 8b/8c/8d and the former SessionStart learning-context consumer were removed
+# with Review Sentinel (#376/#377). learning-db.sh remains independently
+# covered above; SessionStart now only activates configured modules.
 
 echo ""
 echo "== 9. stop-advisory-dispatch.sh (Phase 2.2) =="
@@ -293,12 +272,20 @@ fi
 if [ ! -s "$JSON_EMPTY_F" ]; then ok "emit_system_message '' → no-op (empty)"; else fail "empty message emitted output"; fi
 
 echo ""
-echo "== 13. session-start.sh source branching (P1-3) =="
+echo "== 13. session-start.sh module activation =="
 repo="$(make_repo)"
-run_hook "$repo" session-start.sh '{"source":"startup"}' CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS=ghost
-if grep -q 'docker=' "$STDOUT_F" && ! grep -q 'skipped on' "$STDOUT_F"; then ok "startup → docker probed (FULL_INIT)"; else fail "startup did not probe docker ($(cat "$STDOUT_F"))"; fi
-run_hook "$repo" session-start.sh '{"source":"compact"}' CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS=ghost
-if grep -q 'skipped on compact' "$STDOUT_F"; then ok "compact → docker probe skipped"; else fail "compact did not skip docker ($(cat "$STDOUT_F"))"; fi
+run_hook "$repo" session-start.sh '{"source":"startup"}' CLAUDE_PLUGIN_OPTION_MODULES=python CLAUDE_PLUGIN_OPTION_WORKER_TARGET= CLAUDE_PLUGIN_OPTION_REASONER_TARGET= CLAUDE_PLUGIN_OPTION_PLANNER_TARGET= CLAUDE_PLUGIN_OPTION_REVIEWER_TARGET= DHPK_DISPATCH_CONFIG_REPORT=0
+if [ "$RC" -eq 0 ] && grep -q '\[session-start\] module enabled: python — Python' "$STDOUT_F"; then ok "configured valid module is activated"; else fail "configured module activation missing (rc=$RC, $(cat "$STDOUT_F"))"; fi
+
+repo="$(make_repo)"
+run_hook "$repo" session-start.sh '{"source":"startup"}' CLAUDE_PLUGIN_OPTION_MODULES= CLAUDE_PLUGIN_OPTION_WORKER_TARGET= CLAUDE_PLUGIN_OPTION_REASONER_TARGET= CLAUDE_PLUGIN_OPTION_PLANNER_TARGET= CLAUDE_PLUGIN_OPTION_REVIEWER_TARGET= DHPK_DISPATCH_CONFIG_REPORT=0
+if [ "$RC" -eq 0 ] && [ ! -s "$STDOUT_F" ] && [ ! -s "$STDERR_F" ]; then ok "no configured modules → silent no-op"; else fail "unconfigured SessionStart was not silent (rc=$RC, $(cat "$STDOUT_F") $(cat "$STDERR_F"))"; fi
+
+for source in startup compact; do
+    repo="$(make_repo)"
+    run_hook "$repo" session-start.sh "{\"source\":\"$source\"}" CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS=ghost CLAUDE_PLUGIN_OPTION_MODULES= CLAUDE_PLUGIN_OPTION_WORKER_TARGET= CLAUDE_PLUGIN_OPTION_REASONER_TARGET= CLAUDE_PLUGIN_OPTION_PLANNER_TARGET= CLAUDE_PLUGIN_OPTION_REVIEWER_TARGET= DHPK_DISPATCH_CONFIG_REPORT=0
+    if [ "$RC" -eq 0 ] && ! grep -Eiq 'docker|container' "$STDOUT_F" "$STDERR_F"; then ok "$source → no Docker diagnostics"; else fail "$source emitted Docker diagnostics or failed (rc=$RC, $(cat "$STDOUT_F") $(cat "$STDERR_F"))"; fi
+done
 
 echo ""
 echo "== 14. session-end.sh (P1-2) =="

@@ -29,9 +29,16 @@ test('discovery records source, version, time, ids, and explicit status', () => 
   });
   assert.strictEqual(result.schema, SCHEMA);
   assert.strictEqual(result.status, 'AVAILABLE');
+  assert.strictEqual(result.agent, 'cursor');
+  assert.strictEqual(result.executable, 'cursor-agent');
+  assert.strictEqual(result.source, 'cursor-agent models');
+  assert.strictEqual(result.observed_at, '2026-09-16T00:00:00.000Z');
   assert.deepStrictEqual(result.model_ids, ['foo-1', 'bar-2']);
   assert.strictEqual(result.client_version, 'cursor-agent 1.0.0');
-  assert.strictEqual(calls.length, 2);
+  assert.deepStrictEqual(calls, [
+    ['cursor-agent', ['models']],
+    ['cursor-agent', ['--version']],
+  ]);
 });
 
 test('missing observation is NOT_RUN and denied client is BLOCKED', () => {

@@ -35,10 +35,15 @@ test('valid state transition updates the state field in place', () => {
   const tmp = mkTmp();
   try {
     const p = writeLatest(tmp, 'saved');
+    const before = fs.readFileSync(p, 'utf8');
     const res = runScript(tmp, ['consuming']);
     assert.strictEqual(res.status, 0, res.stderr);
     assert.ok(res.stdout.includes('state updated to: consuming'));
-    assert.match(fs.readFileSync(p, 'utf8'), /^state: consuming$/m);
+    assert.strictEqual(
+      fs.readFileSync(p, 'utf8'),
+      before.replace(/^state: saved$/m, 'state: consuming'),
+      'the state field changes while the rest of the handoff remains byte-identical',
+    );
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

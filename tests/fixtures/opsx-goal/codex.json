@@ -1,5 +1,5 @@
 {
   "name": "codex",
-  "codex": true,
-  "gates": ["test", "review", "artifact"]
+  "fast_worker_clause": "dhpk:codex-fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker",
+  "test_command": "node tests/run-all.js --jobs 4"
 }

@@ -21,11 +21,34 @@ function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
+function projectedFiles(root) {
+  const result = [];
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const file = path.join(dir, entry.name);
+      assert.ok(!entry.isSymbolicLink(), `${file} must be a materialized supporting file, not a symlink`);
+      if (entry.isDirectory()) walk(file);
+      else if (entry.isFile()) result.push(path.relative(ROOT, file).split(path.sep).join('/'));
+    }
+  }
+  walk(root);
+  return result;
+}
+
 test('every inventory supporting asset has a unique id/destination and a materialized projection', () => {
   const entries = INVENTORY.supporting_assets || [];
-  assert.strictEqual(entries.length, 37);
   assert.strictEqual(new Set(entries.map((entry) => entry.id)).size, entries.length);
   assert.strictEqual(new Set(entries.map((entry) => entry.destination)).size, entries.length);
+  const expectedPaths = entries.map((entry) => path.relative(ROOT, projectionPath(entry)).split(path.sep).join('/'));
+  const configPath = path.join(ROOT, 'codex', 'config.toml.example');
+  const configStat = fs.lstatSync(configPath);
+  assert.ok(configStat.isFile() && !configStat.isSymbolicLink(), 'Codex config.toml.example must be a materialized file, not a symlink');
+  const actualPaths = [
+    ...projectedFiles(path.join(ROOT, 'codex', 'supporting')),
+    ...(configStat.isFile() ? ['codex/config.toml.example'] : []),
+  ];
+  assert.deepStrictEqual([...actualPaths].sort(), [...expectedPaths].sort(), 'Codex supporting files drifted from the inventory projections');
+
   for (const entry of entries) {
     assert.ok(fs.existsSync(path.join(ROOT, entry.source)), `${entry.source} missing`);
     assert.ok(fs.existsSync(projectionPath(entry)), `${entry.destination} projection missing`);

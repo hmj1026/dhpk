@@ -140,13 +140,13 @@ test('baseline characterizes four Hosts without promoting static evidence to run
 });
 
 test('baseline is read-only and excludes private environment data', () => {
-  const before = fs.readdirSync(ROOT).sort();
   const baseline = buildBaseline({ root: ROOT, inventory: INVENTORY });
-  const after = fs.readdirSync(ROOT).sort();
-  assert.deepStrictEqual(after, before);
   const serialized = JSON.stringify(baseline);
   assert.doesNotMatch(serialized, /GH_TOKEN|GITHUB_TOKEN|AWS_SECRET|Authorization/i);
   assert.doesNotMatch(serialized, new RegExp(`${String(process.env.HOME || '/Users/').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+
+  // Other suites create short-lived entries under ROOT in parallel CI workers;
+  // verify read-only behavior against an isolated root instead of that shared directory.
   const tempRoot = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-projection-baseline-'));
   try {
     const snapshot = fs.readdirSync(tempRoot);

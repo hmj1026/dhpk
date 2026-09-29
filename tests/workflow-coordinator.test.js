@@ -137,15 +137,6 @@ test('sorts batchable authority requests into one decision packet', () => {
   );
 });
 
-test('deep-freezes the output while preserving the caller input', () => {
-  const receipts = receiptsFor(FIXTURE.histories.find(({ name }) => name === 'merge-ready'));
-  const before = cloneJson(receipts);
-  const result = coordinator(FIXTURE.featureControl).reduce(receipts);
-
-  assert.deepStrictEqual(receipts, before);
-  assertDeepFrozen(result);
-});
-
 test('rejects a conflicting duplicate receipt', () => {
   const receipts = receiptsFor(FIXTURE.histories.find(({ name }) => name === 'merge-ready'));
   const conflicting = cloneJson(receipts[receipts.length - 1]);

@@ -176,18 +176,9 @@ test('second verified timeout is terminal with PARTIAL/BLOCKED split on confirme
     'dispatch SSOT must require both timeout observations, ledger sets, and next action in the terminal report');
 });
 
-// 3.2 — marker durability: the marker's naming convention historically had to
-// avoid collision with the legacy `.pending-*` cleanup sweep. That sweep and
-// its registry were retired with the legacy sentinel lifecycle (#376/#377) —
-// there is no remaining mechanism that could discover or clear an unrecognized
-// file in the sessions dir by prefix, so the collision this test used to guard
-// against can no longer occur. The one property still worth asserting (the
-// marker's own naming convention) stays documented in the next test below.
-test('the PARTIAL marker filename does not use the retired .pending- prefix', () => {
-  const markerNameSample = '.partial-cli-batch-codex-sess123-dispatch1.json';
-  assert.ok(!markerNameSample.startsWith('.pending-'),
-    'marker filename must not start with .pending- (the retired sentinel-lifecycle prefix)');
-});
+// Generated marker naming and behavior are owned by
+// tests/partial-writer-handoff.test.js. This suite retains the independent
+// documentation contract below.
 
 test('the marker path, required fields, and reconciliation/no-auto-resolve rule are documented', () => {
   assert.ok(DISPATCH_DOC.includes(

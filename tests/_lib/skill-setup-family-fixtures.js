@@ -65,28 +65,31 @@ function writeCanary(file, marker) {
 }
 
 function fileSnapshot(root) {
-  if (!fs.existsSync(root)) return null;
+  let rootStat;
+  try {
+    rootStat = fs.lstatSync(root);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
   const result = [];
-  function visit(current, relative) {
-    const stat = fs.lstatSync(current);
+  function visit(current, relative, stat = fs.lstatSync(current)) {
+    const mode = stat.mode & 0o7777;
     if (stat.isSymbolicLink()) {
-      result.push([relative, 'symlink', fs.readlinkSync(current)]);
+      result.push([relative, 'symlink', mode, fs.readlinkSync(current)]);
       return;
     }
     if (stat.isDirectory()) {
+      result.push([relative, 'directory', mode]);
       for (const name of fs.readdirSync(current).sort()) {
         visit(path.join(current, name), path.posix.join(relative, name));
       }
       return;
     }
-    result.push([
-      relative,
-      'file',
-      stat.mode & 0o777,
-      fs.readFileSync(current),
-    ]);
+    if (stat.isFile()) result.push([relative, 'file', mode, fs.readFileSync(current)]);
+    else result.push([relative, 'other', mode]);
   }
-  visit(root, '');
+  visit(root, '', rootStat);
   return result;
 }
 
@@ -94,12 +97,13 @@ function fingerprint(root) {
   const hash = crypto.createHash('sha256');
   function visit(current) {
     const stat = fs.lstatSync(current);
+    const mode = stat.mode & 0o7777;
     if (stat.isSymbolicLink()) {
-      hash.update(`link:${fs.readlinkSync(current)}\0`);
+      hash.update(`link:${mode}:${fs.readlinkSync(current)}\0`);
       return;
     }
     if (stat.isDirectory()) {
-      hash.update('dir\0');
+      hash.update(`dir:${mode}\0`);
       for (const name of fs.readdirSync(current).sort()) {
         hash.update(name);
         hash.update('\0');
@@ -107,8 +111,12 @@ function fingerprint(root) {
       }
       return;
     }
-    hash.update('file\0');
-    hash.update(fs.readFileSync(current));
+    if (stat.isFile()) {
+      hash.update(`file:${mode}\0`);
+      hash.update(fs.readFileSync(current));
+      return;
+    }
+    hash.update(`other:${mode}\0`);
   }
   visit(root);
   return hash.digest('hex');

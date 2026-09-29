@@ -75,21 +75,25 @@ function validateUsageContract(skillValue = skill(), usageValue = usage()) {
   const api = usageApi();
   assert.strictEqual(typeof api.validateSkillUsage, 'function',
     'skill-usage.js must expose validateSkillUsage at the public contract seam');
-  try {
-    const result = api.validateSkillUsage({ skill: skillValue, usage: usageValue });
-    if (Array.isArray(result)) return { errors: result };
-    if (result && Array.isArray(result.errors)) return result;
-    if (result === true || (result && result.ok === true)) return { errors: [] };
-    assert.fail(`validateSkillUsage returned no observable error contract: ${JSON.stringify(result)}`);
-  } catch (error) {
-    return { errors: [String(error && error.message ? error.message : error)] };
-  }
+  const result = api.validateSkillUsage({ skill: skillValue, usage: usageValue });
+  assert.ok(result && typeof result === 'object' && !Array.isArray(result), 'validator must return a result object');
+  assert.deepStrictEqual(Object.keys(result).sort(), ['errors', 'ok'], 'validator result must use its closed public shape');
+  assert.strictEqual(typeof result.ok, 'boolean', 'validator result must expose a boolean ok field');
+  assert.ok(Array.isArray(result.errors), 'validator result must expose an errors array');
+  assert.ok(Object.isFrozen(result), 'validator result must be immutable');
+  assert.ok(Object.isFrozen(result.errors), 'validator diagnostics must be immutable');
+  assert.strictEqual(result.ok, result.errors.length === 0, 'ok must agree with whether errors are present');
+  return result;
 }
 
 function assertUsageError(skillValue, usageValue, pattern) {
   const result = validateUsageContract(skillValue, usageValue);
+  assert.strictEqual(result.ok, false, 'invalid usage must return ok=false');
   assert.ok(result.errors.length > 0, 'expected usage validation to fail');
-  assert.match(result.errors.join('\n'), pattern);
+  assert.ok(
+    result.errors.some((error) => pattern.test(error)),
+    `expected a fault-specific diagnostic matching ${pattern}, got: ${result.errors.join('\n')}`,
+  );
 }
 
 test('a valid Codex usage contract passes the pure validator', () => {
@@ -99,7 +103,7 @@ test('a valid Codex usage contract passes the pure validator', () => {
 
 test('usage schema rejects unsupported procedural fields', () => {
   const candidate = usage({ completion: 'run every release gate before merging' });
-  assertUsageError(skill(), candidate, /flow-drive|usage|unknown|unsupported|completion/i);
+  assertUsageError(skill(), candidate, /usage\.completion is unsupported or unknown/i);
 });
 
 test('usage schema rejects duplicate action and option identifiers', () => {
@@ -107,14 +111,17 @@ test('usage schema rejects duplicate action and option identifiers', () => {
     actions: [usage().actions[0], { ...usage().actions[0], summary: 'same public action' }],
     options: [usage().options[0], { ...usage().options[0], summary: 'same public option' }],
   });
-  assertUsageError(skill(), candidate, /flow-drive|duplicate|action|option/i);
+  const result = validateUsageContract(skill(), candidate);
+  assert.strictEqual(result.ok, false);
+  assert.ok(result.errors.includes("flow-drive usage has duplicate action id 'apply'"), result.errors.join('\n'));
+  assert.ok(result.errors.includes("flow-drive usage has duplicate option id 'plan'"), result.errors.join('\n'));
 });
 
 test('usage schema requires closed positional-input metadata and valid enum defaults', () => {
   const missing = usage({
     inputs: [{ id: 'input', syntax: '<input>', value_kind: 'string', required: true }],
   });
-  assertUsageError(skill(), missing, /input|summary|required/i);
+  assertUsageError(skill(), missing, /usage\.inputs\[0\]\.summary must be a string/);
 
   const invalid = usage({
     inputs: [{
@@ -124,7 +131,7 @@ test('usage schema requires closed positional-input metadata and valid enum defa
       default: 'two',
     }],
   });
-  assertUsageError(skill(), invalid, /input|enum|default/i);
+  assertUsageError(skill(), invalid, /usage\.inputs\[0\]\.default must be one of enum_values/);
 });
 
 test('usage schema validates legacy compatibility markers without promoting them', () => {
@@ -146,6 +153,7 @@ test('usage schema validates legacy compatibility markers without promoting them
     ],
   });
   const result = validateUsageContract(skill(), candidate);
+  assert.strictEqual(result.ok, true);
   assert.deepStrictEqual(result.errors, []);
   const normalized = usageApi().normalizeSkillUsage({ skill: skill(), usage: candidate });
   assert.strictEqual(normalized.options[1].legacy.diagnostic_only, true);
@@ -162,18 +170,24 @@ test('usage schema rejects unknown action references and invalid enum defaults',
       applies_to: ['missing-action'],
     }],
   });
-  assertUsageError(skill(), candidate, /flow-drive|applies_to|action|enum|default/i);
+  const result = validateUsageContract(skill(), candidate);
+  assert.strictEqual(result.ok, false);
+  assert.ok(
+    result.errors.includes("flow-drive usage.options[0].applies_to references unknown action 'missing-action'"),
+    result.errors.join('\n'),
+  );
+  assert.ok(result.errors.includes('flow-drive usage.options[0].default must be one of enum_values'), result.errors.join('\n'));
 });
 
 test('usage schema rejects empty examples and examples with extra fields', () => {
   const empty = usage({ examples: [{ prompt: '', summary: 'missing command' }] });
-  assertUsageError(skill(), empty, /flow-drive|example|empty|prompt/i);
+  assertUsageError(skill(), empty, /usage\.examples\[0\]\.prompt must not be empty/);
 
   const extra = usage({ examples: [{
     ...usage().examples[0],
     notes: 'procedural detail belongs in SKILL.md',
   }] });
-  assertUsageError(skill(), extra, /flow-drive|example|unknown|unsupported|notes/i);
+  assertUsageError(skill(), extra, /usage\.examples\[0\]\.notes is unsupported or unknown/);
 });
 
 test('usage schema rejects grammar that does not begin with the canonical public name', () => {
@@ -181,12 +195,12 @@ test('usage schema rejects grammar that does not begin with the canonical public
     syntax: 'flow-drive <confirmed-spec-or-change-id>',
     examples: [{ ...usage().examples[0], prompt: 'flow-drive change-id' }],
   });
-  assertUsageError(skill(), candidate, /flow-drive|syntax|\$/i);
+  assertUsageError(skill(), candidate, /usage\.syntax must begin with \$flow-drive/);
 });
 
 test('usage schema rejects invocation-class drift before projection', () => {
   const candidate = usage({ invocation_class: 'implicit-eligible' });
-  assertUsageError(skill(), candidate, /flow-drive|invocation|explicit-only|mismatch/i);
+  assertUsageError(skill(), candidate, /usage\.invocation_class 'implicit-eligible' mismatches canonical invocation 'explicit-only'/);
 });
 
 test('usage schema rejects child authority above the parent maximum', () => {
@@ -196,7 +210,11 @@ test('usage schema rejects child authority above the parent maximum', () => {
       effect_authority: 'external-write',
     }],
   });
-  assertUsageError(skill(), candidate, /flow-drive|effect|authority|maximum|external-write/i);
+  assertUsageError(
+    skill(),
+    candidate,
+    /usage\.actions\[0\]\.effect_authority 'external-write' exceeds parent maximum 'workspace-write'/,
+  );
 });
 
 test('normalization returns a deterministic closed usage object', () => {

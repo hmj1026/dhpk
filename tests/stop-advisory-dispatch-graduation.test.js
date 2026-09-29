@@ -85,6 +85,10 @@ test('enabled + citation of an EXISTING memory entry increments its count', () =
     const state = JSON.parse(fs.readFileSync(countsFile, 'utf8'));
     assert.ok(state.entries.graduation_test_entry, 'expected entry recorded in state');
     assert.strictEqual(state.entries.graduation_test_entry.count, 1, 'expected count=1 on first citation');
+    const report = fs.readFileSync(path.join(testOut, 'graduation-candidates.md'), 'utf8');
+    const generated = report.match(/<!-- AUTO-GENERATED:START -->([\s\S]*?)<!-- AUTO-GENERATED:END -->/);
+    assert.ok(generated, 'candidate report must contain its generated region');
+    assert.match(generated[1], /No candidates yet/);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
     fs.rmSync(memoryDir, { recursive: true, force: true });
@@ -145,6 +149,13 @@ test('high count/confidence entry never drafts under openspec/changes/', () => {
   try {
     const res = runHook({ transcriptPath: tx.file, memoryDir, testOut, enabled: true, repo });
     assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+    const state = JSON.parse(fs.readFileSync(path.join(testOut, 'memory-usage-counts.json'), 'utf8'));
+    assert.strictEqual(state.entries.high_signal_entry.count, 6, 'citation must increment the seeded count exactly once');
+    const report = fs.readFileSync(path.join(testOut, 'graduation-candidates.md'), 'utf8');
+    const generated = report.match(/<!-- AUTO-GENERATED:START -->([\s\S]*?)<!-- AUTO-GENERATED:END -->/);
+    assert.ok(generated, 'candidate report must contain its generated region');
+    assert.match(generated[1], /\|\s*high_signal_entry\s*\|\s*6\s*\|/);
+    assert.match(generated[1], /\|\s*high_signal_entry\s*\|\s*6\s*\|[^|]*\|[^|]*\|\s*1\.00\s*\|\s*rule\s*\|/);
     const entries = fs.readdirSync(opsxChanges);
     assert.strictEqual(entries.length, 0, `expected no drafted changes, found: ${entries.join(', ')}`);
     assert.ok(!entries.some((e) => e.startsWith('graduate-')), 'expected no graduate-* dir');

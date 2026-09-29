@@ -1,5 +1,4 @@
 {
   "name": "smoke",
-  "smoke": true,
-  "gates": ["smoke", "review", "artifact"]
+  "smoke": true
 }

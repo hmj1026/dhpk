@@ -109,6 +109,26 @@ test('init rejects a different enrolled host trust without changing config', () 
   }
 });
 
+test('init rejects a valid host key paired with a different valid key id before creating state', () => {
+  const repoRoot = temporaryDirectory('dhpk-runtime-host-trust-key-id-mismatch-');
+  const der = writePublicKey(path.join(repoRoot, 'host.pub'));
+  const otherDer = writePublicKey(path.join(repoRoot, 'other-host.pub'));
+  try {
+    const result = runCli(repoRoot, [
+      'init',
+      '--host-public-key', 'host.pub',
+      '--host-key-id', keyId(otherDer),
+    ]);
+
+    assertGenericFailure(result);
+    assert.strictEqual(fs.existsSync(path.join(repoRoot, '.dhpk')), false);
+    assert.deepStrictEqual(fs.readdirSync(repoRoot).sort(), ['host.pub', 'other-host.pub']);
+    assert.notStrictEqual(keyId(der), keyId(otherDer));
+  } finally {
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
 test('direct integrity-key setup rejects malformed supplied host trust before state creation', () => {
   const repoRoot = temporaryDirectory('dhpk-runtime-host-trust-direct-malformed-');
   try {

@@ -117,6 +117,23 @@ test('evidence-free review-shaped report blocks', () => {
   }
 });
 
+test('valid reviewer report with concrete evidence passes silently', () => {
+  const dir = mkTempProjectDir();
+  try {
+    const report = 'APPROVE. I reviewed `scripts/hooks/subagent-stop-quality.sh:133` and '
+      + '`tests/subagent-stop-quality.test.js`, ran `node tests/run-all.js -- '
+      + 'tests/subagent-stop-quality.test.js`, confirmed the gate rejects thin reports '
+      + 'and allows evidence-backed reviews, and found no issue that needs follow-up.';
+    const res = runHook(
+      { agent_type: 'dhpk:code-reviewer', last_assistant_message: report },
+      { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir },
+    );
+    assertSilent(res, 'evidence-backed reviewer report');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('mechanical worker reports are outside the reviewer-only quality gate', () => {
   const dir = mkTempProjectDir();
   try {

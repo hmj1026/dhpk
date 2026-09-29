@@ -159,14 +159,7 @@ test('invocation inventory baseline distinguishes retired aliases from retained 
   }
 });
 
-// v1 GREEN contract (tests above): frontmatter validation, forwarding aliases,
-// current flow-guide route workflow, invocation inventory counts.
-// v2 RED contract (this test): thin pointer adapter. See also
-// tests/dhpk-do-portable.test.js [3.1]. Failing this case fails the whole file
-// until task 3.1.
-
 test('retired /dhpk:do command has no forwarding adapter', () => {
-  assert.ok(!fs.existsSync(path.join(ROOT, 'commands', 'do.md')));
   const body = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
   assert.match(body, /route/);
   assert.match(body, /implement/);

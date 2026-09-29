@@ -63,8 +63,7 @@ test('simplify degrades honestly and applies only behavior-preserving findings',
   const body = skillText();
 
   assert.match(body, /fan-out is unavailable/i);
-  assert.match(body, /nested/i);
-  assert.match(body, /missing angles inline/i);
+  assert.match(body, /If fan-out is unavailable, the current worker is\s+nested, or one reviewer fails, perform only the missing angles inline and\s+mark the result degraded\./i);
   assert.match(body, /degraded:/);
   assert.match(body, /single-pass review, not\s+the four-worker fan-out/is);
   assert.match(body, /Deduplicate findings at the same line or mechanism/i);
@@ -80,9 +79,7 @@ test('simplify preserves test gates, heavy-cleanup escalation, and deletion safe
   assert.match(body, /allowed-tools:.*\bBash\b/);
   assert.doesNotMatch(body, /Bash\(TEST_ENV=unit npx jest/);
   assert.match(body, /exact baseline test command/i);
-  assert.match(body, /800 lines/i);
-  assert.match(body, /cross-file/i);
-  assert.match(body, /dead-code sweep/i);
+  assert.match(body, /A file over 800 lines, cross-file\s+deduplication, or a multi-module dead-code sweep needs a documented scoped\s+process\./i);
   assert.match(body, /registered `worker` or `architect` roles/);
   assert.match(body, /Never\s+substitute an unregistered role/i);
   assert.match(cleaner, /Delete only with proof/i);

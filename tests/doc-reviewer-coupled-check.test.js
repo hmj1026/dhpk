@@ -13,6 +13,13 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const DOC_REVIEWER = fs.readFileSync(path.join(ROOT, 'agents', 'doc-reviewer.md'), 'utf8');
 const FIXTURE_DIR = path.join(ROOT, 'tests', 'fixtures', 'doc-reviewer');
+const FIXTURE_EXPECTATIONS = {
+  'ambiguous-relationship.json': { coupled: false, findingCount: 1, artifactCount: null },
+  'coupled-same-finding.json': { coupled: true, findingCount: 1, artifactCount: null },
+  'one-artifact-reporting.json': { coupled: true, findingCount: 1, artifactCount: 1 },
+  'separate-evidence.json': { coupled: false, findingCount: 2, artifactCount: null },
+  'uncoupled-out-of-batch.json': { coupled: false, findingCount: 1, artifactCount: null },
+};
 
 const section = (() => {
   const start = DOC_REVIEWER.indexOf('### 5. Normatively coupled document check');
@@ -58,9 +65,14 @@ test('the Specialist checks marker documents the new coupled-document check', ()
 
 test('every documented fixture scenario maps onto a rule the prose actually states', () => {
   const files = fs.readdirSync(FIXTURE_DIR).filter((f) => f.endsWith('.json'));
-  assert.ok(files.length >= 5, 'expected at least 5 doc-reviewer coupled-check fixtures');
+  assert.deepStrictEqual(
+    files.sort(),
+    Object.keys(FIXTURE_EXPECTATIONS).sort(),
+    'the five assigned doc-reviewer fixtures must all remain explicitly consumed',
+  );
   for (const file of files) {
     const fixture = JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, file), 'utf8'));
+    const expected = FIXTURE_EXPECTATIONS[file];
     assert.strictEqual(fixture.schema, 'dhpk.doc-reviewer-fixture.v1', `${file}: wrong schema tag`);
     assert.ok(fixture.scenario, `${file}: missing scenario name`);
     assert.ok(
@@ -70,6 +82,13 @@ test('every documented fixture scenario maps onto a rule the prose actually stat
     assert.ok(fixture.expected, `${file}: missing expected block`);
 
     const e = fixture.expected;
+    assert.strictEqual(e.coupled, expected.coupled, `${file}: fixture coupling decision drifted`);
+    assert.strictEqual(e.findingCount, expected.findingCount, `${file}: fixture finding count drifted`);
+    if (expected.artifactCount === null) {
+      assert.ok(!Object.hasOwn(e, 'artifactCount'), `${file}: must not claim an artifact count`);
+    } else {
+      assert.strictEqual(e.artifactCount, expected.artifactCount, `${file}: fixture artifact count drifted`);
+    }
     // Never dispatch a second review or rewrite either file, coupled or not —
     // §5's "no scope expansion" rule applies regardless of the coupling verdict.
     assert.strictEqual(e.dispatchesSecondReview, false, `${file}: must never dispatch a second review`);

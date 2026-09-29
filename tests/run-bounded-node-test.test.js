@@ -254,18 +254,24 @@ test('exits with code 2 if no command is provided', () => {
   assert.match(res.stderr, /Usage:/);
 });
 
-test('fallback is explicit and applies a portable heap and wall-time bound when user cgroups are unavailable', () => {
+test('portable fallback forwards its configured Node heap limit to the child process', () => {
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bounded-no-systemd-'));
   try {
     fs.writeFileSync(path.join(bin, 'systemd-run'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-    const res = runBounded(['node', '-e', 'console.log("fallback bounded");'], {
+    const child = [
+      "const heap = (process.env.NODE_OPTIONS || '').split(/\\s+/).find((value) => value.startsWith('--max-old-space-size='));",
+      "if (heap !== '--max-old-space-size=384') process.exit(17);",
+      'console.log(heap);',
+    ].join('\n');
+    const res = runBounded(['node', '-e', child], {
       PATH: `${bin}:${process.env.PATH}`,
       DHPK_BOUNDED_REQUIRE_CGROUP: '0',
       DHPK_BOUNDED_ALLOW_FALLBACK: '1',
+      DHPK_BOUNDED_PORTABLE_NODE_HEAP_MB: '384',
     });
     assert.strictEqual(res.status, 0, res.stderr);
     assert.match(res.stderr, /portable fallback/i);
-    assert.match(res.stdout, /fallback bounded/);
+    assert.match(res.stdout, /--max-old-space-size=384/);
   } finally {
     fs.rmSync(bin, { recursive: true, force: true });
   }
