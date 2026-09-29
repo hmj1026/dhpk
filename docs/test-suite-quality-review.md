@@ -2474,3 +2474,161 @@ The pre-edit GitNexus impact for this ledger returned **UNKNOWN**
 found no reference to the ledger outside its generated marketplace copy.
 This change adds only documentation and the two CSV files. No test, runner,
 or catalog mapping changed.
+
+### Issue #787 — Skill layout, isolation, and coverage
+
+**Decision: REASONER_REQUIRED**
+**Reasoner result: READY_FOR_DISPATCH**
+**Conclusion:** the four listed batches have independent owners and bounded
+write scopes. Keep the 135 registered test names except for the two duplicated
+source-fingerprint assertions whose exact contract remains owned by the
+per-fixture `finally` checks. Extract shared fixture setup, add the validator's
+catalog owner, and verify every rewritten behavior with a controlled named RED
+followed by a restored GREEN. Keep the four merged suites under the 180-second
+per-file limit.
+**Evidence:** the batch ownership and catalog map are listed in the family map
+above; the test rejection rules are in `skills/tdd-workflow/tests.md` under
+“Rejection Checklist”; the issue acceptance criteria require name parity,
+mutation evidence, fresh before/after c8 runs, timing, catalog validation, and
+generated-package checks. The earlier F03 overlap is between
+`tests/skill-directory-coverage.test.js` (fixture-covered coverage behaviors)
+and `tests/skill-coverage-integrity.test.js` / `tests/skill-declared-entry-coverage.test.js`
+(the declaration and dependency graph contracts); the separate F03 owner keeps
+the behavior assertions and extracts only shared fixture setup.
+**Next actions:** execute F01–F04 independently, capture named mutation
+evidence, run fresh focused timing and c8 reports on both sides, validate the
+catalog and generated marketplace package, then review the whole diff.
+`planner=skipped` because this is not an OpenSpec apply.
+
+**Review correction:** the first F03 consolidation draft replaced the
+canonical physical script/basename scan with a second validator CLI call. Code
+review showed that a physical `new-tool.js` mentioned only by basename could
+then be missing from the coverage registry while the CLI still passed. The
+final change restores the independent scan in
+`tests/_lib/skill-declared-entry-audit.js` and adds a synthetic unregistered
+`new-tool.js` fixture to the retained named test. This remains test-only; the
+validator API and runtime behavior do not change.
+
+#### Source-suite disposition
+
+`KEEP` preserves a contract assertion; `REWRITE` changes its setup or oracle
+to assert externally visible behavior and has a named mutation proof;
+`DELETE` is limited to a duplicate contract with its remaining owner named.
+Generated parameterized test names count as registered names.
+
+| Batch / source suite | Outcome | Assertion disposition and owner |
+| --- | --- | --- |
+| F01 `skill-bridge-family-isolation` | KEEP, REWRITE, DELETE | Kept the isolated bridge fixtures; rewrote the raw-directory registry and caller-visible usage-card checks. Deleted only `bridge-family canonical Skill sources remain unchanged after all relocations`; the bridge fixture cases in `skill-directory-isolation.test.js` fingerprint the canonical sources in `finally`. |
+| F01 `skill-flow-entry-isolation` | KEEP, REWRITE | Kept every isolated public-entry case; rewrote the Skill-local entry registry. |
+| F01 `skill-flow-family-isolation` | KEEP, REWRITE, DELETE | Kept the isolated flow fixtures and rewrote the family entry matrix. Deleted only `flow-family fixture sources remain canonical after all relocations`; each corresponding flow fixture in `skill-directory-isolation.test.js` checks canonical-source fingerprints in `finally`. |
+| F01 `skill-local-tool-isolation` | REWRITE | Reworked Laravel and PHPUnit local-version guidance, missing-version fail-closed behavior, and the JavaScript missing-directory case to assert actionable diagnostics. |
+| F01 `skill-release-isolation` | REWRITE | Reworked the release preparation contract to inspect explicit file arguments and output metadata; retained expected-output metadata because the directory-coverage validator consumes it. |
+| F01 `skill-resume-family-isolation` | KEEP, REWRITE | Kept Save/Resume handoff, symlink rejection, local extractor, and post-observation contracts; rewrote the registry check to pin canonical owners and synchronized local entries. |
+| F02 `skill-codemap-contract` | KEEP, REWRITE | Preserved the test name and its five literal output-file and write-boundary contract. Removed an incidental assertion that the temporary `projectDir` remained empty after reading instructions; this checked setup state, not Codemap behavior. `tests/codemaps-generate.test.js` owns generated-output behavior. |
+| F02 `skill-dep-audit-contract` | KEEP, REWRITE | Preserved the named independent-review contract and strengthened it to require local instructions, no peer review dependency, no self-approval, and an explicit fix route. |
+| F02 `skill-policy-bundle-contract` | KEEP | Moved all three generated policy-bundle checks with their names intact, including physical resource boundaries and parent-of-rules resolution. |
+| F03 `skill-coverage-integrity` | KEEP, REWRITE | Kept all ten registered contracts. Rewrote the four declarations around public/helper classification, helper caller validity, public-entry reachability, and required caller classification; the other integrity and symlink contracts remain unchanged. |
+| F03 `skill-declared-entry-coverage` | KEEP, REWRITE | Kept the runnable-declaration/prose-example contract and restored its independent recursive scan of physical Skill scripts against `SKILL.md` basenames and the coverage registry. Added a synthetic `new-tool.js` fixture so a documented bare basename with no role is explicitly detected. |
+| F03 `skill-dependency-evidence` | KEEP | Kept all fourteen generated evidence cases with their names and production linter behavior. |
+| F03 `validate-skill-directory-coverage` | KEEP | Kept both CLI contracts: one PASS per canonical inventory identity and exit 2 for unknown arguments. |
+| F04 `skill-health-check-lint` | KEEP | Kept all three health-lint contracts, including agent capability skips and command-file filtering. |
+| F04 `skill-health-check-resilience` | KEEP, REWRITE | Kept all seven resilience contracts. Rewrote malformed-entry P1 fix hints to six literal safe steps and made the P2-visibility test use a deliberate duplicate-description fixture while retaining the canonical P1=0 assertion. |
+
+The only deleted registered test names are the two F01 canonical-source
+fingerprints listed above. The other 133 names match the 135-name baseline
+exactly. The F02 temporary-directory assertion was removed inside its retained
+named test; it was not a registered test deletion. No test assertion was
+removed without a named remaining owner.
+
+#### Controlled mutation evidence
+
+Every mutation below made only the named test RED; restoring the source made
+the owner suite GREEN again. All owner runs reported the full final count.
+
+| Batch | Mutated contract and sole expected RED test | Restored GREEN |
+| --- | --- | --- |
+| F01 | `bridge-family registry exposes the exact raw-directory entry matrix` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `flow entry registry pins every expected Skill-local entry before execution` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `isolated public entry flow-guide-usage-local-card` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `laravel-local-version-guidance` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `phpunit-local-version-guidance` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `laravel-missing-version-blocked` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `phpunit-missing-version-blocked` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `js-status-missing-directory` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `release-prepare-explicit-files` | `skill-directory-isolation.test.js`: 58/58 |
+| F01 | `resume-family registry exposes canonical owners and synchronized local entries` | `skill-directory-isolation.test.js`: 58/58 |
+| F02 | `runtime path repair preserves handoff and optional-provider contracts` | `skill-runtime-path-contract.test.js`: 9/9 |
+| F02 | `skill documents never resolve Skill scripts through CLAUDE_PLUGIN_ROOT` | `skill-runtime-path-contract.test.js`: 9/9 |
+| F02 | `relocated codemap Skill retains its five literal output files and write boundary` | `skill-runtime-path-contract.test.js`: 9/9 |
+| F02 | `relocated dependency audit keeps a local independent review contract without a peer` | `skill-runtime-path-contract.test.js`: 9/9 |
+| F03 | `documented public scripts cannot be reclassified as internal helpers` | `skill-directory-coverage.test.js`: 43/43 |
+| F03 | `a helper cannot list itself as its caller` | `skill-directory-coverage.test.js`: 43/43 |
+| F03 | `every declared helper must be reachable from the fixture-covered public entry` | `skill-directory-coverage.test.js`: 43/43 |
+| F03 | `a required_by caller must be a declared public, API, or helper entry` | `skill-directory-coverage.test.js`: 43/43 |
+| F03 | `every script basename declared by a canonical Skill has an explicit coverage role` (mutation: make the bare-basename matcher always false) | Disposable filtered copy: owner 43/43 after restore |
+| F04 | `malformed entries produce deterministic P1 findings with safe fix hints` | `skill-health-self-containment.test.js`: 23/23 |
+| F04 | `canonical source tree has zero P1 findings while P2 advisories remain visible` | `skill-health-self-containment.test.js`: 23/23 |
+
+F01's ten RED/GREEN records are in `/tmp/dhpk-issue787-f01-mutation-evidence.log`.
+F03's declared-entry mutation changed only the test helper's bare-basename
+match to `false` in a disposable filtered copy. The named canonical-role test
+was the only RED (owner 42/43); restoring the helper returned the owner to
+43/43. The synthetic physical `scripts/new-tool.js` has a backtick basename in
+`SKILL.md` but no coverage role. This assertion and its RED/GREEN outcome are
+recorded here; the raw command logs remain local under `/tmp` and are not part
+of the PR. F01's log is `/tmp/dhpk-issue787-f01-mutation-evidence.log`. F02 and
+F04 mutation logs were captured during their batch runs.
+
+#### Focused timing and c8 comparison
+
+The baseline was a fresh c8 run on clean base
+`49d521801ca71972f16fa105fb66267bf64b8bf2` with Node v26.9.0. The final run
+used four merged suites, Node v26.9.0, c8 10.1.3, and fresh temporary coverage
+directories. Test names and totals came from `tests/run-all.js` output.
+
+| Batch | Baseline suites / runtime sum | Final owner / runtime | Final tests | New `TIMEOUT_HINTS` |
+| --- | ---: | ---: | ---: | --- |
+| F01 | 7 / 4,377 ms | `skill-directory-isolation.test.js` / 4,216 ms | 58/58 | none |
+| F02 | 4 / 232 ms | `skill-runtime-path-contract.test.js` / 143 ms | 9/9 | none |
+| F03 | 5 / 687 ms | `skill-directory-coverage.test.js` / 633 ms | 43/43 | none |
+| F04 | 3 / 1,497 ms | `skill-health-self-containment.test.js` / 1,748 ms | 23/23 | none |
+| **Total** | **19 / 6,793 ms** | **4 / 6,740 ms** | **133/133** | **none** |
+
+The runner's measured elapsed time was 2,356 ms before and 4,277 ms after; the
+table's batch runtime sums are per-file timings and are not wall-clock totals.
+Every owner is far below the 180-second default. All four owner suites pass,
+and `node scripts/ci/catalog.js --check all` reports PASS with zero uncovered
+entries.
+
+| Affected production file | Baseline lines | Final lines | Baseline branches | Final branches |
+| --- | ---: | ---: | ---: | ---: |
+| `scripts/ci/validate-skill-directory-coverage.js` | 52/55 | 52/55 | 5/7 | 5/7 |
+| `scripts/lib/bounded-child-process.js` | 36/50 | 36/50 | 2/8 | 2/8 |
+| `scripts/lib/bounded-filesystem.js` | 122/169 | 122/169 | 16/36 | 16/36 |
+| `scripts/lib/skill-directory-coverage.js` | 472/521 | 472/521 | 193/261 | 194/262 |
+| `skills/skill-scope/scripts/skill-lint.js` | 1266/1390 | 1266/1390 | 415/494 | 410/489 |
+
+The `skill-lint.js` raw c8 branch count is an unrelated V8 range-map variance,
+not a behavior-path loss: its source SHA-256 is unchanged from the base; the
+report has 79 uncovered branches both before and after, with no previously
+covered shared arm becoming zero. The overlapping branch ranges were remapped
+when execution changed from 19 source-suite processes to four owner-suite
+processes. Read-only counter checks confirm the extensionless relative require
+path at line 589 (130 hits), the path/stem predicates at lines 586 and 592
+(1,027 and 7 hits), the two capability-skip conditions at line 1042 and 1091,
+and the unresolved-route check at line 319 remain exercised. The raw c8 figures
+are retained here rather than adjusted or hidden. F03's shared coverage module
+gains one covered and one total branch.
+
+The test-name diff is exactly 135 to 133, with no unplanned removals or new
+names. The two deletions are the redundant canonical-source fingerprint tests
+owned by the F01 fixture `finally` checks above. The generated marketplace
+package is regenerated from this ledger and checked with
+`node scripts/ci/gen-claude-marketplace-package.js --check` before delivery.
+
+Pre-edit GitNexus impact was **UNKNOWN** for the dynamically discovered test
+suites and their catalog owner; text search of `tests/run-all.js` confirms
+runtime `*.test.js` discovery, and source/reference checks were used for those
+UNKNOWN results. GitNexus impact for `validateSkillDirectoryCoverage` was
+**LOW** (eight impacted symbols); the `COVERAGE_MAP` consumer impact was also
+**LOW**. These findings did not indicate an unreviewed caller.

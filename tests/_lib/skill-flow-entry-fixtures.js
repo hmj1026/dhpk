@@ -13,7 +13,34 @@ const profileArgs = ['--language', 'javascript', '--runtime', 'node', '--current
 const definitions = [
   { id: 'flow-guide-usage-local-card', skill: 'flow-guide', entry: 'scripts/usage-card.js',
     args: ['precommit', '--json'], expected: { status: 0, output: ['precommit'] },
-    verify(result) { assert.ok(JSON.parse(result.stdout)); } },
+    verify(result) {
+      const card = JSON.parse(result.stdout);
+      assert.deepStrictEqual({
+        schema: card.schema,
+        id: card.id,
+        name: card.name,
+        displayName: card.display_name,
+        summary: card.summary,
+        syntax: card.syntax,
+        invocationClass: card.invocation_class,
+        effectAuthority: card.effect_authority,
+        actionId: card.actions[0].id,
+        optionSyntax: card.options[0].syntax,
+        catalogState: card.catalogEvidence.state,
+      }, {
+        schema: 'dhpk.skill-usage-card.v1',
+        id: 'precommit',
+        name: 'precommit',
+        displayName: 'Precommit',
+        summary: 'Run the packaged deterministic pre-commit pipeline',
+        syntax: '$precommit [--fast]',
+        invocationClass: 'implicit-eligible',
+        effectAuthority: 'workspace-write',
+        actionId: 'run',
+        optionSyntax: '--fast',
+        catalogState: 'PASS',
+      });
+    } },
   { id: 'flow-guide-analyze-consumer', skill: 'flow-guide', entry: 'scripts/analyze.js',
     expected: { status: 0, output: ['"diff_summary"'] },
     stubs: { git: { body: `const a=process.argv.slice(1);if(a.includes('--show-toplevel'))console.log(process.cwd());else if(a[0]==='branch')console.log('fixture-work');else if(a[0]==='rev-parse')console.log('1234567');else if(!['diff','status'].includes(a[0]))process.exit(91);` } },
