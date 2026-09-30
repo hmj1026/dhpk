@@ -5796,3 +5796,378 @@ Markdown links also fails (0/1), followed by a restored pass (1/1). The
 actual recipe and source hash are retained in `f38-review-fix-proof.json`.
 Earlier after-run coverage and timing are preserved in `after-first-review`.
 The fresh run above uses the corrected test; no new case name was added.
+
+### Issue #795 completed family consolidation
+
+Baseline: `02c1d9f1a5f470b2d600ec45cf66af4ba7aed181`. Fresh c8 10.1.3 reports with Node v26.9.0, `--jobs 4`, capture all affected owners and sources before moving them. The after run uses a clean tracked-source snapshot of the pending tree, so projection provenance checks see a clean checkout.
+
+Focused suites: 29 → 13; collected cases 262 → 260; wall time 10916 → 9744 ms. These are focused measurements, separate from the full-suite and CI evidence.
+
+#### Source dispositions
+
+- F26: `tests/parallel-consumer-probes.test.js` collects `tests/release-probe-batch.test.js`.
+- F52: `tests/documentation-platform-parity.test.js` collects `tests/platform-installation-docs.test.js`, `tests/workflow-docs.test.js`.
+- F54: `tests/platform-provenance.test.js` collects `tests/platform-boundary.test.js`, `tests/platform-conformance.test.js`.
+- F55: `tests/release-workflow.test.js` collects `tests/git-flow-governance.test.js`.
+- F56: `tests/release-evidence.test.js` collects `tests/consumer-evidence-normalization.test.js`.
+- F57: `tests/release-publication-bundle.test.js` collects `tests/verify-publication-bundle.test.js`.
+- F58: `tests/release-parity.test.js` collects `tests/verify-release-parity-cli.test.js`.
+- F59: `tests/gate-runner.test.js` collects `tests/source-gate-cli.test.js`, `tests/package-gate-cli.test.js`, `tests/publish-gate-cli.test.js`.
+- F60: `tests/verify-test-shards.test.js` collects `tests/render-test-timing.test.js`, `tests/run-all.test.js`.
+- F61: `tests/precommit-runner.test.js` collects `tests/verify-runner.test.js`.
+- F66: `tests/cross-cli-parity.test.js` collects `tests/check-cross-cli-drift.test.js`.
+
+The detailed KEEP, REWRITE, and DELETE decisions and controlled mutation evidence follow. Source test names are retained except the explicitly documented deletions. No production public behavior is changed.
+
+##### WRITER A: Issue #795 Writer A evidence
+
+##### WRITER A: Scope
+
+Worktree: `/tmp/dhpk-test-consolidation-worktree`
+
+Branch: `feature/issue-795-test-consolidation`
+
+Base at assignment: `02c1d9f1a5f470b2d600ec45cf66af4ba7aed181`
+
+Owned paths: four suite owners (`tests/parallel-consumer-probes.test.js`, `tests/documentation-platform-parity.test.js`, `tests/release-workflow.test.js`, `tests/cross-cli-parity.test.js`) and their five retired source suites (`tests/release-probe-batch.test.js`, `tests/platform-installation-docs.test.js`, `tests/workflow-docs.test.js`, `tests/git-flow-governance.test.js`, `tests/check-cross-cli-drift.test.js`). The scoped diff is exactly four modified owners and five deleted sources. No production source was changed.
+
+##### WRITER A: Case decisions
+
+The five sources contributed 32 declarations: 29 KEEP, one REWRITE, and two approved DELETE. The baseline multiset check is 72 declarations; the result is 70, with 70 distinct names and only the two approved removals. Per-case decisions are recorded in `/tmp/dhpk-consolidation/795/writer-a-case-dispositions.jsonl`; the checker is `/tmp/dhpk-consolidation/795/verify-a.js`.
+
+- F26 retains both bounded-batch order and maximum-concurrency contracts.
+- F52 retains all 19 installation and workflow documentation contracts in the combined documentation owner.
+- F55 rewrites the off-develop release-branch check to execute the real `prepare-release.js write` command in a committed disposable `feature-test` Git fixture. It asserts the develop-branch diagnostic and compares every fixture file outside `.git` before and after.
+- The two F55 deletes are limited to tag ancestry and invalid tag-version contracts. `/tmp/dhpk-consolidation/795/delete-owner-proof.json` records 9/9 passing cases in unchanged `release-verify-cli.test.js`, the exact owning test names, and unchanged hashes for that owner and `scripts/release/release-verify.sh`.
+- F66 retains all six cross-CLI drift contracts.
+
+##### WRITER A: Verification
+
+Direct owner runs passed:
+
+- `node tests/parallel-consumer-probes.test.js` — F26 4/4.
+- `node tests/documentation-platform-parity.test.js` — F52 30/30.
+- `node tests/release-workflow.test.js` — F55 28/28.
+- `node tests/cross-cli-parity.test.js` — F66 8/8.
+
+`node --check` passed for all four owners and scoped `git diff --check` passed. `node /tmp/dhpk-consolidation/795/verify-a.js` passed the 72-to-70 case multiset check. The owner inventory is in `/tmp/dhpk-consolidation/795/after-a-files.json`: F26 4 cases/174 lines; F52 30/758; F55 28/458; F66 8/161. Each owner has one `run()` call and remains at or below 800 lines.
+
+The F55 rewrite was mutation-checked using `/tmp/dhpk-consolidation/795/f55-mutation-proof.js`. In a disposable copy, allowing `feature-test` through the branch guard made the exact rewritten case fail; the owner was 27/28 and the write command returned success. Restoring the guard produced 28/28. An earlier setup attempt failed 4/5 because the new test referenced an undefined `CLI`; that attempt was invalid test setup and is not counted as the mutation RED. After defining the scoped CLI path, the source suite passed 5/5.
+
+##### WRITER A: Not run by this writer
+
+The unfiltered repository suite (`node tests/run-all.js`) was not run by this writer; root owns final integration verification. Resume after integration if required. Catalog-wide and generated-output checks are also parent-owned because the shared worktree contains root Catalog and changelog edits. This scoped report is not a final repository or release verdict.
+
+No commit, push, or PR was made.
+
+##### WRITER B: Issue #795 — Writer B result
+
+Status: scoped implementation complete. Worktree: /tmp/dhpk-test-consolidation-worktree, branch feature/issue-795-test-consolidation, baseline 02c1d9f1a5f470b2d600ec45cf66af4ba7aed181.
+
+##### WRITER B: Owned changes
+
+Updated four owner suites and retired five assigned source suites:
+
+- tests/platform-provenance.test.js — merged platform-boundary and platform-conformance.
+- tests/release-evidence.test.js — merged consumer-evidence-normalization.
+- tests/release-publication-bundle.test.js — merged verify-publication-bundle.
+- tests/release-parity.test.js — merged verify-release-parity-cli.
+- Deleted the five source suite files listed above.
+
+Each source suite is enclosed in its own lexical block. Each owner retains one outer run() call. Owner sizes are 314, 388, 449, and 309 lines respectively, all below 800. No catalog, coverage ledger, generated package, or production path was edited by Writer B.
+
+##### WRITER B: Source case dispositions
+
+| Source suite | Cases | Disposition |
+| --- | ---: | --- |
+| platform-boundary.test.js | 2 | KEEP |
+| platform-conformance.test.js | 1 | KEEP |
+| consumer-evidence-normalization.test.js | 14 | KEEP |
+| verify-publication-bundle.test.js | 3 | KEEP; 1 REWRITE |
+| verify-release-parity-cli.test.js | 4 | KEEP |
+
+Total: 25 source cases, 24 KEEP and 1 REWRITE. The complete owner suites contain 63 cases. Exact baseline-name parity was checked against /tmp/dhpk-consolidation/795/before-names.jsonl: F54 15/15, F56 24/24, F57 11/11, F58 13/13. The reproducible checker and output are writer-b-name-parity.js and writer-b-name-parity.log in this artifact directory.
+
+F57 rewrites producer digest rejects coordinated bundle and digest replacement. The original notes are the fixed bytes returned by the test's notes() literal. The expected producer digest and the coordinated attacker digest are computed with Node's built-in crypto.createHash('sha256'), independently of production digestBytes. The assertion requires the verifier's exact diagnostic: producer and downloaded publication notes digests do not match.
+
+F58 retains all four names and wraps each mkRepo use in try/finally with fs.rmSync(repo, { recursive: true, force: true }).
+
+##### WRITER B: F57 controlled mutation
+
+The mutation was made only in disposable archive /tmp/dhpk-consolidation/795/writer-b-f57-mutant-f700l2ym; the working tree's verifier was not changed. The archived verifier's producer/downloaded digest comparison was bypassed by changing its condition from:
+
+~~~js
+if (expectedNotesSha256 !== undefined && expectedNotesSha256 !== checkedDigest.digest.notesSha256) {
+~~~
+
+to:
+
+~~~js
+if (false && expectedNotesSha256 !== undefined && expectedNotesSha256 !== checkedDigest.digest.notesSha256) {
+~~~
+
+Command: node /tmp/dhpk-consolidation/795/writer-b-f57-mutant-f700l2ym/tests/release-publication-bundle.test.js
+
+Result: exit 1; the exact rewritten test failed because the mutated verifier accepted the coherent replacement (ok: true); 10/11 passed. Raw output: writer-b-red-F57.log.
+
+Restored GREEN command: node tests/release-publication-bundle.test.js in the assigned worktree -> 11/11 passed. Raw output: writer-b-green-restored-F57.log.
+
+##### WRITER B: Scoped verification
+
+- node tests/platform-provenance.test.js -> 15/15 passed; writer-b-green-F54.log.
+- node tests/release-evidence.test.js -> 24/24 passed; writer-b-green-F56.log.
+- node tests/release-publication-bundle.test.js -> 11/11 passed; writer-b-green-restored-F57.log.
+- node tests/release-parity.test.js -> 13/13 passed; writer-b-green-F58.log.
+- node /tmp/dhpk-consolidation/795/writer-b-name-parity.js -> 63/63 exact names.
+- git diff --check -- <nine assigned paths> -> passed.
+- Scoped code review -> APPROVE, zero findings. Reviewer also ran node --check on all four owner files.
+
+The fresh GitNexus file-target results remain ambiguous/UNKNOWN, as called out by the parent reasoner. I text-checked references before removing suites; repository test discovery and catalog do not directly name the five suite files, while test inventories, evidence documents, and generated documentation do. No production symbol or implementation was changed. Parent-owned catalog/ledger/generated reconciliation remains outside this writer's file set.
+
+##### WRITER B: Not run by this writer
+
+Issue-wide full-suite timing and before/after c8 coverage were not run because other writers and the parent-owned catalog/generated updates were still in progress in the shared worktree. Resume after all canonical merges with the issue's 28-suite node tests/run-all.js timing run and focused c8 coverage run; use the preserved baseline command in /tmp/dhpk-consolidation/795/before-command.json as the source list and write fresh after artifacts.
+
+##### WRITER C: Issue 795 Writer C report
+
+##### WRITER C: Scope and result
+
+- Worktree: `/tmp/dhpk-test-consolidation-worktree` on `feature/issue-795-test-consolidation`.
+- Starting HEAD: `02c1d9f1a5f470b2d600ec45cf66af4ba7aed181`.
+- Owned files: three merged owners plus six retired source suites. No other persistent repository path was changed by Writer C.
+- Final owner sizes are 471 lines, 735 lines, and 317 lines; all remain below the 800-line ceiling.
+
+##### WRITER C: Consolidation
+
+- tests/gate-runner.test.js: 5 existing + 13 collected = 18 registrations; sources: tests/source-gate-cli.test.js, tests/package-gate-cli.test.js, tests/publish-gate-cli.test.js.
+- tests/verify-test-shards.test.js: 19 existing + 17 collected = 36 registrations; sources: tests/run-all.test.js, tests/render-test-timing.test.js.
+- tests/precommit-runner.test.js: 5 existing + 6 collected = 11 registrations; sources: tests/verify-runner.test.js.
+- F59 package-gate helper now scopes its temp directory to the callback and removes it in `finally`; all three package-gate assertions and all F59 case names remain.
+- F60 rewrites only `timing report write failures do not replace the aggregate test result`. It creates one external `one-test.test.js`, loads the real `_lib/tinytest` by absolute path, registers/runs one assertion, and checks the fixture summary, timing warning, runner status, and aggregate summary. Cleanup removes the owned temp directory in `finally`.
+- F61 retains all six verify-runner cases and ensures each redirected cache directory is removed in `finally`, including when assertions fail.
+- The package-gate live comment now says “same pattern as the collected source-gate cases”. The original source filenames remain only as provenance labels on lexical blocks.
+
+##### WRITER C: Registration and case disposition
+
+- Before: 65 registrations / 63 distinct names. After: 65 registrations / 63 distinct names. Name multiset delta: zero.
+- Dispositions by cohort: collected source cases are 35 KEEP and 1 REWRITE out of 36; the 29 existing owner cases are all KEEP. Total: 64 KEEP and 1 REWRITE.
+- Duplicate retained at multiplicity 2: `exits non-zero and reports failureReasons when a step fails`.
+- Duplicate retained at multiplicity 2: `outside a git repo: prints "Not inside a git repo" and exits 0`.
+- Full 65-row matrix: `writer-c-case-disposition.jsonl`; before/after raw registrations: `writer-c-before-names.jsonl`, `writer-c-after-names.jsonl`.
+
+| Original source | Merged owner | Disposition | Case name |
+| --- | --- | --- | --- |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | valid four-shard reports aggregate files, assertions, and parallel wall time |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | validated shard summary warns above a max/min ratio of 2.0 without failing verification |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | validated shard summary does not warn when max/min ratio is exactly 2.0 |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | validated shard summary warns when a positive duration has a zero minimum |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | an empty smoke suite accepts the partial evidence emitted by run-all |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | worker timing records must cover every reported test file |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | missing shard timing report is rejected |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | duplicate shard index across timing reports is rejected |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | extra shard timing report is rejected |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | checkout commit and pull-request head must match the requested run |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | run id and attempt must match every shard report |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | shard index, shard count, and worker count must match the CI topology |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | reported test files must match live discovery exactly once |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | a newly discovered test without a shard result is rejected |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | a failed test-file status is rejected |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | failed test assertions are rejected even when the file status says pass |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | missing shard duration is rejected as absent timing evidence |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | missing per-file duration is rejected as incomplete timing evidence |
+| verify-test-shards.test.js | verify-test-shards.test.js | KEEP | malformed shard timing JSON is rejected |
+| run-all.test.js | verify-test-shards.test.js | KEEP | default options preserve the complete sequential runner contract |
+| run-all.test.js | verify-test-shards.test.js | KEEP | CLI options accept a bounded shard and worker-pool configuration |
+| run-all.test.js | verify-test-shards.test.js | KEEP | invalid shard and job values fail closed before scheduling |
+| run-all.test.js | verify-test-shards.test.js | KEEP | installer and harness-release files keep a longer timeout than the default 180s budget |
+| run-all.test.js | verify-test-shards.test.js | KEEP | weighted partition assigns every selected file exactly once |
+| run-all.test.js | verify-test-shards.test.js | KEEP | CI-sized weighted partition separates the heaviest split installer file |
+| run-all.test.js | verify-test-shards.test.js | KEEP | shard assignment is deterministic and covers every shard |
+| run-all.test.js | verify-test-shards.test.js | KEEP | worker mode accepts an explicit file list without rediscovering the tree |
+| run-all.test.js | verify-test-shards.test.js | KEEP | timing reports preserve per-file and worker evidence without changing scheduling options |
+| run-all.test.js | verify-test-shards.test.js | KEEP | timing reports preserve CI run identity without changing test scheduling |
+| run-all.test.js | verify-test-shards.test.js | REWRITE | timing report write failures do not replace the aggregate test result |
+| run-all.test.js | verify-test-shards.test.js | KEEP | worker timing payloads are machine-readable and tolerate ordinary test output |
+| run-all.test.js | verify-test-shards.test.js | KEEP | discovered tests stay flat except skipped _lib |
+| source-gate-cli.test.js | gate-runner.test.js | KEEP | prints a PASS SOURCE stage as JSON when every step succeeds |
+| source-gate-cli.test.js | gate-runner.test.js | KEEP | exits non-zero and reports failureReasons when a step fails |
+| source-gate-cli.test.js | gate-runner.test.js | KEEP | inherits CI-owned strict cgroup policy for source-gate steps |
+| source-gate-cli.test.js | gate-runner.test.js | KEEP | does not leak the release target context into generic source-gate steps |
+| source-gate-cli.test.js | gate-runner.test.js | KEEP | uses the portable policy for local macOS source-gate steps |
+| source-gate-cli.test.js | gate-runner.test.js | KEEP | local source gate uses the same worker pool as the CI Tests stage |
+| publish-gate-cli.test.js | gate-runner.test.js | KEEP | allows publication when SOURCE and PACKAGE both PASS |
+| publish-gate-cli.test.js | gate-runner.test.js | KEEP | passes target branch context without mutating refs or publishing |
+| publish-gate-cli.test.js | gate-runner.test.js | KEEP | blocks publication when PACKAGE fails, even though SOURCE passes |
+| publish-gate-cli.test.js | gate-runner.test.js | KEEP | blocks publication when SOURCE fails |
+| render-test-timing.test.js | verify-test-shards.test.js | KEEP | valid timing evidence renders identity, runtime, slowest, and failed files |
+| render-test-timing.test.js | verify-test-shards.test.js | KEEP | missing and malformed timing evidence remain explicit without becoming a test failure |
+| render-test-timing.test.js | verify-test-shards.test.js | KEEP | valid timing summary warns when a file duration exceeds 180000ms |
+| render-test-timing.test.js | verify-test-shards.test.js | KEEP | valid timing summary omits per-file warnings at and below 180000ms |
+| gate-runner.test.js | gate-runner.test.js | KEEP | all steps passing yields verdict PASS with no failure reasons |
+| gate-runner.test.js | gate-runner.test.js | KEEP | a failing step yields verdict FAIL and records the exit code |
+| gate-runner.test.js | gate-runner.test.js | KEEP | every step runs even after an earlier one fails (full evidence, not fail-fast) |
+| gate-runner.test.js | gate-runner.test.js | KEEP | passes an explicit environment to every step |
+| gate-runner.test.js | gate-runner.test.js | KEEP | merges per-step environment overrides without losing the gate environment |
+| precommit-runner.test.js | precommit-runner.test.js | KEEP | outside a git repo: prints "Not inside a git repo" and exits 0 |
+| precommit-runner.test.js | precommit-runner.test.js | KEEP | fast mode executes lint then test and writes structured PASS output only to the redirected cache |
+| precommit-runner.test.js | precommit-runner.test.js | KEEP | full mode runs build before test and reports an absent lint script as skipped |
+| precommit-runner.test.js | precommit-runner.test.js | KEEP | no matching scripts: all steps are skipped and structured overall status is FAIL |
+| precommit-runner.test.js | precommit-runner.test.js | KEEP | a failing test step is recorded as FAIL with its exit code and overall status |
+| verify-runner.test.js | precommit-runner.test.js | KEEP | outside a git repo: prints "Not inside a git repo" and exits 0 |
+| verify-runner.test.js | precommit-runner.test.js | KEEP | fast mode with lint + test scripts: skips typecheck/integration/e2e entirely |
+| verify-runner.test.js | precommit-runner.test.js | KEEP | full mode with no scripts at all: everything skipped (vacuously PASS, no steps actually ran) |
+| verify-runner.test.js | precommit-runner.test.js | KEEP | full mode: typecheck fallback uses a local compiler without network install |
+| verify-runner.test.js | precommit-runner.test.js | KEEP | full mode: test:integration present but --integration not given is skipped with a clear reason |
+| verify-runner.test.js | precommit-runner.test.js | KEEP | a failing lint script is reported as FAIL with a non-zero step code |
+| package-gate-cli.test.js | gate-runner.test.js | KEEP | prints a PASS PACKAGE stage as JSON when every step succeeds |
+| package-gate-cli.test.js | gate-runner.test.js | KEEP | exits non-zero and reports failureReasons when a step fails |
+| package-gate-cli.test.js | gate-runner.test.js | KEEP | default package gate reports shared-copy drift before package checks |
+
+##### WRITER C: Verification
+
+| Command | Result |
+| --- | --- |
+| `node --check tests/gate-runner.test.js && node --check tests/verify-test-shards.test.js && node --check tests/precommit-runner.test.js` | PASS |
+| Post-review `node --check tests/verify-test-shards.test.js && git diff --check` | PASS after whitespace-only F60 indentation correction; focused tests were not rerun because their code is unchanged and each owner has one full run |
+| `git diff --check` on assigned paths | PASS |
+| `node tests/gate-runner.test.js` | PASS, 18/18 |
+| `node tests/verify-test-shards.test.js` | PASS, 36/36 |
+| `node tests/precommit-runner.test.js` | PASS, 11/11 |
+| Registration-only capture of the three owners; compare names against baseline filter | PASS, 65/65 rows, 63 unique, no multiset changes |
+| `node /tmp/dhpk-consolidation/795/disposable-evidence/writer-c-disposable-mutation-recipe.js /tmp/dhpk-consolidation/795/writer-c-disposable-archive` | PASS; RED status 1 names the target and child fixture prints `external-one-test: 1/1 passed`; restored GREEN status 0 names the target and prints both that fixture result and aggregate `PASS: 1/1 test file(s) passed` |
+| SHA-256 checks in `disposable-evidence/writer-c-disposable-mutation-summary.json` | PASS; disposable `tests/run-all.js` restored to `a00358be4ffe067648abecdf06a12ea971b508612cede328b2321e9e4503a941`; canonical runner hash is the same before and after the probe |
+
+Writer C's fresh F60 mutation proof ran in `/tmp/dhpk-consolidation/795/writer-c-disposable-archive`, extracted from `git archive HEAD` at `02c1d9f1a5f470b2d600ec45cf66af4ba7aed181` with the three final owner files overlaid and six retired source suites removed. The summary records owner/harness/runner hashes, both statuses, and separate absolute timing artifact roots. Fresh logs and patch are `disposable-evidence/writer-c-disposable-mutation-red.log`, `disposable-evidence/writer-c-disposable-restored-green.log`, and `disposable-evidence/writer-c-disposable-mutation.patch`; the recipe is `disposable-evidence/writer-c-disposable-mutation-recipe.js`.
+
+Historical evidence is retained separately: `canonical-temporary-attempt/` records the earlier temporary mutation of canonical worktree `tests/run-all.js`, which was restored byte-for-byte to the hash above. It is not the disposable proof. The first disposable recipe attempt is preserved in `disposable-evidence/attempt-1-assumption-failure/`: the target correctly went RED and the real child printed 1/1, but the recipe incorrectly expected the aggregate PASS line after an intentional rethrow. The corrected recipe checks the named RED and child result, then verifies the aggregate line in restored GREEN. The harness filters only the owner-entry PID/path; the child fixture loads real tinytest.
+
+##### WRITER C: Risks and remaining checks
+
+- GitNexus test-file impacts for `tests/run-all.test.js` and `tests/verify-test-shards.test.js` were ambiguous/UNKNOWN with zero resolved callers. I treated UNKNOWN as unresolved and confirmed the test registrations and actual runner path from source and runtime evidence. The fresh reasoner confirmed the canonical `tests/run-all.js` main/timing catch path; the mutation probe exercised that path.
+- The fresh reasoner also recorded a HIGH `scripts/ci/catalog.js` warning and historical CRITICAL bare `REQUIRED_BRANCH` warning. Those are outside Writer C ownership and remain visible for the parent gate.
+- NOT RUN: whole-repository post-integration run and c8 after-coverage comparison. Reason: parent integration stage runs after all writers and catalog reconciliation. Resume with the canonical `c8` invocation recorded in `/tmp/dhpk-consolidation/795/before-command.json`, using a new after-coverage directory and the merged file list; the full runner entry is `node tests/run-all.js --jobs 4`.
+
+#### Registration reconciliation
+
+Removed registration names:
+
+- `authorized main commit: tag-mode release verification proves the tag commit is an ancestor of origin/main`
+- `vX.Y.Z tag parity: tag-mode verification rejects any tag not matching vX.Y.Z before doing anything else`
+
+Added registration names:
+
+- None.
+
+#### Per-file focused timing
+
+| File | Before ms | After ms |
+| --- | --- | --- |
+| `tests/parallel-consumer-probes.test.js` | 150 | 219 |
+| `tests/release-probe-batch.test.js` | 75 | merged |
+| `tests/documentation-platform-parity.test.js` | 81 | 114 |
+| `tests/platform-installation-docs.test.js` | 95 | merged |
+| `tests/workflow-docs.test.js` | 56 | merged |
+| `tests/platform-provenance.test.js` | 432 | 427 |
+| `tests/platform-boundary.test.js` | 142 | merged |
+| `tests/platform-conformance.test.js` | 55 | merged |
+| `tests/release-workflow.test.js` | 70 | 1619 |
+| `tests/git-flow-governance.test.js` | 56 | merged |
+| `tests/release-evidence.test.js` | 50 | 63 |
+| `tests/consumer-evidence-normalization.test.js` | 64 | merged |
+| `tests/release-publication-bundle.test.js` | 241 | 439 |
+| `tests/verify-publication-bundle.test.js` | 370 | merged |
+| `tests/release-parity.test.js` | 105 | 286 |
+| `tests/verify-release-parity-cli.test.js` | 299 | merged |
+| `tests/gate-runner.test.js` | 387 | 1660 |
+| `tests/source-gate-cli.test.js` | 842 | merged |
+| `tests/package-gate-cli.test.js` | 504 | merged |
+| `tests/publish-gate-cli.test.js` | 378 | merged |
+| `tests/verify-test-shards.test.js` | 120 | 281 |
+| `tests/render-test-timing.test.js` | 62 | merged |
+| `tests/run-all.test.js` | 165 | merged |
+| `tests/precommit-runner.test.js` | 1302 | 3488 |
+| `tests/verify-runner.test.js` | 1585 | merged |
+| `tests/cross-cli-parity.test.js` | 84 | 268 |
+| `tests/check-cross-cli-drift.test.js` | 201 | merged |
+| `tests/catalog-claims.test.js` | 7107 | 7591 |
+| `tests/prepare-release-cli.test.js` | 6477 | 7044 |
+
+All collected owners remain below the default 180 s budget. No `TIMEOUT_HINTS` entry is added.
+
+#### Canonical production coverage
+
+Covered/total counts below are raw fresh-report values. Branch range coordinates are independently compared; a raw drop is never described as raw non-decrease PASS.
+
+| Production file | Before lines | After lines | Before branches | After branches |
+| --- | --- | --- | --- | --- |
+| `scripts/agy-adapt-agents.js` | 212/462 | 212/462 | 41/55 | 41/55 |
+| `scripts/ci/_lib/frontmatter.js` | 37/129 | 37/129 | 1/1 | 1/1 |
+| `scripts/ci/catalog.js` | 369/503 | 377/511 | 24/51 | 24/51 |
+| `scripts/ci/gen-claude-marketplace-package.js` | 138/204 | 138/204 | 23/34 | 23/34 |
+| `scripts/ci/render-test-timing.js` | 118/158 | 118/158 | 30/61 | 30/61 |
+| `scripts/ci/verify-release-parity.js` | 35/42 | 35/42 | 6/8 | 6/8 |
+| `scripts/ci/verify-test-shards.js` | 360/413 | 360/413 | 91/147 | 91/147 |
+| `scripts/lib/agent-plugin-package.js` | 798/1308 | 798/1308 | 128/275 | 128/275 |
+| `scripts/lib/agy-path-contract.js` | 29/97 | 29/97 | 1/1 | 1/1 |
+| `scripts/lib/agy-plugin-package.js` | 565/706 | 565/706 | 92/210 | 92/210 |
+| `scripts/lib/asset-inventory.js` | 189/201 | 189/201 | 39/52 | 39/52 |
+| `scripts/lib/bounded-child-process.js` | 36/50 | 36/50 | 2/8 | 2/8 |
+| `scripts/lib/bounded-filesystem.js` | 140/169 | 140/169 | 31/51 | 31/51 |
+| `scripts/lib/capability-bundle-selection.js` | 411/849 | 411/849 | 92/193 | 92/193 |
+| `scripts/lib/changelog-fragments.js` | 142/188 | 142/188 | 8/25 | 8/25 |
+| `scripts/lib/codex-native-package.js` | 629/921 | 629/921 | 73/183 | 73/183 |
+| `scripts/lib/cross-cli-parity.js` | 120/129 | 120/129 | 30/37 | 30/37 |
+| `scripts/lib/cursor-harness-adapt.js` | 122/168 | 122/168 | 14/27 | 14/27 |
+| `scripts/lib/cursor-plugin-package.js` | 1115/2440 | 1115/2440 | 156/350 | 156/350 |
+| `scripts/lib/cursor-session-home.js` | 19/90 | 19/90 | 1/1 | 1/1 |
+| `scripts/lib/distribution-compiler.js` | 228/494 | 228/494 | 27/99 | 27/99 |
+| `scripts/lib/distribution-inventory-regeneration.js` | 13/40 | 13/40 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory.js` | 507/2518 | 507/2518 | 23/47 | 23/47 |
+| `scripts/lib/distribution-projection-contract.js` | 310/585 | 310/585 | 46/126 | 46/126 |
+| `scripts/lib/distribution-projection-parity.js` | 117/461 | 117/461 | 8/26 | 8/26 |
+| `scripts/lib/gate-runner.js` | 36/36 | 36/36 | 12/17 | 12/17 |
+| `scripts/lib/harness-surfaces.js` | 25/25 | 25/25 | 1/1 | 1/1 |
+| `scripts/lib/internal-runtime-skills.js` | 47/77 | 47/77 | 11/21 | 11/21 |
+| `scripts/lib/platform-provenance.js` | 311/393 | 311/393 | 77/145 | 77/145 |
+| `scripts/lib/profile-projection-sets.js` | 75/118 | 75/118 | 11/14 | 11/14 |
+| `scripts/lib/project-agent-host-binding-policy.js` | 35/240 | 35/240 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-projection-plan.js` | 63/647 | 63/647 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-provider-adapters.js` | 102/483 | 102/483 | 1/1 | 1/1 |
+| `scripts/lib/projection-artifact-store.js` | 208/309 | 208/309 | 40/74 | 40/74 |
+| `scripts/lib/redaction.js` | 23/23 | 23/23 | 4/5 | 4/5 |
+| `scripts/lib/release-evidence.js` | 239/269 | 239/269 | 104/142 | 104/142 |
+| `scripts/lib/release-parity.js` | 176/180 | 176/180 | 36/40 | 36/40 |
+| `scripts/lib/release-probe-batch.js` | 31/31 | 31/31 | 10/13 | 10/13 |
+| `scripts/lib/release-publication-bundle.js` | 82/86 | 82/86 | 6/17 | 6/17 |
+| `scripts/lib/skill-routing-projection.js` | 89/201 | 89/201 | 11/18 | 11/18 |
+| `scripts/lib/skill-topology.js` | 26/281 | 26/281 | 1/1 | 1/1 |
+| `scripts/lib/skill-usage.js` | 210/940 | 210/940 | 13/20 | 13/20 |
+| `scripts/lib/standalone-package-assets.js` | 20/77 | 20/77 | 2/11 | 2/11 |
+| `scripts/lib/workflow-package-closure.js` | 113/130 | 113/130 | 11/46 | 11/46 |
+| `scripts/release/package-gate.js` | 68/75 | 68/75 | 12/15 | 12/15 |
+| `scripts/release/parallel-consumer-probes.js` | 168/227 | 168/227 | 43/64 | 43/64 |
+| `scripts/release/prepare-release.js` | 579/697 | 579/697 | 217/286 | 217/286 |
+| `scripts/release/publish-gate.js` | 68/81 | 68/81 | 15/19 | 15/19 |
+| `scripts/release/release-publication-bundle.js` | 111/118 | 111/118 | 11/24 | 11/24 |
+| `scripts/release/source-gate.js` | 73/84 | 73/84 | 15/19 | 15/19 |
+| `scripts/release/verify-publication-bundle.js` | 184/276 | 184/276 | 42/77 | 42/77 |
+| `skills/precommit/scripts/lib/runner-utils.js` | 296/337 | 296/337 | 39/69 | 39/69 |
+| `skills/precommit/scripts/precommit-runner.js` | 298/316 | 298/316 | 42/59 | 42/59 |
+| `skills/repo-verify/scripts/lib/runner-utils.js` | 296/337 | 296/337 | 39/69 | 39/69 |
+| `skills/repo-verify/scripts/verify-runner.js` | 318/348 | 318/348 | 61/83 | 61/83 |
+
+Common branch arms: 3402; covered 1858 → 1858. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+
+Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/795/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
+
+#### Integration scope and guard evidence
+
+The 16 retired source suites contain 93 cases: 88 KEEP, three REWRITE, and two DELETE. All 11 collected owners remain below 800 lines; no new timeout hint or size exception is required. Catalog adds eight ownership mappings without changing its algorithms.
+
+The original focus passed 28 files/244 cases before and 12 files/242 cases after, in 13,372 and 7,657 ms. The real F55 CLI rewrite loads seven additional production files. The original reports remain in `original-focus`. The unchanged `prepare-release-cli.test.js` owner is therefore included on both sides of the expanded comparison: 29 files/262 cases before and 13 files/260 cases after, in 10,916 and 9,744 ms. This paired extension introduces no repository test or registration. The 55 production files have 3,402 common branch arms, with 1,858 covered on both sides; no covered lines or common arms are lost, no raw covered-branch count declines, and no comparison remains unresolved.
+
+The two deleted F55 tag cases are owned by the unchanged `release-verify-cli.test.js`: its real tag-format and ancestry rejection cases pass within a separate 9/9 run. The owner and release shell hashes match the baseline. This additional ownership run is separate from the focus timing and c8 measurements.
+
+Each REWRITE has an actual disposable mutation: bypass the F55 develop guard (27/28 RED, 28/28 restored GREEN), bypass the F57 producer/downloaded digest comparison (10/11 RED, 11/11 restored GREEN), and rethrow the F60 timing-write error (the selected case fails, then passes when restored). The F60 child executes the real external tinytest fixture and reports 1/1 on both runs. Its fresh archive proof and source hashes are recorded in `disposable-evidence/writer-c-disposable-mutation-summary.json`; the earlier temporary canonical probe remains historical evidence and is not presented as a disposable attempt. The initial F55 undefined-CLI setup failure and the F60 invalid proof assertion remain recorded as setup failures.
+
+GitNexus retains the canonical Catalog HIGH warning and UNKNOWN targets. CX, exact source paths, live CLI tests, and the fresh reasoner bound the edit to owner mappings and tests; unresolved graph walks are not evidence of unused code. The pre-ledger change scan reports 28 files and one symbol with low reported risk; missing graph flows remain a lower-bound limitation. Full-suite, platform, and hosted CI verification remain pending at this review checkpoint.

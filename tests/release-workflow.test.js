@@ -343,4 +343,116 @@ test('RELEASE.md documents that a failed publish job leaves an unreleased tag re
   assert.match(releaseDoc, /ship the next patch\s+release/i);
 });
 
+
+
+// Consolidated source suite: git-flow-governance (tests/git-flow-governance.test.js).
+{
+  // Consolidated coverage for the four git-flow-release-governance requirements
+  // (openspec/specs/git-flow-release-governance/spec.md).
+  // Each property is implemented at a specific layer; this file asserts all
+  // four together for traceability rather than re-testing each in isolation
+  // (see the referenced test files for the detailed unit coverage).
+
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { spawnSync } = require('node:child_process');
+
+  const ROOT = path.join(__dirname, '..');
+  const CLI = path.join(ROOT, 'scripts', 'release', 'prepare-release.js');
+  const releaseYml = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+  // The tag job delegates its pre-publish verification to release-verify.sh.
+  const releaseVerify = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'release-verify.sh'), 'utf8');
+  const releaseRunner = fs.readFileSync(path.join(ROOT, 'skills', 'release-creator', 'scripts', 'release-runner.sh'), 'utf8');
+  const publishGate = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'publish-gate.js'), 'utf8');
+  const releaseSpec = fs.readFileSync(path.join(ROOT, 'openspec', 'specs', 'git-flow-release-governance', 'spec.md'), 'utf8');
+
+  test('release-branch origin: prepare-release.js refuses off develop (see prepare-release-cli.test.js for the behavioral test)', () => {
+    const temporaryRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-branch-')));
+    const repo = path.join(temporaryRoot, 'repo');
+
+    function git(args) {
+      const result = spawnSync('git', args, { cwd: repo, encoding: 'utf8' });
+      assert.strictEqual(result.status, 0, `git ${args.join(' ')} failed: ${result.stderr}`);
+      return result.stdout.trim();
+    }
+
+    function snapshotTree(directory, relative = '') {
+      const entries = fs.readdirSync(directory).filter((name) => !(relative === '' && name === '.git')).sort();
+      return entries.flatMap((name) => {
+        const target = path.join(directory, name);
+        const targetRelative = relative ? `${relative}/${name}` : name;
+        const stat = fs.lstatSync(target);
+        const mode = stat.mode & 0o777;
+        if (stat.isSymbolicLink()) return [[targetRelative, 'symlink', mode, fs.readlinkSync(target)]];
+        if (stat.isDirectory()) return [[targetRelative, 'directory', mode], ...snapshotTree(target, targetRelative)];
+        if (stat.isFile()) {
+          const digest = require('node:crypto').createHash('sha256').update(fs.readFileSync(target)).digest('hex');
+          return [[targetRelative, 'file', mode, digest]];
+        }
+        return [[targetRelative, 'other', mode]];
+      });
+    }
+
+    try {
+      const clone = spawnSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, repo], {
+        cwd: temporaryRoot,
+        encoding: 'utf8',
+      });
+      assert.strictEqual(clone.status, 0, `could not create the committed release fixture: ${clone.stderr}`);
+      git(['checkout', '--quiet', '-b', 'feature-test']);
+      git(['config', 'user.email', 'test@example.com']);
+      git(['config', 'user.name', 'Test']);
+      fs.writeFileSync(
+        path.join(repo, 'changelog.d', 'feat.branch-guard.md'),
+        'scope: test\nnote: Exercise the feature-branch release guard.\n',
+      );
+      git(['add', 'changelog.d/feat.branch-guard.md']);
+      git(['commit', '--quiet', '-m', 'fixture: add a valid release note']);
+      assert.strictEqual(git(['rev-parse', '--abbrev-ref', 'HEAD']), 'feature-test');
+
+      const before = snapshotTree(repo);
+      const result = spawnSync(process.execPath, [
+        CLI,
+        '--repo-root', repo,
+        'write',
+        '--version', '1.1.0',
+        '--date', '2026-09-30',
+        '--summary', 'Feature branch guard fixture',
+      ], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...process.env, DHPK_RELEASE_TARGET_BRANCH: 'develop' },
+      });
+
+      assert.strictEqual(
+        result.status,
+        1,
+        `feature branch must be rejected with exit 1; got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      );
+      assert.match(result.stderr, /must run on 'develop'/);
+      assert.match(result.stderr, /current: 'feature-test'/);
+      assert.deepStrictEqual(snapshotTree(repo), before, 'branch rejection must leave every fixture file unchanged');
+    } finally {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('prohibited automatic actions: release-runner.sh prepare never tags, publish-gate.js never merges or tags', () => {
+    const res = spawnSync('bash', ['-c', String.raw`sed -n '/^    prepare)/,/^        ;;/p'`], { input: releaseRunner, encoding: 'utf8' });
+    const prepareBlock = res.stdout;
+    assert.ok(!prepareBlock.includes('git tag'), 'prepare phase must never create a tag');
+    assert.ok(!prepareBlock.includes('merge'), 'prepare phase must never merge a PR');
+    assert.ok(!publishGate.includes('git tag'), 'publish-gate must never create a tag itself');
+    assert.ok(!publishGate.includes('gh pr merge'), 'publish-gate must never merge a PR itself');
+  });
+
+  test('release specification requires guarded develop reconciliation', () => {
+    assert.match(releaseSpec, /merged release PR head\s*SHA/);
+    assert.match(releaseSpec, /force-with-lease/);
+    assert.match(releaseSpec, /moved develop or differing tree/);
+    assert.ok(!/records the back-merge PASS/.test(releaseSpec), 'unique-tree back-merge must not remain an automatic success path');
+  });
+}
+
 run('release-workflow');
