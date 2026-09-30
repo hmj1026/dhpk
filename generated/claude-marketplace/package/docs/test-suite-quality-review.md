@@ -2760,3 +2760,138 @@ than an assertion or production-path loss.
 The generated marketplace package is regenerated from this ledger in a clean
 tracked-source snapshot and checked with
 `node scripts/ci/gen-claude-marketplace-package.js --check` before delivery.
+
+### Issue #789 — F10 distribution inventory consolidation
+
+F10 only; F11–F17 and F29 remain open. Clean baseline:
+`10a48f7589db09530d785e7a6f56365c8101ec66` on `develop`.
+Production implementations are unchanged. The catalog now assigns
+`internal-runtime-skills.js` to `distribution-inventory-validate.test.js`.
+
+#### Dispositions and names
+
+| Source suite | Tests | Checklist disposition | Collected owner |
+| --- | --- | --- | --- |
+| `distribution-scoped-counts` | 8 | 5 KEEP, 2 REWRITE, 1 DELETE | `distribution-inventory-validate` |
+| `distribution-projection-inventory` | 3 | KEEP unchanged | `distribution-inventory-validate` |
+| `internal-cli-transport-inventory` | 1 | KEEP unchanged | `distribution-inventory-validate` |
+| `internal-runtime-skills` | 2 | KEEP unchanged | `distribution-inventory-validate` |
+| `harness-platform-matrix` | 5 | KEEP unchanged, including its earlier #639 rewrite | `distribution-inventory-validate` |
+
+Each source is one labeled owner block; its source file is deleted. Existing
+31 owner tests are unchanged. Suite count: 365 to 360. Name multisets:
+50 baseline names, exactly 49 final names after excluding only
+`canonical count never silently equals a scoped count when they truly differ (regression guard against count aliasing)`.
+That redundant assertion is completely owned by the collected literal
+canonical/promoted-core, Claude-published and Codex-published count tests.
+Their stronger literal expectations are retained.
+
+The Claude structural verification test retains its name but now pins literal
+IDs `['a', 'b', 'c', 'd']` and count `4`, replacing a shared-helper oracle.
+The README test retains its name but derives the forbidden count independently
+from manifest `skills.length`, rather than the production count helper.
+Remaining moved assertions retain observable contracts and negative paths.
+The 952-line owner is a scoped exception to the usual 800-line limit because
+F10 requires these five named blocks in the existing owner; no timeout hint
+or new suite is added.
+
+#### Mutation evidence
+
+Both mutations used a disposable tracked-source copy, never this checkout's
+production files. Omitting fixture `c` from `generateClaudeSkillRoots` invokable
+selection makes `Claude-published count is the same inventory-derived set used by structural verification`
+RED (47/49, with its literal count guard also failing); restoring returns 49/49.
+Appending `84 skills are installed by default.` to disposable `README.md`
+makes `neither bilingual README claims the canonical skill total as a default-install count (task 4.2 regression guard)`
+RED (48/49); restoring returns 49/49. Run the merged owner after the controlled
+defect and again after restoration.
+
+Raw evidence is retained under `/tmp/dhpk-issue789-f10`: mutation logs
+`claude-mutation-{red,green}.log`, `readme-mutation-{red,green}.log`, the disposable
+`mutation-tree`, baseline/final name lists, and `test-name-comparison.json`.
+
+#### Fresh timing and coverage
+
+Node v26.9.0, Linux, c8 10.1.3, jobs=4, fresh reports. Baseline per-file timings
+(owner, scoped counts, projection inventory, CLI inventory, runtime skills,
+platform matrix): 113, 91, 100, 89, 59, 107 ms, sum 559 ms. Final owner:
+114 ms, below the default 180,000 ms budget. Instrumented wall time:
+313 ms before, 165 ms after. These focused results do not claim full-suite or
+CI shard speed improvements.
+
+Reproduce on the recorded baseline and final revision respectively, with fresh
+report directories (the cached c8 path is specific to this environment):
+
+```bash
+DHPK_TEST_TIMING_FILE=/tmp/dhpk-issue789-f10/parent-baseline/timing.json \
+  node /home/paul/.npm/_npx/1d50dde519b2be3f/node_modules/c8/bin/c8.js \
+  --reports-dir /tmp/dhpk-issue789-f10/parent-baseline/coverage \
+  --reporter json --reporter json-summary node tests/run-all.js --jobs 4 \
+  tests/distribution-inventory-validate.test.js \
+  tests/distribution-scoped-counts.test.js \
+  tests/distribution-projection-inventory.test.js \
+  tests/internal-cli-transport-inventory.test.js \
+  tests/internal-runtime-skills.test.js tests/harness-platform-matrix.test.js
+DHPK_TEST_TIMING_FILE=/tmp/dhpk-issue789-f10/parent-after-timing.json \
+  node /home/paul/.npm/_npx/1d50dde519b2be3f/node_modules/c8/bin/c8.js \
+  --reports-dir /tmp/dhpk-issue789-f10/parent-after-coverage \
+  --reporter json --reporter json-summary node tests/run-all.js --jobs 4 \
+  tests/distribution-inventory-validate.test.js
+```
+
+All 18 affected canonical dependencies, covered/total without normalization:
+
+| Production file | Before lines | After lines | Before branches | After branches |
+| --- | --- | --- | --- | --- |
+| `scripts/ci/_lib/frontmatter.js` | 37/129 | 37/129 | 1/1 | 1/1 |
+| `scripts/lib/agy-path-contract.js` | 55/97 | 55/97 | 4/14 | 4/14 |
+| `scripts/lib/asset-inventory.js` | 45/201 | 45/201 | 1/1 | 1/1 |
+| `scripts/lib/bounded-child-process.js` | 36/50 | 36/50 | 2/8 | 2/8 |
+| `scripts/lib/bounded-filesystem.js` | 23/169 | 23/169 | 1/1 | 1/1 |
+| `scripts/lib/distribution-compiler.js` | 103/494 | 103/494 | 3/29 | 3/29 |
+| `scripts/lib/distribution-inventory-regeneration.js` | 13/40 | 13/40 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory.js` | 1918/2518 | 1918/2518 | 555/882 | 553/880 |
+| `scripts/lib/distribution-projection-contract.js` | 337/585 | 337/585 | 43/132 | 42/131 |
+| `scripts/lib/distribution-projection-parity.js` | 117/461 | 117/461 | 8/26 | 8/26 |
+| `scripts/lib/harness-surfaces.js` | 25/25 | 25/25 | 1/1 | 1/1 |
+| `scripts/lib/internal-runtime-skills.js` | 68/77 | 68/77 | 23/35 | 25/37 |
+| `scripts/lib/project-agent-host-binding-policy.js` | 35/240 | 35/240 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-projection-plan.js` | 146/647 | 146/647 | 15/46 | 15/46 |
+| `scripts/lib/project-agent-provider-adapters.js` | 102/483 | 102/483 | 1/1 | 1/1 |
+| `scripts/lib/skill-routing-projection.js` | 89/201 | 89/201 | 11/18 | 11/18 |
+| `scripts/lib/skill-topology.js` | 26/281 | 26/281 | 1/1 | 1/1 |
+| `scripts/lib/skill-usage.js` | 531/940 | 531/940 | 96/164 | 95/163 |
+
+All covered line counts are identical. Raw branch percentages decrease for
+`distribution-inventory.js` (62.92% to 62.84%),
+`distribution-projection-contract.js` (32.57% to 32.06%), and
+`skill-usage.js` (58.53% to 58.28%). The literal raw-percentage non-decrease
+criterion is not reported as PASS. Coordinate-level evidence classifies this
+as unrelated V8 instrumentation range drift: the four varying production
+scripts have identical baseline/final Git blobs, 1,334 common branch coordinates
+retain the same 740 covered arms, and zero covered arms become uncovered.
+All 28 removed ranges and 26 added ranges are covered. In the platform matrix,
+one broad covered range at 1823–1867 is replaced by two covered ranges; covered
+ranges at projection-contract 54–55 and skill-usage 573–574 disappear from the
+final range map. Full coordinates and comparison code remain in
+`branch-coordinate-audit.json` and `branch-coordinate-audit.cjs` in the evidence
+folder, alongside both fresh `coverage-final.json` reports.
+
+Safety coordinate comparison: platform matrix 25 covered among 42 common arms,
+required surface plan 5 among 13, internal runtime validation 8 among 10, all
+unchanged. This preserves existing negative paths; it does not claim complete
+baseline branch coverage for those functions.
+
+#### Integration evidence boundary
+
+Catalog `--check all`, plugin validator, harness validator, and focused final
+owner pass. Upstream impact for `validatePlatformCapabilityMatrix` is HIGH:
+34 symbols, `phaseExecution` and `dispatch`, with a callable-value boundary;
+surfaced before edits, production behavior preserved. Current GitNexus change
+analysis returns all 35 changed symbols with LOW risk, no partial/truncated
+marker; zero mapped processes is not used as proof of no effect.
+
+Marketplace copies are regenerated from a tracked-source snapshot carrying
+this diff, then checked with `gen-claude-marketplace-package.js --check`.
+Review Gate, clean-checkout full tests, and PR CI are separate delivery gates.
+The other batches of #789 and the integrated verdict of #743 remain incomplete.

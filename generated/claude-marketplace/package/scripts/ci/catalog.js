@@ -173,6 +173,7 @@ const COVERAGE_MAP = {
   'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
   'scripts/lib/retirement-closure.js': 'validate-retirement-closure.test.js',
   'scripts/lib/claude-capability-bundle.js': 'profile-scoped-claude-capability-bundle.test.js',
+  'scripts/lib/internal-runtime-skills.js': 'distribution-inventory-validate.test.js',
   'skills/flow-guide/scripts/route-result.js': 'reference-route-policy.test.js',
   'skills/flow-guide/scripts/usage-card.js': 'flow-guide-usage-help.test.js',
   'scripts/lib/harness-receipt.js': 'harness-operation-receipts.test.js',
