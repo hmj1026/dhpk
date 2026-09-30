@@ -26,17 +26,17 @@ test('session-start advisories own advise-once and detect-stack-hints without fo
     assert.strictEqual(
       fs.existsSync(path.join(ROOT, 'tests', name)),
       false,
-      `${name} must not re-enter session-start-advisories.test.js`,
+      `${name} must not re-enter session-start.test.js`,
     );
   }
   const catalogSource = fs.readFileSync(path.join(ROOT, 'scripts', 'ci', 'catalog.js'), 'utf8');
   assert.match(
     catalogSource,
-    /['"]scripts\/hooks\/_lib\/advise-once\.sh['"]\s*:\s*['"]session-start-advisories\.test\.js['"]/,
+    /['"]scripts\/hooks\/_lib\/advise-once\.sh['"]\s*:\s*['"]session-start\.test\.js['"]/,
   );
   assert.match(
     catalogSource,
-    /['"]scripts\/hooks\/_lib\/detect-stack-hints\.sh['"]\s*:\s*['"]session-start-advisories\.test\.js['"]/,
+    /['"]scripts\/hooks\/_lib\/detect-stack-hints\.sh['"]\s*:\s*['"]session-start\.test\.js['"]/,
   );
   const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'ci', 'catalog.js'), '--check'], {
     cwd: ROOT,

@@ -195,7 +195,7 @@ test('test phase uses the bounded runner and emits one compact JSON result', () 
     const result = invoke([
       'test',
       '--test-file',
-      'tests/harness-release-aggregation.test.js',
+      'tests/harness-facade-contract.test.js',
       '--task-id',
       'facade-cli-test',
       '--json',
@@ -207,7 +207,7 @@ test('test phase uses the bounded runner and emits one compact JSON result', () 
     assert.strictEqual(payload.exitCode, 0);
     assert.ok(payload.receiptReference);
     assert.match(payload.resumeCommand, /bin\/dhpk harness test/);
-    assert.strictEqual(result.stdout.includes('harness-release-aggregation:'), false);
+    assert.strictEqual(result.stdout.includes('harness-facade-contract:'), false);
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
   }

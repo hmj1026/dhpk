@@ -64,8 +64,8 @@ A `tests/*.test.js` file discovered by `tests/run-all.js` SHALL contain its own 
 
 #### Scenario: A wrapper that re-enters another test file is rejected
 
-- **WHEN** `tests/advise-once.test.js` or `tests/detect-stack-hints.test.js` only `require`s `session-start-advisories.test.js`
-- **THEN** those wrapper files are absent, both shell scripts map to `session-start-advisories.test.js`, and `tests/run-all.js` discovers the implementation once
+- **WHEN** `tests/advise-once.test.js` or `tests/detect-stack-hints.test.js` only `require`s `session-start.test.js`
+- **THEN** those wrapper files are absent, both shell scripts map to `session-start.test.js`, and `tests/run-all.js` discovers the implementation once
 
 #### Scenario: Catalog still covers the wrapped scripts
 

@@ -3338,7 +3338,7 @@ Covered/total counts below are raw fresh-report values. Branch range coordinates
 | `scripts/lib/skill-usage.js` | 566/940 | 566/940 | 108/183 | 107/182 |
 | `scripts/lib/standalone-package-assets.js` | 20/77 | 20/77 | 2/11 | 2/11 |
 
-Common branch arms: 5000; covered 3077 → 3081. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+Common branch arms: 5000; covered 3077 → 3081. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell and Python paths are outside c8 instrumentation and rely on their behavioral negative tests.
 
 Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/789/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
 
@@ -3751,7 +3751,7 @@ Covered/total counts below are raw fresh-report values. Branch range coordinates
 | `scripts/release/claude-user-config-probe.js` | 106/155 | 106/155 | 40/74 | 36/70 |
 | `scripts/release/consumer-gate.js` | 444/1958 | 444/1958 | 90/137 | 90/137 |
 
-Common branch arms: 3434; covered 2236 → 2237. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+Common branch arms: 3434; covered 2236 → 2237. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell and Python paths are outside c8 instrumentation and rely on their behavioral negative tests.
 
 Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/790/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
 
@@ -4361,7 +4361,7 @@ Covered/total counts below are raw fresh-report values. Branch range coordinates
 | `scripts/lib/standalone-package-assets.js` | 20/77 | 20/77 | 3/11 | 3/11 |
 | `scripts/lib/workflow-package-closure.js` | 113/130 | 113/130 | 52/78 | 52/78 |
 
-Common branch arms: 4784; covered 3142 → 3142. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+Common branch arms: 4784; covered 3142 → 3142. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell and Python paths are outside c8 instrumentation and rely on their behavioral negative tests.
 
 Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/791/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
 
@@ -4792,7 +4792,7 @@ Covered/total counts below are raw fresh-report values. Branch range coordinates
 | `skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js` | 213/223 | 213/223 | 100/126 | 100/126 |
 | `skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js` | 171/172 | 171/172 | 59/70 | 58/69 |
 
-Common branch arms: 1630; covered 1095 → 1101. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+Common branch arms: 1630; covered 1095 → 1101. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell and Python paths are outside c8 instrumentation and rely on their behavioral negative tests.
 
 Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/792/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
 
@@ -5216,7 +5216,7 @@ Covered/total counts below are raw fresh-report values. Branch range coordinates
 | `skills/flow-guide/scripts/route-result.js` | 285/325 | 285/325 | 144/190 | 135/181 |
 | `skills/flow-guide/scripts/usage-card.js` | 259/316 | 259/316 | 48/92 | 48/92 |
 
-Common branch arms: 3724; covered 2132 → 2132. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+Common branch arms: 3724; covered 2132 → 2132. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell and Python paths are outside c8 instrumentation and rely on their behavioral negative tests.
 
 Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/793/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
 
@@ -5237,3 +5237,562 @@ Original focused measurements (32 files / 293 cases to 10 files / 289 cases) are
 The expanded comparison covers 54 canonical production files and 3,724 shared branch coordinates, with 2,132 covered before and after, zero covered-coordinate loss, and zero unresolved comparisons. Only Catalog ownership data changes its production blob. Route-result raw covered branches decline 144/190 to 135/181 on an identical blob; all removed and added ranges are covered. Literal raw numeric non-decrease remains NOT PASS. The implementation judgment owner accepts this unrelated V8 range-shape drift under the ticket allowance, subject to cold review of raw reports and exact coordinates.
 
 Fresh Catalog coverage-gap Function impact is HIGH (two entries; direct checkOrWrite caller and two affected processes), retained without downgrade from riskSharedAxes LOW. Ten unresolved Function lookups and test File UNKNOWN results are corroborated by live CX references and dynamic discovery; global process indexing omissions remain lower bounds, not an all-clear. Fresh reasoner authorized bounded test-only changes. Full-suite, static/generation, and hosted CI completion are separate subsequent gates; no pending result is claimed PASS here.
+
+### Issue #794 completed family consolidation
+
+Baseline: `9e6aee90939ec6bad5f3d07dcfabc5ab7291069c`. Fresh c8 10.1.3 reports with Node v26.9.0, `--jobs 4`, capture all affected owners and sources before moving them. The after run uses a clean tracked-source snapshot of the pending tree, so projection provenance checks see a clean checkout.
+
+Focused suites: 40 → 16; collected cases 345 → 344; wall time 15065 → 15878 ms. These are focused measurements, separate from the full-suite and CI evidence.
+
+#### Source dispositions
+
+- F27: `tests/hooks-wiring.test.js` collects `tests/default-hook-events.test.js`.
+- F38: `tests/harness-facade-contract.test.js` collects `tests/harness-docs.test.js`, `tests/harness-release-aggregation.test.js`, `tests/harness-surfaces.test.js`, `tests/harness-workflow-config.test.js`.
+- F39: `tests/multi-ai-sync-skill-contract.test.js` collects `tests/multi-ai-sync-cursor-discovery.test.js`, `tests/multi-ai-sync-parity.test.js`, `tests/harness-govern-toml-fallback.test.js`.
+- F40: `tests/session-start.test.js` collects `tests/session-start-advisories.test.js`, `tests/trap-sheet-detection.test.js`.
+- F41: `tests/session-install-health-version.test.js` collects `tests/session-install-health-modules.test.js`.
+- F42: `tests/stop-advisory-dispatch-graduation.test.js` collects `tests/stop-advisory-dispatch-completion-evidence.test.js`, `tests/stop-advisory-dispatch-modules.test.js`, `tests/stop-dispatch-audit.test.js`.
+- F43: `tests/pre-bash-guard.test.js` collects `tests/pre-bash-dispatch.test.js`.
+- F44: `tests/pre-edit-guard.test.js` collects `tests/pre-edit-batch-gate.test.js`.
+- F45: `tests/load-project-config.test.js` collects `tests/runtime-config.test.js`, `tests/session-env.test.js`.
+- F46: `tests/portable-stat.test.js` collects `tests/portable-sed.test.js`, `tests/portable-timeout.test.js`.
+- F47: `tests/write-handoff.test.js` collects `tests/set-handoff-state.test.js`, `tests/detect-phase.test.js`, `tests/portable-workflow-runtime.test.js`.
+- F48: `tests/postcompact-restore.test.js` collects `tests/precompact-archive.test.js`.
+
+The detailed KEEP, REWRITE, and DELETE decisions and controlled mutation evidence follow. Source test names are retained except the explicitly documented deletions. No production public behavior is changed.
+
+##### WRITER A: Issue #794 — Writer A evidence
+
+Task/attempt: A, F27/F38/F41/F44/F48. Worktree: `/tmp/dhpk-test-consolidation-worktree`; branch `feature/issue-794-test-consolidation`; base HEAD `9e6aee90939ec6bad5f3d07dcfabc5ab7291069c`. Work started only after the parent’s explicit GO and fresh READY_FOR_DISPATCH reasoner/baseline.
+
+##### WRITER A: Scope and counts
+
+Changed only the five assigned owner tests and deleted their eight merged source tests. Each owner retains its original cases and one `run(...)` call. No production, documentation, Catalog, pointer, changelog, generated, or other family paths were edited.
+
+| Family | Owner observed before | Source registered cases | Approved deletion | Owner observed after | Final owner lines |
+|---|---:|---:|---:|---:|---:|
+| F27 `hooks-wiring` | 8 | 1 | 0 | 9 | 115 |
+| F38 `harness-facade-contract` | 4 | 22 | 0 | 26 | 484 |
+| F41 `session-install-health-version` | 23 | 13 | 1 | 35 | 606 |
+| F44 `pre-edit-guard` | 12 | 6 | 0 | 18 | 228 |
+| F48 `postcompact-restore` | 3 | 2 | 0 | 5 | 166 |
+| Total | 50 | 44 | 1 | 93 | All below 800 |
+
+The baseline case inventory and post-owner logs compare 94 registered cases to 93: the sole missing name is the approved F41 deletion below, with no added names. The initial merge script’s name helper matched only single-quoted `test(...)` calls, so raw `merge-a.log` undercounts F41 by two double-quoted declarations (reports 10/11 moved instead of 12/13 registered cases). Preserve that raw log; `before-names.jsonl`, `before-a-inventory.json`, owner logs, and `writer-a-verification.log` provide the corrected exact inventory. The reported owner runtime is 35/35 and the registered-name comparison confirms both double-quoted cases remain.
+
+##### WRITER A: F38 rewrite proof
+
+`tests/harness-docs.test.js` now requires at least one local Markdown link and resolves all local Markdown links. The exact case `documentation links resolve to repository files` passed clean, failed when all three local Markdown links were removed from a disposable copy of `docs/harness-workflow.md`, and passed after restoration. The repository document was not modified. Evidence: `f38-disposable-mutation.log`; recipe: `run-f38-mutation.js`.
+
+##### WRITER A: F41 approved deletion proof
+
+Deleted only `session-start does not report the contradiction for an inherited set`. Fresh reasoner evidence maps its actual SessionStart JS-manifest/PHP-modules no-advisory contract to retained F40 test `session-start does not run module/manifest advisory inference`. All other F41 module assertions remain.
+
+##### WRITER A: F48 name preservation
+
+Both PreCompact cases were moved unchanged: `bash -n syntax check passes` and `scratch invocation writes branch, OpenSpec task, working-tree, and recent-commit evidence`. No Sentinel file or name was changed by this writer.
+
+##### WRITER A: Per-case KEEP / REWRITE / DELETE inventory
+
+| Family / source suite | Case name | Disposition and evidence |
+|---|---|---|
+| F27 / `default-hook-events` | default hook event manifest exactly matches hooks.json and documents opt-ins separately | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-docs` | documents the stable facade phases, outcomes, exits, and receipt boundary | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-docs` | documentation links resolve to repository files | **REWRITE.** Added a required nonempty local Markdown-link set before resolving every local Markdown link; disposable removal of all three links produced RED for this exact case, then restore produced GREEN (f38-disposable-mutation.log). |
+| F38 / `harness-release-aggregation` | full-release aggregation requires exactly the seven canonical surfaces | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | unavailable and failed surfaces remain non-complete | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | full release ignores cursor-sync NOT_RUN for COMPLETE but retains its identity row | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | full release keeps cursor-sync FAIL unhealthy even outside the runtime list | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | full-release aggregation rejects a non-canonical required runtime subset | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | release execution invokes each required consumer probe and preserves its evidence | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | release execution aggregates the explicit runtime list separately from identity rows | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | release execution carries the trusted artifact binding onto matching package rows | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | release execution rejects a non-canonical required runtime subset before COMPLETE | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | release execution fails closed when a probe emits malformed consumer evidence | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | release execution rejects foreign rows and conflicting producer outcomes | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | release execution rejects missing top-level probe outcomes | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | release execution rejects a conflicting top-level probe outcome | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | missing or unknown required surfaces fail closed | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-release-aggregation` | lifecycle phase and command outcome remain separate | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-surfaces` | full-release surface identity has one canonical ordered list | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-workflow-config` | CI invokes the harness facade and keeps compatibility adapters | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-workflow-config` | CI separates preflight from a four-shard suite and keeps the aggregate required check | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-workflow-config` | CI forwards bot authorship to the changelog coverage gate | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F38 / `harness-workflow-config` | release invokes the harness facade for the full consumer surface plan | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | a php module enabled against a js-manifest project is reported | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | stack modules enabled with no stack manifest at all are reported | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | a php module enabled against a php-source project is not reported | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | an inherited module set that does not contradict the evidence stays silent | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | an inherited module set that does contradict the evidence is still reported | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | a project with no evidence at all stays silent whatever is configured | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | contradicted modules are reported even when another configured module matches | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | dhpk's own module set against its own evidence produces a finding | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | a finding names contradicted modules even when no family is left unmatched | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | laravel-mix is a js-family module and is not flagged in a js project | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | laravel-mix is flagged when the project has no js evidence | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | dhpk's own module set does not flag its js-family modules | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F41 / `session-install-health-modules` | session-start does not report the contradiction for an inherited set | **DELETE.** Fully owned by F40 retained actual SessionStart case `session-start does not run module/manifest advisory inference` (JS manifest plus PHP modules, no advisory); see fresh-reasoner.md. |
+| F44 / `pre-edit-batch-gate` | warns on third distinct file, ignores duplicates, and blocks fourth only in dispatch mode | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F44 / `pre-edit-batch-gate` | fourth distinct file remains advisory outside dispatch mode | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F44 / `pre-edit-batch-gate` | a live fast-worker marker bypasses the gate WITHOUT counting | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F44 / `pre-edit-batch-gate` | explicit acceptance suppresses the block but STILL counts for the dispatch audit | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F44 / `pre-edit-batch-gate` | bookkeeping and out-of-project paths do not count | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F44 / `pre-edit-batch-gate` | malformed payload and unwritable sidecar location fail open | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F48 / `precompact-archive` | bash -n syntax check passes | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+| F48 / `precompact-archive` | scratch invocation writes branch, OpenSpec task, working-tree, and recent-commit evidence | **KEEP.** Retained unchanged under the fresh reasoner disposition in /tmp/dhpk-consolidation/794/fresh-reasoner.md. |
+
+##### WRITER A: Scoped verification
+
+- `node tests/hooks-wiring.test.js` — PASS, 9/9.
+- `node tests/harness-facade-contract.test.js` — PASS, 26/26.
+- `node tests/session-install-health-version.test.js` — PASS, 35/35.
+- `node tests/pre-edit-guard.test.js` — PASS, 18/18.
+- `node tests/postcompact-restore.test.js` — PASS, 5/5.
+- `node tests/harness-docs.test.js` before merge — PASS, 2/2.
+- F38 disposable mutation — PASS: exact named check clean GREEN → all three links removed, exact check RED (0/1) → restored GREEN (1/1).
+- `node --check` on all five owners — PASS.
+- `git diff --check` on all 13 assigned paths — PASS.
+- Runtime name multiset — PASS, 94 → 93; only the named F41 deletion; zero additions. Each owner has exactly one suite run.
+- Owner sizes: 115, 484, 606, 228, and 166 lines; no size exception is needed.
+
+Raw evidence and inventories are in `/tmp/dhpk-consolidation/794/`: `before-a/`, `before-a-inventory.json`, `before-names.jsonl`, `merge-a.log`, `f38-disposable-mutation.log`, `f27-owner.log`, `f38-owner.log`, `f41-owner.log`, `f44-owner.log`, `f48-owner.log`, `writer-a-verification.log`, and `writer-a-case-dispositions.jsonl`; runner recipes are `merge-a.js`, `run-f38-mutation.js`, and `verify-a.js`.
+
+##### WRITER A: NOT RUN — combined issue gates
+
+The full affected-suite timing/c8 comparison and shared Catalog/generator checks remain parent-owned and were not run by this scoped worker. Resume after all writers and shared pointers are integrated, using the 16 `after_files` paths in `context.json`. Timing command: `DHPK_TEST_TIMING_FILE=/tmp/dhpk-consolidation/794/after-timing.json node tests/run-all.js --jobs 4 tests/hooks-wiring.test.js tests/harness-facade-contract.test.js tests/multi-ai-sync-skill-contract.test.js tests/session-start.test.js tests/session-install-health-version.test.js tests/stop-advisory-dispatch-graduation.test.js tests/pre-bash-guard.test.js tests/pre-edit-guard.test.js tests/load-project-config.test.js tests/portable-stat.test.js tests/write-handoff.test.js tests/postcompact-restore.test.js tests/catalog-claims.test.js tests/harness-facade-cli.test.js tests/test-entrypoint-dedup.test.js tests/review-gate-cross-platform-differential.test.js`.
+
+For coverage, rerun the same affected suite list with the baseline c8 version/runner and fresh report directory, based on `before-command.json`. Shared check resume commands: `node scripts/ci/catalog.js --check all`, `node scripts/ci/validate-plugin.js`, and `bash scripts/validate/validate-harness.sh`. Parent owns these gates and final review.
+
+The shared worktree is not clean because other writers and the parent are editing their assigned paths; this writer left those paths unchanged. No commit was created.
+
+##### WRITER B: Issue #794 — Writer B report
+
+##### WRITER B: Scope and disposition
+
+Worktree: <code>/tmp/dhpk-test-consolidation-worktree</code>; baseline <code>9e6aee90939ec6bad5f3d07dcfabc5ab7291069c</code>. Writer B changed only four owned test files and retired nine assigned source suites. Parallel root and other-writer changes are present in the shared worktree and are outside this report.
+
+The 36 cases in Writer B source suites are 34 KEEP and 2 REWRITE. Together with the 53 pre-existing owner cases, the assigned scope is 89 cases. Exact registered-name comparison against <code>before-names.jsonl</code> is PASS: 89/89 names preserved. Writer B has no DELETE disposition.
+
+| Family | Baseline cases | KEEP | REWRITE | DELETE | After cases | Owner lines | Owner run() calls |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| F39 | 12 | 11 | 1 | 0 | 12 | 394 | 1 |
+| F40 | 18 | 17 | 1 | 0 | 18 | 263 | 1 |
+| F42 | 15 | 15 | 0 | 0 | 15 | 477 | 1 |
+| F43 | 44 | 44 | 0 | 0 | 44 | 317 | 1 |
+| Total | 89 | 87 | 2 | 0 | 89 | — | — |
+
+All owner files are below the 800-line limit. Merged source blocks keep their local helpers and imports in lexical scopes; source tinytest runner calls were removed and each owner has one final runner call.
+
+##### WRITER B: Changed files
+
+Modified owner suites:
+
+- <code>tests/multi-ai-sync-skill-contract.test.js</code>
+- <code>tests/session-start.test.js</code>
+- <code>tests/stop-advisory-dispatch-graduation.test.js</code>
+- <code>tests/pre-bash-guard.test.js</code>
+
+Retired source suites:
+
+- F39: <code>tests/multi-ai-sync-cursor-discovery.test.js</code>, <code>tests/multi-ai-sync-parity.test.js</code>, <code>tests/harness-govern-toml-fallback.test.js</code>
+- F40: <code>tests/session-start-advisories.test.js</code>, <code>tests/trap-sheet-detection.test.js</code>
+- F42: <code>tests/stop-advisory-dispatch-completion-evidence.test.js</code>, <code>tests/stop-advisory-dispatch-modules.test.js</code>, <code>tests/stop-dispatch-audit.test.js</code>
+- F43: <code>tests/pre-bash-dispatch.test.js</code>
+
+##### WRITER B: Rewrite evidence
+
+F39 rewrote the exact case “multi_ai_sync self-test passes under the isolation harness interpreter (no tomllib/tomli)”. A fresh Python subprocess replaces <code>builtins.__import__</code> before importing <code>multi_ai_sync_lib.agent_sync._load_toml</code> and raises <code>ImportError</code> for both <code>tomllib</code> and <code>tomli</code>. The subprocess confirms both attempts, calls the real loader on a nested-table fixture with an array, and compares its result to an independent literal dictionary. The same JS case separately invokes the existing CLI self-test with <code>/usr/bin/python3</code> and asserts total/passed/failed = 4/4/0. That CLI self-test uses normal Python imports; it does not run under the forced-import blocker. The test fails if the fixed interpreter is absent.
+
+F40 rewrote the exact case “missing manifests stay silent” to require detector exit status 0 and exactly empty stdout.
+
+##### WRITER B: Scoped verification
+
+| Command / check | Result | Evidence |
+| --- | --- | --- |
+| <code>node tests/multi-ai-sync-skill-contract.test.js</code> | PASS 12/12 | <code>writer-b-green-F39.log</code> |
+| <code>node tests/session-start.test.js</code> | PASS 18/18 | <code>writer-b-green-F40.log</code> |
+| <code>node tests/stop-advisory-dispatch-graduation.test.js</code> | PASS 15/15 | <code>writer-b-green-F42.log</code> |
+| <code>node tests/pre-bash-guard.test.js</code> | PASS 44/44 | <code>writer-b-green-F43.log</code> |
+| Baseline-to-owner registered-name multiset comparison | PASS 89/89; no missing names, extra names, or failures | Inline Python comparison against <code>before-names.jsonl</code> and the four green logs |
+| Owner size / runner check | PASS; 394/263/477/317 lines and one <code>run()</code> each | Inline Python count |
+| <code>git diff --check</code> | PASS | Ran in the shared worktree after concurrent changes were visible; no worktree-clean claim |
+
+##### WRITER B: Disposable mutation pairs
+
+| Family | Disposable mutation and RED | Restore and GREEN | Raw evidence |
+| --- | --- | --- | --- |
+| F39 | In a <code>git archive HEAD</code> copy, changed <code>tomllib = _VendoredTomllib</code> to <code>tomllib = None</code>; the exact forced-fallback case failed and the owner suite reported 11/12. | Restored the original module in that copy; owner suite returned 12/12. | <code>writer-b-red-F39.log</code>, <code>writer-b-green-restored-F39.log</code>; copy: <code>writer-b-mutation-f39/</code> |
+| F40 | In a separate <code>git archive HEAD</code> copy, changed the empty-evidence return from 0 to 7; the exact <code>missing manifests stay silent</code> case failed and the owner suite reported 17/18. A direct detector probe recorded status 7 with empty stdout and stderr. | Restored the original detector in that copy; owner suite returned 18/18. | <code>writer-b-red-F40.log</code>, <code>writer-b-mutation-F40-detector.json</code>, <code>writer-b-green-restored-F40.log</code>; copy: <code>writer-b-mutation-f40/</code> |
+
+Mutation copies are under <code>/tmp/dhpk-consolidation/794/</code>; neither canonical Python nor shell production source was modified.
+
+##### WRITER B: Per-case registered-name dispositions
+
+Names below are copied exactly from the fresh baseline inventory. REWRITE retains the same registered name.
+
+##### WRITER B: F39
+
+| Original suite | Disposition | Exact registered name |
+| --- | --- | --- |
+| <code>multi-ai-sync-skill-contract</code> | KEEP | <code>canonical and Codex resolve to one complete harness-govern workflow tree</code> |
+| <code>multi-ai-sync-skill-contract</code> | KEEP | <code>workflow contract has explicit mode routing, completion, and gate sections</code> |
+| <code>multi-ai-sync-skill-contract</code> | KEEP | <code>each consolidated mode owns its procedure, references, and executable source</code> |
+| <code>multi-ai-sync-skill-contract</code> | KEEP | <code>workflow contains no stale unsupported instructions</code> |
+| <code>multi-ai-sync-skill-contract</code> | KEEP | <code>shared references stay synced and runtime entrypoints stay harness-specific</code> |
+| <code>multi-ai-sync-skill-contract</code> | KEEP | <code>task 5.4: configured-platform status vocabulary stays consistent between SKILL.md and execution-contract.md</code> |
+| <code>multi-ai-sync-skill-contract</code> | KEEP | <code>sync library model literals are catalogued models, not a retired generation</code> |
+| <code>multi-ai-sync-parity</code> | KEEP | <code>canonical and Codex harness-govern sync self-tests both pass in a clean scratch repo</code> |
+| <code>multi-ai-sync-parity</code> | KEEP | <code>cross-cli drift reports content mismatch even below the mtime threshold</code> |
+| <code>harness-govern-toml-fallback</code> | REWRITE | <code>multi_ai_sync self-test passes under the isolation harness interpreter (no tomllib/tomli)</code> |
+| <code>harness-govern-toml-fallback</code> | KEEP | <code>vendored tomli fallback parses real Codex agent TOML files identically to stdlib tomllib</code> |
+| <code>multi-ai-sync-cursor-discovery</code> | KEEP | <code>harness-govern sync Cursor discovery unions all roots and filters metadata</code> |
+
+##### WRITER B: F40
+
+| Original suite | Disposition | Exact registered name |
+| --- | --- | --- |
+| <code>session-start-advisories</code> | KEEP | <code>PHP modules on a Next+React repo produce one actionable mismatch</code> |
+| <code>session-start-advisories</code> | KEEP | <code>polyglot manifests with configured PHP and JS families stay silent</code> |
+| <code>session-start-advisories</code> | REWRITE | <code>missing manifests stay silent</code> |
+| <code>session-start-advisories</code> | KEEP | <code>dhpk_advise_once emits once per key/session and re-emits for a new session</code> |
+| <code>session-start-advisories</code> | KEEP | <code>dhpk_advise_once falls back to emitting when marker directory creation fails</code> |
+| <code>session-start-advisories</code> | KEEP | <code>session-start does not run module/manifest advisory inference</code> |
+| <code>trap-sheet-detection</code> | KEEP | <code>DHPK_ACTIVE_MODULES overrides fallback detection</code> |
+| <code>trap-sheet-detection</code> | KEEP | <code>fallback detection is limited to project-root manifests and files</code> |
+| <code>trap-sheet-detection</code> | KEEP | <code>root package.json emits generic js and Vue dependency keys additionally emit vue</code> |
+| <code>trap-sheet-detection</code> | KEEP | <code>root composer.json or PHP files directly under the root emit php</code> |
+| <code>trap-sheet-detection</code> | KEEP | <code>root xcode project or Swift manifest emits swift and pyproject.toml emits python</code> |
+| <code>trap-sheet-detection</code> | KEEP | <code>next and react remain covered by generic js</code> |
+| <code>trap-sheet-detection</code> | KEEP | <code>fallback detection does not recurse into vendored trees</code> |
+| <code>trap-sheet-detection</code> | KEEP | <code>SessionStart activation is a separate, unchanged mechanism</code> |
+| <code>session-start</code> | KEEP | <code>bash -n syntax check passes</code> |
+| <code>session-start</code> | KEEP | <code>no configured modules is a silent no-op with no lifecycle artifacts</code> |
+| <code>session-start</code> | KEEP | <code>explicit canonical dispatch targets are reported without runtime probing</code> |
+| <code>session-start</code> | KEEP | <code>configured modules are validated and reported without lifecycle diagnostics</code> |
+
+##### WRITER B: F42
+
+| Original suite | Disposition | Exact registered name |
+| --- | --- | --- |
+| <code>stop-advisory-dispatch-modules</code> | KEEP | <code>no modules, no findings file → silent exit 0</code> |
+| <code>stop-advisory-dispatch-modules</code> | KEEP | <code>pre-populated findings file is surfaced via systemMessage, then cleared</code> |
+| <code>stop-advisory-dispatch-modules</code> | KEEP | <code>minimal profile suppresses the surfaced message but still clears the findings file</code> |
+| <code>stop-advisory-dispatch-graduation</code> | KEEP | <code>disabled by default → no-op, no test-out state written</code> |
+| <code>stop-advisory-dispatch-graduation</code> | KEEP | <code>enabled + citation of an EXISTING memory entry increments its count</code> |
+| <code>stop-advisory-dispatch-graduation</code> | KEEP | <code>citation of a memory entry with NO backing file is not counted</code> |
+| <code>stop-advisory-dispatch-graduation</code> | KEEP | <code>high count/confidence entry never drafts under openspec/changes/</code> |
+| <code>stop-advisory-dispatch-completion-evidence</code> | KEEP | <code>untracked new test file counts as evidence — no false warning (primary regression)</code> |
+| <code>stop-advisory-dispatch-completion-evidence</code> | KEEP | <code>untracked .spec.js suffix counts as evidence — no false warning</code> |
+| <code>stop-advisory-dispatch-completion-evidence</code> | KEEP | <code>untracked code with NO test still warns (fold-in does not suppress real warnings)</code> |
+| <code>stop-advisory-dispatch-completion-evidence</code> | KEEP | <code>doc-only untracked change → clean exit, no warning</code> |
+| <code>stop-dispatch-audit</code> | KEEP | <code>orchestration_dispatch=on with &gt;=3 inline files surfaces the dispatch-mandate advisory</code> |
+| <code>stop-dispatch-audit</code> | KEEP | <code>orchestration_dispatch=off stays silent even with many inline files</code> |
+| <code>stop-dispatch-audit</code> | KEEP | <code>fewer than 3 distinct inline files stays silent even under orchestration_dispatch=on</code> |
+| <code>stop-dispatch-audit</code> | KEEP | <code>the advisory fires at most once per session even across multiple Stop turns</code> |
+
+##### WRITER B: F43
+
+| Original suite | Disposition | Exact registered name |
+| --- | --- | --- |
+| <code>pre-bash-guard</code> | KEEP | <code>deep workspace path under /home passes (D4, observed command)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf /home is blocked (whole-home deletion)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf /home/paul is blocked (whole-home deletion, depth 2)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf /home/paul/ is blocked (trailing slash, depth 2)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf /etc/nginx/conf.d is blocked (system root, any depth)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>remote download piped into a shell is blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>chmod 777 and chmod 666 are blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>git commit and git push with --no-verify are blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>heredoc write to .env via cat &gt; is blocked (D6 bypass closed)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>append redirection to .env is blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>tee into .env is blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to .env.example is allowed (template allowlist)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to .env.template is allowed (template allowlist)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to .env.template.production is blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to .env.template2 is blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>tee into .env.template.production is blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>tee into .env.template2 is blocked</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>path-prefixed .env.template and tee targets are allowed (target-scoped allowlist)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>tee blocks mixed template and secret targets in either order</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>tee blocks quoted secret targets, including paths with spaces, alongside a template</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>whole-command .env.example mention no longer bypasses a real .env write (fix round)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirect FROM .env.example INTO .env is still blocked (target-scoped allowlist)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf /home//paul (repeated slash) is blocked (D4/D6 fix round)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf /home/paul// (repeated trailing slash) is blocked (D4/D6 fix round)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>deep workspace path under /home still passes after slash-tolerant fix</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to .env with path prefix (api/.env) is blocked (path-prefix bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to ./.env is blocked (path-prefix bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to /tmp/foo/.env is blocked (path-prefix bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to config/.env.example is allowed (path-prefix allowlist tolerance)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>tee into backend/.env is blocked (path-prefix bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf //home (doubled leading slash) is blocked (Pattern 1 slash-plus fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to ".env" (double-quoted) is blocked (quoted-target bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to 'config/.env' (single-quoted) is blocked (quoted-target bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>tee into "api/.env" (double-quoted) is blocked (quoted-target bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>redirection to "config/.env.example" (quoted) is allowed (quoted allowlist tolerance)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf "/home" (double-quoted) is blocked (quoted-target bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf '/home/paul' (single-quoted) is blocked (quoted-target bypass fix)</code> |
+| <code>pre-bash-guard</code> | KEEP | <code>rm -rf "/home/paul/projects/x/y" (quoted deep path) still passes (quoted-target bypass fix)</code> |
+| <code>pre-bash-dispatch</code> | KEEP | <code>dangerous command (rm -rf /home) is blocked (exit 2), core guard bubbles up</code> |
+| <code>pre-bash-dispatch</code> | KEEP | <code>safe command passes through (exit 0), no active modules</code> |
+| <code>pre-bash-dispatch</code> | KEEP | <code>.env write via redirection is blocked (exit 2), core guard bubbles up</code> |
+| <code>pre-bash-dispatch</code> | KEEP | <code>deep workspace path under /home still passes through the dispatcher</code> |
+| <code>pre-bash-dispatch</code> | KEEP | <code>combined dispatcher preserves protected-branch commit block</code> |
+| <code>pre-bash-dispatch</code> | KEEP | <code>active module pass hooks compose in order and a block stops later hooks</code> |
+
+##### WRITER C: Issue 794 Writer C — F45/F46/F47
+
+##### WRITER C: Goal and scope
+
+Attempt C on branch feature/issue-794-test-consolidation at baseline
+9e6aee90939ec6bad5f3d07dcfabc5ab7291069c, in the assigned worktree
+/tmp/dhpk-test-consolidation-worktree.
+
+Consolidated the seven assigned source suites into the three canonical owners.
+All 72 actual registrations and names are retained, with no duplicate names,
+rewrites, or deleted test cases. Every existing source case is marked KEEP in
+the per-case matrix. Source helpers and finally cleanup remain isolated inside
+labeled lexical blocks. Each owner has one final run call.
+
+##### WRITER C: Changed files
+
+Modified owners:
+
+- tests/load-project-config.test.js
+- tests/portable-stat.test.js
+- tests/write-handoff.test.js
+
+Retired after their cases were transferred:
+
+- F45: tests/runtime-config.test.js, tests/session-env.test.js
+- F46: tests/portable-sed.test.js, tests/portable-timeout.test.js
+- F47: tests/set-handoff-state.test.js, tests/detect-phase.test.js, tests/portable-workflow-runtime.test.js
+
+F45 contains 31 cases (owner 9, sources 22); F46 contains 12 (owner 4,
+sources 8); F47 contains 29 (owner 9, sources 20). The source suites contribute
+50 KEEP cases, and the existing owner suites contribute 22 KEEP cases.
+
+The registration-only inventory confirms detect-phase.test.js contributes
+eight actual cases, not five static test call sites. Its loop generates three
+separate names for symlinked .dhpk, .claude, and an explicit nested parent.
+
+##### WRITER C: Verification
+
+- node --check tests/load-project-config.test.js — PASS.
+- node --check tests/portable-stat.test.js — PASS.
+- node --check tests/write-handoff.test.js — PASS.
+- node tests/load-project-config.test.js — PASS, 31/31.
+- node tests/portable-stat.test.js — PASS, 12/12.
+- node tests/write-handoff.test.js — PASS, 29/29.
+- git diff --check on all ten assigned paths — PASS.
+- Owner size and structure check — PASS: 483, 370, and 591 lines; one outer run call each; no owner exceeds 800 lines.
+- Baseline-to-owner dynamic registration multiset comparison — PASS: F45 31/31, F46 12/12, F47 29/29; all 72 names and multiplicities match, with no duplicate names.
+- Exact source-body preservation check against HEAD — PASS for all seven source blocks; differences are limited to the removed inner run call, the isolated tinytest import without run, and indentation.
+- Source retirement check — PASS for all seven assigned source files.
+
+Focused logs, before/after JSONL name inventories, parity report, per-case KEEP dispositions, and source-body verification are under
+/tmp/dhpk-consolidation/794/writer-c/. The per-case matrix is
+writer-c-keep-dispositions.jsonl.
+
+Parent-provided fresh baseline: 40/40 files and 345 top-level cases PASS.
+
+NOT RUN by Writer C: the repository-wide tests/run-all.js after-run. The parent
+owns the shared after-run; resume with node tests/run-all.js from the assigned
+worktree if that gate is still required.
+
+##### WRITER C: Status and handoff
+
+Only the ten assigned test paths changed in this worker's scope. Parent-owned
+Catalog, ledger, generated, live-pointer, and shared documentation changes were
+left untouched. No production source, commit, push, or release action was made.
+Review and release decisions remain with the parent flow.
+
+Task/attempt identity: Issue 794, Writer C, F45/F46/F47. Evidence root:
+/tmp/dhpk-consolidation/794/.
+
+#### Registration reconciliation
+
+Removed registration names:
+
+- `session-start does not report the contradiction for an inherited set`
+
+Added registration names:
+
+- None.
+
+#### Per-file focused timing
+
+| File | Before ms | After ms |
+| --- | --- | --- |
+| `tests/hooks-wiring.test.js` | 41 | 44 |
+| `tests/default-hook-events.test.js` | 44 | merged |
+| `tests/harness-facade-contract.test.js` | 139 | 181 |
+| `tests/harness-docs.test.js` | 46 | merged |
+| `tests/harness-release-aggregation.test.js` | 77 | merged |
+| `tests/harness-surfaces.test.js` | 41 | merged |
+| `tests/harness-workflow-config.test.js` | 47 | merged |
+| `tests/multi-ai-sync-skill-contract.test.js` | 50 | 508 |
+| `tests/multi-ai-sync-cursor-discovery.test.js` | 77 | merged |
+| `tests/multi-ai-sync-parity.test.js` | 280 | merged |
+| `tests/harness-govern-toml-fallback.test.js` | 168 | merged |
+| `tests/session-start.test.js` | 194 | 402 |
+| `tests/session-start-advisories.test.js` | 197 | merged |
+| `tests/trap-sheet-detection.test.js` | 48 | merged |
+| `tests/session-install-health-version.test.js` | 1160 | 1469 |
+| `tests/session-install-health-modules.test.js` | 375 | merged |
+| `tests/stop-advisory-dispatch-graduation.test.js` | 443 | 1661 |
+| `tests/stop-advisory-dispatch-completion-evidence.test.js` | 568 | merged |
+| `tests/stop-advisory-dispatch-modules.test.js` | 288 | merged |
+| `tests/stop-dispatch-audit.test.js` | 406 | merged |
+| `tests/pre-bash-guard.test.js` | 1442 | 2221 |
+| `tests/pre-bash-dispatch.test.js` | 508 | merged |
+| `tests/pre-edit-guard.test.js` | 476 | 1204 |
+| `tests/pre-edit-batch-gate.test.js` | 809 | merged |
+| `tests/load-project-config.test.js` | 247 | 839 |
+| `tests/runtime-config.test.js` | 532 | merged |
+| `tests/session-env.test.js` | 110 | merged |
+| `tests/portable-stat.test.js` | 159 | 2325 |
+| `tests/portable-sed.test.js` | 138 | merged |
+| `tests/portable-timeout.test.js` | 2093 | merged |
+| `tests/write-handoff.test.js` | 287 | 678 |
+| `tests/set-handoff-state.test.js` | 97 | merged |
+| `tests/detect-phase.test.js` | 160 | merged |
+| `tests/portable-workflow-runtime.test.js` | 204 | merged |
+| `tests/postcompact-restore.test.js` | 138 | 288 |
+| `tests/precompact-archive.test.js` | 106 | merged |
+| `tests/catalog-claims.test.js` | 7041 | 7494 |
+| `tests/harness-facade-cli.test.js` | 14999 | 15817 |
+| `tests/test-entrypoint-dedup.test.js` | 281 | 315 |
+| `tests/review-gate-cross-platform-differential.test.js` | 3738 | 5079 |
+
+All collected owners remain below the default 180 s budget. No `TIMEOUT_HINTS` entry is added.
+
+#### Canonical production coverage
+
+Covered/total counts below are raw fresh-report values. Branch range coordinates are independently compared; a raw drop is never described as raw non-decrease PASS.
+
+| Production file | Before lines | After lines | Before branches | After branches |
+| --- | --- | --- | --- | --- |
+| `scripts/ci/_lib/codex-runtime.js` | 291/756 | 291/756 | 62/117 | 62/117 |
+| `scripts/ci/_lib/frontmatter.js` | 37/129 | 37/129 | 1/1 | 1/1 |
+| `scripts/ci/_lib/report.js` | 36/51 | 36/51 | 3/6 | 3/6 |
+| `scripts/ci/catalog.js` | 361/495 | 369/503 | 25/52 | 25/52 |
+| `scripts/ci/install-native-shared-skills.js` | 64/103 | 64/103 | 25/33 | 25/33 |
+| `scripts/ci/validate-cursor-sync.js` | 21/24 | 21/24 | 1/3 | 1/3 |
+| `scripts/dhpk-harness.js` | 18/18 | 18/18 | 6/8 | 5/7 |
+| `scripts/dispatch-config-report.js` | 39/44 | 39/44 | 6/8 | 6/8 |
+| `scripts/lib/agent-plugin-package.js` | 437/1308 | 437/1308 | 80/159 | 80/159 |
+| `scripts/lib/agy-path-contract.js` | 55/97 | 55/97 | 4/14 | 4/14 |
+| `scripts/lib/asset-inventory.js` | 189/201 | 189/201 | 44/56 | 44/56 |
+| `scripts/lib/bounded-child-process.js` | 36/50 | 36/50 | 2/8 | 2/8 |
+| `scripts/lib/bounded-filesystem.js` | 142/169 | 142/169 | 41/61 | 41/61 |
+| `scripts/lib/capability-bundle-selection.js` | 411/849 | 411/849 | 92/193 | 92/193 |
+| `scripts/lib/ci-review-gate-adapter.js` | 202/208 | 202/208 | 21/39 | 21/39 |
+| `scripts/lib/claude-review-gate-adapter.js` | 625/661 | 625/661 | 84/144 | 84/144 |
+| `scripts/lib/codex-discovery-registry.js` | 181/297 | 181/297 | 24/52 | 24/52 |
+| `scripts/lib/codex-native-package.js` | 153/921 | 153/921 | 6/11 | 6/11 |
+| `scripts/lib/codex-review-gate-adapter.js` | 546/559 | 546/559 | 82/135 | 82/135 |
+| `scripts/lib/codex-role-neighbors.js` | 222/247 | 222/247 | 70/85 | 70/85 |
+| `scripts/lib/consumer-runtime-preflight.js` | 522/574 | 522/574 | 93/180 | 93/180 |
+| `scripts/lib/cross-cli-parity.js` | 122/129 | 122/129 | 19/30 | 19/30 |
+| `scripts/lib/cursor-consumer-evidence.js` | 106/221 | 106/221 | 5/14 | 5/14 |
+| `scripts/lib/cursor-harness-adapt.js` | 49/168 | 49/168 | 3/5 | 3/5 |
+| `scripts/lib/cursor-plugin-package.js` | 667/2440 | 667/2440 | 85/193 | 85/193 |
+| `scripts/lib/cursor-session-home.js` | 19/90 | 19/90 | 1/1 | 1/1 |
+| `scripts/lib/cursor-sync-package.js` | 107/293 | 107/293 | 14/35 | 14/35 |
+| `scripts/lib/dispatch-config.js` | 127/224 | 127/224 | 20/51 | 20/51 |
+| `scripts/lib/dispatch-contract.js` | 156/809 | 156/809 | 1/1 | 1/1 |
+| `scripts/lib/dispatch-engine.js` | 62/478 | 62/478 | 1/1 | 1/1 |
+| `scripts/lib/distribution-compiler.js` | 138/494 | 138/494 | 20/54 | 20/54 |
+| `scripts/lib/distribution-inventory-regeneration.js` | 13/40 | 13/40 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory.js` | 1327/2518 | 1327/2518 | 171/480 | 171/480 |
+| `scripts/lib/distribution-projection-contract.js` | 400/585 | 400/585 | 102/190 | 102/190 |
+| `scripts/lib/git-provider-review-gate-adapter.js` | 191/193 | 191/193 | 19/33 | 19/33 |
+| `scripts/lib/harness-receipt.js` | 535/639 | 535/639 | 89/211 | 89/211 |
+| `scripts/lib/harness-result.js` | 142/148 | 142/148 | 44/62 | 44/62 |
+| `scripts/lib/harness-surfaces.js` | 25/25 | 25/25 | 1/1 | 1/1 |
+| `scripts/lib/harness.js` | 1220/1529 | 1220/1529 | 360/566 | 360/566 |
+| `scripts/lib/internal-runtime-skills.js` | 64/77 | 64/77 | 11/28 | 11/28 |
+| `scripts/lib/native-shared-skill-install.js` | 101/191 | 101/191 | 11/27 | 11/27 |
+| `scripts/lib/physical-file.js` | 331/439 | 331/439 | 32/75 | 32/75 |
+| `scripts/lib/platform-provenance.js` | 43/393 | 43/393 | 1/1 | 1/1 |
+| `scripts/lib/profile-projection-sets.js` | 75/118 | 75/118 | 11/14 | 11/14 |
+| `scripts/lib/project-agent-host-binding-policy.js` | 116/240 | 116/240 | 27/37 | 27/37 |
+| `scripts/lib/project-agent-projection-plan.js` | 464/647 | 464/647 | 61/139 | 61/139 |
+| `scripts/lib/project-agent-projection-publisher.js` | 927/1788 | 927/1788 | 122/290 | 126/293 |
+| `scripts/lib/project-agent-provider-adapters.js` | 306/483 | 306/483 | 25/52 | 25/52 |
+| `scripts/lib/projection-artifact-store.js` | 216/309 | 216/309 | 39/72 | 39/72 |
+| `scripts/lib/receipt-json-primitives.js` | 211/254 | 211/254 | 55/68 | 55/68 |
+| `scripts/lib/receipt-primitives.js` | 644/797 | 644/797 | 108/214 | 108/214 |
+| `scripts/lib/redaction.js` | 23/23 | 23/23 | 4/5 | 4/5 |
+| `scripts/lib/release-artifact-manifest.js` | 56/288 | 56/288 | 1/1 | 1/1 |
+| `scripts/lib/release-evidence.js` | 174/269 | 174/269 | 48/96 | 48/96 |
+| `scripts/lib/review-gate-conformance.js` | 218/280 | 218/280 | 51/91 | 51/91 |
+| `scripts/lib/review-gate-evidence.js` | 449/610 | 449/610 | 57/92 | 57/92 |
+| `scripts/lib/review-gate-receipt-store.js` | 618/765 | 618/765 | 121/202 | 121/202 |
+| `scripts/lib/review-gate-store-budget.js` | 84/99 | 84/99 | 10/17 | 10/17 |
+| `scripts/lib/review-gate.js` | 437/628 | 437/628 | 103/164 | 103/164 |
+| `scripts/lib/reviewer-contract.js` | 151/164 | 151/164 | 37/53 | 37/53 |
+| `scripts/lib/risk-router.js` | 490/536 | 490/536 | 48/96 | 48/96 |
+| `scripts/lib/skill-routing-projection.js` | 45/201 | 45/201 | 1/1 | 1/1 |
+| `scripts/lib/skill-topology.js` | 26/281 | 26/281 | 1/1 | 1/1 |
+| `scripts/lib/skill-usage.js` | 549/940 | 549/940 | 103/172 | 103/172 |
+| `scripts/lib/standalone-package-assets.js` | 10/77 | 10/77 | 1/1 | 1/1 |
+| `scripts/lib/workflow-coordinator-evidence.js` | 622/728 | 622/728 | 125/241 | 125/241 |
+| `scripts/lib/workflow-coordinator.js` | 340/478 | 340/478 | 69/126 | 69/126 |
+| `scripts/release/consumer-gate.js` | 1107/1958 | 1107/1958 | 178/415 | 178/415 |
+| `scripts/release/consumer-platform-probe.js` | 208/780 | 208/780 | 28/75 | 28/75 |
+| `skills/js-static-check-strategy/scripts/status.js` | 118/144 | 118/144 | 15/27 | 15/27 |
+
+Common branch arms: 6145; covered 3210 → 3211. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell and Python paths are outside c8 instrumentation and rely on their behavioral negative tests.
+
+Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/794/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
+
+#### Root verification and evidence reconciliation
+
+The fresh focused run passed 40 files and 345 cases before consolidation
+(15,065 ms), and 16 files and 344 cases after consolidation (15,878 ms).
+The 24 source suites contained 130 registered cases: 126 KEEP, 3 REWRITE,
+and 1 DELETE. The only removed name is the approved F41 inherited-module
+case; no names were added.
+
+The comparison includes 70 canonical production files and 6,145 common
+branch arms. Covered common arms increased from 3,210 to 3,211; there are
+no lost covered common arms or unresolved file comparisons. Only Catalog
+ownership data changed in production files. Shell and Python are outside
+c8 instrumentation; their evidence is the executable behavioral tests.
+
+| Raw c8 exception | Before | After | Classification |
+| --- | --- | --- | --- |
+| `scripts/dhpk-harness.js` covered/total branches | 6/8 | 5/7 | Raw numeric non-decrease: NOT PASS; cold acceptance required. |
+| Same file covered/total lines | 18/18 | 18/18 | No covered-line decrease. |
+| Same file covered common branch arms | 4/6 | 4/6 | No lost common covered arm. |
+
+The production blob is identical. Removed ranges `11:1–18:1` and
+`8:21–11:1` were covered; the added range `8:21–18:1` is covered. The source
+owner accepted this separate instrumentation-range explanation. It does
+not turn the literal raw branch count into a non-decrease PASS. Cold review
+must assess the exception against the ticket's allowance for explained
+unrelated drift.
+
+The original name capture included 15 nested child-test repeats, yielding
+360 raw rows. That attempt is preserved. The fresh capture binds the first
+test process PID and excludes its descendants: 345 names match the 345
+actual top-level cases. F41's initial single-quote parser missed two
+double-quoted declarations; the raw merge log is preserved, and the actual
+inventory confirms 13 source cases with 12 retained. F47 retains all eight
+`detect-phase` cases, including the three loop-generated variants.
+
+The original names and filenames of `pre-edit-guard`, `pre-bash-guard`, and
+`session-start` remain. The differential corpus retains its 17 mappings,
+including four historical-only entries, and its 15/15 tests pass. The
+`stack-evidence` comment now points to the surviving `session-start` owner.
+Full-suite and hosted CI verification remain pending at this review checkpoint.
+
+Cold review v2 required two corrections: preserve resolution of all local links,
+and make this evidence paragraph readable. Both are corrected. A disposable
+broken non-Markdown link passed the former v2 case; it now makes the actual
+merged case fail (0/1), followed by a restored pass (1/1). Removing all three
+Markdown links also fails (0/1), followed by a restored pass (1/1). The
+actual recipe and source hash are retained in `f38-review-fix-proof.json`.
+Earlier after-run coverage and timing are preserved in `after-first-review`.
+The fresh run above uses the corrected test; no new case name was added.

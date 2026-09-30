@@ -5,7 +5,7 @@
 //
 // Drives the real `dhpk_collect_stack_evidence` in scripts/hooks/_lib/detect-stack-hints.sh
 // against scratch git repos, following the spawn-a-bash-shim pattern used by
-// tests/session-start-advisories.test.js.
+// tests/session-start.test.js.
 
 const fs = require('node:fs');
 const os = require('node:os');
