@@ -160,6 +160,18 @@ function retiredCodexMcpErrors(counts, inventory) {
 // feature name rather than a name/name-aspect derived from the script's own
 // basename (so the naming-convention check below can't find them automatically).
 const COVERAGE_MAP = {
+  'scripts/lib/project-agent-host-binding-policy.js': 'project-agent-provider-adapters.test.js',
+  'scripts/ci/install-native-shared-skills.js': 'native-shared-skill-install.test.js',
+  'scripts/lib/agy-plugin-package.js': 'agy-plugin-install.test.js',
+  'scripts/lib/agy-path-contract.js': 'agy-plugin-install.test.js',
+  'scripts/ci/install-agy-plugin.js': 'agy-plugin-install.test.js',
+  'scripts/lib/cursor-session-home.js': 'cursor-plugin-package.test.js',
+  'scripts/lib/cursor-harness-adapt.js': 'cursor-plugin-package.test.js',
+  'scripts/lib/cursor-consumer-evidence.js': 'cursor-plugin-package.test.js',
+  'scripts/ci/validate-cursor-plugin-package.js': 'cursor-plugin-package.test.js',
+  'scripts/lib/agent-plugin-package.js': 'gen-agent-plugin-package.test.js',
+  'scripts/ci/validate-agent-plugin-package.js': 'gen-agent-plugin-package.test.js',
+  'scripts/ci/project-agent-projection-baseline.js': 'project-agent-projection-plan.test.js',
   'scripts/lib/capability-bundle-activation.js': 'capability-bundle-selection.test.js',
   'scripts/release/claude-profile-probe.js': 'profile-scoped-claude-capability-bundle.test.js',
   'scripts/ci/gen-claude-profile-bundles.js': 'profile-scoped-claude-capability-bundle.test.js',
