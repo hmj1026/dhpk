@@ -3375,3 +3375,396 @@ generation and its clean-snapshot `--check` pass. Current GitNexus
 LOW risk, and no partial/truncated marker; no mapped processes is not evidence
 of no effect. Code and documentation Review Gate results are pending at this
 recording point and must resolve before commit.
+
+### Issue #790 completed family consolidation
+
+Baseline: `ad08d4cde6babde55a23d6a4bef8eb3f78f729b8`. Fresh c8 10.1.3 reports with Node v26.9.0, `--jobs 4`, capture all affected owners and sources before moving them. The after run uses a clean tracked-source snapshot of the pending tree, so projection provenance checks see a clean checkout.
+
+Focused suites: 22 → 9; collected cases 229 → 227; wall time 6846 → 6461 ms. These are focused measurements, separate from the full-suite and CI evidence.
+
+#### Source dispositions
+
+- F18: `tests/codex-native-package-validate.test.js` collects `tests/codex-native-activation.test.js`, `tests/codex-native-experimental-gate.test.js`, `tests/codex-plugin-manifest.test.js`, `tests/gen-codex-native-package.test.js`, `tests/verify-codex-native-package.test.js`.
+- F19: `tests/check-codex-discovery.test.js` collects `tests/codex-discovery-registry.test.js`.
+- F21: `tests/plugin-user-config-metadata.test.js` collects `tests/claude-user-config-probe.test.js`, `tests/gen-claude-user-config.test.js`.
+- F22: `tests/profile-scoped-claude-capability-bundle.test.js` collects `tests/claude-profile-probe.test.js`, `tests/gen-claude-profile-bundles.test.js`.
+- F23: `tests/capability-bundle-selection.test.js` collects `tests/capability-bundle-activation.test.js`.
+- F28: `tests/codex-skill-metadata.test.js` collects `tests/codex-skill-layout.test.js`, `tests/codex-supporting-parity.test.js`.
+
+The detailed KEEP, REWRITE, and DELETE decisions and controlled mutation evidence follow. Source test names are retained except the explicitly documented deletions. No production public behavior is changed.
+
+##### WRITER A: Issue 790 writer A evidence
+
+##### WRITER A: Identity and scope
+
+- Task: `#790 A:F18+F19`.
+- Attempt ID: not supplied in the parent handoff.
+- Worker: `/root/issue790_writer_a`.
+- Branch/base: `feature/issue-790-test-consolidation` at `ad08d4cde6babde55a23d6a4bef8eb3f78f729b8`.
+- Parent authoritative baseline evidence: 22 suites / 229 cases, PASS and clean (the original family-only baseline was 19 suites / 173 cases); `/tmp/dhpk-consolidation/790/before-focused.log`, `before-names.jsonl`, and `before-snapshot.json`.
+- Worker write scope: two owner test files modified and six source test files deleted. No catalog, production, documentation, generated, or Git metadata files were edited by this worker.
+
+##### WRITER A: Consolidation result
+
+- F18 source cases: 54 across five source suites; 50 KEEP, 2 REWRITE, 2 DELETE. Owner: 10 existing cases + 52 retained/moved = 62 final cases.
+- F19 source cases: 16 across one source suite; 16 KEEP. Owner: 9 existing cases + 16 moved = 25 final cases.
+- Combined: 70 source registrations; 66 KEEP, 2 REWRITE, 2 DELETE; 68 source registrations retained. Both owners have exactly one outer `run(...)` call.
+- F18 owner length: 1084 lines; the packet explicitly authorized its >800-line exception. F19 owner length: 681 lines.
+- Source test names and order remain unchanged except for the two documented deletions. No test names or timeout hints were added.
+
+Rewrites:
+- `enabled native plugin reports ENABLED with version` — fixture includes `unrelated-plugin@marketplace` first and literal `dhpk@dhpk` second; assertions pin `dhpk@dhpk` and `0.57.0`.
+- `root .codex-plugin/plugin.json skills path resolves to an existing directory` — runs `validateNativeCandidate` on the actual root manifest candidate and pins `./plugins/dhpk/skills/`.
+
+Deletes and collected owners:
+- `root .codex-plugin/plugin.json skills is a string, not an array` — the native structural validation case exercises the manifest value through `validateNativeCandidate`; its `path.isAbsolute` path rejects arrays.
+- `thin wrapper vendors the tracked physical native package, not a symlink mirror` — the moved real-repo parity case compares the tracked `plugins/dhpk/` package with fresh physical generation.
+
+##### WRITER A: Exact source case inventory
+
+##### WRITER A: F18 — owner: `tests/codex-native-package-validate.test.js`
+
+**`tests/codex-native-activation.test.js` — 15 source cases**
+- KEEP: `codex missing from PATH reports NOT_INSTALLED`
+- REWRITE: `enabled native plugin reports ENABLED with version` — literal dhpk@dhpk fixture plus unrelated enabled distractor; expected identity/version are independent literals.
+- KEEP: `disabled native plugin reports DISABLED`
+- KEEP: `no matching plugin entry reports AVAILABLE`
+- KEEP: `non-zero exit reports UNAVAILABLE`
+- KEEP: `timeout reports UNAVAILABLE`
+- KEEP: `live probe waits 30 seconds by default so remote marketplace queries can finish`
+- KEEP: `DHPK_CODEX_PROBE_TIMEOUT_MS overrides the default live-probe budget`
+- KEEP: `DHPK_CODEX_PROBE_TIMEOUT_SECONDS is accepted when the millisecond override is unset`
+- KEEP: `an explicit timeoutMs option outranks the environment override`
+- KEEP: `invalid probe timeout environment values keep the 30 second default`
+- KEEP: `non-JSON stdout reports UNAVAILABLE`
+- KEEP: `missing installed array reports UNAVAILABLE`
+- KEEP: `non-boolean enabled field reports UNAVAILABLE`
+- KEEP: `normalizeActivationOverride accepts auto/enabled/inactive and rejects anything else`
+- Source totals: 14 KEEP, 1 REWRITE, 0 DELETE.
+
+**`tests/codex-native-experimental-gate.test.js` — 4 source cases**
+- KEEP: `the native .codex-plugin/plugin.json now passes native-candidate structural validation (physical tracked package, no symlinks)`
+- KEEP: `the marketplace-target wrapper plugin.json now passes native-candidate structural validation (./skills/, no parent-relative escape)`
+- KEEP: `the tracked package contains exactly the inventory codex-native surface — no membership drift`
+- KEEP: `the native Codex marketplace support decision remains Experimental until explicit graduation`
+- Source totals: 4 KEEP, 0 REWRITE, 0 DELETE.
+
+**`tests/codex-plugin-manifest.test.js` — 9 source cases**
+- KEEP: `root .codex-plugin/plugin.json has a semver version`
+- KEEP: `root .codex-plugin/plugin.json version matches .claude-plugin/plugin.json`
+- DELETE: `root .codex-plugin/plugin.json skills is a string, not an array` — fully owned by tests/codex-native-package-validate.test.js: the native manifest is passed through validateNativeCandidate; path.isAbsolute rejects an array input.
+- REWRITE: `root .codex-plugin/plugin.json skills path resolves to an existing directory` — pin ./plugins/dhpk/skills/ and validate the actual candidate tree with validateNativeCandidate.
+- KEEP: `thin wrapper plugin.json name/version match the root manifest`
+- KEEP: `thin wrapper skills path resolves to the same directory as the root manifest`
+- DELETE: `thin wrapper vendors the tracked physical native package, not a symlink mirror` — fully owned by tests/codex-native-package-validate.test.js after the moved real-repo parity case in tests/verify-codex-native-package.test.js validates the tracked package against fresh physical generation.
+- KEEP: `marketplace.json plugin name/version match the marketplace-target wrapper manifest`
+- KEEP: `marketplace.json source.path resolves exactly to the tracked plugins/dhpk wrapper`
+- Source totals: 6 KEEP, 1 REWRITE, 2 DELETE.
+
+**`tests/gen-codex-native-package.test.js` — 18 source cases**
+- KEEP: `native compiler plan preserves explicit selection, public identity, and generated output intent`
+- KEEP: `native compiler materializes a non-invokable transport runtime without granting capability selection`
+- KEEP: `compiler-backed native generation preserves the accepted package bytes`
+- KEEP: `native materialization preserves executable source modes through the artifact store`
+- KEEP: `materialized candidate contains only the explicit codex-native surface, as real files — not every promoted skill`
+- KEEP: `an approved optional-lifecycle native exception is included alongside promoted native skills`
+- KEEP: `materialized native packages use public names for directories, frontmatter, fingerprints, and provenance while retaining stable IDs`
+- KEEP: `native materialization rejects a skill whose frontmatter name differs from its public directory name`
+- KEEP: `regenerating into an existing outDir removes a skill directory dropped from the codex-native surface`
+- KEEP: `rematerializing a selected skill removes files deleted from its canonical source`
+- KEEP: `materialization rejects a symlinked output root instead of writing through it`
+- KEEP: `materialization rejects a symlinked output ancestor before it can write outside the lexical root`
+- KEEP: `generation is deterministic: two materializations of the same inventory produce identical fingerprints and provenance`
+- KEEP: `fingerprint traversal rejects excessive directory depth before unbounded recursion`
+- KEEP: `native projection uses one byte budget across all selected skills`
+- KEEP: `native fingerprinting rejects symlink entries before following external targets`
+- KEEP: `native verifier rejects symlinked package roots and ancestors before reading the package`
+- KEEP: `CLI generates the real repo codex-native set with zero symlinks and provenance`
+- Source totals: 18 KEEP, 0 REWRITE, 0 DELETE.
+
+**`tests/verify-codex-native-package.test.js` — 8 source cases**
+- KEEP: `passes when the tracked package matches a fresh generation from the same sources`
+- KEEP: `fails and names the extra skill when the tracked package has drifted membership`
+- KEEP: `fails when a canonical skill file changes content after the tracked package was generated`
+- KEEP: `fails closed when the native provenance routing projection omits entries`
+- KEEP: `fails and identifies tracked frontmatter whose name differs from its public directory`
+- KEEP: `against the real repo, the tracked plugins/dhpk/ package matches a fresh generation`
+- KEEP: `consumer-runtime verification preserves NOT_CONFIGURED without upgrading structural evidence`
+- KEEP: `consumer-runtime verification stays NOT_CONFIGURED when no consumer adapter is supplied`
+- Source totals: 8 KEEP, 0 REWRITE, 0 DELETE.
+
+##### WRITER A: F19 — owner: `tests/check-codex-discovery.test.js`
+
+**`tests/codex-discovery-registry.test.js` — 16 source cases**
+- KEEP: `fingerprint failures block activation while retaining the invalid provider and identity evidence`
+- KEEP: `empty fingerprint without fingerprint error remains malformed`
+- KEEP: `fingerprint failure outranks duplicate activation for an invalid project provider`
+- KEEP: `fingerprint failure reason remains primary while valid duplicate names stay observable`
+- KEEP: `same public name and fingerprint merge into one effective entry with providers`
+- KEEP: `runtime activation blocks duplicate invokable names even when integrity fingerprints match`
+- KEEP: `runtime activation ignores overlapping non-invokable support skills`
+- KEEP: `different fingerprints block without explicit precedence`
+- KEEP: `explicit precedence selects a current owned provider and preserves conflict evidence`
+- KEEP: `same canonical identity is retained as one provider when discovery repeats it`
+- KEEP: `kind and public name form the identity and malformed providers are rejected`
+- KEEP: `stable provider id is retained separately from the public name`
+- KEEP: `default surface labels are applied consistently to the report providers`
+- KEEP: `inactive native providers do not raise a runtime duplicate`
+- KEEP: `active native providers still raise a runtime duplicate`
+- KEEP: `active defaults to true when unspecified`
+- Source totals: 16 KEEP, 0 REWRITE, 0 DELETE.
+
+##### WRITER A: Verification
+
+- `node --check tests/codex-native-package-validate.test.js && node --check tests/check-codex-discovery.test.js` — PASS, both exit 0.
+- `node tests/codex-native-package-validate.test.js` — PASS, 62/62.
+- `node tests/check-codex-discovery.test.js` — PASS, 25/25.
+- `git diff --check -- <8 assigned paths>` — PASS, exit 0.
+- Durable focused output: `/tmp/dhpk-consolidation/790/after-focused-a.log`.
+
+##### WRITER A: Controlled mutation evidence
+
+Both mutations ran only in a disposable `/tmp/dhpk-790-a-mutation-*` copy containing the owner test, tinytest harness, scripts, needed manifests, distribution inventory, and physical `plugins/dhpk/skills/`. The working-tree production files were never mutated; exact copies in the disposable tree were restored after each RED.
+
+1. Activation: change disposable `scripts/lib/codex-native-activation.js` from `CODEX_NATIVE_PLUGIN_ID = 'dhpk@dhpk'` to `'dhpk@wrong'`; run the focused harness for `enabled native plugin reports ENABLED with version`. It failed that exact case (`AVAILABLE` vs expected `ENABLED`, exit 1, 0/1). Restore the disposable source; the exact case passed (exit 0, 1/1).
+2. Manifest: set disposable root `.codex-plugin/plugin.json` `skills` to `./codex/skills/`; this is an existing symlink mirror into a physical temp `skills/` directory. Run the focused harness for `root .codex-plugin/plugin.json skills path resolves to an existing directory`. It failed that exact case on `validateNativeCandidate`'s `symlink-dependent skills root` error (exit 1, 0/1). Restore the manifest; the exact case passed (exit 0, 1/1).
+- Full RED/GREEN output: `/tmp/dhpk-consolidation/790/mutation-a.log`.
+- Post-run restore check: disposable production ID is `dhpk@dhpk`, disposable root manifest is `./plugins/dhpk/skills/`, and `git diff --exit-code -- scripts/lib/codex-native-activation.js .codex-plugin/plugin.json` passed.
+
+##### WRITER A: Graph and reference evidence
+
+- Graph refresh: `/tmp/dhpk-consolidation/790/graph-ready.json` reports READY at the branch base.
+- Exact UID serial CLI impact for `File:tests/check-codex-discovery.test.js` and `File:tests/codex-plugin-manifest.test.js` returned 0 resolved callers and `risk=UNKNOWN`; the index warns that UNKNOWN is unresolved. The ambiguous name query also emitted corrupted duplicate candidates with CRITICAL labels. Parent re-audited and released this scoped writer while preserving that ambiguous CRITICAL warning; no risk axes were used to waive it.
+- Text discovery confirms source consumption through the test aggregate and found explicit current references to deleted test names in bootstrap/docs and plugin README/distribution docs/release parity comments. Parent owns those support-path reconciliations; this worker did not edit them.
+
+##### WRITER A: Parent-owned gates
+
+- Combined fresh c8 coverage/timing and post-wave review: NOT RUN by this worker; parent owns the combined gate after all writers finish. Resume command: `node /home/paul/.npm/_npx/1d50dde519b2be3f/node_modules/c8/bin/c8.js --reports-dir /tmp/dhpk-consolidation/790/after-coverage --reporter json --reporter json-summary node tests/run-all.js --jobs 4 tests/codex-native-package-validate.test.js tests/check-codex-discovery.test.js tests/plugin-user-config-metadata.test.js tests/profile-scoped-claude-capability-bundle.test.js tests/capability-bundle-selection.test.js tests/codex-skill-metadata.test.js`.
+- Catalog validation: NOT RUN by this worker; parent owns the catalog mapping. Resume command: `node scripts/ci/catalog.js --check all`.
+- Pre-commit graph change analysis: NOT RUN by this worker; no commit was made. Resume command: `node .gitnexus/run.cjs detect-changes --scope all --repo .`.
+
+##### WRITER B: Issue 790 writer B evidence
+
+- Task/attempt: issue 790, packet B (F21 + F22), worker `/root/issue790_writer_b`, branch `feature/issue-790-test-consolidation`.
+- Base from packet: `ad08d4cde6babde55a23d6a4bef8eb3f78f729b8`.
+- Scope: two owner suites modified; four source suites deleted. This worker wrote only the six assigned test paths. Concurrent changes outside this assignment were preserved.
+- Behavior: no production code, coverage catalog, docs, generated output, runner, timeout hint, or coverage flag changed. F22 owner is 909 lines; the packet explicitly approves this size exception.
+
+##### WRITER B: Consolidation
+
+All 20 source cases remain in labeled braced lexical blocks in their destination owner suites. The source case titles and assertions were copied from the baseline; source names/counts are below. Original source imports and helper closures remain inside their block. The source `run` invocations and their now-unused `run` imports were removed; each owner retains one final `run(...)` call.
+
+Helper/import adjustments:
+
+- F21 `claude-user-config-probe` block retains `fs`, `os`, `path`, tinytest `test`/`assert`, and the direct `runClaudeUserConfigProbe` import. Its inline crypto requires and test-local setup remain unchanged.
+- F21 `gen-claude-user-config` block retains `spawnSync`, `fs`, `os`, `path`, tinytest `test`/`assert`, and its local `ROOT` constant.
+- F22 `claude-profile-probe` block retains `fs`, `os`, `path`, tinytest `test`/`assert`, and its local `probe` import.
+- F22 `gen-claude-profile-bundles` block retains `spawnSync`, `fs`, `os`, `path`, tinytest `test`/`assert`, `compileClaudeCapabilityBundle`, local `ROOT`, `snapshotFiles`, `GENERATOR`, `runGenerator`, and `withCommittedMinimalCopy`.
+- Block-local bindings keep the source helper/import closures isolated from each other and the existing owner suite.
+
+##### WRITER B: Exact source case names and counts
+
+`tests/claude-user-config-probe.test.js` — 6 KEEP:
+
+- configured consumer probe stays non-pass without an exact details binding
+- probe rejects a stale local manifest even when the consumer reports a forged expected fingerprint
+- probe rejects a prefix-only Claude version and unrelated plugin details
+- probe requires dhpk identity before accepting fingerprint details
+- probe treats a prerelease suffix as a version mismatch
+- probe rejects conflicting consumer fingerprints
+
+`tests/gen-claude-user-config.test.js` — 1 KEEP:
+
+- candidate generator validates the authoritative source without activating it
+
+`tests/claude-profile-probe.test.js` — 3 KEEP:
+
+- Claude profile probe keeps its closed status vocabulary and rejects unsafe aliases without leaking paths
+- profile tree digest rejects a symlinked entry
+- artifact digest rejects a receipt output that resolves outside the package root
+
+`tests/gen-claude-profile-bundles.test.js` — 10 KEEP:
+
+- profile bundle generator previews a declared finite alias plan
+- minimal generator reports the curated default selection
+- compat-v1 generator preserves the predecessor-compatible allowlist
+- minimal generator materializes only curated skills and command roots
+- minimal profile keeps command owners in support closure without publishing them publicly
+- --check passes when the committed minimal profile matches its sources
+- --check fails and names a stale skill copy
+- --check fails on extra and missing files
+- --check fails when the baseline package is absent
+- --plan and --check are mutually exclusive
+
+Total moved source cases: 20 KEEP (F21 7, F22 13). Current owner totals: F21 21 cases and one final `run`; F22 36 cases and one final `run`.
+
+##### WRITER B: Graph and reference evidence
+
+- Exact-UID serial CLI impact for all six assigned files returned 0 resolved upstream callers and `risk=UNKNOWN`, with the tool's unresolved-caller warning. This is retained as unresolved graph risk, not reported as low.
+- The initial name-based F22 query was ambiguous and exposed a 613/CRITICAL line-level candidate. Parent's bounded reasoner re-audit identified the `line 679` candidate beyond the 663-line baseline file as a file-integrity anomaly. Exact-UID CLI and MCP both returned UNKNOWN/0; the ambiguous CRITICAL warning is preserved here and was reported to the parent before edits. No risk-axis waiver was used.
+- Text references confirm discovery: `tests/run-all.js` recursively discovers `*.test.js`; `scripts/ci/catalog.js` maps both F21 production scripts to `plugin-user-config-metadata.test.js` and both F22 production scripts to `profile-scoped-claude-capability-bundle.test.js` (lines 164-167 in the pre-edit checkout). These checks establish the source-consumption path; they do not turn the graph UNKNOWN into low risk.
+
+##### WRITER B: Verification
+
+- `node --check tests/plugin-user-config-metadata.test.js` — PASS.
+- `node --check tests/profile-scoped-claude-capability-bundle.test.js` — PASS.
+- `node tests/plugin-user-config-metadata.test.js` — PASS, 21/21.
+- `node tests/profile-scoped-claude-capability-bundle.test.js` — PASS, 36/36.
+- `git diff --check -- <six assigned paths>` — PASS.
+- Full-suite / c8 wrapper — NOT RUN here; parent owns the post-writer workflow wrapper after all assigned batches complete.
+
+##### WRITER C: Issue 790 worker C evidence — F23 + F28
+
+##### WRITER C: Identity and scope
+
+- Task: `#790 C:F23+F28`
+- Worker: `/root/issue790_writer_c`
+- Attempt ID: not supplied in the parent handoff
+- Base: commit `ad08d4cde6babde55a23d6a4bef8eb3f78f729b8`, tree `53e7a4000fe6ff7f765b5fb5cc003293cdf02eb7`
+- Parent graph refresh: `READY` for the base commit, from `/tmp/dhpk-consolidation/790/graph-ready.json`
+- Owned files: `tests/capability-bundle-selection.test.js`, `tests/capability-bundle-activation.test.js`, `tests/codex-skill-metadata.test.js`, `tests/codex-skill-layout.test.js`, `tests/codex-supporting-parity.test.js`
+
+##### WRITER C: Changes
+
+- Moved the two activation cases and their `os`, `ProjectionArtifactStore`, `activateStagedCandidate`, `tempRoot`, and `plan` imports/helpers into `capability-bundle-selection.test.js`.
+- Moved the three layout cases and three supporting-parity cases into `codex-skill-metadata.test.js`. Reused that owner's existing `fs`, `path`, `ROOT`, and `INVENTORY`; added `crypto`, the layout constants and `directoryEntries`, plus `projectionPath`, `sha256`, and `projectedFiles` helpers.
+- Added source labels around consolidated import/helper/case blocks. Kept one existing outer `run()` call in each owner suite.
+- Deleted the three source files. No case registration names or `TIMEOUT_HINTS` entries were added or changed.
+
+All 8 moved case registrations match their pre-change names and order, and the 8 test bodies compare byte-for-byte against their `HEAD` source cases:
+
+- F23 (2): `staging is observable separately and a required non-pass leaves the active root unchanged`; `a required PASS is the only path that activates a staged candidate`.
+- F28 layout (3): `every Codex skill uses the root canonical skill`; `Codex has no physical source mirrors`; `Codex plugin README reports the actual mirror entry count`.
+- F28 supporting parity (3): `every inventory supporting asset has a unique id/destination and a materialized projection`; `direct supporting assets stay byte-identical to canonical sources`; `transformed supporting assets declare canonical sources and remove Claude lifecycle mechanics`.
+
+Owner totals after consolidation: capability selection `20` cases (18 pre-existing + 2 moved); Codex skill metadata `7` cases (1 pre-existing + 6 moved).
+
+##### WRITER C: Graph and text evidence
+
+- GitNexus `impact --direction upstream` was run for both owner files and all three deleted source files against the refreshed base index. Each file result had `impactedCount: 0`, `risk: UNKNOWN`, and no resolved callers/processes. Per AGENTS.md, this remains unresolved, not a low-risk result.
+- The reasoner packet's text evidence and local source scan confirm the test runner discovers `*.test.js` dynamically (`tests/run-all.js`) and there are no code references to the deleted file paths. Out-of-scope documentation and generated copies still mention historical source paths in `docs/test-suite-quality-review.md`, `docs/test-consolidation-baseline.csv`, `docs/test-suite-review-inventory.csv`, and generated mirrors; they were left untouched under the assigned scope.
+- `tests/run-all.js` currently has timeout hints only for `install-codex-skills-reconciliation.test.js` and `harness-facade-cli.test.js`; none of the deleted source suites had a hint, and this worker made no `TIMEOUT_HINTS` edit.
+
+##### WRITER C: Verification
+
+- `node tests/capability-bundle-selection.test.js` → PASS, `20/20`.
+- `node tests/codex-skill-metadata.test.js` → PASS, `7/7`.
+- `node --check tests/capability-bundle-selection.test.js && node --check tests/codex-skill-metadata.test.js` → PASS, exit 0.
+- Baseline-vs-current registration-name/order comparison → PASS, 2 moved F23 cases and 6 moved F28 cases preserved.
+- Baseline source-vs-owner test-body comparison → PASS, all 8 moved bodies byte-for-byte equal.
+- `git diff --check -- <five owned paths>` → PASS, exit 0.
+- Scoped status contains exactly the two modified owners and three deleted sources.
+- Combined post-wave `c8` run: NOT RUN by this worker; parent owns the fresh combined run after all writers finish. Resume command (using the current F18/F19/F21/F22/F23/F28 after-file list): `node /home/paul/.npm/_npx/1d50dde519b2be3f/node_modules/c8/bin/c8.js --reports-dir /tmp/dhpk-consolidation/790/after-coverage --reporter json --reporter json-summary node tests/run-all.js --jobs 4 tests/codex-native-package-validate.test.js tests/check-codex-discovery.test.js tests/plugin-user-config-metadata.test.js tests/profile-scoped-claude-capability-bundle.test.js tests/capability-bundle-selection.test.js tests/codex-skill-metadata.test.js`.
+- Whole-wave `gitnexus detect-changes --scope all`: NOT RUN by this worker; parent owns post-wave reconciliation before any commit. Resume command: `node .gitnexus/run.cjs detect-changes --scope all --repo .`.
+
+#### Registration reconciliation
+
+Removed registration names:
+
+- `root .codex-plugin/plugin.json skills is a string, not an array`
+- `thin wrapper vendors the tracked physical native package, not a symlink mirror`
+
+Added registration names:
+
+- None.
+
+#### Per-file focused timing
+
+| File | Before ms | After ms |
+| --- | --- | --- |
+| `tests/codex-native-package-validate.test.js` | 115 | 1731 |
+| `tests/codex-native-activation.test.js` | 47 | merged |
+| `tests/codex-native-experimental-gate.test.js` | 203 | merged |
+| `tests/codex-plugin-manifest.test.js` | 47 | merged |
+| `tests/gen-codex-native-package.test.js` | 966 | merged |
+| `tests/verify-codex-native-package.test.js` | 1005 | merged |
+| `tests/check-codex-discovery.test.js` | 1329 | 1365 |
+| `tests/codex-discovery-registry.test.js` | 64 | merged |
+| `tests/plugin-user-config-metadata.test.js` | 141 | 241 |
+| `tests/claude-user-config-probe.test.js` | 59 | merged |
+| `tests/gen-claude-user-config.test.js` | 185 | merged |
+| `tests/profile-scoped-claude-capability-bundle.test.js` | 463 | 2044 |
+| `tests/claude-profile-probe.test.js` | 57 | merged |
+| `tests/gen-claude-profile-bundles.test.js` | 1630 | merged |
+| `tests/capability-bundle-selection.test.js` | 98 | 99 |
+| `tests/capability-bundle-activation.test.js` | 69 | merged |
+| `tests/codex-skill-metadata.test.js` | 60 | 72 |
+| `tests/codex-skill-layout.test.js` | 53 | merged |
+| `tests/codex-supporting-parity.test.js` | 65 | merged |
+| `tests/bootstrap-dhpk-plugin-validation.test.js` | 52 | 42 |
+| `tests/release-parity.test.js` | 82 | 83 |
+| `tests/catalog-claims.test.js` | 6530 | 6296 |
+
+All collected owners remain below the default 180 s budget. No `TIMEOUT_HINTS` entry is added.
+
+#### Canonical production coverage
+
+Covered/total counts below are raw fresh-report values. Branch range coordinates are independently compared; a raw drop is never described as raw non-decrease PASS.
+
+| Production file | Before lines | After lines | Before branches | After branches |
+| --- | --- | --- | --- | --- |
+| `scripts/ci/_lib/codex-runtime.js` | 46/756 | 46/756 | 1/1 | 1/1 |
+| `scripts/ci/_lib/frontmatter.js` | 37/129 | 37/129 | 1/1 | 1/1 |
+| `scripts/ci/catalog.js` | 329/463 | 338/472 | 24/51 | 24/51 |
+| `scripts/ci/check-codex-discovery.js` | 150/150 | 150/150 | 55/63 | 55/63 |
+| `scripts/ci/context-budget.js` | 212/365 | 212/365 | 35/84 | 35/84 |
+| `scripts/ci/gen-claude-manifest.js` | 53/65 | 53/65 | 4/8 | 4/8 |
+| `scripts/ci/gen-claude-profile-bundles.js` | 170/204 | 170/204 | 54/77 | 54/77 |
+| `scripts/ci/gen-claude-user-config.js` | 47/116 | 47/116 | 3/9 | 3/9 |
+| `scripts/ci/gen-codex-native-package.js` | 63/70 | 63/70 | 4/8 | 4/8 |
+| `scripts/ci/verify-codex-native-package.js` | 139/147 | 139/147 | 17/23 | 17/23 |
+| `scripts/lib/agy-path-contract.js` | 29/97 | 29/97 | 1/1 | 1/1 |
+| `scripts/lib/asset-inventory.js` | 189/201 | 189/201 | 39/52 | 39/52 |
+| `scripts/lib/bounded-child-process.js` | 44/50 | 44/50 | 3/11 | 3/11 |
+| `scripts/lib/bounded-filesystem.js` | 146/169 | 146/169 | 52/70 | 52/70 |
+| `scripts/lib/capability-bundle-activation.js` | 29/38 | 29/38 | 3/6 | 3/6 |
+| `scripts/lib/capability-bundle-selection.js` | 751/849 | 751/849 | 364/486 | 364/486 |
+| `scripts/lib/claude-capability-bundle.js` | 712/797 | 712/797 | 242/333 | 242/333 |
+| `scripts/lib/codex-discovery-registry.js` | 283/297 | 283/297 | 89/99 | 89/99 |
+| `scripts/lib/codex-native-activation.js` | 103/106 | 103/106 | 40/44 | 42/45 |
+| `scripts/lib/codex-native-package.js` | 837/921 | 837/921 | 239/336 | 241/338 |
+| `scripts/lib/codex-role-neighbors.js` | 46/247 | 46/247 | 1/1 | 1/1 |
+| `scripts/lib/discovery-budget.js` | 167/245 | 167/245 | 46/73 | 46/73 |
+| `scripts/lib/distribution-compiler.js` | 310/494 | 310/494 | 104/170 | 104/170 |
+| `scripts/lib/distribution-inventory-regeneration.js` | 13/40 | 13/40 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory.js` | 948/2518 | 948/2518 | 110/237 | 110/237 |
+| `scripts/lib/distribution-projection-contract.js` | 519/585 | 519/585 | 192/280 | 191/279 |
+| `scripts/lib/distribution-projection-parity.js` | 120/461 | 120/461 | 14/31 | 14/31 |
+| `scripts/lib/harness-surfaces.js` | 25/25 | 25/25 | 1/1 | 1/1 |
+| `scripts/lib/internal-runtime-skills.js` | 48/77 | 48/77 | 17/29 | 17/29 |
+| `scripts/lib/platform-provenance.js` | 179/393 | 179/393 | 17/68 | 17/68 |
+| `scripts/lib/plugin-user-config-metadata.js` | 260/270 | 260/270 | 76/117 | 76/117 |
+| `scripts/lib/profile-projection-sets.js` | 75/118 | 75/118 | 11/14 | 11/14 |
+| `scripts/lib/project-agent-host-binding-policy.js` | 35/240 | 35/240 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-projection-plan.js` | 63/647 | 63/647 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-provider-adapters.js` | 102/483 | 102/483 | 1/1 | 1/1 |
+| `scripts/lib/projection-artifact-store.js` | 219/309 | 219/309 | 46/77 | 46/77 |
+| `scripts/lib/redaction.js` | 23/23 | 23/23 | 2/3 | 2/3 |
+| `scripts/lib/release-evidence.js` | 71/269 | 71/269 | 1/1 | 1/1 |
+| `scripts/lib/release-parity.js` | 148/180 | 148/180 | 22/28 | 22/28 |
+| `scripts/lib/skill-routing-projection.js` | 92/201 | 92/201 | 14/21 | 14/21 |
+| `scripts/lib/skill-topology.js` | 26/281 | 26/281 | 1/1 | 1/1 |
+| `scripts/lib/skill-usage.js` | 563/940 | 563/940 | 89/167 | 89/167 |
+| `scripts/lib/standalone-package-assets.js` | 20/77 | 20/77 | 2/11 | 2/11 |
+| `scripts/lib/workflow-package-closure.js` | 113/130 | 113/130 | 24/58 | 24/58 |
+| `scripts/release/claude-profile-probe.js` | 206/217 | 206/217 | 91/137 | 89/135 |
+| `scripts/release/claude-user-config-probe.js` | 106/155 | 106/155 | 40/74 | 36/70 |
+| `scripts/release/consumer-gate.js` | 444/1958 | 444/1958 | 90/137 | 90/137 |
+
+Common branch arms: 3434; covered 2236 → 2237. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+
+Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/790/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
+
+#### Parent reconciliation and gates
+
+The actual 98 source cases comprise 94 KEEP, 2 REWRITE, and 2 DELETE; 96 are retained. The three supporting guards (Catalog claims, bootstrap validation, and release parity) are included in both clean focused runs. The authoritative comparison is 22 files / 229 cases before and 9 files / 227 cases after, with exactly the two documented names removed and none added. The original family-only baseline remains separately archived.
+
+F18 has 1,084 lines and F22 has 909 lines, using the explicitly approved exceptions. F19 has 681 lines. No timeout allowance was introduced.
+
+All 47 canonical loaded production files have non-decreasing covered line counts; 3,434 common branch arms retain 2,236 covered and increase to 2,237, with zero covered arms lost. The Catalog blob changes only coverage ownership mappings; release parity changes only a test-path comment. Other measured production blobs are identical. Three raw covered branch counts decrease: distribution-projection-contract (192 → 191), claude-profile-probe (91 → 89), and claude-user-config-probe (40 → 36). All removed and added ranges in these files are covered. Literal raw branch non-decrease is NOT PASS; the unchanged blobs and range-coordinate evidence support a documented V8 instrumentation exception for cold review.
+
+Nine live supporting paths now name the surviving native validation owner, including bootstrap checks, design acceptance commands, distribution documentation, native package README, and release-parity comments. The README is a canonical package fallback input but does not alter skill fingerprints or provenance contract behavior. Historical evidence keeps its original source names. Marketplace copies are regenerated from canonical sources.
+
+Graph refresh matches the issue base. Ambiguous name-based impact returned CRITICAL candidates with corrupted or duplicate identities for discovery/profile tests; that warning remains unresolved as an index result. Read-only re-audit used exact File UIDs, returned UNKNOWN, confirmed folder-only incoming graph edges, and confirmed dynamic test-runner discovery plus live references by text. UNKNOWN is not a claim of unused code or low risk. This bounds the authorized test-only edits and supporting pointer repairs.
+
+Full-suite, platform, hosted CI, and real v2 code/document review evidence are pending at this ledger checkpoint; later delivery evidence must report their actual results separately.
