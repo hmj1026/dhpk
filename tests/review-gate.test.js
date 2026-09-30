@@ -512,4 +512,71 @@ test('review results require every planned path but allow additional read-only d
 });
 
 
+
+const assertRejectedReviewEventWithoutAppend = (gate, store, plan, registration, event, reason, label) => {
+  const rejected = gate.handle({
+    expectedRevision: registration.revision,
+    expectedChainDigest: registration.chainDigest,
+    event,
+  });
+  assert.strictEqual(rejected.decision.accepted, false, label);
+  assert.strictEqual(rejected.decision.allowsProgress, false, label);
+  assert.deepStrictEqual(rejected.decision.blockingReasons, [reason], label);
+  assert.deepStrictEqual(rejected.receipts, [], label);
+  assert.strictEqual(rejected.revision, registration.revision, label);
+  assert.strictEqual(rejected.chainDigest, registration.chainDigest, label);
+
+  const replayed = inspectHead(store, plan, registration.revision, registration.chainDigest);
+  assert.strictEqual(replayed.revision, registration.revision, label);
+  assert.strictEqual(replayed.chainDigest, registration.chainDigest, label);
+  assert.deepStrictEqual(replayed.receipts, [], label);
+  assert.deepStrictEqual(replayed.events.map(({ eventType }) => eventType), ['PLAN_REGISTERED'], label);
+};
+
+test('Review Gate rejects a registered event with only its schema changed and preserves the store head', () => {
+  withGate(({ gate, store }) => {
+    const plan = makePlan();
+    const registration = registerPlan(gate, plan);
+    const obligation = plan.obligations[0];
+    const event = makeReviewEvent(plan, obligation, registration.reviewRequests[0], {
+      eventId: 'review-result-unsupported-schema',
+      semanticVerdict: 'PASS',
+    });
+    event.schema = 'dhpk.review-gate.event.unsupported';
+
+    assertRejectedReviewEventWithoutAppend(
+      gate,
+      store,
+      plan,
+      registration,
+      event,
+      'UNSUPPORTED_SCHEMA',
+      'the unsupported schema field must fail before append',
+    );
+  });
+});
+
+test('Review Gate rejects a registered event with only its event type changed and preserves the store head', () => {
+  withGate(({ gate, store }) => {
+    const plan = makePlan();
+    const registration = registerPlan(gate, plan);
+    const obligation = plan.obligations[0];
+    const event = makeReviewEvent(plan, obligation, registration.reviewRequests[0], {
+      eventId: 'review-result-unsupported-type',
+      semanticVerdict: 'PASS',
+    });
+    event.eventType = 'UNSUPPORTED_REVIEW_RESULT';
+
+    assertRejectedReviewEventWithoutAppend(
+      gate,
+      store,
+      plan,
+      registration,
+      event,
+      'UNSUPPORTED_EVENT_TYPE',
+      'the unsupported event type must fail before append',
+    );
+  });
+});
+
 run('review-gate');

@@ -15,6 +15,7 @@ const {
   hostInitArgs,
   writeHostAttestation,
 } = require('./_lib/review-gate-host-attestation-fixture');
+const { observe } = require('../scripts/lib/review-gate-runtime-composition');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'review-gate-runtime.js');
@@ -297,6 +298,41 @@ function assertRetryIntegrityFailure(fixture, retry, beforeStatus) {
   assert.deepStrictEqual(afterStatus.receiptSummary, beforeStatus.receiptSummary);
 }
 
+
+function assertNoDurableObservationSince(fixture, beforeStatus) {
+  assertNoDurableObservation(fixture);
+  const afterStatus = readStatus(fixture);
+  assert.strictEqual(afterStatus.revision, beforeStatus.revision);
+  assert.strictEqual(afterStatus.chainDigest, beforeStatus.chainDigest);
+  assert.strictEqual(afterStatus.status, 'PENDING');
+  assert.deepStrictEqual(afterStatus.receiptSummary, beforeStatus.receiptSummary);
+}
+
+function assertThrowsRuntimeCode(callback, expectedCode) {
+  let failure = null;
+  try {
+    callback();
+  } catch (error) {
+    failure = error;
+  }
+  assert.ok(failure, expectedCode + ' must reject');
+  assert.strictEqual(failure.code, expectedCode);
+}
+
+function observeInput(fixture) {
+  return {
+    repoRoot: fixture.repoRoot,
+    workId: fixture.prepared.workId,
+    waveId: fixture.prepared.waveId,
+    artifact: fixture.artifactRelativePath,
+    companion: fixture.companionRelativePath,
+    lifecycleEvents: fixture.lifecycleRelativePath,
+    readinessEvents: fixture.readinessRelativePath,
+    hostAttestation: fixture.hostAttestationRelativePath,
+    now: () => Date.parse(FIXTURE_TIME),
+  };
+}
+
 // Public retry identity contract: an identical work/wave/obligation retry is
 // idempotent only when every normalized evidence dimension remains identical.
 // The existing review-request/result checks cover the request and result axes;
@@ -467,5 +503,108 @@ for (const variant of RETRY_INTEGRITY_VARIANTS) {
     });
   });
 }
+
+
+test('observe rejects missing lifecycle evidence without changing the receipt head', () => {
+  withFixture((fixture) => {
+    const beforeStatus = readStatus(fixture);
+    writeFixture(fixture.repoRoot, fixture.lifecycleRelativePath, '');
+
+    const result = runCli(fixture.repoRoot, observeArgs(fixture));
+    assertRedactedFailure(fixture, result, 'MISSING_LIFECYCLE', 'writer-a-missing-lifecycle-743');
+    assertNoDurableObservationSince(fixture, beforeStatus);
+  });
+});
+
+test('observe rejects missing readiness evidence without changing the receipt head', () => {
+  withFixture((fixture) => {
+    const beforeStatus = readStatus(fixture);
+    writeFixture(fixture.repoRoot, fixture.readinessRelativePath, '');
+
+    const result = runCli(fixture.repoRoot, observeArgs(fixture));
+    assertRedactedFailure(fixture, result, 'MISSING_READINESS', 'writer-a-missing-readiness-743');
+    assertNoDurableObservationSince(fixture, beforeStatus);
+  });
+});
+
+test('observe rejects readiness in the wrong state without changing the receipt head', () => {
+  withFixture((fixture) => {
+    const beforeStatus = readStatus(fixture);
+    const marker = 'writer-a-wrong-readiness-state-743';
+    const readiness = readJsonLines(fixture.readinessFile);
+    readiness[0].state = marker;
+    writeJsonLinesFixture(fixture.repoRoot, fixture.readinessRelativePath, readiness);
+
+    const result = runCli(fixture.repoRoot, observeArgs(fixture));
+    assertRedactedFailure(fixture, result, 'MALFORMED_READINESS', marker);
+    assertNoDurableObservationSince(fixture, beforeStatus);
+  });
+});
+
+test('observe rejects a malformed readiness digest without changing the receipt head', () => {
+  withFixture((fixture) => {
+    const beforeStatus = readStatus(fixture);
+    const marker = 'writer-a-malformed-readiness-digest-743';
+    const readiness = readJsonLines(fixture.readinessFile);
+    readiness[0].artifact_sha256 = marker;
+    writeJsonLinesFixture(fixture.repoRoot, fixture.readinessRelativePath, readiness);
+
+    const result = runCli(fixture.repoRoot, observeArgs(fixture));
+    assertRedactedFailure(fixture, result, 'MALFORMED_READINESS', marker);
+    assertNoDurableObservationSince(fixture, beforeStatus);
+  });
+});
+
+test('observe rejects a well-formed request digest for another Review Request without changing the receipt head', () => {
+  withFixture((fixture) => {
+    const beforeStatus = readStatus(fixture);
+    const companion = JSON.parse(fs.readFileSync(fixture.companionFile, 'utf8'));
+    const otherRequestDigest = 'sha256:' + '0'.repeat(64);
+    assert.match(otherRequestDigest, /^sha256:[a-f0-9]{64}$/);
+    assert.notStrictEqual(otherRequestDigest, companion.requestDigest);
+    companion.requestDigest = otherRequestDigest;
+    writeJsonFixture(fixture.repoRoot, fixture.companionRelativePath, companion);
+
+    const result = runCli(fixture.repoRoot, observeArgs(fixture));
+    assertRedactedFailure(fixture, result, 'STALE_EVIDENCE', otherRequestDigest);
+    assertNoDurableObservationSince(fixture, beforeStatus);
+  });
+});
+
+test('observe rejects a non-string evidence selector without changing durable evidence', () => {
+  withFixture((fixture) => {
+    const beforeStatus = readStatus(fixture);
+    const input = observeInput(fixture);
+    input.companion = { path: fixture.companionRelativePath };
+
+    assertThrowsRuntimeCode(() => observe(input), 'MALFORMED_COMPANION');
+    assertNoDurableObservationSince(fixture, beforeStatus);
+  });
+});
+
+test('observe rejects a path outside repository root without changing durable evidence', () => {
+  withFixture((fixture) => {
+    const beforeStatus = readStatus(fixture);
+    const outsidePath = '../outside-root-companion-writer-a-743.result.json';
+
+    const result = runCli(fixture.repoRoot, observeArgs(fixture, { companion: outsidePath }));
+    assertRedactedFailure(fixture, result, 'MALFORMED_COMPANION', outsidePath);
+    assertNoDurableObservationSince(fixture, beforeStatus);
+  });
+});
+
+test('observe rejects unsupported companion schema without changing receipt head', () => {
+  withFixture((fixture) => {
+    const beforeStatus = readStatus(fixture);
+    const marker = 'writer-a-unsupported-companion-schema-743';
+    const companion = JSON.parse(fs.readFileSync(fixture.companionFile, 'utf8'));
+    companion.schema = marker;
+    writeJsonFixture(fixture.repoRoot, fixture.companionRelativePath, companion);
+
+    const result = runCli(fixture.repoRoot, observeArgs(fixture));
+    assertRedactedFailure(fixture, result, 'UNSUPPORTED_SCHEMA', marker);
+    assertNoDurableObservationSince(fixture, beforeStatus);
+  });
+});
 
 run('review-gate-runtime-observe-security');

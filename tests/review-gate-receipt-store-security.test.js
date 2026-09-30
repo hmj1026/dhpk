@@ -99,7 +99,7 @@ const objectPath = (root, digest) => {
   return path.join(root, 'objects', 'sha256', body.slice(0, 2), `${body}.json`);
 };
 
-const createHistory = () => {
+const createHistory = ({ secondReceipts = [makeReceipt({ receiptId: 'receipt-2' })] } = {}) => {
   const root = makeRoot();
   const integrityKey = crypto.randomBytes(32);
   const store = makeStore(root, integrityKey);
@@ -111,7 +111,7 @@ const createHistory = () => {
   const second = store.append({
     expectedRevision: 1,
     event: makeEvent({ eventId: 'event-2', payload: { status: 'COMPLETE', revision: 2 } }),
-    receipts: [makeReceipt({ receiptId: 'receipt-2' })],
+    receipts: secondReceipts,
   });
   return { root, integrityKey, first, second };
 };
@@ -154,6 +154,37 @@ const authenticatedSequence = (sequence, integrityKey) => {
     .update(canonicalJson(authenticated))
     .digest('hex')}`;
   return { ...authenticated, integrityMac };
+};
+
+const rewriteSequence = (history, revision, changes = {}, eventChanges = null) => {
+  const target = sequencePath(history.root, revision);
+  const sequence = JSON.parse(fs.readFileSync(target, 'utf8'));
+  const snapshotPaths = [target];
+  if (eventChanges) {
+    const event = JSON.parse(fs.readFileSync(objectPath(history.root, sequence.eventDigest), 'utf8'));
+    const altered = { ...event, ...eventChanges };
+    const eventDigest = `sha256:${sha256(canonicalJson(altered))}`;
+    const eventTarget = objectPath(history.root, eventDigest);
+    fs.mkdirSync(path.dirname(eventTarget), { recursive: true, mode: 0o700 });
+    fs.writeFileSync(eventTarget, `${canonicalJson(altered)}\n`, { mode: 0o600 });
+    snapshotPaths.push(eventTarget);
+    changes = { ...changes, eventDigest };
+  }
+  const rewritten = authenticatedSequence({ ...sequence, ...changes }, history.integrityKey);
+  fs.writeFileSync(target, `${canonicalJson(rewritten)}\n`, { mode: 0o600 });
+  return {
+    sequence: rewritten,
+    snapshot: snapshotPaths.map((file) => ({ file, bytes: fs.readFileSync(file) })),
+  };
+};
+
+const assertReplayError = (store, head, code) => assert.throws(
+  () => store.replay({ workId: WORK_ID, ...head }),
+  (error) => error && error.code === code,
+);
+
+const assertSnapshotUnchanged = (snapshot) => {
+  for (const { file, bytes } of snapshot) assert.deepStrictEqual(fs.readFileSync(file), bytes);
 };
 
 const replaceWithOversizedSequence = (target, integrityKey) => {
@@ -670,6 +701,96 @@ if (process.argv[2] !== '--replay-child' && process.argv[2] !== '--lease-child')
       assert.strictEqual(objectWrites, 0);
     } finally {
       cleanup(root);
+    }
+  });
+
+  test('ReceiptStore replay rejects authenticated sequence with only schema changed', () => {
+    const history = createHistory();
+    try {
+      const store = makeStore(history.root, history.integrityKey);
+      assert.strictEqual(store.replay({ workId: WORK_ID, ...trustedHead(history.second) }).revision, 2);
+      const rewritten = rewriteSequence(history, 2, { schema: 'dhpk.review-gate.store-sequence.v99' });
+      assertReplayError(store, {
+        expectedRevision: 2,
+        expectedChainDigest: rewritten.sequence.chainDigest,
+      }, 'UNSUPPORTED_SCHEMA');
+      assertSnapshotUnchanged(rewritten.snapshot);
+    } finally {
+      cleanup(history.root);
+    }
+  });
+
+  test('ReceiptStore replay rejects sequence whose receiptDigests is not an array', () => {
+    const history = createHistory();
+    try {
+      const store = makeStore(history.root, history.integrityKey);
+      assert.strictEqual(store.replay({ workId: WORK_ID, ...trustedHead(history.second) }).revision, 2);
+      const rewritten = rewriteSequence(history, 2, { receiptDigests: { length: 0 } });
+      assertReplayError(store, {
+        expectedRevision: 2,
+        expectedChainDigest: rewritten.sequence.chainDigest,
+      }, 'MALFORMED_EVIDENCE');
+      assertSnapshotUnchanged(rewritten.snapshot);
+    } finally {
+      cleanup(history.root);
+    }
+  });
+
+  test('ReceiptStore replay rejects authenticated event for a different work item', () => {
+    const history = createHistory({ secondReceipts: [] });
+    try {
+      const store = makeStore(history.root, history.integrityKey);
+      assert.strictEqual(store.replay({ workId: WORK_ID, ...trustedHead(history.second) }).revision, 2);
+      const rewritten = rewriteSequence(history, 2, {}, { workId: 'work-foreign' });
+      assertReplayError(store, {
+        expectedRevision: 2,
+        expectedChainDigest: rewritten.sequence.chainDigest,
+      }, 'FOREIGN_EVIDENCE');
+      assertSnapshotUnchanged(rewritten.snapshot);
+    } finally {
+      cleanup(history.root);
+    }
+  });
+
+  test('ReceiptStore replay rejects authenticated duplicate eventId', () => {
+    const history = createHistory();
+    try {
+      const store = makeStore(history.root, history.integrityKey);
+      assert.strictEqual(store.replay({ workId: WORK_ID, ...trustedHead(history.second) }).revision, 2);
+      const rewritten = rewriteSequence(history, 2, {}, { eventId: 'event-1' });
+      assertReplayError(store, {
+        expectedRevision: 2,
+        expectedChainDigest: rewritten.sequence.chainDigest,
+      }, 'IDEMPOTENCY_CONFLICT');
+      assertSnapshotUnchanged(rewritten.snapshot);
+    } finally {
+      cleanup(history.root);
+    }
+  });
+
+  test('replay reports a later sequence gap as OUT_OF_ORDER and leaves the retained head intact', () => {
+    const history = createHistory();
+    const store = makeStore(history.root, history.integrityKey);
+    try {
+      const third = store.append({
+        expectedRevision: 2,
+        event: makeEvent({ eventId: 'event-3', payload: { status: 'COMPLETE', revision: 3 } }),
+        receipts: [],
+      });
+      const firstPath = sequencePath(history.root, 1);
+      const missingPath = sequencePath(history.root, 2);
+      const thirdPath = sequencePath(history.root, 3);
+      const retained = [firstPath, thirdPath].map((file) => ({ file, bytes: fs.readFileSync(file) }));
+      fs.unlinkSync(missingPath);
+      assert.strictEqual(fs.existsSync(thirdPath), true);
+      assertReplayError(store, {
+        expectedRevision: third.revision,
+        expectedChainDigest: third.chainDigest,
+      }, 'OUT_OF_ORDER');
+      assertSnapshotUnchanged(retained);
+      assert.strictEqual(fs.existsSync(missingPath), false);
+    } finally {
+      cleanup(history.root);
     }
   });
 

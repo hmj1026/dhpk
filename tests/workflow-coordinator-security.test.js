@@ -375,6 +375,42 @@ test('authority receipts reject extra payload fields outside the ReviewGate shap
   );
 });
 
+test('obligation authority with a mismatched lane cannot satisfy the named review', () => {
+  const authority = makeAuthorityReceipt();
+  const receipts = [...receiptsForHistory('evidence-pending'), receipt('receipt-local-gate-pass'), authority];
+  const options = { trustPolicy: withAuthorityTrustPolicy() };
+
+  assert.strictEqual(reduce(receipts, options).state, 'MERGE_READY');
+  authority.lane = 'unit';
+
+  const result = reduce(receipts, options);
+  assertPending(result, ['code-reviewer']);
+  assert.strictEqual(result.completion.implementation, 'PENDING');
+  assert.strictEqual(result.authorizesPullRequest, false);
+  assert.notStrictEqual(result.state, 'MERGE_READY');
+  assert.notStrictEqual(result.state, 'ARCHIVE_READY');
+});
+
+test('a decision chain fork cannot advance workflow state', () => {
+  const receipts = receiptsForHistory('decision-pending');
+  const accepted = reduce(receipts);
+  assert.strictEqual(accepted.evidenceAccepted, true);
+  assert.strictEqual(accepted.state, 'DECISION_PENDING');
+
+  receiptById(receipts, 'receipt-decision-required').payload.supersedesReceiptId = 'receipt-decision-not-in-history';
+  const result = reduce(receipts);
+
+  assertBlocked(result, 'DECISION_CHAIN_FORK');
+  assert.strictEqual(result.authorizesPullRequest, false);
+  assert.deepStrictEqual(result.completion, {
+    implementation: 'PENDING',
+    delivery: 'PENDING',
+    workflow: 'PENDING',
+  });
+  assert.notStrictEqual(result.state, 'MERGE_READY');
+  assert.notStrictEqual(result.state, 'ARCHIVE_READY');
+});
+
 test('implementation evidence owner must equal the decision implementation owner', () => {
   const receipts = receiptsForHistory('merge-ready');
   receiptById(receipts, 'receipt-implementation-complete').payload.owner = 'worker:foreign';

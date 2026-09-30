@@ -214,4 +214,24 @@ test('a pre-merge verification receipt cannot masquerade as the merge-commit del
   assert.strictEqual(projection.completion.delivery, 'PENDING');
 });
 
+test('distinct valid merge observations remain ambiguous after post-merge CI passes', () => {
+  const firstMerge = mergeObservedReceipt(makeStore());
+  const secondMerge = mergeObservedReceipt(makeStore(), {
+    verificationId: 'verification-provider-merge-second-observation',
+  });
+  const postMergeCi = postMergeCiReceipt(makeStore());
+
+  assert.notStrictEqual(firstMerge.payload.verificationId, secondMerge.payload.verificationId);
+  const projection = deliveryCoordinator().reduceDelivery([firstMerge, secondMerge, postMergeCi]);
+
+  assert.strictEqual(projection.state, 'POST_MERGE_PENDING');
+  assert.strictEqual(projection.completion.delivery, 'PENDING');
+  assert.deepStrictEqual(projection.condition, {
+    type: 'BLOCKED',
+    resumeState: 'POST_MERGE_PENDING',
+    reasonCodes: ['AMBIGUOUS_MERGE_OBSERVATION'],
+  });
+  assert.notStrictEqual(projection.state, 'ARCHIVE_READY');
+});
+
 run('workflow-coordinator-delivery');

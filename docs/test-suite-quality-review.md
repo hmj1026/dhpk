@@ -6171,3 +6171,191 @@ The two deleted F55 tag cases are owned by the unchanged `release-verify-cli.tes
 Each REWRITE has an actual disposable mutation: bypass the F55 develop guard (27/28 RED, 28/28 restored GREEN), bypass the F57 producer/downloaded digest comparison (10/11 RED, 11/11 restored GREEN), and rethrow the F60 timing-write error (the selected case fails, then passes when restored). The F60 child executes the real external tinytest fixture and reports 1/1 on both runs. Its fresh archive proof and source hashes are recorded in `disposable-evidence/writer-c-disposable-mutation-summary.json`; the earlier temporary canonical probe remains historical evidence and is not presented as a disposable attempt. The initial F55 undefined-CLI setup failure and the F60 invalid proof assertion remain recorded as setup failures.
 
 GitNexus retains the canonical Catalog HIGH warning and UNKNOWN targets. CX, exact source paths, live CLI tests, and the fresh reasoner bound the edit to owner mappings and tests; unresolved graph walks are not evidence of unused code. The pre-ledger change scan reports 28 files and one symbol with low reported risk; missing graph flows remain a lower-bound limitation. Full-suite, platform, and hosted CI verification remain pending at this review checkpoint.
+
+## Issue #743 integration audit for #739
+
+This is the reviewable local checkpoint before final source-commit delivery.
+The final cold-review, clean full-suite, four local shards, hosted CI, and
+two-parent merge receipts are published on [#743](https://github.com/hmj1026/dhpk/issues/743)
+and [#739](https://github.com/hmj1026/dhpk/issues/739) after execution.
+This section does not predict those gates as PASS. The machine-readable
+[integration audit](test-consolidation-integration-audit.json) preserves exact
+source rows, witness names, mutation inputs, source hashes, failure excerpts,
+commands, classifications, and evidence hashes.
+Absolute `/tmp` paths in the JSON are historical host-path provenance, not
+links. Raw local artifacts are not bundled; removed disposable snapshots are
+unavailable.
+
+### Fixed source denominator and registration accounting
+
+The fixed source baseline remains `a8d40727e199fcd7aaed0358221fd6cff3b04231`:
+393 discovered files and 3,633 registered cases. The T1 CSV was introduced at
+`baf6dcd25e2865feccb39ea284c63a61f9834ad9`; its header binds that older source
+baseline. All 152 unique source rows have exactly one actual MERGE outcome
+into 67 existing owners. Each source is deleted exactly once in its recorded
+merged PR, and its owner changes in that same merge. The 81 excluded and
+93 standalone dispositions remain outside family consolidation. This is a
+classification statement, not a claim that every preserved file is byte-identical.
+
+The predecessor telemetry/admission tickets add ten registered cases and
+no files. Sixteen documented owned case deletions then give the observed
+post-#795 clean result of 241 files / 3,627 cases. Final #743 adds two approved
+security owner files and 102 actual named registrations. The concentrated
+run preserves every original `(file, title)` multiplicity: 634 before and
+736 after, with no removed names. The derived whole-suite expectation is
+243 files / 3,729 cases; a clean committed full run remains required to confirm it.
+
+The two new owners are `review-gate-evidence-residual-security.test.js` and
+`review-gate-authority-residual-security.test.js`, both explicitly registered
+to ADR-0017. A clean committed verification snapshot ran
+`node scripts/ci/catalog.js --check all --diff-base b472c9788faaab3d4262dc11e6dc89a494ff0fb8`
+and passed without admission warnings. All #743 changed owners remain below
+800 lines. No framework, runner, shard count, `TIMEOUT_HINTS`, production
+algorithm, or public API changes were introduced.
+
+### Actual source-batch and CI bindings
+
+PR #801 is the separate F10 delivery; PR #802 is the remaining #789 work.
+They are not conflated into a single source binding. Every source row records
+its baseline blob, original CSV line, actual owner blob transition, source
+commit, merge parents, and direct hosted check/run snapshot.
+
+| Issue / batch | Merged PR | Terminal CI run |
+| --- | --- | --- |
+| #787 | [#799](https://github.com/hmj1026/dhpk/pull/799) | [36619387319](https://github.com/hmj1026/dhpk/actions/runs/36619387319) |
+| #788 | [#800](https://github.com/hmj1026/dhpk/pull/800) | [36629359839](https://github.com/hmj1026/dhpk/actions/runs/36629359839) |
+| #789 F10 | [#801](https://github.com/hmj1026/dhpk/pull/801) | [36657804038](https://github.com/hmj1026/dhpk/actions/runs/36657804038) |
+| #789 remaining | [#802](https://github.com/hmj1026/dhpk/pull/802) | [36662703184](https://github.com/hmj1026/dhpk/actions/runs/36662703184) |
+| #790 | [#803](https://github.com/hmj1026/dhpk/pull/803) | [36666492487](https://github.com/hmj1026/dhpk/actions/runs/36666492487) |
+| #791 | [#804](https://github.com/hmj1026/dhpk/pull/804) | [36673929309](https://github.com/hmj1026/dhpk/actions/runs/36673929309) |
+| #792 | [#805](https://github.com/hmj1026/dhpk/pull/805) | [36679282549](https://github.com/hmj1026/dhpk/actions/runs/36679282549) |
+| #793 | [#806](https://github.com/hmj1026/dhpk/pull/806) | [36684513352](https://github.com/hmj1026/dhpk/actions/runs/36684513352) |
+| #794 | [#807](https://github.com/hmj1026/dhpk/pull/807) | [36690753015](https://github.com/hmj1026/dhpk/actions/runs/36690753015) |
+| #795 | [#808](https://github.com/hmj1026/dhpk/pull/808) | [36698217630](https://github.com/hmj1026/dhpk/actions/runs/36698217630) |
+
+Each delivered PR has completed Preflight, four shards, aggregate, Markdown,
+and macOS checks. The release rehearsal is SKIPPED; no release is claimed.
+The historical #789/#790 static logs remain their original evidence rather
+than fabricated machine exit-code records. The final parent reruns the
+seven static/package/document gates, completing the aggregate evidence note
+raised by the #790 documentation review.
+
+### Paired coverage and its limits
+
+All 102 JavaScript paths resolved
+from the 67 final catalog owners have a paired canonical execution scope.
+Two CLI wrappers are paired separately because their owners execute copied
+fixtures or the library rather than the canonical wrapper itself. The
+20 shell targets remain separate
+behavioral evidence. Embedded execution-bundle copies are recorded outside
+the canonical path/blob/coordinate union.
+
+The paired batch audit reports 173
+canonical observed paths, 18385
+deduplicated common coordinates, zero lost covered common coordinates,
+zero ambiguous occurrences, and no unpaired target. These counts span
+individual source blobs and selected scopes; they are not whole-suite
+coverage or a sum of overlapping percentages.
+
+There are 26 enumerated raw
+branch-count or rate declines. They remain **NOT raw numeric PASS**. Their
+individual same-blob covered-range explanations are available for cold
+review; a gate PASS cannot erase the numeric declines. No paired full c8
+fallback is required by the recorded route after the explicitly matched
+CLI and F10 supplements.
+
+Fresh #787/#788 scopes are bound to clean source snapshots and are separate
+from their original delivery captures. F10's old timing records have null
+source commits and remain historical inference only. A fresh source-bound
+F10 run captures the original six files / 50 cases and the retained owner /
+49 cases, with precisely the previously approved count-alias deletion.
+
+### ADR-0017 atomic witness accounting
+
+The audit preserves all 152 original predicate IDs in 26 groups, with five
+supplemental source guards. Historical proposed titles/coordinates are kept
+as history; current references use actual collected path/title pairs. All
+149 existing witness references remain present. Name presence and aggregate
+nonzero counts are preservation evidence, not individual guard attribution.
+
+| Writer | Target probes | Direct target assertion RED | Surviving other guard |
+| --- | --- | --- | --- |
+| A | 29 | 26 | 3 |
+| B | 22 | 13 | 9 |
+| C | 18 | 17 | 1 |
+| D | 16 | 15 | 1 |
+| E, registry plus supplements | 21 | 17 | 4 |
+| Total | 106 | 88 | 18 |
+
+Every listed target probe passed with its real guard and after restoration.
+The 18 surviving mutations are classified explicitly; they are not direct
+target RED proofs. Two additional reciprocal containment trials demonstrate
+both single-bypass directions for lexical/physical containment and for
+symlink/realpath protection. A direct RED may discriminate an exact public
+diagnostic while a downstream guard still protects admission; it is not a
+claim that bypassing one predicate grants progress. Initial fixture/import
+or runner-classification failures are archived and excluded from the totals.
+
+The coordinate corrections are explicit:
+
+- `planned-b14` describes the descriptor guard at `physical-file.js:213`.
+  Its old line-197 coordinate is after-open path integrity. Independent
+  after-open, short-read, descriptor-stability, and after-read probes now
+  target their four actual guards; no line-213 result is credited to line 197.
+- `planned-c12` retains the per-index descriptor arm at
+  `receipt-primitives.js:228`. Its new dense-array descriptor test directly
+  detects bypass. The earlier sparse/custom-property witness independently
+  targets line 222 and is a separate supplemental row.
+- The line-221 invalid-length arm is reachable through legal Proxy length
+  descriptors and has direct target probes. The exact line-217 missing-value
+  fallback is upstream guarded: omitting non-configurable array length
+  throws during descriptor enumeration, caught before that expression.
+  The true-value-arm mutation is recorded as a different supplemental scope.
+- The invalid authority-clock arm at `review-gate-evidence.js:503` is
+  precluded by public clock normalization. Existing future/expiry names
+  remain behavioral witnesses rather than false exact-arm attribution.
+
+Fresh safety c8 runs passed 47 files / 634 cases in 35876 ms
+and 49 files / 736 cases in 27703 ms. Their 52 canonical
+production rows have no lost covered common arm or raw branch decline.
+The only source edit is two Catalog registration data rows: removing them
+gives byte-identical source. An explicit two-line coordinate mapping pairs
+all 51 Catalog arms with 24 covered before and after; the raw unadjusted
+comparison matches only one arm. One unchanged attestation range at line
+248 splits into two contiguous covered ranges and has no synthetic count
+assigned to the absent old entry. Exact upstream/representation zero arms
+remain zero; this is not a 100-percent aggregate coverage claim.
+
+CI/Git-provider evidence remains verification only; store-budget ceilings,
+17 Sentinel differential mappings and four historical-only mappings are
+preserved. The named CI positive owner directly asserts `sourceCommit` and
+does not directly assert `sourceTree`; Git-provider and store identity
+witnesses remain separate. No blanket owner or ADR-group waiver is used.
+
+### Graph, timing, and delivery checkpoints
+
+Fresh exact-UID impacts warn CRITICAL for Review Gate / Receipt Store and
+WorkflowCoordinator (367 impacted), and HIGH for receipt-primitives. UNKNOWN
+call resolution is not unused. The final refreshed index reports 575 flows
+but omits 5,944 entry candidates, 3,903 callees and 50 budget-cut walks.
+The change detector's low/zero-process summary is a lower bound, not a
+whole-call-graph clearance. Source/CX references and actual public-path
+tests supply the bounded evidence. Precommit detection is rerun on the
+reviewed pending tree, including the new files through a temporary index.
+
+The historical 612,394 ms full baseline was instrumented by c8. It cannot
+be divided by a final plain-run duration as a speedup. The matching local
+comparison is four sequential `DHPK_TEST_JOBS=4` shard runs on Node 26.9 / WSL2,
+without the CI bounded wrapper; baseline wall times are 43.3/49.1/64.9/86.6 s.
+The parent records final clean source/tree, runtime, every per-file duration
+and slowest worker. Hosted Ubuntu / Node 24 timings remain a separate scope.
+Runtime imbalance warnings remain warnings; no balance PASS is invented.
+
+The remaining delivery gates at this committed checkpoint are authentic
+cold code/document review, typed Review Gate, reviewed-tree/staged-tree
+identity, clean committed full/platform tests, four sequential local shards,
+hosted Preflight/four shards/aggregate/Markdown/macOS, and strict downloaded
+timing identity verification. Only after all actual required results succeed
+does the authorized `--auto --merge` transition occur, followed by two-parent
+source verification, #743 closure and #739 closure. Release/deployment and
+production validation are outside this delivery.

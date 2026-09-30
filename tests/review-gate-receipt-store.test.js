@@ -64,7 +64,7 @@ const makeReceipt = (overrides = {}) => ({
 
 const makeStore = (root, options = {}) => new ReceiptStore({
   root,
-  trustPolicy: TRUST_POLICY,
+  trustPolicy: options.trustPolicy || TRUST_POLICY,
   integrityKey: INTEGRITY_KEY,
   now: options.now || (() => Date.parse(NOW)),
   leaseMs: options.leaseMs || 30000,
@@ -80,6 +80,200 @@ const assertDeepFrozen = (value) => {
 const trustedHead = (appendResult) => ({
   expectedRevision: appendResult.revision,
   expectedChainDigest: appendResult.chainDigest,
+});
+
+const assertEmptyStore = (store, root, workId = 'work-365') => {
+  const head = store.inspect({ workId, expectedRevision: 0, expectedChainDigest: null });
+  assert.strictEqual(head.revision, 0);
+  assert.strictEqual(head.chainDigest, null);
+  assert.deepStrictEqual(head.events, []);
+  assert.deepStrictEqual(head.receipts, []);
+  assert.deepStrictEqual(fs.readdirSync(root), []);
+};
+
+const assertReceiptAppendRejected = ({ field, value, code, trustPolicy = TRUST_POLICY }) => {
+  const positiveRoot = makeRoot();
+  const negativeRoot = makeRoot();
+  const event = makeEvent({ eventId: `event-receipt-${field}` });
+  const receipt = makeReceipt({ receiptId: `receipt-${field}` });
+  try {
+    assert.strictEqual(
+      makeStore(positiveRoot, { trustPolicy }).append({ expectedRevision: 0, event, receipts: [receipt] }).status,
+      'APPENDED',
+    );
+    const store = makeStore(negativeRoot, { trustPolicy });
+    assert.throws(
+      () => store.append({
+        expectedRevision: 0,
+        event,
+        receipts: [{ ...receipt, [field]: value }],
+      }),
+      (error) => error && error.code === code,
+    );
+    assertEmptyStore(store, negativeRoot, event.workId);
+  } finally {
+    fs.rmSync(positiveRoot, { recursive: true, force: true });
+    fs.rmSync(negativeRoot, { recursive: true, force: true });
+  }
+};
+
+test('ReceiptStore append rejects a receipt with only schema changed and no revision advance', () => {
+  assertReceiptAppendRejected({
+    field: 'schema',
+    value: 'dhpk.review-gate.evidence.v99',
+    code: 'UNSUPPORTED_SCHEMA',
+  });
+});
+
+test('ReceiptStore append rejects invalid receipt kind without revision advance', () => {
+  // Trust the fixture producer for this kind so the vocabulary guard is the
+  // only reason the one-field mutation must fail.
+  const trustPolicy = {
+    producers: [{
+      ...TRUST_POLICY.producers[0],
+      receiptKinds: ['review', 'future-kind'],
+    }],
+  };
+  assertReceiptAppendRejected({
+    field: 'kind',
+    value: 'future-kind',
+    code: 'MALFORMED_EVIDENCE',
+    trustPolicy,
+  });
+});
+
+test('acquireLease rejects zero, negative, and unsafe ttlMs without creating a lease record', () => {
+  for (const [label, ttlMs] of [['zero', 0], ['negative', -1], ['unsafe', Number.MAX_SAFE_INTEGER + 1]]) {
+    const root = makeRoot();
+    try {
+      const store = makeStore(root);
+      assert.throws(
+        () => store.acquireLease(`work-ttl-${label}`, { ownerId: 'owner-ttl', ttlMs }),
+        (error) => error && error.code === 'STORE_CONFIG',
+      );
+      assert.deepStrictEqual(fs.readdirSync(root), []);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  const root = makeRoot();
+  try {
+    const lease = makeStore(root).acquireLease('work-ttl-positive', {
+      ownerId: 'owner-ttl-positive',
+      ttlMs: 60000,
+    });
+    assert.strictEqual(lease.expiresAt, '2026-09-06T00:01:00.000Z');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('acquireLease rejects a valid live claim for another work without takeover', () => {
+  const root = makeRoot();
+  const claimPath = (workId) => path.join(
+    root,
+    'works',
+    workId,
+    '.leases',
+    'claims',
+    '000000000001.json',
+  );
+  try {
+    const store = makeStore(root);
+    store.acquireLease('work-foreign-lease', { ownerId: 'owner-foreign', ttlMs: 60000 });
+    const source = claimPath('work-foreign-lease');
+    const target = claimPath('work-requested-lease');
+    fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+    fs.copyFileSync(source, target);
+    fs.chmodSync(target, 0o600);
+    const originalBytes = fs.readFileSync(target);
+
+    assert.throws(
+      () => store.acquireLease('work-requested-lease', { ownerId: 'owner-successor' }),
+      (error) => error && error.code === 'LEASE_CONFLICT'
+        && error.message === 'the active lease identity does not match this work',
+    );
+    assert.deepStrictEqual(fs.readFileSync(target), originalBytes);
+    assert.deepStrictEqual(fs.readdirSync(path.dirname(target)), ['000000000001.json']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('append rejects negative and fractional expectedRevision before duplicate replay', () => {
+  const root = makeRoot();
+  try {
+    const store = makeStore(root);
+    const event = makeEvent({ eventId: 'event-invalid-revision' });
+    const first = store.append({ expectedRevision: 0, event, receipts: [] });
+    assert.strictEqual(first.status, 'APPENDED');
+    for (const expectedRevision of [-1, 0.5]) {
+      assert.throws(
+        () => store.append({ expectedRevision, event, receipts: [] }),
+        (error) => error && error.code === 'REVISION_CONFLICT',
+      );
+      const head = store.inspect({ workId: event.workId, ...trustedHead(first) });
+      assert.strictEqual(head.revision, first.revision);
+      assert.strictEqual(head.chainDigest, first.chainDigest);
+      assert.strictEqual(head.events.length, 1);
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('append rejects receipt records and null before writing store files', () => {
+  const event = makeEvent({ eventId: 'event-nonarray-receipts' });
+  for (const receipts of [{ length: 0 }, null]) {
+    const positiveRoot = makeRoot();
+    const negativeRoot = makeRoot();
+    try {
+      assert.strictEqual(
+        makeStore(positiveRoot).append({ expectedRevision: 0, event, receipts: [] }).status,
+        'APPENDED',
+      );
+      const store = makeStore(negativeRoot);
+      assert.throws(
+        () => store.append({ expectedRevision: 0, event, receipts }),
+        (error) => error && error.code === 'MALFORMED_EVIDENCE',
+      );
+      assertEmptyStore(store, negativeRoot, event.workId);
+    } finally {
+      fs.rmSync(positiveRoot, { recursive: true, force: true });
+      fs.rmSync(negativeRoot, { recursive: true, force: true });
+    }
+  }
+});
+
+test('replay rejects array and scalar expectedIdentity without changing the stored head', () => {
+  const root = makeRoot();
+  try {
+    const store = makeStore(root);
+    const event = makeEvent({ eventId: 'event-expected-identity' });
+    const first = store.append({ expectedRevision: 0, event, receipts: [makeReceipt()] });
+    const head = trustedHead(first);
+    assert.strictEqual(store.replay({
+      workId: event.workId,
+      ...head,
+      expectedIdentity: { workId: event.workId, waveId: event.waveId },
+    }).revision, 1);
+    for (const expectedIdentity of [[], 'invalid-identity']) {
+      assert.throws(
+        () => store.replay({ workId: event.workId, ...head, expectedIdentity }),
+        (error) => error && error.code === 'MALFORMED_EVIDENCE',
+      );
+      const unchanged = store.inspect({ workId: event.workId, ...head });
+      assert.strictEqual(unchanged.revision, first.revision);
+      assert.strictEqual(unchanged.chainDigest, first.chainDigest);
+    }
+    assert.deepStrictEqual(
+      fs.readdirSync(path.join(root, 'works', event.workId, 'events')),
+      ['000000000001.json'],
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('appends, inspects, and deterministically replays immutable typed evidence', () => {

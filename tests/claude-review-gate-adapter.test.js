@@ -312,6 +312,27 @@ test('record rejects foreign identity evidence before Review Gate submission', (
   assert.strictEqual(fixture.events.length, 0);
 });
 
+test('record rejects a result for an obligation absent from the active plan before Review Gate submission', () => {
+  const input = observeInput();
+  input.reviewResult = { ...input.reviewResult, obligationId: 'obligation-foreign-safe-369' };
+  let gateCalls = 0;
+  let returned;
+  const reviewGate = {
+    handle: () => {
+      gateCalls += 1;
+      throw new Error('Review Gate sentinel must not be reached');
+    },
+  };
+
+  assertCode(
+    () => { returned = makeAdapter(reviewGate).record(input); },
+    'MALFORMED_REVIEW',
+    'foreign obligation must fail before Review Gate',
+  );
+  assert.strictEqual(gateCalls, 0);
+  assert.strictEqual(returned, undefined);
+});
+
 test('event identity and submission provenance are stable for exact retries and change with evidence', () => {
   const fixture = stubReviewGate();
   const adapter = makeAdapter(fixture.reviewGate);

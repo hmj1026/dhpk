@@ -49,6 +49,8 @@ const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, comman
 // Explicit ownership for newly added top-level test suites. Keep keys exact so
 // a similarly named suite cannot inherit another suite's owner by accident.
 const SUITE_OWNER_REGISTRY = Object.freeze({
+  'tests/review-gate-evidence-residual-security.test.js': 'docs/adr/0017-implement-review-gate-as-a-local-event-module.md',
+  'tests/review-gate-authority-residual-security.test.js': 'docs/adr/0017-implement-review-gate-as-a-local-event-module.md',
 });
 
 function computeCounts() {

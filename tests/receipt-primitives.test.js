@@ -106,6 +106,180 @@ test('evidence redaction is descriptor-safe and bounded without losing private-m
   assert.doesNotMatch(JSON.stringify(value), new RegExp(marker));
 });
 
+test('redaction rejects length-one array with extra property and missing index without value leak', () => {
+  const marker = 'WRITER_E_ARRAY_PROPERTY_PRIVATE_MARKER';
+  const safeArray = primitives.redactEvidence(['safe']);
+  assert.deepStrictEqual(safeArray, ['safe']);
+
+  const value = [];
+  value.length = 1;
+  Object.defineProperty(value, 'privateMarker', {
+    configurable: true,
+    enumerable: true,
+    value: marker,
+  });
+  const redacted = primitives.redactEvidence(value);
+
+  assert.strictEqual(value.length, 1);
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(value, '0'), false);
+  assert.strictEqual(redacted, '<redacted>');
+  assert.doesNotMatch(JSON.stringify(redacted), new RegExp(marker));
+});
+
+test('evidence redaction replaces non-enumerable array indexes and never invokes index getters', () => {
+  const marker = 'WRITER_E_NON_ENUMERABLE_ARRAY_INDEX_PRIVATE_MARKER';
+  const safeArray = primitives.redactEvidence(['safe']);
+  assert.deepStrictEqual(safeArray, ['safe']);
+
+  let getterInvoked = false;
+  const accessorArray = [];
+  Object.defineProperty(accessorArray, '0', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      getterInvoked = true;
+      return marker;
+    },
+  });
+  const accessorRedacted = primitives.redactEvidence(accessorArray);
+  assert.deepStrictEqual(accessorRedacted, ['<redacted>']);
+  assert.strictEqual(getterInvoked, false);
+
+  const nonEnumerableArray = [];
+  Object.defineProperty(nonEnumerableArray, '0', {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: marker,
+  });
+  const nonEnumerableRedacted = primitives.redactEvidence(nonEnumerableArray);
+  assert.strictEqual(nonEnumerableArray.length, 1);
+  assert.deepStrictEqual(nonEnumerableRedacted, ['<redacted>']);
+  assert.doesNotMatch(JSON.stringify(nonEnumerableRedacted), new RegExp(marker));
+});
+
+test('evidence redaction fails closed when Proxy ownKeys enumeration throws', () => {
+  const marker = 'WRITER_E_PROXY_PRIVATE_MARKER';
+  const safeValue = primitives.redactEvidence({ value: 'safe' });
+  assert.deepStrictEqual(safeValue, { value: 'safe' });
+
+  let getterInvoked = false;
+  const target = {};
+  Object.defineProperty(target, 'privateMarker', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      getterInvoked = true;
+      return marker;
+    },
+  });
+  const proxy = new Proxy(target, {
+    ownKeys() {
+      throw new Error('descriptor enumeration denied');
+    },
+  });
+  const redacted = primitives.redactEvidence(proxy);
+
+  assert.strictEqual(redacted, '<redacted>');
+  assert.strictEqual(getterInvoked, false);
+  assert.doesNotMatch(JSON.stringify(redacted), new RegExp(marker));
+});
+
+test('evidence redaction fails closed when Proxy property descriptor enumeration throws', () => {
+  const marker = 'WRITER_E_PROXY_DESCRIPTOR_PRIVATE_MARKER';
+  const safeValue = primitives.redactEvidence({ value: 'safe' });
+  assert.deepStrictEqual(safeValue, { value: 'safe' });
+
+  let getterInvoked = false;
+  const target = {};
+  Object.defineProperty(target, 'privateMarker', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      getterInvoked = true;
+      return marker;
+    },
+  });
+  const proxy = new Proxy(target, {
+    ownKeys() {
+      return Reflect.ownKeys(target);
+    },
+    getOwnPropertyDescriptor() {
+      throw new Error('descriptor enumeration denied');
+    },
+  });
+  const redacted = primitives.redactEvidence(proxy);
+
+  assert.strictEqual(redacted, '<redacted>');
+  assert.strictEqual(getterInvoked, false);
+  assert.doesNotMatch(JSON.stringify(redacted), new RegExp(marker));
+});
+
+test('evidence redaction rejects a Proxy-reported string array length', () => {
+  const safeArray = primitives.redactEvidence(['safe']);
+  assert.deepStrictEqual(safeArray, ['safe']);
+
+  const proxyWithReportedLength = (reportedLength) => new Proxy([], {
+    getOwnPropertyDescriptor(target, key) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+      return key === 'length' && descriptor
+        ? { ...descriptor, value: reportedLength }
+        : descriptor;
+    },
+  });
+  assert.strictEqual(primitives.redactEvidence(proxyWithReportedLength('private marker')), '<redacted>');
+});
+
+test('evidence redaction rejects a Proxy-reported negative array length', () => {
+  const safeArray = primitives.redactEvidence(['safe']);
+  assert.deepStrictEqual(safeArray, ['safe']);
+
+  const proxy = new Proxy([], {
+    getOwnPropertyDescriptor(target, key) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+      return key === 'length' && descriptor ? { ...descriptor, value: -1 } : descriptor;
+    },
+  });
+  assert.strictEqual(primitives.redactEvidence(proxy), '<redacted>');
+});
+
+test('evidence redaction rejects a Proxy-reported fractional array length', () => {
+  const safeArray = primitives.redactEvidence(['safe']);
+  assert.deepStrictEqual(safeArray, ['safe']);
+
+  const proxy = new Proxy([], {
+    getOwnPropertyDescriptor(target, key) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+      return key === 'length' && descriptor ? { ...descriptor, value: 0.5 } : descriptor;
+    },
+  });
+  assert.strictEqual(primitives.redactEvidence(proxy), '<redacted>');
+});
+
+test('evidence redaction rejects a legal Proxy array with 201 descriptor-backed indexes', () => {
+  const safeArray = primitives.redactEvidence(Array.from({ length: 200 }, () => 'safe'));
+  assert.strictEqual(safeArray.length, 200);
+  assert.strictEqual(safeArray[199], 'safe');
+
+  const virtualIndexes = Array.from({ length: 201 }, (_, index) => String(index));
+  const largeProxy = new Proxy([], {
+    ownKeys: () => ['length', ...virtualIndexes],
+    getOwnPropertyDescriptor(target, key) {
+      const descriptor = Reflect.getOwnPropertyDescriptor(target, key);
+      if (key === 'length' && descriptor) return { ...descriptor, value: 201 };
+      if (virtualIndexes.includes(key)) {
+        return { value: 'safe', writable: true, enumerable: true, configurable: true };
+      }
+      return descriptor;
+    },
+  });
+
+  const descriptors = Object.getOwnPropertyDescriptors(largeProxy);
+  assert.strictEqual(descriptors.length.value, 201);
+  assert.strictEqual(Object.keys(descriptors).length, 202);
+  assert.strictEqual(primitives.redactEvidence(largeProxy), '<redacted>');
+});
+
 test('evidence redaction bounds huge sparse arrays before allocation or getter access', () => {
   const sparse = [];
   let getterInvoked = false;

@@ -253,6 +253,47 @@ test('verifyHostAttestation rejects a signed subject replayed against different 
   }), 'STALE_HOST_ATTESTATION');
 });
 
+test('verifyHostAttestation rejects an envelope with an algorithm different from its trusted key', () => {
+  const subject = buildObserveSubject(subjectInputs());
+  const host = hostKeys();
+  const envelope = signEnvelope(subject, host.privateKey, host.trust.keyId);
+  const changedEnvelope = { ...envelope, algorithm: 'Ed448' };
+
+  assertCode(() => verifyHostAttestation({
+    envelope: changedEnvelope,
+    trust: host.trust,
+    expectedSubject: subject,
+  }), 'UNTRUSTED_HOST_ATTESTATION');
+});
+
+test('verifyHostAttestation rejects an envelope keyId that does not match enrolled trust', () => {
+  const subject = buildObserveSubject(subjectInputs());
+  const host = hostKeys();
+  const envelope = signEnvelope(subject, host.privateKey, host.trust.keyId);
+  const otherKeyId = `sha256:${'a'.repeat(64)}`;
+  const changedEnvelope = { ...envelope, keyId: otherKeyId };
+
+  assert.notStrictEqual(otherKeyId, host.trust.keyId, 'the fixture keyId differs from the enrolled key');
+  assertCode(() => verifyHostAttestation({
+    envelope: changedEnvelope,
+    trust: host.trust,
+    expectedSubject: subject,
+  }), 'UNTRUSTED_HOST_ATTESTATION');
+});
+
+test('verifyHostAttestation rejects a malformed keyId on a valid signed envelope', () => {
+  const subject = buildObserveSubject(subjectInputs());
+  const host = hostKeys();
+  const envelope = signEnvelope(subject, host.privateKey, host.trust.keyId);
+  const changedEnvelope = { ...envelope, keyId: 'malformed-key-id' };
+
+  assertCode(() => verifyHostAttestation({
+    envelope: changedEnvelope,
+    trust: host.trust,
+    expectedSubject: subject,
+  }), 'UNTRUSTED_HOST_ATTESTATION');
+});
+
 test('verifyHostAttestation fails closed for missing trust and unsupported schema', () => {
   const subject = buildObserveSubject(subjectInputs());
   const host = hostKeys();
