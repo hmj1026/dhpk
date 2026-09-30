@@ -530,13 +530,13 @@ function activeTransactionJournals(hostRoot) {
   });
 }
 
-function latestTransactionJournal(hostRoot) {
+function latestTransactionJournal(hostRoot, previousNames) {
   if (!fs.existsSync(hostRoot)) return null;
   const names = fs.readdirSync(hostRoot)
-    .filter((name) => /^\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json$/.test(name))
-    .sort();
-  if (names.length === 0) return null;
-  const name = names[names.length - 1];
+    .filter((name) => /^\.dhpk-transaction-\d{8}T\d{6}Z-\d+\.json$/.test(name)
+      && !previousNames.includes(name));
+  assert.strictEqual(names.length, 1, 'expected exactly one new Host transaction journal');
+  const name = names[0];
   return {
     name,
     journal: JSON.parse(fs.readFileSync(path.join(hostRoot, name), 'utf8')),
@@ -614,13 +614,14 @@ test('shared projection failure after a Host transaction records rolled_back', (
   try {
     const first = runCodexInstaller(scratch, ['--copy', '--force'], plugin);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const journalsBeforeUpdate = fs.readdirSync(path.join(scratch, '.codex'));
     const failed = runCodexInstaller(scratch, ['--copy', '--update', '--force'], plugin, {
       DHPK_TEST_FAIL_SHARED_PROJECTION: '1',
     });
     assert.notStrictEqual(failed.status, 0, `${failed.stdout}\n${failed.stderr}`);
     assert.match(`${failed.stdout}\n${failed.stderr}`, /shared projection/i);
     assert.deepStrictEqual(activeTransactionJournals(path.join(scratch, '.codex')), []);
-    const latest = latestTransactionJournal(path.join(scratch, '.codex'));
+    const latest = latestTransactionJournal(path.join(scratch, '.codex'), journalsBeforeUpdate);
     assert.ok(latest, 'expected a Host transaction journal after the failed update');
     assert.strictEqual(latest.journal.phase, 'rolled_back');
   } finally {
