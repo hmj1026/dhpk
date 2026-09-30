@@ -358,7 +358,19 @@ test('canonical source has no live delegation to retiring identities', () => {
   for (const relative of roots.flatMap(walkTextFiles)) {
     if (retiringPackageRoots.some((prefix) => relative.startsWith(prefix))) continue;
     if (historicalOnly.has(relative)) continue;
-    const source = read(relative);
+    const source = (() => {
+      const text = read(relative);
+      if (relative !== 'tests/opsx-goal-analyze.test.js') return text;
+      const lines = text.split(/\r?\n/);
+      const beginMarker = '// BEGIN historical source: tests/opsx-apply-goal-guardrails.test.js';
+      const endMarker = '// END historical source: tests/opsx-apply-goal-guardrails.test.js';
+      const beginIndices = lines.flatMap((line, index) => line === beginMarker ? [index] : []);
+      const endIndices = lines.flatMap((line, index) => line === endMarker ? [index] : []);
+      assert.strictEqual(beginIndices.length, 1, 'historical guard block needs exactly one begin marker');
+      assert.strictEqual(endIndices.length, 1, 'historical guard block needs exactly one end marker');
+      assert.ok(beginIndices[0] < endIndices[0], 'historical guard block markers must be ordered');
+      return [...lines.slice(0, beginIndices[0]), ...lines.slice(endIndices[0] + 1)].join('\n');
+    })();
     for (const name of RETIRED_NAMES) {
       if (source.includes(name)) findings.push(`${relative}: ${name}`);
     }
