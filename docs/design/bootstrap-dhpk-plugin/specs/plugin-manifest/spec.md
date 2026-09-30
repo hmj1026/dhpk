@@ -14,7 +14,7 @@ The plugin SHALL live at `plugins/dhpk/.claude-plugin/plugin.json` (NOT the repo
 - **THEN** the command exits 0 with no warnings or errors
 - **AND** the Codex-only `plugins/dhpk/` publication package is checked with
   `node scripts/ci/verify-codex-native-package.js`,
-  `node tests/codex-plugin-manifest.test.js`, and
+  `node tests/codex-native-package-validate.test.js`, and
   `node tests/codex-native-install-smoke.test.js`, not Claude's validator
 
 #### Scenario: Plugin name namespaces components

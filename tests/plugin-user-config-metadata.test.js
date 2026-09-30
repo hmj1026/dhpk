@@ -334,4 +334,199 @@ test('unconfigured Claude consumer probe stays non-pass and supplies resume evid
   assert.doesNotMatch(JSON.stringify(result), /context reduced|session context decreased|runtime PASS/i);
 });
 
+// BEGIN lexical source block: tests/claude-user-config-probe.test.js
+{
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { test, assert } = require('./_lib/tinytest');
+  const { runClaudeUserConfigProbe } = require('../scripts/release/claude-user-config-probe');
+
+  test('configured consumer probe stays non-pass without an exact details binding', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-probe-'));
+    const manifestPath = path.join(dir, 'plugin.json');
+    try {
+      fs.writeFileSync(manifestPath, '{}\n');
+      const result = runClaudeUserConfigProbe({
+        manifestPath,
+        manifestFingerprint: 'a'.repeat(64),
+        version: '2.1.238',
+        execute: true,
+        runner: (command, args) => args[0] === '--version'
+          ? { status: 0, stdout: 'claude 2.1.238' }
+          : { status: 0, stdout: JSON.stringify({ name: 'dhpk' }) },
+      });
+      assert.strictEqual(result.status, 'FAIL');
+      assert.ok(result.resumeCommand);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('probe rejects a stale local manifest even when the consumer reports a forged expected fingerprint', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-stale-'));
+    const manifestPath = path.join(dir, 'plugin.json');
+    try {
+      fs.writeFileSync(manifestPath, '{"name":"legacy"}\n');
+      const result = runClaudeUserConfigProbe({
+        manifestPath,
+        manifestFingerprint: 'b'.repeat(64),
+        version: '2.1.238',
+        execute: true,
+        runner: (command, args) => args[0] === '--version'
+          ? { status: 0, stdout: 'claude 2.1.238' }
+          : { status: 0, stdout: JSON.stringify({ manifestFingerprint: 'b'.repeat(64) }) },
+      });
+      assert.strictEqual(result.status, 'FAIL');
+      assert.match(result.reason, /fingerprint/i);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('probe rejects a prefix-only Claude version and unrelated plugin details', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-version-'));
+    const manifestPath = path.join(dir, 'plugin.json');
+    try {
+      const manifest = { name: 'dhpk' };
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+      const crypto = require('node:crypto');
+      const fingerprint = crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
+      const result = runClaudeUserConfigProbe({
+        manifestPath,
+        manifestFingerprint: fingerprint,
+        version: '2.1.23',
+        execute: true,
+        runner: (command, args) => args[0] === '--version'
+          ? { status: 0, stdout: 'claude 2.1.238' }
+          : { status: 0, stdout: JSON.stringify({ name: 'other-plugin', manifestFingerprint: fingerprint }) },
+      });
+      assert.strictEqual(result.status, 'BLOCKED');
+      assert.match(result.reason, /version/i);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('probe requires dhpk identity before accepting fingerprint details', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-identity-'));
+    const manifestPath = path.join(dir, 'plugin.json');
+    try {
+      const manifest = { name: 'dhpk' };
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+      const crypto = require('node:crypto');
+      const fingerprint = crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
+      const result = runClaudeUserConfigProbe({
+        manifestPath,
+        manifestFingerprint: fingerprint,
+        version: '2.1.238',
+        execute: true,
+        runner: (command, args) => args[0] === '--version'
+          ? { status: 0, stdout: 'claude 2.1.238' }
+          : { status: 0, stdout: JSON.stringify({ name: 'other-plugin', manifestFingerprint: fingerprint }) },
+      });
+      assert.strictEqual(result.status, 'BLOCKED');
+      assert.match(result.reason, /identity/i);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('probe treats a prerelease suffix as a version mismatch', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-prerelease-'));
+    const manifestPath = path.join(dir, 'plugin.json');
+    try {
+      const manifest = { name: 'dhpk' };
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+      const crypto = require('node:crypto');
+      const fingerprint = crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
+      const result = runClaudeUserConfigProbe({
+        manifestPath,
+        manifestFingerprint: fingerprint,
+        version: '2.1.2',
+        runner: () => ({ status: 0, stdout: 'claude 2.1.2-beta' }),
+      });
+      assert.strictEqual(result.status, 'BLOCKED');
+      assert.match(result.reason, /version/i);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('probe rejects conflicting consumer fingerprints', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-user-config-conflict-'));
+    const manifestPath = path.join(dir, 'plugin.json');
+    try {
+      const manifest = { name: 'dhpk' };
+      fs.writeFileSync(manifestPath, `${JSON.stringify(manifest)}\n`);
+      const crypto = require('node:crypto');
+      const fingerprint = crypto.createHash('sha256').update(JSON.stringify(manifest)).digest('hex');
+      const other = 'c'.repeat(64);
+      const result = runClaudeUserConfigProbe({
+        manifestPath,
+        manifestFingerprint: fingerprint,
+        version: '2.1.238',
+        execute: true,
+        runner: (command, args) => args[0] === '--version'
+          ? { status: 0, stdout: 'claude 2.1.238' }
+          : { status: 0, stdout: JSON.stringify({ name: 'dhpk', manifestFingerprint: fingerprint, userConfigFingerprint: other }) },
+      });
+      assert.strictEqual(result.status, 'FAIL');
+      assert.match(result.reason, /conflicting/i);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
+// END lexical source block: tests/claude-user-config-probe.test.js
+
+// BEGIN lexical source block: tests/gen-claude-user-config.test.js
+{
+  const { spawnSync } = require('node:child_process');
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { test, assert } = require('./_lib/tinytest');
+
+  const ROOT = path.join(__dirname, '..');
+
+  test('candidate generator validates the authoritative source without activating it', () => {
+    const manifestPath = path.join(ROOT, '.claude-plugin/plugin.json');
+    const activeBefore = fs.readFileSync(manifestPath);
+    const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts/ci/gen-claude-user-config.js'), '--check'], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const fingerprint = result.stdout.match(/candidate fingerprint ([a-f0-9]{64})/i);
+    assert.ok(fingerprint, `candidate fingerprint must be reported: ${result.stdout}`);
+    assert.deepStrictEqual(fs.readFileSync(manifestPath), activeBefore, '--check must leave the active manifest byte-identical');
+
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-user-config-malformed-source-'));
+    try {
+      for (const relative of [
+        'scripts/lib',
+        'scripts/ci/gen-claude-user-config.js',
+        'scripts/release/claude-user-config-probe.js',
+        'manifests/claude-user-config-metadata.json',
+        '.claude-plugin/plugin.json',
+        'docs/configuration.md',
+      ]) {
+        const source = path.join(ROOT, relative);
+        const destination = path.join(temp, relative);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.cpSync(source, destination, { recursive: true });
+      }
+      const metadataPath = path.join(temp, 'manifests/claude-user-config-metadata.json');
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+      metadata.schema = 'dhpk.invalid-user-config-metadata.v1';
+      fs.writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
+
+      const malformed = spawnSync(process.execPath, [path.join(temp, 'scripts/ci/gen-claude-user-config.js'), '--check'], { encoding: 'utf8' });
+      assert.strictEqual(malformed.status, 1, `${malformed.stdout}\n${malformed.stderr}`);
+      assert.match(`${malformed.stdout}\n${malformed.stderr}`, /metadata source schema must be dhpk\.plugin-user-config-metadata\.v1/);
+    } finally {
+      fs.rmSync(temp, { recursive: true, force: true });
+    }
+  });
+}
+// END lexical source block: tests/gen-claude-user-config.test.js
+
 run('plugin-user-config-metadata');

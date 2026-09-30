@@ -69,7 +69,7 @@ For v0.1.0:
 - **THEN** the command exits 0 and reports no warnings about missing skill directories
 - **AND** the Codex-only `plugins/dhpk/` publication package is validated with
   `node scripts/ci/verify-codex-native-package.js`,
-  `node tests/codex-plugin-manifest.test.js`, and
+  `node tests/codex-native-package-validate.test.js`, and
   `node tests/codex-native-install-smoke.test.js`, not Claude's validator
 
 #### Scenario: adding a new module requires manifest update

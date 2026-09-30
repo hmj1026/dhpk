@@ -371,7 +371,7 @@ via the in-root-relative `./plugins/dhpk/skills/`, the wrapper via
 shapes behind issue #88 (the symlink-dependent `codex/skills/` mirror and the
 parent-relative `../../codex/skills/` wrapper escape); both are enforced by
 `validateNativeCandidate()` and pinned by
-`tests/codex-native-experimental-gate.test.js`, which now asserts the
+`tests/codex-native-package-validate.test.js`, which now asserts the
 opposite of its original RED state: production manifests must PASS
 structural validation, and docs must still say "experimental" (see
 "Experimental status, not automatic graduation" below).
@@ -401,7 +401,7 @@ real CONSUMER PASS are necessary evidence, not sufficient by themselves.
 Native Codex marketplace support remains **experimental** until a later,
 separately approved graduation decision — this document, `README.md`, and
 `.codex-plugin/README.md` continue to say so, and
-`tests/codex-native-experimental-gate.test.js` fails loudly if that labeling
+`tests/codex-native-package-validate.test.js` fails loudly if that labeling
 is silently dropped. The supported Codex delivery path remains
 `scripts/hooks/install-codex-skills.sh`, a separate project-local sync
 contract unaffected by this package (see its own tests in

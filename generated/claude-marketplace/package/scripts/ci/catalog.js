@@ -160,6 +160,15 @@ function retiredCodexMcpErrors(counts, inventory) {
 // feature name rather than a name/name-aspect derived from the script's own
 // basename (so the naming-convention check below can't find them automatically).
 const COVERAGE_MAP = {
+  'scripts/lib/capability-bundle-activation.js': 'capability-bundle-selection.test.js',
+  'scripts/release/claude-profile-probe.js': 'profile-scoped-claude-capability-bundle.test.js',
+  'scripts/ci/gen-claude-profile-bundles.js': 'profile-scoped-claude-capability-bundle.test.js',
+  'scripts/release/claude-user-config-probe.js': 'plugin-user-config-metadata.test.js',
+  'scripts/ci/gen-claude-user-config.js': 'plugin-user-config-metadata.test.js',
+  'scripts/lib/codex-discovery-registry.js': 'check-codex-discovery.test.js',
+  'scripts/lib/codex-native-activation.js': 'codex-native-package-validate.test.js',
+  'scripts/ci/verify-codex-native-package.js': 'codex-native-package-validate.test.js',
+  'scripts/ci/gen-codex-native-package.js': 'codex-native-package-validate.test.js',
   'scripts/fast-worker-selector.js': 'fast-worker-selection.test.js',
   'scripts/ci/validate-skill-directory-coverage.js': 'skill-directory-coverage.test.js',
   'scripts/hooks/_lib/payload.sh': 'subagent-stop-quality.test.js',

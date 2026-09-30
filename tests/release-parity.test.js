@@ -4,7 +4,7 @@
 // version-bearing manifest and the CHANGELOG.md release heading, checked
 // against one target SemVer version. Composes (does not duplicate) the
 // manifest-to-manifest parity already covered by
-// tests/codex-plugin-manifest.test.js — this suite covers the target-version
+// tests/codex-native-package-validate.test.js — this suite covers the target-version
 // dimension and the changelog heading, which that suite does not.
 
 const fs = require('node:fs');
