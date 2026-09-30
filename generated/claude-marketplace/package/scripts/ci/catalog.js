@@ -221,6 +221,14 @@ const COVERAGE_MAP = {
   'scripts/ci/validate-skill-purpose-decisions.js': 'skill-purpose-decisions.test.js',
   'scripts/lib/runner-utils.js': 'utils.test.js',
   'scripts/lib/profile-projection-sets.js': 'catalog-claims.test.js',
+  'scripts/ci/gen-dispatch-projection.js': 'dispatch-engine.test.js',
+  'scripts/dispatch-config-report.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-config.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-contract.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-platform-validation.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-projection.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-scheduler.js': 'dispatch-engine.test.js',
+  'scripts/lib/provider-cli-adapters.js': 'provider-adapter.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);

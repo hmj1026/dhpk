@@ -4400,3 +4400,408 @@ The failed assertion expects the failed update's journal phase rolled_back but r
 The bounded second test-only verification repair snapshots filenames before the failing invocation, filters the subsequent matching journals by that set, requires exactly one new journal, and reads that journal's phase. It preserves nonzero exit, shared-projection diagnostic, no active journals, and rolled_back assertions. It chooses by invocation identity, never by expected phase or mtime. The same disposable helper counterexample passes with the revised actual helper (1/1); the whole owner passes 13/13. No production installer, journal format, timeout hint, registration name or case count changes. Both extra timing/selection owners are reported outside the 16-source family consolidation.
 
 Refreshed GitNexus cannot resolve the helper symbol and reports UNKNOWN for the exact File; absence is not a safety finding. CX confirms its only live caller is this test, and dynamic runner discovery confirms execution. A TDD-guide reviewed the known-cause repair before edits. Raw failed shard and aggregate logs, downloaded timing artifacts, real focused journal trace, diagnosis and executable disposable selector probe are retained under /tmp/dhpk-consolidation/791. The revised tree requires a new cold code/doc Review Gate and fresh full/platform/hosted checks before merge.
+
+### Issue #792 completed family consolidation
+
+Baseline: `2859534328646dc6faa47c025be263493cb24db3`. Fresh c8 10.1.3 reports with Node v26.9.0, `--jobs 4`, capture all affected owners and sources before moving them. The after run uses a clean tracked-source snapshot of the pending tree, so projection provenance checks see a clean checkout.
+
+Focused suites: 18 → 5; collected cases 164 → 163; wall time 8560 → 6314 ms. These are focused measurements, separate from the full-suite and CI evidence.
+
+#### Source dispositions
+
+- F35: `tests/native-dispatch-policy.test.js` collects `tests/native-fallback-contract.test.js`.
+- F36: `tests/dispatch-engine.test.js` collects `tests/dispatch.test.js`, `tests/dispatch-config.test.js`, `tests/dispatch-config-report.test.js`, `tests/dispatch-contract.test.js`, `tests/dispatch-platform-validation.test.js`, `tests/dispatch-projection.test.js`, `tests/dispatch-scheduler.test.js`, `tests/issue-534-p1-dispatch-contract.test.js`, `tests/issue-534-p1-failure-matrix.test.js`, `tests/gen-dispatch-projection.test.js`.
+- F37: `tests/provider-adapter.test.js` collects `tests/provider-cli-adapters.test.js`.
+- F62: `tests/cli-role-resolver.test.js` collects `tests/cli-dispatch-context.test.js`.
+
+The detailed KEEP, REWRITE, and DELETE decisions and controlled mutation evidence follow. Source test names are retained except the explicitly documented deletions. No production public behavior is changed.
+
+##### WRITER A: Issue #792 Writer A — F35 and F62
+
+##### WRITER A: Task identity and boundary
+
+- Task: issue #792 test consolidation, Writer A, F35 `native-dispatch` and F62 `cli-dispatch`.
+- Attempt: parent-issued implementation GO after the fresh baseline and graph handoff.
+- Repository: `/tmp/dhpk-test-consolidation-worktree`.
+- Branch/base: `feature/issue-792-test-consolidation`, `2859534328646dc6faa47c025be263493cb24db3` (tree `6151a3e8a07939dfa8fe9b434466125b2adab353`).
+- Fresh graph evidence: `/tmp/dhpk-consolidation/792/graph-ready.json` and `fresh-reasoner.md`; both state `READY_FOR_DISPATCH`, preserve `resolveTarget` HIGH20 and `resolveDispatchPlan` LOW12, and leave graph UNKNOWNs unresolved. No production symbol was changed.
+- Owned repository paths: `tests/native-dispatch-policy.test.js`, `tests/native-fallback-contract.test.js`, `tests/cli-role-resolver.test.js`, `tests/cli-dispatch-context.test.js`.
+- No production, policy/documentation, catalog, generated, or Git index/history files were changed. The original checkout `/home/paul/projects/dhpk` was not used for implementation.
+
+The four assigned paths were clean before work. The shared issue branch also contains sibling F36/F37 changes; they remain outside Writer A's scope and were left untouched.
+
+##### WRITER A: Source suite outcomes
+
+| Source suite | Outcome | Case decisions |
+| --- | --- | --- |
+| `native-fallback-contract` | Source file deleted after merge | KEEP 2 behavior tests; REWRITE 3 documentation tests; DELETE 0 tests |
+| `cli-dispatch-context` | Source file deleted after merge | KEEP 9 tests; REWRITE the context digest test; DELETE 0 tests. Removed only the existence-only assertion from the retained package-local child-process test. |
+
+All original owner and source test names remain registered. F35 owner has 15 tests; F62 owner has 19 tests.
+
+##### WRITER A: F35 complete case inventory
+
+Existing `native-dispatch-policy` owner cases (KEEP):
+
+1. `all delegated roles share the native-only default dispatch plan`
+2. `explicit targets remain directional while automatic cross-provider expansion stays opt-in`
+3. `unknown roles fail closed before a dispatch plan can be created`
+4. `delegated role definitions point to the shared native dispatch policy`
+5. `fallback decisions are native-first, role-preserving, and opt-in for other providers`
+6. `cross-provider fallback remembers unavailable targets and never loops or resets the budget`
+7. `failure classes that are not availability failures stop without provider switching`
+8. `quota fallback requires cross-provider opt-in and avoids the affected pool`
+9. `the fallback contract exposes the six canonical failure classes`
+10. `v2 requests use Host profile and Provider-scoped target resolution through the policy seam`
+
+Moved `native-fallback-contract` cases (names unchanged):
+
+11. `shared fallback contract is table-driven across all failure classes` — KEEP.
+12. `shared fallback contract preserves every delegated role and handoff scope` — KEEP.
+13. `canonical policy documents all failure classes and state invariants` — REWRITE. Its independent oracle is the six literal class/action/evidence rows in the actual `### Failure classification and fallback chain` table; it also checks the bounded implementation-dispatch section and literal retry/handoff invariants. It no longer derives classes from `FAILURE_CLASSES` or searches the entire documents broadly.
+14. `delegated role documents inherit fallback policy without changing contracts` — REWRITE. It checks the actual fallback sections, literal six-class evidence vocabulary, and role-specific action wording; CLI role checks are also section-bounded.
+15. `transport contract classifies failures but cannot select a provider` — REWRITE. It checks the actual dispatcher-attestation paragraph for the six literal class names, transport-only evidence and unchanged provider identity, plus the output section's no-silent-switch rule.
+
+##### WRITER A: F62 complete case inventory
+
+Existing `cli-role-resolver` owner cases (KEEP):
+
+1. `canonical provider role IDs resolve to their fixed mode and immutable role contract`
+2. `legacy aliases resolve at the boundary and codex-bridge is explicitly mode-qualified`
+3. `unknown, missing, and contradictory role or mode inputs fail closed`
+4. `a provider cannot resolve a role that belongs to a different dispatch identity`
+5. `legacy alias deprecation diagnostic is bounded to exactly once per session`
+6. `provider-neutral roles resolve authority independently from an optional Provider constraint`
+7. `legacy aliases expose canonical Role and compatibility Provider metadata`
+8. `canonical config wins over a legacy key and only declared aliases are considered`
+9. `codex-reviewer remains shared-runner-only until the native read-only capability is present`
+
+Moved `cli-dispatch-context` cases (names unchanged):
+
+10. `Codex alias context keeps requested identity, uses canonical configuration, and emits one session diagnostic` — REWRITE. The digest expectation is independent `crypto.createHash('sha256')` over the serialized payload captured by the trusted writer.
+11. `attested failure classification is optional, canonical, and carried to transport` — KEEP.
+12. `cross-provider identity is BLOCKED without a write` — KEEP.
+13. `dispatching agent identity is independent from the execution provider that binds the role` — KEEP.
+14. `legacy provider input cannot substitute for explicit dispatch and execution identities` — KEEP.
+15. `malformed prompt evidence is BLOCKED before a writer is called` — KEEP.
+16. `legacy report preserves only bounded selector metadata and cannot inject authority or paths` — KEEP.
+17. `AGY worker context binds the AGY print and confirmation transports` — KEEP.
+18. `AGY without an explicit resolved model is BLOCKED before the trusted writer` — KEEP.
+19. `projected builder loads the resolver from its package-local source` — KEEP. Removed only `fs.existsSync(sourceResolver)`; copying and executing the package-local builder/resolver in a child process still proves the behavior.
+
+Source imports/helpers/tests are enclosed in named lexical blocks in both owners. Each owner has one final `run()` call; the source `run()` calls were omitted. The removed assertion's surviving behavior owner is the child-process copy/load/output path inside `projected builder loads the resolver from its package-local source`.
+
+##### WRITER A: Controlled mutation log
+
+Each proof used an isolated disposable fixture under `/tmp/dhpk-consolidation/792/writer-a-mutation-proofs-qX1EP9/`. F35 fixtures copied the owner test, its production dependencies, and the actual documents under test (including the full `scripts/` dependency tree). F62 copied the owner test, package-local resolver/builder, and production resolver. Only the fixture copy was mutated; canonical production and documentation files were not temporarily changed.
+
+The exact named test was selected by a `Module._load` wrapper around `./_lib/tinytest` that registered only the requested original test name. This was not a `DHPK_ONLY_TEST_NAME` filter. Each output therefore reports the owner suite's exact named case as `1/1`.
+
+1. **F35 policy table** — disposable `rules/execution-policy.md` row changed from `TASK_OR_SEMANTIC_FAILURE … Return to the existing repair and acceptance path.` to `TASK_OR_SEMANTIC_FAILURE … Return to the existing authorization path.`
+   - RED: `canonical policy documents all failure classes and state invariants`, exit 1, `native-dispatch-policy: 0/1 passed`; the six-row expected/actual diff identified the changed action row.
+   - Restored GREEN: same named test, exit 0, `native-dispatch-policy: 1/1 passed`.
+
+2. **F35 role action** — disposable `agents/fast-worker.md` changed `task/semantic failure stays on repair` to `task/semantic failure stays on authorization`.
+   - RED: `delegated role documents inherit fallback policy without changing contracts`, exit 1, `native-dispatch-policy: 0/1 passed`; assertion reported `fast-worker missing TASK_OR_SEMANTIC_FAILURE action`.
+   - Restored GREEN: same named test, exit 0, `native-dispatch-policy: 1/1 passed`.
+
+3. **F35 transport action** — disposable `skills/dhpk-cli-transport/SKILL.md` changed `evidence, not a switching instruction` to `evidence and a switching instruction` in the dispatcher-attested classification paragraph.
+   - RED: `transport contract classifies failures but cannot select a provider`, exit 1, `native-dispatch-policy: 0/1 passed`; the classification statement assertion failed.
+   - Restored GREEN: same named test, exit 0, `native-dispatch-policy: 1/1 passed`.
+
+4. **F62 serialized-context SHA-256** — disposable `skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js` changed `crypto.createHash('sha256').update(payload).digest('hex')` to `'0'.repeat(64)`.
+   - RED: `Codex alias context keeps requested identity, uses canonical configuration, and emits one session diagnostic`, exit 1, `canonical-cli-role-vocabulary: 0/1 passed`; actual digest was 64 zeroes and independently expected digest was `97225f0ff8cede54900a9bc32ee16d5935cd4b1d3916164e0e55b2b584cf46bc` from the captured writer payload.
+   - Restored GREEN: same named test, exit 0, `canonical-cli-role-vocabulary: 1/1 passed`.
+
+The first disposable F35 setup copied only directly named modules and failed before test registration because `native-dispatch-policy.js` requires `./dispatch-engine`. That was a fixture setup error, not RED evidence. The final proofs copied the full `scripts/` tree and all four final proofs produced the RED/GREEN results above. The first F62 run also produced the correct RED and GREEN, but the temporary log validator looked only at stdout while tinytest writes failures to stderr. The final run checked both streams and recorded the intended assertion failure.
+
+##### WRITER A: Scoped verification
+
+- `node tests/native-dispatch-policy.test.js` — PASS, 15/15.
+- `node tests/cli-role-resolver.test.js` — PASS, 19/19.
+- `node --check tests/native-dispatch-policy.test.js && node --check tests/cli-role-resolver.test.js` — PASS (exit 0).
+- `git diff --check -- tests/native-dispatch-policy.test.js tests/native-fallback-contract.test.js tests/cli-role-resolver.test.js tests/cli-dispatch-context.test.js` — PASS (exit 0).
+- Name inventory was checked with `rg -n "^\\s*test\\("` on both owner files; runner output confirms the expected 15 and 19 cases.
+
+##### WRITER A: NOT RUN — parent-owned shared acceptance gates
+
+- Before/after per-file timing with `DHPK_TEST_TIMING_FILE`, focused c8 line/branch coverage for every affected production file, `node scripts/ci/catalog.js --check all`, and generated package checks were not run by Writer A. Parent owns these cross-family gates; this worker changed no catalog/generated paths.
+- Resume timing after all writers settle by running the repository's four test-runner shards with fresh timing files (the runner has shard selection but no file-list option):
+
+  ```sh
+  TIMING_ROOT="$(mktemp -d)"
+  for s in 0 1 2 3; do
+
+```sh
+DHPK_TEST_JOBS=4 DHPK_TEST_SOURCE_COMMIT="$(git rev-parse HEAD)" \
+DHPK_TEST_TIMING_FILE="$TIMING_ROOT/timing-shard-$s.json" \
+node tests/run-all.js --shard-index "$s" --shard-count 4
+```
+
+  done
+  ```
+
+- Resume focused aggregate coverage after all writers settle with fresh directories:
+
+  ```sh
+  V8_DIR="$(mktemp -d)" REPORT_DIR="$(mktemp -d)"
+  DHPK_TEST_JOBS=4 npx --yes c8@10.1.3 \
+
+```sh
+--temp-directory "$V8_DIR" --report-dir "$REPORT_DIR" \
+--reporter=json-summary node tests/run-all.js
+```
+
+  ```
+
+- Parent's remaining shared commands: `node scripts/ci/catalog.js --check all` and the issue #792 generated-package checks.
+
+##### WRITER B: Issue 792 — Writer B F36 evidence
+
+##### WRITER B: Task identity and scope
+
+- Task: issue #792, packet B / F36 `dispatch`.
+- Worker: `/root/issue790_writer_a` (reassigned for this packet).
+- Attempt ID: not supplied in the parent handoff.
+- Repository/worktree: `/tmp/dhpk-test-consolidation-worktree`.
+- Branch/base: `feature/issue-792-test-consolidation` at `2859534328646dc6faa47c025be263493cb24db3` before edits.
+- Parent-provided fresh graph packet: `/tmp/dhpk-consolidation/792/graph-ready.json`; parent-provided reasoner: `/tmp/dhpk-consolidation/792/reasoner.md`.
+- Exact owned paths: `tests/dispatch-engine.test.js`, plus `tests/dispatch.test.js`, `tests/dispatch-config.test.js`, `tests/dispatch-config-report.test.js`, `tests/dispatch-contract.test.js`, `tests/dispatch-platform-validation.test.js`, `tests/dispatch-projection.test.js`, `tests/dispatch-scheduler.test.js`, `tests/issue-534-p1-dispatch-contract.test.js`, `tests/issue-534-p1-failure-matrix.test.js`, and `tests/gen-dispatch-projection.test.js`.
+
+No repository file outside these eleven paths was edited by this worker. The worktree also contains sibling writers' assigned F35/F37/F62 test changes; those were preserved and not modified here. No production source, catalog, docs, generated output, Git metadata, runner, or timeout hint was edited. The owner is 1,608 lines after the additional coverage repair; the F36 oversize exception was authorized by the reasoner/parent packet.
+
+##### WRITER B: Consolidation and dispositions
+
+The existing owner had 16 registrations and the ten sources had 58, for 74 before. The merged owner has 73 registrations: one documented deletion, no additions, exact test-name order/multiplicity otherwise preserved. Each source is a named braced lexical block with its own imports/helpers and local tinytest `test`/`assert` binding. Source `run()` calls were removed; the owner has exactly one final `run('dispatch-engine')`.
+
+| Source suite | Cases | Disposition |
+| --- | ---: | --- |
+| `dispatch` | 4 | 4 KEEP |
+| `dispatch-config` | 8 | 7 KEEP, 1 REWRITE |
+| `dispatch-config-report` | 2 | 2 KEEP |
+| `dispatch-contract` | 13 | 11 KEEP, 2 REWRITE |
+| `dispatch-platform-validation` | 4 | 3 KEEP, 1 REWRITE |
+| `dispatch-projection` | 4 | 3 KEEP, 1 REWRITE |
+| `dispatch-scheduler` | 8 | 8 KEEP |
+| `issue-534-p1-dispatch-contract` | 7 | 4 KEEP, 2 REWRITE, 1 DELETE |
+| `issue-534-p1-failure-matrix` | 5 | 5 KEEP |
+| `gen-dispatch-projection` | 3 | 2 KEEP, 1 REWRITE |
+
+The two `dispatch-contract` rewrites retain their original names and assert behavior:
+
+- `canonical contract exposes bounded role, authority, effort, and transport vocabularies` rejects the independent invalid request effort literal `warp` at `createDispatchRequest`.
+- `capability statuses are explicit and static catalog data cannot become runtime proof` rejects the invalid Host access status literal `MAYBE` at `createHostProfile`.
+
+The other five original rewrites also retain their names:
+
+- `platform evidence separates catalog support, Host access, and runtime probe status` pins `dhpk.dispatch.platform-validation.v1` as a literal and checks `SUPPORTED`/`NOT_RUN` evidence.
+- `projection parity keeps the same dispatch contract across every configured surface` uses an independent literal list of `agent-plugin`, `agy-plugin`, `claude-core`, `codex-native`, `codex-sync`, `cursor-plugin`, and `cursor-sync`, then checks rejection of `not-configured`.
+- `v2 catalog is a flat Host/Target-Agent/Provider/Model/Route matrix` adds a route referencing an unlisted model and expects the specific missing-model rejection.
+- `Host Profiles expose defaults separately from static catalog support` retains valid default/profile checks, independently observes static Cursor/OpenAI catalog support alongside `NOT_RUN` Host access, and rejects a non-native `headless-cli` Host/Role default.
+- `dispatch projection generator writes a validated bounded artifact` checks the cursor artifact fingerprint against an independent SHA-256 of the serialized payload with `fingerprint` excluded; it also retains the bounded-artifact shape check.
+
+The additional eighth rewrite is the retained `invalid canonical values block only the invalid field and retain orchestration kill switch semantics` case: it now asserts the exact `BLOCKED` diagnostic for `orchestration_dispatch: maybe` and confirms its source remains `project.orchestration_dispatch`. Its exact-case disposable mutation accepts `maybe` as `on`; the test fails on the missing diagnostic, then passes after restoring the guard.
+
+The only deletion is `static catalog support cannot be reported as runtime availability`. Its full contract is owned by the retained `platform evidence separates catalog support, Host access, and runtime probe status` test, which asserts `catalog_support: SUPPORTED`, `host_access: NOT_RUN`, and `runtime: NOT_RUN` on the actual platform-evidence result.
+
+##### WRITER B: Verification
+
+- `node --check tests/dispatch-engine.test.js` — PASS.
+- `node tests/dispatch-engine.test.js` — PASS, 73/73 after the additional assertions; registrations unchanged.
+- `DHPK_TEST_NAME_FILTER='invalid canonical values block only the invalid field and retain orchestration kill switch semantics' node tests/dispatch-engine.test.js` in the disposable sandbox — PASS, 1/1 after restoring the guard.
+- Baseline/current static registration comparison using `git show HEAD:<path>` and test-registration parsing — PASS: 74 before, 73 after, exactly the single documented name removed, no additions or missing names, order/multiplicity preserved, one final owner run, and ten lexical block imports.
+- `git diff --check -- <11 assigned paths>` — PASS.
+- `git diff --exit-code -- scripts/lib/dispatch-contract.js scripts/lib/dispatch-platform-validation.js scripts/lib/dispatch-projection.js scripts/ci/gen-dispatch-projection.js` — PASS; canonical production sources are unchanged in the assigned worktree.
+- Owner line count: 1,608; no `TIMEOUT_HINTS` entry was added.
+
+##### WRITER B: Controlled mutation evidence
+
+All eight RED/GREEN pairs used a disposable copy at `/tmp/dhpk-consolidation/792/writer-b-mutation-iPaSzT`. Only that copy's production source files were mutated. The copied `tests/_lib/tinytest.js` temporarily implemented a real exact-name registration filter keyed by `DHPK_TEST_NAME_FILTER`; this filter does not exist in the repository. Exact invocation shape was `DHPK_TEST_NAME_FILTER='<exact registered test name>' node tests/dispatch-engine.test.js`. Every target returned 0/1 under mutation and 1/1 after restoring the copied production source; each restored file checksum matched its original copy.
+
+| # | Disposable mutation | Exact RED test | RED observation | Restored GREEN |
+| ---: | --- | --- | --- | --- |
+| 1 | Replace the `createDispatchRequest` effort `oneOf` guard with direct `request.effort` acceptance. | `canonical contract exposes bounded role, authority, effort, and transport vocabularies` | `Missing expected exception.` | 1/1 |
+| 2 | Remove `createHostProfile`'s access-status vocabulary guard. | `capability statuses are explicit and static catalog data cannot become runtime proof` | `Missing expected exception.` | 1/1 |
+| 3 | Change the platform schema constant from `.v1` to `.v2`. | `platform evidence separates catalog support, Host access, and runtime probe status` | Literal schema mismatch (`.v2` vs `.v1`). | 1/1 |
+| 4 | Remove `codex-sync` from the dispatch projection `SURFACES` constant. | `projection parity keeps the same dispatch contract across every configured surface` | Builder rejected the missing configured surface, `unsupported dispatch projection surface: codex-sync`. | 1/1 |
+| 5 | Remove the catalog route-to-model membership guard. | `v2 catalog is a flat Host/Target-Agent/Provider/Model/Route matrix` | Assertion rejected the later `Cannot read properties of undefined (reading 'display_name')` error because it was not the required missing-model rejection. | 1/1 |
+| 6 | Remove the Host/Role default native-route guard. | `Host Profiles expose defaults separately from static catalog support` | `Missing expected exception.` | 1/1 |
+| 7 | Replace the projection SHA-256 digest with 64 zeroes. | `dispatch projection generator writes a validated bounded artifact` | Fingerprint `000…000` differed from the independently recomputed cursor payload digest. | 1/1 |
+| 8 | Accept `orchestration_dispatch: maybe` and resolve it to `on`, preserving valid `off` behavior. | `invalid canonical values block only the invalid field and retain orchestration kill switch semantics` | Exact diagnostic mismatch: actual `[]`; expected `BLOCKED` diagnostic for `orchestration_dispatch`. | 1/1 |
+
+Prior seven RED/GREEN outputs and recipes: `/tmp/dhpk-consolidation/792/mutation-b.log`. Additional exact output and recipe: `/tmp/dhpk-consolidation/792/mutation-b-orchestration.log`.
+
+##### WRITER B: Graph and shared gates
+
+The parent-provided fresh read-only reasoner audit reported `resolveTarget` as HIGH with a 20-callable lower bound and seven direct callers; it also reported the earlier unqualified `resolveDispatchPlan` CRITICAL 719 projected-copy candidate as ambiguous historical graph evidence. The canonical exact-UID `resolveDispatchPlan` result was LOW/12, and test-file/catalog graph results were UNKNOWN/0. UNKNOWN remains unresolved. The reasoner text-confirmed dynamic `tests/run-all.js` discovery and catalog mapping. No HIGH/CRITICAL result was downgraded or waived; the authorized scope was test-only.
+
+The parent-provided fresh clean baseline was 18 files / 164 cases PASS at `28595343…`; this worker did not rerun that baseline. Parent-owned shared gates are **NOT RUN by this worker**, pending completion of F35/F37/F62 and shared reconciliation:
+
+- Combined fresh timing and c8 before/after comparison for all issue batches — NOT RUN here; resume after all four owner suites are stable using the parent orchestration's fresh before/after runner command.
+- `node scripts/ci/catalog.js --check all` and F36 `COVERAGE_MAP` reconciliation for the seven paths in issue #792 — NOT RUN here; parent-owned.
+- Documentation ledger update, generated package regeneration/checks, static/change review, and `node .gitnexus/run.cjs detect-changes --scope all --repo .` — NOT RUN here; parent-owned.
+
+##### WRITER C: Issue 792 F37 — Writer C
+
+##### WRITER C: Scope and base
+
+- Worktree: `/tmp/dhpk-test-consolidation-worktree`
+- Branch and base: `feature/issue-792-test-consolidation` at `2859534328646dc6faa47c025be263493cb24db3`
+- Owned repository files:
+  - `tests/provider-adapter.test.js` — added the five provider CLI adapter cases in `registerProviderCliAdapterTests()`.
+  - `tests/provider-cli-adapters.test.js` — deleted after moving its cases into the owner suite.
+- No canonical production file, catalog, documentation, or generated file was changed.
+
+The parent supplied the fresh #792 GO evidence, including the `18/164 PASS` baseline and retained `HIGH 20` lower-bound warning for canonical `resolveTarget`. This work changed only tests. The isolated worktree was on the approved base before edits.
+
+##### WRITER C: F37 disposition
+
+All 12 names from `before-names.jsonl` remain unchanged: 7 owner cases plus 5 source cases. A parity check reported `beforeCount: 12`, `afterCount: 12`, `namesPreserved: true`, no missing/added names, and one final outer `run()` call.
+
+- Keep: Codex CLI argv, Claude Code/Cursor native adapters, and differing-Agent native Host route cases.
+- Rewrite: `AGY adapter uses its own confirmation transport and never emits Codex output placeholders` now asserts the complete literal invocation, including the `accept-edits` mode, `/workspace`, `Gemini 3.8 Flash (High)`, `300s`, and `{prompt}`.
+- Rewrite: `CLI adapter callback receives only its resolved target and invocation` now asserts the complete canonical target, normalized request, and Codex invocation, then proves an Anthropic target is blocked with a null resolved target and no callback invocation.
+
+The two rewritten expectations are literals or built from the raw request fixture with the explicitly expected normalized Host defaults. Neither expected value calls the production normalizer or argv builder.
+
+##### WRITER C: Scoped verification
+
+- Pre-edit owner suite: `node tests/provider-adapter.test.js` → **7/7 PASS**.
+- Pre-edit source suite: `node tests/provider-cli-adapters.test.js` → **5/5 PASS**.
+- Final owner run: `node tests/run-all.js tests/provider-adapter.test.js` → **1/1 file, 12/12 tests PASS**.
+- `git diff --check` → **PASS**.
+- `git diff --name-only -- scripts/lib/provider-adapter.js scripts/lib/provider-cli-adapters.js` → empty; production files were unchanged.
+- Worktree remained on base `2859534328646dc6faa47c025be263493cb24db3`. The final shared status also showed other in-progress F35/F36/F62 test edits/deletions; they were preserved and are outside this writer's scope.
+
+##### WRITER C: Disposable mutation proofs
+
+Each proof used a separate disposable copy under `/tmp/dhpk-consolidation/792/mutations/`, containing the merged owner test, `tinytest`, the relevant production adapters, `dispatch-contract.js`, and the provider model catalog. `tinytest` has no named-test filter, so each command ran the complete owner suite and counted the exact failing test name.
+
+##### WRITER C: AGY argv
+
+Recipe:
+
+1. Copy the relevant files into `mutations/f37-agy-argv`.
+2. Run `node tests/provider-adapter.test.js` → **12/12 PASS**.
+3. In the disposable `scripts/lib/provider-cli-adapters.js` only, replace the single literal `--mode', 'accept-edits'` with `--mode', 'accept-plan'`.
+4. Run `node tests/provider-adapter.test.js` → exit 1; only `AGY adapter uses its own confirmation transport and never emits Codex output placeholders` fails, summary **11/12**.
+5. Restore `scripts/lib/provider-cli-adapters.js` from its `.pristine` copy. Its SHA-256 returns to `b614588f56e2681c4d761b36f2657f253fbe8e2244ac3a0109efbf8582cc1f9b`.
+6. Run `node tests/provider-adapter.test.js` → **12/12 PASS**.
+
+Logs: `writer-c-agy-argv-baseline.log`, `writer-c-agy-argv-red.log`, and `writer-c-agy-argv-restored.log`.
+
+##### WRITER C: Callback normalized request
+
+Recipe:
+
+1. Copy the relevant files into `mutations/f37-callback-request`.
+2. Run `node tests/provider-adapter.test.js` → **12/12 PASS**.
+3. In the disposable `scripts/lib/provider-adapter.js` only, replace `execute(normalizedTarget, normalizedRequest)` with `execute(normalizedTarget, request)`.
+4. Run `node tests/provider-adapter.test.js` → exit 1; only `CLI adapter callback receives only its resolved target and invocation` fails, summary **11/12**.
+5. Restore `scripts/lib/provider-adapter.js` from its `.pristine` copy. Its SHA-256 returns to `597ac2649f9c837500e8e27e60ca39431bb019317a6c575d865ceaf41ab2615a`.
+6. Run `node tests/provider-adapter.test.js` → **12/12 PASS**.
+
+Logs: `writer-c-callback-request-baseline.log`, `writer-c-callback-request-red.log`, and `writer-c-callback-request-restored.log`.
+
+##### WRITER C: Graph and discovery notes
+
+Branch-specific CLI impact queries for both test files returned file-node `risk: UNKNOWN`, zero resolved callers, and no process/module membership. I confirmed the zero was not treated as an all-clear: `tests/run-all.js` discovers `*.test.js` files recursively, and `scripts/ci/catalog.js` scans top-level `*.test.js` files for coverage ownership. The source test deletion is safe only with the parent-owned `COVERAGE_MAP` repoint to `provider-adapter.test.js`.
+
+The registered MCP query against `dhpk` reported its shared index one commit behind. The CLI impact commands run with `--repo .` from the approved isolated worktree and returned the branch-specific file reports without a staleness field. No reindex was performed; graph refresh/checkpoint decisions remain with the parent.
+
+##### WRITER C: Not run — parent-owned shared gates
+
+- **NOT RUN:** `node scripts/ci/catalog.js --check all` — parent must first repoint `scripts/lib/provider-cli-adapters.js` in `COVERAGE_MAP` to `provider-adapter.test.js`. Resume with that command after the catalog update.
+- **NOT RUN:** full suite, timing, before/after C8 coverage, generated package checks, and post-change graph analysis — these are shared #792 gates owned by the parent after all family writers finish. Resume with the parent gate sequence; available commands include `node tests/run-all.js`, `node scripts/ci/catalog.js --check all`, and `node .gitnexus/run.cjs detect-changes --scope all --repo .`.
+- Review and release decisions remain with the parent flow.
+
+#### Registration reconciliation
+
+Removed registration names:
+
+- `static catalog support cannot be reported as runtime availability`
+
+Added registration names:
+
+- None.
+
+#### Per-file focused timing
+
+| File | Before ms | After ms |
+| --- | --- | --- |
+| `tests/native-dispatch-policy.test.js` | 115 | 71 |
+| `tests/native-fallback-contract.test.js` | 118 | merged |
+| `tests/dispatch-engine.test.js` | 125 | 361 |
+| `tests/dispatch.test.js` | 72 | merged |
+| `tests/dispatch-config.test.js` | 79 | merged |
+| `tests/dispatch-config-report.test.js` | 69 | merged |
+| `tests/dispatch-contract.test.js` | 144 | merged |
+| `tests/dispatch-platform-validation.test.js` | 84 | merged |
+| `tests/dispatch-projection.test.js` | 70 | merged |
+| `tests/dispatch-scheduler.test.js` | 299 | merged |
+| `tests/issue-534-p1-dispatch-contract.test.js` | 135 | merged |
+| `tests/issue-534-p1-failure-matrix.test.js` | 191 | merged |
+| `tests/gen-dispatch-projection.test.js` | 435 | merged |
+| `tests/provider-adapter.test.js` | 144 | 73 |
+| `tests/provider-cli-adapters.test.js` | 71 | merged |
+| `tests/cli-role-resolver.test.js` | 88 | 115 |
+| `tests/cli-dispatch-context.test.js` | 270 | merged |
+| `tests/catalog-claims.test.js` | 8320 | 6258 |
+
+All collected owners remain below the default 180 s budget. No `TIMEOUT_HINTS` entry is added.
+
+#### Canonical production coverage
+
+Covered/total counts below are raw fresh-report values. Branch range coordinates are independently compared; a raw drop is never described as raw non-decrease PASS.
+
+| Production file | Before lines | After lines | Before branches | After branches |
+| --- | --- | --- | --- | --- |
+| `scripts/ci/_lib/frontmatter.js` | 37/129 | 37/129 | 1/1 | 1/1 |
+| `scripts/ci/catalog.js` | 350/484 | 358/492 | 24/51 | 24/51 |
+| `scripts/ci/gen-dispatch-projection.js` | 27/30 | 27/30 | 13/14 | 13/14 |
+| `scripts/cli-role-resolver.js` | 3/3 | 3/3 | 1/1 | 1/1 |
+| `scripts/dispatch-config-report.js` | 44/44 | 44/44 | 13/17 | 13/17 |
+| `scripts/lib/agy-path-contract.js` | 29/97 | 29/97 | 1/1 | 1/1 |
+| `scripts/lib/asset-inventory.js` | 189/201 | 189/201 | 39/52 | 39/52 |
+| `scripts/lib/bounded-child-process.js` | 36/50 | 36/50 | 2/8 | 2/8 |
+| `scripts/lib/bounded-filesystem.js` | 129/169 | 129/169 | 18/40 | 18/40 |
+| `scripts/lib/capability-bundle-selection.js` | 411/849 | 411/849 | 92/193 | 92/193 |
+| `scripts/lib/dispatch-config.js` | 214/224 | 214/224 | 77/143 | 81/144 |
+| `scripts/lib/dispatch-contract.js` | 760/809 | 760/809 | 265/359 | 271/363 |
+| `scripts/lib/dispatch-engine.js` | 406/478 | 406/478 | 117/211 | 114/208 |
+| `scripts/lib/dispatch-platform-validation.js` | 75/75 | 75/75 | 30/38 | 30/38 |
+| `scripts/lib/dispatch-projection.js` | 111/118 | 111/118 | 19/31 | 25/36 |
+| `scripts/lib/dispatch-scheduler.js` | 134/159 | 134/159 | 58/66 | 57/65 |
+| `scripts/lib/dispatch.js` | 47/50 | 47/50 | 12/15 | 12/15 |
+| `scripts/lib/distribution-compiler.js` | 59/494 | 59/494 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory-regeneration.js` | 13/40 | 13/40 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory.js` | 462/2518 | 462/2518 | 17/32 | 17/32 |
+| `scripts/lib/distribution-projection-contract.js` | 100/585 | 100/585 | 10/11 | 10/11 |
+| `scripts/lib/harness-surfaces.js` | 25/25 | 25/25 | 1/1 | 1/1 |
+| `scripts/lib/internal-runtime-skills.js` | 21/77 | 21/77 | 1/1 | 1/1 |
+| `scripts/lib/native-dispatch-policy.js` | 229/245 | 229/245 | 76/89 | 75/88 |
+| `scripts/lib/profile-projection-sets.js` | 75/118 | 75/118 | 11/14 | 11/14 |
+| `scripts/lib/project-agent-host-binding-policy.js` | 35/240 | 35/240 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-projection-plan.js` | 63/647 | 63/647 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-provider-adapters.js` | 102/483 | 102/483 | 1/1 | 1/1 |
+| `scripts/lib/provider-adapter.js` | 141/147 | 141/147 | 42/50 | 40/48 |
+| `scripts/lib/provider-cli-adapters.js` | 85/87 | 85/87 | 24/43 | 24/43 |
+| `scripts/lib/skill-routing-projection.js` | 45/201 | 45/201 | 1/1 | 1/1 |
+| `scripts/lib/skill-topology.js` | 26/281 | 26/281 | 1/1 | 1/1 |
+| `scripts/lib/skill-usage.js` | 175/940 | 175/940 | 1/1 | 1/1 |
+| `skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js` | 213/223 | 213/223 | 100/126 | 100/126 |
+| `skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js` | 171/172 | 171/172 | 59/70 | 58/69 |
+
+Common branch arms: 1630; covered 1095 → 1101. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+
+Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/792/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
+
+#### Root reconciliation and acceptance disposition
+
+The 78 source cases are reconciled as 63 KEEP, 14 REWRITE, and one DELETE. F35 has 15 cases, F36 changes 74 to 73, F37 has 12, and F62 has 19; the focused run includes the Catalog owner and changes 18 files / 164 cases to five files / 163 cases. The F36 owner is 1,608 lines under its explicitly approved size exception. Fourteen actual disposable named-test mutation pairs are retained, including the additional invalid-orchestration rejection proof. No canonical production mutation was made. Initial fixture/parser preparation errors are retained but are not counted as valid RED evidence. The removed F62 existence assertion retains its executable projected-builder load/output contract.
+
+The first after measurement exposed an uncovered invalid-orchestration rejection arm. That attempt is retained under `after-first-attempt/`; the existing owner test now independently checks the exact BLOCKED diagnostic and source, and its disposable guard mutation fails that named test before restoration. The fresh rerun has 1,630 shared branch coordinates, 1,095 to 1,101 covered, zero lost covered coordinates, and no unresolved comparison.
+
+Five raw branch-count drops remain in dispatch-engine, dispatch-scheduler, native-dispatch-policy, provider-adapter, and cli-role-resolver. Their production blobs are identical; every removed range was covered, there are no added uncovered ranges, and no common covered coordinate is lost. Literal raw numeric non-decrease is NOT PASS. The owner accepts these unrelated V8 range-shape differences under the ticket's coverage allowance, subject to cold review of the raw reports and coordinate comparison. The only changed production blob is the bounded Catalog data mapping.
+
+Fresh exact-UID graph analysis retains the HIGH resolveTarget result (20 reachable entries; seven direct callers) and LOW resolveDispatchPlan result (12). Test/Catalog File UNKNOWN results and ambiguous/truncated name/file attempts remain unresolved graph evidence. Dynamic runner/Catalog discovery is corroborated independently. The read-only reasoner authorized only the bounded behavior-preserving test work; no HIGH warning was waived. Full-suite and hosted CI results remain pending at this review checkpoint.
