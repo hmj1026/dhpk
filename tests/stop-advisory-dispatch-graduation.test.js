@@ -167,4 +167,311 @@ test('high count/confidence entry never drafts under openspec/changes/', () => {
   }
 });
 
+
+// Begin merged tests from tests/stop-advisory-dispatch-completion-evidence.test.js.
+{
+// Regression: stop-advisory-dispatch.sh (completion-evidence advisory) must count UNTRACKED new files when
+// deciding whether a completion claim has test evidence. Before the fix it read
+// only `git diff --name-only HEAD` (tracked/staged), so a brand-new untracked
+// test file (the TDD add-a-spec case) was invisible and the hook falsely warned
+// "N code file(s) changed with no test changes".
+//
+// Also covers the companion classifier fix: a `.spec.` SUFFIX (foo.spec.js) is
+// now recognized as a test, not just a `spec/` directory.
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const { mkRepo, runHook: runHookRaw } = require('./_lib/hookharness');
+
+const HOOK = 'stop-advisory-dispatch.sh';
+
+function mkTempRepo() {
+  const dir = mkRepo({ prefix: 'dhpk-ce-', gitConfig: true });
+  // Initial commit so HEAD exists (git diff --name-only HEAD needs it).
+  writeFile(dir, 'README.md', '# fixture\n');
+  spawnSync('git', ['add', '-A'], { cwd: dir });
+  spawnSync('git', ['commit', '-q', '-m', 'init'], { cwd: dir });
+  return dir;
+}
+
+function writeFile(repo, rel, contents) {
+  const abs = path.join(repo, rel);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, contents);
+  return abs;
+}
+
+// Commit a file so a later modification is a TRACKED change vs HEAD.
+function commitFile(repo, rel, contents) {
+  writeFile(repo, rel, contents);
+  spawnSync('git', ['add', '--', rel], { cwd: repo });
+  spawnSync('git', ['commit', '-q', '-m', `add ${rel}`], { cwd: repo });
+}
+
+// A transcript file (outside the repo, so it never pollutes git status) whose
+// last assistant message carries a completion claim.
+function writeTranscript() {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ce-tx-')));
+  const file = path.join(dir, 'transcript.jsonl');
+  const line = JSON.stringify({
+    type: 'assistant',
+    message: { content: [{ type: 'text', text: 'Implementation done. All good.' }] },
+  });
+  fs.writeFileSync(file, line + '\n');
+  return { dir, file };
+}
+
+function runHook(repo, transcriptPath) {
+  return runHookRaw(HOOK, {
+    cwd: repo,
+    payload: { transcript_path: transcriptPath },
+    env: { DHPK_COMPLETION_EVIDENCE: '1' }, // opt-in
+    projectDir: repo, // pin ROOT to the temp repo
+    deleteEnv: ['DHPK_ACTIVE_MODULES'],
+  });
+}
+
+function warned(res) {
+  return res.stdout.includes('COMPLETION CLAIM');
+}
+
+test('untracked new test file counts as evidence — no false warning (primary regression)', () => {
+  const repo = mkTempRepo();
+  const tx = writeTranscript();
+  try {
+    commitFile(repo, 'src/Foo.php', '<?php class Foo {}\n');
+    writeFile(repo, 'src/Foo.php', '<?php class Foo { public $x; }\n'); // tracked code change
+    writeFile(repo, 'tests/FooTest.php', '<?php class FooTest {}\n'); // UNTRACKED new test
+    const res = runHook(repo, tx.file);
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!warned(res),
+      `expected no warning (untracked test is evidence), got stdout:\n${res.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(tx.dir, { recursive: true, force: true });
+  }
+});
+
+test('untracked .spec.js suffix counts as evidence — no false warning', () => {
+  const repo = mkTempRepo();
+  const tx = writeTranscript();
+  try {
+    commitFile(repo, 'src/Foo.php', '<?php class Foo {}\n');
+    writeFile(repo, 'src/Foo.php', '<?php class Foo { public $x; }\n'); // tracked code change
+    writeFile(repo, 'foo.spec.js', "test('x', () => {});\n"); // UNTRACKED .spec. suffix
+    const res = runHook(repo, tx.file);
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!warned(res),
+      `expected no warning (.spec.js is a test), got stdout:\n${res.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(tx.dir, { recursive: true, force: true });
+  }
+});
+
+test('untracked code with NO test still warns (fold-in does not suppress real warnings)', () => {
+  const repo = mkTempRepo();
+  const tx = writeTranscript();
+  try {
+    writeFile(repo, 'src/Bar.php', '<?php class Bar {}\n'); // UNTRACKED code, no test
+    const res = runHook(repo, tx.file);
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(warned(res),
+      `expected a warning (untracked code, no test), got stdout:\n${res.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(tx.dir, { recursive: true, force: true });
+  }
+});
+
+test('doc-only untracked change → clean exit, no warning', () => {
+  const repo = mkTempRepo();
+  const tx = writeTranscript();
+  try {
+    writeFile(repo, 'notes.md', 'just notes\n'); // UNTRACKED doc only
+    const res = runHook(repo, tx.file);
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!warned(res),
+      `expected no warning for doc-only change, got stdout:\n${res.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(tx.dir, { recursive: true, force: true });
+  }
+});
+}
+// End merged tests from tests/stop-advisory-dispatch-completion-evidence.test.js.
+
+
+// Begin merged tests from tests/stop-advisory-dispatch-modules.test.js.
+{
+// Coverage for stop-advisory-dispatch.sh (module-dispatch advisory) (Stop dispatcher for module-contributed Stop
+// hooks + consolidated module-findings surfacing).
+//   - No active modules, no findings file → silent exit 0.
+//   - A pre-populated .module-findings file (as post-edit-dispatch.sh would
+//     leave behind) is surfaced once via a systemMessage, then cleared.
+//   - minimal profile suppresses the surfaced message but still clears the
+//     findings file.
+
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+
+const ROOT = path.join(__dirname, '..');
+const HOOK = path.join(ROOT, 'scripts', 'hooks', 'stop-advisory-dispatch.sh');
+
+function mkRepo() {
+  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-sd-')));
+}
+
+function sessDir(repo) {
+  return path.join(repo, '.claude', 'artifacts', 'sessions');
+}
+
+function findingsPath(repo) {
+  return path.join(sessDir(repo), '.module-findings');
+}
+
+function runHook(repo, extraEnv = {}) {
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: repo, CLAUDE_PLUGIN_ROOT: ROOT, ...extraEnv };
+  delete env.DHPK_ACTIVE_MODULES;
+  delete env.CLAUDE_PLUGIN_OPTION_MODULES;
+  return spawnSync('bash', ['-c', 'printf %s "{}" | bash "$1"', '_', HOOK], {
+    cwd: repo,
+    env,
+    encoding: 'utf8',
+    timeout: 10000,
+  });
+}
+
+test('no modules, no findings file → silent exit 0', () => {
+  const repo = mkRepo();
+  try {
+    const res = runHook(repo);
+    assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+    assert.strictEqual(res.stdout.trim(), '', `expected no stdout, got: ${res.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('pre-populated findings file is surfaced via systemMessage, then cleared', () => {
+  const repo = mkRepo();
+  try {
+    fs.mkdirSync(sessDir(repo), { recursive: true });
+    fs.writeFileSync(findingsPath(repo), 'eslint: 2 problems in foo.js\n');
+    const res = runHook(repo);
+    assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+    const event = JSON.parse(res.stdout.trim());
+    assert.deepStrictEqual(Object.keys(event), ['systemMessage']);
+    assert.match(event.systemMessage, /^\[module-checks\] findings from this turn:\n/);
+    assert.ok(event.systemMessage.includes('eslint: 2 problems in foo.js'),
+      `expected findings content in systemMessage, got: ${event.systemMessage}`);
+    assert.ok(!fs.existsSync(findingsPath(repo)), 'expected findings file cleared after surfacing');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('minimal profile suppresses the surfaced message but still clears the findings file', () => {
+  const repo = mkRepo();
+  try {
+    fs.mkdirSync(sessDir(repo), { recursive: true });
+    fs.writeFileSync(findingsPath(repo), 'some finding\n');
+    const res = runHook(repo, { CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'minimal' });
+    assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+    assert.ok(!res.stdout.includes('systemMessage'), `expected no message in minimal profile, got: ${res.stdout}`);
+    assert.ok(!fs.existsSync(findingsPath(repo)), 'expected findings file cleared even under minimal profile');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+}
+// End merged tests from tests/stop-advisory-dispatch-modules.test.js.
+
+
+// Begin merged tests from tests/stop-dispatch-audit.test.js.
+{
+// stop-dispatch-audit.sh — the post-hoc fast-worker dispatch-mandate audit sourced
+// by stop-advisory-dispatch.sh (Advisory 3). Covers issue #80: when orchestration_dispatch is on and a
+// session edited >=3 distinct source files inline (the pre-edit batch gate having
+// been overridden), Stop surfaces the violation instead of leaving it for a later
+// manual audit.
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { mkRepo, rmRepo, runHook, sessionsDir } = require('./_lib/hookharness');
+
+const HOOK = 'stop-advisory-dispatch.sh';
+const SIG = 'should have been ONE fast-worker batch'; // stable substring of the advisory
+
+function writeCounter(repo, sessionId, files) {
+  const sess = sessionsDir(repo);
+  fs.mkdirSync(sess, { recursive: true });
+  const safe = sessionId.replace(/[^A-Za-z0-9._-]/g, '_');
+  fs.writeFileSync(path.join(sess, `.edit-batch-${safe}.files`), files.map((f) => `${f}\n`).join(''));
+}
+
+function runStop(repo, sessionId, dispatch) {
+  return runHook(HOOK, {
+    projectDir: repo,
+    payload: { session_id: sessionId },
+    env: { DHPK_ORCHESTRATION_DISPATCH: dispatch },
+  });
+}
+
+test('orchestration_dispatch=on with >=3 inline files surfaces the dispatch-mandate advisory', () => {
+  const repo = mkRepo();
+  try {
+    writeCounter(repo, 'audit-on', ['src/A.php', 'src/B.php', 'src/C.php']);
+    const res = runStop(repo, 'audit-on', 'on');
+    assert.strictEqual(res.status, 0, `stop-dispatch must never block Stop; stderr:\n${res.stderr}`);
+    assert.ok(res.stdout.includes(SIG) && res.stdout.includes('#80'),
+      `expected the dispatch-audit advisory, got stdout:\n${res.stdout}`);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('orchestration_dispatch=off stays silent even with many inline files', () => {
+  const repo = mkRepo();
+  try {
+    writeCounter(repo, 'audit-off', ['src/A.php', 'src/B.php', 'src/C.php', 'src/D.php']);
+    const res = runStop(repo, 'audit-off', 'off');
+    assert.ok(!res.stdout.includes(SIG), `advisory must not fire when dispatch mode is off:\n${res.stdout}`);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('fewer than 3 distinct inline files stays silent even under orchestration_dispatch=on', () => {
+  const repo = mkRepo();
+  try {
+    writeCounter(repo, 'audit-two', ['src/A.php', 'src/B.php', 'src/A.php', 'src/B.php']);
+    const res = runStop(repo, 'audit-two', 'on');
+    assert.strictEqual(res.status, 0, `Stop must remain non-blocking; stderr:\n${res.stderr}`);
+    assert.ok(!res.stdout.includes(SIG), `advisory must not fire below the 3-file threshold:\n${res.stdout}`);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('the advisory fires at most once per session even across multiple Stop turns', () => {
+  const repo = mkRepo();
+  try {
+    writeCounter(repo, 'audit-once', ['src/A.php', 'src/B.php', 'src/C.php']);
+    const first = runStop(repo, 'audit-once', 'on');
+    assert.ok(first.stdout.includes(SIG), `first Stop should fire the advisory:\n${first.stdout}`);
+    const second = runStop(repo, 'audit-once', 'on');
+    assert.ok(!second.stdout.includes(SIG),
+      `a later Stop turn in the same session must NOT re-emit the advisory:\n${second.stdout}`);
+  } finally {
+    rmRepo(repo);
+  }
+});
+}
+// End merged tests from tests/stop-dispatch-audit.test.js.
+
 run('stop-advisory-dispatch-graduation');
