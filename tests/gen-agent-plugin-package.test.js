@@ -621,4 +621,139 @@ test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });
 
+{
+  // F30 source block: agent-plugin-package.test.js
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { spawnSync } = require('node:child_process');
+  const { test, assert } = require('./_lib/tinytest');
+  const { validateAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
+
+  const ROOT = path.join(__dirname, '..');
+
+  test('tracked Agent Plugin package has independent structural and provenance gates', () => {
+    const packageRoot = path.join(ROOT, 'plugins', 'dhpk-agent');
+    const result = validateAgentPluginPackage(packageRoot);
+    assert.strictEqual(result.ok, true, result.errors.join('\n'));
+    const cli = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'),
+      packageRoot,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(cli.status, 0, cli.stdout + cli.stderr);
+    const report = JSON.parse(cli.stdout);
+    assert.strictEqual(report.surface, 'agent-plugin');
+    assert.strictEqual(report.structural, 'PASS', cli.stdout + cli.stderr);
+    assert.strictEqual(report.provenance, 'PASS', cli.stdout + cli.stderr);
+  });
+
+  test('missing Agent Plugin package fails closed rather than becoming static PASS', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-package-missing-'));
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'), root,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 1);
+    assert.strictEqual(JSON.parse(result.stdout).structural, 'FAIL');
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  test('Agent Plugin validator fails closed for an unloadable skill entry', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-package-invalid-skill-'));
+    try {
+      fs.mkdirSync(path.join(root, 'skills', 'broken'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({
+        $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+        name: 'dhpk', version: '1.0.0', description: 'fixture',
+      }));
+      const result = validateAgentPluginPackage(root);
+      assert.strictEqual(result.ok, false);
+      assert.ok(result.errors.some((error) => /broken|SKILL\.md|invalid/i.test(error)));
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  });
+
+  test('Agent Plugin generator keeps its established usage and exit contract', () => {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'gen-agent-plugin-package.js'),
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 2);
+    assert.match(result.stderr, /^usage: node scripts\/ci\/gen-agent-plugin-package\.js <outDir>/);
+    assert.strictEqual(result.stdout, '');
+  });
+}
+
+{
+  // F30 source block: validate-agent-plugin-package.test.js
+  const path = require('node:path');
+  const { spawnSync } = require('node:child_process');
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const { test, assert } = require('./_lib/tinytest');
+
+  const ROOT = path.join(__dirname, '..');
+
+  test('Agent Plugin validator fails provenance when parsed receipt is semantically invalid', () => {
+    const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-validator-'));
+    try {
+      fs.writeFileSync(path.join(packageRoot, 'plugin.json'), JSON.stringify({
+        $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+        name: 'dhpk',
+        version: '1.0.0',
+        description: 'fixture',
+      }));
+      fs.writeFileSync(path.join(packageRoot, 'provenance.json'), JSON.stringify({}));
+      const result = spawnSync(process.execPath, [
+        path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'), packageRoot,
+      ], { encoding: 'utf8' });
+      assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+      const report = JSON.parse(result.stdout);
+      assert.strictEqual(report.structural, 'PASS');
+      assert.strictEqual(report.provenance, 'FAIL');
+      assert.ok(report.errors.some((error) => /provenance schema must be/.test(error)));
+    } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
+  });
+
+  test('Agent Plugin validator emits structural PASS and provenance PASS', () => {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'),
+      path.join(ROOT, 'plugins', 'dhpk-agent'),
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.structural, 'PASS');
+    assert.strictEqual(report.provenance, 'PASS');
+  });
+
+  test('Agent Plugin validator preserves the --package-root compatibility alias', () => {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'),
+      '--package-root', path.join(ROOT, 'plugins', 'dhpk-agent'),
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.surface, 'agent-plugin');
+    assert.strictEqual(report.structural, 'PASS');
+    assert.strictEqual(report.provenance, 'PASS');
+  });
+
+  test('Agent Plugin validator keeps malformed provenance as a failing report', () => {
+    const packageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-validator-'));
+    try {
+      fs.writeFileSync(path.join(packageRoot, 'plugin.json'), JSON.stringify({
+        $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
+        name: 'dhpk',
+        version: '1.0.0',
+        description: 'fixture',
+      }));
+      const result = spawnSync(process.execPath, [
+        path.join(ROOT, 'scripts', 'ci', 'validate-agent-plugin-package.js'), packageRoot,
+      ], { encoding: 'utf8' });
+      assert.strictEqual(result.status, 1);
+      const report = JSON.parse(result.stdout);
+      assert.strictEqual(report.structural, 'PASS');
+      assert.strictEqual(report.provenance, 'FAIL');
+      assert.ok(report.errors.some((error) => /provenance\.json is missing/.test(error)));
+    } finally { fs.rmSync(packageRoot, { recursive: true, force: true }); }
+  });
+}
+
 run('gen-agent-plugin-package');

@@ -3768,3 +3768,615 @@ Nine live supporting paths now name the surviving native validation owner, inclu
 Graph refresh matches the issue base. Ambiguous name-based impact returned CRITICAL candidates with corrupted or duplicate identities for discovery/profile tests; that warning remains unresolved as an index result. Read-only re-audit used exact File UIDs, returned UNKNOWN, confirmed folder-only incoming graph edges, and confirmed dynamic test-runner discovery plus live references by text. UNKNOWN is not a claim of unused code or low risk. This bounds the authorized test-only edits and supporting pointer repairs.
 
 Full-suite, platform, hosted CI, and real v2 code/document review evidence are pending at this ledger checkpoint; later delivery evidence must report their actual results separately.
+
+### Issue #791 completed family consolidation
+
+Baseline: `3a14056827310cf018bd171abad04a999c5ba916`. Fresh c8 10.1.3 reports with Node v26.9.0, `--jobs 4`, capture all affected owners and sources before moving them. The after run uses a clean tracked-source snapshot of the pending tree, so projection provenance checks see a clean checkout.
+
+Focused suites: 26 → 10; collected cases 234 → 234; wall time 13827 → 7567 ms. These are focused measurements, separate from the full-suite and CI evidence.
+
+#### Source dispositions
+
+- F24: `tests/workflow-package-closure.test.js` collects `tests/workflow-package-runtime.test.js`.
+- F25: `tests/project-agent-projection-plan.test.js` collects `tests/project-agent-projection-baseline.test.js`.
+- F30: `tests/gen-agent-plugin-package.test.js` collects `tests/agent-plugin-package.test.js`, `tests/validate-agent-plugin-package.test.js`.
+- F31: `tests/cursor-plugin-package.test.js` collects `tests/validate-cursor-plugin-package.test.js`, `tests/cursor-consumer-evidence.test.js`, `tests/cursor-harness-adapt.test.js`, `tests/cursor-session-home.test.js`.
+- F32: `tests/agy-plugin-install.test.js` collects `tests/agy-plugin-package.test.js`, `tests/agy-path-contract.test.js`, `tests/install-agy-plugin.test.js`.
+- F33: `tests/agy-adapt-agents.test.js` collects `tests/agy-adapt-agents-extended.test.js`.
+- F34: `tests/native-shared-skill-install.test.js` collects `tests/install-native-shared-skills.test.js`.
+- F64: `tests/project-agent-projection-publisher.test.js` collects `tests/project-agent-runtime-assets.test.js`, `tests/project-workflow-resources.test.js`.
+- F65: `tests/project-agent-provider-adapters.test.js` collects `tests/project-agent-host-binding-policy.test.js`.
+
+The detailed KEEP, REWRITE, and DELETE decisions and controlled mutation evidence follow. Source test names are retained except the explicitly documented deletions. No production public behavior is changed.
+
+##### WRITER A: Issue 791 Worker A — F24, F25, F30
+
+##### WRITER A: Scope and outcome
+
+Moved the source assertions into the assigned owner suites with labeled lexical
+blocks and one final tinytest run call per owner. The exact source count in the
+fresh base was 19: F24 7, F25 4, F30 8. All source test names remain unchanged.
+Outcomes: 17 KEEP, 2 REWRITE, 0 DELETE. No TIMEOUT_HINTS entry was added.
+
+The A-scope owner totals are 58 registered cases:
+
+- workflow-package-closure: 12/12
+- project-agent-projection-plan: 19/19
+- gen-agent-plugin-package: 27/27
+
+##### WRITER A: F24 — workflow-package-runtime into workflow-package-closure
+
+KEEP:
+
+- plugins/dhpk carries a self-contained flow workflow runtime
+- plugins/dhpk-agent carries a self-contained flow workflow runtime
+- plugins/dhpk-agy carries a self-contained flow workflow runtime
+- generated/claude-profiles/minimal/package carries a self-contained flow workflow runtime
+- action-runner rejects multiple or cross-action options
+- runtime loader resolves only the physical Skill tree and ignores ambient roots
+
+REWRITE:
+
+- action-runner wires next to the package-local analyzer
+
+The moved helper now runs with cwd set to __dirname, so it does not resolve the
+deleted source filename. The rewrite runs the package-local action-runner and
+analyze.js directly with the same filtered environment and cwd; it compares
+status, stdout, and stderr, then checks the analyzer report shape.
+
+Authoritative mutation evidence uses a clean detached worktree of the
+pending snapshot commit `264092331a6da492be6eaa755fd23919aace0e23`:
+
+- Worktree: `/tmp/dhpk-791-f24-clean-2640923`; creation command and output are
+  retained in `f24-clean-worktree-create.log`.
+- The mutation changes only the copied `action-runner.js` analyzer target from
+  `analyze.js` to `usage-card.js`.
+- Exact test command is recorded in both per-phase raw logs. `DHPK_ONLY_TEST_NAME`
+  was supplied, but this snapshot's tinytest does not support that filter, so
+  the actual run covered all 12 cases.
+- RED: exit 1, 11/12 passed; the sole failure was the named test
+  `action-runner wires next to the package-local analyzer`, which caught the
+  wrapper/direct-analyzer stdout mismatch.
+- After restoring the copied source byte-for-byte, GREEN: exit 0, 12/12 passed,
+  including the named test. The detached worktree status was clean afterward.
+
+Replay recipe: `f24-clean-worktree.commands.txt` and
+`replay-f24-clean-worktree.sh`. Raw outputs:
+
+- `f24-clean-named-red.log`
+- `f24-clean-restored-green.log`
+- `replay-f24-clean-worktree.runner.log`
+
+An earlier incomplete scratch tree had no `.git`; its analyzer failed with
+`Not in a git repository`. Those logs are archived under
+`incomplete-no-git-f24/` and are not counted as mutation evidence. An
+intermediate clean-worktree run also executed all 12 cases and is archived
+under `unfiltered-clean-worktree-f24/`.
+
+##### WRITER A: F25 — project-agent-projection-baseline into project-agent-projection-plan
+
+KEEP:
+
+- baseline is deterministic and records the current Agent Plugin set as evidence only
+- baseline distinguishes portable-core from minimal and reports Host-specific/incompatible entries
+- baseline characterizes four Hosts without promoting static evidence to runtime support
+- baseline is read-only and excludes private environment data
+
+No source assertion was rewritten or deleted.
+
+##### WRITER A: F30 — agent-plugin-package and validate-agent-plugin-package into gen-agent-plugin-package
+
+REWRITE:
+
+- tracked Agent Plugin package has independent structural and provenance gates
+
+The test separately asserts the CLI structural field is PASS and the CLI
+provenance field is PASS, in addition to the zero exit status.
+
+KEEP:
+
+- missing Agent Plugin package fails closed rather than becoming static PASS
+- Agent Plugin validator fails closed for an unloadable skill entry
+- Agent Plugin generator keeps its established usage and exit contract
+- Agent Plugin validator fails provenance when parsed receipt is semantically invalid
+- Agent Plugin validator emits structural PASS and provenance PASS
+- Agent Plugin validator preserves the --package-root compatibility alias
+- Agent Plugin validator keeps malformed provenance as a failing report
+
+Mutation evidence uses `/tmp/dhpk-791-f30-wV4nn9`, with the required copied
+`scripts/ci/_lib/frontmatter.js` dependency present:
+
+- The mutation inverted only the CLI provenance report mapping; its exit
+  calculation remained unchanged.
+- RED: exact named test exit 1, 0/1 passed. The CLI exit-status assertion and
+  structural `PASS` assertion held; the provenance field was `FAIL`, causing
+  the new provenance assertion to fail with `FAIL !== PASS`.
+- After restoring the copied CLI source, GREEN: exact named test exit 0, 1/1
+  passed.
+
+Exact test commands and raw outputs are retained in `f30-named-red.log` and
+`f30-restored-green.log`. The original mutation recipe is in the F30 section
+of `replay-worker-a-mutations.sh`.
+
+The first disposable setup omitted `scripts/ci/_lib/frontmatter.js` and failed
+before test registration. This is a setup failure, not a red test result; it is
+recorded separately in `f30-initial-setup-failure.md`. Its original raw output
+was not retained. The successful mutation logs above are from the corrected
+setup.
+
+##### WRITER A: Focused verification
+
+Command:
+
+```sh
+DHPK_TEST_TIMING_FILE=/tmp/dhpk-consolidation/791/a-focused.json node tests/run-all.js tests/workflow-package-closure.test.js tests/project-agent-projection-plan.test.js tests/gen-agent-plugin-package.test.js
+```
+
+Result: PASS, 3/3 files and 58/58 cases, sequential on Node v26.9.0/Linux.
+Per-file timings from a-focused.json:
+
+- workflow-package-closure.test.js: 1,738 ms, 12/12
+- project-agent-projection-plan.test.js: 504 ms, 19/19
+- gen-agent-plugin-package.test.js: 1,391 ms, 27/27
+
+git diff --check for the seven assigned test paths: PASS.
+
+##### WRITER A: Shared and issue-wide gates
+
+The reasoner handoff baseline was 26/26 affected test files and 234/234 cases.
+Worker A did not rerun the whole issue suite, c8 before/after coverage, catalog
+reconciliation/check, or generated-package checks; these are shared parent
+gates and remain NOT RUN by this worker. Worker A made no production source,
+catalog, ledger, documentation, or generated-package edits.
+
+The supplied fresh graph handoff retains an unresolved CRITICAL file-impact
+warning for project-agent-projection-baseline.test.js, including an
+uncorroborated dispatch-config-report caller. A fresh exact-file MCP result
+disagreed on the risk value; I preserved the CRITICAL warning. Text search
+confirmed the test file is dynamically discovered by tests/run-all.js and did
+not confirm a dispatch-config-report reference. No production implementation
+was edited.
+
+##### WRITER B: Issue #791 writer B handoff
+
+##### WRITER B: Task and scope
+
+- Task/attempt: #791, writer B, implementation after the parent GO.
+- Branch/base: `feature/issue-791-test-consolidation` at `3a14056827310cf018bd171abad04a999c5ba916`.
+- Owned families: F31, F33, F34; nine test paths only.
+- Graph evidence: `/tmp/dhpk-consolidation/791/graph-ready.json` reports READY, fresh index, and the prior 26/26 file, 234/234 case baseline PASS. It also preserves CRITICAL and UNKNOWN as unresolved. The `verifyCursorPackage` CRITICAL risk 640 and the unresolved File baseline/index uncertainty remain visible; no production implementation files were edited.
+
+##### WRITER B: Changes
+
+- Merged F31 into `tests/cursor-plugin-package.test.js` (28 cases, one final `run('cursor-plugin-package')`).
+- Merged F33 into `tests/agy-adapt-agents.test.js` (12 cases, one final `run('agy-adapt-agents')`).
+- Merged F34 into `tests/native-shared-skill-install.test.js` (18 cases, one final `run('native-shared-skill-install')`).
+- Removed source suites: `tests/validate-cursor-plugin-package.test.js`, `tests/cursor-consumer-evidence.test.js`, `tests/cursor-harness-adapt.test.js`, `tests/cursor-session-home.test.js`, `tests/agy-adapt-agents-extended.test.js`, and `tests/install-native-shared-skills.test.js`.
+- Isolated each moved source suite's imports, helpers, and tests in its own labeled lexical block. Source `run(...)` calls were removed; the owner run is the only run in each merged suite.
+- Total inventory: 22 pre-existing owner cases retained; 36 moved source cases = 35 KEEP, 1 REWRITE, 0 DELETE; 58/58 names retained.
+
+##### WRITER B: Source case inventory
+
+##### WRITER B: F31 Cursor package — 3 existing owner cases retained
+
+- Existing owner: `tracked Cursor package exposes physical native components and no symlinks`
+- Existing owner: `Cursor validator fails closed for an unloadable skill entry`
+- Existing owner: `Cursor validator rejects .md rules and leftover plugin-root interpolation`
+
+##### WRITER B: Moved from `tests/validate-cursor-plugin-package.test.js` — 4 cases
+
+- KEEP: `Cursor consumer-runtime verification keeps NOT_CONFIGURED distinct from structural PASS`
+- KEEP: `Cursor consumer adapter can report UNAVAILABLE without upgrading to PASS`
+- KEEP: `Cursor package validator reports structural PASS and consumer NOT_RUN separately`
+- KEEP: `Cursor package validator reports invalid provenance as FAIL independently of structural PASS`
+
+##### WRITER B: Moved from `tests/cursor-consumer-evidence.test.js` — 11 cases
+
+- KEEP: `missing probe record selects native-link and says the record is missing`
+- KEEP: `PASS discovery probe record selects direct`
+- KEEP: `FAIL discovery probe record selects native-link`
+- KEEP: `a stage-less PASS payload is not discovery evidence`
+- KEEP: `cursor-sync installer PASS is not discovery evidence`
+- KEEP: `wrong envelope producer is not Cursor discovery evidence`
+- KEEP: `wrong envelope adapter is not Cursor discovery evidence`
+- KEEP: `missing checked claims are not Cursor discovery evidence`
+- KEEP: `duplicate checked claims are not Cursor discovery evidence`
+- KEEP: `loadCursorConsumerEvidence reads a regular fixture file and ignores a static tree`
+- KEEP: `Codex PASS discovery probe record selects direct; Cursor PASS is not Codex evidence`
+
+##### WRITER B: Moved from `tests/cursor-harness-adapt.test.js` — 7 cases
+
+- KEEP: `cursorAgentModel maps doc roles to Composer and every other role to Grok`
+- KEEP: `cursorDocumentDestinationName only rewrites rules to .mdc`
+- KEEP: `rewriteCursorHarnessBody maps plugin-root paths onto the Cursor tree`
+- KEEP: `rewriteCursorHarnessBody preserves transport invocations with the bound Cursor package root`
+- KEEP: `Cursor skill adaptation rewrites transport wrapper roots and rejects leftovers`
+- KEEP: `rewriteCursorSupportingAssetBody rewrites Codex support roots`
+- KEEP: `retention helpers detect leftover Claude and Codex roots`
+
+##### WRITER B: Moved from `tests/cursor-session-home.test.js` — 3 cases
+
+- REWRITE: `clones only allowlisted Cursor session files with private permissions`
+- KEEP: `skips symlinked session ancestors and rejects non-absolute probe homes`
+- KEEP: `createCursorSessionHome always provides cleanup for the disposable profile`
+
+##### WRITER B: F33 AGY adapt — 8 existing owner cases retained
+
+- Existing owner: `--help prints usage and exits 0`
+- Existing owner: `missing directory errors and exits 1`
+- Existing owner: `too many positional args throws and exits 1`
+- Existing owner: `rewrites tools list to AGY names, dedupes, strips color, and reports counts`
+- Existing owner: `already-compatible tools line is left unchanged (idempotent, reported as unchanged)`
+- Existing owner: `rejects direct agents-directory and install-root usage`
+- Existing owner: `rejects symlinked staging roots and agents directories`
+- Existing owner: `rejects a tampered staging package before rewriting any file`
+
+##### WRITER B: Moved from `tests/agy-adapt-agents-extended.test.js` — 4 cases
+
+- KEEP: `adapts bare tools and Claude model to the AGY contract`
+- KEEP: `preserves valid AGY model values and defaults an omitted model to inherit`
+- KEEP: `rejects an unknown model instead of silently selecting a fallback`
+- KEEP: `adaptation is idempotent`
+
+##### WRITER B: F34 Native shared skills — 11 existing owner cases retained
+
+- Existing owner: `installNativeSharedSkills materializes shared skills and Cursor native-link bindings`
+- Existing owner: `installNativeSharedSkills records direct bindings when a PASS probe record is injected`
+- Existing owner: `installNativeSharedSkills rejects an unsupported Host`
+- Existing owner: `installNativeSharedSkills materializes Codex native-link bindings`
+- Existing owner: `installNativeSharedSkills unions shared skills and preserves the first Host bindings`
+- Existing owner: `installNativeSharedSkills keeps a hidden Codex skill materialized across another Host lifecycle`
+- Existing owner: `installNativeSharedSkills recreates missing Host dests without --update`
+- Existing owner: `uninstallNativeSharedSkills drops one Host and keeps skills the other Host still binds`
+- Existing owner: `uninstallNativeSharedSkills fails closed when remaining shared content was modified`
+- Existing owner: `uninstallNativeSharedSkills removes shared content when the last Host unbinds`
+- Existing owner: `uninstallNativeSharedSkills rejects an unsupported Host`
+
+##### WRITER B: Moved from `tests/install-native-shared-skills.test.js` — 7 cases
+
+- KEEP: `CLI installs Cursor native-link bindings from a declared selection`
+- KEEP: `CLI usage fails closed when each required install argument is missing`
+- KEEP: `CLI explains how to resolve a conflicting skill symlink`
+- KEEP: `CLI classify and install honor an injected Cursor PASS probe record`
+- KEEP: `CLI classify --host codex honors Codex PASS and ignores Cursor PASS`
+- KEEP: `CLI installs Codex native-link bindings from a declared selection`
+- KEEP: `CLI uninstalls one Host and keeps the remaining Host bindings`
+
+##### WRITER B: Rewrite and mutation evidence
+
+Rewrote `clones only allowlisted Cursor session files with private permissions` to compare `copiedFiles` and the copied-file/mode loop against the independent literal paths `.config/cursor/auth.json` and `.cursor/cli-config.json`. Expected mode remains literal `0o600`; the production allowlist constant is no longer the oracle.
+
+- Standalone rewritten suite: `node tests/cursor-session-home.test.js` → PASS 3/3; log: `/tmp/dhpk-consolidation/791/cursor-session-green.log`.
+- Disposable copy root: `/tmp/dhpk-consolidation/791/cursor-session-proof.6f1DsM`. The copied production module's allowlist was mutated with `sed -i "/\.cursor\/cli-config\.json/d" /tmp/dhpk-consolidation/791/cursor-session-proof.6f1DsM/scripts/lib/cursor-session-home.js`; production files in the repository were untouched.
+- RED: `node /tmp/dhpk-consolidation/791/cursor-session-proof.6f1DsM/tests/cursor-session-home.test.js` failed the exact named test because the literal expected path was absent; suite result 2/3. Log: `/tmp/dhpk-consolidation/791/cursor-allowlist-red.log`.
+- Restored GREEN: copied `cursor-session-home.original.js` over the temporary mutated module and reran the same command → PASS 3/3. Log: `/tmp/dhpk-consolidation/791/cursor-allowlist-restored-green.log`.
+
+##### WRITER B: Scoped verification
+
+| Command/check | Result | Evidence |
+| --- | --- | --- |
+| `node tests/cursor-plugin-package.test.js` after source deletion | PASS 28/28 | `/tmp/dhpk-consolidation/791/after-cursor.log` |
+| `node tests/agy-adapt-agents.test.js` after source deletion | PASS 12/12 | `/tmp/dhpk-consolidation/791/after-agy.log` |
+| `node tests/native-shared-skill-install.test.js` after source deletion | PASS 18/18 | `/tmp/dhpk-consolidation/791/after-native.log` |
+| `node --check` on all three owner files | PASS | Command completed with exit 0 |
+| Before/after name multiset and owner run count | PASS 58/58; one outer run per owner | `node /tmp/dhpk-consolidation/791/verify-case-names.js`; log: `/tmp/dhpk-consolidation/791/test-name-parity.log` |
+| Scoped `git diff --check` on the nine owned paths | PASS | Command completed with exit 0 |
+| Scoped code review | APPROVE, 0 findings | `.codex/artifacts/reviews/code-reviewer-20260930-121202-issue-791-b.md` |
+
+##### WRITER B: NOT RUN — parent-owned integrated gates
+
+- Issue-wide timing and before/after c8 coverage comparison: NOT RUN in this B lane because the consolidated all-family tree and its baseline capture are parent-owned. Resume after all writers finish by running `DHPK_TEST_TIMING_FILE=/tmp/dhpk-consolidation/791/after-timings.json node tests/run-all.js --jobs 4` and paired c8 runs in the base and integrated checkouts; an after-run command is `npx --yes c8@10.1.3 --reports-dir /tmp/dhpk-consolidation/791/after-coverage --reporter json --reporter json-summary node tests/run-all.js --jobs 4`.
+- Catalog validation and generated-package checks: NOT RUN because parent owns the catalog and projection changes. Resume with `node scripts/ci/catalog.js --check all`, then run the generated-package checks in the parent gate.
+- Full integrated suite and combined-tree cold review: not run here; parent owns those gates after assembling the complete tree. Resume with the parent’s issue-wide verification/review sequence.
+
+The shared worktree also contains concurrent parent and other-writer changes outside these nine paths. I did not modify or stage those changes, and I do not claim the full worktree is clean.
+
+##### WRITER C: Issue #791 writer C report
+
+Task lane: F32 agy-plugin, F64 project-agent-publisher, F65 project-agent-providers.
+Branch/base: feature/issue-791-test-consolidation / 3a14056827310cf018bd171abad04a999c5ba916.
+Owned scope: nine test paths listed below. No test case was deleted. Three owner files now contain 74 registrations, with each original suite in a labeled lexical block and one final run(...) per owner. F32 is 1455 lines, within the authorized size exception.
+
+##### WRITER C: Changed files
+
+Modified owner suites:
+- tests/agy-plugin-install.test.js
+- tests/project-agent-projection-publisher.test.js
+- tests/project-agent-provider-adapters.test.js
+
+Deleted consolidated source suites:
+- tests/agy-plugin-package.test.js
+- tests/agy-path-contract.test.js
+- tests/install-agy-plugin.test.js
+- tests/project-agent-runtime-assets.test.js
+- tests/project-workflow-resources.test.js
+- tests/project-agent-host-binding-policy.test.js
+
+F65 retains the forged-binding assert.throws(...) and replaces the valid case's reference-identity check with successful validation via assert.doesNotThrow(...).
+
+##### WRITER C: Graph evidence
+
+The supplied fresh read-only reasoner/CLI evidence and direct MCP impact results differ in counts and target envelopes. They are recorded separately, not reconciled or treated as an all-clear.
+
+- Supplied graph-ready.json: fresh index at the base; baseline 26/26 files and 234/234 cases PASS. The supplied reasoner reports CRITICAL for the project publisher and for File target tests/project-agent-projection-baseline.test.js, with two direct edges including an uncorroborated scripts/dispatch-config-report.js caller. Its read-only context has no incoming caller for that File edge; dynamic *.test.js runner discovery is confirmed. Preserve the CRITICAL warning.
+- Direct MCP materializeRelocatableAgentsSkillsProjection upstream: CRITICAL; 707 impacted, 5 direct, 160 processes; lower-bound due to 2 callable-value references.
+- Direct MCP verifyCursorPackage upstream: CRITICAL; 6 impacted/direct, 98 processes; lower-bound due to 1 callable-value reference.
+- Direct MCP validateReceiptBindings upstream: LOW; 3 impacted, 1 direct, 0 processes; exact.
+- Direct MCP target lookups for materializeAgyPluginPackage and materializeAgentsSkillsProjection returned UNKNOWN/not found. Text search confirmed their imports/calls in the moved tests and production modules. UNKNOWN remains unresolved, not an all-clear.
+- Direct MCP File lookup for tests/project-agent-projection-baseline.test.js returned UNKNOWN with 0 resolved callers. This differs from the supplied CLI/reasoner result. Both are preserved; no baseline test or production implementation was edited.
+
+Text-reference check: rg over the assigned suites and relevant scripts/lib and scripts/ci paths confirmed the AGY package, path, publisher, and provider-policy imports/calls. No production implementation change remains.
+
+##### WRITER C: Full case inventory
+
+##### WRITER C: tests/agy-plugin-install.test.js — 52 cases; 1455 lines
+
+##### WRITER C: tests/agy-plugin-install.test.js — Existing owner cases; KEEP (27)
+
+- KEEP: resolves the documented user AGY install location
+- KEEP: classifies an absent target as canonical and a legacy target without mutating it
+- KEEP: blocks ambiguous canonical and legacy targets and migrates only with explicit intent
+- KEEP: ignores empty and incidental legacy directories after migration
+- KEEP: keeps a foreign legacy checkout visible beside the canonical target
+- KEEP: lifecycle observation distinguishes invalid receipts and modified managed content
+- KEEP: installs, updates, and rolls back only receipt-owned files
+- KEEP: rejects foreign collisions and changed owned files
+- KEEP: keeps the live installation unchanged when staging fails
+- KEEP: read-only inspection classifies a foreign Git checkout with bounded evidence
+- KEEP: read-only inspection reports an owned current target without mutation
+- KEEP: read-only inspection treats intact same-version source drift as stale
+- KEEP: read-only inspection reports changed source as stale across versions
+- KEEP: read-only inspection reports added source as stale across versions
+- KEEP: read-only inspection reports removed source as stale across versions
+- KEEP: read-only inspection reports added source as stale at the same version
+- KEEP: read-only inspection reports removed source as stale at the same version
+- KEEP: read-only inspection blocks a changed receipt-owned file
+- KEEP: read-only inspection blocks a missing receipt-owned file after source removal
+- KEEP: read-only inspection blocks missing receipt fingerprint metadata
+- KEEP: read-only inspection blocks tampered receipt metadata
+- KEEP: read-only inspection blocks tampered fingerprint metadata
+- KEEP: read-only inspection blocks an unsafe removed receipt-owned path
+- KEEP: read-only inspection blocks an unowned file colliding with a new source path
+- KEEP: inspection does not follow a symlinked target ancestor
+- KEEP: read-only inspection classifies an invalid receipt as foreign
+- KEEP: inventory reads enforce one aggregate byte budget across files
+
+##### WRITER C: tests/agy-plugin-package.test.js — KEEP (16)
+
+- KEEP: materializes and validates a contained AGY package
+- KEEP: AGY generation requires the inventory-owned selection policy
+- KEEP: AGY selection policy can use entry surfaces without a duplicate membership map
+- KEEP: rewrites source-tree harness references to an AGY skill target
+- KEEP: copies selected skill reference assets so relative links stay reachable
+- KEEP: AGY projection rewrites canonical documentation links instead of emitting broken relative paths
+- KEEP: AGY projection preserves the complete execution-policy mechanics reference
+- KEEP: minimal AGY profile carries declared transport runtime support without widening receipt selection
+- KEEP: rejects a rewritten reference when its target skill is not selected
+- KEEP: equivalent inputs produce byte-identical package files
+- KEEP: rejects foreign receipt, undeclared files, and secrets
+- KEEP: fails closed on traversal and source symlinks
+- KEEP: invalid generation never removes an existing output root
+- KEEP: rejects manifest escapes and provenance fingerprint drift
+- KEEP: publishes the complete physical Skill directory without descriptor selection
+- KEEP: validation rejects files of an unselected Skill whose name extends a selected one
+
+##### WRITER C: tests/agy-path-contract.test.js — KEEP (4)
+
+- KEEP: loads the inventory-owned canonical and legacy AGY paths
+- KEEP: resolves canonical and legacy paths under an isolated home
+- KEEP: rejects unsafe, duplicate, and incomplete path contracts
+- KEEP: rejects a non-absolute home and malformed sandbox home
+
+##### WRITER C: tests/install-agy-plugin.test.js — KEEP (5)
+
+- KEEP: CLI installs and rolls back the receipt-owned AGY package
+- KEEP: CLI plan and status report a foreign checkout without mutation
+- KEEP: CLI plan and status pass equivalently without mutating source or target
+- KEEP: CLI plan and status pass for a stale owned upgrade without mutation
+- KEEP: CLI migration moves an explicit legacy installation to the canonical home path
+
+Baseline comparison: 52/52 names and registration order preserved.
+
+##### WRITER C: tests/project-agent-projection-publisher.test.js — 9 cases; 476 lines
+
+##### WRITER C: tests/project-agent-projection-publisher.test.js — Existing owner cases; KEEP (2)
+
+- KEEP: project publisher fails closed when materialization inputs are incomplete
+- KEEP: project publisher installs, validates, rolls back an authorized update, and uninstalls only owned paths
+
+##### WRITER C: tests/project-agent-runtime-assets.test.js — KEEP (4)
+
+- KEEP: relocatable project projection ships the Skill-local runner after source removal
+- KEEP: relocatable project projection detects runtime output tamper and source drift
+- KEEP: a stale descriptor cannot inject or escape, and a symlinked Skill script is rejected
+- KEEP: relocatable project projection migrates an approved stable-ID rename by identity
+
+##### WRITER C: tests/project-workflow-resources.test.js — KEEP (3)
+
+- KEEP: project skill projection ships its physical runner closure without an ambient source checkout
+- KEEP: legacy projection migrates an approved stable-ID public-name rename without duplicate ownership
+- KEEP: legacy rename migration preserves edited receipt-owned content as a conflict
+
+Baseline comparison: 9/9 names and registration order preserved.
+
+##### WRITER C: tests/project-agent-provider-adapters.test.js — 13 cases; 404 lines
+
+##### WRITER C: tests/project-agent-provider-adapters.test.js — Existing owner cases; KEEP (9)
+
+- KEEP: provider adapters expose one shared directory shape and an AGY direct-file shape
+- KEEP: provider adapters fail closed when AGY is assigned a directory shape
+- KEEP: AGY direct-file rendering embeds the body and gates sibling references on consumer PASS
+- KEEP: Claude discovery adapter binds generated packages without creating an authored skill tree
+- KEEP: Cursor native-link discovery adapter binds per-skill links into .cursor/skills
+- KEEP: Cursor Host adapter exposes native-link discovery when cursor is bound
+- KEEP: Codex native-link discovery adapter binds per-skill links into .codex/skills
+- KEEP: Codex Host adapter binds only that Host's selectedStableIds
+- KEEP: Cursor discovery adapter can bind skills as evidence-gated direct Host Bindings
+
+##### WRITER C: tests/project-agent-host-binding-policy.test.js — KEEP, REWRITE (4)
+
+- KEEP: Host selection precedence and Codex discovery visibility are explicit
+- KEEP: Host selection and preserved bindings return independent values
+- KEEP: discovery stamping persists native-link and direct Host binding shapes
+- REWRITE: receipt Host binding validation consumes generated adapter descriptors
+
+Baseline comparison: 13/13 names and registration order preserved.
+
+##### WRITER C: Scoped verification
+
+| Command/check | Result |
+| --- | --- |
+| node --check tests/agy-plugin-install.test.js | PASS, exit 0 |
+| node --check tests/project-agent-projection-publisher.test.js | PASS, exit 0 |
+| node --check tests/project-agent-provider-adapters.test.js | PASS, exit 0 |
+| node tests/agy-plugin-install.test.js | PASS, 52/52 |
+| node tests/project-agent-projection-publisher.test.js | PASS, 9/9 |
+| node tests/project-agent-provider-adapters.test.js after restore | PASS, 13/13 |
+| Static baseline registration comparison against git show HEAD:<source> | PASS, 74/74 names and registration order preserved |
+| git diff --check over the nine owned paths | PASS, no whitespace errors |
+| git diff --exit-code -- scripts/lib/project-agent-host-binding-policy.js | PASS, exit 0 |
+
+The initial mutation wrapper returned 127 after its test, restore, hash, and GREEN checks because its last presentation line invoked text as a Bash command. The expected RED/GREEN output was independently checked and the proof was repeated in a disposable copy below.
+
+##### WRITER C: F65 mutation proof
+
+Initial provisional probe after GO: canonical scripts/lib/project-agent-host-binding-policy.js was temporarily changed so validateReceiptBindings returned bindingPaths, bypassing descriptor validation. The merged F65 suite produced the expected single failure: receipt Host binding validation consumes generated adapter descriptors (12/13). The original file was restored byte-for-byte from a saved copy. Its SHA-256 matched HEAD (d71290742ab1f99edf25ea9ae547c350e4e0ba20b7a9cdc515eb2f6223854f8e) and git diff --exit-code returned 0. This first probe used the canonical path; that location was outside the intended disposable-copy design and is disclosed here.
+
+Following parent direction, the proof was repeated in a temporary copy containing only the F65 owner test, tinytest harness, provider adapter, and policy module. The runnable recipe is /tmp/dhpk-consolidation/791/f65-disposable-probe.py; invoke it with:
+
+```sh
+python3 /tmp/dhpk-consolidation/791/f65-disposable-probe.py
+```
+
+The disposable run at /tmp/dhpk-issue791-f65-tqa110bo bypassed descriptor validation in the copied policy. Its raw RED log is /tmp/dhpk-consolidation/791/writer-c-f65-disposable-red.log: exit 1, the exact named descriptor test failed with “Missing expected exception,” and the suite reported 12/13. The copied policy was restored byte-for-byte; the raw GREEN log is /tmp/dhpk-consolidation/791/writer-c-f65-disposable-green.log: exit 0 and 13/13. The disposable policy hash before and after restore was d71290742ab1f99edf25ea9ae547c350e4e0ba20b7a9cdc515eb2f6223854f8e. The recipe verifies the canonical production policy against HEAD before and after the probe; the hash stayed identical and git diff --exit-code returned 0. The temporary copy was automatically removed.
+
+##### WRITER C: Parent combined acceptance
+
+Writer C did not run the combined timing, coverage, catalog, generated-package, or full-CI workflow. Parent reports that the canonical command python3 /tmp/dhpk-consolidation/workflow.py after 791 has passed and its result directories exist. The compare workflow was not run by writer C.
+
+Resume/compare command:
+
+```sh
+python3 /tmp/dhpk-consolidation/workflow.py compare 791
+```
+
+If the parent reruns the after workflow, it requires a fresh archive/path as specified by that workflow.
+
+##### WRITER C: Stable C-scope checkpoint
+
+- Base: 3a14056827310cf018bd171abad04a999c5ba916
+- SHA-256 of git diff --binary HEAD restricted to the nine owned test paths: 56b4b59ba096e23743b0dea05c95861e82cf3c935a224c1e26f01e4c79d6c099
+- Production policy SHA-256 (worktree and HEAD): d71290742ab1f99edf25ea9ae547c350e4e0ba20b7a9cdc515eb2f6223854f8e
+- No staging, commit, push, or release action was performed.
+
+#### Registration reconciliation
+
+Removed registration names:
+
+Added registration names:
+
+- None.
+
+#### Per-file focused timing
+
+| File | Before ms | After ms |
+| --- | --- | --- |
+| `tests/workflow-package-closure.test.js` | 84 | 1906 |
+| `tests/workflow-package-runtime.test.js` | 2629 | merged |
+| `tests/project-agent-projection-plan.test.js` | 162 | 385 |
+| `tests/project-agent-projection-baseline.test.js` | 420 | merged |
+| `tests/gen-agent-plugin-package.test.js` | 746 | 1298 |
+| `tests/agent-plugin-package.test.js` | 498 | merged |
+| `tests/validate-agent-plugin-package.test.js` | 650 | merged |
+| `tests/cursor-plugin-package.test.js` | 259 | 333 |
+| `tests/validate-cursor-plugin-package.test.js` | 508 | merged |
+| `tests/cursor-consumer-evidence.test.js` | 78 | merged |
+| `tests/cursor-harness-adapt.test.js` | 166 | merged |
+| `tests/cursor-session-home.test.js` | 73 | merged |
+| `tests/agy-plugin-install.test.js` | 697 | 3150 |
+| `tests/agy-plugin-package.test.js` | 352 | merged |
+| `tests/agy-path-contract.test.js` | 68 | merged |
+| `tests/install-agy-plugin.test.js` | 3081 | merged |
+| `tests/agy-adapt-agents.test.js` | 605 | 577 |
+| `tests/agy-adapt-agents-extended.test.js` | 58 | merged |
+| `tests/native-shared-skill-install.test.js` | 1036 | 1932 |
+| `tests/install-native-shared-skills.test.js` | 1697 | merged |
+| `tests/project-agent-projection-publisher.test.js` | 366 | 463 |
+| `tests/project-agent-runtime-assets.test.js` | 520 | merged |
+| `tests/project-workflow-resources.test.js` | 196 | merged |
+| `tests/project-agent-provider-adapters.test.js` | 124 | 53 |
+| `tests/project-agent-host-binding-policy.test.js` | 66 | merged |
+| `tests/catalog-claims.test.js` | 9345 | 6587 |
+
+All collected owners remain below the default 180 s budget. No `TIMEOUT_HINTS` entry is added.
+
+#### Canonical production coverage
+
+Covered/total counts below are raw fresh-report values. Branch range coordinates are independently compared; a raw drop is never described as raw non-decrease PASS.
+
+| Production file | Before lines | After lines | Before branches | After branches |
+| --- | --- | --- | --- | --- |
+| `scripts/agy-adapt-agents.js` | 427/462 | 427/462 | 122/153 | 122/153 |
+| `scripts/ci/_lib/frontmatter.js` | 37/129 | 37/129 | 1/1 | 1/1 |
+| `scripts/ci/catalog.js` | 338/472 | 350/484 | 24/51 | 24/51 |
+| `scripts/ci/gen-agent-plugin-package.js` | 61/89 | 61/89 | 1/7 | 1/7 |
+| `scripts/ci/install-agy-plugin.js` | 51/59 | 51/59 | 18/25 | 18/25 |
+| `scripts/ci/install-native-shared-skills.js` | 95/103 | 95/103 | 39/51 | 39/51 |
+| `scripts/ci/project-agent-projection-baseline.js` | 460/507 | 460/507 | 126/181 | 126/181 |
+| `scripts/ci/validate-agent-plugin-package.js` | 56/61 | 56/61 | 13/15 | 13/15 |
+| `scripts/ci/validate-cursor-plugin-package.js` | 62/67 | 62/67 | 14/22 | 14/22 |
+| `scripts/lib/agent-plugin-package.js` | 1188/1308 | 1188/1308 | 412/585 | 412/585 |
+| `scripts/lib/agents-skills-package.js` | 680/847 | 680/847 | 150/249 | 150/249 |
+| `scripts/lib/agy-path-contract.js` | 95/97 | 95/97 | 20/29 | 20/29 |
+| `scripts/lib/agy-plugin-install.js` | 764/837 | 764/837 | 255/325 | 255/325 |
+| `scripts/lib/agy-plugin-package.js` | 621/706 | 621/706 | 215/297 | 207/289 |
+| `scripts/lib/asset-inventory.js` | 189/201 | 189/201 | 39/52 | 39/52 |
+| `scripts/lib/bounded-child-process.js` | 36/50 | 36/50 | 2/8 | 2/8 |
+| `scripts/lib/bounded-filesystem.js` | 146/169 | 146/169 | 53/71 | 53/71 |
+| `scripts/lib/capability-bundle-selection.js` | 434/849 | 434/849 | 93/202 | 93/202 |
+| `scripts/lib/cursor-consumer-evidence.js` | 187/221 | 187/221 | 58/72 | 58/72 |
+| `scripts/lib/cursor-harness-adapt.js` | 120/168 | 120/168 | 18/27 | 18/27 |
+| `scripts/lib/cursor-plugin-package.js` | 699/2440 | 699/2440 | 119/236 | 119/236 |
+| `scripts/lib/cursor-session-home.js` | 83/90 | 83/90 | 24/35 | 24/35 |
+| `scripts/lib/cursor-sync-package.js` | 57/293 | 57/293 | 5/6 | 5/6 |
+| `scripts/lib/distribution-compiler.js` | 329/494 | 329/494 | 131/190 | 131/190 |
+| `scripts/lib/distribution-inventory-regeneration.js` | 13/40 | 13/40 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory.js` | 482/2518 | 482/2518 | 26/45 | 26/45 |
+| `scripts/lib/distribution-projection-contract.js` | 511/585 | 511/585 | 179/264 | 179/264 |
+| `scripts/lib/harness-surfaces.js` | 25/25 | 25/25 | 1/1 | 1/1 |
+| `scripts/lib/internal-runtime-skills.js` | 47/77 | 47/77 | 15/25 | 13/23 |
+| `scripts/lib/native-shared-skill-install.js` | 172/191 | 172/191 | 44/56 | 44/56 |
+| `scripts/lib/platform-provenance.js` | 270/393 | 270/393 | 59/127 | 59/127 |
+| `scripts/lib/profile-projection-sets.js` | 75/118 | 75/118 | 11/14 | 11/14 |
+| `scripts/lib/project-agent-host-binding-policy.js` | 201/240 | 201/240 | 92/113 | 92/113 |
+| `scripts/lib/project-agent-projection-plan.js` | 560/647 | 560/647 | 163/220 | 163/220 |
+| `scripts/lib/project-agent-projection-publisher.js` | 1325/1788 | 1325/1788 | 321/535 | 319/533 |
+| `scripts/lib/project-agent-provider-adapters.js` | 431/483 | 431/483 | 106/141 | 107/142 |
+| `scripts/lib/projection-artifact-store.js` | 216/309 | 216/309 | 44/75 | 44/75 |
+| `scripts/lib/redaction.js` | 23/23 | 23/23 | 2/3 | 2/3 |
+| `scripts/lib/release-evidence.js` | 170/269 | 170/269 | 16/72 | 16/72 |
+| `scripts/lib/skill-routing-projection.js` | 45/201 | 45/201 | 1/1 | 1/1 |
+| `scripts/lib/skill-topology.js` | 26/281 | 26/281 | 1/1 | 1/1 |
+| `scripts/lib/skill-usage.js` | 563/940 | 563/940 | 89/167 | 89/167 |
+| `scripts/lib/standalone-package-assets.js` | 20/77 | 20/77 | 3/11 | 3/11 |
+| `scripts/lib/workflow-package-closure.js` | 113/130 | 113/130 | 52/78 | 52/78 |
+
+Common branch arms: 4784; covered 3142 → 3142. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+
+Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/791/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
+
+#### Parent reconciliation and verification checkpoint
+
+The exact 91 source cases are 87 KEEP and 4 REWRITE, with zero DELETE. A moves 19 source cases, B 36, and C 36. F24 has seven actual source registrations (four dynamic surfaces plus three named cases), so its final owner has 12, correcting the preliminary eight/13 forecast. The authoritative clean comparison retains all 234 registration names: 26 files before, 10 after, including the unchanged Catalog guard. Focused c8 wall time is 13,827 → 7,567 ms; full-suite speed and CI are separate evidence.
+
+The four rewrites all have actual named mutation RED/restored GREEN evidence. F24's authoritative detached-worktree replay has the exact named failure as its only failure (11/12), followed by 12/12 after restoration; its snapshot harness ignores the requested single-case filter. The scratch copy lacking Git metadata is separately retained as incomplete evidence, never accepted as GREEN. F30's initial missing-frontmatter setup failure is separately recorded; its valid replay is 0/1 RED then 1/1 GREEN. The Cursor allowlist and disposable Host-binding descriptor probes retain their raw logs and executable recipes.
+
+The first F65 provisional mutation temporarily touched the canonical policy, contrary to the disposable-only implementation handoff. It was restored byte-for-byte before the clean after run; the canonical SHA-256 matches HEAD. The required proof was repeated entirely in a disposable copy, with the exact named failure (12/13) and restored GREEN (13/13). No final production implementation change remains.
+
+F32 has 1,455 lines under its approved scoped exception. No TIMEOUT_HINTS entry was added. Twelve canonical Catalog ownership mappings point at surviving suites. Current executable source-path references are resolved, while dated evidence and baseline CSVs retain their historical names.
+
+All 44 loaded canonical production files have non-decreasing covered line counts. Only Catalog mapping data changes its measured blob. Of 4,784 common branch arms, 3,142 are covered on each side and zero covered arms are lost. Three raw covered branch counts fall on identical production blobs: agy-plugin-package 215 → 207, internal-runtime-skills 15 → 13, and project-agent-projection-publisher 321 → 319. Every removed or added range in those three files is covered. Literal raw branch non-decrease is NOT PASS; the ticket's separate unrelated-drift allowance and cold review must adjudicate this documented V8 instrumentation exception.
+
+The refreshed graph matches base 3a140568. Exact File impact for project-agent-projection-baseline reports CRITICAL640 with blank and uncorroborated dispatch-config-report incoming candidates; exact graph context has no incoming edge, and source inspection plus dynamic test discovery do not corroborate that caller. Preserve CRITICAL/UNKNOWN as unresolved index warnings. Canonical production verifyCursorPackage and materializeRelocatableAgentsSkillsProjection report CRITICAL lower-bound impact (CLI 640/642); differing MCP counts and corrupt/ambiguous candidates remain visible. Full-limit CLI reports remove the earlier truncated presentation; no axes-based waiver is used. The read-only re-audit permits the bounded test move with production implementations unchanged.
+
+At this checkpoint Catalog reports zero uncovered scripts; plugin, harness, changelog fragments and diff-base marker check pass. Marketplace regeneration/check, actual Markdownlint 0.23.2, and whitespace checks also pass on the ledger/mirror tree. GitNexus detect-changes reports 29 files and 10 symbols, LOW, with no partial or truncated result. Full-suite, platform verification, real v2 Review Gate, and hosted CI remain pending and must be reported separately in delivery evidence.
