@@ -39,6 +39,56 @@ function assertSecurityFailure(fn) {
   assert.throws(fn, (error) => error && error.code === 'ESECURITY');
 }
 
+function assertPathSnapshotChangeRejected(phase) {
+  const root = temporaryDirectory('dhpk-physical-path-snapshot-');
+  const file = path.join(root, 'payload.bin');
+  const payload = Buffer.from('the public reader must bind path snapshots\n');
+  writePrivate(file, payload);
+  const targetStatCall = phase === 'after-open' ? 2 : 3;
+  const originalOpenSync = fs.openSync;
+  const originalLstatSync = fs.lstatSync;
+  const originalCloseSync = fs.closeSync;
+  let descriptor;
+  let targetStatCalls = 0;
+  let changedTargetStats = 0;
+  let descriptorClosed = false;
+  try {
+    assert.deepStrictEqual(physicalFile.readPhysicalFile(root, file, payload.length), payload);
+    fs.openSync = function captureTarget(target, ...args) {
+      const opened = originalOpenSync.call(fs, target, ...args);
+      if (typeof target === 'string' && path.resolve(target) === file) descriptor = opened;
+      return opened;
+    };
+    fs.lstatSync = function changeOnlyOwnedPathSnapshot(target, ...args) {
+      const stat = originalLstatSync.call(fs, target, ...args);
+      if (typeof target === 'string' && path.resolve(target) === file) {
+        targetStatCalls += 1;
+        if (descriptor !== undefined && targetStatCalls === targetStatCall) {
+          stat.mtimeMs += 1;
+          changedTargetStats += 1;
+        }
+      }
+      return stat;
+    };
+    fs.closeSync = function observeTargetClose(target, ...args) {
+      if (target === descriptor) descriptorClosed = true;
+      return originalCloseSync.call(fs, target, ...args);
+    };
+
+    assertSecurityFailure(() => physicalFile.readPhysicalFile(root, file, payload.length));
+    assert.strictEqual(descriptor !== undefined, true);
+    assert.strictEqual(targetStatCalls, targetStatCall);
+    assert.strictEqual(changedTargetStats, 1);
+    assert.strictEqual(descriptorClosed, true);
+    assert.deepStrictEqual(fs.readFileSync(file), payload);
+  } finally {
+    fs.closeSync = originalCloseSync;
+    fs.lstatSync = originalLstatSync;
+    fs.openSync = originalOpenSync;
+    removePath(root);
+  }
+}
+
 function loadPhysicalFileWithoutOpenFlags() {
   const modulePath = require.resolve('../scripts/lib/physical-file');
   const originalLoad = Module._load;
@@ -255,6 +305,140 @@ test('readPhysicalFile rejects a static symlink', () => {
     removePath(root);
     removePath(outside);
   }
+});
+
+test('readPhysicalFile rejects a symlinked root without reading external bytes', () => {
+  const realRoot = temporaryDirectory('dhpk-physical-read-root-');
+  const linkParent = temporaryDirectory('dhpk-physical-read-root-link-');
+  const linkRoot = path.join(linkParent, 'root');
+  const file = path.join(realRoot, 'payload.bin');
+  const payload = Buffer.from('private root bytes\n');
+  writePrivate(file, payload);
+  fs.symlinkSync(realRoot, linkRoot, 'dir');
+  try {
+    assert.deepStrictEqual(physicalFile.readPhysicalFile(realRoot, file, payload.length), payload);
+    assertSecurityFailure(() => physicalFile.readPhysicalFile(
+      linkRoot,
+      path.join(linkRoot, 'payload.bin'),
+      payload.length,
+    ));
+    assert.deepStrictEqual(fs.readFileSync(file), payload);
+  } finally {
+    removePath(linkParent);
+    removePath(realRoot);
+  }
+});
+
+test('readPhysicalFile rejects a target outside configured root', () => {
+  const root = temporaryDirectory('dhpk-physical-read-boundary-');
+  const outside = temporaryDirectory('dhpk-physical-read-outside-');
+  const insideFile = path.join(root, 'inside.bin');
+  const outsideFile = path.join(outside, 'outside.bin');
+  const insideBytes = Buffer.from('inside root\n');
+  const outsideBytes = Buffer.from('outside root\n');
+  writePrivate(insideFile, insideBytes);
+  writePrivate(outsideFile, outsideBytes);
+  try {
+    assert.deepStrictEqual(physicalFile.readPhysicalFile(root, insideFile, insideBytes.length), insideBytes);
+    assertSecurityFailure(() => physicalFile.readPhysicalFile(root, outsideFile, outsideBytes.length));
+    assert.deepStrictEqual(fs.readFileSync(outsideFile), outsideBytes);
+  } finally {
+    removePath(root);
+    removePath(outside);
+  }
+});
+
+test('readPhysicalFile rejects post-read identity change and closes descriptor', () => {
+  const root = temporaryDirectory('dhpk-physical-read-identity-');
+  const file = path.join(root, 'payload.bin');
+  const payload = Buffer.from('descriptor identity must remain stable\n');
+  writePrivate(file, payload);
+  const originalOpenSync = fs.openSync;
+  const originalFstatSync = fs.fstatSync;
+  const originalCloseSync = fs.closeSync;
+  let descriptor;
+  let descriptorFstats = 0;
+  let descriptorClosed = false;
+  try {
+    assert.deepStrictEqual(physicalFile.readPhysicalFile(root, file, payload.length), payload);
+    fs.openSync = function captureTarget(target, ...args) {
+      const opened = originalOpenSync.call(fs, target, ...args);
+      if (typeof target === 'string' && path.resolve(target) === file) descriptor = opened;
+      return opened;
+    };
+    fs.fstatSync = function changeOnlyPostReadStat(target, ...args) {
+      const stat = originalFstatSync.call(fs, target, ...args);
+      if (target === descriptor) {
+        descriptorFstats += 1;
+        if (descriptorFstats === 2) stat.mtimeMs += 1;
+      }
+      return stat;
+    };
+    fs.closeSync = function observeTargetClose(target, ...args) {
+      if (target === descriptor) descriptorClosed = true;
+      return originalCloseSync.call(fs, target, ...args);
+    };
+    assertSecurityFailure(() => physicalFile.readPhysicalFile(root, file, payload.length));
+    assert.strictEqual(descriptor !== undefined, true);
+    assert.strictEqual(descriptorFstats, 2);
+    assert.strictEqual(descriptorClosed, true);
+    assert.deepStrictEqual(fs.readFileSync(file), payload);
+  } finally {
+    fs.closeSync = originalCloseSync;
+    fs.fstatSync = originalFstatSync;
+    fs.openSync = originalOpenSync;
+    removePath(root);
+  }
+});
+
+test('readPhysicalFile rejects a short read and closes descriptor', () => {
+  const root = temporaryDirectory('dhpk-physical-read-short-');
+  const file = path.join(root, 'payload.bin');
+  const payload = Buffer.from('the public reader must reject short data\n');
+  writePrivate(file, payload);
+  const originalOpenSync = fs.openSync;
+  const originalReadSync = fs.readSync;
+  const originalCloseSync = fs.closeSync;
+  let descriptor;
+  let targetedReads = 0;
+  let descriptorClosed = false;
+  try {
+    assert.deepStrictEqual(physicalFile.readPhysicalFile(root, file, payload.length), payload);
+    fs.openSync = function captureTarget(target, ...args) {
+      const opened = originalOpenSync.call(fs, target, ...args);
+      if (typeof target === 'string' && path.resolve(target) === file) descriptor = opened;
+      return opened;
+    };
+    fs.readSync = function shortReadOnlyTarget(target, buffer, offset, length, position) {
+      if (target === descriptor && targetedReads === 0) {
+        targetedReads += 1;
+        return originalReadSync.call(fs, target, buffer, offset, length - 1, position);
+      }
+      return originalReadSync.apply(fs, arguments);
+    };
+    fs.closeSync = function observeTargetClose(target, ...args) {
+      if (target === descriptor) descriptorClosed = true;
+      return originalCloseSync.call(fs, target, ...args);
+    };
+    assertSecurityFailure(() => physicalFile.readPhysicalFile(root, file, payload.length));
+    assert.strictEqual(descriptor !== undefined, true);
+    assert.strictEqual(targetedReads, 1);
+    assert.strictEqual(descriptorClosed, true);
+    assert.deepStrictEqual(fs.readFileSync(file), payload);
+  } finally {
+    fs.closeSync = originalCloseSync;
+    fs.readSync = originalReadSync;
+    fs.openSync = originalOpenSync;
+    removePath(root);
+  }
+});
+
+test('readPhysicalFile rejects an after-open path snapshot change and closes descriptor', () => {
+  assertPathSnapshotChangeRejected('after-open');
+});
+
+test('readPhysicalFile rejects an after-read path snapshot change and closes descriptor', () => {
+  assertPathSnapshotChangeRejected('after-read');
 });
 
 test('readPhysicalFile rejects non-regular files and bytes above maxBytes', () => {
