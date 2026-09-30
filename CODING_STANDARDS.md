@@ -24,6 +24,32 @@ surface; commands and generated-file inventories remain the source of truth.
   an unavailable runtime is not static PASS, and a valid package must retain
   its structural evidence.
 
+## Commits
+
+- A commit message describes only the change. It carries no author, tool,
+  agent, or model identity: no `Co-authored-by`, `Signed-off-by`, or
+  generated-by trailer, and no attribution line in the body.
+- Before pushing, inspect branch messages with
+  `git log --format=%B origin/develop..HEAD` for author, tool, agent, or model
+  attribution anywhere in the body. Check named trailers with
+  `git log --format=%B origin/develop..HEAD | grep -iE '^(co-authored-by|signed-off-by|generated-by):'`;
+  reword any matching commit.
+
+## Tests
+
+- Apply the rejection checklist in
+  [skills/tdd-workflow/tests.md](skills/tdd-workflow/tests.md) to every added
+  or rewritten assertion; a passing tautological test is not coverage.
+- Add a test to the existing suite that owns its contract. A new
+  `tests/*.test.js` file needs a reason the owner cannot hold it, such as an
+  isolated environment or a runtime that would unbalance a shard.
+- Share expensive setup through `tests/_lib/` rather than copying it, and keep
+  each file within the default 180s budget of `tests/run-all.js` without a new
+  `TIMEOUT_HINTS` entry.
+- Delete a test only when another test collected by `tests/run-all.js` fully
+  owns its contract, and the PR records before-and-after line and branch
+  coverage showing no decrease for each affected production file.
+
 ## OpenSpec archive
 
 - Treat archive as a source change. After it updates main specs, run strict

@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.64.4 — 2026-10-01 — Preserve hidden selected Codex skills, add test writing and timing standards, and warn on unregistered test suites
+
+- **fix(project-skills)** — Preserve hidden selected Codex skills when installing or removing another Host binding.
+- **docs(coding-standards)** — Require commit messages to describe only the change, without Co-authored-by, Signed-off-by, or other identity trailers, and point duplicated tautological-test guidance at the tdd-workflow tests.md owner.
+- **docs(tdd-workflow)** — Add independent-oracle, discrimination, single-owner, and rejection-checklist rules to the test-writing guidance and a matching reviewer checklist in CODING_STANDARDS.md.
+- **ci(test-timing)** — Report warn-only diagnostics when a test file exceeds 180 seconds or shard runtimes exceed a 2.0 ratio.
+- **ci(ci)** — CI warns when newly added flat test suites lack a valid owner registration.
+
 ## 0.64.3 — 2026-09-29 — Avoid Codex runtime skill collisions in project projection
 
 - **fix(agents-skills)** — Keep Codex runtime support skills under the native installer when generating project Host Bindings.

@@ -5,9 +5,29 @@
 // non-pass until each runtime family has a real behavior fixture.
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  errorText,
+  oneSkillInput,
+  physicalTemp,
+  record,
+  remove,
+  skillRow,
+  validLintBody,
+  validationInput,
+  writeFile,
+  writeIntegritySkill,
+  writeSkill,
+} = require('./_lib/skill-directory-coverage-fixtures');
+const lint = require('../skills/skill-scope/scripts/skill-lint');
+const { callerReferencesHelper } = require('../scripts/lib/skill-directory-coverage');
+const { scriptMentions } = require('../skills/skill-scope/scripts/skill-lint');
+const canonicalInventory = require('../manifests/distribution-inventory.json');
+const canonicalCoverage = require('../manifests/skill-directory-coverage.json').skills;
+const { scanCanonicalSkillDeclarations, scanSkillScripts } = require('./_lib/skill-declared-entry-audit');
+const coverageCLI = path.join(__dirname, '..', 'scripts', 'ci', 'validate-skill-directory-coverage.js');
 
 let coverageModule;
 let coverageLoadError;
@@ -15,77 +35,6 @@ try {
   coverageModule = require('../scripts/lib/skill-directory-coverage');
 } catch (error) {
   coverageLoadError = error;
-}
-
-function physicalTemp(prefix) {
-  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
-}
-
-function remove(...paths) {
-  for (const target of paths) {
-    if (target) fs.rmSync(target, { recursive: true, force: true });
-  }
-}
-
-function skillRow(id, skillPath, lifecycle = 'optional') {
-  return {
-    id,
-    name: id,
-    path: skillPath,
-    lifecycle,
-    surfaces: ['claude-module'],
-  };
-}
-
-function inventory(rows) {
-  return { schema: 'dhpk.distribution-inventory.v2', skills: rows };
-}
-
-function writeSkill(root, skillPath, {
-  references = {},
-  scripts = {},
-  body = 'Instruction-only fixture.\n',
-  symlink = null,
-} = {}) {
-  const directory = path.join(root, skillPath);
-  fs.mkdirSync(directory, { recursive: true });
-  fs.writeFileSync(path.join(directory, 'SKILL.md'), [
-    '---',
-    `name: ${path.basename(skillPath)}`,
-    'description: synthetic coverage fixture',
-    '---',
-    '',
-    body,
-  ].join('\n'));
-  for (const [relative, content] of Object.entries(references)) {
-    const target = path.join(directory, relative);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, content);
-  }
-  for (const [relative, content] of Object.entries(scripts)) {
-    const target = path.join(directory, relative);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, content, { mode: 0o755 });
-    fs.chmodSync(target, 0o755);
-  }
-  if (symlink) {
-    const target = path.join(directory, symlink.path);
-    fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.symlinkSync(symlink.target, target);
-  }
-  return directory;
-}
-
-function record({ references = [], executable_entries = [], api_entries = [], internal_helpers = [], host_capabilities = [], host_evidence = {} } = {}) {
-  return {
-    entry: 'SKILL.md',
-    references,
-    executable_entries,
-    api_entries,
-    internal_helpers,
-    host_capabilities,
-    host_evidence,
-  };
 }
 
 function fixture(id, entry, stdout = `${id}\n`) {
@@ -101,15 +50,29 @@ function fixture(id, entry, stdout = `${id}\n`) {
   };
 }
 
-function errorText(result) {
-  return (result && Array.isArray(result.errors) ? result.errors : []).join('\n');
-}
-
 function validate(input) {
   assert.ifError(coverageLoadError);
   assert.strictEqual(typeof coverageModule.validateSkillDirectoryCoverage, 'function',
     'coverage module must expose validateSkillDirectoryCoverage(input)');
   return coverageModule.validateSkillDirectoryCoverage(input);
+}
+
+function validateSkill(root, id, skillPath, skillRecord, fixtures = {}) {
+  return validate(oneSkillInput(root, id, skillPath, skillRecord, fixtures));
+}
+
+function validateSkills(root, rows, records, fixtures = {}) {
+  return validate(validationInput(root, rows, records, fixtures));
+}
+
+function validateIntegrity(root, skillPath, skillRecord, fixtures = {}) {
+  return validateSkill(root, 'integrity-fixture', skillPath, skillRecord, fixtures);
+}
+
+function scriptsFinding(result) {
+  const finding = result.findings.find((entry) => entry.check === 'scripts-contract');
+  assert.ok(finding, 'expected scripts-contract finding');
+  return finding;
 }
 
 test('coverage accepts complete instruction-only Skill coverage', () => {
@@ -118,17 +81,8 @@ test('coverage accepts complete instruction-only Skill coverage', () => {
     writeSkill(root, 'skills/instruction-only', {
       references: { 'references/guide.md': 'Use the written procedure only.\n' },
     });
-    const result = validate({
-      root,
-      inventory: inventory([skillRow('instruction-only', 'skills/instruction-only')]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {
-          'instruction-only': record({ references: ['references/guide.md'] }),
-        },
-      },
-      fixtures: {},
-    });
+    const result = validateSkill(root, 'instruction-only', 'skills/instruction-only',
+      record({ references: ['references/guide.md'] }));
     assert.strictEqual(result.ok, true, errorText(result));
     assert.ok(result.skills && result.skills['instruction-only']);
   } finally {
@@ -141,18 +95,10 @@ test('coverage fails with the stable identity of an omitted active inventory Ski
   try {
     writeSkill(root, 'skills/alpha', {});
     writeSkill(root, 'skills/beta', {});
-    const result = validate({
-      root,
-      inventory: inventory([
+    const result = validateSkills(root, [
         skillRow('alpha', 'skills/alpha'),
         skillRow('beta', 'skills/beta'),
-      ]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: { alpha: record() },
-      },
-      fixtures: {},
-    });
+      ], { alpha: record() });
     assert.strictEqual(result.ok, false);
     assert.match(errorText(result), /beta/);
   } finally {
@@ -168,17 +114,8 @@ test('reachable Markdown links with a contained parent reference report missing 
         'references/guide.md': 'See [the shared procedure](../shared/missing.md).\n',
       },
     });
-    const result = validate({
-      root,
-      inventory: inventory([skillRow('relative-links', 'skills/relative-links')]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {
-          'relative-links': record({ references: ['references/guide.md'] }),
-        },
-      },
-      fixtures: {},
-    });
+    const result = validateSkill(root, 'relative-links', 'skills/relative-links',
+      record({ references: ['references/guide.md'] }));
     assert.strictEqual(result.ok, false);
     assert.match(errorText(result), /shared\/missing\.md|linked Markdown resource/i);
   } finally {
@@ -195,19 +132,9 @@ test('nested Markdown links resolve relative to their document and pass when bot
         'references/nested/topic.md': 'The nested procedure is complete.\n',
       },
     });
-    const result = validate({
-      root,
-      inventory: inventory([skillRow('relative-links', 'skills/relative-links')]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {
-          'relative-links': record({
-            references: ['references/guide.md', 'references/nested/topic.md'],
-          }),
-        },
-      },
-      fixtures: {},
-    });
+    const result = validateSkill(root, 'relative-links', 'skills/relative-links', record({
+      references: ['references/guide.md', 'references/nested/topic.md'],
+    }));
     assert.strictEqual(result.ok, true, errorText(result));
     assert.strictEqual(result.skills['relative-links'].structural, 'PASS');
   } finally {
@@ -226,17 +153,8 @@ test('Markdown links that escape the Skill boundary are rejected even when the t
         'references/guide.md': 'See [outside](../../outside.md).\n',
       },
     });
-    const result = validate({
-      root,
-      inventory: inventory([skillRow('relative-links', 'skills/relative-links')]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {
-          'relative-links': record({ references: ['references/guide.md'] }),
-        },
-      },
-      fixtures: {},
-    });
+    const result = validateSkill(root, 'relative-links', 'skills/relative-links',
+      record({ references: ['references/guide.md'] }));
     assert.strictEqual(result.ok, false);
     assert.match(errorText(result), /outside\.md|escapes|linked Markdown resource/i);
   } finally {
@@ -273,17 +191,8 @@ test('coverage rejects missing or non-regular local resources before reporting c
       const root = physicalTemp(`skill coverage ${current.label}-`);
       try {
         current.setup(root);
-        const result = validate({
-          root,
-          inventory: inventory([skillRow('resource-case', 'skills/resource-case')]),
-          coverage: {
-            schema: 'dhpk.skill-directory-coverage.v1',
-            skills: {
-              'resource-case': record({ references: [current.reference] }),
-            },
-          },
-          fixtures: {},
-        });
+        const result = validateSkill(root, 'resource-case', 'skills/resource-case',
+          record({ references: [current.reference] }));
         assert.strictEqual(result.ok, false);
         assert.match(errorText(result), current.expected);
       } finally {
@@ -333,55 +242,27 @@ test('coverage requires fixtures for reachable executable entries while allowing
       },
     });
 
-    const omittedIndirect = validate({
-      root,
-      inventory: inventory([row]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: { 'executable-case': record(commonRecord) },
-      },
-      fixtures,
-    });
+    const omittedIndirect = validateSkill(root, row.id, row.path, record(commonRecord), fixtures);
     assert.strictEqual(omittedIndirect.ok, false);
     assert.match(errorText(omittedIndirect), /scripts\/indirect\.js/);
 
-    const unknownFixture = validate({
-      root,
-      inventory: inventory([row]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {
-          'executable-case': record({
-            ...commonRecord,
-            executable_entries: [
-              { path: 'scripts/public.js', fixture_ids: ['fixture-missing'] },
-              { path: 'scripts/indirect.js', fixture_ids: ['fixture-indirect'] },
-            ],
-          }),
-        },
-      },
-      fixtures,
-    });
+    const unknownFixture = validateSkill(root, row.id, row.path, record({
+      ...commonRecord,
+      executable_entries: [
+        { path: 'scripts/public.js', fixture_ids: ['fixture-missing'] },
+        { path: 'scripts/indirect.js', fixture_ids: ['fixture-indirect'] },
+      ],
+    }), fixtures);
     assert.strictEqual(unknownFixture.ok, false);
     assert.match(errorText(unknownFixture), /fixture-missing/);
 
-    const complete = validate({
-      root,
-      inventory: inventory([row]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {
-          'executable-case': record({
-            ...commonRecord,
-            executable_entries: [
-              { path: 'scripts/public.js', fixture_ids: ['fixture-public'] },
-              { path: 'scripts/indirect.js', fixture_ids: ['fixture-indirect'] },
-            ],
-          }),
-        },
-      },
-      fixtures,
-    });
+    const complete = validateSkill(root, row.id, row.path, record({
+      ...commonRecord,
+      executable_entries: [
+        { path: 'scripts/public.js', fixture_ids: ['fixture-public'] },
+        { path: 'scripts/indirect.js', fixture_ids: ['fixture-indirect'] },
+      ],
+    }), fixtures);
     assert.strictEqual(complete.ok, true, errorText(complete));
     assert.ok(complete.skills && complete.skills['executable-case']);
     assert.strictEqual(complete.skills['executable-case'].fixtures, 'NOT_RUN');
@@ -406,23 +287,12 @@ test('internal helper with a required_by that never reaches a covered public ent
         'scripts/internal.js': '#!/usr/bin/env node\n',
       },
     });
-    const bypassed = validate({
-      root,
-      inventory: inventory([row]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {
-          'helper-bypass-case': record({
-            internal_helpers: [
-              // 'SKILL.md' physically exists but is not an executable/api
-              // entry, so this required_by chain never reaches coverage.
-              { path: 'scripts/internal.js', required_by: ['SKILL.md'] },
-            ],
-          }),
-        },
-      },
-      fixtures: {},
-    });
+    const bypassed = validateSkill(root, row.id, row.path, record({
+      internal_helpers: [
+        // 'SKILL.md' physically exists but is not an executable/api entry.
+        { path: 'scripts/internal.js', required_by: ['SKILL.md'] },
+      ],
+    }));
     assert.strictEqual(bypassed.ok, false);
     assert.match(errorText(bypassed), /scripts\/internal\.js.*never reaches a covered public entry/);
   } finally {
@@ -437,21 +307,9 @@ test('per-Skill status fails when an executable fixture definition is missing', 
     writeSkill(root, row.path, {
       scripts: { 'scripts/public.js': '#!/usr/bin/env node\n' },
     });
-    const result = validate({
-      root,
-      inventory: inventory([row]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {
-          'missing-fixture': record({
-            executable_entries: [
-              { path: 'scripts/public.js', fixture_ids: ['fixture-not-registered'] },
-            ],
-          }),
-        },
-      },
-      fixtures: {},
-    });
+    const result = validateSkill(root, row.id, row.path, record({
+      executable_entries: [{ path: 'scripts/public.js', fixture_ids: ['fixture-not-registered'] }],
+    }));
 
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.skills['missing-fixture'].fixtures, 'FAIL');
@@ -467,15 +325,7 @@ test('missing coverage rows expose a failing per-Skill status', () => {
   const row = skillRow('missing-row', 'skills/missing-row');
   try {
     writeSkill(root, row.path, {});
-    const result = validate({
-      root,
-      inventory: inventory([row]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: {},
-      },
-      fixtures: {},
-    });
+    const result = validateSkills(root, [row], {});
 
     assert.strictEqual(result.ok, false);
     assert.strictEqual(result.skills['missing-row'].structural, 'FAIL');
@@ -495,12 +345,8 @@ test('a nested Markdown link is not also interpreted as a root-relative textual 
       'references/guide.md': '[Topic](references/topic.md)\n',
       'references/references/topic.md': 'Contained nested topic.\n',
     } });
-    const result = validate({ root,
-      inventory: inventory([skillRow('example', 'skills/example')]),
-      coverage: { schema: 'dhpk.skill-directory-coverage.v1', skills: {
-        example: record({ references: ['references/guide.md', 'references/references/topic.md'] }),
-      } }, fixtures: {},
-    });
+    const result = validateSkill(root, 'example', 'skills/example',
+      record({ references: ['references/guide.md', 'references/references/topic.md'] }));
     assert.strictEqual(result.ok, true, errorText(result));
   } finally { remove(root); }
 });
@@ -512,15 +358,12 @@ test('a fixture for another executable cannot cover an untested declared entry',
       'scripts/one.js': 'console.log("one");\n',
       'scripts/two.js': 'console.log("two");\n',
     } });
-    const result = validate({ root,
-      inventory: inventory([skillRow('example', 'skills/example')]),
-      coverage: { schema: 'dhpk.skill-directory-coverage.v1', skills: {
-        example: record({ executable_entries: [
-          { path: 'scripts/one.js', fixture_ids: ['one'] },
-          { path: 'scripts/two.js', fixture_ids: ['one'] },
-        ] }),
-      } }, fixtures: { one: fixture('one', 'scripts/one.js', 'one\n') },
-    });
+    const result = validateSkill(root, 'example', 'skills/example', record({
+      executable_entries: [
+        { path: 'scripts/one.js', fixture_ids: ['one'] },
+        { path: 'scripts/two.js', fixture_ids: ['one'] },
+      ],
+    }), { one: fixture('one', 'scripts/one.js', 'one\n') });
     assert.strictEqual(result.ok, false, 'one.js execution cannot establish coverage for two.js');
     assert.match(errorText(result), /two\.js/);
   } finally { remove(root); }
@@ -538,14 +381,12 @@ test('behavior fixtures can declare multiple literal output fragments', () => {
         for (const fragment of this.expected.output) assert.ok(result.stdout.includes(fragment));
       },
     };
-    const input = { root, inventory: inventory([skillRow('example', 'skills/example')]),
-      coverage: { schema: 'dhpk.skill-directory-coverage.v1', skills: {
-        example: record({ executable_entries: [{ path: 'scripts/run.js', fixture_ids: ['fragments'] }] }),
-      } }, fixtures: { fragments: definition },
-    };
-    assert.strictEqual(validate(input).ok, true, errorText(validate(input)));
+    const runValidation = () => validateSkill(root, 'example', 'skills/example', record({
+      executable_entries: [{ path: 'scripts/run.js', fixture_ids: ['fragments'] }],
+    }), { fragments: definition });
+    assert.strictEqual(runValidation().ok, true, errorText(runValidation()));
     definition.expected.output = [];
-    assert.strictEqual(validate(input).ok, false, 'an empty fragment list provides no output contract');
+    assert.strictEqual(runValidation().ok, false, 'an empty fragment list provides no output contract');
   } finally { remove(root); }
 });
 
@@ -557,15 +398,8 @@ test('an executable script listed only as a reference must be classified as an e
       body: 'Instruction-only fixture that ships a scanner.\n',
       scripts: { 'scripts/scan.sh': '#!/usr/bin/env bash\n' },
     });
-    const result = validate({
-      root,
-      inventory: inventory([row]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: { 'reference-script': record({ references: ['scripts/scan.sh'] }) },
-      },
-      fixtures: {},
-    });
+    const result = validateSkill(root, row.id, row.path,
+      record({ references: ['scripts/scan.sh'] }));
     assert.strictEqual(result.ok, false, 'a reference entry cannot hide an unfixtured executable');
     assert.match(errorText(result), /scripts\/scan\.sh.*(entry|helper)/);
   } finally {
@@ -581,14 +415,9 @@ test('an inert retained script is accepted only with an explicit reason and no r
       body: 'Instruction-only fixture that retains a deprecated module.\n',
       scripts: { 'scripts/legacy.py': '# DEPRECATED: retained for reference only\n' },
     });
-    const run = (inert) => validate({
-      root,
-      inventory: inventory([row]),
-      coverage: {
-        schema: 'dhpk.skill-directory-coverage.v1',
-        skills: { 'inert-script': { ...record({ references: ['scripts/legacy.py'] }), inert_scripts: inert } },
-      },
-      fixtures: {},
+    const run = (inert) => validateSkill(root, row.id, row.path, {
+      ...record({ references: ['scripts/legacy.py'] }),
+      inert_scripts: inert,
     });
     const accepted = run([{ path: 'scripts/legacy.py', reason: 'deprecated v1 logic retained for reference' }]);
     assert.strictEqual(accepted.ok, true, errorText(accepted));
@@ -597,6 +426,361 @@ test('an inert retained script is accepted only with an explicit reason and no r
     assert.match(errorText(unexplained), /inert.*reason/i);
   } finally {
     remove(root);
+  }
+});
+
+// ----- Coverage metadata integrity (consolidated from skill-coverage-integrity) -----
+
+test('documented public scripts cannot be reclassified as internal helpers', () => {
+  const root = physicalTemp('dhpk coverage integrity public-helper-');
+  try {
+    const { skillPath } = writeIntegritySkill(root, {
+      body: 'Run `node scripts/launcher.js` to produce the report.\nRun `node scripts/public.js` directly.\n',
+      scripts: {
+        'scripts/launcher.js': "module.exports = require('./public.js');\n",
+        'scripts/public.js': '#!/usr/bin/env node\n',
+      },
+    });
+    const result = validateIntegrity(root, skillPath, record({
+      executable_entries: [{ path: 'scripts/launcher.js', fixture_ids: ['launch'] }],
+      internal_helpers: [{
+        path: 'scripts/public.js',
+        required_by: ['SKILL.md', 'scripts/launcher.js'],
+      }],
+    }), { launch: fixture('launch', 'scripts/launcher.js') });
+
+    assert.deepStrictEqual(result.errors, [
+      "integrity-fixture: internal helper 'scripts/public.js' required_by caller 'SKILL.md' is not a registered coverage entry",
+    ]);
+  } finally {
+    remove(root);
+  }
+});
+
+test('a fixture-covered public launcher may reach a registered API and transitive JS-to-Python helpers', () => {
+  const root = physicalTemp('dhpk coverage integrity valid-chain-');
+  const fixtures = {
+    launch: fixture('launch', 'scripts/launcher.js'),
+    api: fixture('api', 'scripts/api.js'),
+  };
+  try {
+    const { skillPath } = writeIntegritySkill(root, {
+      body: 'Run `node scripts/launcher.js` to produce the report.\n',
+      scripts: {
+        'scripts/launcher.js': "module.exports = { api: require('./api.js'), helper: require('./js-helper') };\n",
+        'scripts/api.js': "module.exports = require('./js-helper.js');\n",
+        'scripts/js-helper.js': "module.exports = require('./python-helper.py');\n",
+        'scripts/python-helper.py': 'print("fixture helper")\n',
+      },
+    });
+    const result = validateIntegrity(root, skillPath, record({
+      executable_entries: [{ path: 'scripts/launcher.js', fixture_ids: ['launch'] }],
+      api_entries: [{ path: 'scripts/api.js', fixture_ids: ['api'] }],
+      internal_helpers: [
+        { path: 'scripts/js-helper.js', required_by: ['scripts/launcher.js', 'scripts/api.js'] },
+        { path: 'scripts/python-helper.py', required_by: ['scripts/js-helper.js'] },
+      ],
+    }), fixtures);
+
+    assert.strictEqual(result.ok, true, errorText(result));
+    assert.strictEqual(result.skills['integrity-fixture'].status, 'PASS');
+  } finally {
+    remove(root);
+  }
+});
+
+test('a helper cannot list itself as its caller', () => {
+  const root = physicalTemp('dhpk coverage integrity self-edge-');
+  try {
+    const { skillPath } = writeIntegritySkill(root, {
+      body: 'Run `node scripts/launcher.js` to produce the report.\n',
+      scripts: {
+        'scripts/launcher.js': "module.exports = require('./helper.js');\n",
+        'scripts/helper.js': 'module.exports = {};\n',
+      },
+    });
+    const result = validateIntegrity(root, skillPath, record({
+      executable_entries: [{ path: 'scripts/launcher.js', fixture_ids: ['launch'] }],
+      internal_helpers: [{
+        path: 'scripts/helper.js',
+        required_by: ['scripts/helper.js', 'scripts/launcher.js'],
+      }],
+    }), { launch: fixture('launch', 'scripts/launcher.js') });
+
+    assert.deepStrictEqual(result.errors, [
+      "integrity-fixture: internal helper 'scripts/helper.js' lists itself as its caller (self-cycle)",
+    ]);
+  } finally {
+    remove(root);
+  }
+});
+
+test('helper metadata cannot describe a dependency cycle', () => {
+  const root = physicalTemp('dhpk coverage integrity cycle-');
+  try {
+    const { skillPath } = writeIntegritySkill(root, {
+      body: 'Run `node scripts/launcher.js` to produce the report.\n',
+      scripts: {
+        'scripts/launcher.js': "module.exports = require('./first.js');\n",
+        'scripts/first.js': "module.exports = require('./second.js');\n",
+        'scripts/second.js': "module.exports = require('./first.js');\n",
+      },
+    });
+    const result = validateIntegrity(root, skillPath, record({
+      executable_entries: [{ path: 'scripts/launcher.js', fixture_ids: ['launch'] }],
+      internal_helpers: [
+        { path: 'scripts/first.js', required_by: ['scripts/launcher.js', 'scripts/second.js'] },
+        { path: 'scripts/second.js', required_by: ['scripts/first.js'] },
+      ],
+    }), { launch: fixture('launch', 'scripts/launcher.js') });
+
+    assert.strictEqual(result.ok, false);
+    assert.match(errorText(result), /cycle|first\.js|second\.js/i);
+  } finally {
+    remove(root);
+  }
+});
+
+test('every declared helper must be reachable from the fixture-covered public entry', () => {
+  const root = physicalTemp('dhpk coverage integrity orphan-');
+  try {
+    const { skillPath } = writeIntegritySkill(root, {
+      body: 'Run `node scripts/launcher.js` to produce the report.\n',
+      scripts: {
+        'scripts/launcher.js': "module.exports = require('./used.js');\n",
+        'scripts/used.js': 'module.exports = {};\n',
+        'scripts/unreachable.js': "module.exports = require('./orphan.js');\n",
+        'scripts/orphan.js': 'module.exports = {};\n',
+      },
+    });
+    const result = validateIntegrity(root, skillPath, record({
+      executable_entries: [{ path: 'scripts/launcher.js', fixture_ids: ['launch'] }],
+      internal_helpers: [
+        { path: 'scripts/used.js', required_by: ['scripts/launcher.js'] },
+        { path: 'scripts/unreachable.js', required_by: [] },
+        { path: 'scripts/orphan.js', required_by: ['scripts/unreachable.js'] },
+      ],
+    }), { launch: fixture('launch', 'scripts/launcher.js') });
+
+    assert.deepStrictEqual(result.errors, [
+      "integrity-fixture: internal helper 'scripts/unreachable.js' required_by chain never reaches a covered public entry",
+      "integrity-fixture: internal helper 'scripts/orphan.js' required_by chain never reaches a covered public entry",
+    ]);
+  } finally {
+    remove(root);
+  }
+});
+
+test('a registered required_by edge must match the caller file that contains the local dependency', () => {
+  const root = physicalTemp('dhpk coverage integrity fake-edge-');
+  try {
+    const { skillPath } = writeIntegritySkill(root, {
+      body: 'Run `node scripts/launcher.js` to produce the report.\n',
+      scripts: {
+        'scripts/launcher.js': "module.exports = require('./helper.js');\n",
+        'scripts/api.js': 'module.exports = {};\n',
+        'scripts/helper.js': 'module.exports = {};\n',
+      },
+    });
+    const result = validateIntegrity(root, skillPath, record({
+      executable_entries: [{ path: 'scripts/launcher.js', fixture_ids: ['launch'] }],
+      api_entries: [{ path: 'scripts/api.js', fixture_ids: [] }],
+      internal_helpers: [{ path: 'scripts/helper.js', required_by: ['scripts/api.js'] }],
+    }), { launch: fixture('launch', 'scripts/launcher.js') });
+
+    assert.strictEqual(result.ok, false);
+    assert.match(errorText(result), /dependency|caller|edge|launcher\.js|api\.js/i);
+  } finally {
+    remove(root);
+  }
+});
+
+test('a required_by caller must be a declared public, API, or helper entry', () => {
+  const root = physicalTemp('dhpk coverage integrity unregistered-caller-');
+  try {
+    const { skillPath } = writeIntegritySkill(root, {
+      body: 'Run `node scripts/launcher.js` to produce the report.\n',
+      scripts: {
+        'scripts/launcher.js': "module.exports = require('./helper.js');\n",
+        'scripts/unregistered.js': "module.exports = require('./helper.js');\n",
+        'scripts/helper.js': 'module.exports = {};\n',
+      },
+    });
+    const result = validateIntegrity(root, skillPath, record({
+      executable_entries: [{ path: 'scripts/launcher.js', fixture_ids: ['launch'] }],
+      internal_helpers: [{
+        path: 'scripts/helper.js',
+        required_by: ['scripts/unregistered.js', 'scripts/launcher.js'],
+      }],
+    }), { launch: fixture('launch', 'scripts/launcher.js') });
+
+    assert.deepStrictEqual(result.errors, [
+      "integrity-fixture: internal helper 'scripts/helper.js' required_by caller 'scripts/unregistered.js' is not a registered coverage entry",
+    ]);
+  } finally {
+    remove(root);
+  }
+});
+
+test('the scripts lint rejects an external symlink used as a documented public script', () => {
+  const root = physicalTemp('dhpk lint integrity public-symlink-');
+  const outside = physicalTemp('dhpk lint integrity outside-public-');
+  try {
+    const external = writeFile(outside, 'external.js', 'module.exports = "outside";\n');
+    const { skillRoot } = writeIntegritySkill(root, {
+      body: validLintBody('scripts/public.js'),
+      symlinks: [{ path: 'scripts/public.js', target: external }],
+    });
+    const finding = scriptsFinding(lint.lintSkill('integrity-fixture', skillRoot, ['integrity-fixture']));
+
+    assert.strictEqual(finding.pass, false);
+    assert.match(finding.message, /symlink|physical|contained|public\.js/i);
+  } finally {
+    remove(root, outside);
+  }
+});
+
+test('the scripts lint rejects an external symlink reached as an imported helper', () => {
+  const root = physicalTemp('dhpk lint integrity helper-symlink-');
+  const outside = physicalTemp('dhpk lint integrity outside-helper-');
+  try {
+    const external = writeFile(outside, 'helper.js', 'module.exports = "outside";\n');
+    const { skillRoot } = writeIntegritySkill(root, {
+      body: validLintBody('scripts/public.js'),
+      scripts: { 'scripts/public.js': "module.exports = require('./helper.js');\n" },
+      symlinks: [{ path: 'scripts/helper.js', target: external }],
+    });
+    const finding = scriptsFinding(lint.lintSkill('integrity-fixture', skillRoot, ['integrity-fixture']));
+
+    assert.strictEqual(finding.pass, false);
+    assert.match(finding.message, /symlink|physical|contained|helper\.js/i);
+  } finally {
+    remove(root, outside);
+  }
+});
+
+test('a bare basename cannot document two nested scripts at once', () => {
+  const root = physicalTemp('dhpk lint integrity duplicate-basename-');
+  try {
+    const { skillRoot } = writeIntegritySkill(root, {
+      body: validLintBody('run.js'),
+      scripts: {
+        'scripts/alpha/run.js': 'module.exports = "alpha";\n',
+        'scripts/beta/run.js': 'module.exports = "beta";\n',
+      },
+    });
+    const finding = scriptsFinding(lint.lintSkill('integrity-fixture', skillRoot, ['integrity-fixture']));
+
+    assert.strictEqual(finding.pass, false);
+    assert.match(finding.message, /ambiguous|basename|alpha\/run\.js|beta\/run\.js/i);
+  } finally {
+    remove(root);
+  }
+});
+
+// ----- Canonical declaration coverage (consolidated from skill-declared-entry-coverage) -----
+
+test('runnable script declarations require public coverage while prose examples stay non-public', () => {
+  const root = physicalTemp('skill coverage declared entry-');
+  const row = skillRow('declared-entry', 'skills/declared-entry');
+  try {
+    writeSkill(root, row.path, {
+      body: [
+        'Run `node scripts/public.js --help`.',
+        'The `helper.js` module is internal implementation detail.',
+        'The example output includes `sample.js`.',
+      ].join('\n'),
+      scripts: { 'scripts/public.js': '#!/usr/bin/env node\n' },
+    });
+    const covered = validate(oneSkillInput(root, row.id, row.path, record({
+      executable_entries: [{ path: 'scripts/public.js', fixture_ids: ['public'] }],
+    }), { public: fixture('public', 'scripts/public.js', 'public\n') }));
+    assert.strictEqual(covered.ok, true, errorText(covered));
+
+    const uncovered = validate(oneSkillInput(root, row.id, row.path, record()));
+    assert.deepStrictEqual(uncovered.errors, [
+      "declared-entry: documented executable entry 'scripts/public.js' is missing from coverage registry (SKILL.md:6)",
+    ]);
+  } finally {
+    remove(root);
+  }
+});
+
+test('every script basename declared by a canonical Skill has an explicit coverage role', () => {
+  const root = physicalTemp('skill coverage bare-basename-');
+  const row = skillRow('bare-basename', 'skills/bare-basename');
+  try {
+    writeSkill(root, row.path, {
+      body: 'The fixture keeps `new-tool.js` available for operators.\n',
+      scripts: { 'scripts/new-tool.js': '#!/usr/bin/env node\n' },
+    });
+    assert.deepStrictEqual(scanSkillScripts(root, row,
+      fs.readFileSync(path.join(root, row.path, 'SKILL.md'), 'utf8'), record()), {
+      missing: ['bare-basename: scripts/new-tool.js'],
+      misclassified: [],
+    });
+  } finally {
+    remove(root);
+  }
+
+  const result = scanCanonicalSkillDeclarations(path.join(__dirname, '..'),
+    canonicalInventory, canonicalCoverage);
+  assert.deepStrictEqual(result.missing, []);
+  assert.deepStrictEqual(result.misclassified, []);
+});
+
+// ----- Dependency evidence parity (consolidated from skill-dependency-evidence) -----
+
+const dependencyCases = [
+  ['static require with extension', 'scripts/a.js', "require('./lib/runner-utils.js');", 'scripts/lib/runner-utils.js', true],
+  ['extensionless relative require', 'scripts/a.js', "require('./js-helper')", 'scripts/js-helper.js', true],
+  ['named-module loader call', 'scripts/a.js', "loadRuntimeModule('runner-utils');", 'scripts/_lib/runner-utils.js', true],
+  ['path.join segments', 'scripts/a.js', "bundleModule(path.join('scripts', 'lib', 'dispatch-contract'))", 'references/b/scripts/lib/dispatch-contract.js', true],
+  ['shell source by basename', 'scripts/run.sh', '. "$DIR/lib/portable-sed.sh"', 'scripts/lib/portable-sed.sh', true],
+  ['python absolute package import', 'scripts/sync.py', 'from sync_lib.cli import main', 'scripts/sync_lib/cli.py', true],
+  ['python package __init__', 'scripts/sync.py', 'from sync_lib.cli import main', 'scripts/sync_lib/__init__.py', true],
+  ['python relative import', 'scripts/sync_lib/cli.py', 'from .utils import helper', 'scripts/sync_lib/utils.py', true],
+  ['python relative nested package', 'scripts/lib/a.py', 'from .vendor.tomli import loads', 'scripts/lib/vendor/tomli/__init__.py', true],
+  ['object literal common word', 'scripts/main.js', "return list.map((x) => ({ type: 'index' }));", 'scripts/helpers/index.js', false],
+  ['config mode string', 'scripts/main.js', "const opts = { mode: 'config' };", 'scripts/helpers/config.js', false],
+  ['dotted suffix inside message', 'scripts/main.js', "throw new Error('Failed to load config.utils')", 'scripts/utils.js', false],
+  ['python variable named like module', 'scripts/main.py', 'utils = []\nutils.append(1)', 'scripts/utils.py', false],
+  ['longer basename containing helper name', 'scripts/a.sh', 'bash "$DIR/prerun.sh"', 'scripts/run.sh', false],
+];
+
+for (const [description, callerPath, callerText, helperPath, expected] of dependencyCases) {
+  test(`dependency evidence: ${description}`, () => {
+    assert.strictEqual(callerReferencesHelper(callerText, callerPath, helperPath), expected, 'coverage validator');
+    assert.strictEqual(scriptMentions(callerPath, callerText, helperPath), expected, 'skill linter');
+  });
+}
+
+// ----- Validator CLI contract (consolidated from validate-skill-directory-coverage) -----
+
+function invokeCoverageCLI(args) {
+  return spawnSync(process.execPath, [coverageCLI, ...args], { encoding: 'utf8', timeout: 120000 });
+}
+
+test('--check reports one PASS result per canonical inventory identity', () => {
+  const result = invokeCoverageCLI(['--check']);
+  assert.strictEqual(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(result.stdout);
+  assert.strictEqual(report.ok, true, report.errors.join('\n'));
+  assert.deepStrictEqual(Object.keys(report.skills).sort(), canonicalInventory.skills.map((row) => row.id).sort());
+  for (const [id, detail] of Object.entries(report.skills)) {
+    assert.strictEqual(detail.status, 'PASS', id);
+    assert.ok(['NOT_RUN', 'NOT_APPLICABLE'].includes(detail.fixtures), `${id} fixtures ${detail.fixtures}`);
+  }
+  assert.strictEqual(report.fixture_execution, 'NOT_RUN');
+  assert.strictEqual(report.host_probes, 'NOT_RUN');
+});
+
+test('unknown arguments exit 2 without a report', () => {
+  for (const args of [[], ['--write'], ['--check', '--extra']]) {
+    const result = invokeCoverageCLI(args);
+    assert.strictEqual(result.status, 2, `${args.join(' ')}: ${result.stdout}`);
+    assert.strictEqual(result.stdout, '');
+    assert.match(result.stderr, /Usage: validate-skill-directory-coverage\.js --check/);
   }
 });
 

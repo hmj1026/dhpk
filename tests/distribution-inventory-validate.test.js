@@ -5,7 +5,15 @@
 // leakage, and malformed family routing all fail closed.
 
 const { test, run, assert } = require('./_lib/tinytest');
+const fs = require('node:fs');
+const path = require('node:path');
+const ROOT = path.join(__dirname, '..');
 const {
+  REQUIRED_SURFACES,
+  computeScopedCounts,
+  generateClaudeSkillRoots,
+  validateProjectionContract,
+  validateRequiredSurfacePlan,
   validateDistributionInventory,
   validateDistributionInventoryV2,
   validateExternalSkillPackages,
@@ -23,6 +31,11 @@ const {
   resolveSkillRoutingAlias,
   resolveSkillRoutingReference,
 } = require('../scripts/lib/distribution-inventory');
+const {
+  INTERNAL_RUNTIME_SURFACES,
+  runtimeSupportSkillIds,
+  validateInternalRuntimeSkills,
+} = require('../scripts/lib/internal-runtime-skills');
 
 function baseInventory() {
   return {
@@ -582,6 +595,358 @@ test('installation lifecycle contract requires the exact surface and operation m
   const extra = JSON.parse(JSON.stringify(inventory.installation_contract));
   extra.surfaces.claude.operations.typo = 'BLOCKED';
   assert.ok(validateInstallationLifecycleContract(extra).errors.some((error) => /unsupported operation 'typo'/i));
+});
+
+
+// Merged from tests/distribution-scoped-counts.test.js. The fixture and
+// literal outcomes keep each published count tied to its intended scope.
+function fixtureInventory() {
+  return {
+    skills: [
+      { id: 'a', path: 'skills/a', lifecycle: 'promoted', surfaces: ['claude-core'] },
+      { id: 'b', path: 'skills/b', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-sync'] },
+      { id: 'c', path: 'modules/x/skills/c', lifecycle: 'optional', surfaces: ['claude-module'] },
+      { id: 'd', path: 'modules/x/skills/d', lifecycle: 'experimental', surfaces: ['claude-module'] },
+      { id: 'e', path: 'skills/e', lifecycle: 'deprecated', surfaces: ['claude-core'] },
+    ],
+    modules: [{ id: 'x', path: 'modules/x', lifecycle: 'optional', surfaces: ['claude-module'] }],
+  };
+}
+
+test('computes independent canonical/promoted-core/optional/experimental/deprecated counts', () => {
+  const counts = computeScopedCounts(fixtureInventory());
+  assert.strictEqual(counts.canonical, 5);
+  assert.strictEqual(counts.promotedCore, 2);
+  assert.strictEqual(counts.optional, 1);
+  assert.strictEqual(counts.experimental, 1);
+  assert.strictEqual(counts.deprecated, 1);
+});
+
+test('Claude-published count excludes deprecated (host still lists the root, but the count is the inventory-derived intent)', () => {
+  const counts = computeScopedCounts(fixtureInventory());
+  assert.strictEqual(counts.claudePublished, 4);
+});
+
+test('Claude-published count is the same inventory-derived set used by structural verification', () => {
+  const inventory = fixtureInventory();
+  const counts = computeScopedCounts(inventory);
+  const generated = verifyClaudeProjection({ inventory, pluginSkills: ['./skills/', './modules/x/skills/'] });
+  assert.strictEqual(generated.ok, true, generated.evidence && generated.evidence.diagnostics.join('\n'));
+  assert.deepStrictEqual(generated.generated.generatedSkillIds, ['a', 'b', 'c', 'd']);
+  assert.strictEqual(counts.claudePublished, 4);
+  assert.strictEqual(generated.generated.generatedSkillIds.length, counts.claudePublished);
+});
+
+test('Codex-published count is the codex-sync/codex-native surface count, distinct from promoted-core', () => {
+  const counts = computeScopedCounts(fixtureInventory());
+  assert.strictEqual(counts.codexPublished, 1);
+});
+
+
+test('module lifecycle counts are computed with the same rigor as skill lifecycle counts', () => {
+  const inv = fixtureInventory();
+  inv.modules.push(
+    { id: 'y', path: 'modules/y', lifecycle: 'experimental', surfaces: ['claude-module'] },
+    {
+      id: 'z',
+      path: 'modules/z',
+      lifecycle: 'deprecated',
+      surfaces: ['claude-module'],
+      deprecation: { since: '2026-01-01', compatibilityWindowEnds: '2026-04-01', migrationNote: 'retired' },
+    }
+  );
+  const counts = computeScopedCounts(inv);
+  assert.strictEqual(counts.optionalModules, 1);
+  assert.strictEqual(counts.experimentalModules, 1);
+  assert.strictEqual(counts.deprecatedModules, 1);
+});
+
+test('against the real checked-in inventory, canonical and scoped counts remain independently derived', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const counts = computeScopedCounts(inventory);
+  assert.strictEqual(counts.canonical, inventory.skills.length);
+  assert.strictEqual(counts.promotedCore + counts.optional + counts.experimental + counts.deprecated, counts.canonical);
+});
+
+test('neither bilingual README claims the canonical skill total as a default-install count (task 4.2 regression guard)', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const canonicalSkillCount = inventory.skills.length;
+  for (const rel of ['README.md', 'README.zh-TW.md']) {
+    const text = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    // A leak looks like "<canonical total> skill(s)" / "<canonical total> 個 skill" —
+    // i.e. the raw canonical count phrased as though it were the (narrower)
+    // default-install surface. Scoped counts (promotedCore/claudePublished/
+    // codexPublished) are unaffected since this only flags the canonical figure.
+    const leakPattern = new RegExp(`${canonicalSkillCount}\\s*(?:skills?|個\\s*skill)`, 'i');
+    assert.ok(!leakPattern.test(text), `${rel} appears to claim the canonical skill total (${canonicalSkillCount}) as a default-install count`);
+  }
+});
+
+// Merged from tests/distribution-projection-inventory.test.js.
+
+
+test('checked-in inventory declares a complete projection contract', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
+  const result = validateDistributionInventory({ inventory });
+  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+  assert.strictEqual(inventory.projection_contract.schema, 'dhpk.distribution-projection-contract.v1');
+  for (const surface of ['agent-plugin', 'cursor-plugin', 'codex-native']) {
+    const policy = inventory.projection_contract.surfaces[surface].selection_policy;
+    assert.ok(policy && typeof policy === 'object', `${surface} selection policy is required`);
+    assert.ok(typeof policy.source === 'string' && policy.source.length > 0);
+    assert.ok(Array.isArray(policy.precedence) && policy.precedence.length > 0);
+  }
+});
+
+test('projection contract rejects missing surfaces, unsupported links, and invalid stages', () => {
+  const result = validateProjectionContract({
+    schema: 'dhpk.distribution-projection-contract.v1',
+    compiler: { id: 'distribution-compiler', version: '1' },
+    symlink_policies: ['absolute'],
+    surfaces: {
+      'agent-plugin': { adapter: 'agent-plugin', owner: 'agent-plugin', symlink_policy: 'absolute', verification_stages: ['runtime'] },
+    },
+  });
+  assert.ok(result.errors.some((error) => /unsupported policy/.test(error)));
+  assert.ok(result.errors.some((error) => /missing.*codex-sync/.test(error)));
+  assert.ok(result.errors.some((error) => /unsupported stage/.test(error)));
+});
+
+test('projection contract rejects missing, unknown, conflicting, and broadened selection policies', () => {
+  const base = {
+    schema: 'dhpk.distribution-projection-contract.v1',
+    compiler: { id: 'distribution-compiler', version: '1' },
+    symlink_policies: ['forbid'],
+    surfaces: {},
+  };
+  for (const surface of ['claude-core', 'claude-module', 'codex-sync', 'codex-native', 'agent-plugin', 'cursor-plugin', 'cursor-sync', 'agy-plugin']) {
+    base.surfaces[surface] = {
+      adapter: surface,
+      owner: surface,
+      symlink_policy: 'forbid',
+      verification_stages: ['structural'],
+    };
+  }
+  const missing = validateProjectionContract(base);
+  assert.ok(missing.errors.some((error) => /selection_policy/.test(error)));
+
+  const unknown = JSON.parse(JSON.stringify(base));
+  unknown.surfaces['agent-plugin'].selection_policy = { source: 'ambient-directory', precedence: ['ambient-directory'] };
+  const unknownResult = validateProjectionContract(unknown);
+  assert.ok(unknownResult.errors.some((error) => /unsupported selection policy source/.test(error)));
+
+  const conflicting = JSON.parse(JSON.stringify(base));
+  conflicting.surfaces['agent-plugin'].selection_policy = {
+    source: 'surface_membership',
+    precedence: ['surface_membership', 'surface_membership'],
+  };
+  const conflictingResult = validateProjectionContract(conflicting);
+  assert.ok(conflictingResult.errors.some((error) => /duplicate|conflicting.*precedence/.test(error)));
+
+  const broadened = JSON.parse(JSON.stringify(base));
+  broadened.surfaces['codex-native'].selection_policy = {
+    source: 'entry_surfaces',
+    precedence: ['surface_membership', 'entry_surfaces'],
+  };
+  const broadenedResult = validateProjectionContract(broadened);
+  assert.ok(broadenedResult.errors.some((error) => /entry_surfaces.*precedence|broaden/.test(error)));
+});
+
+// Merged from tests/internal-cli-transport-inventory.test.js.
+
+test('internal transport is registered everywhere but excluded from invokable generation', () => {
+  const inventory = JSON.parse(JSON.stringify(require('../manifests/distribution-inventory.json')));
+  const entry = inventory.skills.find((skill) => skill.id === 'cli-transport');
+  assert.ok(entry, 'internal transport inventory entry is required');
+  assert.strictEqual(entry.invokable, false);
+  assert.deepStrictEqual([...entry.surfaces].sort(), [...inventory.surfaces].sort());
+  const validation = validateDistributionInventory({ inventory });
+  assert.deepStrictEqual(validation.errors, [], validation.errors.join('\n'));
+  const generated = generateClaudeSkillRoots(inventory);
+  assert.ok(generated.registeredSkillIds.includes('cli-transport'));
+  assert.ok(!generated.generatedSkillIds.includes('cli-transport'));
+
+  const expectedRuntimeSupport = ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge'];
+  for (const surface of ['agent-plugin', 'cursor-plugin']) {
+    assert.deepStrictEqual(
+      inventory.internal_runtime_skills[surface],
+      expectedRuntimeSupport,
+      `${surface} must explicitly carry the non-invokable transport runtime`,
+    );
+  }
+  assert.deepStrictEqual(inventory.internal_runtime_skills['agy-plugin'], [...expectedRuntimeSupport, 'flow-guide'],
+    'AGY must explicitly carry the flow-guide runtime closure');
+  assert.deepStrictEqual(inventory.internal_runtime_skills['codex-native'], ['cli-dispatch-context', 'cli-transport'],
+    'Codex sync must materialize its transport runtime outside capability selection');
+
+  const unknownSupport = JSON.parse(JSON.stringify(inventory));
+  unknownSupport.internal_runtime_skills['agent-plugin'] = ['missing-runtime'];
+  const invalid = validateDistributionInventory({ inventory: unknownSupport });
+  assert.ok(invalid.errors.some((error) => error.includes("internal_runtime_skills.agent-plugin references unknown stable id 'missing-runtime'")));
+});
+
+// Merged from tests/internal-runtime-skills.test.js.
+
+function inventory() {
+  return JSON.parse(JSON.stringify(require('../manifests/distribution-inventory.json')));
+}
+
+test('resolves declared runtime support without making it an invokable selection', () => {
+  const source = inventory();
+  const expected = ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge'];
+  const entry = source.skills.find((skill) => skill.id === 'cli-dispatch-context');
+  assert.ok(entry, 'dispatch context inventory entry is required');
+  assert.strictEqual(entry.invokable, false);
+  assert.strictEqual(entry.discoveryVisible, false);
+  assert.deepStrictEqual([...entry.surfaces].sort(), [...source.surfaces].sort());
+  assert.deepStrictEqual(INTERNAL_RUNTIME_SURFACES, ['agent-plugin', 'cursor-plugin', 'agy-plugin', 'codex-native']);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'agent-plugin'), expected);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'cursor-plugin'), expected);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'agy-plugin'), [...expected, 'flow-guide']);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'codex-native'), ['cli-dispatch-context', 'cli-transport']);
+});
+
+test('rejects malformed and unsupported runtime-support declarations', () => {
+  const duplicate = inventory();
+  duplicate.internal_runtime_skills['agent-plugin'] = ['cli-transport', 'cli-transport'];
+  assert.throws(() => runtimeSupportSkillIds(duplicate, 'agent-plugin'), /duplicate stable id/);
+
+  const unsupported = inventory();
+  unsupported.internal_runtime_skills['unsupported-surface'] = ['cli-transport'];
+  const validation = validateInternalRuntimeSkills({ inventory: unsupported });
+  assert.ok(validation.errors.some((error) => error.includes("unsupported surface 'unsupported-surface'")));
+});
+
+// Merged from tests/harness-platform-matrix.test.js.
+// RED-first contract tests for harness-facade-receipt-contract task 3.3.
+// The inventory platform matrix is the required-surface SSOT; projection
+// contracts and consumer evidence remain separate boundaries.
+
+
+const REQUIRED = [
+  'claude-core',
+  'codex-sync',
+  'codex-native',
+  'cursor-sync',
+  'cursor-plugin',
+  'agent-plugin',
+  'agy-plugin',
+];
+const REQUIRED_RUNTIME = [
+  'claude-core',
+  'codex-sync',
+  'codex-native',
+  'cursor-plugin',
+  'agent-plugin',
+  'agy-plugin',
+];
+
+function matrix(overrides = {}) {
+  return {
+    schema: 'dhpk.platform-capability-matrix.v1',
+    required_surfaces: [...REQUIRED],
+    required_runtime_surfaces: [...REQUIRED_RUNTIME],
+    entries: [],
+    ...overrides,
+  };
+}
+
+function projectionContract(overrides = {}) {
+  const surfaces = Object.fromEntries(REQUIRED.map((surface) => [surface, {
+    adapter: surface,
+    owner: surface,
+    symlink_policy: 'forbid',
+    verification_stages: ['structural', 'package', 'consumer-runtime'],
+  }]));
+  return {
+    schema: 'dhpk.distribution-projection-contract.v1',
+    compiler: { id: 'distribution-compiler', version: '1' },
+    symlink_policies: ['forbid'],
+    surfaces,
+    ...overrides,
+  };
+}
+
+test('checked-in inventory owns the seven canonical required surfaces and projection contracts', () => {
+  assert.deepStrictEqual(REQUIRED_SURFACES, REQUIRED);
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
+  assert.deepStrictEqual(inventory.platform_matrix.required_surfaces, REQUIRED);
+  assert.deepStrictEqual(inventory.platform_matrix.required_runtime_surfaces, REQUIRED_RUNTIME);
+  const result = validateRequiredSurfacePlan({ inventory, fullRelease: true });
+  assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+  assert.deepStrictEqual(result.requiredRuntimeSurfaces, REQUIRED_RUNTIME);
+});
+
+test('platform matrix rejects missing, duplicate, unknown, and reordered required lists', () => {
+  for (const required_surfaces of [
+    undefined,
+    [...REQUIRED.slice(0, -1), 'agy-plugin', 'agy-plugin'],
+    [...REQUIRED.slice(0, -1), 'unknown-surface'],
+    [...REQUIRED].reverse(),
+  ]) {
+    const result = validatePlatformCapabilityMatrix(matrix({ required_surfaces }), {
+      requireRequiredSurfaces: true,
+    });
+    assert.ok(result.errors.length > 0, JSON.stringify(required_surfaces));
+    assert.match(result.errors.join('\n'), /required_surfaces|duplicate|unknown|canonical|order/i);
+  }
+});
+
+test('required surface plan rejects incomplete or foreign full-release lists and allows declared subsets only as scoped', () => {
+  const inventory = {
+    platform_matrix: matrix(),
+    projection_contract: projectionContract(),
+  };
+  const incomplete = validateRequiredSurfacePlan({
+    inventory,
+    requiredSurfaces: REQUIRED.slice(0, -1),
+    fullRelease: true,
+  });
+  assert.ok(incomplete.errors.length > 0);
+
+  const foreign = validateRequiredSurfacePlan({
+    inventory,
+    requiredSurfaces: [...REQUIRED.slice(0, -1), 'foreign-surface'],
+    fullRelease: true,
+  });
+  assert.ok(foreign.errors.length > 0);
+  assert.match(foreign.errors.join('\n'), /unknown|canonical|required/i);
+
+  const scoped = validateRequiredSurfacePlan({
+    inventory,
+    requiredSurfaces: ['agent-plugin', 'cursor-plugin'],
+    fullRelease: false,
+  });
+  assert.deepStrictEqual(scoped.errors, []);
+});
+
+test('required surfaces must have matching projection contracts', () => {
+  const contract = projectionContract();
+  delete contract.surfaces['agy-plugin'];
+  const result = validateRequiredSurfacePlan({
+    inventory: {
+      platform_matrix: matrix(),
+      projection_contract: contract,
+    },
+    fullRelease: true,
+  });
+  assert.ok(result.errors.some((error) => /agy-plugin.*projection|projection.*agy-plugin/i.test(error)), result.errors.join('\n'));
+});
+
+test('required runtime surfaces are an ordered subset and exclude cursor-sync', () => {
+  for (const required_runtime_surfaces of [
+    undefined,
+    [...REQUIRED_RUNTIME.slice(0, -1), 'agy-plugin', 'agy-plugin'],
+    ['cursor-sync', ...REQUIRED_RUNTIME.slice(1)],
+    ['agent-plugin', 'codex-native', 'codex-sync', 'claude-core', 'cursor-plugin', 'agy-plugin'],
+    [...REQUIRED_RUNTIME.slice(0, -1)],
+  ]) {
+    const result = validatePlatformCapabilityMatrix(matrix({ required_runtime_surfaces }), {
+      requireRequiredSurfaces: true,
+    });
+    assert.ok(result.errors.length > 0, JSON.stringify(required_runtime_surfaces));
+    assert.match(result.errors.join('\n'), /required_runtime_surfaces|duplicate|cursor-sync|canonical|order|include/i);
+  }
 });
 
 run('distribution-inventory-validate');

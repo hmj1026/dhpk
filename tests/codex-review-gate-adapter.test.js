@@ -281,6 +281,30 @@ test('rejects every foreign identity dimension across lifecycle and readiness ev
   expectRejected(() => adapter.record(foreignReadiness), 'FOREIGN_IDENTITY', 'foreign readiness identity must fail closed');
 });
 
+test('rejects a result for an obligation absent from the active plan before Review Gate submission', () => {
+  const input = submissionInput();
+  input.reviewResult = { ...input.reviewResult, obligationId: 'obligation-foreign-safe-370' };
+  let gateCalls = 0;
+  let returned;
+  const adapter = makeAdapter({
+    activation: 'ACTIVE',
+    reviewGate: {
+      handle: () => {
+        gateCalls += 1;
+        throw new Error('Review Gate sentinel must not be reached');
+      },
+    },
+  });
+
+  expectRejected(
+    () => { returned = adapter.record(input); },
+    'MALFORMED_REVIEW',
+    'foreign obligation must fail before Review Gate',
+  );
+  assert.strictEqual(gateCalls, 0);
+  assert.strictEqual(returned, undefined);
+});
+
 test('fails closed when readiness for the exact identity is missing', () => {
   const adapter = makeAdapter({ reviewGate: { handle: () => { throw new Error('must not reach Review Gate'); } } });
   expectRejected(() => adapter.record(submissionInput({ readinessEvents: [] })), 'MISSING_READINESS', 'missing readiness must fail closed');

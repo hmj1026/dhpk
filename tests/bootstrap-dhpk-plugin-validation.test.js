@@ -17,7 +17,7 @@ const SPECS = [
 ];
 const NATIVE_CHECKS = [
   'node scripts/ci/verify-codex-native-package.js',
-  'node tests/codex-plugin-manifest.test.js',
+  'node tests/codex-native-package-validate.test.js',
   'node tests/codex-native-install-smoke.test.js',
 ];
 

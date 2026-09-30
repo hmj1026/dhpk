@@ -170,12 +170,16 @@ test('release workflow reruns repository tests under the required Linux bounded 
 // Ubuntu runners do not ship ripgrep, and the isolated skill fixtures delegate
 // to the host rg binary. v0.63.0 failed at tag time because only CI installed
 // it; both test-running jobs must now share one environment definition.
-test('CI validate and the release rerun share one test environment action and no inline ripgrep install', () => {
+test('CI test shards and the release rerun share one test environment action and no inline ripgrep install', () => {
   const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
   const action = fs.readFileSync(path.join(ROOT, '.github', 'actions', 'setup-dhpk-test-env', 'action.yml'), 'utf8');
   const releaseJob = raw.slice(raw.indexOf('\n  release:\n'), raw.indexOf('\n  publish:\n'));
-  const validateJob = ci.slice(ci.indexOf('\n  validate:\n'), ci.indexOf('\n  macos-installer:\n'));
-  for (const [name, job] of [['release', releaseJob], ['validate', validateJob]]) {
+  const testsStart = ci.indexOf('\n  tests:\n');
+  const testsRest = ci.slice(testsStart + 1);
+  const nextJob = testsRest.slice(1).search(/\n  [a-z][a-z0-9-]*:\n/);
+  const testsJob = nextJob === -1 ? testsRest : testsRest.slice(0, nextJob + 1);
+  assert.ok(testsStart !== -1, 'CI must define the tests matrix');
+  for (const [name, job] of [['release', releaseJob], ['tests', testsJob]]) {
     const actionIdx = job.indexOf('uses: ./.github/actions/setup-dhpk-test-env');
     assert.ok(actionIdx !== -1, `${name} job must use the shared test environment action`);
     assert.ok(job.indexOf('actions/checkout@') < actionIdx, `${name} job must check out before using the local action`);
@@ -213,6 +217,20 @@ test('release PRs run a read-only release rehearsal of the tag-only path', () =>
   assert.ok(/PUBLISHED_PENDING[\s\S]{0,240}exit 0/.test(job), 'pending consumer evidence stays green');
   assert.ok(/PUBLISHED_UNHEALTHY\|BLOCKED[\s\S]{0,240}exit 1/.test(job), 'unhealthy or blocked evidence fails the rehearsal');
   assert.ok(/Unexpected consumer rehearsal outcome[\s\S]{0,120}exit 1/.test(job), 'unknown evidence fails closed');
+});
+
+test('CI preserves the required Validate harness assets check as the shard aggregate', () => {
+  const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const start = ci.indexOf('\n  validate:\n');
+  assert.ok(start !== -1, 'ci.yml must keep the validate job id for required-check compatibility');
+  const rest = ci.slice(start + 1);
+  const next = rest.slice(1).search(/\n  [a-z][a-z0-9-]*:\n/);
+  const job = next === -1 ? rest : rest.slice(0, next + 1);
+  assert.match(job, /name: Validate harness assets/);
+  assert.match(job, /needs:\s*\[\s*preflight,\s*tests\s*\]/);
+  assert.match(job, /if:\s*always\(\)/);
+  assert.match(job, /Verify all preflight and test shards passed/);
+  assert.match(job, /node scripts\/ci\/verify-test-shards\.js/);
 });
 
 test('a post-publish consumer-verify job runs the full harness release probe and reports via the job summary, never editing the release', () => {
@@ -324,5 +342,117 @@ test('RELEASE.md documents that a failed publish job leaves an unreleased tag re
   assert.match(releaseDoc, /workflow definition stored at the\s+tag/i);
   assert.match(releaseDoc, /ship the next patch\s+release/i);
 });
+
+
+
+// Consolidated source suite: git-flow-governance (tests/git-flow-governance.test.js).
+{
+  // Consolidated coverage for the four git-flow-release-governance requirements
+  // (openspec/specs/git-flow-release-governance/spec.md).
+  // Each property is implemented at a specific layer; this file asserts all
+  // four together for traceability rather than re-testing each in isolation
+  // (see the referenced test files for the detailed unit coverage).
+
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { spawnSync } = require('node:child_process');
+
+  const ROOT = path.join(__dirname, '..');
+  const CLI = path.join(ROOT, 'scripts', 'release', 'prepare-release.js');
+  const releaseYml = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
+  // The tag job delegates its pre-publish verification to release-verify.sh.
+  const releaseVerify = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'release-verify.sh'), 'utf8');
+  const releaseRunner = fs.readFileSync(path.join(ROOT, 'skills', 'release-creator', 'scripts', 'release-runner.sh'), 'utf8');
+  const publishGate = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'publish-gate.js'), 'utf8');
+  const releaseSpec = fs.readFileSync(path.join(ROOT, 'openspec', 'specs', 'git-flow-release-governance', 'spec.md'), 'utf8');
+
+  test('release-branch origin: prepare-release.js refuses off develop (see prepare-release-cli.test.js for the behavioral test)', () => {
+    const temporaryRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-branch-')));
+    const repo = path.join(temporaryRoot, 'repo');
+
+    function git(args) {
+      const result = spawnSync('git', args, { cwd: repo, encoding: 'utf8' });
+      assert.strictEqual(result.status, 0, `git ${args.join(' ')} failed: ${result.stderr}`);
+      return result.stdout.trim();
+    }
+
+    function snapshotTree(directory, relative = '') {
+      const entries = fs.readdirSync(directory).filter((name) => !(relative === '' && name === '.git')).sort();
+      return entries.flatMap((name) => {
+        const target = path.join(directory, name);
+        const targetRelative = relative ? `${relative}/${name}` : name;
+        const stat = fs.lstatSync(target);
+        const mode = stat.mode & 0o777;
+        if (stat.isSymbolicLink()) return [[targetRelative, 'symlink', mode, fs.readlinkSync(target)]];
+        if (stat.isDirectory()) return [[targetRelative, 'directory', mode], ...snapshotTree(target, targetRelative)];
+        if (stat.isFile()) {
+          const digest = require('node:crypto').createHash('sha256').update(fs.readFileSync(target)).digest('hex');
+          return [[targetRelative, 'file', mode, digest]];
+        }
+        return [[targetRelative, 'other', mode]];
+      });
+    }
+
+    try {
+      const clone = spawnSync('git', ['clone', '--quiet', '--no-hardlinks', ROOT, repo], {
+        cwd: temporaryRoot,
+        encoding: 'utf8',
+      });
+      assert.strictEqual(clone.status, 0, `could not create the committed release fixture: ${clone.stderr}`);
+      git(['checkout', '--quiet', '-b', 'feature-test']);
+      git(['config', 'user.email', 'test@example.com']);
+      git(['config', 'user.name', 'Test']);
+      fs.writeFileSync(
+        path.join(repo, 'changelog.d', 'feat.branch-guard.md'),
+        'scope: test\nnote: Exercise the feature-branch release guard.\n',
+      );
+      git(['add', 'changelog.d/feat.branch-guard.md']);
+      git(['commit', '--quiet', '-m', 'fixture: add a valid release note']);
+      assert.strictEqual(git(['rev-parse', '--abbrev-ref', 'HEAD']), 'feature-test');
+
+      const before = snapshotTree(repo);
+      const result = spawnSync(process.execPath, [
+        CLI,
+        '--repo-root', repo,
+        'write',
+        '--version', '1.1.0',
+        '--date', '2026-09-30',
+        '--summary', 'Feature branch guard fixture',
+      ], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...process.env, DHPK_RELEASE_TARGET_BRANCH: 'develop' },
+      });
+
+      assert.strictEqual(
+        result.status,
+        1,
+        `feature branch must be rejected with exit 1; got ${result.status}\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
+      );
+      assert.match(result.stderr, /must run on 'develop'/);
+      assert.match(result.stderr, /current: 'feature-test'/);
+      assert.deepStrictEqual(snapshotTree(repo), before, 'branch rejection must leave every fixture file unchanged');
+    } finally {
+      fs.rmSync(temporaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('prohibited automatic actions: release-runner.sh prepare never tags, publish-gate.js never merges or tags', () => {
+    const res = spawnSync('bash', ['-c', String.raw`sed -n '/^    prepare)/,/^        ;;/p'`], { input: releaseRunner, encoding: 'utf8' });
+    const prepareBlock = res.stdout;
+    assert.ok(!prepareBlock.includes('git tag'), 'prepare phase must never create a tag');
+    assert.ok(!prepareBlock.includes('merge'), 'prepare phase must never merge a PR');
+    assert.ok(!publishGate.includes('git tag'), 'publish-gate must never create a tag itself');
+    assert.ok(!publishGate.includes('gh pr merge'), 'publish-gate must never merge a PR itself');
+  });
+
+  test('release specification requires guarded develop reconciliation', () => {
+    assert.match(releaseSpec, /merged release PR head\s*SHA/);
+    assert.match(releaseSpec, /force-with-lease/);
+    assert.match(releaseSpec, /moved develop or differing tree/);
+    assert.ok(!/records the back-merge PASS/.test(releaseSpec), 'unique-tree back-merge must not remain an automatic success path');
+  });
+}
 
 run('release-workflow');

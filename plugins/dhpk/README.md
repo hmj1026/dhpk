@@ -46,7 +46,7 @@ PR (`scripts/release/prepare-release.js write`); CI validates it
 Keep `name` and `version` in sync across `.claude-plugin/plugin.json`,
 `.codex-plugin/plugin.json`, this folder's `.codex-plugin/plugin.json`,
 `provenance.json`, and `.agents/plugins/marketplace.json` —
-`tests/codex-plugin-manifest.test.js` and `scripts/lib/release-parity.js`
+`tests/codex-native-package-validate.test.js` and `scripts/lib/release-parity.js`
 enforce this.
 
 ## Current Codex plugin-mode status

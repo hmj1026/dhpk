@@ -9,7 +9,7 @@
 // release heading, and the bilingual AGY
 // generator pin in platform-installation SSOT. Composes (does not replace)
 // the pairwise manifest parity already covered by
-// tests/codex-plugin-manifest.test.js.
+// tests/codex-native-package-validate.test.js.
 
 const fs = require('fs');
 const path = require('path');

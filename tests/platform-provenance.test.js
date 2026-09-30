@@ -257,4 +257,58 @@ test('rollback guard refuses to mutate a different surface owner', () => {
   assert.throws(() => assertRollbackOwnership(receipt, 'agent-plugin'), /ownership|surface/i);
 });
 
+
+  // Merged from tests/platform-boundary.test.js.
+  {
+
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { validateAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
+    const { validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
+
+    const ROOT = path.join(__dirname, '..');
+    const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
+
+    test('legacy Codex package is not counted as standard Agent Plugin conformance', () => {
+      const result = validateAgentPluginPackage(path.join(ROOT, 'plugins/dhpk'));
+      assert.strictEqual(result.ok, false);
+      assert.ok(result.errors.some((error) => /plugin\.json/i.test(error)));
+      const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
+      assert.ok(!inventory.surfaces.includes('legacy-agent-plugin'));
+      assert.ok(inventory.surfaces.includes('codex-native'));
+    });
+
+    test('Cursor native package is not accepted as a portable Agent Plugin package', () => {
+      const result = validateAgentPluginPackage(path.join(ROOT, 'plugins/dhpk-cursor'));
+      assert.strictEqual(result.ok, false);
+      assert.ok(result.errors.some((error) => /plugin\.json|skills/i.test(error)));
+      const cursor = validateCursorPackage({ packageRoot: path.join(ROOT, 'plugins/dhpk-cursor'), inventory: INVENTORY });
+      assert.strictEqual(cursor.ok, true, cursor.errors.join('\n'));
+    });
+  }
+
+  // Merged from tests/platform-conformance.test.js.
+  {
+
+    // Thin platform format conformance only. Consumer command behavior is covered
+    // by the executable consumer-probe suites.
+
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { createHostProjectionConformance } = require('./_lib/host-projection-conformance');
+
+    const ROOT = path.join(__dirname, '..');
+    const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+    const manifest = (relative) => JSON.parse(read(relative));
+    const PLATFORM_CONFORMANCE = createHostProjectionConformance({ root: ROOT, assert });
+
+    test('four platforms retain their projected manifest format contracts', () => {
+      assert.deepStrictEqual(PLATFORM_CONFORMANCE.map((entry) => entry.platform), ['claude', 'codex', 'agy', 'cursor']);
+      for (const entry of PLATFORM_CONFORMANCE) {
+        const value = manifest(entry.manifest);
+        entry.assertFormat(value);
+      }
+    });
+  }
+
 run('platform-provenance');

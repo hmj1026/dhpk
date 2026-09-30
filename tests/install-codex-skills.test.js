@@ -294,11 +294,11 @@ test('unavailable Codex provider query is reported but does not block planning',
 test('provider query slower than 3 seconds still reports AVAILABLE', () => {
   const scratch = projectRoot();
   try {
-    const startedAt = Date.now();
+    const startedAt = process.hrtime.bigint();
     const result = runInstaller(scratch, ['--copy', '--force', '--plan', '--json'], ROOT, {
       DHPK_TEST_CODEX_PLUGIN_LIST_SLEEP_SECONDS: '4',
     });
-    const elapsedMs = Date.now() - startedAt;
+    const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
     assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.strictEqual(JSON.parse(result.stdout).providerCheck.status, 'AVAILABLE');
     assert.ok(elapsedMs >= 4000, `expected the 4s plugin-list query to finish, took ${elapsedMs}ms`);

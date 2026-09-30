@@ -80,7 +80,8 @@ a fallback chain and its reintroduction is itself a contract regression. All
 other consumer references (agents, skills, and commands outside these four
 files) remain subject to the unmodified dual-path requirement. This guard is
 implemented by `scripts/ci/validate-references.js`, exercised by
-`tests/reference-integrity.test.js`, and also runs as part of
+`tests/validate-references.test.js` (the `reference-integrity` block),
+and also runs as part of
 `scripts/validate/validate-harness.sh`.
 
 #### Scenario: New bare reference is caught

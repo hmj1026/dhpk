@@ -82,14 +82,11 @@ worker contract: `tdd-guide` still owns RED, seam selection, and test strategy.
 
 ## Tautological tests considered harmful
 
-A passing test is not evidence when it can share the production defect. Reject
-tests that recompute expected values with the implementation's algorithm, call
-the same helper on both sides of an assertion, compare an output to a value
-returned by the same mocked path, or assert private structure instead of
-caller-visible behavior. Use a literal, worked example, independent
-specification, or observable side effect as the oracle. Ask: "If the
-implementation and this test contained the same bug, would the test still
-pass?" If yes, replace the assertion before counting the test as coverage.
+A passing test is not evidence when it can share the production defect. Ask:
+"If the implementation and this test contained the same bug, would the test
+still pass?" If yes, replace the assertion before counting the test as
+coverage. [tests.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/tests.md) owns the independent-oracle, discrimination,
+and ownership rules and the rejection checklist.
 
 ## When NOT to Use
 
@@ -137,6 +134,7 @@ include the TDD-relevant test/verification result in its existing report.
 
 ## References
 
-- [tests.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/tests.md) — behavior-focused good/bad test shapes and
-  implementation-coupling traps.
+- [tests.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/tests.md) — behavior-focused good/bad test shapes,
+  implementation-coupling traps, independent oracles, discrimination, and the
+  rejection checklist.
 - [mocking.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/mocking.md) — boundary mocking and dependency-injection rules.

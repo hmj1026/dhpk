@@ -350,6 +350,155 @@ test('wave-wide authority cannot satisfy an exact required review obligation', (
   assertState(result, 'EVIDENCE_PENDING', ['code-reviewer']);
 });
 
+test('authority rejects a malformed expiry timestamp', () => {
+  const authority = makeAuthorityReceipt();
+  const receipts = [...receiptsForHistory(MERGE_READY), authority];
+  const options = { trustPolicy: withAuthorityTrustPolicy() };
+
+  assert.strictEqual(reduce(receipts, options).evidenceAccepted, true);
+  authority.payload.expiresAt = 'not-a-timestamp';
+  assertRejected(reduce(receipts, options), 'MALFORMED_RECEIPT');
+});
+
+test('authority expiry must be strictly later than issuance', () => {
+  const authority = makeAuthorityReceipt();
+  const receipts = [...receiptsForHistory(MERGE_READY), authority];
+  const options = { trustPolicy: withAuthorityTrustPolicy() };
+
+  assert.strictEqual(reduce(receipts, options).evidenceAccepted, true);
+  authority.payload.expiresAt = authority.payload.issuedAt;
+  assertRejected(reduce(receipts, options), 'MALFORMED_RECEIPT');
+});
+
+test('obligation authority rejects a missing lane half-pair', () => {
+  const authority = makeAuthorityReceipt();
+  const receipts = [...receiptsForHistory(MERGE_READY), authority];
+  const options = { trustPolicy: withAuthorityTrustPolicy() };
+
+  assert.strictEqual(reduce(receipts, options).evidenceAccepted, true);
+  delete authority.lane;
+  assertRejected(reduce(receipts, options), 'MALFORMED_RECEIPT');
+});
+
+test('obligation authority rejects a missing obligation ID half-pair', () => {
+  const authority = makeAuthorityReceipt();
+  const receipts = [...receiptsForHistory(MERGE_READY), authority];
+  const options = { trustPolicy: withAuthorityTrustPolicy() };
+
+  assert.strictEqual(reduce(receipts, options).evidenceAccepted, true);
+  delete authority.obligationId;
+  assertRejected(reduce(receipts, options), 'MALFORMED_RECEIPT');
+});
+
+test('obligation authority target must match its top-level obligation identity', () => {
+  const authority = makeAuthorityReceipt();
+  const receipts = [...receiptsForHistory(MERGE_READY), authority];
+  const options = { trustPolicy: withAuthorityTrustPolicy() };
+
+  assert.strictEqual(reduce(receipts, options).evidenceAccepted, true);
+  authority.payload.target.obligationId = 'obligation-foreign-safe';
+
+  assertRejected(reduce(receipts, options), 'MALFORMED_RECEIPT');
+});
+
+test('wave authority rejects an obligation ID field', () => {
+  const authority = makeAuthorityReceipt({
+    obligationId: null,
+    lane: null,
+    target: { type: 'WAVE', waveId: 'wave-368' },
+  });
+  const receipts = [...receiptsForHistory(MERGE_READY), authority];
+  const options = { trustPolicy: withAuthorityTrustPolicy() };
+
+  assert.strictEqual(reduce(receipts, options).evidenceAccepted, true);
+  authority.obligationId = 'obligation-code-review';
+  assertRejected(reduce(receipts, options), 'MALFORMED_RECEIPT');
+});
+
+test('wave authority rejects a lane field', () => {
+  const authority = makeAuthorityReceipt({
+    obligationId: null,
+    lane: null,
+    target: { type: 'WAVE', waveId: 'wave-368' },
+  });
+  const receipts = [...receiptsForHistory(MERGE_READY), authority];
+  const options = { trustPolicy: withAuthorityTrustPolicy() };
+
+  assert.strictEqual(reduce(receipts, options).evidenceAccepted, true);
+  authority.lane = 'code-reviewer';
+  assertRejected(reduce(receipts, options), 'MALFORMED_RECEIPT');
+});
+
+test('stale FRESHNESS premise cannot preserve prior review progress', () => {
+  const freshness = makeFreshnessReceipt();
+  const receipts = [...receiptsForHistory(MERGE_READY), freshness];
+  const positive = reduce(receipts);
+  assert.strictEqual(positive.evidenceAccepted, true);
+  assertState(positive, 'EVIDENCE_PENDING', ['code-reviewer']);
+  assert.strictEqual(positive.completion.implementation, 'PENDING');
+
+  freshness.payload.premiseHash = 'sha256:abababababababababababababababababababababababababababababababab';
+  const result = reduce(receipts);
+
+  assertRejected(result, 'FRESHNESS_BINDING_MISMATCH');
+  assert.strictEqual(result.authorizesPullRequest, false);
+  assert.deepStrictEqual(result.completion, {
+    implementation: 'PENDING',
+    delivery: 'PENDING',
+    workflow: 'PENDING',
+  });
+  assert.notStrictEqual(result.state, 'MERGE_READY');
+  assert.notStrictEqual(result.state, 'ARCHIVE_READY');
+});
+
+test('verification evidence without a decision remains blocked without decision authority', () => {
+  const result = reduce([receipt('receipt-implementation-complete')]);
+
+  assert.strictEqual(result.evidenceAccepted, true);
+  assert.deepStrictEqual({
+    workId: result.workId,
+    waveId: result.waveId,
+    planId: result.planId,
+    decisionId: result.decisionId,
+  }, {
+    workId: 'work-368',
+    waveId: 'wave-368',
+    planId: 'plan-368',
+    decisionId: 'decision-368',
+  });
+  assert.strictEqual(result.state, 'EVIDENCE_PENDING');
+  assert.deepStrictEqual(result.condition, {
+    type: 'BLOCKED',
+    resumeState: 'EVIDENCE_PENDING',
+    reasonCodes: ['NO_DECISION'],
+  });
+  assert.strictEqual(result.authorizesPullRequest, false);
+  assert.deepStrictEqual(result.completion, {
+    implementation: 'PENDING',
+    delivery: 'PENDING',
+    workflow: 'PENDING',
+  });
+  assert.notStrictEqual(result.state, 'MERGE_READY');
+  assert.notStrictEqual(result.state, 'ARCHIVE_READY');
+});
+
+test('a resolved decision without an implementation requirement is only READY', () => {
+  const receipts = receiptsForHistory(MERGE_READY).filter(({ kind }) => kind !== 'verification');
+  const decision = receiptById(receipts, 'receipt-decision-resolved');
+  decision.payload.requiredVerifications = decision.payload.requiredVerifications.filter(
+    ({ evidenceType }) => evidenceType !== 'IMPLEMENTATION',
+  );
+
+  const result = reduce(receipts);
+
+  assert.strictEqual(result.evidenceAccepted, true);
+  assert.strictEqual(result.state, 'READY');
+  assert.strictEqual(result.completion.implementation, 'PENDING');
+  assert.strictEqual(result.authorizesPullRequest, false);
+  assert.notStrictEqual(result.state, 'MERGE_READY');
+  assert.notStrictEqual(result.state, 'ARCHIVE_READY');
+});
+
 test('retired migration-observation receipts are rejected as unsupported kinds', () => {
   const retired = receipt('receipt-local-gate-pass');
   retired.receiptId = 'receipt-retired-migration-observation';

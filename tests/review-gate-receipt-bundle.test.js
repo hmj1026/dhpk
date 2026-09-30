@@ -46,6 +46,20 @@ function exportMergeReady(overrides = {}) {
   });
 }
 
+function expectImportRejectedUnchanged(bundle, code, message, expectedIdentity) {
+  const beforeImport = clone(bundle);
+  expectRejected(
+    () => importBundle({
+      bundle,
+      trustPolicy: FIXTURE.trustPolicy,
+      expectedIdentity,
+    }),
+    code,
+    message,
+  );
+  assert.deepStrictEqual(bundle, beforeImport, `${message}: import must not mutate its input`);
+}
+
 test('exports a bundle bound to the evidence identity and content digest', () => {
   const bundle = exportMergeReady();
   assert.strictEqual(bundle.schema, BUNDLE_SCHEMA);
@@ -100,6 +114,108 @@ test('import rejects an unsupported schema', () => {
   );
 });
 
+test('import rejects a bundle missing its schema', () => {
+  const bundle = clone(exportMergeReady());
+  delete bundle.schema;
+
+  expectImportRejectedUnchanged(
+    bundle,
+    'MALFORMED_BUNDLE',
+    'a missing schema must be malformed before receipt evaluation',
+  );
+});
+
+test('import rejects a bundle missing its receipt set', () => {
+  const missingReceipts = clone(exportMergeReady());
+  delete missingReceipts.receipts;
+  expectImportRejectedUnchanged(
+    missingReceipts,
+    'MALFORMED_BUNDLE',
+    'a missing receipt set must be malformed',
+  );
+});
+
+test('import rejects an empty receipt set', () => {
+  const emptyReceipts = clone(exportMergeReady());
+  emptyReceipts.receipts = [];
+  expectImportRejectedUnchanged(
+    emptyReceipts,
+    'MALFORMED_BUNDLE',
+    'an empty receipt set must be malformed',
+  );
+});
+
+test('import rejects a bundle missing its digest', () => {
+  const bundle = clone(exportMergeReady());
+  delete bundle.digest;
+
+  expectImportRejectedUnchanged(
+    bundle,
+    'MALFORMED_BUNDLE',
+    'a missing receipt digest must be malformed',
+  );
+});
+
+test('import rejects a bundle missing sourceCommit metadata', () => {
+  const bundle = clone(exportMergeReady());
+  delete bundle.sourceCommit;
+  expectImportRejectedUnchanged(
+    bundle,
+    'MALFORMED_BUNDLE',
+    'missing sourceCommit metadata must be rejected while the receipt digest remains valid',
+  );
+});
+
+test('import rejects malformed sourceCommit metadata', () => {
+  const bundle = clone(exportMergeReady());
+  bundle.sourceCommit = 'not-a-commit';
+  expectImportRejectedUnchanged(
+    bundle,
+    'MALFORMED_BUNDLE',
+    'malformed sourceCommit metadata must be rejected while the receipt digest remains valid',
+  );
+});
+
+test('import rejects a bundle missing sourceTree metadata', () => {
+  const bundle = clone(exportMergeReady());
+  delete bundle.sourceTree;
+  expectImportRejectedUnchanged(
+    bundle,
+    'MALFORMED_BUNDLE',
+    'missing sourceTree metadata must be rejected while the receipt digest remains valid',
+  );
+});
+
+test('import rejects malformed sourceTree metadata', () => {
+  const bundle = clone(exportMergeReady());
+  bundle.sourceTree = 'not-a-tree';
+  expectImportRejectedUnchanged(
+    bundle,
+    'MALFORMED_BUNDLE',
+    'malformed sourceTree metadata must be rejected while the receipt digest remains valid',
+  );
+});
+
+test('import rejects an array expected identity', () => {
+  const bundle = exportMergeReady();
+  expectImportRejectedUnchanged(
+    bundle,
+    'MALFORMED_BUNDLE',
+    'an array expected identity must be malformed',
+    [],
+  );
+});
+
+test('import rejects an expected identity missing commit', () => {
+  const bundle = exportMergeReady();
+  expectImportRejectedUnchanged(
+    bundle,
+    'MALFORMED_BUNDLE',
+    'an expected identity without commit must be malformed',
+    { tree: bundle.sourceTree },
+  );
+});
+
 test('import rejects a tampered receipt whose digest no longer matches', () => {
   const bundle = clone(exportMergeReady());
   bundle.receipts[0] = { ...bundle.receipts[0], sourceTree: 'ffffffffffffffffffffffffffffffffffffffff' };
@@ -140,6 +256,16 @@ test('import rejects a foreign commit identity', () => {
     }),
     'FOREIGN_IDENTITY',
     'a bundle for a different commit must not import against this identity',
+  );
+});
+
+test('import rejects a foreign tree identity', () => {
+  const bundle = exportMergeReady();
+  expectImportRejectedUnchanged(
+    bundle,
+    'FOREIGN_IDENTITY',
+    'a bundle for a different tree must not import against this identity',
+    { commit: bundle.sourceCommit, tree: 'ffffffffffffffffffffffffffffffffffffffff' },
   );
 });
 

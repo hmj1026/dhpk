@@ -4,7 +4,7 @@
 // version-bearing manifest and the CHANGELOG.md release heading, checked
 // against one target SemVer version. Composes (does not duplicate) the
 // manifest-to-manifest parity already covered by
-// tests/codex-plugin-manifest.test.js — this suite covers the target-version
+// tests/codex-native-package-validate.test.js — this suite covers the target-version
 // dimension and the changelog heading, which that suite does not.
 
 const fs = require('node:fs');
@@ -217,5 +217,93 @@ test('checkParity fails when the changelog heading for the target version is mis
     assert.ok(result.errors.some((e) => /changelog/i.test(e) && /heading/i.test(e)));
   });
 });
+
+
+  // Merged from tests/verify-release-parity-cli.test.js.
+  {
+
+    // CLI-level coverage for scripts/ci/verify-release-parity.js — the
+    // release-only parity gate run against the tagged commit in release.yml.
+    // Unlike prepare-release.js, this does NOT enforce a branch (release.yml
+    // checks out the tag, which is detached HEAD on main, not develop).
+
+    const fs = require('node:fs');
+    const os = require('node:os');
+    const path = require('node:path');
+    const { spawnSync } = require('node:child_process');
+
+    const ROOT = path.join(__dirname, '..');
+    const CLI = path.join(ROOT, 'scripts', 'ci', 'verify-release-parity.js');
+
+    function mkRepo(version) {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-verify-parity-'));
+      for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', 'plugins/dhpk-agent', 'plugins/dhpk-agy', 'plugins/dhpk-cursor/.cursor-plugin', '.agents/plugins', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package']) {
+        fs.mkdirSync(path.join(root, rel), { recursive: true });
+      }
+      for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-agy/plugin.json', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json', 'generated/claude-marketplace/package/.claude-plugin/plugin.json', 'generated/claude-profiles/minimal/package/plugin.json', 'generated/claude-profiles/full/package/plugin.json', 'generated/claude-profiles/compat-v1/package/plugin.json']) {
+        fs.writeFileSync(path.join(root, rel), JSON.stringify({ name: 'dhpk', version }));
+      }
+      fs.writeFileSync(path.join(root, '.agents/plugins/marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version }] }));
+      fs.writeFileSync(path.join(root, 'plugins/dhpk/provenance.json'), JSON.stringify({ sourceVersion: version }));
+      fs.writeFileSync(path.join(root, 'plugins/dhpk-agent/provenance.json'), JSON.stringify({ sourceVersion: version }));
+      fs.writeFileSync(path.join(root, 'plugins/dhpk-agy/provenance.json'), JSON.stringify({ sourceVersion: version }));
+      fs.writeFileSync(path.join(root, 'plugins/dhpk-cursor/provenance.json'), JSON.stringify({ sourceVersion: version }));
+      fs.writeFileSync(path.join(root, 'CHANGELOG.md'), `# Changelog\n\n## [Unreleased]\n\n## ${version} — 2026-07-27 — Summary\n\nNotes.\n`);
+      fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+      const agyPin = `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json\n`;
+      fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
+      fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
+      return root;
+    }
+
+    test('passes when every surface matches the tag version, regardless of branch', () => {
+      const repo = mkRepo('1.2.3');
+      try {
+        const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
+        assert.strictEqual(res.status, 0, res.stderr);
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('fails and lists every mismatched surface when a manifest drifts from the tag', () => {
+      const repo = mkRepo('1.2.3');
+      try {
+        fs.writeFileSync(path.join(repo, '.codex-plugin/plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.2.4' }));
+        const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
+        assert.notStrictEqual(res.status, 0);
+        assert.match(res.stderr, /\.codex-plugin\/plugin\.json/);
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('fails and lists the AGY package when its provenance drifts from the tag', () => {
+      const repo = mkRepo('1.2.3');
+      try {
+        fs.writeFileSync(path.join(repo, 'plugins/dhpk-agy/provenance.json'), JSON.stringify({ sourceVersion: '1.2.2' }));
+        const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
+        assert.notStrictEqual(res.status, 0);
+        assert.match(res.stderr, /plugins\/dhpk-agy\/provenance\.json/);
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    });
+
+    test('fails when the bilingual AGY generator pin lags the tag version', () => {
+      const repo = mkRepo('1.2.3');
+      try {
+        fs.writeFileSync(
+          path.join(repo, 'docs', 'platform-installation.md'),
+          'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.2.2 --json\n',
+        );
+        const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
+        assert.notStrictEqual(res.status, 0);
+        assert.match(res.stderr, /docs\/platform-installation\.md/);
+      } finally {
+        fs.rmSync(repo, { recursive: true, force: true });
+      }
+    });
+  }
 
 run('release-parity');

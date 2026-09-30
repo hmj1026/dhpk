@@ -3,10 +3,10 @@
   "surface": "agent-plugin",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
-  "sourceVersion": "0.64.3",
-  "sourceCommit": "de8981ea27b045294c6de1fc62aec76d2139f9b2",
-  "generatedFromCommit": "de8981ea27b045294c6de1fc62aec76d2139f9b2",
-  "generatedFromTree": "de6016f47376e57583cbe3b2a21a897729103746",
+  "sourceVersion": "0.64.4",
+  "sourceCommit": "d66ac9453c9ec3a4e27d1466f50204dde08427cf",
+  "generatedFromCommit": "d66ac9453c9ec3a4e27d1466f50204dde08427cf",
+  "generatedFromTree": "9833931a2e701b428fe358fd4029d7253937de6d",
   "inventoryDigest": "4b9b266395b0db950d9db6093aabe4ce6c70602b83862743f3b1021fe24d8079",
   "inventoryRevision": "sha256:cce5b750f0a8919f282d99784c312e0b6805aaf34b49c5a5e7296984fb829392",
   "generatorVersion": "1.0.0",
@@ -184,13 +184,13 @@
     "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
     "skill-scope": "b1cdcb19ec5b09ee0d855b4aa45a84d5c657ed8b42aac2ffda21005fabe58921",
     "spec-mine": "7bec895983b41759863a1eb6db2f91d0096180dc4d65844556d630e5befdc1a5",
-    "tdd-workflow": "76bbaea182879a1658b22798d72d48c2e6a23100953d758d78316a9894401dcb",
+    "tdd-workflow": "a790ffd9a1bc32e64c76e6a6724f509e71511c564f35a36dfb010fbd1ada0ec3",
     "update-codemaps": "f38f3424ae52c66c67effae3dfd03388c756e63466fd051911974e85c33e18d9",
     "update-docs": "f229b2dfcde6e136d368087f90da6a9aa2879151c93896cf1c7d2964f1f13054"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "184bec3a93ea4be7aaf4c7dceba7e05ca8fe5a42f371df42f2ee354e6fa1675d",
+    "planId": "92f9decbe0053b5f9ff41bb94a3a4564832175ed215cc7b5ce28ab936e1333b8",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -316,10 +316,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "184bec3a93ea4be7aaf4c7dceba7e05ca8fe5a42f371df42f2ee354e6fa1675d",
+      "plan": "92f9decbe0053b5f9ff41bb94a3a4564832175ed215cc7b5ce28ab936e1333b8",
       "inventory": "4b9b266395b0db950d9db6093aabe4ce6c70602b83862743f3b1021fe24d8079"
     },
-    "rollbackIdentity": "7955a9d2d4aa470d804f475e3a58dd5a0d0ecc96cf2aef7a8b02fbdb35e6afe5"
+    "rollbackIdentity": "306e25b8079b0774b364ed39f31b807274eea577ce7626e9041bba6c4348301e"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

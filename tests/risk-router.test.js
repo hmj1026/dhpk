@@ -456,4 +456,70 @@ test('untrusted paths, observations, references, and extensions stay bounded', (
   assert.throws(() => createWorkRecord(tooLarge), /65536 canonical JSON bytes/);
 });
 
+
+const assertCanonicalPlanMutationRejected = (mutate, expectedMessage) => {
+  const plan = new RiskRouter().plan(createWorkRecord(routineRequest()), INITIAL_RISK_POLICY);
+  const candidate = cloneJson(plan);
+  mutate(candidate);
+  assert.throws(() => validateReviewPlan(candidate), expectedMessage);
+};
+
+test('a canonical Review Plan rejects a one-field schemaVersion mutation', () => {
+  assertCanonicalPlanMutationRejected(
+    (candidate) => { candidate.schemaVersion = 'dhpk.review-plan.unsupported'; },
+    /reviewPlan\.schemaVersion/,
+  );
+});
+
+test('a canonical Review Plan rejects a one-field policyVersion mutation', () => {
+  assertCanonicalPlanMutationRejected(
+    (candidate) => { candidate.policyVersion = 'dhpk.risk-policy.unsupported'; },
+    /reviewPlan\.policyVersion/,
+  );
+});
+
+test('a canonical Review Plan rejects a one-field policyDigest mutation', () => {
+  assertCanonicalPlanMutationRejected(
+    (candidate) => { candidate.policyDigest = 'sha256:' + '0'.repeat(64); },
+    /reviewPlan\.policyDigest/,
+  );
+});
+
+test('a canonical Review Plan rejects a one-field contractVersion mutation', () => {
+  assertCanonicalPlanMutationRejected(
+    (candidate) => { candidate.contractVersion = 'dhpk.reviewer-contract.unsupported'; },
+    /reviewPlan\.contractVersion/,
+  );
+});
+
+test('a canonical Review Plan rejects non-empty paths with no scope kinds', () => {
+  assertCanonicalPlanMutationRejected(
+    (candidate) => { candidate.scope.kinds = []; },
+    /reviewPlan\.scope\.kinds/,
+  );
+});
+
+test('a canonical Review Plan rejects inconsistent empty-diff signals with an independent digest', () => {
+  assertCanonicalPlanMutationRejected(
+    (candidate) => {
+      candidate.diff.digest = 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+    },
+    /empty diff paths, tree identity, and digest must agree/,
+  );
+});
+
+test('validateReviewPlan rejects a non-array obligations field with a field-specific error', () => {
+  assertCanonicalPlanMutationRejected(
+    (candidate) => { candidate.obligations = 'not-an-array'; },
+    /Risk Router reviewPlan\.obligations: must be an array/,
+  );
+});
+
+test('validateReviewPlan rejects a non-array reasonCodes field with a field-specific error', () => {
+  assertCanonicalPlanMutationRejected(
+    (candidate) => { candidate.reasonCodes = 'not-an-array'; },
+    /reviewPlan\.reasonCodes/,
+  );
+});
+
 run('risk-router');

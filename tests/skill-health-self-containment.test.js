@@ -364,4 +364,294 @@ test('an explicit command reference to a missing Skill remains detectable', () =
   }
 });
 
+// Consolidated suite block: skill-health-check-lint.
+{
+  test('missing agents directory returns capability skips for agent checks', () => {
+    const root = physicalTemp('dhpk-skill-health-check-');
+    try {
+      writeSkill(root, 'probe', validBody());
+      const skillResults = lint.findSkillDirs(path.join(root, 'skills'))
+        .map((dir) => lint.lintSkill(path.basename(dir), dir));
+      const invalidRefs = lint.detectInvalidAgentRefs(skillResults, path.join(root, 'missing-agents'));
+      const toolsSyntax = lint.detectAgentToolsSyntax(path.join(root, 'missing-agents'));
+
+      assert.deepStrictEqual(invalidRefs.findings, []);
+      assert.deepStrictEqual(toolsSyntax.findings, []);
+      assert.deepStrictEqual(invalidRefs.skipped.map((skip) => skip.check), ['agent-ref-validity']);
+      assert.deepStrictEqual(toolsSyntax.skipped.map((skip) => skip.check), ['agent-tools-syntax']);
+    } finally {
+      remove(root);
+    }
+  });
+
+  test('command files exclude non-invocable markdown docs', () => {
+    const root = physicalTemp('dhpk-skill-health-commands-');
+    try {
+      const commands = path.join(root, 'commands');
+      fs.mkdirSync(commands);
+      writeFile(root, 'commands/INDEX.md', '# Index\n');
+      writeFile(root, 'commands/README.md', '# Read me\n');
+      writeFile(root, 'commands/smart-commit.md', '# Smart commit\n');
+
+      const result = lint.commandFilesForDir(commands);
+      assert.deepStrictEqual(result, { commandFiles: ['smart-commit.md'], skipped: false });
+    } finally {
+      remove(root);
+    }
+  });
+
+  test('independent commands and Skills do not require pairing', () => {
+    const root = physicalTemp('dhpk-skill-health-pairing-');
+    try {
+      const commands = path.join(root, 'commands');
+      fs.mkdirSync(commands);
+      writeFile(root, 'commands/smart-commit.md', 'Follow the `git-smart-commit` skill workflow.\n');
+      writeFile(root, 'commands/create-dev.md', 'This is the explicit entry point to `dhpk:dhpk-adaptive-dev-workflow`.\n');
+
+      const findings = lint.detectOrphans(
+        ['git-smart-commit', 'dhpk-adaptive-dev-workflow', 'unpaired-skill'],
+        ['smart-commit.md', 'create-dev.md'],
+        commands,
+      );
+
+      assert.deepStrictEqual(findings, []);
+    } finally {
+      remove(root);
+    }
+  });
+}
+
+// Consolidated suite block: skill-health-check-resilience.
+{
+  const writeResilienceFile = (root, relative, content) => {
+    const target = path.join(root, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content);
+    return target;
+  };
+
+  function validResilienceSkill(
+    name,
+    extra = '',
+    description = `Use when: checking ${name}. Not for: unrelated work. Output: a health report.`,
+  ) {
+    return [
+      '---',
+      `name: ${name}`,
+      `description: "${description}"`,
+      '---',
+      '',
+      `# ${name}`,
+      '',
+      '## When NOT to Use',
+      '',
+      '- For unrelated work.',
+      '',
+      '## Output',
+      '',
+      '- Health report.',
+      '',
+      '## Verification',
+      '',
+      '- Run the check.',
+      '',
+      extra,
+    ].join('\n');
+  }
+
+  function runLintWithFixHint({ skills, agents, commands, json = true }) {
+    const args = [
+      SCRIPT,
+      '--skills-dir', skills,
+      '--agents-dir', agents,
+      '--commands-dir', commands,
+      '--fix-hint',
+    ];
+    if (json) args.push('--json');
+    return spawnSync(process.execPath, args, { encoding: 'utf8', cwd: ROOT, timeout: 15000 });
+  }
+
+  test('qualified cross-skill references are accepted in the CLI contract', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-skill-health-qualified-'));
+    try {
+      const skills = path.join(root, 'skills');
+      const agents = path.join(root, 'agents');
+      const commands = path.join(root, 'commands');
+      writeResilienceFile(root, 'skills/other-skill/references/rules.md', '# Rules\n');
+      writeResilienceFile(root, 'skills/other-skill/SKILL.md', [
+        '---',
+        'name: other-skill',
+        'description: "Trigger: resolve domain references. Avoid: generic health checks. Report: a resolved rule."',
+        '---',
+        '',
+        '# Reference Skill',
+        '',
+        '## When NOT to Use',
+        '',
+        '- For generic health checks.',
+        '',
+        '## Output',
+        '',
+        '- A resolved rule.',
+        '',
+        '## Verification',
+        '',
+        '- Confirm rules.md.',
+        '',
+        'rules.md',
+      ].join('\n'));
+      writeResilienceFile(root, 'skills/probe/SKILL.md', validResilienceSkill('probe', [
+        'Read `${CLAUDE_PLUGIN_ROOT}/skills/other-skill/references/rules.md`.',
+        'Read `@skills/other-skill/references/rules.md`.',
+      ].join('\n')));
+      const result = runLintWithFixHint({ skills, agents, commands });
+      assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      assert.ok(!result.stdout.includes(root), 'capability skips must not leak host paths');
+      const report = JSON.parse(result.stdout);
+      assert.deepStrictEqual(
+        report.findings.filter((finding) => finding.check === 'cross-skill-ref-path'),
+        [],
+      );
+    } finally {
+      remove(root);
+    }
+  });
+
+  test('malformed entries produce deterministic P1 findings with safe fix hints', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-skill-health-malformed-'));
+    try {
+      const skills = path.join(root, 'skills');
+      const agents = path.join(root, 'agents');
+      const commands = path.join(root, 'commands');
+      writeResilienceFile(root, 'skills/healthy/SKILL.md', validResilienceSkill('healthy'));
+      writeResilienceFile(root, 'skills/invalid-skill/SKILL.md', '# missing frontmatter\n');
+      fs.mkdirSync(path.join(skills, 'broken-skill'), { recursive: true });
+      fs.symlinkSync('missing-skill.md', path.join(skills, 'broken-skill', 'SKILL.md'));
+      fs.mkdirSync(agents, { recursive: true });
+      fs.symlinkSync('missing-agent.md', path.join(agents, 'broken-agent.md'));
+      fs.mkdirSync(path.join(root, 'agent-directory-target'));
+      fs.symlinkSync(path.join(root, 'agent-directory-target'), path.join(agents, 'unreadable-agent.md'));
+      writeResilienceFile(root, 'agents/invalid-agent.md', '# missing frontmatter\n');
+      writeResilienceFile(root, 'commands/invalid-command.md', '# missing frontmatter\n');
+
+      const first = runLintWithFixHint({ skills, agents, commands });
+      const second = runLintWithFixHint({ skills, agents, commands });
+      const markdown = runLintWithFixHint({ skills, agents, commands, json: false });
+      assert.strictEqual(first.status, 2, `${first.stdout}\n${first.stderr}`);
+      assert.strictEqual(second.status, 2, `${second.stdout}\n${second.stderr}`);
+      assert.strictEqual(first.stdout, second.stdout, 'malformed findings must be deterministic');
+      assert.strictEqual(first.stderr, '', first.stderr);
+      assert.strictEqual(markdown.status, 2, `${markdown.stdout}\n${markdown.stderr}`);
+      assert.ok(markdown.stdout.includes('# Skill Health Check Report'), markdown.stdout);
+      assert.ok(!markdown.stderr.includes('Error:'), markdown.stderr);
+      assert.ok(!markdown.stdout.includes(root), 'markdown findings must not leak host paths');
+      assert.ok(!first.stdout.includes(root), 'JSON findings must not leak host paths');
+
+      const report = JSON.parse(first.stdout);
+      const malformed = report.findings.filter((finding) => /(?:entry|frontmatter)/.test(finding.check));
+      const expectedMalformed = [
+        ['invalid-skill/SKILL.md', 'frontmatter', 'Add YAML frontmatter with name and description'],
+        ['broken-skill/SKILL.md', 'skill-entry', 'Restore the symlink target or remove broken-skill/SKILL.md'],
+        ['broken-agent.md', 'agent-entry', 'Restore the symlink target or remove broken-agent.md'],
+        ['unreadable-agent.md', 'agent-entry', 'Restore read access to unreadable-agent.md or remove it'],
+        ['invalid-agent.md', 'agent-frontmatter', 'Add the required frontmatter fields to invalid-agent.md'],
+        ['invalid-command.md', 'command-frontmatter', 'Add the required frontmatter fields to invalid-command.md'],
+      ];
+      for (const [expectedPath, expectedCheck, expectedFix] of expectedMalformed) {
+        const finding = malformed.find((item) => item.path === expectedPath && item.check === expectedCheck);
+        assert.ok(finding, `missing ${expectedCheck} finding for ${expectedPath}: ${JSON.stringify(report, null, 2)}`);
+        assert.strictEqual(finding.severity, 'P1', JSON.stringify(finding));
+        assert.strictEqual(finding.fix, expectedFix, JSON.stringify(finding));
+        assert.ok(!finding.fix.includes(root), `fix hint leaked the host path: ${JSON.stringify(finding)}`);
+      }
+    } finally {
+      remove(root);
+    }
+  });
+
+  test('empty When NOT to Use sections are a deterministic P1', () => {
+    const finding = lint.checkWhenNotSection('## When NOT to Use\n\n');
+    assert.strictEqual(finding.pass, false, JSON.stringify(finding));
+    assert.strictEqual(finding.severity, 'P1');
+    assert.match(finding.message, /empty/i);
+    assert.ok(finding.fix);
+  });
+
+  test('nested subsections remain part of a non-use section', () => {
+    const finding = lint.checkWhenNotSection(
+      '## When NOT to Use\n\n### Alternatives\n- @skills/tdd-workflow\n\n## Output\n- evidence\n',
+      ['tdd-workflow'],
+    );
+    assert.deepStrictEqual(finding, { pass: true });
+  });
+
+  test('unresolvable neighboring route tokens are a deterministic P1', () => {
+    const finding = lint.checkWhenNotSection(
+      '## When NOT to Use\n\n- Use `dhpk-missing-neighbor` instead.\n',
+      ['probe', 'dhpk-real-neighbor'],
+    );
+    assert.strictEqual(finding.pass, false, JSON.stringify(finding));
+    assert.strictEqual(finding.severity, 'P1');
+    assert.match(finding.message, /dhpk-missing-neighbor/);
+    assert.ok(finding.fix);
+  });
+
+  test('full lint preserves the stale-route skill path in its P1 finding', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-skill-health-route-'));
+    try {
+      const skills = path.join(root, 'skills');
+      const agents = path.join(root, 'agents');
+      const commands = path.join(root, 'commands');
+      writeResilienceFile(root, 'skills/healthy/SKILL.md', validResilienceSkill('healthy'));
+      writeResilienceFile(root, 'skills/stale-route/SKILL.md', validResilienceSkill('stale-route')
+        .replace('- For unrelated work.', '- Use `dhpk-missing-neighbor` instead.'));
+      const result = runLintWithFixHint({ skills, agents, commands });
+      assert.strictEqual(result.status, 2, `${result.stdout}\n${result.stderr}`);
+      const report = JSON.parse(result.stdout);
+      const finding = report.findings.find((item) => item.skill === 'stale-route' && item.check === 'when-not');
+      assert.ok(finding, JSON.stringify(report, null, 2));
+      assert.strictEqual(finding.severity, 'P1');
+      assert.strictEqual(finding.path, 'stale-route/SKILL.md');
+      assert.match(finding.message, /dhpk-missing-neighbor/);
+    } finally {
+      remove(root);
+    }
+  });
+
+  test('canonical source tree has zero P1 findings while P2 advisories remain visible', () => {
+    const canonical = spawnSync(process.execPath, [SCRIPT, '--json'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+    assert.ifError(canonical.error);
+    const canonicalReport = JSON.parse(canonical.stdout);
+    assert.strictEqual(canonicalReport.stats.p1, 0, JSON.stringify(canonicalReport, null, 2));
+
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-skill-health-p2-'));
+    try {
+      const skills = path.join(root, 'skills');
+      const agents = path.join(root, 'agents');
+      const commands = path.join(root, 'commands');
+      const overlappingDescription = 'Use when: checking shared skill health. Not for: unrelated work. Output: a health report.';
+      writeResilienceFile(root, 'skills/probe-one/SKILL.md', validResilienceSkill('probe-one', '', overlappingDescription));
+      writeResilienceFile(root, 'skills/probe-two/SKILL.md', validResilienceSkill('probe-two', '', overlappingDescription));
+      fs.mkdirSync(agents, { recursive: true });
+      fs.mkdirSync(commands, { recursive: true });
+
+      const result = runLintWithFixHint({ skills, agents, commands });
+      assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+      const report = JSON.parse(result.stdout);
+      assert.strictEqual(report.stats.p1, 0, JSON.stringify(report, null, 2));
+      assert.ok(report.stats.p2 > 0, JSON.stringify(report, null, 2));
+      const overlap = report.findings.find((finding) => finding.check === 'description-overlap');
+      assert.ok(overlap, JSON.stringify(report, null, 2));
+      assert.strictEqual(overlap.severity, 'P2', JSON.stringify(overlap));
+      assert.strictEqual(overlap.fix, 'Differentiate descriptions with distinct routing cues');
+    } finally {
+      remove(root);
+    }
+  });
+}
+
 run('skill-health-self-containment');

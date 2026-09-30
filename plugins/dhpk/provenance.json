@@ -3,10 +3,10 @@
   "surface": "codex-native",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.64.3",
-  "sourceCommit": "de8981ea27b045294c6de1fc62aec76d2139f9b2",
-  "generatedFromCommit": "de8981ea27b045294c6de1fc62aec76d2139f9b2",
-  "generatedFromTree": "de6016f47376e57583cbe3b2a21a897729103746",
+  "sourceVersion": "0.64.4",
+  "sourceCommit": "d66ac9453c9ec3a4e27d1466f50204dde08427cf",
+  "generatedFromCommit": "d66ac9453c9ec3a4e27d1466f50204dde08427cf",
+  "generatedFromTree": "9833931a2e701b428fe358fd4029d7253937de6d",
   "inventoryDigest": "dfa31a63bc50291c6182fc5855bce4fb73b904eb8baa5b0feeb16d82baf17cbc",
   "inventoryRevision": "sha256:cce5b750f0a8919f282d99784c312e0b6805aaf34b49c5a5e7296984fb829392",
   "generatorVersion": "2.3.0",
@@ -169,7 +169,7 @@
     "dhpk-opsx-post-observation": "23d7f375b49110c3d4c66a8fe596dd9403f1ec7bcac83f20469f4ec4135bd50f",
     "release-creator": "a39eb2f55202c29d1eef2fa4e22a66749311dee1c19955cea59e0b6cd975f283",
     "skill-scope": "f45694538e219237c9719fa279deb33c91f5d65a1802298a0df3be55a897830c",
-    "tdd-workflow": "b21d40731f5e8f8242d45afaf1535b307da40f9736cdca91e7b2fd101505be59",
+    "tdd-workflow": "1fd12cbe959f619c64a0fb2815f16abef8ef8e9e2b7d08fb6436e5ca79899853",
     "harness-govern": "c034966de5796ef697e4876a7a4047786d59de66e60b841e496c6ff5e48d510b",
     "create-pr": "c6db4335b1d7157d5558c5288d9d5070be63962484a0a1854f96cd50e700a5e1",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
@@ -192,7 +192,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "c035ba0cdf9e28520e1d3eaad0177e478912e9c0a0b9f1a63ee7d19cb8c73ccc",
+    "planId": "b0dc728f2431d3bf8bb9ddbe69864d3fb050f9f63cce4e3b43e59d2c27a52c95",
     "scope": "project",
     "profileId": "compat-v1",
     "selectedStableIds": [
@@ -272,10 +272,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "c035ba0cdf9e28520e1d3eaad0177e478912e9c0a0b9f1a63ee7d19cb8c73ccc",
+      "plan": "b0dc728f2431d3bf8bb9ddbe69864d3fb050f9f63cce4e3b43e59d2c27a52c95",
       "inventory": "dfa31a63bc50291c6182fc5855bce4fb73b904eb8baa5b0feeb16d82baf17cbc"
     },
-    "rollbackIdentity": "8ab58551b95a4f6c7a9dae10355c73c65e15d263845cc99e0c80419062a65447"
+    "rollbackIdentity": "bf86ba56caafd09b30d5cc25659453b151d4d6b5857d8dd871756aceea623c9a"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

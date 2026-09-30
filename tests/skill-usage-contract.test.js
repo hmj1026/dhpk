@@ -5,11 +5,15 @@
 // prose, invoke a target skill, or reimplement the validator.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const USAGE_MODULE = path.join(ROOT, 'scripts', 'lib', 'skill-usage.js');
+const CARD = path.join(ROOT, 'skills/flow-guide/scripts/usage-card.js');
+const GENERATOR = path.join(ROOT, 'scripts/ci/gen-skill-usage.js');
 
 function usageApi() {
   assert.ok(
@@ -94,6 +98,20 @@ function assertUsageError(skillValue, usageValue, pattern) {
     result.errors.some((error) => pattern.test(error)),
     `expected a fault-specific diagnostic matching ${pattern}, got: ${result.errors.join('\n')}`,
   );
+}
+
+function usageCardHelp(args = []) {
+  return spawnSync(process.execPath, [CARD, ...args], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    timeout: 15000,
+  });
+}
+
+function usageCardJsonHelp(name) {
+  const result = usageCardHelp(['--json', name]);
+  assert.strictEqual(result.status, 0, (result.stdout || '') + (result.stderr || ''));
+  return JSON.parse(result.stdout);
 }
 
 test('a valid Codex usage contract passes the pure validator', () => {
@@ -267,6 +285,103 @@ test('usage renderer discloses grammar and authority without procedure prose', (
   );
   assert.ok(JSON.stringify(card).includes('plan'), 'usage card must expose the option grammar');
   assert.doesNotMatch(JSON.stringify(card), /load references and execute|completion procedure/i);
+});
+
+test('$flow-guide help cards disclose inputs, enums, defaults, and retired markers', () => {
+  const card = usageCardJsonHelp('flow-drive');
+  assert.deepStrictEqual(card.inputs.map((input) => input.id), ['confirmed-spec-or-change-id']);
+  const worker = card.options.find((option) => option.id === 'worker');
+  assert.deepStrictEqual(worker.enum_values, ['claude', 'codex', 'agy', 'auto']);
+  const crossProvider = card.options.find((option) => option.id === 'cross-provider');
+  assert.strictEqual(crossProvider.default, false);
+  const retired = card.options.find((option) => option.id === 'codex');
+  assert.strictEqual(retired.legacy.diagnostic_only, true);
+  assert.strictEqual(retired.legacy.replacement_id, 'worker');
+});
+
+test('$flow-guide help variants remain metadata-only and deterministic', () => {
+  for (const name of ['flow-guide', 'flow-drive']) {
+    const first = usageCardHelp([name]);
+    const second = usageCardHelp([name]);
+    assert.strictEqual(first.status, 0, (first.stdout || '') + (first.stderr || ''));
+    assert.strictEqual(second.status, 0, (second.stdout || '') + (second.stderr || ''));
+    assert.strictEqual(second.stdout, first.stdout, `${name} help output must be deterministic`);
+    assert.match(first.stdout, new RegExp('\\$' + name));
+    assert.doesNotMatch(first.stdout, /execute target|load target procedure|workspace-write granted/i);
+  }
+  assert.match(usageCardHelp(['flow-drive']).stdout, /--worker-target=<provider>\/\\?<model>|--worker-target=<provider>\/\\?\\<model>/i);
+});
+
+test('generated usage artifacts bind to one catalog revision and derive Argument Hints', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
+  const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'skills/flow-guide/references/codex-usage-catalog.json'), 'utf8'));
+  assert.strictEqual(catalog.schema, 'dhpk.skill-usage-catalog.v1');
+  assert.match(catalog.sourceInventoryRevision, /^sha256:[a-f0-9]{64}$/);
+
+  const generatorCheck = spawnSync(process.execPath, [GENERATOR, '--check'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  assert.strictEqual(generatorCheck.status, 0, (generatorCheck.stdout || '') + (generatorCheck.stderr || ''));
+  assert.ok(generatorCheck.stdout.includes('catalog matches inventory'), generatorCheck.stdout);
+  assert.ok(
+    generatorCheck.stdout.includes('source ' + catalog.sourceInventoryRevision),
+    `generator check must report the catalog revision ${catalog.sourceInventoryRevision}`,
+  );
+
+  const documentation = fs.readFileSync(path.join(ROOT, 'docs/codex-skill-usage.md'), 'utf8');
+  assert.ok(
+    documentation.includes('Source inventory revision: `' + catalog.sourceInventoryRevision + '`.'),
+    'generated usage documentation must disclose the catalog source revision',
+  );
+
+  const flowDrive = inventory.skills.find((skill) => skill.id === 'flow-drive');
+  assert.ok(flowDrive, 'the source inventory must contain flow-drive');
+  const expectedArgumentHint = '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]';
+  assert.strictEqual(flowDrive.usage.syntax, '$flow-drive ' + expectedArgumentHint);
+  const frontmatter = fs.readFileSync(path.join(ROOT, 'skills/flow-drive/SKILL.md'), 'utf8');
+  assert.ok(
+    frontmatter.split(/\r?\n/).includes("argument-hint: '" + expectedArgumentHint + "'"),
+    'flow-drive frontmatter must project the independently specified public grammar',
+  );
+
+  const helpCard = usageCardJsonHelp('flow-drive');
+  assert.deepStrictEqual(helpCard.catalogEvidence, {
+    schema: 'dhpk.skill-usage-catalog.v1',
+    state: 'PASS',
+    sourceInventoryRevision: catalog.sourceInventoryRevision,
+    path: 'references/codex-usage-catalog.json',
+  });
+});
+
+test('generator check detects manual edits to generated usage documentation', () => {
+  const fixture = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-usage-projection-')));
+  try {
+    fs.mkdirSync(path.join(fixture, 'manifests'), { recursive: true });
+    fs.mkdirSync(path.join(fixture, 'skills/flow-guide/references'), { recursive: true });
+    fs.mkdirSync(path.join(fixture, 'docs'), { recursive: true });
+    for (const relative of ['manifests/distribution-inventory.json', 'skills/flow-guide/references/codex-usage-catalog.json', 'docs/codex-skill-usage.md', 'docs/codex-skill-usage.zh-TW.md']) {
+      const destination = path.join(fixture, relative);
+      fs.copyFileSync(path.join(ROOT, relative), destination);
+    }
+    fs.appendFileSync(path.join(fixture, 'docs/codex-skill-usage.md'), 'manual edit\n');
+    const result = spawnSync(process.execPath, [GENERATOR, '--check', '--root', fixture], {
+      cwd: ROOT,
+      encoding: 'utf8',
+    });
+    assert.notStrictEqual(result.status, 0);
+    assert.match((result.stdout || '') + (result.stderr || ''), /documentation|drift/i);
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test('Codex metadata keeps the narrow OpenAI interface without custom argument schema', () => {
+  for (const name of ['flow-guide', 'flow-drive']) {
+    const metadata = fs.readFileSync(path.join(ROOT, 'skills', name, 'agents/openai.yaml'), 'utf8');
+    assert.doesNotMatch(metadata, /argument_schema|input_schema|parameters:|arguments:/i);
+    assert.match(metadata, new RegExp('default_prompt: "Use \\$' + name));
+  }
 });
 
 run('skill-usage-contract');

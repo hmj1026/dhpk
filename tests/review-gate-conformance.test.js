@@ -181,6 +181,29 @@ test('an expected case without an actual observation is an attributed mismatch',
   }]);
 });
 
+test('an otherwise valid observation with an unknown case ID is rejected exactly', () => {
+  const unknownObservation = { ...MINI_OBSERVATIONS[0], caseId: 'unknown-conformance-case' };
+  const validReport = conformance.buildConformanceReport({
+    corpus: MINI_CORPUS,
+    observations: MINI_OBSERVATIONS,
+    generatedAt: NOW,
+  });
+  assert.strictEqual(validReport.migrationPhase, 'OBSERVE');
+  assert.strictEqual(validReport.promotionEligible, false);
+
+  const observations = [...MINI_OBSERVATIONS, unknownObservation];
+  const input = { corpus: MINI_CORPUS, observations, generatedAt: NOW };
+  const observationsBefore = structuredClone(observations);
+
+  assert.throws(
+    () => conformance.buildConformanceReport(input),
+    (error) => error && error.code === 'UNKNOWN_CASE' && error.message === 'UNKNOWN_CASE',
+  );
+  assert.deepStrictEqual(input.corpus, MINI_CORPUS);
+  assert.deepStrictEqual(input.observations, observationsBefore);
+  assert.strictEqual(input.generatedAt, NOW);
+});
+
 test('report rejects accessor-backed actual values without invoking hostile getters', () => {
   let accessed = false;
   const actual = {};

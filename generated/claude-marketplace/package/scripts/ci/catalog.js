@@ -29,6 +29,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('node:child_process');
 const { CODEX_MCP_COMMAND_NAMES, collectInventory, walkFiles } = require('../lib/asset-inventory');
 const { computeScopedCounts } = require('../lib/distribution-inventory');
 const {
@@ -44,6 +45,13 @@ const p = (...s) => path.join(ROOT, ...s);
 // Codex MCP is retired. Keep this as an exact zero policy rather than a
 // ceiling: a newly introduced grant must fail CI even if it is the first one.
 const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, commandGrants: 0 });
+
+// Explicit ownership for newly added top-level test suites. Keep keys exact so
+// a similarly named suite cannot inherit another suite's owner by accident.
+const SUITE_OWNER_REGISTRY = Object.freeze({
+  'tests/review-gate-evidence-residual-security.test.js': 'docs/adr/0017-implement-review-gate-as-a-local-event-module.md',
+  'tests/review-gate-authority-residual-security.test.js': 'docs/adr/0017-implement-review-gate-as-a-local-event-module.md',
+});
 
 function computeCounts() {
   return collectInventory(ROOT).counts;
@@ -154,7 +162,29 @@ function retiredCodexMcpErrors(counts, inventory) {
 // feature name rather than a name/name-aspect derived from the script's own
 // basename (so the naming-convention check below can't find them automatically).
 const COVERAGE_MAP = {
+  'scripts/lib/project-agent-host-binding-policy.js': 'project-agent-provider-adapters.test.js',
+  'scripts/ci/install-native-shared-skills.js': 'native-shared-skill-install.test.js',
+  'scripts/lib/agy-plugin-package.js': 'agy-plugin-install.test.js',
+  'scripts/lib/agy-path-contract.js': 'agy-plugin-install.test.js',
+  'scripts/ci/install-agy-plugin.js': 'agy-plugin-install.test.js',
+  'scripts/lib/cursor-session-home.js': 'cursor-plugin-package.test.js',
+  'scripts/lib/cursor-harness-adapt.js': 'cursor-plugin-package.test.js',
+  'scripts/lib/cursor-consumer-evidence.js': 'cursor-plugin-package.test.js',
+  'scripts/ci/validate-cursor-plugin-package.js': 'cursor-plugin-package.test.js',
+  'scripts/lib/agent-plugin-package.js': 'gen-agent-plugin-package.test.js',
+  'scripts/ci/validate-agent-plugin-package.js': 'gen-agent-plugin-package.test.js',
+  'scripts/ci/project-agent-projection-baseline.js': 'project-agent-projection-plan.test.js',
+  'scripts/lib/capability-bundle-activation.js': 'capability-bundle-selection.test.js',
+  'scripts/release/claude-profile-probe.js': 'profile-scoped-claude-capability-bundle.test.js',
+  'scripts/ci/gen-claude-profile-bundles.js': 'profile-scoped-claude-capability-bundle.test.js',
+  'scripts/release/claude-user-config-probe.js': 'plugin-user-config-metadata.test.js',
+  'scripts/ci/gen-claude-user-config.js': 'plugin-user-config-metadata.test.js',
+  'scripts/lib/codex-discovery-registry.js': 'check-codex-discovery.test.js',
+  'scripts/lib/codex-native-activation.js': 'codex-native-package-validate.test.js',
+  'scripts/ci/verify-codex-native-package.js': 'codex-native-package-validate.test.js',
+  'scripts/ci/gen-codex-native-package.js': 'codex-native-package-validate.test.js',
   'scripts/fast-worker-selector.js': 'fast-worker-selection.test.js',
+  'scripts/ci/validate-skill-directory-coverage.js': 'skill-directory-coverage.test.js',
   'scripts/hooks/_lib/payload.sh': 'subagent-stop-quality.test.js',
   'scripts/ci/catalog.js': 'catalog-claims.test.js',
   'scripts/ci/reconcile-skill-mirrors.js': 'gen-cursor-sync.test.js',
@@ -166,11 +196,20 @@ const COVERAGE_MAP = {
   'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
   'scripts/lib/retirement-closure.js': 'validate-retirement-closure.test.js',
   'scripts/lib/claude-capability-bundle.js': 'profile-scoped-claude-capability-bundle.test.js',
+  'scripts/lib/internal-runtime-skills.js': 'distribution-inventory-validate.test.js',
+  'scripts/lib/distribution-compiler.js': 'distribution-projection-contract.test.js',
+  'scripts/lib/distribution-projection-parity.js': 'distribution-projection-contract.test.js',
+  'scripts/ci/validate-agents-skills.js': 'validate-agents-behavior.test.js',
+  'scripts/ci/validate-commands.js': 'validate-plugin.test.js',
+  'scripts/ci/validate-modules.js': 'validate-plugin.test.js',
+  'scripts/ci/validate-cursor-sync.js': 'gen-cursor-sync.test.js',
+  'scripts/lib/cursor-sync-package.js': 'gen-cursor-sync.test.js',
+  'scripts/ci/validate-changelog-fragments.js': 'changelog-fragments.test.js',
   'skills/flow-guide/scripts/route-result.js': 'reference-route-policy.test.js',
-  'skills/flow-guide/scripts/usage-card.js': 'flow-guide-usage-help.test.js',
+  'skills/flow-guide/scripts/usage-card.js': 'flow-handoff-contract.test.js',
   'scripts/lib/harness-receipt.js': 'harness-operation-receipts.test.js',
-  'scripts/lib/harness-result.js': 'harness-release-aggregation.test.js',
-  'scripts/lib/harness-surfaces.js': 'harness-surfaces.test.js',
+  'scripts/lib/harness-result.js': 'harness-facade-contract.test.js',
+  'scripts/lib/harness-surfaces.js': 'harness-facade-contract.test.js',
   'scripts/dhpk-harness.js': 'harness-facade-cli.test.js',
   'scripts/lib/review-gate-runtime-checkpoint.js': 'review-gate-runtime-observe-states.test.js',
   'scripts/lib/review-gate-runtime-composition.js': 'review-gate-runtime-observe-cli.test.js',
@@ -178,11 +217,39 @@ const COVERAGE_MAP = {
   'scripts/lib/review-gate-runtime-evidence.js': 'review-gate-runtime-observe-security.test.js',
   'scripts/lib/review-gate-runtime-storage.js': 'review-gate-runtime-init-security.test.js',
   'scripts/ci/validate-command-dispositions.js': 'command-skill-disposition.test.js',
-  'scripts/hooks/_lib/advise-once.sh': 'session-start-advisories.test.js',
-  'scripts/hooks/_lib/detect-stack-hints.sh': 'session-start-advisories.test.js',
+  'scripts/hooks/_lib/advise-once.sh': 'session-start.test.js',
+  'scripts/hooks/_lib/detect-stack-hints.sh': 'session-start.test.js',
   'scripts/ci/sync-skill-resources.js': 'skill-resource-sync-security.test.js',
+  'scripts/ci/validate-skill-purpose-decisions.js': 'skill-purpose-decisions.test.js',
   'scripts/lib/runner-utils.js': 'utils.test.js',
   'scripts/lib/profile-projection-sets.js': 'catalog-claims.test.js',
+  'scripts/ci/gen-dispatch-projection.js': 'dispatch-engine.test.js',
+  'scripts/dispatch-config-report.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-config.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-contract.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-platform-validation.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-projection.js': 'dispatch-engine.test.js',
+  'scripts/lib/dispatch-scheduler.js': 'dispatch-engine.test.js',
+  'scripts/lib/provider-cli-adapters.js': 'provider-adapter.test.js',
+  'scripts/lib/discovery-budget.js': 'context-budget.test.js',
+  'scripts/lib/command-namespace.js': 'command-skill-disposition.test.js',
+  'scripts/lib/feature-resolver.js': 'resolve-feature-cli.test.js',
+  'scripts/hooks/_lib/stop-dispatch-audit.sh': 'stop-advisory-dispatch-graduation.test.js',
+  'scripts/hooks/pre-bash-dispatch.sh': 'pre-bash-guard.test.js',
+  'scripts/hooks/pre-edit-batch-gate.sh': 'pre-edit-guard.test.js',
+  'scripts/hooks/_lib/runtime-config.sh': 'load-project-config.test.js',
+  'scripts/hooks/_lib/session-env.sh': 'load-project-config.test.js',
+  'scripts/hooks/_lib/portable-sed.sh': 'portable-stat.test.js',
+  'scripts/hooks/_lib/portable-timeout.sh': 'portable-stat.test.js',
+  'scripts/hooks/precompact-archive.sh': 'postcompact-restore.test.js',
+  'scripts/lib/release-probe-batch.js': 'parallel-consumer-probes.test.js',
+  'scripts/release/verify-publication-bundle.js': 'release-publication-bundle.test.js',
+  'scripts/ci/verify-release-parity.js': 'release-parity.test.js',
+  'scripts/release/package-gate.js': 'gate-runner.test.js',
+  'scripts/release/publish-gate.js': 'gate-runner.test.js',
+  'scripts/release/source-gate.js': 'gate-runner.test.js',
+  'scripts/ci/render-test-timing.js': 'verify-test-shards.test.js',
+  'scripts/check-cross-cli-drift.sh': 'cross-cli-parity.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);
@@ -266,7 +333,72 @@ function checkOrWriteProjectionSets({ write }) {
   return drift.length;
 }
 
-function checkOrWrite({ write }) {
+function isPathWithin(root, candidate) {
+  const relative = path.relative(root, candidate);
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+}
+
+function hasValidSuiteOwner(suiteRel) {
+  if (!Object.prototype.hasOwnProperty.call(SUITE_OWNER_REGISTRY, suiteRel)) return false;
+  const ownerRel = SUITE_OWNER_REGISTRY[suiteRel];
+  if (typeof ownerRel !== 'string'
+    || ownerRel.length === 0
+    || ownerRel.trim() !== ownerRel
+    || ownerRel.includes('\\')
+    || path.posix.isAbsolute(ownerRel)
+    || path.posix.normalize(ownerRel) !== ownerRel
+    || ownerRel === suiteRel) {
+    return false;
+  }
+
+  const ownerPath = path.resolve(ROOT, ...ownerRel.split('/'));
+  if (!isPathWithin(ROOT, ownerPath)) return false;
+
+  try {
+    if (!fs.lstatSync(ownerPath).isFile()) return false;
+    return isPathWithin(fs.realpathSync(ROOT), fs.realpathSync(ownerPath));
+  } catch {
+    return false;
+  }
+}
+
+function warnForUnownedAddedSuites(diffBase) {
+  if (!/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(diffBase || '')) {
+    console.warn('WARNING [catalog]: suite-owner comparison unavailable; --diff-base must be a full commit SHA.');
+    return;
+  }
+
+  const comparison = spawnSync('git', [
+    'diff',
+    '--no-renames',
+    '--diff-filter=A',
+    '--name-only',
+    '-z',
+    `${diffBase}...HEAD`,
+    '--',
+    'tests/',
+  ], { cwd: ROOT, maxBuffer: 4 * 1024 * 1024 });
+
+  if (comparison.error || comparison.status !== 0 || !Buffer.isBuffer(comparison.stdout)) {
+    console.warn('WARNING [catalog]: suite-owner comparison unavailable; no admission warnings were evaluated.');
+    return;
+  }
+
+  const addedSuites = comparison.stdout.toString('utf8')
+    .split('\0')
+    .filter((filePath) => /^tests\/[^/]+\.test\.js$/.test(filePath))
+    .sort();
+
+  for (const suiteRel of addedSuites) {
+    if (!hasValidSuiteOwner(suiteRel)) {
+      console.warn(`WARNING [catalog]: newly added test suite ${suiteRel} has no valid owner registered in SUITE_OWNER_REGISTRY.`);
+    }
+  }
+}
+
+function checkOrWrite({ write, diffBase }) {
+  if (!write && diffBase !== undefined) warnForUnownedAddedSuites(diffBase);
+
   const inventory = collectInventory(ROOT);
   const counts = inventory.counts;
   const retirementErrors = retiredCodexMcpErrors(counts, inventory);
@@ -367,6 +499,15 @@ function printTable() {
 }
 
 const args = process.argv.slice(2);
-if (args.includes('--check')) process.exit(checkOrWrite({ write: false }));
+const diffBaseIndex = args.indexOf('--diff-base');
+const inlineDiffBase = args.find((arg) => arg.startsWith('--diff-base='));
+const hasDiffBase = diffBaseIndex !== -1 || inlineDiffBase !== undefined;
+const diffBase = inlineDiffBase !== undefined
+  ? inlineDiffBase.slice('--diff-base='.length)
+  : (diffBaseIndex === -1 ? undefined : args[diffBaseIndex + 1]);
+if (args.includes('--check')) process.exit(checkOrWrite({
+  write: false,
+  ...(hasDiffBase ? { diffBase: diffBase === undefined ? '' : diffBase } : {}),
+}));
 else if (args.includes('--write')) process.exit(checkOrWrite({ write: true }));
 else printTable();

@@ -23,7 +23,6 @@ function registerLocalToolFixtures() {
         assert.strictEqual(report.reference, expectedReference);
         assert.deepStrictEqual(report.loadedReferences, [expectedReference]);
         assert.strictEqual(report.guidance, fs.readFileSync(path.join(context.skillDir, expectedReference), 'utf8'));
-        assert.ok(report.guidance.length > 100, 'local version guidance must contain substantive content');
       },
     });
     registerFixture({
@@ -34,7 +33,9 @@ function registerLocalToolFixtures() {
         assert.strictEqual(result.status, 2, result.stderr);
         const report = JSON.parse(result.stdout);
         assert.strictEqual(report.status, 'ask');
-        assert.ok(report.question.length > 0);
+        assert.strictEqual(report.question, family === 'laravel'
+          ? 'Which Laravel version applies? Choose 5.4, 6, 7, 8, 9, 10, 11, or mix; the family resolver could not map composer.json, composer.lock, or package.json.'
+          : 'Which PHPUnit version applies? Provide 9, 10, or 11, or a resolvable phpunit/phpunit entry in composer.json or composer.lock.');
         assert.ok(!report.guidance, 'missing version must not silently load arbitrary guidance');
       },
     });
@@ -64,7 +65,8 @@ function registerLocalToolFixtures() {
       assert.strictEqual(result.status, 0, result.stderr);
       const report = JSON.parse(result.stdout);
       assert.strictEqual(report.status, 'UNAVAILABLE');
-      assert.ok(report.diagnostic);
+      assert.strictEqual(report.path, 'missing');
+      assert.strictEqual(report.diagnostic, "scan path 'missing' does not exist");
     },
   });
   registered = true;
