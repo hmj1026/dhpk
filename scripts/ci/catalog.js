@@ -204,7 +204,7 @@ const COVERAGE_MAP = {
   'scripts/lib/cursor-sync-package.js': 'gen-cursor-sync.test.js',
   'scripts/ci/validate-changelog-fragments.js': 'changelog-fragments.test.js',
   'skills/flow-guide/scripts/route-result.js': 'reference-route-policy.test.js',
-  'skills/flow-guide/scripts/usage-card.js': 'flow-guide-usage-help.test.js',
+  'skills/flow-guide/scripts/usage-card.js': 'flow-handoff-contract.test.js',
   'scripts/lib/harness-receipt.js': 'harness-operation-receipts.test.js',
   'scripts/lib/harness-result.js': 'harness-release-aggregation.test.js',
   'scripts/lib/harness-surfaces.js': 'harness-surfaces.test.js',
@@ -229,6 +229,9 @@ const COVERAGE_MAP = {
   'scripts/lib/dispatch-projection.js': 'dispatch-engine.test.js',
   'scripts/lib/dispatch-scheduler.js': 'dispatch-engine.test.js',
   'scripts/lib/provider-cli-adapters.js': 'provider-adapter.test.js',
+  'scripts/lib/discovery-budget.js': 'context-budget.test.js',
+  'scripts/lib/command-namespace.js': 'command-skill-disposition.test.js',
+  'scripts/lib/feature-resolver.js': 'resolve-feature-cli.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);

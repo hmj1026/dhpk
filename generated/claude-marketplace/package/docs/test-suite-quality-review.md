@@ -4805,3 +4805,435 @@ The first after measurement exposed an uncovered invalid-orchestration rejection
 Five raw branch-count drops remain in dispatch-engine, dispatch-scheduler, native-dispatch-policy, provider-adapter, and cli-role-resolver. Their production blobs are identical; every removed range was covered, there are no added uncovered ranges, and no common covered coordinate is lost. Literal raw numeric non-decrease is NOT PASS. The owner accepts these unrelated V8 range-shape differences under the ticket's coverage allowance, subject to cold review of the raw reports and coordinate comparison. The only changed production blob is the bounded Catalog data mapping.
 
 Fresh exact-UID graph analysis retains the HIGH resolveTarget result (20 reachable entries; seven direct callers) and LOW resolveDispatchPlan result (12). Test/Catalog File UNKNOWN results and ambiguous/truncated name/file attempts remain unresolved graph evidence. Dynamic runner/Catalog discovery is corroborated independently. The read-only reasoner authorized only the bounded behavior-preserving test work; no HIGH warning was waived. Full-suite and hosted CI results remain pending at this review checkpoint.
+
+### Issue #793 completed family consolidation
+
+Baseline: `887c853a872a158e3e5ac3d621d0aa1671dcdca5`. Fresh c8 10.1.3 reports with Node v26.9.0, `--jobs 4`, capture all affected owners and sources before moving them. The after run uses a clean tracked-source snapshot of the pending tree, so projection provenance checks see a clean checkout.
+
+Focused suites: 33 → 11; collected cases 309 → 305; wall time 9884 → 8340 ms. These are focused measurements, separate from the full-suite and CI evidence.
+
+#### Source dispositions
+
+- F20: `tests/context-budget.test.js` collects `tests/discovery-budget-parity-separation.test.js`.
+- F49: `tests/flow-handoff-contract.test.js` collects `tests/flow-contract.test.js`, `tests/flow-drive-invocation.test.js`, `tests/flow-guide-ownership.test.js`, `tests/flow-guide-usage-help.test.js`.
+- F50: `tests/opsx-goal-analyze.test.js` collects `tests/opsx-goal-budget.test.js`, `tests/opsx-goal-footprint.test.js`, `tests/opsx-goal-policy-fallback.test.js`, `tests/opsx-apply-goal-guardrails.test.js`.
+- F51: `tests/opsx-orchestration-decision-policy.test.js` collects `tests/execution-policy-kernel.test.js`, `tests/policy-static-guardrails.test.js`, `tests/tdd-e2e-contracts.test.js`, `tests/cli-worker-timeout-recovery.test.js`, `tests/parallel-dispatch-contract.test.js`, `tests/legacy-cli-role-agent-contract.test.js`.
+- F53: `tests/command-skill-disposition.test.js` collects `tests/command-skill-portability.test.js`, `tests/command-front-door-parity.test.js`, `tests/simplify-command-contract.test.js`, `tests/command-namespace.test.js`.
+- F63: `tests/resolve-feature-cli.test.js` collects `tests/resolve-feature.test.js`, `tests/feature-resolver.test.js`.
+- F67: `tests/task4-defects.test.js` collects `tests/task4-consolidation.test.js`.
+
+The detailed KEEP, REWRITE, and DELETE decisions and controlled mutation evidence follow. Source test names are retained except the explicitly documented deletions. No production public behavior is changed.
+
+##### WRITER A: Issue #793 — Writer A evidence
+
+Task/attempt: F20 + F49 + F67, writer A. Worktree: `/tmp/dhpk-test-consolidation-worktree`, branch `feature/issue-793-test-consolidation`, base HEAD `887c853a872a158e3e5ac3d621d0aa1671dcdca5`.
+
+##### WRITER A: Scope and counts
+
+Only the three assigned owner suites and six source suites were changed. The six source files were deleted after merging as named lexical blocks; each owner has exactly one `run(...)` call.
+
+| Family | Owner cases before | Source cases | Approved deletions | Owner cases after |
+|---|---:|---:|---:|---:|
+| F20 `context-budget` | 7 | 8 | 0 | 15 |
+| F49 `flow-handoff-contract` | 3 | 27 | 2 | 28 |
+| F67 `task4-defects` | 11 | 8 | 0 | 19 |
+| Total | 21 | 43 | 2 | 62 |
+
+The saved before/after name multiset check reports 64 names before and 62 after, exactly the two approved F49 removals below, and no additions. `merge-a.log` is retained unchanged; its aggregate F49 “deleted 3 tests” display is a bookkeeping artifact from positional comparison of sorted name arrays. Its per-source output shows the two removals. The name multiset check, not that display, is the authoritative count.
+
+##### WRITER A: Moved-case dispositions
+
+##### WRITER A: F20 — `discovery-budget-parity-separation`: 8 KEEP
+
+- `missing budget is a configuration failure, never a zero-limit content overflow`
+- `unknown discovery visibility is reported as configuration, not inferred as visible`
+- `scoped budget rejects an unbound profile/artifact identity`
+- `claude-user-config accounting keeps its category and manifest identity contract`
+- `a budget overflow remains independent while projection parity passes`
+- `projection drift remains independent while the discovery budget passes`
+- `stale or unknown plan identity fails parity closed`
+- `legacy context-budget CLI keeps its summary headings and exit behavior`
+
+##### WRITER A: F49 — `flow-contract`: 4 KEEP, 2 DELETE
+
+KEEP:
+
+- `flow skills do not import each other or duplicate the shared contract`
+- `flow-guide adapts its closed route result into the shared handoff contract`
+- `flow-guide route contract accepts each supported Host identity`
+- `flow-drive validates confirmation and resolves Roles through the common Dispatch Engine`
+
+DELETE, as fully owned by collected executable owner tests:
+
+- `shared flow handoff carries Host-neutral target and evidence without execution authority` — contract is covered by `creates an immutable neutral handoff with bounded evidence` and `keeps canonical Role, Effort, and Transport fields separate in a handoff target`.
+- `shared handoff rejects provider-private execution claims and unsupported target fields` — contract is covered by `rejects unsupported target evidence and execution claims`.
+
+##### WRITER A: F49 — `flow-drive-invocation`: 6 KEEP
+
+- `flow-guide route --go fails closed when target availability is not configured`
+- `flow-drive parses the documented implementation options into one immutable context`
+- `flow-drive fails closed on conflicting architecture flags`
+- `flow-drive keeps worker selection separate from an explicit worker target`
+- `flow-drive rejects malformed worker targets and duplicate target selectors`
+- `flow-drive rejects retired codex and malformed worker/reasoner options`
+
+##### WRITER A: F49 — `flow-guide-ownership`: 9 KEEP
+
+- `routing artifacts belong to flow-guide and the former flow-drive owner is gone`
+- `flow-guide exposes exactly help, route, rules, next, and close actions`
+- `flow-drive is mode-free and accepts only confirmed implementation input`
+- `route result v3 has a closed terminal shape with only a go option`
+- `route without --go is read-only advice and preserves the cleaned task text`
+- `route --go can produce one bounded handoff only for an implicit-eligible target`
+- `route --go refuses an explicit-only implementation target without invoking it`
+- `retired route flags fail closed instead of recreating v2 options`
+- `route-result validation rejects unknown fields and non-v3 schemas`
+
+##### WRITER A: F49 — `flow-guide-usage-help`: 6 KEEP
+
+- `generated usage catalog exists under the flow-guide owner`
+- `$flow-guide help lists Codex-invokable public names in deterministic order`
+- `$flow-guide help flow-drive returns only one explicit-only usage card`
+- `help JSON preserves one machine-readable action and option contract`
+- `unknown and known non-Codex help targets have distinct diagnostics`
+- `help is metadata-only and cannot turn flow-drive into an implicit invocation`
+
+##### WRITER A: F67 — `task4-consolidation`: 6 REWRITE, 2 KEEP
+
+Each rewrite was checked in a disposable harness containing copied test code and skill documents: clean exact test GREEN, one targeted copy mutation RED for that exact test, then restored GREEN.
+
+| Exact test name | Controlled mutation in disposable copy |
+|---|---|
+| `code tracing exposes explore, diagnose, history, and tool selection modes` | Remove the `select-tool` row from code-trace Modes. |
+| `change verdict exposes all read-only modes` | Remove the `risk` row from change-verdict Modes. |
+| `module design uses caller leverage, deletion, seam, adapter, glossary, and ADR tests` | Remove the “Deletion test” item from the module-design Boundary tests section. |
+| `TDD workflow covers seams, tracer bullets, slicing, and tautological tests` | Remove the RED step from Standard TDD mode. |
+| `root-cause workflow starts with a symptom-specific red loop and ranked falsifiable hypotheses` | Change “Gather evidence” in the code-trace diagnosis phase. |
+| `skill authoring and audits account for cost, checkability, branches, and sediment pruning` | Remove the branch-detail check from skill-scope Verification. |
+
+KEEP:
+
+- `change verdict shell permissions are scoped to read-only helpers`
+- `TDD test guidance owns oracle, discrimination, ownership, and rejection rules`
+
+##### WRITER A: Changed paths
+
+Assigned paths only:
+
+- Modified: `tests/context-budget.test.js`, `tests/flow-handoff-contract.test.js`, `tests/task4-defects.test.js`
+- Deleted after merge: `tests/discovery-budget-parity-separation.test.js`, `tests/flow-contract.test.js`, `tests/flow-drive-invocation.test.js`, `tests/flow-guide-ownership.test.js`, `tests/flow-guide-usage-help.test.js`, `tests/task4-consolidation.test.js`
+
+Other worktree paths were concurrently changed by the parent/other assigned writer and were left untouched. The worktree is not clean; no commit was created.
+
+##### WRITER A: Scoped verification
+
+- `node tests/context-budget.test.js` — PASS, 15/15.
+- `node tests/flow-handoff-contract.test.js` — PASS, 28/28.
+- `node tests/task4-defects.test.js` — PASS, 19/19.
+- `node --check` on all three owner files — PASS.
+- `git diff --check` across the nine assigned paths — PASS.
+- Before/after name multiset — PASS, 64 → 62; only the two named F49 deletions; 0 added names; owner run counts 1/1/1.
+- Six disposable F67 mutations — PASS, each exact test clean GREEN → mutation RED → restored GREEN.
+
+Raw evidence: `context-budget-owner.log`, `flow-handoff-owner.log`, `task4-defects-owner.log`, `f67-mutations.log`, `writer-a-scope-checks.log`, `merge-a.log`, `task4-rewritten-source.log`, and recipes `run-f67-mutations.js` and `verify-a-scope.js`, all in `/tmp/dhpk-consolidation/793/`.
+
+##### WRITER A: NOT RUN — issue-wide gates
+
+- Full affected-suite timing was not run in this worker scope; the parent coordinates the combined tree. Resume after all owner merges with:
+  `DHPK_TEST_JOBS=4 DHPK_TEST_TIMING_FILE=/tmp/dhpk-consolidation/793/after-timing.json node tests/run-all.js --jobs 4 tests/context-budget.test.js tests/flow-handoff-contract.test.js tests/opsx-goal-analyze.test.js tests/opsx-orchestration-decision-policy.test.js tests/command-skill-disposition.test.js tests/resolve-feature-cli.test.js tests/task4-defects.test.js tests/catalog-claims.test.js tests/skill-retirement-migration.test.js tests/codex-mcp-retirement.test.js`
+- Issue-wide before/after c8 coverage was not run here; parent owns the combined baseline comparison. Resume with a fresh report directory using the baseline runner/version and the same ten affected owner/gate suites:
+  `node /home/paul/.npm/_npx/1d50dde519b2be3f/node_modules/c8/bin/c8.js --reports-dir /tmp/dhpk-consolidation/793/after-coverage --reporter json --reporter json-summary node tests/run-all.js --jobs 4 tests/context-budget.test.js tests/flow-handoff-contract.test.js tests/opsx-goal-analyze.test.js tests/opsx-orchestration-decision-policy.test.js tests/command-skill-disposition.test.js tests/resolve-feature-cli.test.js tests/task4-defects.test.js tests/catalog-claims.test.js tests/skill-retirement-migration.test.js tests/codex-mcp-retirement.test.js`
+- Catalog and generated-package checks were not run because the parent owns shared catalog/ledger/generated edits. Resume with `node scripts/ci/catalog.js --check all`, `node scripts/ci/validate-plugin.js`, and `bash scripts/validate/validate-harness.sh` after those edits are integrated.
+- Full combined-tree cold review remains with the parent.
+
+##### WRITER B: Issue #793 — Writer B (F50 + F63)
+
+##### WRITER B: Task identity and scope
+
+- Worker: `/root/issue791_writer_c`; attempt ID was not supplied.
+- Worktree: `/tmp/dhpk-test-consolidation-worktree`
+- Branch/base: `feature/issue-793-test-consolidation` at `887c853a872a158e3e5ac3d621d0aa1671dcdca5`.
+- Scope: F50 owner `tests/opsx-goal-analyze.test.js` and its four source suites; F63 owner `tests/resolve-feature-cli.test.js` and its two source suites.
+- No files outside those eight test paths were changed by B. Parent-owned ledger, catalog, and retirement-scanner work and other writers' changes were preserved. No staging or commit was performed.
+
+##### WRITER B: Changes and dispositions
+
+- F50: moved 33 source cases into the owner as four labeled lexical blocks; kept 31, rewrote one, and deleted one fully duplicated assertion.
+  - `opsx-goal-budget`: 5 KEEP.
+  - `opsx-goal-footprint`: 7 KEEP; REWRITE `a mechanical task with three distinct files embeds the clause` to assert both `scanFootprint(tasks).eligible === true` and that the emitted clause is present.
+  - `opsx-goal-policy-fallback`: 7 KEEP; DELETE `the shared fallback clause covers confirm-only, canonical path, freshness, and rejects reply-only`. The retained owner case compares the real fallback clause in both dispatch branches.
+  - `opsx-apply-goal-guardrails`: 12 KEEP.
+- F63: moved 8 source cases into the owner as two labeled lexical blocks; kept 7 and deleted one fully covered syntax-only assertion.
+  - `resolve-feature`: KEEP the two executable wrapper cases; DELETE `bash -n syntax check passes`, which is covered by executing the wrapper in those cases.
+  - `feature-resolver`: 5 KEEP.
+- The owner cases remain in their original order, followed by source blocks in the issue's order. All retained case names are unchanged. Exactly 57 baseline registrations become 55; 38 retained source bodies and all 16 pre-existing owner bodies are byte-identical.
+- Deleted exactly: `tests/opsx-goal-budget.test.js`, `tests/opsx-goal-footprint.test.js`, `tests/opsx-goal-policy-fallback.test.js`, `tests/opsx-apply-goal-guardrails.test.js`, `tests/resolve-feature.test.js`, and `tests/feature-resolver.test.js`.
+- F50 owner is 958 lines. This uses the approved >800-line exception. No timeout was added.
+- The moved guardrail block alone is bracketed by the required unique standalone comments:
+  `// BEGIN historical source: tests/opsx-apply-goal-guardrails.test.js`
+  and
+  `// END historical source: tests/opsx-apply-goal-guardrails.test.js`.
+  Both markers are outside its lexical braces. The parent-owned retirement scanner change recognizes this exact pair; B did not alter that scanner or add a F67 exemption.
+
+##### WRITER B: Graph and discovery evidence
+
+Fresh parent graph artifacts for this base are under `/tmp/dhpk-consolidation/793/`. Test-file impact results remain UNKNOWN; the `resolve-feature.test.js` name lookup was ambiguous and retained its known candidate warning. The canonical `scanFootprint` impact lookup was also UNKNOWN/not found. No UNKNOWN result was treated as low risk or as an all-clear. Text inspection confirms `tests/run-all.js` recursively discovers `*.test.js`; that confirms test collection behavior, not absence of other callers.
+
+##### WRITER B: Verification
+
+- `node --check tests/opsx-goal-analyze.test.js` — PASS.
+- `node --check tests/resolve-feature-cli.test.js` — PASS.
+- `node tests/opsx-goal-analyze.test.js` — PASS, 44/44. Raw output: `/tmp/dhpk-consolidation/793/writer-b-f50-owner.log`.
+- `node tests/resolve-feature-cli.test.js` — PASS, 11/11. Raw output: `/tmp/dhpk-consolidation/793/writer-b-f63-owner.log`.
+- `python3 /tmp/dhpk-consolidation/793/writer-b-integrity-check.py` — PASS: ordered registrations, exact deletions, original owner bodies, 38 retained source bodies, rewritten footprint contract, and marker placement. Output: `writer-b-integrity-check.log`.
+- `git diff --check -- <eight owned paths>` — PASS.
+- `git diff --exit-code HEAD -- skills/dhpk-opsx-apply-goal/scripts/goal-context.js` — PASS; canonical production source was not edited.
+
+##### WRITER B: Disposable mutation proof
+
+The replay recipe is `/tmp/dhpk-consolidation/793/writer-b-footprint-probe.py`. It copies only the needed owner test, harness, fixtures, skill package, and policy into a disposable directory; filters that copied harness to the exact named case; changes the copied `MAX_INLINE_FILES` value from 2 to 3; runs the test to RED; restores the copied source byte-for-byte; and runs the same case GREEN.
+
+- `python3 /tmp/dhpk-consolidation/793/writer-b-footprint-probe.py` — PASS.
+- RED: exact rewritten case failed, exit 1, 0/1. Raw output: `writer-b-footprint-red.log`.
+- Restored GREEN: exact case passed, exit 0, 1/1. Raw output: `writer-b-footprint-green.log`.
+- Disposable source hash before mutation and after restore: `e422002618b9ec5debf1f8337f1ad020a365dea4efad0469d6dec6870a8a6765`.
+- Canonical worktree production hash before and after: the same value. The temporary copy was removed by the recipe.
+
+##### WRITER B: Parent-owned gates
+
+- **NOT RUN by B:** the combined #793 after timing, c8 coverage, catalog, generated-package, and full-suite workflow. Other batches and shared parent edits were still active; parent owns the combined run. Resume after the full wave lands with:
+  `python3 /tmp/dhpk-consolidation/workflow.py after 793`
+  then:
+  `python3 /tmp/dhpk-consolidation/workflow.py compare 793`.
+- **NOT RUN by B:** `node tests/skill-retirement-migration.test.js`; the parent owns the scanner implementation and its mutation checks. Run it after that shared change is ready.
+- Code review and release decisions remain with the parent flow.
+
+##### WRITER B: Scoped checkpoint
+
+SHA-256 of `git diff --binary HEAD` restricted to the eight B-owned paths:
+`7e403e8ce19dc703248f0a771911906946e635982d2558578c2cb675c69b03f8`.
+
+The worktree contains concurrent edits from other assigned lanes; this report claims only the B-owned paths above, not a clean global worktree.
+
+##### WRITER C: Issue 793 C — F51/F53 test consolidation
+
+##### WRITER C: Goal and scope
+
+Attempt C on feature/issue-793-test-consolidation, based on HEAD
+887c853a872a158e3e5ac3d621d0aa1671dcdca5, in
+/tmp/dhpk-test-consolidation-worktree.
+
+Consolidate the F51 and F53 source suites into their two canonical owner files.
+All 83 test names remain present. Of 58 cases from source suites, 53 remain
+unchanged and five retain their names with stronger executable or independent
+oracles. No test case was deleted. The ten source files were removed after
+their assertions were transferred into labeled lexical blocks. No production,
+catalog, generated, or global files were changed by this attempt.
+
+##### WRITER C: Changed files
+
+Modified:
+
+- tests/opsx-orchestration-decision-policy.test.js — 51 cases; incorporates six F51 source blocks.
+- tests/command-skill-disposition.test.js — 32 cases; incorporates four F53 source blocks.
+
+Deleted after transfer:
+
+- F51: tests/execution-policy-kernel.test.js, tests/policy-static-guardrails.test.js, tests/tdd-e2e-contracts.test.js, tests/cli-worker-timeout-recovery.test.js, tests/parallel-dispatch-contract.test.js, tests/legacy-cli-role-agent-contract.test.js.
+- F53: tests/command-skill-portability.test.js, tests/command-front-door-parity.test.js, tests/simplify-command-contract.test.js, tests/command-namespace.test.js.
+
+The rewritten cases are:
+
+1. validate-skills.js has no path-scoped/subset mode (whole-tree only, so a worker cannot safely self-invoke it) — executes the validator against a valid selected skill and invalid sibling.
+2. validate-skills.js never writes the shared skill-size-allowlist.json (read-only ratchet consumer) — compares allowlist bytes before and after real validator execution.
+3. v3 enumerates all 31 root commands plus the module ts-check-status command — independently scans physical root and module command files against the literal IDs.
+4. v3 allows several command rows to share one Skill owner — runs the checked-in v3 manifest through the real validator and checks shared owner groups.
+5. other slash namespaces retain the current utils prefix behavior — compares the helper result to literal /dhpk:other:update-docs.
+
+The owner files each have one final run(...) call. The F51 owner is above
+800 lines under the parent's explicit size exception.
+
+##### WRITER C: Verification
+
+Direct worker checks:
+
+- node --check tests/opsx-orchestration-decision-policy.test.js — PASS.
+- node --check tests/command-skill-disposition.test.js — PASS.
+- node tests/opsx-orchestration-decision-policy.test.js — PASS, 51/51; raw log: writer-c-focused-f51.log.
+- node tests/command-skill-disposition.test.js — PASS, 32/32; raw log: writer-c-focused-f53.log.
+- Baseline name multiset comparison — PASS, F51 51/51 and F53 32/32 names equal; evidence: writer-c-mutations/name-parity.txt.
+- One final owner run(...) call per file — PASS.
+- Main worktree target hashes before and after mutation replay — identical; evidence: writer-c-mutations/source-hashes-before.txt, source-hashes-after.txt, and empty source-hash-comparison.log.
+
+Mutation replay: run
+bash /tmp/dhpk-consolidation/793/writer-c-mutations/writer-c-replay.sh.
+It creates a detached disposable Git worktree from the current shared diff, runs
+the five mutations, restores each target, and removes its worktree on exit.
+All five named targets produced RED under mutation and GREEN after restoration:
+
+| Probe | Mutated outcome | Restored outcome | Raw log |
+|---|---:|---:|---|
+| F51 path-scoped validator hides invalid sibling | 50/51, target failed | 51/51 | writer-c-mutations/f51-subset-mode.log |
+| F51 validator pretty-prints the allowlist | 50/51, target failed | 51/51 | writer-c-mutations/f51-allowlist-writer.log |
+| F53 add a physical root command to disposable scan tree | 31/32, target failed | 32/32 | writer-c-mutations/f53-command-inventory.log |
+| F53 validator rejects shared owners | 27/32, five failures including target | 32/32 | writer-c-mutations/f53-shared-owner.log |
+| F53 leave other slash namespaces unchanged | 31/32, target failed | 32/32 | writer-c-mutations/f53-namespace-prefix.log |
+
+The broad shared-owner failures are expected collateral from the mutation:
+several checked-in rows share owners, so all affected validator assertions fail.
+The named target's failure and restored 32/32 result are in the raw log.
+The replay recipe is writer-c-mutations/writer-c-replay.sh; disposable-worktree
+status and creation evidence are writer-c-mutations/disposable-worktree-status.txt
+and worktree-add.log.
+
+Parent-reported shared gate after C: original baseline 32/293 to 10/289,
+with two helper missing-side comparisons explained by removal of the old
+currentUtils-derived oracle import; reasoner approved unchanged tests/utils.test.js
+on both sides. Expanded fresh comparison: 33/309 to 11/305, 54 files,
+3,724 common assertions, 2,132/2,132 retained, zero loss and zero unresolved.
+
+##### WRITER C: Status and handoff
+
+No worker blocker remains. The five production mutations were confined to the
+disposable worktree; canonical target hashes remained unchanged. Parent-owned
+shared diffs remain present in the worktree. No commit or release action was
+performed. Review and release decisions remain with the parent flow.
+
+Task/attempt identity: Issue 793, writer C, attempt at the HEAD above. Evidence
+directory: /tmp/dhpk-consolidation/793/.
+
+#### Registration reconciliation
+
+Removed registration names:
+
+- `the shared fallback clause covers confirm-only, canonical path, freshness, and rejects reply-only`
+- `shared flow handoff carries Host-neutral target and evidence without execution authority`
+- `shared handoff rejects provider-private execution claims and unsupported target fields`
+- `bash -n syntax check passes`
+
+Added registration names:
+
+- None.
+
+#### Per-file focused timing
+
+| File | Before ms | After ms |
+| --- | --- | --- |
+| `tests/context-budget.test.js` | 256 | 351 |
+| `tests/discovery-budget-parity-separation.test.js` | 175 | merged |
+| `tests/flow-handoff-contract.test.js` | 145 | 647 |
+| `tests/flow-contract.test.js` | 76 | merged |
+| `tests/flow-drive-invocation.test.js` | 63 | merged |
+| `tests/flow-guide-ownership.test.js` | 59 | merged |
+| `tests/flow-guide-usage-help.test.js` | 513 | merged |
+| `tests/opsx-goal-analyze.test.js` | 406 | 801 |
+| `tests/opsx-goal-budget.test.js` | 131 | merged |
+| `tests/opsx-goal-footprint.test.js` | 155 | merged |
+| `tests/opsx-goal-policy-fallback.test.js` | 104 | merged |
+| `tests/opsx-apply-goal-guardrails.test.js` | 88 | merged |
+| `tests/opsx-orchestration-decision-policy.test.js` | 406 | 516 |
+| `tests/execution-policy-kernel.test.js` | 111 | merged |
+| `tests/policy-static-guardrails.test.js` | 90 | merged |
+| `tests/tdd-e2e-contracts.test.js` | 54 | merged |
+| `tests/cli-worker-timeout-recovery.test.js` | 78 | merged |
+| `tests/parallel-dispatch-contract.test.js` | 53 | merged |
+| `tests/legacy-cli-role-agent-contract.test.js` | 48 | merged |
+| `tests/command-skill-disposition.test.js` | 158 | 106 |
+| `tests/command-skill-portability.test.js` | 141 | merged |
+| `tests/command-front-door-parity.test.js` | 173 | merged |
+| `tests/simplify-command-contract.test.js` | 95 | merged |
+| `tests/command-namespace.test.js` | 61 | merged |
+| `tests/resolve-feature-cli.test.js` | 266 | 434 |
+| `tests/resolve-feature.test.js` | 178 | merged |
+| `tests/feature-resolver.test.js` | 88 | merged |
+| `tests/task4-defects.test.js` | 934 | 1347 |
+| `tests/task4-consolidation.test.js` | 57 | merged |
+| `tests/catalog-claims.test.js` | 8147 | 7738 |
+| `tests/skill-retirement-migration.test.js` | 649 | 916 |
+| `tests/codex-mcp-retirement.test.js` | 629 | 410 |
+| `tests/utils.test.js` | 315 | 219 |
+
+All collected owners remain below the default 180 s budget. No `TIMEOUT_HINTS` entry is added.
+
+#### Canonical production coverage
+
+Covered/total counts below are raw fresh-report values. Branch range coordinates are independently compared; a raw drop is never described as raw non-decrease PASS.
+
+| Production file | Before lines | After lines | Before branches | After branches |
+| --- | --- | --- | --- | --- |
+| `scripts/ci/_lib/frontmatter.js` | 112/129 | 112/129 | 19/26 | 19/26 |
+| `scripts/ci/_lib/report.js` | 36/51 | 36/51 | 3/6 | 3/6 |
+| `scripts/ci/catalog.js` | 358/492 | 361/495 | 24/51 | 24/51 |
+| `scripts/ci/context-budget.js` | 340/365 | 340/365 | 105/167 | 106/168 |
+| `scripts/ci/validate-invocation-policy.js` | 89/105 | 89/105 | 9/24 | 9/24 |
+| `scripts/lib/agy-path-contract.js` | 55/97 | 55/97 | 4/14 | 4/14 |
+| `scripts/lib/asset-inventory.js` | 189/201 | 189/201 | 39/52 | 39/52 |
+| `scripts/lib/bounded-child-process.js` | 36/50 | 36/50 | 2/8 | 2/8 |
+| `scripts/lib/bounded-filesystem.js` | 129/169 | 129/169 | 18/40 | 18/40 |
+| `scripts/lib/capability-bundle-selection.js` | 452/849 | 452/849 | 109/218 | 109/218 |
+| `scripts/lib/command-namespace.js` | 12/12 | 12/12 | 6/6 | 6/6 |
+| `scripts/lib/command-skill-disposition.js` | 451/531 | 451/531 | 151/235 | 156/240 |
+| `scripts/lib/discovery-budget.js` | 227/245 | 227/245 | 88/114 | 88/114 |
+| `scripts/lib/distribution-compiler.js` | 85/494 | 85/494 | 2/22 | 2/22 |
+| `scripts/lib/distribution-inventory-regeneration.js` | 13/40 | 13/40 | 1/1 | 1/1 |
+| `scripts/lib/distribution-inventory.js` | 1618/2518 | 1618/2518 | 453/744 | 453/744 |
+| `scripts/lib/distribution-projection-contract.js` | 368/585 | 368/585 | 67/159 | 67/159 |
+| `scripts/lib/distribution-projection-parity.js` | 333/461 | 333/461 | 50/133 | 50/133 |
+| `scripts/lib/feature-resolver.js` | 263/286 | 263/286 | 43/52 | 43/52 |
+| `scripts/lib/flow-handoff-contract.js` | 80/80 | 80/80 | 44/49 | 44/49 |
+| `scripts/lib/harness-surfaces.js` | 25/25 | 25/25 | 1/1 | 1/1 |
+| `scripts/lib/internal-runtime-skills.js` | 64/77 | 64/77 | 17/33 | 17/33 |
+| `scripts/lib/profile-projection-sets.js` | 75/118 | 75/118 | 11/14 | 11/14 |
+| `scripts/lib/project-agent-host-binding-policy.js` | 35/240 | 35/240 | 1/1 | 1/1 |
+| `scripts/lib/project-agent-projection-plan.js` | 146/647 | 146/647 | 15/46 | 15/46 |
+| `scripts/lib/project-agent-provider-adapters.js` | 102/483 | 102/483 | 1/1 | 1/1 |
+| `scripts/lib/runner-utils.js` | 198/337 | 198/337 | 43/52 | 43/52 |
+| `scripts/lib/skill-routing-projection.js` | 92/201 | 92/201 | 12/20 | 12/20 |
+| `scripts/lib/skill-topology.js` | 214/281 | 214/281 | 24/65 | 24/65 |
+| `scripts/lib/skill-usage.js` | 531/940 | 531/940 | 93/162 | 93/162 |
+| `scripts/lib/utils.js` | 28/28 | 28/28 | 9/11 | 9/11 |
+| `scripts/resolve-feature-cli.js` | 40/62 | 40/62 | 6/7 | 6/7 |
+| `skills/change-verdict/scripts/lib/command-namespace.js` | 6/12 | 6/12 | 1/1 | 1/1 |
+| `skills/change-verdict/scripts/lib/runner-utils.js` | 103/337 | 103/337 | 8/13 | 8/13 |
+| `skills/change-verdict/scripts/risk-analyze.js` | 493/927 | 493/927 | 49/106 | 49/106 |
+| `skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/fast-worker-selector.js` | 121/182 | 121/182 | 46/60 | 46/60 |
+| `skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/dispatch-contract.js` | 156/809 | 156/809 | 1/1 | 1/1 |
+| `skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/dispatch-engine.js` | 62/478 | 62/478 | 1/1 | 1/1 |
+| `skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/native-dispatch-policy.js` | 99/245 | 99/245 | 15/20 | 15/20 |
+| `skills/dhpk-opsx-apply-goal/scripts/goal-context.js` | 220/229 | 220/229 | 84/90 | 84/90 |
+| `skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js` | 583/809 | 583/809 | 79/183 | 79/183 |
+| `skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js` | 234/478 | 234/478 | 20/73 | 20/73 |
+| `skills/flow-drive/references/execution-bundle/scripts/lib/flow-handoff-contract.js` | 73/80 | 73/80 | 16/31 | 16/31 |
+| `skills/flow-drive/scripts/dispatch.js` | 70/75 | 70/75 | 14/28 | 14/28 |
+| `skills/flow-drive/scripts/invocation.js` | 141/175 | 141/175 | 45/63 | 45/63 |
+| `skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js` | 69/80 | 69/80 | 16/34 | 16/34 |
+| `skills/flow-guide/scripts/_lib/command-namespace.js` | 6/12 | 6/12 | 1/1 | 1/1 |
+| `skills/flow-guide/scripts/_lib/feature-resolver.js` | 160/286 | 160/286 | 6/17 | 6/17 |
+| `skills/flow-guide/scripts/_lib/runner-utils.js` | 104/337 | 104/337 | 9/14 | 9/14 |
+| `skills/flow-guide/scripts/_lib/runtime-loader.js` | 45/52 | 45/52 | 11/13 | 11/13 |
+| `skills/flow-guide/scripts/_lib/skill-usage.js` | 552/940 | 552/940 | 75/149 | 75/149 |
+| `skills/flow-guide/scripts/analyze.js` | 330/773 | 330/773 | 20/77 | 20/77 |
+| `skills/flow-guide/scripts/route-result.js` | 285/325 | 285/325 | 144/190 | 135/181 |
+| `skills/flow-guide/scripts/usage-card.js` | 259/316 | 259/316 | 48/92 | 48/92 |
+
+Common branch arms: 3724; covered 2132 → 2132. Unresolved comparisons: `[]`. The comparison includes every canonical `scripts/`, `skills/`, and `modules/` dependency loaded by this focused run. Shell paths are outside c8 instrumentation and rely on their behavioral negative tests.
+
+Full raw reports, registration multisets, command metadata, mutation logs, and coordinate comparison are retained under `/tmp/dhpk-consolidation/793/`. The raw coverage reports preserve instrumentation differences; identical production blobs and zero lost common covered coordinates explain range drift only when all removed and added ranges are covered.
+
+#### Supporting retirement scanner contract
+
+The existing `canonical source has no live delegation to retiring identities` case initially failed 35/36 after the F50 source moved, reporting its two historical negative-fixture identities. The bounded test-only change excludes only the exact unique ordered BEGIN/END block for the copied guardrails source in `tests/opsx-goal-analyze.test.js`; all other owner text and the complete F67 owner remain scanned. Missing, repeated, or reversed markers reject rather than expanding the exemption. Historical deleted-path exemptions are retained as provenance; no whole merged owner exemption is added.
+
+The complete scanner owner restored GREEN 36/36. The executable recipe is `/tmp/dhpk-consolidation/793/supporting-guard-replay.py`: it archives HEAD into a disposable copy, overlays the scanner and current F50 owner, and uses an actual exact-name tinytest registration filter. Four independent mutations each produce the sole named RED 0/1 and restored GREEN 1/1: a retiring-identity literal outside the marked block; missing begin marker; duplicate begin marker; reversed markers. The restored owner SHA-256 equals its original disposable bytes after every mutation. This changes one supporting scanner assertion without adding/removing registrations. Raw logs and `supporting-guard-proof.json` are retained separately from the 12 source-case rewrite proofs.
+
+Current executable validation references in `docs/codex-mcp-capability-parity.md` now point to the surviving F67 owner. Obsolete source line numbers were removed from those moved references; historical baseline tables and CSV snapshots are preserved. Production APIs and implementations remain unchanged; Catalog ownership data is reconciled separately.
+
+#### Root reconciliation and acceptance disposition
+
+The seven families account for all 142 source cases: 126 KEEP, 12 REWRITE, and four DELETE. Family registrations change 204 to 200. Source names and multiplicities remain unchanged except the four recorded deletions. F50 is 958 lines and F51 is 1,061 lines under their explicitly approved exceptions; other merged owners remain below 800 lines. No TIMEOUT_HINTS entry is added. All 12 source-case rewrites have actual disposable target-named RED/restored GREEN evidence. The shared-owner mutation legitimately fails five F53 cases including its target (27/32), then restores all 32; it is not described as a sole-case failure. The source merge display incorrectly reported three F49 deletions; preserved raw output is superseded by the exact multiset showing two.
+
+Original focused measurements (32 files / 293 cases to 10 files / 289 cases) are retained under `original-focus/`. Removing the namespace self-comparison also removed incidental loading of the legacy utils shim and runner-utils; neither was changed. The read-only reasoner confirmed that the unchanged 16-case utils owner directly owns those contracts. Both fresh verification scopes therefore include that existing owner, yielding 33 files / 309 cases to 11 files / 305 cases, 9,884 to 8,340 ms. This is an evidence scope supplement, not a new test, imported padding, or implementation change.
+
+The expanded comparison covers 54 canonical production files and 3,724 shared branch coordinates, with 2,132 covered before and after, zero covered-coordinate loss, and zero unresolved comparisons. Only Catalog ownership data changes its production blob. Route-result raw covered branches decline 144/190 to 135/181 on an identical blob; all removed and added ranges are covered. Literal raw numeric non-decrease remains NOT PASS. The implementation judgment owner accepts this unrelated V8 range-shape drift under the ticket allowance, subject to cold review of raw reports and exact coordinates.
+
+Fresh Catalog coverage-gap Function impact is HIGH (two entries; direct checkOrWrite caller and two affected processes), retained without downgrade from riskSharedAxes LOW. Ten unresolved Function lookups and test File UNKNOWN results are corroborated by live CX references and dynamic discovery; global process indexing omissions remain lower bounds, not an all-clear. Fresh reasoner authorized bounded test-only changes. Full-suite, static/generation, and hosted CI completion are separate subsequent gates; no pending result is claimed PASS here.
