@@ -364,4 +364,372 @@ test('malformed shard timing JSON is rejected', () => {
   });
 });
 
+{
+  // Collected cases from tests/run-all.test.js.
+  // Contract coverage for the aggregate test runner's bounded scheduling.  The
+  // runner must remain usable as a CLI while exposing deterministic planning
+  // helpers so CI can prove that every test file is assigned exactly once.
+
+  const path = require('node:path');
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const { spawnSync } = require('node:child_process');
+  const { test, assert } = require('./_lib/tinytest');
+  const {
+    parseOptions,
+    assignShard,
+    partitionFiles,
+    findTests,
+    fileTimeoutMs,
+    createTimingReport,
+    parseTimingPayload,
+  } = require('./run-all');
+
+  test('default options preserve the complete sequential runner contract', () => {
+    assert.deepStrictEqual(parseOptions([], {}), {
+      shardIndex: 0,
+      shardCount: 1,
+      jobs: 1,
+      worker: false,
+      files: [],
+    });
+  });
+
+  test('CLI options accept a bounded shard and worker-pool configuration', () => {
+    assert.deepStrictEqual(parseOptions([
+      '--shard-index', '2',
+      '--shard-count', '4',
+      '--jobs', '3',
+    ]), {
+      shardIndex: 2,
+      shardCount: 4,
+      jobs: 3,
+      worker: false,
+      files: [],
+    });
+    assert.strictEqual(parseOptions(['--shard-index', '0', '--shard-count', '4']).shardIndex, 0);
+  });
+
+  test('invalid shard and job values fail closed before scheduling', () => {
+    for (const argv of [
+      ['--shard-index', '-1', '--shard-count', '4'],
+      ['--shard-index', '4', '--shard-count', '4'],
+      ['--shard-index', '0', '--shard-count', '0'],
+      ['--jobs', '0'],
+      ['--jobs', '9'],
+    ]) {
+      assert.throws(() => parseOptions(argv), /invalid|must be|range/i, argv.join(' '));
+    }
+  });
+
+  test('installer and harness-release files keep a longer timeout than the default 180s budget', () => {
+    assert.strictEqual(fileTimeoutMs('tests/install-codex-skills.test.js', 180000), 180000);
+    assert.strictEqual(fileTimeoutMs('tests/install-codex-skills-reconciliation.test.js', 180000), 300000);
+    assert.strictEqual(fileTimeoutMs('tests/harness-facade-cli.test.js', 180000), 240000);
+    assert.strictEqual(fileTimeoutMs('tests/alpha.test.js', 180000), 180000);
+    assert.strictEqual(fileTimeoutMs('tests/install-codex-skills-reconciliation.test.js', 400000), 400000);
+  });
+
+  test('weighted partition assigns every selected file exactly once', () => {
+    const files = [
+      'install-codex-skills.test.js',
+      'install-codex-skills-reconciliation.test.js',
+      'install-codex-skills-planning.test.js',
+      'install-codex-skills-uninstall.test.js',
+      'consumer-gate-cli.test.js',
+      'run-codex.test.js',
+      'validate-retirement-closure.test.js',
+      'alpha.test.js',
+      'beta.test.js',
+      'gamma.test.js',
+      'delta.test.js',
+    ].map((name) => path.join('/repo/tests', name));
+    const buckets = partitionFiles(files, 3);
+    const flattened = buckets.flat();
+
+    assert.strictEqual(flattened.length, files.length);
+    assert.deepStrictEqual(new Set(flattened), new Set(files));
+    assert.ok(buckets.every((bucket) => bucket.length > 0));
+  });
+
+  test('CI-sized weighted partition separates the heaviest split installer file', () => {
+    const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-scheduler-'));
+    try {
+      const fillerFiles = Array.from({ length: 5 }, (_, index) => {
+        const file = path.join(fixtureRoot, `filler-${index}.test.js`);
+        fs.writeFileSync(file, Buffer.alloc(53 * 2048));
+        return file;
+      });
+      const files = [
+        'install-codex-skills.test.js',
+        'install-codex-skills-reconciliation.test.js',
+        'install-codex-skills-planning.test.js',
+        'install-codex-skills-uninstall.test.js',
+        'consumer-gate-cli.test.js',
+        'gen-cursor-plugin-package.test.js',
+        'harness-facade-cli.test.js',
+        'run-codex.test.js',
+        ...fillerFiles,
+        'validate-retirement-closure.test.js',
+      ].map((name) => path.isAbsolute(name) ? name : path.join(__dirname, name));
+      const buckets = partitionFiles(files, 4);
+      const workerFor = (name) => buckets.findIndex((bucket) => (
+        bucket.some((file) => path.basename(file) === name)
+      ));
+
+      assert.notStrictEqual(
+        workerFor('install-codex-skills-reconciliation.test.js'),
+        workerFor('consumer-gate-cli.test.js'),
+        'CI worker pool must not co-schedule the heaviest split installer file with consumer-gate',
+      );
+    } finally {
+      fs.rmSync(fixtureRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('shard assignment is deterministic and covers every shard', () => {
+    const files = Array.from({ length: 20 }, (_, i) => `/repo/tests/${i}.test.js`);
+    const assignments = files.map((file) => assignShard(file, 4));
+    assert.deepStrictEqual(assignments, files.map((file) => assignShard(file, 4)));
+    assert.deepStrictEqual([...new Set(assignments)].sort((a, b) => a - b), [0, 1, 2, 3]);
+  });
+
+  test('worker mode accepts an explicit file list without rediscovering the tree', () => {
+    const parsed = parseOptions(['--worker', '/repo/tests/a.test.js', '/repo/tests/b.test.js']);
+    assert.deepStrictEqual(parsed, {
+      shardIndex: 0,
+      shardCount: 1,
+      jobs: 1,
+      worker: true,
+      files: ['/repo/tests/a.test.js', '/repo/tests/b.test.js'],
+    });
+    assert.throws(() => parseOptions(['--worker']), /requires at least one test file/i);
+  });
+
+  test('timing reports preserve per-file and worker evidence without changing scheduling options', () => {
+    const report = createTimingReport({
+      options: parseOptions(['--jobs', '2']),
+      result: {
+        failed: 1,
+        total: 2,
+        fileTimings: [
+          { file: 'alpha.test.js', duration_ms: 12, status: 'PASS', assertions: { status: 'OBSERVED', total: 2, passed: 2, failed: 0, skipped: 0 } },
+          { file: 'beta.test.js', duration_ms: 34, status: 'FAIL', assertions: { status: 'OBSERVED', total: 3, passed: 2, failed: 1, skipped: 0 } },
+        ],
+        jobTimings: [{ worker_index: 0, duration_ms: 35, files: [] }],
+      },
+      durationMs: 42,
+      sourceEnv: { DHPK_TEST_SOURCE_COMMIT: 'abc123' },
+    });
+
+    assert.strictEqual(report.schema, 'dhpk.test-timing.v1');
+    assert.strictEqual(report.source_commit, 'abc123');
+    assert.deepStrictEqual(report.ci, {
+      run_id: null,
+      run_attempt: null,
+      event: null,
+      ref: null,
+      head_sha: null,
+      base_ref: null,
+      base_sha: null,
+    });
+    assert.strictEqual(report.runner.jobs, 2);
+    assert.strictEqual(report.totals.failed, 1);
+    assert.deepStrictEqual(report.suites.full_suite.assertions, { total: 5, passed: 4, failed: 1, skipped: 0 });
+    assert.strictEqual(report.suites.smoke.files, 0);
+    assert.deepStrictEqual(report.files.map((entry) => entry.file), ['alpha.test.js', 'beta.test.js']);
+    assert.strictEqual(report.jobs[0].duration_ms, 35);
+  });
+
+  test('timing reports preserve CI run identity without changing test scheduling', () => {
+    const report = createTimingReport({
+      options: parseOptions(['--jobs', '2']),
+      result: { failed: 0, total: 0, fileTimings: [], jobTimings: [] },
+      durationMs: 5,
+      sourceEnv: {
+        DHPK_TEST_SOURCE_COMMIT: 'head123',
+        DHPK_TEST_RUN_ID: '99',
+        DHPK_TEST_RUN_ATTEMPT: '3',
+        DHPK_TEST_EVENT: 'pull_request',
+        DHPK_TEST_REF: 'refs/pull/1/merge',
+        DHPK_TEST_HEAD_SHA: 'head123',
+        DHPK_TEST_BASE_REF: 'develop',
+        DHPK_TEST_BASE_SHA: 'base456',
+      },
+    });
+    assert.deepStrictEqual(report.ci, {
+      run_id: '99',
+      run_attempt: '3',
+      event: 'pull_request',
+      ref: 'refs/pull/1/merge',
+      head_sha: 'head123',
+      base_ref: 'develop',
+      base_sha: 'base456',
+    });
+    assert.deepStrictEqual(report.suites, {
+      smoke: { status: 'PARTIAL', files: 0, assertions: { total: 0, passed: 0, failed: 0, skipped: null } },
+      full_suite: { status: 'PARTIAL', files: 0, assertions: { total: 0, passed: 0, failed: 0, skipped: null } },
+    });
+  });
+
+  test('timing report write failures do not replace the aggregate test result', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-timing-directory-'));
+    try {
+      const oneTestFile = path.join(directory, 'one-test.test.js');
+      const tinytestPath = path.join(__dirname, '_lib', 'tinytest');
+      fs.writeFileSync(oneTestFile, [
+        "'use strict';",
+        'const { test, run, assert } = require(' + JSON.stringify(tinytestPath) + ');',
+        "test('external fixture registers one assertion through tinytest', () => {",
+        '  assert.strictEqual(true, true);',
+        '});',
+        "run('external-one-test');",
+        '',
+      ].join('\n'));
+      const childEnv = { ...process.env, DHPK_TEST_TIMING_FILE: directory, DHPK_TEST_JOBS: '1' };
+      delete childEnv.DHPK_TEST_TIMING_CHILD;
+      const result = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), oneTestFile], {
+        cwd: path.join(__dirname, '..'),
+        env: childEnv,
+        encoding: 'utf8',
+      });
+      assert.strictEqual(result.status, 0, result.stdout + '\n' + result.stderr);
+      assert.match(result.stdout, /external-one-test: 1\/1 passed/);
+      assert.match(result.stderr, /unable to write test timing report/i);
+      assert.match(result.stdout, /PASS: 1\/1 test file/);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test('worker timing payloads are machine-readable and tolerate ordinary test output', () => {
+    const payload = { duration_ms: 17, file_timings: [{ file: 'a.test.js', duration_ms: 17, status: 'PASS' }] };
+    assert.deepStrictEqual(
+      parseTimingPayload(`ordinary output\nDHPK_TEST_TIMING_PAYLOAD=${JSON.stringify(payload)}\n`),
+      payload,
+    );
+    assert.strictEqual(parseTimingPayload('ordinary output\n'), null);
+    assert.strictEqual(parseTimingPayload('DHPK_TEST_TIMING_PAYLOAD={invalid}\n'), null);
+  });
+
+  test('discovered tests stay flat except skipped _lib', () => {
+    const files = findTests(__dirname);
+    const nested = files.filter((file) => path.relative(__dirname, file).split(path.sep).length > 1);
+    assert.deepStrictEqual(nested, [], `nested *.test.js must not exist: ${nested.join(', ')}`);
+    const libDir = path.join(__dirname, '_lib');
+    const libNested = fs.existsSync(libDir)
+      ? fs.readdirSync(libDir).filter((name) => name.endsWith('.test.js'))
+      : [];
+    assert.deepStrictEqual(libNested, [], '_lib must not hold discovered *.test.js files');
+  });
+}
+
+{
+  // Collected cases from tests/render-test-timing.test.js.
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const { test, assert } = require('./_lib/tinytest');
+  const {
+    readTimingFile,
+    summarizeTiming,
+  } = require('../scripts/ci/render-test-timing');
+
+  function tempDir() {
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-timing-summary-'));
+  }
+
+  function summarizeFiles(files) {
+    const root = tempDir();
+    try {
+      const file = path.join(root, 'timing.json');
+      fs.writeFileSync(file, JSON.stringify({
+        schema: 'dhpk.test-timing.v1',
+        source_commit: 'abc123',
+        ci: { run_id: '42', run_attempt: '2', event: 'pull_request', ref: 'refs/pull/1/merge', base_ref: 'develop', base_sha: 'base456' },
+        runner: { node: 'v20.1.0', platform: 'linux', command: 'node tests/run-all.js', jobs: 4, shard_index: 0, shard_count: 1 },
+        duration_ms: files.reduce((sum, entry) => sum + entry.duration_ms, 0),
+        totals: { files: files.length, failed: 0 },
+        suites: {
+          smoke: { status: 'OBSERVED', files: 0, assertions: { total: 0, passed: 0, failed: 0, skipped: 0 } },
+          full_suite: { status: 'OBSERVED', files: files.length, assertions: { total: files.length, passed: files.length, failed: 0, skipped: 0 } },
+        },
+        files,
+      }));
+      const observed = readTimingFile(file);
+      assert.strictEqual(observed.status, 'OBSERVED');
+      return summarizeTiming(observed);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  test('valid timing evidence renders identity, runtime, slowest, and failed files', () => {
+    const root = tempDir();
+    try {
+      const file = path.join(root, 'timing.json');
+      fs.writeFileSync(file, JSON.stringify({
+        schema: 'dhpk.test-timing.v1',
+        source_commit: 'abc123',
+        ci: { run_id: '42', run_attempt: '2', event: 'pull_request', ref: 'refs/pull/1/merge', base_ref: 'develop', base_sha: 'base456' },
+        runner: { node: 'v20.1.0', platform: 'linux', command: 'node tests/run-all.js', jobs: 4, shard_index: 0, shard_count: 1 },
+        duration_ms: 1200,
+        totals: { files: 2, failed: 1 },
+        suites: {
+          smoke: { status: 'OBSERVED', files: 1, assertions: { total: 2, passed: 2, failed: 0, skipped: 0 } },
+          full_suite: { status: 'OBSERVED', files: 2, assertions: { total: 5, passed: 4, failed: 1, skipped: 0 } },
+        },
+        files: [
+          { file: 'fast.test.js', duration_ms: 20, status: 'PASS' },
+          { file: 'slow.test.js', duration_ms: 1000, status: 'FAIL' },
+        ],
+      }));
+      const observed = readTimingFile(file);
+      const output = summarizeTiming(observed);
+      assert.strictEqual(observed.status, 'OBSERVED');
+      assert.match(output, /abc123/);
+      assert.match(output, /42/);
+      assert.match(output, /base456/);
+      assert.match(output, /Suite assertion evidence/);
+      assert.match(output, /full suite: OBSERVED; files=2; assertions=5; skipped=0/);
+      assert.match(output, /slow\.test\.js/);
+      assert.match(output, /Failed files/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('missing and malformed timing evidence remain explicit without becoming a test failure', () => {
+    const root = tempDir();
+    try {
+      const missing = readTimingFile(path.join(root, 'missing.json'));
+      assert.strictEqual(missing.status, 'NOT_RUN');
+      assert.match(summarizeTiming(missing), /not produced/);
+      const malformed = path.join(root, 'malformed.json');
+      fs.writeFileSync(malformed, '{');
+      const unavailable = readTimingFile(malformed);
+      assert.strictEqual(unavailable.status, 'UNAVAILABLE');
+      assert.match(summarizeTiming(unavailable), /not valid JSON/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('valid timing summary warns when a file duration exceeds 180000ms', () => {
+    const output = summarizeFiles([
+      { file: 'over-threshold.test.js', duration_ms: 180001, status: 'PASS' },
+    ]);
+    assert.match(output, /warning/i);
+    assert.match(output, /over-threshold\.test\.js/);
+  });
+
+  test('valid timing summary omits per-file warnings at and below 180000ms', () => {
+    const output = summarizeFiles([
+      { file: 'at-threshold.test.js', duration_ms: 180000, status: 'PASS' },
+      { file: 'under-threshold.test.js', duration_ms: 179999, status: 'PASS' },
+    ]);
+    assert.ok(!/warning/i.test(output), 'files at or under the threshold must not warn');
+  });
+}
+
 run('verify-test-shards');

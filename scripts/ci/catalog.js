@@ -240,6 +240,14 @@ const COVERAGE_MAP = {
   'scripts/hooks/_lib/portable-sed.sh': 'portable-stat.test.js',
   'scripts/hooks/_lib/portable-timeout.sh': 'portable-stat.test.js',
   'scripts/hooks/precompact-archive.sh': 'postcompact-restore.test.js',
+  'scripts/lib/release-probe-batch.js': 'parallel-consumer-probes.test.js',
+  'scripts/release/verify-publication-bundle.js': 'release-publication-bundle.test.js',
+  'scripts/ci/verify-release-parity.js': 'release-parity.test.js',
+  'scripts/release/package-gate.js': 'gate-runner.test.js',
+  'scripts/release/publish-gate.js': 'gate-runner.test.js',
+  'scripts/release/source-gate.js': 'gate-runner.test.js',
+  'scripts/ci/render-test-timing.js': 'verify-test-shards.test.js',
+  'scripts/check-cross-cli-drift.sh': 'cross-cli-parity.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);
