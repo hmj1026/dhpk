@@ -256,4 +256,73 @@ test('no-jq missing module fails closed before preset prompts', () => {
   assertNoInstallerSideEffects(pluginRoot);
 });
 
+test('--dry-run --non-interactive succeeds with closed stdin and the default hook profile', () => {
+  const claudeLog = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-ni-')), 'claude.log');
+  const res = runScript(['--dry-run', '--non-interactive'], '', { claudeLog });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  assert.match(res.stdout, /hook_profile\s+: standard/);
+  assert.match(res.stdout, /claude_profile\s+: minimal \(materialized\)/);
+  assert.ok(res.stdout.includes('Command to run:'), res.stdout);
+  assert.ok(res.stdout.includes('(--dry-run set — not executing.)'), res.stdout);
+  assert.ok(!res.stdout.includes('Pick a number'), res.stdout);
+  assert.ok(!fs.existsSync(claudeLog), 'claude was invoked during dry-run');
+});
+
+test('--hook-profile selects a profile in both separate and equals forms', () => {
+  const separate = runScript(['--dry-run', '--non-interactive', '--hook-profile', 'strict'], '');
+  assert.strictEqual(separate.status, 0, `${separate.stdout}\n${separate.stderr}`);
+  assert.match(separate.stdout, /hook_profile\s+: strict/);
+
+  const equals = runScript(['--non-interactive', '--dry-run', '--hook-profile=minimal'], '');
+  assert.strictEqual(equals.status, 0, `${equals.stdout}\n${equals.stderr}`);
+  assert.match(equals.stdout, /hook_profile\s+: minimal/);
+});
+
+test('--hook-profile with a missing, flag-like, or unknown value exits 64 before any prompt', () => {
+  for (const args of [
+    ['--dry-run', '--non-interactive', '--hook-profile'],
+    ['--dry-run', '--non-interactive', '--hook-profile', '--yes'],
+    ['--dry-run', '--non-interactive', '--hook-profile', 'bogus'],
+    ['--dry-run', '--non-interactive', '--hook-profile='],
+    ['--dry-run', '--non-interactive', '--hook-profile', 'minimal\nbogus'],
+  ]) {
+    const res = runScript(args, '');
+    assert.strictEqual(res.status, 64, `${args.join(' ')}\n${res.stdout}\n${res.stderr}`);
+    assert.match(res.stderr, /hook-profile/);
+    assert.ok(!res.stdout.includes('Command to run:'), res.stdout);
+  }
+});
+
+test('--non-interactive without --dry-run or --yes refuses to install and never calls claude', () => {
+  const claudeLog = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-ni-')), 'claude.log');
+  const res = runScript(['--non-interactive'], '', { claudeLog });
+  assert.strictEqual(res.status, 64, `${res.stdout}\n${res.stderr}`);
+  assert.match(res.stderr, /--yes/);
+  assert.ok(!fs.existsSync(claudeLog), 'claude was invoked without confirmation');
+});
+
+test('--non-interactive --yes auto-confirms and installs the materialized profile', () => {
+  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-ni-profile-'));
+  TEMP_FIXTURES.push(outputRoot);
+  const res = runScript(['--non-interactive', '--yes'], '', {
+    env: { DHPK_CLAUDE_PROFILE_OUT: outputRoot },
+  });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  assert.ok(res.stdout.includes('claude plugin install dhpk@dhpk-profile-minimal'), res.stdout);
+  assert.ok(fs.existsSync(path.join(outputRoot, 'package', 'bundle-receipt.json')));
+});
+
+test('--hook-profile in the interactive flow skips the hook-profile prompt and keeps the flag value', () => {
+  const res = runScript(['--dry-run', '--hook-profile', 'strict'], ['', '', '', ''].join('\n'));
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  assert.match(res.stdout, /hook_profile\s+: strict/);
+  assert.ok(!res.stdout.includes('Hook profile:'), res.stdout);
+});
+
+test('--yes alone keeps the interactive prompts', () => {
+  const res = runScript(['--dry-run', '--yes'], '\n');
+  assert.strictEqual(res.status, 1, `${res.stdout}\n${res.stderr}`);
+  assert.match(res.stderr, /ERROR hook-selection/);
+});
+
 run('install');

@@ -61,6 +61,17 @@ bash scripts/install.sh --dry-run
 bash scripts/install.sh
 ```
 
+腳本或 CI 情境下，Claude 路徑也支援非互動旗標（需要 `claude` CLI）：
+
+```bash
+bash scripts/install.sh --dry-run --non-interactive
+bash scripts/install.sh --non-interactive --yes
+```
+
+`--non-interactive` 會略過所有提示（不選 preset、stack、docker、review agent），
+且未加 `--yes` 時不會安裝；`--hook-profile minimal|standard|strict` 指定 hook
+profile（預設 `standard`）。需要 `claude` CLI。
+
 `dhpk@dhpk-profile-minimal` 只暴露 `change-verdict`、`code-trace`、
 `flow-drive`、`flow-guide`。開啟 fresh Claude session 並執行
 `/dhpk:flow-guide help`；實際觀察前，runtime evidence 維持 `NOT_RUN`。

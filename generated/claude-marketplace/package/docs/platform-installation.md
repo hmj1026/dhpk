@@ -62,6 +62,18 @@ bash scripts/install.sh --dry-run
 bash scripts/install.sh
 ```
 
+For scripted or CI use, the Claude route also accepts non-interactive flags
+(the `claude` CLI is required):
+
+```bash
+bash scripts/install.sh --dry-run --non-interactive
+bash scripts/install.sh --non-interactive --yes
+```
+
+`--non-interactive` skips every prompt (no preset, stack, docker, or review-agent
+choice) and cannot install without `--yes`; `--hook-profile minimal|standard|strict`
+selects the hook profile (default `standard`). Requires the `claude` CLI.
+
 `dhpk@dhpk-profile-minimal` exposes exactly `change-verdict`, `code-trace`,
 `flow-drive`, and `flow-guide`. Start a fresh Claude session and run
 `/dhpk:flow-guide help`; until that observation is recorded, runtime evidence is
