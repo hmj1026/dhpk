@@ -519,6 +519,7 @@ function verifyRootMatchesCommit(root, provenanceRoot, sourceCommit) {
       cwd: provenanceRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 32 * 1024 * 1024,
     });
   } catch (_error) {
     throw new Error(`source commit ${sourceCommit} cannot be resolved in provenance root ${provenanceRoot}`);
@@ -542,6 +543,7 @@ function verifyRootMatchesCommit(root, provenanceRoot, sourceCommit) {
       cwd: provenanceRoot,
       encoding: null,
       stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 32 * 1024 * 1024,
     });
     if (!actual.equals(expected)) {
       throw new Error(`collection root file ${relativePath} does not match source commit ${sourceCommit}`);

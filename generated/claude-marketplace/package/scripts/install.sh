@@ -5,6 +5,15 @@
 #   bash ~/projects/dhpk/scripts/install.sh           # interactive
 #   bash ~/projects/dhpk/scripts/install.sh --dry-run # print resolved command, do not execute
 #   bash ~/projects/dhpk/scripts/install.sh --print   # alias for --dry-run
+#   bash ~/projects/dhpk/scripts/install.sh --dry-run --non-interactive
+#                                  # no prompts: materialized minimal package profile; hook profile defaults to standard
+#   bash ~/projects/dhpk/scripts/install.sh --non-interactive --yes
+#                                  # no prompts and auto-confirm "Run this now?"
+#   --non-interactive   skip every prompt (no preset, stack, docker, or review-agent choice)
+#   --yes               auto-confirm "Run this now?" only; required to install with --non-interactive
+#   --hook-profile <id> hook profile: minimal | standard | strict (default: standard);
+#                       also accepted as --hook-profile=<id>
+#   -h, --help          show this help
 #
 # Walks the user through:
 #   1. Prerequisite check
@@ -32,17 +41,47 @@ PROFILE_PACKAGE_ROOT="$PROFILE_OUTPUT_ROOT/package"
 source "$PLUGIN_ROOT/scripts/lib/install-prompts.sh"
 
 DRY_RUN=0
-case "${1:-}" in
-  --dry-run|--print) DRY_RUN=1 ;;
-  -h|--help)
-    sed -n '1,18p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
-    exit 0
-    ;;
-  "") ;;
-  *)  echo "Unknown flag: $1 (try --help)" >&2; exit 64 ;;
-esac
+NON_INTERACTIVE=0
+ASSUME_YES=0
+HOOK_PROFILE_ARG=""
+HOOK_PROFILE_SET=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run|--print) DRY_RUN=1; shift ;;
+    -h|--help)
+      sed -n '1,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    --non-interactive) NON_INTERACTIVE=1; shift ;;
+    --yes) ASSUME_YES=1; shift ;;
+    --hook-profile)
+      if [[ $# -lt 2 || "$2" == --* || -z "$2" ]]; then
+        echo "[install] ERROR hook-profile: --hook-profile requires a profile id (minimal|standard|strict); no installation started." >&2
+        exit 64
+      fi
+      HOOK_PROFILE_ARG="$2"; HOOK_PROFILE_SET=1; shift 2
+      ;;
+    --hook-profile=*)
+      if [[ -z "${1#--hook-profile=}" || "${1#--hook-profile=}" == --* ]]; then
+        echo "[install] ERROR hook-profile: --hook-profile requires a profile id (minimal|standard|strict); no installation started." >&2
+        exit 64
+      fi
+      HOOK_PROFILE_ARG="${1#--hook-profile=}"; HOOK_PROFILE_SET=1; shift
+      ;;
+    *)  echo "Unknown flag: $1 (try --help)" >&2; exit 64 ;;
+  esac
+done
 
 dhpk_prompts_init "$CATALOG" || exit 1
+
+# Validate --hook-profile against the catalog. The raw value is never echoed.
+if [[ $HOOK_PROFILE_SET -eq 1 ]]; then
+  if [[ "$HOOK_PROFILE_ARG" == *$'\n'* ]] \
+    || ! dhpk_catalog_query '.hook_profiles[].id' | grep -Fxq -- "$HOOK_PROFILE_ARG"; then
+    echo "[install] ERROR hook-profile: unknown hook profile id (expected one of the catalog hook_profiles); no installation started." >&2
+    exit 64
+  fi
+fi
 
 # Keep installer diagnostics stable and free of user-controlled paths or JSON
 # values. The details are useful while debugging, but copying a profile path or
@@ -325,7 +364,7 @@ if [[ -f "$PROFILES" ]]; then
     dhpk_install_error profile-extraction
     exit 1
   fi
-  if dhpk_yes_no "Use a curated preset from manifests/install-profiles.json?" n; then
+  if [[ $NON_INTERACTIVE -eq 0 ]] && dhpk_yes_no "Use a curated preset from manifests/install-profiles.json?" n; then
     if ! USE_PRESET="$(dhpk_single_select "Pick a preset:" "${PROFILE_IDS[@]}")"; then
       dhpk_install_error preset-selection
       exit 1
@@ -337,6 +376,7 @@ SELECTED_MODULES=()
 DOCKER_CONTAINERS=""
 REVIEW_AGENTS=()
 HOOK_PROFILE="standard"
+[[ $HOOK_PROFILE_SET -eq 1 ]] && HOOK_PROFILE="$HOOK_PROFILE_ARG"
 
 if [[ -n "$USE_PRESET" ]]; then
   if ! profile_modules_output="$(dhpk_profile_modules "$PROFILES" "$USE_PRESET")"; then
@@ -348,6 +388,9 @@ if [[ -n "$USE_PRESET" ]]; then
   done <<<"$profile_modules_output"
   echo
   echo "Preset '$USE_PRESET' selected. Modules: ${SELECTED_MODULES[*]:-<none>}"
+elif [[ $NON_INTERACTIVE -eq 1 ]]; then
+  echo
+  echo "(--non-interactive: no stacks, docker, or review-agent overrides.)"
 else
   # ────────────────────────────────────────────────────────────────────
   # 3a. Stack multi-select
@@ -479,11 +522,13 @@ else
     REVIEW_AGENTS=("$code_agent" "$db_agent" "$sec_agent" "$fe_agent" "$doc_agent")
   fi
 
-  PROFILE_IDS=()
-  while IFS= read -r p; do PROFILE_IDS+=("$p"); done < <(dhpk_catalog_query '.hook_profiles[].id')
-  if ! HOOK_PROFILE="$(dhpk_single_select "Hook profile:" "${PROFILE_IDS[@]}")"; then
-    dhpk_install_error hook-selection
-    exit 1
+  if [[ $HOOK_PROFILE_SET -eq 0 ]]; then
+    PROFILE_IDS=()
+    while IFS= read -r p; do PROFILE_IDS+=("$p"); done < <(dhpk_catalog_query '.hook_profiles[].id')
+    if ! HOOK_PROFILE="$(dhpk_single_select "Hook profile:" "${PROFILE_IDS[@]}")"; then
+      dhpk_install_error hook-selection
+      exit 1
+    fi
   fi
 fi
 
@@ -553,7 +598,11 @@ if [[ $DRY_RUN -eq 1 ]]; then
   exit 0
 fi
 
-if ! dhpk_yes_no "Run this now?" y; then
+if [[ $NON_INTERACTIVE -eq 1 && $ASSUME_YES -eq 0 ]]; then
+  echo "[install] --non-interactive cannot confirm the install; re-run with --yes (or use --dry-run). No installation started." >&2
+  exit 64
+fi
+if [[ $ASSUME_YES -eq 0 ]] && ! dhpk_yes_no "Run this now?" y; then
   echo "Aborted."
   exit 130
 fi
