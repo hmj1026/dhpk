@@ -220,6 +220,92 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.ok(context.diagnostics.some((item) => /worker/i.test(item)));
     assert.ok(context.diagnostics.some((item) => /reasoner/i.test(item)));
   });
+
+  const CLI_BACKED_SELECTIONS = [
+    ['--worker=codex'],
+    ['--worker=agy'],
+    ['--worker-target=codex/gpt-6-luna:high'],
+    ['--worker-target=agy/gemini-3.8-flash-high'],
+    ['--reasoner=codex'],
+  ];
+
+  for (const selection of CLI_BACKED_SELECTIONS) {
+    test(`flow-drive blocks ${selection[0]} before dispatch on the Claude Code host`, () => {
+      const context = parseInvocation(['confirmed-change-123', ...selection], { host: 'claude-code' });
+
+      assert.strictEqual(context.status, 'blocked');
+      assert.ok(
+        context.diagnostics.some((item) => /claude-code/.test(item) && /DHPK_CLI_TRANSPORT_CONTEXT/.test(item) && /--worker=claude|--reasoner=claude/.test(item)),
+        context.diagnostics.join('\n'),
+      );
+    });
+  }
+
+  test('flow-drive keeps CLI-backed selections ready when the host is unspecified or CLI-native', () => {
+    for (const selection of CLI_BACKED_SELECTIONS) {
+      assert.strictEqual(parseInvocation(['confirmed-change-123', ...selection]).status, 'ready');
+      assert.strictEqual(parseInvocation(['confirmed-change-123', ...selection], { host: 'codex-cli' }).status, 'ready');
+    }
+  });
+
+  test('flow-drive keeps native selections ready on the Claude Code host', () => {
+    const context = parseInvocation(
+      ['confirmed-change-123', '--worker=claude', '--reasoner=claude', '--worker-target=claude/opus'],
+      { host: 'claude-code' },
+    );
+
+    assert.strictEqual(context.status, 'ready');
+    assert.deepStrictEqual(context.diagnostics, []);
+  });
+
+  test('flow-drive reports an unapplied planner effort on the Claude Code host', () => {
+    const context = parseInvocation(['confirmed-change-123', '--plan=opus:medium'], { host: 'claude-code' });
+
+    assert.strictEqual(context.status, 'ready');
+    assert.deepStrictEqual(context.options.plan, { enabled: true, model: 'opus', effort: 'medium' });
+    assert.ok(
+      context.notices.some((item) => /effort 'medium' is not applied/.test(item) && /'high'/.test(item)),
+      context.notices.join('\n'),
+    );
+  });
+
+  test('flow-drive emits no effort notice when the requested effort matches or the host is unspecified', () => {
+    assert.deepStrictEqual(parseInvocation(['confirmed-change-123', '--plan=opus:high'], { host: 'claude-code' }).notices, []);
+    assert.deepStrictEqual(parseInvocation(['confirmed-change-123', '--plan=opus:medium']).notices, []);
+  });
+
+  test('flow-drive lists the legal effort values for every invalid effort', () => {
+    const context = parseInvocation([
+      'confirmed-change-123',
+      '--plan=opus:med',
+      '--reasoner=codex:terra:med',
+      '--worker-target=codex/terra:med',
+    ]);
+
+    assert.strictEqual(context.status, 'blocked');
+    const effortDiagnostics = context.diagnostics.filter((item) => /effort 'med'/.test(item));
+    assert.strictEqual(effortDiagnostics.length, 3, context.diagnostics.join('\n'));
+    for (const item of effortDiagnostics) {
+      assert.match(item, /low\|medium\|high\|max\|xhigh\|ultra/);
+    }
+  });
+
+  test('flow-drive CLI derives the Claude Code host from the environment', () => {
+    const { spawnSync } = require('node:child_process');
+    const script = require.resolve('../skills/flow-drive/scripts/invocation');
+    const run = (env) => spawnSync(process.execPath, [script, 'confirmed-change-123', '--worker=codex'], {
+      env: { PATH: process.env.PATH, ...env },
+      encoding: 'utf8',
+    });
+
+    const claude = run({ CLAUDECODE: '1' });
+    assert.strictEqual(claude.status, 2, claude.stdout + claude.stderr);
+    assert.strictEqual(JSON.parse(claude.stdout).status, 'blocked');
+
+    const neutral = run({});
+    assert.strictEqual(neutral.status, 0, neutral.stdout + neutral.stderr);
+    assert.strictEqual(JSON.parse(neutral.stdout).status, 'ready');
+  });
 }
 
 
