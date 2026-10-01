@@ -35,6 +35,10 @@ preserved even when a caller presents a ready-looking route.
 
 ## Implementation contract
 
+0. Before anything else, run `node scripts/invocation.js` from this Skill
+   directory with the exact identifier and options supplied. Exit `2`
+   (`status: blocked`) stops the run with its `diagnostics` before any
+   dispatch; carry every `notices` entry into the report.
 1. Read the confirmed specification or change artifacts in order. Resolve
    repository instructions, context, target files, nearby tests, and the
    verification commands before editing.
@@ -73,6 +77,13 @@ action.
 
 These options refine confirmed implementation work; they do not change its
 owner or completion contract.
+
+Host support: on Claude Code, `--worker=codex|agy`, a `codex`/`agy`
+`--worker-target`, and `--reasoner=codex` are blocked at parse time because
+its subagents cannot receive the dispatcher-attested
+`DHPK_CLI_TRANSPORT_CONTEXT`; use `--worker=claude` or `--reasoner=claude`.
+The `--plan` effort is not applied there either: the planner runs at its
+configured effort and the parser reports that as a notice.
 
 ## Output
 
