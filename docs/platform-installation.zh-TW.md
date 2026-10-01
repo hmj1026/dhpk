@@ -471,6 +471,12 @@ node "$DHPK_ROOT/scripts/ci/validate-agents-skills.js" \
 Cursor 使用 directory shape，AGY 使用內嵌的 direct-file body；generated instruction
 不會指回 source checkout。
 
+若 consumer project 以目錄層級 symlink（`.claude/skills -> ../.agents/skills`）
+暴露整個 managed root（`$PROJECT_ROOT/.agents/skills/`），該 alias 已讓 Claude 看見所有投影 skill，請從參數中移除
+`--host claude`。若保留 `--host claude`，generator 會以 `MANAGED_ROOT_ALIAS`
+fail-closed 拒絕，因為逐 skill binding 會穿過 alias 寫進 managed artifact；要讓
+dhpk 擁有逐 skill binding，請改用實體 `.claude/skills/` 目錄。
+
 若 source 有經審查的變更，加入 `--update`。若既有 artifact 沒有 lifecycle receipt，
 必須明確採用或修復：
 

@@ -507,6 +507,14 @@ present, is only a generated manifest. Codex and Cursor consume the directory
 shape; AGY consumes the embedded direct-file body. No generated instruction
 points back to the source checkout.
 
+If the consumer project exposes the whole managed root
+(`$PROJECT_ROOT/.agents/skills/`) through a directory-level symlink (`.claude/skills -> ../.agents/skills`), that alias
+already makes every projected skill visible to Claude: omit `--host claude`.
+Keeping `--host claude` fails closed with `MANAGED_ROOT_ALIAS`, because
+per-skill bindings would be written through the alias into the managed
+artifact; replace the alias with a physical `.claude/skills/` directory when
+dhpk should own per-skill bindings.
+
 When a source change is intentional, add `--update` after reviewing the diff.
 For a receipt-less legacy artifact, use explicit adoption or repair:
 

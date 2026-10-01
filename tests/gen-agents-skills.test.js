@@ -63,4 +63,67 @@ test('gen-agents-skills CLI can materialize outside the canonical source checkou
   }
 });
 
+function projectWithClaudeSkillsAlias(target) {
+  const projectRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-agents-skills-cli-alias-'));
+  fs.mkdirSync(path.join(projectRoot, '.agents', 'skills'), { recursive: true });
+  fs.mkdirSync(path.join(projectRoot, 'elsewhere'), { recursive: true });
+  fs.mkdirSync(path.join(projectRoot, '.claude'), { recursive: true });
+  fs.symlinkSync(target, path.join(projectRoot, '.claude', 'skills'), 'dir');
+  return projectRoot;
+}
+
+function projectProjection(projectRoot, hosts) {
+  return spawnSync(process.execPath, [
+    GENERATOR,
+    '--source-root', ROOT,
+    '--project-root', projectRoot,
+    '--profile', 'portable-core',
+    ...hosts.flatMap((host) => ['--host', host]),
+    '--update',
+  ], { cwd: ROOT, encoding: 'utf8' });
+}
+
+test('gen-agents-skills CLI explains a .claude/skills directory alias of the managed root', () => {
+  const projectRoot = projectWithClaudeSkillsAlias('../.agents/skills');
+  try {
+    const result = projectProjection(projectRoot, ['claude', 'codex', 'cursor', 'agy']);
+    assert.strictEqual(result.status, 1, result.stdout);
+    assert.match(result.stderr, /directory symlink to the managed skill root/);
+    assert.match(result.stderr, /omit --host claude/);
+    assert.strictEqual(fs.existsSync(path.join(projectRoot, '.agents', '.dhpk-installed.json')), false,
+      'a refused projection must not write the lifecycle receipt');
+    assert.deepStrictEqual(fs.readdirSync(path.join(projectRoot, '.agents', 'skills')), [],
+      'a refused projection must not publish managed skills through the alias');
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('gen-agents-skills CLI keeps refusing a .claude/skills symlink to an unmanaged directory', () => {
+  const projectRoot = projectWithClaudeSkillsAlias('../elsewhere');
+  try {
+    const result = projectProjection(projectRoot, ['claude', 'codex']);
+    assert.strictEqual(result.status, 1, result.stdout);
+    assert.match(result.stderr, /is a symlink at candidate path/);
+    assert.doesNotMatch(result.stderr, /managed skill root/);
+    assert.deepStrictEqual(fs.readdirSync(path.join(projectRoot, 'elsewhere')), []);
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
+test('gen-agents-skills CLI projects non-Claude hosts beside a .claude/skills directory alias', () => {
+  const projectRoot = projectWithClaudeSkillsAlias('../.agents/skills');
+  try {
+    const result = projectProjection(projectRoot, ['codex', 'cursor', 'agy']);
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(fs.lstatSync(path.join(projectRoot, '.claude', 'skills')).isSymbolicLink(),
+      'the consumer-owned alias must be left in place');
+    assert.ok(fs.existsSync(path.join(projectRoot, '.claude', 'skills', 'flow-guide', 'SKILL.md')),
+      'the alias exposes the shared artifact to Claude without per-skill bindings');
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+  }
+});
+
 run('gen-agents-skills');
