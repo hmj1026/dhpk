@@ -150,12 +150,41 @@ function assertSafeLinkTarget(target, label) {
   return target;
 }
 
+// Any resolution failure falls through to assertPhysicalAncestors, which
+// still refuses the symlink with the generic UNSAFE_PATH error.
+function realpathOrNull(filePath) {
+  try {
+    return fs.realpathSync(filePath);
+  } catch {
+    return null;
+  }
+}
+
+// A consumer may alias a whole Host skill directory (for example
+// `.claude/skills -> ../.agents/skills`). Per-skill bindings written through
+// that alias would land inside the managed artifact, so the alias stays
+// refused; this only replaces the generic symlink error with remediation.
+function assertNotManagedRootAlias(roots, directory, label) {
+  const stat = lstatOrNull(directory);
+  if (!stat || !stat.isSymbolicLink()) return;
+  const aliasTarget = realpathOrNull(directory);
+  const managedTarget = realpathOrNull(roots.managedRoot);
+  if (!aliasTarget || !managedTarget || aliasTarget !== managedTarget) return;
+  const relativeDirectory = path.relative(roots.projectRoot, directory).split(path.sep).join('/');
+  const host = /^\.([a-z]+)\/skills$/.exec(relativeDirectory);
+  const omit = host ? `omit --host ${host[1]}` : 'omit the Host that binds this directory';
+  throw fail('MANAGED_ROOT_ALIAS', `${label} parent ${relativeDirectory} is a directory symlink to the managed skill root `
+    + `${roots.config.managed_root}; the alias already exposes every projected skill, so ${omit}, or replace the symlink `
+    + 'with a physical directory so dhpk can own per-skill bindings', { paths: [directory] });
+}
+
 function bindingDestinationIn(roots, relative, label = 'projection binding path') {
   assertSafeRelative(relative, label);
   const candidate = path.resolve(roots.projectRoot, relative);
   if (!isInside(roots.projectRoot, candidate)) throw fail('PATH_ESCAPE', `${label} escapes the project root: ${relative}`, { paths: [relative] });
   // The final component may intentionally be a symlink. Only its ancestors
   // must remain physical so the binding cannot redirect a project path.
+  assertNotManagedRootAlias(roots, path.dirname(candidate), label);
   assertPhysicalAncestors(path.dirname(candidate), label, roots.projectRoot);
   return candidate;
 }
