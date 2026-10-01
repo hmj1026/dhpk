@@ -135,6 +135,7 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
     const env = { ...process.env };
     delete env.DHPK_SOURCE_ROOT;
     delete env.PLUGIN_ROOT;
+    delete env.CLAUDECODE;
     return env;
   }
 
