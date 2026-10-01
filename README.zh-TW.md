@@ -47,6 +47,17 @@ profile；既有安裝則先預覽 migration，再動 receipt-owned 檔案。
 | Cursor | `bash scripts/hooks/install-cursor-harness.sh --plan --json`，再 install/update | 檢查 `.cursor/.dhpk-installed.json` 並 reload Cursor | 支援的 project-local route；native plugin/runtime 證據分開 |
 | AGY | `node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json`，再使用 receipt-owned adapter | CLI 可用時執行 `agy agents` | Experimental；結構安裝不等於 runtime `PASS` |
 
+腳本或 CI 情境下，Claude 路徑也支援非互動旗標（需要 `claude` CLI）：
+
+```bash
+bash scripts/install.sh --dry-run --non-interactive
+bash scripts/install.sh --non-interactive --yes
+```
+
+`--non-interactive` 會略過所有提示（不選 preset、stack、docker、review agent），
+且未加 `--yes` 時不會安裝；`--hook-profile minimal|standard|strict` 指定 hook
+profile（預設 `standard`）。需要 `claude` CLI。
+
 本版 generic `dhpk-install` lifecycle CLI 的寫入 action 仍是唯讀邊界；
 `install`、`update`、`uninstall`、`rollback` 回傳
 `BLOCKED/NOT_IMPLEMENTED`。請使用上表已 characterization 的 adapter。完整指令、

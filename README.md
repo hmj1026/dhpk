@@ -48,6 +48,18 @@ preview migration before changing its receipt-owned files.
 | Cursor | `bash scripts/hooks/install-cursor-harness.sh --plan --json`, then install/update | Inspect `.cursor/.dhpk-installed.json` and reload Cursor | Supported project-local route; native plugin/runtime evidence is separate |
 | AGY | `node scripts/ci/install-agy-plugin.js plan --source plugins/dhpk-agy --json`, then the receipt-owned adapter | `agy agents` when the CLI is available | Experimental; structural install is not runtime `PASS` |
 
+For scripted or CI use, the Claude route also accepts non-interactive flags
+(the `claude` CLI is required):
+
+```bash
+bash scripts/install.sh --dry-run --non-interactive
+bash scripts/install.sh --non-interactive --yes
+```
+
+`--non-interactive` skips every prompt (no preset, stack, docker, or review-agent
+choice) and cannot install without `--yes`; `--hook-profile minimal|standard|strict`
+selects the hook profile (default `standard`). Requires the `claude` CLI.
+
 The generic `dhpk-install` lifecycle CLI is read-only for write actions in this
 release. `install`, `update`, `uninstall`, and `rollback` return
 `BLOCKED/NOT_IMPLEMENTED`; use the named, characterized adapter above. Full
