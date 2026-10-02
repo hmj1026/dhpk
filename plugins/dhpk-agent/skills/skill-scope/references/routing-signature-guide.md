@@ -30,7 +30,7 @@ description: "Portable code review. Use when: PR review, code audit, second opin
 
 | Skill | Before | After |
 |-------|--------|-------|
-| flow-drive (implementation mode) | Feature development workflow. Covers implementation, verification, pre-commit checks. | Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use code-trace), reviewing code (use change-verdict). Output: implemented feature with tests + review gate. |
+| flow-drive (implementation mode) | Feature development workflow. Covers implementation, verification, pre-commit checks. | Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use code-trace), reviewing code (use change-verdict). Output: implemented feature with tests + reviewer recommendation. |
 | flow-guide (classify mode) | Bug/Issue fix workflow. Investigate, locate, fix, test, review. | Bug classification workflow. Use when: classifying bugs, resolving issues, selecting a route. Not for: implementation (use flow-drive), understanding code (use code-trace). Output: workflow classification + next route. |
 
 ## Checklist

@@ -98,7 +98,7 @@
       "react-19"
     ],
     "id": "full",
-    "inventoryFingerprint": "04453541f68cd1a82ecfe34a54a709460737db60bf032193f1e7fc7bea7e6319",
+    "inventoryFingerprint": "6970e59fe9ebd26eefa52c571455b79c255ef9aea9224909f17f32992220f66c",
     "mode": "profile",
     "modules": [
       "fastapi",
@@ -194,7 +194,7 @@
       "opsx-apply-resume",
       "ui-ux-verify"
     ],
-    "selectionFingerprint": "27c4c5646d401d523cfa0b3e1300b244f9b0b1d9e9f0b6d8789bafc5136605c8",
+    "selectionFingerprint": "8db2b1980df555111750a2fafa97729bc7e2583b035bab334f0bd8599b24cac5",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "7a032e983fea20ed627802972812ca83c0b3bb79993d67b7adf5d6be35d02bb7",
@@ -239,7 +239,7 @@
       ],
       "skillStableIds": []
     },
-    "surfaceSelectionFingerprint": "5080f4137a5c6fbbc5cbff232707a1955bde9104b79d8300722dc2144acd078e",
+    "surfaceSelectionFingerprint": "83858dbb6d13c85ee5f6c96f6e1dd723f2d14c297e5aa704e3356bfbfc3723d2",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -807,14 +807,6 @@
       "destination": "skills/flow-drive/agents/openai.yaml"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/contracts/review-lifecycle.md",
-      "destination": "skills/flow-drive/references/execution-bundle/docs/contracts/review-lifecycle.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/contracts/reviewer-contract.md",
-      "destination": "skills/flow-drive/references/execution-bundle/docs/contracts/reviewer-contract.md"
-    },
-    {
       "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md"
     },
@@ -895,10 +887,6 @@
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
-    },
-    {
       "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
     },
@@ -949,14 +937,6 @@
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/dispatch-and-gates.md",
       "destination": "skills/flow-guide/references/dispatch-and-gates.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/contracts/review-lifecycle.md",
-      "destination": "skills/flow-guide/references/execution-bundle/docs/contracts/review-lifecycle.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/contracts/reviewer-contract.md",
-      "destination": "skills/flow-guide/references/execution-bundle/docs/contracts/reviewer-contract.md"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/subagent-prompt-template.md",
@@ -1039,10 +1019,6 @@
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
-      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
-    },
-    {
       "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
     },
@@ -1085,10 +1061,6 @@
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/projects-index.md",
       "destination": "skills/flow-guide/references/projects-index.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:flow-guide:references/review-gate-mechanics.md",
-      "destination": "skills/flow-guide/references/review-gate-mechanics.md"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/route-result.schema.json",
@@ -1467,88 +1439,12 @@
       "destination": "skills/harness-setup/scripts/install-codex-project.sh"
     },
     {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/claude-review-gate-adapter.js",
-      "destination": "skills/harness-setup/scripts/lib/claude-review-gate-adapter.js"
-    },
-    {
       "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/install-assets-writer.sh",
       "destination": "skills/harness-setup/scripts/lib/install-assets-writer.sh"
     },
     {
       "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/install-codex-skills.sh",
       "destination": "skills/harness-setup/scripts/lib/install-codex-skills.sh"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/physical-file.js",
-      "destination": "skills/harness-setup/scripts/lib/physical-file.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/receipt-json-primitives.js",
-      "destination": "skills/harness-setup/scripts/lib/receipt-json-primitives.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/receipt-primitives.js",
-      "destination": "skills/harness-setup/scripts/lib/receipt-primitives.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/redaction.js",
-      "destination": "skills/harness-setup/scripts/lib/redaction.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-evidence.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-evidence.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-receipt-store.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-receipt-store.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-attestation.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-attestation.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-checkpoint.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-checkpoint.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-composition.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-composition.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-errors.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-errors.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-evidence.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-evidence.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime-storage.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime-storage.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-runtime.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-runtime.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate-store-budget.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate-store-budget.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/review-gate.js",
-      "destination": "skills/harness-setup/scripts/lib/review-gate.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/reviewer-contract.js",
-      "destination": "skills/harness-setup/scripts/lib/reviewer-contract.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/lib/risk-router.js",
-      "destination": "skills/harness-setup/scripts/lib/risk-router.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:harness-setup:scripts/review-gate-runtime.js",
-      "destination": "skills/harness-setup/scripts/review-gate-runtime.js"
     },
     {
       "stableId": "claude-profile:skill-resource:harness-setup:templates/settings.local.json.example",
@@ -1747,14 +1643,6 @@
       "destination": "skills/dhpk-opsx-apply-goal/references/detection.md"
     },
     {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/docs/contracts/review-lifecycle.md",
-      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/contracts/review-lifecycle.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/docs/contracts/reviewer-contract.md",
-      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/contracts/reviewer-contract.md"
-    },
-    {
       "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/subagent-prompt-template.md"
     },
@@ -1835,10 +1723,6 @@
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
     },
     {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
-      "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
-    },
-    {
       "stableId": "claude-profile:skill-resource:opsx-apply-goal:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
     },
@@ -1883,88 +1767,12 @@
       "destination": "skills/dhpk-opsx-apply-goal/scripts/launch-cli-dispatch.js"
     },
     {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/claude-review-gate-adapter.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/claude-review-gate-adapter.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/physical-file.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/physical-file.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/receipt-json-primitives.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/receipt-json-primitives.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/receipt-primitives.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/receipt-primitives.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/redaction.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/redaction.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-evidence.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-evidence.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-receipt-store.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-receipt-store.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-attestation.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-attestation.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-checkpoint.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-checkpoint.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-composition.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-composition.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-errors.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-errors.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-evidence.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-evidence.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime-storage.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-storage.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-runtime.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate-store-budget.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-store-budget.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/review-gate.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/reviewer-contract.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/reviewer-contract.js"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/lib/risk-router.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/lib/risk-router.js"
-    },
-    {
       "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/physical-file.js",
       "destination": "skills/dhpk-opsx-apply-goal/scripts/physical-file.js"
     },
     {
       "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/physical-file.py",
       "destination": "skills/dhpk-opsx-apply-goal/scripts/physical-file.py"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/review-gate-runtime.js",
-      "destination": "skills/dhpk-opsx-apply-goal/scripts/review-gate-runtime.js"
     },
     {
       "stableId": "claude-profile:skill-resource:opsx-apply-goal:scripts/run-agy.sh",
@@ -2857,5 +2665,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "d8a20d4a56698ca1659d9921bcae2ed62402333562dbdb3506fc843ed84559ec"
+  "planFingerprint": "93696dc492ae29db8dbc537cb46bf1e69ead8a8b0267414fc7a7eb0ccfa659fa"
 }

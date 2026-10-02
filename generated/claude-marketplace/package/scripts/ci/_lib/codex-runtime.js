@@ -308,7 +308,6 @@ function expectedSupportingDestinations(sourceRoot) {
     'dhpk/agent-traps/_common/prompt-defense.md',
     'dhpk/agent-traps/_common/trap-sheet-loader.md',
     'dhpk/contracts/artifact-contract.md',
-    'dhpk/contracts/reviewer-contract.md',
     'dhpk/policies/execution-policy.md',
   ]);
   const trapRoot = path.join(sourceRoot, 'agent-traps');

@@ -255,9 +255,9 @@ test('clean consumer projection reports a missing supporting asset', () => {
       encoding: 'utf8',
     });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
-    fs.rmSync(path.join(root, '.codex', 'dhpk', 'contracts', 'reviewer-contract.md'));
+    fs.rmSync(path.join(root, '.codex', 'dhpk', 'contracts', 'artifact-contract.md'));
     const errors = collectCodexProjectionReferenceErrors(root, ROOT);
-    assert.ok(errors.some((error) => error.includes('reviewer-contract.md')), errors.join('\n'));
+    assert.ok(errors.some((error) => error.includes('artifact-contract.md')), errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

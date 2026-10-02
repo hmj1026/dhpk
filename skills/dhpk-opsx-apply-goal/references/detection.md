@@ -106,25 +106,7 @@ from the detected runner. No runner detected → the flag is ignored (noted in
 Block A). The flag never *invents* a default — coverage is enforced only when the
 operator explicitly asks or the project configures it.
 
-## Review Gate obligation rationale
-
-The goal condition checks the Review Gate's durable status for the current task
-identity rather than scanning marker files or enumerating reviewer names. The
-orchestrator derives applicable reviewer obligations from the actual changed
-scope and records each identity-bound result in the runtime receipt store:
-
-- **Missing obligation**: a required reviewer is not selected for a matching
-  scope, so the implementation cannot be reported complete.
-- **Missing evidence**: a reviewer was selected but has no durable artifact and
-  verdict tied to the same task, attempt, dispatch, scope, and diff identity;
-  the gate remains unresolved.
-- **Foreign or stale evidence**: a result from another task or checkout is
-  rejected rather than satisfying the current obligation.
-
-The status check is therefore self-calibrating across languages and modules:
-the goal consumes the runtime's resolved obligation projection, not a guessed
-list of files or a hook-maintained marker. A reviewer message, mtime, or
-artifact path by itself is never a completion proof.
+## Test-runner rationale
 
 Test-runner conditions (phpunit / jest / pytest / etc.) are kept because the
 test command itself is language-specific; the goal cannot say "run tests"

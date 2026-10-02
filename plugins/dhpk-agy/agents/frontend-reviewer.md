@@ -9,7 +9,7 @@ description: >-
   adherence (no bare `$.ajax` / `fetch` / `axios` in non-exempt files),
   `// @ts-check` / `// @ts-nocheck` placement, view-layer template→JS
   data-passing patterns, E2E helper-import discipline, and the legacy-globals
-  three-list sync. Review Gate trigger: frontend-tier paths and template-embedded
+  three-list sync. Recommended for frontend-tier paths and template-embedded
   scripts. Does NOT
   review backend code — that is code-reviewer / security-reviewer. Skip for
   vendored libraries, `*.min.js`, and any file in the project's permanent
@@ -43,14 +43,11 @@ edits. Loads the following on demand:
 
 ## Process
 
-1. Apply the immutable Review Request and exact Review Gate obligation supplied
-   by the orchestrator. Use the reviewer-dispatch rules in
-   `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`; missing scope or identity
-   is a completed `BLOCKED` result. Back-stop/full-review fallback restricts to
+1. Use the changed-file scope supplied by the orchestrator and the reviewer
+   rules in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. Back-stop/full-review fallback restricts to
    `<frontend-root>/<view-template-roots>/`.
 2. Walk each leaf through the priority tiers below.
-3. Close out: write the artifact; the orchestrator records the Review Gate
-   obligation result.
+3. Close out: write the artifact.
 
 ## Priority tiers
 
@@ -106,14 +103,6 @@ edits. Loads the following on demand:
 
 ## Shared reviewer contract
 
-Use [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
-
-## Structured Review Gate Companion
-
-The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
-
-Follow [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
-
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
 ### Specialist checks
@@ -138,4 +127,4 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, and degradation: [`docs/contracts/artifact-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`docs/contracts/reviewer-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.
+Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, and degradation: [`docs/contracts/artifact-contract.md`](https://github.com/hmj1026/dhpk/blob/main/docs/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation.

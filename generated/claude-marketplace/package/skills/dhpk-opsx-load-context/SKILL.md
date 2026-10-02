@@ -66,8 +66,8 @@ carry-forward for a resumed run.
 RESUME=$(ls -t openspec/changes/*/.resume-note.md 2>/dev/null | head -1)
 ```
 
-- File found → read it; extract the remaining unchecked tasks, the latest
-  identity-bound Review Gate obligations or status, and the one-line next-focus
+- File found → read it; extract the remaining unchecked tasks, any unfixed
+  CRITICAL reviewer finding, and the one-line next-focus
   hint. Map them to `in_progress` and
   `session_goal`. Set `CONTEXT_SOURCE = ".resume-note.md"`. Skip Tiers 0–2 (still
   run the optional cross-session step below).

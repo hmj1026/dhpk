@@ -10,10 +10,6 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
 const {
-  getOrCreateHostKey,
-  hostInitArgs,
-} = require('./_lib/review-gate-host-attestation-fixture');
-const {
   SOURCES,
   RESERVED_ENV,
   AUTO_DETECTED_PLACEHOLDERS,
@@ -30,12 +26,6 @@ const {
 } = require('./_lib/skill-setup-family-fixtures');
 
 const FIXTURES = registerSetupFixtures();
-const WORK_REQUEST_PATH = path.join(
-  __dirname,
-  'fixtures',
-  'review-gate',
-  'runtime-work-request-v1.json',
-);
 
 function hostileEnvironment() {
   return Object.fromEntries(RESERVED_ENV.map((name) => [name, '/hostile/setup-root']));
@@ -104,7 +94,6 @@ test('setup-family fixture registry exposes stable public entries', () => {
     'setup-harness-explicit-hooks-success',
     'setup-harness-invalid-artifact-no-mutation',
     'setup-harness-missing-local-writer',
-    'setup-harness-review-gate-local-closure',
     'setup-project-explicit-artifact-required',
     'setup-project-explicit-hooks-success',
     'setup-project-missing-local-writer',
@@ -267,46 +256,6 @@ test('relocated Codex setup pins source roots to the artifact and rejects a Skil
     assert.deepStrictEqual(fileSnapshot(target), before, 'source escape must be rejected before target mutation');
     assert.strictEqual(fs.existsSync(marker), false, 'artifact Codex installer canary must never run');
     return { result };
-  });
-});
-
-test('relocated harness Review Gate closure supports trusted init and status in a temporary project', () => {
-  isolated('harness', (context) => {
-    const host = getOrCreateHostKey(context.projectDir, 'setup-family-review-gate');
-    const initialized = runEntry(
-      context,
-      FIXTURES['setup-harness-review-gate-local-closure'].entry,
-      [...hostInitArgs(host), '--repo-root', context.projectDir],
-    );
-    assertSuccess(initialized);
-    const initOutput = JSON.parse(initialized.stdout);
-    assert.strictEqual(initOutput.schema, 'dhpk.review-gate.runtime.v1');
-    assert.ok(['INITIALIZED', 'ALREADY_INITIALIZED'].includes(initOutput.status));
-
-    const prepared = runEntry(
-      context,
-      FIXTURES['setup-harness-review-gate-local-closure'].entry,
-      ['prepare', '--repo-root', context.projectDir],
-      { input: fs.readFileSync(WORK_REQUEST_PATH) },
-    );
-    assertSuccess(prepared);
-    const preparedOutput = JSON.parse(prepared.stdout);
-    assert.strictEqual(preparedOutput.status, 'PREPARED');
-    assert.match(preparedOutput.workId, /^work-[a-f0-9]{64}$/);
-
-    const status = runEntry(context, FIXTURES['setup-harness-review-gate-local-closure'].entry, [
-      'status',
-      '--work-id', preparedOutput.workId,
-      '--repo-root', context.projectDir,
-    ]);
-    assertSuccess(status);
-    const statusOutput = JSON.parse(status.stdout);
-    assert.strictEqual(statusOutput.schema, 'dhpk.review-gate.runtime.v1');
-    assert.strictEqual(statusOutput.command, 'status');
-    assert.strictEqual(statusOutput.status, 'PENDING');
-    assert.deepStrictEqual(statusOutput.receiptSummary, { total: 0, byKind: {} });
-    assert.strictEqual(fs.existsSync(path.join(context.projectDir, '.dhpk', 'review-gate', 'v1', 'config.json')), true);
-    return { result: status };
   });
 });
 

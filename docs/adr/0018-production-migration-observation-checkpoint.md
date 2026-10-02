@@ -1,6 +1,6 @@
 # Production Migration Observation Checkpoint
 
-Status: accepted
+Status: superseded by [0026](0026-remove-review-gate.md)
 
 Implementation status: superseded by the accepted direct-retirement decision
 for this project. The Review Gate is current authority; the former Sentinel

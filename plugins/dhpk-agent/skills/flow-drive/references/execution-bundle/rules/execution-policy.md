@@ -99,7 +99,7 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Diff-scope mandate (all reviewers)**: reviewers audit the UNCOMMITTED working tree (`git diff --staged` + `git diff HEAD`), never committed history (`git diff <base>...HEAD` / merge-base diff). Under the no-auto-commit workflow the change-under-review sits uncommitted; a base-relative diff reviews the whole branch (often hundreds of files) — wasting tokens/time and misreporting committed-but-superseded code as unfixed. Orchestrators dispatching a reviewer MUST NOT instruct it to diff against a base branch unless an explicit full-branch/PR review is the intent.
 
-**File-state ground truth**: re-verify live before reporting a file-state defect. Full mechanics: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+**File-state ground truth**: re-verify live before reporting a file-state defect.
 
 **Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `${POLICY_BUNDLE_ROOT}/rules/model-economics.md`.
 
@@ -115,26 +115,7 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
 
-**Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Completion requires both a terminal lifecycle result and every applicable reviewer's verdict recorded; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md` and `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table.
-
-**Review Gate obligation order (current):** after each implementation wave, the
-orchestrator derives the applicable reviewer obligations from the complete
-changed-file scope, creates one immutable Review Request per lane, and dispatches
-the selected reviewers in one consolidated parallel batch. Each reviewer
-produces a durable artifact and identity-bound Review Result; the orchestrator
-records lifecycle, readiness, and semantic verdict evidence in the Review Gate
-store. Completion requires every applicable obligation to be resolved or
-explicitly `NOT_APPLICABLE`; a message, artifact path, aggregate result, or
-lifecycle event alone is not completion. Missing, foreign, stale, malformed, or
-failed evidence remains unresolved and fails closed. Full identity, retry, and
-batching mechanics live in
-`${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
-
-Historical migration-observation composition and phase vocabulary remain in
-`${POLICY_BUNDLE_ROOT}/docs/contracts/review-lifecycle.md` and the associated
-ADRs for compatibility and audit only. They are not an active dispatch or
-completion path and must not be enabled or inferred by the current
-implementation route.
+**Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Completion requires a terminal lifecycle result; a message or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`; this rule intentionally does not duplicate the dispatch table.
 
 ### Context tiers and dispatch packet
 
@@ -230,10 +211,9 @@ the next checkpoint. For one clear unchecked task, record `planner=skipped`.
 This planner gate is a lifecycle invariant and remains active when
 `orchestration_dispatch=off`; that switch changes implementation worker/reasoner
 routing. The mandatory pre-write planner and verification gates remain active.
-Each implementation wave ends in one consolidated review checkpoint and a
-bounded fix loop: `BLOCK`, `CRITICAL`, or `HIGH` findings require a dedicated
-confirm-only reviewer after the repair; LOW/WARNING-only findings may close with
-the worker's scoped verification plus a diff-scope recheck. Delivery order is:
+After each implementation wave, dispatching the applicable reviewers is
+recommended (see [Post-implementation agent gate](#post-implementation-agent-gate-ssot));
+fix CRITICAL findings before reporting done. Delivery order is:
 verify all tasks and gates → archive/sync OpenSpec → add a valid changelog
 fragment → open a Draft PR targeting `develop` → monitor that PR's actual CI with
 `gh run watch` to a terminal completed CI conclusion → human merge gate. Queued
@@ -298,9 +278,8 @@ target remains directional and may be checked by its adapter. The public
 `cross_provider` option is `false` by default and resolves as
 `--cross-provider` (one-shot enable) > project pluginConfig > installed user
 pluginConfig > `false`; `.claude/settings.local.json` is preferred over
-`.claude/settings.json`. Reviewer
-routing remains on the current Review Gate / Reviewer Contract path, and
-dispatch selection never creates a review PASS or a retired Sentinel state.
+`.claude/settings.json`. Dispatch
+selection never creates a review PASS or a retired Sentinel state.
 
 The Dispatch Engine enforces this baseline for all four Roles; adapters
 consume the same neutral request without duplicating candidate-selection logic.
@@ -432,36 +411,24 @@ Independent-perspective rules, the bounded adversarial doubt cycle, and premise-
 
 ### Post-implementation agent gate (SSOT)
 
-After each implementation wave, dispatch every applicable reviewer as
-**ONE consolidated parallel reviewer batch**. Only triggered lanes run; mixed diffs may
-run code, database, security, frontend, documentation, polyfill, and migration
-reviewers together. `tdd-guide` and `e2e-runner` are implementation specialists,
-not unconditional post-edit reviewers: invoke them only when the work requires
-their RED or browser-journey ownership contract.
-
-Actionable findings become one clear fix-spec. If the whole fix batch exceeds the
-≤2-file inline bound, hand it to one selector-resolved fast worker. The bounded
-fix loop then requires one dedicated confirm-only reviewer for `BLOCK`,
-`CRITICAL`, or `HIGH` findings; a LOW/WARNING-only set may close on worker
-verification plus a diff-scope recheck. Do not start a fresh broad review for
-the same wave or measure the inline bound per finding.
-When the fix originated from `tdd-guide` or `e2e-runner`, acceptance returns to
-that specialist's scoped verification command or originating journey. A new
-implementation wave receives a new consolidated review batch. The prompt/output
-shape is canonicalized in the [reviewer contract](https://github.com/hmj1026/dhpk/blob/main/skills/flow-drive/references/execution-bundle/docs/contracts/reviewer-contract.md).
+Reviewer dispatch is advisory. After an implementation wave, it is recommended
+to dispatch `code-reviewer` plus each applicable specialist from the trigger
+table below in ONE parallel batch, after the wave's edits are complete. Fix
+CRITICAL findings before reporting the work as done; lower-severity findings are
+the orchestrator's judgment. `tdd-guide` and `e2e-runner` are implementation
+specialists, not post-edit reviewers. There is no mandatory gate, lane, receipt,
+or verdict artifact.
 
 ### Reviewer trigger table
 
 The orchestrator judges which reviewer(s) apply from the diff, using this
 default trigger table (project can extend via
 `userConfig.review_trigger_extra_paths`) plus the AI-judgment back-stop below
-for a semantic match the table misses. There is no hook-armed marker file or
-auto-clear step — dispatch and verdict tracking are the orchestrator's
-responsibility for the current implementation wave.
+for a semantic match the table misses. There is no hook-armed marker file.
 
-A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash command — it is a markdown-interpolation token, not a shell variable. Full caveat (SSOT): `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
+A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash command — it is a markdown-interpolation token, not a shell variable.
 
-| Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
+| Recommended agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|
 | `code-reviewer` | `*.php` / `*.js` / `**/CLAUDE.md` |
 | `database-reviewer` | Repository / migration / model / `*.sql` |
@@ -471,13 +438,11 @@ A subagent must never paste the literal `${POLICY_BUNDLE_ROOT}/...` into a Bash 
 | `polyfill-reviewer` | Module-owned trigger only |
 | `migration-reviewer` | Module-owned migration: triggers or mig: extra paths only |
 
-**Skipped paths**: follow the self-edit and per-role path exclusions in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
-
 ### Reviewer dispatch (when multiple roles are triggered)
 
-For each contiguous implementation wave, dispatch each applicable reviewer once as **triage → ONE consolidated parallel reviewer batch → merge**; CRITICAL blocks, and pure research skips. Known findings receive at most one confirm-only re-review; new substantive scope starts a new review decision. A missing or invalid reviewer result gets one corrected retry, then replacement or a pending gate with a recorded reason. `codex-bridge` remains escalation-only and runs at most once per change. Full batching, reminder, retry, and escalation mechanics: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
-
-**Reviewer economy**: hold the review dispatch until the wave's edit batch is edit-complete — do not dispatch mid-batch and then re-review each micro-fix as its own round. The bounded fix loop batches a repair scope, runs worker verification, and rechecks diff scope. A findings set that is LOW/WARNING-only (no BLOCK/CRITICAL/HIGH) may close there without a dedicated confirm-only reviewer; BLOCK/CRITICAL/HIGH findings require that dedicated re-review. Batch any post-confirm micro-edits together before a single confirm dispatch. Split waves and confirm-only rounds are the dominant reviewer overspend — batching before dispatch is the primary lever.
+Dispatch every recommended reviewer for a wave together in one parallel batch,
+then merge their findings into one fix-spec. Do not re-review each micro-fix as
+its own round. `codex-bridge` remains escalation-only.
 
 ### Hook lifecycle classes
 
@@ -495,8 +460,6 @@ optional events.
 | `SubagentStop` → `subagent-stop-verify.sh` | liveness cleanup | enabled; clear a stopped fast-worker's active-liveness marker |
 | `SessionStart` → `session-start.sh` | module activation only | enabled; validate and activate configured modules |
 | Prompt hints, precompact/postcompact handoff, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
-
-**Reviewer liveness**: a no-op reviewer is a failed gate. Corrected-retry and replacement rules: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ### Review output gate
 
@@ -521,11 +484,9 @@ Semantically matches but path pattern did not trigger a reviewer role → self-t
 - `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
 - Editing version-specific dirs (`src/Laravel/`, `src/Symfony/`), composer version constraints, or `.github/workflows` CI matrices, or before tagging a release → `version-matrix-impact-reviewer` (library-author module).
 
-> **Notes** — why view-layer `<script>` uses a back-stop not a hook · when to upgrade a back-stop to a hook · why `tdd-guide` is not in the trigger table and how the coverage gate enforces tests-first for unattended `opsx-apply-goal` runs: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
-
 ## Edit tool discipline
 
-**Edit/Write, not Bash writes.** Repo file edits MUST use the Edit or Write tool, not Bash-based writes (python heredoc, `tee`, shell redirection). A Bash-written file never passes through the `PostToolUse` Edit/Write hooks, so it is easy to forget its mandatory reviewer gate. Use a Bash write only as a last resort (the Edit/Write tools cannot express the operation); whenever you do, self-trigger the review gate that would have applied — dispatch the matching reviewer per the trigger table or the AI-judgment back-stop convention above.
+**Edit/Write, not Bash writes.** Repo file edits MUST use the Edit or Write tool, not Bash-based writes (python heredoc, `tee`, shell redirection). A Bash-written file never passes through the `PostToolUse` Edit/Write hooks, so it is easy to forget the recommended reviewer. Use a Bash write only as a last resort (the Edit/Write tools cannot express the operation); whenever you do, consider the review that would have applied — dispatch the matching reviewer per the trigger table or the AI-judgment back-stop convention above.
 
 **Symlink-safe writes.** Before using Write on an existing target, check whether
 it is a symlink. Resolve it with `realpath <target>` and Write to the resolved

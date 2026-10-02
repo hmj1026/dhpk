@@ -469,7 +469,7 @@ test('v2 requests use Host profile and Provider-scoped target resolution through
         name: 'code-reviewer',
         heading: '## Native dispatch boundary',
         dispatcherOwnership: 'Fallback is dispatcher-owned and shared by every delegated role.',
-        availabilityAction: 'Review Gate / Reviewer Contract to the native reviewer first',
+        availabilityAction: 'request to the native reviewer first',
         classActionStatement: 'Quota/rate-limit, safety/user denial, task/semantic failure, and timeout/interruption retain their existing stop, authorization, repair, or reconciliation paths.',
         crossProvider: 'cross-provider candidates require explicit opt-in',
         noSilentSwitch: 'never silently switches target',

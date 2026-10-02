@@ -13,7 +13,6 @@ asset bytes are needed. Require these resources:
 - `data/module-catalog.json` — stack, version, review-slot, and hook
   profile source of truth.
 - `scripts/install-assets.sh` — Skill-local deterministic asset adapter.
-- `scripts/review-gate-runtime.js` — Skill-local Review Gate initializer.
 - `templates/settings.local.json.example` — settings shape guidance.
 
 A missing local resource is `BLOCKED_RESOURCE_MISSING`. Do not search a
@@ -65,29 +64,6 @@ Real installation requires Python 3 with the physical descriptor capabilities
 used by the writer; if unavailable, installation stops before target mutation
 with exit 2. `--dry-run` remains available without Python 3.
 
-## Review Gate initialization
-
-`--review-gate` performs setup only. Run the dependency-free initializer with
-the operator-supplied public key and independently supplied fingerprint:
-
-```bash
-node <resolved-package-root>/scripts/review-gate-runtime.js \
-  init --repo-root <project-root> \
-  --host-public-key <operator-supplied-public-key-path> \
-  --host-key-id sha256:<64-lowercase-hex>
-```
-
-Require exit `0` and JSON `schema: "dhpk.review-gate.runtime.v1"` with
-`command: "init"`. The initializer creates or retains
-`.dhpk/review-gate/v1/integrity.key` as a regular `0600` file. A regular
-existing key is retained and reported as already initialized; it is never
-overwritten. The public-key path must be regular, private (`0600`), and free
-of symlinked components; its bytes must match the supplied fingerprint.
-Missing, malformed, unsafe, or mismatched trust is a setup error. Never print
-private key material or lazily generate either key from another Review Gate
-operation. Later prepare, reviewer dispatch, and observe calls remain owned by
-the Application Session.
-
 ## Interactive configuration
 
 After the plugin is installed, use one native `AskUserQuestion` call per
@@ -115,12 +91,12 @@ Write the resolved values under the existing local settings/userConfig shape,
 preserving unrelated settings. Show a before/after diff. Module changes need
 the normal Claude plugin reload (`/plugin configure dhpk@dhpk` or the documented
 terminal uninstall/install equivalent); settings-only changes apply next
-session. `--review-gate` does not alter Review Gate authority.
+session.
 
 ## Output and verification
 
 Return a confirmation block containing `modules`, `docker_containers`,
-`review_agents`, `hook_profile`, and `review_gate`, each with before/after
+`review_agents`, and `hook_profile`, each with before/after
 values, followed by exactly one next action. Mark missing dependencies or
 unsupported operations `UNAVAILABLE`/`BLOCKED`; never turn a skipped prompt
 into a successful configuration.
@@ -128,7 +104,7 @@ into a successful configuration.
 - [ ] Catalog was read as the only source for stacks, versions, slots, and
       hook profiles.
 - [ ] Existing settings and unknown keys were preserved.
-- [ ] Asset-install and Review Gate exit/JSON evidence was recorded when used.
+- [ ] Asset-install exit/JSON evidence was recorded when used.
 - [ ] The active Host's detection/render capability remains `NOT_RUN` until a
       supported Host probe supplies evidence.
 - [ ] No private key, credential, or user-owned file was printed or replaced.

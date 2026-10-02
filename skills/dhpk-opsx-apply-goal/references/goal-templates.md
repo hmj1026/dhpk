@@ -9,7 +9,7 @@ do not paraphrase; placeholders (`<CHANGE_ID>`,
 `<FAST_WORKER_CLAUSE>`, `<TASK_DIGEST>`, `<E2E_ROSTER_CLAUSE>`, `<SKILL_ROOT_Q>`,
 `<TURN_BUDGET>`, `<MAX_DURATION>`) are substituted as noted.
 
-`GOAL_CONDITION` = Part 0 + Part 1 + Part 2 + Part 2b + Part 3 + Part 4, joined
+`GOAL_CONDITION` = Part 0 + Part 1 + Part 2 + Part 3 + Part 4, joined
 with `,\n`.
 
 ---
@@ -55,8 +55,8 @@ dispatch clause; the mandatory multi-task OpenSpec planner gate remains active:
 ```
 First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED` — reads the
 compact dhpk execution-policy kernel (including the mandatory planner gate that
-remains active in off mode); never filesystem-scan; every reviewer dispatch (even
-confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
+remains active in off mode); never filesystem-scan; every reviewer dispatch
+still gets a fresh .claude/artifacts/reviews/ artifact, never
 reply-only — then invoke the Skill tool
 with the canonical ID `openspec-apply-change` for change <CHANGE_ID> and
 continue implementing openspec/changes/<CHANGE_ID>/tasks.md from the first
@@ -76,8 +76,8 @@ until all of the following hold,
 **`DISPATCH_ON=true`** (default) — the same kickoff with the bounded dispatch
 roster appended before the transition into the stop conditions:
 ```
-First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch (even
-confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
+First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch
+still gets a fresh .claude/artifacts/reviews/ artifact, never
 reply-only.
 Run openspec-apply-change <CHANGE_ID>. Tasks:<TASK_DIGEST>. gitnexus repo="<project>"; continue.
 On "Unknown skill": retry once; implement under gates.
@@ -89,7 +89,7 @@ dispatching_agent distinct from execution_provider; requested_role,mode,task_id,
 workdir, existing prompt/scope, ordered config. Keep runtime binding + execution-policy decision;
 never infer authority. READY before adapter; never synthesize operational files.
 Inline ≤2-file whole-implement-step + bookkeeping; ≥3 files: one batch.
-ONE consolidated parallel batch per wave; known findings: confirm-only;
+recommended reviewers: ONE consolidated parallel batch per wave;
 codex-bridge only as explicit escalation, at most once per change, and only
 when the caller selected `--second-opinion=codex-exec`.
 project hard rules cannot be deferred because a prior design chose a cheaper implementation.
@@ -106,20 +106,11 @@ peer/backend; CLI work uses `--worker=codex`. Continue until:
 All openspec/changes/<CHANGE_ID>/tasks.md checkboxes [x]; Claude confirmed in conversation
 ```
 
-## Part 2 (always — Review Gate status)
+## Part 2 (always — reviewer findings)
 
 ```
-Claude checked the Review Gate status for `<CHANGE_ID>` and confirmed every
-applicable reviewer obligation is resolved (or the plan is `NOT_APPLICABLE`)
-for the current task, attempt, dispatch, scope, and diff identity
-```
-
-## Part 2b (always — unresolved Review Gate obligation check)
-
-```
-Claude confirmed no applicable Review Gate obligation is pending, foreign,
-stale, malformed, or message-only; status is `RESOLVED` or
-`NOT_APPLICABLE`
+Claude confirmed in conversation that no CRITICAL reviewer finding for
+`<CHANGE_ID>` remains unfixed
 ```
 
 ## Part 3 (verification gates)
@@ -210,7 +201,7 @@ conflicting decision with file:line evidence, and why compliance is blocked; end
 turn; do not continue/wait
 List, then copy to .resume-note.md:
 (1) unchecked tasks
-(2) Review Gate status and any unresolved obligation identity
+(2) any unfixed CRITICAL reviewer finding
 (3) one-line next-focus hint
 ```
 The `openspec/changes/<CHANGE_ID>/.resume-note.md` carry-forward lets a

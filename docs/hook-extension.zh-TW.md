@@ -18,8 +18,8 @@ orchestration 建議。
 
 ## Reviewer evidence
 
-Reviewer 派工由 orchestrator 負責。Reviewer 會記錄具有 identity binding 的
-Review Gate result；缺失、格式錯誤、warning 或 failure 都會讓 obligation 保持 unresolved。
+Reviewer 派工由 orchestrator 負責，且為建議性質。Reviewer 會寫出 Markdown 報告；
+沒有 hook 或 artifact 強制執行 review gate。
 
 ## 選用 extensions
 

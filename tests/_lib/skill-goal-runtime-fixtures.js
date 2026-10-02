@@ -4,7 +4,6 @@
 // definitions describe observable contracts only; execution belongs to
 // skill-goal-runtime-isolation.test.js and always happens from a relocated
 // physical Skill tree.
-const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -16,7 +15,6 @@ const ROOT = path.join(__dirname, '..', '..');
 const SOURCE = path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal');
 const ANALYZER = 'scripts/analyze-change.sh';
 const LAUNCHER = 'scripts/launch-cli-dispatch.js';
-const REVIEW_GATE = 'scripts/review-gate-runtime.js';
 
 const RESERVED_ROOT_ENVIRONMENT = Object.freeze([
   'CLAUDE_PLUGIN_ROOT',
@@ -29,31 +27,6 @@ const RESERVED_ROOT_ENVIRONMENT = Object.freeze([
   'NODE_OPTIONS',
   'PYTHONPATH',
   'PYTHONHOME',
-]);
-
-// This is the complete 19-file Review Gate closure from the approved setup
-// resource design.  The entry and its 18 relative libraries stay local to the
-// opsx Skill; the repository-level Review Gate is never a runtime fallback.
-const REVIEW_GATE_CLOSURE = Object.freeze([
-  'scripts/review-gate-runtime.js',
-  'scripts/lib/claude-review-gate-adapter.js',
-  'scripts/lib/physical-file.js',
-  'scripts/lib/receipt-json-primitives.js',
-  'scripts/lib/receipt-primitives.js',
-  'scripts/lib/redaction.js',
-  'scripts/lib/review-gate-evidence.js',
-  'scripts/lib/review-gate-receipt-store.js',
-  'scripts/lib/review-gate-runtime-attestation.js',
-  'scripts/lib/review-gate-runtime-checkpoint.js',
-  'scripts/lib/review-gate-runtime-composition.js',
-  'scripts/lib/review-gate-runtime-errors.js',
-  'scripts/lib/review-gate-runtime-evidence.js',
-  'scripts/lib/review-gate-runtime-storage.js',
-  'scripts/lib/review-gate-runtime.js',
-  'scripts/lib/review-gate-store-budget.js',
-  'scripts/lib/review-gate.js',
-  'scripts/lib/reviewer-contract.js',
-  'scripts/lib/risk-router.js',
 ]);
 
 const POLICY_KERNEL = 'references/execution-bundle/rules/execution-policy-kernel.md';
@@ -309,53 +282,6 @@ function providerStubs() {
   };
 }
 
-function hostTrustFixture(context) {
-  const pair = crypto.generateKeyPairSync('ed25519');
-  const publicKey = pair.publicKey.export({ type: 'spki', format: 'der' });
-  const publicKeyPath = path.join(context.projectDir, '.goal-host.pub');
-  writeFile(publicKeyPath, publicKey);
-  return {
-    publicKeyPath,
-    publicKeyRelative: path.relative(context.projectDir, publicKeyPath),
-    keyId: `sha256:${crypto.createHash('sha256').update(publicKey).digest('hex')}`,
-  };
-}
-
-function reviewWorkRequest() {
-  return {
-    schemaVersion: 'dhpk.work-request.v1',
-    requestId: 'fixture:goal-runtime',
-    decisionKey: 'goal-runtime-review',
-    scope: {
-      paths: ['scripts/review-gate-runtime.js'],
-      kinds: ['SOURCE'],
-      baseIdentity: { commit: '1'.repeat(40), tree: '2'.repeat(40) },
-      headIdentity: { commit: '3'.repeat(40), tree: '4'.repeat(40) },
-      diff: { digest: `sha256:${'5'.repeat(64)}`, reference: 'fixture:goal-runtime' },
-    },
-    ownership: { judgmentOwner: 'architect', implementationOwner: 'worker:goal-runtime' },
-    materialRisks: [],
-    governingInputs: [{ reference: 'fixture:policy', digest: `sha256:${'6'.repeat(64)}` }],
-    outcomeReferences: [{ kind: 'FIXTURE', reference: 'fixture:goal-runtime' }],
-    observations: { fileCount: 1, lineCount: 1, taskCount: 1, availableAgentCount: 1 },
-    extensions: {},
-  };
-}
-
-function prepareReviewGate(context) {
-  const host = hostTrustFixture(context);
-  const requestPath = path.join(context.projectDir, 'goal-work-request.json');
-  writeJson(requestPath, reviewWorkRequest());
-  const init = [
-    'init',
-    '--host-public-key', host.publicKeyRelative,
-    '--host-key-id', host.keyId,
-    '--repo-root', context.projectDir,
-  ];
-  const prepare = ['prepare', '--repo-root', context.projectDir];
-  return Object.freeze({ host, requestPath, init, prepare });
-}
-
 const DEFINITIONS = [
   definition({
     id: 'goal-analyzer-local-closure',
@@ -441,31 +367,6 @@ const DEFINITIONS = [
       assert.strictEqual(fs.existsSync(path.join(state.workdir, 'goal-agy-provider-marker.txt')), false, 'rejected authority ran AGY');
     },
   }),
-  definition({
-    id: 'goal-review-gate-unresolved-evidence',
-    entry: REVIEW_GATE,
-    expected: { status: 0, output: ['"status":"PENDING"'] },
-    prepare(context) { return prepareReviewGate(context); },
-    run(context, state) {
-      const initialized = context.run(this.entry, state.init);
-      if (initialized.status !== 0) return initialized;
-      const prepared = context.run(this.entry, state.prepare, { input: fs.readFileSync(state.requestPath, 'utf8') });
-      if (prepared.status !== 0) return prepared;
-      const preparedOutput = JSON.parse(prepared.stdout);
-      const status = context.run(this.entry, [
-        'status', '--work-id', preparedOutput.workId, '--repo-root', context.projectDir,
-      ]);
-      return { ...status, goalGate: { initialized, prepared, preparedOutput } };
-    },
-    verify(result, context, state) {
-      assert.strictEqual(result.goalGate.initialized.status, 0, result.goalGate.initialized.stderr);
-      assert.strictEqual(result.goalGate.prepared.status, 0, result.goalGate.prepared.stderr);
-      const status = JSON.parse(result.stdout);
-      assert.strictEqual(status.status, 'PENDING');
-      assert.deepStrictEqual(status.receiptSummary, { total: 0, byKind: {} });
-      assert.strictEqual(Object.prototype.hasOwnProperty.call(status, 'receipts'), false);
-    },
-  }),
 ];
 
 let registered = false;
@@ -490,9 +391,7 @@ function runGoalRuntimeFixture(fixture, context) {
 module.exports = {
   ANALYZER,
   LAUNCHER,
-  REVIEW_GATE,
   SOURCE,
-  REVIEW_GATE_CLOSURE,
   POLICY_KERNEL,
   POLICY_ROUTE,
   RESERVED_ROOT_ENVIRONMENT,

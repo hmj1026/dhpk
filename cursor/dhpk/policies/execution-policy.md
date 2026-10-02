@@ -50,10 +50,8 @@ a bounded worker, while the other results pause or stop.
 An OpenSpec apply with two or more unchecked tasks runs the planner before the
 first write wave. Its result states dependency order, each task's exact owner and
 write scope, and the next checkpoint; one clear task records `planner=skipped`.
-Each wave has one consolidated review and bounded fix loop: `BLOCK`, `CRITICAL`,
-or `HIGH` findings require a dedicated confirm-only reviewer, while
-LOW/WARNING-only findings may close with worker verification plus a diff-scope
-recheck. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
+After each wave, dispatching the applicable reviewers in one batch is
+recommended; fix `CRITICAL` findings before reporting done. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
 add a valid changelog fragment → open a Draft PR targeting `develop` → monitor
 that PR's actual CI to a completed conclusion → human merge gate. Queued or
 partial CI is not completion. Required consumer evidence marked `NOT RUN` or
@@ -69,9 +67,7 @@ when cross-provider dispatch is disabled. An explicitly requested external
 target remains directional. The public `cross_provider` option is `false` by
 default and resolves as `--cross-provider` (one-shot enable) > project
 pluginConfig > installed user pluginConfig > `false`; workspace-local settings
-are preferred over the global settings file. Reviewer routing remains on the
-current Review Gate / Reviewer Contract path and never creates a retired
-Sentinel state.
+are preferred over the global settings file.
 
 ## Failure classification and fallback chain
 
@@ -95,7 +91,7 @@ valid configured candidate only when `cross_provider` is enabled → explicit
 and decrements one shared `retry_budget` for every fallback; switching
 providers does not reset that budget and a candidate is never revisited. The
 fallback preserves the role, task scope, read/write authority, model contract
-where applicable, and reviewer contract. There is no hidden coordinator or
+where applicable. There is no hidden coordinator or
 silent provider switch.
 
 For a timed-out or interrupted multi-file writer, stop the old writer before
@@ -103,17 +99,16 @@ continuing. Verify the assigned scope and path-scoped diff, separate confirmed,
 unconfirmed, remaining, and out-of-scope files, and preserve dirty work. A
 partial result writes one control-plane marker under
 `.cursor/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`;
-the marker is not a product edit or Review Gate verdict and remains until
+the marker is not a product edit or review verdict and remains until
 explicit reconciliation.
 
 ## Orchestration lifecycle acceptance
 
 The orchestrator owns dispatch and handoff identity, retries, and evidence
-presentation; the host integration owns review-gate lifecycle completion. Each
+presentation. Each
 handoff uses one stable `task_id` and an attempt-specific `attempt_id`, with
 optional producer, wave, `scope_id`, adapter/stage, and plan/artifact
-fingerprints. A terminal lifecycle result plus all applicable host review
-gates is required; a message, aggregate verdict, or lifecycle event alone is
+fingerprints. A terminal lifecycle result is required; a message, aggregate verdict, or lifecycle event alone is
 not completion.
 
 ## Context tiers and named specialist dispatch

@@ -223,12 +223,6 @@ function registerSetupFixtures() {
       expected: { status: 1, outcome: 'nonzero', output: ['SOURCE_ARTIFACT_INVALID', 'pinned artifact root'] },
     },
     {
-      id: 'setup-harness-review-gate-local-closure',
-      family: 'harness',
-      entry: 'scripts/review-gate-runtime.js',
-      expected: { status: 0, outcome: 'success', output: ['review-gate.runtime.v1', 'PENDING'] },
-    },
-    {
       id: 'setup-project-explicit-hooks-success',
       family: 'project',
       entry: 'scripts/install-project-assets.sh',

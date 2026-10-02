@@ -235,7 +235,6 @@ test('generated reviewer roles retain reachable Codex trap and contract referenc
     const codeReviewer = fs.readFileSync(path.join(outDir, 'code-reviewer.toml'), 'utf8');
     assert.match(codeReviewer, /\.codex\/dhpk\/agent-traps\/_common\/prompt-defense\.md/);
     assert.match(codeReviewer, /\.codex\/dhpk\/agent-traps\/_common\/trap-sheet-loader\.md/);
-    assert.match(codeReviewer, /\.codex\/dhpk\/contracts\/reviewer-contract\.md/);
     assert.match(codeReviewer, /\.codex\/dhpk\/policies\/execution-policy\.md/);
     assert.doesNotMatch(codeReviewer, /\$\{CLAUDE_PLUGIN_ROOT\}/);
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
@@ -264,7 +263,7 @@ test('selected role prompts do not duplicate discovery descriptions', () => {
   }
 });
 
-test('generated reviewer roles use Codex manual review and artifact semantics', () => {
+test('generated reviewer roles use Codex review artifact semantics', () => {
   const tmp = mkTmp();
   try {
     const outDir = path.join(tmp, 'out');
@@ -276,7 +275,7 @@ test('generated reviewer roles use Codex manual review and artifact semantics', 
       assert.doesNotMatch(body, /subagent-stop-verify|clear-sentinel|post-edit-remind/);
       assert.doesNotMatch(body, /\.claude\/artifacts|CLAUDE_PLUGIN_ROOT/);
       assert.match(body, /\.codex\/artifacts/);
-      assert.match(body, /manual/i);
+      assert.match(body, /\.codex\/artifacts\/reviews\//);
     }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });

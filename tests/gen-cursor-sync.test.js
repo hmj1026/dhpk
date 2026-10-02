@@ -191,8 +191,6 @@ test('checked-in cursor/ projection validates against the distribution inventory
   assert.doesNotMatch(setup, /review-gate-runtime\.js/);
   assert.doesNotMatch(setup, /init --repo-root/);
 
-  const policy = fs.readFileSync(path.join(ROOT, 'cursor', 'rules', 'execution-policy.mdc'), 'utf8');
-  assert.match(policy, /Full identity,\s+retry,\s+and\s+batching mechanics live in\s+`?[^`]*review-gate-mechanics\.md`?\./);
 });
 
 test('gen-cursor-sync CLI writes a valid tree', () => {

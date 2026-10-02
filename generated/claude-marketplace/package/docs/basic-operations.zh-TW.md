@@ -345,19 +345,18 @@ unchecked OpenSpec task 時，必須在第一個 write wave 前使用 planner；
 dependency order、每個 task 的 exact owner 與 write scope，以及下一個 checkpoint。只有一個
 clear task 時，記錄 `planner=skipped`。外部 `/opsx:apply` workflow 維持不變。
 
-每個 implementation wave 結束時，執行一次 consolidated review 與有界的 fix loop：
-`BLOCK`、`CRITICAL`、`HIGH` finding 修復後必須有 dedicated confirm-only reviewer；只有
-LOW/WARNING finding 時，可用 worker verification 加上 diff-scope recheck 結案。delivery order
+每個 implementation wave 結束後，建議以一批 parallel batch 派遣適用的 reviewer；CRITICAL
+finding 須在回報完成前修正。delivery order
 為：verify all tasks and gates → archive/sync OpenSpec → add a valid changelog fragment → open a
 Draft PR targeting `develop` → 使用 `gh run watch` 監視該 PR 的 actual CI 到 completed conclusion → human
 merge gate。queued 或 partial CI 都不是 completion。
 
 ### Review、驗證與交接
 
-每次 Edit／Write／MultiEdit 後，orchestrator 會從完成的 wave 推導適用的 Review Gate
-obligation。不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
+每次 Edit／Write／MultiEdit 後，建議依 trigger table 派遣 reviewer；沒有強制的 review
+gate。dhpk 不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
 `/dhpk:review-pending` 會為指定路徑派工 reviewer；legacy `sentinel_commit_gate` 僅為
-相容性保留，不能取代 Review Gate verdict tracking。
+相容性保留。
 
 ```text
 /dhpk:review-pending
@@ -460,7 +459,7 @@ Codex tree 是 canonical Claude package 的 curated subset，不是第二份完�
 `codex/agents/` 有 16 個 direct role：4 個手動維護 generic role 與由 canonical Claude agent
 產生的 12 個 role。雙 harness 模型請看 `codex/AGENTS.md` 與 `codex/README.md`。
 
-Generated role 可能依賴共用的 prompt-defense、trap-sheet、reviewer-contract、artifact-contract
+Generated role 可能依賴共用的 prompt-defense、trap-sheet、artifact-contract
 或 execution-policy。這些 support file 由 `manifests/distribution-inventory.json` 的
 `supporting_assets` section mapping，複製到 `.codex/dhpk/`，並用同一份 schema-v3 receipt 追蹤。
 Runtime projection validator 會拒絕 unreachable reference 或 Claude plugin-root path。
@@ -520,7 +519,7 @@ native plugin 已 enabled，會在寫入前阻擋，`--force` 不能繞過；`--
 ## 遷移現有專案
 
 如果 project 已有自己的 `.claude/` harness，以下是 legacy hook 相容性遷移計畫；
-新的 review 工作使用上方所述的 Review Gate trigger table 與 durable obligation：
+新的 review 工作使用上方所述的建議性 reviewer trigger table：
 
 1. **Phase A — baseline**：先保存安裝前 hook output 與測試結果。
 2. **Phase B — install (parallel)**：設定 `userConfig.review_agents` 指向既有 agent 後安裝 plugin，兩組 hook 並行。

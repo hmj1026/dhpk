@@ -464,24 +464,16 @@
       "id": "codex-supporting-contracts-artifact-contract-md",
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",
-      "canonical_digest": "439c7da7ae73943a3484155d2b4ee951ebbb39b97d229dd030f6e805b834ada0",
-      "projection_digest": "0eec19c5350c0ad5572d49807b5512c5b409c0e2364eeb96698bf1db41ba4a36",
+      "canonical_digest": "5f6a659736062b68d83b3bac73e06a4807575573196a08e8a3bffc9cb99d626a",
+      "projection_digest": "ad5a05ceaa56719084e99a37c7c57563727982cbf24bc7f0a907981071e1ac7e",
       "destination": "dhpk/contracts/artifact-contract.md"
-    },
-    {
-      "id": "codex-supporting-contracts-reviewer-contract-md",
-      "source": "codex/supporting/contracts/reviewer-contract.md",
-      "canonical_source": "docs/contracts/reviewer-contract.md",
-      "canonical_digest": "7d3794c676d8080856e76a477ad8abb973277bc4464ffe1ba637bb73afaaef73",
-      "projection_digest": "d04688af1f527bf4aaf318b1ac3572eacbf91ad70052f8cf63ecb3fc00dcce64",
-      "destination": "dhpk/contracts/reviewer-contract.md"
     },
     {
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "3153a82e68542739952cce9182cad31a2cd89bd703580139ef56824c8a23cbc1",
-      "projection_digest": "f6aa7015ee4aff4460901ff0498311de16355bdcce6ea9981b8e3351a98c9805",
+      "canonical_digest": "b759cb7aeccff2aba5a0bae1cd608bda1795f88f49e240bb3fecb2a9f41434d0",
+      "projection_digest": "1bd5984850ea0d011840abcecd2095615a5255a819a31a2d1d476d89e64ad72f",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
@@ -3758,7 +3750,7 @@
       "usage": {
         "display_name": "Harness Setup",
         "summary": "Inspect or configure host harness assets",
-        "syntax": "$harness-setup [--show] [--review-gate] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force] [--vendor]",
+        "syntax": "$harness-setup [--show] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force] [--vendor]",
         "input_kind": "none",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
@@ -3779,14 +3771,6 @@
             "value_kind": "boolean",
             "required": false,
             "summary": "Inspect effective state without writes",
-            "default": false
-          },
-          {
-            "id": "review-gate",
-            "syntax": "--review-gate",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Initialize or inspect the Review Gate",
             "default": false
           },
           {

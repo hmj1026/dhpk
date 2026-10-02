@@ -12,8 +12,8 @@ calling skill.
    and task/attempt identity with evidence pointers.
 3. Keep the change uncommitted; `/precommit` is a quality gate, not permission
    to commit.
-4. Verify the scoped result, run the applicable reviewer wave, and report open
-   sentinels or unavailable checks as blockers.
+4. Verify the scoped result, dispatch the recommended reviewers, and report
+   unavailable checks and unfixed CRITICAL findings as blockers.
 
 **Completion criterion:** the route has one selected implementation path,
-scoped verification evidence, and no unresolved applicable review gate.
+scoped verification evidence, and no unfixed CRITICAL reviewer finding.

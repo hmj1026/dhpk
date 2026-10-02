@@ -10,7 +10,7 @@
     ],
     "excludes": [],
     "id": "minimal",
-    "inventoryFingerprint": "04453541f68cd1a82ecfe34a54a709460737db60bf032193f1e7fc7bea7e6319",
+    "inventoryFingerprint": "6970e59fe9ebd26eefa52c571455b79c255ef9aea9224909f17f32992220f66c",
     "mode": "profile",
     "modules": [],
     "profileFingerprint": "e6fced74bf8dd6e7a3464c7b9b070196cf2a8276b01f1942d260884815b80fd6",
@@ -21,7 +21,7 @@
       "flow-drive",
       "flow-guide"
     ],
-    "selectionFingerprint": "bc6c19c836cbc82c376bf0fdf83b37e2908fe0463574ef0fc6cb90dfe9d5f796",
+    "selectionFingerprint": "0b979ae2f0e5cca19e35407f05a95418f4362068e33e7ab1346b2c8c3abea40b",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "2021154b6fde20436bc35ee0a2f4fa25b287ef2d9826027f24a56ac6fe69e606",
@@ -69,7 +69,7 @@
         "repo-verify"
       ]
     },
-    "surfaceSelectionFingerprint": "ae9ae7fcd6b715898e75e090ace8455facd0c4530e99443d204d3aa52fa39108",
+    "surfaceSelectionFingerprint": "a335977a08c8fa5d7977fc4f815be21baf5f286552252a7aac65c5a9bcc22061",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -291,14 +291,6 @@
       "destination": "skills/flow-drive/agents/openai.yaml"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/contracts/review-lifecycle.md",
-      "destination": "skills/flow-drive/references/execution-bundle/docs/contracts/review-lifecycle.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/contracts/reviewer-contract.md",
-      "destination": "skills/flow-drive/references/execution-bundle/docs/contracts/reviewer-contract.md"
-    },
-    {
       "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md"
     },
@@ -379,10 +371,6 @@
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
-      "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
-    },
-    {
       "stableId": "claude-profile:skill-resource:flow-drive:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
     },
@@ -433,14 +421,6 @@
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/dispatch-and-gates.md",
       "destination": "skills/flow-guide/references/dispatch-and-gates.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/contracts/review-lifecycle.md",
-      "destination": "skills/flow-guide/references/execution-bundle/docs/contracts/review-lifecycle.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/contracts/reviewer-contract.md",
-      "destination": "skills/flow-guide/references/execution-bundle/docs/contracts/reviewer-contract.md"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/docs/subagent-prompt-template.md",
@@ -523,10 +503,6 @@
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/premise-verification.md"
     },
     {
-      "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
-      "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
-    },
-    {
       "stableId": "claude-profile:skill-resource:flow-guide:references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md"
     },
@@ -569,10 +545,6 @@
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/projects-index.md",
       "destination": "skills/flow-guide/references/projects-index.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:flow-guide:references/review-gate-mechanics.md",
-      "destination": "skills/flow-guide/references/review-gate-mechanics.md"
     },
     {
       "stableId": "claude-profile:skill-resource:flow-guide:references/route-result.schema.json",
@@ -777,5 +749,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "fd4a1d477710a9994bea4e2d3c2f7d04fc79758e40fe2fc3bab56a43bbec911d"
+  "planFingerprint": "86eae39df0031bc832aca189feb953ce25d14b42acd3794cb8e14bfe6c3b0217"
 }

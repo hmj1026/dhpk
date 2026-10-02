@@ -366,10 +366,9 @@ order, each task's exact owner and write scope, and the next checkpoint. For one
 clear task, record `planner=skipped`. The external `/opsx:apply` workflow is
 unchanged.
 
-Each implementation wave ends with one consolidated review and a bounded fix
-loop: `BLOCK`, `CRITICAL`, and `HIGH` findings require a dedicated confirm-only
-reviewer; LOW/WARNING-only findings may close with worker verification plus a
-diff-scope recheck. Delivery order is: verify all tasks and gates → archive/sync
+After each implementation wave, dispatching the applicable reviewers in one
+parallel batch is recommended; fix CRITICAL findings before reporting done.
+Delivery order is: verify all tasks and gates → archive/sync
 OpenSpec → add a valid changelog fragment → open a Draft PR targeting `develop`
 → monitor that PR's actual CI with `gh run watch` to a completed conclusion → human
 merge gate.
@@ -377,11 +376,11 @@ Queued or partial CI is not completion.
 
 ### Review, verify, and handoff
 
-After an Edit/Write/MultiEdit, the orchestrator derives the applicable Review
-Gate obligations from the completed wave. It does not silently run formatting,
-lint, lockfile, or Stop advisory scripts. `/dhpk:review-pending` dispatches the
-reviewer for the selected paths; the legacy `sentinel_commit_gate` setting is
-retained for compatibility and does not replace Review Gate verdict tracking.
+After an Edit/Write/MultiEdit, dispatching the reviewers recommended by the
+trigger table is advised; there is no enforced review gate. dhpk does not
+silently run formatting, lint, lockfile, or Stop advisory scripts.
+`/dhpk:review-pending` dispatches the reviewer for the selected paths; the
+legacy `sentinel_commit_gate` setting is retained for compatibility only.
 
 ```text
 /dhpk:review-pending
@@ -509,7 +508,7 @@ roles: four hand-maintained generic roles and 12 generated from canonical
 Claude agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
 `codex/README.md` for the dual-harness model.
 
-Generated roles may depend on shared prompt-defense, trap-sheet, reviewer-contract,
+Generated roles may depend on shared prompt-defense, trap-sheet,
 artifact-contract, or execution-policy content. Those support files are mapped in
 the `supporting_assets` section of `manifests/distribution-inventory.json`, copied
 under `.codex/dhpk/`, and tracked in the same schema-v3 receipt. The runtime
@@ -584,8 +583,8 @@ See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 ## Migrating an existing project
 
 If the project already has its own `.claude/` harness, the following is a
-legacy migration plan for hook compatibility. New review work uses the Review
-Gate trigger table and durable obligations described above.
+legacy migration plan for hook compatibility. New review work uses the advisory
+reviewer trigger table described above.
 
 1. **Phase A — baseline**: snapshot pre-install hook outputs and test results.
 2. **Phase B — install (parallel)**: install the plugin with `userConfig.review_agents` pointing at the project's existing agents. Both sets of hooks fire side-by-side.

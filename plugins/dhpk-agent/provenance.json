@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "defce6fa9b0dae6788e435a83782cc5b7d51004e",
-  "generatedFromCommit": "defce6fa9b0dae6788e435a83782cc5b7d51004e",
-  "generatedFromTree": "ced82515624c0dc1ed5371ae75bb47fafb8c198a",
-  "inventoryDigest": "4b9b266395b0db950d9db6093aabe4ce6c70602b83862743f3b1021fe24d8079",
-  "inventoryRevision": "sha256:cce5b750f0a8919f282d99784c312e0b6805aaf34b49c5a5e7296984fb829392",
+  "sourceCommit": "c7bb755e88aebef540e01de90e02bdd1940f8e65",
+  "generatedFromCommit": "c7bb755e88aebef540e01de90e02bdd1940f8e65",
+  "generatedFromTree": "0c402c63a9024d77c2df9136eb24751ff2613d4f",
+  "inventoryDigest": "a27e391516f38815d4ece41f559879aae49d03a8d59097e9a1e6a011a323dfc5",
+  "inventoryRevision": "sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -155,22 +155,22 @@
     "dhpk-laravel-package-author": "7c3a42df9c11e1dfbe45d7c9e0c35f4183c85369c714728d9b624713630d8ef4",
     "dhpk-laravel-testbench-matrix": "bcaad0c43660c6626602e8c789d609c087fe9ab3619ace735394b9fe3e10aa79",
     "dhpk-module-design": "c9190c6495bf901212652e1bb9eb22a1cf53a6bef751f00016722e584b40fc27",
-    "dhpk-opsx-apply-goal": "e2be560c7623528a97d3872e4bdbb90b716c40b2a5abaf0cfdc4ed846a67d50f",
-    "dhpk-opsx-load-context": "300ef116e0cbb204480e54a0183a4886990041fa46d4f296b2c11554c09b8d80",
+    "dhpk-opsx-apply-goal": "5188bb29d65e343ab533080e9a55076ce007e2e9bb41000ad124ce6d38b2b474",
+    "dhpk-opsx-load-context": "533883b313fccafbc34725d1bae1a6f8801fa7b53434806d76529750c88d819c",
     "dhpk-opsx-post-observation": "61d09727dac1b9758d74ad2b0fff1311f00ea850952fd1dfc1ada8b75d1d9400",
     "dhpk-polyfill-version-matrix-audit": "c18597d1bbc40c5691321f3490ff28a07ffa0f6ec665deb15f2698147d158d2b",
     "dhpk-project-audit": "a3426961b9149ebc86d76ec31d5080f5306aa837f0a1c5c6115bd4d6d542d3db",
-    "dhpk-project-setup": "bb5a5c1efe375bb6ea3eef6df38a998f92413d8b52160fee490a3607aec23121",
+    "dhpk-project-setup": "350843298f69d8561879cdad021947a91196a8b4f625d7591279889e9477e8f6",
     "dhpk-prompt-optimize": "a9d91881566c0c05967a31334ce93cc1dcbe1bf0760dfed2a1f01c26b57223af",
     "dhpk-repo-intake": "3ce6f9da5cb781d08cebfd90321b9e657e2dfe978873ebac960d1f11ed37191b",
     "dhpk-session-usage-audit": "ad6e21ac72573e80cb06a1eb0f585f2c10f0f1557af015c932709cd6e542ac12",
     "doc-refactor": "24188cc9a98a780ace387611e216335c8b6b664ec0c6995040538fffad7ef299",
-    "flow-drive": "35ff75bb0930cfb82ff5525a6e03ae7cdd24510ee42e0fcada02cee94ad4f664",
-    "flow-guide": "c80549e1ce4313750a2d24c4b7e0a036d09562247cbc022fde5933d33463a7be",
+    "flow-drive": "ff94c3bd274f39a6090697e2d436f918aa7e9140dd15632cdd907c840df72448",
+    "flow-guide": "d9116004ceebefd6beff6054e1b0a0d1c30d012e74c848481ac9881ba89665a4",
     "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "harness-audit": "b751eaa79e54539cfd41422c6eeea0c848d75256bf8f165f9273263658489091",
-    "harness-govern": "24164e905fde623676b06ae32135f4bbe215dee12e8458dd644153ab9a8a0919",
+    "harness-govern": "42a18b083d6b1d6e2460c512f6cfb4d514f7e79f6156c3cc43462ff495b14863",
     "js-static-check-strategy": "6464d728360ec088489abc552a1f4e6a964d9e51a86883cead9f020ec399c9c9",
     "matrix-cell-onboard": "f70958741c684fcd4acc1051e27b43c0aa1900225ba43fdfa2d8899a774c2e03",
     "merge-prep": "480a57cf9f0733ab2b7f884175409202e811ca4def7fd3ba0e58854d06f1bead",
@@ -182,7 +182,7 @@
     "repo-verify": "fce629f9198f4e9abba6077b3ebc9bce6caf32a2a1af52d7a2fe4cb8e3b620f2",
     "review-pending": "d9baf7433bca224f9a2499af6c2b0242a4015a954fd24f759c8363ad0e499bc2",
     "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
-    "skill-scope": "b1cdcb19ec5b09ee0d855b4aa45a84d5c657ed8b42aac2ffda21005fabe58921",
+    "skill-scope": "e119692637c7c2070e0647277da231541e4336f2bcc125e2b346754edd01aa6c",
     "spec-mine": "7bec895983b41759863a1eb6db2f91d0096180dc4d65844556d630e5befdc1a5",
     "tdd-workflow": "a790ffd9a1bc32e64c76e6a6724f509e71511c564f35a36dfb010fbd1ada0ec3",
     "update-codemaps": "f38f3424ae52c66c67effae3dfd03388c756e63466fd051911974e85c33e18d9",
@@ -190,7 +190,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "92f9decbe0053b5f9ff41bb94a3a4564832175ed215cc7b5ce28ab936e1333b8",
+    "planId": "5137b2f1aba850b03b0b9fe139cab7c838549086a9c3619d6f9a38e49af0d072",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -316,10 +316,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "92f9decbe0053b5f9ff41bb94a3a4564832175ed215cc7b5ce28ab936e1333b8",
-      "inventory": "4b9b266395b0db950d9db6093aabe4ce6c70602b83862743f3b1021fe24d8079"
+      "plan": "5137b2f1aba850b03b0b9fe139cab7c838549086a9c3619d6f9a38e49af0d072",
+      "inventory": "a27e391516f38815d4ece41f559879aae49d03a8d59097e9a1e6a011a323dfc5"
     },
-    "rollbackIdentity": "306e25b8079b0774b364ed39f31b807274eea577ce7626e9041bba6c4348301e"
+    "rollbackIdentity": "246e3a085ab83f12b46e84c9f0985e6ccb7dfeacabd9e27159d5102b963b02a9"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

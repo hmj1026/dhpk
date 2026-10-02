@@ -113,12 +113,12 @@ Skill-local dependency.
 | # | Check | Severity | Detection | Recommendation |
 |---|-------|----------|-----------|----------------|
 | 1 | Override drift | P2 | `based_on` hash comment in project file vs current base file hash | "Base auto-loop updated since override authored; review your overrides" |
-| 2 | Policy contradiction | P1 | Override's Auto-Trigger table omits a review command required by the Review Gate dispatch contract | "Override conflicts with Review Gate obligation routing" |
+| 2 | Policy contradiction | P1 | Override's Auto-Trigger table omits a review command recommended by the reviewer trigger table | "Override conflicts with reviewer trigger routing" |
 | 3 | Missing reference | P1 | `.claude/CLAUDE.md` has `@rules/auto-loop-project.md` but file missing, OR file exists but not referenced | Report the missing project override for explicit reconciliation |
 | 4 | Wrong-layer edit | P2 | Base `auto-loop.md` has `LOCAL_MODIFIED`, `CONFLICT`, or `LEGACY` state while project override exists | "Move customization to auto-loop-project.md" |
 | 5 | Duplicate heading | P2 | Override file has multiple active `## <heading>` with same text | "Keep one, remove duplicates. Last occurrence takes effect." |
 
-**Policy contradiction detection**: Parse the project override's Auto-Trigger table for required check commands. Cross-reference against the Review Gate obligation contract: if the override omits `/dhpk:change-verdict --mode code` for code changes or `/dhpk:change-verdict --mode docs` for `.md` changes, flag as P1.
+**Policy contradiction detection**: Parse the project override's Auto-Trigger table for required check commands. Cross-reference against the reviewer trigger table: if the override omits `/dhpk:change-verdict --mode code` for code changes or `/dhpk:change-verdict --mode docs` for `.md` changes, flag as P1.
 
 **Override drift detection**: Read the `<!-- Based on: auto-loop.md @ <hash> -->` comment from the project file. Compare against `git hash-object --no-filters .claude/rules/auto-loop.md | cut -c1-7`. If different, the base has been updated since the override was authored. Uses blob hash for content-level comparison; accepts legacy commit-style hashes (any 7+ hex chars) during backward-compat transition.
 

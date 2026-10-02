@@ -23,14 +23,14 @@ SSOT 是 `@rules/execution-policy.md` 的 *Implementation dispatch*；本表只�
 | Lightweight Maintenance | — | 無，inline patch |
 
 禁止用 `general-purpose` 做實作 dispatch。`orchestration_dispatch=off` 時仍在
-本技能選定的 Feature 或 Bug branch 內直接實作，並保留相同的 RED、驗證與
-review gate。
+本技能選定的 Feature 或 Bug branch 內直接實作，並保留相同的 RED 與驗證，
+並建議派遣 reviewer。
 
 ## Post-Implementation Agent Gates
 
-回覆必須列出 `@rules/execution-policy.md` → *Post-implementation agent gate (SSOT)* 定義的 implementation specialist 與 Review Gate reviewer obligations。每個 implementation wave 的適用 reviewer 合併成一批 parallel batch；`tdd-guide` 與 `e2e-runner` 不是無條件 post-edit gate。
+回覆必須列出 `@rules/execution-policy.md` → *Post-implementation agent gate (SSOT)* 定義的 implementation specialist 與建議派遣的 reviewer。每個 implementation wave 的適用 reviewer 合併成一批 parallel batch；reviewer 為建議性質，非強制 gate；`tdd-guide` 與 `e2e-runner` 不是 post-edit reviewer。
 
-Gate 失敗時：findings 合併成一份 fix-spec；超過 inline bound 才交給 selector-resolved fast worker；已知 findings 只做一次 confirm-only 複查；TDD/E2E 修正回到原 specialist 的驗證命令。
+Reviewer 有 findings 時：合併成一份 fix-spec；CRITICAL 須在回報完成前修正；超過 inline bound 才交給 selector-resolved fast worker；TDD/E2E 修正回到原 specialist 的驗證命令。
 
 ## Next Commands By Workflow
 
@@ -73,5 +73,5 @@ code-trace /opsx:new 或 brief plan tdd-guide (conditional) Edit  applicable rev
 Inspect → Patch → Review
    │        │        │
    ▼        ▼        ▼
-  Read    Edit    applicable Review Gate reviewer(s)
+  Read    Edit    recommended reviewer(s)
 ```
