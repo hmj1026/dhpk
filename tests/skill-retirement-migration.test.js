@@ -78,6 +78,8 @@ function read(relative) {
 }
 
 function walkTextFiles(relative) {
+  if (['docs/design', 'docs/evidence', 'docs/knowledge']
+    .includes(relative.split(path.sep).join('/'))) return [];
   const absolute = path.join(ROOT, relative);
   const stat = fs.statSync(absolute);
   if (stat.isFile()) return [relative];
