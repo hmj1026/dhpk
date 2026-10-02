@@ -34,8 +34,8 @@ than copying it into this repository.
 - Commands: invocation/route, accepted arguments, failure boundary, and
   observable output or exit contract.
 - Root guidance: universal constraints plus links to the topic document; keep
-  `AGENTS.md` and `CLAUDE.md` under 50 lines and keep Codex-specific details in
-  `codex/AGENTS.md`.
+  the maintained root `AGENTS.md` index under 50 lines (excluding the GitNexus-managed block) and keep Host entrypoints as relative symlinks to the root source and Codex-specific details in
+  `codex/guidance.md`.
 - Trap sheets: unique agent×stack traps in `agent-traps/<agent>/<stack>.md`;
   shared loader, prompt-defense, build-resolver skeleton, and CLI prompt
   composition live only in `agent-traps/_common/`; every canonical file needs a

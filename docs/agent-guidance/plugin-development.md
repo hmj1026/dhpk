@@ -13,6 +13,30 @@ Run the smallest focused gate first, then the complete set before handoff:
 - `bash scripts/validate/validate-harness.sh`
 - `node tests/run-all.js`
 
+### Claude validation (canonical root)
+
+The official Claude validator checks the canonical repository root:
+
+```bash
+claude plugin validate ~/projects/dhpk --strict
+```
+
+This command validates the Claude plugin source at the checkout root. It does
+not validate the separate Codex-native package under `plugins/dhpk/`.
+
+### Codex-native package validation
+
+Validate the `plugins/dhpk/` Codex-native artifact with its own checks:
+
+```bash
+node scripts/ci/verify-codex-native-package.js
+node tests/codex-native-package-validate.test.js
+node tests/codex-native-install-smoke.test.js
+```
+
+These checks do not replace Claude validation of the canonical repository
+root. Keep their results attached to the publication surface they validate.
+
 For reproducible pre/post test timing, run the same workload with
 `DHPK_TEST_TIMING_FILE=/path/to/timing.json`; the bounded runner writes a
 redacted JSON report containing aggregate, per-file, and worker durations. This
