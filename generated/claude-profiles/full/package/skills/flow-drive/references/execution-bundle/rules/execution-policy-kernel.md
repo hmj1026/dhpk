@@ -61,7 +61,5 @@ Load only the references needed by the selected route:
   classes and invocation ordering.
 - `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md` —
   worker selection, premise gates, retries, and evidence contracts.
-- `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md` —
-  sentinel lifecycle and fresh reviewer artifacts.
 - Stack/version trap sheets and OpenSpec references — only when the selected
   route requires them.

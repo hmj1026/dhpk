@@ -1,6 +1,6 @@
 # Implement Review Gate as a local event module
 
-Status: accepted
+Status: superseded by [0026](0026-remove-review-gate.md)
 
 Implementation status: target design accepted; no Review Gate runtime or
 adapter migration is implemented by this ADR alone.

@@ -10,14 +10,14 @@ UTF-8 bytes, the unit produced by `wc -c`.
 | `COVERAGE` | The configured coverage command reports the required threshold. |
 | `BUILD` / `LINT` | The named command reports zero errors. |
 | `SMOKE` | A first-line `Verdict: PASS` plus one observed output line, or an evidenced runtime escape hatch. |
-| `REVIEW` | Applicable reviewers run once for the implementation wave; known findings use one confirm-only re-review. |
-| `ARTIFACT` | The edited-file list and fresh review artifact are present. |
-| `VERDICT` | The Review Gate reports a resolved verdict for every applicable obligation, or explicitly reports `NOT_APPLICABLE`. |
+| `REVIEW` | Recommended reviewers run once for the implementation wave (advisory). |
+| `ARTIFACT` | The edited-file list is present. |
+| `VERDICT` | No CRITICAL reviewer finding remains unfixed. |
 | `TURN` | The bounded turn checkpoint writes the resume note before stopping. |
 
 The fixed core must preserve orientation, self-locating kernel/route lookup, the
 `openspec-apply-change` kickoff, the hard-rule carve-out, the Unknown-skill
-fallback, the worker roster, and identity-bound Review Gate status/verdict gates. The normal target is
+fallback, the worker roster, and the unfixed-CRITICAL check. The normal target is
 `<=3,600` UTF-8 bytes (raised from 3,400 when the source-checkout policy
 fallback and the POLICY-UNRESOLVED reviewer-artifact clause were added — the
 prior target left only 4 bytes of headroom, less than either addition costs);

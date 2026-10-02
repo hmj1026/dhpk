@@ -17,7 +17,7 @@ blocks verbatim.
 ║  Test runners: <detected runners, or "none detected">
 ║  Coverage    : <enforced threshold <T> (config | --min-coverage) | not enforced (pass --min-coverage N) | not enforced (no test runner) | --min-coverage ignored (no test runner)>
 ║  Smoke gate  : <on (signal) | on (--smoke) | off (--no-smoke) | off (no strong signal, hint emitted)>
-║  Review Gate  : identity-bound status (all applicable obligations)
+║  Reviewers   : advisory (fix CRITICAL findings before done)
 ║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
 ║  Manual tasks: <N skipped, or "none">
 ║  Goal length : <GOAL_LENGTH>/4000 UTF-8 bytes  <full | ⚠ BLOCKED>
@@ -68,20 +68,15 @@ verbatim. Append the coverage-off NOTES line when
   exists), branch or worktree isolation in place, and a quality gate (test /
   build / lint) detected above — if none is detected the loop has no safety net,
   so add one or supervise the run
-• Resolve any stale, foreign, or malformed Review Gate obligations before
-  starting the loop; an unresolved obligation blocks completion. Use the
-  runtime status command for the current task identity and record its result.
 • Brownfield with no baseline specs: if openspec/specs/ is empty, run
   /spec-mine (spec-miner agent) first so change deltas have a baseline truth
   to reference — then start the goal loop
 • /goal resets on /new or /clear — re-run this command in the new session
-• Review Gate status is scope-calibrated: the goal satisfies only when every
-  applicable reviewer obligation for the current task, attempt, dispatch,
-  scope, and diff identity is resolved (or explicitly `NOT_APPLICABLE`)
+• Reviewer dispatch is advisory: the goal satisfies once no CRITICAL reviewer
+  finding remains unfixed
 • Worker dispatch (dhpk:deep-reasoner / dhpk:fast-worker, when
-  orchestration_dispatch=on) does not bypass the Review Gate: worker edits
-  contribute to the same identity-bound obligation set and require durable
-  artifacts and verdicts before completion
+  orchestration_dispatch=on) gets the same reviewer recommendation as
+  main-loop edits
 • You are the orchestrator (the expensive tier); routing mechanical / multi-file
   clear-spec work to dhpk:fast-worker is the point of dispatch, not an optional
   nicety — inline is a ≤2-file exception plus your own bookkeeping, and when
@@ -147,9 +142,6 @@ without touching the running session. Pure reads, no side effects:
 # open vs done tasks (re-run to watch progress)
 grep -c '^- \[ \]' openspec/changes/<CHANGE_ID>/tasks.md   # open
 grep -c '^- \[x\]' openspec/changes/<CHANGE_ID>/tasks.md   # done
-# Review Gate status for the current task identity (RESOLVED or NOT_APPLICABLE)
-# Use the repository's runtime status command and record its bounded output.
-node <SKILL_ROOT_Q>/scripts/review-gate-runtime.js status --work-id <WORK_ID> --wave-id <WAVE_ID>
 ```
 
 Stall read: if two consecutive checks show the same `open` count with no new

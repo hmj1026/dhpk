@@ -276,9 +276,8 @@ The default hook surface now has four focused responsibilities:
 3. Validate and activate configured modules at session start.
 4. Clean up stopped fast-worker liveness state at subagent stop.
 
-Reviewer selection, identity binding, artifact/result recording, and obligation
-resolution belong to the orchestrator-owned Review Gate and its durable evidence
-store. Completion is based on that identity-bound evidence, not hook side effects.
+Reviewer selection is orchestrator-owned and advisory; hooks never enforce a
+review gate.
 
 Formatting, lint, Docker probes, prompt hints, session snapshots, and other
 advisory work are explicit consumer extensions rather than default hooks.

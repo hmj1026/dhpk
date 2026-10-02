@@ -90,4 +90,4 @@ Verification: unit ✅ / smoke ✅ / JS console ✅
 
 ## Closing — Artifact Output
 
-When producing a cleanup report: category `refactors/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`removed[]` / `consolidated[]` / `verdict`). No consolidated Review Gate obligation by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.
+When producing a cleanup report: category `refactors/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`removed[]` / `consolidated[]` / `verdict`). Not part of the recommended post-edit reviewer batch by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.

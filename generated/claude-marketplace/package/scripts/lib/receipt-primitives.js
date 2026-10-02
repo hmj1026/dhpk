@@ -12,7 +12,7 @@ const {
   deepFreeze,
   immutableJson,
 } = require('./receipt-json-primitives');
-const { LIMITS: STORE_BUDGET_LIMITS, assertLeaseRecordBytes } = require('./review-gate-store-budget');
+const { LIMITS: STORE_BUDGET_LIMITS, assertLeaseRecordBytes } = require('./receipt-store-budget');
 const { writePhysicalImmutable } = require('./physical-file');
 
 const SHA256 = /^[a-f0-9]{64}$/i;

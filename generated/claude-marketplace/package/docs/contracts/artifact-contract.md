@@ -1,11 +1,9 @@
 # Agent Artifact-Output Contract
 
-Reviewer dispatch prompt fields and bounded no-op recovery are defined in
-[`reviewer-contract.md`](./reviewer-contract.md); this file remains the SSOT for
-persisted artifact paths, frontmatter, and verdict vocabulary. Current Review
-Gate dispatch does not use sentinel clearance.
+This file is the SSOT for persisted artifact paths, frontmatter, and verdict
+vocabulary. Reviewer dispatch is advisory; no artifact clears a gate or sentinel.
 
-SSOT for the write-to-disk conventions shared across dhpk agents that persist a report, review, or plan under `.claude/artifacts/`. Extracted from what was previously copy-pasted (and drifting) inline across 18 agent files. Referenced from each agent's own "Closing — Artifact Output" section, which keeps only what's genuinely agent-specific: its own path category, its own extra frontmatter fields, and whether it participates in Review Gate dispatch.
+SSOT for the write-to-disk conventions shared across dhpk agents that persist a report, review, or plan under `.claude/artifacts/`. Extracted from what was previously copy-pasted (and drifting) inline across 18 agent files. Referenced from each agent's own "Closing — Artifact Output" section, which keeps only what's genuinely agent-specific: its own path category, its own extra frontmatter fields.
 
 ## Does this output belong here at all?
 
@@ -127,39 +125,3 @@ suspected cost here, and do not restate a threshold that nothing enforces.
 ## Degradation
 
 If `.claude/artifacts/` (or the specific category subdirectory) does not exist, emit the report to stdout only — do not error.
-
-## Legacy Sentinel clearance (historical compatibility only)
-
-The following section documents the retired hook-backed compatibility path. It
-does not apply to current Review Gate obligations, which are cleared by a
-durable identity-compatible verdict rather than by deleting a marker.
-
-Reviewer agent definitions do NOT self-run a closing `clear-sentinel.sh` step.
-Clearance is owned by the runtime hook `scripts/hooks/subagent-stop-verify.sh`:
-on a successful reviewer stop with the sentinel still armed, it auto-clears
-that reviewer's own slot only when fresh canonical review evidence has a
-canonical `<agent>-YYYYMMDD-HHMMSS-<slug>.md` filename, leading delimited
-frontmatter with all required reviewer fields, and a parseable passing
-`verdict: APPROVE` or `verdict: PASS` (reviewer-liveness-gate).
-"Fresh" means produced this cycle: the artifact's mtime must postdate the
-sentinel that armed the review, so a doc left over from an earlier review cycle
-does not count (reviewers run repeatedly per session). Missing, noncanonical,
-malformed, warning, failing, or unparseable evidence leaves the sentinel armed;
-it is not clearance. This is the sanctioned path
-(the auto-mode permission classifier blocks a reviewer running
-`clear-sentinel.sh` on its own sentinel as "Logging/Audit Tampering"). When the
-reviewer stops cleanly but **no fresh review artifact was produced this cycle,
-the hook leaves the sentinel ARMED** (the review gate stays unmet, so the
-orchestrator re-dispatches) and logs it as a failure — a no-output reviewer must
-not clear its own gate.
-
-As an exception-path back-stop, the orchestrator may still invoke
-`clear-sentinel.sh` manually for a stale sentinel left armed after an
-otherwise-clean APPROVE (e.g. when the SubagentStop payload didn't carry a
-resolvable subagent name):
-
-```
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" <sentinel-name> <agent-name>
-```
-
-N/A for agents not in the sentinel review chain (`doc-updater`, `harness-reviser`, `tdd-guide`, `type-design-analyzer`, `architect`, `agent-evaluator`, `refactor-cleaner`, `e2e-runner`, `performance-analyzer`, `spec-miner`, `deep-reasoner`, `fast-worker`) — those either have no sentinel slot or are triggered by explicit invocation / a back-stop, not a `.pending-*` sentinel.

@@ -1,6 +1,6 @@
 ---
 name: migration-reviewer
-description: Database migration safety specialist. Reviews schema-migration files for up/down symmetry, idempotency, FK / index naming collision across multi-tenant deploy footprints, large-ALTER strategy on high-volume tables, engine/charset explicitness, and rollback executability. Review Gate-triggered for migration paths. Companion to (not replacement for) `database-reviewer` — db-reviewer covers SQL correctness; this agent covers migration-specific concerns (reversibility, multi-deploy collisions, online DDL safety). Loads stack-specific migration traps on demand.
+description: Database migration safety specialist. Reviews schema-migration files for up/down symmetry, idempotency, FK / index naming collision across multi-tenant deploy footprints, large-ALTER strategy on high-volume tables, engine/charset explicitness, and rollback executability. Recommended for migration paths. Companion to (not replacement for) `database-reviewer` — db-reviewer covers SQL correctness; this agent covers migration-specific concerns (reversibility, multi-deploy collisions, online DDL safety). Loads stack-specific migration traps on demand.
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
@@ -29,10 +29,8 @@ Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / 
 
 ## Diff scope
 
-The orchestrator supplies the immutable Review Request and exact Review Gate
-obligation. Apply the reviewer-dispatch rules in
-`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`; missing scope or identity is
-a completed `BLOCKED` result. Back-stop fallback restricts to
+The orchestrator supplies the changed-file scope. Apply the reviewer rules in
+`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. Back-stop fallback restricts to
 `'**/migrations/**'` (or the project's equivalent path).
 
 ## Stack trap sheet (load on demand)
@@ -115,14 +113,6 @@ For high-volume tables (declared per project via the `hot_tables` userConfig key
 
 ## Shared reviewer contract
 
-Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
-
-## Structured Review Gate Companion
-
-The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
-
-Follow [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
-
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
 ### Specialist checks
@@ -153,7 +143,7 @@ Suggestions: ...
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, retention, and degradation: [`docs/contracts/artifact-contract.md`](../docs/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.
+Category: `reviews/`. Verdict shape: PASS/WARNING/FAIL. Path, frontmatter, retention, and degradation: [`docs/contracts/artifact-contract.md`](../docs/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation.
 
 ## References
 

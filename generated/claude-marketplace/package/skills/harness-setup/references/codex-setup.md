@@ -61,8 +61,6 @@ stable interface. On Codex, these options have no safe equivalent:
 
 - `--install hooks|rules|scripts|all` — Claude asset groups; do not copy them
   into `.codex` or reinterpret them as a skill profile.
-- `--review-gate` — Claude's local Review Gate initializer and trust-key flow;
-  Codex setup does not fabricate it from a different hook contract.
 
 Report each as `UNAVAILABLE` with the unsupported option and the Skill-local
 Codex installer command as the next action. An unsupported Claude option is
@@ -87,6 +85,6 @@ fresh Codex runtime discovery remains `NOT_RUN` until a consumer probe.
 
 - [ ] Plan ran before any approved update.
 - [ ] Receipt ownership and preserved conflicts were reported.
-- [ ] No Claude hook/rule/Review Gate behavior was silently translated.
+- [ ] No Claude hook/rule behavior was silently translated.
 - [ ] User config and unrelated `.codex` files were preserved.
 - [ ] Runtime availability was not inferred from static receipt evidence.

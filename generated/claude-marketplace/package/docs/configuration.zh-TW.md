@@ -78,7 +78,7 @@ key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保�
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Hook 輸出的詳細程度。`minimal` 抑制 Stop 提醒；`strict` 增加額外警告。 |
-| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 role 順序（code、db、sec、frontend、doc、polyfill、migration）由 Review Gate 派工的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 role。Slot 5–6（polyfill、migration）僅在 opt-in trigger 時選取。 |
+| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 role 順序（code、db、sec、frontend、doc、polyfill、migration）由建議性 reviewer 派工使用的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 role。Slot 5–6（polyfill、migration）僅在 opt-in trigger 時選取。 |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus`（依當前 Claude Code 版本支援的模型而定） | `dhpk:deep-reasoner` Agent-call 派發（推理密集的實作工作）使用的模型層級。當與 agent frontmatter 預設值不同時，透過 Agent call 的 `model` 參數套用。設定值無效時每個 session 只警告一次並退回 frontmatter 預設值——絕不會讓派發失敗。 |
 | `fast_worker_model` | string | `sonnet` | 同上 | `dhpk:fast-worker` Agent-call 派發（機械式實作工作）使用的模型層級。驗證/退回行為與 `deep_reasoner_model` 相同。 |
 | `planner_model` | string | `opus` | 同上 | `dhpk:planner` Agent-call 派發使用的模型層級（`/dhpk:flow-drive --plan` opt-in 的實作前批判 / 實作後 warm review）。驗證/退回行為與 `deep_reasoner_model` 相同。 |
@@ -195,7 +195,7 @@ role，並以具名 `codex exec` opt-in 請求第二意見。
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
 | `docker_containers` | string[] | `[]` | container 名稱 | 保留給明確註冊的 Docker tooling；預設 SessionStart 不會檢查 container 或輸出 container 變數。 |
-| `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 Review Gate trigger 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
+| `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 reviewer trigger 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
 
 ## Review 觸發與風險啟發式
 
@@ -208,7 +208,7 @@ role，並以具名 `codex exec` opt-in 請求第二意見。
 
 | Key | 型別 | 預設值 | 選項 | Env 覆寫 | 用途 |
 |-----|------|--------|------|----------|------|
-| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | 保留的 legacy 設定；目前 Review Gate obligation 由 orchestrator 評估。`warn` = stderr 提醒（exit 0）；`block` = 拒絕該工具呼叫（exit 2）；`off` = 靜默。 |
+| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | 保留的 legacy 設定；reviewer 派工為建議性質。`warn` = stderr 提醒（exit 0）；`block` = 拒絕該工具呼叫（exit 2）；`off` = 靜默。 |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | 在受保護分支上執行破壞歷史的 git 動詞（`commit/merge/rebase/cherry-pick/reset/push`）時的行為。 |
 | `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | 分支名稱／bash `case` glob | — | `branch_safety` 閘門檢查的分支清單。設為 `[]` 可在不將 `branch_safety` 設為 `off` 的情況下停用逐分支檢查。 |
 

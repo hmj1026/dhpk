@@ -365,8 +365,6 @@
         "references/delivery-loop-gate.md",
         "references/deterministic-first.md",
         "references/dispatch-and-gates.md",
-        "references/execution-bundle/docs/contracts/review-lifecycle.md",
-        "references/execution-bundle/docs/contracts/reviewer-contract.md",
         "references/execution-bundle/docs/subagent-prompt-template.md",
         "references/execution-bundle/manifests/host-profiles.json",
         "references/execution-bundle/manifests/provider-model-catalog.json",
@@ -382,7 +380,6 @@
         "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
         "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
-        "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
         "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
         "references/handoff-and-verification.md",
         "references/implementation-dispatch.md",
@@ -394,7 +391,6 @@
         "references/progression-tables.md",
         "references/projects-generic.md",
         "references/projects-index.md",
-        "references/review-gate-mechanics.md",
         "references/route-result.schema.json",
         "references/route-table.json",
         "references/script-operations.md",
@@ -850,8 +846,6 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
-        "references/execution-bundle/docs/contracts/review-lifecycle.md",
-        "references/execution-bundle/docs/contracts/reviewer-contract.md",
         "references/execution-bundle/docs/subagent-prompt-template.md",
         "references/execution-bundle/manifests/host-profiles.json",
         "references/execution-bundle/manifests/provider-model-catalog.json",
@@ -867,7 +861,6 @@
         "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
         "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
-        "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
         "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
       ],
       "executable_entries": [
@@ -1121,8 +1114,6 @@
       "references": [
         "agents/openai.yaml",
         "references/detection.md",
-        "references/execution-bundle/docs/contracts/review-lifecycle.md",
-        "references/execution-bundle/docs/contracts/reviewer-contract.md",
         "references/execution-bundle/docs/subagent-prompt-template.md",
         "references/execution-bundle/manifests/host-profiles.json",
         "references/execution-bundle/manifests/provider-model-catalog.json",
@@ -1139,7 +1130,6 @@
         "references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
         "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
         "references/execution-bundle/skills/flow-guide/references/premise-verification.md",
-        "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
         "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
         "references/gate-contracts.md",
         "references/goal-templates.md",
@@ -1161,12 +1151,6 @@
             "goal-dispatch-codex-local-success",
             "goal-dispatch-agy-local-success",
             "goal-dispatch-rejected-authority"
-          ]
-        },
-        {
-          "path": "scripts/review-gate-runtime.js",
-          "fixture_ids": [
-            "goal-review-gate-unresolved-evidence"
           ]
         }
       ],
@@ -1254,148 +1238,6 @@
           "required_by": [
             "scripts/run-codex.sh",
             "scripts/run-agy.sh"
-          ]
-        },
-        {
-          "path": "scripts/lib/claude-review-gate-adapter.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime-composition.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/physical-file.js",
-          "required_by": [
-            "scripts/lib/receipt-primitives.js",
-            "scripts/lib/review-gate-receipt-store.js",
-            "scripts/lib/review-gate-runtime-attestation.js",
-            "scripts/lib/review-gate-runtime-storage.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/receipt-json-primitives.js",
-          "required_by": [
-            "scripts/lib/receipt-primitives.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/receipt-primitives.js",
-          "required_by": [
-            "scripts/lib/claude-review-gate-adapter.js",
-            "scripts/lib/review-gate-evidence.js",
-            "scripts/lib/review-gate-receipt-store.js",
-            "scripts/lib/review-gate-runtime-attestation.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime-evidence.js",
-            "scripts/lib/review-gate-runtime-storage.js",
-            "scripts/lib/review-gate.js",
-            "scripts/lib/risk-router.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/redaction.js",
-          "required_by": [
-            "scripts/lib/receipt-primitives.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-evidence.js",
-          "required_by": [
-            "scripts/lib/review-gate.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-receipt-store.js",
-          "required_by": [
-            "scripts/lib/claude-review-gate-adapter.js",
-            "scripts/lib/review-gate-evidence.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-attestation.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime-storage.js",
-            "scripts/lib/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-checkpoint.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-composition.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-errors.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime-attestation.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime-evidence.js",
-            "scripts/lib/review-gate-runtime-storage.js",
-            "scripts/lib/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-evidence.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-storage.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime-evidence.js",
-            "scripts/lib/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime.js",
-          "required_by": [
-            "scripts/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-store-budget.js",
-          "required_by": [
-            "scripts/lib/receipt-primitives.js",
-            "scripts/lib/review-gate-receipt-store.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate.js",
-          "required_by": [
-            "scripts/lib/claude-review-gate-adapter.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-storage.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/reviewer-contract.js",
-          "required_by": [
-            "scripts/lib/claude-review-gate-adapter.js",
-            "scripts/lib/review-gate-evidence.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-evidence.js",
-            "scripts/lib/risk-router.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/risk-router.js",
-          "required_by": [
-            "scripts/lib/review-gate-evidence.js",
-            "scripts/lib/review-gate-runtime-composition.js"
           ]
         }
       ],
@@ -2045,12 +1887,6 @@
             "setup-codex-local-wrapper-valid-artifact",
             "setup-codex-pinned-artifact-root"
           ]
-        },
-        {
-          "path": "scripts/review-gate-runtime.js",
-          "fixture_ids": [
-            "setup-harness-review-gate-local-closure"
-          ]
         }
       ],
       "host_capabilities": [],
@@ -2066,148 +1902,6 @@
           "path": "scripts/lib/install-codex-skills.sh",
           "required_by": [
             "scripts/install-codex-project.sh"
-          ]
-        },
-        {
-          "path": "scripts/lib/claude-review-gate-adapter.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime-composition.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/physical-file.js",
-          "required_by": [
-            "scripts/lib/receipt-primitives.js",
-            "scripts/lib/review-gate-receipt-store.js",
-            "scripts/lib/review-gate-runtime-attestation.js",
-            "scripts/lib/review-gate-runtime-storage.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/receipt-json-primitives.js",
-          "required_by": [
-            "scripts/lib/receipt-primitives.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/receipt-primitives.js",
-          "required_by": [
-            "scripts/lib/claude-review-gate-adapter.js",
-            "scripts/lib/review-gate-evidence.js",
-            "scripts/lib/review-gate-receipt-store.js",
-            "scripts/lib/review-gate-runtime-attestation.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime-evidence.js",
-            "scripts/lib/review-gate-runtime-storage.js",
-            "scripts/lib/review-gate.js",
-            "scripts/lib/risk-router.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/redaction.js",
-          "required_by": [
-            "scripts/lib/receipt-primitives.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-evidence.js",
-          "required_by": [
-            "scripts/lib/review-gate.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-receipt-store.js",
-          "required_by": [
-            "scripts/lib/claude-review-gate-adapter.js",
-            "scripts/lib/review-gate-evidence.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime.js",
-          "required_by": [
-            "scripts/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-attestation.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime.js",
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime-storage.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-checkpoint.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime.js",
-            "scripts/lib/review-gate-runtime-composition.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-composition.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-errors.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime.js",
-            "scripts/lib/review-gate-runtime-attestation.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime-evidence.js",
-            "scripts/lib/review-gate-runtime-storage.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-evidence.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime.js",
-            "scripts/lib/review-gate-runtime-composition.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-storage.js",
-          "required_by": [
-            "scripts/lib/review-gate-runtime.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-composition.js",
-            "scripts/lib/review-gate-runtime-evidence.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate-store-budget.js",
-          "required_by": [
-            "scripts/lib/receipt-primitives.js",
-            "scripts/lib/review-gate-receipt-store.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/review-gate.js",
-          "required_by": [
-            "scripts/lib/claude-review-gate-adapter.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-storage.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/reviewer-contract.js",
-          "required_by": [
-            "scripts/lib/claude-review-gate-adapter.js",
-            "scripts/lib/review-gate-evidence.js",
-            "scripts/lib/review-gate-runtime-checkpoint.js",
-            "scripts/lib/review-gate-runtime-evidence.js",
-            "scripts/lib/risk-router.js"
-          ]
-        },
-        {
-          "path": "scripts/lib/risk-router.js",
-          "required_by": [
-            "scripts/lib/review-gate-evidence.js",
-            "scripts/lib/review-gate-runtime-composition.js"
           ]
         }
       ]

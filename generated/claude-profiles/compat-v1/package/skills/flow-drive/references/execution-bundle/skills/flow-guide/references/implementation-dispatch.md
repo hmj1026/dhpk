@@ -36,9 +36,8 @@ gates.
 **Review-fix waves follow the same posture.** After a consolidated review batch,
 combine actionable findings into one fix-spec and measure the whole fix footprint
 against the inline bound. A batch exceeding two files goes to the
-selector-resolved fast-worker. The bounded fix loop is worker verification plus a
-diff-scope recheck for LOW/WARNING-only findings; `BLOCK`, `CRITICAL`, and `HIGH`
-findings additionally require a dedicated confirm-only reviewer. Applying
+selector-resolved fast-worker. The fix loop is worker verification plus a diff-scope recheck;
+CRITICAL findings must be fixed before reporting done. Applying
 production fixes inline one finding at a time after review is the audited
 anti-pattern: it salami-slices one mechanical wave and expands the orchestrator's
 replay context.
@@ -47,11 +46,11 @@ replay context.
 
 ## Orchestration identity and evidence presentation
 
-Orchestration owns worker/reviewer selection, dispatch, handoff, lifecycle, retry, and evidence presentation. A worker or reviewer owns the work and its artifact; it does not own dispatch identity or Review Gate resolution. Keep the dispatch table in `rules/execution-policy.md`; this section defines the contract around that table without duplicating its roster.
+Orchestration owns worker/reviewer selection, dispatch, handoff, lifecycle, retry, and evidence presentation. A worker or reviewer owns the work and its artifact; it does not own dispatch identity. Keep the dispatch table in `rules/execution-policy.md`; this section defines the contract around that table without duplicating its roster.
 
-Every dispatch and handoff records one durable `task_id`. A retry of that task keeps the same `task_id` and receives a new `attempt_id`; an unrelated scope, session, or work item receives a new task identity. The lifecycle envelope may also carry `producer`, `wave`, evidence `scope`, `adapter`, `stage`, and optional `plan_fingerprint` / `artifact_fingerprint` fields. Older scope/diff-only records remain readable, while a supplied new identity that is absent or mismatched in a new obligation fails closed.
+Every dispatch and handoff records one durable `task_id`. A retry of that task keeps the same `task_id` and receives a new `attempt_id`; an unrelated scope, session, or work item receives a new task identity. The lifecycle envelope may also carry `producer`, `wave`, evidence `scope`, `adapter`, `stage`, and optional `plan_fingerprint` / `artifact_fingerprint` fields. Older scope/diff-only records remain readable, while a supplied new identity that is absent or mismatched fails closed.
 
-The orchestrator presents the producer artifact and its identity envelope to the Review Gate runtime in this order: dispatch/handoff identity, durable artifact-ready evidence, lifecycle result, then the matching semantic verdict. A message, aggregate `EvidenceResult`, or terminal lifecycle event alone is not completion and must never be copied into the identity fields as a verdict. Only the Review Gate runtime may resolve the matching obligation; unresolved or foreign evidence remains debt.
+A message, aggregate `EvidenceResult`, or terminal lifecycle event alone is not completion and must never be copied into the identity fields as a verdict.
 
 ## Native-first fallback
 
@@ -125,7 +124,7 @@ A global (non-path-scoped) `git status` is never completion or ownership evidenc
 
 **Second timeout is terminal.** If the recovery invocation also has a verified runner timeout, the worker stops and reports `RESULT: PARTIAL` (at least one assigned file confirmed) or `RESULT: BLOCKED` (none confirmed), naming both timeout observations, the backend identity, all three ledger sets, and the next action.
 
-**PARTIAL marker (control-plane, not a product edit).** Before returning `RESULT: PARTIAL`, the worker writes one JSON marker at a dispatcher-preallocated path: `.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`, where `<session-id>`/`<dispatch-id>` are safe slugs the dispatcher allocates before dispatch (never a raw timestamp, to avoid collisions). The marker records backend, session/dispatch identity, the `assigned`/`confirmed`/`remaining`/`unconfirmed` sets, both timeout observations, and the next action. It is reported as a separate control-plane output, never counted in the assigned-scope edited-file list, and is not automatically resolved by the worker or by a reviewer. It stays until a human or the orchestrator explicitly reconciles it. An unresolved PARTIAL marker blocks marking the implementation task complete, but it is not itself a Review Gate verdict or approval.
+**PARTIAL marker (control-plane, not a product edit).** Before returning `RESULT: PARTIAL`, the worker writes one JSON marker at a dispatcher-preallocated path: `.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`, where `<session-id>`/`<dispatch-id>` are safe slugs the dispatcher allocates before dispatch (never a raw timestamp, to avoid collisions). The marker records backend, session/dispatch identity, the `assigned`/`confirmed`/`remaining`/`unconfirmed` sets, both timeout observations, and the next action. It is reported as a separate control-plane output, never counted in the assigned-scope edited-file list, and is not automatically resolved by the worker or by a reviewer. It stays until a human or the orchestrator explicitly reconciles it. An unresolved PARTIAL marker blocks marking the implementation task complete, but it is not itself a reviewer verdict or approval.
 
 **Six-file starting guideline.** Recommend splitting a mechanical batch with more than six assigned product files into independently verifiable batches; six is an unmeasured starting point, not a wrapper or CLI setting. A deliberately larger batch requires an override reason recorded in the dispatch record and the worker's report — the worker itself never expands or splits its own assigned scope.
 
@@ -135,11 +134,11 @@ Watching a live CI run (`gh run watch`), triaging its run logs, and babysitting 
 
 ## Gate preservation (edited-file-list back-stop)
 
-Worker dispatch never weakens a gate. `fast-worker` always reports its complete edited-file list (mandatory, even on a failed/escalated attempt — see its agent body). After a dispatch returns, the orchestrator checks the path-scoped diff and derives the applicable Review Gate obligations from the complete edited-file list; no hook event, marker file, or subagent implementation detail substitutes for that scope check. The same post-implementation gate applies to worker-produced and main-loop edits.
+Worker dispatch never weakens a gate. `fast-worker` always reports its complete edited-file list (mandatory, even on a failed/escalated attempt — see its agent body). After a dispatch returns, the orchestrator checks the path-scoped diff and derives the recommended reviewers from the complete edited-file list; no hook event, marker file, or subagent implementation detail substitutes for that scope check. The same reviewer recommendation applies to worker-produced and main-loop edits.
 
 ## Verify worker output before accepting (implement phase)
 
-When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete assigned-scope edited-file list plus out-of-scope observations into the conversation, so the goal loop's conversation-only Haiku evaluator can see the evidence; (b) in parallel mode, cross-checks the assigned list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigates any mismatch; (c) after all workers in the batch finish, performs the one whole-tree shared-state reconciliation described above; (d) derives the Review Gate obligations from the edited-file list and records each applicable Review Request, artifact, lifecycle result, and semantic verdict against the same identity; (e) on a worker FAIL, out-of-scope write, or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run stays the `dhpk-opsx-apply-goal` Part 3 end-gate, not a per-task step. Wait on the dispatched worker's completion notification; do not poll marker files or sleep-loop awaiting agent results — this does not restrict the deterministic-completion-signal polling sanctioned by §No block-polling a running worker below (polling an observable artifact such as a DB row baseline for a mutating worker remains permitted).
+When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete assigned-scope edited-file list plus out-of-scope observations into the conversation, so the goal loop's conversation-only Haiku evaluator can see the evidence; (b) in parallel mode, cross-checks the assigned list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigates any mismatch; (c) after all workers in the batch finish, performs the one whole-tree shared-state reconciliation described above; (d) derives the recommended reviewers from the edited-file list; (e) on a worker FAIL, out-of-scope write, or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run stays the `dhpk-opsx-apply-goal` Part 3 end-gate, not a per-task step. Wait on the dispatched worker's completion notification; do not poll marker files or sleep-loop awaiting agent results — this does not restrict the deterministic-completion-signal polling sanctioned by §No block-polling a running worker below (polling an observable artifact such as a DB row baseline for a mutating worker remains permitted).
 
 ## Repository Discovery Gate and explicit hard rules
 
@@ -194,24 +193,9 @@ While a dispatched `local_agent`/background worker is still running, the orchest
 
 When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker, reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), spawn a new agent instead.
 
-When a follow-up reuses a reviewer through `SendMessage`, the orchestrator records
-the new `attempt_id` and the prior artifact/result digests before sending. The
-reviewer must produce a new identity-bound artifact and Review Result for that
-attempt; an intermediate response, a stale or foreign artifact, or a message
-without a result leaves the obligation unresolved. Allow one corrected resume
-for a missing or invalid result; after a second failure, replace the reviewer or
-record an explicit human blocker. Do not dispatch a duplicate while the original
-reviewer remains addressable. Session evidence: a 7-round reuse of one
+Session evidence: a 7-round reuse of one
 `e2e-runner` via `SendMessage` preserved its env overrides and fixtures across
 rounds and was the best-practice pattern observed in the `fe13512c` run.
-
-**Resuming a reviewer via `SendMessage`** carries the same identity obligation as
-an initial dispatch: preserve the stable `task_id`, assign a new `attempt_id`, and
-copy the declared scope, producer, wave, adapter/stage, and optional fingerprints
-into the new Review Request and artifact. The runtime accepts only a durable
-artifact-ready marker and a matching Review Result; message finality, artifact
-mtime, or a prior passing result never resolves the new attempt. The full
-identity and retry mechanics live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/review-gate-mechanics.md`.
 
 ## Explicit high-stakes second-opinion path
 

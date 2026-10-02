@@ -8,7 +8,7 @@
 
 ## Mandatory Gates
 
-1. **Review Gate**
+1. **Approval Gate**
 - No direct file mutation from plan output.
 - Produce migration plan first; execute only after approval.
 
