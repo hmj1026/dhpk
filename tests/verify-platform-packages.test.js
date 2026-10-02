@@ -9,6 +9,7 @@ const {
   reportFromSurfaces,
   expectedAgyPolicy,
   expectedCursorPolicyBody,
+  cleanCheckoutReport,
 } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
@@ -113,6 +114,24 @@ test('policy parity applies the generators\' repository-link rewrite before comp
     const cursor = expectedCursorPolicyBody(canonical, canonicalPath, root);
     assert.ok(cursor.includes(`[reviewer contract](${url})`), cursor);
     assert.ok(!cursor.includes('../docs/contracts/reviewer-contract.md'), cursor);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a dirty source checkout yields a FAIL report instead of a thrown stack trace', () => {
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-dirty-checkout-'));
+  try {
+    spawnSync('git', ['init', '-q'], { cwd: root });
+    fs.writeFileSync(path.join(root, 'untracked.txt'), 'dirty\n');
+    const report = cleanCheckoutReport(root);
+    assert.deepStrictEqual(report, {
+      verdict: 'FAIL',
+      surfaces: {},
+      errors: ['source checkout must be clean before generating provenance-bound package'],
+    });
+    fs.rmSync(path.join(root, 'untracked.txt'));
+    assert.strictEqual(cleanCheckoutReport(root), null);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
