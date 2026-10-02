@@ -30,7 +30,7 @@
 - `codex-mode.md`
   - retired `--codex` diagnostics and explicit worker/reasoner/second-opinion options
 - `dispatch-and-gates.md`
-  - planning、implementation、review gate 與 workflow diagram
+  - planning、implementation、reviewer 建議與 workflow diagram
 
 專案特化的 pack 不放在本 skill 內，而是由使用端專案提供 `@rules/dev-workflow-project.md`（見 `projects-index.md`）。
 

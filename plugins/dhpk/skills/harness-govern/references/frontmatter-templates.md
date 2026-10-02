@@ -63,7 +63,7 @@ model: haiku                       # haiku (frequent lightweight reviews) / sonn
 - Process (step list)
 - Checklist (`- [ ]` format)
 - Output format (artifact output path and frontmatter format)
-- Review Gate completion note: a reviewer agent ends by writing a bounded artifact with a parseable `verdict:` and evidence references. The runtime records the result against the applicable obligation; there is no manual clearance step or hook-owned marker to remove.
+- Reviewer completion note: a reviewer agent ends by writing a bounded artifact with a parseable `verdict:` and evidence references. Reviewer dispatch is advisory; there is no clearance step, gate, or hook-owned marker.
 
 ### Length limit
 
@@ -72,8 +72,8 @@ model: haiku                       # haiku (frequent lightweight reviews) / sonn
 ### After adding an agent, must sync
 
 1. `.claude/agents/INDEX.md`: add row to the Mandatory Chain or Situational table
-2. Execution-policy rule (project's own or cross-ref to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`): Agent dispatch table → add the applicable Review Gate obligation trigger
-3. Post-edit routing: ensure the obligation's file-pattern mapping is represented in the Review Gate dispatch contract
+2. Execution-policy rule (project's own or cross-ref to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`): Agent dispatch table → add the reviewer trigger row
+3. Post-edit routing: ensure the reviewer's file-pattern mapping is represented in the reviewer trigger table
 
 ---
 
@@ -125,7 +125,7 @@ No frontmatter, pure Markdown.
 3. Communication (reply language / code comment language / domain terms)
 4. Core rules: SSOT / Read-before-write (cx > gitnexus > Read) / No auto-commit / language version constraints
 5. Key references table (Topic → File) at minimum including:
-   - Execution strategy + Review Gate obligations → `.claude/rules/execution-policy.md` (or `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` if dhpk-installed)
+   - Execution strategy + reviewer triggers → `.claude/rules/execution-policy.md` (or `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` if dhpk-installed)
    - Tool routing → `.claude/rules/tool-routing.md`
    - Sub-agent prompt template → `.claude/docs/subagent-prompt-template.md` (or dhpk's `${CLAUDE_PLUGIN_ROOT}/docs/subagent-prompt-template.md`)
    - Agent roster → `.claude/agents/INDEX.md`

@@ -80,8 +80,7 @@ reason instead of treating the missing check as a pass.
 
 Account for changed files, TDD evidence when behavior changed, applicable
 reviewers, triggered security/database/frontend/runtime checks, unresolved
-risks, and the next handoff. Use `references/handoff-and-verification.md` and
-`references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md` only when their conditional detail is
+risks, and the next handoff. Use `references/handoff-and-verification.md` only when its conditional detail is
 needed. Never claim commit, merge, release, deployment, or archive completion
 from a local closeout report.
 
@@ -117,7 +116,6 @@ repository inventory, environment variable, or upward search is consulted.
 - `references/projects-index.md` — project-specific policy references.
 - `references/progression-tables.md` — fallback progression for `next`.
 - `references/handoff-and-verification.md` — conditional handoff evidence.
-- `references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md` — conditional reviewer mechanics.
 - `rules`: load `references/execution-bundle/skills/flow-guide/references/deterministic-first.md`,
   `references/dispatch-and-gates.md`, `references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md`,
   `references/execution-bundle/skills/flow-guide/references/testing-policy.md`, or `references/execution-bundle/skills/flow-guide/references/component-addition-policy.md`
