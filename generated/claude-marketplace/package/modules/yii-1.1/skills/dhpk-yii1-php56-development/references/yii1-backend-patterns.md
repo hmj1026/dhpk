@@ -1,65 +1,69 @@
 # Yii 1.x Backend Patterns
 
-This reference summarizes Yii guidance that remains safe for generic Yii 1.x backend work, with Yii 1.1 used as the primary behavioral baseline.
-
-Source basis: Context7 queries against `/yiisoft/yii`.
+Use this file for controllers, validation, models, DAO, and request handling on a Yii 1.1 baseline.
+Source basis: dhpk-authored guidance; general practice and public Yii 1.1 / PHP / PHPUnit facts, written without copying upstream text.
 
 ## Controllers
 
-Keep Controllers thin:
+Keep actions thin. An action should only:
 
-- read request data
-- select or construct the right scenario
-- delegate business work to an Application Service, Domain Service, or model boundary
-- map the result to redirect, view, JSON, or error response
+- read request data;
+- pick or build the scenario;
+- hand off to an application or domain service, or to a model;
+- turn the result into a redirect, a rendered view, JSON, or an error.
 
-Do not put validation rules, calculations, or persistence-heavy logic directly in the Controller unless the code is trivial glue.
+Validation rules, calculations, and persistence-heavy logic do not belong in the controller; trivial glue code is the only exception. Business rules and SQL orchestration always live outside it.
 
 ## Validation and scenarios
 
-- Define validation in `rules()`.
-- Use scenarios to control which rules apply.
-- In Yii, validation rules also determine which attributes are safe for mass assignment in that scenario.
-- If an attribute needs mass assignment without validation, declare it explicitly with the `safe` rule.
+- Declare rules in `rules()`; use scenarios to decide which of them apply.
+- The rules active in a scenario define which attributes are safe for that scenario.
+- An attribute that needs no validation but must be mass-assignable needs an explicit `safe` rule.
+- For mass assignment, set the scenario first, then assign only a trusted, expected array.
+- Never assume every posted attribute is safe, and never mass-assign attributes not declared safe for the active scenario.
 
-When using mass assignment:
+```php
+$form = new ProfileForm('update');
+$input = Yii::app()->request->getPost('ProfileForm', []);
+$form->attributes = is_array($input) ? $input : [];
+if (!$form->validate()) {
+    $this->render('edit', ['model' => $form]);
+    return;
+}
+$this->profileService->update(Yii::app()->user->id, $form);
+```
 
-- set the scenario first
-- assign only trusted model arrays
-- do not assume every posted attribute is safe
+## CFormModel or CActiveRecord
 
-## FormModel and CActiveRecord
+Use a `CFormModel` or another dedicated input model when:
 
-Prefer `CFormModel` or a dedicated input model when:
+- the request shape does not match a table;
+- validation belongs to one use case rather than to the stored record;
+- several models or side effects are involved.
 
-- the request shape differs from the persistence shape
-- validation belongs to a use case rather than a table row
-- multiple models or side effects participate in one action
+Use `CActiveRecord` when:
 
-Prefer `CActiveRecord` when:
+- persistence is single-table and table-centric;
+- you need relations, scopes, and standard CRUD.
 
-- one table-centric persistence model is appropriate
-- relations, scopes, or standard CRUD behavior are the main concern
-
-Keep CActiveRecord focused on persistence mapping and local invariants. Move cross-entity workflows and domain rules outward when complexity grows.
+Keep AR to persistence mapping plus local invariants. As workflows start spanning entities, move them out into services.
 
 ## Active Record baseline
 
-For Yii 1.x AR classes:
-
-- include the standard static `model($className=__CLASS__)` method
-- keep `tableName()` explicit
-- use relations, scopes, and finder methods for table concerns
-- avoid turning the AR class into the full application layer
+- Provide the standard `public static function model($className = __CLASS__)`.
+- Declare `tableName()` explicitly.
+- Use relations, scopes, and finders for table concerns.
+- Do not let AR grow into the entire application layer.
 
 ## DAO and query safety
 
-- Use DAO or repository methods with parameter binding for custom queries.
-- Bind values instead of concatenating request data into SQL.
-- If SQL structure must vary, validate the dynamic part first, then bind values normally.
+- Write custom queries in a DAO or repository and bind every parameter.
+- Never concatenate request data into SQL.
+- If part of the SQL structure varies, validate that part first, then bind the values.
+- Identifiers and sort input go through an allow-list.
 
-## Safe request handling
+## Request handling
 
-- Read request values through the framework request boundary or a dedicated input adapter.
-- Normalize and validate user input before it reaches domain logic.
-- Treat mass assignment, query filters, sorting inputs, and identifiers as hostile until validated.
+- Read input through the request component or a dedicated input adapter.
+- Normalize and validate before anything reaches domain logic.
+- Treat mass-assigned data, filters, sort parameters, and identifiers as hostile until validated.

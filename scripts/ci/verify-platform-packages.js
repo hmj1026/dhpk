@@ -361,8 +361,21 @@ function reportFromSurfaces(surfaces, policyParity = null) {
   };
 }
 
+function cleanCheckoutReport(root) {
+  try {
+    assertCleanSourceCheckout(root);
+    return null;
+  } catch (error) {
+    return { verdict: 'FAIL', surfaces: {}, errors: [error.message] };
+  }
+}
+
 function main() {
-  assertCleanSourceCheckout(ROOT);
+  const dirty = cleanCheckoutReport(ROOT);
+  if (dirty) {
+    console.log(JSON.stringify(dirty, null, 2));
+    process.exit(1);
+  }
   const inventory = readJson(path.join(ROOT, 'manifests', 'distribution-inventory.json'));
   const profiles = readJson(path.join(ROOT, 'manifests', 'install-profiles.json'));
   const moduleCatalog = readJson(path.join(ROOT, 'manifests', 'module-catalog.json'));
@@ -400,4 +413,4 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { reportFromSurfaces, expectedAgyPolicy, expectedCursorPolicyBody };
+module.exports = { reportFromSurfaces, expectedAgyPolicy, expectedCursorPolicyBody, cleanCheckoutReport };

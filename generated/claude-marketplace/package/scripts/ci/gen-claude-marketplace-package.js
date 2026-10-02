@@ -51,6 +51,9 @@ function isInside(root, candidate) {
 }
 
 function copyPhysicalEntry(source, destination, root) {
+  const relative = path.relative(root, source).split(path.sep).join('/');
+  if (['docs/design', 'docs/evidence', 'docs/knowledge'].some((local) =>
+    relative === local || relative.startsWith(`${local}/`))) return;
   const stat = fs.lstatSync(source);
   if (stat.isSymbolicLink()) {
     const resolved = fs.realpathSync(source);
