@@ -1,7 +1,7 @@
 ---
 name: docs-lookup
 description: 'When the user asks how to use a library, framework, or API or needs up-to-date code examples, use Context7 MCP to fetch current documentation and return answers with examples. MUST BE USED when user asks "how to use X library/API" or requests current/up-to-date docs.'
-tools: ["read_file", "grep_search", "mcp_context7_resolve_library_id", "mcp_context7_query_docs"]
+tools: ["view_file", "grep_search", "mcp_context7_resolve_library_id", "mcp_context7_query_docs"]
 model: flash_lite
 ---
 

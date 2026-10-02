@@ -1,7 +1,7 @@
 ---
 name: codex-deep-reasoner
 description: 'One-release operational compatibility forwarder to codex-reasoner.'
-tools: ["read_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_query"]
+tools: ["view_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_query"]
 model: pro
 ---
 

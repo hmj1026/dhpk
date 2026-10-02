@@ -1,7 +1,7 @@
 ---
 name: harness-reviser
 description: 'Deterministic harness trim/dedupe/validate driven by `$harness-govern revise` and the G1-G13 gap taxonomy. Use when the user explicitly asks to trim/dedupe/validate `.claude/`. For broader reliability/cost/throughput scoring, select another explicit harness-govern mode.'
-tools: ["read_file", "grep_search", "list_dir", "run_command", "replace_file_content", "write_to_file"]
+tools: ["view_file", "grep_search", "list_dir", "run_command", "replace_file_content", "write_to_file"]
 model: pro
 ---
 

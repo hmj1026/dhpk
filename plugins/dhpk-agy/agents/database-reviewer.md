@@ -1,7 +1,7 @@
 ---
 name: database-reviewer
 description: 'Database review specialist (relational + object stores, framework-agnostic). MANDATORY Review Gate lane after writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, N+1 issues, transaction correctness. Do NOT skip when: the change seems small, manual verification was done, task feels complete. Review Gate trigger: SQL, schema, Repository, and migration changes. Detects the stack at runtime and loads the matching trap sheet on demand.'
-tools: ["read_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
+tools: ["view_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
 model: pro
 ---
 

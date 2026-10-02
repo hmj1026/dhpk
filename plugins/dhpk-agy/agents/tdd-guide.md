@@ -1,7 +1,7 @@
 ---
 name: tdd-guide
 description: 'TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Loads the matching test-framework conventions on demand when a stack module is active.'
-tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "mcp_gitnexus_impact"]
+tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "mcp_gitnexus_impact"]
 model: pro
 ---
 
