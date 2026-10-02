@@ -33,6 +33,30 @@ function closure(overrides = {}) {
   });
 }
 
+function copyDeclaredPassTestEvidence(destinationRoot) {
+  const review = purposeLedger.marketplace_review;
+  if (!review || !Array.isArray(review.rows)) return;
+  const evidence = review.rows.flatMap((row) => [
+    row.test_evidence,
+    ...(Array.isArray(row.host_selection) ? row.host_selection.map((group) => group.execution_evidence) : []),
+  ]).filter((item) => item && item.status === 'PASS');
+  const sources = new Set(evidence.map((item) => item.source));
+
+  for (const source of sources) {
+    assert.ok(typeof source === 'string' && source.startsWith('tests/'), `unexpected PASS evidence path: ${source}`);
+    assert.ok(!source.includes('\\') && !source.split('/').some((part) => ['', '.', '..'].includes(part)),
+      `unsafe PASS evidence path: ${source}`);
+    const sourcePath = path.resolve(ROOT, source);
+    const sourceRelative = path.relative(ROOT, sourcePath);
+    assert.ok(sourceRelative.startsWith(`tests${path.sep}`), `PASS evidence escaped the repository: ${source}`);
+    const targetPath = path.resolve(destinationRoot, source);
+    const targetRelative = path.relative(destinationRoot, targetPath);
+    assert.ok(targetRelative.startsWith(`tests${path.sep}`), `PASS evidence escaped the fixture: ${source}`);
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.copyFileSync(sourcePath, targetPath);
+  }
+}
+
 test('retirement closure accepts exactly the current wave and removed command set', () => {
   const result = closure();
   assert.strictEqual(result.ok, true, result.errors.join('\n'));
@@ -100,6 +124,7 @@ test('default active-root discovery catches route, package, projection, and rena
         return !new Set(['.agents', '.claude', '.codex', '.git', '.gitnexus', 'node_modules', 'tests']).has(first);
       },
     });
+    copyDeclaredPassTestEvidence(temporaryRoot);
     const projectedSkill = path.join(temporaryRoot, '.agents', 'skills', 'flow-guide', 'SKILL.md');
     fs.mkdirSync(path.dirname(projectedSkill), { recursive: true });
     fs.copyFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), projectedSkill);

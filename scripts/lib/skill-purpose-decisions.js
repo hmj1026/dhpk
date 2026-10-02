@@ -8,6 +8,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { extract: extractFrontmatter } = require('../ci/_lib/frontmatter');
+const { reviewEvidence, reviewFile, reviewObject } = require('./marketplace-review-paths');
+const {
+  VERSION: MARKETPLACE_REVIEW_V2,
+  marketplaceReviewBlockers,
+  validateMarketplaceReviewV2,
+} = require('./marketplace-review-v2');
 
 const SCHEMA = 'dhpk.skill-purpose-decisions.v2';
 const CONTRACT_VERSION = 'dhpk.skill-purpose-contract.v2';
@@ -338,6 +344,115 @@ function validateCurrentWave({ inventory, ledger, errors, root }) {
   return result;
 }
 
+// Review metadata describes candidate behavior ownership, not publication.
+// The v1 opt-in is bound to the accepted 84-ID planning baseline; legacy
+// decisions and the historical retirement wave remain separate contracts.
+function validateMarketplaceReview({ inventory, ledger, errors, root }) {
+  if (!Object.prototype.hasOwnProperty.call(ledger, 'marketplace_review')) return;
+  const review = ledger.marketplace_review;
+  const prefix = 'marketplace_review';
+  if (!reviewObject(errors, review, ['version', 'rows'], prefix)) return;
+  if (review.version === MARKETPLACE_REVIEW_V2) {
+    validateMarketplaceReviewV2({ inventory, ledger, review, errors, root });
+    return;
+  }
+  if (review.version !== 'dhpk.marketplace-review.v1') {
+    errors.push(`${prefix}.version must be dhpk.marketplace-review.v1 or ${MARKETPLACE_REVIEW_V2}`);
+  }
+  if (!Array.isArray(review.rows)) {
+    errors.push(`${prefix}.rows must be an array`);
+    return;
+  }
+  const skills = new Map((inventory.skills || []).filter((skill) => skill && nonEmptyString(skill.id))
+    .map((skill) => [skill.id, skill]));
+  const retired = new Set((inventory.retired_skills || []).map((skill) => skill && skill.id));
+  const decisions = new Map(ledger.decisions.filter((row) => row && nonEmptyString(row.id))
+    .map((row) => [row.id, row]));
+  const external = new Set((inventory.external_skill_packages || []).flatMap((item) => item.stable_ids || []));
+  const declaredResources = new Set([
+    ...(inventory.supporting_assets || []).map((item) => item.source),
+    ...(inventory.skill_routing_families || []).flatMap((item) => Object.values(item.selectors || {})),
+    ...Object.values(inventory.standalone_dependencies || {}).flatMap((item) =>
+      (item.files || []).map((file) => file.source)),
+  ].filter(nonEmptyString));
+  const rows = new Map();
+  for (const [index, row] of review.rows.entries()) {
+    const rowPrefix = `${prefix}.rows[${index}]`;
+    if (!reviewObject(errors, row, ['id', 'kind', 'owner_id', 'task_selector', 'version_condition',
+      'resources', 'behavior_successor', 'test_evidence', 'authority', 'license'],
+    `${rowPrefix}.${row && row.id || '<unknown>'}`)) continue;
+    if (!nonEmptyString(row.id)) {
+      errors.push(`${rowPrefix}.id must be a non-empty active stable ID`);
+      continue;
+    }
+    if (rows.has(row.id)) errors.push(`${prefix} duplicate review for '${row.id}'`);
+    rows.set(row.id, row);
+    if (!skills.has(row.id) || retired.has(row.id)) {
+      errors.push(`${rowPrefix}.${row.id}.id must resolve to a current active, non-retired skill`);
+    }
+  }
+  if (skills.size !== 84 || review.rows.length !== 84 || rows.size !== 84) {
+    errors.push(`${prefix}.rows must cover exactly 84 active stable IDs`);
+  }
+  for (const id of skills.keys()) {
+    if (!rows.has(id)) errors.push(`${prefix} missing review for active skill '${id}'`);
+  }
+  for (const [id, row] of rows) {
+    const rowPrefix = `${prefix}.${id}`;
+    if (!['entry', 'reference', 'branch', 'internal', 'retired'].includes(row.kind)) {
+      errors.push(`${rowPrefix}.kind must be entry/reference/branch/internal/retired`);
+    }
+    const owner = skills.get(row.owner_id);
+    if (!owner || (row.kind === 'entry' && row.owner_id !== id)
+      || (row.kind !== 'entry' && (!rows.has(row.owner_id) || rows.get(row.owner_id).kind !== 'entry'))) {
+      errors.push(`${rowPrefix}.owner_id must name a direct entry owner; entries must own themselves`);
+    }
+    for (const field of ['task_selector', 'version_condition']) {
+      if (!nonEmptyString(row[field])) errors.push(`${rowPrefix}.${field} must be a non-empty string`);
+    }
+    if (!decisions.has(id) || row.authority !== decisions.get(id).authority) {
+      errors.push(`${rowPrefix}.authority must match the existing purpose decision authority`);
+    }
+    if (!Array.isArray(row.resources)) {
+      errors.push(`${rowPrefix}.resources must be an array`);
+    } else {
+      if (['reference', 'branch', 'internal'].includes(row.kind) && row.resources.length === 0) {
+        errors.push(`${rowPrefix}.resources must be non-empty for ${row.kind}`);
+      }
+      const seen = new Set();
+      for (const resource of row.resources) {
+        if (seen.has(resource)) errors.push(`${rowPrefix}.resources contains duplicate path '${resource}'`);
+        seen.add(resource);
+        const realResource = reviewFile(errors, resource, `${rowPrefix}.resources`, root);
+        if (!realResource) continue;
+        const physicalResource = path.relative(fs.realpathSync(root), realResource).split(path.sep).join('/');
+        const resourceOwners = [skills.get(id), owner].filter(Boolean);
+        const owned = (file) => declaredResources.has(file) || resourceOwners.some((skill) =>
+          nonEmptyString(skill.path) && file.startsWith(`${skill.path}/`));
+        if (!owned(resource) || !owned(physicalResource)) {
+          errors.push(`${rowPrefix}.resources path '${resource}' is not owned or declared by inventory`);
+        }
+      }
+    }
+    if (row.kind !== 'entry' || row.behavior_successor !== undefined) {
+      reviewEvidence(errors, row.behavior_successor, `${rowPrefix}.behavior_successor`, root);
+    }
+    reviewEvidence(errors, row.test_evidence, `${rowPrefix}.test_evidence`, root, { test: true });
+    if (reviewObject(errors, row.license, ['status', 'evidence'], `${rowPrefix}.license`)) {
+      if (!['first-party', 'approved', 'excluded', 'unresolved'].includes(row.license.status)) {
+        errors.push(`${rowPrefix}.license.status must be first-party/approved/excluded/unresolved`);
+      }
+      if (external.has(id) && row.license.status === 'first-party') {
+        errors.push(`${rowPrefix}.license cannot claim first-party for an external package skill`);
+      }
+      if (row.kind === 'entry' && ['excluded', 'unresolved'].includes(row.license.status)) {
+        errors.push(`${rowPrefix}.license must be first-party or approved for an entry`);
+      }
+      reviewFile(errors, row.license.evidence, `${rowPrefix}.license.evidence`, root);
+    }
+  }
+}
+
 function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd() } = {}) {
   const errors = [];
   const effective = [];
@@ -349,7 +464,7 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
   }
   if (ledger.schema !== SCHEMA) errors.push(`purpose decision ledger schema must be ${SCHEMA}`);
   if (ledger.contractVersion !== CONTRACT_VERSION) errors.push(`purpose decision ledger contractVersion must be ${CONTRACT_VERSION}`);
-  if (!ledger.baseline || ledger.baseline.path !== 'docs/baselines/issue-467-develop-bba2873.json') {
+  if (!ledger.baseline || ledger.baseline.path !== 'manifests/baselines/issue-467-develop-bba2873.json') {
     errors.push('purpose decision ledger must reference the issue #467 baseline path');
   }
   if (!Array.isArray(ledger.decisions)) {
@@ -428,6 +543,7 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
   }
   if (rowsById.size !== activeSkills.length) errors.push(`purpose decisions must cover exactly ${activeSkills.length} active skills`);
 
+  validateMarketplaceReview({ inventory, ledger, errors, root });
   const retirements = validateCurrentWave({ inventory, ledger, errors, root });
 
   const baselinePath = ledger.baseline && path.join(root, ledger.baseline.path);
@@ -468,6 +584,149 @@ function validateSkillPurposeDecisions({ inventory, ledger, root = process.cwd()
   return { ok: errors.length === 0, errors, effective: effective.map(clone), retirements: retirements.map(clone) };
 }
 
+function deepFreezeCandidate(value, seen = new Set()) {
+  if (!value || typeof value !== 'object' || seen.has(value)) return value;
+  seen.add(value);
+  for (const key of Reflect.ownKeys(value)) deepFreezeCandidate(value[key], seen);
+  return Object.freeze(value);
+}
+
+function compareCandidateText(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function compileMarketplaceSelectionCandidate(options) {
+  try {
+    if (!options || typeof options !== 'object' || Array.isArray(options)) {
+      return { ok: false, errors: ['options must be an object'] };
+    }
+    const prototype = Object.getPrototypeOf(options);
+    if (prototype !== Object.prototype && prototype !== null) {
+      return { ok: false, errors: ['options must be a plain object'] };
+    }
+
+    const allowedKeys = new Set(['inventory', 'ledger', 'root']);
+    const values = Object.create(null);
+    const optionErrors = [];
+    for (const key of Reflect.ownKeys(options)) {
+      if (typeof key !== 'string' || !allowedKeys.has(key)) {
+        optionErrors.push(`unsupported option '${String(key)}'`);
+        continue;
+      }
+      const descriptor = Object.getOwnPropertyDescriptor(options, key);
+      if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
+        optionErrors.push(`option '${key}' must be a data property`);
+        continue;
+      }
+      values[key] = descriptor.value;
+    }
+    if (values.root !== undefined && (typeof values.root !== 'string' || values.root.trim() === '')) {
+      optionErrors.push('root must be a non-empty string when provided');
+    }
+    if (optionErrors.length > 0) return { ok: false, errors: optionErrors };
+
+    const { inventory, ledger, root } = values;
+    const validation = validateSkillPurposeDecisions({ inventory, ledger, root });
+    const errors = Array.isArray(validation && validation.errors)
+      ? [...validation.errors]
+      : ['purpose decision validation did not return an errors array'];
+    const review = ledger && ledger.marketplace_review;
+    if (!review || review.version !== MARKETPLACE_REVIEW_V2) {
+      errors.push(`marketplace_review.version must be ${MARKETPLACE_REVIEW_V2}`);
+    }
+
+    const skills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
+    const seenIds = new Set();
+    const seenNames = new Set();
+    for (const skill of skills) {
+      if (!skill || typeof skill !== 'object' || Array.isArray(skill)) continue;
+      if (nonEmptyString(skill.id)) {
+        if (seenIds.has(skill.id)) errors.push(`duplicate inventory skill id '${skill.id}'`);
+        seenIds.add(skill.id);
+      }
+      if (nonEmptyString(skill.name)) {
+        if (seenNames.has(skill.name)) errors.push(`duplicate inventory public name '${skill.name}'`);
+        seenNames.add(skill.name);
+      }
+    }
+
+    if (validation && validation.ok !== true && errors.length === 0) {
+      errors.push('purpose decision validation failed');
+    }
+    if (errors.length > 0 || !validation || validation.ok !== true) return { ok: false, errors };
+
+    const rows = review.rows;
+    const commonEntryStableIds = [];
+    const commonResourceStableIds = [];
+    const hostOnlyEntries = [];
+    const hostOnlyResourceStableIds = [];
+    const retiredStableIds = new Set(
+      (Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [])
+        .map((skill) => skill && skill.id)
+        .filter(nonEmptyString),
+    );
+    const withdrawnStableIds = new Set();
+    for (const row of rows) {
+      if (!row || typeof row !== 'object') continue;
+      if (row.kind === 'retired' && nonEmptyString(row.id)) retiredStableIds.add(row.id);
+      if (row.kind === 'withdrawn' && nonEmptyString(row.id)) withdrawnStableIds.add(row.id);
+      if (row.kind === 'entry') {
+        if (row.selection === 'common') commonEntryStableIds.push(row.id);
+        if (row.selection === 'host-only') {
+          for (const selection of row.host_selection || []) {
+            hostOnlyEntries.push({
+              id: row.id,
+              selectionId: selection.selection_id,
+              surfaces: [...selection.surfaces].sort(),
+            });
+          }
+        }
+        continue;
+      }
+      if (!['branch', 'reference', 'internal'].includes(row.kind)) continue;
+      if (row.selection === 'common') commonResourceStableIds.push(row.id);
+      if (row.selection === 'host-only') hostOnlyResourceStableIds.push(row.id);
+    }
+
+    const blockers = marketplaceReviewBlockers({ ledger }).map((blocker) => ({
+      id: blocker.id,
+      field: blocker.field,
+      reason: clone(blocker.reason),
+    })).sort((left, right) => compareCandidateText(left.id, right.id)
+      || compareCandidateText(left.field, right.field)
+      || compareCandidateText(left.reason, right.reason));
+    hostOnlyEntries.sort((left, right) => compareCandidateText(left.selectionId, right.selectionId)
+      || compareCandidateText(left.id, right.id));
+
+    const value = deepFreezeCandidate({
+      schema: 'dhpk.marketplace-selection-candidate.v1',
+      reviewVersion: MARKETPLACE_REVIEW_V2,
+      common: {
+        entryStableIds: commonEntryStableIds.sort(),
+        resourceStableIds: commonResourceStableIds.sort(),
+      },
+      hostOnly: {
+        entries: hostOnlyEntries,
+        resourceStableIds: hostOnlyResourceStableIds.sort(),
+      },
+      retiredStableIds: [...retiredStableIds].sort(),
+      withdrawnStableIds: [...withdrawnStableIds].sort(),
+      blockers,
+      stages: {
+        catalogApproval: 'NOT_RUN',
+        packageGeneration: 'NOT_RUN',
+        consumerRuntime: 'NOT_RUN',
+      },
+    });
+    return deepFreezeCandidate({ ok: true, errors: [], value });
+  } catch (error) {
+    const message = error instanceof Error && typeof error.message === 'string'
+      ? error.message
+      : 'unexpected validation failure';
+    return { ok: false, errors: [`marketplace selection candidate failed closed: ${message}`] };
+  }
+}
+
 module.exports = {
   AUTHORITY,
   COMPATIBILITY,
@@ -481,6 +740,8 @@ module.exports = {
   OUTCOMES,
   RETIREMENT_OUTCOMES,
   SCHEMA,
+  compileMarketplaceSelectionCandidate,
   effectiveDecision,
+  marketplaceReviewBlockers,
   validateSkillPurposeDecisions,
 };

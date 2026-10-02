@@ -1,0 +1,1 @@
+Adds the opt-in dhpk.marketplace-review.v2 ledger contract (selection, Host-only per-surface identity, authority monotonicity, withdrawn upstream packages, GAP blockers); no ledger rows use it yet, so no shipped behavior changes.

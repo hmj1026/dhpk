@@ -3,7 +3,7 @@
   "contractVersion": "dhpk.skill-purpose-contract.v2",
   "issue": 469,
   "baseline": {
-    "path": "docs/baselines/issue-467-develop-bba2873.json",
+    "path": "manifests/baselines/issue-467-develop-bba2873.json",
     "decisionRule": "Every active baseline skill has one explicit disposition; no active entry is removed or aliased by this ledger."
   },
   "additions": [
@@ -2830,5 +2830,2790 @@
         }
       }
     }
-  ]
+  ],
+  "marketplace_review": {
+    "version": "dhpk.marketplace-review.v2",
+    "rows": [
+      {
+        "id": "fastapi-pro",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "FastAPI + SQLAlchemy 2.0 async patterns + review checklist: routers, Depends DI, Pydantic schemas, session/transaction discipline, Alembic safety, auth/CORS/errors. Use when writing or reviewing FastAPI routes, async repositories, or migrations. Not for non-web Python. Output: layered, transaction-safe API.",
+        "version_condition": "Use SQLAlchemy 2.0 async guidance only when the dependency and task context match; no other version fallback is declared.",
+        "resources": [
+          "skills/dhpk-fastapi-pro/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites check-codex-discovery.test.js, distribution-projection-contract.test.js, skill-purpose-decisions.test.js for fastapi-pro, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "ios-platform",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when iOS SDK guidance is needed for privacy-sensitive persistence, CryptoKit/Keychain, OCR, camera, biometrics, notifications, HealthKit, or privacy manifests. Requires swift. Not for SwiftUI composition or pure Swift language work. Output: SDK-specific implementation or review guidance with privacy and verification gates.",
+        "version_condition": "Requires Swift; select SDK details from the confirmed project target, with no inferred SDK-version fallback.",
+        "resources": [
+          "skills/dhpk-ios-platform/SKILL.md",
+          "skills/dhpk-ios-platform/references/actor-persistence.md",
+          "skills/dhpk-ios-platform/references/coredata-encryption.md",
+          "skills/dhpk-ios-platform/references/cryptokit-keychain.md",
+          "skills/dhpk-ios-platform/references/healthkit-read.md",
+          "skills/dhpk-ios-platform/references/local-authentication.md",
+          "skills/dhpk-ios-platform/references/notifications.md",
+          "skills/dhpk-ios-platform/references/privacy-compliance.md",
+          "skills/dhpk-ios-platform/references/vision-ocr.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites consumer-gate-cli.test.js, frontmatter.test.js for ios-platform, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "js-lint-config",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "ESLint/TypeScript configuration guidance for tier selection, global-list synchronization, static gates, or frontend-review consistency. Use when editing eslint.config.js or tsconfig.json, adding globals, or planning lint migration. Not for ordinary JS logic. Output: a tier decision and verification evidence.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-js-lint-config/SKILL.md",
+          "skills/dhpk-js-lint-config/references/frontend-review-patterns.md",
+          "skills/dhpk-js-lint-config/references/static-checks.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js for js-lint-config, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "js-static-check-strategy",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Progressive `// @ts-check` per-leaf rollout playbook for legacy JS bundles. Covers the three-list legacy-globals sync (ESLint globals / TypeScript ambient .d.ts / JSDoc typedef), tsconfig exclude strategy for type-check-resistant files, leaf classification (typedef-widening-fixable vs permanent-exclude), line-anchored progress-grep traps, and Phase-2 exit-gate semantics. Use when planning a per-leaf cleanup PR, introducing a new leaf-level global, editing tsconfig's exclude list, interpreting /ts-check-status output, or validating the strict-checkJs exit gate. Not for everyday JavaScript feature work or isolated lint-rule lookups; use the sibling dhpk-js-lint-config and references/static-checks.md for those. Output: a per-leaf classification, three-list change set, and exit-gate evidence.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/js-static-check-strategy/SKILL.md",
+          "skills/js-static-check-strategy/references/frontend-review-patterns.md",
+          "skills/js-static-check-strategy/references/static-checks.md",
+          "skills/js-static-check-strategy/scripts/status.js"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "source": "tests/write-handoff.test.js",
+          "status": "PASS"
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "laravel",
+        "kind": "branch",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Laravel framework guidance across 5.4, 6, 7, 8, 9, 10, 11, and optional Mix 5. Use when implementing or reviewing framework-touching Laravel code, planning an upgrade, or debugging a version-specific build. Not for Symfony, Yii, or frontend-only work; use dhpk-php-runtime-router for runtime selection. Output: one selected Laravel or Mix reference, compatibility constraints, and verification gates.",
+        "version_condition": "Choose exactly one inventory selector (6, 7, 8, 9, 10, 11, 5.4, mix). An explicit selector wins; otherwise php-pro reads composer.json or composer.lock. Load only the matching reference and ask if the version is missing or unsupported.",
+        "resources": [
+          "skills/laravel/SKILL.md",
+          "skills/laravel/references/10.md",
+          "skills/laravel/references/11.md",
+          "skills/laravel/references/5-4.md",
+          "skills/laravel/references/6.md",
+          "skills/laravel/references/7.md",
+          "skills/laravel/references/8.md",
+          "skills/laravel/references/9.md",
+          "skills/laravel/references/mix.md",
+          "skills/laravel/scripts/resolve-version.js",
+          "skills/laravel/scripts/version-resolver.js"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites activate-modules.test.js, capability-bundle-selection.test.js, distribution-inventory-regeneration.test.js, distribution-inventory-validate.test.js, frontmatter.test.js, load-project-config.test.js, modules.test.js, skill-directory-isolation.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js, skill-routing-projection-parity.test.js, validate-retirement-closure.test.js for laravel, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "library-dual-testsuite-map",
+        "kind": "reference",
+        "owner_id": "tdd",
+        "selection": "common",
+        "task_selector": "Map edited file paths to the correct testsuite(s) for libraries with a framework-agnostic Core layer and a framework-specific glue layer. Use when editing any `src/**` file in a library whose phpunit.xml declares multiple testsuites (commonly `core` + `laravel`, or `core` + `symfony`, etc.) and you need to know which `composer test:*` command(s) to run. Not for single-testsuite projects or full framework integration orchestration. Output: the selected suite(s), boundary warning, and the commands to run. Saves the round-trip of \"I ran the wrong suite, the failing test is in the other one\". Companion to (not duplicate of) `dhpk-polyfill-version-matrix-audit` which works at the version-guard level; this skill works at the directory level.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-library-dual-testsuite-map/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js for library-dual-testsuite-map, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "matrix-cell-onboard",
+        "kind": "branch",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Checklist + procedure for adding a new PHP / Laravel / PHPUnit / Monolog cell to a multi-major library's CI matrix. Use when extending support to a new runtime version (e.g. \"add PHP 8.3 + Laravel 12\"), bumping a dep major (e.g. \"Monolog 4 came out, plan the cell\"), or restoring a dropped cell. Not for patch-only changes that do not alter the support matrix. Output: a cell plan with composer, workflow, polyfill, Testbench, and focused-test gates. Cross-checks `composer.json` constraints, `.github/workflows/*.yml` matrix rows, Testbench mapping for Laravel, and triggers a polyfill-coverage check for the new cell's dep versions. Pairs with `dhpk-laravel-testbench-matrix` (per-cell Testbench install) and `dhpk-composer-package-hygiene` (semver of raising the floor).",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/matrix-cell-onboard/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, frontmatter.test.js, skill-retirement-migration.test.js for matrix-cell-onboard, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "openspec-artifact-guard",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when validating OpenSpec artifact shape, delta placement, task/git alignment, and safe change slugs. Apply while editing OpenSpec files or reviewing them before archive. Not for implementation or archive itself. Output: a verdict with artifact and task evidence.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-openspec-artifact-guard/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js, openspec-gitignore.test.js for openspec-artifact-guard, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "nextjs-15-5-notes",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Next.js 15.5 (current stable; the 15.x line ends at v15.5.19) signature features and traps. Use when writing or reviewing Next.js 15.5 code or a package constrained to ^15.5. Covers typegen, typed routes, beta Turbopack production builds, and the next lint deprecation. Not for application business logic; pair with `dhpk-react-18-notes` or `dhpk-react-19-notes` for React guidance and `dhpk-nextjs-16-notes` for the upgrade target. Output: version-specific guidance, migration traps, and verification gates.",
+        "version_condition": "Use for Next.js 15.5 only; do not infer coverage for another Next.js version.",
+        "resources": [
+          "skills/dhpk-nextjs-15-5-notes/SKILL.md",
+          "skills/dhpk-nextjs-15-5-notes/references/frontend-framework-routing.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-routing-projection-parity.test.js for nextjs-15-5-notes, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "nextjs-16-notes",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when working on Next.js 16 framework code or 15→16 upgrades: Turbopack, async Request APIs, Node floor, removed APIs, and image changes. Not for application business logic. React 18.2+ or 19 is supported; pair with `dhpk-react-18-notes` or `dhpk-react-19-notes` for React-language guidance and `dhpk-nextjs-15-5-notes` for the upgrade source. Output: migration traps and verification gates.",
+        "version_condition": "Use for Next.js 16 work or a 15-to-16 upgrade; React 18.2+ or 19 is the stated pairing.",
+        "resources": [
+          "skills/dhpk-nextjs-16-notes/SKILL.md",
+          "skills/dhpk-nextjs-16-notes/references/frontend-framework-routing.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-routing-projection-parity.test.js for nextjs-16-notes, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "php-pro",
+        "kind": "branch",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when implementing or reviewing Laravel, Symfony, modern PHP, or PHP 5.6/Yii code. Detect runtime first and load only matching references; select Laravel major before framework-coupled edits. Not for frontend-only work. Output: compatibility-safe guidance and verification gates.",
+        "version_condition": "Detect from composer.json / composer.lock, the bootstrap entrypoint, and test-suite layout. For detected Yii 1.1, PHP 5.6 is a hard compatibility constraint unless repository evidence proves otherwise. Route version-sensitive Laravel/PHPUnit work through its family selector; do not guess a missing or unsupported version.",
+        "resources": [
+          "skills/dhpk-php-runtime-router/SKILL.md",
+          "skills/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md",
+          "skills/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md",
+          "skills/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md",
+          "skills/dhpk-php-runtime-router/references/async-patterns.md",
+          "skills/dhpk-php-runtime-router/references/laravel-patterns.md",
+          "skills/dhpk-php-runtime-router/references/laravel-projects.md",
+          "skills/dhpk-php-runtime-router/references/laravel-v10.md",
+          "skills/dhpk-php-runtime-router/references/laravel-v11-v12.md",
+          "skills/dhpk-php-runtime-router/references/laravel-version-checks.md",
+          "skills/dhpk-php-runtime-router/references/modern-php-features.md",
+          "skills/dhpk-php-runtime-router/references/php56-legacy.md",
+          "skills/dhpk-php-runtime-router/references/phpunit57-php56-legacy.md",
+          "skills/dhpk-php-runtime-router/references/symfony-patterns.md",
+          "skills/dhpk-php-runtime-router/references/testing-quality.md",
+          "skills/dhpk-php-runtime-router/references/yii1-1.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites codex-native-package-validate.test.js, codex-runtime-contract.test.js, distribution-inventory-validate.test.js, physical-tree-publication.test.js, skill-routing-projection-parity.test.js, validate-openai-metadata.test.js for php-pro, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "php-modern-pro",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "PHP 7.4–8.x idiom and dual-version library-packaging guidance. Use for public APIs, version-conditional shims, supported floors, or composer constraints. Not for routine business logic. Output: a compatibility decision and verification gates.",
+        "version_condition": "Use only for PHP 7.4 through 8.x; this does not cover the PHP 5.6 legacy route.",
+        "resources": [
+          "skills/dhpk-php-modern-pro/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js for php-modern-pro, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "php-8x-features",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when the project's PHP floor permits 8.x syntax, when reviewing whether a 7.4-and-up library can adopt an 8.x idiom conditionally, or when designing an API with attributes, enums, readonly, or newer types. Not for everyday business logic, 7.4 baseline guidance, or legacy 5.6 code. Output: a feature recommendation or migration decision with its minimum PHP version and library-floor rule.",
+        "version_condition": "Use when the project floor permits PHP 8.x, or for the stated conditional 7.4-and-up library case.",
+        "resources": [
+          "skills/dhpk-php-8x-features/SKILL.md",
+          "skills/dhpk-php-8x-features/references/feature-catalog.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js for php-8x-features, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "phpunit",
+        "kind": "branch",
+        "owner_id": "tdd",
+        "selection": "common",
+        "task_selector": "Use when writing, reviewing, or migrating PHPUnit 9, 10, or 11 tests, resolving a project version, or choosing assertion, metadata, provider, mock, hook, runner, or coverage APIs. Not for PHPUnit 5/6/7-only suites, everyday assertion writing without a version decision, or Laravel routing. Output: selected version boundary, applicable reference, migration guidance, and verification evidence.",
+        "version_condition": "Choose exactly one inventory selector (9, 10, 11). An explicit selector wins; otherwise php-pro reads composer.json or composer.lock. Load only the matching reference and ask if the version is missing or unsupported. PHP 5.6 / PHPUnit 5.7 legacy suites use the separate php-pro route.",
+        "resources": [
+          "skills/phpunit/SKILL.md",
+          "skills/phpunit/references/10.md",
+          "skills/phpunit/references/11.md",
+          "skills/phpunit/references/9.md",
+          "skills/phpunit/scripts/resolve-version.js",
+          "skills/phpunit/scripts/version-resolver.js"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites distribution-inventory-validate.test.js, frontmatter.test.js, skill-directory-isolation.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js, skill-routing-projection-parity.test.js for phpunit, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "legacy-code-characterization",
+        "kind": "branch",
+        "owner_id": "tdd",
+        "selection": "common",
+        "task_selector": "Write characterization tests for untested legacy code to lock current behavior before refactoring. Use when users want to safely refactor legacy controllers/models/services, add regression safety nets, or prepare code for extraction. Trigger words: characterization test, lock behavior, legacy test, safe refactor, 行為鎖定, 特徵測試, 安全重構. Not for: greenfield code, already well-tested modules, or pure bug fixes. Output: characterization test files + coverage delta report.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-legacy-characterization-tests/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites install-codex-skills-planning.test.js, install-codex-skills-reconciliation.test.js, validate-openai-metadata.test.js for legacy-code-characterization, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "pytest-async",
+        "kind": "reference",
+        "owner_id": "tdd",
+        "selection": "common",
+        "task_selector": "Async pytest + pytest-asyncio testing: asyncio_mode=auto, SQLite fixtures, httpx.AsyncClient + ASGITransport, unit/integration split, coverage floor, live markers. Use when writing or reviewing async FastAPI/SQLAlchemy tests, or enforcing tdd-workflow. Not for production code. Output: offline-green async tests.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-pytest-async/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The accepted catalog scan found no test citation for pytest-async; behavioral test evidence remains unverified."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "python-pro",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Modern Python (3.10+) review checklist: typing, dataclasses/pydantic, async-await discipline, logging over print, exception chain, ruff+pyright. Use when writing or reviewing backend Python (async FastAPI/SQLAlchemy). Not for non-backend or pre-3.10 code. Output: typed, ruff/pyright-clean code.",
+        "version_condition": "Use for Python 3.10+ as stated by the skill; no lower-version fallback is declared.",
+        "resources": [
+          "skills/dhpk-python-pro/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The accepted catalog scan found no test citation for python-pro; behavioral test evidence remains unverified."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "python-static-checks",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Static-check strategy for Python — ruff rule selection (lint vs format), pyright-strict vs mypy trade-offs, progressive typing adoption, per-file/per-line suppression discipline, and how the dhpk python module's post-edit + pre-commit hooks invoke them. Use when configuring ruff/pyright/mypy or triaging their output. Not for runtime debugging or test design; use dhpk-python-pro or dhpk-pytest-async. Output: a tool configuration or triage plan with commands and pass/fail gates.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-python-static-checks/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js for python-static-checks, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "react-18-notes",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when working on React 18 guidance for ^18 projects, root setup, concurrent rendering, StrictMode, or 17→18/18→19 upgrades. Not for ordinary application logic. Remains a separate React 18 route; pair with `dhpk-react-19-notes` for 18→19 changes and `dhpk-nextjs-15-5-notes` or `dhpk-nextjs-16-notes` for Next integration. Output: migration traps and verification gates.",
+        "version_condition": "Use for React 18 and the stated ^18 range; this is separate from React 19.",
+        "resources": [
+          "skills/dhpk-react-18-notes/SKILL.md",
+          "skills/dhpk-react-18-notes/references/frontend-framework-routing.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-routing-projection-parity.test.js for react-18-notes, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "react-19-notes",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when working on React 19 guidance for Actions, new hooks, refs, providers, Server Components, or 18→19 upgrades. Not for ordinary application logic. Remains a separate React 19 route; pair with `dhpk-react-18-notes` for the 18 baseline and `dhpk-nextjs-16-notes` for Next integration. Output: migration traps and verification gates.",
+        "version_condition": "Use for React 19 guidance or an 18-to-19 upgrade as stated by the skill.",
+        "resources": [
+          "skills/dhpk-react-19-notes/SKILL.md",
+          "skills/dhpk-react-19-notes/references/frontend-framework-routing.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-routing-projection-parity.test.js for react-19-notes, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "swift-test-strategy",
+        "kind": "reference",
+        "owner_id": "tdd",
+        "selection": "common",
+        "task_selector": "iOS testing strategy for Swift Testing, XCTest, UI automation, async actors, and RED-first coverage. Use when writing or reviewing iOS tests or choosing test targets. Not for non-test app code. Requires swift. Output: RED-first tests and a three-layer coverage plan.",
+        "version_condition": "Requires Swift; select testing APIs from the confirmed toolchain, with no fixed fallback version.",
+        "resources": [
+          "skills/dhpk-swift-test-strategy/SKILL.md",
+          "skills/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
+          "skills/dhpk-swift-test-strategy/references/snapshot-testing.md",
+          "skills/dhpk-swift-test-strategy/references/swift-testing-api.md",
+          "skills/dhpk-swift-test-strategy/references/test-taxonomy.md",
+          "skills/dhpk-swift-test-strategy/references/xctest-bridging.md",
+          "skills/dhpk-swift-test-strategy/references/xcuitest.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The accepted catalog scan found no test citation for swift-test-strategy; behavioral test evidence remains unverified."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "swift-language",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Swift language guidance for concurrency, optionals, value/reference design, property wrappers, and errors across Swift 5.10/6. Use for .swift implementation or review. Not for SwiftUI composition or iOS SDK APIs. Output: compatibility and verification decisions.",
+        "version_condition": "Use for Swift 5.10 or Swift 6; confirm the project toolchain.",
+        "resources": [
+          "skills/dhpk-swift-language/SKILL.md",
+          "skills/dhpk-swift-language/references/approachable-concurrency.md",
+          "skills/dhpk-swift-language/references/concurrency.md",
+          "skills/dhpk-swift-language/references/error-handling.md",
+          "skills/dhpk-swift-language/references/swift5-compat-notes.md",
+          "skills/dhpk-swift-language/references/value-vs-reference.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js for swift-language, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "swiftui-architecture",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "SwiftUI architecture guidance for MVVM, Observation, navigation, state ownership, Combine, and UIKit interop. Use when building screens, view models, or routes. Requires swift. Not for iOS SDK APIs or pure Swift language work. Output: architecture and verification guidance.",
+        "version_condition": "Requires Swift; select APIs from the confirmed deployment and toolchain targets.",
+        "resources": [
+          "skills/dhpk-swiftui-architecture/SKILL.md",
+          "skills/dhpk-swiftui-architecture/references/interop.md",
+          "skills/dhpk-swiftui-architecture/references/mvvm-coordinator.md",
+          "skills/dhpk-swiftui-architecture/references/navigation.md",
+          "skills/dhpk-swiftui-architecture/references/observation-state.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js for swiftui-architecture, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "vue-2-notes",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Vue 2 (^2.5.17, Options API era) component structure and the reactivity caveats that bite when mutating reactive state. Use when writing or reviewing .vue single-file components in a Vue 2 project (resources/assets/js), or a codebase whose package.json pins vue ^2.5.x. Covers the data() / computed / methods / watch + lifecycle shape, props-down + $emit events-up, vue-loader SFC compilation, the Vue.set / array-mutation traps, and @vue/test-utils 1.x + vue-jest 3 testing. Not for Vue 3 or 2.7 Composition API (predates setup() / <script setup>) — load when touching components or planning a Vue 2 → 3 migration. Output: Vue 2 component guidance, migration traps, and verification gates.",
+        "version_condition": "Use for Vue 2, including ^2.5.17; exclude Vue 3 and the Vue 2.7 Composition API path.",
+        "resources": [
+          "skills/dhpk-vue-2-notes/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites codex-native-package-validate.test.js, distribution-inventory-validate.test.js, frontmatter.test.js, gen-claude-manifest.test.js for vue-2-notes, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "ios-icon-gen",
+        "kind": "branch",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Generate iOS/macOS asset-catalog imagesets (1x/2x/3x PNG + Contents.json) from SF Symbols (Apple-native, offline, macOS) or the Iconify API (275k+ open-source icons, online). Use when adding icons to an Xcode asset catalog, replacing placeholder glyphs, or searching for an icon that matches a project's style. Not for general SwiftUI design, arbitrary raster editing, or production code changes. Output: an imageset path plus generated PNG and Contents.json verification. Part of the xcode-tooling module; requires the swift module.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-ios-icon-gen/SKILL.md",
+          "skills/dhpk-ios-icon-gen/scripts/generate_icons.swift",
+          "skills/dhpk-ios-icon-gen/scripts/iconify_gen.sh"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js, skill-remaining-entry-isolation.test.js for ios-icon-gen, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "xcode-build-tooling",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Xcode / SwiftLint / xcodebuild / Swift Package Manager tooling — SwiftLint rule-tier strategy and per-package .swiftlint.yml, xcodebuild -scheme/-destination build & test vs swift build / swift test for SPM packages, and scheme / code-signing notes for a no-iCloud capability set. Use when configuring SwiftLint, deciding how to build/test an iOS app or SPM package from the CLI, interpreting the module's post-edit SwiftLint hook or pre-commit build gate, or setting up CI build commands. Not for Swift language questions (swift) or test strategy (dhpk-swift-test-strategy); output is build/lint commands plus hook and CI config. Requires the swift module; wires post-edit-swiftlint.sh and pre-commit-swift-build.sh.",
+        "version_condition": "Requires the Swift module; select Xcode, SwiftLint, and SPM versions from confirmed project configuration.",
+        "resources": [
+          "skills/dhpk-xcode-build-tooling/SKILL.md",
+          "skills/dhpk-xcode-build-tooling/references/scheme-signing.md",
+          "skills/dhpk-xcode-build-tooling/references/swiftlint-config.md",
+          "skills/dhpk-xcode-build-tooling/references/xcodebuild-spm.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The accepted catalog scan found no test citation for xcode-build-tooling; behavioral test evidence remains unverified."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "php56-yii-dev",
+        "kind": "branch",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when implementing or reviewing Yii 1.x/PHP 5.6 backend controllers, models, services, repositories, validation, security, and DDD boundaries. Not for frontend, docs-only, or non-PHP work. Output: PHP 5.6-safe TDD plan and compatibility evidence.",
+        "version_condition": "Use for Yii 1.x backend work with PHP 5.6 compatibility as the declared runtime constraint.",
+        "resources": [
+          "skills/dhpk-yii1-php56-development/SKILL.md",
+          "skills/dhpk-yii1-php56-development/references/context7-sources-and-query-rules.md",
+          "skills/dhpk-yii1-php56-development/references/ddd-lite-for-yii1.md",
+          "skills/dhpk-yii1-php56-development/references/php56-php7-safe-subset.md",
+          "skills/dhpk-yii1-php56-development/references/phpunit57-legacy-test-traps.md",
+          "skills/dhpk-yii1-php56-development/references/tdd-workflow-and-test-strategy.md",
+          "skills/dhpk-yii1-php56-development/references/yii1-backend-patterns.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites validate-openai-metadata.test.js for php56-yii-dev, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "yii1-security-audit",
+        "kind": "branch",
+        "owner_id": "change-verdict",
+        "selection": "common",
+        "task_selector": "Yii 1.1（PHP 5.6）框架安全白盒靜態審計。Use when：對 Yii 1.1 專案查找漏洞、驗證 accessRules/checkAccess/CSRF/SQL injection/CUploadedFile/Session 設定，或框架安全複查（即使用戶只說「檢查這個 Controller 有沒有安全問題」也應觸發）。Not for：Yii2 專案、非 PHP 專案、純業務邏輯演算法審查。Output：依 AUTH/CSRF/XSS/SQL/CFG/LOGIC/FILE 分類、含檔名:行號 + 可觀測 PoC + Yii API 修復建議的審計報告。",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-yii1-security-audit/SKILL.md",
+          "skills/dhpk-yii1-security-audit/references/yii1-security-patterns.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites codex-native-package-validate.test.js, install-codex-skills-reconciliation.test.js, install-codex-skills.test.js, validate-openai-metadata.test.js for yii1-security-audit, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "flow-guide",
+        "kind": "entry",
+        "owner_id": "flow-guide",
+        "selection": "common",
+        "task_selector": "Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "rules/execution-policy-kernel.md",
+          "rules/execution-policy.md",
+          "scripts/lib/flow-handoff-contract.js",
+          "skills/flow-guide/SKILL.md",
+          "skills/flow-guide/references/anti-loop.md",
+          "skills/flow-guide/references/codex-mode.md",
+          "skills/flow-guide/references/codex-usage-catalog.json",
+          "skills/flow-guide/references/component-addition-policy.md",
+          "skills/flow-guide/references/delivery-core.md",
+          "skills/flow-guide/references/delivery-loop-gate.md",
+          "skills/flow-guide/references/deterministic-first.md",
+          "skills/flow-guide/references/dispatch-and-gates.md",
+          "skills/flow-guide/references/execution-bundle/docs/contracts/review-lifecycle.md",
+          "skills/flow-guide/references/execution-bundle/docs/contracts/reviewer-contract.md",
+          "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
+          "skills/flow-guide/references/execution-bundle/manifests/host-profiles.json",
+          "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json",
+          "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md",
+          "skills/flow-guide/references/execution-bundle/rules/execution-policy-kernel.md",
+          "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
+          "skills/flow-guide/references/execution-bundle/rules/model-economics.md",
+          "skills/flow-guide/references/execution-bundle/rules/tool-routing.md",
+          "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js",
+          "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js",
+          "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js",
+          "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+          "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+          "skills/flow-guide/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+          "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+          "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+          "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+          "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+          "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+          "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+          "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+          "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+          "skills/flow-guide/references/handoff-and-verification.md",
+          "skills/flow-guide/references/implementation-dispatch.md",
+          "skills/flow-guide/references/invocation-classification.md",
+          "skills/flow-guide/references/invocation-precedence.md",
+          "skills/flow-guide/references/output-shape.md",
+          "skills/flow-guide/references/premise-verification.md",
+          "skills/flow-guide/references/profile-and-project-overrides.md",
+          "skills/flow-guide/references/progression-tables.md",
+          "skills/flow-guide/references/projects-generic.md",
+          "skills/flow-guide/references/projects-index.md",
+          "skills/flow-guide/references/review-gate-mechanics.md",
+          "skills/flow-guide/references/route-result.schema.json",
+          "skills/flow-guide/references/route-table.json",
+          "skills/flow-guide/references/script-operations.md",
+          "skills/flow-guide/references/squash-merge-hygiene.md",
+          "skills/flow-guide/references/task-modes.md",
+          "skills/flow-guide/references/testing-policy.md",
+          "skills/flow-guide/references/work-item-and-gates.md",
+          "skills/flow-guide/references/workflow-analysis.md",
+          "skills/flow-guide/references/workflow-bugfix.md",
+          "skills/flow-guide/references/workflow-checklists.md",
+          "skills/flow-guide/references/workflow-feature-delivery.md",
+          "skills/flow-guide/references/workflow-lightweight.md",
+          "skills/flow-guide/scripts/_lib/command-namespace.js",
+          "skills/flow-guide/scripts/_lib/feature-resolver.js",
+          "skills/flow-guide/scripts/_lib/runner-utils.js",
+          "skills/flow-guide/scripts/_lib/runtime-loader.js",
+          "skills/flow-guide/scripts/_lib/skill-usage.js",
+          "skills/flow-guide/scripts/action-runner.js",
+          "skills/flow-guide/scripts/analyze.js",
+          "skills/flow-guide/scripts/openspec_gate_check.py",
+          "skills/flow-guide/scripts/pre-route.sh",
+          "skills/flow-guide/scripts/prepare_dev_scope.py",
+          "skills/flow-guide/scripts/prepare_workflow_profile.py",
+          "skills/flow-guide/scripts/route-result.js",
+          "skills/flow-guide/scripts/usage-card.js",
+          "skills/flow-guide/scripts/workflow_gate_check.py"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites agy-plugin-install.test.js, capability-bundle-selection.test.js, catalog-claims.test.js, codex-mcp-retirement.test.js, codex-runtime-contract.test.js, command-skill-disposition.test.js, dhpk-distribution.test.js, dhpk-do-portable.test.js, dhpk-install-lifecycle.test.js, distribution-inventory-validate.test.js, documentation-platform-parity.test.js, flow-handoff-contract.test.js, frontmatter.test.js, gen-agent-plugin-package.test.js, gen-agents-skills.test.js, gen-cursor-plugin-package.test.js, gen-skill-usage.test.js, install-cursor-harness.test.js, invocation-precedence.test.js, native-dispatch-policy.test.js, opsx-goal-analyze.test.js, opsx-orchestration-decision-policy.test.js, physical-tree-publication.test.js, platform-provenance.test.js, pre-route.test.js, profile-scoped-claude-capability-bundle.test.js, reference-route-policy.test.js, skill-directory-isolation.test.js, skill-purpose-decisions.test.js, skill-remaining-entry-isolation.test.js, skill-retirement-migration.test.js, skill-routing-projection-parity.test.js, skill-runtime-path-contract.test.js, skill-usage-contract.test.js, task4-defects.test.js, validate-harness.test.js, validate-plugin.test.js, validate-references.test.js, validate-retirement-closure.test.js, workflow-package-closure.test.js for flow-guide, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "delegate",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "agent-architecture-audit",
+        "kind": "branch",
+        "owner_id": "change-verdict",
+        "selection": "common",
+        "task_selector": "Full-stack diagnostic for agent and LLM applications — audits the 12-layer agent stack for wrapper regression, memory pollution, tool-discipline failures, hidden repair loops, and rendering corruption. Use when: shipping an agent/LLM feature, an agent degrades after adding wrapper/memory/tool layers, the same model works in the playground but breaks in your wrapper, or debugging agent behavior >15 min with no root cause. Not for: general code debugging, code review, or security scanning (use change-verdict). Output: severity-ranked findings with code-first fixes.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-agent-architecture-audit/SKILL.md",
+          "skills/dhpk-agent-architecture-audit/references/layers-and-failure-patterns.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-retirement-migration.test.js for agent-architecture-audit, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "agy-fast-worker",
+        "kind": "entry",
+        "owner_id": "agy-fast-worker",
+        "selection": "host-only",
+        "task_selector": "Use when offloading a precise self-contained mechanical task to the agy CLI when available. Require target files, intent, and verification command; keep output in the agy-fast-worker subagent. Not for ambiguity, conversation-dependent work, or default fast-worker use. Output: verified edited files or honest BLOCKED evidence.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-agy-fast-worker/SKILL.md",
+          "skills/dhpk-agy-fast-worker/scripts/cli-transport/prepare-cli-request.py",
+          "skills/dhpk-agy-fast-worker/scripts/cli-transport/run-cli-transport.py",
+          "skills/dhpk-agy-fast-worker/scripts/report-schema.json",
+          "skills/dhpk-agy-fast-worker/scripts/run-agy.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.agy-fast-worker",
+            "purpose_evidence": {
+              "source": "skills/dhpk-agy-fast-worker/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for agy-fast-worker; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.agy-fast-worker",
+            "purpose_evidence": {
+              "source": "skills/dhpk-agy-fast-worker/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for agy-fast-worker; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "source": "tests/cli-dispatch-launcher.test.js",
+          "status": "PASS"
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "code-trace",
+        "kind": "entry",
+        "owner_id": "code-trace",
+        "selection": "common",
+        "task_selector": "Trace unfamiliar code, diagnose a reproducible failure, investigate history, or select one code-navigation tool. Use when evidence must follow symbols, callers, data flow, regressions, or tool choice. Not for implementing a confirmed fix, reviewing a proposed diff, or plain-text/document search. Output: an evidence-backed trace, root-cause state, history report, or executable tool route.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "rules/tool-routing.md",
+          "skills/code-trace/SKILL.md",
+          "skills/code-trace/references/diagnose/checklists.md",
+          "skills/code-trace/references/diagnose/condition-based-waiting.md",
+          "skills/code-trace/references/diagnose/defense-in-depth.md",
+          "skills/code-trace/references/diagnose/examples.md",
+          "skills/code-trace/references/diagnose/phase-templates.md",
+          "skills/code-trace/references/diagnose/root-cause-tracing.md",
+          "skills/code-trace/references/diagnose/scripts.md",
+          "skills/code-trace/references/diagnose/wait-for-helper.ts",
+          "skills/code-trace/references/explore/dual-perspective.md",
+          "skills/code-trace/references/explore/explain.md",
+          "skills/code-trace/references/explore/search-patterns.md",
+          "skills/code-trace/references/history/commands.md",
+          "skills/code-trace/references/history/wsl-traps.md",
+          "skills/code-trace/references/select-tool/decision-tree.md",
+          "skills/code-trace/scripts/diagnose/analyze-function-calls.sh",
+          "skills/code-trace/scripts/diagnose/check-tools.sh",
+          "skills/code-trace/scripts/diagnose/find-polluter.sh",
+          "skills/code-trace/scripts/diagnose/generate-flow-diagram.sh",
+          "skills/code-trace/scripts/diagnose/search-database-queries.sh",
+          "skills/code-trace/scripts/diagnose/trace-data-flow.sh"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites capability-bundle-selection.test.js, catalog-claims.test.js, codex-mcp-retirement.test.js, dhpk-do-portable.test.js, documentation-platform-parity.test.js, flow-handoff-contract.test.js, install-codex-skills-reconciliation.test.js, issue-733-codex-runtime-binding.test.js, platform-provenance.test.js, profile-scoped-claude-capability-bundle.test.js, skill-remaining-entry-isolation.test.js, skill-retirement-migration.test.js, task4-defects.test.js for code-trace, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "cli-dispatch-context",
+        "kind": "internal",
+        "owner_id": [
+          "codex-bridge",
+          "agy-fast-worker"
+        ],
+        "selection": "host-only",
+        "task_selector": "Trigger: explicit provider-qualified CLI dispatch-context construction and launcher execution. Avoid: direct adapter invocation or implicit role, mode, path, or authority derivation. Output: canonical dispatch evidence with an immutable dhpk.cli.context.v1 compatibility projection or BLOCKED diagnostics.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-cli-dispatch-context/SKILL.md",
+          "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
+          "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
+          "skills/dhpk-cli-dispatch-context/scripts/cli-transport/prepare-cli-request.py",
+          "skills/dhpk-cli-dispatch-context/scripts/cli-transport/run-cli-transport.py",
+          "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
+          "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
+          "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
+          "skills/dhpk-cli-dispatch-context/scripts/run-agy.sh",
+          "skills/dhpk-cli-dispatch-context/scripts/run-codex.sh"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites cli-dispatch-launcher.test.js, cli-role-resolver.test.js, codex-native-package-validate.test.js, context-budget.test.js, distribution-inventory-validate.test.js, documentation-platform-parity.test.js, install-codex-skills.test.js, opsx-orchestration-decision-policy.test.js, skill-retirement-migration.test.js, verify-platform-packages.test.js for cli-dispatch-context, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "transport-internal",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "cli-transport",
+        "kind": "internal",
+        "owner_id": [
+          "codex-bridge",
+          "agy-fast-worker"
+        ],
+        "selection": "host-only",
+        "task_selector": "Internal Codex and AGY CLI transport that validates an already-attested request and produces a contained terminal receipt; it never selects roles or accepts direct user invocation.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-cli-transport/SKILL.md",
+          "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
+          "skills/dhpk-cli-transport/scripts/run-cli-transport.py"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites cli-dispatch-launcher.test.js, codex-native-package-validate.test.js, context-budget.test.js, distribution-inventory-validate.test.js, documentation-platform-parity.test.js, gen-agent-plugin-package.test.js, install-codex-skills.test.js, native-dispatch-policy.test.js, run-agy.test.js, run-cli-transport.test.js, run-codex.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js, verify-platform-packages.test.js for cli-transport, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "transport-internal",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "codex-bridge",
+        "kind": "entry",
+        "owner_id": "codex-bridge",
+        "selection": "host-only",
+        "task_selector": "Use when an explicit CLI handoff or blind second opinion should go to the GPT-6 family through one-shot codex exec: gpt-6-sol/high for read-only or gpt-6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-codex-bridge/SKILL.md",
+          "skills/dhpk-codex-bridge/scripts/cli-transport/prepare-cli-request.py",
+          "skills/dhpk-codex-bridge/scripts/cli-transport/run-cli-transport.py",
+          "skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js",
+          "skills/dhpk-codex-bridge/scripts/report-schema.json",
+          "skills/dhpk-codex-bridge/scripts/run-codex.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.codex-bridge",
+            "purpose_evidence": {
+              "source": "skills/dhpk-codex-bridge/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for codex-bridge; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.codex-bridge",
+            "purpose_evidence": {
+              "source": "skills/dhpk-codex-bridge/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for codex-bridge; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites cli-dispatch-launcher.test.js, cli-role-resolver.test.js, codex-runtime-contract.test.js, codex-timeout-envelope.test.js, cursor-plugin-package.test.js, dispatch-engine.test.js, distribution-inventory-validate.test.js, documentation-platform-parity.test.js, gen-agent-plugin-package.test.js, opsx-goal-analyze.test.js, opsx-orchestration-decision-policy.test.js, run-cli-transport.test.js, run-codex.test.js, skill-retirement-migration.test.js, verify-platform-packages.test.js for codex-bridge, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "change-verdict",
+        "kind": "entry",
+        "owner_id": "change-verdict",
+        "selection": "common",
+        "task_selector": "Read-only verdicts for code changes, pull requests, security, tests, documents, or change risk. Use when judging an existing change or evidence set. Not for implementing fixes, generating tests, editing documents, clearing gates, or architecture-only design. Output: evidence-backed findings, degradation state, and READY, BLOCKED, or INCONCLUSIVE.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/change-verdict/SKILL.md",
+          "skills/change-verdict/references/code/codex-prompt-branch.md",
+          "skills/change-verdict/references/code/codex-prompt-fast.md",
+          "skills/change-verdict/references/code/codex-prompt-full.md",
+          "skills/change-verdict/references/docs/codex-prompt-doc.md",
+          "skills/change-verdict/references/docs/review-loop-doc.md",
+          "skills/change-verdict/references/risk/output-template.md",
+          "skills/change-verdict/references/risk/risk-dimensions.md",
+          "skills/change-verdict/references/security/codex-prompt-security.md",
+          "skills/change-verdict/references/security/examples.md",
+          "skills/change-verdict/references/shared/cli-backend.md",
+          "skills/change-verdict/references/shared/codex-research-instructions.md",
+          "skills/change-verdict/references/shared/command-context.md",
+          "skills/change-verdict/references/shared/review-common.md",
+          "skills/change-verdict/references/shared/review-rubric.md",
+          "skills/change-verdict/references/shared/review-workflow.md",
+          "skills/change-verdict/references/tests/codex-prompt-ac-trace.md",
+          "skills/change-verdict/references/tests/codex-prompt-test-review.md",
+          "skills/change-verdict/scripts/check-unrelated-changes.sh",
+          "skills/change-verdict/scripts/lib/command-namespace.js",
+          "skills/change-verdict/scripts/lib/runner-utils.js",
+          "skills/change-verdict/scripts/review-cli.sh",
+          "skills/change-verdict/scripts/risk-analyze.js"
+        ],
+        "test_evidence": {
+          "source": "tests/skill-audit-family-isolation.test.js",
+          "status": "PASS"
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "flow-drive",
+        "kind": "entry",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Explicit-only implementation workflow for a confirmed specification or OpenSpec change whose target and acceptance contract are settled. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: ordered implementation and verification evidence, or an explicit blocker.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "rules/execution-policy-kernel.md",
+          "rules/execution-policy.md",
+          "scripts/lib/flow-handoff-contract.js",
+          "skills/flow-drive/SKILL.md",
+          "skills/flow-drive/references/execution-bundle/docs/contracts/review-lifecycle.md",
+          "skills/flow-drive/references/execution-bundle/docs/contracts/reviewer-contract.md",
+          "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md",
+          "skills/flow-drive/references/execution-bundle/manifests/host-profiles.json",
+          "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json",
+          "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md",
+          "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md",
+          "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
+          "skills/flow-drive/references/execution-bundle/rules/model-economics.md",
+          "skills/flow-drive/references/execution-bundle/rules/tool-routing.md",
+          "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js",
+          "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js",
+          "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js",
+          "skills/flow-drive/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+          "skills/flow-drive/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+          "skills/flow-drive/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+          "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+          "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+          "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+          "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+          "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+          "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+          "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+          "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+          "skills/flow-drive/scripts/dispatch.js",
+          "skills/flow-drive/scripts/invocation.js"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites capability-bundle-selection.test.js, catalog-claims.test.js, check-codex-discovery.test.js, codex-mcp-retirement.test.js, command-skill-disposition.test.js, dhpk-distribution.test.js, dhpk-do-portable.test.js, documentation-platform-parity.test.js, flow-handoff-contract.test.js, frontmatter.test.js, invocation-precedence.test.js, opsx-goal-analyze.test.js, opsx-orchestration-decision-policy.test.js, physical-tree-publication.test.js, profile-scoped-claude-capability-bundle.test.js, skill-directory-isolation.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js, skill-runtime-path-contract.test.js, skill-usage-contract.test.js, validate-invocation-policy.test.js, validate-openai-metadata.test.js, validate-plugin.test.js, validate-references.test.js, workflow-package-closure.test.js for flow-drive, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "composer-package-hygiene",
+        "kind": "reference",
+        "owner_id": "change-verdict",
+        "selection": "common",
+        "task_selector": "Composer-published package contract review. Use when: deciding semver, auditing public API or composer.json, validating Laravel package discovery, or coordinating a package release. Not for: everyday application code, language idioms, or Laravel-specific authoring mechanics. Output: a contract verdict, audited manifest, or release gate backed by the package-contract reference.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-composer-package-hygiene/SKILL.md",
+          "skills/dhpk-composer-package-hygiene/references/package-contracts.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js, skill-retirement-migration.test.js for composer-package-hygiene, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "skill-forge",
+        "kind": "entry",
+        "owner_id": "skill-forge",
+        "selection": "host-only",
+        "task_selector": "Create or refactor an agent skill, or distill repeated principles into rules after explicit authoring or maintenance invocation. Not for: skill audits, searching only, one-off rule edits, slash commands, or application code review. Output: a validated skill package or an approval-ready rules candidate report.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/skill-forge/SKILL.md",
+          "skills/skill-forge/references/end-to-end-example.md",
+          "skills/skill-forge/references/results-schema.md",
+          "skills/skill-forge/references/subagent-prompt.md",
+          "skills/skill-forge/scripts/scan-rules.sh",
+          "skills/skill-forge/scripts/scan-skills.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.skill-forge",
+            "purpose_evidence": {
+              "source": "skills/skill-forge/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for skill-forge; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.skill-forge",
+            "purpose_evidence": {
+              "source": "skills/skill-forge/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for skill-forge; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-remaining-entry-isolation.test.js, skill-retirement-migration.test.js, task4-defects.test.js for skill-forge, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "deploy-list",
+        "kind": "branch",
+        "owner_id": "release-creator",
+        "selection": "common",
+        "task_selector": "Cross-project deploy file-list generator (schema=v1). Use when: building a deploy/release checklist from git history, listing which files to ship for a deploy, 部署清單, deploy list/checklist. Scope via --anchor (in-code markers), --deploy-commits (pinned commits), or whole base..head; filters dev-only paths (tests, docs, CI, AI harness) and groups by ecosystem preset (php-yii, laravel, node, python, generic, or a custom preset). Not for: plain commit lookup (git log), raw diffs (git diff), or actually running the deploy. Output: a deterministic deploy checklist (deploy-list.sh stdout, forwarded verbatim).",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-deploy-list/SKILL.md",
+          "skills/dhpk-deploy-list/references/extended-presets.example/php-yii-acmeshop.sh",
+          "skills/dhpk-deploy-list/references/presets.md",
+          "skills/dhpk-deploy-list/references/why-this-grouping.md",
+          "skills/dhpk-deploy-list/scripts/check-golden.sh",
+          "skills/dhpk-deploy-list/scripts/deploy-list.sh"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites dhpk-do-portable.test.js, skill-remaining-entry-isolation.test.js, skill-retirement-migration.test.js, skill-routing-projection-parity.test.js, userpromptsubmit-skill-hint.test.js for deploy-list, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "feature-verify",
+        "kind": "branch",
+        "owner_id": "repo-verify",
+        "selection": "common",
+        "task_selector": "Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-guide in feature mode), code review (use change-verdict), writing tests (use tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-feature-verify/SKILL.md",
+          "skills/dhpk-feature-verify/references/blackbox-testing.md",
+          "skills/dhpk-feature-verify/references/environments.md",
+          "skills/dhpk-feature-verify/references/output-template.md",
+          "skills/dhpk-feature-verify/references/safety-rules.md",
+          "skills/dhpk-feature-verify/references/verification-playbook.md",
+          "skills/dhpk-feature-verify/scripts/api-exec.sh",
+          "skills/dhpk-feature-verify/scripts/health-probe.sh"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "source": "tests/api-exec.test.js",
+          "status": "PASS"
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "git-smart-commit",
+        "kind": "entry",
+        "owner_id": "git-smart-commit",
+        "selection": "common",
+        "task_selector": "將雜亂的 git 變更依邏輯分群、逐批提交,適用於需要把多項變更拆成多個邏輯一致 commit 的情境。Not for: 單一小變更或只需要一個 commit（直接 commit 即可）。Output: 可直接執行的分組提交計畫與 commit 指令。",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/git-smart-commit/SKILL.md"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, flow-handoff-contract.test.js, profile-scoped-claude-capability-bundle.test.js, skill-health-self-containment.test.js, skill-retirement-migration.test.js for git-smart-commit, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "git-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "gitnexus-cli",
+        "kind": "withdrawn",
+        "upstream_owner": "gitnexus",
+        "authority": "external-package",
+        "license": {
+          "status": "excluded",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "gitnexus-debugging",
+        "kind": "withdrawn",
+        "owner_id": "code-trace",
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "upstream_owner": "gitnexus",
+        "authority": "external-package",
+        "license": {
+          "status": "excluded",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "gitnexus-exploring",
+        "kind": "withdrawn",
+        "owner_id": "code-trace",
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "upstream_owner": "gitnexus",
+        "authority": "external-package",
+        "license": {
+          "status": "excluded",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "gitnexus-guide",
+        "kind": "withdrawn",
+        "upstream_owner": "gitnexus",
+        "authority": "external-package",
+        "license": {
+          "status": "excluded",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "gitnexus-impact-analysis",
+        "kind": "withdrawn",
+        "owner_id": "code-trace",
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "upstream_owner": "gitnexus",
+        "authority": "external-package",
+        "license": {
+          "status": "excluded",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "gitnexus-refactoring",
+        "kind": "withdrawn",
+        "upstream_owner": "gitnexus",
+        "authority": "external-package",
+        "license": {
+          "status": "excluded",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "issue-analyze",
+        "kind": "branch",
+        "owner_id": "proposal-analyze",
+        "selection": "common",
+        "task_selector": "GitHub Issue and PR review thread deep analysis with an optional blind verdict. Purpose: analyze issue root causes, classify problems, plan investigations, or triage PR review comments for actionability. Not for: fixing bugs (use flow-guide in bug mode), code exploration (use code-trace). Output: classified analysis + verdict assessment + investigation strategy.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-issue-analyze/SKILL.md",
+          "skills/dhpk-issue-analyze/references/classification.md",
+          "skills/dhpk-issue-analyze/references/report-template.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites codex-mcp-retirement.test.js, invocation-precedence.test.js, skill-retirement-migration.test.js for issue-analyze, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "laravel-package-author",
+        "kind": "reference",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Cross-version Laravel package authoring. Use when: designing a service provider, facade, version-conditional binding, publishable artifact, discovery contract, or package compatibility surface. Not for: application code, one-major API details, Composer release hygiene, or deep Testbench matrix mechanics. Output: an authoring decision or package design with provider, facade, publishing, discovery, and compatibility gates.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-laravel-package-author/SKILL.md",
+          "skills/dhpk-laravel-package-author/references/authoring-patterns.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js, skill-retirement-migration.test.js for laravel-package-author, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "laravel-testbench-matrix",
+        "kind": "reference",
+        "owner_id": "tdd",
+        "selection": "common",
+        "task_selector": "Orchestra Testbench matrix mechanics for Laravel packages spanning multiple majors. Use when: choosing Testbench pins, defining PHP × Laravel cells, building the shared TestCase, provisioning per-cell databases, running prefer-lowest, or validating package discovery. Not for: single-major packages, application test suites, Laravel package authoring outside the matrix, or semver decisions. Output: a per-cell CI matrix, TestCase design, and evidence-backed test gate.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-laravel-testbench-matrix/SKILL.md",
+          "skills/dhpk-laravel-testbench-matrix/references/testbench-recipes.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites frontmatter.test.js, skill-retirement-migration.test.js for laravel-testbench-matrix, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "opsx-apply-goal",
+        "kind": "entry",
+        "owner_id": "opsx-apply-goal",
+        "selection": "host-only",
+        "task_selector": "Unattended OpenSpec goal generator for an existing change-id that needs a bounded fresh-session implementation goal. Not for: authoring, applying in the current session, verifying, syncing, or archiving. Output: an analysis summary plus one pasteable /goal condition, or a hard-stop report.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-opsx-apply-goal/SKILL.md",
+          "skills/dhpk-opsx-apply-goal/references/detection.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/contracts/review-lifecycle.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/contracts/reviewer-contract.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/subagent-prompt-template.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/host-profiles.json",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/provider-model-catalog.json",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/anti-rationalization.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy-kernel.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/model-economics.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/tool-routing.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/fast-worker-selector.js",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/dispatch-contract.js",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/dispatch-engine.js",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/flow-handoff-contract.js",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/native-dispatch-policy.js",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/partial-writer-handoff.js",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/deterministic-first.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-classification.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
+          "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
+          "skills/dhpk-opsx-apply-goal/references/gate-contracts.md",
+          "skills/dhpk-opsx-apply-goal/references/goal-templates.md",
+          "skills/dhpk-opsx-apply-goal/references/output-blocks.md",
+          "skills/dhpk-opsx-apply-goal/scripts/analyze-change.sh",
+          "skills/dhpk-opsx-apply-goal/scripts/build-cli-dispatch-context.js",
+          "skills/dhpk-opsx-apply-goal/scripts/cli-role-resolver.js",
+          "skills/dhpk-opsx-apply-goal/scripts/cli-transport/prepare-cli-request.py",
+          "skills/dhpk-opsx-apply-goal/scripts/cli-transport/run-cli-transport.py",
+          "skills/dhpk-opsx-apply-goal/scripts/goal-context.js",
+          "skills/dhpk-opsx-apply-goal/scripts/launch-cli-dispatch.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/claude-review-gate-adapter.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/physical-file.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/receipt-json-primitives.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/receipt-primitives.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/redaction.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-evidence.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-receipt-store.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-attestation.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-checkpoint.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-composition.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-errors.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-evidence.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime-storage.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-runtime.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate-store-budget.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/review-gate.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/reviewer-contract.js",
+          "skills/dhpk-opsx-apply-goal/scripts/lib/risk-router.js",
+          "skills/dhpk-opsx-apply-goal/scripts/physical-file.js",
+          "skills/dhpk-opsx-apply-goal/scripts/physical-file.py",
+          "skills/dhpk-opsx-apply-goal/scripts/review-gate-runtime.js",
+          "skills/dhpk-opsx-apply-goal/scripts/run-agy.sh",
+          "skills/dhpk-opsx-apply-goal/scripts/run-codex.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.opsx-apply-goal",
+            "purpose_evidence": {
+              "source": "skills/dhpk-opsx-apply-goal/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for opsx-apply-goal; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.opsx-apply-goal",
+            "purpose_evidence": {
+              "source": "skills/dhpk-opsx-apply-goal/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for opsx-apply-goal; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites dhpk-do-portable.test.js, invocation-precedence.test.js, opsx-goal-analyze.test.js, opsx-orchestration-decision-policy.test.js, skill-goal-runtime-isolation.test.js, skill-retirement-migration.test.js, userpromptsubmit-skill-hint.test.js, validate-plugin.test.js, validate-references.test.js for opsx-apply-goal, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "opsx-load-context",
+        "kind": "entry",
+        "owner_id": "opsx-load-context",
+        "selection": "host-only",
+        "task_selector": "Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use dhpk-opsx-post-observation) or goal generation (use dhpk-opsx-apply-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-opsx-load-context/SKILL.md",
+          "skills/dhpk-opsx-load-context/references/extractor-resolution.md",
+          "skills/dhpk-opsx-load-context/scripts/extract-compact.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.opsx-load-context",
+            "purpose_evidence": {
+              "source": "skills/dhpk-opsx-load-context/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for opsx-load-context; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "codex-sync",
+              "codex-native"
+            ],
+            "selection_id": "dhpk.host-only.codex.opsx-load-context",
+            "purpose_evidence": {
+              "source": "skills/dhpk-opsx-load-context/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh codex discovery and execution probe was run for opsx-load-context; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.opsx-load-context",
+            "purpose_evidence": {
+              "source": "skills/dhpk-opsx-load-context/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for opsx-load-context; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites extract-compact.test.js, opsx-orchestration-decision-policy.test.js, reference-route-policy.test.js, skill-directory-isolation.test.js, skill-retirement-migration.test.js, skill-runtime-path-contract.test.js, task4-defects.test.js for opsx-load-context, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "opsx-post-obs",
+        "kind": "entry",
+        "owner_id": "opsx-post-obs",
+        "selection": "host-only",
+        "task_selector": "Post a session observation to claude-mem from opsx-apply-resume Save Phase — builds a JSON payload and runs post-obs.sh as a non-blocking background post (the caller collects the result before the handoff write, so the POST overlaps Save-Phase Steps 4–6). Use when: opsx-apply-resume Save Phase Step 3b, right after compact-save extracts L0/session_goal/completed/key_decisions. Not for: loading Resume context (use dhpk-opsx-load-context) or goal generation (use dhpk-opsx-apply-goal). Output: OBS_PID + OBS_RESULT_FILE path for the caller to wait on.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-opsx-post-observation/SKILL.md",
+          "skills/dhpk-opsx-post-observation/scripts/post-obs.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.opsx-post-obs",
+            "purpose_evidence": {
+              "source": "skills/dhpk-opsx-post-observation/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for opsx-post-obs; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "codex-sync",
+              "codex-native"
+            ],
+            "selection_id": "dhpk.host-only.codex.opsx-post-obs",
+            "purpose_evidence": {
+              "source": "skills/dhpk-opsx-post-observation/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh codex discovery and execution probe was run for opsx-post-obs; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.opsx-post-obs",
+            "purpose_evidence": {
+              "source": "skills/dhpk-opsx-post-observation/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for opsx-post-obs; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "source": "tests/post-obs.test.js",
+          "status": "PASS"
+        },
+        "authority": "delegate",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "polyfill-version-matrix-audit",
+        "kind": "reference",
+        "owner_id": "change-verdict",
+        "selection": "common",
+        "task_selector": "Audit multi-major-version polyfill code for branch coverage and CI-matrix gaps. Use when: a library spans multiple dep majors (Monolog 2/3, Laravel 6/7+, PHPUnit 8-11) using version_compare / class_exists / method_exists guards, or after a \"fix: polyfill ...\" commit. Not for: single-version libraries, application code, version-detection-only helpers. Output: branch + matrix-gap audit report.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-polyfill-version-matrix-audit/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-retirement-migration.test.js for polyfill-version-matrix-audit, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "project-audit",
+        "kind": "branch",
+        "owner_id": "change-verdict",
+        "selection": "common",
+        "task_selector": "Project health audit with deterministic scoring. Use when: evaluating project quality, onboarding to new codebase, periodic health checks. Not for: runtime performance analysis, security-specific audits (use /dhpk:change-verdict --mode security). Output: 5-dimension score + actionable findings.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-project-audit/SKILL.md",
+          "skills/dhpk-project-audit/references/check-catalog.md",
+          "skills/dhpk-project-audit/references/output-template.md",
+          "skills/dhpk-project-audit/scripts/audit.js",
+          "skills/dhpk-project-audit/scripts/lib/command-namespace.js",
+          "skills/dhpk-project-audit/scripts/lib/runner-utils.js"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites dhpk-do-portable.test.js, skill-audit-family-isolation.test.js, skill-retirement-migration.test.js, skill-runtime-path-contract.test.js for project-audit, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "project-setup",
+        "kind": "entry",
+        "owner_id": "project-setup",
+        "selection": "host-only",
+        "task_selector": "Project configuration initialization: first-time setup, auto-detecting the framework, and replacing CLAUDE.md placeholders. Not for: ongoing config checks (use harness-govern health), skill creation (use skill-forge). Output: configured CLAUDE.md + project settings + rules + hooks.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-project-setup/SKILL.md",
+          "skills/dhpk-project-setup/references/detection-rules.md",
+          "skills/dhpk-project-setup/references/env-config-phase.md",
+          "skills/dhpk-project-setup/references/final-phase.md",
+          "skills/dhpk-project-setup/references/host-boundary.md",
+          "skills/dhpk-project-setup/references/install-hooks-scripts.md",
+          "skills/dhpk-project-setup/references/install-rules-phase.md",
+          "skills/dhpk-project-setup/scripts/install-project-assets.sh",
+          "skills/dhpk-project-setup/scripts/lib/install-assets-writer.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.project-setup",
+            "purpose_evidence": {
+              "source": "skills/dhpk-project-setup/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for project-setup; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.project-setup",
+            "purpose_evidence": {
+              "source": "skills/dhpk-project-setup/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for project-setup; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-retirement-migration.test.js, skill-setup-family-isolation.test.js, symlink-write-guidance.test.js, task4-defects.test.js for project-setup, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "prompt-optimize",
+        "kind": "entry",
+        "owner_id": "prompt-optimize",
+        "selection": "host-only",
+        "task_selector": "Rewrite a raw task prompt into a model-aware, effort-calibrated version before you run it. Use when: the user asks to \"optimize this prompt\", \"improve this prompt for Claude\", \"what effort should I use\", \"make this a good API prompt/template\", or pastes a rough instruction before a big Claude Code or API task. Detects the target model (current session or a named one), classifies task complexity, recommends an effort level (low/medium/high/xhigh/max, plus the dhpk agent-frontmatter/Claude Code equivalent), asks up to 4 AskUserQuestion questions only for missing required info, then applies model-specific behavioral rewrites. Not for: generic few-shot/CoT/template technique coaching with no model or effort selection (use prompt-engineering-patterns), or auditing token/cache budget (use `$harness-govern budget`). Output: optimized prompt block + effort recommendation with rationale + bullet list of rewrites applied.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-prompt-optimize/SKILL.md",
+          "skills/dhpk-prompt-optimize/references/completeness-checklist.md",
+          "skills/dhpk-prompt-optimize/references/effort-guide.md",
+          "skills/dhpk-prompt-optimize/references/general-techniques.md",
+          "skills/dhpk-prompt-optimize/references/live-model-verification-2026-08-05.md",
+          "skills/dhpk-prompt-optimize/references/model-guides.md"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.prompt-optimize",
+            "purpose_evidence": {
+              "source": "skills/dhpk-prompt-optimize/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for prompt-optimize; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.prompt-optimize",
+            "purpose_evidence": {
+              "source": "skills/dhpk-prompt-optimize/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for prompt-optimize; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-retirement-migration.test.js, task4-defects.test.js, validate-plugin.test.js for prompt-optimize, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "release-creator",
+        "kind": "entry",
+        "owner_id": "release-creator",
+        "selection": "common",
+        "task_selector": "Cuts a new release of a software project or plugin, coordinating release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/release-creator/SKILL.md",
+          "skills/release-creator/references/release-presets.md",
+          "skills/release-creator/scripts/release-runner.sh"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites dhpk-do-portable.test.js, invocation-precedence.test.js, release-runner.test.js, release-workflow.test.js, skill-directory-isolation.test.js, skill-retirement-migration.test.js, task4-defects.test.js, userpromptsubmit-skill-hint.test.js for release-creator, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "external-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "repo-intake",
+        "kind": "branch",
+        "owner_id": "code-trace",
+        "selection": "common",
+        "task_selector": "Project initialization inventory (one-time), for first onboarding a project or rebuilding cache after structural changes. Not for: day-to-day development (read cache directly), finding specific files (use code-trace). Output: project map with entrypoints + test map + next steps.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-repo-intake/SKILL.md",
+          "skills/dhpk-repo-intake/references/archived/MIDWAY_HEURISTICS.md",
+          "skills/dhpk-repo-intake/scripts/intake_cached.js",
+          "skills/dhpk-repo-intake/scripts/lib/runner-utils.js",
+          "skills/dhpk-repo-intake/scripts/scan_delta.js",
+          "skills/dhpk-repo-intake/scripts/scan_repo.js"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "source": "tests/run-skill.test.js",
+          "status": "PASS"
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "session-usage-audit",
+        "kind": "entry",
+        "owner_id": "session-usage-audit",
+        "selection": "host-only",
+        "task_selector": "Audits dhpk usage evidence in the current user home, correlates session failures with installed agents and package versions, verifies candidate defects, and prepares deduplicated GitHub issue evidence. Not for: remote fleet scans or automatic source changes. Output: redacted report, verified findings, and confirmed issue handoff. Explicit invocation only.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-session-usage-audit/SKILL.md",
+          "skills/dhpk-session-usage-audit/references/finding-taxonomy.md",
+          "skills/dhpk-session-usage-audit/references/issue-template.md",
+          "skills/dhpk-session-usage-audit/references/source-adapters.md",
+          "skills/dhpk-session-usage-audit/scripts/session-usage-audit.js"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.session-usage-audit",
+            "purpose_evidence": {
+              "source": "skills/dhpk-session-usage-audit/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for session-usage-audit; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.session-usage-audit",
+            "purpose_evidence": {
+              "source": "skills/dhpk-session-usage-audit/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for session-usage-audit; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "source": "tests/session-audit-integrity-fixtures.test.js",
+          "status": "PASS"
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "skill-scope",
+        "kind": "entry",
+        "owner_id": "skill-scope",
+        "selection": "host-only",
+        "task_selector": "Route skill-governance work to health, judge, stocktake, or scout mode. Use when: auditing skill quality, comparing many skills, or searching before authoring. Not for: authoring a skill, editing a rule, or reviewing application code. Output: one mode-specific report with evidence and a clear gate.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/skill-scope/SKILL.md",
+          "skills/skill-scope/references/judge-failure-patterns.md",
+          "skills/skill-scope/references/judge-philosophy.md",
+          "skills/skill-scope/references/judge-scoring-rubric.md",
+          "skills/skill-scope/references/routing-signature-guide.md",
+          "skills/skill-scope/scripts/quick-diff.sh",
+          "skills/skill-scope/scripts/save-results.sh",
+          "skills/skill-scope/scripts/scan.sh",
+          "skills/skill-scope/scripts/skill-lint.js"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.skill-scope",
+            "purpose_evidence": {
+              "source": "skills/skill-scope/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for skill-scope; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "codex-sync",
+              "codex-native"
+            ],
+            "selection_id": "dhpk.host-only.codex.skill-scope",
+            "purpose_evidence": {
+              "source": "skills/skill-scope/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh codex discovery and execution probe was run for skill-scope; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.skill-scope",
+            "purpose_evidence": {
+              "source": "skills/skill-scope/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for skill-scope; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites distribution-inventory-validate.test.js, gen-cursor-sync.test.js, skill-directory-coverage.test.js, skill-health-self-containment.test.js, skill-remaining-entry-isolation.test.js, skill-retirement-migration.test.js, task4-defects.test.js for skill-scope, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "delegate",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "software-architecture",
+        "kind": "reference",
+        "owner_id": "proposal-analyze",
+        "selection": "common",
+        "task_selector": "Use when users need architecture decisions, module boundaries, or implementation guidance for software development tasks. Supports design, review, compare, and bounded adversarial modes. Not for pure documentation editing or non-technical writing tasks. Output: actionable, stack-neutral architecture guidance with explicit seams, trade-offs, and implementation-ready recommendations.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dhpk-module-design/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites codex-mcp-retirement.test.js, flow-handoff-contract.test.js, skill-retirement-migration.test.js, task4-defects.test.js for software-architecture, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "guidance-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "tdd",
+        "kind": "entry",
+        "owner_id": "tdd",
+        "selection": "common",
+        "task_selector": "Framework-agnostic test-driven development guidance for behavior-first unit and integration tests, test scaffolds, and minimal RED-GREEN-REFACTOR changes. Use when building a feature or fixing a bug test-first, writing a test scaffold, or reviewing test seams and mocks. Not for: Playwright journey authoring, pure documentation or rename work, or replacing dhpk's tdd-guide dispatch. Output: a failing-test proof, minimal implementation/test change, scoped verification, and a concise TDD report.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/tdd-workflow/SKILL.md"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites agy-adapt-agents.test.js, codex-native-package-validate.test.js, dhpk-distribution.test.js, dhpk-do-portable.test.js, dhpk-install-lifecycle.test.js, distribution-inventory-validate.test.js, gen-claude-manifest.test.js, install-codex-skills-planning.test.js, install-codex-skills-reconciliation.test.js, portable-skill-mirrors.test.js, pre-route.test.js, prepare-release-cli.test.js, skill-health-self-containment.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js, skill-routing-projection-parity.test.js, skill-topology.test.js, subagent-context-budget.test.js, task4-defects.test.js, userpromptsubmit-skill-hint.test.js, validate-distribution.test.js, workflow-package-closure.test.js for tdd, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "harness-govern",
+        "kind": "entry",
+        "owner_id": "harness-govern",
+        "selection": "host-only",
+        "task_selector": "Govern a project harness through one explicit health, budget, fill, revise, or cross-platform sync mode for structure, context cost, missing infrastructure, safe trimming, or Claude-first parity. Not for application code or ordinary skill authoring. Output: mode-specific evidence, dry-run or applied-change state, and a terminal gate.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/harness-govern/SKILL.md",
+          "skills/harness-govern/references/best-practices.md",
+          "skills/harness-govern/references/budget-workflow.md",
+          "skills/harness-govern/references/capability-sources.md",
+          "skills/harness-govern/references/execution-contract.md",
+          "skills/harness-govern/references/fill-workflow.md",
+          "skills/harness-govern/references/frontmatter-templates.md",
+          "skills/harness-govern/references/harness-directory-contract.md",
+          "skills/harness-govern/references/health-workflow.md",
+          "skills/harness-govern/references/hygiene-checks.md",
+          "skills/harness-govern/references/improvement-todo.md",
+          "skills/harness-govern/references/platform-mapping.md",
+          "skills/harness-govern/references/plugin-sync.md",
+          "skills/harness-govern/references/revise-workflow.md",
+          "skills/harness-govern/references/risk-policy.md",
+          "skills/harness-govern/references/runtime-entrypoints.md",
+          "skills/harness-govern/references/source-conflicts.json",
+          "skills/harness-govern/references/sync-workflow.md",
+          "skills/harness-govern/references/usage-examples.md",
+          "skills/harness-govern/scripts/harness-inventory.sh",
+          "skills/harness-govern/scripts/harness-scenarios.sh",
+          "skills/harness-govern/scripts/multi_ai_sync.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/__init__.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/agent_sync.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/apply_sync_v2.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/cli.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/constants.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/cursor_project_local.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/mapping.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/sources.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/utils.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/validation.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/__init__.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/LICENSE",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/__init__.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_parser.py",
+          "skills/harness-govern/scripts/multi_ai_sync_lib/vendor/tomli/_re.py",
+          "skills/harness-govern/scripts/test-harness.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.harness-govern",
+            "purpose_evidence": {
+              "source": "skills/harness-govern/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for harness-govern; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "codex-sync",
+              "codex-native"
+            ],
+            "selection_id": "dhpk.host-only.codex.harness-govern",
+            "purpose_evidence": {
+              "source": "skills/harness-govern/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh codex discovery and execution probe was run for harness-govern; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.harness-govern",
+            "purpose_evidence": {
+              "source": "skills/harness-govern/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for harness-govern; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "source": "tests/multi-ai-sync-skill-contract.test.js",
+          "status": "PASS"
+        },
+        "authority": "external-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "create-pr",
+        "kind": "entry",
+        "owner_id": "create-pr",
+        "selection": "common",
+        "task_selector": "Create a GitHub pull request from a pushed branch with ticket-aware title and body generation. Not for: committing, pushing, merging, releasing, or editing an existing PR. Output: a dry-run gh pr create command by default, or the created PR URL after explicit execution.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/create-pr/SKILL.md",
+          "skills/create-pr/references/workflow.md"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, dhpk-do-portable.test.js, invocation-precedence.test.js, pre-route.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js, userpromptsubmit-skill-hint.test.js for create-pr, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "external-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "git-worktree",
+        "kind": "entry",
+        "owner_id": "git-worktree",
+        "selection": "common",
+        "task_selector": "Manage Git worktree lifecycle with exact native git targets, branch/path validation, and dirty-worktree safety. Covers adding, listing, removing, and pruning worktrees. Not for: branch merging, broad cleanup, or removing or pruning without confirmation. Output: exact commands plus resulting worktree status.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/git-worktree/SKILL.md",
+          "skills/git-worktree/references/workflow.md"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for git-worktree, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "git-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "merge-prep",
+        "kind": "branch",
+        "owner_id": "create-pr",
+        "selection": "common",
+        "task_selector": "Prepare a read-only branch merge analysis with native git merge-tree conflict detection and copy-pasteable manual commands. Use when deciding whether to merge one branch into another. Not for: checkout, merge, rebase, conflict edits, or branch mutation. Output: commits, files, conflicts, evidence, and manual commands.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/merge-prep/SKILL.md",
+          "skills/merge-prep/references/workflow.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for merge-prep, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "pr-summary",
+        "kind": "branch",
+        "owner_id": "create-pr",
+        "selection": "common",
+        "task_selector": "Summarize accessible open GitHub pull requests from structured gh JSON, filtering bots and grouping results by ticket. Use for a read-only PR status report. Not for: changing PR state, reviewing code, merging, or closing PRs. Output: grouped Markdown written to /tmp/pr-summary.md and displayed for copying.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/pr-summary/SKILL.md",
+          "skills/pr-summary/references/workflow.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for pr-summary, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "proposal-analyze",
+        "kind": "entry",
+        "owner_id": "proposal-analyze",
+        "selection": "common",
+        "task_selector": "Use when turning an initial proposal or proposal file into an evidence-backed implementation roadmap. Not for applying an approved OpenSpec change or writing OpenSpec artifacts. Output: validated assumptions, code-research summary, roadmap, alternatives, risks, and immediate actions.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/proposal-analyze/SKILL.md"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites skill-purpose-decisions.test.js, skill-retirement-migration.test.js for proposal-analyze, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "project-brief",
+        "kind": "branch",
+        "owner_id": "proposal-analyze",
+        "selection": "common",
+        "task_selector": "Use when converting one readable technical specification into a PM or CTO executive brief. Not for editing the source specification or preserving implementation detail. Output: a saved executive-summary path and retained unresolved decisions.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/project-brief/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for project-brief, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "doc-refactor",
+        "kind": "branch",
+        "owner_id": "update-docs",
+        "selection": "common",
+        "task_selector": "Use when refactoring one bounded Markdown document while preserving its facts, policy, frontmatter, and route semantics. Not for cross-file policy changes, generated projections, or broad documentation audits. Output: the refactored path, line-count comparison, preserved-fact summary, and PASS, NOT_RUN, or BLOCKED validation.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/doc-refactor/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for doc-refactor, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "update-docs",
+        "kind": "entry",
+        "owner_id": "update-docs",
+        "selection": "common",
+        "task_selector": "Use when a live route, setup, distribution, configuration, or bounded workflow change makes user or agent documentation stale. Not for source/test edits, codemap-only refreshes, policy review, or external-library research. Output: an evidence-backed document update report with PASS, NOT_RUN, BLOCKED, or Need Human handoff.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/update-docs/SKILL.md"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, documentation-platform-parity.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for update-docs, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "update-codemaps",
+        "kind": "branch",
+        "owner_id": "update-docs",
+        "selection": "common",
+        "task_selector": "Use after a structural change or for an explicit architecture-document refresh. Not for rewriting application source or updating user documentation outside codemaps. Output: changed $PROJECT_DIR/docs/CODEMAPS paths, scan metadata, diff percentage, and PASS, BLOCKED, or confirmation-required status.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/update-codemaps/SKILL.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js, skill-runtime-path-contract.test.js for update-codemaps, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "precommit",
+        "kind": "entry",
+        "owner_id": "precommit",
+        "selection": "common",
+        "task_selector": "Run the deterministic pre-commit pipeline in fast or full mode through the packaged runner. Use when handing off repository changes. Not for: ad hoc replacement checks, dependency audits, or read-only verification. Output: runner-owned changed-file reporting and final verdict.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/precommit/SKILL.md",
+          "skills/precommit/references/workflow.md",
+          "skills/precommit/scripts/lib/runner-utils.js",
+          "skills/precommit/scripts/precommit-runner.js"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, dhpk-do-portable.test.js, install-assets.test.js, precommit-runner.test.js, review-gate-runtime-consumer-e2e.test.js, skill-pilot-install-migration.test.js, skill-pilot-isolation.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for precommit, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "dep-audit",
+        "kind": "entry",
+        "owner_id": "dep-audit",
+        "selection": "common",
+        "task_selector": "Audit dependency security risks with an evidence-only verdict and an explicitly separate fix operation. Use for dependency vulnerability review. Not for: implicit upgrades, general code review, or treating a successful fix command as clearance. Output: audit findings, optional fix status, and a read-only security verdict.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/dep-audit/SKILL.md",
+          "skills/dep-audit/references/workflow.md"
+        ],
+        "test_evidence": {
+          "source": "tests/dep-audit.test.js",
+          "status": "PASS"
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "repo-verify",
+        "kind": "entry",
+        "owner_id": "repo-verify",
+        "selection": "common",
+        "task_selector": "Run a repository verification loop with runner-first execution, deterministic stages, and explicit PASS/FAIL/SKIP output. Use for fast or full validation of a consumer repository. Not for: mutation, fixing failures, dependency remediation, or merge approval. Output: runner summary or a complete fallback stage table.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/repo-verify/SKILL.md",
+          "skills/repo-verify/references/workflow.md",
+          "skills/repo-verify/scripts/lib/runner-utils.js",
+          "skills/repo-verify/scripts/verify-runner.js"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, install-assets.test.js, precommit-runner.test.js, profile-scoped-claude-capability-bundle.test.js, review-gate-runtime-consumer-e2e.test.js, skill-pilot-install-migration.test.js, skill-pilot-isolation.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for repo-verify, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "code-simplify",
+        "kind": "branch",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Use when cleaning changed code for reuse, simplicity, efficiency, and the right abstraction level without changing behavior. Not for correctness review, broad redesign, or unbounded cleanup. Output: four-angle findings, applied/skipped changes, and baseline/final test evidence with degraded status when needed.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/code-simplify/SKILL.md",
+          "skills/code-simplify/references/refactor-contract.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for code-simplify, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "harness-audit",
+        "kind": "entry",
+        "owner_id": "harness-audit",
+        "selection": "host-only",
+        "task_selector": "Run the deterministic repository harness audit and return its prioritized scorecard. Use when measuring harness health for a repository or scoped harness area. Not for: changing harness files, inventing scoring dimensions, or replacing harness governance. Output: script-owned score, findings, failed checks, top actions, and suggested skills.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/harness-audit/SKILL.md",
+          "skills/harness-audit/references/workflow.md",
+          "skills/harness-audit/scripts/harness-audit.js"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.harness-audit",
+            "purpose_evidence": {
+              "source": "skills/harness-audit/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for harness-audit; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "codex-sync",
+              "codex-native"
+            ],
+            "selection_id": "dhpk.host-only.codex.harness-audit",
+            "purpose_evidence": {
+              "source": "skills/harness-audit/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh codex discovery and execution probe was run for harness-audit; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.harness-audit",
+            "purpose_evidence": {
+              "source": "skills/harness-audit/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for harness-audit; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "source": "tests/harness-audit.test.js",
+          "status": "PASS"
+        },
+        "authority": "read-only",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "review-pending",
+        "kind": "branch",
+        "owner_id": "flow-drive",
+        "selection": "common",
+        "task_selector": "Delegate the current diff or explicitly selected files to an available code-reviewer and relay its report. Use for a read-only pending-change review. Not for: implementing findings, clearing a merge gate, or silently substituting another reviewer. Output: the reviewer report, or UNAVAILABLE when code-reviewer is absent.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/review-pending/SKILL.md",
+          "skills/review-pending/references/workflow.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, dhpk-do-portable.test.js, invocation-precedence.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js, userpromptsubmit-skill-hint.test.js for review-pending, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "delegate",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "spec-mine",
+        "kind": "branch",
+        "owner_id": "proposal-analyze",
+        "selection": "common",
+        "task_selector": "Use when extracting one capability’s behavioral baseline from a brownfield codebase into openspec/specs/<capability>/spec.md. Not for mining every module, refactoring, or applying a change. Output: the spec path, capability, Last verified commit, deferred files, or UNAVAILABLE when the required spec-miner role is not registered.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/spec-mine/SKILL.md",
+          "skills/spec-mine/references/spec-miner-contract.md"
+        ],
+        "behavior_successor": {
+          "source": "docs/contracts/marketplace-catalog.md",
+          "status": "PASS"
+        },
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, dhpk-do-portable.test.js, skill-purpose-decisions.test.js, skill-retirement-migration.test.js for spec-mine, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "harness-setup",
+        "kind": "entry",
+        "owner_id": "harness-setup",
+        "selection": "host-only",
+        "task_selector": "Configure or inspect the dhpk harness, initialize its optional Review Gate, or install selected host assets. Not for: ordinary harness audits, application changes, or silent credential/configuration changes. Output: a host-specific setup report with preserved-file, receipt, and terminal evidence.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/harness-setup/SKILL.md",
+          "skills/harness-setup/references/claude-setup.md",
+          "skills/harness-setup/references/codex-setup.md",
+          "skills/harness-setup/scripts/install-assets.sh",
+          "skills/harness-setup/scripts/install-codex-project.sh",
+          "skills/harness-setup/scripts/lib/claude-review-gate-adapter.js",
+          "skills/harness-setup/scripts/lib/install-assets-writer.sh",
+          "skills/harness-setup/scripts/lib/install-codex-skills.sh",
+          "skills/harness-setup/scripts/lib/physical-file.js",
+          "skills/harness-setup/scripts/lib/receipt-json-primitives.js",
+          "skills/harness-setup/scripts/lib/receipt-primitives.js",
+          "skills/harness-setup/scripts/lib/redaction.js",
+          "skills/harness-setup/scripts/lib/review-gate-evidence.js",
+          "skills/harness-setup/scripts/lib/review-gate-receipt-store.js",
+          "skills/harness-setup/scripts/lib/review-gate-runtime-attestation.js",
+          "skills/harness-setup/scripts/lib/review-gate-runtime-checkpoint.js",
+          "skills/harness-setup/scripts/lib/review-gate-runtime-composition.js",
+          "skills/harness-setup/scripts/lib/review-gate-runtime-errors.js",
+          "skills/harness-setup/scripts/lib/review-gate-runtime-evidence.js",
+          "skills/harness-setup/scripts/lib/review-gate-runtime-storage.js",
+          "skills/harness-setup/scripts/lib/review-gate-runtime.js",
+          "skills/harness-setup/scripts/lib/review-gate-store-budget.js",
+          "skills/harness-setup/scripts/lib/review-gate.js",
+          "skills/harness-setup/scripts/lib/reviewer-contract.js",
+          "skills/harness-setup/scripts/lib/risk-router.js",
+          "skills/harness-setup/scripts/review-gate-runtime.js"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.harness-setup",
+            "purpose_evidence": {
+              "source": "skills/harness-setup/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for harness-setup; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.harness-setup",
+            "purpose_evidence": {
+              "source": "skills/harness-setup/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for harness-setup; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js, skill-setup-family-isolation.test.js, symlink-write-guidance.test.js, validate-plugin.test.js for harness-setup, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "opsx-apply-resume",
+        "kind": "entry",
+        "owner_id": "opsx-apply-resume",
+        "selection": "host-only",
+        "task_selector": "Save and resume a long-running OpenSpec apply session from a live worktree, preserving optional gates and host-specific handoff artifacts. Not for: starting a new proposal, changing the external OpenSpec workflow, or treating a commit as a prerequisite. Output: a saved/resumed handoff report with lifecycle and next-action evidence.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/opsx-apply-resume/SKILL.md",
+          "skills/opsx-apply-resume/references/resume.md",
+          "skills/opsx-apply-resume/references/save.md",
+          "skills/opsx-apply-resume/scripts/detect-phase.sh",
+          "skills/opsx-apply-resume/scripts/extract-compact.sh",
+          "skills/opsx-apply-resume/scripts/lib/portable-sed.sh",
+          "skills/opsx-apply-resume/scripts/post-obs.sh",
+          "skills/opsx-apply-resume/scripts/set-handoff-state.sh",
+          "skills/opsx-apply-resume/scripts/write-handoff.sh"
+        ],
+        "host_selection": [
+          {
+            "surfaces": [
+              "claude-core"
+            ],
+            "selection_id": "dhpk.host-only.claude.opsx-apply-resume",
+            "purpose_evidence": {
+              "source": "skills/opsx-apply-resume/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh claude discovery and execution probe was run for opsx-apply-resume; this selection identity records proposed scope only."
+            }
+          },
+          {
+            "surfaces": [
+              "cursor-sync"
+            ],
+            "selection_id": "dhpk.host-only.cursor.opsx-apply-resume",
+            "purpose_evidence": {
+              "source": "skills/opsx-apply-resume/SKILL.md",
+              "status": "PASS"
+            },
+            "execution_evidence": {
+              "status": "GAP",
+              "reason": "No fresh cursor discovery and execution probe was run for opsx-apply-resume; this selection identity records proposed scope only."
+            }
+          }
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, install-assets.test.js, physical-tree-publication.test.js, reference-route-policy.test.js, skill-directory-isolation.test.js, skill-purpose-decisions.test.js, skill-runtime-path-contract.test.js, write-handoff.test.js for opsx-apply-resume, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      },
+      {
+        "id": "ui-ux-verify",
+        "kind": "entry",
+        "owner_id": "ui-ux-verify",
+        "selection": "common",
+        "task_selector": "Read-only verification of one rendered page against one OpenSpec UI specification. Use when: checking a page against a spec, auditing a controller/action render, or reviewing UI content, structure, and behavior. Not for: E2E journey authoring, application edits, data mutation, or a runtime API smoke test. Output: one severity-ranked audit report with APPROVE, WARNING, BLOCK, or UNAVAILABLE evidence.",
+        "version_condition": "Apply only version/runtime conditions explicitly stated in this skill and confirmed by project context; no all-supported or inferred fallback is declared.",
+        "resources": [
+          "skills/ui-ux-verify/SKILL.md",
+          "skills/ui-ux-verify/references/verification.md"
+        ],
+        "test_evidence": {
+          "status": "GAP",
+          "reason": "The catalog cites command-skill-disposition.test.js, skill-purpose-decisions.test.js for ui-ux-verify, but no row-specific behavior assertion was confirmed; structural, fixture, or projection references do not establish behavior."
+        },
+        "authority": "workspace-write",
+        "license": {
+          "status": "first-party",
+          "evidence": "docs/contracts/marketplace-licensing.md"
+        }
+      }
+    ]
+  }
 }
