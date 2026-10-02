@@ -2,8 +2,25 @@
 
 This accepted catalog maps each active stable ID to its publication kind, owner,
 selection, current distribution surfaces, provisional license classification,
-and recorded test-evidence state. The purpose ledger remains the machine-readable
-source for current decisions; this table is the accepted classification contract.
+and recorded test-evidence state. `manifests/marketplace-selection.json` is the
+machine-readable copy of the ID, authority, kind, owner, and selection columns;
+`scripts/lib/marketplace-selection.js` compiles it against the distribution
+inventory and fails closed on any drift. Change both together.
+
+## Naming decision
+
+On 2026-10-02 the user decided to keep every current inventory `name`. There
+is no broader rename, the six IDs whose slug differs from their `name` stay as
+they are, and unprefixed names do not gain a `dhpk-` prefix. Public names are
+the inventory `name`. No selected name may be a runtime alias (the `legacy`,
+`renamed`, and `retired` aliases in the usage catalog's `runtimeIndex`).
+
+## Publication shape
+
+Only the 15 common entries are public listings. Each common branch, reference,
+or internal skill is bundled inside its entry owner when the package is built;
+it is not a separate listing. Host-only rows keep a separate identity on the
+surfaces listed in the inventory. Withdrawn rows are never published.
 
 ## Classification rules
 
