@@ -1,49 +1,51 @@
 # TDD Workflow And Test Strategy
 
-Use TDD by default, even in legacy code.
+Use this file for the default test-first loop, deciding which layer a test belongs in, and reviewing tests on legacy code.
+Source basis: dhpk-authored guidance; general practice and public Yii 1.1 / PHP / PHPUnit facts, written without copying upstream text.
 
-Source basis: Context7 queries against `/websites/phpunit_de_en_12_5`, translated into version-agnostic principles for legacy PHP projects.
+For PHPUnit 5.7 API constraints and legacy assertion syntax, see [phpunit57-legacy-test-traps.md](phpunit57-legacy-test-traps.md).
 
 ## Default loop
 
-1. Define the behavior change or bug as an observable example.
-2. Write the smallest failing test or characterization test.
-3. Make the smallest implementation change that turns the test green.
-4. Refactor names, boundaries, and duplication while keeping tests green.
-5. Add edge-case or regression coverage only after the main path is stable.
+The test always comes first; implementation follows it.
 
-## Test layering
+1. Describe the behavior or the bug as a concrete, observable example.
+2. Write the smallest failing test, or a characterization test that pins current behavior.
+3. Write the least implementation that turns it green.
+4. Refactor names, boundaries, and duplication while every test stays green.
+5. Once the main path is stable, add edge-case and regression coverage.
 
-Prefer this order:
+## Where each test belongs
 
-- unit tests for Value Objects, Domain Services, and Application Services
-- integration tests for repositories, DAO queries, and transaction boundaries
-- controller or HTTP smoke tests for wiring, status codes, redirects, and view or model composition
+Prefer the lowest layer that can prove the behavior: unit first, then integration, then smoke.
 
-Keep high-value logic low in the stack so it can be tested without booting the full framework when possible.
+- Unit: value objects, domain services, application services.
+- Integration: repositories, DAO queries, transaction boundaries.
+- Controller / HTTP smoke: wiring, status codes, redirects, and how views or models are composed.
+- Push valuable logic downward so it can be tested without booting the framework.
 
-## Test design rules
+## Writing the test
 
-- Structure each test as Arrange, Act, Assert.
-- Test one concept per test.
-- Use `setUp()` and `tearDown()` only for shared fixture work that truly repeats.
-- Favor test doubles at service boundaries, repository interfaces, and external integrations.
-- Do not mock value objects or internal implementation details just to satisfy the test.
-- Use domain-specific helper assertions when repeated checks become noisy.
+- Lay out each test as Arrange, Act, Assert.
+- Cover one concept per test.
+- Reach for `setUp()` / `tearDown()` only when a fixture is genuinely shared.
+- Place test doubles at service boundaries, repository interfaces, and external integrations.
+- Never mock a value object or an internal detail just to get a pass.
+- When assertions get noisy, extract a domain-named helper such as `assertInvoiceIsSettled()`.
 
-## Legacy-first advice
+## Legacy code first
 
-When refactoring risky legacy code:
-
-- write characterization tests around current behavior first
-- capture the bug with a failing regression test before fixing it
-- widen coverage around condition branches that are hard to reason about
-- call out untestable seams instead of pretending they are covered
+- Before refactoring risky code, write characterization tests around what it does today.
+- Before fixing a bug, capture it in a failing regression test.
+- Add extra cases where branches are hard to reason about.
+- When a seam cannot be tested, say so in the report; never claim coverage that does not exist.
 
 ## Review checklist
 
-- Is there a failing test or characterization test for the change?
-- Is the test asserting behavior instead of incidental implementation?
-- Are mocks limited to true collaboration boundaries?
-- Does the suite cover both the success path and the important failure mode?
-- Does the test still make sense if the implementation is refactored internally?
+Answer each with yes or no:
+
+- Does a failing or characterization test exist for this change?
+- Does it assert behavior rather than incidental implementation?
+- Are mocks limited to real collaboration boundaries?
+- Does it cover the success path and at least one key failure mode?
+- Would it still pass after an internal refactor that keeps behavior the same?
