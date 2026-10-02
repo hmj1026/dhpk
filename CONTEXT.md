@@ -108,6 +108,28 @@ _Avoid_: Supported (when no environment-specific observation exists)
 - A Role Alias carries a Role, never a backend; Host/Role Defaults remain the only automatic selection policy.
 - A Host reads portable skills through Host Bindings to the Shared Project Projection; its Native Projection holds only what cannot be shared. Removing a Host removes its bindings, not shared content another Host still binds.
 
+## Review and Authority
+
+**Authority Attempt**:
+Any operation an agent tries that the current grant does not list explicitly. It is an Authority Attempt whether the Host blocks it, the Host allows it automatically, or it is read-only with no effect.
+_Avoid_: Denied operation, permission denial (a Host denial is only one possible outcome of an attempt)
+
+**Return-only Role**:
+A reviewer, reasoner, or planner Role, or an agent such as an architect, that has no declared working-tree write grant. It hands its deliverable back to its parent and never saves the deliverable itself.
+_Avoid_: Read-only reviewer (when reasoners, planners, and architects are also meant)
+
+**Review Result**:
+The deliverable a reviewer returns. It is bound to the reviewed tree, the reviewer Role, the reviewer's run identity, the implementer's identity, and the contract version it answers.
+_Avoid_: Review artifact (for the returned result; the artifact is the saved copy), verdict file
+
+**Parent Persistence**:
+The step in which an authorized parent saves a returned deliverable when the contract requires a saved record. If saving fails, the deliverable stays unresolved; a failed save is never a pass.
+_Avoid_: Child-written artifact, reviewer self-save
+
+**Self-Review**:
+A Review Result whose reviewer identity is the same as the implementer identity. It never satisfies an independent-review requirement.
+_Avoid_: Independent review
+
 ## Release Evidence
 
 **CI Runtime Baseline**:
