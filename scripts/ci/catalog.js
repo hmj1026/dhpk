@@ -49,8 +49,6 @@ const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, comman
 // Explicit ownership for newly added top-level test suites. Keep keys exact so
 // a similarly named suite cannot inherit another suite's owner by accident.
 const SUITE_OWNER_REGISTRY = Object.freeze({
-  'tests/review-gate-evidence-residual-security.test.js': 'docs/adr/0017-implement-review-gate-as-a-local-event-module.md',
-  'tests/review-gate-authority-residual-security.test.js': 'docs/adr/0017-implement-review-gate-as-a-local-event-module.md',
 });
 
 function computeCounts() {
@@ -194,7 +192,6 @@ const COVERAGE_MAP = {
   'scripts/hooks/_lib/install-health.sh': 'session-install-health-version.test.js',
   'scripts/validate/test-hooks.sh': 'validate-test-hooks.test.js',
   'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
-  'scripts/lib/retirement-closure.js': 'validate-retirement-closure.test.js',
   'scripts/lib/claude-capability-bundle.js': 'profile-scoped-claude-capability-bundle.test.js',
   'scripts/lib/internal-runtime-skills.js': 'distribution-inventory-validate.test.js',
   'scripts/lib/distribution-compiler.js': 'distribution-projection-contract.test.js',
@@ -211,16 +208,9 @@ const COVERAGE_MAP = {
   'scripts/lib/harness-result.js': 'harness-facade-contract.test.js',
   'scripts/lib/harness-surfaces.js': 'harness-facade-contract.test.js',
   'scripts/dhpk-harness.js': 'harness-facade-cli.test.js',
-  'scripts/lib/review-gate-runtime-checkpoint.js': 'review-gate-runtime-observe-states.test.js',
-  'scripts/lib/review-gate-runtime-composition.js': 'review-gate-runtime-observe-cli.test.js',
-  'scripts/lib/review-gate-runtime-errors.js': 'review-gate-runtime-observe-security.test.js',
-  'scripts/lib/review-gate-runtime-evidence.js': 'review-gate-runtime-observe-security.test.js',
-  'scripts/lib/review-gate-runtime-storage.js': 'review-gate-runtime-init-security.test.js',
-  'scripts/ci/validate-command-dispositions.js': 'command-skill-disposition.test.js',
   'scripts/hooks/_lib/advise-once.sh': 'session-start.test.js',
   'scripts/hooks/_lib/detect-stack-hints.sh': 'session-start.test.js',
   'scripts/ci/sync-skill-resources.js': 'skill-resource-sync-security.test.js',
-  'scripts/ci/validate-skill-purpose-decisions.js': 'skill-purpose-decisions.test.js',
   'scripts/lib/runner-utils.js': 'utils.test.js',
   'scripts/lib/profile-projection-sets.js': 'catalog-claims.test.js',
   'scripts/ci/gen-dispatch-projection.js': 'dispatch-engine.test.js',
@@ -232,7 +222,7 @@ const COVERAGE_MAP = {
   'scripts/lib/dispatch-scheduler.js': 'dispatch-engine.test.js',
   'scripts/lib/provider-cli-adapters.js': 'provider-adapter.test.js',
   'scripts/lib/discovery-budget.js': 'context-budget.test.js',
-  'scripts/lib/command-namespace.js': 'command-skill-disposition.test.js',
+  'scripts/lib/command-namespace.js': 'command-namespace.test.js',
   'scripts/lib/feature-resolver.js': 'resolve-feature-cli.test.js',
   'scripts/hooks/_lib/stop-dispatch-audit.sh': 'stop-advisory-dispatch-graduation.test.js',
   'scripts/hooks/pre-bash-dispatch.sh': 'pre-bash-guard.test.js',

@@ -554,7 +554,7 @@
       "path": "commands/setup.md",
       "host_surface": "claude-command",
       "public_name": "/dhpk:setup",
-      "argument_contract": "[--show] [--review-gate] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force] [--vendor]",
+      "argument_contract": "[--show] [--source-artifact <dir>] [--install hooks|rules|scripts|all] [--dry-run] [--force] [--vendor]",
       "authority": "workspace-write",
       "skill_owner": "harness-setup",
       "disposition": "thin-front-door",

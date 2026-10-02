@@ -22,9 +22,8 @@ advice.
 
 ## Reviewer evidence
 
-Reviewer dispatch is orchestrator-owned. A reviewer records a durable,
-identity-compatible Review Gate result; missing, malformed, warning, or failing
-evidence leaves the obligation unresolved.
+Reviewer dispatch is orchestrator-owned and advisory. A reviewer writes a
+Markdown report; no hook or artifact enforces a review gate.
 
 ## Optional extensions
 

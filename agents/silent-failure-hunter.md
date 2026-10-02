@@ -1,6 +1,6 @@
 ---
 name: silent-failure-hunter
-description: 'Error-handling specialist — hunts silent failures: empty catch blocks, swallowed exceptions, error-hiding fallbacks, lost stack traces, and missing error handling around I/O / network / DB / transactions. Situational deep-dive that COMPLEMENTS code-reviewer (the broad quality gate) — invoke when a diff touches error-handling / try-catch / Promise chains / async paths, or when the user asks for an error-handling / robustness audit. Not a consolidated Review Gate lane; not a replacement for code-reviewer or security-reviewer. Read-only.'
+description: 'Error-handling specialist — hunts silent failures: empty catch blocks, swallowed exceptions, error-hiding fallbacks, lost stack traces, and missing error handling around I/O / network / DB / transactions. Situational deep-dive that COMPLEMENTS code-reviewer (the broad quality gate) — invoke when a diff touches error-handling / try-catch / Promise chains / async paths, or when the user asks for an error-handling / robustness audit. Not part of the post-edit reviewer batch; not a replacement for code-reviewer or security-reviewer. Read-only.'
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
@@ -95,6 +95,6 @@ Fix: log+rethrow / propagate / add timeout / rollback / chain the cause
 End with `Verdict: APPROVE | WARNING | BLOCK` (BLOCK = a swallowed error on a
 critical path: money, auth, data write). Zero findings is a valid result.
 
-Advisory / situational — **not** in the consolidated Review Gate reviewer batch;
+Advisory / situational — **not** in the post-edit reviewer batch;
 if invoked standalone after edits, the orchestrator still dispatches the normal
-`code-reviewer` obligation when its trigger applies.
+`code-reviewer` review when its trigger applies.

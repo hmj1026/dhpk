@@ -4,7 +4,7 @@
 // independent of filesystem and receipt-store fixtures.
 
 const { test, run, assert } = require('./_lib/tinytest');
-const budget = require('../scripts/lib/review-gate-store-budget');
+const budget = require('../scripts/lib/receipt-store-budget');
 
 const LIMITS = Object.freeze({
   revisions: 10000,
@@ -126,4 +126,4 @@ test('lease record byte validation accepts 4 KiB and rejects one byte over', () 
   );
 });
 
-run('review-gate-store-budget');
+run('receipt-store-budget');

@@ -57,51 +57,6 @@ For example, a package may be `PASS` while a required runtime probe is
 platform matrix: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`,
 `cursor-plugin`, `agent-plugin`, and `agy-plugin`.
 
-## Review Gate runtime checkpoint
-
-The Review Gate runtime is an explicit, dependency-free composition path for
-durable reviewer obligations. A consumer opts in with `/dhpk:setup
---review-gate`, which creates the private local integrity key. The Application
-Session then runs the single `scripts/review-gate-runtime.js` CLI in this
-order:
-
-```text
-init (setup) -> prepare (Work Request and plan) -> reviewer batch
-  -> lifecycle/readiness evidence -> observe (one obligation/lane at a time)
-```
-
-`prepare` consumes the canonical Work Request JSON, runs the Risk Router, and
-returns the registered Review Plan plus one immutable Review Request for each
-applicable lane. It does not invoke reviewers. The Session owns the parallel
-reviewer dispatch and invokes `observe` only after every selected lane has
-written its Markdown artifact and structured companion. The Claude adapter
-records the validated Review Gate result; it does not select lanes or dispatch
-reviewers.
-
-The CLI result envelope is `dhpk.review-gate.runtime.v1`. It reports the
-command, bounded status, plan/obligation identity when applicable, and
-redacted diagnostic codes. `observe` returns the durable Review Gate result,
-obligation identity, and receipt summary. A successful envelope is lifecycle
-evidence; it does not replace the review contract or infer completion for a
-different obligation.
-
-Each lane's machine companion is a same-stem
-`<review-artifact-stem>.result.json` with schema
-`dhpk.claude-review-result.v1`. It contains the exact Review Request digest,
-the unchanged `dhpk.reviewer-contract.v2` Review Result, the review artifact
-digest and bounded lifecycle/readiness identity, and a command digest plus
-bounded command outcome. It never contains prompts, source, secrets, raw
-commands, output, logs, session transcripts, or absolute paths. The runtime
-rejects unknown major schemas and missing, foreign, stale, malformed, or
-extra raw-evidence fields; it does not parse Markdown to recover a verdict.
-
-An invalid or unavailable `prepare`/`observe` operation exits nonzero and
-writes a redacted diagnostic sidecar. The obligation remains unresolved until
-the orchestrator receives a matching identity-bound result; no hook or file
-marker can satisfy it. Missing, foreign, stale, malformed, or failed evidence
-fails closed. Runtime evidence is diagnostic until the normal Review Gate
-completion rules record every applicable reviewer verdict.
-
 ## Receipts and resume
 
 Each attempt writes one append-only `dhpk.harness.receipt.v1` envelope under

@@ -339,7 +339,7 @@ test('over-cap fixture uses wc -c measurement and emits Block A without a goal',
 
 test('goal fixtures retain required safety tokens and compact gate contracts', () => {
   const goal = generateFixture(readFixture('maximum-gate')).goal;
-  for (const token of ['references/execution-bundle/rules/execution-policy-kernel.md', 'hard-rule', 'Unknown skill', 'dhpk:codex-fast-worker', 'dhpk:agy-fast-worker', 'Review Gate status', 'unresolved obligation']) {
+  for (const token of ['references/execution-bundle/rules/execution-policy-kernel.md', 'hard-rule', 'Unknown skill', 'dhpk:codex-fast-worker', 'dhpk:agy-fast-worker']) {
     assert.ok(goal.includes(token), `missing required safety token: ${token}`);
   }
   for (const token of ['COVERAGE:', 'BUILD:', 'LINT:', 'SMOKE:']) {
@@ -561,7 +561,7 @@ const FENCES = { 'DISPATCH_ON=true': DISPATCH_TRUE_FENCE, 'DISPATCH_ON=false': D
 // kept byte-identical to goal-templates.md's DISPATCH_ON=true/false fences or
 // the assertions below will fail, which is the intended tripwire against the
 // two branches drifting apart.
-const FALLBACK_CLAUSE = 'never filesystem-scan; every reviewer dispatch (even\nconfirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never\nreply-only';
+const FALLBACK_CLAUSE = 'never filesystem-scan; every reviewer dispatch\nstill gets a fresh .claude/artifacts/reviews/ artifact, never\nreply-only';
 
 function orientationCommand(fence) {
   const start = fence.indexOf('`');
@@ -699,7 +699,6 @@ function readGoalSections() {
     ['dispatch-on', '**`DISPATCH_ON=true`**'],
     ['part-1', '## Part 1 (always)'],
     ['part-2', '## Part 2 (always'],
-    ['part-2b', '## Part 2b (always'],
     ['part-3', '## Part 3'],
     ['part-4', '## Part 4 (always'],
   ];
@@ -713,12 +712,11 @@ function readGoalSections() {
       `${markers[index][0]} must follow ${markers[index - 1][0]}`);
   }
 
-  const [dispatchOff, dispatchOn, part1, part2, part2b, part3, part4] = offsets;
+  const [dispatchOff, dispatchOn, part1, part2, part3, part4] = offsets;
   return {
     noDispatchPart0: flat(goalTemplatesRaw.slice(dispatchOff, dispatchOn)),
     dispatchPart0: flat(goalTemplatesRaw.slice(dispatchOn, part1)),
-    part2: flat(goalTemplatesRaw.slice(part2, part2b)),
-    part2b: flat(goalTemplatesRaw.slice(part2b, part3)),
+    part2: flat(goalTemplatesRaw.slice(part2, part3)),
     part3: flat(goalTemplatesRaw.slice(part3, part4)),
     part4: flat(goalTemplatesRaw.slice(part4)),
   };
@@ -864,16 +862,10 @@ test('Part 0 and verification checklist carve hard-rule conflicts out of unatten
     'missing inline design-snapshot hard-rule guardrail');
 });
 
-test('Part 2 and Part 4 include unresolved Review Gate and hard-rule escalation gates', () => {
-  const { part2, part2b } = readGoalSections();
-  assert.ok(part2.includes('Claude checked the Review Gate status for `<CHANGE_ID>`'),
-    'missing identity-bound Review Gate status gate');
-  assert.ok(part2.includes('confirmed every applicable reviewer obligation is resolved'),
-    'missing resolved-obligation wording');
-  assert.ok(part2b.includes('Claude confirmed no applicable Review Gate obligation is pending, foreign, stale, malformed, or message-only'),
-    'missing unresolved-obligation gate');
-  assert.ok(part2b.includes('status is `RESOLVED` or `NOT_APPLICABLE`'),
-    'missing resolved/NOT_APPLICABLE status wording');
+test('Part 2 and Part 4 include unresolved reviewer-finding and hard-rule escalation gates', () => {
+  const { part2 } = readGoalSections();
+  assert.ok(part2.includes('no CRITICAL reviewer finding for `<CHANGE_ID>` remains unfixed'),
+    'missing unresolved CRITICAL finding gate');
   assert.ok(!skill.includes('.unresolved-verdict'),
     'retired unresolved-verdict sidecar wording remains');
   assert.ok(skill.includes('openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md'),

@@ -248,9 +248,7 @@ vault scope。
 3. Session start 時驗證並啟用設定的 module。
 4. Subagent stop 時清理已停止 fast-worker 的 liveness state。
 
-Reviewer 的選擇、identity binding、artifact/result 記錄與 obligation resolution
-屬於 orchestrator-owned 的 Review Gate 與其 durable evidence store。完成判定依據
-identity-bound evidence，不依賴 hook side effect。
+Reviewer 的選擇由 orchestrator 負責且為建議性質；hook 不會強制執行 review gate。
 
 Formatting、lint、Docker probe、prompt hint、session snapshot
 與其他 advisory 工作都改為 consumer 明確啟用的 extension，而非預設 hook。見

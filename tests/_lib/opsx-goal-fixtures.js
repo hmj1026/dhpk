@@ -22,10 +22,9 @@ const DISPATCH_FALSE_FENCE = fencedAfter('**`DISPATCH_ON=false`');
 
 const PART_1 = fencedAfter('## Part 1 (always)');
 const PART_2 = fencedAfter('## Part 2 (always');
-const PART_2B = fencedAfter('## Part 2b (always');
 
-const FIXED_CORE = [DISPATCH_TRUE_FENCE, PART_1, PART_2, PART_2B];
-const FIXED_CORE_NO_DISPATCH = [DISPATCH_FALSE_FENCE, PART_1, PART_2, PART_2B];
+const FIXED_CORE = [DISPATCH_TRUE_FENCE, PART_1, PART_2];
+const FIXED_CORE_NO_DISPATCH = [DISPATCH_FALSE_FENCE, PART_1, PART_2];
 
 const STOP_LIMITS = fencedAfter('## Part 4 (always').replace(
   /\nOR stop after <MAX_DURATION> wall-clock elapsed: write the same\n\.resume-note\.md \(state, next step, remaining tasks\), end the session/,

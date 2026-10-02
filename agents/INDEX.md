@@ -14,10 +14,10 @@ handoff in its own file. This index owns roster and trigger navigation; the
 frontmatter and `rules/execution-policy.md` remain the SSOT for registration,
 precedence, and dispatch behavior.
 
-## Review Gate-driven reviewer dispatch (7 reviewer roles, default)
+## Advisory reviewer dispatch (7 reviewer roles, default)
 
-Roster and trigger navigation only. Dispatch, batching, and confirm-only
-re-review live in `rules/execution-policy.md`. Do not restate those tables
+Roster and trigger navigation only. Reviewer dispatch is recommended, not
+enforced; the advisory dispatch rules live in `rules/execution-policy.md`. Do not restate those tables
 here.
 
 | Agent | Model | When it fires |
@@ -26,14 +26,14 @@ here.
 | [database-reviewer](database-reviewer.md) | sonnet | SQL / schema / migration / Repository edits |
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
 | [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |
-| [code-reviewer](code-reviewer.md) | sonnet | **Mandatory after any source-code Edit/Write** |
+| [code-reviewer](code-reviewer.md) | sonnet | **Recommended after any source-code Edit/Write** |
 | [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity checks |
 
-Agent names are overridable via `userConfig.review_agents` — a project can point the Review Gate at its own `code-reviewer-<project>` and friends instead of the plugin defaults. All seven reviewer roles are available by default; reduce or replace the list through configuration.
+Agent names are overridable via `userConfig.review_agents` — a project can point reviewer dispatch at its own `code-reviewer-<project>` and friends instead of the plugin defaults. All seven reviewer roles are available by default; reduce or replace the list through configuration.
 
-**Opt-in triggers, not opt-in roles:** [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) (module-shipped, below) and [migration-reviewer](migration-reviewer.md) are available roles whose Review Gate selection depends on a separately configured trigger (polyfill: `library-author` module trigger; migration: a project's `module.yaml` `migration:` trigger or `review_trigger_extra_paths` `mig:`). See [migration-reviewer](migration-reviewer.md) and the Module-shipped agents section below for detail.
+**Opt-in triggers, not opt-in roles:** [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) (module-shipped, below) and [migration-reviewer](migration-reviewer.md) are available roles whose recommendation depends on a separately configured trigger (polyfill: `library-author` module trigger; migration: a project's `module.yaml` `migration:` trigger or `review_trigger_extra_paths` `mig:`). See [migration-reviewer](migration-reviewer.md) and the Module-shipped agents section below for detail.
 
-**Documentation role (always-on):** `doc-reviewer` covers both frontmatter schema validation and cross-file SSOT / link-validity checks in one Review Gate obligation; no separate artifact slot is needed.
+**Documentation role (always-on):** `doc-reviewer` covers both frontmatter schema validation and cross-file SSOT / link-validity checks in one review; no separate artifact slot is needed.
 
 ## Implementation workers
 
@@ -96,7 +96,7 @@ This index only lists the shipped roles above.
 > only:
 > - `architect` ← `flow-guide` classification / architecture handoff
 > - `refactor-cleaner` ← `/simplify` (back-stop for >800-line splits / cross-file dedup / multi-module dead-code sweep)
-> - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the code-review obligation in both `change-verdict` and `opsx-apply-goal`
+> - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the code review in both `change-verdict` and `opsx-apply-goal`
 > - `doc-updater` ← execution-policy back-stop on structural change (it runs `/update-codemaps` + `/update-docs`)
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
 > - `spec-miner` ← `/spec-mine` + route-table entry (and the `opsx-apply-goal` pre-flight note when `openspec/specs/` is empty)
@@ -111,7 +111,7 @@ This index only lists the shipped roles above.
 
 | Agent | Ships with | When it fires |
 |-------|-----------|----------------|
-| [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) | `library-author` module | Review Gate-triggered after editing `.php` files with multi-major-version runtime guards (`version_compare`, `class_exists`, `PHP_VERSION_ID`, …). Only available when the `library-author` module is enabled. |
+| [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) | `library-author` module | Recommended after editing `.php` files with multi-major-version runtime guards (`version_compare`, `class_exists`, `PHP_VERSION_ID`, …). Only available when the `library-author` module is enabled. |
 
 ## Models
 
@@ -141,8 +141,8 @@ comment-free.
 | `database-reviewer` | 20 | Trap-sheet load + `cx references` tracing across Repository/migration files |
 | `performance-analyzer` | 20 | Same shape as `database-reviewer` + optional EXPLAIN sampling |
 | `silent-failure-hunter` | 20 | Pattern-hunt across the diff's full blast radius, pre-existing cap |
-| `doc-reviewer` | 15 | Bounded doc-only scope, pinned by the Review Gate obligation |
-| `frontend-reviewer` | 15 | Bounded frontend-tier scope, pinned by the Review Gate obligation |
+| `doc-reviewer` | 15 | Bounded doc-only scope, pinned by the orchestrator-supplied changed-file scope |
+| `frontend-reviewer` | 15 | Bounded frontend-tier scope, pinned by the orchestrator-supplied changed-file scope |
 | `migration-reviewer` | 15 | Migration files only, typically a handful per PR |
 | `version-matrix-impact-reviewer` | 15 | Single detect-once pass + one risk table, no per-file loop |
 | `code-reviewer` | 25 | Broadest scope — any file/language + delegate table + `cx references` tracing |

@@ -51,10 +51,10 @@ const AGENTS = [
 
 const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
 
-// Codex has no host hook lifecycle. The generated role points to the manual
-// Codex artifact handoff used by its parent flow.
+// Codex has no host hook lifecycle. The generated role points to the Codex
+// artifact location its parent flow reads.
 const CODEX_MANUAL_REVIEW_LIFECYCLE =
-  "The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.";
+  "Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.";
 
 function readJson(file, label) {
   if (!fs.existsSync(file)) {
@@ -139,7 +139,7 @@ function assertNoStaleToml(outDir, ownership) {
 // Fixed, line-level boilerplate matchers. Every match is a Claude-only tooling
 // reference irrelevant to Codex (cx/gitnexus routing, untrusted-input defense,
 // or Claude-only lifecycle paths. Codex-readable trap-sheet, prompt-defense,
-// execution-policy, and reviewer-contract references are retained and
+// and execution-policy references are retained and
 // rewritten to receipt-managed `.codex/dhpk/` assets.
 function isBoilerplate(line) {
   return (

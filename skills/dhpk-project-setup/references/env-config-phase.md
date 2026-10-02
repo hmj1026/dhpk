@@ -77,10 +77,9 @@ Determine whether `CLAUDE_CODE_AUTO_COMPACT_WINDOW` should be recommended:
 - Preserve all non-`env` keys in settings (hooks, etc.)
 - Write updated settings back
 
-> **Note**: Review completion is recorded by the active Review Gate contract and
-> the plugin profile. `settings.local.json`/`settings.json` configure only the
-> surrounding hook profile and safety options; they do not create review
-> obligations or clear lifecycle markers.
+> **Note**: Reviewer dispatch is advisory. `settings.local.json`/`settings.json`
+> configure only the hook profile and safety options; they do not create review
+> obligations or lifecycle markers.
 
 ## 6.7.5 Interaction with Phase 6.3 and `/install-hooks`
 

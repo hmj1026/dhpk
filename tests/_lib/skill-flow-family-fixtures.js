@@ -214,7 +214,7 @@ const DEFINITIONS = [
     args: ['close'],
     expected: {
       status: 0,
-      output: ['references/handoff-and-verification.md', 'references/review-gate-mechanics.md'],
+      output: ['references/handoff-and-verification.md'],
       absent: ['skills/flow-guide/references/'],
     },
   }),

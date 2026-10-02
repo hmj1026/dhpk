@@ -30,10 +30,8 @@ native skill changes, regenerate `plugins/dhpk/` and verify fingerprints and
 membership; never hand-edit a mirror. The same rule applies to the Agent,
 Cursor, and AGY package surfaces: regenerate every affected physical surface
 from its canonical source and run the platform determinism verifier before
-handoff. The Review Gate selects applicable reviewer obligations from the
-changed scope; the reviewer records identity-bound evidence and a verdict, and
-the orchestrator records lifecycle completion only after the required
-obligations are resolved.
+handoff. After the change, dispatching the applicable reviewers from the
+execution-policy trigger table is recommended.
 
 ## CI preflight for generated and release-shaped changes
 

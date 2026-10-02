@@ -91,16 +91,6 @@
           "required": true
         },
         {
-          "path": "references/execution-bundle/docs/contracts/review-lifecycle.md",
-          "kind": "reference",
-          "required": true
-        },
-        {
-          "path": "references/execution-bundle/docs/contracts/reviewer-contract.md",
-          "kind": "reference",
-          "required": true
-        },
-        {
           "path": "references/execution-bundle/docs/subagent-prompt-template.md",
           "kind": "reference",
           "required": true
@@ -201,11 +191,6 @@
           "required": true
         },
         {
-          "path": "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md",
-          "kind": "reference",
-          "required": true
-        },
-        {
           "path": "references/execution-bundle/skills/flow-guide/references/testing-policy.md",
           "kind": "reference",
           "required": true
@@ -261,107 +246,12 @@
           "required": true
         },
         {
-          "path": "scripts/lib/claude-review-gate-adapter.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/physical-file.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/receipt-json-primitives.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/receipt-primitives.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/redaction.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-evidence.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-receipt-store.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-attestation.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-checkpoint.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-composition.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-errors.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-evidence.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime-storage.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-runtime.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate-store-budget.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/review-gate.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/reviewer-contract.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/lib/risk-router.js",
-          "kind": "runtime",
-          "required": true
-        },
-        {
           "path": "scripts/physical-file.js",
           "kind": "runtime",
           "required": true
         },
         {
           "path": "scripts/physical-file.py",
-          "kind": "runtime",
-          "required": true
-        },
-        {
-          "path": "scripts/review-gate-runtime.js",
           "kind": "runtime",
           "required": true
         },
