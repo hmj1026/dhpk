@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "603f0c23e60c46c2f913e5c52ac935bc7129d687",
-  "generatedFromCommit": "603f0c23e60c46c2f913e5c52ac935bc7129d687",
-  "generatedFromTree": "82546c48413c077f452223f8de803210ea88d4e6",
-  "inventoryDigest": "f1fa7d3acccfbe38062ba7e7a5f680b84ab8a625d371b9636c97df4b4e3ad565",
-  "inventoryRevision": "sha256:493135beb751a3437332b8b52c07cdf53596b82470ed648ca42b5f2f0f49b1f6",
+  "sourceCommit": "1ff8c698f1eb819bc805a6e2b2588a5024769167",
+  "generatedFromCommit": "1ff8c698f1eb819bc805a6e2b2588a5024769167",
+  "generatedFromTree": "b81db725c4d185ac93376599a0c911c8a6705da6",
+  "inventoryDigest": "5ecaffc9fce5a440b7b019acc52d9c6dd7e19733195a5cdc7fd28b97d15c51ec",
+  "inventoryRevision": "sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "agy-fast-worker",
@@ -610,7 +610,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "3068a9a859353b029e0fd149645240730a234d951c448c59682a01b768f65a8c",
+    "planId": "b89e9c89701d508d35daa0d6ad77e6a49a707744f6b1e245b4c6f149296f857d",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -736,10 +736,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "3068a9a859353b029e0fd149645240730a234d951c448c59682a01b768f65a8c",
-      "inventory": "f1fa7d3acccfbe38062ba7e7a5f680b84ab8a625d371b9636c97df4b4e3ad565"
+      "plan": "b89e9c89701d508d35daa0d6ad77e6a49a707744f6b1e245b4c6f149296f857d",
+      "inventory": "5ecaffc9fce5a440b7b019acc52d9c6dd7e19733195a5cdc7fd28b97d15c51ec"
     },
-    "rollbackIdentity": "f3e9bc38865234ce2c1b2f187d3601e1db9f74686396039fa92c5a7944b986b0"
+    "rollbackIdentity": "a20c8d8e7461cb064a1d4a2745aa51ba72d2784bbe6e40fec079f51ba1353c30"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -2360,5 +2360,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "5632024878f3fa327f3f9a92f540d4ecd4a0d48268c4b9b6f60eee302b5b8aab"
+  "planFingerprint": "37edfee9c058bb0a42b1e6c32bbb5cfe2394b7e82957232bea79c03cc43fbcf8"
 }
