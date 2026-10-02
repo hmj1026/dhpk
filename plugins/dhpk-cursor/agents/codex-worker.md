@@ -135,9 +135,7 @@ derived **independently of the backend's narrative** by diffing `git status --po
 (single-worker mode) or the path-scoped `git status --porcelain -- <assigned files>`
 (parallel mode) captured before and after the CLI run (plus any file the verification
 step touched). The backend may under-report its edits; the working-tree diff is the
-   source of truth. The orchestrator uses this list as the Review Gate accounting
-   back-stop for the CLI's out-of-band writes and derives applicable reviewer
-   obligations from the actual edited paths. Omitting it (or reporting it incompletely)
+   source of truth. The orchestrator uses this list as the reviewer-scope back-stop for the CLI's out-of-band writes and derives applicable reviewers from the actual edited paths. Omitting it (or reporting it incompletely)
    breaks that back-stop. In parallel mode, a file appearing outside the assigned scope is an
 out-of-scope observation for the report, never part of this edited-file list.
 
@@ -180,5 +178,4 @@ On `BLOCKED`, name the exact backend failure and confirm no file edits were made
 
 **No artifact** — reports inline to its dispatcher; its deliverable is the applied diff
 plus the report above, not a persisted `.claude/artifacts/` file. The CLI's edits are
-real working-tree changes and remain subject to the Review Gate, which the orchestrator
-dispatches from the returned edited-file list.
+real working-tree changes and should be reviewed; the orchestrator dispatches reviewers from the returned edited-file list.
