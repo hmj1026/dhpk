@@ -74,8 +74,8 @@ function mkRepo({ branch = 'develop' } = {}) {
     const agyPin = 'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.0.0 --json\n';
     fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
     fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
-    fs.mkdirSync(path.join(root, 'docs', 'knowledge'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'docs', 'knowledge', 'marketplace-sync.md'), 'Marketplace package must stay in sync.\n');
+    fs.mkdirSync(path.join(root, 'docs', 'contracts'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'contracts', 'marketplace-sync.md'), 'Marketplace package must stay in sync.\n');
 
     spawnSync('git', ['init', '-q'], { cwd: root });
     spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
@@ -238,13 +238,13 @@ testWithRepo('write mode updates every manifest, promotes fragments, and reports
 
 testWithRepo('write mode regenerates a drifted Claude marketplace package', (repo) => {
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
-  const generatedSync = path.join(repo, 'generated', 'claude-marketplace', 'package', 'docs', 'knowledge', 'marketplace-sync.md');
+  const generatedSync = path.join(repo, 'generated', 'claude-marketplace', 'package', 'docs', 'contracts', 'marketplace-sync.md');
   try {
     assert.ok(!fs.existsSync(generatedSync));
 
     const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(fs.existsSync(generatedSync), 'generated Claude marketplace package must include docs/knowledge/marketplace-sync.md');
+    assert.ok(fs.existsSync(generatedSync), 'generated Claude marketplace package must include docs/contracts/marketplace-sync.md');
     assert.strictEqual(fs.readFileSync(generatedSync, 'utf8'), 'Marketplace package must stay in sync.\n');
 
     const generatedPlugin = JSON.parse(fs.readFileSync(path.join(repo, 'generated', 'claude-marketplace', 'package', '.claude-plugin', 'plugin.json'), 'utf8'));
