@@ -1,0 +1,598 @@
+{
+  "schema": "dhpk.marketplace-selection.v1",
+  "naming_decision": {
+    "decided_on": "2026-10-02",
+    "decided_by": "user",
+    "summary": "Keep every current inventory name; no broader rename; the six ID-to-name slug differences stay unchanged; unprefixed names keep no dhpk- prefix."
+  },
+  "skills": [
+    {
+      "id": "fastapi-pro",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "ios-platform",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "js-lint-config",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "js-static-check-strategy",
+      "authority": "read-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "laravel",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "library-dual-testsuite-map",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "tdd",
+      "selection": "common"
+    },
+    {
+      "id": "matrix-cell-onboard",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "openspec-artifact-guard",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "nextjs-15-5-notes",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "nextjs-16-notes",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "php-pro",
+      "authority": "read-only",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "php-modern-pro",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "php-8x-features",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "phpunit",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "tdd",
+      "selection": "common"
+    },
+    {
+      "id": "legacy-code-characterization",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "tdd",
+      "selection": "common"
+    },
+    {
+      "id": "pytest-async",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "tdd",
+      "selection": "common"
+    },
+    {
+      "id": "python-pro",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "python-static-checks",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "react-18-notes",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "react-19-notes",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "swift-test-strategy",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "tdd",
+      "selection": "common"
+    },
+    {
+      "id": "swift-language",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "swiftui-architecture",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "vue-2-notes",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "ios-icon-gen",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "xcode-build-tooling",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "php56-yii-dev",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "yii1-security-audit",
+      "authority": "read-only",
+      "kind": "branch",
+      "owner": "change-verdict",
+      "selection": "common"
+    },
+    {
+      "id": "flow-guide",
+      "authority": "delegate",
+      "kind": "entry",
+      "owner": "flow-guide",
+      "selection": "common"
+    },
+    {
+      "id": "agent-architecture-audit",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "change-verdict",
+      "selection": "common"
+    },
+    {
+      "id": "agy-fast-worker",
+      "authority": "guidance-only",
+      "kind": "entry",
+      "owner": "agy-fast-worker",
+      "selection": "host-only"
+    },
+    {
+      "id": "code-trace",
+      "authority": "read-only",
+      "kind": "entry",
+      "owner": "code-trace",
+      "selection": "common"
+    },
+    {
+      "id": "cli-dispatch-context",
+      "authority": "transport-internal",
+      "kind": "internal",
+      "owner": "codex-bridge",
+      "selection": "host-only"
+    },
+    {
+      "id": "cli-transport",
+      "authority": "transport-internal",
+      "kind": "internal",
+      "owner": "codex-bridge",
+      "selection": "host-only"
+    },
+    {
+      "id": "codex-bridge",
+      "authority": "guidance-only",
+      "kind": "entry",
+      "owner": "codex-bridge",
+      "selection": "host-only"
+    },
+    {
+      "id": "change-verdict",
+      "authority": "read-only",
+      "kind": "entry",
+      "owner": "change-verdict",
+      "selection": "common"
+    },
+    {
+      "id": "flow-drive",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "composer-package-hygiene",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "change-verdict",
+      "selection": "common"
+    },
+    {
+      "id": "skill-forge",
+      "authority": "guidance-only",
+      "kind": "entry",
+      "owner": "skill-forge",
+      "selection": "host-only"
+    },
+    {
+      "id": "deploy-list",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "release-creator",
+      "selection": "common"
+    },
+    {
+      "id": "feature-verify",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "repo-verify",
+      "selection": "common"
+    },
+    {
+      "id": "git-smart-commit",
+      "authority": "git-write",
+      "kind": "entry",
+      "owner": "git-smart-commit",
+      "selection": "common"
+    },
+    {
+      "id": "gitnexus-cli",
+      "authority": "external-package",
+      "kind": "withdrawn",
+      "owner": null,
+      "selection": "withdrawn"
+    },
+    {
+      "id": "gitnexus-debugging",
+      "authority": "external-package",
+      "kind": "withdrawn",
+      "owner": "code-trace",
+      "selection": "withdrawn"
+    },
+    {
+      "id": "gitnexus-exploring",
+      "authority": "external-package",
+      "kind": "withdrawn",
+      "owner": "code-trace",
+      "selection": "withdrawn"
+    },
+    {
+      "id": "gitnexus-guide",
+      "authority": "external-package",
+      "kind": "withdrawn",
+      "owner": null,
+      "selection": "withdrawn"
+    },
+    {
+      "id": "gitnexus-impact-analysis",
+      "authority": "external-package",
+      "kind": "withdrawn",
+      "owner": "code-trace",
+      "selection": "withdrawn"
+    },
+    {
+      "id": "gitnexus-refactoring",
+      "authority": "external-package",
+      "kind": "withdrawn",
+      "owner": null,
+      "selection": "withdrawn"
+    },
+    {
+      "id": "issue-analyze",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "proposal-analyze",
+      "selection": "common"
+    },
+    {
+      "id": "laravel-package-author",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "laravel-testbench-matrix",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "tdd",
+      "selection": "common"
+    },
+    {
+      "id": "opsx-apply-goal",
+      "authority": "guidance-only",
+      "kind": "entry",
+      "owner": "opsx-apply-goal",
+      "selection": "host-only"
+    },
+    {
+      "id": "opsx-load-context",
+      "authority": "read-only",
+      "kind": "entry",
+      "owner": "opsx-load-context",
+      "selection": "host-only"
+    },
+    {
+      "id": "opsx-post-obs",
+      "authority": "delegate",
+      "kind": "entry",
+      "owner": "opsx-post-obs",
+      "selection": "host-only"
+    },
+    {
+      "id": "polyfill-version-matrix-audit",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "change-verdict",
+      "selection": "common"
+    },
+    {
+      "id": "project-audit",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "change-verdict",
+      "selection": "common"
+    },
+    {
+      "id": "project-setup",
+      "authority": "guidance-only",
+      "kind": "entry",
+      "owner": "project-setup",
+      "selection": "host-only"
+    },
+    {
+      "id": "prompt-optimize",
+      "authority": "guidance-only",
+      "kind": "entry",
+      "owner": "prompt-optimize",
+      "selection": "host-only"
+    },
+    {
+      "id": "release-creator",
+      "authority": "external-write",
+      "kind": "entry",
+      "owner": "release-creator",
+      "selection": "common"
+    },
+    {
+      "id": "repo-intake",
+      "authority": "guidance-only",
+      "kind": "branch",
+      "owner": "code-trace",
+      "selection": "common"
+    },
+    {
+      "id": "session-usage-audit",
+      "authority": "guidance-only",
+      "kind": "entry",
+      "owner": "session-usage-audit",
+      "selection": "host-only"
+    },
+    {
+      "id": "skill-scope",
+      "authority": "delegate",
+      "kind": "entry",
+      "owner": "skill-scope",
+      "selection": "host-only"
+    },
+    {
+      "id": "software-architecture",
+      "authority": "guidance-only",
+      "kind": "reference",
+      "owner": "proposal-analyze",
+      "selection": "common"
+    },
+    {
+      "id": "tdd",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "tdd",
+      "selection": "common"
+    },
+    {
+      "id": "harness-govern",
+      "authority": "external-write",
+      "kind": "entry",
+      "owner": "harness-govern",
+      "selection": "host-only"
+    },
+    {
+      "id": "create-pr",
+      "authority": "external-write",
+      "kind": "entry",
+      "owner": "create-pr",
+      "selection": "common"
+    },
+    {
+      "id": "git-worktree",
+      "authority": "git-write",
+      "kind": "entry",
+      "owner": "git-worktree",
+      "selection": "common"
+    },
+    {
+      "id": "merge-prep",
+      "authority": "read-only",
+      "kind": "branch",
+      "owner": "create-pr",
+      "selection": "common"
+    },
+    {
+      "id": "pr-summary",
+      "authority": "read-only",
+      "kind": "branch",
+      "owner": "create-pr",
+      "selection": "common"
+    },
+    {
+      "id": "proposal-analyze",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "proposal-analyze",
+      "selection": "common"
+    },
+    {
+      "id": "project-brief",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "proposal-analyze",
+      "selection": "common"
+    },
+    {
+      "id": "doc-refactor",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "update-docs",
+      "selection": "common"
+    },
+    {
+      "id": "update-docs",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "update-docs",
+      "selection": "common"
+    },
+    {
+      "id": "update-codemaps",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "update-docs",
+      "selection": "common"
+    },
+    {
+      "id": "precommit",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "precommit",
+      "selection": "common"
+    },
+    {
+      "id": "dep-audit",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "dep-audit",
+      "selection": "common"
+    },
+    {
+      "id": "repo-verify",
+      "authority": "read-only",
+      "kind": "entry",
+      "owner": "repo-verify",
+      "selection": "common"
+    },
+    {
+      "id": "code-simplify",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "harness-audit",
+      "authority": "read-only",
+      "kind": "entry",
+      "owner": "harness-audit",
+      "selection": "host-only"
+    },
+    {
+      "id": "review-pending",
+      "authority": "delegate",
+      "kind": "branch",
+      "owner": "flow-drive",
+      "selection": "common"
+    },
+    {
+      "id": "spec-mine",
+      "authority": "workspace-write",
+      "kind": "branch",
+      "owner": "proposal-analyze",
+      "selection": "common"
+    },
+    {
+      "id": "harness-setup",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "harness-setup",
+      "selection": "host-only"
+    },
+    {
+      "id": "opsx-apply-resume",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "opsx-apply-resume",
+      "selection": "host-only"
+    },
+    {
+      "id": "ui-ux-verify",
+      "authority": "workspace-write",
+      "kind": "entry",
+      "owner": "ui-ux-verify",
+      "selection": "common"
+    }
+  ]
+}
