@@ -35,13 +35,25 @@ preserved even when a caller presents a ready-looking route.
 
 ## Implementation contract
 
-0. Before anything else, run `node scripts/invocation.js` from this Skill
-   directory with the exact identifier and options supplied. Exit `2`
-   (`status: blocked`) stops the run with its `diagnostics` before any
-   dispatch; carry every `notices` entry into the report.
+0. Before anything else, run the parser as one shell command, exactly
+   `cd <this Skill directory> && node scripts/invocation.js <identifier> [options] && cd <project root>`,
+   with the identifier and options supplied, verbatim. `<project root>` is the
+   working directory the session started in. Read the exit status and the
+   parser's JSON from the tool result; add nothing else to the command (no
+   `echo`, redirect, or extra step). If the command is denied, report step 0
+   as `BLOCKED` with the denial and stop; do not retry it in another form.
+   Exit `2` (`status: blocked`) stops the run with its `diagnostics` before
+   any dispatch. The return `cd` does not run on a non-zero exit, so begin any
+   later command in this session with `cd <project root>`. Carry every
+   `notices` entry into the report.
 1. Read the confirmed specification or change artifacts in order. Resolve
    repository instructions, context, target files, nearby tests, and the
-   verification commands before editing.
+   verification commands before editing. When the Host has dedicated
+   file-reading and search tools (on Claude Code: Read, Grep, Glob), use them
+   for this discovery, and run shell commands only for the step 0 parser, the
+   verification commands resolved here, the diff inspection in step 3, or a
+   command the current grant lists. On a Host without such tools, use its
+   read-only shell access for discovery.
 2. Convert the work into dependency-ordered observable items. Preserve
    OpenSpec task order and leave incomplete tasks unchecked.
    An OpenSpec apply with two or more unchecked tasks requires the planner
