@@ -10,7 +10,7 @@ Plugin routes, see the [platform installation SSOT](../docs/platform-installatio
 > **Layout note**: every entry under `codex/skills/` is an in-repo relative
 > symlink to its flat canonical package at `../../skills/<public-name>/`. There
 > are no physical skill copies in this projection; the separate
-> `plugins/dhpk/` tree is the tracked native-package surface. See `AGENTS.md`
+> `plugins/dhpk/` tree is the tracked native-package surface. See `guidance.md`
 > for the canonical mapping and maintenance rule.
 
 ## Sync into a project
@@ -71,12 +71,12 @@ family or `dhpk-*` trigger resolves.
 The explicit main-flow Codex entry is `$flow-drive <task>` when that family is
 discovered; use `$flow-guide route <task>` for classification only.
 Codex has no `/dhpk:do` command. If `$flow-drive` is not discovered, use
-instruction routing in `AGENTS.md` and explicit `/opsx:*`; do not invent a
+instruction routing in `guidance.md` and explicit `/opsx:*`; do not invent a
 callable `/dhpk:do`.
 
 ## Agent roles
 
-`codex/agents/` ships 16 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 12 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `AGENTS.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
+`codex/agents/` ships 16 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 12 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `guidance.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
 
 Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` for Codex's documented project-local discovery path. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the static metadata contract.
 
@@ -86,7 +86,7 @@ cannot serve as the custom-registry canary. Until an actual spawn and targeted
 wait succeed, record named-role runtime as `NOT_RUN`, `UNAVAILABLE`, or the
 observed failure. An exact-ID `unknown agent_type` is a registry failure, not
 evidence to rename the role or replace its GPT-6 family model; see
-[`AGENTS.md`](AGENTS.md#role-discovery).
+[`guidance.md`](guidance.md#role-discovery).
 
 The 12 generated roles come from `scripts/gen-codex-agents.js`, run as:
 
@@ -101,7 +101,7 @@ may reference only roles that are present in `codex/agents/`. The complete
 canonical-agent coverage matrix is maintained in `agent-role-map.json`; roles
 that are merged, skill/manual-fallback, capability-gated, or intentionally
 unavailable must be explicit there rather than silently dropped. The status
-definitions and dispatch guidance live in `AGENTS.md`.
+definitions and dispatch guidance live in `guidance.md`.
 
 ## Uninstall
 

@@ -438,7 +438,9 @@ dhpk/
 │   ├── distribution-inventory.json  # lifecycle/name/surface SSOT (schema v2)
 │   ├── install-profiles.json         # curated module bundles
 │   └── module-catalog.json           # module configuration SSOT
-├── docs/design/bootstrap-dhpk-plugin/  # original design archive (proposal/design/tasks/specs)
+├── docs/                        # versioned guides, ADRs, and contracts (see docs/README.md)
+│   ├── design/, evidence/       # ignored local development records
+├── openspec/specs/              # versioned accepted behavior specifications
 ├── README.md, README.zh-TW.md, CHANGELOG.md, LICENSE, .gitignore
 ```
 

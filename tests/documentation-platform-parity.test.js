@@ -158,11 +158,11 @@ test('basic-operation locales keep heading, command, and link parity', () => {
 });
 
 test('Codex host guidance names the family entry points and never claims /dhpk:* is a Codex command', () => {
-  const agents = read('codex/AGENTS.md');
-  assert.ok(agents.includes('$flow-guide'), 'codex/AGENTS.md must contain $flow-guide');
-  assert.ok(agents.includes('$flow-drive'), 'codex/AGENTS.md must contain $flow-drive');
+  const agents = read('codex/guidance.md');
+  assert.ok(agents.includes('$flow-guide'), 'codex/guidance.md must contain $flow-guide');
+  assert.ok(agents.includes('$flow-drive'), 'codex/guidance.md must contain $flow-drive');
   assert.match(agents, /has no `\/dhpk:do` command/,
-    'codex/AGENTS.md must still state Codex has no /dhpk:do command');
+    'codex/guidance.md must still state Codex has no /dhpk:do command');
   const keyDiffStart = agents.indexOf('## Key Differences from Claude Code');
   assert.ok(keyDiffStart >= 0, 'Key Differences heading missing');
   const nextHeading = agents.indexOf('\n### ', keyDiffStart);
@@ -407,8 +407,8 @@ test('issue 534 user guides expose one evidence-scoped path per host', () => {
       'docs/configuration.md', 'docs/configuration.zh-TW.md',
       'docs/distribution-surfaces.md', 'docs/distribution-surfaces.zh-TW.md',
       'docs/skill-platform-migration.md', 'docs/skill-platform-migration.zh-TW.md',
-      'codex/README.md', 'codex/README.zh-TW.md', 'codex/AGENTS.md',
-      'cursor/AGENTS.md',
+      'codex/README.md', 'codex/README.zh-TW.md', 'codex/guidance.md',
+      'cursor/guidance.md',
       '.codex-plugin/README.md', 'plugins/dhpk/README.md', 'plugins/dhpk/README.zh-TW.md',
     ];
     for (const rel of docs) {

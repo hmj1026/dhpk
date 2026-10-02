@@ -458,7 +458,7 @@ receipt-owned、未修改的 legacy destination；edited、third-party、retarge
 ambiguous path 仍會報告 conflict。`--uninstall` 只移除未修改且 receipt-owned 的 entry。
 Codex tree 是 canonical Claude package 的 curated subset，不是第二份完整 inventory。
 `codex/agents/` 有 16 個 direct role：4 個手動維護 generic role 與由 canonical Claude agent
-產生的 12 個 role。雙 harness 模型請看 `codex/AGENTS.md` 與 `codex/README.md`。
+產生的 12 個 role。雙 harness 模型請看 `codex/guidance.md` 與 `codex/README.md`。
 
 Generated role 可能依賴共用的 prompt-defense、trap-sheet、reviewer-contract、artifact-contract
 或 execution-policy。這些 support file 由 `manifests/distribution-inventory.json` 的

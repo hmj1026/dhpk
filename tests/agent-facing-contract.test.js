@@ -100,23 +100,24 @@ test('rules and commands point to policy ownership and execution outcomes', () =
 
 test('root guidance stays minimal and every local markdown link resolves', () => {
   for (const relative of ['AGENTS.md', 'CLAUDE.md']) {
-    const lines = fs.readFileSync(path.join(ROOT, relative), 'utf8').split('\n').length;
+    const lines = fs.readFileSync(path.join(ROOT, relative), 'utf8')
+      .replace(/<!-- gitnexus:start -->[\s\S]*?<!-- gitnexus:end -->/, '').split('\n').length;
     assert.ok(lines <= 50, `${relative} should be a <=50-line universal index; got ${lines}`);
   }
   const requiredTargets = [
     'docs/agent-guidance/README.md',
     'docs/agent-guidance/plugin-development.md',
     'docs/agent-guidance/writing-for-agents.md',
-    'codex/AGENTS.md',
+    'codex/guidance.md',
   ];
-  const guidance = ['AGENTS.md', 'CLAUDE.md', 'codex/AGENTS.md'];
+  const guidance = ['AGENTS.md', 'CLAUDE.md', 'codex/guidance.md'];
   const missing = [];
   for (const relative of guidance) {
     const links = localLinks(relative);
     for (const target of links) {
       if (!fs.existsSync(path.join(ROOT, target))) missing.push(`${relative} -> ${target}`);
     }
-    if (relative !== 'codex/AGENTS.md') {
+    if (relative !== 'codex/guidance.md') {
       for (const target of requiredTargets) {
         if (!links.includes(target)) missing.push(`${relative} missing required link ${target}`);
       }
@@ -125,14 +126,15 @@ test('root guidance stays minimal and every local markdown link resolves', () =>
   assert.deepStrictEqual(missing, [], missing.join('\n'));
 });
 
-test('AGENTS.md and CLAUDE.md carry identical guidance pointers after the GitNexus block', () => {
-  const tail = (relative) => {
-    const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');
-    const marker = '<!-- gitnexus:end -->';
-    assert.ok(text.includes(marker), `${relative} missing ${marker}`);
-    return text.slice(text.indexOf(marker) + marker.length).trim();
-  };
-  assert.strictEqual(tail('CLAUDE.md'), tail('AGENTS.md'));
+test('Host instruction entrypoints are relative symlinks to the root SSOT', () => {
+  const canonical = path.join(ROOT, 'AGENTS.md');
+  assert.ok(!fs.lstatSync(canonical).isSymbolicLink(), 'AGENTS.md owns the instructions');
+  for (const relative of ['CLAUDE.md', 'codex/AGENTS.md', 'cursor/AGENTS.md']) {
+    const alias = path.join(ROOT, relative);
+    assert.ok(fs.lstatSync(alias).isSymbolicLink(), `${relative} must be a symlink`);
+    assert.ok(!path.isAbsolute(fs.readlinkSync(alias)), `${relative} must be portable`);
+    assert.strictEqual(fs.realpathSync(alias), canonical);
+  }
 });
 
 test('root guidance points only at domain files that exist', () => {

@@ -40,10 +40,14 @@ This project is indexed by GitNexus as **dhpk**.
 | Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
-
 <!-- gitnexus:end -->
 
-- **Editing plugin sources, skills, agents, rules, or guidance:** load the matching page from the [agent guidance index](docs/agent-guidance/README.md), including [plugin development](docs/agent-guidance/plugin-development.md) and [writing for agents](docs/agent-guidance/writing-for-agents.md); Codex projection rules live in [Codex guidance](codex/AGENTS.md).
+- **Editing plugin sources, skills, agents, rules, or guidance:** load the matching page from the [agent guidance index](docs/agent-guidance/README.md), including [plugin development](docs/agent-guidance/plugin-development.md) and [writing for agents](docs/agent-guidance/writing-for-agents.md); Codex projection rules live in [Codex guidance](codex/guidance.md). For specifications and development records, follow [document storage by type](docs/README.md) and [OpenSpec authoring](docs/agent-guidance/openspec-authoring.md), including superpowers workflows.
+- **Changing `generated/` or `plugins/` outputs:** follow the [generated-output preflight](docs/agent-guidance/plugin-development.md#ci-preflight-for-generated-and-release-shaped-changes) for commands and clean-checkout ordering; use [distribution surfaces](docs/distribution-surfaces.md) for surface ownership.
 - **Orchestrating implementation:** follow the canonical [execution policy](rules/execution-policy.md) — record decision state, run the read-only reasoner before a writer when required, keep planner/review/CI/archive/PR checkpoints, and leave external `/opsx:apply` unchanged.
 - **Issues and triage:** use `gh` per [issue-tracker.md](docs/agents/issue-tracker.md) and the labels in [triage-labels.md](docs/agents/triage-labels.md).
 - **Domain terms and decisions:** read root `CONTEXT.md` and the relevant `docs/adr/` entries; see [domain.md](docs/agents/domain.md).
+
+## Guidance ownership
+
+`AGENTS.md` is the only repository instruction entrypoint source. Edit it directly; `CLAUDE.md`, `codex/AGENTS.md`, and `cursor/AGENTS.md` are relative symlinks to this file. Resolve reference links from the repository root. Load [Codex guidance](codex/guidance.md) for Codex work and [Cursor guidance](cursor/guidance.md) for Cursor work; these are topic references, not separate instruction entrypoints.
