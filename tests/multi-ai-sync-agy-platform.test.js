@@ -37,7 +37,7 @@ function agyPackage(root) {
     '---',
     'name: sample',
     'description: Sample AGY agent',
-    'tools: ["read_file", "invoke_subagent"]',
+    'tools: ["view_file", "invoke_subagent"]',
     'model: inherit',
     '---',
     '',
