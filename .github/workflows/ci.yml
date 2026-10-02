@@ -31,6 +31,8 @@ jobs:
         run: node scripts/ci/validate-workflow-policy.js
       - name: Validate JSON CLI termination
         run: node scripts/ci/validate-json-cli-termination.js
+      - name: Validate JavaScript guardrails
+        run: node scripts/ci/validate-js-guardrails.js
 
       # Structure check (bash). Exit 1 = errors (fail); exit 2 = warnings (ok).
       - name: Harness structure
