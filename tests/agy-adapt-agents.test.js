@@ -98,16 +98,16 @@ test('rewrites tools list to AGY names, dedupes, strips color, and reports count
   try {
     const packageRoot = createStagingPackage(tmp);
     const agentsDir = path.join(packageRoot, 'agents');
-    const src = [
+    const body = 'Body text. Literal read_file wording remains unchanged.\n';
+    const sourceHeader = [
       '---',
       'name: sample',
       'color: blue',
       "tools: ['Read', 'Write', 'Read', 'mcp__foo__bar']",
       '---',
       '',
-      'Body text.',
-      '',
     ].join('\n');
+    const src = `${sourceHeader}${body}`;
     fs.writeFileSync(path.join(agentsDir, 'sample.md'), src);
     fs.writeFileSync(path.join(agentsDir, 'no-frontmatter.md'), 'Just a plain markdown file.\n');
     refreshStagingReceipt(packageRoot);
@@ -118,8 +118,8 @@ test('rewrites tools list to AGY names, dedupes, strips color, and reports count
 
     const rewritten = fs.readFileSync(path.join(agentsDir, 'sample.md'), 'utf8');
     assert.ok(!rewritten.includes('color:'), rewritten);
-    assert.ok(rewritten.includes('tools: ["read_file", "write_to_file", "mcp_foo_bar"]'), rewritten);
-    assert.ok(rewritten.includes('Body text.'), rewritten);
+    assert.ok(rewritten.includes('tools: ["view_file", "write_to_file", "mcp_foo_bar"]'), rewritten);
+    assert.ok(rewritten.endsWith(body), rewritten);
 
     const adaptedDigest = crypto.createHash('sha256').update(rewritten).digest('hex');
     const provenance = JSON.parse(fs.readFileSync(path.join(packageRoot, 'provenance.json'), 'utf8'));
@@ -129,6 +129,15 @@ test('rewrites tools list to AGY names, dedupes, strips color, and reports count
 
     const untouched = fs.readFileSync(path.join(agentsDir, 'no-frontmatter.md'), 'utf8');
     assert.strictEqual(untouched, 'Just a plain markdown file.\n');
+
+    const receiptPaths = ['plugin.json', 'provenance.json', 'fingerprints.json', 'agents/sample.md', 'agents/no-frontmatter.md'];
+    const firstRunBytes = new Map(receiptPaths.map((relative) => [relative, fs.readFileSync(path.join(packageRoot, relative))]));
+    const secondRun = runScript(['--staging-root', packageRoot]);
+    assert.strictEqual(secondRun.status, 0, secondRun.stderr);
+    assert.ok(secondRun.stdout.includes('Updated 0 agent file(s); 2 already compatible'), secondRun.stdout);
+    for (const relative of receiptPaths) {
+      assert.deepStrictEqual(fs.readFileSync(path.join(packageRoot, relative)), firstRunBytes.get(relative), relative);
+    }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -139,13 +148,24 @@ test('already-compatible tools line is left unchanged (idempotent, reported as u
   try {
     const packageRoot = createStagingPackage(tmp);
     const agentsDir = path.join(packageRoot, 'agents');
-    const src = ['---', 'name: sample', 'tools: ["read_file", "write_to_file"]', 'model: inherit', '---', '', 'Body.', ''].join('\n');
+    const src = ['---', 'name: sample', 'tools: ["view_file", "write_to_file"]', 'model: inherit', '---', '', 'Body.', ''].join('\n');
     fs.writeFileSync(path.join(agentsDir, 'sample.md'), src);
     refreshStagingReceipt(packageRoot);
 
     const res = runScript(['--staging-root', packageRoot]);
     assert.strictEqual(res.status, 0, res.stderr);
     assert.ok(res.stdout.includes('Updated 0 agent file(s); 1 already compatible'), res.stdout);
+
+    const agentPath = path.join(agentsDir, 'sample.md');
+    const receiptPaths = ['provenance.json', 'fingerprints.json', 'agents/sample.md'];
+    const firstRunBytes = new Map(receiptPaths.map((relative) => [relative, fs.readFileSync(path.join(packageRoot, relative))]));
+    const secondRun = runScript(['--staging-root', packageRoot]);
+    assert.strictEqual(secondRun.status, 0, secondRun.stderr);
+    assert.ok(secondRun.stdout.includes('Updated 0 agent file(s); 1 already compatible'), secondRun.stdout);
+    assert.deepStrictEqual(fs.readFileSync(agentPath), firstRunBytes.get('agents/sample.md'));
+    for (const relative of ['provenance.json', 'fingerprints.json']) {
+      assert.deepStrictEqual(fs.readFileSync(path.join(packageRoot, relative)), firstRunBytes.get(relative), relative);
+    }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -249,7 +269,7 @@ test('rejects a tampered staging package before rewriting any file', () => {
     const result = adaptFrontmatter(SOURCE);
     assert.strictEqual(result.changed, true);
     assert.ok(result.text.includes(
-      'tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "search_web", "read_url_content", "invoke_subagent", "mcp_foo_bar"]',
+      'tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "search_web", "read_url_content", "invoke_subagent", "mcp_foo_bar"]',
     ), result.text);
     assert.ok(result.text.includes('model: pro'), result.text);
     assert.ok(!result.text.includes('effort:'), result.text);
@@ -261,13 +281,49 @@ test('rejects a tampered staging package before rewriting any file', () => {
   });
 
   test('preserves valid AGY model values and defaults an omitted model to inherit', () => {
-    const source = ['---', 'name: sample', 'description: Sample', 'tools: [read_file]', '---', 'Body', ''].join('\n');
+    const source = ['---', 'name: sample', 'description: Sample', 'tools: [view_file]', '---', 'Body', ''].join('\n');
     const result = adaptFrontmatter(source);
     assert.ok(result.text.includes('model: inherit'), result.text);
 
-    const alreadyAgy = ['---', 'name: sample', 'description: Sample', 'tools: [read_file]', 'model: flash_lite', '---', 'Body', ''].join('\n');
+    const alreadyAgy = ['---', 'name: sample', 'description: Sample', 'tools: [view_file]', 'model: flash_lite', '---', 'Body', ''].join('\n');
     const preserved = adaptFrontmatter(alreadyAgy);
     assert.ok(preserved.text.includes('model: flash_lite'), preserved.text);
+  });
+
+  test('maps Read to view_file, deduplicates native tools, and preserves body bytes', () => {
+    const body = '# Literal read_file reference stays byte-for-byte.\n';
+    const source = [
+      '---',
+      'name: sample',
+      'description: Sample',
+      'tools: [Read, view_file, Read, Write]',
+      'model: inherit',
+      '---',
+      '',
+    ].join('\n') + body;
+
+    const result = adaptFrontmatter(source, { filePath: 'agents/sample.md' });
+    assert.ok(result.text.includes('tools: ["view_file", "write_to_file"]'), result.text);
+    assert.ok(result.text.endsWith(body), result.text);
+
+    const repeated = adaptFrontmatter(result.text, { filePath: 'agents/sample.md' });
+    assert.strictEqual(repeated.changed, false);
+    assert.strictEqual(repeated.text, result.text);
+  });
+
+  test('accepts native view_file without changing an already-compatible file', () => {
+    const source = ['---', 'name: sample', 'description: Sample', 'tools: ["view_file"]', 'model: inherit', '---', '', 'Body.', ''].join('\n');
+    const result = adaptFrontmatter(source, { filePath: 'agents/sample.md' });
+    assert.strictEqual(result.changed, false);
+    assert.strictEqual(result.text, source);
+  });
+
+  test('rejects native read_file and reports the agent path', () => {
+    const source = ['---', 'name: sample', 'description: Sample', 'tools: [read_file]', 'model: inherit', '---', '', 'Body.', ''].join('\n');
+    assert.throws(
+      () => adaptFrontmatter(source, { filePath: 'agents/unsupported.md' }),
+      /Unsupported AGY tool 'read_file' in agents\/unsupported\.md/,
+    );
   });
 
   test('rejects an unknown model instead of silently selecting a fallback', () => {
