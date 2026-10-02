@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { compileMarketplaceSelection } = require('../scripts/lib/marketplace-selection');
+const { compileMarketplaceSelection, compileDispositionLedger } = require('../scripts/lib/marketplace-selection');
 
 const ROOT = path.join(__dirname, '..');
 const readJson = (relative) => JSON.parse(fs.readFileSync(path.join(ROOT, relative), 'utf8'));
@@ -131,6 +131,58 @@ test('the compiled result is frozen and leaves its inputs untouched', () => {
   assert.strictEqual(JSON.stringify(selection), before);
   assert.ok(Object.isFrozen(result));
   assert.ok(Object.isFrozen(result.publicEntries));
+});
+
+const TEST_SOURCES = [
+  ...fs.readdirSync(path.join(ROOT, 'tests')).filter((name) => name.endsWith('.js')).map((name) => `tests/${name}`),
+  ...fs.readdirSync(path.join(ROOT, 'tests', '_lib')).filter((name) => name.endsWith('.js')).map((name) => `tests/_lib/${name}`),
+].map((relative) => ({ file: relative, text: fs.readFileSync(path.join(ROOT, relative), 'utf8') }));
+const ledger = (overrides = {}) => compileDispositionLedger({
+  inventory: INVENTORY,
+  selection: SELECTION,
+  aliases: ALIASES,
+  root: ROOT,
+  testSources: TEST_SOURCES,
+  ...overrides,
+});
+
+test('the disposition ledger covers all 84 IDs exactly once with owner, version condition, authority, and behavior', () => {
+  const result = ledger();
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.rows.length, 84);
+  assert.strictEqual(new Set(result.rows.map((row) => row.id)).size, 84);
+  for (const row of result.rows) {
+    assert.ok(['script', 'guidance-only', 'withdrawn'].includes(row.behavior), `${row.id} behavior`);
+    assert.ok(Array.isArray(row.versionCondition), `${row.id} version condition`);
+    if (row.kind !== 'withdrawn') assert.ok(row.authority, `${row.id} authority`);
+    if (['branch', 'reference', 'internal'].includes(row.kind)) assert.ok(row.owner, `${row.id} owner`);
+  }
+});
+
+test('every skill that ships scripts traces to at least one test file', () => {
+  const scripted = ledger().rows.filter((row) => row.behavior === 'script');
+  assert.ok(scripted.length >= 29, `expected the scripted skills to be found, got ${scripted.length}`);
+  for (const row of scripted) assert.ok(row.tests.length > 0, `${row.id} has no tracing test`);
+});
+
+test('a scripted skill without any tracing test fails closed', () => {
+  const scripted = ledger().rows.find((row) => row.behavior === 'script');
+  const testSources = TEST_SOURCES.map((source) => ({
+    file: source.file,
+    text: source.text.split(scripted.directory).join('removed-for-fixture'),
+  }));
+  const result = ledger({ testSources });
+  assert.match(errorText(result), new RegExp(scripted.id));
+  assert.match(errorText(result), /no test/i);
+});
+
+test('core skills have no version condition and module skills name their gating profiles', () => {
+  const rows = ledger().rows;
+  const core = rows.find((row) => row.id === 'flow-guide');
+  assert.deepStrictEqual(core.versionCondition, []);
+  const gated = rows.filter((row) => row.versionCondition.length > 0);
+  assert.ok(gated.length > 0);
+  for (const row of gated) assert.ok(!row.versionCondition.includes('core'), `${row.id} mixes core into a condition`);
 });
 
 run('marketplace-selection');

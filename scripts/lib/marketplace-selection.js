@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
+
 // Compile the accepted marketplace catalog (manifests/marketplace-selection.json)
 // against the distribution inventory. Common entries become public listings;
 // common branches, references, and internal skills fold under their entry
@@ -100,4 +103,51 @@ function compileMarketplaceSelection({ inventory, selection, aliases = [] }) {
   });
 }
 
-module.exports = { compileMarketplaceSelection };
+const SCRIPT_EXTENSIONS = /\.(?:js|cjs|mjs|sh|py|swift)$/;
+
+function shipsScripts(root, skillPath) {
+  const directory = path.join(root, skillPath, 'scripts');
+  if (!fs.existsSync(directory)) return false;
+  return fs.readdirSync(directory).some((name) => SCRIPT_EXTENSIONS.test(name));
+}
+
+function tracingTests(directory, testSources) {
+  const needles = [`skills/${directory}/`, `'${directory}'`, `"${directory}"`];
+  return testSources
+    .filter((source) => needles.some((needle) => source.text.includes(needle)))
+    .map((source) => source.file)
+    .sort();
+}
+
+// Build the 3.1 disposition ledger: one row per inventory ID with its kind,
+// owner, authority, selection, version condition (gating profiles; empty for
+// core), behavior class, and the test files that trace a scripted skill.
+function compileDispositionLedger({ inventory, selection, aliases = [], root, testSources = [] }) {
+  const compiled = compileMarketplaceSelection({ inventory, selection, aliases });
+  if (compiled.errors.length > 0) return freezeDeep({ errors: [...compiled.errors], rows: [] });
+  const rowsById = new Map(selection.skills.map((row) => [row.id, row]));
+  const errors = [];
+  const rows = inventory.skills.map((skill) => {
+    const row = rowsById.get(skill.id);
+    const directory = path.basename(skill.path);
+    const scripted = row.selection !== 'withdrawn' && shipsScripts(root, skill.path);
+    const tests = scripted ? tracingTests(directory, testSources) : [];
+    if (scripted && tests.length === 0) errors.push(`${skill.id}: ships scripts but no test traces skills/${directory}`);
+    return {
+      id: skill.id,
+      name: skill.name,
+      directory,
+      kind: row.kind,
+      owner: row.kind === 'entry' ? skill.id : row.owner,
+      authority: row.authority,
+      selection: row.selection,
+      versionCondition: (skill.profiles || []).filter((profile) => profile !== 'core').sort(),
+      behavior: row.selection === 'withdrawn' ? 'withdrawn' : (scripted ? 'script' : 'guidance-only'),
+      tests,
+    };
+  });
+  if (errors.length > 0) return freezeDeep({ errors, rows: [] });
+  return freezeDeep({ errors: [], rows });
+}
+
+module.exports = { compileMarketplaceSelection, compileDispositionLedger };
