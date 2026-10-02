@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "eada8d27979b37f87a05b45391860a3e904a1db9",
-  "generatedFromCommit": "eada8d27979b37f87a05b45391860a3e904a1db9",
-  "generatedFromTree": "b14abfd90f021b92b2a86e7c718a37698e1638bd",
-  "inventoryDigest": "3f00ffe718a176255cf167d826ac559e1988a086a475fce0f555cbb9e4b38c68",
-  "inventoryRevision": "sha256:493135beb751a3437332b8b52c07cdf53596b82470ed648ca42b5f2f0f49b1f6",
+  "sourceCommit": "c7bb755e88aebef540e01de90e02bdd1940f8e65",
+  "generatedFromCommit": "c7bb755e88aebef540e01de90e02bdd1940f8e65",
+  "generatedFromTree": "0c402c63a9024d77c2df9136eb24751ff2613d4f",
+  "inventoryDigest": "a27e391516f38815d4ece41f559879aae49d03a8d59097e9a1e6a011a323dfc5",
+  "inventoryRevision": "sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -166,7 +166,7 @@
     "dhpk-session-usage-audit": "ad6e21ac72573e80cb06a1eb0f585f2c10f0f1557af015c932709cd6e542ac12",
     "doc-refactor": "24188cc9a98a780ace387611e216335c8b6b664ec0c6995040538fffad7ef299",
     "flow-drive": "ff94c3bd274f39a6090697e2d436f918aa7e9140dd15632cdd907c840df72448",
-    "flow-guide": "e4b7f55e47fee80cbfc6be81a65cbd4202589c7108b4d917c99122ae0aaa6489",
+    "flow-guide": "d9116004ceebefd6beff6054e1b0a0d1c30d012e74c848481ac9881ba89665a4",
     "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "harness-audit": "b751eaa79e54539cfd41422c6eeea0c848d75256bf8f165f9273263658489091",
@@ -190,7 +190,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "4a54ba6ca900636b4eb9e08c959c190781a9169698aeb6083463e871febfea40",
+    "planId": "5137b2f1aba850b03b0b9fe139cab7c838549086a9c3619d6f9a38e49af0d072",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -316,10 +316,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "4a54ba6ca900636b4eb9e08c959c190781a9169698aeb6083463e871febfea40",
-      "inventory": "3f00ffe718a176255cf167d826ac559e1988a086a475fce0f555cbb9e4b38c68"
+      "plan": "5137b2f1aba850b03b0b9fe139cab7c838549086a9c3619d6f9a38e49af0d072",
+      "inventory": "a27e391516f38815d4ece41f559879aae49d03a8d59097e9a1e6a011a323dfc5"
     },
-    "rollbackIdentity": "c36bd82a2ecb6a7ead5a587ceadfe0279c5022aa520cf38c160f16290fbd51ce"
+    "rollbackIdentity": "246e3a085ab83f12b46e84c9f0985e6ccb7dfeacabd9e27159d5102b963b02a9"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
