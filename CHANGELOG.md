@@ -2952,7 +2952,7 @@ First public release of `dhpk` — a generic, install-and-go Claude Code harness
 - **Statusline script** (`scripts/statusline/statusline.sh`) — opt-in via project `settings.json`. Renders branch, staged/modified counts, docker status, profile, active modules, pending sentinels.
 - **24 codex skills + 5 codex agents** under `codex/` for dual-assistant projects.
 - **`manifests/install-profiles.json`** — curated module bundles (`minimal`, `legacy-php-yii`, `php-only`, `full`).
-- **`codex/AGENTS.md`** — dual-harness expectations document.
+- **`codex/guidance.md`** — dual-harness expectations document.
 - **`docs/subagent-prompt-template.md`** — source-reading and DB-access boilerplate to paste into sub-agent prompts.
 
 ### `userConfig`

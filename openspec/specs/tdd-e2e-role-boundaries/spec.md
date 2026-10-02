@@ -2,9 +2,28 @@
 
 ## Purpose
 
-TBD - created by archiving change refine-opsx-orchestration-governance. Update Purpose after archive.
+Define test-first, implementation-worker, and browser-journey responsibilities,
+shared TDD guidance, bounded verification, and observable handoff evidence.
 
 ## Requirements
+
+### Requirement: TDD guidance is shared by test-first and implementation workers
+
+The `tdd-guide`, `fast-worker`, `codex-fast-worker`, and `agy-fast-worker`
+agents SHALL preload the canonical `tdd-workflow` skill. A worker receiving an
+approved GREEN or test-scaffold handback SHALL use its named seam, files, and
+verification command while retaining `tdd-guide` ownership of RED and test
+strategy. Pure documentation work SHALL follow the skill's non-use boundary.
+
+#### Scenario: Worker implements an approved GREEN handback
+
+- **WHEN** an implementation worker receives an approved test-bearing task
+- **THEN** it applies the shared TDD guidance to observable assertions and boundary mocks, implements the named scope, and reports the scoped verification result
+
+#### Scenario: Documentation task does not require RED
+
+- **WHEN** a task only reorganizes documentation without changing runtime behavior
+- **THEN** the shared skill's non-use boundary applies and the task does not start a new test-first cycle
 
 ### Requirement: TDD and E2E roles retain distinct responsibilities
 

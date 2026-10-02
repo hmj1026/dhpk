@@ -88,7 +88,7 @@ test('baseline does not include environment secrets or private HOME paths', () =
 });
 
 test('checked-in baseline source commit remains pinned and valid', () => {
-  const baselinePath = path.join(ROOT, 'docs', 'baselines', 'issue-467-develop-bba2873.json');
+  const baselinePath = path.join(ROOT, 'manifests', 'baselines', 'issue-467-develop-bba2873.json');
   const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
   assert.strictEqual(baseline.schema, SCHEMA);
   assert.strictEqual(baseline.sourceCommit, 'bba2873facb429057d319ce74514077447ae0eb1');

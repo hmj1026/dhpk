@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change harness-consistency-audit. Update Purpose after archive.
+Keep shipped harness references resolvable and maintained documentation free
+of predecessor-brand strings while excluding local development records.
 
 ## Requirements
 
@@ -55,17 +56,22 @@ Explicit repo-path references of the form `scripts/…`, `hooks/…`, or `${CLAU
 
 ### Requirement: Shipped assets carry no predecessor-brand strings
 
-Shipped harness assets (`skills/`, `commands/`, `agents/`, `rules/`, `modules/*/**`, and `docs/` excluding `docs/design/` history) SHALL NOT contain the predecessor brand on a `sd0x` word boundary (covering `sd0x-dev-flow`, `.sd0x`, and `sd0x_version`). The reference-integrity check SHALL fail on any such occurrence outside a two-part whitelist: (a) CHANGELOG history and frozen `docs/design/` provenance, and (b) an enumerated set of intentional back-compat legacy-read references (the installer reads the pre-rename manifest path/key once for migration).
+Shipped harness assets (`skills/`, `commands/`, `agents/`, `rules/`, `modules/*/**`, and maintained `docs/`) SHALL NOT contain the predecessor brand on a `sd0x` word boundary (covering `sd0x-dev-flow`, `.sd0x`, and `sd0x_version`). The reference-integrity check SHALL exclude local `docs/design/`, `docs/evidence/`, and legacy `docs/knowledge/` records. It SHALL fail on such occurrences in shipped assets except enumerated intentional back-compat legacy-read references (the installer reads the pre-rename manifest path/key once for migration). CHANGELOG history SHALL remain exempt.
 
 #### Scenario: A command still names the pre-rename plugin
 
 - **WHEN** a shipped command globs `~/.claude/plugins/**/sd0x-dev-flow/...` or writes `.sd0x/install-state.json`
 - **THEN** the reference-integrity check reports the file, line, and brand string, and exits non-zero
 
-#### Scenario: CHANGELOG history is exempt
+#### Scenario: History and local development records are exempt
 
-- **WHEN** `CHANGELOG.md` or a `docs/design/**` artifact records the historical `sd0x-dev-flow` name
+- **WHEN** `CHANGELOG.md` or an artifact under `docs/design/`, `docs/evidence/`, or legacy `docs/knowledge/` records the historical `sd0x-dev-flow` name
 - **THEN** the check treats it as whitelisted and does not fail
+
+#### Scenario: Maintained documentation remains checked
+
+- **WHEN** a document under `docs/contracts/` carries the historical `sd0x-dev-flow` name without an enumerated legacy-read exception
+- **THEN** the check reports the brand string and exits non-zero
 
 #### Scenario: An enumerated back-compat legacy-read is exempt
 

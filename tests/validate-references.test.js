@@ -85,6 +85,30 @@ test('an empty harness tree with no markdown passes cleanly', () => {
   }
 });
 
+test('brand scan excludes local process docs and still checks durable contracts', () => {
+  const tmp = makeTempRepo();
+  try {
+    const fixtures = [
+      ['docs/design/retired-proposal.md', 'design note sd0x\n'],
+      ['docs/evidence/local-run.md', 'run evidence sd0x\n'],
+      ['docs/knowledge/investigation.md', 'investigation sd0x\n'],
+      ['docs/contracts/package-boundary.md', 'durable contract sd0x\n'],
+    ];
+    for (const [relative, text] of fixtures) {
+      const absolute = path.join(tmp, relative);
+      fs.mkdirSync(path.dirname(absolute), { recursive: true });
+      fs.writeFileSync(absolute, text);
+    }
+
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1, out);
+    assert.match(out, /FAIL \[check 4\] docs\/contracts\/package-boundary\.md:1: durable contract sd0x/);
+    assert.doesNotMatch(out, /docs\/(?:design|evidence|knowledge)\//);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('a whitelisted @rules ref is not flagged by the CLI', () => {
   const tmp = makeTempRepo();
   try {
