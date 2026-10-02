@@ -49,13 +49,10 @@ and installation are owned by the external tool.
   [hook extensions](hook-extension.md), and [subagent prompts](subagent-prompt-template.md).
 - Distribution and migration: [distribution surfaces](distribution-surfaces.md),
   [release artifacts](release-artifact-contract.md),
-  [skill platform migration](skill-platform-migration.md),
-  [skill purpose decisions](skill-purpose-decisions.md), and
+  [skill platform migration](skill-platform-migration.md), and
   [Codex transport ownership](codex-mcp-capability-parity.md).
 - Agent authoring: [guidance index](agent-guidance/README.md).
 - Contracts: [artifacts](contracts/artifact-contract.md),
-  [review lifecycle](contracts/review-lifecycle.md),
-  [reviewer output](contracts/reviewer-contract.md),
   [marketplace classifications](contracts/marketplace-catalog.md), and
   [marketplace licensing](contracts/marketplace-licensing.md).
 - Decisions: accepted rationale lives in `adr/`; domain and issue management

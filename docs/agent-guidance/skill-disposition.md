@@ -4,8 +4,6 @@ Use this page to resolve current skill disposition ownership.
 
 - `manifests/distribution-inventory.json` owns stable identity, active discovery,
   surfaces, successors, migration, and rollback facts.
-- [Skill purpose decisions](../skill-purpose-decisions.md) documents the
-  purpose ledger and its structural evidence.
 - [Skill platform migration](../skill-platform-migration.md) owns retirement,
   successor modes, direct-host invocation, and version-pin rollback.
 - [Writing for agents](writing-for-agents.md) owns the shared authoring contract.
