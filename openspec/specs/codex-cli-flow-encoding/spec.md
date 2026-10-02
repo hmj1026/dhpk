@@ -9,7 +9,7 @@ TBD - created by archiving change codex-flow-parity-and-do-openspec-flag. Update
 ### Requirement: Codex CLI receives instruction-based main-flow discipline
 
 Codex SHALL receive main-flow discipline through explicit `$dhpk-do` plus
-instruction fallback in `codex/AGENTS.md`. Guidance SHALL distinguish Codex
+instruction fallback in `codex/guidance.md`. Guidance SHALL distinguish Codex
 built-in commands/hooks from unsupported dhpk custom slash commands and Claude
 sentinels, map discovered roles, and report unavailable capability honestly.
 

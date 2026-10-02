@@ -410,7 +410,9 @@ dhpk/
 │   ├── distribution-inventory.json  # lifecycle/name/surface SSOT（schema v2）
 │   ├── install-profiles.json         # 精選模組組合
 │   └── module-catalog.json           # 模組設定 SSOT
-├── docs/design/bootstrap-dhpk-plugin/  # 原始設計檔案（proposal/design/tasks/specs）
+├── docs/                        # 版控的指南、ADR 與契約（見 docs/README.md）
+│   ├── design/, evidence/       # 忽略版控的本機開發紀錄
+├── openspec/specs/              # 版控的已接受行為規格
 ├── README.md、README.zh-TW.md、CHANGELOG.md、LICENSE、.gitignore
 ```
 

@@ -69,6 +69,56 @@ test('Claude marketplace generator rejects symlinked output parents', () => {
   }
 });
 
+test('Claude marketplace generator omits local process docs and keeps durable contracts', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-docs-'));
+  const root = path.join(temp, 'root');
+  const out = path.join(temp, 'package');
+  try {
+    for (const rel of [
+      '.claude-plugin',
+      'agent-traps',
+      'agents',
+      'commands',
+      'docs',
+      'hooks',
+      'manifests',
+      'modules',
+      'rules',
+      'scripts',
+      'skills',
+      'templates',
+    ]) {
+      fs.mkdirSync(path.join(root, rel), { recursive: true });
+    }
+    fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), '{"name":"dhpk","version":"1.0.0"}');
+    for (const rel of [
+      'docs/design/retired-proposal.md',
+      'docs/evidence/local-run.md',
+      'docs/knowledge/investigation.md',
+      'docs/contracts/package-boundary.md',
+    ]) {
+      fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+      fs.writeFileSync(path.join(root, rel), `${rel}\n`);
+    }
+
+    GENERATOR.materialize({ root, out });
+
+    for (const rel of [
+      'docs/design/retired-proposal.md',
+      'docs/evidence/local-run.md',
+      'docs/knowledge/investigation.md',
+    ]) {
+      assert.strictEqual(fs.existsSync(path.join(out, rel)), false, `local process doc was packaged: ${rel}`);
+    }
+    assert.strictEqual(
+      fs.readFileSync(path.join(out, 'docs/contracts/package-boundary.md'), 'utf8'),
+      'docs/contracts/package-boundary.md\n',
+    );
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 test('check reports a drifted generated Claude marketplace package as out of date', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-check-'));
   const root = path.join(temp, 'root');
@@ -91,11 +141,15 @@ test('check reports a drifted generated Claude marketplace package as out of dat
       fs.mkdirSync(path.join(root, rel), { recursive: true });
     }
     fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), '{"name":"dhpk","version":"1.0.0"}');
-    fs.mkdirSync(path.join(root, 'docs', 'knowledge'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'docs', 'knowledge', 'keep-me.md'), 'keep me\n');
+    fs.mkdirSync(path.join(root, 'docs', 'contracts'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'contracts', 'keep-me.md'), 'keep me\n');
 
     GENERATOR.materialize({ root, out });
-    fs.unlinkSync(path.join(out, 'docs', 'knowledge', 'keep-me.md'));
+    assert.strictEqual(
+      fs.readFileSync(path.join(out, 'docs', 'contracts', 'keep-me.md'), 'utf8'),
+      'keep me\n',
+    );
+    fs.unlinkSync(path.join(out, 'docs', 'contracts', 'keep-me.md'));
 
     const result = GENERATOR.check({ root, out });
     assert.strictEqual(result.ok, false);

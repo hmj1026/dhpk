@@ -47,7 +47,12 @@ A skill or command step whose logic is fully deterministic (fixed command sequen
 
 ### Requirement: SKILL.md size budget is CI-enforced with a shrink-only allowlist
 
-`scripts/ci/validate-skills.js` SHALL warn for SKILL.md files over 150 total lines and fail over 250 total lines (basis: `wc -l`, strictly greater-than), except for files on a checked-in grandfathered allowlist re-derived from that basis at seed time; the check SHALL fail if the allowlist grows or a delisted file regresses.
+`scripts/ci/validate-skills.js` SHALL warn for SKILL.md files over 150 logical lines and fail over 250 logical lines (strictly greater-than), except for files on a checked-in grandfathered allowlist re-derived from that basis at seed time; the check SHALL fail if the allowlist grows or a delisted file regresses. Logical line counting SHALL include a non-empty final line without a trailing newline.
+
+#### Scenario: Unterminated oversized skill fails CI
+
+- **WHEN** a non-allowlisted SKILL.md contains 251 logical lines and its final line has no trailing newline
+- **THEN** validation reports 251 lines and fails the 250-line hard budget
 
 #### Scenario: New oversized skill fails CI
 

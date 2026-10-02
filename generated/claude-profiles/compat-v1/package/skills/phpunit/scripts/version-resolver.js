@@ -28,48 +28,74 @@ function normalizeSelector(value) {
   return match[1];
 }
 
+// A complete version atom: optional "v", a numeric major, up to three numeric
+// or wildcard segments, then an optional pre-release, build, or stability
+// suffix. Anything else in a term (for example "banana10.0") is unconsumed
+// text, and the whole constraint is treated as unresolvable.
+const VERSION_ATOM = /^v?(\d+)((?:\.(?:\d+|x|\*)){0,3})(?:-[0-9a-z.]+)?(?:\+[0-9a-z.]+)?(?:@[a-z]+)?$/;
+const PINNED_OPERATORS = ['', '=', '==', '^', '~'];
+const LOWER_OPERATORS = ['>=', '>'];
+const UPPER_OPERATORS = ['<=', '<'];
+
+function parseAtom(text) {
+  const match = VERSION_ATOM.exec(text);
+  if (!match) return null;
+  const rest = match[2] ? match[2].slice(1).split('.') : [];
+  return [Number(match[1])].concat(rest.map((part) => (part === 'x' || part === '*' ? '*' : Number(part))));
+}
+
+function parseTerm(text) {
+  const match = /^(\^|~|>=|<=|>|<|==|=)?(.+)$/.exec(text);
+  if (!match) return null;
+  const atom = parseAtom(match[2]);
+  return atom ? { operator: match[1] || '', atom } : null;
+}
+
+function compareAtoms(left, right) {
+  for (let index = 0; index < 4; index += 1) {
+    const difference = (left[index] || 0) - (right[index] || 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
+function atomSelector(atom) {
+  const selector = String(atom[0]);
+  return SUPPORTED.has(selector) ? selector : null;
+}
+
+// One "||" alternative identifies a selector only as a single pinned term
+// (exact, ^, ~, or wildcard) or as a lower bound plus an upper bound that
+// stays inside that major, such as >=9.6 <10.0. Open-ended or upper-only
+// ranges can contain another supported family member, so they ask instead.
+function alternativeSelector(terms) {
+  if (terms.length === 1 && PINNED_OPERATORS.includes(terms[0].operator)) {
+    return atomSelector(terms[0].atom);
+  }
+  if (terms.length !== 2) return null;
+  const lower = terms.find((term) => LOWER_OPERATORS.includes(term.operator));
+  const upper = terms.find((term) => UPPER_OPERATORS.includes(term.operator));
+  if (!lower || !upper || [lower, upper].some((term) => term.atom.includes('*'))) return null;
+  const selector = atomSelector(lower.atom);
+  if (!selector || compareAtoms(upper.atom, lower.atom) <= 0) return null;
+  if (atomSelector(upper.atom) === selector) return selector;
+  const atBoundary = upper.operator === '<' && compareAtoms(upper.atom, [Number(selector) + 1]) === 0;
+  return atBoundary ? selector : null;
+}
+
 function constraintSelector(value) {
   if (typeof value === 'number' && Number.isFinite(value)) return normalizeSelector(value);
   if (typeof value !== 'string' || value.trim() === '') return null;
 
-  const text = value.trim();
-  const matches = [];
-  const expression = /([~^<>=]{0,2})\s*v?(\d+)(?:\.(\d+|x|\*))?/gi;
-  let match;
-  while ((match = expression.exec(text)) !== null) {
-    const operator = match[1] || '';
-    const major = match[2];
-    const minor = match[3] || '';
-    if (operator === '!=' || operator === '<>') return null;
-    matches.push({
-      operator,
-      major,
-      minor,
-      upper: operator === '<' || operator === '<=',
-    });
-  }
-
-  if (matches.length === 0 || /(?:^|[\s|,])(?:dev-|self\.version|[*xX])/.test(text)) return null;
-
-  const lower = matches.filter((candidate) => !candidate.upper);
-  const upper = matches.filter((candidate) => candidate.upper);
-  const lowerMajors = [...new Set(lower.map((candidate) => candidate.major))];
-  const upperMajors = [...new Set(upper.map((candidate) => candidate.major))];
-
-  if (lowerMajors.length !== 1) return null;
-  const selector = lowerMajors[0];
-  if (!SUPPORTED.has(selector)) return null;
-
-  // A bounded interval such as >=9.6 <10.0 still identifies 9. A wider
-  // interval can contain another supported family member, so ask instead.
-  if (upperMajors.length > 0) {
-    const lowerMajor = Number(selector);
-    const wider = upperMajors.some((major) => Number(major) > lowerMajor + 1);
-    const contradictory = upperMajors.some((major) => Number(major) <= lowerMajor);
-    if (wider || contradictory) return null;
-  }
-
-  return selector;
+  const text = value.trim().toLowerCase().replace(/(\^|~|>=|<=|>|<|==|=)\s+/g, '$1');
+  const selectors = text.split(/\s*\|\|?\s*/).map((alternative) => {
+    const terms = alternative.split(/\s*,\s*|\s+/).filter(Boolean).map(parseTerm);
+    if (terms.length === 0 || terms.includes(null)) return null;
+    return alternativeSelector(terms);
+  });
+  if (selectors.includes(null)) return null;
+  const unique = [...new Set(selectors)];
+  return unique.length === 1 ? unique[0] : null;
 }
 
 function readJson(cwd, filename) {

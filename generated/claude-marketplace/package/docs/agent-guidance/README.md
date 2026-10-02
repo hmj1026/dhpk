@@ -1,7 +1,8 @@
 # Agent Guidance Index
 
 This directory is the detailed guidance behind the minimal repository-root
-`AGENTS.md` and `CLAUDE.md` indexes. Load only the topic required by the
+`AGENTS.md` index. `CLAUDE.md`, `codex/AGENTS.md`, and `cursor/AGENTS.md`
+are symlinks to that source. Load only the topic required by the
 current branch of work.
 
 - [GitNexus and repository exploration](gitnexus.md) — exploration tool order
@@ -19,4 +20,4 @@ current branch of work.
 - [Deprecated aliases](command-aliases.md) — compatibility forwarding and
   target-verdict propagation.
 
-The Codex-specific projection contract remains in [`codex/AGENTS.md`](../../codex/AGENTS.md).
+The Codex-specific projection contract remains in [`codex/guidance.md`](../../codex/guidance.md).

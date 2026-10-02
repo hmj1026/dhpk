@@ -1,7 +1,7 @@
 ---
 name: codex-reviewer
 description: 'Internal shared-runner Codex review role; capability-gated and not a native Codex dispatch target.'
-tools: ["read_file", "grep_search", "list_dir", "run_command"]
+tools: ["view_file", "grep_search", "list_dir", "run_command"]
 model: pro
 ---
 

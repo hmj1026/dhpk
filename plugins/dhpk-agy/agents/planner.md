@@ -1,7 +1,7 @@
 ---
 name: planner
 description: "Opt-in `$flow-drive --plan` consultant: critique or sketch an implementation plan, then perform a manually requested warm or cold diff review. Return a verdict-first, `END`-terminated result under the mode's token cap; bounded read-only discovery uses at most 2 Explore children and 12 planner reads."
-tools: ["read_file", "invoke_subagent"]
+tools: ["view_file", "invoke_subagent"]
 model: pro
 ---
 

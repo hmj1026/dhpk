@@ -5,6 +5,38 @@ or implementation task list. It preserves the durable contract previously
 spread across the tech-spec and create-request skills; the external OpenSpec
 authoring workflow remains the artifact owner.
 
+## Storage and specification format
+
+Apply these destinations to every authoring entry, including external
+Superpowers brainstorming and planning skills:
+
+- Accepted behavioral requirements live in
+  `openspec/specs/<capability>/spec.md`. Use the plural `specs` directory.
+- Proposed changes retain the OpenSpec workflow's
+  `openspec/changes/<change>/` proposal, design, tasks, and delta specs until
+  acceptance and synchronization; this workflow state stays local and ignored.
+- Development designs, implementation plans, investigation notes, and historical
+  drafts live under ignored `docs/design/`; verification receipts, benchmarks,
+  screenshots, and run logs live under ignored `docs/evidence/`.
+- Maintained user guides, agent guidance, architecture decisions, and durable
+  contracts remain versioned documentation with a named owner.
+
+Override Superpowers' default `docs/superpowers/specs/` and
+`docs/superpowers/plans/` output destinations for this project. A design is
+process material until its behavioral requirements are accepted; moving it
+does not make historical assumptions current requirements. Preserve the original
+locally, reconcile accepted requirements with their existing capability owner,
+and keep superseded choices and run-specific counts in local design records.
+
+A main spec contains `# <capability> Specification`, `## Purpose`, and
+`## Requirements`. Each normative rule uses `### Requirement: <name>` with
+SHALL or MUST wording and at least one `#### Scenario: <name>` containing
+observable WHEN/THEN outcomes. A proposed delta uses OpenSpec's ADDED,
+MODIFIED, REMOVED, or RENAMED requirement sections. Validate the affected
+capabilities with `openspec validate <capability> --type spec --strict
+--no-interactive` before handoff; format validity is separate from acceptance
+or implementation evidence.
+
 ## Deliverable boundary
 
 Produce a decision-ready artifact set with one traceable chain:
@@ -87,6 +119,8 @@ Keep request status explicit:
 - `Candidate Complete` — all criteria appear checked but closure-grade
   verification is incomplete.
 - `Completed` — every criterion has high-confidence verification evidence.
+
+For task checkpoints, apply [Progress records](../../CODING_STANDARDS.md#progress-records).
 
 ## Risk and decision records
 

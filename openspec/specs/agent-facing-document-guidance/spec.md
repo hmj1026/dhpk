@@ -93,7 +93,7 @@ The repository SHALL apply the writing-for-agents contract to every canonical sk
 #### Scenario: Canonical inventory is audited
 
 - **WHEN** the document pass is complete
-- **THEN** all canonical skills, agents, rules, commands, `AGENTS.md`, `CLAUDE.md`, and `codex/AGENTS.md` have a recorded disposition and none is silently omitted
+- **THEN** all canonical skills, agents, rules, commands, `AGENTS.md`, `CLAUDE.md`, and `codex/guidance.md` have a recorded disposition and none is silently omitted
 
 #### Scenario: Existing document is already compliant
 
@@ -107,7 +107,7 @@ The repository SHALL apply the writing-for-agents contract to every canonical sk
 
 ### Requirement: Root guidance is a minimal linked index
 
-Repository root `AGENTS.md` and `CLAUDE.md` SHALL keep only universal project constraints and a concise pointer index; branch-specific implementation, testing, security, Git Flow, and platform mechanics SHALL live in linked topic documents. `codex/AGENTS.md` SHALL remain the Codex-specific projection and capability contract rather than duplicating Claude-only lifecycle details. Every link introduced or retained by the pass SHALL resolve in the repository.
+Repository root `AGENTS.md` SHALL be the sole instruction entrypoint source; `CLAUDE.md`, `codex/AGENTS.md`, and `cursor/AGENTS.md` SHALL be relative symlinks to it. The source SHALL keep only universal project constraints and a concise pointer index; branch-specific implementation, testing, security, Git Flow, and platform mechanics SHALL live in linked topic documents. `codex/guidance.md` SHALL remain the Codex-specific projection and capability contract rather than duplicating Claude-only lifecycle details. Every link introduced or retained by the pass SHALL resolve in the repository.
 
 #### Scenario: Agent loads root guidance
 

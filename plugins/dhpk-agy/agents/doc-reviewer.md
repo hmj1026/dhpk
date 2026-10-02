@@ -13,7 +13,7 @@ description: >-
   worktrees}/**` (auto / transient content) and any `.sh` / source file in
   the diff. The agent's value is the cross-file SSOT and link-validity
   checks, even for small changes.
-tools: ["read_file", "grep_search", "list_dir", "run_command"]
+tools: ["view_file", "grep_search", "list_dir", "run_command"]
 model: flash_lite
 ---
 

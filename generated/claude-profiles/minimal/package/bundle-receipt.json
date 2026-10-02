@@ -21,10 +21,10 @@
       "flow-drive",
       "flow-guide"
     ],
-    "selectionFingerprint": "0b979ae2f0e5cca19e35407f05a95418f4362068e33e7ab1346b2c8c3abea40b",
+    "selectionFingerprint": "cd714d3a06f1288a661e348114e28c02f6b8992b8537c68ea86cda3b22e6af55",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "2021154b6fde20436bc35ee0a2f4fa25b287ef2d9826027f24a56ac6fe69e606",
+    "sourceFingerprint": "5cd6d5812032a904df1a210f7a9dc7a7ee0f4f96e312faabea74700374a630fc",
     "supportClosure": {
       "assets": [],
       "files": [
@@ -69,7 +69,7 @@
         "repo-verify"
       ]
     },
-    "surfaceSelectionFingerprint": "a335977a08c8fa5d7977fc4f815be21baf5f286552252a7aac65c5a9bcc22061",
+    "surfaceSelectionFingerprint": "8e84c385aee71c1d9816a982666e435715fafacca1203768e9aa2542bcfa3918",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -749,5 +749,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "86eae39df0031bc832aca189feb953ce25d14b42acd3794cb8e14bfe6c3b0217"
+  "planFingerprint": "057948a2ae23e5ffd491678aad36660a0a19263e90ce4e71e297f2e023bbd850"
 }

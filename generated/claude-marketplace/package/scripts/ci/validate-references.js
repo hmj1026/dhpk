@@ -68,12 +68,14 @@ function harnessFiles() {
   return files;
 }
 
-// Extra brand-only scan set for check 4: docs/ (excluding docs/design/**,
-// history/provenance) plus manifests/ and the top-level READMEs. CHANGELOG.md
+// Extra brand-only scan set for check 4: maintained docs/ (excluding local
+// design/evidence/knowledge records) plus manifests/ and the top-level READMEs. CHANGELOG.md
 // is exempt by omission (never scanned).
 function brandOnlyFiles() {
   const files = [];
-  files.push(...walk(p('docs'), (fp) => isMarkdown(fp) && !relPath(fp).startsWith('docs/design/')));
+  files.push(...walk(p('docs'), (fp) => isMarkdown(fp)
+    && !['docs/design/', 'docs/evidence/', 'docs/knowledge/']
+      .some((local) => relPath(fp).startsWith(local))));
   files.push(...walk(p('manifests'), isMarkdown));
   for (const rel of ['README.md', 'README.zh-TW.md']) {
     if (fs.existsSync(p(rel))) files.push(p(rel));

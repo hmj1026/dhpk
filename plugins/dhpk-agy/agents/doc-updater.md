@@ -5,7 +5,7 @@ description: >-
   can make user or agent docs stale. Research the live checkout and update
   documentation with evidence. Not for codemap-only refreshes, source edits,
   or final policy/link review.
-tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir"]
+tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir"]
 model: flash_lite
 ---
 
