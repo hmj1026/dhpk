@@ -59,9 +59,9 @@ Match the skill's Output Contract:
 
 - Skill: `skills/harness-govern/SKILL.md`
 - Scripts: `skills/harness-govern/scripts/harness-{inventory,scenarios,test-harness}.sh`
-- Review Gate trigger SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` reviewer trigger table
-- Review Gate policy: project `.claude/rules/execution-policy.md` if present, else `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
+- Reviewer trigger SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` reviewer trigger table
+- Reviewer policy: project `.claude/rules/execution-policy.md` if present, else `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
 
 ## Closing — Artifact Output
 
-When producing the G1-G13 fix report: category `audits/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`baseline_pass` / `post_pass` / `deferred[]` / `verdict`). No consolidated Review Gate obligation by default; harness edits are routed by the orchestrator's trigger matching.
+When producing the G1-G13 fix report: category `audits/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`baseline_pass` / `post_pass` / `deferred[]` / `verdict`). Not part of the recommended post-edit reviewer batch by default; harness edits are routed by the orchestrator's trigger matching.

@@ -109,4 +109,4 @@ VERDICT: Redo with specific fixes. Weakest axis: Accuracy (2/5).
 
 ## Closing — Artifact Output
 
-Reply inline by default. Only when the user asks to persist it, category `reviews/`, path `agent-eval-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). No consolidated Review Gate obligation; invoke this role through its explicit harness-quality route.
+Reply inline by default. Only when the user asks to persist it, category `reviews/`, path `agent-eval-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). Not part of the recommended post-edit reviewer batch; invoke this role through its explicit harness-quality route.
