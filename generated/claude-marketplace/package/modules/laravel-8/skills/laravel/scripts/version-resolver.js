@@ -66,40 +66,97 @@ function normalizeExplicit(value) {
   return null;
 }
 
-function selectorsFromConstraint(value, allowMix) {
-  const text = textValue(value);
-  if (!text) return [];
+// A complete version atom: optional "v", a numeric major, up to three numeric
+// or wildcard segments, then an optional pre-release, build, or stability
+// suffix. Anything else in a term (for example "banana11.0") is unconsumed
+// text, and the whole constraint is treated as unresolvable.
+const VERSION_ATOM = /^v?(\d+)((?:\.(?:\d+|x|\*)){0,3})(?:-[0-9a-z.]+)?(?:\+[0-9a-z.]+)?(?:@[a-z]+)?$/;
+const PINNED_OPERATORS = Object.freeze(['', '=', '==', '^', '~']);
+const LOWER_OPERATORS = Object.freeze(['>=', '>']);
+const UPPER_OPERATORS = Object.freeze(['<=', '<']);
 
-  if (allowMix && /(?:^|[^a-z])(?:laravel[- ]?)?mix(?:[^a-z]|$)/.test(text)) {
-    return ['mix'];
+function parseAtom(text) {
+  const match = VERSION_ATOM.exec(text);
+  if (!match) return null;
+  const rest = match[2] ? match[2].slice(1).split('.') : [];
+  return [Number(match[1]), ...rest.map((part) => (part === 'x' || part === '*' ? '*' : Number(part)))];
+}
+
+function parseTerm(text) {
+  const match = /^(\^|~|>=|<=|>|<|==|=)?(.+)$/.exec(text);
+  if (!match) return null;
+  const atom = parseAtom(match[2]);
+  return atom ? { operator: match[1] || '', atom } : null;
+}
+
+function compareAtoms(left, right) {
+  for (let index = 0; index < 4; index += 1) {
+    const difference = (left[index] || 0) - (right[index] || 0);
+    if (difference !== 0) return difference;
   }
+  return 0;
+}
 
-  const candidates = [];
-  const add = (selector) => {
-    if (!candidates.includes(selector)) candidates.push(selector);
-  };
-
-  const versionPattern = /(?:^|[^0-9])v?(\d+)(?:\.(\d+|x|\*))?/g;
-  let match;
-  while ((match = versionPattern.exec(text)) !== null) {
-    const major = match[1];
-    const minor = match[2];
-    if (major === '5') {
-      if (minor === '4') add('5.4');
-      else if (minor && minor !== 'x' && minor !== '*') add(`unsupported-5-${minor}`);
-    } else if (['6', '7', '8', '9', '10', '11'].includes(major)) {
-      add(major);
+// One "||" alternative identifies a selector only as a single pinned term
+// (exact, ^, ~, or wildcard) or as a lower bound plus an upper bound that
+// stays inside that selector. Open-ended or upper-only ranges are ambiguous.
+function alternativeSelector(terms, family) {
+  if (terms.length === 1 && PINNED_OPERATORS.includes(terms[0].operator)) {
+    const { operator, atom } = terms[0];
+    const selector = family.atomSelector(atom);
+    if (!selector) return null;
+    if (operator === '^' || operator === '~') {
+      const upper = operator === '~' && atom.length >= 3 && atom[1] !== '*'
+        ? [atom[0], atom[1] + 1]
+        : [atom[0] + 1];
+      if (compareAtoms(upper, family.boundary(selector)) > 0) return null;
     }
+    return selector;
   }
-
-  return candidates.filter((candidate) => SUPPORTED_SELECTORS.includes(candidate));
+  if (terms.length !== 2) return null;
+  const lower = terms.find((term) => LOWER_OPERATORS.includes(term.operator));
+  const upper = terms.find((term) => UPPER_OPERATORS.includes(term.operator));
+  if (!lower || !upper || [lower, upper].some((term) => term.atom.includes('*'))) return null;
+  const selector = family.atomSelector(lower.atom);
+  if (!selector || compareAtoms(upper.atom, lower.atom) <= 0) return null;
+  if (family.atomSelector(upper.atom) === selector) return selector;
+  const atBoundary = upper.operator === '<' && compareAtoms(upper.atom, family.boundary(selector)) === 0;
+  return atBoundary ? selector : null;
 }
 
-function selectorFromConstraint(value, allowMix) {
-  const candidates = selectorsFromConstraint(value, allowMix);
-  if (candidates.length !== 1) return null;
-  return candidates[0];
+function constraintSelector(value, family) {
+  const text = textValue(value).replace(/(\^|~|>=|<=|>|<|==|=)\s+/g, '$1');
+  if (!text) return null;
+  const selectors = text.split(/\s*\|\|?\s*/).map((alternative) => {
+    const terms = alternative.split(/\s*,\s*|\s+/).filter(Boolean).map(parseTerm);
+    if (terms.length === 0 || terms.includes(null)) return null;
+    return alternativeSelector(terms, family);
+  });
+  if (selectors.includes(null)) return null;
+  const unique = [...new Set(selectors)];
+  return unique.length === 1 ? unique[0] : null;
 }
+
+const FRAMEWORK_VERSIONS = Object.freeze({
+  atomSelector(atom) {
+    if (atom[0] === 5) return atom[1] === 4 ? '5.4' : null;
+    const selector = String(atom[0]);
+    return ['6', '7', '8', '9', '10', '11'].includes(selector) ? selector : null;
+  },
+  boundary(selector) {
+    return selector === '5.4' ? [5, 5] : [Number(selector) + 1];
+  },
+});
+
+// Only Laravel Mix 5 has a reference; any other Mix major is unresolvable.
+const MIX_VERSIONS = Object.freeze({
+  atomSelector(atom) {
+    return atom[0] === 5 ? 'mix' : null;
+  },
+  boundary() {
+    return [6];
+  },
+});
 
 function readJsonFile(file) {
   try {
@@ -147,14 +204,14 @@ function detectFromComposerLock(cwd) {
   if (frameworkVersions.length > 0) {
     return {
       found: true,
-      selector: selectorFromConstraint(frameworkVersions[0], false),
+      selector: constraintSelector(frameworkVersions[0], FRAMEWORK_VERSIONS),
       source: 'composer.lock',
     };
   }
 
   const mixVersions = lockedPackageVersions(parsed.value, 'laravel-mix');
   if (mixVersions.length > 0) {
-    return { found: true, selector: 'mix', source: 'composer.lock' };
+    return { found: true, selector: constraintSelector(mixVersions[0], MIX_VERSIONS), source: 'composer.lock' };
   }
   return null;
 }
@@ -168,14 +225,14 @@ function detectFromComposerJson(cwd) {
   if (frameworkConstraint !== undefined) {
     return {
       found: true,
-      selector: selectorFromConstraint(frameworkConstraint, false),
+      selector: constraintSelector(frameworkConstraint, FRAMEWORK_VERSIONS),
       source: 'composer.json',
     };
   }
 
   const mixConstraint = dependencyConstraint(parsed.value, 'laravel-mix');
   if (mixConstraint !== undefined) {
-    return { found: true, selector: 'mix', source: 'composer.json' };
+    return { found: true, selector: constraintSelector(mixConstraint, MIX_VERSIONS), source: 'composer.json' };
   }
   return null;
 }
@@ -194,7 +251,7 @@ function detectFromPackageJson(cwd) {
       if (name.toLowerCase() === 'laravel-mix') {
         return {
           found: true,
-          selector: selectorFromConstraint(constraint, true) || 'mix',
+          selector: constraintSelector(constraint, MIX_VERSIONS),
           source: 'package.json',
         };
       }
