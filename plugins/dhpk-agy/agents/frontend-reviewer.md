@@ -14,7 +14,7 @@ description: >-
   review backend code — that is code-reviewer / security-reviewer. Skip for
   vendored libraries, `*.min.js`, and any file in the project's permanent
   ESLint Global ignores.
-tools: ["read_file", "grep_search", "list_dir", "run_command"]
+tools: ["view_file", "grep_search", "list_dir", "run_command"]
 model: pro
 ---
 

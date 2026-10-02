@@ -1,7 +1,7 @@
 ---
 name: agy-fast-worker
 description: 'One-release operational compatibility forwarder to agy-worker.'
-tools: ["run_command", "read_file", "write_to_file", "grep_search", "list_dir"]
+tools: ["run_command", "view_file", "write_to_file", "grep_search", "list_dir"]
 model: pro
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: codex-bridge
 description: '把指定工作外包給 GPT-6 family 的 Codex CLI 並忠實回傳其輸出（read-only: gpt-6-sol/high；workspace-write: gpt-6-luna/xhigh）。當需要批量實作或獨立第二審查視角時使用。這是 plugin 內第三種 codex 路徑:一次性 `codex exec` CLI 呼叫、輸出隔離於本 subagent、原文轉述,有別於歷史上已退休的 in-session MCP codex-* 技能與外部 codex: app-server plugin。'
-tools: ["run_command", "read_file", "write_to_file"]
+tools: ["run_command", "view_file", "write_to_file"]
 model: pro
 ---
 
