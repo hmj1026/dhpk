@@ -37,12 +37,12 @@ test('the accepted catalog compiles to 15 public entries with every child folded
   assert.deepStrictEqual(result.errors, []);
   assert.strictEqual(result.publicEntries.length, 15);
   const folded = Object.values(result.bundledChildren).reduce((total, children) => total + children.length, 0);
-  assert.strictEqual(folded, 47);
+  assert.strictEqual(folded, 46);
   for (const owner of Object.keys(result.bundledChildren)) {
     assert.ok(result.publicEntries.some((entry) => entry.id === owner), `${owner} must be a public entry`);
   }
-  assert.strictEqual(result.hostOnly.length, 16);
-  assert.strictEqual(result.withdrawn.length, 6);
+  assert.strictEqual(result.hostOnly.length, 15);
+  assert.strictEqual(result.withdrawn.length, 8);
 });
 
 test('the recorded naming decision is the user decision to keep current names', () => {
@@ -161,7 +161,7 @@ test('the disposition ledger covers all 84 IDs exactly once with owner, version 
 
 test('every skill that ships scripts traces to at least one test file', () => {
   const scripted = ledger().rows.filter((row) => row.behavior === 'script');
-  assert.ok(scripted.length >= 29, `expected the scripted skills to be found, got ${scripted.length}`);
+  assert.ok(scripted.length >= 28, `expected the scripted skills to be found, got ${scripted.length}`);
   for (const row of scripted) assert.ok(row.tests.length > 0, `${row.id} has no tracing test`);
 });
 
@@ -183,6 +183,19 @@ test('core skills have no version condition and module skills name their gating 
   const gated = rows.filter((row) => row.versionCondition.length > 0);
   assert.ok(gated.length > 0);
   for (const row of gated) assert.ok(!row.versionCondition.includes('core'), `${row.id} mixes core into a condition`);
+});
+
+test('every generated package that ships the vendored tomli parser keeps its MIT license beside it', () => {
+  let packages = 0;
+  for (const relative of PACKAGE_SKILL_ROOTS) {
+    const vendor = path.join(ROOT, relative, 'harness-govern', 'scripts', 'multi_ai_sync_lib', 'vendor', 'tomli');
+    if (!fs.existsSync(path.join(vendor, '_parser.py'))) continue;
+    packages += 1;
+    const license = path.join(vendor, 'LICENSE');
+    assert.ok(fs.existsSync(license), `${relative} ships tomli without its LICENSE`);
+    assert.match(fs.readFileSync(license, 'utf8'), /MIT License[\s\S]*Taneli Hukkinen/);
+  }
+  assert.ok(packages > 0, 'expected at least one package to ship tomli');
 });
 
 run('marketplace-selection');

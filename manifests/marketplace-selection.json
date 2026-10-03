@@ -212,9 +212,10 @@
     {
       "id": "agent-architecture-audit",
       "authority": "guidance-only",
-      "kind": "branch",
-      "owner": "change-verdict",
-      "selection": "common"
+      "kind": "withdrawn",
+      "owner": null,
+      "selection": "withdrawn",
+      "withdrawn_reason": "2026-10-03 user decision: excluded from marketplace publication; substantial text overlap with third-party ECC (MIT) without a retained notice."
     },
     {
       "id": "agy-fast-worker",
@@ -275,9 +276,10 @@
     {
       "id": "skill-forge",
       "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "skill-forge",
-      "selection": "host-only"
+      "kind": "withdrawn",
+      "owner": null,
+      "selection": "withdrawn",
+      "withdrawn_reason": "2026-10-03 user decision: excluded from marketplace publication; substantial text overlap with third-party ECC (MIT) without a retained notice."
     },
     {
       "id": "deploy-list",
