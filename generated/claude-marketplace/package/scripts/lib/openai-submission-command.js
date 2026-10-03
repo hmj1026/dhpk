@@ -8,6 +8,7 @@ const { assertCleanSourceCheckout } = require('./platform-provenance');
 const { compileMarketplacePublicationView } = require('./marketplace-selection');
 
 const RECEIPT_SCHEMA = 'dhpk.openai-submission-artifact.v1';
+const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
 const digest = (bytes) => crypto.createHash('sha256').update(bytes).digest('hex');
 const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
@@ -48,7 +49,7 @@ function readArtifact(output, selectedSkillNames) {
   } finally { directory.closeSync(); }
   names.sort();
   if (names.join(',') !== 'package.zip,provenance.json') throw new Error('foreign output: artifact must contain only its owned ZIP and receipt');
-  const receipt = readJson(path.join(output, 'provenance.json'), 8 * 1024 * 1024);
+  const receipt = readJson(path.join(output, 'provenance.json'), MAX_RECEIPT_BYTES);
   const archive = path.join(output, 'package.zip');
   physicalPath(archive);
   if (!fs.lstatSync(archive).isFile()) throw new Error('artifact ZIP must be a regular file');
@@ -87,6 +88,10 @@ function readArtifact(output, selectedSkillNames) {
 }
 
 function publish(output, bytes, receipt, selectedSkillNames, previousDigest) {
+  const receiptText = json(receipt);
+  if (Buffer.byteLength(receiptText) > MAX_RECEIPT_BYTES) {
+    throw new Error(`artifact receipt exceeds the ${MAX_RECEIPT_BYTES}-byte limit`);
+  }
   physicalPath(output);
   const parent = path.dirname(output);
   fs.mkdirSync(parent, { recursive: true });
@@ -99,7 +104,7 @@ function publish(output, bytes, receipt, selectedSkillNames, previousDigest) {
   let preserveStage = false;
   try {
     fs.writeFileSync(path.join(next, 'package.zip'), bytes, { flag: 'wx', mode: 0o644 });
-    fs.writeFileSync(path.join(next, 'provenance.json'), json(receipt), { flag: 'wx', mode: 0o644 });
+    fs.writeFileSync(path.join(next, 'provenance.json'), receiptText, { flag: 'wx', mode: 0o644 });
     if (fs.existsSync(output)) {
       const current = readArtifact(output, selectedSkillNames);
       if (!previousDigest || current.receipt.archiveDigest !== previousDigest) {
