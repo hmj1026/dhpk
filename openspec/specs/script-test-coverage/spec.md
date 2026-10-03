@@ -2,72 +2,68 @@
 
 ## Purpose
 
-Every logic script under `scripts/` has owned assertions in the aggregate Node test suite, located by stem heuristic or an explicit coverage mapping, so uncovered scripts cannot silently return.
+Protect meaningful, caller-visible script behavior with tests proportionate to
+its risk, without requiring a test file for every script or helper.
 
 ## Requirements
 
-### Requirement: Every logic script under `scripts/` has a dedicated test
+### Requirement: Script tests protect meaningful behavior proportionately
 
-Every logic script under `scripts/` — `*.sh`, `*.js`, `*.ts`, `*.py`, including `scripts/lib/`, `scripts/ci/`, `scripts/hooks/`, `scripts/hooks/_lib/`, `scripts/statusline/`, and `scripts/validate/` — SHALL have owned assertions discoverable by `tests/run-all.js`. Coverage is satisfied when a flat `tests/*.test.js` file exercises that script, located either by stem heuristic (`tests/<stem>.test.js` or `tests/<stem>-<aspect>.test.js`) or by an explicit script-to-test mapping in the coverage check. Two or more scripts MAY share one discovered file when that file owns assertions for each mapped script. Unique scripts default to a stem-named file. A file that only `require`s another `*.test.js` file SHALL NOT count as owned assertions.
+Automated tests SHOULD cover script behavior that makes a safety decision,
+exposes a caller-visible contract, or performs a high-impact side effect when
+that behavior can be exercised reliably. Tests SHALL assert outcomes through
+an existing CLI, hook, installer, or package entry point. Thin wrappers MAY be
+covered through their real entry point, and helpers without independent
+behavior or low-impact scripts MAY have no dedicated test.
 
-#### Scenario: An uncovered script gains a dedicated test
+#### Scenario: A meaningful CLI contract is tested
 
-- **WHEN** a logic script such as `scripts/lib/pre-route.sh` or `scripts/ci/validate-plugin.js` previously had no owned assertions
-- **THEN** a discovered `tests/*.test.js` file covers it by stem name or explicit mapping, `tests/run-all.js` runs that file, and the assertions pass
+- **WHEN** a script's public contract affects callers or makes a safety decision
+- **THEN** a focused test exercises the existing entry point and asserts its
+  observable result
 
-#### Scenario: An indirectly-tested script is promoted to a dedicated test
+#### Scenario: A thin wrapper is covered through its entry point
 
-- **WHEN** a script was only exercised as a setup helper or secondary case inside another test (e.g. `clear-sentinel.sh` inside `subagent-stop-verify-autoclear.test.js`)
-- **THEN** it has owned assertions for its own behavior, either in a stem-named file or in a shared mapped file that still exercises that script directly
+- **WHEN** a wrapper only forwards arguments to an existing command
+- **THEN** a test MAY exercise the forwarding through the real command without
+  adding a dedicated wrapper test
 
-#### Scenario: The full suite stays green
+#### Scenario: A low-impact helper has no dedicated test
 
-- **WHEN** `node tests/run-all.js` runs after the coverage change
-- **THEN** every mapped or stem-covered test passes and the previously-passing suite remains green
+- **WHEN** a helper has no independent behavior or a low-impact script is
+  difficult to exercise reliably
+- **THEN** the absence of a dedicated test does not fail catalog validation
 
-#### Scenario: Two scripts share one discovered test file
+### Requirement: Suites are organized around observable behavior
 
-- **WHEN** the coverage mapping lists two logic scripts against the same `tests/*.test.js` file and that file asserts both scripts' behavior
-- **THEN** the coverage check treats both scripts as covered and does not require a second stem-named file
+Tests SHALL use the existing aggregate runner and MAY cover related scripts in
+one suite. Test organization SHALL NOT require a script-to-test mapping, a
+stem-based filename, or a flat one-to-one relationship between production
+files and test files. Smoke checks MAY be used where operational risk warrants
+them; a smoke check SHALL NOT be presented as proof of full behavior coverage.
 
-### Requirement: A written coverage policy defines what MUST be tested and how
+#### Scenario: Related behavior shares one suite
 
-The harness SSOT SHALL carry a coverage-policy note stating which script classes MUST have owned assertions (guards, resolvers, validators, runners, sentinel/lifecycle logic, codegen, pure `_lib` helpers), how a script is located (stem heuristic for unique scripts; explicit many-to-one mapping when assertions are shared), that tests remain flat in `tests/` with no nested `*.test.js`, and the expected test shape (shell hooks driven via `DHPK_TEST_PAYLOAD`/`DHPK_TEST_HOOK` + `spawnSync` bash and asserted on exit status/stderr; JS/TS/py scripts driven via `spawnSync` and asserted on stdout/exit). The policy SHALL distinguish **behavioral** tests from **smoke** tests and SHALL name which script classes are smoke-only (installers, session-lifecycle hooks, git/network-shelling scripts). The policy SHALL state that a forwarding `require` of another `*.test.js` is not coverage.
+- **WHEN** multiple scripts contribute to one caller-visible behavior
+- **THEN** one focused suite may assert that behavior through its public entry
+  point
 
-#### Scenario: The policy names required classes and naming convention
+#### Scenario: New script lacks a dedicated test
 
-- **WHEN** a contributor reads the harness SSOT after this change
-- **THEN** it states which script classes MUST carry owned assertions, the stem heuristic, the explicit mapping, the flat `tests/` layout, and the shell/JS test shape
+- **WHEN** a script is added without a stem-named test or coverage-map entry
+- **THEN** `node scripts/ci/catalog.js --check` does not fail because of that
+  missing association
 
-#### Scenario: Smoke-only scripts are labelled
+### Requirement: Test policy has no project-wide coverage target
 
-- **WHEN** a script is an installer or a session-lifecycle hook that cannot be deeply asserted in a sandbox
-- **THEN** the policy labels its owned assertions as smoke-only (asserts it runs, is valid, and safely no-ops), so its coverage is not read as full behavioral verification
+The repository SHALL NOT require a fixed project-wide coverage percentage or
+test-count target. Markdown skill and guidance bodies SHALL be reviewed by
+people; automated tests MAY verify shared machine-readable parsing and
+resource-integrity behavior, but SHALL NOT assert individual documents'
+wording, headings, examples, section order, or body length.
 
-### Requirement: Coverage is checkable
+#### Scenario: Skill prose changes without a test update
 
-A coverage check SHALL report logic scripts under `scripts/` that lack owned assertions, so the gap cannot silently reopen. The check SHALL accept both the stem heuristic and an explicit many-to-one script-to-test mapping. The check MAY be delivered as `scripts/ci/catalog.js` together with that mapping. Helpers under `tests/_lib/` are not coverage targets.
-
-#### Scenario: A newly-added untested script is flagged
-
-- **WHEN** a new logic script is added under `scripts/` with no stem-named test and no mapping entry
-- **THEN** the coverage check reports that script as uncovered and exits non-zero
-
-#### Scenario: Full coverage passes
-
-- **WHEN** every logic script under `scripts/` maps to owned assertions (stem heuristic or explicit mapping)
-- **THEN** the coverage check passes
-
-### Requirement: Forwarding test entrypoints are forbidden
-
-A `tests/*.test.js` file discovered by `tests/run-all.js` SHALL contain its own assertions or helpers. It SHALL NOT exist solely to `require` another discovered `*.test.js` file. When two script stems share one implementation suite, the coverage mapping SHALL point both scripts at that suite and the extra entrypoint SHALL be absent.
-
-#### Scenario: A wrapper that re-enters another test file is rejected
-
-- **WHEN** `tests/advise-once.test.js` or `tests/detect-stack-hints.test.js` only `require`s `session-start.test.js`
-- **THEN** those wrapper files are absent, both shell scripts map to `session-start.test.js`, and `tests/run-all.js` discovers the implementation once
-
-#### Scenario: Catalog still covers the wrapped scripts
-
-- **WHEN** the forwarding files are removed
-- **THEN** `node scripts/ci/catalog.js --check` still reports those scripts as covered via the mapping
+- **WHEN** a skill's prose changes while its machine-readable metadata and
+  referenced resources remain valid
+- **THEN** no prose-specific test or test-count update is required

@@ -2,106 +2,82 @@
 
 ## Purpose
 
-TBD - created by archiving change dhpk-harness-integrity-guards. Update Purpose after archive.
+Report repository and distribution inventory counts from their machine-readable
+sources while keeping selected installation invariants mechanically enforced.
+Human-readable documentation counts remain informational.
 
 ## Requirements
 
-### Requirement: Every declared count is enforced against computed reality
+### Requirement: Catalog counts are derived and informational
 
-The count SSOT (`scripts/ci/catalog.js`) SHALL enforce every **exact-number** claim phrasing that
-appears in `README.md`, `README.zh-TW.md`, `.claude-plugin/plugin.json`, and
-`.claude-plugin/marketplace.json`, covering English agent counts, Traditional-Chinese agent counts,
-root-agent counts, sentinel-slot counts, module counts, the **command count** (`commands/*.md`, also
-claimed in `commands/do.md`), and the **hook-event count** (the number of distinct top-level event
-keys in `hooks/hooks.json`). The command count and hook-event count SHALL be exact enforced claims:
-the previously hand-reconciled `~`-approximate command count is converted to an exact claim, and any
-`~` prefix on it is removed. `node scripts/ci/catalog.js --check` SHALL exit non-zero when any
-enforced exact claim disagrees with the value computed from the repository.
+`scripts/ci/catalog.js` SHALL compute and print asset counts from the current
+repository inventory and, when available, separate canonical, lifecycle, and
+per-host publication counts from `manifests/distribution-inventory.json`.
+The catalog SHALL NOT scan documentation or plugin prose for exact numeric
+claims, fail because such prose counts differ, or rewrite prose counts with
+`--write`. Contributors may use printed counts when updating documentation;
+ordinary prose edits do not require a count-test or allowlist update.
 
-#### Scenario: Chinese agent-count claim drifts
+#### Scenario: The catalog reports current source counts
 
-- **WHEN** `README.zh-TW.md` states a `個角色導向 agent` count that differs from the computed agent total
-- **THEN** `node scripts/ci/catalog.js --check` reports a DRIFT line and exits non-zero
+- **WHEN** `node scripts/ci/catalog.js` prints its inventory table
+- **THEN** the counts are derived from the current assets and distribution inventory
 
-#### Scenario: Sentinel-slot count drifts
+#### Scenario: A prose count differs from the inventory
 
-- **WHEN** any file claims an `N-slot` sentinel count that differs from the length of `SENTINEL_NAMES` in `payload.sh`
-- **THEN** `node scripts/ci/catalog.js --check` reports a DRIFT line and exits non-zero
+- **WHEN** a human-readable file contains an outdated or approximate count
+- **THEN** catalog `--check` does not fail because of that prose, and `--write` does not edit it
 
-#### Scenario: Command count drifts
+### Requirement: Retired Codex MCP grants remain a machine-readable zero invariant
 
-- **WHEN** `commands/do.md` states a command count that differs from the number of `commands/*.md` files computed by `catalog.js`
-- **THEN** `node scripts/ci/catalog.js --check` reports a DRIFT line and exits non-zero
+The catalog SHALL compute MCP-backed Codex skill and command grants from
+machine-readable skill frontmatter and command metadata. It SHALL reject any
+nonzero grant after retirement, regardless of the name of the declaring skill
+or command.
 
-#### Scenario: Hook-event count drifts
+#### Scenario: A new MCP-backed grant is introduced
 
-- **WHEN** a README states a hook-event count that differs from the number of distinct top-level event keys in `hooks/hooks.json`
-- **THEN** `node scripts/ci/catalog.js --check` reports a DRIFT line and exits non-zero
+- **WHEN** any skill or command declares a retired Codex MCP grant
+- **THEN** `node scripts/ci/catalog.js --check` reports the grant and exits non-zero
 
-#### Scenario: All claims match reality
+#### Scenario: No retired grant exists
 
-- **WHEN** every enforced claim equals its computed value
-- **THEN** `node scripts/ci/catalog.js --check` prints PASS and exits zero
+- **WHEN** no skill or command declares a retired Codex MCP grant
+- **THEN** the retirement invariant passes
 
-### Requirement: Sentinel-slot count is derived from the sentinel SSOT
+### Requirement: Inventory and publication counts remain separate
 
-`scripts/ci/catalog.js` SHALL compute the sentinel-slot count by parsing the `SENTINEL_NAMES`
-array in `scripts/hooks/_lib/payload.sh`, so that a slot-count claim can never diverge from the
-authoritative array. The computed count SHALL be greater than zero.
+The catalog SHALL compute and label canonical, promoted-core, optional,
+experimental, deprecated, and per-host published skill counts when the
+distribution inventory is available. It SHALL NOT conflate canonical inventory
+with the default installed surface. Generated package validators SHALL continue
+to compare shipped package contents with their machine-readable inventory.
 
-#### Scenario: A slot is added to payload.sh
-
-- **WHEN** a new entry is added to `SENTINEL_NAMES` in `payload.sh`
-- **THEN** the catalog slot count reflects the new array length without any change to `catalog.js`
-
-### Requirement: Drift is auto-fixable in place
-
-`node scripts/ci/catalog.js --write` SHALL rewrite every drifted enforced claim to its computed
-value across the claim files, and report the number of claim groups updated.
-
-#### Scenario: Operator repairs drift
-
-- **WHEN** an operator runs `node scripts/ci/catalog.js --write` with drifted claims present
-- **THEN** the claim files are rewritten to the computed values and a subsequent `--check` passes
-
-### Requirement: Codex surface counts are enforced against computed reality
-
-The count SSOT (`scripts/ci/catalog.js`) SHALL compute the number of MCP-backed Codex skills by scanning every canonical `skills/*/SKILL.md`'s `allowed-tools` frontmatter for `mcp__codex__codex` or `mcp__codex__codex-reply` (not by directory name prefix), and the number of MCP-backed `commands/codex-*.md` files, and SHALL enforce that both computed values equal zero following this change's retirement. `node scripts/ci/catalog.js --check` SHALL exit non-zero if either computed value is greater than zero, and SHALL exit non-zero if README/README.zh-TW claim any nonzero MCP-backed count.
-
-#### Scenario: A new MCP-backed codex skill is added without a README update
-
-- **WHEN** any `skills/*/SKILL.md` still declares (or a regression reintroduces) `mcp__codex__codex` or `mcp__codex__codex-reply` in `allowed-tools` after this change lands, while README claims zero MCP-backed skills
-- **THEN** `node scripts/ci/catalog.js --check` reports the offending skill as a DRIFT line and exits non-zero
-
-#### Scenario: A frontmatter-granted skill without a `codex-` prefix is not miscounted
-
-- **WHEN** `catalog.js` computes the MCP-backed skill count
-- **THEN** it includes every `skills/*/SKILL.md` whose `allowed-tools` frontmatter declares `mcp__codex__codex` or `mcp__codex__codex-reply`, regardless of the skill's directory name
-
-#### Scenario: Counts match reality
-
-- **WHEN** no skill or command declares an `mcp__codex__*` grant and README/README.zh-TW make no nonzero MCP-backed-count claim
-- **THEN** `node scripts/ci/catalog.js --check` prints PASS and exits zero
-
-### Requirement: Inventory and publication counts are separate
-
-The count SSOT SHALL compute and label at least canonical, promoted-core, optional, experimental, deprecated, and per-host published skill counts. Documentation SHALL use the count whose scope matches the claim and SHALL NOT present canonical inventory as the default installed surface.
-
-#### Scenario: README claims all canonical skills are installed by default
-
-- **WHEN** the promoted-core count differs from the canonical skill count but README uses the canonical count for the default install
-- **THEN** catalog validation reports a scoped-count drift and exits non-zero
-
-#### Scenario: Lifecycle transition updates scoped counts
+#### Scenario: Lifecycle transition changes scoped counts
 
 - **WHEN** a skill moves from `promoted` to `deprecated`
-- **THEN** the canonical count remains unchanged, the promoted count decreases, and the deprecated count increases without manual arithmetic
+- **THEN** the canonical count remains unchanged, the promoted count decreases,
+  and the deprecated count increases without manual arithmetic
 
-### Requirement: Generated-package counts are verified from package contents
+#### Scenario: Generated package omits an eligible skill
 
-Release validation SHALL compute the Claude and Codex published counts from the generated or staged package contents and reconcile them with the distribution inventory.
+- **WHEN** the distribution inventory permits a skill on a published Host but
+  the generated package omits it
+- **THEN** the relevant package-content validator reports the missing skill
 
-#### Scenario: Generated Codex package omits a promoted skill
+### Requirement: Profile projection sets match their source manifests
 
-- **WHEN** the inventory permits a promoted skill on the native Codex surface but the physical package lacks it
-- **THEN** the package count/content validation fails with the missing skill name
+`node scripts/ci/catalog.js --check` SHALL verify that
+`manifests/profile-projection-sets.json` matches the profile, module, and
+distribution manifests. `--write` MAY regenerate that machine-readable
+projection manifest; it SHALL NOT rewrite prose counts.
+
+#### Scenario: A profile projection set is stale
+
+- **WHEN** a declared profile and Host skill set differs from the computed set
+- **THEN** catalog `--check` reports the stale projection and exits non-zero
+
+#### Scenario: Projection sets are regenerated
+
+- **WHEN** an operator runs `node scripts/ci/catalog.js --write`
+- **THEN** only the generated profile-projection-sets manifest is updated

@@ -37,9 +37,11 @@ Meta-workflow skills (e.g. `harness-govern`, `code-trace`) may use a phase-based
 
 Must retain regardless: When to use / When NOT to use, Anti-patterns / Hard limits, Verification checklist (jointly "the inviolable three").
 
-### Length limit
+### Length guidance
 
-150–250 lines. Over-limit means scope too large; must split the skill or extract references subfiles.
+Use length only as an optional readability signal. Split or extract reference
+material when that improves navigation or reuse; no fixed line count is a
+validation or review gate.
 
 ---
 

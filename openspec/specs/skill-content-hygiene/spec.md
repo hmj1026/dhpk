@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Keep shared skill guidance single-sourced, mechanically verifiable, and within
-the repository's discovery and content-size budgets.
+Keep shared skill guidance single-sourced, mechanically verifiable where it
+has machine-readable contracts, and readable to people who use it.
 
 ## Requirements
 
@@ -28,7 +28,7 @@ The auto-loop banner, the codex-family Key-Rules trio (independent research / th
 
 ### Requirement: Deterministic prose rituals are script-backed
 
-A skill or command step whose logic is fully deterministic (fixed command sequences, manifest-based detection, measurement thresholds) SHALL delegate to a script rather than restating the logic as prose. Specifically: the precommit commands SHALL delegate ecosystem detection and step ordering solely to the `precommit` Skill's package-local `scripts/precommit-runner.js`; the release flow's fixed git/gh sequence SHALL run via a release-runner script; feature-verify's health probe and API-exec harness SHALL be scripts. Every new script SHALL have a test per the script test coverage policy.
+A skill or command step whose logic is fully deterministic (fixed command sequences, manifest-based detection, measurement thresholds) SHALL delegate to a script rather than restating the logic as prose. Specifically: the precommit commands SHALL delegate ecosystem detection and step ordering solely to the `precommit` Skill's package-local `scripts/precommit-runner.js`; the release flow's fixed git/gh sequence SHALL run via a release-runner script; feature-verify's health probe and API-exec harness SHALL be scripts. Whether to add a test for a script follows the risk-based script testing policy.
 
 #### Scenario: precommit prose fallback removed
 
@@ -40,31 +40,21 @@ A skill or command step whose logic is fully deterministic (fixed command sequen
 - **WHEN** the release-creator flow reaches the mechanical git/gh steps
 - **THEN** it invokes the release-runner script with resolved tokens; config resolution and changelog authoring remain prose/judgment
 
-#### Scenario: New scripts are tested
+### Requirement: Skill metadata and resources retain machine-readable validation
 
-- **WHEN** `node tests/run-all.js` runs after this change
-- **THEN** each newly added script has a discoverable `tests/<stem>*.test.js` that passes
+Shared validators SHALL continue to parse skill frontmatter and check structural metadata contracts. Resource-integrity tools SHALL continue to verify that required referenced resources resolve. These checks SHALL use small fixtures for parser behavior and SHALL NOT assert the prose, headings, examples, section order, or body length of an individual skill.
 
-### Requirement: SKILL.md size budget is CI-enforced with a shrink-only allowlist
+#### Scenario: Frontmatter structure is valid
 
-`scripts/ci/validate-skills.js` SHALL warn for SKILL.md files over 150 logical lines and fail over 250 logical lines (strictly greater-than), except for files on a checked-in grandfathered allowlist re-derived from that basis at seed time; the check SHALL fail if the allowlist grows or a delisted file regresses. Logical line counting SHALL include a non-empty final line without a trailing newline.
+- **WHEN** the skill validator reads a skill with valid frontmatter
+- **THEN** it validates the machine-readable fields without enforcing a body-length budget
 
-#### Scenario: Unterminated oversized skill fails CI
+#### Scenario: Long skill prose passes structural validation
 
-- **WHEN** a non-allowlisted SKILL.md contains 251 logical lines and its final line has no trailing newline
-- **THEN** validation reports 251 lines and fails the 250-line hard budget
+- **WHEN** a skill body exceeds a former line budget but its machine-readable metadata is valid
+- **THEN** validation does not fail due to line count
 
-#### Scenario: New oversized skill fails CI
+#### Scenario: Resource integrity remains enforced
 
-- **WHEN** a new skill with a 300-line SKILL.md (not allowlisted) is added and `validate-skills.js` runs
-- **THEN** validation fails naming the file and the budget
-
-#### Scenario: Grandfathered file passes until demoted
-
-- **WHEN** an allowlisted 300-line SKILL.md is unchanged
-- **THEN** validation passes; once its demotion drops it below 250 it is removed from the allowlist and may not return
-
-#### Scenario: Demotions land in this change
-
-- **WHEN** the demotion tasks complete
-- **THEN** `feature-verify`, `rules-distill`, and `codex-code-review` SKILL.md files are ≤250 total lines, `issue-analyze` is ≤180 total lines, and the moved content is present under each skill's `references/`
+- **WHEN** a shipped skill references a required resource that does not resolve
+- **THEN** the shared resource-integrity validator reports the unresolved reference
