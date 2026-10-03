@@ -149,3 +149,17 @@ SHALL not become a second usage source of truth.
   references
 - **THEN** the usage schema rejects the unsupported field and keeps the
   procedural content in the skill-owned source
+
+### Requirement: Marketplace usage catalogs bind to the reviewed publication selection
+
+When supplied a compiled marketplace publication view, the usage compiler SHALL select exactly its public stable IDs, validate their inventory-owned usage records, and record the selection digest. IDs MUST be unique inventory identities, and invalid publication views SHALL fail closed. Without a publication view, the existing Codex-surface selection remains the compatibility behavior. A bundled child or Host-only entry MUST NOT be promoted into the common public usage list by scanning directories.
+
+#### Scenario: A marketplace view selects a skill outside a legacy Codex allowlist
+
+- **WHEN** a valid compiled publication view selects that inventory skill
+- **THEN** the marketplace usage catalog includes its validated public usage independently of legacy surface membership
+
+#### Scenario: A publication view has duplicate or unknown stable IDs
+
+- **WHEN** the compiler receives duplicate or non-inventory public IDs
+- **THEN** it rejects the view without emitting a partial usage catalog

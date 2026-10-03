@@ -127,3 +127,17 @@ Bundle generation SHALL emit structural evidence bound to profile, selected stab
 
 - **WHEN** consumer-observed package identity differs from the profile or selection artifact fingerprint
 - **THEN** verification returns a stale-identity failure and does not reuse an earlier passing result
+
+#### Scenario: Marketplace structural evidence is not Claude consumer evidence
+
+- **WHEN** the OpenAI portable marketplace artifact reports structural `PASS` with runtime `NOT_RUN`
+- **THEN** that package receipt does not satisfy Claude profile verification or claim Claude discovery/runtime support, and the active Claude profile and compatibility behavior remain governed by this bundle's own selection and consumer evidence
+
+### Requirement: Default Claude marketplace publication uses the shared catalog
+
+The default Claude marketplace package SHALL derive common public entries and their bundled children from the reviewed marketplace publication view and select Host-only resources for `claude-core` separately. Its catalog provenance SHALL record the selection digest, common public stable IDs, selected Host-only IDs, and packaged resource source paths, owner identities, destinations, kinds, and content hashes. This default catalog package SHALL remain distinct from explicit `minimal`, `full`, and `compat-v1` profile artifacts and SHALL NOT claim their shared-store activation contract or native runtime acceptance from generation alone.
+
+#### Scenario: Default catalog and explicit profiles coexist
+
+- **WHEN** the default Claude marketplace package is generated from the reviewed selection
+- **THEN** its public identities match the common catalog, its receipt records actual selected resources, and explicit profile generation and compatibility behavior remain available under their own contracts

@@ -2,7 +2,10 @@
 
 ## Purpose
 
-TBD - created by archiving change add-agents-skills-compatibility-projection. Update Purpose after archive.
+Define the generated `.agents/skills` compatibility projection for Cursor and
+AGY, including canonical source ownership, receipt-safe updates, structural
+validation, and the boundary between projection structure and consumer
+runtime evidence.
 
 ## Requirements
 
@@ -85,3 +88,15 @@ The project guidance SHALL identify `.agents/skills` as a generated skills-only 
 
 - **WHEN** a maintainer reads the platform installation guide
 - **THEN** the guide names the generator/validator commands, explains the generated receipt boundary, and does not instruct the maintainer to hand-edit a second skills, agent, or rule copy
+
+### Requirement: Marketplace package evidence is separate from compatibility projection
+
+The OpenAI portable marketplace package SHALL use its own selection and
+package receipt. Its structural result SHALL NOT replace the shared portable
+selection, receipt, or consumer evidence for the `.agents/skills`
+compatibility projection.
+
+#### Scenario: Marketplace package does not replace the compatibility projection
+
+- **WHEN** the OpenAI portable marketplace package passes structural validation
+- **THEN** the `.agents/skills` projection remains governed by its own shared portable selection and receipt, and the marketplace result does not claim Cursor or AGY discovery/runtime verification

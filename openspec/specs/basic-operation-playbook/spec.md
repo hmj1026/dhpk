@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change repair-open-issues-and-agent-guidance. Update Purpose after archive.
+Define paired basic-operation guides that route installation, maintenance, verification, and release preparation using the current supported surfaces and explicit evidence boundaries.
 
 ## Requirements
 
@@ -86,3 +86,12 @@ The English and Traditional Chinese guides SHALL contain the same section struct
 
 - **WHEN** a reader opens the English or Traditional Chinese guide
 - **THEN** both guides lead to the same supported behavior and do not present conflicting support tiers or completion claims
+
+### Requirement: Marketplace preparation does not retire current installation routes
+
+The bilingual guides SHALL distinguish the portable OpenAI submission candidate from a published daily installation route. They SHALL identify the candidate as unpublished until platform publication is verified, preserve current compatibility installation instructions, and disclose that the replacement cutover executor and legacy-route retirement remain unimplemented. Local developer installation and static package validation MUST NOT imply platform approval or publication.
+
+#### Scenario: A consumer follows the guide before publication
+
+- **WHEN** the candidate has not been published in the platform directory
+- **THEN** the guide describes the preparation and developer route and retains current compatibility procedures without claiming the cutover has shipped

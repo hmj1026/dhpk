@@ -2,7 +2,9 @@
 
 ## Purpose
 
-TBD - created by archiving change repair-open-issues-and-agent-guidance. Update Purpose after archive.
+Define the evidence needed to validate installed dhpk artifacts in real
+consumer environments, including artifact and session identity, surface
+conflicts, and optional role-specific probes.
 
 ## Requirements
 
@@ -106,3 +108,52 @@ diagnostics.
 
 - **WHEN** the duplicate-surface matrix returns `WARN` because a receipt-owned project-local fallback takes precedence over experimental native content
 - **THEN** the normalized result preserves `WARN` as compatibility surface status and warnings metadata, keeps the canonical evidence verdict vocabulary unchanged, and does not report a clean supported install
+
+### Requirement: Portable candidate consumer evidence binds exact artifact and session
+
+Every Codex consumer session used to accept an OpenAI portable candidate SHALL
+be bound to the exact delivered ZIP digest, extracted package and selection
+identities, Codex version, and an observed fresh-session identifier. Evidence
+SHALL record the actual probe command, discovered active sources, selected
+workflow outcome, and bounded redacted diagnostics. The source checkout SHALL
+be unavailable to the consumer session. A separately generated candidate,
+cache presence, package-manager success, or an untyped marker SHALL NOT prove
+that the delivered artifact loaded and executed.
+
+#### Scenario: Delivered candidate runs in a fresh consumer session
+
+- **WHEN** Codex installs the delivered portable artifact and a fresh session
+  performs a declared native workflow probe
+- **THEN** the receipt binds that observed session and outcome to the exact ZIP,
+  package selection, and Codex version
+
+#### Scenario: Consumer evidence omits artifact or session identity
+
+- **WHEN** a consumer result lacks the delivered ZIP digest, package identity,
+  Codex version, or observed session identifier
+- **THEN** the result remains non-pass and does not establish portable-candidate
+  runtime acceptance
+
+### Requirement: Optional role configuration is separate from plugin acceptance
+
+Acceptance of the skills-only portable plugin SHALL NOT require installed dhpk
+agent TOMLs, extra rules, a role-parity manifest, or project configuration
+rewrites. If an optional custom-role integration is exercised, its evidence
+MUST identify the configured role and observed native dispatch result
+separately from plugin acceptance; static role files or an untyped marker
+cannot establish named-role loading. Explicit consumer-project policy remains
+authoritative, including a requirement for independent review.
+
+#### Scenario: Consumer has no optional dhpk role files
+
+- **WHEN** a clean consumer has the portable plugin and native Codex
+  capabilities but no dhpk role projection
+- **THEN** plugin acceptance can be based on the selected native skill
+  workflows without installing optional role files
+
+#### Scenario: An exercised optional role cannot load
+
+- **WHEN** an explicitly selected custom-role probe cannot dispatch the
+  configured role
+- **THEN** its separate result is non-pass and does not invalidate or replace
+  the artifact-bound plugin workflow evidence

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change align-agent-plugin-platform-support. Update Purpose after archive.
+Define the bilingual installation documentation source of truth for supported Host routes, compatibility procedures, consumer validation, and unpublished marketplace preparation.
 
 ## Requirements
 
@@ -204,3 +204,12 @@ drift.
 - **WHEN** every affected document has current surface-specific instructions or
   a canonical-guide link and both language variants agree
 - **THEN** the documentation gate passes its cross-file consistency checks
+
+### Requirement: Marketplace preparation does not retire current installation routes
+
+The bilingual guides SHALL distinguish the portable OpenAI submission candidate from a published daily installation route. They SHALL identify the candidate as unpublished until platform publication is verified, preserve current compatibility installation instructions, and disclose that the replacement cutover executor and legacy-route retirement remain unimplemented. Local developer installation and static package validation MUST NOT imply platform approval or publication.
+
+#### Scenario: A consumer follows the guide before publication
+
+- **WHEN** the candidate has not been published in the platform directory
+- **THEN** the guide describes the preparation and developer route and retains current compatibility procedures without claiming the cutover has shipped

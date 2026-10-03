@@ -117,7 +117,10 @@ Codex surfaces.
 Every skill, agent, command, rule, hook, and MCP entry published on one of
 these surfaces MUST have an inventory-owned stable ID, public name, lifecycle,
 source path, and surface membership. No surface may be inferred from a
-directory, README list, or manifest presence.
+directory, README list, or manifest presence. This membership contract
+governs adapters targeting these explicit inventory surfaces; the separate
+`openai-submission` package uses the marketplace selection and canonical
+inventory records without adding membership to another surface.
 
 #### Scenario: Portable skill is intentionally selected
 
@@ -133,11 +136,25 @@ directory, README list, or manifest presence.
 
 ### Requirement: Cross-surface projections have one canonical source
 
-All generated Agent Plugins, Codex, Cursor, AGY, and Claude projections, including profile-scoped bundles, SHALL be derived from canonical sources plus explicit adaptation rules and one inventory-owned canonical selection identity. Generated files MUST NOT become an independently authored source of behavior, and identical portable skill content across surfaces SHALL share a fingerprint or a recorded intentional transform. The canonical profile ID, ordered canonical stable-ID set, and canonical selection fingerprint SHALL be part of projection provenance. A surface MAY additionally record emitted stable IDs and a surface selection fingerprint only for a declared transform; Codex's emitted set SHALL be the canonical selection intersected with its existing supported allowlist.
+Every projection generated through `compileDistribution` for Agent Plugin,
+Codex, Cursor, AGY, and Claude surfaces, including profile-scoped bundles,
+SHALL derive from canonical sources, explicit adaptation rules, and one
+inventory-owned canonical selection identity. Generated files MUST NOT become
+an independently authored source of behavior, and identical portable skill
+content across those surfaces SHALL share a fingerprint or a recorded
+intentional transform. The canonical profile ID, ordered canonical stable-ID
+set, and canonical selection fingerprint SHALL be part of projection
+provenance. A surface MAY additionally record emitted stable IDs and a surface
+selection fingerprint only for a declared transform; Codex's emitted set
+SHALL be the canonical selection intersected with its existing supported
+allowlist. The separately compiled `openai-submission` package shares canonical
+inventory sources but uses the explicit marketplace selection and package
+receipt requirements below; it does not set profile membership or the
+Codex-supported intersection for these projections.
 
 #### Scenario: Generated package contains an undeclared skill
 
-- **WHEN** any generated surface or profile bundle contains a public name absent from its inventory surface and selected profile
+- **WHEN** a `compileDistribution` surface or profile bundle contains a public name absent from its inventory surface and selected profile
 - **THEN** the distribution gate fails and names the extra entry
 
 #### Scenario: Native adaptation is intentional
@@ -198,6 +215,16 @@ stable-ID provenance linking it to the owner.
 
 `manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, symlink policy, and profile membership supplied to `compileDistribution`. Install profiles and module catalogs MAY provide normalized selection inputs, but generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry. Retirement rows from Change A are never selectable entries. `--write` MUST reject an existing inventory with schema `dhpk.distribution-inventory.v2` before invoking the atomic file-replacement helper (`writeInventoryAtomically`), return a nonzero status, leave the existing bytes unchanged, and direct digest-only updates to `--refresh-supporting-digests`. Missing inventories and existing v1 inventories SHALL retain the current generation behavior for entries whose canonical paths match `skills/<id>/SKILL.md` or `modules/<module>/skills/<id>/SKILL.md`. Any canonical entry outside those two recognized path shapes SHALL fail closed before a write. An existing inventory that is neither valid v1 nor exact v2 MUST retain the existing schema-validation failure and MUST NOT be reinterpreted as missing or v1 bootstrap input. Regeneration MUST NOT use an unconditional per-entry union that can resurrect a deliberately removed v2 membership; an explicitly reviewed v2 inventory edit or a dedicated reconciliation workflow is outside this requirement.
 
+This requirement governs entries and membership supplied to `compileDistribution`.
+The OpenAI portable package also consumes the explicit
+`manifests/marketplace-selection.json` through its marketplace-selection
+compiler. That document controls the shared default marketplace catalog consumed by
+retained Host publication adapters and the portable OpenAI submission package.
+It does not change the inventory's canonical names, source paths, lifecycles,
+physical owners, explicit compatibility-profile definitions, or inventory
+surface memberships. Each Host selects its declared Host-only resources
+separately while preserving the shared common public identities.
+
 #### Scenario: Surface adapter discovers an extra component
 
 - **WHEN** a surface-specific adapter or profile generator finds a package in a conventional directory that is not selected for that surface by the inventory and explicit profile input
@@ -244,9 +271,21 @@ stable-ID provenance linking it to the owner.
 - **WHEN** `--write` reads an existing inventory that is malformed or has a schema other than a valid v1 or exact `dhpk.distribution-inventory.v2`
 - **THEN** the existing schema-validation path fails nonzero without treating the file as missing or v1 bootstrap input and without writing replacement bytes
 
-### Requirement: Every migrated generated surface uses the shared projection pipeline
+### Requirement: Every migrated distribution surface uses the shared projection pipeline
 
-After its characterization gate and cutover, each Agent Plugin, Codex native, Cursor, AGY, and Claude generated surface SHALL be planned through `compileDistribution`, materialized through `materializeDistribution` and `ProjectionArtifactStore`, and assessed through `verifyDistribution` for each supported verification stage. A profile-scoped Claude artifact SHALL be planned before host discovery and SHALL retain a separate unscoped compatibility path until its migration gates pass. Before that per-surface cutover, the characterized legacy implementation remains authoritative as the rollback path. Surface adapters MAY render consumer-native syntax but MUST NOT bypass the shared selection, ownership, provenance, or evidence contracts after cutover.
+After its characterization gate and cutover, each existing distribution-inventory
+surface adapter for Agent Plugin, Codex native, Cursor, AGY, and Claude SHALL be
+planned through `compileDistribution`, materialized through
+`materializeDistribution` and `ProjectionArtifactStore`, and assessed through
+`verifyDistribution` for each supported verification stage. A profile-scoped
+Claude artifact SHALL be planned before host discovery and SHALL retain a
+separate unscoped compatibility path until its migration gates pass. Before
+that per-surface cutover, the characterized legacy implementation remains
+authoritative as the rollback path. Surface adapters MAY render
+consumer-native syntax but MUST NOT bypass the shared selection, ownership,
+provenance, or evidence contracts after cutover. The separately compiled
+`openai-submission` package follows the marketplace ZIP evidence requirement
+and is not an installation or cutover claim for these adapters.
 
 #### Scenario: Consumer requires a native manifest format
 
@@ -319,9 +358,19 @@ No skill or command promoted onto a discovery-visible surface SHALL declare `mcp
 - **WHEN** a formerly frozen Codex-MCP skill or removed command retains an `mcp__codex__*` grant, regardless of its invocation class
 - **THEN** distribution validation fails and reports the retired dependency; changing its invocation class cannot make the grant valid
 
-### Requirement: Curated publication reflects the distribution inventory, not raw directory scanning
+### Requirement: Curated distribution publication reflects the inventory, not raw directory scanning
 
-The default Claude install artifact's discoverable skill set SHALL be the materialized `minimal` profile derived from the distribution inventory via the existing profile package generator, not from an unfiltered source-directory scan. `full` and `compat-v1` SHALL remain explicit opt-in artifacts. Agent Plugin, Cursor, AGY, and Cursor-sync membership SHALL atomically replace the 22 first-party predecessors with the six family identities while retaining the six GitNexus IDs unchanged. Where a manifest format cannot express per-skill discovery granularity, the generator SHALL perform filtering while materializing the package output.
+The default Claude install artifact's discoverable skill set SHALL be the
+materialized `minimal` profile derived from the distribution inventory via the
+existing profile package generator, not from an unfiltered source-directory
+scan. `full` and `compat-v1` SHALL remain explicit opt-in artifacts. Agent
+Plugin, Cursor, AGY, and Cursor-sync membership SHALL atomically replace the
+22 first-party predecessors with the six family identities while retaining the
+six GitNexus IDs unchanged. Where a manifest format cannot express per-skill
+discovery granularity, the generator SHALL perform filtering while
+materializing the package output. This projection contract does not define
+OpenAI marketplace package membership; that package uses the separate explicit
+marketplace selection.
 
 #### Scenario: Generator relies on the whole-directory manifest root
 
@@ -332,6 +381,35 @@ The default Claude install artifact's discoverable skill set SHALL be the materi
 
 - **WHEN** a generated package contains a retired predecessor, omits a selected family, or changes a protected external-package identity
 - **THEN** distribution validation fails and names the surface and stable ID
+
+### Requirement: Marketplace ZIP evidence is package-scoped and structural
+
+The OpenAI portable package SHALL be compiled from the explicit marketplace
+selection and distribution inventory. It SHALL contain selected common public
+entries and their bundled children; host-only entries and withdrawn identities
+SHALL not be included in this package. Its provenance SHALL bind the source
+identity, inventory and canonical selection digests, selected stable IDs, and
+packaged file fingerprints. The package receipt SHALL bind the ZIP archive
+digest and extracted-file fingerprints. A successful package validation SHALL
+report structural `PASS` separately from consumer runtime, which remains
+`NOT_RUN` until an exact configured consumer is actually exercised. It SHALL
+not imply a different surface's ownership or support tier, listing
+presentation, submission, approval, or publication.
+
+#### Scenario: Marketplace package receipt matches the ZIP
+
+- **WHEN** the package receipt and ZIP are validated against the current
+  marketplace selection
+- **THEN** the receipt's archive and extracted-file digests match the package,
+  and its provenance identifies the selected source and inventory inputs
+
+#### Scenario: Structural validation completes without a consumer probe
+
+- **WHEN** the package and receipt pass structural validation without an exact
+  consumer execution
+- **THEN** the result reports structural `PASS` and runtime `NOT_RUN`, without
+  upgrading another surface's support tier or claiming marketplace submission
+  or publication
 
 ### Requirement: Distribution inventory records external-package ownership
 

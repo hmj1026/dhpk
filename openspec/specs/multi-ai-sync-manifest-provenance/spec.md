@@ -2,7 +2,9 @@
 
 ## Purpose
 
-TBD - created by archiving change scope-multi-ai-sync-validation-to-configured-platforms. Update Purpose after archive.
+Define how multi-ai synchronization identifies parity-managed output and how
+platform receipts scope ownership, installation, and validation evidence to
+their own generated targets.
 
 ## Requirements
 
@@ -62,6 +64,31 @@ another.
 - **WHEN** a Cursor receipt is presented to validate a Codex-native or
   project-local Codex projection
 - **THEN** validation reports an ownership mismatch and does not claim parity
+
+### Requirement: OpenAI submission provenance owns only its package
+
+The `openai-submission` receipt SHALL bind only its portable package. It SHALL
+identify the source version and Git commit/tree, inventory and canonical
+selection digests, selected stable IDs, packaged file fingerprints, ZIP
+archive digest, and extracted-file fingerprints. Validation SHALL compare the
+receipt with the exact package bytes. This receipt SHALL NOT satisfy the
+multi-ai parity-manifest requirement or establish ownership, installation,
+discovery, or runtime support for a Codex, Cursor, AGY, Claude, or other
+consumer target.
+
+#### Scenario: Package receipt validates without parity ownership
+
+- **WHEN** an OpenAI package receipt and its ZIP validate while no multi-ai
+  parity operation or ownership marker is present
+- **THEN** package validation reports its structural result independently and
+  does not require or create `.codex/agents/sync-manifest.json`
+
+#### Scenario: Package receipt is presented for a native target
+
+- **WHEN** an OpenAI package receipt is presented as provenance for a
+  project-local or native Codex projection
+- **THEN** validation does not accept it as the target surface's ownership
+  receipt or as evidence of installed consumer behavior
 
 ### Requirement: Migration preserves independent consumer ownership
 
