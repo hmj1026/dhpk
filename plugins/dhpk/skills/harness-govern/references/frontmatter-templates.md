@@ -72,7 +72,7 @@ model: haiku                       # haiku (frequent lightweight reviews) / sonn
 ### After adding an agent, must sync
 
 1. `.claude/agents/INDEX.md`: add row to the Mandatory Chain or Situational table
-2. Execution-policy rule (project's own or cross-ref to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`): Agent dispatch table → add the reviewer trigger row
+2. Execution-policy rule (project's own or cross-ref to `_dependencies/rules/execution-policy.md`): Agent dispatch table → add the reviewer trigger row
 3. Post-edit routing: ensure the reviewer's file-pattern mapping is represented in the reviewer trigger table
 
 ---
@@ -88,7 +88,7 @@ No frontmatter, pure Markdown.
 - **Hard rule** (marked **MUST / forbidden**)
 - **Scope rule** (avoid meaningless sweeps)
   > Example: "Newly-added / modified diff → MUST; other existing methods → do NOT actively clean up (let the fixer unify them when they're naturally committed)"
-- Cross-reference via relative paths (`../execution-policy.md` or `.claude/rules/...`); when cross-referencing dhpk shipped rules, use `${CLAUDE_PLUGIN_ROOT}/rules/...`
+- Cross-reference via relative paths (`../execution-policy.md` or `.claude/rules/...`); when cross-referencing dhpk shipped rules, use `_dependencies/rules/...`
 
 ### Length limit
 
@@ -125,9 +125,9 @@ No frontmatter, pure Markdown.
 3. Communication (reply language / code comment language / domain terms)
 4. Core rules: SSOT / Read-before-write (cx > gitnexus > Read) / No auto-commit / language version constraints
 5. Key references table (Topic → File) at minimum including:
-   - Execution strategy + reviewer triggers → `.claude/rules/execution-policy.md` (or `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` if dhpk-installed)
+   - Execution strategy + reviewer triggers → `.claude/rules/execution-policy.md` (or `_dependencies/rules/execution-policy.md` if dhpk-installed)
    - Tool routing → `.claude/rules/tool-routing.md`
-   - Sub-agent prompt template → `.claude/docs/subagent-prompt-template.md` (or dhpk's `${CLAUDE_PLUGIN_ROOT}/docs/subagent-prompt-template.md`)
+   - Sub-agent prompt template → `.claude/docs/subagent-prompt-template.md` (or dhpk's `_dependencies/docs/subagent-prompt-template.md`)
    - Agent roster → `.claude/agents/INDEX.md`
    - MCP server inventory → `.claude/docs/mcp-servers.md` (if present)
    - Language / framework patterns → `.claude/rules/<lang>/<topic>.md`

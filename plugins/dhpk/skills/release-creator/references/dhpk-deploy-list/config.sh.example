@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# config.sh — project-level defaults for deploy-list.
+#
+# Copy this file to `config.sh` in your project's clone of the skill and edit
+# the defaults below. `config.sh` is loaded by `scripts/deploy-list.sh` BEFORE
+# CLI argument parsing. CLI flags override anything set here; ecosystem
+# auto-detect runs only when neither CLI nor this file pins the preset.
+
+# Force a preset (skips ecosystem auto-detect). Empty = let auto-detect choose.
+DEFAULT_PRESET=""
+
+# Default --base ref. Common choices: "main", "develop", "master".
+DEFAULT_BASE="main"
+
+# Default --lang. "en" / "zh-TW" ship out of the box; add more under i18n/.
+DEFAULT_LANG="en"
+
+# Default --author. Uncomment to pin across the team; otherwise main script
+# falls back to ${USER:-user}.
+# DEFAULT_AUTHOR=""

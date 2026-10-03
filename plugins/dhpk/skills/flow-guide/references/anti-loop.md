@@ -1,6 +1,6 @@
 # Anti-loop — worked example
 
-SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
+SSOT: `_dependencies/rules/execution-policy.md` §Anti-loop & output.
 
 ## Example — same approach, three failures
 
