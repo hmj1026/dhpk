@@ -272,12 +272,20 @@ The consolidated PHPUnit family SHALL follow the authoritative annotation lifecy
 
 ### Requirement: Capability-family discovery exposes interfaces rather than modes
 
-Discovery-visible metadata SHALL expose one concise description for each capability family and SHALL keep mode procedures out of the initial context. For this inventory revision the canonical inventory SHALL contain exactly 65 skills, exactly 9 live `portable-family` entries, and exactly 56 live entries whose public name retains the `dhpk-` prefix. The selected profile counts SHALL be `minimal=4`, `full=55`, and `compat-v1=62` before any explicit overlay.
+Discovery-visible metadata SHALL expose one concise description for each
+selected public capability family and SHALL keep mode procedures out of the
+initial context. The active distribution inventory and accepted selection
+SHALL determine canonical skill, family, naming-style, and profile counts.
+Reports SHALL show the measured counts and included or excluded stable IDs;
+directory presence and historical inventory/profile totals SHALL NOT act as
+shipping quotas.
 
 #### Scenario: Family surface meets the structural baseline
 
-- **WHEN** inventory and profile validation run after the consolidation
-- **THEN** the reported canonical, naming-style, and profile counts match `65`, `9`, `56`, `4`, `55`, and `62`, and identify any unexpected entry by stable ID
+- **WHEN** inventory and profile validation run after catalog selection
+- **THEN** the report records actual canonical, naming-style, and per-profile
+  counts and identifies each selected or excluded stable ID without comparing
+  them to superseded fixed totals
 
 #### Scenario: Mode procedures leak into discovery metadata
 
@@ -302,6 +310,40 @@ The inventory SHALL be the single source of truth for a generated usage catalog 
 
 - **WHEN** an option is undocumented, an example uses an unsupported action, invocation class conflicts with policy, or effect authority exceeds its parent
 - **THEN** validation fails closed with the field-level diagnostic and produces no accepted help catalog
+
+### Requirement: Budget baselines and context measurements remain scope-specific
+
+The strict discovery-budget baseline SHALL retain its eight declared scope
+rows and evaluate each row independently with its configured identity,
+estimator, units, and limits. Every baseline row MUST pass for the baseline to
+pass; `SKIPPED`, `NOT_RUN`, `BLOCKED`, `UNAVAILABLE`, or missing measurement
+MUST remain non-pass. A scope exception recorded by a separate acceptance
+process SHALL NOT change the evaluator's scope set or convert a non-pass row
+into a baseline pass. Reports SHALL distinguish static description/catalog
+estimates, the complete Host-rendered discovery list, the plugin's contribution
+to that list, and selected-task context (including roles, task packets,
+conditional resources, and observed runtime context). A measurement in one
+scope SHALL NOT stand in for another.
+
+#### Scenario: A baseline scope is skipped
+
+- **WHEN** any of the eight declared baseline rows is `SKIPPED` or lacks its
+  required measurement
+- **THEN** the overall strict baseline remains non-pass and identifies that
+  row without treating a separate exception as evaluator acceptance
+
+#### Scenario: Plugin and full consumer measurements differ
+
+- **WHEN** the portable plugin's selected entries fit their contribution
+  budget but the complete Host-rendered discovery list exceeds its limit
+- **THEN** reports preserve both measurements and the complete-list result
+  fails independently of the plugin-only result
+
+#### Scenario: Static role collection is compared with task context
+
+- **WHEN** a static estimate sums multiple role definitions or task resources
+- **THEN** it labels that collection and does not report it as observed
+  per-session context for a task that selects only a subset
 
 ### Requirement: Family selectors have an alias-free distribution contract
 

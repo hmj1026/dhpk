@@ -2,7 +2,9 @@
 
 ## Purpose
 
-TBD - created by archiving change make-codex-plugin-distribution-install-safe. Update Purpose after archive.
+Define inventory-derived native Codex publication and portable OpenAI
+submission artifacts, with provenance, support tiers, and consumer evidence
+bound to the artifact each gate evaluates.
 
 ## Requirements
 
@@ -126,6 +128,37 @@ affected publication surface and SHALL identify the exact artifact.
   source without an approved adaptation rule
 - **THEN** the Cursor package gate fails and reports the source ID, destination,
   and adaptation/provenance gap
+
+### Requirement: Portable submission provenance identifies the exact candidate
+
+An OpenAI skills-only submission candidate SHALL bind its portable manifest,
+selected content, provenance receipt, and ZIP to one source and selection
+identity. The provenance SHALL identify the source version and commit or tree,
+inventory and selection digests, generator identity, selected stable IDs and
+public names, per-file content fingerprints, and archive digest without
+secrets. ZIP validation SHALL verify the extracted file identities against that
+receipt. Rebuilding from unchanged inputs SHALL produce identical archive
+bytes and extracted file digests. This candidate identity SHALL remain
+separate from the retained legacy Codex artifact and its support tier.
+
+#### Scenario: Candidate ZIP and provenance agree
+
+- **WHEN** an OpenAI submission candidate is generated and validated
+- **THEN** its manifest, provenance, ZIP digest, selected identities, and
+  extracted file digests agree with the same source and selection
+
+#### Scenario: Candidate bytes drift from their receipt
+
+- **WHEN** the ZIP or an extracted member differs from the provenance-bound
+  candidate
+- **THEN** candidate validation fails with the affected artifact or member and
+  does not report structural PASS
+
+#### Scenario: Repeated generation uses unchanged inputs
+
+- **WHEN** the same source, inventory, selection, and generator are used twice
+- **THEN** both candidates have identical archive bytes and extracted file
+  digests
 
 ### Requirement: Consumer proof validates the exact publication artifact
 
