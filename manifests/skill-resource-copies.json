@@ -736,7 +736,7 @@
     "skills/flow-guide/scripts/_lib/skill-usage.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/skill-usage.js",
-      "sha256": "sha256:25efdad6c8323833cc1551813d74682a9edf6c8a7737f390e541901b2bf5a406",
+      "sha256": "sha256:82df4f96dea1de41b1012bd45d3f9c51b8ba4421a41d1252bf04694f4ad4a3fa",
       "mode": "0644"
     },
     "skills/harness-setup/data/module-catalog.json": {
