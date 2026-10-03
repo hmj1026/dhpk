@@ -7,6 +7,8 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
+<!-- Hosted content proof marker. -->
+
 # Flow Guide
 
 Use `$flow-guide <help|route|rules|next|close> [query]` to answer one workflow

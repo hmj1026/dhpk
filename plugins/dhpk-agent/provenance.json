@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "e0735e2112238bfcda7135b0dc8af466f2f67ccd",
-  "generatedFromCommit": "e0735e2112238bfcda7135b0dc8af466f2f67ccd",
-  "generatedFromTree": "d23718ebfe4ab13359fcef6a5dcff236716f44af",
+  "sourceCommit": "88e28f6eb434593861ddec45bfd3900e73100395",
+  "generatedFromCommit": "88e28f6eb434593861ddec45bfd3900e73100395",
+  "generatedFromTree": "171ecaf0f2e47cd69ac4663bc6a480cfd230c477",
   "inventoryDigest": "284a366729d547bce690eb956213a430937442f5a9bd3db6a803f0012a4b9f6e",
   "inventoryRevision": "sha256:24c1de777a6d9caff8c6b95821a3f77692663b40e7549d67c3c45c5e0042334c",
   "generatorVersion": "1.0.0",
@@ -1647,7 +1647,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
-        "originalGitBlobDigest": "9f3978a24cac26ad0d461a6ad231365629865075"
+        "originalGitBlobDigest": "a561d8d86a4022dea4c86c047411c56ed8db2347"
       },
       {
         "ownerId": "flow-guide",
@@ -5661,7 +5661,7 @@
     "dhpk-cli-dispatch-context": "e1b74ef2ed3142c8256abe491c637c694c2b0a307604b266ad0535a79ff0662a",
     "dhpk-cli-transport": "65506d2795a747d7e2d878d0301db03b7875370b2ec33e1c6dd70fa50909a482",
     "flow-drive": "367c056070108c924a4fcee275c72b3e6d562347d6d54e60f8d31a67b38a3be5",
-    "flow-guide": "675a72d5ed547764216d4a5b3d2db10b39f21049d45b2cf73957917125c9d09b",
+    "flow-guide": "ea7292a55f64d443988d7f65813e8d018fdd36679ec81636651e2b1a5e1f0e54",
     "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "precommit": "64198cabda6f826b5b9c5d63e761256ba4ece088ff45582a0fba987718b9ca27",

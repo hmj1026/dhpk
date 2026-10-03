@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "e0735e2112238bfcda7135b0dc8af466f2f67ccd",
-  "generatedFromCommit": "e0735e2112238bfcda7135b0dc8af466f2f67ccd",
-  "generatedFromTree": "d23718ebfe4ab13359fcef6a5dcff236716f44af",
+  "sourceCommit": "88e28f6eb434593861ddec45bfd3900e73100395",
+  "generatedFromCommit": "88e28f6eb434593861ddec45bfd3900e73100395",
+  "generatedFromTree": "171ecaf0f2e47cd69ac4663bc6a480cfd230c477",
   "inventoryDigest": "990a4a557e5afa747ddc6565b819c97a33c3ee7af164374ddb7b80f44be281bc",
   "inventoryRevision": "sha256:24c1de777a6d9caff8c6b95821a3f77692663b40e7549d67c3c45c5e0042334c",
   "generatorVersion": "1.0.0",
@@ -1604,7 +1604,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/SKILL.md",
         "destination": "skills/flow-guide/SKILL.md",
-        "originalGitBlobDigest": "9f3978a24cac26ad0d461a6ad231365629865075"
+        "originalGitBlobDigest": "a561d8d86a4022dea4c86c047411c56ed8db2347"
       },
       {
         "ownerId": "flow-guide",
