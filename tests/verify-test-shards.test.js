@@ -774,7 +774,7 @@ test('CI plan falls back to full for unknown, and release-base paths', () => {
 });
 
 test('aggregate accepts only explicitly skipped jobs and requires plan-bound evidence', () => {
-  const plan = { ...classifyChangedPaths([{ status: 'M', path: 'skills/demo/SKILL.md' }]), testFiles: [], shardCount: 0, packageSurfaces: [], identities: { baseSha: 'base', headSha: 'head', checkoutSha: 'checkout', baseRef: 'develop' } };
+  const plan = { ...classifyChangedPaths([{ status: 'M', path: 'skills/demo/SKILL.md' }]), testFiles: [], shardCount: 0, packageSurfaces: [], generatedChecks: [], identities: { baseSha: 'base', headSha: 'head', checkoutSha: 'checkout', baseRef: 'develop' } };
   assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }).ok, true);
   assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'success' }).ok, false);
   assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'cancelled', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }).ok, false);
@@ -858,6 +858,137 @@ test('selected package changes carry only their affected platform surfaces', () 
   assert.deepStrictEqual(packageSurfacesForFiles(['plugins/dhpk-cursor/marketplace.json']), ['cursor-plugin']);
   assert.deepStrictEqual(packageSurfacesForFiles(['scripts/lib/verify-platform-packages.js']), []);
   assert.deepStrictEqual(packageSurfacesForFiles(['scripts/ci/verify-platform-packages.js']), ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+});
+
+test('canonical content with owned evidence companions stays light and carries exact checks', () => {
+  const cases = [
+    ['plugins/dhpk-agent/skills/demo/SKILL.md', [], ['agent-plugin']],
+    ['plugins/dhpk-agent/provenance.json', [], ['agent-plugin']],
+    ['generated/claude-marketplace/package/docs/README.md', ['claude-marketplace'], []],
+    ['generated/claude-profiles/minimal/package/bundle-receipt.json', ['claude-profile:minimal'], []],
+    ['manifests/skill-resource-copies.json', [], []],
+    ['generated/claude-marketplace/package/manifests/skill-resource-copies.json', ['claude-marketplace'], []],
+  ];
+  for (const [companion, generatedChecks, packageSurfaces] of cases) {
+    const fixture = gitFixture((root) => {
+      fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+      fs.mkdirSync(path.dirname(path.join(root, companion)), { recursive: true });
+      fs.writeFileSync(path.join(root, companion), 'old\n');
+    }, (root) => {
+      fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'new\n');
+      fs.writeFileSync(path.join(root, companion), 'new\n');
+    });
+    try {
+      assert.strictEqual(fixture.plan.mode, 'light');
+      assert.strictEqual(fixture.plan.shardCount, 0);
+      assert.deepStrictEqual(fixture.plan.generatedChecks, generatedChecks);
+      assert.deepStrictEqual(fixture.plan.packageSurfaces, packageSurfaces);
+      assert.ok(fixture.plan.skippedJobs.includes('tests'));
+      assert.ok(fixture.plan.skippedJobs.includes('macos-installer'));
+      const validation = validateCiPlan(fixture.plan, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
+      assert.strictEqual(validation.ok, true, validation.errors.join('; '));
+      const aggregate = verifyCiResults(fixture.plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
+      assert.strictEqual(aggregate.ok, true, aggregate.errors.join('; '));
+    } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+  }
+});
+
+test('unknown or generated-only companions fail closed to full CI', () => {
+  for (const companion of ['plugins/dhpk-agent/plugin.json', 'generated/claude-marketplace/package/hooks/hooks.json']) {
+    const fixture = gitFixture((root) => {
+      fs.mkdirSync(path.dirname(path.join(root, companion)), { recursive: true });
+      fs.writeFileSync(path.join(root, companion), 'old\n');
+    }, (root) => fs.writeFileSync(path.join(root, companion), 'new\n'));
+    try {
+      assert.strictEqual(fixture.plan.mode, 'full');
+      assert.strictEqual(fixture.plan.shardCount, 4);
+      assert.deepStrictEqual(fixture.plan.packageSurfaces, ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+    } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+  }
+});
+
+test('generated-only Agent receipt stays full even when every adapter owner suite exists', () => {
+  const owners = ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js'];
+  for (const generated of ['provenance.json', 'plugin.json']) {
+    const fixture = gitFixture((root) => {
+      fs.mkdirSync(path.join(root, 'plugins', 'dhpk-agent'), { recursive: true });
+      fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', generated), '{}\n');
+      for (const owner of owners) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
+    }, (root) => fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', generated), '{"changed":true}\n'));
+    try {
+      assert.strictEqual(fixture.plan.mode, 'full');
+      assert.strictEqual(fixture.plan.shardCount, 4);
+      assert.strictEqual(fixture.plan.reason, 'generated-companion-without-canonical');
+    } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+  }
+});
+
+test('canonical content plus arbitrary generated JSON or executable stays full with owners present', () => {
+  const owners = ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js'];
+  for (const generated of ['generated/claude-marketplace/package/hooks/hooks.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-agent/scripts/runtime.js']) {
+    const fixture = gitFixture((root) => {
+      fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+      fs.mkdirSync(path.dirname(path.join(root, generated)), { recursive: true });
+      fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+      fs.writeFileSync(path.join(root, generated), 'old\n');
+      for (const owner of owners) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
+    }, (root) => {
+      fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'new\n');
+      fs.writeFileSync(path.join(root, generated), 'new\n');
+    });
+    try { assert.strictEqual(fixture.plan.mode, 'full'); } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+  }
+});
+
+test('rename and deletion diffs inspect both sides of bounded companion paths', () => {
+  const renamed = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'plugins', 'dhpk-agent'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+    fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'), '{}\n');
+  }, (root, git) => {
+    git('mv', 'docs/guide.md', 'plugins/dhpk-agent/guide.md');
+    fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'), '{"changed":true}\n');
+  });
+  const deleted = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'plugins', 'dhpk-agent'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+    fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'), '{}\n');
+  }, (root) => {
+    fs.rmSync(path.join(root, 'docs', 'guide.md'));
+    fs.rmSync(path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'));
+  });
+  try {
+    assert.strictEqual(renamed.plan.mode, 'light');
+    assert.deepStrictEqual(renamed.plan.packageSurfaces, ['agent-plugin']);
+    assert.strictEqual(deleted.plan.mode, 'light');
+    assert.deepStrictEqual(deleted.plan.packageSurfaces, ['agent-plugin']);
+  } finally {
+    fs.rmSync(renamed.root, { recursive: true, force: true });
+    fs.rmSync(deleted.root, { recursive: true, force: true });
+  }
+});
+
+test('authoritative validation rejects forged companion obligations', () => {
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+    fs.mkdirSync(path.join(root, 'plugins', 'dhpk-agent'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'), '{}\n');
+  }, (root) => {
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'new\n');
+    fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'), '{"changed":true}\n');
+  });
+  try {
+    const forged = { ...fixture.plan, packageSurfaces: [], generatedChecks: ['claude-marketplace'] };
+    const result = validateCiPlan(forged, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.errors.some((error) => /authoritative plan/.test(error)));
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
 test('shared package publisher and closure helpers fall back to full CI', () => {

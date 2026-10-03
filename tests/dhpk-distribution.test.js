@@ -205,21 +205,19 @@ test('rejects provenance-bound generation from a dirty source checkout before wr
 });
 
 test('previews dirty source bytes without changing Git state and formal validation rejects the preview', () => {
-  const worktreeRoot = ROOT;
-  const worktreeParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-preview-'));
-  const changed = path.join(worktreeRoot, 'CONTEXT.md');
-  const added = path.join(worktreeRoot, 'skills', 'flow-guide', 'assets', 'preview-resource.txt');
-  const link = path.join(worktreeRoot, 'docs', 'preview-contained-link');
-  const originalChanged = fs.readFileSync(changed);
-  const originalMode = fs.statSync(changed).mode & 0o7777;
-  let output = null;
-  try {
-    fs.appendFileSync(changed, 'preview source change\n');
-    fs.mkdirSync(path.dirname(added), { recursive: true });
-    fs.writeFileSync(added, 'relocatable preview resource\n');
-    fs.symlinkSync('../SKILL.md', link);
-    fs.chmodSync(changed, 0o600);
-    const before = {
+  withCleanWorktree((worktreeRoot) => {
+    const changed = path.join(worktreeRoot, 'CONTEXT.md');
+    const added = path.join(worktreeRoot, 'skills', 'flow-guide', 'assets', 'preview-resource.txt');
+    const link = path.join(worktreeRoot, 'docs', 'preview-contained-link');
+    const originalMode = fs.statSync(changed).mode & 0o7777;
+    let output = null;
+    try {
+      fs.appendFileSync(changed, 'preview source change\n');
+      fs.mkdirSync(path.dirname(added), { recursive: true });
+      fs.writeFileSync(added, 'relocatable preview resource\n');
+      fs.symlinkSync('../SKILL.md', link);
+      fs.chmodSync(changed, 0o600);
+      const before = {
       status: execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all', '-z'], { cwd: worktreeRoot, encoding: 'buffer' }),
       head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: worktreeRoot, encoding: 'utf8' }),
       index: execFileSync('git', ['diff', '--cached', '--binary'], { cwd: worktreeRoot, encoding: 'buffer' }),
@@ -227,7 +225,7 @@ test('previews dirty source bytes without changing Git state and formal validati
       refs: execFileSync('git', ['for-each-ref', '--format=%(refname) %(objectname)'], { cwd: worktreeRoot, encoding: 'utf8' }),
       config: execFileSync('git', ['config', '--local', '--null', '--list'], { cwd: worktreeRoot, encoding: 'buffer' }),
     };
-    const generated = invoke(['agent-plugin', 'preview', '--json'], worktreeRoot);
+      const generated = invoke(['agent-plugin', 'preview', '--json'], worktreeRoot);
     assert.strictEqual(generated.status, 0, generated.stderr);
     assert.strictEqual(report(generated).verdict, 'PASS');
     output = report(generated).output;
@@ -247,30 +245,27 @@ test('previews dirty source bytes without changing Git state and formal validati
     assert.deepStrictEqual(fs.readFileSync(execFileSync('git', ['rev-parse', '--git-path', 'index'], { cwd: worktreeRoot, encoding: 'utf8' }).trim()), before.indexBytes);
     assert.strictEqual(execFileSync('git', ['for-each-ref', '--format=%(refname) %(objectname)'], { cwd: worktreeRoot, encoding: 'utf8' }), before.refs);
     assert.deepStrictEqual(execFileSync('git', ['config', '--local', '--null', '--list'], { cwd: worktreeRoot, encoding: 'buffer' }), before.config);
-  } finally {
-    fs.writeFileSync(changed, originalChanged);
-    fs.chmodSync(changed, originalMode);
-    fs.rmSync(added, { force: true });
-    fs.rmSync(link, { force: true });
-    if (typeof output === 'string') fs.rmSync(output, { recursive: true, force: true });
-    fs.rmSync(worktreeParent, { recursive: true, force: true });
-  }
+    } finally {
+      fs.rmSync(added, { force: true });
+      fs.rmSync(link, { force: true });
+      if (typeof output === 'string') fs.rmSync(output, { recursive: true, force: true });
+    }
+  });
 });
 
 test('preview rejects a source symlink that escapes the disposable snapshot', () => {
-  const worktreeRoot = ROOT;
-  const worktreeParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-preview-link-'));
-  const link = path.join(worktreeRoot, 'skills', 'flow-guide', 'assets', 'preview-escape-link');
-  try {
-    fs.mkdirSync(path.dirname(link), { recursive: true });
-    fs.symlinkSync('/tmp', link);
-    const rejected = invoke(['agent-plugin', 'preview', '--json'], worktreeRoot);
-    assert.strictEqual(rejected.status, 1, rejected.stdout);
-    assert.match(rejected.stderr, /symlink escapes snapshot root/i);
-  } finally {
-    fs.rmSync(link, { force: true });
-    fs.rmSync(worktreeParent, { recursive: true, force: true });
-  }
+  withCleanWorktree((worktreeRoot) => {
+    const link = path.join(worktreeRoot, 'skills', 'flow-guide', 'assets', 'preview-escape-link');
+    try {
+      fs.mkdirSync(path.dirname(link), { recursive: true });
+      fs.symlinkSync('/tmp', link);
+      const rejected = invoke(['agent-plugin', 'preview', '--json'], worktreeRoot);
+      assert.strictEqual(rejected.status, 1, rejected.stdout);
+      assert.match(rejected.stderr, /symlink escapes snapshot root/i);
+    } finally {
+      fs.rmSync(link, { force: true });
+    }
+  });
 });
 
 test('preview refuses an output path inside the source checkout', () => {

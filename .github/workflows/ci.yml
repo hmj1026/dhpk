@@ -110,12 +110,12 @@ jobs:
             *) exit "$status" ;;
           esac
       - name: Validate retained distribution packages
-        if: needs.plan.outputs.mode != 'light'
+        if: needs.plan.outputs.mode != 'light' || contains(needs.plan.outputs.plan, '"agent-plugin"') || contains(needs.plan.outputs.plan, '"cursor-plugin"') || contains(needs.plan.outputs.plan, '"codex-native"') || contains(needs.plan.outputs.plan, '"agy-plugin"')
         env:
           DHPK_CI_PLAN: ${{ needs.plan.outputs.plan }}
         run: |
           args=()
-          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then
+          if [ "${{ needs.plan.outputs.mode }}" != "full" ]; then
             mapfile -t surfaces < <(node -e 'for (const surface of JSON.parse(process.env.DHPK_CI_PLAN).packageSurfaces || []) console.log(surface)' )
             if [ "${#surfaces[@]}" -eq 0 ]; then
               echo "No package surfaces selected; skipping package verifier."
@@ -124,6 +124,22 @@ jobs:
             for surface in "${surfaces[@]}"; do args+=(--surface "$surface"); done
           fi
           node scripts/ci/verify-platform-packages.js "${args[@]}"
+      - name: Validate bounded generated companions
+        if: needs.plan.outputs.mode == 'light'
+        env:
+          DHPK_CI_PLAN: ${{ needs.plan.outputs.plan }}
+        run: |
+          checks=( $(node -e 'for (const check of JSON.parse(process.env.DHPK_CI_PLAN).generatedChecks || []) console.log(check)' ) )
+          for check in "${checks[@]}"; do
+            case "$check" in
+              claude-marketplace) node scripts/ci/gen-claude-marketplace-package.js --check ;;
+              claude-profile:minimal|claude-profile:full|claude-profile:compat-v1)
+                profile="${check#claude-profile:}"
+                node scripts/ci/gen-claude-profile-bundles.js --profile "$profile" --check
+                ;;
+              *) echo "Unknown generated companion check: $check" >&2; exit 64 ;;
+            esac
+          done
       - name: Validate Cursor project-local sync
         if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-cursor-sync.js

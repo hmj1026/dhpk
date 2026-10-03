@@ -40,6 +40,13 @@ script-to-test coverage obligation. Markdown prose remains outside automated
 test obligations; shared metadata and resource checks continue through their
 existing owner validators.
 
+Canonical content may use the light CI route with exact owned Markdown,
+receipt, fingerprint, or resource-ledger companions. The authoritative plan
+records affected package surfaces and Claude checks, and preflight must run
+those checks. Unknown generated data, executables, generated-only changes, and
+runtime or script changes remain full-plan work; the route does not skip their
+behavioral suites.
+
 Skill and guidance Markdown is reviewed by people. Automated checks may parse
 machine-readable metadata or verify required resources through shared tools,
 but they do not assert the wording, section order, examples, or body length of

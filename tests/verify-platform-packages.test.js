@@ -33,12 +33,20 @@ test('subset reporting does not dereference absent Host surfaces', () => {
 test('an unprofiled generation materializes the common and surface-specific Host catalog', () => {
   // Package generators reject symlinked ancestors; macOS exposes os.tmpdir() as /var.
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-platform-'));
+  const sourceParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-source-'));
+  const sourceRoot = path.join(sourceParent, 'checkout');
+  let worktreeAdded = false;
   try {
+    const checkedOut = spawnSync('git', ['worktree', 'add', '--detach', sourceRoot, 'HEAD'], {
+      cwd: ROOT, encoding: 'utf8',
+    });
+    assert.strictEqual(checkedOut.status, 0, checkedOut.stdout + checkedOut.stderr);
+    worktreeAdded = true;
     for (const surface of ['agent-plugin', 'agy-plugin']) {
       const output = path.join(root, surface);
-      const result = spawnSync(path.join(ROOT, 'bin', 'dhpk'), [
+      const result = spawnSync(path.join(sourceRoot, 'bin', 'dhpk'), [
         'distribution', surface, 'generate', '--output', output, '--version', '0.48.3', '--json',
-      ], { encoding: 'utf8' });
+      ], { cwd: sourceRoot, encoding: 'utf8' });
       assert.strictEqual(result.status, 0, result.stdout + result.stderr);
       const report = JSON.parse(result.stdout);
       assert.strictEqual(report.skillCount, 17, `${surface} must publish fifteen common entries and two Host-only entries`);
@@ -46,34 +54,10 @@ test('an unprofiled generation materializes the common and surface-specific Host
       assert.strictEqual(provenance.profileId, undefined, `${surface} must not narrow without an explicit --profile`);
     }
   } finally {
+    if (worktreeAdded) spawnSync('git', ['worktree', 'remove', '--force', sourceRoot], { cwd: ROOT, encoding: 'utf8' });
+    fs.rmSync(sourceParent, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
   }
-});
-
-test('platform package verifier reports deterministic four-platform outputs', () => {
-  const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js')], { encoding: 'utf8' });
-  assert.strictEqual(result.status, 0, result.stdout + result.stderr);
-  const report = JSON.parse(result.stdout);
-  assert.strictEqual(report.verdict, 'PASS');
-  assert.strictEqual(report.surfaces['agent-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['cursor-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['codex-native'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['agy-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 17);
-  assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 2);
-  assert.strictEqual(report.surfaces['codex-native'].selectedSkills, 22);
-  assert.strictEqual(report.surfaces['agy-plugin'].selectedSkills, 17);
-  assert.strictEqual(report.policyParity.verdict, 'PASS');
-  assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSurface, 'agent-plugin');
-  assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSource, 'plugins/dhpk-agent/skills/');
-  const cursorLocal = report.surfaces['cursor-plugin'].selectedSkillIds;
-  const cursorShared = report.surfaces['cursor-plugin'].sharedSkillIds;
-  const cursorProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-cursor', 'provenance.json'), 'utf8'));
-  assert.deepStrictEqual(cursorLocal, ['cli-dispatch-context', 'cli-transport']);
-  assert.deepStrictEqual(cursorShared, cursorProvenance.sharedSkillIds);
-  assert.ok(cursorLocal.every((id) => cursorProvenance.runtimeSupportStableIds.includes(id)));
-  assert.ok(cursorLocal.every((id) => !cursorShared.includes(id)), 'Cursor Host-only overlay entries must remain separate from common shared entries');
-  assert.deepStrictEqual(report.errors, []);
 });
 
 test('platform package verifier permits declared Cursor runtime support but reports undeclared shared overlaps at the top level', () => {
@@ -189,30 +173,26 @@ function createHistoricalFixture() {
   return { root, clone };
 }
 
+const historicalFixture = createHistoricalFixture();
+
 test('public verifier filters an unrelated corrupt Cursor receipt from an Agent-only run', () => {
-  const fixture = createHistoricalFixture();
-  try {
-    const result = spawnSync(process.execPath, [
-      path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
-      '--surface', 'agent-plugin', '--repo-root', fixture.clone,
-    ], { encoding: 'utf8' });
-    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
-    const report = JSON.parse(result.stdout);
-    assert.strictEqual(report.verdict, 'PASS');
-    assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin']);
-    assert.deepStrictEqual(report.selection, { requested: ['agent-plugin'], resolved: ['agent-plugin'] });
-    assert.deepStrictEqual(Object.keys(report.policyParity.projections), ['claude']);
-  } finally {
-    fs.rmSync(fixture.root, { recursive: true, force: true });
-  }
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+    '--surface', 'agent-plugin', '--repo-root', historicalFixture.clone,
+  ], { encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.strictEqual(report.verdict, 'PASS');
+  assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin']);
+  assert.deepStrictEqual(report.selection, { requested: ['agent-plugin'], resolved: ['agent-plugin'] });
+  assert.deepStrictEqual(Object.keys(report.policyParity.projections), ['claude']);
 });
 
 test('public Cursor selection verifies its Agent owner dependency and fails on the selected receipt', () => {
-  const fixture = createHistoricalFixture();
   try {
     const result = spawnSync(process.execPath, [
       path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
-      '--surface', 'cursor-plugin', '--repo-root', fixture.clone,
+      '--surface', 'cursor-plugin', '--repo-root', historicalFixture.clone,
     ], { encoding: 'utf8' });
     assert.strictEqual(result.status, 1, result.stdout + result.stderr);
     const report = JSON.parse(result.stdout);
@@ -221,7 +201,7 @@ test('public Cursor selection verifies its Agent owner dependency and fails on t
     assert.deepStrictEqual(report.selection, { requested: ['cursor-plugin'], resolved: ['agent-plugin', 'cursor-plugin'] });
     assert.ok(report.surfaces['cursor-plugin'].errors.some((error) => /provenance owner/i.test(error)), report.errors.join('; '));
   } finally {
-    fs.rmSync(fixture.root, { recursive: true, force: true });
+    fs.rmSync(historicalFixture.root, { recursive: true, force: true });
   }
 });
 

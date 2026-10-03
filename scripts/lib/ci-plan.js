@@ -4,12 +4,18 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const { findTests } = require('../../tests/run-all');
+const { SURFACE_OWNERS } = require('./platform-provenance');
 
 const JOBS = Object.freeze(['preflight', 'tests', 'validate', 'macos-installer', 'release-rehearsal', 'lint']);
 const LIGHT_REQUIRED = Object.freeze(['preflight', 'validate', 'lint']);
 const FULL_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'macos-installer', 'lint']);
 const SELECTED_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'lint']);
 const PACKAGE_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+const FULL_GENERATED_CHECKS = Object.freeze(['claude-marketplace', 'claude-profile:minimal', 'claude-profile:full', 'claude-profile:compat-v1']);
+const RESOURCE_COMPANIONS = Object.freeze([
+  'manifests/skill-resource-copies.json',
+  'generated/claude-marketplace/package/manifests/skill-resource-copies.json',
+]);
 const CANONICAL_PROSE = [
   /^(?:README(?:\.zh-TW)?|AGENTS|CONTEXT|CODING_STANDARDS|RELEASE(?:\.zh-TW)?|CHANGELOG)\.md$/i,
   /^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex|openspec)\/.*\.md$/i,
@@ -107,6 +113,58 @@ function packageSurfacesForFiles(files) {
   return PACKAGE_SURFACES.filter((surface) => surfaces.has(surface));
 }
 
+function companionRoutingForFiles(files) {
+  let canonical = false;
+  let eligible = true;
+  let hasCompanion = false;
+  let hasOutputSpace = false;
+  const surfaces = new Set();
+  const generatedChecks = new Set();
+  for (const file of files) {
+    if (/^(?:plugins|generated)\//i.test(file)) hasOutputSpace = true;
+    if (isCanonicalProse(file)) {
+      canonical = true;
+      continue;
+    }
+    let companion = false;
+    for (const surface of PACKAGE_SURFACES) {
+      const root = SURFACE_OWNERS[surface];
+      if (file === `${root}/provenance.json` || file === `${root}/fingerprints.json` || (file.startsWith(`${root}/`) && file.endsWith('.md'))) {
+        surfaces.add(surface);
+        hasCompanion = true;
+        companion = true;
+      }
+    }
+    if (file === 'generated/claude-marketplace/package/provenance.json' || (file.startsWith('generated/claude-marketplace/package/') && file.endsWith('.md'))) {
+      generatedChecks.add('claude-marketplace');
+      hasCompanion = true;
+      companion = true;
+    }
+    for (const profile of ['minimal', 'full', 'compat-v1']) {
+      const root = `generated/claude-profiles/${profile}/package`;
+      if (file === `${root}/bundle-receipt.json` || (file.startsWith(`${root}/`) && file.endsWith('.md'))) {
+        generatedChecks.add(`claude-profile:${profile}`);
+        hasCompanion = true;
+        companion = true;
+      }
+    }
+    if (RESOURCE_COMPANIONS.includes(file)) {
+      companion = true;
+      hasCompanion = true;
+      if (file.startsWith('generated/claude-marketplace/')) generatedChecks.add('claude-marketplace');
+    }
+    if (!companion) eligible = false;
+  }
+  return {
+    eligible: eligible && canonical,
+    canonical,
+    hasCompanion,
+    hasOutputSpace,
+    packageSurfaces: PACKAGE_SURFACES.filter((surface) => surfaces.has(surface)),
+    generatedChecks: [...generatedChecks].sort(),
+  };
+}
+
 function normalizeChange(change) {
   if (!change || typeof change !== 'object' || typeof change.status !== 'string') return null;
   const files = Array.isArray(change.files) ? change.files.filter((file) => typeof file === 'string') : [];
@@ -124,16 +182,17 @@ function classifyChangedPaths(changes, { baseRef = 'develop' } = {}) {
     for (const file of change.files) { files.push(file); categories.push(categoryFor(file)); }
   }
   const release = baseRef === 'main';
-  const onlyLight = !release && files.length > 0 && categories.every((category) => category === 'content' || category === 'metadata');
+  const companionRouting = companionRoutingForFiles(files);
+  const onlyLight = !release && files.length > 0 && (categories.every((category) => category === 'content' || category === 'metadata') || companionRouting.eligible);
   const mode = onlyLight ? 'light' : 'full';
   const requiredJobs = mode === 'light'
     ? [...LIGHT_REQUIRED]
     : [...FULL_REQUIRED, ...(release ? ['release-rehearsal'] : [])];
   const skippedJobs = JOBS.filter((job) => !requiredJobs.includes(job));
   return {
-    schema: 'dhpk.ci-plan.v1', mode, reason: onlyLight ? 'canonical-content-only' : release ? 'release-base' : 'full-fallback',
+    schema: 'dhpk.ci-plan.v1', mode, reason: onlyLight ? companionRouting.eligible && categories.some((category) => category === 'package') ? 'canonical-with-bounded-companions' : 'canonical-content-only' : release ? 'release-base' : 'full-fallback',
     changes: normalized.filter(Boolean), categories: [...new Set(categories)], files: files.sort(), requiredJobs, skippedJobs,
-    testFiles: [], shardCount: mode === 'light' ? 0 : 4, packageSurfaces: [],
+    testFiles: [], shardCount: mode === 'light' ? 0 : 4, packageSurfaces: [], generatedChecks: companionRouting.generatedChecks,
   };
 }
 
@@ -163,13 +222,38 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
   try {
     const changes = gitChanges(path.resolve(root), baseSha, headSha);
     const classified = classifyChangedPaths(changes, { baseRef });
-    if (classified.mode === 'light' || baseRef === 'main') {
-    return {
-      ...classified,
-      testFiles: classified.mode === 'full' ? discoveredTestFiles(root) : [],
-      packageSurfaces: classified.mode === 'full' ? PACKAGE_SURFACES.slice() : [],
-      identities,
-    };
+    const companionRouting = companionRoutingForFiles(classified.files);
+    if (classified.mode === 'light' || (companionRouting.eligible && baseRef !== 'main')) {
+      return {
+        ...classified,
+        mode: 'light',
+        reason: companionRouting.eligible && classified.mode !== 'light' ? 'canonical-with-bounded-companions' : classified.reason,
+        requiredJobs: [...LIGHT_REQUIRED],
+        skippedJobs: JOBS.filter((job) => !LIGHT_REQUIRED.includes(job)),
+        testFiles: [], shardCount: 0,
+        packageSurfaces: companionRouting.packageSurfaces,
+        generatedChecks: companionRouting.generatedChecks,
+        identities,
+      };
+    }
+    if (baseRef === 'main') {
+      return {
+        ...classified,
+        testFiles: discoveredTestFiles(root),
+        packageSurfaces: PACKAGE_SURFACES.slice(),
+        generatedChecks: FULL_GENERATED_CHECKS.slice(),
+        identities,
+      };
+    }
+    if (companionRouting.hasOutputSpace && !companionRouting.eligible) {
+      return {
+        ...classified,
+        mode: 'full', reason: 'generated-companion-without-canonical',
+        requiredJobs: [...FULL_REQUIRED],
+        skippedJobs: JOBS.filter((job) => !FULL_REQUIRED.includes(job)),
+        testFiles: discoveredTestFiles(root), shardCount: 4,
+        packageSurfaces: PACKAGE_SURFACES.slice(), generatedChecks: FULL_GENERATED_CHECKS.slice(), identities,
+      };
     }
     const availableTests = discoveredTestFiles(root);
     const selected = selectedOwners(classified.files, availableTests);
@@ -179,7 +263,7 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
         mode: 'full', reason: selected.unmapped ? 'owner-mapping-unavailable' : 'owner-suite-unavailable',
         requiredJobs: [...FULL_REQUIRED, ...(baseRef === 'main' ? ['release-rehearsal'] : [])],
         skippedJobs: JOBS.filter((job) => !FULL_REQUIRED.includes(job) && !(baseRef === 'main' && job === 'release-rehearsal')),
-        testFiles: discoveredTestFiles(root), shardCount: 4, packageSurfaces: PACKAGE_SURFACES.slice(), identities,
+        testFiles: discoveredTestFiles(root), shardCount: 4, packageSurfaces: PACKAGE_SURFACES.slice(), generatedChecks: FULL_GENERATED_CHECKS.slice(), identities,
       };
     }
     const installer = selected.owners.includes('installer');
@@ -188,7 +272,7 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
     return {
       ...classified,
       mode: 'selected', reason: 'selected-owner-suites', testFiles: selected.testFiles,
-      shardCount: 1, packageSurfaces: packageSurfacesForFiles(classified.files), requiredJobs, skippedJobs, identities,
+      shardCount: 1, packageSurfaces: packageSurfacesForFiles(classified.files), generatedChecks: [], requiredJobs, skippedJobs, identities,
     };
   } catch (error) {
     let testFiles = [];
@@ -196,7 +280,7 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
     return {
       ...classifyChangedPaths([{ status: 'M', path: '__invalid_diff__' }], { baseRef }),
       reason: 'diff-unavailable', diffError: error.message, testFiles,
-      packageSurfaces: PACKAGE_SURFACES.slice(), identities,
+      packageSurfaces: PACKAGE_SURFACES.slice(), generatedChecks: FULL_GENERATED_CHECKS.slice(), identities,
     };
   }
 }
@@ -207,7 +291,10 @@ function validateCiPlan(plan, expected = {}) {
   if (!['light', 'selected', 'full'].includes(plan && plan.mode)) errors.push('plan mode is invalid');
   if (!plan || !plan.identities || typeof plan.identities !== 'object') errors.push('plan identities are missing');
   if (!Array.isArray(plan && plan.changes) || !Array.isArray(plan && plan.files) || !Array.isArray(plan && plan.categories)) errors.push('plan change fields are missing');
-  if (!Array.isArray(plan && plan.requiredJobs) || !Array.isArray(plan && plan.skippedJobs) || !Number.isInteger(plan && plan.shardCount) || !Array.isArray(plan && plan.testFiles) || !Array.isArray(plan && plan.packageSurfaces)) errors.push('plan execution fields are missing');
+  if (!Array.isArray(plan && plan.requiredJobs) || !Array.isArray(plan && plan.skippedJobs) || !Number.isInteger(plan && plan.shardCount) || !Array.isArray(plan && plan.testFiles) || !Array.isArray(plan && plan.packageSurfaces) || !Array.isArray(plan && plan.generatedChecks)) errors.push('plan execution fields are missing');
+  if (Array.isArray(plan && plan.generatedChecks)) {
+    for (const check of plan.generatedChecks) if (!FULL_GENERATED_CHECKS.includes(check)) errors.push(`unknown generated companion check ${check}`);
+  }
   if (plan && plan.requiredJobs && plan.skippedJobs && plan.requiredJobs.some((job) => plan.skippedJobs.includes(job))) errors.push('job is both required and skipped');
   if (plan && Array.isArray(plan.changes) && plan.identities) {
     const recomputed = classifyChangedPaths(plan.changes, { baseRef: plan.identities.baseRef });
@@ -224,7 +311,7 @@ function validateCiPlan(plan, expected = {}) {
   if (expected.root && expected.baseSha && expected.headSha) {
     try {
       const actualPlan = createCiPlan(expected);
-      for (const key of ['mode', 'reason', 'categories', 'files', 'requiredJobs', 'skippedJobs', 'testFiles', 'shardCount', 'packageSurfaces', 'changes']) {
+      for (const key of ['mode', 'reason', 'categories', 'files', 'requiredJobs', 'skippedJobs', 'testFiles', 'shardCount', 'packageSurfaces', 'generatedChecks', 'changes']) {
         if (JSON.stringify(plan[key]) !== JSON.stringify(actualPlan[key])) errors.push(`plan ${key} does not match the authoritative plan`);
       }
     } catch (error) { errors.push(`authoritative git diff unavailable: ${error.message}`); }
@@ -247,4 +334,4 @@ function verifyCiResults(plan, results, expected = {}) {
   return { ok: errors.length === 0, errors };
 }
 
-module.exports = { JOBS, classifyChangedPaths, createCiPlan, validateCiPlan, verifyCiResults, categoryFor, packageSurfacesForFiles };
+module.exports = { JOBS, classifyChangedPaths, createCiPlan, validateCiPlan, verifyCiResults, categoryFor, packageSurfacesForFiles, companionRoutingForFiles };
