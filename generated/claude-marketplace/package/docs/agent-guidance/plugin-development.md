@@ -90,9 +90,13 @@ node scripts/ci/verify-platform-packages.js
 
 For daily CI, `verify-platform-packages.js --surface <name>` accepts the
 affected package subset; selecting Cursor automatically includes its Agent
-owner because Cursor consumes the Agent-owned shared skills. Content and
-hook-only plans can skip this heavy gate, while no-argument daily verification
-and release verification retain the complete four-surface check.
+owner because Cursor consumes the Agent-owned shared skills. Canonical-only
+content plans can skip this heavy gate. Canonical content with an exact owned
+Markdown, receipt, fingerprint, or resource-ledger companion keeps the light
+route but runs every affected package and Claude check recorded by the plan;
+unknown generated data, executables, and generated-only changes use the full
+route. No-argument daily verification and release verification retain the
+complete four-surface check.
 
 The distribution generators and `verify-platform-packages.js` are
 provenance-bound and require a clean checkout. Run the generators after the
