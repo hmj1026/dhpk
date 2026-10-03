@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "2b2962bbb34b52f9b4031a1e3b79d158c36f2943",
-  "generatedFromCommit": "2b2962bbb34b52f9b4031a1e3b79d158c36f2943",
-  "generatedFromTree": "dc0f71c48f175ea7a4ae9399200280dd76c373b9",
-  "inventoryDigest": "5ecaffc9fce5a440b7b019acc52d9c6dd7e19733195a5cdc7fd28b97d15c51ec",
-  "inventoryRevision": "sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65",
+  "sourceCommit": "3e160a5c7a19002b29ce807059001e159c29f8fc",
+  "generatedFromCommit": "3e160a5c7a19002b29ce807059001e159c29f8fc",
+  "generatedFromTree": "f7aa583837b73b3bb0b118a088a71dbdf2d3a9fa",
+  "inventoryDigest": "990a4a557e5afa747ddc6565b819c97a33c3ee7af164374ddb7b80f44be281bc",
+  "inventoryRevision": "sha256:8f79ae11a486b6bba1e6a444917101678ac2855b2af3d7d7a877fbb83bb8ec8d",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "code-simplify",
@@ -38,7 +38,6 @@
     "repo-verify",
     "review-pending",
     "skill-scope",
-    "spec-mine",
     "tdd",
     "update-codemaps",
     "update-docs",
@@ -73,7 +72,6 @@
     "repo-verify",
     "review-pending",
     "skill-scope",
-    "spec-mine",
     "tdd-workflow",
     "update-codemaps",
     "update-docs"
@@ -108,7 +106,6 @@
     "repo-verify",
     "review-pending",
     "skill-scope",
-    "spec-mine",
     "tdd",
     "update-codemaps",
     "update-docs",
@@ -145,7 +142,6 @@
     "repo-verify",
     "review-pending",
     "skill-scope",
-    "spec-mine",
     "tdd-workflow",
     "update-codemaps",
     "update-docs"
@@ -161,16 +157,16 @@
     "dhpk-legacy-characterization-tests": "2a2df71423e54c8e24f10c645b917eb070aa728905171da6783dd23af16f8cf6",
     "dhpk-yii1-php56-development": "f82cde5868b21fb37cdfa95ba592e88d5e7d4a6f4ca61a756266a00b1dd85973",
     "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
-    "flow-guide": "cb102862e76417ae3bf9d6c34f9368010eeae3e10100943524bf99ec0e1f33d5",
-    "code-trace": "c8e70792f6b54454223d8c2579244e20d63c9e6405410bba3e11a75956066b72",
-    "flow-drive": "6006d076dfbb8d83e9bfb2650de16309093c2c677a85903325b34cae83995cb6",
+    "flow-guide": "5e1c2768ba85b6e88799d4624fb7cd71aefc5ec1ebf17d11cc397d530267f81f",
+    "code-trace": "39b56de42ae131d40ce2f5a49019db972c2c9a9cf41bd41cd015e8ac5ca83f99",
+    "flow-drive": "96629f28c583f2aa0e0e0a0b2d3c4666f27601a38641aea6ca8d12d61a1dee06",
     "git-smart-commit": "6ba0613a9271fcfe68ab8f3fc55a1e6c85ef7368355b16d256a0b1447cf37967",
     "dhpk-opsx-load-context": "8fcbc041f1f1bf6cc015cc8ed13b5d7f1520f63d533138be9bd9704ba83e3acf",
     "dhpk-opsx-post-observation": "23d7f375b49110c3d4c66a8fe596dd9403f1ec7bcac83f20469f4ec4135bd50f",
     "release-creator": "a39eb2f55202c29d1eef2fa4e22a66749311dee1c19955cea59e0b6cd975f283",
-    "skill-scope": "499308a8207f23bfa43d7da866d86dc2635f4750b3c442b3abea3d09063da7df",
+    "skill-scope": "aeebfd62258b9831556e83cb59dae20799d7b401848615bfa2161d2b172bbc1b",
     "tdd-workflow": "1fd12cbe959f619c64a0fb2815f16abef8ef8e9e2b7d08fb6436e5ca79899853",
-    "harness-govern": "9a7eead07cf53a1dd98387dc90a749773436293e3664f9708400bcf3062fb5fd",
+    "harness-govern": "37c2a6e740c4956139e7d18efdb5beb3bbd44450b9637abcfd2218de7d05e77c",
     "create-pr": "c6db4335b1d7157d5558c5288d9d5070be63962484a0a1854f96cd50e700a5e1",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
     "merge-prep": "8561ea1c3b4153626f4fee8fc726abe28237b4bcef0d4980101cb40146850dc7",
@@ -186,13 +182,12 @@
     "code-simplify": "5fde26fe2a6b28eebda29903f69eb7281c26376f228c55949a51b6d432886d55",
     "harness-audit": "5a697f5e350f2c93bc9bf723d1276c0cc8658ab2e4b892e9904bbda5ac35cc34",
     "review-pending": "6018f9188e61f18f5bf1e79e77807eaafb748826295512d37adace6b4d66b63b",
-    "spec-mine": "fad21d9de30bc0e3953fca23f3c1c08e4cdf6d1ddc3ffa18637912d960bc99c4",
     "dhpk-cli-dispatch-context": "edabe26d5b77dc0cdac63fe829e9ee557e2c57495e59f7f6c959fc60e3c12454",
     "dhpk-cli-transport": "12926e258a9c40c274f4ea1789d0fb8b69cf45c2d4f329aa0b359eb611aa6502"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "0751a325ac4d575c9afaa84317845e9557ca753be0f4222514fae49f79cfb53b",
+    "planId": "6744d1622012286e9bf70fe3c97b0c1d51235ed66798859fd4fc7890cae38bb0",
     "scope": "project",
     "profileId": "compat-v1",
     "selectedStableIds": [
@@ -223,7 +218,6 @@
       "repo-verify",
       "review-pending",
       "skill-scope",
-      "spec-mine",
       "tdd",
       "update-codemaps",
       "update-docs",
@@ -258,7 +252,6 @@
         "repo-verify",
         "review-pending",
         "skill-scope",
-        "spec-mine",
         "tdd",
         "update-codemaps",
         "update-docs",
@@ -272,10 +265,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "0751a325ac4d575c9afaa84317845e9557ca753be0f4222514fae49f79cfb53b",
-      "inventory": "5ecaffc9fce5a440b7b019acc52d9c6dd7e19733195a5cdc7fd28b97d15c51ec"
+      "plan": "6744d1622012286e9bf70fe3c97b0c1d51235ed66798859fd4fc7890cae38bb0",
+      "inventory": "990a4a557e5afa747ddc6565b819c97a33c3ee7af164374ddb7b80f44be281bc"
     },
-    "rollbackIdentity": "471daea5977ebd71f926c855eff1a2d1993ba8c633e743fe02a8f5c572d52e11"
+    "rollbackIdentity": "96c0740b6b4f8d9e9dc6b9d4bfe9da488adcc5af6b17f634f1a97894e50ad9bc"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
@@ -1884,39 +1877,6 @@
           "summary": "Use review pending with its declared interface"
         }
       ]
-    },
-    "spec-mine": {
-      "display_name": "Spec Mine",
-      "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
-      "syntax": "$spec-mine [<capability-or-path>]",
-      "input_kind": "free-text",
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "workspace-write",
-      "inputs": [
-        {
-          "id": "capability-or-path",
-          "syntax": "<capability-or-path>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Capability or path to mine first"
-        }
-      ],
-      "actions": [
-        {
-          "id": "mine",
-          "summary": "Write one bounded behavioral baseline",
-          "syntax": "$spec-mine [<capability-or-path>]",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        }
-      ],
-      "options": [],
-      "examples": [
-        {
-          "prompt": "$spec-mine billing",
-          "summary": "Use spec mine with its declared interface"
-        }
-      ]
     }
   },
   "usageFingerprints": {
@@ -1950,8 +1910,7 @@
     "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
     "code-simplify": "2d93bfcf975a3ae16ddc754187f387ab1ef4ae4f25abe2aa6b9235ca2f6e0069",
     "harness-audit": "c332dbc616714f42745d0cfcddc112b0452ec09ecf7f8b09c9cefb7549dda7f1",
-    "review-pending": "1a8af23d3337618651c3a1408255e1e90b59445ef26b22ca5e6e4640755a83d8",
-    "spec-mine": "918bc2cde6d9c328cbe8224867f68f3dc569b81f2434b0f04bcd598683c14a50"
+    "review-pending": "1a8af23d3337618651c3a1408255e1e90b59445ef26b22ca5e6e4640755a83d8"
   },
   "externalSkillPackagesFingerprint": "3415fbb3be9c7095e796bab2ac6c87d96e26bfa8c90a89cf9fc1d63cbbbc664c"
 }

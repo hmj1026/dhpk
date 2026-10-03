@@ -92,14 +92,6 @@
       }
     },
     {
-      "pattern": "(mine|extract|reverse[- ]?engineer|harvest|bootstrap).{0,24}spec(s|ification)?|(萃取|挖掘|逆向|提取).{0,8}規格",
-      "label": "mine behavioral specs (→ spec-miner)",
-      "target": {
-        "kind": "command",
-        "id": "spec-mine"
-      }
-    },
-    {
       "pattern": "(tech(nical)? +spec|requirements +doc|design +doc|architecture +doc)|(技術規格|需求文件|設計文件|架構文件|tech spec)",
       "label": "tech spec authoring",
       "target": {
