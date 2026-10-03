@@ -24,7 +24,7 @@ missing overall verdict, execution error, or explicit semantic `FAIL` is
 terminal and does not fall through. A Markdown `FAIL` or `summary.json`
 `overallPass=false` remains failure even when the runner exits zero. When no
 applicable runner is available, use the non-Node/manifest fallback and stage rules in
-[`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/repo-verify/references/workflow.md); unsupported manifests are
+[`references/workflow.md`](references/workflow.md); unsupported manifests are
 terminal failures.
 
 ## When NOT to Use
@@ -51,5 +51,5 @@ failures, and execution errors are terminal `FAIL`/`BLOCKED` results.
 
 ## References
 
-- [`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/repo-verify/references/workflow.md) — runner precedence,
+- [`references/workflow.md`](references/workflow.md) — runner precedence,
   fallback ecosystems, Node script rules, and report template.
