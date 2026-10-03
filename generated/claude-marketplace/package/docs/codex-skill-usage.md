@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:8f79ae11a486b6bba1e6a444917101678ac2855b2af3d7d7a877fbb83bb8ec8d`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -528,22 +528,6 @@ Actions:
 
 Examples:
 - `$skill-scope health flow-guide` — Run a focused health check for one skill
-
-### `$spec-mine`
-
-Summary: Extract one capability baseline into an OpenSpec behavioral spec
-Syntax: `$spec-mine [<capability-or-path>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `capability-or-path` `<capability-or-path>` (optional, string) — Capability or path to mine first
-
-Actions:
-- `mine` `$spec-mine [<capability-or-path>]` — Write one bounded behavioral baseline
-
-Examples:
-- `$spec-mine billing` — Use spec mine with its declared interface
 
 ### `$tdd-workflow`
 

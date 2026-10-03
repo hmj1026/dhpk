@@ -20,7 +20,6 @@
   },
   "packageOwnedRoleSet": {
     "claude": [
-      "agent-evaluator",
       "agy-fast-worker",
       "agy-worker",
       "architect",
@@ -49,7 +48,6 @@
       "security-reviewer",
       "silent-failure-hunter",
       "smoke-tester",
-      "spec-miner",
       "swift-build-resolver",
       "tdd-guide",
       "type-design-analyzer",
@@ -70,7 +68,6 @@
       "monitor",
       "planner",
       "security-reviewer",
-      "spec-miner",
       "tdd-guide",
       "worker"
     ],

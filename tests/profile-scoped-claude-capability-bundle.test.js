@@ -22,8 +22,8 @@ const { runClaudeProfileProbe } = require('../scripts/release/claude-profile-pro
 
 const ROOT = path.join(__dirname, '..');
 const RELEASE_VERSION_SENTINEL = '<release-version>';
-const EXPECTED_NORMALIZED_MANIFEST_BYTES = 35287;
-const EXPECTED_NORMALIZED_MANIFEST_SHA256 = 'c54cc8e307676f8484b9aeca01c2ec84b97cf9ef224476a44b695c6a285ceb83';
+const EXPECTED_NORMALIZED_MANIFEST_BYTES = 35222;
+const EXPECTED_NORMALIZED_MANIFEST_SHA256 = 'a77c326b350e76cca6c013c842f49ccdb81cbffdd55003f43efb3fae9eac95ce';
 
 function normalizeReleaseVersion(pluginBytes) {
   const text = Buffer.from(pluginBytes).toString('utf8');
@@ -229,7 +229,7 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
     summary.stdout,
     'dhpk Claude publication surface (generated from distribution inventory):\n'
       + '  roots:              1\n'
-      + '  generated skill ids: 82 (excludes deprecated; host cannot hide within a shared root)\n',
+      + '  generated skill ids: 79 (excludes deprecated; host cannot hide within a shared root)\n',
   );
   const normalizedPluginBytes = normalizeReleaseVersion(pluginBytes);
   assert.strictEqual(
@@ -246,7 +246,7 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
   const compiled = inventoryApi.compileClaudeProjection({ inventory });
   assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
   assert.deepStrictEqual(compiled.generated.roots, ['./skills/']);
-  assert.strictEqual(compiled.generated.generatedSkillIds.length, 82);
+  assert.strictEqual(compiled.generated.generatedSkillIds.length, 79);
   assert.strictEqual(compiled.plan.surface, 'claude-core');
 });
 

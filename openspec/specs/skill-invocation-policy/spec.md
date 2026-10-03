@@ -241,7 +241,7 @@ A reviewed capability-family consolidation MAY publish an unprefixed kebab-case 
 
 #### Scenario: Declared portable family is validated
 
-- **WHEN** a successor named `skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, or `code-trace` declares `name_style: portable-family`
+- **WHEN** a successor named `skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`, or `code-trace` declares `name_style: portable-family`
 - **THEN** inventory validation accepts the unprefixed name and validates its canonical path, capability ID, and invocation class normally
 
 #### Scenario: Arbitrary skill drops its prefix

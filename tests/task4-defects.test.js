@@ -389,15 +389,8 @@ test('prompt optimization points to dated live documentation verification withou
     assert.match(diagnosis, /smallest confirming check/i);
   });
 
-  test('skill authoring and audits account for cost, checkability, branches, and sediment pruning', () => {
+  test('skill audits account for cost, checkability, branches, and sediment pruning', () => {
     const skillContracts = [
-      {
-        name: 'skill-forge',
-        source: read('skills/skill-forge/SKILL.md'),
-        sections: [
-          /^## `create` workflow$/,
-        ],
-      },
       {
         name: 'skill-scope',
         source: read('skills/skill-scope/SKILL.md'),

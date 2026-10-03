@@ -126,7 +126,7 @@ test('missing tools fails as local policy', () => {
 test('the validator covers root and module agents', () => {
   const result = spawnSync(process.execPath, [VALIDATOR], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout || ''}${result.stderr || ''}`);
-  assert.match(`${result.stdout || ''}${result.stderr || ''}`, /36 agent files/);
+  assert.match(`${result.stdout || ''}${result.stderr || ''}`, /34 agent files/);
 });
 
 test('INDEX.md is skipped even without tools or a matching name', () => {
@@ -258,7 +258,7 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /PASS \[agents-skills\]: 55 selected skills; runtime=NOT_RUN/);
+    assert.match(result.stdout, /PASS \[agents-skills\]: 52 selected skills; runtime=NOT_RUN/);
 
     const receipt = path.join(outDir, '.dhpk-projection.json');
     assert.ok(fs.existsSync(receipt), 'generator must write the projection receipt');
@@ -283,7 +283,7 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
       encoding: 'utf8',
     });
     assert.strictEqual(restored.status, 0, restored.stderr);
-    assert.match(restored.stdout, /PASS \[agents-skills\]: 55 selected skills; runtime=NOT_RUN/);
+    assert.match(restored.stdout, /PASS \[agents-skills\]: 52 selected skills; runtime=NOT_RUN/);
   } finally {
     fs.rmSync(outDir, { recursive: true, force: true });
   }
@@ -308,7 +308,7 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
         '--project-root', projectRoot,
     ], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /PASS \[agents-skills\]: 55 selected skills; runtime=NOT_RUN/);
+    assert.match(result.stdout, /PASS \[agents-skills\]: 52 selected skills; runtime=NOT_RUN/);
 
     const receipt = path.join(projectRoot, '.agents', '.dhpk-installed.json');
     assert.ok(fs.existsSync(receipt), 'generator must write the external project receipt');
@@ -342,7 +342,7 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
       '--project-root', projectRoot,
     ], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(restored.status, 0, restored.stderr);
-    assert.match(restored.stdout, /PASS \[agents-skills\]: 55 selected skills; runtime=NOT_RUN/);
+    assert.match(restored.stdout, /PASS \[agents-skills\]: 52 selected skills; runtime=NOT_RUN/);
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }

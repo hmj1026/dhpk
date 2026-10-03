@@ -85,7 +85,7 @@ reported as `BLOCKED` without invalidating unrelated settings. Diagnostics keep
 catalog support, Host access, runtime availability, and fallback permission
 separate; static catalog membership or package discovery is never runtime proof.
 The dispatch Roles are `planner`, `reasoner`, `worker`, and `reviewer`.
-`orchestrator`/`spec-miner` map to `planner`, `architect`/`deep-reasoner` to
+`orchestrator` maps to `planner`, `architect`/`deep-reasoner` to
 `reasoner`, `codex-worker`/`agy-worker` to `worker`, and
 `doc-reviewer`/`code-reviewer`/`security-reviewer` to `reviewer`. These policy
 aliases/subroles do not create additional default sets. Static
@@ -228,7 +228,7 @@ request a second opinion by its named `codex exec` opt-in.
 
 ### Codex agent roles (dual-track sync)
 
-This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.codex/agents/`), not the retired MCP mechanism. Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; Codex agent definitions use TOML only. dhpk publishes these files for Codex's documented project-local discovery path, and the installer always materializes them as physical files even when skills use symlinks. The 12 generated roles (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`) are produced from `agents/<name>.md` by `scripts/gen-codex-agents.js`, joining 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) for a total of 16 direct roles.
+This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.codex/agents/`), not the retired MCP mechanism. Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; Codex agent definitions use TOML only. dhpk publishes these files for Codex's documented project-local discovery path, and the installer always materializes them as physical files even when skills use symlinks. The 11 generated roles (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`) are produced from `agents/<name>.md` by `scripts/gen-codex-agents.js`, joining 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) for a total of 15 direct roles.
 
 `[agents.<name>]` blocks in `config.toml.example` are optional metadata, not a workaround for a runtime registry failure. The supported top-level concurrency setting is `max_concurrent_threads_per_session`; the example also records the effective default subagent model and reasoning effort. Static metadata, a physical TOML, or built-in `explorer` success does not prove custom-role callability; require an observed non-built-in spawn and targeted wait. See [`codex/guidance.md`](../codex/guidance.md) for diagnostics and [`platform-installation.md`](platform-installation.md) for the evidence boundary.
 

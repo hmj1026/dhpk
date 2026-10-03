@@ -23,11 +23,11 @@ migration. Structural success never upgrades an unobserved consumer: record
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 84 flat packages at `skills/<public-name>/` |
-| Public identity | 33 public names are unprefixed, including the nine capability families and the portable command skills; the other 51 first-party names retain `dhpk-*` |
+| Canonical source | 81 flat packages at `skills/<public-name>/` |
+| Public identity | 31 public names are unprefixed, including the eight capability families and the portable command skills; the other 50 first-party names retain `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
-| Codex project projection | 34 relative symlinks under `codex/skills/` (32 invokable plus two internal transport and dispatch-context runtimes) |
+| Codex project projection | 33 relative symlinks under `codex/skills/` (31 invokable plus two internal transport and dispatch-context runtimes) |
 | Codex native package | 34 physical packages under `plugins/dhpk/skills/`; zero symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
@@ -73,7 +73,7 @@ proposals to the external `$openspec-propose` owner, while
 [feasibility comparison](./agent-guidance/feasibility-comparison.md) keeps
 options analysis separate from implementation.
 
-The `dhpk` prefix remains part of the Claude plugin namespace. The nine family
+The `dhpk` prefix remains part of the Claude plugin namespace. The eight family
 names are intentionally unprefixed so users select a task-shaped capability
 without learning predecessor implementation names. `git-smart-commit` remains
 the standalone public commit owner; it is not renamed to or replaced by a
@@ -169,7 +169,7 @@ there are no compatibility aliases or duplicate predecessor packages.
 
 The inventory owns exactly 22 alias-free rows. Every row uses
 `reasonCode: capability-family-consolidation`, rolls back to `0.52.0`, and
-points to one family mode. This table is a documentation projection of that
+points to one family mode, except the two rows noted below. This table is a documentation projection of that
 closed mapping; it is not a discovery or compatibility registry.
 
 | Former stable ID | Former public name | Replacement family/mode | `reasonCode` | `rollback.release` |
@@ -178,8 +178,8 @@ closed mapping; it is not a discovery or compatibility registry.
 | `skill-judge` | `dhpk-skill-quality-judge` | `skill-scope` / `judge` | `capability-family-consolidation` | `0.52.0` |
 | `skill-stocktake` | `dhpk-skill-stocktake` | `skill-scope` / `stocktake` | `capability-family-consolidation` | `0.52.0` |
 | `skill-scout` | `dhpk-skill-scout` | `skill-scope` / `scout` | `capability-family-consolidation` | `0.52.0` |
-| `create-skill` | `dhpk-create-skill` | `skill-forge` / `create` | `capability-family-consolidation` | `0.52.0` |
-| `rules-distill` | `dhpk-rules-distill` | `skill-forge` / `distill-rules` | `capability-family-consolidation` | `0.52.0` |
+| `create-skill` | `dhpk-create-skill` | model default (was `skill-forge` / `create`) | `capability-family-consolidation` | `0.52.0` |
+| `rules-distill` | `dhpk-rules-distill` | model default (was `skill-forge` / `distill-rules`) | `capability-family-consolidation` | `0.52.0` |
 | `adaptive-dev-workflow` | `dhpk-adaptive-dev-workflow` | `flow-guide` / `classify` | `capability-family-consolidation` | `0.52.0` |
 | `dhpk-execution-policy` | `dhpk-execution-policy` | `flow-guide` / `policy` | `capability-family-consolidation` | `0.52.0` |
 | `next-step` | `dhpk-next-step` | `flow-guide` / `next` | `capability-family-consolidation` | `0.52.0` |
@@ -197,18 +197,21 @@ closed mapping; it is not a discovery or compatibility registry.
 | `git-investigate` | `dhpk-git-history-investigation` | `code-trace` / `history` | `capability-family-consolidation` | `0.52.0` |
 | `tool-routing` | `dhpk-tool-routing` | `code-trace` / `select-tool` | `capability-family-consolidation` | `0.52.0` |
 
+In 0.65.0, `skill-forge` itself was retired (reason code
+`third-party-text-overlap`), so the `create-skill` and `rules-distill` rows now
+point to the model default instead of a family mode.
+
 ## 0.54 capability families and retirement
 
-The 0.54 release introduced nine portable families, and they remain current:
-`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
-`code-trace`, `laravel`, `phpunit`, and `harness-govern`. Every other active
+The 0.54 release introduced nine portable families. Eight remain current:
+`skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`, `code-trace`,
+`laravel`, `phpunit`, and `harness-govern`. `skill-forge` was retired in 0.65.0. Every other active
 public name retains the `dhpk-` prefix; `manifests/distribution-inventory.json`
 is the source for the current skill list.
 
 | Current family | Interface | Boundary |
 |---|---|---|
 | `skill-scope` | `health`, `judge`, `stocktake`, `scout` | explicit governance handoff |
-| `skill-forge` | `create`, `distill-rules` | explicit authoring handoff |
 | `flow-guide` | `help`, `route`, `rules`, `next`, `close` | read-only guidance; `route --go` is one bounded handoff |
 | `flow-drive` | confirmed specification or change; no mode | explicit-only implementation |
 | `change-verdict` | `code`, `pr`, `security`, `tests`, `docs`, `risk` | read-only review |
@@ -365,6 +368,21 @@ internal transport and dispatch-context runtimes), with relative symlinks only
 in module/Codex projections and no symlinks in the native package. The nine
 MCP capability identities above are ledger rows only and are excluded from all
 active counts.
+
+## Third-party text overlap retirement (0.65.0)
+
+On 2026-10-03 these items were removed from every package because they
+contained third-party text without a retained notice. Each skill has an
+alias-free retirement row with `reasonCode: third-party-text-overlap`, a
+`model-default` replacement, and rollback release `0.64.4`.
+
+| Removed item | Kind |
+|---|---|
+| `agent-architecture-audit` (`dhpk-agent-architecture-audit`) | skill |
+| `skill-forge` | skill |
+| `spec-mine` | skill and `/dhpk:spec-mine` command |
+| `agent-evaluator` | agent |
+| `spec-miner` | agent |
 
 ## Rollback
 

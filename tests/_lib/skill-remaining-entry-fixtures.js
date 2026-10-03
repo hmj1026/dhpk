@@ -25,7 +25,6 @@ const SOURCES = Object.freeze({
   'harness-govern': 'harness-govern',
   'change-verdict': 'change-verdict',
   'skill-scope': 'skill-scope',
-  'skill-forge': 'skill-forge',
   'flow-guide': 'flow-guide',
 });
 
@@ -287,15 +286,6 @@ function prepareSkillLintProject(context) {
     agentsDir: path.join(context.projectDir, 'agents'),
     commandsDir: path.join(context.projectDir, 'commands'),
   };
-}
-
-function prepareForgeTree(context) {
-  const skills = path.join(context.projectDir, '.claude', 'skills');
-  const rules = path.join(context.homeDir, '.claude', 'rules');
-  writeFile(path.join(skills, 'forge-skill', 'SKILL.md'), '---\nname: forge-skill\ndescription: forge fixture\n---\n# Forge\n');
-  writeFile(path.join(rules, 'fixture-rule.md'), '# Rule\n\n## First heading\n\nbody\n## Second heading\n');
-  writeFile(path.join(rules, '_archived', 'old.md'), '# archived\n\n## Old\n');
-  return { skills, rules };
 }
 
 function prepareFlowFixture(context) {
@@ -586,18 +576,6 @@ function registerRemainingFixtures() {
       inputFactory() { return JSON.stringify({ skills: { new: { grade: 'B' } }, mode: 'quick', batch_progress: { done: 1 } }); },
       stubs: fixtureTools('jq'), expected: { status: 0, stdout: '' },
       verify(_result, context) { const saved = JSON.parse(fs.readFileSync(path.join(context.projectDir, 'results.json'), 'utf8')); assert.strictEqual(saved.skills.old.grade, 'A'); assert.strictEqual(saved.skills.new.grade, 'B'); assert.strictEqual(saved.mode, 'quick'); assert.deepStrictEqual(saved.batch_progress, { done: 1 }); assert.match(saved.evaluated_at, /^\d{4}-\d{2}-\d{2}T/); },
-    },
-    {
-      id: 'remaining-skill-forge-scan-skills', skill: 'skill-forge', entry: 'scripts/scan-skills.sh',
-      args: ['.claude/skills'], prepare: prepareForgeTree,
-      envFactory(context) { return { RULES_DISTILL_GLOBAL_DIR: path.join(context.homeDir, '.claude', 'skills'), RULES_DISTILL_PROJECT_DIR: path.join(context.projectDir, '.claude', 'skills') }; },
-      stubs: fixtureTools('jq'), expected: { status: 0, output: ['"scan_summary"', 'forge-skill'] },
-    },
-    {
-      id: 'remaining-skill-forge-scan-rules', skill: 'skill-forge', entry: 'scripts/scan-rules.sh',
-      args: ['.claude/rules'], prepare: prepareForgeTree,
-      envFactory(context) { return { RULES_DISTILL_DIR: path.join(context.homeDir, '.claude', 'rules') }; },
-      stubs: fixtureTools('jq'), expected: { status: 0, output: ['"total": 1', 'First heading', 'Second heading'] },
     },
     {
       id: 'remaining-flow-guide-pre-route-local-table', skill: 'flow-guide', entry: 'scripts/pre-route.sh',

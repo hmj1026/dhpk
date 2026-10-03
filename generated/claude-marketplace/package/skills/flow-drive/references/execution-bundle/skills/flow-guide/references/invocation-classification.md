@@ -34,7 +34,6 @@ families introduced by this change are classified by their maximum authority:
 
 | Skill | Rationale |
 |---|---|
-| `skill-forge` | Skill authoring and rules distillation can write distributed policy surfaces. |
 | `flow-drive` | Route/implementation modes can start a broad execution workflow. |
 
 ### implicit-eligible
@@ -77,7 +76,7 @@ the two thin front doors retain their owning Skill contracts.
 `harness-audit`, `harness-govern`, `install-hooks`, `install-rules`,
 `install-scripts`, `matrix-cell-onboard`, `merge-prep`, `opsx-apply-resume`,
 `pr-summary`, `precommit`, `precommit-fast`, `project-brief`, `review-pending`,
-`setup`, `simplify`, `smart-commit`, `spec-mine`, `ui-ux-verify`,
+`setup`, `simplify`, `smart-commit`, `ui-ux-verify`,
 `update-codemaps`, `update-docs`, and `verify`.
 
 The command disposition manifest records the authority, owner, callers, and

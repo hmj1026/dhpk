@@ -23,7 +23,6 @@ SSOT for **which model tier each role runs on, and the cost rules that govern ti
 | Reviewers (code / db / security / frontend / polyfill / migration) | sonnet | High-frequency gate work; sonnet floor, raised to opus only for a HIGH-risk diff (up-only). |
 | `doc-reviewer` | haiku | Lightweight frontmatter / link / SSOT lint — the cheapest tier that passes. |
 | `architect` | fable @ low | Cheap architecture-consult tier — cross-module / DDD design judgment; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override. |
-| `spec-miner` | opus | Behavioral-spec extraction — reasoning-heavy, not discovery. |
 
 Claude tiers are aliases: Claude Code resolves `opus`, `sonnet`, `haiku`, and `fable` to the latest model in each line. As of 2026-09-23 `opus` is Claude Opus 5.5 (`claude-opus-5-5`, `$4/$20` per million input/output tokens — cheaper than Opus 5's `$5/$25`), `sonnet` is Sonnet 5 (`$2/$10`), `haiku` is Haiku 4.5 (`$1/$5`), and `fable` is Fable 5.1 (`$10/$50`). Opus 5.5 defaults to `medium` effort (one level below Opus 5) and cannot disable thinking, so set effort explicitly where a role depends on it (rule 4).
 
@@ -43,7 +42,7 @@ tier and stays an explicit opt-in, never a role default.
 
 | Codex roles | Model | Effort | Cost/quality rationale |
 |---|---|---|---|
-| `architect`, `bug-investigator`, `deep-reasoner`, `migration-reviewer`, `planner`, `security-reviewer`, `spec-miner` | `gpt-6-sol` | `high` | Design, root-cause, migration-risk, and spec judgment have high failure/retry cost; use the agentic-coding tier without defaulting to `max` or Astra. |
+| `architect`, `bug-investigator`, `deep-reasoner`, `migration-reviewer`, `planner`, `security-reviewer` | `gpt-6-sol` | `high` | Design, root-cause, migration-risk, and spec judgment have high failure/retry cost; use the agentic-coding tier without defaulting to `max` or Astra. |
 | `code-reviewer` | `gpt-6-sol` | `medium` | High-frequency review baseline; enough reasoning for normal diffs, with explicit escalation for high-risk changes. |
 | `database-reviewer`, `e2e-runner`, `frontend-reviewer` | `gpt-6-sol` | `high` | Structured specialist checks benefit from more reasoning while avoiding Astra cost; E2E remains quality-sensitive and fail-loud when the browser capability is absent. |
 | `explorer` | `gpt-6-sol` | `medium` | Read-heavy evidence gathering needs breadth and coherent synthesis, but not frontier judgment by default. |

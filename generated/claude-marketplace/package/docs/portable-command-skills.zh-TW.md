@@ -21,15 +21,14 @@ Codex 使用 `$<public-name>` 呼叫已安裝的 skill；Claude 原有的
 
 其他通用流程直接使用 command 原名：`create-pr`、`git-worktree`、
 `merge-prep`、`pr-summary`、`project-brief`、`doc-refactor`、`update-docs`、
-`update-codemaps`、`precommit`、`dep-audit`、`harness-audit`、`review-pending`、
-`spec-mine`。既有 `flow-guide`、`flow-drive`、`harness-govern` 維持名稱。
+`update-codemaps`、`precommit`、`dep-audit`、`harness-audit`、`review-pending`。既有 `flow-guide`、`flow-drive`、`harness-govern` 維持名稱。
 
 提交、發布、matrix onboarding、TDD 與 JS 靜態檢查的五個既有 skills
 移除 `dhpk-` 前綴；stable ID 與 capability ID 保持不變。
 其他帶前綴的 skills 不受影響。改名紀錄提供診斷，不發布重複的別名 skill。
 
 用途決策清單以 ADR 記錄新增項目；原本 65 個 skills 的歷史基線保持不變，
-目前的決策覆蓋全部 84 個 skills。
+目前的決策覆蓋全部 81 個 skills。
 
 ### Runner 與腳本遷移
 

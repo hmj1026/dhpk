@@ -21,11 +21,11 @@ minimal profile；既有 receipt 在明確 migration 前保留原 selection。�
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/<public-name>/` 下 84 個扁平 package |
-| Public identity | 33 個 public name 不加前綴，包含九個 capability family 與可攜 command skill；其他 51 個 first-party name 維持 `dhpk-*` |
+| Canonical source | `skills/<public-name>/` 下 81 個扁平 package |
+| Public identity | 31 個 public name 不加前綴，包含八個 capability family 與可攜 command skill；其他 50 個 first-party name 維持 `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
-| Codex 專案 projection | `codex/skills/` 下 34 個相對 symlink（32 個可呼叫加內部 transport 與 dispatch-context runtime） |
+| Codex 專案 projection | `codex/skills/` 下 33 個相對 symlink（31 個可呼叫加內部 transport 與 dispatch-context runtime） |
 | Codex native package | `plugins/dhpk/skills/` 下 34 個實體 package，零 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
@@ -62,7 +62,7 @@ Codex 參數採 progressive discovery：`$flow-guide help` 列出目前 catalogu
 人類導覽見 [`codex-skill-usage.zh-TW.md`](codex-skill-usage.zh-TW.md)。Help 不會載入
 目標 procedure，也不會授予其 authority。
 
-`dhpk` prefix 仍是 Claude plugin namespace 的一部分。九個 family name 刻意使用未加
+`dhpk` prefix 仍是 Claude plugin namespace 的一部分。八個 family name 刻意使用未加
 前綴的名稱，讓使用者選擇 task-shaped capability 而不必記住 predecessor 的
 implementation name。`git-smart-commit` 維持原 public name 且獨立存在；不新增
 `commit-craft`。OpenSpec proposal authoring 由外部 `$openspec-propose` 負責；
@@ -141,7 +141,7 @@ retirement ledger 見下方。前身 stable ID 只存在歷史 retirement metada
 
 Inventory 準確擁有 22 筆 alias-free row。每筆都使用
 `reasonCode: capability-family-consolidation`、rollback `0.52.0`，並指向一個
-family mode。下表是這個 closed mapping 的文件投影，不是 discovery 或 compatibility
+family mode（下方註明的兩筆除外）。下表是這個 closed mapping 的文件投影，不是 discovery 或 compatibility
 registry。
 
 | Former stable ID | Former public name | Replacement family/mode | `reasonCode` | `rollback.release` |
@@ -150,8 +150,8 @@ registry。
 | `skill-judge` | `dhpk-skill-quality-judge` | `skill-scope` / `judge` | `capability-family-consolidation` | `0.52.0` |
 | `skill-stocktake` | `dhpk-skill-stocktake` | `skill-scope` / `stocktake` | `capability-family-consolidation` | `0.52.0` |
 | `skill-scout` | `dhpk-skill-scout` | `skill-scope` / `scout` | `capability-family-consolidation` | `0.52.0` |
-| `create-skill` | `dhpk-create-skill` | `skill-forge` / `create` | `capability-family-consolidation` | `0.52.0` |
-| `rules-distill` | `dhpk-rules-distill` | `skill-forge` / `distill-rules` | `capability-family-consolidation` | `0.52.0` |
+| `create-skill` | `dhpk-create-skill` | model default（原為 `skill-forge` / `create`） | `capability-family-consolidation` | `0.52.0` |
+| `rules-distill` | `dhpk-rules-distill` | model default（原為 `skill-forge` / `distill-rules`） | `capability-family-consolidation` | `0.52.0` |
 | `adaptive-dev-workflow` | `dhpk-adaptive-dev-workflow` | `flow-guide` / `classify` | `capability-family-consolidation` | `0.52.0` |
 | `dhpk-execution-policy` | `dhpk-execution-policy` | `flow-guide` / `policy` | `capability-family-consolidation` | `0.52.0` |
 | `next-step` | `dhpk-next-step` | `flow-guide` / `next` | `capability-family-consolidation` | `0.52.0` |
@@ -169,17 +169,19 @@ registry。
 | `git-investigate` | `dhpk-git-history-investigation` | `code-trace` / `history` | `capability-family-consolidation` | `0.52.0` |
 | `tool-routing` | `dhpk-tool-routing` | `code-trace` / `select-tool` | `capability-family-consolidation` | `0.52.0` |
 
+0.65.0 退休了 `skill-forge` 本身（reason code `third-party-text-overlap`），所以
+`create-skill` 與 `rules-distill` 兩筆 row 現在改指向 model default，而不是 family mode。
+
 ## 目前 0.54 capability families 與 retirement
 
-0.54 引入九個 portable family，至今仍是目前的 family：`skill-scope`、
-`skill-forge`、`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、
-`laravel`、`phpunit`、`harness-govern`。其他 active public name 維持 `dhpk-*`
+0.54 引入九個 portable family，其中八個仍是目前的 family：`skill-scope`、
+`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、
+`laravel`、`phpunit`、`harness-govern`。`skill-forge` 已於 0.65.0 退休。其他 active public name 維持 `dhpk-*`
 前綴；目前的 skill 清單以 `manifests/distribution-inventory.json` 為準。
 
 | 目前 family | Interface | 邊界 |
 |---|---|---|
 | `skill-scope` | `health`、`judge`、`stocktake`、`scout` | explicit governance handoff |
-| `skill-forge` | `create`、`distill-rules` | explicit authoring handoff |
 | `flow-guide` | `help`、`route`、`rules`、`next`、`close` | read-only guidance；`route --go` 是單一 bounded handoff |
 | `flow-drive` | confirmed specification 或 change；無 mode | explicit-only implementation |
 | `change-verdict` | `code`、`pr`、`security`、`tests`、`docs`、`risk` | read-only review |
@@ -328,6 +330,20 @@ Codex project/native 項目（可呼叫 skill 加上內部 transport 與 dispatc
 上述九個 MCP capability identity 只存在 ledger，不計入任何 active count。Profiles 應為
 `minimal=4`、`full=55`、`compat-v1=62`。相對 symlink 只能出現在
 module/Codex projection，native package 必須零 symlink。
+
+## 第三方文字重疊退休（0.65.0）
+
+2026-10-03 起，下列項目因含有未保留授權聲明的第三方文字，已從所有 package 移除。
+每個 skill 都有 alias-free retirement row：`reasonCode: third-party-text-overlap`、
+`model-default` replacement，rollback release 為 `0.64.4`。
+
+| 移除項目 | 類型 |
+|---|---|
+| `agent-architecture-audit`（`dhpk-agent-architecture-audit`） | skill |
+| `skill-forge` | skill |
+| `spec-mine` | skill 與 `/dhpk:spec-mine` command |
+| `agent-evaluator` | agent |
+| `spec-miner` | agent |
 
 ## Rollback
 

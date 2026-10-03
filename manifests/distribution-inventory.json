@@ -83,7 +83,6 @@
     "agy-plugin"
   ],
   "agent_roster": [
-    "agent-evaluator",
     "agy-fast-worker",
     "agy-worker",
     "architect",
@@ -112,7 +111,6 @@
     "security-reviewer",
     "silent-failure-hunter",
     "smoke-tester",
-    "spec-miner",
     "swift-build-resolver",
     "tdd-guide",
     "type-design-analyzer",
@@ -464,7 +462,7 @@
       "id": "codex-supporting-contracts-artifact-contract-md",
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",
-      "canonical_digest": "5f6a659736062b68d83b3bac73e06a4807575573196a08e8a3bffc9cb99d626a",
+      "canonical_digest": "66a2d48d31c56db5612596db273a5365a33b8660a6765e471c10ca9f839ce2e0",
       "projection_digest": "ad5a05ceaa56719084e99a37c7c57563727982cbf24bc7f0a907981071e1ac7e",
       "destination": "dhpk/contracts/artifact-contract.md"
     },
@@ -472,7 +470,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "b759cb7aeccff2aba5a0bae1cd608bda1795f88f49e240bb3fecb2a9f41434d0",
+      "canonical_digest": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825",
       "projection_digest": "1bd5984850ea0d011840abcecd2095615a5255a819a31a2d1d476d89e64ad72f",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -1358,24 +1356,6 @@
       }
     },
     {
-      "id": "agent-architecture-audit",
-      "name": "dhpk-agent-architecture-audit",
-      "path": "skills/dhpk-agent-architecture-audit",
-      "capability_id": "dhpk.skill.agent-architecture-audit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "agent-architecture-audit"
-      ]
-    },
-    {
       "id": "agy-fast-worker",
       "name": "dhpk-agy-fast-worker",
       "path": "skills/dhpk-agy-fast-worker",
@@ -1860,23 +1840,6 @@
       ],
       "legacy_names": [
         "composer-package-hygiene"
-      ]
-    },
-    {
-      "id": "skill-forge",
-      "name": "skill-forge",
-      "name_style": "portable-family",
-      "path": "skills/skill-forge",
-      "capability_id": "dhpk.skill.skill-forge",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
       ]
     },
     {
@@ -3680,58 +3643,6 @@
       }
     },
     {
-      "id": "spec-mine",
-      "name": "spec-mine",
-      "name_style": "portable-skill",
-      "path": "skills/spec-mine",
-      "capability_id": "dhpk.skill.spec-mine",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Spec Mine",
-        "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
-        "syntax": "$spec-mine [<capability-or-path>]",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "capability-or-path",
-            "syntax": "<capability-or-path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Capability or path to mine first"
-          }
-        ],
-        "actions": [
-          {
-            "id": "mine",
-            "summary": "Write one bounded behavioral baseline",
-            "syntax": "$spec-mine [<capability-or-path>]",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$spec-mine billing",
-            "summary": "Use spec mine with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "harness-setup",
       "name": "harness-setup",
       "name_style": "portable-skill",
@@ -4186,7 +4097,6 @@
   ],
   "surface_membership": {
     "agent-plugin": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -4234,16 +4144,13 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "update-codemaps",
       "update-docs"
     ],
     "cursor-plugin": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -4293,17 +4200,14 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "ui-ux-verify",
       "update-codemaps",
       "update-docs"
     ],
     "agy-plugin": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -4351,16 +4255,13 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "update-codemaps",
       "update-docs"
     ],
     "cursor-sync": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -4410,10 +4311,8 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "ui-ux-verify",
       "update-codemaps",
@@ -4451,7 +4350,6 @@
     "adapter": "agy-agent-frontmatter-v1",
     "transform": "agy-agent-frontmatter-v1",
     "agents": [
-      "agent-evaluator.md",
       "agy-fast-worker.md",
       "agy-worker.md",
       "architect.md",
@@ -4480,7 +4378,6 @@
       "security-reviewer.md",
       "silent-failure-hunter.md",
       "smoke-tester.md",
-      "spec-miner.md",
       "swift-build-resolver.md",
       "tdd-guide.md",
       "type-design-analyzer.md",
@@ -5028,9 +4925,7 @@
       "reasonCode": "capability-family-consolidation",
       "replacements": [
         {
-          "kind": "skill",
-          "id": "skill-forge",
-          "mode": "create"
+          "kind": "model-default"
         }
       ],
       "rollback": {
@@ -5049,9 +4944,7 @@
       "reasonCode": "capability-family-consolidation",
       "replacements": [
         {
-          "kind": "skill",
-          "id": "skill-forge",
-          "mode": "distill-rules"
+          "kind": "model-default"
         }
       ],
       "rollback": {
@@ -5833,6 +5726,65 @@
       "rollback": {
         "release": "0.53.0"
       }
+    },
+    {
+      "id": "agent-architecture-audit",
+      "name": "dhpk-agent-architecture-audit",
+      "canonicalPath": "skills/dhpk-agent-architecture-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "third-party-text-overlap",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "skill-forge",
+      "name": "skill-forge",
+      "canonicalPath": "skills/skill-forge",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "third-party-text-overlap",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "spec-mine",
+      "name": "spec-mine",
+      "canonicalPath": "skills/spec-mine",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "third-party-text-overlap",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
     }
   ],
   "external_skill_packages": [
@@ -5935,7 +5887,6 @@
         "version": "portable-core-v1",
         "compatibility_mode": "portable-core",
         "stable_ids": [
-          "agent-architecture-audit",
           "agy-fast-worker",
           "change-verdict",
           "cli-dispatch-context",
@@ -5983,10 +5934,8 @@
           "repo-verify",
           "review-pending",
           "session-usage-audit",
-          "skill-forge",
           "skill-scope",
           "software-architecture",
-          "spec-mine",
           "tdd",
           "update-codemaps",
           "update-docs"

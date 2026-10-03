@@ -24,13 +24,12 @@ const RUNTIME_METADATA = Object.freeze({
   'deep-reasoner': { model: 'gpt-6-sol', effort: 'high' },
   'doc-reviewer': { model: 'gpt-6-luna', effort: 'medium' },
   planner: { model: 'gpt-6-sol', effort: 'high' },
-  'spec-miner': { model: 'gpt-6-sol', effort: 'high' },
   'frontend-reviewer': { model: 'gpt-6-sol', effort: 'high' },
   'migration-reviewer': { model: 'gpt-6-sol', effort: 'high' },
   'e2e-runner': { model: 'gpt-6-sol', effort: 'high' },
 });
 
-// Curated allowlist — EXACTLY these 12, in emit order. Each entry pins a
+// Curated allowlist — EXACTLY these 11, in emit order. Each entry pins a
 // category (not the source frontmatter's effort). The 4 hand-maintained Codex
 // roles (bug-investigator, explorer, monitor, worker) are intentionally absent
 // and are never read or overwritten: any drift check scopes to these names.
@@ -43,7 +42,6 @@ const AGENTS = [
   { name: 'deep-reasoner' },
   { name: 'doc-reviewer' },
   { name: 'planner' },
-  { name: 'spec-miner' },
   { name: 'frontend-reviewer' },
   { name: 'migration-reviewer' },
   { name: 'e2e-runner' },

@@ -1,6 +1,5 @@
 {
   "seed": {
-    "skills/dhpk-agent-architecture-audit/SKILL.md": 269,
     "skills/dhpk-deploy-list/SKILL.md": 257,
     "skills/dhpk-opsx-apply-goal/SKILL.md": 242,
     "skills/dhpk-vue-2-notes/SKILL.md": 241,
@@ -21,7 +20,6 @@
     "skills/dhpk-opsx-load-context/SKILL.md": 164
   },
   "allowed": [
-    "skills/dhpk-agent-architecture-audit/SKILL.md",
     "skills/dhpk-deploy-list/SKILL.md",
     "skills/dhpk-opsx-apply-goal/SKILL.md",
     "skills/dhpk-vue-2-notes/SKILL.md",

@@ -1,7 +1,7 @@
 'use strict';
 
 // Coverage for scripts/gen-codex-agents.js — generates Codex CLI role .toml
-// files from the curated 12-agent allowlist under agents/<name>.md. Source
+// files from the curated 11-agent allowlist under agents/<name>.md. Source
 // dir is fixed to the repo's real agents/ (read-only, never mutated by this
 // script), but the output dir is a CLI arg — always point it at a temp dir
 // so the repo's own codex/agents/ output is never touched.
@@ -24,7 +24,6 @@ const EXPECTED_AGENTS = [
   'deep-reasoner',
   'doc-reviewer',
   'planner',
-  'spec-miner',
   'frontend-reviewer',
   'migration-reviewer',
   'e2e-runner',
@@ -153,13 +152,13 @@ test('generated source keeps unknown prose and fenced-code mentions out of the e
   }
 });
 
-test('generates exactly the 12-agent allowlist as .toml files with derived fields', () => {
+test('generates exactly the 11-agent allowlist as .toml files with derived fields', () => {
   const tmp = mkTmp();
   try {
     const outDir = path.join(tmp, 'out');
     const res = runScript([outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stdout.includes('Generated 12 Codex role file(s).'), res.stdout);
+    assert.ok(res.stdout.includes('Generated 11 Codex role file(s).'), res.stdout);
 
     const files = fs.readdirSync(outDir).sort();
     assert.deepStrictEqual(files, EXPECTED_AGENTS.map((n) => `${n}.toml`).sort());

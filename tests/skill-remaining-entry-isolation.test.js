@@ -47,8 +47,6 @@ const EXPECTED_ENTRIES = Object.freeze({
   'remaining-skill-scope-lint': ['skill-scope', 'scripts/skill-lint.js'],
   'remaining-skill-scope-quick-diff': ['skill-scope', 'scripts/quick-diff.sh'],
   'remaining-skill-scope-save-results': ['skill-scope', 'scripts/save-results.sh'],
-  'remaining-skill-forge-scan-skills': ['skill-forge', 'scripts/scan-skills.sh'],
-  'remaining-skill-forge-scan-rules': ['skill-forge', 'scripts/scan-rules.sh'],
   'remaining-flow-guide-pre-route-local-table': ['flow-guide', 'scripts/pre-route.sh'],
 });
 

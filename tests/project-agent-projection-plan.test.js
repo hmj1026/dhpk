@@ -161,10 +161,10 @@ test('project plan keeps existing Codex selection separate from its explicit pro
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const compiled = compileDistribution({inventory, surface: 'codex-sync'});
   assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
-  assert.strictEqual(compiled.value.selectedStableIds.length, 34);
+  assert.strictEqual(compiled.value.selectedStableIds.length, 33);
   const plan = compileProjectAgentProjection({inventory, profileId: 'portable-core'});
   assert.strictEqual(plan.ok, true, plan.error && plan.error.message);
-  assert.strictEqual(plan.value.selectedStableIds.length, 55);
+  assert.strictEqual(plan.value.selectedStableIds.length, 52);
   assert.notDeepStrictEqual(plan.value.selectedStableIds, compiled.value.selectedStableIds);
 });
 

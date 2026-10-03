@@ -14,7 +14,6 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 |---------|------|
 | `/dhpk:flow-guide` / `/dhpk:flow-drive` | 唯讀 usage discovery、路由與已確認工作的 explicit-only 實作 front door。 |
 | `/dhpk:deep-analyze` | 深入分析提案並產出 roadmap。 |
-| `/dhpk:spec-mine` | 從既有程式碼萃取 behavioral specification。 |
 | `/dhpk:opsx-apply-resume` | 長時間 `opsx:apply` 的 context handoff。 |
 
 ## Review、測試與驗證
@@ -77,8 +76,8 @@ retired without an alias. The five harness governance predecessors are modes of
 `harness-govern`: `health`, `budget`, `fill`, `revise`, and `sync`.
 
 - `/dhpk:<name>` — 本 plugin 實際註冊的 command namespace。
-- `dhpk-<skill-name>` — 一般 public skill identity，不是 `commands/` alias。九個
-  portable capability-family 例外使用無前綴名稱：`skill-scope`、`skill-forge`、
+- `dhpk-<skill-name>` — 一般 public skill identity，不是 `commands/` alias。八個
+  portable capability-family 例外使用無前綴名稱：`skill-scope`、
   `flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、`laravel`、
   `phpunit`、`harness-govern`。
 

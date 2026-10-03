@@ -3,7 +3,6 @@
   "surface": "claude-profile",
   "profile": {
     "emittedStableIds": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "code-simplify",
@@ -70,10 +69,8 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "swift-language",
       "swift-test-strategy",
       "swiftui-architecture",
@@ -87,13 +84,12 @@
     ],
     "excludes": [],
     "id": "compat-v1",
-    "inventoryFingerprint": "6970e59fe9ebd26eefa52c571455b79c255ef9aea9224909f17f32992220f66c",
+    "inventoryFingerprint": "c3109d4ec399c9a18405ad296a533df0f936d19804c25b6e1dc7f99e7d18bd6e",
     "mode": "compat-v1",
     "modules": [],
-    "profileFingerprint": "3c18557e293ff8bae8f888982330b74cbab183623d1b97542f4dfd01180275c2",
+    "profileFingerprint": "3460b20aaac9bc3f188d850a0a43c74dd34fd06624df2c61838a27ec3a0bd659",
     "profileId": "compat-v1",
     "selectedStableIds": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "code-simplify",
@@ -160,10 +156,8 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "swift-language",
       "swift-test-strategy",
       "swiftui-architecture",
@@ -175,10 +169,10 @@
       "xcode-build-tooling",
       "yii1-security-audit"
     ],
-    "selectionFingerprint": "d53711729c36eb616f8092a2ded0e50543e1ffa4f8605a49a207f8ca49a6775a",
+    "selectionFingerprint": "3503db0a27b28db1ad8c1aa7e12193cf94d9b6520f76a305180eae7912a15554",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "e0b40ba91371dba338ed1dc45ce66bde0b24a54addd67b6d13cb5ecca98fa7e9",
+    "sourceFingerprint": "671db98a7801565782e82ab8e481d854d28c0c6079ef6a86c64c19b3b30c623d",
     "supportClosure": {
       "assets": [],
       "files": [
@@ -220,14 +214,13 @@
       ],
       "skillStableIds": []
     },
-    "surfaceSelectionFingerprint": "6dba9302781647c0347d6e9c34901f44ed4e06fbb17285447899586d331c78a8",
+    "surfaceSelectionFingerprint": "6e13fc2bc75945d5b8b94d0c95d8e677438b4f5d83ec3c46530bd3eccbab49d2",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "compat-v1",
   "selectionMode": "profile",
   "requestedStableIds": [],
   "selectedStableIds": [
-    "agent-architecture-audit",
     "agy-fast-worker",
     "change-verdict",
     "code-simplify",
@@ -294,10 +287,8 @@
     "repo-verify",
     "review-pending",
     "session-usage-audit",
-    "skill-forge",
     "skill-scope",
     "software-architecture",
-    "spec-mine",
     "swift-language",
     "swift-test-strategy",
     "swiftui-architecture",
@@ -321,18 +312,6 @@
     {
       "stableId": "claude-profile:receipt",
       "destination": "bundle-receipt.json"
-    },
-    {
-      "stableId": "claude-profile:skill:agent-architecture-audit",
-      "destination": "skills/dhpk-agent-architecture-audit/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:agent-architecture-audit:agents/openai.yaml",
-      "destination": "skills/dhpk-agent-architecture-audit/agents/openai.yaml"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:agent-architecture-audit:references/layers-and-failure-patterns.md",
-      "destination": "skills/dhpk-agent-architecture-audit/references/layers-and-failure-patterns.md"
     },
     {
       "stableId": "claude-profile:skill:agy-fast-worker",
@@ -2363,34 +2342,6 @@
       "destination": "skills/dhpk-session-usage-audit/scripts/session-usage-audit.js"
     },
     {
-      "stableId": "claude-profile:skill:skill-forge",
-      "destination": "skills/skill-forge/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:skill-forge:agents/openai.yaml",
-      "destination": "skills/skill-forge/agents/openai.yaml"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:skill-forge:references/end-to-end-example.md",
-      "destination": "skills/skill-forge/references/end-to-end-example.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:skill-forge:references/results-schema.md",
-      "destination": "skills/skill-forge/references/results-schema.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:skill-forge:references/subagent-prompt.md",
-      "destination": "skills/skill-forge/references/subagent-prompt.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:skill-forge:scripts/scan-rules.sh",
-      "destination": "skills/skill-forge/scripts/scan-rules.sh"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:skill-forge:scripts/scan-skills.sh",
-      "destination": "skills/skill-forge/scripts/scan-skills.sh"
-    },
-    {
       "stableId": "claude-profile:skill:skill-scope",
       "destination": "skills/skill-scope/SKILL.md"
     },
@@ -2437,18 +2388,6 @@
     {
       "stableId": "claude-profile:skill-resource:software-architecture:agents/openai.yaml",
       "destination": "skills/dhpk-module-design/agents/openai.yaml"
-    },
-    {
-      "stableId": "claude-profile:skill:spec-mine",
-      "destination": "skills/spec-mine/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:spec-mine:agents/openai.yaml",
-      "destination": "skills/spec-mine/agents/openai.yaml"
-    },
-    {
-      "stableId": "claude-profile:skill-resource:spec-mine:references/spec-miner-contract.md",
-      "destination": "skills/spec-mine/references/spec-miner-contract.md"
     },
     {
       "stableId": "claude-profile:skill:swift-language",
@@ -2727,10 +2666,6 @@
       "destination": "commands/smart-commit.md"
     },
     {
-      "stableId": "claude-profile:command:spec-mine",
-      "destination": "commands/spec-mine.md"
-    },
-    {
       "stableId": "claude-profile:command:ui-ux-verify",
       "destination": "commands/ui-ux-verify.md"
     },
@@ -2785,5 +2720,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "4cac1019049af6ba3af331532ee44a7f05f252c81707e759056fd68abb73b70f"
+  "planFingerprint": "281500912266a4601014d9db86364563b1dc2a3cd089998c61425f96069295cc"
 }

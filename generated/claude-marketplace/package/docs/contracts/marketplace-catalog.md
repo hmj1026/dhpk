@@ -43,10 +43,12 @@ surfaces listed in the inventory. Withdrawn rows are never published.
   an empty condition means the skill is always available, otherwise the named
   module must be enabled.
 
-The accepted catalog contains 84 IDs: 15 common entries, 21 common branches,
-25 common references, 13 Host-only entries, 2 Host-only internal skills, and 8
-withdrawn skills (6 owned upstream by GitNexus, and `agent-architecture-audit`
-and `skill-forge`, excluded on 2026-10-03 for third-party text overlap).
+The accepted catalog contains 81 IDs: 15 common entries, 20 common branches,
+25 common references, 13 Host-only entries, 2 Host-only internal skills, and 6
+withdrawn skills owned upstream by GitNexus. The `agent-architecture-audit`,
+`skill-forge`, and `spec-mine` skills were removed from the inventory and from
+every package on 2026-10-03 for third-party text overlap, so they have no row
+here (see [marketplace-licensing.md](marketplace-licensing.md)).
 
 ## Accepted classifications
 
@@ -81,7 +83,6 @@ and `skill-forge`, excluded on 2026-10-03 for third-party text overlap).
 | `php56-yii-dev` | workspace-write | branch | `flow-drive` | common | claude-module, codex-sync, codex-native | first-party | guidance-only（無腳本，不需行為測試） |  |
 | `yii1-security-audit` | read-only | branch | `change-verdict` | common | claude-module, codex-sync, codex-native | first-party | guidance-only（無腳本，不需行為測試） |  |
 | `flow-guide` | delegate | entry | `flow-guide` | common | claude-core, cursor-sync, codex-sync, codex-native | first-party | script：`skill-flow-entry-fixtures.js`、`skill-flow-family-fixtures.js`、`skill-goal-runtime-fixtures.js` 等 39 個 |  |
-| `agent-architecture-audit` | guidance-only | withdrawn | — | —（withdrawn 無 selection） | claude-core, cursor-sync | excluded | withdrawn（不發布） | 2026-10-03 使用者決定排除：與第三方 ECC（MIT）大量逐字重疊且未保留聲明 |
 | `agy-fast-worker` | guidance-only | entry | `agy-fast-worker` | host-only | claude-core, cursor-sync | first-party | script：`skill-bridge-family-fixtures.js`、`cli-dispatch-launcher.test.js`、`documentation-platform-parity.test.js` 等 6 個 | CLI 委派 |
 | `code-trace` | read-only | entry | `code-trace` | common | claude-core, cursor-sync, codex-sync, codex-native | first-party | guidance-only（無腳本，不需行為測試） |  |
 | `cli-dispatch-context` | transport-internal | internal | `codex-bridge` | host-only | claude-core, claude-module, codex-sync, codex-native, agent-plugin, cursor-plugin, cursor-sync, agy-plugin | first-party | script：`skill-bridge-family-fixtures.js`、`cli-dispatch-launcher.test.js`、`cli-role-resolver.test.js` 等 5 個 | transport-internal |
@@ -90,7 +91,6 @@ and `skill-forge`, excluded on 2026-10-03 for third-party text overlap).
 | `change-verdict` | read-only | entry | `change-verdict` | common | claude-core, cursor-sync | first-party | script：`skill-audit-family-fixtures.js`、`skill-remaining-entry-fixtures.js`、`capability-bundle-selection.test.js` 等 11 個 |  |
 | `flow-drive` | workspace-write | entry | `flow-drive` | common | claude-core, codex-sync, codex-native, cursor-sync | first-party | script：`skill-flow-entry-fixtures.js`、`skill-flow-family-fixtures.js`、`capability-bundle-selection.test.js` 等 22 個 |  |
 | `composer-package-hygiene` | guidance-only | reference | `change-verdict` | common | claude-core, cursor-sync | first-party | guidance-only（無腳本，不需行為測試） |  |
-| `skill-forge` | guidance-only | withdrawn | — | —（withdrawn 無 selection） | claude-core, cursor-sync | excluded | withdrawn（不發布） | 2026-10-03 使用者決定排除：參考文件與第三方 ECC（MIT）重疊且未保留聲明 |
 | `deploy-list` | guidance-only | branch | `release-creator` | common | claude-core, cursor-sync | first-party | script：`skill-remaining-entry-fixtures.js`、`dhpk-do-portable.test.js`、`userpromptsubmit-skill-hint.test.js` |  |
 | `feature-verify` | guidance-only | branch | `repo-verify` | common | claude-core, cursor-sync | first-party | script：`skill-remaining-entry-fixtures.js`、`api-exec.test.js`、`health-probe.test.js` 等 4 個 |  |
 | `git-smart-commit` | git-write | entry | `git-smart-commit` | common | claude-core, codex-sync, codex-native, cursor-sync | first-party | guidance-only（無腳本，不需行為測試） | git-write；使用者決定保留獨立入口 |
@@ -132,7 +132,6 @@ and `skill-forge`, excluded on 2026-10-03 for third-party text overlap).
 | `code-simplify` | workspace-write | branch | `flow-drive` | common | claude-core, codex-sync, codex-native, cursor-sync | first-party | guidance-only（無腳本，不需行為測試） |  |
 | `harness-audit` | read-only | entry | `harness-audit` | host-only | claude-core, codex-sync, codex-native, cursor-sync | first-party | script：`skill-audit-family-fixtures.js`、`harness-audit.test.js`、`install-assets.test.js` 等 4 個 | Host-only（使用者確認）；Codex 經 Codex Host-only selection |
 | `review-pending` | delegate | branch | `flow-drive` | common | claude-core, codex-sync, codex-native, cursor-sync | first-party | guidance-only（無腳本，不需行為測試） | delegate；改掛 flow-drive 的審查 handoff，避免掛在唯讀 owner 下 |
-| `spec-mine` | workspace-write | branch | `proposal-analyze` | common | claude-core, codex-sync, codex-native, cursor-sync | first-party | guidance-only（無腳本，不需行為測試） | 使用者確認；OpenSpec 為 optional adapter |
 | `harness-setup` | workspace-write | entry | `harness-setup` | host-only | claude-core, cursor-sync | first-party | script：`skill-setup-family-fixtures.js`、`skill-setup-family-isolation.test.js`、`symlink-write-guidance.test.js` 等 4 個 | setup 類 |
 | `opsx-apply-resume` | workspace-write | entry | `opsx-apply-resume` | host-only | claude-core, cursor-sync | first-party | script：`skill-resume-family-fixtures.js`、`install-assets.test.js`、`reference-route-policy.test.js` 等 6 個 | OpenSpec／resume |
 | `ui-ux-verify` | workspace-write | entry | `ui-ux-verify` | common | claude-core, cursor-sync | first-party | guidance-only（無腳本，不需行為測試） | 能力條件式 common 入口（使用者確認） |

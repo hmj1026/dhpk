@@ -533,15 +533,6 @@
         }
       ]
     },
-    "agent-architecture-audit": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/layers-and-failure-patterns.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": []
-    },
     "agy-fast-worker": {
       "entry": "SKILL.md",
       "references": [
@@ -925,30 +916,6 @@
         "references/package-contracts.md"
       ],
       "executable_entries": [],
-      "host_capabilities": []
-    },
-    "skill-forge": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/end-to-end-example.md",
-        "references/results-schema.md",
-        "references/subagent-prompt.md"
-      ],
-      "executable_entries": [
-        {
-          "path": "scripts/scan-rules.sh",
-          "fixture_ids": [
-            "remaining-skill-forge-scan-rules"
-          ]
-        },
-        {
-          "path": "scripts/scan-skills.sh",
-          "fixture_ids": [
-            "remaining-skill-forge-scan-skills"
-          ]
-        }
-      ],
       "host_capabilities": []
     },
     "deploy-list": {
@@ -1840,23 +1807,6 @@
       ],
       "host_evidence": {
         "code-reviewer-role": {
-          "status": "NOT_RUN",
-          "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
-        }
-      }
-    },
-    "spec-mine": {
-      "entry": "SKILL.md",
-      "references": [
-        "agents/openai.yaml",
-        "references/spec-miner-contract.md"
-      ],
-      "executable_entries": [],
-      "host_capabilities": [
-        "spec-miner-role"
-      ],
-      "host_evidence": {
-        "spec-miner-role": {
           "status": "NOT_RUN",
           "reason": "Required capability is documented by the Skill; no actual supported Host probe has executed. Structural and helper fixtures are separate evidence."
         }

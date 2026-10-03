@@ -30,7 +30,7 @@ If `--mode` is omitted, infer one mode only when unambiguous; otherwise report
 
 - Implement or fix a finding → use `flow-drive`.
 - Trace an unfamiliar code path → use `code-trace`.
-- Author or audit a skill → use `skill-forge` or `skill-scope`.
+- Audit a skill → use `skill-scope`.
 
 ## Shared read-only protocol
 

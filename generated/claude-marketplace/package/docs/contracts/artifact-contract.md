@@ -43,7 +43,7 @@ docs buries the signal a PR diff is supposed to carry.
 - **`codemaps/` holds doc-updater's optional session log, NOT the codemaps.** The codemaps themselves are a tracked deliverable at `docs/CODEMAPS/{area}.md` per the rule above, as `agents/doc-updater.md` states explicitly. Unqualified, this line reads as though `.claude/artifacts/codemaps/` were their home — it is not.
 - An empty category directory means that agent has not run in this repository. It is idle infrastructure, not a dead entry — the declared-category set above is the SSOT for which categories an *agent* writes, never the filesystem.
 - A directory here that is NOT in the list above is not necessarily a defect either. `.claude/artifacts/` is gitignored, so it is also the correct home for material that is durable but deliberately unversioned — a maintainer's own analysis kept across sessions and intentionally never committed. `reports/` is one such human-owned drop: no agent writes it, nothing creates it, and it should not be added to this registry or to `session-start.sh`'s mkdir list. Undeclared plus human-owned is a valid state; do not "clean it up".
-- Some agents have no artifact at all (`docs-lookup` is read-only-reply; `spec-miner`'s deliverable is `openspec/specs/<capability>/spec.md`, not a `.claude/artifacts/` report) — those agents document that exception inline instead of using this template.
+- Some agents have no artifact at all (`docs-lookup` is read-only-reply) — those agents document that exception inline instead of using this template.
 
 ## Universal frontmatter fields
 
@@ -88,7 +88,7 @@ Non-reviewer agents keep their own extra fields documented inline, not centraliz
 - `tdd-guide`: `coverage_pct` alongside `verdict (PASS|WARNING|FAIL)`.
 - `e2e-runner`: `pass_rate` alongside `verdict (PASS|WARNING|FAIL)`.
 - `polyfill-reviewer`: `guards_reviewed` alongside the APPROVE/WARNING/BLOCK shape.
-- `agent-evaluator`, `type-design-analyzer`: `verdict` only, no `severity_summary`.
+- `type-design-analyzer`: `verdict` only, no `severity_summary`.
 
 ## Retention
 

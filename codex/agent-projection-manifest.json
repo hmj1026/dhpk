@@ -9,7 +9,6 @@
     "deep-reasoner",
     "doc-reviewer",
     "planner",
-    "spec-miner",
     "frontend-reviewer",
     "migration-reviewer",
     "e2e-runner"
@@ -28,7 +27,6 @@
     "monitor",
     "planner",
     "security-reviewer",
-    "spec-miner",
     "tdd-guide",
     "worker"
   ],

@@ -36,7 +36,6 @@ const EXPECTED_RUNTIME = {
   'deep-reasoner': ['gpt-6-sol', 'high'],
   'doc-reviewer': ['gpt-6-luna', 'medium'],
   planner: ['gpt-6-sol', 'high'],
-  'spec-miner': ['gpt-6-sol', 'high'],
   'frontend-reviewer': ['gpt-6-sol', 'high'],
   'migration-reviewer': ['gpt-6-sol', 'high'],
   'e2e-runner': ['gpt-6-sol', 'high'],

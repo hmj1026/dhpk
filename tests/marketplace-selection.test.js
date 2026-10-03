@@ -37,12 +37,12 @@ test('the accepted catalog compiles to 15 public entries with every child folded
   assert.deepStrictEqual(result.errors, []);
   assert.strictEqual(result.publicEntries.length, 15);
   const folded = Object.values(result.bundledChildren).reduce((total, children) => total + children.length, 0);
-  assert.strictEqual(folded, 46);
+  assert.strictEqual(folded, 45);
   for (const owner of Object.keys(result.bundledChildren)) {
     assert.ok(result.publicEntries.some((entry) => entry.id === owner), `${owner} must be a public entry`);
   }
   assert.strictEqual(result.hostOnly.length, 15);
-  assert.strictEqual(result.withdrawn.length, 8);
+  assert.strictEqual(result.withdrawn.length, 6);
 });
 
 test('the recorded naming decision is the user decision to keep current names', () => {
@@ -146,11 +146,11 @@ const ledger = (overrides = {}) => compileDispositionLedger({
   ...overrides,
 });
 
-test('the disposition ledger covers all 84 IDs exactly once with owner, version condition, authority, and behavior', () => {
+test('the disposition ledger covers all 81 IDs exactly once with owner, version condition, authority, and behavior', () => {
   const result = ledger();
   assert.deepStrictEqual(result.errors, []);
-  assert.strictEqual(result.rows.length, 84);
-  assert.strictEqual(new Set(result.rows.map((row) => row.id)).size, 84);
+  assert.strictEqual(result.rows.length, 81);
+  assert.strictEqual(new Set(result.rows.map((row) => row.id)).size, 81);
   for (const row of result.rows) {
     assert.ok(['script', 'guidance-only', 'withdrawn'].includes(row.behavior), `${row.id} behavior`);
     assert.ok(Array.isArray(row.versionCondition), `${row.id} version condition`);

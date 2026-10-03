@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:8f79ae11a486b6bba1e6a444917101678ac2855b2af3d7d7a877fbb83bb8ec8d`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -528,22 +528,6 @@ Actions：
 
 範例：
 - `$skill-scope health flow-guide` — Run a focused health check for one skill
-
-### `$spec-mine`
-
-摘要：Extract one capability baseline into an OpenSpec behavioral spec
-語法：`$spec-mine [<capability-or-path>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `capability-or-path` `<capability-or-path>` (可選, string) — Capability or path to mine first
-
-Actions：
-- `mine` `$spec-mine [<capability-or-path>]` — Write one bounded behavioral baseline
-
-範例：
-- `$spec-mine billing` — Use spec mine with its declared interface
 
 ### `$tdd-workflow`
 
