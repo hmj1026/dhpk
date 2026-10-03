@@ -109,6 +109,74 @@ test('tracked listing SVGs generate a reproducible artifact with matching finger
   } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
 });
 
+test('the actual distribution CLI flushes complete large provenance JSON before exit', () => {
+  const f = fixture();
+  try {
+    const scriptDirectory = path.join(f.root, 'scripts');
+    fs.mkdirSync(scriptDirectory, { recursive: true });
+    const actualCli = path.resolve(__dirname, '../scripts/dhpk-distribution.js');
+    const fixtureCli = path.join(scriptDirectory, 'dhpk-distribution.js');
+    fs.copyFileSync(actualCli, fixtureCli);
+    const fixtureLibraryDirectory = path.join(scriptDirectory, 'lib');
+    fs.mkdirSync(fixtureLibraryDirectory);
+    const actualDistributionLibrary = path.resolve(__dirname, '../scripts/lib/dhpk-distribution.js');
+    fs.writeFileSync(
+      path.join(fixtureLibraryDirectory, 'dhpk-distribution.js'),
+      `module.exports = require(${JSON.stringify(actualDistributionLibrary)});\n`,
+    );
+
+    const referenceDirectory = path.join(f.root, 'skills/alpha/references');
+    fs.mkdirSync(referenceDirectory, { recursive: true });
+    const resourceCount = 600;
+    for (let index = 0; index < resourceCount; index += 1) {
+      const name = `reference-${String(index).padStart(4, '0')}.txt`;
+      fs.writeFileSync(path.join(referenceDirectory, name), `Reference fixture ${String(index).padStart(4, '0')}.\n`);
+    }
+
+    f.git(['add', 'scripts/dhpk-distribution.js', 'scripts/lib/dhpk-distribution.js', 'skills/alpha/references']);
+    f.git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'large CLI provenance fixture']);
+    assert.deepStrictEqual(fs.readFileSync(fixtureCli), fs.readFileSync(actualCli));
+
+    const direct = f.generate();
+    assert.strictEqual(direct.ok, true, direct.error || JSON.stringify(direct.payload));
+    const expectedJson = JSON.stringify(direct.payload);
+    assert.ok(expectedJson.length > 64 * 1024, `complete CLI payload should exceed 64 KiB; got ${expectedJson.length}`);
+
+    const result = spawnSync(process.execPath, [
+      fixtureCli,
+      'openai-submission',
+      'generate',
+      '--output', f.output,
+      '--manifest', f.manifest,
+    ], {
+      cwd: f.root,
+      encoding: 'utf8',
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    assert.strictEqual(result.error, undefined, result.error && result.error.message);
+    assert.strictEqual(result.status, 0, result.stderr);
+
+    let payload;
+    assert.doesNotThrow(
+      () => { payload = JSON.parse(result.stdout); },
+      `the piped CLI output (${result.stdout.length} bytes) must be complete JSON`,
+    );
+    assert.ok(result.stdout.length > 64 * 1024, 'the fixture must exceed the pipe buffer boundary');
+    assert.deepStrictEqual(payload, direct.payload);
+    assert.strictEqual(payload.surface, 'openai-submission');
+    assert.strictEqual(payload.operation, 'generate');
+    assert.strictEqual(payload.verdict, 'PASS');
+    assert.ok(payload.provenance.provenance.sourceIdentity.commit);
+    assert.ok(payload.provenance.provenance.sourceIdentity.tree);
+    const fingerprints = payload.provenance.provenance.fileFingerprints;
+    assert.strictEqual(Object.keys(fingerprints).length, resourceCount + 2);
+    assert.strictEqual(
+      fingerprints['skills/alpha/references/reference-0599.txt'],
+      crypto.createHash('sha256').update('Reference fixture 0599.\n').digest('hex'),
+    );
+  } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
+});
+
 test('invalid listing icon references preserve the previous verifiable artifact', () => {
   const f = fixture();
   try {

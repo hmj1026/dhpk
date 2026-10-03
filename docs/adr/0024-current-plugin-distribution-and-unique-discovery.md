@@ -129,8 +129,10 @@ and must not restore the retired Review Gate lifecycle or artifacts.
   (decided 2026-10-01; `haiku`/`fable` tiers and Luna stay as declared), and
   retained wording is calibrated to each selected line's official prompting
   guidance; neither rewrites user-owned or global configuration.
-  The [readiness audit](../design/openai-marketplace-readiness.md#agentspromptsagents-盤點與修正歸屬)
-  records dated findings; change design/tasks own the repair order and checks.
+  The historical readiness audit and change plan remain local development
+  records. The tracked [submission guide](../openai-submission.md) records the
+  current candidate and publication boundary; change design/tasks own the
+  repair order and checks.
 - This requirement completes at engineering acceptance and submission
   preparation: a validated submission artifact, the agreed retirement/naming/
   discovery behavior, usable consumer workflow evidence, and submission
@@ -170,9 +172,10 @@ generators, adapters, installers, configuration, documentation, and tests whose
 contracts have genuinely been removed; retained behavior still needs tests.
 Historical Git revisions do not constitute a supported compatibility route.
 
-Final public names and membership require a recommendation list and selection
-evidence; compare the candidates in the
-[readiness plan](../design/openai-marketplace-readiness.md).
+Current public names and accepted membership are recorded in the
+[marketplace catalog](../contracts/marketplace-catalog.md). Historical candidate
+comparisons remain local development records; future naming changes still
+require a recommendation list and selection evidence.
 Catalog selection must also name the planning-authoring owner. Evaluate the
 existing proposal capability while preserving `flow-guide` as a router, then
 prove the native journey from a vague request through a plan, user confirmation,
