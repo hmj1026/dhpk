@@ -11,6 +11,43 @@ host 能與不能過濾的內容。所有數值與歸屬以
 Projection 與 ownership 決策記錄於
 [ADR-0009](adr/0009-distribution-projection-and-orchestration-ownership.md)。
 
+## OpenAI submission artifact
+
+保留 Host 的預設 builder 共用 15 個入口與 45 個 bundled 子技能資源；
+Host 專用列與公開提交 catalog 分開。預設套件目錄數為 Agent Plugin 17、
+Codex 22、AGY 17、Claude 30；Cursor 發布兩個本地目錄，並引用 Agent
+套件中的 15 個共用入口。這些目錄數包含 internal support 列，並非
+consumer discovery 數量。明示 profile 與 standalone 選取保留既有規則。
+
+`bin/dhpk distribution openai-submission` 從
+[已接受的 marketplace catalog](contracts/marketplace-catalog.md)
+產製 skills-only portable package。套件包含 root `plugin.json`、
+`skills/` 下的公開 owner 及其 contained 子技能資源；排除 Host-only
+與 withdrawn 技能。
+
+請提供在 `extensions["com.openai"].interface` 宣告 listing metadata
+的 portable manifest。來源 checkout 必須乾淨；比較重複產製結果時，
+請使用 checkout 外的輸出目錄：
+
+```bash
+bin/dhpk distribution openai-submission generate --manifest /path/to/plugin.json --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission validate --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission verify --output /tmp/dhpk-openai-artifact --json
+```
+
+產製程序會先驗證完整 catalog，再發布 `package.zip` 與
+`provenance.json` sidecar。Sidecar 綁定來源 identity、selection、
+archive digest 與解開後的檔案 fingerprints。覆蓋輸出須有有效的
+owner receipt：雙檔輸出中的 ZIP 必須通過結構驗證，sidecar 的 schema、
+surface、archive digest 與解開後的 fingerprints 必須符合該 ZIP。
+輸入無效時保留既有 artifact。此路由不支援
+`--profile`、`--skill` 或 `--standalone` 部分選取。
+
+這些命令的 `PASS` 表示本地結構證據。Consumer 執行、官方 scans、
+directory submission 與 publication 是分開的證據狀態。
+`manifests/discovery-budgets.json` 的靜態 catalog 上限也不代表
+已通過 rendered consumer discovery 或 token-budget 驗收。
+
 ## Lifecycle model
 
 每個 consumer-reachable skill 與 module 只允許一個 lifecycle：

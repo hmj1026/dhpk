@@ -250,7 +250,7 @@ function collisionFixture() {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
   // Keep only the collision target and sibling skills used by planning cases.
-  const collisionSkills = ['harness-govern', 'tdd-workflow', 'dhpk-legacy-characterization-tests'];
+  const collisionSkills = ['harness-govern', 'tdd-workflow', 'flow-guide'];
   const fakeCodexSkills = path.join(fakePlugin, 'codex', 'skills');
   fs.mkdirSync(fakeCodexSkills, { recursive: true });
   for (const name of collisionSkills) {

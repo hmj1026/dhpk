@@ -1,44 +1,103 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:8f79ae11a486b6bba1e6a444917101678ac2855b2af3d7d7a877fbb83bb8ec8d",
+  "sourceInventoryRevision": "sha256:24c1de777a6d9caff8c6b95821a3f77692663b40e7549d67c3c45c5e0042334c",
   "entries": [
     {
-      "id": "code-simplify",
-      "name": "code-simplify",
+      "id": "change-verdict",
+      "name": "change-verdict",
       "usage": {
-        "display_name": "Code Simplify",
-        "summary": "Clean changed code without changing behavior",
-        "syntax": "$code-simplify [<target>]",
-        "input_kind": "free-text",
+        "display_name": "Change Verdict",
+        "summary": "Return an evidence-backed read-only change verdict",
+        "syntax": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
+        "input_kind": "mixed",
         "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
+        "effect_authority": "read-only",
         "inputs": [
           {
             "id": "target",
             "syntax": "<target>",
             "value_kind": "string",
             "required": false,
-            "summary": "PR, branch, file, or directory"
+            "summary": "Change, PR, test, document, or risk target"
           }
         ],
         "actions": [
           {
-            "id": "simplify",
-            "summary": "Apply bounded cleanup with test evidence",
-            "syntax": "$code-simplify [<target>]",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
+            "id": "code",
+            "summary": "Judge code changes",
+            "syntax": "$change-verdict --mode=code [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "pr",
+            "summary": "Judge pull-request evidence",
+            "syntax": "$change-verdict --mode=pr [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "security",
+            "summary": "Judge security evidence",
+            "syntax": "$change-verdict --mode=security [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "tests",
+            "summary": "Judge test and coverage evidence",
+            "syntax": "$change-verdict --mode=tests [--coverage] [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "docs",
+            "summary": "Judge documentation evidence",
+            "syntax": "$change-verdict --mode=docs [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "risk",
+            "summary": "Judge change-risk evidence",
+            "syntax": "$change-verdict --mode=risk [<target>]",
+            "input_kind": "mixed",
+            "effect_authority": "read-only"
           }
         ],
-        "options": [],
+        "options": [
+          {
+            "id": "mode",
+            "syntax": "--mode=<mode>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Select one verdict mode",
+            "enum_values": [
+              "code",
+              "pr",
+              "security",
+              "tests",
+              "docs",
+              "risk"
+            ]
+          },
+          {
+            "id": "coverage",
+            "syntax": "--coverage",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Include coverage evidence in tests mode",
+            "default": false
+          }
+        ],
         "examples": [
           {
-            "prompt": "$code-simplify src/",
-            "summary": "Use code simplify with its declared interface"
+            "prompt": "$change-verdict --mode=tests --coverage",
+            "summary": "Use change verdict with its declared interface"
           }
         ]
       },
-      "usageFingerprint": "2d93bfcf975a3ae16ddc754187f387ab1ef4ae4f25abe2aa6b9235ca2f6e0069"
+      "usageFingerprint": "6ca8496f176cb1bd7143d0091dcc876ddd44986763e5e3a685b73b7e8914f494"
     },
     {
       "id": "code-trace",
@@ -276,278 +335,6 @@
         ]
       },
       "usageFingerprint": "6ab9eeed7127559c6b5075f06b7284a7fad7f6d4aa68472b0d5e0f1a1075506a"
-    },
-    {
-      "id": "legacy-code-characterization",
-      "name": "dhpk-legacy-characterization-tests",
-      "usage": {
-        "display_name": "Legacy Code Characterization",
-        "summary": "Lock observed legacy behavior before refactoring safely",
-        "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
-        "input_kind": "path",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "legacy-target",
-            "syntax": "<legacy-target>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Select the legacy code target to characterize"
-          }
-        ],
-        "actions": [
-          {
-            "id": "characterize",
-            "summary": "Write tests that capture the current legacy behavior",
-            "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
-            "input_kind": "path",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-legacy-characterization-tests protected/models/Order.php",
-            "summary": "Lock an untested legacy model before refactoring"
-          }
-        ]
-      },
-      "usageFingerprint": "4547e0f7ddb48dc73d21fbae113f7e09ede4b4d49f67619d7217487e24ae4b14"
-    },
-    {
-      "id": "opsx-load-context",
-      "name": "dhpk-opsx-load-context",
-      "usage": {
-        "display_name": "Opsx Load Context",
-        "summary": "Load resume context through the deterministic fallback chain",
-        "syntax": "$dhpk-opsx-load-context",
-        "input_kind": "none",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [],
-        "actions": [
-          {
-            "id": "load",
-            "summary": "Resolve the best available resume context",
-            "syntax": "$dhpk-opsx-load-context",
-            "input_kind": "none",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-opsx-load-context",
-            "summary": "Load context for an opsx-apply-resume session"
-          }
-        ]
-      },
-      "usageFingerprint": "91a653e1525bb1472134b8b10a1b0568821ebd1fda6e5ded2d88bdfb0e68a35c"
-    },
-    {
-      "id": "opsx-post-obs",
-      "name": "dhpk-opsx-post-observation",
-      "usage": {
-        "display_name": "Opsx Post Obs",
-        "summary": "Post one resume observation through the observer boundary",
-        "syntax": "$dhpk-opsx-post-observation <observation-context>",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "delegate",
-        "inputs": [
-          {
-            "id": "observation-context",
-            "syntax": "<observation-context>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Describe the compact session observation"
-          }
-        ],
-        "actions": [
-          {
-            "id": "post",
-            "summary": "Submit the compact session observation",
-            "syntax": "$dhpk-opsx-post-observation <observation-context>",
-            "input_kind": "free-text",
-            "effect_authority": "delegate"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-opsx-post-observation save-phase summary",
-            "summary": "Post the observation during opsx save phase"
-          }
-        ]
-      },
-      "usageFingerprint": "06a21db402817a9a45c8992ddb158c18a7d8fe256f73670e1486270c7c9461ea"
-    },
-    {
-      "id": "php-pro",
-      "name": "dhpk-php-runtime-router",
-      "usage": {
-        "display_name": "Php Pro",
-        "summary": "Detect PHP runtime and select safe framework guidance",
-        "syntax": "$dhpk-php-runtime-router <php-task>",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [
-          {
-            "id": "php-task",
-            "syntax": "<php-task>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Describe the PHP or framework task"
-          }
-        ],
-        "actions": [
-          {
-            "id": "route",
-            "summary": "Detect the runtime and select matching references",
-            "syntax": "$dhpk-php-runtime-router <php-task>",
-            "input_kind": "free-text",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-php-runtime-router review this Yii 1.1 controller",
-            "summary": "Select PHP-compatible guidance for a backend task"
-          }
-        ]
-      },
-      "usageFingerprint": "3a76f007639517b3c23df7cae997f8e7a4b515adc19dfe5d4b34b609ea78753b"
-    },
-    {
-      "id": "php56-yii-dev",
-      "name": "dhpk-yii1-php56-development",
-      "usage": {
-        "display_name": "php56-yii-dev",
-        "summary": "Implement Yii 1.x backend changes with PHP 5.6-safe tests",
-        "syntax": "$dhpk-yii1-php56-development <backend-task>",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "backend-task",
-            "syntax": "<backend-task>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Describe the Yii backend implementation task"
-          }
-        ],
-        "actions": [
-          {
-            "id": "implement",
-            "summary": "Design, test, and implement a Yii 1.x backend change",
-            "syntax": "$dhpk-yii1-php56-development <backend-task>",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$dhpk-yii1-php56-development fix this Yii 1.1 controller",
-            "summary": "Apply PHP 5.6-safe backend implementation guidance"
-          }
-        ]
-      },
-      "usageFingerprint": "ba815734719525b4e155c03fb32a1a612e28dadec56ba1a292fec09340561c5a"
-    },
-    {
-      "id": "yii1-security-audit",
-      "name": "dhpk-yii1-security-audit",
-      "usage": {
-        "display_name": "Yii1 Security Audit",
-        "summary": "Audit Yii 1.1 security boundaries with evidence and fixes",
-        "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
-        "input_kind": "path",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [
-          {
-            "id": "source-path",
-            "syntax": "<source-path>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Select the Yii source path to audit",
-            "applies_to": [
-              "audit"
-            ]
-          }
-        ],
-        "actions": [
-          {
-            "id": "audit",
-            "summary": "Inspect Yii 1.1 framework security boundaries",
-            "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
-            "input_kind": "path",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "output-path",
-            "syntax": "--output-path=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Choose the audit report output directory",
-            "applies_to": [
-              "audit"
-            ]
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$dhpk-yii1-security-audit protected",
-            "summary": "Audit a Yii 1.1 project for framework security issues"
-          }
-        ]
-      },
-      "usageFingerprint": "cbe9ae60baa0624c71a2544a1f8e98167ed4b0ae05c2961cab63b62cc20c12ef"
-    },
-    {
-      "id": "doc-refactor",
-      "name": "doc-refactor",
-      "usage": {
-        "display_name": "Doc Refactor",
-        "summary": "Refactor one bounded Markdown document while preserving facts",
-        "syntax": "$doc-refactor <file-path>",
-        "input_kind": "path",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "file-path",
-            "syntax": "<file-path>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "One Markdown document"
-          }
-        ],
-        "actions": [
-          {
-            "id": "refactor",
-            "summary": "Rewrite one bounded document and validate its links",
-            "syntax": "$doc-refactor <file-path>",
-            "input_kind": "path",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$doc-refactor docs/guide.md",
-            "summary": "Use doc refactor with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "8402542106387deb6c4f762a499aa8dba6f25ad73306294ebdcc047d1014a101"
     },
     {
       "id": "flow-drive",
@@ -908,381 +695,6 @@
       "usageFingerprint": "19a9b67ed3aa298fcc3751cfb899180cc488f4c001376a7674dffb5c6d43d689"
     },
     {
-      "id": "harness-audit",
-      "name": "harness-audit",
-      "usage": {
-        "display_name": "Harness Audit",
-        "summary": "Audit repository harness health with a deterministic scorecard",
-        "syntax": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
-        "input_kind": "action-first",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [
-          {
-            "id": "scope",
-            "syntax": "<scope>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Harness area to inspect",
-            "default": "repo",
-            "enum_values": [
-              "repo",
-              "hooks",
-              "skills",
-              "commands",
-              "agents"
-            ],
-            "applies_to": [
-              "audit"
-            ]
-          }
-        ],
-        "actions": [
-          {
-            "id": "audit",
-            "summary": "Run the deterministic harness audit",
-            "syntax": "$harness-audit [<scope>]",
-            "input_kind": "action-first",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "format",
-            "syntax": "--format=<format>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Output format",
-            "default": "text",
-            "enum_values": [
-              "text",
-              "json"
-            ]
-          },
-          {
-            "id": "root",
-            "syntax": "--root=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Consumer repository root"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$harness-audit skills --format=json",
-            "summary": "Use harness audit with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "c332dbc616714f42745d0cfcddc112b0452ec09ecf7f8b09c9cefb7549dda7f1"
-    },
-    {
-      "id": "harness-govern",
-      "name": "harness-govern",
-      "usage": {
-        "display_name": "Harness Govern",
-        "summary": "Govern harness health, budget, filling, revision, and sync",
-        "syntax": "$harness-govern <health|budget|fill|revise|sync> [options]",
-        "input_kind": "action-first",
-        "invocation_class": "explicit-only",
-        "effect_authority": "external-write",
-        "inputs": [
-          {
-            "id": "mode",
-            "syntax": "<health|budget|fill|revise|sync>",
-            "value_kind": "enum",
-            "required": true,
-            "summary": "Choose one harness governance mode",
-            "enum_values": [
-              "health",
-              "budget",
-              "fill",
-              "revise",
-              "sync"
-            ]
-          }
-        ],
-        "actions": [
-          {
-            "id": "health",
-            "summary": "Check harness structure and optionally fix safe issues",
-            "syntax": "$harness-govern health [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "budget",
-            "summary": "Measure harness context cost and ranked savings",
-            "syntax": "$harness-govern budget [options]",
-            "input_kind": "none",
-            "effect_authority": "read-only"
-          },
-          {
-            "id": "fill",
-            "summary": "Preview or apply missing harness layers",
-            "syntax": "$harness-govern fill [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "revise",
-            "summary": "Review and revise an active harness",
-            "syntax": "$harness-govern revise [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "sync",
-            "summary": "Plan or apply cross-platform harness synchronization",
-            "syntax": "$harness-govern sync [options]",
-            "input_kind": "none",
-            "effect_authority": "external-write"
-          }
-        ],
-        "options": [
-          {
-            "id": "dir",
-            "syntax": "--dir=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select the harness directory"
-          },
-          {
-            "id": "dry-run",
-            "syntax": "--dry-run",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Preview changes without writing",
-            "default": false,
-            "applies_to": [
-              "budget",
-              "fill",
-              "health",
-              "revise",
-              "sync"
-            ]
-          },
-          {
-            "id": "fix-safe",
-            "syntax": "--fix-safe",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Apply only approved safe health fixes",
-            "default": false,
-            "applies_to": [
-              "health"
-            ]
-          },
-          {
-            "id": "fix",
-            "syntax": "--fix",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Apply the selected health fixes",
-            "default": false,
-            "applies_to": [
-              "health"
-            ]
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$harness-govern health --dry-run",
-            "summary": "Inspect harness health without changing files"
-          }
-        ]
-      },
-      "usageFingerprint": "34ce3d263ed23aa924ae39a95916f45d7b7054cac3cc48ad515b90173f065989"
-    },
-    {
-      "id": "js-static-check-strategy",
-      "name": "js-static-check-strategy",
-      "usage": {
-        "display_name": "JS Static Check Strategy",
-        "summary": "Plan staged TypeScript checks and inspect strict-check progress",
-        "syntax": "$js-static-check-strategy status [--path=<path>]",
-        "input_kind": "none",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [],
-        "actions": [
-          {
-            "id": "status",
-            "summary": "Report the current static-check status",
-            "syntax": "$js-static-check-strategy status [--path=<path>]",
-            "input_kind": "none",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "path",
-            "syntax": "--path=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Frontend root to scan"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$js-static-check-strategy status --path=js/",
-            "summary": "Use js static check strategy with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "d2e1037f13fd04f5e5597aab46728ab58bf5cc02e1634e0edd262322a463b3b9"
-    },
-    {
-      "id": "matrix-cell-onboard",
-      "name": "matrix-cell-onboard",
-      "usage": {
-        "display_name": "Matrix Cell Onboard",
-        "summary": "Plan and optionally apply one multi-major CI matrix cell",
-        "syntax": "$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]",
-        "input_kind": "mixed",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "php-version",
-            "syntax": "<php-version>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "PHP runtime version"
-          },
-          {
-            "id": "laravel-version",
-            "syntax": "<laravel-version>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Laravel version"
-          },
-          {
-            "id": "phpunit",
-            "syntax": "<phpunit>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "PHPUnit version"
-          },
-          {
-            "id": "monolog",
-            "syntax": "<monolog>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Monolog version"
-          }
-        ],
-        "actions": [
-          {
-            "id": "onboard",
-            "summary": "Plan and apply one matrix cell",
-            "syntax": "$matrix-cell-onboard <php-version> <laravel-version>",
-            "input_kind": "mixed",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$matrix-cell-onboard 8.3 12 11 3",
-            "summary": "Use matrix cell onboard with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "e942d1c111138d66292691d79093d7dac1be21ddfd7fe5898a8edba1f546f2d3"
-    },
-    {
-      "id": "merge-prep",
-      "name": "merge-prep",
-      "usage": {
-        "display_name": "Merge Prep",
-        "summary": "Analyze a branch merge without mutating the repository",
-        "syntax": "$merge-prep <source-branch> [--target=<branch>]",
-        "input_kind": "identifier",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [
-          {
-            "id": "source-branch",
-            "syntax": "<source-branch>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Branch to analyze"
-          }
-        ],
-        "actions": [
-          {
-            "id": "prepare",
-            "summary": "Analyze merge conflicts and manual commands",
-            "syntax": "$merge-prep <source-branch>",
-            "input_kind": "identifier",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "target",
-            "syntax": "--target=<branch>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Target branch for the analysis"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$merge-prep feature/topic --target=main",
-            "summary": "Use merge prep with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "879b43381a9bf9c0233b0f17e9392bd161317d0a1cd9971d3e07a634b6bdd326"
-    },
-    {
-      "id": "pr-summary",
-      "name": "pr-summary",
-      "usage": {
-        "display_name": "PR Summary",
-        "summary": "Summarize open pull requests with evidence",
-        "syntax": "$pr-summary [--author=<user>] [--label=<label>]",
-        "input_kind": "none",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [],
-        "actions": [
-          {
-            "id": "summarize",
-            "summary": "Group accessible open pull requests",
-            "syntax": "$pr-summary",
-            "input_kind": "none",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "author",
-            "syntax": "--author=<user>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Filter by pull-request author"
-          },
-          {
-            "id": "label",
-            "syntax": "--label=<label>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Filter by pull-request label"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$pr-summary --label=ready",
-            "summary": "Use pr summary with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "dcd0dbeea58a53a4a6f1947469a85b062a13f7f4580c33753c7d736cd141b670"
-    },
-    {
       "id": "precommit",
       "name": "precommit",
       "usage": {
@@ -1320,52 +732,6 @@
         ]
       },
       "usageFingerprint": "920521f2abafda14ea87a7e44569f5bb5aec2b4b245bff78d43271b5d54ea699"
-    },
-    {
-      "id": "project-brief",
-      "name": "project-brief",
-      "usage": {
-        "display_name": "Project Brief",
-        "summary": "Convert one technical specification into an executive brief",
-        "syntax": "$project-brief <tech-spec-path> [--output=<output-path>]",
-        "input_kind": "path",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "tech-spec-path",
-            "syntax": "<tech-spec-path>",
-            "value_kind": "string",
-            "required": true,
-            "summary": "Readable technical specification"
-          }
-        ],
-        "actions": [
-          {
-            "id": "brief",
-            "summary": "Write an executive summary without changing the source",
-            "syntax": "$project-brief <tech-spec-path>",
-            "input_kind": "path",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [
-          {
-            "id": "output",
-            "syntax": "--output=<output-path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Destination for the brief"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$project-brief docs/spec.md --output=docs/brief.md",
-            "summary": "Use project brief with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "c9b320d28f4fb9dbd4c6b38dc2b376b847dd48102cbfd2f6f39f871f7ecbda8a"
     },
     {
       "id": "proposal-analyze",
@@ -1514,121 +880,6 @@
       "usageFingerprint": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb"
     },
     {
-      "id": "review-pending",
-      "name": "review-pending",
-      "usage": {
-        "display_name": "Review Pending",
-        "summary": "Delegate a read-only pending-change review",
-        "syntax": "$review-pending [--files=<rel-paths>]",
-        "input_kind": "none",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "delegate",
-        "inputs": [],
-        "actions": [
-          {
-            "id": "review",
-            "summary": "Delegate the selected pending files to code-reviewer",
-            "syntax": "$review-pending",
-            "input_kind": "none",
-            "effect_authority": "delegate"
-          }
-        ],
-        "options": [
-          {
-            "id": "files",
-            "syntax": "--files=<rel-paths>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Comma-separated relative file paths"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$review-pending --files=src/a.js",
-            "summary": "Use review pending with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "1a8af23d3337618651c3a1408255e1e90b59445ef26b22ca5e6e4640755a83d8"
-    },
-    {
-      "id": "skill-scope",
-      "name": "skill-scope",
-      "usage": {
-        "display_name": "Skill Scope",
-        "summary": "Route skill governance to one focused mode with evidence",
-        "syntax": "$skill-scope <health|judge|stocktake|scout>",
-        "input_kind": "action-first",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "delegate",
-        "inputs": [
-          {
-            "id": "mode",
-            "syntax": "<health|judge|stocktake|scout>",
-            "value_kind": "enum",
-            "required": true,
-            "summary": "Choose one skill governance mode",
-            "enum_values": [
-              "health",
-              "judge",
-              "stocktake",
-              "scout"
-            ]
-          },
-          {
-            "id": "target",
-            "syntax": "<target>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select the skill or capability to inspect",
-            "applies_to": [
-              "health",
-              "judge",
-              "scout"
-            ]
-          }
-        ],
-        "actions": [
-          {
-            "id": "health",
-            "summary": "Check one skill or package structure",
-            "syntax": "$skill-scope health <skill>",
-            "input_kind": "identifier",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "judge",
-            "summary": "Score one skill or package quality",
-            "syntax": "$skill-scope judge <skill>",
-            "input_kind": "identifier",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "stocktake",
-            "summary": "Audit installed consumer skills and commands",
-            "syntax": "$skill-scope stocktake",
-            "input_kind": "none",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "scout",
-            "summary": "Search for an existing skill or capability",
-            "syntax": "$skill-scope scout <capability>",
-            "input_kind": "free-text",
-            "effect_authority": "delegate"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$skill-scope health flow-guide",
-            "summary": "Run a focused health check for one skill"
-          }
-        ]
-      },
-      "usageFingerprint": "e17a0ce771f9d79a874c482c9e968878e86ce9f7ac6a094a89db8151cb3c7017"
-    },
-    {
       "id": "tdd",
       "name": "tdd-workflow",
       "usage": {
@@ -1691,34 +942,49 @@
       "usageFingerprint": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d"
     },
     {
-      "id": "update-codemaps",
-      "name": "update-codemaps",
+      "id": "ui-ux-verify",
+      "name": "ui-ux-verify",
       "usage": {
-        "display_name": "Update Codemaps",
-        "summary": "Refresh architecture codemaps from the live project structure",
-        "syntax": "$update-codemaps",
-        "input_kind": "none",
+        "display_name": "UI UX Verify",
+        "summary": "Audit one rendered page against one UI specification",
+        "syntax": "$ui-ux-verify [<url>] [spec:<spec-path>]",
+        "input_kind": "mixed",
         "invocation_class": "implicit-eligible",
         "effect_authority": "workspace-write",
-        "inputs": [],
+        "inputs": [
+          {
+            "id": "url",
+            "syntax": "<url>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Page URL"
+          },
+          {
+            "id": "spec-path",
+            "syntax": "<spec-path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "OpenSpec UI specification"
+          }
+        ],
         "actions": [
           {
-            "id": "update",
-            "summary": "Refresh the bounded architecture codemaps",
-            "syntax": "$update-codemaps",
-            "input_kind": "none",
+            "id": "verify",
+            "summary": "Capture and report one read-only UI audit",
+            "syntax": "$ui-ux-verify [<url>] [spec:<spec-path>]",
+            "input_kind": "mixed",
             "effect_authority": "workspace-write"
           }
         ],
         "options": [],
         "examples": [
           {
-            "prompt": "$update-codemaps",
-            "summary": "Use update codemaps with its declared interface"
+            "prompt": "$ui-ux-verify spec:openspec/changes/example/spec.md",
+            "summary": "Use ui ux verify with its declared interface"
           }
         ]
       },
-      "usageFingerprint": "0bf8b73840bccef16d4e4fbea12581029da9a48607769da14214b038f97ffa07"
+      "usageFingerprint": "74662b383f8b0e7065d76c754c00cac7e85501018556b80d5b6205898d6e28bd"
     },
     {
       "id": "update-docs",
@@ -1759,6 +1025,7 @@
       "usageFingerprint": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
     }
   ],
+  "sourceSelectionDigest": "eb367fad6a7525ca68ef4e3348123442dfa54e8a9feea5b02ec60872b756f092",
   "runtimeIndex": {
     "targets": {
       "agy-fast-worker": {
@@ -1772,8 +1039,8 @@
         "id": "change-verdict",
         "publicName": "change-verdict",
         "invocationClass": "implicit-eligible",
-        "command": "$change-verdict <input>",
-        "codexInvokable": false
+        "command": "$change-verdict [--mode=<mode>] [--coverage] [<target>]",
+        "codexInvokable": true
       },
       "cli-dispatch-context": {
         "id": "cli-dispatch-context",
@@ -1793,8 +1060,8 @@
         "id": "code-simplify",
         "publicName": "code-simplify",
         "invocationClass": "implicit-eligible",
-        "command": "$code-simplify [<target>]",
-        "codexInvokable": true
+        "command": "$code-simplify <input>",
+        "codexInvokable": false
       },
       "code-trace": {
         "id": "code-trace",
@@ -1842,8 +1109,8 @@
         "id": "doc-refactor",
         "publicName": "doc-refactor",
         "invocationClass": "implicit-eligible",
-        "command": "$doc-refactor <file-path>",
-        "codexInvokable": true
+        "command": "$doc-refactor <input>",
+        "codexInvokable": false
       },
       "fastapi-pro": {
         "id": "fastapi-pro",
@@ -1933,15 +1200,15 @@
         "id": "harness-audit",
         "publicName": "harness-audit",
         "invocationClass": "implicit-eligible",
-        "command": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
-        "codexInvokable": true
+        "command": "$harness-audit <input>",
+        "codexInvokable": false
       },
       "harness-govern": {
         "id": "harness-govern",
         "publicName": "harness-govern",
         "invocationClass": "explicit-only",
-        "command": "$harness-govern <health|budget|fill|revise|sync> [options]",
-        "codexInvokable": true
+        "command": "$harness-govern <input>",
+        "codexInvokable": false
       },
       "harness-setup": {
         "id": "harness-setup",
@@ -1982,8 +1249,8 @@
         "id": "js-static-check-strategy",
         "publicName": "js-static-check-strategy",
         "invocationClass": "implicit-eligible",
-        "command": "$js-static-check-strategy status [--path=<path>]",
-        "codexInvokable": true
+        "command": "$js-static-check-strategy <input>",
+        "codexInvokable": false
       },
       "laravel": {
         "id": "laravel",
@@ -2010,8 +1277,8 @@
         "id": "legacy-code-characterization",
         "publicName": "dhpk-legacy-characterization-tests",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-legacy-characterization-tests <legacy-target>",
-        "codexInvokable": true
+        "command": "$dhpk-legacy-characterization-tests <input>",
+        "codexInvokable": false
       },
       "library-dual-testsuite-map": {
         "id": "library-dual-testsuite-map",
@@ -2024,15 +1291,15 @@
         "id": "matrix-cell-onboard",
         "publicName": "matrix-cell-onboard",
         "invocationClass": "implicit-eligible",
-        "command": "$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]",
-        "codexInvokable": true
+        "command": "$matrix-cell-onboard <input>",
+        "codexInvokable": false
       },
       "merge-prep": {
         "id": "merge-prep",
         "publicName": "merge-prep",
         "invocationClass": "implicit-eligible",
-        "command": "$merge-prep <source-branch> [--target=<branch>]",
-        "codexInvokable": true
+        "command": "$merge-prep <input>",
+        "codexInvokable": false
       },
       "nextjs-15-5-notes": {
         "id": "nextjs-15-5-notes",
@@ -2073,15 +1340,15 @@
         "id": "opsx-load-context",
         "publicName": "dhpk-opsx-load-context",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-opsx-load-context",
-        "codexInvokable": true
+        "command": "$dhpk-opsx-load-context <input>",
+        "codexInvokable": false
       },
       "opsx-post-obs": {
         "id": "opsx-post-obs",
         "publicName": "dhpk-opsx-post-observation",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-opsx-post-observation <observation-context>",
-        "codexInvokable": true
+        "command": "$dhpk-opsx-post-observation <input>",
+        "codexInvokable": false
       },
       "php-8x-features": {
         "id": "php-8x-features",
@@ -2101,15 +1368,15 @@
         "id": "php-pro",
         "publicName": "dhpk-php-runtime-router",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-php-runtime-router <php-task>",
-        "codexInvokable": true
+        "command": "$dhpk-php-runtime-router <input>",
+        "codexInvokable": false
       },
       "php56-yii-dev": {
         "id": "php56-yii-dev",
         "publicName": "dhpk-yii1-php56-development",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-yii1-php56-development <backend-task>",
-        "codexInvokable": true
+        "command": "$dhpk-yii1-php56-development <input>",
+        "codexInvokable": false
       },
       "phpunit": {
         "id": "phpunit",
@@ -2129,8 +1396,8 @@
         "id": "pr-summary",
         "publicName": "pr-summary",
         "invocationClass": "implicit-eligible",
-        "command": "$pr-summary [--author=<user>] [--label=<label>]",
-        "codexInvokable": true
+        "command": "$pr-summary <input>",
+        "codexInvokable": false
       },
       "precommit": {
         "id": "precommit",
@@ -2150,8 +1417,8 @@
         "id": "project-brief",
         "publicName": "project-brief",
         "invocationClass": "implicit-eligible",
-        "command": "$project-brief <tech-spec-path> [--output=<output-path>]",
-        "codexInvokable": true
+        "command": "$project-brief <input>",
+        "codexInvokable": false
       },
       "project-setup": {
         "id": "project-setup",
@@ -2234,8 +1501,8 @@
         "id": "review-pending",
         "publicName": "review-pending",
         "invocationClass": "implicit-eligible",
-        "command": "$review-pending [--files=<rel-paths>]",
-        "codexInvokable": true
+        "command": "$review-pending <input>",
+        "codexInvokable": false
       },
       "session-usage-audit": {
         "id": "session-usage-audit",
@@ -2248,8 +1515,8 @@
         "id": "skill-scope",
         "publicName": "skill-scope",
         "invocationClass": "implicit-eligible",
-        "command": "$skill-scope <health|judge|stocktake|scout>",
-        "codexInvokable": true
+        "command": "$skill-scope <input>",
+        "codexInvokable": false
       },
       "software-architecture": {
         "id": "software-architecture",
@@ -2290,15 +1557,15 @@
         "id": "ui-ux-verify",
         "publicName": "ui-ux-verify",
         "invocationClass": "implicit-eligible",
-        "command": "$ui-ux-verify <input>",
-        "codexInvokable": false
+        "command": "$ui-ux-verify [<url>] [spec:<spec-path>]",
+        "codexInvokable": true
       },
       "update-codemaps": {
         "id": "update-codemaps",
         "publicName": "update-codemaps",
         "invocationClass": "implicit-eligible",
-        "command": "$update-codemaps",
-        "codexInvokable": true
+        "command": "$update-codemaps <input>",
+        "codexInvokable": false
       },
       "update-docs": {
         "id": "update-docs",
@@ -2325,8 +1592,8 @@
         "id": "yii1-security-audit",
         "publicName": "dhpk-yii1-security-audit",
         "invocationClass": "implicit-eligible",
-        "command": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
-        "codexInvokable": true
+        "command": "$dhpk-yii1-security-audit <input>",
+        "codexInvokable": false
       }
     },
     "aliases": {

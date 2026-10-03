@@ -3,23 +3,35 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { compileMarketplaceSelection, compileDispositionLedger } = require('../scripts/lib/marketplace-selection');
+const {
+  compileMarketplaceSelection,
+  compileMarketplacePublicationView,
+  compileDispositionLedger,
+} = require('../scripts/lib/marketplace-selection');
 
 const ROOT = path.join(__dirname, '..');
 const readJson = (relative) => JSON.parse(fs.readFileSync(path.join(ROOT, relative), 'utf8'));
 const INVENTORY = readJson('manifests/distribution-inventory.json');
 const SELECTION = readJson('manifests/marketplace-selection.json');
 const ALIASES = Object.keys(readJson('skills/flow-guide/references/codex-usage-catalog.json').runtimeIndex.aliases);
-const PACKAGE_SKILL_ROOTS = [
-  'plugins/dhpk/skills',
-  'plugins/dhpk-agent/skills',
-  'plugins/dhpk-agy/skills',
-  'plugins/dhpk-cursor/skills',
-  'generated/claude-marketplace/package/skills',
+const PACKAGE_SKILL_CATALOGS = [
+  { root: 'plugins/dhpk/skills', surface: 'codex-native', includeCommon: true },
+  { root: 'plugins/dhpk-agent/skills', surface: 'agent-plugin', includeCommon: true },
+  { root: 'plugins/dhpk-agy/skills', surface: 'agy-plugin', includeCommon: true },
+  // Cursor owns its Host-only overlay; its common entries are shared from Agent.
+  { root: 'plugins/dhpk-cursor/skills', surface: 'cursor-plugin', includeCommon: false },
+  { root: 'generated/claude-marketplace/package/skills', surface: 'claude-core', includeCommon: true },
 ];
+const PACKAGE_SKILL_ROOTS = PACKAGE_SKILL_CATALOGS.map(({ root }) => root);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const compile = (overrides = {}) => compileMarketplaceSelection({
+  inventory: INVENTORY,
+  selection: SELECTION,
+  aliases: ALIASES,
+  ...overrides,
+});
+const compilePublication = (overrides = {}) => compileMarketplacePublicationView({
   inventory: INVENTORY,
   selection: SELECTION,
   aliases: ALIASES,
@@ -45,6 +57,128 @@ test('the accepted catalog compiles to 15 public entries with every child folded
   assert.strictEqual(result.withdrawn.length, 6);
 });
 
+test('the publication view preserves full catalog descriptors and folds all common children', () => {
+  const result = compilePublication();
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.publicEntries.length, 15);
+  assert.strictEqual(Object.values(result.bundledChildren).reduce((total, rows) => total + rows.length, 0), 45);
+  assert.strictEqual(result.hostOnly.length, 0);
+  assert.strictEqual(result.withdrawn.length, 6);
+
+  const entry = result.publicEntries.find((row) => row.id === 'flow-guide');
+  const entrySource = INVENTORY.skills.find((row) => row.id === 'flow-guide');
+  for (const [key, value] of Object.entries(entrySource)) assert.deepStrictEqual(entry[key], value, `flow-guide.${key}`);
+  assert.strictEqual(entry.path, 'skills/flow-guide');
+  assert.deepStrictEqual(entry.versionCondition, []);
+
+  const child = result.bundledChildren['flow-drive'].find((row) => row.id === 'php56-yii-dev');
+  const childSource = INVENTORY.skills.find((row) => row.id === 'php56-yii-dev');
+  for (const [key, value] of Object.entries(childSource)) assert.deepStrictEqual(child[key], value, `php56-yii-dev.${key}`);
+  assert.strictEqual(child.path, 'skills/dhpk-yii1-php56-development');
+  assert.deepStrictEqual(child.profiles, ['yii-1.1']);
+  assert.deepStrictEqual(child.versionCondition, ['yii-1.1']);
+  assert.strictEqual(child.owner, 'flow-drive');
+});
+
+test('common entries ignore old inventory surface membership in a host view', () => {
+  const inventory = clone(INVENTORY);
+  delete inventory.skills.find((skill) => skill.id === 'flow-drive').surfaces;
+  const result = compilePublication({ inventory, hostSurface: 'agent-plugin' });
+  assert.deepStrictEqual(result.errors, []);
+  assert.ok(result.publicEntries.some((entry) => entry.id === 'flow-drive'));
+  assert.strictEqual(result.publicEntries.length, 15);
+});
+
+test('host-only rows follow the requested inventory surface and no surface is implied', () => {
+  const expectedCounts = {
+    'claude-core': 15,
+    'claude-module': 2,
+    'codex-sync': 7,
+    'codex-native': 7,
+    'agent-plugin': 2,
+    'cursor-plugin': 2,
+    'cursor-sync': 15,
+    'agy-plugin': 2,
+  };
+  for (const [surface, count] of Object.entries(expectedCounts)) {
+    const result = compilePublication({ hostSurface: surface });
+    assert.deepStrictEqual(result.errors, [], `${surface} errors`);
+    assert.strictEqual(result.hostOnly.length, count, `${surface} host-only rows`);
+  }
+  const agentOnly = compilePublication({ hostSurface: 'agent-plugin' }).hostOnly.map((entry) => entry.id).sort();
+  assert.deepStrictEqual(agentOnly, ['cli-dispatch-context', 'cli-transport']);
+});
+
+test('the selection digest is SHA-256 over canonical JSON regardless of object key order', () => {
+  const inventory = {
+    surfaces: ['claude-core'],
+    skills: [{ id: 'catalog-skill', name: 'catalog-skill', path: 'skills/catalog-skill', profiles: ['core'], surfaces: ['claude-core'] }],
+  };
+  const selection = {
+    skills: [{ id: 'catalog-skill', authority: 'read-only', kind: 'entry', owner: 'catalog-skill', selection: 'common' }],
+  };
+  const reorderedSelection = {
+    skills: [{ selection: 'common', owner: 'catalog-skill', kind: 'entry', id: 'catalog-skill', authority: 'read-only' }],
+  };
+  const result = compilePublication({ inventory, selection });
+  const reordered = compilePublication({ inventory, selection: reorderedSelection });
+  assert.deepStrictEqual(result.errors, []);
+  assert.strictEqual(result.selectionDigest, '16f180efaf0ca4aea63a4897120b5f09849608ca0b1541c331ba7327f2e00085');
+  assert.strictEqual(reordered.selectionDigest, result.selectionDigest);
+});
+
+test('the publication view freezes copied descriptors without freezing or changing inputs', () => {
+  const inventory = clone(INVENTORY);
+  const selection = clone(SELECTION);
+  const inventoryBefore = JSON.stringify(inventory);
+  const selectionBefore = JSON.stringify(selection);
+  const result = compilePublication({ inventory, selection });
+  const entry = result.publicEntries.find((row) => row.id === 'flow-guide');
+  assert.strictEqual(JSON.stringify(inventory), inventoryBefore);
+  assert.strictEqual(JSON.stringify(selection), selectionBefore);
+  assert.ok(!Object.isFrozen(inventory.skills[0]));
+  assert.ok(Object.isFrozen(result));
+  assert.ok(Object.isFrozen(result.publicEntries));
+  assert.ok(Object.isFrozen(entry));
+  assert.ok(Object.isFrozen(entry.profiles));
+  assert.ok(Object.isFrozen(entry.usage));
+  assert.ok(Object.isFrozen(entry.usage.actions));
+  assert.ok(Object.isFrozen(entry.usage.actions[0]));
+});
+
+test('an invalid selected child fails closed without partial publication data', () => {
+  const selection = clone(SELECTION);
+  const child = selection.skills.find((skill) => skill.id === 'php56-yii-dev');
+  child.owner = 'missing-owner';
+  const result = compilePublication({ selection });
+  assert.match(errorText(result), /php56-yii-dev/);
+  assert.match(errorText(result), /owner/i);
+  assert.deepStrictEqual(result.publicEntries, []);
+  assert.deepStrictEqual(result.bundledChildren, {});
+  assert.deepStrictEqual(result.hostOnly, []);
+  assert.deepStrictEqual(result.withdrawn, []);
+});
+
+test('an unknown host surface fails closed without partial publication data', () => {
+  const result = compilePublication({ hostSurface: 'missing-surface' });
+  assert.match(errorText(result), /missing-surface/);
+  assert.deepStrictEqual(result.publicEntries, []);
+  assert.deepStrictEqual(result.bundledChildren, {});
+  assert.deepStrictEqual(result.hostOnly, []);
+  assert.deepStrictEqual(result.withdrawn, []);
+});
+
+test('a host-only row without inventory surface data fails closed', () => {
+  const inventory = clone(INVENTORY);
+  delete inventory.skills.find((skill) => skill.id === 'cli-transport').surfaces;
+  const result = compilePublication({ inventory, hostSurface: 'agent-plugin' });
+  assert.match(errorText(result), /cli-transport.*surfaces/i);
+  assert.deepStrictEqual(result.publicEntries, []);
+  assert.deepStrictEqual(result.bundledChildren, {});
+  assert.deepStrictEqual(result.hostOnly, []);
+  assert.deepStrictEqual(result.withdrawn, []);
+});
+
 test('the recorded naming decision is the user decision to keep current names', () => {
   assert.strictEqual(SELECTION.naming_decision.decided_by, 'user');
   assert.strictEqual(SELECTION.naming_decision.decided_on, '2026-10-02');
@@ -66,9 +200,16 @@ test('every generated package lists skills under their inventory name, never an 
   const inventoryNames = new Set(INVENTORY.skills.map((skill) => skill.name));
   const aliasSet = new Set(ALIASES);
   let checked = 0;
-  for (const relative of PACKAGE_SKILL_ROOTS) {
+  for (const { root: relative, surface, includeCommon } of PACKAGE_SKILL_CATALOGS) {
     const root = path.join(ROOT, relative);
-    if (!fs.existsSync(root)) continue;
+    assert.ok(fs.existsSync(root), `${relative} must be generated`);
+    const publication = compilePublication({ hostSurface: surface });
+    assert.deepStrictEqual(publication.errors, [], `${surface} publication must compile`);
+    const expectedEntries = includeCommon
+      ? [...publication.publicEntries, ...publication.hostOnly]
+      : publication.hostOnly;
+    const expectedNames = expectedEntries.map((entry) => entry.name).sort();
+    const actualNames = [];
     for (const directory of fs.readdirSync(root)) {
       const file = path.join(root, directory, 'SKILL.md');
       if (!fs.existsSync(file)) continue;
@@ -76,10 +217,12 @@ test('every generated package lists skills under their inventory name, never an 
       assert.strictEqual(name, directory, `${relative}/${directory} lists ${name}`);
       assert.ok(inventoryNames.has(name), `${relative}/${directory} is not an inventory name`);
       assert.ok(!aliasSet.has(name), `${relative}/${directory} is a runtime alias`);
+      actualNames.push(name);
       checked += 1;
     }
+    assert.deepStrictEqual(actualNames.sort(), expectedNames, `${relative} must contain exactly its published catalog entries`);
   }
-  assert.ok(checked > 100, `expected the generated packages to be scanned, got ${checked}`);
+  assert.strictEqual(checked, 88, 'generated common and Host-only entry roots must expose 88 direct Skill entrypoints');
 });
 
 test('an inventory ID missing from the selection fails closed', () => {

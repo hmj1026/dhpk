@@ -360,7 +360,7 @@ test('generator check detects manual edits to generated usage documentation', ()
     fs.mkdirSync(path.join(fixture, 'manifests'), { recursive: true });
     fs.mkdirSync(path.join(fixture, 'skills/flow-guide/references'), { recursive: true });
     fs.mkdirSync(path.join(fixture, 'docs'), { recursive: true });
-    for (const relative of ['manifests/distribution-inventory.json', 'skills/flow-guide/references/codex-usage-catalog.json', 'docs/codex-skill-usage.md', 'docs/codex-skill-usage.zh-TW.md']) {
+    for (const relative of ['manifests/distribution-inventory.json', 'manifests/marketplace-selection.json', 'skills/flow-guide/references/codex-usage-catalog.json', 'docs/codex-skill-usage.md', 'docs/codex-skill-usage.zh-TW.md']) {
       const destination = path.join(fixture, relative);
       fs.copyFileSync(path.join(ROOT, relative), destination);
     }

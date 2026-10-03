@@ -593,20 +593,12 @@ test('Agent Plugin verifier turns a child fingerprint failure into a structural 
   }
 });
 
-test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted package fixture', () => {
+test('default Agent Plugin generation publishes the canonical owner catalog', () => {
   const out = tmpDir('dhpk-agent-equivalence-out-');
   try {
     const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
     const sourceManifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
     const priorReceipt = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
-    const profileSelection = priorReceipt.profileId ? {
-      profileId: priorReceipt.profileId,
-      selectedStableIds: priorReceipt.selectedStableIds,
-      emittedStableIds: priorReceipt.emittedStableIds,
-      compatibilityMode: priorReceipt.compatibilityMode,
-      selectionPolicyVersion: priorReceipt.selectionPolicyVersion,
-      selectionFingerprint: priorReceipt.selectionFingerprint,
-    } : undefined;
     materializeAgentPluginPackage({
       inventory,
       root: ROOT,
@@ -615,9 +607,90 @@ test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted
       version: sourceManifest.version,
       sourceCommit: priorReceipt.sourceCommit,
       manifestMetadata: sourceManifest,
-      profileSelection,
     });
-    assertPackageFilesEquivalent(packageFiles(out), packageFiles(path.join(ROOT, 'plugins', 'dhpk-agent')));
+    const selection = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
+    const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
+    const commonIds = selection.skills.filter((entry) => entry.selection === 'common' && entry.kind === 'entry')
+      .map((entry) => entry.id).sort();
+    const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
+      && inventoryById.get(entry.id).surfaces.includes('agent-plugin')).map((entry) => entry.id).sort();
+    const expectedIds = [...commonIds, ...hostOnlyIds].sort();
+    const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
+    const actualNames = fs.readdirSync(path.join(out, 'skills')).filter((name) => fs.existsSync(path.join(out, 'skills', name, 'SKILL.md'))).sort();
+    assert.strictEqual(commonIds.length, 15);
+    assert.strictEqual(hostOnlyIds.length, 2);
+    assert.deepStrictEqual(actualNames, expectedIds.map((id) => inventoryById.get(id).name).sort());
+    assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
+    assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);
+    assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);
+  } finally { fs.rmSync(out, { recursive: true, force: true }); }
+});
+
+test('Agent Plugin without a marketplace manifest preserves inventory-surface membership', () => {
+  const legacyRoot = tmpDir('dhpk-agent-legacy-source-');
+  const out = tmpDir('dhpk-agent-legacy-out-');
+  try {
+    const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+    const sourceManifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+    fs.mkdirSync(path.join(legacyRoot, 'manifests'), { recursive: true });
+    fs.copyFileSync(MANIFEST, path.join(legacyRoot, 'manifests', 'distribution-inventory.json'));
+    fs.cpSync(path.join(ROOT, 'skills'), path.join(legacyRoot, 'skills'), { recursive: true });
+    materializeAgentPluginPackage({
+      inventory,
+      root: legacyRoot,
+      outDir: out,
+      name: sourceManifest.name,
+      version: sourceManifest.version,
+      sourceCommit: 'unknown',
+      manifestMetadata: sourceManifest,
+    });
+    const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
+    const membership = inventory.surface_membership && inventory.surface_membership['agent-plugin'];
+    const surfaceIds = Array.isArray(membership)
+      ? membership
+      : inventory.skills.filter((entry) => entry.surfaces && entry.surfaces.includes('agent-plugin')).map((entry) => entry.id);
+    const expectedIds = [...new Set([...surfaceIds, ...inventory.internal_runtime_skills['agent-plugin']])]
+      .filter((id) => inventoryById.get(id) && inventoryById.get(id).lifecycle !== 'deprecated');
+    const expectedNames = expectedIds.map((id) => inventoryById.get(id).name || id).sort();
+    const actualNames = fs.readdirSync(path.join(out, 'skills')).sort();
+    assert.deepStrictEqual(actualNames, expectedNames);
+  } finally {
+    fs.rmSync(legacyRoot, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('explicit Agent Plugin profile selection stays separate from the default catalog', () => {
+  const out = tmpDir('dhpk-agent-profile-out-');
+  try {
+    const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+    const sourceManifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+    const priorReceipt = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
+    const requiredCoreIds = inventory.profile_policy.required_core_ids.slice().sort();
+    const { resolveCapabilitySelection } = require('../scripts/lib/capability-bundle-selection');
+    const resolved = resolveCapabilitySelection({
+      inventory,
+      profileId: 'minimal',
+      profiles: { profiles: { minimal: { skillIds: requiredCoreIds, modules: [] } } },
+    });
+    assert.ok(resolved.ok, resolved.error && resolved.error.message);
+    materializeAgentPluginPackage({
+      inventory,
+      root: ROOT,
+      outDir: out,
+      name: sourceManifest.name,
+      version: sourceManifest.version,
+      sourceCommit: priorReceipt.sourceCommit,
+      manifestMetadata: sourceManifest,
+      profileSelection: resolved.value,
+    });
+    const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
+    const actualNames = fs.readdirSync(path.join(out, 'skills')).filter((name) => fs.existsSync(path.join(out, 'skills', name, 'SKILL.md'))).sort();
+    const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
+    const expectedRootIds = [...requiredCoreIds, ...inventory.internal_runtime_skills['agent-plugin']];
+    assert.deepStrictEqual(actualNames, expectedRootIds.map((id) => inventoryById.get(id).name).sort());
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(provenance, 'marketplacePublication'), false);
+    assert.strictEqual(provenance.profileId, 'minimal');
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });
 
