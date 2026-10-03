@@ -388,6 +388,7 @@ function materializeAgyPluginPackage({
   sourceCommit,
   generatorVersion = GENERATOR_VERSION,
   profileSelection = null,
+  publication = null,
 } = {}) {
   if (!root || !inventory || !outDir) throw new Error('root, inventory, and outDir are required');
   if (!SEMVER.test(version) || !SEMVER.test(sourceVersion)) throw new Error('AGY package version and sourceVersion must be SemVer');
@@ -513,6 +514,7 @@ function materializeAgyPluginPackage({
     generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
     inventoryDigest: legacyInventoryDigest(inventory),
     fingerprints,
+    ...(publication || {}),
     installation: createInstallationReceiptIdentity({
       surface: SURFACE, scope: 'user', sourceVersion,
       inventoryDigest: legacyInventoryDigest(inventory),
@@ -585,7 +587,7 @@ function materializeAgyPluginPackage({
   }
   writeJson(path.join(outputRoot, 'fingerprints.json'), { schema: PACKAGE_SCHEMA, files: fingerprints });
   writeJson(path.join(outputRoot, 'provenance.json'), receipt);
-  const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory, profileSelection, publicationView: selected.publicationView });
+  const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory, profileSelection, publicationView: selected.publicationView, allowPreview: Boolean(publication && publication.publicationMode === 'preview') });
   if (!checked.ok) throw new Error(`generated AGY package failed validation: ${checked.errors.join('; ')}`);
   promoteOutputRoot(outputRoot, destination);
   promoted = true;
@@ -595,7 +597,7 @@ function materializeAgyPluginPackage({
   }
 }
 
-function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null, sourceRoot = null, publicationView = null } = {}) {
+function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null, sourceRoot = null, publicationView = null, allowPreview = false } = {}) {
   const errors = [];
   const warnings = [];
   const root = path.resolve(packageRoot || '');
@@ -701,7 +703,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   let provenance = null;
   try { provenance = readJson(path.join(root, 'provenance.json'), 'provenance.json'); } catch (error) { errors.push(error.message); }
   if (provenance) {
-    const checked = validateSurfaceReceipt({ ...provenance, schema: 'dhpk.platform-provenance.v1' }, SURFACE);
+    const checked = validateSurfaceReceipt({ ...provenance, schema: 'dhpk.platform-provenance.v1' }, SURFACE, { allowPreview });
     errors.push(...checked.errors);
     if (provenance.schema !== PACKAGE_SCHEMA) errors.push(`provenance schema must be ${PACKAGE_SCHEMA}`);
     if (provenance.packageRoot !== 'plugins/dhpk-agy') errors.push('provenance packageRoot is not owner-scoped');

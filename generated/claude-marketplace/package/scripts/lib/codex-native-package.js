@@ -421,6 +421,7 @@ function compileNativePackage({
   traversalOptions = {},
   selectionMode = 'compiler',
   profileSelection = null,
+  publication = null,
 } = {}) {
   if (!root || !outDir) throw new Error('compileNativePackage requires root and outDir');
   if (profileSelection) {
@@ -589,6 +590,7 @@ function compileNativePackage({
     materializedSkillIds,
     materializedSkillNames,
     runtimeSupportStableIds: nativeSelection.runtimeSupportStableIds,
+    ...(publication || {}),
     ...(hostPublication ? {
       marketplacePublication: {
         selectionDigest: hostPublication.selectionDigest,
@@ -814,6 +816,7 @@ function materializeNativePackage({
   artifactStore,
   traversalOptions = {},
   profileSelection = null,
+  publication = null,
 }) {
   if (!root || !outDir) throw new Error('materializeNativePackage requires root and outDir');
   const resolvedRoot = path.resolve(root);
@@ -834,6 +837,7 @@ function materializeNativePackage({
     generatorVersion,
     traversalOptions,
     profileSelection,
+    publication,
   });
   const parent = path.dirname(resolvedOut);
   const store = artifactStore || new ProjectionArtifactStore({

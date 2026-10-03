@@ -31,8 +31,9 @@ const {
 } = require('./agy-plugin-package');
 const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheckout } = require('./platform-provenance');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
+const { createPreviewSourceSnapshot } = require('./distribution-preview');
 
-const OPERATIONS = Object.freeze(['generate', 'validate', 'verify']);
+const OPERATIONS = Object.freeze(['generate', 'preview', 'validate', 'verify']);
 const SURFACES = Object.freeze({
   'openai-submission': Object.freeze({ output: 'generated/openai-submission', adapter: 'openai-submission-package', runtimeProbe: 'OpenAI consumer execution' }),
   'agent-plugin': Object.freeze({ output: 'plugins/dhpk-agent', adapter: 'agent-plugin-package', runtimeProbe: 'Agent Plugin client discovery', run: runAgent }),
@@ -126,8 +127,11 @@ function parseRequest(argv) {
   const [surface, operation] = positional;
   if (!SURFACES[surface]) return { ok: false, status: 64, error: `unknown surface '${surface || ''}'` };
   if (!OPERATIONS.includes(operation)) return { ok: false, status: 64, error: `unknown operation '${operation || ''}'` };
-  if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|validate|verify> [--output <dir>] [--version <version>] [--json]' };
+  if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|preview|validate|verify> [--output <dir>] [--version <version>] [--json]' };
   if (surface === 'openai-submission') {
+    if (operation === 'preview') {
+      return { ok: false, status: 64, error: 'preview is supported only for agent-plugin, cursor-plugin, codex-native, and agy-plugin' };
+    }
     if (options.profileId || options.skillIds.length || options.standaloneSkillIds.length) {
       return { ok: false, status: 64, error: 'OpenAI submission requires the complete public catalog; partial selectors are forbidden' };
     }
@@ -136,6 +140,9 @@ function parseRequest(argv) {
     }
   } else if (options.manifest) {
     return { ok: false, status: 64, error: '--manifest is only supported for openai-submission' };
+  }
+  if (operation === 'preview' && options.output) {
+    return { ok: false, status: 64, error: 'preview uses a disposable temporary output and does not accept --output' };
   }
   if (options.standaloneSkillIds.length > 0 && (options.profileId || options.skillIds.length > 0)) {
     return { ok: false, status: 64, error: '--standalone cannot be combined with --profile or --skill' };
@@ -232,6 +239,7 @@ function receiptErrors(surface, output, context = null) {
         root: context.root,
         targetCommit: context.sourceCommit,
         targetTree: context.targetTree,
+        allowPreview: context.allowPreview === true,
       }
       : undefined;
     return validateSurfaceReceipt(commonReceipt, surface, validationContext).errors;
@@ -264,16 +272,18 @@ function assertOwnedGenerationTarget(surface, output) {
 }
 
 function runAgent(operation, context) {
-  if (operation === 'generate') {
+  if (operation === 'generate' || operation === 'preview') {
     const compiledProjection = compileAgentPluginPackage({
       inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version,
       sourceCommit: context.sourceCommit, manifestMetadata: context.manifest,
       profileSelection: context.profileSelection,
+      publication: context.publication,
     });
     const result = materializeAgentPluginPackage({
       inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version,
       sourceCommit: context.sourceCommit, manifestMetadata: context.manifest, compiledProjection,
       profileSelection: context.profileSelection,
+      publication: context.publication,
     });
     const validation = validateAgentPluginPackage(context.output, { allowlist: context.inventory.portable_frontmatter && context.inventory.portable_frontmatter.allowlist, inventory: context.inventory, profileSelection: context.profileSelection });
     return mergeReceipt('agent-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, warnings: validation.warnings, errors: validation.errors } }, context);
@@ -283,9 +293,9 @@ function runAgent(operation, context) {
 }
 
 function runCursor(operation, context) {
-  if (operation === 'generate') {
-    const compiledProjection = compileCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection });
-    const result = materializeCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection });
+  if (operation === 'generate' || operation === 'preview') {
+    const compiledProjection = compileCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection, publication: context.publication });
+    const result = materializeCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection, publication: context.publication });
     const validation = verifyCursorPackage({ packageRoot: context.output, stage: 'structural', inventory: context.inventory }).structural;
     return mergeReceipt('cursor-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillNames.length, warnings: validation.warnings, errors: validation.errors } }, context);
   }
@@ -294,9 +304,9 @@ function runCursor(operation, context) {
 }
 
 function runCodex(operation, context) {
-  if (operation === 'generate') {
-    const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection });
-    const result = materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection });
+  if (operation === 'generate' || operation === 'preview') {
+    const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection, publication: context.publication });
+    const result = materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection, publication: context.publication });
     const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, sourceRoot: context.root, stage: 'structural', profileSelection: context.profileSelection });
     return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, errors: validation.errors } }, context);
   }
@@ -324,13 +334,14 @@ function runCodex(operation, context) {
 }
 
 function runAgy(operation, context) {
-  if (operation === 'generate') {
+  if (operation === 'generate' || operation === 'preview') {
     const result = materializeAgyPluginPackage({
       root: context.root, inventory: context.inventory, outDir: context.output, version: context.version,
       sourceVersion: context.manifest.version, sourceCommit: context.sourceCommit, generatorVersion: AGY_GENERATOR_VERSION,
       profileSelection: context.profileSelection,
+      publication: context.publication,
     });
-    const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, sourceRoot: context.root, expectedVersion: context.version, profileSelection: context.profileSelection });
+    const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, sourceRoot: context.root, expectedVersion: context.version, profileSelection: context.profileSelection, allowPreview: context.allowPreview });
     return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { agentCount: result.selected.agents.length, skillCount: result.selected.skills.length, warnings: validation.warnings, errors: validation.errors } }, context);
   }
   const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, sourceRoot: context.root, expectedVersion: context.version, profileSelection: context.profileSelection });
@@ -340,20 +351,63 @@ function runAgy(operation, context) {
 function execute(argv, root) {
   const request = parseRequest(argv);
   if (!request.ok) return request;
+  let snapshot = null;
+  let previewOutput = null;
   try {
     if (request.surface === 'openai-submission') {
       return require('./openai-submission-command').executeOpenaiSubmission(request, root);
     }
-    const context = runtime(root, request);
+    let effectiveRequest = request;
+    if (request.operation === 'preview') {
+      snapshot = createPreviewSourceSnapshot(root);
+      const output = request.options.output
+        ? path.resolve(request.options.output)
+        : path.join(fs.realpathSync(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-preview-output-'))), request.surface);
+      const sourceReal = fs.realpathSync(root);
+      let outputParent = path.dirname(output);
+      while (!fs.existsSync(outputParent)) outputParent = path.dirname(outputParent);
+      const outputParentReal = fs.realpathSync(outputParent);
+      const outputRealCandidate = path.join(outputParentReal, path.basename(output));
+      const outputRelative = path.relative(sourceReal, outputRealCandidate);
+      if (outputRelative === '' || (!outputRelative.startsWith(`..${path.sep}`) && outputRelative !== '..' && !path.isAbsolute(outputRelative))) {
+        throw new Error('preview output must be outside the source checkout');
+      }
+      if (fs.existsSync(output)) throw new Error(`preview output must not already exist: ${output}`);
+      previewOutput = output;
+      effectiveRequest = {
+        ...request,
+        options: Object.freeze({ ...request.options, output }),
+      };
+    }
+    const context = runtime(snapshot ? snapshot.root : root, effectiveRequest);
     if (request.operation === 'generate') assertOwnedGenerationTarget(request.surface, context.output);
+    if (snapshot) {
+      context.allowPreview = true;
+      context.publication = {
+        publicationMode: 'preview',
+        releaseEligible: false,
+        origin: {
+          baseCommit: snapshot.baseCommit,
+          baseTree: snapshot.baseTree,
+          snapshotCommit: snapshot.snapshotCommit,
+          snapshotTree: snapshot.snapshotTree,
+          changeCounts: snapshot.changeCounts,
+        },
+      };
+    }
     const surface = SURFACES[request.surface];
-    const result = surface.run(request.operation, context);
+    const result = surface.run(request.operation === 'preview' ? 'preview' : request.operation, context);
     const evidence = {
       stage: 'structural',
       runtime: 'NOT_RUN',
       reason: `This command verifies deterministic package structure; ${surface.runtimeProbe} is a separate evidence-bound probe.`,
+      ...(context.publication ? {
+        publicationMode: context.publication.publicationMode,
+        releaseEligible: context.publication.releaseEligible,
+        origin: context.publication.origin,
+      } : {}),
     };
-    return {
+    const response = {
       ok: result.ok,
       status: result.ok ? 0 : 1,
       payload: {
@@ -365,7 +419,12 @@ function execute(argv, root) {
         ...result.details,
       },
     };
+    if (snapshot) snapshot.cleanup();
+    if (snapshot && !result.ok && previewOutput) fs.rmSync(previewOutput, { recursive: true, force: true });
+    return response;
   } catch (error) {
+    if (snapshot) snapshot.cleanup();
+    if (previewOutput) fs.rmSync(previewOutput, { recursive: true, force: true });
     return { ok: false, status: 1, error: error.message };
   }
 }

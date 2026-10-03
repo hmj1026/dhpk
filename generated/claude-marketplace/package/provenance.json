@@ -1138,7 +1138,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "kind": "entry",
-      "sha256": "52d16e733129b833fe5253d70d3242c83dd6fe5ce00dd908b6e5fb7af8edada6"
+      "sha256": "9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -2466,7 +2466,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "kind": "entry",
-      "sha256": "52d16e733129b833fe5253d70d3242c83dd6fe5ce00dd908b6e5fb7af8edada6"
+      "sha256": "9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6"
     },
     {
       "skillId": "js-static-check-strategy",
@@ -2954,7 +2954,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "kind": "entry",
-      "sha256": "52d16e733129b833fe5253d70d3242c83dd6fe5ce00dd908b6e5fb7af8edada6"
+      "sha256": "9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6"
     },
     {
       "skillId": "flow-guide",
@@ -3082,7 +3082,7 @@
       "sourcePath": "skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-guide/references/testing-policy.md",
       "kind": "entry",
-      "sha256": "52d16e733129b833fe5253d70d3242c83dd6fe5ce00dd908b6e5fb7af8edada6"
+      "sha256": "9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6"
     },
     {
       "skillId": "flow-guide",
@@ -3394,7 +3394,7 @@
       "sourcePath": "skills/harness-govern/references/fill-workflow.md",
       "destination": "skills/harness-govern/references/fill-workflow.md",
       "kind": "entry",
-      "sha256": "a62e09e1bea967edd95bf060e2a6f046e33439a9528395f50803a020fe64e886"
+      "sha256": "2d627b638f64baa4a8627a993d53320d3d3693ac31658f8fc5da648877b8c6f2"
     },
     {
       "skillId": "harness-govern",
@@ -3402,7 +3402,7 @@
       "sourcePath": "skills/harness-govern/references/frontmatter-templates.md",
       "destination": "skills/harness-govern/references/frontmatter-templates.md",
       "kind": "entry",
-      "sha256": "af2ce2c2a08f118a5607964f5915b1ec9a00d55d8195af8b8baf8b8fb4f5c828"
+      "sha256": "bac2148fb266cede07fcd86d796c556768660d77edfb20944cca41ce99498574"
     },
     {
       "skillId": "harness-govern",
