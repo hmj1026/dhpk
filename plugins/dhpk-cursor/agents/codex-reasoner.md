@@ -26,7 +26,6 @@ report.
 - This file is only the Codex CLI backend of the same reasoning role — not a duplicate role.
 - DDD-layer placement / cross-module architecture → `architect` (do not produce a competing design).
 - Opt-in `$flow-drive --plan` critique or plan sketch → `planner`
-- Brownfield spec extraction into openspec → `spec-miner`
 
 ## Shared reasoning contract
 

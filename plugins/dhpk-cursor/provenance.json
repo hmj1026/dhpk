@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "ef1c6924f21046907f3aa9ce276c3e7ad02e9097",
-  "generatedFromCommit": "ef1c6924f21046907f3aa9ce276c3e7ad02e9097",
-  "generatedFromTree": "d6641c648737409829729b6d537dd03304f51597",
-  "inventoryDigest": "5ecaffc9fce5a440b7b019acc52d9c6dd7e19733195a5cdc7fd28b97d15c51ec",
-  "inventoryRevision": "sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65",
+  "sourceCommit": "1192a8bf4985d35af603fa3c4ffc9cb8bd77a458",
+  "generatedFromCommit": "1192a8bf4985d35af603fa3c4ffc9cb8bd77a458",
+  "generatedFromTree": "ad67de3039234d4dddf7d2607b3012db56fcf11f",
+  "inventoryDigest": "990a4a557e5afa747ddc6565b819c97a33c3ee7af164374ddb7b80f44be281bc",
+  "inventoryRevision": "sha256:8f79ae11a486b6bba1e6a444917101678ac2855b2af3d7d7a877fbb83bb8ec8d",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "agy-fast-worker",
@@ -33,7 +33,6 @@
   "sharedSkillSurface": "agent-plugin",
   "sharedSkillSource": "plugins/dhpk-agent/skills/",
   "sharedSkillIds": [
-    "agent-architecture-audit",
     "agy-fast-worker",
     "change-verdict",
     "cli-dispatch-context",
@@ -81,10 +80,8 @@
     "repo-verify",
     "review-pending",
     "session-usage-audit",
-    "skill-forge",
     "skill-scope",
     "software-architecture",
-    "spec-mine",
     "tdd",
     "update-codemaps",
     "update-docs"
@@ -95,7 +92,6 @@
     "code-trace",
     "create-pr",
     "dep-audit",
-    "dhpk-agent-architecture-audit",
     "dhpk-agy-fast-worker",
     "dhpk-cli-dispatch-context",
     "dhpk-cli-transport",
@@ -139,20 +135,13 @@
     "release-creator",
     "repo-verify",
     "review-pending",
-    "skill-forge",
     "skill-scope",
-    "spec-mine",
     "tdd-workflow",
     "update-codemaps",
     "update-docs"
   ],
   "skippedSkills": [],
   "transformations": [
-    {
-      "source": "agent-evaluator.md",
-      "destination": "agents/agent-evaluator.md",
-      "transform": "cursor-agents-frontmatter"
-    },
     {
       "source": "agy-fast-worker.md",
       "destination": "agents/agy-fast-worker.md",
@@ -393,7 +382,6 @@
       "destination": null,
       "transform": "shared-surface:agent-plugin",
       "stableIds": [
-        "agent-architecture-audit",
         "agy-fast-worker",
         "change-verdict",
         "cli-dispatch-context",
@@ -441,10 +429,8 @@
         "repo-verify",
         "review-pending",
         "session-usage-audit",
-        "skill-forge",
         "skill-scope",
         "software-architecture",
-        "spec-mine",
         "tdd",
         "update-codemaps",
         "update-docs"
@@ -541,16 +527,6 @@
       "transform": "cursor-agents-frontmatter"
     },
     {
-      "source": "spec-mine.md",
-      "destination": "commands/spec-mine.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "spec-miner.md",
-      "destination": "agents/spec-miner.md",
-      "transform": "cursor-agents-frontmatter"
-    },
-    {
       "source": "swift-build-resolver.md",
       "destination": "agents/swift-build-resolver.md",
       "transform": "cursor-agents-frontmatter"
@@ -603,18 +579,17 @@
   ],
   "fingerprints": {
     "skills": "6b77a2edb92cae45f1951e159711b55668bc68fcb69eef91224aea5f558ef83b",
-    "rules": "65907d94919ef631aafaf20a5061cf49a6b8ec2f1d908e009768c1d3d5b7148f",
-    "agents": "0135706099f371d46fdb25e83e097ceb039e459bdc665c9338590d7c7df1cb57",
-    "commands": "9627db8126c47ea22501931bac7afe57be678a7b77e7c4331930cb2c31c82cd2",
+    "rules": "481c5db93e414578d9cd235acef23a694fc11f8db2a554abd329105e8d09906b",
+    "agents": "61b6185a356d6f28c8e3667da9ceb9daf80d84465efa1d5f57d591d62747ebfb",
+    "commands": "9980657de279c8bfb9e67b49769f13c6d9181cc1432c11ba7737230ed500a55f",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "b89e9c89701d508d35daa0d6ad77e6a49a707744f6b1e245b4c6f149296f857d",
+    "planId": "e4f9988091c3f2ce404669388fdfcffd2e064f25e7104656dfcd0f6ee0181851",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -662,17 +637,14 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "update-codemaps",
       "update-docs"
     ],
     "supportClosure": {
       "stableIds": [
-        "agent-architecture-audit",
         "agy-fast-worker",
         "change-verdict",
         "cli-dispatch-context",
@@ -720,10 +692,8 @@
         "repo-verify",
         "review-pending",
         "session-usage-audit",
-        "skill-forge",
         "skill-scope",
         "software-architecture",
-        "spec-mine",
         "tdd",
         "update-codemaps",
         "update-docs"
@@ -736,10 +706,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "b89e9c89701d508d35daa0d6ad77e6a49a707744f6b1e245b4c6f149296f857d",
-      "inventory": "5ecaffc9fce5a440b7b019acc52d9c6dd7e19733195a5cdc7fd28b97d15c51ec"
+      "plan": "e4f9988091c3f2ce404669388fdfcffd2e064f25e7104656dfcd0f6ee0181851",
+      "inventory": "990a4a557e5afa747ddc6565b819c97a33c3ee7af164374ddb7b80f44be281bc"
     },
-    "rollbackIdentity": "a20c8d8e7461cb064a1d4a2745aa51ba72d2784bbe6e40fec079f51ba1353c30"
+    "rollbackIdentity": "e2dc40a39cb8752caf8879056605cbcafb578069f00f13b75e1c8aaa8dbbde28"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -2175,39 +2145,6 @@
         }
       ]
     },
-    "spec-mine": {
-      "display_name": "Spec Mine",
-      "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
-      "syntax": "$spec-mine [<capability-or-path>]",
-      "input_kind": "free-text",
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "workspace-write",
-      "inputs": [
-        {
-          "id": "capability-or-path",
-          "syntax": "<capability-or-path>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Capability or path to mine first"
-        }
-      ],
-      "actions": [
-        {
-          "id": "mine",
-          "summary": "Write one bounded behavioral baseline",
-          "syntax": "$spec-mine [<capability-or-path>]",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        }
-      ],
-      "options": [],
-      "examples": [
-        {
-          "prompt": "$spec-mine billing",
-          "summary": "Use spec mine with its declared interface"
-        }
-      ]
-    },
     "tdd": {
       "display_name": "TDD",
       "summary": "Drive behavior-first tests through a minimal red-green loop",
@@ -2350,7 +2287,6 @@
     "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
     "review-pending": "1a8af23d3337618651c3a1408255e1e90b59445ef26b22ca5e6e4640755a83d8",
     "skill-scope": "e17a0ce771f9d79a874c482c9e968878e86ce9f7ac6a094a89db8151cb3c7017",
-    "spec-mine": "918bc2cde6d9c328cbe8224867f68f3dc569b81f2434b0f04bcd598683c14a50",
     "tdd": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d",
     "update-codemaps": "0bf8b73840bccef16d4e4fbea12581029da9a48607769da14214b038f97ffa07",
     "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
@@ -2360,5 +2296,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "37edfee9c058bb0a42b1e6c32bbb5cfe2394b7e82957232bea79c03cc43fbcf8"
+  "planFingerprint": "033593286451fbc032e82ad8b7e2677037332abbb347f9afb7b77d72f686acd4"
 }
