@@ -38,7 +38,7 @@ jobs:
           echo "plan=$plan" >> "$GITHUB_OUTPUT"
           echo "mode=$(node -e 'console.log(JSON.parse(process.argv[1]).mode)' "$plan")" >> "$GITHUB_OUTPUT"
           echo "shards=$(node -e 'console.log(JSON.stringify([...Array(JSON.parse(process.argv[1]).shardCount).keys()]))' "$plan")" >> "$GITHUB_OUTPUT"
-          echo "macos=$(node -e 'console.log(JSON.parse(process.argv[1]).requiredJobs.includes(\"macos-installer\"))' "$plan")" >> "$GITHUB_OUTPUT"
+          echo "macos=$(node -p 'JSON.parse(process.argv[1]).requiredJobs.includes("macos-installer")' "$plan")" >> "$GITHUB_OUTPUT"
 
   preflight:
     name: Preflight
@@ -204,7 +204,7 @@ jobs:
           DHPK_CI_PLAN: ${{ needs.plan.outputs.plan }}
         run: |
           if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then
-            mapfile -t selected_files < <(node -e 'for (const file of JSON.parse(process.env.DHPK_CI_PLAN).testFiles) console.log(file)')
+            mapfile -t selected_files < <(node -e 'for (const file of JSON.parse(process.env.DHPK_CI_PLAN).testFiles) console.log(`tests/${file}`)')
             ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js "${selected_files[@]}"
           else
             ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js --shard-index ${{ matrix.shard }} --shard-count 4
@@ -282,7 +282,7 @@ jobs:
           count=4
           if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then count=1; fi
           args=(--directory "$RUNNER_TEMP/dhpk-test-shards" --count "$count" --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --checkout-sha '${{ github.sha }}' --head-sha '${{ github.event.pull_request.head.sha }}' --summary "$GITHUB_STEP_SUMMARY")
-          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then args+=(--plan "$plan_file"); fi
+          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then args+=(--plan "$plan_file" --base-sha '${{ github.event.pull_request.base.sha }}' --base-ref '${{ github.event.pull_request.base.ref }}'); fi
           node scripts/ci/verify-test-shards.js "${args[@]}"
 
   macos-installer:

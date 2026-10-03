@@ -33,11 +33,11 @@ function categoryFor(file) {
 // These are intentionally coarse owner groups. They are an allowlist of
 // existing public suites, rather than a per-script dependency graph.
 const OWNER_GROUPS = Object.freeze([
-  { name: 'hooks', paths: [/^scripts\/hooks\//i], tests: ['hooks-wiring.test.js'] },
+  { name: 'hooks', paths: [/^scripts\/hooks\/(?!_lib\/)/i], tests: ['hooks-wiring.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-agent-warmstart.test.js', 'session-start.test.js', 'session-end.test.js'] },
   {
     name: 'installer',
     paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
-    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js'],
+    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js', 'install-codex-skills.test.js', 'install-codex-skills-planning.test.js', 'install-codex-skills-reconciliation.test.js', 'install-codex-skills-uninstall.test.js', 'install-codex-sync-shared.test.js', 'install-cursor-harness.test.js', 'install-prompts.test.js', 'native-shared-skill-install.test.js', 'skill-pilot-install-migration.test.js', 'skill-pilot-isolation.test.js', 'skill-remaining-entry-isolation.test.js'],
   },
   {
     name: 'resource',
@@ -67,7 +67,7 @@ function selectedOwners(files, availableTests) {
   const owners = new Set();
   let unmapped = false;
   for (const file of files) {
-    if (/^(?:tests\/run-all\.js|tests\/_lib\/|scripts\/ci\/verify-test-shards\.js|scripts\/lib\/ci-plan\.js|scripts\/ci\/ci-plan\.js|\.github\/workflows\/)/i.test(file)) {
+    if (/^(?:tests\/run-all\.js|tests\/_lib\/|scripts\/hooks\/_lib\/|scripts\/ci\/verify-test-shards\.js|scripts\/lib\/ci-plan\.js|scripts\/lib\/(?:provider-adapter|dispatch(?:\.js|-)|runner-utils)\.js|scripts\/ci\/ci-plan\.js|\.github\/workflows\/)/i.test(file)) {
       unmapped = true;
       continue;
     }
@@ -146,7 +146,9 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
   try {
     const changes = gitChanges(path.resolve(root), baseSha, headSha);
     const classified = classifyChangedPaths(changes, { baseRef });
-    if (classified.mode === 'light' || baseRef === 'main' || classified.categories.includes('unknown')) return { ...classified, identities };
+    if (classified.mode === 'light' || baseRef === 'main' || classified.categories.includes('unknown')) {
+      return { ...classified, testFiles: classified.mode === 'full' ? discoveredTestFiles(root) : [], identities };
+    }
     const availableTests = discoveredTestFiles(root);
     const selected = selectedOwners(classified.files, availableTests);
     if (selected.unmapped || selected.testFiles.length === 0) {
@@ -155,7 +157,7 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
         mode: 'full', reason: selected.unmapped ? 'owner-mapping-unavailable' : 'owner-suite-unavailable',
         requiredJobs: [...FULL_REQUIRED, ...(baseRef === 'main' ? ['release-rehearsal'] : [])],
         skippedJobs: JOBS.filter((job) => !FULL_REQUIRED.includes(job) && !(baseRef === 'main' && job === 'release-rehearsal')),
-        testFiles: [], shardCount: 4, identities,
+        testFiles: discoveredTestFiles(root), shardCount: 4, identities,
       };
     }
     const installer = selected.owners.includes('installer');

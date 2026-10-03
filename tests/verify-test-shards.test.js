@@ -825,13 +825,17 @@ test('public CI plan selects existing owner suites and enables macOS only for in
     fs.mkdirSync(path.join(root, 'scripts', 'hooks'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
     fs.writeFileSync(path.join(root, 'scripts', 'hooks', 'sample.sh'), 'old\n');
-    fs.writeFileSync(path.join(root, 'tests', 'hooks-wiring.test.js'), '// owner\n');
+    for (const owner of ['hooks-wiring.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-agent-warmstart.test.js', 'session-start.test.js', 'session-end.test.js']) {
+      fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
+    }
   }, (root) => fs.writeFileSync(path.join(root, 'scripts', 'hooks', 'sample.sh'), 'new\n'));
   try {
     assert.strictEqual(fixture.plan.mode, 'selected');
-    assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js']);
+    assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'session-end.test.js', 'session-start.test.js']);
     assert.strictEqual(fixture.plan.shardCount, 1);
     assert.ok(fixture.plan.skippedJobs.includes('macos-installer'));
+    const runner = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), 'tests/utils.test.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
+    assert.strictEqual(runner.status, 0, runner.stderr);
     const plan = createCiPlan({ root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
     assert.strictEqual(validateCiPlan(plan, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' }).ok, true);
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
