@@ -23,7 +23,10 @@ function main(argv = process.argv.slice(2)) {
   }
   if (command === 'validate') {
     const plan = JSON.parse(fs.readFileSync(value(argv, '--plan'), 'utf8'));
-    const result = validateCiPlan(plan);
+    const result = validateCiPlan(plan, {
+      root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
+      checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
+    });
     if (!result.ok) result.errors.forEach((error) => process.stderr.write(`FAIL: ${error}\n`));
     else process.stdout.write('PASS: CI plan is valid\n');
     return result.ok ? 0 : 1;
@@ -31,7 +34,10 @@ function main(argv = process.argv.slice(2)) {
   if (command === 'aggregate') {
     const plan = JSON.parse(fs.readFileSync(value(argv, '--plan'), 'utf8'));
     const results = JSON.parse(fs.readFileSync(value(argv, '--results'), 'utf8'));
-    const result = verifyCiResults(plan, results);
+    const result = verifyCiResults(plan, results, {
+      root: process.cwd(), baseSha: value(argv, '--base-sha'), headSha: value(argv, '--head-sha'),
+      checkoutSha: value(argv, '--checkout-sha'), baseRef: value(argv, '--base-ref'),
+    });
     if (!result.ok) result.errors.forEach((error) => process.stderr.write(`FAIL: ${error}\n`));
     else process.stdout.write('PASS: CI plan aggregate is valid\n');
     return result.ok ? 0 : 1;

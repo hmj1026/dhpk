@@ -3,9 +3,29 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { verifyShardReports, main } = require('../scripts/ci/verify-test-shards');
 const { classifyChangedPaths, verifyCiResults } = require('../scripts/lib/ci-plan');
+
+function gitFixture(setup, mutate, baseRef = 'develop') {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-'));
+  const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
+  try {
+    git('init', '-q'); git('config', 'user.email', 'test@example.invalid'); git('config', 'user.name', 'Test'); git('config', 'commit.gpgsign', 'false');
+    setup(root); git('add', '.');
+    git('commit', '--no-verify', '-m', 'base');
+    const baseSha = git('rev-parse', 'HEAD');
+    mutate(root, git); git('add', '-A'); git('commit', '--no-verify', '-m', 'head');
+    const headSha = git('rev-parse', 'HEAD');
+    const checkoutSha = headSha;
+    const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan', '--base-sha', baseSha, '--head-sha', headSha, '--checkout-sha', checkoutSha, '--base-ref', baseRef], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stderr);
+    return { root, baseSha, headSha, checkoutSha, plan: JSON.parse(result.stdout) };
+  } catch (error) {
+    fs.rmSync(root, { recursive: true, force: true }); throw error;
+  }
+}
 
 const SHARD_COUNT = 4;
 const RUN_ID = '123';
@@ -739,7 +759,7 @@ test('CI plan classifies canonical prose as light and skips expensive jobs', () 
     { status: 'M', path: 'docs/guide.md' },
   ], { baseRef: 'develop' });
   assert.strictEqual(plan.mode, 'light');
-  assert.deepStrictEqual(plan.requiredJobs, ['preflight', 'lint']);
+  assert.deepStrictEqual(plan.requiredJobs, ['preflight', 'validate', 'lint']);
   assert.ok(plan.skippedJobs.includes('tests'));
   assert.ok(plan.skippedJobs.includes('macos-installer'));
 });
@@ -752,10 +772,40 @@ test('CI plan falls back to full for unknown, and release-base paths', () => {
 });
 
 test('aggregate accepts only explicitly skipped jobs and requires plan-bound evidence', () => {
-  const plan = { schema: 'dhpk.ci-plan.v1', mode: 'light', requiredJobs: ['preflight', 'lint'], skippedJobs: ['tests', 'validate', 'macos-installer', 'release-rehearsal'] };
-  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', lint: 'success', tests: 'skipped', validate: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }).ok, true);
-  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', lint: 'success', tests: 'success' }).ok, false);
-  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', lint: 'cancelled', tests: 'skipped', 'macos-installer': 'skipped' }).ok, false);
+  const plan = { ...classifyChangedPaths([{ status: 'M', path: 'skills/demo/SKILL.md' }]), testFiles: [], shardCount: 0, packageSurfaces: [], identities: { baseSha: 'base', headSha: 'head', checkoutSha: 'checkout', baseRef: 'develop' } };
+  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }).ok, true);
+  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'success', tests: 'success' }).ok, false);
+  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', validate: 'success', lint: 'cancelled', tests: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }).ok, false);
+});
+
+test('public CI plan CLI classifies content, metadata, mixed, deletion, and rename fixtures', () => {
+  const content = gitFixture((root) => { fs.mkdirSync(path.join(root, 'skills/demo'), { recursive: true }); fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'old\n'); }, (root) => fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'new\n'));
+  const metadata = gitFixture((root) => fs.writeFileSync(path.join(root, 'plugin.json'), '{}\n'), (root) => fs.writeFileSync(path.join(root, 'plugin.json'), '{"name":"x"}\n'));
+  const mixed = gitFixture((root) => { fs.mkdirSync(path.join(root, 'skills/demo'), { recursive: true }); fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'old\n'); }, (root) => fs.writeFileSync(path.join(root, 'scripts.js'), 'code\n'));
+  const deletion = gitFixture((root) => { fs.mkdirSync(path.join(root, 'skills/demo'), { recursive: true }); fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'old\n'); }, (root) => fs.rmSync(path.join(root, 'skills/demo/SKILL.md')));
+  const rename = gitFixture((root, git) => { fs.mkdirSync(path.join(root, 'skills/demo'), { recursive: true }); fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'old\n'); }, (root, git) => { fs.mkdirSync(path.join(root, 'docs'), { recursive: true }); git('mv', 'skills/demo/SKILL.md', 'docs/guide.md'); });
+  try {
+    assert.strictEqual(content.plan.mode, 'light');
+    assert.strictEqual(metadata.plan.mode, 'full');
+    assert.strictEqual(mixed.plan.mode, 'full');
+    assert.strictEqual(deletion.plan.mode, 'light');
+    assert.strictEqual(rename.plan.mode, 'light');
+    assert.deepStrictEqual(rename.plan.changes[0].files.slice().sort(), ['skills/demo/SKILL.md', 'docs/guide.md'].sort());
+  } finally {
+    for (const fixture of [content, metadata, mixed, deletion, rename]) fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('public CI plan validation rejects forged identity, missing fields, and unavailable diff', () => {
+  const fixture = gitFixture((root) => { fs.mkdirSync(path.join(root, 'skills/demo'), { recursive: true }); fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'old\n'); }, (root) => fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'new\n'));
+  try {
+    const planPath = path.join(fixture.root, 'plan.json'); fs.writeFileSync(planPath, JSON.stringify({ ...fixture.plan, files: [], requiredJobs: [] }));
+    const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'validate', '--plan', planPath, '--base-sha', fixture.baseSha, '--head-sha', fixture.headSha, '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop'], { cwd: fixture.root, encoding: 'utf8' });
+    assert.notStrictEqual(result.status, 0);
+    const unavailable = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan', '--base-sha', 'missing', '--head-sha', fixture.headSha, '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop'], { cwd: fixture.root, encoding: 'utf8' });
+    assert.strictEqual(unavailable.status, 0);
+    assert.strictEqual(JSON.parse(unavailable.stdout).mode, 'full');
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
 run('verify-test-shards');
