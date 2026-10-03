@@ -33,7 +33,7 @@ function categoryFor(file) {
 // These are intentionally coarse owner groups. They are an allowlist of
 // existing public suites, rather than a per-script dependency graph.
 const OWNER_GROUPS = Object.freeze([
-  { name: 'hooks', paths: [/^scripts\/hooks\/(?!_lib\/)/i], tests: ['hooks-wiring.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-agent-warmstart.test.js', 'session-start.test.js', 'session-end.test.js'] },
+  { name: 'hooks', paths: [/^scripts\/hooks\/(?!_lib\/)/i], tests: ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'session-audit-integrity-fixtures.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'session-usage-audit.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js'] },
   {
     name: 'installer',
     paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
@@ -41,8 +41,8 @@ const OWNER_GROUPS = Object.freeze([
   },
   {
     name: 'resource',
-    paths: [/^scripts\/lib\/skill-resource-sync\.js$/i, /^scripts\/ci\/sync-skill-resources\.js$/i],
-    tests: ['skill-resource-sync-security.test.js'],
+    paths: [/^scripts\/lib\/skill-resource-sync\.js$/i, /^scripts\/ci\/sync-skill-resources\.js$/i, /^skills\/(?:dhpk-agy-fast-worker|dhpk-cli-transport|dhpk-session-usage-audit)\/scripts\//i, /^modules\/[^/]+\/scripts\//i],
+    tests: ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'session-usage-audit.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js'],
   },
   {
     name: 'manifest',
@@ -51,8 +51,8 @@ const OWNER_GROUPS = Object.freeze([
   },
   {
     name: 'adapter-package',
-    paths: [/^scripts\/lib\/.*(?:package|adapter)\.js$/i, /^scripts\/ci\/gen-(?:.*package|.*manifest|cursor-sync)\.js$/i, /^plugins\//i],
-    tests: ['agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js'],
+    paths: [/^scripts\/lib\/(?:agy|agent|agents|claude|codex|cursor|marketplace|standalone|workflow)-.*(?:package|adapter|publication)\.js$/i, /^scripts\/ci\/(?:gen-(?:.*package|.*manifest|cursor-sync)|install-agy-plugin|validate-agent-plugin-package)\.js$/i, /^plugins\//i],
+    tests: ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js'],
   },
 ]);
 
@@ -146,7 +146,7 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
   try {
     const changes = gitChanges(path.resolve(root), baseSha, headSha);
     const classified = classifyChangedPaths(changes, { baseRef });
-    if (classified.mode === 'light' || baseRef === 'main' || classified.categories.includes('unknown')) {
+    if (classified.mode === 'light' || baseRef === 'main') {
       return { ...classified, testFiles: classified.mode === 'full' ? discoveredTestFiles(root) : [], identities };
     }
     const availableTests = discoveredTestFiles(root);
@@ -169,9 +169,11 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
       shardCount: 1, requiredJobs, skippedJobs, identities,
     };
   } catch (error) {
+    let testFiles = [];
+    try { testFiles = discoveredTestFiles(root); } catch (_) { /* preserve diff-unavailable fallback */ }
     return {
       ...classifyChangedPaths([{ status: 'M', path: '__invalid_diff__' }], { baseRef }),
-      reason: 'diff-unavailable', diffError: error.message, identities,
+      reason: 'diff-unavailable', diffError: error.message, testFiles, identities,
     };
   }
 }
