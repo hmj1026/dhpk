@@ -862,6 +862,18 @@ test('missing hook owner mapping fails closed to full validation', () => {
   finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
+test('AGY installer wrapper fails closed to full macOS validation', () => {
+  const fixture = gitFixture((root) => fs.writeFileSync(path.join(root, 'install-agy-plugin.js'), 'old\n'), (root) => {
+    fs.mkdirSync(path.join(root, 'scripts', 'ci'), { recursive: true });
+    fs.rmSync(path.join(root, 'install-agy-plugin.js'));
+    fs.writeFileSync(path.join(root, 'scripts', 'ci', 'install-agy-plugin.js'), 'new\n');
+  });
+  try {
+    assert.strictEqual(fixture.plan.mode, 'full');
+    assert.ok(fixture.plan.requiredJobs.includes('macos-installer'));
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
 test('selected shard verification uses the trusted plan file list exactly', () => {
   withFixture(({ root, directory }) => {
     const selected = verify({ root, directory, overrides: { expectedFiles: ['alpha.test.js'] } });
