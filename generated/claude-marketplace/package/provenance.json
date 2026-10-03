@@ -2695,6 +2695,14 @@
     {
       "skillId": "flow-guide",
       "ownerId": "flow-guide",
+      "sourcePath": "skills/flow-guide/assets/dhpk-icon.svg",
+      "destination": "skills/flow-guide/assets/dhpk-icon.svg",
+      "kind": "entry",
+      "sha256": "1b272fc46da1727efc0ae95d05af4532ec2bf514c448ca285512630bdc164bc3"
+    },
+    {
+      "skillId": "flow-guide",
+      "ownerId": "flow-guide",
       "sourcePath": "rules/execution-policy-kernel.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy-kernel.md",
       "kind": "dependency",

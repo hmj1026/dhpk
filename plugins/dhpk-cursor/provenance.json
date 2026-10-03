@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "7d58a093d216a3f136b7b796df514d216bdfd5b6",
-  "generatedFromCommit": "7d58a093d216a3f136b7b796df514d216bdfd5b6",
-  "generatedFromTree": "e249583a8922a46f5e1360975b9f36a68d79c2d3",
+  "sourceCommit": "c314fb2f4b3ced4ecbb2757ffd64737e262b91fb",
+  "generatedFromCommit": "c314fb2f4b3ced4ecbb2757ffd64737e262b91fb",
+  "generatedFromTree": "1b2b6630008f78e0590687334ad3e40c1d77612b",
   "inventoryDigest": "990a4a557e5afa747ddc6565b819c97a33c3ee7af164374ddb7b80f44be281bc",
   "inventoryRevision": "sha256:24c1de777a6d9caff8c6b95821a3f77692663b40e7549d67c3c45c5e0042334c",
   "generatorVersion": "1.0.0",
@@ -1611,6 +1611,12 @@
         "source": "skills/flow-guide/agents/openai.yaml",
         "destination": "skills/flow-guide/agents/openai.yaml",
         "originalGitBlobDigest": "85d90ad94a64f790e61212c46f2fb025423b128a"
+      },
+      {
+        "ownerId": "flow-guide",
+        "source": "skills/flow-guide/assets/dhpk-icon.svg",
+        "destination": "skills/flow-guide/assets/dhpk-icon.svg",
+        "originalGitBlobDigest": "9e93ff781628aa4d27fd0d1556a75d8c9df98d3c"
       },
       {
         "ownerId": "flow-guide",
@@ -4387,6 +4393,13 @@
         "skillId": "flow-guide",
         "sourcePath": "skills/flow-guide/agents/openai.yaml",
         "destination": "skills/flow-guide/agents/openai.yaml",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-guide",
+        "skillId": "flow-guide",
+        "sourcePath": "skills/flow-guide/assets/dhpk-icon.svg",
+        "destination": "skills/flow-guide/assets/dhpk-icon.svg",
         "kind": "entry"
       },
       {

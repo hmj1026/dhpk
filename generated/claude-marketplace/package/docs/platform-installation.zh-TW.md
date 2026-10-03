@@ -13,6 +13,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Claude Code 預設 | `bash scripts/install.sh` → `dhpk@dhpk-profile-minimal` | 重跑 installer 或選擇明確的 compatibility package | Fresh-session `/dhpk:flow-guide help` | 結構檢查可通過；consumer discovery 在實際觀察前維持 `NOT_RUN` |
 | Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
 | Codex legacy/native | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
+| OpenAI Public Plugin Directory（Codex 與 ChatGPT Work） | 公開 listing 出現後，在產品 Plugins Directory 搜尋 DHPK | 使用該產品的 plugin manager | 核准的公開 listing，以及每個 Host 的 fresh-session workflow probe | 目前僅為 candidate，狀態 `NOT_PUBLISHED`；local/repository marketplace 僅供開發 |
 | Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `plugins/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
@@ -32,6 +33,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Claude Code | 支援 marketplace/plugin；最低版本尚未建立 | Client 支援的 OS 與 POSIX shell | `bash`、Claude Code | 執行 installer，並在 fresh session 觀察 selected package |
 | Codex project-local sync | Codex project-local loader；schema-v3 receipt；最低 Codex version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.codex/.dhpk-installed.json`，並執行列出的 metadata/test 命令 |
 | Codex legacy/native | 支援 marketplace/plugin 命令的 Codex CLI；執行 `codex --version`；最低 CLI version 尚未建立 | Linux、macOS 或 WSL shell；使用 disposable isolated `CODEX_HOME` | `codex`、marketplace access、`git` | 執行 marketplace route 並記錄 CLI 輸出；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
+| OpenAI Public Plugin Directory | Codex 或 ChatGPT Work 的 public plugin manager；最低 client version 尚未建立 | 產品支援的 client 或 web surface | 已發布的 DHPK listing 與 account access | 公開 listing 核准並可見前維持 `NOT_PUBLISHED`；分別記錄 client version 與 fresh-session discovery |
 | Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
 | Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
@@ -189,6 +191,23 @@ bin/dhpk distribution agy-plugin validate --json
 上述 generate 指令是 maintainer／distribution preparation。從 clone 安裝的
 consumer 應使用下方 platform section 的 prepared package，不要在原地重新
 generate tracked package。
+
+`openai-submission` surface 會從公開 catalog 建立另一份完整 skills-only
+candidate。Manifest、checkout 外輸出目錄、receipt 檢查與 submission gate 見
+[OpenAI submission guide](./openai-submission.zh-TW.md)。
+
+## OpenAI skills-only Public Plugin
+
+Codex 與 ChatGPT Work 共用的公開 Plugins Directory 是預定日常使用 route。DHPK
+listing 目前只是 submission candidate，狀態為 `NOT_PUBLISHED`，尚不能從該目錄安裝。
+核准 listing 出現後，請在產品 Plugins Directory 選擇 DHPK，透過產品 plugin manager
+安裝；移除時也使用同一個 manager。開始記錄 workflow evidence 前，請開啟新的對話。
+
+Codex CLI 的 `codex plugin add` 與 `codex plugin remove` 管理已設定 marketplace
+中的 plugin。對此 repository 而言，local/repository marketplace 僅供開發與測試，不會
+發布或取代公開 listing。既有安裝的一次性 migration/cutover executor 尚未交付。下方
+Codex project-sync 與 legacy native 指引仍是相容流程，不代表 cutover 已完成。套件驗證
+與 release gate 見 [OpenAI submission guide](./openai-submission.zh-TW.md)。
 
 ## Codex project-local sync（Supported）
 
