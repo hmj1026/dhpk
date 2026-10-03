@@ -69,15 +69,12 @@ jobs:
 
       # Zero-dep Node validators in strict mode (warnings become errors).
       - name: Validate agents
-        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-agents.js --strict
       - name: Validate skills
         run: node scripts/ci/validate-skills.js --strict
       - name: Validate commands
-        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-commands.js --strict
       - name: Validate modules
-        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-modules.js --strict
       - name: Validate plugin manifest
         if: needs.plan.outputs.mode == 'full'
