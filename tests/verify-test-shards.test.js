@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { verifyShardReports, main } = require('../scripts/ci/verify-test-shards');
+const { classifyChangedPaths, verifyCiResults } = require('../scripts/lib/ci-plan');
 
 const SHARD_COUNT = 4;
 const RUN_ID = '123';
@@ -731,5 +732,30 @@ test('malformed shard timing JSON is rejected', () => {
     assert.ok(!/warning/i.test(output), 'files at or under the threshold must not warn');
   });
 }
+
+test('CI plan classifies canonical prose as light and skips expensive jobs', () => {
+  const plan = classifyChangedPaths([
+    { status: 'M', path: 'skills/example/SKILL.md' },
+    { status: 'M', path: 'docs/guide.md' },
+  ], { baseRef: 'develop' });
+  assert.strictEqual(plan.mode, 'light');
+  assert.deepStrictEqual(plan.requiredJobs, ['preflight', 'lint']);
+  assert.ok(plan.skippedJobs.includes('tests'));
+  assert.ok(plan.skippedJobs.includes('macos-installer'));
+});
+
+test('CI plan falls back to full for unknown, and release-base paths', () => {
+  assert.strictEqual(classifyChangedPaths([{ status: 'M', path: 'scripts/lib/new-core.js' }], { baseRef: 'develop' }).mode, 'full');
+  const release = classifyChangedPaths([{ status: 'M', path: 'skills/example/SKILL.md' }], { baseRef: 'main' });
+  assert.strictEqual(release.mode, 'full');
+  assert.ok(release.requiredJobs.includes('release-rehearsal'));
+});
+
+test('aggregate accepts only explicitly skipped jobs and requires plan-bound evidence', () => {
+  const plan = { schema: 'dhpk.ci-plan.v1', mode: 'light', requiredJobs: ['preflight', 'lint'], skippedJobs: ['tests', 'validate', 'macos-installer', 'release-rehearsal'] };
+  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', lint: 'success', tests: 'skipped', validate: 'skipped', 'macos-installer': 'skipped', 'release-rehearsal': 'skipped' }).ok, true);
+  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', lint: 'success', tests: 'success' }).ok, false);
+  assert.strictEqual(verifyCiResults(plan, { preflight: 'success', lint: 'cancelled', tests: 'skipped', 'macos-installer': 'skipped' }).ok, false);
+});
 
 run('verify-test-shards');

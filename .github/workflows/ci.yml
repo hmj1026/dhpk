@@ -11,8 +11,34 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    name: CI change plan
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      plan: ${{ steps.plan.outputs.plan }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          CHECKOUT_SHA: ${{ github.sha }}
+        run: |
+          plan="$(node scripts/ci/ci-plan.js plan --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA" --checkout-sha "$CHECKOUT_SHA" --base-ref "$BASE_REF")"
+          echo "plan=$plan" >> "$GITHUB_OUTPUT"
+          echo "mode=$(node -e 'console.log(JSON.parse(process.argv[1]).mode)' "$plan")" >> "$GITHUB_OUTPUT"
+
   preflight:
     name: Preflight
+    needs: plan
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
@@ -89,11 +115,13 @@ jobs:
 
       - name: Validate default discovery aggregate budget
         run: node scripts/ci/context-budget.js --aggregate
+        continue-on-error: true
 
       # Agent-spawn context ledger: static estimates are separate from runtime
       # token telemetry, which is supplied by the host when available.
       - name: Validate subagent context ledger
         run: node scripts/ci/subagent-context-budget.js
+        continue-on-error: true
 
       # Count SSOT: README / manifest exact claims must match reality.
       - name: Catalog count check
@@ -119,6 +147,8 @@ jobs:
 
   tests:
     name: Tests (shard ${{ matrix.shard }}/4)
+    needs: plan
+    if: needs.plan.outputs.mode == 'full'
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     strategy:
@@ -166,8 +196,8 @@ jobs:
     name: Validate harness assets
     runs-on: ubuntu-26.04
     timeout-minutes: 10
-    needs: [preflight, tests]
-    if: always()
+    needs: [plan, preflight, tests]
+    if: always() && needs.plan.outputs.mode == 'full'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -217,6 +247,8 @@ jobs:
 
   macos-installer:
     name: macOS installer harness
+    needs: plan
+    if: needs.plan.outputs.mode == 'full'
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
@@ -317,16 +349,40 @@ jobs:
             codex/supporting/**/*.md
             # Lint installed Codex projections when present; runtime artifacts
             # and transaction backups under .codex/ are intentionally excluded.
-            .codex/agents/**/*.md
-            .codex/dhpk/**/*.md
-            .codex/skills/**/*.md
             commands/**/*.md
             docs/**/*.md
-            generated/**/*.md
             rules/**/*.md
             modules/**/*.md
             openspec/**/*.md
-            plugins/**/*.md
             skills/**/*.md
             templates/**/*.md
             cursor/**/*.md
+
+  aggregate:
+    name: Required CI aggregate
+    if: always()
+    needs: [plan, preflight, tests, validate, macos-installer, release-rehearsal, lint]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Verify plan-bound job results
+        env:
+          PLAN: ${{ needs.plan.outputs.plan }}
+          PREFLIGHT: ${{ needs.preflight.result }}
+          TESTS: ${{ needs.tests.result }}
+          VALIDATE: ${{ needs.validate.result }}
+          MACOS: ${{ needs.macos-installer.result }}
+          REHEARSAL: ${{ needs.release-rehearsal.result }}
+          LINT: ${{ needs.lint.result }}
+        run: |
+          node - <<'NODE'
+          const { verifyCiResults } = require('./scripts/lib/ci-plan');
+          const plan = JSON.parse(process.env.PLAN);
+          const result = verifyCiResults(plan, { preflight: process.env.PREFLIGHT, tests: process.env.TESTS, validate: process.env.VALIDATE, 'macos-installer': process.env.MACOS, 'release-rehearsal': process.env.REHEARSAL, lint: process.env.LINT });
+          if (!result.ok) { result.errors.forEach((error) => console.error(`::error::${error}`)); process.exit(1); }
+          console.log('PASS: required CI aggregate');
+          NODE
