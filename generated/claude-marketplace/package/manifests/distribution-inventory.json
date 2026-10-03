@@ -57,11 +57,39 @@
         }
       ]
     },
+    "harness-govern": {
+      "files": [
+        {
+          "source": "rules/execution-policy.md",
+          "destination": "rules/execution-policy.md"
+        },
+        {
+          "source": "rules/execution-policy-kernel.md",
+          "destination": "rules/execution-policy-kernel.md"
+        },
+        {
+          "source": "docs/subagent-prompt-template.md",
+          "destination": "docs/subagent-prompt-template.md"
+        }
+      ]
+    },
     "code-trace": {
       "files": [
         {
           "source": "rules/tool-routing.md",
           "destination": "rules/tool-routing.md"
+        },
+        {
+          "source": "rules/execution-policy.md",
+          "destination": "rules/execution-policy.md"
+        },
+        {
+          "source": "rules/execution-policy-kernel.md",
+          "destination": "rules/execution-policy-kernel.md"
+        },
+        {
+          "source": "docs/subagent-prompt-template.md",
+          "destination": "docs/subagent-prompt-template.md"
         }
       ]
     }

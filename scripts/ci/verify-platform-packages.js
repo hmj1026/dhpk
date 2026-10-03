@@ -154,7 +154,7 @@ function verifyCodex({ root, targetCommit, targetTree, inventory, version, track
     version,
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
   });
-  const structural = verifyNativePackage({ packageRoot: temp, inventory, stage: 'structural' });
+  const structural = verifyNativePackage({ packageRoot: temp, inventory, sourceRoot: root, stage: 'structural' });
   const receipt = validateSurfaceReceipt(trackedProvenance, 'codex-native', { root, targetCommit, targetTree });
   const fingerprintMatches = fingerprintNative(temp) === fingerprintNative(tracked);
   return {
@@ -177,7 +177,7 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, version, tracked
     sourceVersion: version,
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
   });
-  const structural = validateAgyPluginPackage(temp, { inventory, expectedVersion: version });
+  const structural = validateAgyPluginPackage(temp, { inventory, sourceRoot: root, expectedVersion: version });
   const receipt = validateSurfaceReceipt(
     { ...trackedProvenance, schema: trackedProvenance.provenanceSchema },
     'agy-plugin',

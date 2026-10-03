@@ -959,52 +959,61 @@ test('plans can derive the ownership binding from an inventory without changing 
   const { compileAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
   const { compileCursorPackage } = require('../scripts/lib/cursor-plugin-package');
   const { compileNativePackage } = require('../scripts/lib/codex-native-package');
+  const { compileMarketplacePublicationView } = require('../scripts/lib/marketplace-selection');
 
   const ROOT = path.join(__dirname, '..');
   const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const SELECTION = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
 
   function tempDir(prefix) {
     return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   }
 
-  function expectedSelectedStableIds(surface) {
-    const inventoryEntries = [...INVENTORY.skills, ...INVENTORY.modules];
-    if (surface === 'codex-native') {
-      return inventoryEntries
-        .filter((entry) => entry.lifecycle !== 'deprecated' && Array.isArray(entry.surfaces) && entry.surfaces.includes(surface))
-        .map((entry) => entry.id)
-        .sort();
-    }
-    const lifecycleById = new Map(inventoryEntries.map((entry) => [entry.id, entry.lifecycle]));
-    return [...INVENTORY.surface_membership[surface]]
-      .filter((stableId) => lifecycleById.has(stableId) && lifecycleById.get(stableId) !== 'deprecated')
-      .sort();
+  function expectedMarketplacePublication(surface) {
+    const publication = compileMarketplacePublicationView({ inventory: INVENTORY, selection: SELECTION, hostSurface: surface });
+    assert.deepStrictEqual(publication.errors, [], `${surface} publication must compile`);
+    return {
+      publicEntryIds: publication.publicEntries.map((entry) => entry.id).sort(),
+      hostOnlyIds: publication.hostOnly.map((entry) => entry.id).sort(),
+    };
   }
 
-  test('all migrated adapters retain compiler canonical selection identity in output plans', () => {
+  test('default marketplace adapters retain canonical publication identity and bind output plans', () => {
     const surfaces = [
-      ['agent-plugin', (outDir) => compileAgentPluginPackage({ inventory: INVENTORY, root: ROOT, outDir })],
-      ['cursor-plugin', (outDir) => compileCursorPackage({ inventory: INVENTORY, root: ROOT, outDir })],
-      ['codex-native', (outDir) => compileNativePackage({ inventory: INVENTORY, root: ROOT, outDir })],
+      ['agent-plugin', 'agent-plugin', (outDir) => compileAgentPluginPackage({ inventory: INVENTORY, root: ROOT, outDir })],
+      ['cursor-plugin', 'cursor-plugin', (outDir) => compileCursorPackage({ inventory: INVENTORY, root: ROOT, outDir })],
+      ['codex-native', 'codex-native', (outDir) => compileNativePackage({ inventory: INVENTORY, root: ROOT, outDir })],
     ];
-    for (const [surface, compile] of surfaces) {
+    for (const [surface, hostSurface, compile] of surfaces) {
       const outDir = tempDir(`dhpk-selection-plan-${surface}-`);
       try {
         const projection = compile(outDir);
-        const expectedIds = expectedSelectedStableIds(surface);
-        assert.deepStrictEqual(projection.plan.selectedStableIds, expectedIds, `${surface} selected IDs drifted`);
+        const expectedPublication = expectedMarketplacePublication(hostSurface);
+        const actualPublication = projection.provenance.marketplacePublication;
+        assert.ok(actualPublication, `${surface} must record its canonical marketplace publication`);
         assert.deepStrictEqual(
-          projection.plan.selectionPolicy,
-          INVENTORY.projection_contract.surfaces[surface].selection_policy,
-          `${surface} selection policy drifted from inventory`,
+          actualPublication.publicEntryIds,
+          expectedPublication.publicEntryIds,
+          `${surface} common public entries drifted from the canonical selection`,
         );
         assert.deepStrictEqual(
-          projection.plan.selectionEntries.map((entry) => entry.stableId),
-          expectedIds,
-          `${surface} canonical selection entries drifted`,
+          actualPublication.hostOnlyIds,
+          expectedPublication.hostOnlyIds,
+          `${surface} Host-only entries drifted from the canonical selection`,
         );
-        const selectedIds = new Set(expectedIds);
-        assert.ok(projection.plan.entries.some((entry) => !selectedIds.has(entry.stableId)), `${surface} plan has no distinct output intent`);
+        const expectedLocalIds = surface === 'cursor-plugin'
+          ? expectedPublication.hostOnlyIds
+          : [...expectedPublication.publicEntryIds, ...expectedPublication.hostOnlyIds].sort();
+        assert.deepStrictEqual(projection.provenance.selectedSkillIds, expectedLocalIds, `${surface} local selected IDs drifted`);
+        if (surface === 'cursor-plugin') {
+          assert.deepStrictEqual(projection.provenance.sharedSkillIds, expectedPublication.publicEntryIds,
+            'Cursor common entries must remain bound to the shared Agent package');
+        }
+        assert.deepStrictEqual(
+          projection.plan.selectedStableIds,
+          projection.plan.entries.map((entry) => entry.stableId),
+          `${surface} output plan IDs must bind every emitted file`,
+        );
       } finally {
         fs.rmSync(outDir, { recursive: true, force: true });
       }

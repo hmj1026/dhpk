@@ -17,8 +17,8 @@ GREEN result. This is the canonical replacement for the retired
 the caller requests one.
 
 Use this skill to keep tests attached to observable behavior rather than
-implementation details. Read [tests.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/tests.md) when writing or reviewing
-assertions and [mocking.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/mocking.md) before introducing a test double.
+implementation details. Read [tests.md](tests.md) when writing or reviewing
+assertions and [mocking.md](mocking.md) before introducing a test double.
 
 Before choosing names or seams, read `CONTEXT.md` when the repository provides
 one and respect nearby ADRs. Keep test vocabulary aligned with the project's
@@ -73,7 +73,7 @@ receives an approved task spec or a `tdd-guide` GREEN handback:
 2. Apply only the specified GREEN or test-scaffold change. Do not invent new
    behavior, broaden the file list, or start an independent RED strategy.
 3. Keep each test focused on one observable outcome and mock only external or
-   otherwise unavoidable system boundaries; see [mocking.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/mocking.md).
+   otherwise unavoidable system boundaries; see [mocking.md](mocking.md).
 4. Run the task's scoped verification command yourself and report the exact
    result and edited files. Escalate ambiguity instead of guessing.
 
@@ -85,7 +85,7 @@ worker contract: `tdd-guide` still owns RED, seam selection, and test strategy.
 A passing test is not evidence when it can share the production defect. Ask:
 "If the implementation and this test contained the same bug, would the test
 still pass?" If yes, replace the assertion before counting the test as
-coverage. [tests.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/tests.md) owns the independent-oracle, discrimination,
+coverage. [tests.md](tests.md) owns the independent-oracle, discrimination,
 and ownership rules and the rejection checklist.
 
 ## When NOT to Use
@@ -134,7 +134,7 @@ include the TDD-relevant test/verification result in its existing report.
 
 ## References
 
-- [tests.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/tests.md) — behavior-focused good/bad test shapes,
+- [tests.md](tests.md) — behavior-focused good/bad test shapes,
   implementation-coupling traps, independent oracles, discrimination, and the
   rejection checklist.
-- [mocking.md](https://github.com/hmj1026/dhpk/blob/main/skills/tdd-workflow/mocking.md) — boundary mocking and dependency-injection rules.
+- [mocking.md](mocking.md) — boundary mocking and dependency-injection rules.

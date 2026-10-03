@@ -1,6 +1,6 @@
 # Squash-merge hygiene — worked example
 
-SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Squash merge hygiene (recommended).
+SSOT: `_dependencies/rules/execution-policy.md` §Squash merge hygiene (recommended).
 
 ## Example — Unrelated Changes section
 

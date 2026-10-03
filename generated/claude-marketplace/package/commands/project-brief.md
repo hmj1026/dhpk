@@ -6,7 +6,7 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Forward to the canonical [`$project-brief` skill](../skills/project-brief/SKILL.md).
+Forward to the canonical [`$project-brief` skill](../skills/proposal-analyze/references/project-brief/SKILL.md).
 Pass the supplied `$ARGUMENTS` unchanged, including an optional `--output
 <path>`. The skill reads one source specification, writes the executive-summary
 shape, and reports the saved path plus retained unresolved decisions.

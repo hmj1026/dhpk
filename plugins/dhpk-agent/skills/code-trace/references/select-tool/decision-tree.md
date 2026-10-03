@@ -2,7 +2,7 @@
 
 Read this reference after the compact rules card when the request is ambiguous, multiple rows appear to match, the primary tool is unavailable or unhelpful, or the routing rationale is needed. It documents edge cases and rationale; it is not a second decision table.
 
-> **SSOT:** the compact decision card in `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` is authoritative for routing order and tie-breakers. This file carries only rationale and edge cases — it must not restate or diverge from that card; on any conflict, the rules card wins.
+> **SSOT:** the compact decision card in `../_dependencies/rules/tool-routing.md` is authoritative for routing order and tie-breakers. This file carries only rationale and edge cases — it must not restate or diverge from that card; on any conflict, the rules card wins.
 
 ## Why cx is preferred over Read
 
@@ -36,8 +36,8 @@ Skip claude-mem for:
 
 ## Append-only exemption (for impact)
 
-The sole condition list is in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Glossary. Apply it there and record `append-only — gitnexus_impact skipped`; do not restate or extend the conditions here.
+The sole condition list is in `../_dependencies/rules/execution-policy.md` Glossary. Apply it there and record `append-only — gitnexus_impact skipped`; do not restate or extend the conditions here.
 
 ## Sub-agent inheritance
 
-Sub-agents do not inherit this skill's content. When spawning a sub-agent that will do code exploration, include the source-reading boilerplate from `${CLAUDE_PLUGIN_ROOT}/docs/subagent-prompt-template.md` in the agent prompt.
+Sub-agents do not inherit this skill's content. When spawning a sub-agent that will do code exploration, include the source-reading boilerplate from `../_dependencies/docs/subagent-prompt-template.md` in the agent prompt.

@@ -1,6 +1,6 @@
 # Task modes — worked examples
 
-SSOT for the six change types, their flow, and OpenSpec ask-behavior: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Change classification & OpenSpec routing (SSOT)" table. This file adds concrete scenarios only — it does not restate the table as new normative rules.
+SSOT for the six change types, their flow, and OpenSpec ask-behavior: `_dependencies/rules/execution-policy.md` "Change classification & OpenSpec routing (SSOT)" table. This file adds concrete scenarios only — it does not restate the table as new normative rules.
 
 ## Bug Fix (unknown root cause)
 

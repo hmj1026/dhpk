@@ -30,6 +30,8 @@ const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
+const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
+const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
@@ -840,12 +842,30 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   const skippedSkills = [];
   const files = [];
   const traversalBudget = createTraversalBudget(traversalOptions);
-  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'cursor-plugin', profileSelection });
+  const hostPublication = !profileSelection && selectionMode !== 'legacy'
+    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'cursor-plugin' })
+    : null;
+  const selection = selectionMode === 'legacy' || hostPublication
+    ? null
+    : compileDistribution({ inventory, surface: 'cursor-plugin', profileSelection });
   if (selection && !selection.ok) throw new Error(selection.error.message);
-  const skillProjection = cursorSkillProjection(
-    inventory,
-    selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
-  );
+  const skillProjection = hostPublication
+    ? {
+      mode: hostPublication.hostOnly.length > 0 ? 'overlay' : 'shared',
+      sharedSurface: 'agent-plugin',
+      sharedSkills: hostPublication.publicEntries,
+      overlaySkills: hostPublication.hostOnly,
+    }
+    : cursorSkillProjection(
+      inventory,
+      selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
+    );
+  const catalogContent = hostPublication
+    ? compileMarketplaceSkillContent({ root: resolvedRoot, inventory, publicationView: hostPublication })
+    : null;
+  if (catalogContent && !catalogContent.ok) {
+    throw new Error(`Cursor marketplace content is invalid: ${catalogContent.errors.join('; ')}`);
+  }
   const selectedIds = [];
   const selectedNames = [];
   if (skillProjection.sharedSkills.length > 0) {
@@ -853,6 +873,39 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   }
   for (const skill of skillProjection.overlaySkills) {
     const publicName = skill.name || skill.id;
+    if (catalogContent) {
+      const skillFiles = catalogContent.files.filter((file) => file.ownerId === skill.id)
+        .filter((file) => !/(?:^|\/)agents\/openai\.yaml$/.test(file.path));
+      const skillEntrypoint = skillFiles.find((file) => file.path === `skills/${publicName}/SKILL.md`);
+      if (!skillEntrypoint) throw new Error(`Cursor source skill is missing SKILL.md: ${skill.path}`);
+      const adapted = adaptSkill(skillEntrypoint.bytes.toString('utf8'), publicName);
+      if (!adapted.ok) throw new Error(`Cursor marketplace skill '${publicName}' is invalid: ${adapted.reason}`);
+      const metadata = skillProjectionMetadata(skill, {
+        transform: { id: 'cursor-native-skill', version: generatorVersion },
+        owner: SURFACE_OWNERS['cursor-plugin'],
+        inventoryRevision,
+        ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+      });
+      for (const file of skillFiles) {
+        const isEntrypoint = file.path === `skills/${publicName}/SKILL.md`;
+        const content = isEntrypoint ? Buffer.from(adapted.content) : file.bytes;
+        traversalBudget.accountBytes(content.byteLength, file.path);
+        files.push({
+          source: file.sourcePath,
+          destination: file.path,
+          content,
+          mode: file.mode,
+          ...metadata,
+          ownerId: file.ownerId,
+          sourcePath: file.sourcePath,
+          contentKind: file.kind,
+        });
+      }
+      selectedIds.push(skill.id);
+      selectedNames.push(publicName);
+      transformations.push({ source: skill.path, destination: `skills/${publicName}`, transform: adapted.transform });
+      continue;
+    }
     const sourceDir = resolveContained(resolvedRoot, skill.path);
     const sourceSkill = sourceDir && path.join(sourceDir, 'SKILL.md');
     if (!sourceDir || !sourceSkill || !fs.existsSync(sourceSkill)) {
@@ -947,6 +1000,23 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     selectedSkillIds: [...selectedIds].sort(),
     selectedSkillNames: [...selectedNames].sort(),
     runtimeSupportStableIds: runtimeSupportSkillIds(inventory, 'cursor-plugin').slice().sort(),
+    ...(hostPublication ? {
+      marketplacePublication: {
+        selectionDigest: hostPublication.selectionDigest,
+        publicEntryIds: hostPublication.publicEntries.map((entry) => entry.id).sort(),
+        hostOnlyIds: hostPublication.hostOnly.map((entry) => entry.id).sort(),
+      },
+      bundledContentProvenance: {
+        ...catalogContent.bundleProvenance,
+        files: catalogContent.files.map((file) => ({
+          ownerId: file.ownerId,
+          skillId: file.skillId,
+          sourcePath: file.sourcePath,
+          destination: file.path,
+          kind: file.kind,
+        })),
+      },
+    } : {}),
     skillProjectionMode: skillProjection.mode,
     sharedSkillSurface: skillProjection.sharedSurface,
     sharedSkillSource: skillProjection.sharedSkills.length > 0 ? 'plugins/dhpk-agent/skills/' : null,
@@ -1065,7 +1135,8 @@ function compileCursorPackage({
       } : {}),
   }));
   const compiled = compileDistribution({
-      internalCharacterization: selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy),
+      internalCharacterization: Boolean(projection.provenance.marketplacePublication)
+        || (selectionMode !== 'legacy' && (!projection.selection || !projection.selection.selectionPolicy)),
       surface: 'cursor-plugin',
       compilerVersion: `cursor-${generatorVersion}`,
       inventoryFingerprint: stableInventoryDigest(inventory),
@@ -1074,13 +1145,13 @@ function compileCursorPackage({
       // Plan identity is a contract identity, not a host-specific temp path.
       ownershipRoot: 'plugins/dhpk-cursor',
       entries,
-      selectedStableIds: projection.selection && projection.selection.selectionPolicy
+      selectedStableIds: !projection.provenance.marketplacePublication && projection.selection && projection.selection.selectionPolicy
         ? projection.selection.selectedStableIds
         : undefined,
-      selectionPolicy: projection.selection && projection.selection.selectionPolicy
+      selectionPolicy: !projection.provenance.marketplacePublication && projection.selection && projection.selection.selectionPolicy
         ? projection.selection.selectionPolicy
         : undefined,
-      selectionEntries: projection.selection && projection.selection.selectionPolicy
+      selectionEntries: !projection.provenance.marketplacePublication && projection.selection && projection.selection.selectionPolicy
         ? (projection.selection.selectionEntries || projection.selection.entries).map((entry) => {
           const skill = (inventory.skills || []).find((candidate) => candidate.id === entry.stableId || candidate.id === entry.skillId);
           return skill ? {

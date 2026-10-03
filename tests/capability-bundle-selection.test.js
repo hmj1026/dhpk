@@ -391,7 +391,13 @@ test('checked-in minimal profile is the curated four-entry Claude default', () =
   assert.deepStrictEqual(result.value.supportClosure.skillStableIds, []);
   assert.deepStrictEqual(
     [...new Set(result.value.supportClosure.files.map((file) => file.destination))].sort(),
-    ['rules/execution-policy-kernel.md', 'rules/execution-policy.md', 'rules/tool-routing.md', 'scripts/lib/flow-handoff-contract.js'],
+    [
+      'docs/subagent-prompt-template.md',
+      'rules/execution-policy-kernel.md',
+      'rules/execution-policy.md',
+      'rules/tool-routing.md',
+      'scripts/lib/flow-handoff-contract.js',
+    ],
   );
   assert.ok(result.value.supportClosure.files.every((file) => expected.includes(file.requiredBy)));
 });

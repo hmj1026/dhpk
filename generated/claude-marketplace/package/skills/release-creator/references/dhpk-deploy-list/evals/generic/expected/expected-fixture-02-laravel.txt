@@ -1,0 +1,33 @@
+# deploy-list schema=v1
+Update time: 2026/01/01
+Update tag: 2026/01/01 tester [GEN] laravel preset fixture
+Update project: synthetic-laravel
+Update files: (pinned 1 commit(s), 7 file(s) after filter)
+
+app/Domain/Order.php
+
+app/Http/Controllers/HomeController.php
+
+app/Models/User.php
+
+database/migrations/2024_01_01_create_users.php
+
+resources/views/home.blade.php
+
+routes/web.php
+
+config/app.php
+
+---
+📊 Stats
+- Deployed files: 7 (PHP: 7 incl. 1 Blade, JS/TS: 0, other: 0)
+- Diff range: master...develop (raw 12 files, 5 filtered out)
+- Pinned commits: 1
+
+🚫 Filtered out (not deployed)
+- Tests (tests/): 1
+- Bootstrap/storage cache: 2
+- Docs (docs/, README, CLAUDE.md): 0
+- AI harness (.claude/, .codex/, .gemini/, .agents/): 0
+- CI / tooling / build config: 2
+# end deploy-list schema=v1

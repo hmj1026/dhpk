@@ -23,7 +23,7 @@ Use native Git operations only. `add` uses the repository parent and the
 status. `remove` and `prune` preview their exact targets and require explicit
 confirmation before mutation; never use a force option to bypass a dirty
 check. The detailed command sequence is in
-[`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/git-worktree/references/workflow.md).
+[`references/workflow.md`](references/workflow.md).
 
 ## When NOT to Use
 
@@ -48,5 +48,5 @@ check. The detailed command sequence is in
 
 ## References
 
-- [`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/git-worktree/references/workflow.md) — native commands,
+- [`references/workflow.md`](references/workflow.md) — native commands,
   naming, dirty checks, confirmation, and output details.

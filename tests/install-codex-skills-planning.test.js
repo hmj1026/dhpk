@@ -415,7 +415,7 @@ test('adoption recovery rolls forward a durable partial receipt after a receipt-
 
 test('adoption is path-scoped when multiple collisions are reported', () => {
   const fixture = collisionFixture();
-  const second = 'dhpk-legacy-characterization-tests';
+  const second = 'flow-guide';
   try {
     const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
     assert.ok(receipt.managed_entries.skills[second], `expected fixture receipt entry for ${second}`);

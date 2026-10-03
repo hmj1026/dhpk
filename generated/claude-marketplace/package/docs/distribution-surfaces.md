@@ -11,6 +11,45 @@ evidence, and rollback, use the [platform installation SSOT](./platform-installa
 The ownership and projection decision is recorded in
 [ADR-0009](adr/0009-distribution-projection-and-orchestration-ownership.md).
 
+## OpenAI submission artifact
+
+Default retained Host builders use the same 15 common entries and 45 bundled
+child resources. Their Host-specific rows remain separate from the public
+submission catalog. The default package directories total 17 for Agent Plugin,
+22 for Codex, 17 for AGY and 30 for Claude; Cursor publishes two local directories
+and references the 15 common entries in the Agent package. These directory
+counts include internal support rows and are not consumer discovery counts.
+Explicit profile and standalone selections retain their existing selection rules.
+
+`bin/dhpk distribution openai-submission` produces a skills-only portable
+package from the [accepted marketplace catalog](contracts/marketplace-catalog.md).
+It uses root `plugin.json`, the public owners under `skills/`, and their
+contained child resources. Host-only and withdrawn skills are excluded.
+
+Provide a portable manifest containing the intended listing metadata under
+`extensions["com.openai"].interface`. Use a clean source checkout and an output
+directory outside the checkout when comparing repeated builds:
+
+```bash
+bin/dhpk distribution openai-submission generate --manifest /path/to/plugin.json --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission validate --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission verify --output /tmp/dhpk-openai-artifact --json
+```
+
+Generation validates the complete catalog before publishing `package.zip`
+and its `provenance.json` sidecar. The sidecar binds source identity, selection,
+archive digest and extracted file fingerprints. Replacing an output requires
+a valid owner receipt: the two-file output must contain a structurally valid ZIP
+and a sidecar with the expected schema, surface, archive digest and extracted
+fingerprints matching that ZIP. Invalid inputs leave the previous artifact intact.
+Partial `--profile`, `--skill` and `--standalone` selections are unsupported.
+
+`PASS` from these commands records local structural evidence. Consumer
+execution, official scans, directory submission and publication remain
+separate evidence states. The static catalog ceilings in
+`manifests/discovery-budgets.json` likewise do not establish rendered consumer
+discovery or token-budget acceptance.
+
 ## Lifecycle model
 
 Every consumer-reachable skill and module carries exactly one lifecycle in

@@ -160,6 +160,9 @@ function retiredCodexMcpErrors(counts, inventory) {
 // feature name rather than a name/name-aspect derived from the script's own
 // basename (so the naming-convention check below can't find them automatically).
 const COVERAGE_MAP = {
+  'scripts/lib/marketplace-host-publication.js': 'marketplace-host-catalog.test.js',
+  'scripts/lib/marketplace-skill-content.js': 'openai-submission-package.test.js',
+  'scripts/lib/openai-submission-command.js': 'openai-submission-cli.test.js',
   'scripts/lib/project-agent-host-binding-policy.js': 'project-agent-provider-adapters.test.js',
   'scripts/ci/install-native-shared-skills.js': 'native-shared-skill-install.test.js',
   'scripts/lib/agy-plugin-package.js': 'agy-plugin-install.test.js',

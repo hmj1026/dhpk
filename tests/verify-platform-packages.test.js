@@ -14,7 +14,7 @@ const {
 
 const ROOT = path.join(__dirname, '..');
 
-test('an unprofiled generation preserves legacy package membership while adding only declared runtime support', () => {
+test('an unprofiled generation materializes the common and surface-specific Host catalog', () => {
   // Package generators reject symlinked ancestors; macOS exposes os.tmpdir() as /var.
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-platform-'));
   try {
@@ -25,7 +25,7 @@ test('an unprofiled generation preserves legacy package membership while adding 
       ], { encoding: 'utf8' });
       assert.strictEqual(result.status, 0, result.stdout + result.stderr);
       const report = JSON.parse(result.stdout);
-      assert.strictEqual(report.skillCount, 52, `${surface} must retain the current 52 inventory-selected skills`);
+      assert.strictEqual(report.skillCount, 17, `${surface} must publish fifteen common entries and two Host-only entries`);
       const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
       assert.strictEqual(provenance.profileId, undefined, `${surface} must not narrow without an explicit --profile`);
     }
@@ -43,18 +43,20 @@ test('platform package verifier reports deterministic four-platform outputs', ()
   assert.strictEqual(report.surfaces['cursor-plugin'].structural, 'PASS');
   assert.strictEqual(report.surfaces['codex-native'].structural, 'PASS');
   assert.strictEqual(report.surfaces['agy-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 52);
-  assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 4);
-  assert.strictEqual(report.surfaces['codex-native'].selectedSkills, 33);
-  assert.strictEqual(report.surfaces['agy-plugin'].selectedSkills, 52);
+  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 17);
+  assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 2);
+  assert.strictEqual(report.surfaces['codex-native'].selectedSkills, 22);
+  assert.strictEqual(report.surfaces['agy-plugin'].selectedSkills, 17);
   assert.strictEqual(report.policyParity.verdict, 'PASS');
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSurface, 'agent-plugin');
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSource, 'plugins/dhpk-agent/skills/');
   const cursorLocal = report.surfaces['cursor-plugin'].selectedSkillIds;
   const cursorShared = report.surfaces['cursor-plugin'].sharedSkillIds;
   const cursorProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-cursor', 'provenance.json'), 'utf8'));
-  assert.deepStrictEqual(cursorLocal, ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']);
-  assert.ok(cursorLocal.every((id) => cursorShared.includes(id) && cursorProvenance.runtimeSupportStableIds.includes(id)));
+  assert.deepStrictEqual(cursorLocal, ['cli-dispatch-context', 'cli-transport']);
+  assert.deepStrictEqual(cursorShared, cursorProvenance.sharedSkillIds);
+  assert.ok(cursorLocal.every((id) => cursorProvenance.runtimeSupportStableIds.includes(id)));
+  assert.ok(cursorLocal.every((id) => !cursorShared.includes(id)), 'Cursor Host-only overlay entries must remain separate from common shared entries');
   assert.deepStrictEqual(report.errors, []);
 });
 

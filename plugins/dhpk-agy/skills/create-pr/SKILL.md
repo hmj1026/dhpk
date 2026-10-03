@@ -20,7 +20,7 @@ Extract a ticket from the branch with `{TICKET_PATTERN}` (default
 `[A-Z]+-\d+`), then generate `<type>: [<TICKET>] <summary>` unless
 `--title` overrides it. The body contains summary bullets, the ticket link,
 and a test plan. Before any PR creation, run the pre-flight checks in
-[`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/create-pr/references/workflow.md), including
+[`references/workflow.md`](references/workflow.md), including
 `git rev-list --count <base>..HEAD`. A zero count stops with the exact message
 `No commits between <base> and HEAD — nothing to open a PR for`.
 
@@ -52,5 +52,5 @@ for confirmation, and then report the URL. Do not push or create commits.
 
 ## References
 
-- [`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/create-pr/references/workflow.md) — option resolution,
+- [`references/workflow.md`](references/workflow.md) — option resolution,
   pre-flight evidence, command shape, and failure handling.

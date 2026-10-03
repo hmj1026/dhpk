@@ -21,6 +21,8 @@ const { compileDistribution } = require('./distribution-compiler');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
 const { physicalSkillTree } = require('./workflow-package-closure');
+const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
+const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
 const {
   externalSkillPackagesFingerprint,
   resolveInventoryRevision,
@@ -225,7 +227,7 @@ function inventorySkillMap(inventory) {
   return new Map([...(inventory && inventory.skills || []), ...(inventory && inventory.modules || [])].map((entry) => [entry.id, entry]));
 }
 
-function selectedConfiguration(inventory, profileSelection = null, root = null) {
+function selectedConfiguration(inventory, profileSelection = null, root = null, publicationView = null) {
   const configuration = inventory && inventory.agy_plugin;
   if (!configuration || typeof configuration !== 'object') throw new Error('inventory.agy_plugin is required');
   const compiled = compileDistribution({
@@ -234,7 +236,11 @@ function selectedConfiguration(inventory, profileSelection = null, root = null) 
     profileSelection,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
-  const selectedIds = compiled.value.entries.map((entry) => entry.stableId);
+  const marketplace = publicationView || (!profileSelection && root
+    ? loadMarketplaceHostPublication({ root, inventory, hostSurface: SURFACE }) : null);
+  const selectedIds = marketplace
+    ? [...marketplace.publicEntries, ...marketplace.hostOnly].map((entry) => entry.id)
+    : compiled.value.entries.map((entry) => entry.stableId);
   const surfaceRule = inventory.projection_contract
     && inventory.projection_contract.surfaces
     && inventory.projection_contract.surfaces[SURFACE];
@@ -242,7 +248,7 @@ function selectedConfiguration(inventory, profileSelection = null, root = null) 
     ? surfaceRule.selection_policy
     : compiled.value.selectionPolicy;
   const runtimeSkillIds = runtimeSupportSkillIds(inventory, SURFACE);
-  const skillIds = [...new Set([...selectedIds, ...runtimeSkillIds])];
+  const skillIds = marketplace ? selectedIds : [...new Set([...selectedIds, ...runtimeSkillIds])];
   if (!Array.isArray(configuration.agents) || !Array.isArray(configuration.rules)) {
     throw new Error('inventory.agy_plugin agents and rules must be arrays');
   }
@@ -262,12 +268,15 @@ function selectedConfiguration(inventory, profileSelection = null, root = null) 
     rules,
     skills,
     runtimeSkillIds,
+    publicationView: marketplace,
     selection: {
-      compiler: { id: 'distribution-compiler', version: compiled.value.compilerVersion },
+      compiler: marketplace
+        ? { id: 'marketplace-publication-view', version: '1' }
+        : { id: 'distribution-compiler', version: compiled.value.compilerVersion },
       surface: SURFACE,
       selectedStableIds: selectedIds,
-      selectionPolicy,
-      planFingerprint: compiled.value.planFingerprint,
+      selectionPolicy: marketplace ? { source: 'marketplace-selection', selectionDigest: marketplace.selectionDigest } : selectionPolicy,
+      planFingerprint: marketplace ? digest(stableStringify({ surface: SURFACE, selectionDigest: marketplace.selectionDigest, selectedIds })) : compiled.value.planFingerprint,
     },
   };
 }
@@ -390,6 +399,9 @@ function materializeAgyPluginPackage({
   }
   const sourceRoot = assertPhysicalDirectory(root, 'canonical root');
   const selected = selectedConfiguration(inventory, profileSelection, sourceRoot);
+  const marketplaceContent = selected.publicationView
+    ? compileMarketplaceSkillContent({ root: sourceRoot, inventory, publicationView: selected.publicationView }) : null;
+  if (marketplaceContent && !marketplaceContent.ok) throw new Error(marketplaceContent.errors.join('; '));
   const inventoryRevision = resolveInventoryRevision(inventory);
   const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
     ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
@@ -447,7 +459,18 @@ function materializeAgyPluginPackage({
 
   const skillsDestination = ensureDirectory(path.join(outputRoot, 'skills'), 'AGY skills directory');
   const selectedSkillIds = new Set(selected.skills.map((skill) => skill.id));
-  for (const skill of selected.skills) {
+  if (marketplaceContent) {
+    for (const file of marketplaceContent.files) {
+      if (file.path.endsWith('/agents/openai.yaml')) continue;
+      const target = path.join(outputRoot, file.path);
+      assertSafeRelative(file.path, 'AGY marketplace file');
+      ensureDirectory(path.dirname(target), 'AGY marketplace parent');
+      const immediateSkill = /^skills\/[^/]+\/SKILL\.md$/.test(file.path);
+      const bytes = immediateSkill
+        ? Buffer.from(adaptAgySkillContent(file.bytes.toString('utf8'), selectedSkillIds)) : file.bytes;
+      fs.writeFileSync(target, bytes, { mode: file.mode & 0o111 ? 0o755 : 0o644 });
+    }
+  } else for (const skill of selected.skills) {
     const skillPath = skill.path.replace(/^skills\//, '');
     assertSafeRelative(skillPath, `AGY skill '${skill.id}'`);
     const source = path.join(sourceRoot, skill.path, 'SKILL.md');
@@ -549,9 +572,20 @@ function materializeAgyPluginPackage({
   receipt.transform = { id: 'agy-agent-frontmatter-v1', version: '1' };
   receipt.packageRoot = 'plugins/dhpk-agy';
   receipt.selection = selected.selection;
+  if (marketplaceContent) {
+    receipt.marketplaceCatalog = {
+      ...marketplaceContent.bundleProvenance,
+      publicEntryIds: selected.publicationView.publicEntries.map((entry) => entry.id),
+      hostOnlyIds: selected.publicationView.hostOnly.map((entry) => entry.id),
+      files: marketplaceContent.files.map((file) => ({
+        skillId: file.skillId, ownerId: file.ownerId, sourcePath: file.sourcePath,
+        destination: file.path, kind: file.kind,
+      })),
+    };
+  }
   writeJson(path.join(outputRoot, 'fingerprints.json'), { schema: PACKAGE_SCHEMA, files: fingerprints });
   writeJson(path.join(outputRoot, 'provenance.json'), receipt);
-  const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory, profileSelection });
+  const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory, profileSelection, publicationView: selected.publicationView });
   if (!checked.ok) throw new Error(`generated AGY package failed validation: ${checked.errors.join('; ')}`);
   promoteOutputRoot(outputRoot, destination);
   promoted = true;
@@ -561,7 +595,7 @@ function materializeAgyPluginPackage({
   }
 }
 
-function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null } = {}) {
+function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null, sourceRoot = null, publicationView = null } = {}) {
   const errors = [];
   const warnings = [];
   const root = path.resolve(packageRoot || '');
@@ -585,7 +619,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
 
   let selected = null;
   if (inventory) {
-    try { selected = selectedConfiguration(inventory, profileSelection); } catch (error) { errors.push(error.message); }
+    try { selected = selectedConfiguration(inventory, profileSelection, sourceRoot, publicationView); } catch (error) { errors.push(error.message); }
   }
   const expectedAgentFiles = selected ? new Set(selected.agents.map((name) => `agents/${name}`)) : null;
   const expectedRuleFiles = selected ? new Set(selected.rules) : null;
@@ -639,7 +673,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
 
   const agentFiles = files.filter((relative) => relative.startsWith('agents/') && relative.endsWith('.md')).sort();
   const ruleFiles = files.filter((relative) => relative.startsWith('rules/') && relative.endsWith('.md')).sort();
-  const skillFiles = files.filter((relative) => relative.startsWith('skills/') && relative.endsWith('/SKILL.md')).sort();
+  const skillFiles = files.filter((relative) => /^skills\/[^/]+\/SKILL\.md$/.test(relative)).sort();
   if (agentFiles.length === 0) errors.push('AGY package must contain at least one adapted agent');
   for (const relative of agentFiles) {
     if (expectedAgentFiles && !expectedAgentFiles.has(relative)) errors.push(`undeclared AGY agent: ${relative}`);

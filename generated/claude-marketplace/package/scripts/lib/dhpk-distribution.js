@@ -34,6 +34,7 @@ const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capabili
 
 const OPERATIONS = Object.freeze(['generate', 'validate', 'verify']);
 const SURFACES = Object.freeze({
+  'openai-submission': Object.freeze({ output: 'generated/openai-submission', adapter: 'openai-submission-package', runtimeProbe: 'OpenAI consumer execution' }),
   'agent-plugin': Object.freeze({ output: 'plugins/dhpk-agent', adapter: 'agent-plugin-package', runtimeProbe: 'Agent Plugin client discovery', run: runAgent }),
   'cursor-plugin': Object.freeze({ output: 'plugins/dhpk-cursor', adapter: 'cursor-plugin-package', runtimeProbe: 'Cursor client discovery', run: runCursor }),
   'codex-native': Object.freeze({ output: 'plugins/dhpk', adapter: 'codex-native-package', runtimeProbe: 'Codex native client discovery', run: runCodex }),
@@ -53,10 +54,20 @@ function resolveSourceCommit(root) {
 
 function parseRequest(argv) {
   const positional = [];
-  const options = { json: false, output: null, version: null, profileId: null, skillIds: [], standaloneSkillIds: [], profileExplicit: false };
+  const options = { json: false, output: null, version: null, manifest: null, profileId: null, skillIds: [], standaloneSkillIds: [], profileExplicit: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--json') options.json = true;
+    else if (arg === '--manifest') {
+      const value = argv[++index];
+      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'a manifest option value is required' };
+      options.manifest = value;
+    }
+    else if (arg.startsWith('--manifest=')) {
+      const value = arg.slice('--manifest='.length);
+      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'a manifest option value is required' };
+      options.manifest = value;
+    }
     else if (arg === '--output') {
       const value = argv[++index];
       if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
@@ -116,6 +127,16 @@ function parseRequest(argv) {
   if (!SURFACES[surface]) return { ok: false, status: 64, error: `unknown surface '${surface || ''}'` };
   if (!OPERATIONS.includes(operation)) return { ok: false, status: 64, error: `unknown operation '${operation || ''}'` };
   if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|validate|verify> [--output <dir>] [--version <version>] [--json]' };
+  if (surface === 'openai-submission') {
+    if (options.profileId || options.skillIds.length || options.standaloneSkillIds.length) {
+      return { ok: false, status: 64, error: 'OpenAI submission requires the complete public catalog; partial selectors are forbidden' };
+    }
+    if (operation === 'generate' && !options.manifest) {
+      return { ok: false, status: 64, error: 'OpenAI submission generation requires --manifest <portable-plugin.json>' };
+    }
+  } else if (options.manifest) {
+    return { ok: false, status: 64, error: '--manifest is only supported for openai-submission' };
+  }
   if (options.standaloneSkillIds.length > 0 && (options.profileId || options.skillIds.length > 0)) {
     return { ok: false, status: 64, error: '--standalone cannot be combined with --profile or --skill' };
   }
@@ -276,7 +297,7 @@ function runCodex(operation, context) {
   if (operation === 'generate') {
     const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection });
     const result = materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection });
-    const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural', profileSelection: context.profileSelection });
+    const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, sourceRoot: context.root, stage: 'structural', profileSelection: context.profileSelection });
     return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, errors: validation.errors } }, context);
   }
   if (operation === 'verify') {
@@ -288,7 +309,7 @@ function runCodex(operation, context) {
       const sourceCommit = readJson(path.join(context.output, 'provenance.json')).sourceCommit;
       const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit, profileSelection: context.profileSelection });
       materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit, compiledProjection, profileSelection: context.profileSelection });
-      const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural', profileSelection: context.profileSelection });
+      const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, sourceRoot: context.root, stage: 'structural', profileSelection: context.profileSelection });
       const deterministic = fingerprintNative(temporary) === fingerprintNative(context.output);
       return mergeReceipt('codex-native', context.output, {
         ok: validation.ok && deterministic,
@@ -298,7 +319,7 @@ function runCodex(operation, context) {
       fs.rmSync(temporary, { recursive: true, force: true });
     }
   }
-  const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural', profileSelection: context.profileSelection });
+  const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, sourceRoot: context.root, stage: 'structural', profileSelection: context.profileSelection });
   return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { errors: validation.errors } }, context);
 }
 
@@ -309,10 +330,10 @@ function runAgy(operation, context) {
       sourceVersion: context.manifest.version, sourceCommit: context.sourceCommit, generatorVersion: AGY_GENERATOR_VERSION,
       profileSelection: context.profileSelection,
     });
-    const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, expectedVersion: context.version, profileSelection: context.profileSelection });
+    const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, sourceRoot: context.root, expectedVersion: context.version, profileSelection: context.profileSelection });
     return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { agentCount: result.selected.agents.length, skillCount: result.selected.skills.length, warnings: validation.warnings, errors: validation.errors } }, context);
   }
-  const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, expectedVersion: context.version, profileSelection: context.profileSelection });
+  const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, sourceRoot: context.root, expectedVersion: context.version, profileSelection: context.profileSelection });
   return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } }, context);
 }
 
@@ -320,6 +341,9 @@ function execute(argv, root) {
   const request = parseRequest(argv);
   if (!request.ok) return request;
   try {
+    if (request.surface === 'openai-submission') {
+      return require('./openai-submission-command').executeOpenaiSubmission(request, root);
+    }
     const context = runtime(root, request);
     if (request.operation === 'generate') assertOwnedGenerationTarget(request.surface, context.output);
     const surface = SURFACES[request.surface];

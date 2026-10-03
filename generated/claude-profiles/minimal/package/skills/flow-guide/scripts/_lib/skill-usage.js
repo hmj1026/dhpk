@@ -678,7 +678,7 @@ function addRuntimeAlias(aliases, alias, target, disposition) {
   aliases[alias] = { target, disposition };
 }
 
-function compileRuntimeIndex(inventory, normalizedUsageById) {
+function compileRuntimeIndex(inventory, normalizedUsageById, publicIds = null) {
   const targets = {};
   const aliases = {};
   const skills = Array.isArray(inventory.skills) ? inventory.skills : [];
@@ -693,7 +693,7 @@ function compileRuntimeIndex(inventory, normalizedUsageById) {
       publicName: name,
       invocationClass: runtimeInvocationClass(skill),
       command: runtimeCommand(name, usage),
-      codexInvokable: hasCodexSurface(skill),
+      codexInvokable: publicIds ? publicIds.has(id) : hasCodexSurface(skill),
     };
   }
 
@@ -775,7 +775,28 @@ function compileSkillUsageCatalog(input) {
     throw new Error('skill usage catalog inventory.skills must be an array');
   }
 
-  const selected = inventory.skills.filter(isCodexInvokableSkill);
+  const publicationView = values.publicationView;
+  let publicIds = null;
+  if (publicationView !== undefined) {
+    if (!isRecord(publicationView) || !Array.isArray(publicationView.errors)
+      || !Array.isArray(publicationView.publicEntries)) {
+      throw new Error('skill usage catalog requires a compiled publication view');
+    }
+    if (publicationView.errors.length > 0) throw new Error(publicationView.errors.join('; '));
+    publicIds = new Set(publicationView.publicEntries.map((entry) => entry.id));
+    const inventoryIds = new Set(inventory.skills.map(skillId));
+    if (publicIds.size !== publicationView.publicEntries.length
+      || [...publicIds].some((id) => !inventoryIds.has(id))) {
+      throw new Error('skill usage catalog publication identities must be unique inventory IDs');
+    }
+    if (typeof publicationView.selectionDigest !== 'string'
+      || !/^[a-f0-9]{64}$/.test(publicationView.selectionDigest)) {
+      throw new Error('skill usage catalog requires a selection digest');
+    }
+  }
+  const selected = inventory.skills.filter((skill) => (
+    publicIds ? publicIds.has(skillId(skill)) : isCodexInvokableSkill(skill)
+  ));
   const entries = [];
   const normalizedUsageById = new Map();
   const ids = new Set();
@@ -820,7 +841,8 @@ function compileSkillUsageCatalog(input) {
     schema: CATALOG_SCHEMA,
     sourceInventoryRevision: resolveInventoryRevision(inventory, values.inventoryRevision),
     entries,
-    runtimeIndex: compileRuntimeIndex(inventory, normalizedUsageById),
+    ...(publicationView ? { sourceSelectionDigest: publicationView.selectionDigest } : {}),
+    runtimeIndex: compileRuntimeIndex(inventory, normalizedUsageById, publicIds),
   };
   const runtimeValidation = validateRuntimeIndex(catalog.runtimeIndex);
   if (!runtimeValidation.ok) throw new Error(runtimeValidation.errors.join('; '));

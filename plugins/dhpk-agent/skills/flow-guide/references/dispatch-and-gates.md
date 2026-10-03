@@ -41,7 +41,7 @@ Reviewer 有 findings 時：合併成一份 fix-spec；CRITICAL 須在回報完�
 | Feature Delivery（一般） | — | `/opsx:new` 或 brief plan | profile + work-item + legacy-ref + RED |
 | Lightweight Maintenance | — | Read → Edit | targeted verification only |
 
-若輸入含有已退休的 `--codex`，依 [codex-mode](https://github.com/hmj1026/dhpk/blob/main/skills/flow-guide/references/codex-mode.md) 回報
+若輸入含有已退休的 `--codex`，依 [codex-mode](codex-mode.md) 回報
 `DEPRECATED_CODEX_FLAG` 並停止，不得把它轉譯成 `codex exec`、worker、
 reasoner 或 app-server。新流程預設使用 Codex-free route；CLI 後端與第二
 意見都必須由 caller 以明確選項指定。

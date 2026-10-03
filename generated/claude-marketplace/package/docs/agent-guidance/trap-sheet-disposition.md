@@ -22,7 +22,7 @@ Loader SHA-256 (task 2.3; must match `agent-traps/_common/trap-sheet-loader.md`)
 | `code-reviewer/python.md` | updated | Python code-reviewer traps; security → `security-reviewer/python.md`. |
 | `code-reviewer/swift.md` | updated | Swift code-reviewer traps with Non-apply bounds. |
 | `code-reviewer/fastapi.md` | updated | FastAPI-only traps; DB/security pointed at those agents. |
-| `security-reviewer/php.md` | already-compliant | OWASP pointer to `skills/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md`; rows given Non-apply bounds. |
+| `security-reviewer/php.md` | already-compliant | OWASP pointer to `skills/flow-drive/references/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md`; rows given Non-apply bounds. |
 | `security-reviewer/js.md` | updated | Executable rows + Non-apply bounds. |
 | `security-reviewer/python.md` | updated | Executable rows + Non-apply bounds. |
 | `security-reviewer/yii.md` | updated | Unique Yii security; no OWASP paste. |

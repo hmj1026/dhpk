@@ -24,6 +24,8 @@ const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
+const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
+const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 
 const AGENT_PLUGIN_VERSION = '1.0.0';
 const AGENT_PLUGIN_SCHEMA = `https://agent-plugins.org/schemas/${AGENT_PLUGIN_VERSION}/plugin.schema.json`;
@@ -855,21 +857,34 @@ function buildAgentPluginProjection(options = {}) {
   assertProjectionDestination(resolvedRoot, resolvedOut, 'Agent Plugin');
 
   const allowlist = inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist;
-  const selection = selectionMode === 'legacy' ? null : compileDistribution({
+  const hostPublication = !profileSelection && selectionMode !== 'legacy'
+    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'agent-plugin' })
+    : null;
+  const selection = selectionMode === 'legacy' || hostPublication ? null : compileDistribution({
     inventory,
     surface: 'agent-plugin',
     profileSelection,
   });
   if (selection && !selection.ok) throw new Error(selection.error.message);
-  const profileSelected = selectPortableSkills(
-    inventory,
-    'agent-plugin',
-    selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
-  );
   const entriesById = new Map((inventory.skills || []).map((entry) => [entry && entry.id, entry]));
-  const selected = [...profileSelected, ...runtimeSupportSkillIds(inventory, 'agent-plugin').map((id) => entriesById.get(id))]
+  const profileSelected = hostPublication
+    ? [...hostPublication.publicEntries, ...hostPublication.hostOnly]
+    : selectPortableSkills(
+      inventory,
+      'agent-plugin',
+      selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
+    );
+  const selected = (hostPublication
+    ? profileSelected
+    : [...profileSelected, ...runtimeSupportSkillIds(inventory, 'agent-plugin').map((id) => entriesById.get(id))])
     .filter((entry, index, all) => entry && all.findIndex((candidate) => candidate.id === entry.id) === index)
     .sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id)));
+  const catalogContent = hostPublication
+    ? compileMarketplaceSkillContent({ root: resolvedRoot, inventory, publicationView: hostPublication })
+    : null;
+  if (catalogContent && !catalogContent.ok) {
+    throw new Error(`Agent Plugin marketplace content is invalid: ${catalogContent.errors.join('; ')}`);
+  }
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
@@ -892,6 +907,71 @@ function buildAgentPluginProjection(options = {}) {
   // Each Skill directory is complete; no peer Skill is added implicitly.
   for (const entry of selected) {
     const publicName = entry.name || entry.id;
+    if (catalogContent) {
+      const ownerFiles = catalogContent.files.filter((file) => file.ownerId === entry.id
+        && !/(?:^|\/)agents\/openai\.yaml$/.test(file.path));
+      const fingerprintFiles = [];
+      for (const file of ownerFiles) {
+        const sourceSkill = entriesById.get(file.skillId);
+        if (!sourceSkill) throw new Error(`Agent Plugin marketplace content references unknown skill '${file.skillId}'`);
+        const isOwnerEntrypoint = file.skillId === entry.id
+          && file.path === path.posix.join('skills', publicName, 'SKILL.md');
+        const skillTransform = { id: 'agent-plugin-skill', version: generatorVersion };
+        const childTransform = { id: 'agent-plugin-bundled-content', version: generatorVersion };
+        let content = file.bytes;
+        if (isOwnerEntrypoint) {
+          let normalized;
+          try {
+            normalized = normalizePortableFrontmatter(content.toString('utf8'), { allowlist });
+          } catch (error) {
+            throw new Error(`Agent Plugin marketplace skill '${publicName}' is invalid: ${error.message}`);
+          }
+          if (!normalized.ok || normalized.name !== publicName) {
+            const diagnostics = normalized.errors.concat(normalized.name !== publicName
+              ? [`frontmatter name '${normalized.name || '(missing)'}' does not match public name '${publicName}'`]
+              : []);
+            throw new Error(`Agent Plugin marketplace skill '${publicName}' is invalid: ${diagnostics.join('; ')}`);
+          }
+          content = Buffer.from(normalized.output);
+        }
+        if (projectionBudget.files >= projectionBudget.maxFiles) {
+          throw new Error(`maximum projected file count (${projectionBudget.maxFiles}) exceeded while projecting ${file.sourcePath}`);
+        }
+        if (content.length > projectionBudget.maxBytes - projectionBudget.bytes) {
+          throw new Error(`maximum projected byte budget (${projectionBudget.maxBytes} bytes) exceeded while projecting ${file.sourcePath}`);
+        }
+        projectionBudget.files += 1;
+        projectionBudget.bytes += content.length;
+        const transform = file.skillId === entry.id ? skillTransform : childTransform;
+        const skillMetadata = skillProjectionMetadata(sourceSkill, {
+          transform,
+          owner: SURFACE_OWNERS['agent-plugin'],
+          inventoryRevision,
+          ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+        });
+        files.push(outputRecord(
+          `skill:${file.ownerId}:${file.skillId}:${file.path}`,
+          file.path,
+          content,
+          file.sourcePath,
+          transform,
+          {
+            ...skillMetadata,
+            ownerId: file.ownerId,
+            sourcePath: file.sourcePath,
+            contentKind: file.kind,
+          },
+        ));
+        fingerprintFiles.push({
+          relative: path.posix.relative(path.posix.join('skills', publicName), file.path),
+          source: file.sourcePath,
+          content,
+        });
+      }
+      fingerprints[publicName] = fingerprintProjectedFiles(fingerprintFiles);
+      selectedEntries.push(entry);
+      continue;
+    }
     const sourcePath = entry.path;
     if (!safeRelative(sourcePath)) throw new Error(`unsafe source path for '${publicName}': ${sourcePath}`);
     const sourceDir = path.resolve(resolvedRoot, ...sourcePath.split('/'));
@@ -992,7 +1072,9 @@ function buildAgentPluginProjection(options = {}) {
 
   const selectedSkillIds = selectedEntries.map((entry) => entry.id).sort();
   const selectedSkillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
-  const selectedMatrixIds = matrixEntries(inventory, 'agent-plugin').map((entry) => entry.id).filter(Boolean).sort();
+  const selectedMatrixIds = hostPublication
+    ? selectedSkillIds.slice()
+    : matrixEntries(inventory, 'agent-plugin').map((entry) => entry.id).filter(Boolean).sort();
   const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
   const provenance = {
     schema: RECEIPT_SCHEMA,
@@ -1010,6 +1092,23 @@ function buildAgentPluginProjection(options = {}) {
     selectedSkillIds,
     selectedSkillNames,
     selectedPlatformMatrixIds: selectedMatrixIds,
+    ...(hostPublication ? {
+      marketplacePublication: {
+        selectionDigest: hostPublication.selectionDigest,
+        publicEntryIds: hostPublication.publicEntries.map((entry) => entry.id).sort(),
+        hostOnlyIds: hostPublication.hostOnly.map((entry) => entry.id).sort(),
+      },
+      bundledContentProvenance: {
+        ...catalogContent.bundleProvenance,
+        files: catalogContent.files.map((file) => ({
+          ownerId: file.ownerId,
+          skillId: file.skillId,
+          sourcePath: file.sourcePath,
+          destination: file.path,
+          kind: file.kind,
+        })),
+      },
+    } : {}),
     skippedSkills: skipped,
     mcpServerNames: mcp.valid.map((entry) => entry.name).sort(),
     fingerprints,
@@ -1070,7 +1169,7 @@ function buildAgentPluginProjection(options = {}) {
     } : {}),
   }));
   const compiled = compileDistribution({
-    internalCharacterization: selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy),
+    internalCharacterization: Boolean(hostPublication) || (selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy)),
     surface: 'agent-plugin',
     compilerVersion: `agent-plugin-${generatorVersion}`,
     inventoryFingerprint: legacyInventoryDigest(inventory),
@@ -1078,13 +1177,13 @@ function buildAgentPluginProjection(options = {}) {
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: resolvedOut,
     entries,
-    selectedStableIds: selection && selection.ok && selection.value.selectionPolicy
+    selectedStableIds: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
       ? selection.value.selectedStableIds
       : undefined,
-    selectionPolicy: selection && selection.ok && selection.value.selectionPolicy
+    selectionPolicy: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
       ? selection.value.selectionPolicy
       : undefined,
-    selectionEntries: selection && selection.ok && selection.value.selectionPolicy
+    selectionEntries: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
       ? (selection.value.selectionEntries || selection.value.entries)
       : undefined,
     profileSelection,

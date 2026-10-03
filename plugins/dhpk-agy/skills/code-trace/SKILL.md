@@ -77,7 +77,7 @@ avoid changing refs, the index, or the worktree. Load
 
 ## `select-tool`
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` sections “Decision tree”
+1. Read `references/_dependencies/rules/tool-routing.md` sections “Decision tree”
    and “Tie-breakers”; that policy card owns row order and tie-breaks.
 2. Map the request to exactly one intent row and select its primary tool.
 3. Use the named fallback only when the primary is unavailable or returns no

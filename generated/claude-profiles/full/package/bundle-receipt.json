@@ -188,13 +188,28 @@
       "opsx-apply-resume",
       "ui-ux-verify"
     ],
-    "selectionFingerprint": "ebb1e617d1079767337e47fa874a99e313dea9f35ebcdca209a0b42ff1410950",
+    "selectionFingerprint": "c9d6db8009f2e16c58260a1b97744e5ec3cedeaac844afc971b0a2d65ce61fc3",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "c9c3f5d89634e8c10ce7c796c4c05e4b92a38d26f157ab04318b30b0d47be2f8",
     "supportClosure": {
       "assets": [],
       "files": [
+        {
+          "destination": "docs/subagent-prompt-template.md",
+          "requiredBy": "code-trace",
+          "source": "docs/subagent-prompt-template.md"
+        },
+        {
+          "destination": "docs/subagent-prompt-template.md",
+          "requiredBy": "harness-govern",
+          "source": "docs/subagent-prompt-template.md"
+        },
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "code-trace",
+          "source": "rules/execution-policy-kernel.md"
+        },
         {
           "destination": "rules/execution-policy-kernel.md",
           "requiredBy": "flow-drive",
@@ -204,6 +219,16 @@
           "destination": "rules/execution-policy-kernel.md",
           "requiredBy": "flow-guide",
           "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "harness-govern",
+          "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "code-trace",
+          "source": "rules/execution-policy.md"
         },
         {
           "destination": "rules/execution-policy.md",
@@ -213,6 +238,11 @@
         {
           "destination": "rules/execution-policy.md",
           "requiredBy": "flow-guide",
+          "source": "rules/execution-policy.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "harness-govern",
           "source": "rules/execution-policy.md"
         },
         {
@@ -233,7 +263,7 @@
       ],
       "skillStableIds": []
     },
-    "surfaceSelectionFingerprint": "694bda162c47507899793ced0ea2e6344f501feadf12066176d04e9794952ef5",
+    "surfaceSelectionFingerprint": "4be2932f390fc9bc34d60478efa920c2b968cdc1bcef7d474999c6a712d2ff7e",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -2600,5 +2630,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "864efc5e918e5ec7aa904b9d0697f595aee3b3704ff5e1386130189aae5498fa"
+  "planFingerprint": "a8fa7edb6be442a9977f410541c33ea6cdf4adf75568d8ca67b551830881762f"
 }

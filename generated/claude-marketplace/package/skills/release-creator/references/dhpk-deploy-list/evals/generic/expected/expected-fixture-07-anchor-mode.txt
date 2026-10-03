@@ -1,0 +1,23 @@
+# deploy-list schema=v1
+更新時間：2026/02/09
+更新標籤：2026/02/09 paul [DemoTag] anchor-mode fixture0205
+更新專案：synthetic-anchor
+更新檔案：（anchor grep 命中 3 個檔案）
+
+protected/components/D.php
+
+protected/controllers/AController.php
+
+protected/models/B.php
+
+---
+📊 統計
+- Deployed files: 3 (PHP: 3, JS: 0, other: 0)
+- Diff range: master...HEAD (raw 4 files, 1 filtered out)
+
+🚫 過濾掉（不部署）
+- Tests (protected/tests/, tests/): 0
+- Docs (docs/, README, CLAUDE.md, ...): 1
+- AI harness (.claude/, .codex/, .gemini/, .agents/): 0
+- CI / tooling: 0
+# end deploy-list schema=v1

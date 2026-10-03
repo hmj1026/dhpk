@@ -15,7 +15,7 @@ Resolve `--level <severity>` to `low|moderate|high|critical`, defaulting to
 consumer project's `$PROJECT_DIR/.claude/scripts/dep-audit.sh` (`$PROJECT_DIR`
 means the explicitly selected consumer project root); if it exists, a failed run
 is a real terminal audit failure and does not trigger fallback. Otherwise use
-the ecosystem commands in [`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/dep-audit/references/workflow.md).
+the ecosystem commands in [`references/workflow.md`](references/workflow.md).
 
 Run the audit first. Only after a successful audit may explicit `--fix` run
 the matching fix command; no fix is implicit. Finish with the separate,
@@ -48,5 +48,5 @@ the independent security result separate. End with `PASS`, `FAIL`,
 
 ## References
 
-- [`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/dep-audit/references/workflow.md) — project-script
+- [`references/workflow.md`](references/workflow.md) — project-script
   precedence, ecosystem commands, fix boundary, and verdict output.
