@@ -6,7 +6,7 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { verifyShardReports, main } = require('../scripts/ci/verify-test-shards');
-const { classifyChangedPaths, createCiPlan, validateCiPlan, verifyCiResults } = require('../scripts/lib/ci-plan');
+const { classifyChangedPaths, createCiPlan, validateCiPlan, verifyCiResults, packageSurfacesForFiles } = require('../scripts/lib/ci-plan');
 
 function gitFixture(setup, mutate, baseRef = 'develop') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-'));
@@ -763,6 +763,7 @@ test('CI plan classifies canonical prose as light and skips expensive jobs', () 
   assert.ok(plan.skippedJobs.includes('tests'));
   assert.ok(plan.skippedJobs.includes('macos-installer'));
   assert.strictEqual(classifyChangedPaths([{ status: 'M', path: 'README.md' }], { baseRef: 'develop' }).mode, 'light');
+  assert.deepStrictEqual(packageSurfacesForFiles(['skills/example/SKILL.md']), []);
 });
 
 test('CI plan falls back to full for unknown, and release-base paths', () => {
@@ -850,6 +851,30 @@ test('known resource families select their existing owner suites', () => {
   }, (root) => fs.writeFileSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh'), 'new\n'));
   try { assert.strictEqual(fixture.plan.mode, 'selected'); assert.ok(fixture.plan.testFiles.includes('run-agy.test.js')); }
   finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
+test('selected package changes carry only their affected platform surfaces', () => {
+  assert.deepStrictEqual(packageSurfacesForFiles(['plugins/dhpk-agent/skills/demo/SKILL.md']), ['agent-plugin']);
+  assert.deepStrictEqual(packageSurfacesForFiles(['plugins/dhpk-cursor/marketplace.json']), ['cursor-plugin']);
+  assert.deepStrictEqual(packageSurfacesForFiles(['scripts/lib/verify-platform-packages.js']), []);
+  assert.deepStrictEqual(packageSurfacesForFiles(['scripts/ci/verify-platform-packages.js']), ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+});
+
+test('shared package publisher and closure helpers fall back to full CI', () => {
+  for (const helper of ['marketplace-host-publication.js', 'standalone-package-assets.js', 'workflow-package-closure.js']) {
+    const fixture = gitFixture((root) => {
+      fs.mkdirSync(path.join(root, 'scripts', 'lib'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'scripts', 'lib', helper), 'old\n');
+      fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+      for (const owner of ['agy-adapt-agents.test.js', 'agy-plugin-install.test.js', 'agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js', 'gen-claude-marketplace-package.test.js', 'gen-claude-manifest.test.js', 'gen-cursor-plugin-package.test.js']) {
+        fs.writeFileSync(path.join(root, 'tests', owner), '// adapter owner\n');
+      }
+    }, (root) => fs.writeFileSync(path.join(root, 'scripts', 'lib', helper), 'new\n'));
+    try {
+      assert.strictEqual(fixture.plan.mode, 'full');
+      assert.deepStrictEqual(fixture.plan.packageSurfaces, ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+    } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+  }
 });
 
 test('missing hook owner mapping fails closed to full validation', () => {

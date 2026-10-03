@@ -227,9 +227,11 @@ test('CI preserves the required Validate harness assets check as the shard aggre
   const next = rest.slice(1).search(/\n  [a-z][a-z0-9-]*:\n/);
   const job = next === -1 ? rest : rest.slice(0, next + 1);
   assert.match(job, /name: Validate harness assets/);
-  assert.match(job, /needs:\s*\[\s*preflight,\s*tests\s*\]/);
+  const needs = job.match(/needs:\s*\[([^\]]+)\]/);
+  assert.ok(needs, 'validate aggregate must declare its upstream jobs');
+  for (const required of ['plan', 'preflight', 'tests']) assert.ok(needs[1].split(',').map((value) => value.trim()).includes(required), `validate aggregate must depend on ${required}`);
   assert.match(job, /if:\s*always\(\)/);
-  assert.match(job, /Verify all preflight and test shards passed/);
+  assert.match(job, /verifyCiResults\(JSON\.parse\(process\.env\.PLAN\)/, 'aggregate must validate the plan-bound result set');
   assert.match(job, /node scripts\/ci\/verify-test-shards\.js/);
 });
 

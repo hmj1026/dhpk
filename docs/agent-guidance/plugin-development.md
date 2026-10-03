@@ -77,6 +77,12 @@ bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=<v
 node scripts/ci/verify-platform-packages.js
 ```
 
+For daily CI, `verify-platform-packages.js --surface <name>` accepts the
+affected package subset; selecting Cursor automatically includes its Agent
+owner because Cursor consumes the Agent-owned shared skills. Content and
+hook-only plans can skip this heavy gate, while no-argument daily verification
+and release verification retain the complete four-surface check.
+
 The distribution generators and `verify-platform-packages.js` are
 provenance-bound and require a clean checkout. Run the generators after the
 canonical-source commit, commit their outputs, then run the verifier. If

@@ -6,6 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
+  resolveSurfaceSelection,
   reportFromSurfaces,
   expectedAgyPolicy,
   expectedCursorPolicyBody,
@@ -13,6 +14,21 @@ const {
 } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
+
+test('surface selection rejects unknown surfaces and dependency metadata', () => {
+  assert.deepStrictEqual(resolveSurfaceSelection(['agent-plugin']), {
+    ok: true, requested: ['agent-plugin'], resolved: ['agent-plugin'],
+  });
+  assert.match(resolveSurfaceSelection(['missing-surface']).error, /unknown package surface/);
+  assert.match(resolveSurfaceSelection(['cursor-plugin'], { 'cursor-plugin': ['missing-owner'] }).error, /unknown dependency/);
+  assert.match(resolveSurfaceSelection(['cursor-plugin'], { 'cursor-plugin': ['agent-plugin'] }).error, /missing dependency metadata/);
+});
+
+test('subset reporting does not dereference absent Host surfaces', () => {
+  const report = reportFromSurfaces({ 'codex-native': { selectedSkillIds: [], errors: [] } });
+  assert.strictEqual(report.verdict, 'PASS');
+  assert.deepStrictEqual(report.errors, []);
+});
 
 test('an unprofiled generation materializes the common and surface-specific Host catalog', () => {
   // Package generators reject symlinked ancestors; macOS exposes os.tmpdir() as /var.
@@ -136,6 +152,76 @@ test('a dirty source checkout yields a FAIL report instead of a thrown stack tra
     assert.strictEqual(cleanCheckoutReport(root), null);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function createHistoricalFixture() {
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-platform-subset-'));
+  const clone = path.join(root, 'repo');
+  const cloned = spawnSync('git', ['clone', '--quiet', ROOT, clone], { encoding: 'utf8' });
+  assert.strictEqual(cloned.status, 0, cloned.stdout + cloned.stderr);
+  const provenance = JSON.parse(fs.readFileSync(path.join(clone, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
+  const checkedOut = spawnSync('git', ['checkout', '--quiet', provenance.generatedFromCommit], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(checkedOut.status, 0, checkedOut.stdout + checkedOut.stderr);
+  const cursorReceiptPath = path.join(clone, 'plugins', 'dhpk-cursor', 'provenance.json');
+  const cursorReceipt = JSON.parse(fs.readFileSync(cursorReceiptPath, 'utf8'));
+  cursorReceipt.owner = 'plugins/dhpk-agent';
+  fs.writeFileSync(cursorReceiptPath, `${JSON.stringify(cursorReceipt, null, 2)}\n`);
+  for (const args of [['config', 'user.email', 'test@example.invalid'], ['config', 'user.name', 'subset-fixture']]) {
+    const configured = spawnSync('git', args, { cwd: clone, encoding: 'utf8' });
+    assert.strictEqual(configured.status, 0, configured.stdout + configured.stderr);
+  }
+  const committed = spawnSync('git', ['add', 'plugins/dhpk-cursor/provenance.json'], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
+  const commit = spawnSync('git', ['commit', '--quiet', '-m', 'corrupt unrelated Cursor receipt'], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(commit.status, 0, commit.stdout + commit.stderr);
+  const generated = path.join(root, 'generated-agent');
+  const generatedResult = spawnSync(process.execPath, [
+    path.join(clone, 'scripts', 'ci', 'gen-agent-plugin-package.js'), generated,
+  ], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(generatedResult.status, 0, generatedResult.stdout + generatedResult.stderr);
+  fs.rmSync(path.join(clone, 'plugins', 'dhpk-agent'), { recursive: true, force: true });
+  fs.cpSync(generated, path.join(clone, 'plugins', 'dhpk-agent'), { recursive: true });
+  const regenerated = spawnSync('git', ['add', 'plugins/dhpk-agent'], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(regenerated.status, 0, regenerated.stdout + regenerated.stderr);
+  const packageCommit = spawnSync('git', ['commit', '--quiet', '-m', 'refresh Agent fixture package'], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(packageCommit.status, 0, packageCommit.stdout + packageCommit.stderr);
+  return { root, clone };
+}
+
+test('public verifier filters an unrelated corrupt Cursor receipt from an Agent-only run', () => {
+  const fixture = createHistoricalFixture();
+  try {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+      '--surface', 'agent-plugin', '--repo-root', fixture.clone,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.verdict, 'PASS');
+    assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin']);
+    assert.deepStrictEqual(report.selection, { requested: ['agent-plugin'], resolved: ['agent-plugin'] });
+    assert.deepStrictEqual(Object.keys(report.policyParity.projections), ['claude']);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('public Cursor selection verifies its Agent owner dependency and fails on the selected receipt', () => {
+  const fixture = createHistoricalFixture();
+  try {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+      '--surface', 'cursor-plugin', '--repo-root', fixture.clone,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.verdict, 'FAIL');
+    assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin', 'cursor-plugin']);
+    assert.deepStrictEqual(report.selection, { requested: ['cursor-plugin'], resolved: ['agent-plugin', 'cursor-plugin'] });
+    assert.ok(report.surfaces['cursor-plugin'].errors.some((error) => /provenance owner/i.test(error)), report.errors.join('; '));
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
   }
 });
 

@@ -9,6 +9,7 @@ const JOBS = Object.freeze(['preflight', 'tests', 'validate', 'macos-installer',
 const LIGHT_REQUIRED = Object.freeze(['preflight', 'validate', 'lint']);
 const FULL_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'macos-installer', 'lint']);
 const SELECTED_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'lint']);
+const PACKAGE_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 const CANONICAL_PROSE = [
   /^(?:README(?:\.zh-TW)?|AGENTS|CONTEXT|CODING_STANDARDS|RELEASE(?:\.zh-TW)?|CHANGELOG)\.md$/i,
   /^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex|openspec)\/.*\.md$/i,
@@ -68,7 +69,7 @@ function selectedOwners(files, availableTests) {
   const owners = new Set();
   let unmapped = false;
   for (const file of files) {
-    if (/^(?:tests\/run-all\.js|tests\/_lib\/|scripts\/hooks\/_lib\/|scripts\/ci\/verify-test-shards\.js|scripts\/lib\/ci-plan\.js|scripts\/lib\/(?:provider-adapter|dispatch(?:\.js|-)|runner-utils)\.js|scripts\/ci\/ci-plan\.js|\.github\/workflows\/)/i.test(file)) {
+    if (/^(?:tests\/run-all\.js|tests\/_lib\/|scripts\/hooks\/_lib\/|scripts\/ci\/verify-test-shards\.js|scripts\/lib\/ci-plan\.js|scripts\/lib\/(?:provider-adapter|dispatch(?:\.js|-)|runner-utils|marketplace-host-publication|standalone-package-assets|workflow-package-closure)\.js|scripts\/ci\/ci-plan\.js|\.github\/workflows\/)/i.test(file)) {
       unmapped = true;
       continue;
     }
@@ -89,6 +90,21 @@ function selectedOwners(files, availableTests) {
     });
   }
   return { testFiles: [...selected].sort(), owners: [...owners].sort(), unmapped };
+}
+
+function packageSurfacesForFiles(files) {
+  const surfaces = new Set();
+  for (const file of files) {
+    if (/^(?:generated\/|manifests\/|\.claude-plugin\/|scripts\/ci\/verify-platform-packages\.js$)/i.test(file)) {
+      PACKAGE_SURFACES.forEach((surface) => surfaces.add(surface));
+      continue;
+    }
+    if (/^(?:plugins\/dhpk-agent\/|scripts\/lib\/agent(?:s)?-.*package|scripts\/ci\/(?:gen-agent-plugin-package|validate-agent-plugin-package)\.js$)/i.test(file)) surfaces.add('agent-plugin');
+    if (/^(?:plugins\/dhpk-cursor\/|scripts\/lib\/cursor-.*package|scripts\/ci\/gen-cursor-plugin-package\.js$)/i.test(file)) surfaces.add('cursor-plugin');
+    if (/^(?:plugins\/dhpk\/|scripts\/lib\/codex-native-.*package|scripts\/ci\/(?:gen|verify)-codex-native-package\.js$)/i.test(file)) surfaces.add('codex-native');
+    if (/^(?:plugins\/dhpk-agy\/|scripts\/lib\/agy-.*package|scripts\/ci\/(?:gen|validate)-agy-plugin-package\.js$)/i.test(file)) surfaces.add('agy-plugin');
+  }
+  return PACKAGE_SURFACES.filter((surface) => surfaces.has(surface));
 }
 
 function normalizeChange(change) {
@@ -148,7 +164,12 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
     const changes = gitChanges(path.resolve(root), baseSha, headSha);
     const classified = classifyChangedPaths(changes, { baseRef });
     if (classified.mode === 'light' || baseRef === 'main') {
-      return { ...classified, testFiles: classified.mode === 'full' ? discoveredTestFiles(root) : [], identities };
+    return {
+      ...classified,
+      testFiles: classified.mode === 'full' ? discoveredTestFiles(root) : [],
+      packageSurfaces: classified.mode === 'full' ? PACKAGE_SURFACES.slice() : [],
+      identities,
+    };
     }
     const availableTests = discoveredTestFiles(root);
     const selected = selectedOwners(classified.files, availableTests);
@@ -158,7 +179,7 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
         mode: 'full', reason: selected.unmapped ? 'owner-mapping-unavailable' : 'owner-suite-unavailable',
         requiredJobs: [...FULL_REQUIRED, ...(baseRef === 'main' ? ['release-rehearsal'] : [])],
         skippedJobs: JOBS.filter((job) => !FULL_REQUIRED.includes(job) && !(baseRef === 'main' && job === 'release-rehearsal')),
-        testFiles: discoveredTestFiles(root), shardCount: 4, identities,
+        testFiles: discoveredTestFiles(root), shardCount: 4, packageSurfaces: PACKAGE_SURFACES.slice(), identities,
       };
     }
     const installer = selected.owners.includes('installer');
@@ -167,14 +188,15 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
     return {
       ...classified,
       mode: 'selected', reason: 'selected-owner-suites', testFiles: selected.testFiles,
-      shardCount: 1, requiredJobs, skippedJobs, identities,
+      shardCount: 1, packageSurfaces: packageSurfacesForFiles(classified.files), requiredJobs, skippedJobs, identities,
     };
   } catch (error) {
     let testFiles = [];
     try { testFiles = discoveredTestFiles(root); } catch (_) { /* preserve diff-unavailable fallback */ }
     return {
       ...classifyChangedPaths([{ status: 'M', path: '__invalid_diff__' }], { baseRef }),
-      reason: 'diff-unavailable', diffError: error.message, testFiles, identities,
+      reason: 'diff-unavailable', diffError: error.message, testFiles,
+      packageSurfaces: PACKAGE_SURFACES.slice(), identities,
     };
   }
 }
@@ -225,4 +247,4 @@ function verifyCiResults(plan, results, expected = {}) {
   return { ok: errors.length === 0, errors };
 }
 
-module.exports = { JOBS, classifyChangedPaths, createCiPlan, validateCiPlan, verifyCiResults, categoryFor };
+module.exports = { JOBS, classifyChangedPaths, createCiPlan, validateCiPlan, verifyCiResults, categoryFor, packageSurfacesForFiles };
