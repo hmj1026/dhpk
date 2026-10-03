@@ -86,8 +86,9 @@ identity. Its `retired_skills` contains five historical 0.47.0 rows plus the lat
 waves; the table below is the documentation projection of those historical
 rows' former identity, `reasonCode`,
 replacement guidance, and rollback pin. Retirement rows are diagnostic
-metadata only: they are not active skills, materialized packages, discovery
-aliases, or entries in any generated projection.
+metadata only. Generated usage catalogs may retain their former names to
+return retirement diagnostics. These records never make a skill callable or
+add it to discovery or package membership.
 
 | Former stable ID | Former public name | `reasonCode` | Replacement guidance | `rollback.release` |
 |---|---|---|---|---|

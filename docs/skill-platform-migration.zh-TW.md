@@ -76,8 +76,8 @@ OnePassword 登入是 operator action `op signin`。
 `retired_skills` 包含五筆 0.47.0 historical rows 及後續 retirement wave；下表是這些
 historical row 的原 stable identity、`reasonCode`、
 replacement 指引與 rollback pin 的文件投影。Retirement row 只供診斷 metadata 使用：
-不是 active skill、materialized package、discovery alias，也不會進入任何 generated
-projection。
+generated usage catalog 可以保留原名稱，用來回傳退役診斷。這些紀錄不會讓技能
+變成可呼叫項目，也不會加入 discovery 或套件成員清單。
 
 | Former stable ID | Former public name | `reasonCode` | Replacement guidance | `rollback.release` |
 |---|---|---|---|---|
