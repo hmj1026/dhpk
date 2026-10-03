@@ -1,6 +1,6 @@
 ---
 name: dhpk-project-setup
-description: 'Project configuration initialization: first-time setup, auto-detecting the framework, and replacing CLAUDE.md placeholders. Not for: ongoing config checks (use harness-govern health), skill creation (use skill-forge). Output: configured CLAUDE.md + project settings + rules + hooks.'
+description: 'Project configuration initialization: first-time setup, auto-detecting the framework, and replacing CLAUDE.md placeholders. Not for: ongoing config checks (use harness-govern health). Output: configured CLAUDE.md + project settings + rules + hooks.'
 allowed-tools: 'Read, Grep, Glob, AskUserQuestion, Edit, Write, Bash(node:*), Bash(git:*), Bash(ls:*), Bash(mkdir:*), Bash(diff:*), Bash(chmod:*), Bash(jq:*), Bash(bash:*)'
 # context: shared (default) — intentionally NOT fork because Phase 2 requires user confirmation
 disable-model-invocation: true
