@@ -23,6 +23,7 @@ function isCanonicalProse(file) {
 
 function categoryFor(file) {
   if (isCanonicalProse(file)) return 'content';
+  if (/^(?:skills\/(?:dhpk-agy-fast-worker|dhpk-cli-transport|dhpk-session-usage-audit)\/scripts|modules\/[^/]+\/scripts)\//i.test(file)) return 'script';
   if (/^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex)\/.*\.(?:json|ya?ml|toml)$/i.test(file)) return 'metadata';
   if (/^(?:\.github\/actions|scripts\/hooks|scripts\/install|install)/i.test(file)) return 'installer';
   if (/^(?:scripts|bin|tests)\//i.test(file)) return 'script';
@@ -33,7 +34,7 @@ function categoryFor(file) {
 // These are intentionally coarse owner groups. They are an allowlist of
 // existing public suites, rather than a per-script dependency graph.
 const OWNER_GROUPS = Object.freeze([
-  { name: 'hooks', paths: [/^scripts\/hooks\/(?!_lib\/)/i], tests: ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'session-audit-integrity-fixtures.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'session-usage-audit.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js'] },
+  { name: 'hooks', paths: [/^scripts\/hooks\/(?!_lib\/)/i], tests: ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-audit-integrity-fixtures.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'session-usage-audit.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js'] },
   {
     name: 'installer',
     paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
