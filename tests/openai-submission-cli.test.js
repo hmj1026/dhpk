@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { execute, parseRequest } = require('../scripts/lib/dhpk-distribution');
@@ -66,6 +67,131 @@ test('the command generates and validates a reproducible artifact from a clean s
       assert.strictEqual(checked.ok, true, checked.error || JSON.stringify(checked.payload));
       assert.strictEqual(checked.payload.evidence.runtime, 'NOT_RUN');
     }
+  } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
+});
+
+test('tracked listing SVGs generate a reproducible artifact with matching fingerprints', () => {
+  const f = fixture();
+  try {
+    const iconPath = 'skills/alpha/assets/dhpk-icon.svg';
+    const iconBytes = Buffer.from([
+      '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">',
+      '<rect width="48" height="48" fill="#ffffff"/>',
+      '</svg>',
+      '',
+    ].join('\n'));
+    fs.mkdirSync(path.dirname(path.join(f.root, iconPath)), { recursive: true });
+    fs.writeFileSync(path.join(f.root, iconPath), iconBytes);
+    f.git(['add', iconPath]);
+    f.git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'add listing icon']);
+
+    const listing = JSON.parse(fs.readFileSync(f.manifest, 'utf8'));
+    listing.extensions['com.openai'].interface.composerIcon = `./${iconPath}`;
+    listing.extensions['com.openai'].interface.logo = `./${iconPath}`;
+    fs.writeFileSync(f.manifest, JSON.stringify(listing));
+
+    const first = f.generate();
+    assert.strictEqual(first.ok, true, first.error);
+    const zip = fs.readFileSync(path.join(f.output, 'package.zip'));
+    const receipt = JSON.parse(fs.readFileSync(path.join(f.output, 'provenance.json'), 'utf8'));
+    assert.strictEqual(
+      receipt.provenance.fileFingerprints[iconPath],
+      crypto.createHash('sha256').update(iconBytes).digest('hex'),
+    );
+
+    const second = f.generate();
+    assert.strictEqual(second.ok, true, second.error);
+    assert.deepStrictEqual(fs.readFileSync(path.join(f.output, 'package.zip')), zip);
+    for (const operation of ['validate', 'verify']) {
+      const checked = execute(['openai-submission', operation, '--output', f.output], f.root);
+      assert.strictEqual(checked.ok, true, checked.error || JSON.stringify(checked.payload));
+    }
+  } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
+});
+
+test('the actual distribution CLI flushes complete large provenance JSON before exit', () => {
+  const f = fixture();
+  try {
+    const scriptDirectory = path.join(f.root, 'scripts');
+    fs.mkdirSync(scriptDirectory, { recursive: true });
+    const actualCli = path.resolve(__dirname, '../scripts/dhpk-distribution.js');
+    const fixtureCli = path.join(scriptDirectory, 'dhpk-distribution.js');
+    fs.copyFileSync(actualCli, fixtureCli);
+    const fixtureLibraryDirectory = path.join(scriptDirectory, 'lib');
+    fs.mkdirSync(fixtureLibraryDirectory);
+    const actualDistributionLibrary = path.resolve(__dirname, '../scripts/lib/dhpk-distribution.js');
+    fs.writeFileSync(
+      path.join(fixtureLibraryDirectory, 'dhpk-distribution.js'),
+      `module.exports = require(${JSON.stringify(actualDistributionLibrary)});\n`,
+    );
+
+    const referenceDirectory = path.join(f.root, 'skills/alpha/references');
+    fs.mkdirSync(referenceDirectory, { recursive: true });
+    const resourceCount = 600;
+    for (let index = 0; index < resourceCount; index += 1) {
+      const name = `reference-${String(index).padStart(4, '0')}.txt`;
+      fs.writeFileSync(path.join(referenceDirectory, name), `Reference fixture ${String(index).padStart(4, '0')}.\n`);
+    }
+
+    f.git(['add', 'scripts/dhpk-distribution.js', 'scripts/lib/dhpk-distribution.js', 'skills/alpha/references']);
+    f.git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'large CLI provenance fixture']);
+    assert.deepStrictEqual(fs.readFileSync(fixtureCli), fs.readFileSync(actualCli));
+
+    const direct = f.generate();
+    assert.strictEqual(direct.ok, true, direct.error || JSON.stringify(direct.payload));
+    const expectedJson = JSON.stringify(direct.payload);
+    assert.ok(expectedJson.length > 64 * 1024, `complete CLI payload should exceed 64 KiB; got ${expectedJson.length}`);
+
+    const result = spawnSync(process.execPath, [
+      fixtureCli,
+      'openai-submission',
+      'generate',
+      '--output', f.output,
+      '--manifest', f.manifest,
+    ], {
+      cwd: f.root,
+      encoding: 'utf8',
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    assert.strictEqual(result.error, undefined, result.error && result.error.message);
+    assert.strictEqual(result.status, 0, result.stderr);
+
+    let payload;
+    assert.doesNotThrow(
+      () => { payload = JSON.parse(result.stdout); },
+      `the piped CLI output (${result.stdout.length} bytes) must be complete JSON`,
+    );
+    assert.ok(result.stdout.length > 64 * 1024, 'the fixture must exceed the pipe buffer boundary');
+    assert.deepStrictEqual(payload, direct.payload);
+    assert.strictEqual(payload.surface, 'openai-submission');
+    assert.strictEqual(payload.operation, 'generate');
+    assert.strictEqual(payload.verdict, 'PASS');
+    assert.ok(payload.provenance.provenance.sourceIdentity.commit);
+    assert.ok(payload.provenance.provenance.sourceIdentity.tree);
+    const fingerprints = payload.provenance.provenance.fileFingerprints;
+    assert.strictEqual(Object.keys(fingerprints).length, resourceCount + 2);
+    assert.strictEqual(
+      fingerprints['skills/alpha/references/reference-0599.txt'],
+      crypto.createHash('sha256').update('Reference fixture 0599.\n').digest('hex'),
+    );
+  } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
+});
+
+test('invalid listing icon references preserve the previous verifiable artifact', () => {
+  const f = fixture();
+  try {
+    const first = f.generate();
+    assert.strictEqual(first.ok, true, first.error);
+    const zip = fs.readFileSync(path.join(f.output, 'package.zip'));
+
+    const listing = JSON.parse(fs.readFileSync(f.manifest, 'utf8'));
+    listing.extensions['com.openai'].interface.composerIcon = './skills/alpha/assets/missing.svg';
+    fs.writeFileSync(f.manifest, JSON.stringify(listing));
+    const rejected = f.generate();
+    assert.strictEqual(rejected.ok, false, 'an invalid listing asset must fail before publication');
+    assert.match(rejected.error, /composerIcon|missing|asset/i);
+    assert.deepStrictEqual(fs.readFileSync(path.join(f.output, 'package.zip')), zip);
+    assert.strictEqual(execute(['openai-submission', 'verify', '--output', f.output], f.root).ok, true);
   } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
 });
 

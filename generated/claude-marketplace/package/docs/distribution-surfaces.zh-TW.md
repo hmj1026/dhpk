@@ -13,6 +13,11 @@ Projection 與 ownership 決策記錄於
 
 ## OpenAI submission artifact
 
+Skills-only OpenAI submission builder 已實作；產物仍是 submission candidate，
+不代表 plugin 已安裝或發布。公開 listing、consumer workflow、平台 scans 與
+marketplace publication 是分開的驗收狀態；命令與目前 release checklist 見
+[提交準備 SSOT](./openai-submission.zh-TW.md)。
+
 保留 Host 的預設 builder 共用 15 個入口與 45 個 bundled 子技能資源；
 Host 專用列與公開提交 catalog 分開。預設套件目錄數為 Agent Plugin 17、
 Codex 22、AGY 17、Claude 30；Cursor 發布兩個本地目錄，並引用 Agent
@@ -44,7 +49,7 @@ surface、archive digest 與解開後的 fingerprints 必須符合該 ZIP。
 `--profile`、`--skill` 或 `--standalone` 部分選取。
 
 這些命令的 `PASS` 表示本地結構證據。Consumer 執行、官方 scans、
-directory submission 與 publication 是分開的證據狀態。
+portal submission 與公開 publication 是分開的證據狀態。
 `manifests/discovery-budgets.json` 的靜態 catalog 上限也不代表
 已通過 rendered consumer discovery 或 token-budget 驗收。
 

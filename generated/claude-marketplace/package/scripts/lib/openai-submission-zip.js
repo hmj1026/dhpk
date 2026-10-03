@@ -11,6 +11,7 @@ const {
   normalizePortableFrontmatter,
   validatePortableManifest,
 } = require('./agent-plugin-package');
+const { validateOpenaiListingAssets } = require('./openai-submission-assets');
 
 const LOCAL_SIG = 0x04034b50;
 const CENTRAL_SIG = 0x02014b50;
@@ -372,7 +373,7 @@ function validateForbidden(extracted, errors) {
 }
 
 function validateTextEncoding(extracted, errors) {
-  const textFile = /(?:^plugin\.json$|\.(?:md|json|ya?ml|txt|toml|xml|html?|css|js|ts|sh|py|csv))$/i;
+  const textFile = /(?:^plugin\.json$|\.(?:md|json|ya?ml|txt|toml|xml|svg|html?|css|js|ts|sh|py|csv))$/i;
   for (const filePath of Object.keys(extracted)) {
     if (!textFile.test(filePath)) continue;
     try {
@@ -547,6 +548,7 @@ function validateListing(extracted, errors) {
     return;
   }
   validateListingFields(listing, errors);
+  errors.push(...validateOpenaiListingAssets(listing, new Map(Object.entries(extracted))));
 }
 
 function validateOpenaiSubmissionBytes(zipBytes, options) {

@@ -10,6 +10,7 @@ const {
 } = require('./agent-plugin-package');
 const { compileMarketplacePublicationView } = require('./marketplace-selection');
 const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
+const { validateOpenaiListingAssets } = require('./openai-submission-assets');
 
 const OPENAI_CATEGORIES = Object.freeze([
   'Productivity',
@@ -146,6 +147,10 @@ function compileOpenaiSubmissionPackage({ root, inventory, selection, manifest, 
   if (files.some((file) => file.path === 'plugin.json')) return failure(['package path collision at plugin.json']);
   files.push({ path: 'plugin.json', bytes: manifestBytes, mode: 0o644 });
   files.sort((left, right) => left.path < right.path ? -1 : (left.path > right.path ? 1 : 0));
+
+  const listing = manifest.extensions['com.openai'].interface;
+  const assetErrors = validateOpenaiListingAssets(listing, new Map(files.map((file) => [file.path, file.bytes])));
+  if (assetErrors.length > 0) return failure(assetErrors);
 
   const fileFingerprints = Object.fromEntries(files.map((file) => [file.path, sha256(file.bytes)]));
   const selectedStableIds = [...new Set([

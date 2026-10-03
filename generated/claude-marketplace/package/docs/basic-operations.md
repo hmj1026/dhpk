@@ -55,7 +55,16 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | `install-codex-skills.sh` | Supported | Stable, canonical Codex project sync path; runtime activation is mutually exclusive with the native `dhpk@dhpk` plugin. |
 | `install-cursor-harness.sh` | Supported | Stable Cursor project-local sync path (`.cursor/`). |
 | Codex plugin marketplace | Experimental | Physical publication package for isolated disposable `CODEX_HOME` experiments; runtime activation is mutually exclusive with project-local sync and the tier stays Experimental until a separate graduation decision. |
+| OpenAI Public Plugin Directory | Submission candidate (`NOT_PUBLISHED`) | Intended daily-use route for Codex and ChatGPT Work after platform approval and publication; local/repository marketplaces are development/testing sources. |
 | Antigravity / AGY sync | Adapter/package | Antigravity project skills use `.agents/skills` mapping while rules/workflows remain under `.agent`; AGY uses its native plugin package and validator. |
+
+The OpenAI Public Plugin is not yet available in the public directory. Until it
+is published, use the existing supported and compatibility procedures below
+only where they currently apply. The public directory becomes the target
+daily-use route after publication; no one-time legacy-installation cutover
+executor has shipped. The current native Codex marketplace route is a separate
+experimental package, and a local repository marketplace does not publish the
+OpenAI listing. See the [submission preparation SSOT](./openai-submission.md).
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
 from skill invocation. Choose one Codex runtime route per host: use the

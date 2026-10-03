@@ -406,6 +406,10 @@
       "destination": "skills/flow-guide/agents/openai.yaml"
     },
     {
+      "stableId": "claude-profile:skill-resource:flow-guide:assets/dhpk-icon.svg",
+      "destination": "skills/flow-guide/assets/dhpk-icon.svg"
+    },
+    {
       "stableId": "claude-profile:skill-resource:flow-guide:references/anti-loop.md",
       "destination": "skills/flow-guide/references/anti-loop.md"
     },
@@ -764,5 +768,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "90626e62f141eb586ac302e6a7abe275b6e8934f462926189d70f6019ffd2697"
+  "planFingerprint": "cdd16b9a200e42c902f41529119d11eb4296f2970c76cba73985c3b500241d21"
 }

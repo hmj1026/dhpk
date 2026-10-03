@@ -74,6 +74,22 @@ for that release. Claude, Codex, and other consumer runtime probes must be
 reported separately as `PASS`, `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED`; package
 generation alone is not consumer-runtime proof.
 
+## OpenAI Public Plugin submission candidate
+
+The OpenAI skills-only candidate follows the separate
+[submission preparation guide](docs/openai-submission.md). Build it from the
+exact clean release commit with the candidate manifest version matching
+`.claude-plugin/plugin.json`, and keep the ZIP, receipt, consumer probes, portal
+scans, submission, approval, and public listing as separate evidence states.
+The current candidate is `NOT_PUBLISHED`; identity verification, upload, scans,
+submission, approval, and publication remain `NOT_RUN` until recorded by their
+respective owners. The candidate's privacy URL is not a published policy until
+the linked content is reviewed and publicly available.
+
+This submission checklist does not change the GitHub release PR, merge, tag,
+or Release workflow described below. A GitHub Release does not imply that the
+OpenAI listing was submitted or published.
+
 For the Issue #534 breaking default transition, release evidence MUST cover
 `scripts/install.sh`, `scripts/hooks/install-codex-skills.sh`,
 `scripts/hooks/install-cursor-harness.sh`, and

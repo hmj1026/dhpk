@@ -1,6 +1,6 @@
 # Current plugin distribution and unique skill discovery
 
-Status: accepted design; implementation pending
+Status: accepted design; builder tasks 6.1–6.3 delivered; full implementation and submission preparation remain pending
 
 The user confirmed shared understanding of this scope on 2026-09-30.
 The planning artifacts are in the local OpenSpec change
@@ -13,6 +13,26 @@ maintaining parallel legacy routes, because legacy paths and duplicate skill
 discovery make installation and the public catalog difficult to understand.
 Claude Code, Cursor, and AGY retain their current supported integrations; each
 Host's obsolete schemes are retired as part of the implementation plan.
+
+## Current delivery and deferred work
+
+The skills-only OpenAI package builder, complete-catalog ZIP validation, and
+retained-Host catalog synchronization for tasks 6.1–6.3 were merged in PR #824
+at `ae830ba1`. This delivers the package-generation slice; it does not establish
+consumer cutover, fresh-session workflow acceptance, a final rendered-budget
+result, platform approval, or public publication. Current candidate metadata
+and the operator checklist are maintained in
+[`docs/openai-submission.md`](../openai-submission.md).
+
+The work items `4.2–4.5`, `4.8–4.9`, `5.1–5.5`, and `6.4` remain deferred until
+after public publication, as agreed for this implementation sequence. A
+one-time installation cutover executor is not shipped or promised by this
+delivery. Optional role/custom-role distribution has separate plugin
+acceptance and is outside the skills-only package.
+
+Review Gate runtime, contracts, and receipts were retired by
+[ADR-0026](0026-remove-review-gate.md). Deferred work must follow that decision
+and must not restore the retired Review Gate lifecycle or artifacts.
 
 ## Settled decisions
 
@@ -109,8 +129,10 @@ Host's obsolete schemes are retired as part of the implementation plan.
   (decided 2026-10-01; `haiku`/`fable` tiers and Luna stay as declared), and
   retained wording is calibrated to each selected line's official prompting
   guidance; neither rewrites user-owned or global configuration.
-  The [readiness audit](../design/openai-marketplace-readiness.md#agentspromptsagents-盤點與修正歸屬)
-  records dated findings; change design/tasks own the repair order and checks.
+  The historical readiness audit and change plan remain local development
+  records. The tracked [submission guide](../openai-submission.md) records the
+  current candidate and publication boundary; change design/tasks own the
+  repair order and checks.
 - This requirement completes at engineering acceptance and submission
   preparation: a validated submission artifact, the agreed retirement/naming/
   discovery behavior, usable consumer workflow evidence, and submission
@@ -150,9 +172,10 @@ generators, adapters, installers, configuration, documentation, and tests whose
 contracts have genuinely been removed; retained behavior still needs tests.
 Historical Git revisions do not constitute a supported compatibility route.
 
-Final public names and membership require a recommendation list and selection
-evidence; compare the candidates in the
-[readiness plan](../design/openai-marketplace-readiness.md).
+Current public names and accepted membership are recorded in the
+[marketplace catalog](../contracts/marketplace-catalog.md). Historical candidate
+comparisons remain local development records; future naming changes still
+require a recommendation list and selection evidence.
 Catalog selection must also name the planning-authoring owner. Evaluate the
 existing proposal capability while preserving `flow-guide` as a router, then
 prove the native journey from a vague request through a plan, user confirmation,

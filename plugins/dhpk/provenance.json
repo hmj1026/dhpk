@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "61d73fa7aeb73dda87f4ec130e2925d263730aa3",
-  "generatedFromCommit": "61d73fa7aeb73dda87f4ec130e2925d263730aa3",
-  "generatedFromTree": "c4651a3890e8531f3369386fdf8d12ca17ac8cca",
+  "sourceCommit": "c314fb2f4b3ced4ecbb2757ffd64737e262b91fb",
+  "generatedFromCommit": "c314fb2f4b3ced4ecbb2757ffd64737e262b91fb",
+  "generatedFromTree": "1b2b6630008f78e0590687334ad3e40c1d77612b",
   "inventoryDigest": "990a4a557e5afa747ddc6565b819c97a33c3ee7af164374ddb7b80f44be281bc",
   "inventoryRevision": "sha256:24c1de777a6d9caff8c6b95821a3f77692663b40e7549d67c3c45c5e0042334c",
   "generatorVersion": "2.3.0",
@@ -1706,6 +1706,12 @@
         "source": "skills/flow-guide/agents/openai.yaml",
         "destination": "skills/flow-guide/agents/openai.yaml",
         "originalGitBlobDigest": "85d90ad94a64f790e61212c46f2fb025423b128a"
+      },
+      {
+        "ownerId": "flow-guide",
+        "source": "skills/flow-guide/assets/dhpk-icon.svg",
+        "destination": "skills/flow-guide/assets/dhpk-icon.svg",
+        "originalGitBlobDigest": "9e93ff781628aa4d27fd0d1556a75d8c9df98d3c"
       },
       {
         "ownerId": "flow-guide",
@@ -4920,6 +4926,13 @@
       {
         "ownerId": "flow-guide",
         "skillId": "flow-guide",
+        "sourcePath": "skills/flow-guide/assets/dhpk-icon.svg",
+        "destination": "skills/flow-guide/assets/dhpk-icon.svg",
+        "kind": "entry"
+      },
+      {
+        "ownerId": "flow-guide",
+        "skillId": "flow-guide",
         "sourcePath": "rules/execution-policy-kernel.md",
         "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy-kernel.md",
         "kind": "dependency"
@@ -6532,7 +6545,7 @@
     "dhpk-opsx-load-context": "8fcbc041f1f1bf6cc015cc8ed13b5d7f1520f63d533138be9bd9704ba83e3acf",
     "dhpk-opsx-post-observation": "23d7f375b49110c3d4c66a8fe596dd9403f1ec7bcac83f20469f4ec4135bd50f",
     "flow-drive": "39b9356abd173ffeb9337e11ca889781dd594a4b17165996c8969f2c65f14ce1",
-    "flow-guide": "15bb8a6a8c0bfdb0b2c77631c46850cf8e87cbef8956f59cc869f718ca8f4cf3",
+    "flow-guide": "86367b58ec79f0eb19e47abcbfab0c4904c4079f7018cbf2b4f46cd8df1a5180",
     "git-smart-commit": "6ba0613a9271fcfe68ab8f3fc55a1e6c85ef7368355b16d256a0b1447cf37967",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
     "harness-audit": "5a697f5e350f2c93bc9bf723d1276c0cc8658ab2e4b892e9904bbda5ac35cc34",

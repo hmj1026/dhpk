@@ -13,6 +13,12 @@ The ownership and projection decision is recorded in
 
 ## OpenAI submission artifact
 
+The skills-only OpenAI submission builder is implemented. Its artifact is a
+submission candidate, not an installed or published plugin. The public listing,
+consumer workflows, platform scans, and marketplace publication remain separate
+acceptance states; see the [submission preparation SSOT](./openai-submission.md)
+for commands and the current release checklist.
+
 Default retained Host builders use the same 15 common entries and 45 bundled
 child resources. Their Host-specific rows remain separate from the public
 submission catalog. The default package directories total 17 for Agent Plugin,
@@ -45,7 +51,7 @@ fingerprints matching that ZIP. Invalid inputs leave the previous artifact intac
 Partial `--profile`, `--skill` and `--standalone` selections are unsupported.
 
 `PASS` from these commands records local structural evidence. Consumer
-execution, official scans, directory submission and publication remain
+execution, official scans, portal submission and public publication remain
 separate evidence states. The static catalog ceilings in
 `manifests/discovery-budgets.json` likewise do not establish rendered consumer
 discovery or token-budget acceptance.
