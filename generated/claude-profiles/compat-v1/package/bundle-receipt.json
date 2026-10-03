@@ -904,6 +904,10 @@
       "destination": "skills/flow-guide/agents/openai.yaml"
     },
     {
+      "stableId": "claude-profile:skill-resource:flow-guide:assets/dhpk-icon.svg",
+      "destination": "skills/flow-guide/assets/dhpk-icon.svg"
+    },
+    {
       "stableId": "claude-profile:skill-resource:flow-guide:references/anti-loop.md",
       "destination": "skills/flow-guide/references/anti-loop.md"
     },
@@ -2750,5 +2754,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "cc5ae86beb957b341eea9ea3f8831a78ab36e3a2db0a45126155a989bb87ad1e"
+  "planFingerprint": "0788d9830b5c61e0966ffb546787c653688994b5110b7b20892fd1565bee1696"
 }
