@@ -3,9 +3,8 @@
   "issue": 498,
   "currentSelection": {
     "surface": "agent-plugin",
-    "expectedCount": 55,
+    "expectedCount": 52,
     "selectedStableIds": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -53,10 +52,8 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "update-codemaps",
       "update-docs"
@@ -84,7 +81,7 @@
     ],
     "currentCodexSyncSubset": {
       "surface": "codex-sync",
-      "expectedCount": 34,
+      "expectedCount": 33,
       "selectedStableIds": [
         "cli-dispatch-context",
         "cli-transport",
@@ -115,7 +112,6 @@
         "repo-verify",
         "review-pending",
         "skill-scope",
-        "spec-mine",
         "tdd",
         "update-codemaps",
         "update-docs",

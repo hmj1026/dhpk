@@ -52,7 +52,6 @@ const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'project audit', kind: 'skill', id: 'dhpk-project-audit' },
   { label: 'deploy list', kind: 'skill', id: 'dhpk-deploy-list' },
   { label: 'refactor / simplify', kind: 'command', id: 'simplify' },
-  { label: 'mine behavioral specs (→ spec-miner)', kind: 'command', id: 'spec-mine' },
   { label: 'tech spec authoring', kind: 'skill', id: 'flow-guide' },
   { label: 'pre-commit checks', kind: 'command', id: 'precommit' },
   { label: 'create PR', kind: 'command', id: 'create-pr' },

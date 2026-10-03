@@ -4,7 +4,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills index
 
-This index describes the 84 canonical skill packages currently published. The inventory is
+This index describes the 81 canonical skill packages currently published. The inventory is
 the source of truth for lifecycle, stable IDs, public names, profile selection,
 and publication surfaces; this page is a navigation aid. Every package lives
 under `skills/<public-name>/SKILL.md` and keeps its procedure and completion
@@ -22,13 +22,12 @@ do not copy its grammar into a skill procedure.
 
 ## Portable capability families
 
-These are the nine recognizable family entry points. Family modes and selectors
+These are the eight recognizable family entry points. Family modes and selectors
 are finite and disclosed by the family package.
 
 | Public skill | Stable ID | Interface |
 | --- | --- | --- |
 | [skill-scope](skill-scope/SKILL.md) | `skill-scope` | `health`, `judge`, `stocktake`, `scout` |
-| [skill-forge](skill-forge/SKILL.md) | `skill-forge` | `create`, `distill-rules` |
 | [flow-guide](flow-guide/SKILL.md) | `flow-guide` | `help`, `route`, `rules`, `next`, `close` |
 | [flow-drive](flow-drive/SKILL.md) | `flow-drive` | confirmed specification or change; no mode |
 | [change-verdict](change-verdict/SKILL.md) | `change-verdict` | `code`, `pr`, `security`, `tests`, `docs`, `risk` |
@@ -62,7 +61,6 @@ front doors. Invoke the public name directly from Codex.
 | [proposal-analyze](proposal-analyze/SKILL.md) | `proposal-analyze` | Evidence-backed proposal roadmap |
 | [repo-verify](repo-verify/SKILL.md) | `repo-verify` | Runner-first repository verification |
 | [review-pending](review-pending/SKILL.md) | `review-pending` | Delegate a read-only pending-change review |
-| [spec-mine](spec-mine/SKILL.md) | `spec-mine` | Mine one capability's behavioral baseline |
 | [ui-ux-verify](ui-ux-verify/SKILL.md) | `ui-ux-verify` | Read-only rendered UI verification |
 | [update-codemaps](update-codemaps/SKILL.md) | `update-codemaps` | Refresh structural code maps |
 | [update-docs](update-docs/SKILL.md) | `update-docs` | Refresh stale live workflow documentation |
@@ -71,7 +69,6 @@ front doors. Invoke the public name directly from Codex.
 
 | Public skill | Stable ID | Purpose |
 | --- | --- | --- |
-| [dhpk-agent-architecture-audit](dhpk-agent-architecture-audit/SKILL.md) | `agent-architecture-audit` | Audit agent and LLM application architecture |
 | [dhpk-agy-fast-worker](dhpk-agy-fast-worker/SKILL.md) | `agy-fast-worker` | Explicit AGY worker handoff |
 | [dhpk-codex-bridge](dhpk-codex-bridge/SKILL.md) | `codex-bridge` | Explicit external CLI bridge |
 | [dhpk-composer-package-hygiene](dhpk-composer-package-hygiene/SKILL.md) | `composer-package-hygiene` | Composer package and public API hygiene |

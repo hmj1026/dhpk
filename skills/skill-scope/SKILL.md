@@ -18,7 +18,6 @@ Make completion checkable, and prune no-op or duplicated sediment from reports.
 
 ## When NOT to Use
 
-- Create or refactor a skill, or distill cross-cutting rules → use `skill-forge`.
 - Review a code, pull request, security surface, test suite, or document → use
   `change-verdict`.
 - Understand or trace application code → use `code-trace`.

@@ -27,7 +27,6 @@
     "./skills/"
   ],
   "agents": [
-    "./agents/agent-evaluator.md",
     "./agents/agy-fast-worker.md",
     "./agents/architect.md",
     "./agents/code-reviewer.md",
@@ -52,7 +51,6 @@
     "./agents/security-reviewer.md",
     "./agents/silent-failure-hunter.md",
     "./agents/smoke-tester.md",
-    "./agents/spec-miner.md",
     "./agents/swift-build-resolver.md",
     "./agents/tdd-guide.md",
     "./agents/type-design-analyzer.md",

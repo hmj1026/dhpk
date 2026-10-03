@@ -94,13 +94,11 @@
       ],
       "skillIds": [
         "flow-guide",
-        "agent-architecture-audit",
         "agy-fast-worker",
         "code-trace",
         "codex-bridge",
         "change-verdict",
         "composer-package-hygiene",
-        "skill-forge",
         "deploy-list",
         "flow-drive",
         "fastapi-pro",
@@ -163,7 +161,6 @@
         "code-simplify",
         "harness-audit",
         "review-pending",
-        "spec-mine",
         "harness-setup",
         "opsx-apply-resume",
         "ui-ux-verify"
@@ -194,13 +191,11 @@
       "modules": [],
       "skillIds": [
         "flow-guide",
-        "agent-architecture-audit",
         "agy-fast-worker",
         "code-trace",
         "codex-bridge",
         "change-verdict",
         "composer-package-hygiene",
-        "skill-forge",
         "deploy-list",
         "flow-drive",
         "fastapi-pro",
@@ -270,7 +265,6 @@
         "code-simplify",
         "harness-audit",
         "review-pending",
-        "spec-mine",
         "harness-setup",
         "opsx-apply-resume",
         "ui-ux-verify"

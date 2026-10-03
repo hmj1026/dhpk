@@ -116,7 +116,7 @@ map:
 
 | Roles | Model | Effort |
 |---|---|---|
-| `architect`, `bug-investigator`, `deep-reasoner`, `security-reviewer`, `migration-reviewer`, `planner`, `spec-miner` | `gpt-6-sol` | `high` |
+| `architect`, `bug-investigator`, `deep-reasoner`, `security-reviewer`, `migration-reviewer`, `planner` | `gpt-6-sol` | `high` |
 | `code-reviewer` | `gpt-6-sol` | `medium` |
 | `database-reviewer`, `frontend-reviewer`, `e2e-runner` | `gpt-6-sol` | `high` |
 | `explorer` | `gpt-6-sol` | `medium` |

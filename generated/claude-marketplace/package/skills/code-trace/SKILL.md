@@ -30,7 +30,7 @@ before any implementation lane touches it; this skill only reports the impact.
 
 - Implement a confirmed change → use `flow-drive`.
 - Review a proposed change → use `change-verdict`.
-- Author or audit a skill → use `skill-forge` or `skill-scope`.
+- Audit a skill → use `skill-scope`.
 
 ## `explore`
 

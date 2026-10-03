@@ -68,9 +68,6 @@ verbatim. Append the coverage-off NOTES line when
   exists), branch or worktree isolation in place, and a quality gate (test /
   build / lint) detected above — if none is detected the loop has no safety net,
   so add one or supervise the run
-• Brownfield with no baseline specs: if openspec/specs/ is empty, run
-  /spec-mine (spec-miner agent) first so change deltas have a baseline truth
-  to reference — then start the goal loop
 • /goal resets on /new or /clear — re-run this command in the new session
 • Reviewer dispatch is advisory: the goal satisfies once no CRITICAL reviewer
   finding remains unfixed

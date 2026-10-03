@@ -10,7 +10,6 @@ readonly: true
 
 - Implement-phase conclusion contract (not DDD) → `deep-reasoner`
 - Opt-in plan critique → `planner`
-- Brownfield spec extraction → `spec-miner`
 
 ## Stack trap sheet (load on demand)
 

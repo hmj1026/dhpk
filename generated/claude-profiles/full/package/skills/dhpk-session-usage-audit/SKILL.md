@@ -36,8 +36,7 @@ verification and human confirmation.
    dhpk evidence, weak text-only evidence, malformed records, and partial
    scans. Raw transcripts must never be copied into the report or prompt.
 4. Use [finding-taxonomy.md](references/finding-taxonomy.md) to classify
-   deterministic candidates. Use `/dhpk:dhpk-agent-architecture-audit` for wrapper,
-   hook, memory, or agent-quality diagnosis when the evidence points there.
+   deterministic candidates.
 5. Reproduce the candidate against the relevant current dhpk consumer path.
    Put explicit argv arrays (not shell strings) for both checks in a local
    verification JSON. Inspect those exact commands, compute the file's

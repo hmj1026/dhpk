@@ -23,7 +23,7 @@ runtime availability are separate evidence.
 The other generic command workflows use the command's name directly:
 `create-pr`, `git-worktree`, `merge-prep`, `pr-summary`, `project-brief`,
 `doc-refactor`, `update-docs`, `update-codemaps`, `precommit`, `dep-audit`,
-`harness-audit`, `review-pending`, and `spec-mine`. Existing `flow-guide`,
+`harness-audit`, and `review-pending`. Existing `flow-guide`,
 `flow-drive`, and `harness-govern` keep their names.
 
 The five existing `dhpk-` names for commit, release, matrix onboarding, TDD,
@@ -32,7 +32,7 @@ capability identities do not change. Other prefixed Skills are unaffected.
 The rename ledger supplies diagnostics; it does not publish duplicate aliases.
 
 The purpose ledger records new Skills as ADR-backed additions. The historical
-65-Skill baseline stays unchanged; current decisions cover all 84 Skills.
+65-Skill baseline stays unchanged; current decisions cover all 81 Skills.
 
 ### Runner and script migration
 

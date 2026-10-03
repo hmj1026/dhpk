@@ -4,7 +4,6 @@
   "observed_at": "2026-09-23T00:00:00.000Z",
   "role_aliases": {
     "orchestrator": {"role": "planner", "authority": "read-only"},
-    "spec-miner": {"role": "planner", "authority": "read-only"},
     "architect": {"role": "reasoner", "authority": "read-only"},
     "deep-reasoner": {"role": "reasoner", "authority": "read-only"},
     "codex-reasoner": {"role": "reasoner", "authority": "read-only"},

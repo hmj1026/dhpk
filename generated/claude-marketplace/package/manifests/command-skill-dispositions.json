@@ -616,28 +616,6 @@
       "reason": "Canonical $git-smart-commit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     },
     {
-      "id": "spec-mine",
-      "path": "commands/spec-mine.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:spec-mine",
-      "argument_contract": "[capability or path to mine first]",
-      "authority": "workspace-write",
-      "skill_owner": "spec-mine",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $spec-mine Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/spec-mine.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/spec-mine.md"
-      ],
-      "resource": "skills/spec-mine/SKILL.md"
-    },
-    {
       "id": "ui-ux-verify",
       "path": "commands/ui-ux-verify.md",
       "host_surface": "claude-command",
@@ -968,6 +946,26 @@
       ],
       "evidence": {
         "source": "docs/skill-platform-migration.md",
+        "structural": "PASS",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "spec-mine",
+      "path": "commands/spec-mine.md",
+      "public_name": "/dhpk:spec-mine",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "model-default"
+      },
+      "reason": "The spec-mine command fronted the removed spec-miner agent; both left every package in 0.65.0 because they contained third-party text without a retained notice.",
+      "callers": [
+        "changelog.d/BREAKING.retire-ecc-overlap-skills.md"
+      ],
+      "evidence": {
+        "source": "changelog.d/BREAKING.retire-ecc-overlap-skills.md",
         "structural": "PASS",
         "host_smoke": "NOT_RUN",
         "consumer": "NOT_RUN"

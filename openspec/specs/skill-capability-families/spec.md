@@ -6,10 +6,10 @@ Define a compact, ownership-aware skill interface that lets users and agents sel
 
 ## Requirements
 
-### Requirement: First-party workflows are exposed through nine capability families
+### Requirement: First-party workflows are exposed through eight capability families
 
-dhpk SHALL expose exactly nine portable first-party capability families:
-`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
+dhpk SHALL expose exactly eight portable first-party capability families:
+`skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`,
 `code-trace`, `laravel`, `phpunit`, and `harness-govern`. Each family SHALL
 publish one discriminating description, a finite mode or selector set, and one
 output contract while placing mode- or selector-specific mechanics behind
@@ -37,8 +37,7 @@ prefixed, unchanged capability owner and SHALL NOT be replaced by a family.
 ### Requirement: Family modes preserve predecessor behavior and authority
 
 The family interfaces SHALL provide these modes and selectors: `skill-scope`
-has `health`, `judge`, `stocktake`, and `scout`; `skill-forge` has `create` and
-`distill-rules`; `flow-guide` has `route`, `rules`, `next`, and `close`, plus a
+has `health`, `judge`, `stocktake`, and `scout`; `flow-guide` has `route`, `rules`, `next`, and `close`, plus a
 read-only `help` metadata action that is not a workflow mode; `flow-drive` has
 no modes and exposes one explicit implementation entry for confirmed
 specifications; `change-verdict` has `code`, `pr`, `security`, `tests`, `docs`,
@@ -56,7 +55,7 @@ evidence.
 
 #### Scenario: Mutating family requires explicit invocation
 
-- **WHEN** work requires `skill-forge`, `flow-drive`, or `harness-govern`
+- **WHEN** work requires `flow-drive` or `harness-govern`
 - **THEN** the family remains explicit-only and the model may recommend it
   without starting it absent direct human invocation or an already authorized
   explicit router delegation
@@ -88,8 +87,8 @@ interfaces and the new Laravel, PHPUnit, and harness families:
 | `skill-judge` | `skill-scope` | `judge` |
 | `skill-stocktake` | `skill-scope` | `stocktake` |
 | `skill-scout` | `skill-scope` | `scout` |
-| `create-skill` | `skill-forge` | `create` |
-| `rules-distill` | `skill-forge` | `distill-rules` |
+| `create-skill` | model default (`skill-forge` retired in 0.65.0) | — |
+| `rules-distill` | model default (`skill-forge` retired in 0.65.0) | — |
 | `adaptive-dev-workflow` | `flow-guide` | `route` |
 | `dhpk-execution-policy` | `flow-guide` | `rules` |
 | `next-step` | `flow-guide` | `next` |

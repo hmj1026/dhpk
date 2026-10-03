@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65",
+  "sourceInventoryRevision": "sha256:8f79ae11a486b6bba1e6a444917101678ac2855b2af3d7d7a877fbb83bb8ec8d",
   "entries": [
     {
       "id": "code-simplify",
@@ -1629,44 +1629,6 @@
       "usageFingerprint": "e17a0ce771f9d79a874c482c9e968878e86ce9f7ac6a094a89db8151cb3c7017"
     },
     {
-      "id": "spec-mine",
-      "name": "spec-mine",
-      "usage": {
-        "display_name": "Spec Mine",
-        "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
-        "syntax": "$spec-mine [<capability-or-path>]",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "capability-or-path",
-            "syntax": "<capability-or-path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Capability or path to mine first"
-          }
-        ],
-        "actions": [
-          {
-            "id": "mine",
-            "summary": "Write one bounded behavioral baseline",
-            "syntax": "$spec-mine [<capability-or-path>]",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$spec-mine billing",
-            "summary": "Use spec mine with its declared interface"
-          }
-        ]
-      },
-      "usageFingerprint": "918bc2cde6d9c328cbe8224867f68f3dc569b81f2434b0f04bcd598683c14a50"
-    },
-    {
       "id": "tdd",
       "name": "tdd-workflow",
       "usage": {
@@ -1799,13 +1761,6 @@
   ],
   "runtimeIndex": {
     "targets": {
-      "agent-architecture-audit": {
-        "id": "agent-architecture-audit",
-        "publicName": "dhpk-agent-architecture-audit",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-agent-architecture-audit <input>",
-        "codexInvokable": false
-      },
       "agy-fast-worker": {
         "id": "agy-fast-worker",
         "publicName": "dhpk-agy-fast-worker",
@@ -2289,13 +2244,6 @@
         "command": "$dhpk-session-usage-audit <input>",
         "codexInvokable": false
       },
-      "skill-forge": {
-        "id": "skill-forge",
-        "publicName": "skill-forge",
-        "invocationClass": "explicit-only",
-        "command": "$skill-forge <input>",
-        "codexInvokable": false
-      },
       "skill-scope": {
         "id": "skill-scope",
         "publicName": "skill-scope",
@@ -2309,13 +2257,6 @@
         "invocationClass": "not-configured",
         "command": "$dhpk-module-design <input>",
         "codexInvokable": false
-      },
-      "spec-mine": {
-        "id": "spec-mine",
-        "publicName": "spec-mine",
-        "invocationClass": "implicit-eligible",
-        "command": "$spec-mine [<capability-or-path>]",
-        "codexInvokable": true
       },
       "swift-language": {
         "id": "swift-language",
@@ -2389,10 +2330,6 @@
       }
     },
     "aliases": {
-      "agent-architecture-audit": {
-        "target": "dhpk-agent-architecture-audit",
-        "disposition": "legacy"
-      },
       "agy-fast-worker": {
         "target": "dhpk-agy-fast-worker",
         "disposition": "legacy"
@@ -2410,6 +2347,10 @@
         "disposition": "legacy"
       },
       "dhpk-adaptive-dev-workflow": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-agent-architecture-audit": {
         "target": "flow-guide",
         "disposition": "retired"
       },
@@ -2450,7 +2391,7 @@
         "disposition": "retired"
       },
       "dhpk-create-skill": {
-        "target": "skill-forge",
+        "target": "flow-guide",
         "disposition": "retired"
       },
       "dhpk-cross-agent-sync": {
@@ -2598,7 +2539,7 @@
         "disposition": "retired"
       },
       "dhpk-rules-distill": {
-        "target": "skill-forge",
+        "target": "flow-guide",
         "disposition": "retired"
       },
       "dhpk-security-review": {
@@ -2785,9 +2726,17 @@
         "target": "dhpk-session-usage-audit",
         "disposition": "legacy"
       },
+      "skill-forge": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
       "software-architecture": {
         "target": "dhpk-module-design",
         "disposition": "legacy"
+      },
+      "spec-mine": {
+        "target": "flow-guide",
+        "disposition": "retired"
       },
       "swift-language": {
         "target": "dhpk-swift-language",

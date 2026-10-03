@@ -5,7 +5,7 @@ description: 'Reference index for the agents shipped by the dhpk plugin.'
 
 # Agents Index (dhpk plugin)
 
-> 36 agents shipped by the dhpk plugin (35 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `.claude-plugin/plugin.json`.
+> 34 agents shipped by the dhpk plugin (33 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `.claude-plugin/plugin.json`.
 
 ## Agent contract
 
@@ -84,9 +84,7 @@ This index only lists the shipped roles above.
 | [python-build-resolver](python-build-resolver.md) | sonnet | Python build-error resolution (ruff / mypy / pyright / pytest incl. pytest-asyncio scope, uv / pip / poetry install) — 3-attempt-then-escalate, re-runs to verify |
 | [rust-build-resolver](rust-build-resolver.md) | sonnet | Rust / Cargo build-error resolution (rustc type / borrow / lifetime, Send / Sync, tokio, Cargo.toml conflicts) — 3-attempt-then-escalate, re-runs to verify |
 | [silent-failure-hunter](silent-failure-hunter.md) | sonnet | Deep error-handling audit — empty catch / swallowed exceptions / error-hiding fallbacks / lost stack traces / missing rollback. Situational delegate of code-reviewer (not an unconditional post-edit role) |
-| [spec-miner](spec-miner.md) | opus | Extract behavioral specs from a brownfield codebase into `openspec/specs/<capability>/spec.md` (flat Requirement / Invariant blocks). Onboarding to spec-driven development |
 | [type-design-analyzer](type-design-analyzer.md) | sonnet | Score a type's design on encapsulation / invariant expression / usefulness / enforcement ("make illegal states unrepresentable"). Read-only |
-| [agent-evaluator](agent-evaluator.md) | sonnet | 5-axis output-quality scorecard (accuracy / completeness / clarity / actionability / conciseness) with grep-verified evidence. Scores run output, not the code |
 | [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize Playwright journeys, helpers, fixtures, and artifacts. Application-code failures return a fast-worker-ready fix-spec; after the fix, this agent re-runs the originating journey as acceptance. Distinct from ui-ux-verifier (page-vs-spec audit) |
 | [smoke-tester](smoke-tester.md) | sonnet | Read-only live-runtime probe: drives the real running system with one orchestrator-supplied concrete scenario and asserts on observed values (`Verdict:`-first-line contract). Distinct from e2e-runner (authors/runs Playwright specs, write-capable, web-scoped) and the feature-verify skill (main-context P0-P5, not a dispatchable isolated agent) |
 
@@ -99,11 +97,9 @@ This index only lists the shipped roles above.
 > - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the code review in both `change-verdict` and `opsx-apply-goal`
 > - `doc-updater` ← execution-policy back-stop on structural change (it runs `/update-codemaps` + `/update-docs`)
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
-> - `spec-miner` ← `/spec-mine` + route-table entry (and the `opsx-apply-goal` pre-flight note when `openspec/specs/` is empty)
 > - `tdd-guide` / `tdd-workflow` ← unit/integration post-development routes; the TDD capability is `UNAVAILABLE` when its configured test stack or dispatch backend is absent, and must not be silently remapped.
 > - `e2e-runner` ← Playwright route-table entry (`agent:e2e-runner`); report `UNAVAILABLE` when the Playwright agent capability is absent rather than falling back to the retired post-development skill.
 > - `smoke-tester` ← `opsx-apply-goal` Part 3 conditional gate (HAS_SMOKE) + `rules/execution-policy.md` §Implementation dispatch table
-> - `agent-evaluator` ← harness-quality family (`skill-scope` judge mode / `harness-govern` listing) — deliberately **out** of `flow-drive` / `opsx-apply-goal` dev routing
 > - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
 > - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `flow-guide`, which does **not** itself name these agents — so there is no deterministic route-table dispatch; they fire purely on the AI-judgment back-stop
 
@@ -115,7 +111,7 @@ This index only lists the shipped roles above.
 
 ## Models
 
-- **opus**: spec-miner, deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
+- **opus**: deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-worker, agy-worker, codex-fast-worker, agy-fast-worker, codex-reasoner, codex-deep-reasoner, codex-reviewer, codex-bridge (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
 - **fable**: architect (cheap architecture-consult tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)

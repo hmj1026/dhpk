@@ -15,7 +15,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 
 The default projection is hybrid: `codex/skills/` and inventory-declared supporting assets are symlinked into the project, while every `.codex/agents/*.toml` is materialized as a physical file. `--copy` makes the entire projection physical. `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-v3 `.dhpk-installed.json` receipt, including each entry's effective mode and each skill's stable ID/current public name, and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
 
-The current Codex projection contains 34 skill entries: 32 invokable skills and
+The current Codex projection contains 33 skill entries: 31 invokable skills and
 two internal transport/dispatch-context runtimes. The inventory and generated
 receipt, not this file, own that selection.
 
@@ -85,15 +85,15 @@ unrelated project assets.
 
 ## dhpk main flow for Codex
 
-dhpk ships 16 direct Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 12 roles generated from the canonical agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`.
+dhpk ships 15 direct Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 11 roles generated from the canonical agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`.
 
 Use `$flow-guide` when ownership, policy, the next action, closeout, or Codex
 arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
 `next`, and `close`. Use `$flow-drive <confirmed-spec-or-change-id>` only when
 the implementation target and acceptance contract are settled; it is
 explicit-only and has no mode. Codex CLI has no `/dhpk:do` command or dhpk
-slash-command router. The nine portable families
-(`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
+slash-command router. The eight portable families
+(`skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`,
 `code-trace`, `laravel`, `phpunit`, and `harness-govern`) use their unprefixed
 public names; other first-party skills retain the `dhpk-` prefix. The standalone
 `git-smart-commit` skill keeps its existing public name (`$git-smart-commit`).
@@ -175,7 +175,7 @@ Because of this, after ANY code edit made via a Codex role, the user or parent f
 
 ### Agent roster → Codex role map
 
-**Available in Codex** (`codex/agents/`, 16 roles):
+**Available in Codex** (`codex/agents/`, 15 roles):
 
 | Role | Use for |
 |------|---------|
@@ -191,7 +191,6 @@ Because of this, after ANY code edit made via a Codex role, the user or parent f
 | `deep-reasoner` | Deep root-cause analysis and algorithm design |
 | `doc-reviewer` | Policy and documentation review |
 | `planner` | Plan critique and bounded warm/cold diff review |
-| `spec-miner` | Brownfield behavioral-spec extraction |
 | `frontend-reviewer` | Frontend JavaScript/TypeScript review |
 | `migration-reviewer` | Migration safety and rollback review |
 | `e2e-runner` | Playwright user-journey authoring and execution |
@@ -214,7 +213,7 @@ each canonical role is classified exactly once:
 | Coverage outcome | Canonical roles |
 |------|--------------------|
 | `merged` | `codex-deep-reasoner`, `codex-fast-worker`, `fast-worker`, `performance-analyzer`, `refactor-cleaner`, `silent-failure-hunter`, `type-design-analyzer` |
-| `skill/manual-fallback` | `agent-evaluator`, `agy-fast-worker`, `doc-updater`, `docs-lookup`, `harness-reviser`, `python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`, `version-matrix-impact-reviewer` |
+| `skill/manual-fallback` | `agy-fast-worker`, `doc-updater`, `docs-lookup`, `harness-reviser`, `python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`, `version-matrix-impact-reviewer` |
 | `capability-gated` | `polyfill-reviewer`, `smoke-tester`, `ui-ux-verifier` |
 | `intentionally-unavailable` | `codex-bridge` |
 
@@ -244,7 +243,7 @@ supported top-level concurrency setting is `max_concurrent_threads_per_session`;
 the example also shows the effective default subagent model and reasoning
 effort.
 
-Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's `validate_codex` guardrail enforces this static metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 12 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles. Model and effort rationale is maintained in `../rules/model-economics.md`.
+Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's `validate_codex` guardrail enforces this static metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 11 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles. Model and effort rationale is maintained in `../rules/model-economics.md`.
 
 A physical file, valid metadata, and successful built-in `explorer` dispatch do
 not prove that the project custom-role registry loaded. Runtime PASS requires a

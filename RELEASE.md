@@ -61,9 +61,9 @@ passes.
 
 ## Current skill-platform topology (release preparation)
 
-The current release-preparation topology is 84 canonical packages, 55 entries
+The current release-preparation topology is 81 canonical packages, 52 entries
 on both the Agent Plugin and AGY surfaces, a 4-entry Cursor-native overlay, 37
-module projections, and 34 Codex project/native entries (32 invokable skills
+module projections, and 33 Codex project/native entries (31 invokable skills
 plus internal transport and dispatch-context runtimes). Five alias-free rows remain in the `retired_skills` ledger and are
 excluded from discovery. Module and Codex project projections use relative
 symlinks; the native package contains no symlinks.

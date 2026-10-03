@@ -57,7 +57,6 @@ const PORTABLE_FAMILY_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const PORTABLE_SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const PORTABLE_FAMILY_NAMES = Object.freeze([
   'skill-scope',
-  'skill-forge',
   'flow-guide',
   'flow-drive',
   'change-verdict',
@@ -71,8 +70,10 @@ const CAPABILITY_FAMILY_RETIREMENTS = Object.freeze({
   'skill-judge': Object.freeze({ family: 'skill-scope', mode: 'judge' }),
   'skill-stocktake': Object.freeze({ family: 'skill-scope', mode: 'stocktake' }),
   'skill-scout': Object.freeze({ family: 'skill-scope', mode: 'scout' }),
-  'create-skill': Object.freeze({ family: 'skill-forge', mode: 'create' }),
-  'rules-distill': Object.freeze({ family: 'skill-forge', mode: 'distill-rules' }),
+  // skill-forge was retired in 0.65.0 (third-party-text-overlap), so its two
+  // 0.53 predecessors now resolve to the model default instead of a family.
+  'create-skill': Object.freeze({ kind: 'model-default' }),
+  'rules-distill': Object.freeze({ kind: 'model-default' }),
   'adaptive-dev-workflow': Object.freeze({ family: 'flow-guide', mode: 'route' }),
   'dhpk-execution-policy': Object.freeze({ family: 'flow-guide', mode: 'rules' }),
   'next-step': Object.freeze({ family: 'flow-guide', mode: 'next' }),
@@ -628,6 +629,11 @@ function validateExternalSkillPackages(input = {}) {
   return { errors };
 }
 
+function describeFamilyRetirement(expected) {
+  if (expected.kind === 'model-default') return 'model-default';
+  return `${expected.family}${expected.mode ? `:${expected.mode}` : ''}`;
+}
+
 // Retirement rows are deliberately separate from active skill entries. They
 // are identity and migration evidence only: no projection compiler is allowed
 // to treat them as materializable skills or discovery aliases.
@@ -688,8 +694,10 @@ function validateSkillRetirements({ inventory } = {}) {
       errors.push(`${prefix}.id '${entry.id}' overlaps an external-package protected skill and cannot be retired`);
     }
 
-    if (typeof entry.name !== 'string' || !PUBLIC_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
-      errors.push(`${prefix}.name must match ^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$ and be at most 63 characters: '${entry.name}'`);
+    if (typeof entry.name !== 'string'
+      || !(PUBLIC_SKILL_NAME.test(entry.name) || PORTABLE_SKILL_NAME.test(entry.name))
+      || entry.name.length > 63) {
+      errors.push(`${prefix}.name must be a dhpk- public name or an unprefixed portable name (lowercase hyphenated) of at most 63 characters: '${entry.name}'`);
     } else if (retiredNames.has(entry.name)) {
       errors.push(`duplicate retired public skill name: ${entry.name}`);
     } else if (activeNames.has(entry.name)) {
@@ -792,7 +800,7 @@ function validateSkillRetirements({ inventory } = {}) {
     for (const [predecessor, expected] of Object.entries(CAPABILITY_FAMILY_RETIREMENTS)) {
       const entry = retirementById.get(predecessor);
       if (!entry) {
-        errors.push(`missing capability-family retirement mapping: ${predecessor} must map to ${expected.family}${expected.mode ? `:${expected.mode}` : ''}`);
+        errors.push(`missing capability-family retirement mapping: ${predecessor} must map to ${describeFamilyRetirement(expected)}`);
         continue;
       }
       if (entry.retiredIn !== '0.53.0') {
@@ -807,9 +815,11 @@ function validateSkillRetirements({ inventory } = {}) {
       const modeMatches = expected.mode === undefined
         ? replacement && replacement.mode === undefined
         : replacement && replacement.mode === expected.mode;
-      if (!replacement || replacement.kind !== 'skill'
-        || replacement.id !== expected.family || !modeMatches) {
-        errors.push(`capability-family retirement ${predecessor} must map exactly to ${expected.family}${expected.mode ? `:${expected.mode}` : ''}`);
+      const mapsExactly = expected.kind === 'model-default'
+        ? replacement && replacement.kind === 'model-default'
+        : replacement && replacement.kind === 'skill' && replacement.id === expected.family && modeMatches;
+      if (!mapsExactly) {
+        errors.push(`capability-family retirement ${predecessor} must map exactly to ${describeFamilyRetirement(expected)}`);
       }
     }
     for (const entry of rows) {

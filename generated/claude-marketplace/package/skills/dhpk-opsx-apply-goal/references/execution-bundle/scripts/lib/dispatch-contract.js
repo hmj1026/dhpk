@@ -53,7 +53,6 @@ const LEGACY_ROLE_ALIASES = Object.freeze({
 // in the Host profile or an explicit request target.
 const ROLE_ALIASES = Object.freeze({
   orchestrator: Object.freeze({ role: 'planner', authority: 'read-only' }),
-  'spec-miner': Object.freeze({ role: 'planner', authority: 'read-only' }),
   architect: Object.freeze({ role: 'reasoner', authority: 'read-only' }),
   'deep-reasoner': Object.freeze({ role: 'reasoner', authority: 'read-only' }),
   'codex-reasoner': Object.freeze({ role: 'reasoner', authority: 'read-only' }),

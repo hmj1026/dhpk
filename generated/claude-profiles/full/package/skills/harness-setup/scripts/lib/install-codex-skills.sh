@@ -3080,7 +3080,7 @@ def inventory_retirement_metadata(active_metadata=None):
         'reasonCode', 'replacements', 'rollback',
     }
     safe_identifier = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
-    public_name = re.compile(r'^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$')
+    public_name = re.compile(r'^(?:dhpk-)?[a-z0-9]+(?:-[a-z0-9]+)*$')
     semver = re.compile(r'^\d+\.\d+\.\d+$')
     reason_code = re.compile(r'^[a-z0-9]+(?:-[a-z0-9]+)*$')
     allowed_surfaces = {

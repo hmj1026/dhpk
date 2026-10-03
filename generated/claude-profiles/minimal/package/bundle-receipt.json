@@ -10,7 +10,7 @@
     ],
     "excludes": [],
     "id": "minimal",
-    "inventoryFingerprint": "6970e59fe9ebd26eefa52c571455b79c255ef9aea9224909f17f32992220f66c",
+    "inventoryFingerprint": "c3109d4ec399c9a18405ad296a533df0f936d19804c25b6e1dc7f99e7d18bd6e",
     "mode": "profile",
     "modules": [],
     "profileFingerprint": "e6fced74bf8dd6e7a3464c7b9b070196cf2a8276b01f1942d260884815b80fd6",
@@ -21,10 +21,10 @@
       "flow-drive",
       "flow-guide"
     ],
-    "selectionFingerprint": "cd714d3a06f1288a661e348114e28c02f6b8992b8537c68ea86cda3b22e6af55",
+    "selectionFingerprint": "78fa4ac70af0bdeb85998bf01aca053b47bfd7bf4402ea72fa08b64cf0ffa068",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "5cd6d5812032a904df1a210f7a9dc7a7ee0f4f96e312faabea74700374a630fc",
+    "sourceFingerprint": "ce6aa9073dce16a1b4b8852295f788018b17315a241a3a848797f535efe14e56",
     "supportClosure": {
       "assets": [],
       "files": [
@@ -69,7 +69,7 @@
         "repo-verify"
       ]
     },
-    "surfaceSelectionFingerprint": "8e84c385aee71c1d9816a982666e435715fafacca1203768e9aa2542bcfa3918",
+    "surfaceSelectionFingerprint": "9e157dbc1d2d66b902036c3c015d629e12fe29dab22ac24ca3027dee5b88daf7",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -749,5 +749,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "057948a2ae23e5ffd491678aad36660a0a19263e90ce4e71e297f2e023bbd850"
+  "planFingerprint": "0febf3fe5fa1c6f8030d06ce96813452af3f56a32d03a748b1515e8b37375d97"
 }

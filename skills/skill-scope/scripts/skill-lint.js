@@ -19,7 +19,7 @@ const { readdirSync, readFileSync, existsSync, statSync, lstatSync } = require('
 const { join, basename, dirname, resolve, relative, isAbsolute, sep, posix } = require('node:path');
 
 const PORTABLE_FAMILY_NAMES = new Set([
-  'skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict', 'code-trace',
+  'skill-scope', 'flow-guide', 'flow-drive', 'change-verdict', 'code-trace',
 ]);
 
 // ---------------------------------------------------------------------------

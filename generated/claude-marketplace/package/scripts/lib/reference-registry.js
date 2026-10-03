@@ -88,7 +88,7 @@ function extractNaturalLanguageReferences(text) {
   // This validator owns the opsx/registered-skill handoff vocabulary. Agent
   // role prose and programming identifiers are intentionally not inferred as
   // Skill/command references merely because they are backticked.
-  const capabilityMarker = /(?:dhpk[-:]|opsx[-:]|openspec[-:])|(?:skill-scope|skill-forge|flow-guide|flow-drive|change-verdict|code-trace|compact-save|missing-[a-z0-9-]+)/i;
+  const capabilityMarker = /(?:dhpk[-:]|opsx[-:]|openspec[-:])|(?:skill-scope|flow-guide|flow-drive|change-verdict|code-trace|compact-save|missing-[a-z0-9-]+)/i;
   const generic = new Set(['skill', 'tool', 'command', 'workflow', 'capability', 'the', 'same', 'right']);
   lines.forEach((line, index) => {
     if (!action.test(line)) return;

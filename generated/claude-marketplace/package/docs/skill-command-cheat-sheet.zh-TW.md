@@ -30,7 +30,7 @@ audit、prompt optimization 與 stack-specific skills 都是明確選裝，不�
 | 還沒有 proposal 或 OpenSpec artifacts | 外部 `$openspec-propose`，再依流程使用 `/opsx:apply` | proposal authoring 不屬於 `flow-drive` |
 | 要分組 Git commit | `$git-smart-commit` | `git-smart-commit` stable ID 與 public name 保持不變；需要明確 Git authority |
 
-## 九個 portable family
+## 八個 portable family
 
 family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 collision-safe 的
 `dhpk-*` 名稱。每個 family 只保留一個窄入口，mode/selector 由 usage card 揭露。
@@ -38,7 +38,6 @@ family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 colli
 | Family | 何時使用 | 可用 action / selector | 不負責 |
 |---|---|---|---|
 | [`skill-scope`](../skills/skill-scope/SKILL.md) | 稽核、比較或盤點技能治理 | `health`、`judge`、`stocktake`、`scout` | 不直接 author skill |
-| [`skill-forge`](../skills/skill-forge/SKILL.md) | 建立技能或提煉 agent rule | `create`、`distill-rules` | 不替應用程式實作功能 |
 | [`flow-guide`](../skills/flow-guide/SKILL.md) | 需要 usage、路由、政策、下一步或收尾建議 | `help`、`route`、`rules`、`next`、`close` | 不執行 explicit-only target |
 | [`flow-drive`](../skills/flow-drive/SKILL.md) | specification、目標與 acceptance 已確認 | 無 mode；confirmed change/spec | 不分類、選 route、author proposal 或 release |
 | [`change-verdict`](../skills/change-verdict/SKILL.md) | 對 code、PR、security、tests、docs 或 risk 做唯讀判斷 | `code`、`pr`、`security`、`tests`、`docs`、`risk` | 不代替修復或 commit |

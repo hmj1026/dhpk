@@ -71,8 +71,8 @@ updated、migrated、preserved、collision、pruned 與 orphaned 數量，不暴
 ## 呼叫 skill
 
 Skill invocation 是 chat syntax，不是 plugin-management command。每個同步 skill
-都在 `agents/openai.yaml` 宣告 public trigger。六個 capability family 使用未加
-前綴名稱（`skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、
+都在 `agents/openai.yaml` 宣告 public trigger。五個 capability family 使用未加
+前綴名稱（`skill-scope`、`flow-guide`、`flow-drive`、
 `change-verdict`、`code-trace`）；其他 first-party skill 維持 `dhpk-` 前綴。不要
 使用 `$dhpk:<name>` 或 predecessor name；`codex plugin list` 只證明管理層安裝狀態，
 仍須確認選定的 family 或 `$dhpk-<name>` 能解析。
@@ -84,10 +84,10 @@ Skill invocation 是 chat syntax，不是 plugin-management command。每個同�
 
 ## Agent roles
 
-`codex/agents/` 提供 16 個可直接派送的角色：4 個手動維護的通用角色（`explorer`、
-`worker`、`monitor`、`bug-investigator`），以及 12 個由 canonical agent 產生的角色
+`codex/agents/` 提供 15 個可直接派送的角色：4 個手動維護的通用角色（`explorer`、
+`worker`、`monitor`、`bug-investigator`），以及 11 個由 canonical agent 產生的角色
 （`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、
-`deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、
+`deep-reasoner`、`doc-reviewer`、`planner`、`frontend-reviewer`、
 `migration-reviewer`、`e2e-runner`）。完整 role map、fallback 與 capability gate 見
 [`guidance.md`](./guidance.md) 及 [`agent-role-map.json`](./agent-role-map.json)。
 

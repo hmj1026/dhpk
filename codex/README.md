@@ -62,9 +62,8 @@ The script detects the version delta from `.dhpk-installed.json` and re-syncs ev
 Skill invocation is chat syntax, not a plugin-management command — `codex
 plugin list` / `codex plugin add` only install or report status; they never
 execute a skill. Every synced skill carries its public trigger in
-`agents/openai.yaml`. The six capability families use unprefixed names
-(`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
-`code-trace`); other first-party skills retain the `dhpk-` prefix. Do not
+`agents/openai.yaml`. The five capability families use unprefixed names
+(`skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`, `code-trace`); other first-party skills retain the `dhpk-` prefix. Do not
 write `$dhpk:<name>` or a retired predecessor name. Confirm that the selected
 family or `dhpk-*` trigger resolves.
 
@@ -76,7 +75,7 @@ callable `/dhpk:do`.
 
 ## Agent roles
 
-`codex/agents/` ships 16 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 12 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `guidance.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
+`codex/agents/` ships 15 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 11 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `guidance.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
 
 Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` for Codex's documented project-local discovery path. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the static metadata contract.
 
@@ -88,7 +87,7 @@ observed failure. An exact-ID `unknown agent_type` is a registry failure, not
 evidence to rename the role or replace its GPT-6 family model; see
 [`guidance.md`](guidance.md#role-discovery).
 
-The 12 generated roles come from `scripts/gen-codex-agents.js`, run as:
+The 11 generated roles come from `scripts/gen-codex-agents.js`, run as:
 
 ```bash
 node scripts/gen-codex-agents.js

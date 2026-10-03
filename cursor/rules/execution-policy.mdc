@@ -483,7 +483,6 @@ Semantically matches but path pattern did not trigger a reviewer role → self-t
 - Structural change (new module / renamed dir / new public service or API surface) → `doc-updater` (it runs `/update-codemaps` + `/update-docs`).
 - Needing current / up-to-date library / framework / API docs mid-task → `docs-lookup` (Context7).
 - Cleanup beyond a single file — a file > 800 lines to split, cross-file duplicate logic, or a multi-module dead-code sweep → `refactor-cleaner` (use `/simplify` for in-place single-file work).
-- Brownfield project with empty `openspec/specs/` + a spec-extraction request → `spec-miner` (or the `/spec-mine` front door).
 - `swift build` / `xcodebuild` / SPM resolution failure → `swift-build-resolver` (swift / xcode-tooling module active).
 - `ruff` / `mypy` / `pytest-asyncio` (and `pyright` / `pytest` / `uv sync`) error appears in Bash output → `python-build-resolver` (python / fastapi / pytest module active).
 - `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
@@ -509,7 +508,7 @@ the task explicitly requires changing deployment topology.
 
 ## Deterministic first, judgment second
 
-For audit / setup / inventory / generation work, separate fact-collection from interpretation: **collect** deterministically (scripts / Grep / Glob, no judgment, baseline first) → **gate** (present facts; confirm before destructive or multi-file outcomes) → **judge** (AI evaluation last). **Tool output is immutable** — forward stdout verbatim, never hand-construct contract output (e.g. `deploy-list` schema=v1); a tool failure stops-and-reports, never simulates. Full detail: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/deterministic-first.md`. (skill-scope, skill-forge, flow-guide, change-verdict, deploy-list)
+For audit / setup / inventory / generation work, separate fact-collection from interpretation: **collect** deterministically (scripts / Grep / Glob, no judgment, baseline first) → **gate** (present facts; confirm before destructive or multi-file outcomes) → **judge** (AI evaluation last). **Tool output is immutable** — forward stdout verbatim, never hand-construct contract output (e.g. `deploy-list` schema=v1); a tool failure stops-and-reports, never simulates. Full detail: `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/deterministic-first.md`. (skill-scope, flow-guide, change-verdict, deploy-list)
 
 ## Self-check (before reply)
 

@@ -649,29 +649,6 @@
         "blocked-resource-missing"
       ]
     },
-    "spec-mine": {
-      "path": "skills/spec-mine",
-      "entry": "SKILL.md",
-      "resources": [
-        {
-          "path": "SKILL.md",
-          "kind": "entry",
-          "required": true
-        },
-        {
-          "path": "references/spec-miner-contract.md",
-          "kind": "reference",
-          "required": true
-        }
-      ],
-      "fallback": [
-        "package-local",
-        "declared-dependency-closure",
-        "receipt-bound-project-projection",
-        "explicit-development-source-root",
-        "blocked-resource-missing"
-      ]
-    },
     "ui-ux-verify": {
       "path": "skills/ui-ux-verify",
       "entry": "SKILL.md",

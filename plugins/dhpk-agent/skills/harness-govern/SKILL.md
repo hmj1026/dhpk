@@ -14,7 +14,6 @@ mode; the mode is the work boundary. A missing or ambiguous mode is a
 ## When NOT to Use
 
 - Application code, product behavior, or ordinary repository implementation is the target.
-- A new skill or rule is being authored: use `skill-forge`.
 - More than one governance mode is implied but none was explicitly selected.
 - External synchronization or mutation lacks the mode-specific approval boundary.
 

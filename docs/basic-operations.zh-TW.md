@@ -249,7 +249,7 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | 交付前置 | `tdd-workflow`、`dhpk-module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `tdd-workflow` 做 RED |
 | OpenSpec 續作 | `dhpk-opsx-load-context`、`dhpk-opsx-post-observation`、`dhpk-opsx-apply-goal` | 續接 / 交付長時間 `/opsx:apply` 工作流 | 長跑用 `dhpk-opsx-apply-goal <change-id>`，續場景用 `dhpk-opsx-load-context` |
 | Harness / 平台 | `harness-govern`（`health\|budget\|fill\|revise\|sync`） | 同步跨 host 的 harness、plugin、版本與規格 | 先 `$harness-govern health --dry-run` |
-| 技能治理 | `skill-forge`、`skill-scope` | 編寫、稽核、比較 skill 品質 | 快速盤點用 `skill-scope`，結構調整用 `skill-forge` |
+| 技能治理 | `skill-scope` | 稽核、比較 skill 品質 | 快速盤點用 `skill-scope` |
 | Git / 發版準備 | `git-smart-commit`、`release-creator`、`dhpk-deploy-list`、`dhpk-project-setup` | 大量變更分群提交、發版、部署檔清單、專案初始化 | `dhpk-project-setup` 後接 `git-smart-commit` / `release-creator` |
 
 ### 參數速查
@@ -388,14 +388,13 @@ reviewer 與 completion gate，不會為了約 4,000 UTF-8-byte 的 paste ceilin
 ### 獨立協助工作流
 
 ```text
-/dhpk:spec-mine user-authentication
 /dhpk:flow-guide route write E2E tests for the checkout flow
 /dhpk:harness-audit
 /dhpk:harness-govern
 /dhpk:harness-govern --fix
 ```
 
-`spec-mine` 將 brownfield behavioral spec 寫入 `openspec/specs/`。E2E 工作由 `e2e-runner`
+E2E 工作由 `e2e-runner`
 負責，只能寫 spec、helper、fixture 與 artifact；application failure 會回傳 worker-ready
 fix spec。Harness audit 是 read-only；govern 只有在加上 `--fix` 時才會修改。Structural change
 也會路由 `doc-updater` 更新 codemap 與使用者文件。
@@ -456,8 +455,8 @@ Plugin 更新後以 `--update` 重新執行。Unowned collision 會保留；`--m
 receipt-owned、未修改的 legacy destination；edited、third-party、retargeted、malformed 或
 ambiguous path 仍會報告 conflict。`--uninstall` 只移除未修改且 receipt-owned 的 entry。
 Codex tree 是 canonical Claude package 的 curated subset，不是第二份完整 inventory。
-`codex/agents/` 有 16 個 direct role：4 個手動維護 generic role 與由 canonical Claude agent
-產生的 12 個 role。雙 harness 模型請看 `codex/guidance.md` 與 `codex/README.md`。
+`codex/agents/` 有 15 個 direct role：4 個手動維護 generic role 與由 canonical Claude agent
+產生的 11 個 role。雙 harness 模型請看 `codex/guidance.md` 與 `codex/README.md`。
 
 Generated role 可能依賴共用的 prompt-defense、trap-sheet、artifact-contract
 或 execution-policy。這些 support file 由 `manifests/distribution-inventory.json` 的
