@@ -67,3 +67,26 @@ wording, headings, examples, section order, or body length.
 - **WHEN** a skill's prose changes while its machine-readable metadata and
   referenced resources remain valid
 - **THEN** no prose-specific test or test-count update is required
+
+### Requirement: Daily CI may select existing owner suites conservatively
+
+Daily pull-request CI MAY select the union of existing coarse owner suites for
+known hooks, installer lifecycle, skill resources, and manifest or adapter
+package changes. The selection SHALL use the existing positional-file runner,
+one shard with four workers, and a plan-recorded test-file list. Full fallback
+SHALL retain four shards with four workers. Shared core, runner, CI, unknown or
+unmapped paths, missing owner suites, and unavailable diffs SHALL use the full
+plan. Installer-owner changes SHALL include macOS installer validation.
+
+#### Scenario: Selected evidence covers exactly the planned suites
+
+- **WHEN** a selected plan is verified after its positional-file run
+- **THEN** shard evidence has the same run and checkout identities and exactly
+  the plan's test-file union, with no missing, extra, or duplicate file
+
+#### Scenario: Classification cannot establish a safe owner
+
+- **WHEN** a changed path is shared core, runner, CI, unknown, unmapped, or
+  the diff is unavailable
+- **THEN** the plan requires the full four-shard validation and does not claim
+  selected coverage

@@ -256,7 +256,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
       "skill_id": "opsx-apply-goal",
       "source": "skills/flow-guide/references/testing-policy.md",
-      "sha256": "sha256:7064808163d34ec5070bbd8156b6665dfefdd444e2f8f44a07b2d312643dc529",
+      "sha256": "sha256:9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/scripts/build-cli-dispatch-context.js": {
@@ -586,7 +586,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/testing-policy.md",
-      "sha256": "sha256:7064808163d34ec5070bbd8156b6665dfefdd444e2f8f44a07b2d312643dc529",
+      "sha256": "sha256:9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md": {
@@ -712,7 +712,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/testing-policy.md",
-      "sha256": "sha256:7064808163d34ec5070bbd8156b6665dfefdd444e2f8f44a07b2d312643dc529",
+      "sha256": "sha256:9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/command-namespace.js": {

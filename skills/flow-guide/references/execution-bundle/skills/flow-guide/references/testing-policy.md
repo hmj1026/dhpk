@@ -21,6 +21,16 @@ and output. JavaScript, Python, and other scripts can run directly through
 `spawnSync`. Use a smoke check only when it matches the operational risk; a
 smoke check does not claim full behavior coverage.
 
+Daily CI may select a union of existing coarse owner suites for known hooks,
+installer lifecycle, skill-resource, and manifest or adapter changes. It uses
+the existing positional-file runner with one selected shard and four workers;
+full fallback retains four shards and four workers. Shared core, runner, CI,
+unknown paths, missing owner mappings, and unavailable diffs require the full
+plan. A selected plan records its test files, and shard evidence must match
+that plan's exact union with no missing, extra, or duplicate files. Installer
+changes also retain the macOS installer validation. This routing does not
+create a one-to-one script coverage map or a Markdown prose test obligation.
+
 Markdown body text is reviewed by people. Shared tools may parse machine-readable
 metadata or verify packaged resources, but do not write automated tests for a
 skill's wording, headings, examples, section order, or body length. Test parsers

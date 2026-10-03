@@ -25,6 +25,21 @@ Use the existing `tests/run-all.js` runner and organize suites around behavior
 or a public contract. Keep shared fixture helpers under `tests/_lib/`; do not
 create a coverage ledger merely to pair every production file with a test.
 
+Daily pull-request CI uses the existing runner's positional-file mode for
+known script changes. The plan selects a union of coarse owner suites for
+hooks, installer lifecycle, skill resources, and manifest or adapter packages;
+a selected plan runs one shard with four workers. A full plan keeps four
+shards with four workers. Shared core, runner or CI changes, unknown paths,
+missing owner suites, and unavailable diffs fail closed to the full plan. The
+selected plan records its test files, and shard verification requires the
+trusted plan's exact union without omissions, extras, or duplicates. Installer
+owner changes also run the macOS installer job.
+
+This routing is an execution optimization and does not create a
+script-to-test coverage obligation. Markdown prose remains outside automated
+test obligations; shared metadata and resource checks continue through their
+existing owner validators.
+
 Skill and guidance Markdown is reviewed by people. Automated checks may parse
 machine-readable metadata or verify required resources through shared tools,
 but they do not assert the wording, section order, examples, or body length of
