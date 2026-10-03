@@ -39,3 +39,5 @@ if [ -n "$ctx" ] && [ "$PROFILE" != "minimal" ]; then
 fi
 
 exit 0
+
+# Hosted selected-CI proof keeps this public hook in the hooks owner group.
