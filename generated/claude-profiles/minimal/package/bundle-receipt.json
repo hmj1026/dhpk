@@ -21,13 +21,23 @@
       "flow-drive",
       "flow-guide"
     ],
-    "selectionFingerprint": "78fa4ac70af0bdeb85998bf01aca053b47bfd7bf4402ea72fa08b64cf0ffa068",
+    "selectionFingerprint": "b1e6118f7ff5861d467bd18994e6702b399827529ed7fd10b50450b5d9ebdaec",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "ce6aa9073dce16a1b4b8852295f788018b17315a241a3a848797f535efe14e56",
     "supportClosure": {
       "assets": [],
       "files": [
+        {
+          "destination": "docs/subagent-prompt-template.md",
+          "requiredBy": "code-trace",
+          "source": "docs/subagent-prompt-template.md"
+        },
+        {
+          "destination": "rules/execution-policy-kernel.md",
+          "requiredBy": "code-trace",
+          "source": "rules/execution-policy-kernel.md"
+        },
         {
           "destination": "rules/execution-policy-kernel.md",
           "requiredBy": "flow-drive",
@@ -37,6 +47,11 @@
           "destination": "rules/execution-policy-kernel.md",
           "requiredBy": "flow-guide",
           "source": "rules/execution-policy-kernel.md"
+        },
+        {
+          "destination": "rules/execution-policy.md",
+          "requiredBy": "code-trace",
+          "source": "rules/execution-policy.md"
         },
         {
           "destination": "rules/execution-policy.md",
@@ -69,7 +84,7 @@
         "repo-verify"
       ]
     },
-    "surfaceSelectionFingerprint": "9e157dbc1d2d66b902036c3c015d629e12fe29dab22ac24ca3027dee5b88daf7",
+    "surfaceSelectionFingerprint": "0f556de363e2eb5a26cc9d4990f338d196a6b859f08570e56057dd33819548c9",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -749,5 +764,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "0febf3fe5fa1c6f8030d06ce96813452af3f56a32d03a748b1515e8b37375d97"
+  "planFingerprint": "90626e62f141eb586ac302e6a7abe275b6e8934f462926189d70f6019ffd2697"
 }
