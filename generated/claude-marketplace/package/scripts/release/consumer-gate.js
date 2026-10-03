@@ -41,6 +41,7 @@ const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 const { redactSensitiveText } = require('../lib/redaction');
 const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
+const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
@@ -385,13 +386,38 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
       const runtimeSupportSet = new Set(Array.isArray(provenance.runtimeSupportStableIds)
         ? provenance.runtimeSupportStableIds
         : []);
-      const expectedNativeSkills = inventory && Array.isArray(inventory.skills)
-        ? inventory.skills.filter((skill) => (
-          (skill.surfaces || []).includes('codex-native')
-          && skill.lifecycle !== 'deprecated'
-          && (!selectedSet || selectedSet.has(skill.id) || runtimeSupportSet.has(skill.id))
-        ))
-        : [];
+      const hasMarketplacePublication = Object.prototype.hasOwnProperty.call(provenance, 'marketplacePublication');
+      let marketplacePublicationMatches = true;
+      let expectedNativeSkills;
+      if (hasMarketplacePublication) {
+        let hostPublication = null;
+        try {
+          hostPublication = loadMarketplaceHostPublication({ root, inventory, hostSurface: 'codex-native' });
+        } catch (_) { /* claimed marketplace provenance must fail closed */ }
+        if (hostPublication) {
+          expectedNativeSkills = [...hostPublication.publicEntries, ...hostPublication.hostOnly];
+          const expectedPublicEntryIds = hostPublication.publicEntries.map((skill) => skill.id).sort();
+          const expectedHostOnlyIds = hostPublication.hostOnly.map((skill) => skill.id).sort();
+          const claimedPublication = provenance.marketplacePublication;
+          marketplacePublicationMatches = Boolean(
+            claimedPublication
+            && claimedPublication.selectionDigest === hostPublication.selectionDigest
+            && JSON.stringify(claimedPublication.publicEntryIds) === JSON.stringify(expectedPublicEntryIds)
+            && JSON.stringify(claimedPublication.hostOnlyIds) === JSON.stringify(expectedHostOnlyIds)
+          );
+        } else {
+          expectedNativeSkills = [];
+          marketplacePublicationMatches = false;
+        }
+      } else {
+        expectedNativeSkills = inventory && Array.isArray(inventory.skills)
+          ? inventory.skills.filter((skill) => (
+            (skill.surfaces || []).includes('codex-native')
+            && skill.lifecycle !== 'deprecated'
+            && (!selectedSet || selectedSet.has(skill.id) || runtimeSupportSet.has(skill.id))
+          ))
+          : [];
+      }
       const expectedNativeIds = expectedNativeSkills.map((skill) => skill.id).sort();
       const expectedNativeNames = expectedNativeSkills.map((skill) => skill.name || skill.id).sort();
       const selectedNativeIds = Array.isArray(provenance.materializedSkillIds)
@@ -400,7 +426,8 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
       const selectedNativeNames = Array.isArray(provenance.materializedSkillNames)
         ? [...provenance.materializedSkillNames].sort()
         : Array.isArray(provenance.selectedSkillNames) ? [...provenance.selectedSkillNames].sort() : [];
-      const membershipMatches = JSON.stringify(selectedNativeIds) === JSON.stringify(expectedNativeIds)
+      const membershipMatches = marketplacePublicationMatches
+        && JSON.stringify(selectedNativeIds) === JSON.stringify(expectedNativeIds)
         && JSON.stringify(selectedNativeNames) === JSON.stringify(expectedNativeNames)
         && JSON.stringify(Object.keys(nativeFingerprints).sort()) === JSON.stringify(expectedNativeNames);
       const expectedInventoryDigest = inventory

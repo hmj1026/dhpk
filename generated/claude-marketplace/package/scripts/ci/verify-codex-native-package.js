@@ -95,7 +95,7 @@ if (trackedProvenance.schema !== undefined) {
 // shared verifier owns structural, identity, membership, and stage-bound
 // EvidenceResult construction. Structural PASS remains distinct from any
 // consumer-runtime claim.
-const trackedVerification = verifyNativePackage({ packageRoot: pkgDir, inventory, stage: 'structural' });
+const trackedVerification = verifyNativePackage({ packageRoot: pkgDir, inventory, sourceRoot: ROOT, stage: 'structural' });
 errors.push(...trackedVerification.structural.errors);
 errors.push(...trackedVerification.identity.errors);
 errors.push(...trackedVerification.membership.errors);

@@ -2,25 +2,34 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:8f79ae11a486b6bba1e6a444917101678ac2855b2af3d7d7a877fbb83bb8ec8d`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:24c1de777a6d9caff8c6b95821a3f77692663b40e7549d67c3c45c5e0042334c`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
-### `$code-simplify`
+### `$change-verdict`
 
-Summary: Clean changed code without changing behavior
-Syntax: `$code-simplify [<target>]`
+Summary: Return an evidence-backed read-only change verdict
+Syntax: `$change-verdict [--mode=<mode>] [--coverage] [<target>]`
 Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
+Maximum authority: `read-only`
 
 Inputs:
-- `target` `<target>` (optional, string) — PR, branch, file, or directory
+- `target` `<target>` (optional, string) — Change, PR, test, document, or risk target
 
 Actions:
-- `simplify` `$code-simplify [<target>]` — Apply bounded cleanup with test evidence
+- `code` `$change-verdict --mode=code [<target>]` — Judge code changes
+- `pr` `$change-verdict --mode=pr [<target>]` — Judge pull-request evidence
+- `security` `$change-verdict --mode=security [<target>]` — Judge security evidence
+- `tests` `$change-verdict --mode=tests [--coverage] [<target>]` — Judge test and coverage evidence
+- `docs` `$change-verdict --mode=docs [<target>]` — Judge documentation evidence
+- `risk` `$change-verdict --mode=risk [<target>]` — Judge change-risk evidence
+
+Options:
+- `mode` `--mode=<mode>` (optional, enum, values=code|pr|security|tests|docs|risk) — Select one verdict mode
+- `coverage` `--coverage` (optional, boolean, default=false) — Include coverage evidence in tests mode
 
 Examples:
-- `$code-simplify src/` — Use code simplify with its declared interface
+- `$change-verdict --mode=tests --coverage` — Use change verdict with its declared interface
 
 ### `$code-trace`
 
@@ -83,118 +92,6 @@ Options:
 
 Examples:
 - `$dep-audit --level=high` — Use dependency audit with its declared interface
-
-### `$dhpk-legacy-characterization-tests`
-
-Summary: Lock observed legacy behavior before refactoring safely
-Syntax: `$dhpk-legacy-characterization-tests <legacy-target>`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `legacy-target` `<legacy-target>` (required, string) — Select the legacy code target to characterize
-
-Actions:
-- `characterize` `$dhpk-legacy-characterization-tests <legacy-target>` — Write tests that capture the current legacy behavior
-
-Examples:
-- `$dhpk-legacy-characterization-tests protected/models/Order.php` — Lock an untested legacy model before refactoring
-
-### `$dhpk-opsx-load-context`
-
-Summary: Load resume context through the deterministic fallback chain
-Syntax: `$dhpk-opsx-load-context`
-Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
-
-Actions:
-- `load` `$dhpk-opsx-load-context` — Resolve the best available resume context
-
-Examples:
-- `$dhpk-opsx-load-context` — Load context for an opsx-apply-resume session
-
-### `$dhpk-opsx-post-observation`
-
-Summary: Post one resume observation through the observer boundary
-Syntax: `$dhpk-opsx-post-observation <observation-context>`
-Invocation class: `implicit-eligible`
-Maximum authority: `delegate`
-
-Inputs:
-- `observation-context` `<observation-context>` (required, string) — Describe the compact session observation
-
-Actions:
-- `post` `$dhpk-opsx-post-observation <observation-context>` — Submit the compact session observation
-
-Examples:
-- `$dhpk-opsx-post-observation save-phase summary` — Post the observation during opsx save phase
-
-### `$dhpk-php-runtime-router`
-
-Summary: Detect PHP runtime and select safe framework guidance
-Syntax: `$dhpk-php-runtime-router <php-task>`
-Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
-
-Inputs:
-- `php-task` `<php-task>` (required, string) — Describe the PHP or framework task
-
-Actions:
-- `route` `$dhpk-php-runtime-router <php-task>` — Detect the runtime and select matching references
-
-Examples:
-- `$dhpk-php-runtime-router review this Yii 1.1 controller` — Select PHP-compatible guidance for a backend task
-
-### `$dhpk-yii1-php56-development`
-
-Summary: Implement Yii 1.x backend changes with PHP 5.6-safe tests
-Syntax: `$dhpk-yii1-php56-development <backend-task>`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `backend-task` `<backend-task>` (required, string) — Describe the Yii backend implementation task
-
-Actions:
-- `implement` `$dhpk-yii1-php56-development <backend-task>` — Design, test, and implement a Yii 1.x backend change
-
-Examples:
-- `$dhpk-yii1-php56-development fix this Yii 1.1 controller` — Apply PHP 5.6-safe backend implementation guidance
-
-### `$dhpk-yii1-security-audit`
-
-Summary: Audit Yii 1.1 security boundaries with evidence and fixes
-Syntax: `$dhpk-yii1-security-audit <source-path> [--output-path=<path>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
-
-Inputs:
-- `source-path` `<source-path>` (required, string) — Select the Yii source path to audit
-
-Actions:
-- `audit` `$dhpk-yii1-security-audit <source-path> [--output-path=<path>]` — Inspect Yii 1.1 framework security boundaries
-
-Options:
-- `output-path` `--output-path=<path>` (optional, string) — Choose the audit report output directory
-
-Examples:
-- `$dhpk-yii1-security-audit protected` — Audit a Yii 1.1 project for framework security issues
-
-### `$doc-refactor`
-
-Summary: Refactor one bounded Markdown document while preserving facts
-Syntax: `$doc-refactor <file-path>`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `file-path` `<file-path>` (required, string) — One Markdown document
-
-Actions:
-- `refactor` `$doc-refactor <file-path>` — Rewrite one bounded document and validate its links
-
-Examples:
-- `$doc-refactor docs/guide.md` — Use doc refactor with its declared interface
 
 ### `$flow-drive`
 
@@ -286,123 +183,6 @@ Options:
 Examples:
 - `$git-worktree list` — Use git worktree with its declared interface
 
-### `$harness-audit`
-
-Summary: Audit repository harness health with a deterministic scorecard
-Syntax: `$harness-audit [<scope>] [--format=<format>] [--root=<path>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
-
-Inputs:
-- `scope` `<scope>` (optional, enum, values=repo|hooks|skills|commands|agents, default=repo) — Harness area to inspect
-
-Actions:
-- `audit` `$harness-audit [<scope>]` — Run the deterministic harness audit
-
-Options:
-- `format` `--format=<format>` (optional, enum, values=text|json, default=text) — Output format
-- `root` `--root=<path>` (optional, string) — Consumer repository root
-
-Examples:
-- `$harness-audit skills --format=json` — Use harness audit with its declared interface
-
-### `$harness-govern`
-
-Summary: Govern harness health, budget, filling, revision, and sync
-Syntax: `$harness-govern <health|budget|fill|revise|sync> [options]`
-Invocation class: `explicit-only`
-Maximum authority: `external-write`
-
-Inputs:
-- `mode` `<health|budget|fill|revise|sync>` (required, enum, values=health|budget|fill|revise|sync) — Choose one harness governance mode
-
-Actions:
-- `health` `$harness-govern health [options]` — Check harness structure and optionally fix safe issues
-- `budget` `$harness-govern budget [options]` — Measure harness context cost and ranked savings
-- `fill` `$harness-govern fill [options]` — Preview or apply missing harness layers
-- `revise` `$harness-govern revise [options]` — Review and revise an active harness
-- `sync` `$harness-govern sync [options]` — Plan or apply cross-platform harness synchronization
-
-Options:
-- `dir` `--dir=<path>` (optional, string) — Select the harness directory
-- `dry-run` `--dry-run` (optional, boolean, default=false) — Preview changes without writing
-- `fix-safe` `--fix-safe` (optional, boolean, default=false) — Apply only approved safe health fixes
-- `fix` `--fix` (optional, boolean, default=false) — Apply the selected health fixes
-
-Examples:
-- `$harness-govern health --dry-run` — Inspect harness health without changing files
-
-### `$js-static-check-strategy`
-
-Summary: Plan staged TypeScript checks and inspect strict-check progress
-Syntax: `$js-static-check-strategy status [--path=<path>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
-
-Actions:
-- `status` `$js-static-check-strategy status [--path=<path>]` — Report the current static-check status
-
-Options:
-- `path` `--path=<path>` (optional, string) — Frontend root to scan
-
-Examples:
-- `$js-static-check-strategy status --path=js/` — Use js static check strategy with its declared interface
-
-### `$matrix-cell-onboard`
-
-Summary: Plan and optionally apply one multi-major CI matrix cell
-Syntax: `$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `php-version` `<php-version>` (required, string) — PHP runtime version
-- `laravel-version` `<laravel-version>` (required, string) — Laravel version
-- `phpunit` `<phpunit>` (optional, string) — PHPUnit version
-- `monolog` `<monolog>` (optional, string) — Monolog version
-
-Actions:
-- `onboard` `$matrix-cell-onboard <php-version> <laravel-version>` — Plan and apply one matrix cell
-
-Examples:
-- `$matrix-cell-onboard 8.3 12 11 3` — Use matrix cell onboard with its declared interface
-
-### `$merge-prep`
-
-Summary: Analyze a branch merge without mutating the repository
-Syntax: `$merge-prep <source-branch> [--target=<branch>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
-
-Inputs:
-- `source-branch` `<source-branch>` (required, string) — Branch to analyze
-
-Actions:
-- `prepare` `$merge-prep <source-branch>` — Analyze merge conflicts and manual commands
-
-Options:
-- `target` `--target=<branch>` (optional, string) — Target branch for the analysis
-
-Examples:
-- `$merge-prep feature/topic --target=main` — Use merge prep with its declared interface
-
-### `$pr-summary`
-
-Summary: Summarize open pull requests with evidence
-Syntax: `$pr-summary [--author=<user>] [--label=<label>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `read-only`
-
-Actions:
-- `summarize` `$pr-summary` — Group accessible open pull requests
-
-Options:
-- `author` `--author=<user>` (optional, string) — Filter by pull-request author
-- `label` `--label=<label>` (optional, string) — Filter by pull-request label
-
-Examples:
-- `$pr-summary --label=ready` — Use pr summary with its declared interface
-
 ### `$precommit`
 
 Summary: Run the packaged deterministic pre-commit pipeline
@@ -418,25 +198,6 @@ Options:
 
 Examples:
 - `$precommit --fast` — Use precommit with its declared interface
-
-### `$project-brief`
-
-Summary: Convert one technical specification into an executive brief
-Syntax: `$project-brief <tech-spec-path> [--output=<output-path>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `workspace-write`
-
-Inputs:
-- `tech-spec-path` `<tech-spec-path>` (required, string) — Readable technical specification
-
-Actions:
-- `brief` `$project-brief <tech-spec-path>` — Write an executive summary without changing the source
-
-Options:
-- `output` `--output=<output-path>` (optional, string) — Destination for the brief
-
-Examples:
-- `$project-brief docs/spec.md --output=docs/brief.md` — Use project brief with its declared interface
 
 ### `$proposal-analyze`
 
@@ -493,42 +254,6 @@ Options:
 Examples:
 - `$repo-verify fast` — Use repo verify with its declared interface
 
-### `$review-pending`
-
-Summary: Delegate a read-only pending-change review
-Syntax: `$review-pending [--files=<rel-paths>]`
-Invocation class: `implicit-eligible`
-Maximum authority: `delegate`
-
-Actions:
-- `review` `$review-pending` — Delegate the selected pending files to code-reviewer
-
-Options:
-- `files` `--files=<rel-paths>` (optional, string) — Comma-separated relative file paths
-
-Examples:
-- `$review-pending --files=src/a.js` — Use review pending with its declared interface
-
-### `$skill-scope`
-
-Summary: Route skill governance to one focused mode with evidence
-Syntax: `$skill-scope <health|judge|stocktake|scout>`
-Invocation class: `implicit-eligible`
-Maximum authority: `delegate`
-
-Inputs:
-- `mode` `<health|judge|stocktake|scout>` (required, enum, values=health|judge|stocktake|scout) — Choose one skill governance mode
-- `target` `<target>` (optional, string) — Select the skill or capability to inspect
-
-Actions:
-- `health` `$skill-scope health <skill>` — Check one skill or package structure
-- `judge` `$skill-scope judge <skill>` — Score one skill or package quality
-- `stocktake` `$skill-scope stocktake` — Audit installed consumer skills and commands
-- `scout` `$skill-scope scout <capability>` — Search for an existing skill or capability
-
-Examples:
-- `$skill-scope health flow-guide` — Run a focused health check for one skill
-
 ### `$tdd-workflow`
 
 Summary: Drive behavior-first tests through a minimal red-green loop
@@ -547,18 +272,22 @@ Actions:
 Examples:
 - `$tdd-workflow test-generation tests/OrderTest.php` — Use tdd with its declared interface
 
-### `$update-codemaps`
+### `$ui-ux-verify`
 
-Summary: Refresh architecture codemaps from the live project structure
-Syntax: `$update-codemaps`
+Summary: Audit one rendered page against one UI specification
+Syntax: `$ui-ux-verify [<url>] [spec:<spec-path>]`
 Invocation class: `implicit-eligible`
 Maximum authority: `workspace-write`
 
+Inputs:
+- `url` `<url>` (optional, string) — Page URL
+- `spec-path` `<spec-path>` (optional, string) — OpenSpec UI specification
+
 Actions:
-- `update` `$update-codemaps` — Refresh the bounded architecture codemaps
+- `verify` `$ui-ux-verify [<url>] [spec:<spec-path>]` — Capture and report one read-only UI audit
 
 Examples:
-- `$update-codemaps` — Use update codemaps with its declared interface
+- `$ui-ux-verify spec:openspec/changes/example/spec.md` — Use ui ux verify with its declared interface
 
 ### `$update-docs`
 

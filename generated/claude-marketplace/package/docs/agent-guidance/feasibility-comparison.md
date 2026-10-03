@@ -91,7 +91,7 @@ Before handing off, verify:
 - no implementation, commit, deployment, or release claim is smuggled into
   the feasibility result.
 
-Current owner: `skills/dhpk-module-design/SKILL.md`. The retirement mapping and
+Current owner: `skills/proposal-analyze/references/dhpk-module-design/SKILL.md`. The retirement mapping and
 rollback boundary for the former feasibility skill are recorded in
 `docs/skill-platform-migration.md`; this document retains its quantified and
 independent-comparison requirements without depending on deleted sources.

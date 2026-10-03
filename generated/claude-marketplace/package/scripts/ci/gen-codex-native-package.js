@@ -58,7 +58,7 @@ const result = materializeNativePackage({
   compiledProjection,
 });
 const structural = validateNativeCandidate({ manifestSkillsField: result.manifestSkillsField, packageRoot: resolvedOutDir });
-const membership = validateNativeMembership({ candidateSkillNames: result.skillNames, inventory });
+const membership = validateNativeMembership({ candidateSkillNames: result.skillNames, inventory, sourceRoot: ROOT });
 
 const errors = [...structural.errors, ...membership.errors];
 if (errors.length > 0) {

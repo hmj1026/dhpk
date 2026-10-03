@@ -42,8 +42,8 @@ family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 colli
 | [`flow-drive`](../skills/flow-drive/SKILL.md) | specification、目標與 acceptance 已確認 | 無 mode；confirmed change/spec | 不分類、選 route、author proposal 或 release |
 | [`change-verdict`](../skills/change-verdict/SKILL.md) | 對 code、PR、security、tests、docs 或 risk 做唯讀判斷 | `code`、`pr`、`security`、`tests`、`docs`、`risk` | 不代替修復或 commit |
 | [`code-trace`](../skills/code-trace/SKILL.md) | 探索程式、診斷、查歷史或選工具 | `explore`、`diagnose`、`history`、`select-tool` | 不在未確認根因時直接修復 |
-| [`laravel`](../skills/laravel/SKILL.md) | Laravel 版本相容性與實作指引 | `5.4`、`6`、`7`、`8`、`9`、`10`、`11`、`mix` | 不再使用版本 note skill 名稱 |
-| [`phpunit`](../skills/phpunit/SKILL.md) | PHPUnit 版本與測試相容性 | `9`、`10`、`11` | 不再使用版本 note skill 名稱 |
+| [`laravel`](../skills/flow-drive/references/laravel/SKILL.md) | Laravel 版本相容性與實作指引 | `5.4`、`6`、`7`、`8`、`9`、`10`、`11`、`mix` | 不再使用版本 note skill 名稱 |
+| [`phpunit`](../skills/tdd-workflow/references/phpunit/SKILL.md) | PHPUnit 版本與測試相容性 | `9`、`10`、`11` | 不再使用版本 note skill 名稱 |
 | [`harness-govern`](../skills/harness-govern/SKILL.md) | harness 健康、預算、補齊、修訂或同步 | `health`、`budget`、`fill`、`revise`、`sync` | 不拆回五個窄 predecessor |
 
 ## 已確認 implementation 的參數
@@ -70,11 +70,11 @@ $flow-drive <change-id> --no-architect
 | 技能 | 觸發 | 主要邊界 |
 |---|---|---|
 | [`tdd-workflow`](../skills/tdd-workflow/SKILL.md) | 需要 tests-first RED/GREEN/REFACTOR | 不負責瀏覽器旅程或未確認的需求 authoring |
-| [`dhpk-module-design`](../skills/dhpk-module-design/SKILL.md) | 需要 module boundary、deep-module 或 architecture decision | 不取代 OpenSpec proposal owner |
-| [`dhpk-php-runtime-router`](../skills/dhpk-php-runtime-router/SKILL.md) | PHP/Laravel/Symfony/Yii runtime 需要分流 | 先判斷 runtime，再載入一條 reference |
-| [`dhpk-yii1-php56-development`](../skills/dhpk-yii1-php56-development/SKILL.md) | Yii 1.x / PHP 5.6 backend 工作 | 不用於前端或非 PHP 專案 |
-| [`dhpk-yii1-security-audit`](../skills/dhpk-yii1-security-audit/SKILL.md) | Yii 1.1 安全白盒審計 | 不用於 Yii2 或非 PHP 專案 |
-| [`dhpk-legacy-characterization-tests`](../skills/dhpk-legacy-characterization-tests/SKILL.md) | 重構前鎖定 legacy behavior | 不代替功能設計或一般 TDD |
+| [`dhpk-module-design`](../skills/proposal-analyze/references/dhpk-module-design/SKILL.md) | 需要 module boundary、deep-module 或 architecture decision | 不取代 OpenSpec proposal owner |
+| [`dhpk-php-runtime-router`](../skills/flow-drive/references/dhpk-php-runtime-router/SKILL.md) | PHP/Laravel/Symfony/Yii runtime 需要分流 | 先判斷 runtime，再載入一條 reference |
+| [`dhpk-yii1-php56-development`](../skills/flow-drive/references/dhpk-yii1-php56-development/SKILL.md) | Yii 1.x / PHP 5.6 backend 工作 | 不用於前端或非 PHP 專案 |
+| [`dhpk-yii1-security-audit`](../skills/change-verdict/references/dhpk-yii1-security-audit/SKILL.md) | Yii 1.1 安全白盒審計 | 不用於 Yii2 或非 PHP 專案 |
+| [`dhpk-legacy-characterization-tests`](../skills/tdd-workflow/references/dhpk-legacy-characterization-tests/SKILL.md) | 重構前鎖定 legacy behavior | 不代替功能設計或一般 TDD |
 
 Git、release、setup、review 與其他 slash command 的完整清單在
 [`commands/INDEX.md`](../commands/INDEX.md)。
