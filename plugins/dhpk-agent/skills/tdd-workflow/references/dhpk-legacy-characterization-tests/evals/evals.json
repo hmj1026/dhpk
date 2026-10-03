@@ -1,0 +1,56 @@
+{
+  "skill_name": "legacy-code-characterization",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我有一個 `PriceCalculator` class，沒有任何單元測試。它有 `calcDiscount()` 和 `applyTax()` 兩個 public 方法，只做數學計算，完全不依賴資料庫或外部 API。我想在重構前先鎖定行為。幫我規劃 characterization tests，包含測試骨架程式碼。",
+      "expected_output": "一份 characterization test 規劃，包含：(1) 選擇 unit test 層級（因為無 DB/外部依賴），(2) @group characterization annotation，(3) 命名為 PriceCalculatorCharacterizationTest，(4) 測試骨架程式碼，(5) 說明 3-phase 生命週期或 Lock/Refactor/Extract 概念，(6) 說明不修改 production code 的原則，(7) 不包含 <your-project> 專用工具名稱（IntegrationTestCase、EILogger、TestServerContext、${PHP_CONTAINER:-php}）",
+      "files": [],
+      "expectations": [
+        "輸出包含 @group characterization annotation",
+        "提及 3-phase 生命週期（Lock/Refactor/Extract）或等效概念（鎖定、重構、提取）",
+        "選擇 unit test 層級（因為無 DB/外部依賴）",
+        "提供可運行的 PHPUnit 測試骨架（class + 至少一個 test method）",
+        "測試類別名稱符合 PriceCalculatorCharacterizationTest 規則",
+        "說明不修改 production code 的原則",
+        "輸出不包含 <your-project> 硬編碼名稱（${PHP_CONTAINER:-php}、EILogger、TestServerContext、IntegrationTestCase 路徑）",
+        "選擇 unit test 而非 integration test（正確識別無 DB 依賴）",
+        "未建議使用 DB transaction rollback 機制（因為是 unit test）"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我有一個 legacy `OrderController`，大約 600 行，有一個 `actionCreate` 方法涉及庫存扣減和 DB 寫入。沒有任何現有測試。我想在重構前建立 characterization tests 來鎖定 `actionCreate` 的行為。請幫我規劃測試策略並提供測試骨架。",
+      "expected_output": "一份 characterization test 規劃，包含：(1) 選擇 integration test 層級（因為有真實 DB 寫入），(2) 建議使用 transaction rollback 隔離，(3) @group characterization annotation，(4) OrderControllerCharacterizationTest 命名，(5) 測試骨架程式碼，(6) 3-phase 生命週期說明",
+      "files": [],
+      "expectations": [
+        "輸出包含 @group characterization annotation",
+        "提及 3-phase 生命週期（Lock/Refactor/Extract）或等效概念",
+        "選擇 integration test 層級（因為有 DB 寫入依賴）",
+        "提供可運行的 PHPUnit 測試骨架（class + 至少一個 test method）",
+        "測試類別名稱符合 OrderControllerCharacterizationTest 規則",
+        "說明不修改 production code 的原則",
+        "輸出不包含 <your-project> 硬編碼名稱（${PHP_CONTAINER:-php}、EILogger、TestServerContext）",
+        "建議使用 DB transaction rollback 機制（因為有 DB 寫入）",
+        "選擇 integration test 而非 unit test（正確識別有 DB 依賴）"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "我有一個 1200 行的 legacy `BillingService` class，混入了 5 個 trait，各負責不同功能模組。我只有時間為其中的 `processPayment()` 方法建立 characterization test，這個方法會呼叫外部 payment API 並寫入 DB。請幫我規劃測試策略，包含如何處理外部 API 和 DB 依賴。",
+      "expected_output": "一份 characterization test 規劃，包含：(1) 如何 mock 外部 payment API，(2) DB 寫入用 transaction rollback 隔離，(3) 高風險方法優先策略，(4) @group characterization annotation，(5) BillingServiceCharacterizationTest 命名，(6) 測試骨架程式碼",
+      "files": [],
+      "expectations": [
+        "輸出包含 @group characterization annotation",
+        "提及 3-phase 生命週期（Lock/Refactor/Extract）或等效概念",
+        "提供可運行的 PHPUnit 測試骨架（class + 至少一個 test method）",
+        "測試類別名稱符合 BillingServiceCharacterizationTest 規則",
+        "說明不修改 production code 的原則",
+        "輸出不包含 <your-project> 硬編碼名稱（${PHP_CONTAINER:-php}、EILogger、TestServerContext）",
+        "提及高風險方法優先策略（因為是大型 class，需要選擇優先覆蓋範圍）",
+        "提及 external API 的 mocking 策略（用 mock/stub 取代外部 payment API）",
+        "建議使用 DB transaction rollback 機制（因為有 DB 寫入）"
+      ]
+    }
+  ]
+}
