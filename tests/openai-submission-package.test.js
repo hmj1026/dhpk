@@ -979,6 +979,78 @@ test('accepts listing values at final-submission limits', () => {
   }
 });
 
+test('packages passive listing SVGs with their source fingerprint and Git blob provenance', () => {
+  const iconPath = 'skills/package-owner/assets/dhpk-icon.svg';
+  const iconBytes = Buffer.from([
+    '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">',
+    '<rect width="48" height="48" fill="#ffffff"/>',
+    '</svg>',
+    '',
+  ].join('\n'));
+  const fixture = makeFixture({ manifest: listingManifest({
+    composerIcon: `./${iconPath}`,
+    logo: `./${iconPath}`,
+  }) });
+  fs.mkdirSync(path.dirname(path.join(fixture.root, iconPath)), { recursive: true });
+  fs.writeFileSync(path.join(fixture.root, iconPath), iconBytes);
+  try {
+    const result = compile(fixture);
+    assert.strictEqual(result.ok, true, errorText(result));
+    const packagedIcon = fileByPath(result, iconPath);
+    assert.deepStrictEqual(packagedIcon.bytes, iconBytes);
+    assert.strictEqual(
+      result.provenance.fileFingerprints[iconPath],
+      crypto.createHash('sha256').update(iconBytes).digest('hex'),
+    );
+    const record = result.provenance.bundleProvenance.sourceToDestination.find((item) => (
+      item.source === iconPath && item.destination === iconPath
+    ));
+    const expectedBlob = crypto.createHash('sha1')
+      .update(Buffer.concat([Buffer.from(`blob ${iconBytes.length}\0`), iconBytes]))
+      .digest('hex');
+    assert.strictEqual(record.originalGitBlobDigest, expectedBlob);
+  } finally {
+    removeFixture(fixture);
+  }
+});
+
+test('rejects a listing icon that is missing from the compiled package', () => {
+  const fixture = makeFixture({ manifest: listingManifest({
+    composerIcon: './skills/package-owner/assets/missing.svg',
+  }) });
+  try {
+    const result = compile(fixture);
+    assert.strictEqual(result.ok, false, 'a listing reference must resolve to a bundled file');
+    assert.match(errorText(result), /composerIcon|missing|asset/i);
+  } finally {
+    removeFixture(fixture);
+  }
+});
+
+test('rejects listing icon paths that escape the compiled package', () => {
+  const fixture = makeFixture({ manifest: listingManifest({ logo: '../../outside.svg' }) });
+  try {
+    const result = compile(fixture);
+    assert.strictEqual(result.ok, false, 'listing asset paths must remain inside the package');
+    assert.match(errorText(result), /logo|path|contained|traversal/i);
+  } finally {
+    removeFixture(fixture);
+  }
+});
+
+test('rejects screenshots supplied by the skills-only submission profile', () => {
+  const fixture = makeFixture({ manifest: listingManifest({
+    screenshots: ['./skills/package-owner/assets/preview.png'],
+  }) });
+  try {
+    const result = compile(fixture);
+    assert.strictEqual(result.ok, false, 'skills-only listing metadata must not include screenshots');
+    assert.match(errorText(result), /screenshot|unsupported|skills.only/i);
+  } finally {
+    removeFixture(fixture);
+  }
+});
+
 test('rejects a listing display name beyond the final-submission limit', () => {
   const fixture = makeFixture({ manifest: listingManifest({ displayName: 'D'.repeat(31) }) });
   try {

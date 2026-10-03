@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { execute, parseRequest } = require('../scripts/lib/dhpk-distribution');
@@ -66,6 +67,63 @@ test('the command generates and validates a reproducible artifact from a clean s
       assert.strictEqual(checked.ok, true, checked.error || JSON.stringify(checked.payload));
       assert.strictEqual(checked.payload.evidence.runtime, 'NOT_RUN');
     }
+  } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
+});
+
+test('tracked listing SVGs generate a reproducible artifact with matching fingerprints', () => {
+  const f = fixture();
+  try {
+    const iconPath = 'skills/alpha/assets/dhpk-icon.svg';
+    const iconBytes = Buffer.from([
+      '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">',
+      '<rect width="48" height="48" fill="#ffffff"/>',
+      '</svg>',
+      '',
+    ].join('\n'));
+    fs.mkdirSync(path.dirname(path.join(f.root, iconPath)), { recursive: true });
+    fs.writeFileSync(path.join(f.root, iconPath), iconBytes);
+    f.git(['add', iconPath]);
+    f.git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'add listing icon']);
+
+    const listing = JSON.parse(fs.readFileSync(f.manifest, 'utf8'));
+    listing.extensions['com.openai'].interface.composerIcon = `./${iconPath}`;
+    listing.extensions['com.openai'].interface.logo = `./${iconPath}`;
+    fs.writeFileSync(f.manifest, JSON.stringify(listing));
+
+    const first = f.generate();
+    assert.strictEqual(first.ok, true, first.error);
+    const zip = fs.readFileSync(path.join(f.output, 'package.zip'));
+    const receipt = JSON.parse(fs.readFileSync(path.join(f.output, 'provenance.json'), 'utf8'));
+    assert.strictEqual(
+      receipt.provenance.fileFingerprints[iconPath],
+      crypto.createHash('sha256').update(iconBytes).digest('hex'),
+    );
+
+    const second = f.generate();
+    assert.strictEqual(second.ok, true, second.error);
+    assert.deepStrictEqual(fs.readFileSync(path.join(f.output, 'package.zip')), zip);
+    for (const operation of ['validate', 'verify']) {
+      const checked = execute(['openai-submission', operation, '--output', f.output], f.root);
+      assert.strictEqual(checked.ok, true, checked.error || JSON.stringify(checked.payload));
+    }
+  } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
+});
+
+test('invalid listing icon references preserve the previous verifiable artifact', () => {
+  const f = fixture();
+  try {
+    const first = f.generate();
+    assert.strictEqual(first.ok, true, first.error);
+    const zip = fs.readFileSync(path.join(f.output, 'package.zip'));
+
+    const listing = JSON.parse(fs.readFileSync(f.manifest, 'utf8'));
+    listing.extensions['com.openai'].interface.composerIcon = './skills/alpha/assets/missing.svg';
+    fs.writeFileSync(f.manifest, JSON.stringify(listing));
+    const rejected = f.generate();
+    assert.strictEqual(rejected.ok, false, 'an invalid listing asset must fail before publication');
+    assert.match(rejected.error, /composerIcon|missing|asset/i);
+    assert.deepStrictEqual(fs.readFileSync(path.join(f.output, 'package.zip')), zip);
+    assert.strictEqual(execute(['openai-submission', 'verify', '--output', f.output], f.root).ok, true);
   } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
 });
 

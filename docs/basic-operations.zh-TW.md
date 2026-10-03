@@ -54,7 +54,14 @@ dhpk 刻意提供多個不同支援等級的 surface：
 | `install-codex-skills.sh` | Supported | 穩定且 canonical 的 Codex project sync 路徑；runtime activation 與 native `dhpk@dhpk` plugin 互斥。 |
 | `install-cursor-harness.sh` | Supported | 穩定的 Cursor project-local sync 路徑（`.cursor/`）。 |
 | Codex plugin marketplace | Experimental | 僅供 disposable isolated `CODEX_HOME` 實驗的實體 publication package；runtime activation 與 project-local sync 互斥，在另一次升級決策前維持 Experimental。 |
+| OpenAI Public Plugin Directory | Submission candidate（`NOT_PUBLISHED`） | 平台核准並發布後，才是 Codex 與 ChatGPT Work 的預定日常路徑；local/repository marketplace 只供開發與測試。 |
 | Antigravity / AGY sync | Adapter/package | Antigravity project skills 使用 `.agents/skills` mapping，rules/workflows 仍在 `.agent`；AGY 使用原生 plugin package 與 validator。 |
+
+OpenAI Public Plugin 尚未出現在公開目錄。發布前，僅在現有流程仍適用時使用下方的
+supported 與 compatibility 程序。公開 listing 發布後才成為預定日常路徑；一次性舊安裝
+cutover executor 尚未交付。目前的 native Codex marketplace 是另一個 experimental
+package；local repository marketplace 不會發布 OpenAI listing。詳見
+[提交準備 SSOT](./openai-submission.zh-TW.md)。
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invocation 分開。
 每個 host 只選一條 Codex runtime route：日常工作使用支援的 project-local

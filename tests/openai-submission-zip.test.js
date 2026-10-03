@@ -270,6 +270,81 @@ test('valid portable manifest and selected skill packages pass', () => {
   ]);
 });
 
+test('valid contained listing SVGs remain in the validated ZIP inventory', () => {
+  const iconPath = 'skills/flow-guide/assets/dhpk-icon.svg';
+  const iconBytes = Buffer.from([
+    '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">',
+    '<rect width="48" height="48" fill="#ffffff"/>',
+    '</svg>',
+    '',
+  ].join('\n'));
+  const result = validateFixture(controlFiles({
+    'plugin.json': pluginJson({ composerIcon: `./${iconPath}`, logo: `./${iconPath}` }),
+    [iconPath]: iconBytes,
+  }));
+  assert.strictEqual(result.ok, true, errorText(result));
+  assert.deepStrictEqual(result.extractedFiles.find((file) => file.path === iconPath), {
+    path: iconPath,
+    sha256: crypto.createHash('sha256').update(iconBytes).digest('hex'),
+  });
+});
+
+test('submission ZIP rejects a listing icon that is absent from package contents', () => {
+  const result = validateFixture(controlFiles({
+    'plugin.json': pluginJson({ composerIcon: './skills/flow-guide/assets/missing.svg' }),
+  }));
+  assert.strictEqual(result.ok, false, 'listing assets must resolve to included ZIP entries');
+  assert.match(errorText(result), /composerIcon|missing|asset/i);
+});
+
+test('submission ZIP rejects listing asset paths outside the package', () => {
+  const result = validateFixture(controlFiles({
+    'plugin.json': pluginJson({ logo: '../../outside.svg' }),
+  }));
+  assert.strictEqual(result.ok, false, 'listing asset references must be contained relative paths');
+  assert.match(errorText(result), /logo|path|contained|traversal/i);
+});
+
+test('submission ZIP rejects active or external-resource SVG content', () => {
+  const iconPath = 'skills/flow-guide/assets/dhpk-icon.svg';
+  const result = validateFixture(controlFiles({
+    'plugin.json': pluginJson({ composerIcon: `./${iconPath}` }),
+    [iconPath]: '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><script>alert(1)</script></svg>',
+  }));
+  assert.strictEqual(result.ok, false, 'listing SVGs must use the passive icon profile');
+  assert.match(errorText(result), /SVG|active|script|unsafe|external/i);
+});
+
+test('submission ZIP rejects CSS imports nested inside SVG style elements', () => {
+  const iconPath = 'skills/flow-guide/assets/dhpk-icon.svg';
+  const nestedStyleImport = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><style><g>@import "https://example.invalid/x.css";</g></style></svg>';
+  const result = validateFixture(controlFiles({
+    'plugin.json': pluginJson({ composerIcon: `./${iconPath}` }),
+    [iconPath]: nestedStyleImport,
+  }));
+  assert.strictEqual(result.ok, false, 'SVG style content must not load external stylesheets through nested elements');
+  assert.match(errorText(result), /CSS|style|SVG|unsafe|external/i);
+});
+
+test('submission ZIP rejects a literal non-breaking space before the SVG root', () => {
+  const iconPath = 'skills/flow-guide/assets/dhpk-icon.svg';
+  const svg = '\u00a0<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48"><rect width="48" height="48"/></svg>';
+  const result = validateFixture(controlFiles({
+    'plugin.json': pluginJson({ composerIcon: `./${iconPath}` }),
+    [iconPath]: svg,
+  }));
+  assert.strictEqual(result.ok, false, 'XML only permits space, tab, CR, and LF around the root element');
+  assert.match(errorText(result), /XML|outside|character|text/i);
+});
+
+test('submission ZIP rejects screenshots on the skills-only listing profile', () => {
+  const result = validateFixture(controlFiles({
+    'plugin.json': pluginJson({ screenshots: ['./skills/flow-guide/assets/preview.png'] }),
+  }));
+  assert.strictEqual(result.ok, false, 'the skills-only listing profile does not supply screenshots');
+  assert.match(errorText(result), /screenshot|unsupported|skills.only/i);
+});
+
 test('root plugin.json is required', () => {
   const files = controlFiles();
   delete files['plugin.json'];

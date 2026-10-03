@@ -1,0 +1,48 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dhpk",
+  "version": "0.64.4",
+  "description": "Reusable software-development workflows and specialist references for Codex and ChatGPT Work.",
+  "author": {
+    "name": "hmj1026",
+    "url": "https://github.com/hmj1026"
+  },
+  "homepage": "https://github.com/hmj1026/dhpk",
+  "license": "MIT",
+  "keywords": [
+    "software development",
+    "code review",
+    "testing",
+    "debugging",
+    "documentation"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DHPK",
+        "shortDescription": "Skills for software delivery",
+        "longDescription": "A skills-only plugin candidate with 15 general software-development workflows and 45 bundled specialist reference resources. Plan repository changes, implement with tests, review and verify code, trace failures, and maintain project documentation. Specialist references add conditional guidance for supported languages, frameworks, and tools. Skills run through the host model and tools under the permissions and provider settings chosen by the user. This candidate does not include an MCP server, connected app, or lifecycle hook. The package and listing are subject to consumer verification and platform review; inclusion here does not mean the plugin is published.",
+        "developerName": "hmj1026",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Plan software changes",
+          "Implement code with tests",
+          "Review code changes",
+          "Trace failures",
+          "Verify repository changes",
+          "Maintain project documentation"
+        ],
+        "defaultPrompt": [
+          "Plan a software change in this repository.",
+          "Review this code change for risks.",
+          "Trace this error to its likely cause."
+        ],
+        "websiteURL": "https://github.com/hmj1026/dhpk",
+        "supportURL": "https://github.com/hmj1026/dhpk/issues",
+        "privacyPolicyURL": "https://github.com/hmj1026/dhpk/blob/develop/docs/privacy.md",
+        "composerIcon": "./skills/flow-guide/assets/dhpk-icon.svg",
+        "logo": "./skills/flow-guide/assets/dhpk-icon.svg"
+      }
+    }
+  }
+}
