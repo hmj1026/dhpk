@@ -26,11 +26,11 @@ minimal profile；既有 receipt 在明確 migration 前保留原 selection。�
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
 | Codex 專案 projection | `codex/skills/` 下 33 個相對 symlink（31 個可呼叫加內部 transport 與 dispatch-context runtime） |
-| Codex native package | `plugins/dhpk/skills/` 下 34 個實體 package，零 symlink |
+| Codex native package | `plugins/dhpk/skills/` 下 33 個實體 package，零 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
 | Profile 大小 | `minimal=4`、`full=55`、`compat-v1=62`（不含 overlays）；minimal 為 `change-verdict`、`code-trace`、`flow-drive`、`flow-guide` |
-| Agent/Cursor/AGY publication | Agent Plugin 與 AGY 各選 55 個 stable ID；Cursor native 擁有 4 個 overlay entry，portable skills 與 Agent 共用 |
+| Agent/Cursor/AGY publication | Agent Plugin 與 AGY 各選 52 個 stable ID；Cursor native 擁有 4 個 overlay entry，portable skills 與 Agent 共用 |
 
 目錄位置與 README 清單都不是權威來源。Inventory 管理 stable id、public name、
 lifecycle、module 與 publication surface；validator 會將每個 projection 與它對齊。

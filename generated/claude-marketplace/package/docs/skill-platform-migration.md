@@ -28,11 +28,11 @@ migration. Structural success never upgrades an unobserved consumer: record
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
 | Codex project projection | 33 relative symlinks under `codex/skills/` (31 invokable plus two internal transport and dispatch-context runtimes) |
-| Codex native package | 34 physical packages under `plugins/dhpk/skills/`; zero symlinks |
+| Codex native package | 33 physical packages under `plugins/dhpk/skills/`; zero symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
 | Profile sizes | `minimal=4`, `full=55`, `compat-v1=62` before overlays; minimal is `change-verdict`, `code-trace`, `flow-drive`, `flow-guide` |
-| Agent/Cursor/AGY publication | Agent Plugin and AGY each select 55 stable IDs; Cursor native owns 4 overlay entries and shares Agent portable skills |
+| Agent/Cursor/AGY publication | Agent Plugin and AGY each select 52 stable IDs; Cursor native owns 4 overlay entries and shares Agent portable skills |
 
 Directory placement and README lists are not authoritative. The inventory
 owns stable ids, public names, lifecycle, modules, and publication surfaces;
@@ -153,7 +153,7 @@ mode-shaped families. This section is preserved as the 0.53 historical record;
 the live 0.54 family contract follows the second-wave ledger below. The
 predecessor stable IDs remain only in historical retirement metadata.
 
-| Current family | Modes | Retained predecessor contracts |
+| Family in 0.53.0 | Modes | Retained predecessor contracts |
 |---|---|---|
 | `skill-scope` | `health`, `judge`, `stocktake`, `scout` | skill health, quality, inventory, and discovery checks |
 | `skill-forge` | `create`, `distill-rules` | skill authoring and rule distillation |
