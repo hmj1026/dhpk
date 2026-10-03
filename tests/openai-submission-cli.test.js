@@ -116,6 +116,24 @@ test('invalid source versions fail before an artifact is published', () => {
   } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
 });
 
+test('oversized provenance is rejected before replacing the previous verifiable artifact', () => {
+  const f = fixture();
+  try {
+    assert.strictEqual(f.generate().ok, true);
+    const before = fs.readFileSync(path.join(f.output, 'package.zip'));
+    const directory = path.join(f.root, 'skills/alpha/references', ...Array(14).fill('r'.repeat(120)));
+    fs.mkdirSync(directory, { recursive: true });
+    for (let index = 0; index < 1300; index += 1) fs.writeFileSync(path.join(directory, `${index}.txt`), 'Resource.\n');
+    f.git(['add', '.']);
+    f.git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'long resource paths']);
+    const result = f.generate();
+    assert.strictEqual(result.ok, false, 'publication must not exceed the owner receipt read limit');
+    assert.match(result.error, /receipt.*(?:exceed|limit|large)/i);
+    assert.deepStrictEqual(fs.readFileSync(path.join(f.output, 'package.zip')), before);
+    assert.strictEqual(execute(['openai-submission', 'verify', '--output', f.output], f.root).ok, true);
+  } finally { fs.rmSync(f.directory, { recursive: true, force: true }); }
+});
+
 test('dirty source and foreign output are rejected without replacing existing bytes', () => {
   const f = fixture();
   try {
