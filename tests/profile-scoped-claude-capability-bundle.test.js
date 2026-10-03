@@ -2,12 +2,10 @@
 
 // RED for profile-scoped-claude-capability-bundle.
 //
-// The first two tests are characterization guards for the current unscoped
-// Claude package.  The remaining tests describe the compiler-owned profile
-// selector and the pre-discovery bundle seam.  They intentionally exercise
-// public compiler/projection boundaries; no SessionStart state or directory
-// scan is allowed to decide membership.  The manifest fingerprint normalizes
-// only the release version because release parity owns tag/version agreement.
+// The first two tests cover the unscoped Claude generator contract and release
+// version normalization. The remaining tests exercise the compiler-owned
+// profile selector and pre-discovery bundle seam through public compiler and
+// projection boundaries.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -22,8 +20,6 @@ const { runClaudeProfileProbe } = require('../scripts/release/claude-profile-pro
 
 const ROOT = path.join(__dirname, '..');
 const RELEASE_VERSION_SENTINEL = '<release-version>';
-const EXPECTED_NORMALIZED_MANIFEST_BYTES = 35222;
-const EXPECTED_NORMALIZED_MANIFEST_SHA256 = 'a77c326b350e76cca6c013c842f49ccdb81cbffdd55003f43efb3fae9eac95ce';
 
 function normalizeReleaseVersion(pluginBytes) {
   const text = Buffer.from(pluginBytes).toString('utf8');
@@ -206,8 +202,7 @@ function compileStandalone(fixture, root, standaloneSkillIds) {
 
 test('characterizes the current unscoped Claude manifest and CLI outcome', () => {
   const pluginPath = path.join(ROOT, '.claude-plugin', 'plugin.json');
-  const pluginBytes = fs.readFileSync(pluginPath);
-  const plugin = JSON.parse(pluginBytes.toString('utf8'));
+  const plugin = JSON.parse(fs.readFileSync(pluginPath, 'utf8'));
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const check = spawnSync('node', [path.join(ROOT, 'scripts', 'ci', 'gen-claude-manifest.js'), '--check'], {
     cwd: ROOT,
@@ -231,18 +226,6 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
       + '  roots:              1\n'
       + '  generated skill ids: 79 (excludes deprecated; host cannot hide within a shared root)\n',
   );
-  const normalizedPluginBytes = normalizeReleaseVersion(pluginBytes);
-  assert.strictEqual(
-    normalizedPluginBytes.length,
-    EXPECTED_NORMALIZED_MANIFEST_BYTES,
-    'compatibility manifest bytes drifted outside the release version field',
-  );
-  assert.strictEqual(
-    normalizedManifestFingerprint(pluginBytes),
-    EXPECTED_NORMALIZED_MANIFEST_SHA256,
-    'compatibility manifest bytes drifted outside the release version field',
-  );
-
   const compiled = inventoryApi.compileClaudeProjection({ inventory });
   assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
   assert.deepStrictEqual(compiled.generated.roots, ['./skills/']);

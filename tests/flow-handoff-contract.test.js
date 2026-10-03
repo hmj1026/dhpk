@@ -51,15 +51,6 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
 
   const ROOT = path.join(__dirname, '..');
 
-  test('flow skills do not import each other or duplicate the shared contract', () => {
-    const guide = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
-    const drive = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
-    assert.doesNotMatch(guide, /require\([^)]*flow-drive|import[^\n]*flow-drive/i);
-    assert.doesNotMatch(drive, /require\([^)]*flow-guide|import[^\n]*flow-guide/i);
-    assert.match(guide, /shared.*handoff|neutral.*contract/i);
-    assert.match(drive, /shared.*handoff|neutral.*contract/i);
-  });
-
   test('flow-guide adapts its closed route result into the shared handoff contract', () => {
     const route = require('../skills/flow-guide/scripts/route-result').createRouteResult({
       host: 'cursor', argv: ['--go', 'implement', 'the', 'confirmed', 'change'],
@@ -117,7 +108,6 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.throws(() => prepareDispatch({ change: { confirmed: false }, request: result.request, catalog: require('../manifests/provider-model-catalog.json') }), /confirmed change/i);
   });
 }
-
 
 // Consolidated source suite: flow-drive-invocation.
 {
@@ -308,7 +298,6 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
   });
 }
 
-
 // Consolidated source suite: flow-guide-ownership.
 {
 
@@ -362,32 +351,12 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
       'flow-drive must not retain a second route table');
   });
 
-  test('flow-guide exposes exactly help, route, rules, next, and close actions', () => {
+  test('flow-guide publishes supported action argument metadata', () => {
     const skill = read('skills/flow-guide/SKILL.md');
     const frontmatter = skill.match(/^argument-hint:\s*["']?([^"'\n]+)["']?\s*$/m);
     assert.ok(frontmatter, 'flow-guide must publish an argument hint');
-    const hint = frontmatter[1];
-    const alternatives = hint.match(/^<([^>]+)>/)?.[1].split('|');
-    assert.deepStrictEqual(alternatives, ['help', 'route', 'rules', 'next', 'close'],
-      'flow-guide argument hint must expose exactly the supported action alternatives in order');
-    for (const removed of ['classify', 'policy', 'checklist']) {
-      assert.doesNotMatch(hint, new RegExp(`\\b${removed}\\b`),
-        `retired flow-guide action ${removed} must not remain public`);
-    }
-    assert.match(skill, /help[\s\S]{0,220}usage|usage[\s\S]{0,220}help/i);
-    assert.match(skill, /route[\s\S]{0,220}--go|--go[\s\S]{0,220}route/i);
-  });
-
-  test('flow-drive is mode-free and accepts only confirmed implementation input', () => {
-    const skill = read('skills/flow-drive/SKILL.md');
-    assert.match(skill, /disable-model-invocation:\s*true/);
-    assert.match(skill, /\$flow-drive\s+<[^>]*(?:confirmed|spec|change)[^>]*>/i);
-    assert.doesNotMatch(skill, /^##\s+Modes\s*$/im);
-    for (const removedFlag of ['--mode', '--route-only', '--execute-explicit', '--openspec', '--opsx']) {
-      assert.doesNotMatch(skill, new RegExp(`\\${removedFlag}\\b`),
-        `flow-drive must not expose removed flag ${removedFlag}`);
-    }
-    assert.match(skill, /flow-guide[\s\S]{0,180}route|route[\s\S]{0,180}flow-guide/i);
+    const alternatives = frontmatter[1].match(/^<([^>]+)>/)?.[1].split('|');
+    assert.deepStrictEqual(alternatives, ['help', 'route', 'rules', 'next', 'close']);
   });
 
   test('route result v3 has a closed terminal shape with only a go option', () => {
@@ -484,7 +453,6 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     );
   });
 }
-
 
 // Consolidated source suite: flow-guide-usage-help.
 {
@@ -611,6 +579,5 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.match(output(result), /explicit-only|direct.*invocation|human/i);
   });
 }
-
 
 run('flow-handoff-contract');

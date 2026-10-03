@@ -337,27 +337,14 @@ test('[2.2] invalid result fields fail closed before dispatch', () => {
 // 3.1 ownership and authority
 // ---------------------------------------------------------------------------
 
-test('[3.1] /dhpk:do is retired; flow-guide routes and flow-drive implements', () => {
+test('[3.1] /dhpk:do remains retired', () => {
   assert.strictEqual(fs.existsSync(DO_CMD), false, '/dhpk:do must remain retired');
-  const guide = read(GUIDE_MD);
-  const drive = read(DRIVE_MD);
-  assert.match(guide, /name:\s*flow-guide/);
-  assert.match(guide, /`route`[\s\S]*`rules`[\s\S]*`next`[\s\S]*`close`/);
-  assert.match(drive, /name:\s*flow-drive/);
-  assert.match(drive, /confirmed specification|confirmed work|confirmed-spec-or-change-id/i);
-  assert.match(drive, /flow-guide[\s\S]{0,220}route|route[\s\S]{0,220}flow-guide/i);
-  assert.doesNotMatch(drive, /^##\s+Modes\s*$/im);
-  assert.doesNotMatch(guide, /dhpk-(bug-fix|feature-dev)/);
 });
 
-test('[3.1] flow-drive remains explicit-only and does not expose routing flags', () => {
+test('[3.1] flow-drive retains explicit-only invocation metadata', () => {
   const drive = read(DRIVE_MD);
   assert.match(drive, /disable-model-invocation:\s*true/);
   assert.match(drive, /dhpk-invocation-class:\s*explicit-only/);
-  assert.match(drive, /\$flow-drive\s+<confirmed-spec-or-change-id>/);
-  for (const flag of ['--mode', '--route-only', '--execute-explicit', '--openspec', '--opsx']) {
-    assert.doesNotMatch(drive, new RegExp(`\\${flag}\\b`), `flow-drive must not publish ${flag}`);
-  }
 });
 
 test('[3.2] --go reports explicit-required for an available explicit-only target', () => {

@@ -81,8 +81,8 @@ The distribution generators and `verify-platform-packages.js` are
 provenance-bound and require a clean checkout. Run the generators after the
 canonical-source commit, commit their outputs, then run the verifier. If
 `.claude-plugin/plugin.json` or a profile manifest changes, also run
-`node tests/profile-scoped-claude-capability-bundle.test.js` and update
-its measured characterization bytes/hash from the generated result.
+`node tests/profile-scoped-claude-capability-bundle.test.js` to verify profile
+selection, generated bundle behavior, and artifact/source fingerprint binding.
 
 The project-local `.agents/skills` compatibility projection is generated from
 the same canonical `skills/` tree and is not hand-edited:

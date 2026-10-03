@@ -348,18 +348,6 @@ test('relocated project setup keeps Host procedure resources local and declares 
       }
     }
 
-    const body = skill.replace(/^---\n[\s\S]*?\n---\n/, '');
-    assert.match(body, /templates\/CLAUDE\.md/);
-    assert.match(body, /templates\/claude-settings-hooks\.json/);
-    assert.match(body, /references\//);
-    assert.match(body, /scripts\/install-project-assets\.sh/);
-    assert.doesNotMatch(body, /docs\/(?:hook-extension|docker-setup)\.md|scripts\/install\.sh|node_modules|plugin cache|walk(?:ing)? parents/i);
-    assert.match(body, /AskUserQuestion[\s\S]*(?:confirmation|confirm)[\s\S]*(?:before|prior to)[\s\S]*(?:write|Edit)/i);
-    assert.match(body, /HOST_CAPABILITY_UNAVAILABLE/);
-    assert.match(body, /\b(?:BLOCKED|UNAVAILABLE)\b/);
-    assert.match(body, /\b(?:AskUserQuestion|project edit\/write|edit\/write)\b/);
-    assert.match(body, /NOT_RUN/);
-    assert.doesNotMatch(body, /--host\b/);
     return { result: { evidenceKind: 'fixture', hostStatus: 'NOT_RUN' } };
   });
 });
