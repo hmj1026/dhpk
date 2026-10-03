@@ -70,10 +70,21 @@ clean-checkout verifier. Do not stop after a single projection passes:
 node scripts/ci/gen-skill-usage.js --write
 git diff --check
 # Commit canonical sources and the regenerated usage catalog, then continue.
-bin/dhpk distribution agent-plugin generate --output plugins/dhpk-agent --version=<version> --json
-bin/dhpk distribution cursor-plugin generate --output plugins/dhpk-cursor --version=<version> --json
-bin/dhpk distribution codex-native generate --output plugins/dhpk --version=<version> --json
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=<version> --json
+# Every formal generate requires a clean source checkout; stage all four
+# packages outside the checkout from this same commit before copying owned
+# outputs into tracked paths.
+dhpk_packages=$(mktemp -d /tmp/dhpk-packages.XXXXXX)
+bin/dhpk distribution agent-plugin generate --output "$dhpk_packages/dhpk-agent" --version=<version> --json
+bin/dhpk distribution cursor-plugin generate --output "$dhpk_packages/dhpk-cursor" --version=<version> --json
+bin/dhpk distribution codex-native generate --output "$dhpk_packages/dhpk" --version=<version> --json
+bin/dhpk distribution agy-plugin generate --output "$dhpk_packages/dhpk-agy" --version=<version> --json
+# Copy only the owned outputs, then commit the generated projections once.
+rsync -a --delete "$dhpk_packages/dhpk-agent/" plugins/dhpk-agent/
+rsync -a --delete "$dhpk_packages/dhpk-cursor/" plugins/dhpk-cursor/
+rsync -a --delete "$dhpk_packages/dhpk/" plugins/dhpk/
+rsync -a --delete "$dhpk_packages/dhpk-agy/" plugins/dhpk-agy/
+git add plugins/dhpk-agent plugins/dhpk-cursor plugins/dhpk plugins/dhpk-agy
+git commit -m "chore: refresh generated platform packages"
 node scripts/ci/verify-platform-packages.js
 ```
 

@@ -11,6 +11,7 @@ const agentPackage = require('../scripts/lib/agent-plugin-package');
 const cursorPackage = require('../scripts/lib/cursor-plugin-package');
 const codexPackage = require('../scripts/lib/codex-native-package');
 const agyPackage = require('../scripts/lib/agy-plugin-package');
+const { createPreviewSourceSnapshot } = require('../scripts/lib/distribution-preview');
 
 const ROOT = path.join(__dirname, '..');
 const SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin'];
@@ -100,6 +101,13 @@ test('distribution parser keeps standalone selection separate from additive over
   const mixed = distribution.parseRequest(['agent-plugin', 'validate', '--standalone', 'flow-guide', '--skill', 'tdd']);
   assert.strictEqual(mixed.ok, false);
   assert.match(mixed.error, /cannot be combined/i);
+});
+
+test('rejects preview for the formal OpenAI submission surface', () => {
+  const parsed = distribution.parseRequest(['openai-submission', 'preview']);
+  assert.strictEqual(parsed.ok, false);
+  assert.strictEqual(parsed.status, 64);
+  assert.match(parsed.error, /only for agent-plugin/i);
 });
 
 test('validates every retained package surface through one JSON command contract', () => {
@@ -193,6 +201,110 @@ test('rejects provenance-bound generation from a dirty source checkout before wr
       });
     }
     fs.rmSync(worktreeParent, { recursive: true, force: true });
+  }
+});
+
+test('previews dirty source bytes without changing Git state and formal validation rejects the preview', () => {
+  const worktreeRoot = ROOT;
+  const worktreeParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-preview-'));
+  const changed = path.join(worktreeRoot, 'CONTEXT.md');
+  const added = path.join(worktreeRoot, 'skills', 'flow-guide', 'assets', 'preview-resource.txt');
+  const link = path.join(worktreeRoot, 'docs', 'preview-contained-link');
+  const originalChanged = fs.readFileSync(changed);
+  const originalMode = fs.statSync(changed).mode & 0o7777;
+  let output = null;
+  try {
+    fs.appendFileSync(changed, 'preview source change\n');
+    fs.mkdirSync(path.dirname(added), { recursive: true });
+    fs.writeFileSync(added, 'relocatable preview resource\n');
+    fs.symlinkSync('../SKILL.md', link);
+    fs.chmodSync(changed, 0o600);
+    const before = {
+      status: execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all', '-z'], { cwd: worktreeRoot, encoding: 'buffer' }),
+      head: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: worktreeRoot, encoding: 'utf8' }),
+      index: execFileSync('git', ['diff', '--cached', '--binary'], { cwd: worktreeRoot, encoding: 'buffer' }),
+      indexBytes: fs.readFileSync(execFileSync('git', ['rev-parse', '--git-path', 'index'], { cwd: worktreeRoot, encoding: 'utf8' }).trim()),
+      refs: execFileSync('git', ['for-each-ref', '--format=%(refname) %(objectname)'], { cwd: worktreeRoot, encoding: 'utf8' }),
+      config: execFileSync('git', ['config', '--local', '--null', '--list'], { cwd: worktreeRoot, encoding: 'buffer' }),
+    };
+    const generated = invoke(['agent-plugin', 'preview', '--json'], worktreeRoot);
+    assert.strictEqual(generated.status, 0, generated.stderr);
+    assert.strictEqual(report(generated).verdict, 'PASS');
+    output = report(generated).output;
+    const receipt = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
+    assert.strictEqual(receipt.publicationMode, 'preview');
+    assert.strictEqual(receipt.releaseEligible, false);
+    assert.ok(receipt.origin.changeCounts.added >= 2);
+    assert.ok(receipt.origin.changeCounts.modified >= 1);
+    assert.ok(receipt.origin.changeCounts.bytes > 0);
+    assert.strictEqual(fs.readFileSync(path.join(output, 'skills', 'flow-guide', 'assets', 'preview-resource.txt'), 'utf8'), 'relocatable preview resource\n');
+    const formal = invoke(['agent-plugin', 'validate', '--output', output, '--json'], worktreeRoot);
+    assert.strictEqual(formal.status, 1, formal.stdout);
+    assert.match(report(formal).errors.join('\n'), /preview/i);
+    assert.deepStrictEqual(execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all', '-z'], { cwd: worktreeRoot, encoding: 'buffer' }), before.status);
+    assert.strictEqual(execFileSync('git', ['rev-parse', 'HEAD'], { cwd: worktreeRoot, encoding: 'utf8' }), before.head);
+    assert.deepStrictEqual(execFileSync('git', ['diff', '--cached', '--binary'], { cwd: worktreeRoot, encoding: 'buffer' }), before.index);
+    assert.deepStrictEqual(fs.readFileSync(execFileSync('git', ['rev-parse', '--git-path', 'index'], { cwd: worktreeRoot, encoding: 'utf8' }).trim()), before.indexBytes);
+    assert.strictEqual(execFileSync('git', ['for-each-ref', '--format=%(refname) %(objectname)'], { cwd: worktreeRoot, encoding: 'utf8' }), before.refs);
+    assert.deepStrictEqual(execFileSync('git', ['config', '--local', '--null', '--list'], { cwd: worktreeRoot, encoding: 'buffer' }), before.config);
+  } finally {
+    fs.writeFileSync(changed, originalChanged);
+    fs.chmodSync(changed, originalMode);
+    fs.rmSync(added, { force: true });
+    fs.rmSync(link, { force: true });
+    if (typeof output === 'string') fs.rmSync(output, { recursive: true, force: true });
+    fs.rmSync(worktreeParent, { recursive: true, force: true });
+  }
+});
+
+test('preview rejects a source symlink that escapes the disposable snapshot', () => {
+  const worktreeRoot = ROOT;
+  const worktreeParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-distribution-preview-link-'));
+  const link = path.join(worktreeRoot, 'skills', 'flow-guide', 'assets', 'preview-escape-link');
+  try {
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    fs.symlinkSync('/tmp', link);
+    const rejected = invoke(['agent-plugin', 'preview', '--json'], worktreeRoot);
+    assert.strictEqual(rejected.status, 1, rejected.stdout);
+    assert.match(rejected.stderr, /symlink escapes snapshot root/i);
+  } finally {
+    fs.rmSync(link, { force: true });
+    fs.rmSync(worktreeParent, { recursive: true, force: true });
+  }
+});
+
+test('preview refuses an output path inside the source checkout', () => {
+  const output = path.join(ROOT, `.dhpk-preview-output-${process.pid}`);
+  const rejected = invoke(['agent-plugin', 'preview', '--output', output, '--json']);
+  assert.strictEqual(rejected.status, 64, rejected.stdout);
+  assert.match(rejected.stderr, /does not accept --output/i);
+  assert.strictEqual(fs.existsSync(output), false);
+});
+
+test('preview snapshot retains tracked files that match ignore rules', () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-preview-tracked-ignored-')));
+  try {
+    fs.writeFileSync(path.join(root, '.gitignore'), 'tracked-ignored.txt\n');
+    fs.writeFileSync(path.join(root, 'tracked-ignored.txt'), 'base bytes\n');
+    const binaryPath = path.join(root, 'tracked-binary.bin');
+    fs.writeFileSync(binaryPath, Buffer.alloc(2 * 1024 * 1024, 0x41));
+    execFileSync('git', ['init', '-q'], { cwd: root });
+    execFileSync('git', ['config', 'user.name', 'Preview Test'], { cwd: root });
+    execFileSync('git', ['config', 'user.email', 'preview-test@example.invalid'], { cwd: root });
+    execFileSync('git', ['add', '-f', '.gitignore', 'tracked-ignored.txt', 'tracked-binary.bin'], { cwd: root });
+    execFileSync('git', ['commit', '-qm', 'base'], { cwd: root });
+    fs.writeFileSync(path.join(root, 'tracked-ignored.txt'), 'preview bytes\n');
+    fs.writeFileSync(binaryPath, Buffer.alloc(2 * 1024 * 1024, 0xB2));
+    const snapshot = createPreviewSourceSnapshot(root);
+    try {
+      assert.strictEqual(fs.readFileSync(path.join(snapshot.root, 'tracked-ignored.txt'), 'utf8'), 'preview bytes\n');
+      assert.deepStrictEqual(fs.readFileSync(path.join(snapshot.root, 'tracked-binary.bin')), Buffer.alloc(2 * 1024 * 1024, 0xB2));
+      assert.match(execFileSync('git', ['ls-files', '--error-unmatch', 'tracked-ignored.txt'], { cwd: snapshot.root, encoding: 'utf8' }), /tracked-ignored\.txt/);
+    } finally {
+      snapshot.cleanup();
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

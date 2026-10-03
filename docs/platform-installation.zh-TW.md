@@ -179,7 +179,7 @@ dependency 一律 fail closed。runtime-only support 只記錄為 support metada
 
 `bin/dhpk distribution <surface> <operation>` 是保留 native package surface
 的唯一 deterministic package boundary：`agent-plugin`、`cursor-plugin`、
-`codex-native` 與 `agy-plugin`。operation 為 `generate`、`validate` 與
+`codex-native` 與 `agy-plugin`。operation 為 `generate`、`preview`、`validate` 與
 `verify`；每個 JSON result 都記錄 structural evidence，除非另行執行
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
@@ -191,6 +191,34 @@ bin/dhpk distribution agy-plugin validate --json
 上述 generate 指令是 maintainer／distribution preparation。從 clone 安裝的
 consumer 應使用下方 platform section 的 prepared package，不要在原地重新
 generate tracked package。
+
+要檢查尚未提交的來源，可用 `preview` 將 `HEAD` 加上未忽略的工作目錄變更
+寫入 checkout 外的暫存輸出。Receipt 會記錄
+`publicationMode: preview`、`releaseEligible: false` 與分開的來源／snapshot
+識別；正式 validate 與 release gate 預設拒絕此標記。Preview 不是安裝或發布
+產物：
+
+```bash
+bin/dhpk distribution agent-plugin preview \
+  --version=<version> --json
+# JSON 回傳的輸出路徑是暫存的；正式驗證會拒絕 preview receipt。
+```
+
+正式 package 的每次 `generate` 都要求 clean checkout。從同一個 clean commit
+將四個 package 依序生成到 checkout 外的新目錄，再複製各自 owner 的輸出並
+一次提交；第一個 package 若生成在 tracked path，checkout 變髒後下一個命令
+就會被阻擋：
+
+```bash
+packages=$(mktemp -d /tmp/dhpk-packages.XXXXXX)
+bin/dhpk distribution agent-plugin generate --output "$packages/dhpk-agent" --version=<version> --json
+bin/dhpk distribution cursor-plugin generate --output "$packages/dhpk-cursor" --version=<version> --json
+bin/dhpk distribution codex-native generate --output "$packages/dhpk" --version=<version> --json
+bin/dhpk distribution agy-plugin generate --output "$packages/dhpk-agy" --version=<version> --json
+```
+
+任一命令失敗就停止；替換前先驗證 tracked target，複製四個 owner directory
+時保留 bytes 與 mode。
 
 `openai-submission` surface 會從公開 catalog 建立另一份完整 skills-only
 candidate。Manifest、checkout 外輸出目錄、receipt 檢查與 submission gate 見

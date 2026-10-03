@@ -91,6 +91,9 @@ function createSurfaceReceipt({
   skillProvenance = null,
   skillPackageClosure = null,
   installation = null,
+  publicationMode = 'formal',
+  releaseEligible = true,
+  origin = null,
 } = {}) {
   if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) {
     throw new Error(`unknown provenance surface: ${surface}`);
@@ -130,6 +133,10 @@ function createSurfaceReceipt({
     ...(skillProvenance ? { skillProvenance } : {}),
     ...(Array.isArray(skillPackageClosure) ? { skillPackageClosure: skillPackageClosure.map((entry) => ({ ...entry })) } : {}),
     ...(installation ? { installation: JSON.parse(JSON.stringify(installation)) } : {}),
+    ...(publicationMode !== 'formal' || releaseEligible !== true || origin
+      ? { publicationMode, releaseEligible }
+      : {}),
+    ...(origin ? { origin: JSON.parse(JSON.stringify(origin)) } : {}),
     evidence,
   };
 }
@@ -156,6 +163,42 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
     return { ok: false, errors: ['provenance receipt must be an object'] };
   }
   if (receipt.schema !== RECEIPT_SCHEMA) errors.push(`provenance schema must be ${RECEIPT_SCHEMA}`);
+  const validationContext = context && typeof context === 'object' ? context : {};
+  if (receipt.publicationMode !== undefined
+    && !['formal', 'preview'].includes(receipt.publicationMode)) {
+    errors.push('provenance publicationMode must be formal or preview');
+  }
+  if (receipt.publicationMode === 'preview' && validationContext.allowPreview !== true) {
+    errors.push('preview provenance is not accepted by formal validation');
+  }
+  if (receipt.releaseEligible !== undefined && typeof receipt.releaseEligible !== 'boolean') {
+    errors.push('provenance releaseEligible must be boolean');
+  }
+  if (receipt.publicationMode === 'formal' && receipt.releaseEligible !== undefined && receipt.releaseEligible !== true) {
+    errors.push('formal provenance must declare releaseEligible=true');
+  }
+  if (receipt.publicationMode === 'preview' && receipt.releaseEligible !== false) {
+    errors.push('preview provenance must declare releaseEligible=false');
+  }
+  if (receipt.origin !== undefined
+    && (!receipt.origin || typeof receipt.origin !== 'object' || Array.isArray(receipt.origin))) {
+    errors.push('provenance origin must be an object when present');
+  }
+  if (receipt.origin && typeof receipt.origin === 'object' && !Array.isArray(receipt.origin)) {
+    for (const field of ['baseCommit', 'baseTree', 'snapshotCommit', 'snapshotTree']) {
+      if (typeof receipt.origin[field] !== 'string' || !COMMIT.test(receipt.origin[field])) {
+        errors.push(`provenance origin ${field} must be a 40-character SHA`);
+      }
+    }
+    const counts = receipt.origin.changeCounts;
+    if (!counts || typeof counts !== 'object' || Array.isArray(counts)) {
+      errors.push('provenance origin changeCounts must be an object');
+    } else {
+      for (const field of ['modified', 'deleted', 'added', 'modeChanged', 'bytes']) {
+        if (!Number.isInteger(counts[field]) || counts[field] < 0) errors.push(`provenance origin changeCounts.${field} must be a non-negative integer`);
+      }
+    }
+  }
   if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, receipt.surface)) {
     errors.push(`provenance surface is unknown: ${receipt.surface}`);
   } else {
@@ -312,7 +355,6 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
     }
   }
 
-  const validationContext = context && typeof context === 'object' ? context : {};
   const root = validationContext.root;
   const targetCommit = validationContext.targetCommit;
   const targetTree = validationContext.targetTree;

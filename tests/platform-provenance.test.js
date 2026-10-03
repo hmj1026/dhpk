@@ -78,6 +78,46 @@ test('surface receipts carry an owner that is independent per publication surfac
   assert.strictEqual(validateSurfaceReceipt(receipt, 'cursor-plugin').ok, false);
 });
 
+test('preview receipts are rejected by formal validation unless explicitly allowed', () => {
+  const receipt = createSurfaceReceipt({
+    surface: 'agent-plugin',
+    sourceVersion: '1.2.3',
+    sourceCommit: 'a'.repeat(40),
+    inventoryDigest: 'b'.repeat(64),
+    fingerprints: { package: 'c'.repeat(64) },
+    publicationMode: 'preview',
+    releaseEligible: false,
+    origin: {
+      baseCommit: 'd'.repeat(40),
+      baseTree: 'e'.repeat(40),
+      snapshotCommit: 'a'.repeat(40),
+      snapshotTree: 'f'.repeat(40),
+      changeCounts: { modified: 1, deleted: 0, added: 0, modeChanged: 0, bytes: 4 },
+    },
+  });
+  const formal = validateSurfaceReceipt(receipt, 'agent-plugin');
+  assert.strictEqual(formal.ok, false);
+  assert.match(formal.errors.join('\n'), /preview/i);
+  const preview = validateSurfaceReceipt(receipt, 'agent-plugin', { allowPreview: true });
+  assert.strictEqual(preview.ok, true, preview.errors.join('; '));
+});
+
+test('AGY preview receipts remain rejected after common-schema remapping', () => {
+  const receipt = createSurfaceReceipt({
+    surface: 'agy-plugin',
+    sourceVersion: '1.2.3',
+    sourceCommit: 'a'.repeat(40),
+    inventoryDigest: 'b'.repeat(64),
+    fingerprints: { package: 'c'.repeat(64) },
+    publicationMode: 'preview',
+    releaseEligible: false,
+  });
+  const agyReceipt = { ...receipt, schema: 'dhpk.agy-plugin.v1', provenanceSchema: RECEIPT_SCHEMA };
+  const formal = validateSurfaceReceipt({ ...agyReceipt, schema: agyReceipt.provenanceSchema }, 'agy-plugin');
+  assert.strictEqual(formal.ok, false);
+  assert.match(formal.errors.join('\n'), /preview/i);
+});
+
 test('surface receipts can carry a normalized installation identity without changing their native schema', () => {
   const installation = {
     schema: 'dhpk.installation-receipt.v1',
