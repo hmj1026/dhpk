@@ -804,7 +804,18 @@ test('public CI plan validation rejects forged identity, missing fields, and una
     assert.notStrictEqual(result.status, 0);
     const unavailable = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan', '--base-sha', 'missing', '--head-sha', fixture.headSha, '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop'], { cwd: fixture.root, encoding: 'utf8' });
     assert.strictEqual(unavailable.status, 0);
-    assert.strictEqual(JSON.parse(unavailable.stdout).mode, 'full');
+    const unavailablePlan = JSON.parse(unavailable.stdout);
+    assert.strictEqual(unavailablePlan.mode, 'full');
+    const successResults = { preflight: 'success', tests: 'success', validate: 'success', 'macos-installer': 'success', lint: 'success', 'release-rehearsal': 'skipped' };
+    const resultsPath = path.join(fixture.root, 'results.json'); fs.writeFileSync(resultsPath, JSON.stringify(successResults));
+    const aggregate = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'aggregate', '--plan', path.join(fixture.root, 'plan.json'), '--results', resultsPath, '--base-sha', 'missing', '--head-sha', fixture.headSha, '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop'], { cwd: fixture.root, encoding: 'utf8' });
+    assert.notStrictEqual(aggregate.status, 0, 'the forged plan must not aggregate');
+    const unavailablePath = path.join(fixture.root, 'unavailable.json'); fs.writeFileSync(unavailablePath, JSON.stringify(unavailablePlan));
+    const unavailableAggregate = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'aggregate', '--plan', unavailablePath, '--results', resultsPath, '--base-sha', 'missing', '--head-sha', fixture.headSha, '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop'], { cwd: fixture.root, encoding: 'utf8' });
+    assert.strictEqual(unavailableAggregate.status, 0, unavailableAggregate.stderr);
+    const failedResults = { ...successResults, tests: 'failure' }; fs.writeFileSync(resultsPath, JSON.stringify(failedResults));
+    const failedAggregate = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'aggregate', '--plan', unavailablePath, '--results', resultsPath, '--base-sha', 'missing', '--head-sha', fixture.headSha, '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop'], { cwd: fixture.root, encoding: 'utf8' });
+    assert.notStrictEqual(failedAggregate.status, 0);
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 

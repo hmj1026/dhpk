@@ -100,9 +100,10 @@ function validateCiPlan(plan, expected = {}) {
   if (plan && plan.requiredJobs && plan.skippedJobs && plan.requiredJobs.some((job) => plan.skippedJobs.includes(job))) errors.push('job is both required and skipped');
   if (plan && Array.isArray(plan.changes) && plan.identities) {
     const recomputed = classifyChangedPaths(plan.changes, { baseRef: plan.identities.baseRef });
-    for (const key of ['mode', 'reason']) if (plan[key] !== recomputed[key]) errors.push(`plan ${key} does not match changed paths`);
-    for (const key of ['files', 'requiredJobs', 'skippedJobs']) if (JSON.stringify(plan[key]) !== JSON.stringify(recomputed[key])) errors.push(`plan ${key} does not match changed paths`);
-    if (plan.reason === 'diff-unavailable') errors.push('plan was generated from an unavailable diff');
+    if (plan.reason !== 'diff-unavailable') {
+      for (const key of ['mode', 'reason']) if (plan[key] !== recomputed[key]) errors.push(`plan ${key} does not match changed paths`);
+    } else if (recomputed.mode !== 'full') errors.push('unavailable diff must produce a full plan');
+    for (const key of ['files', 'requiredJobs', 'skippedJobs', 'categories']) if (JSON.stringify(plan[key]) !== JSON.stringify(recomputed[key])) errors.push(`plan ${key} does not match changed paths`);
   }
   for (const key of ['baseSha', 'headSha', 'checkoutSha', 'baseRef']) {
     if (!plan || !plan.identities || typeof plan.identities[key] !== 'string' || plan.identities[key].length === 0) errors.push(`plan identity ${key} is missing`);
@@ -110,10 +111,10 @@ function validateCiPlan(plan, expected = {}) {
   }
   if (expected.root && expected.baseSha && expected.headSha) {
     try {
-      const actual = gitChanges(path.resolve(expected.root), expected.baseSha, expected.headSha);
-      const actualPlan = classifyChangedPaths(actual, { baseRef: expected.baseRef });
-      if (JSON.stringify(plan.changes) !== JSON.stringify(actualPlan.changes)) errors.push('plan changes do not match the authoritative git diff');
-      if (plan.mode !== actualPlan.mode || plan.reason !== actualPlan.reason) errors.push('plan classification does not match the authoritative git diff');
+      const actualPlan = createCiPlan(expected);
+      for (const key of ['mode', 'reason', 'categories', 'files', 'requiredJobs', 'skippedJobs', 'testFiles', 'shardCount', 'packageSurfaces', 'changes']) {
+        if (JSON.stringify(plan[key]) !== JSON.stringify(actualPlan[key])) errors.push(`plan ${key} does not match the authoritative plan`);
+      }
     } catch (error) { errors.push(`authoritative git diff unavailable: ${error.message}`); }
     try {
       const checkout = execFileSync('git', ['-C', path.resolve(expected.root), 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
