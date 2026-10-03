@@ -17,7 +17,6 @@ owner's authority.
 - Implementing a confirmed change: invoke `$flow-drive <confirmed-spec-or-change-id>` directly.
 - Reviewing a completed diff: use `change-verdict`.
 - Tracing code or diagnosing a failure: use `code-trace`.
-- Authoring or restructuring a skill: use `skill-forge`.
 
 ## Actions
 

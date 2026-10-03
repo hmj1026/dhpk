@@ -4,15 +4,14 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "070cd4be85d15300217af48be8afe1924eace947",
-  "generatedFromCommit": "070cd4be85d15300217af48be8afe1924eace947",
-  "generatedFromTree": "c4eb8d67484530a9e653992e87399ac4c470a5dc",
-  "inventoryDigest": "a27e391516f38815d4ece41f559879aae49d03a8d59097e9a1e6a011a323dfc5",
-  "inventoryRevision": "sha256:103c3edc6e489ffac0861a7cdd0d2e44b0ec519a69d66d2740e9135995d29b65",
+  "sourceCommit": "d2e63648efde287311294652e8f25a9bb00e1edc",
+  "generatedFromCommit": "d2e63648efde287311294652e8f25a9bb00e1edc",
+  "generatedFromTree": "8ee1d24cd314f2f07dd10d141b775ddbdbef75a3",
+  "inventoryDigest": "284a366729d547bce690eb956213a430937442f5a9bd3db6a803f0012a4b9f6e",
+  "inventoryRevision": "sha256:8f79ae11a486b6bba1e6a444917101678ac2855b2af3d7d7a877fbb83bb8ec8d",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
-    "agent-architecture-audit",
     "agy-fast-worker",
     "change-verdict",
     "cli-dispatch-context",
@@ -60,10 +59,8 @@
     "repo-verify",
     "review-pending",
     "session-usage-audit",
-    "skill-forge",
     "skill-scope",
     "software-architecture",
-    "spec-mine",
     "tdd",
     "update-codemaps",
     "update-docs"
@@ -74,7 +71,6 @@
     "code-trace",
     "create-pr",
     "dep-audit",
-    "dhpk-agent-architecture-audit",
     "dhpk-agy-fast-worker",
     "dhpk-cli-dispatch-context",
     "dhpk-cli-transport",
@@ -118,9 +114,7 @@
     "release-creator",
     "repo-verify",
     "review-pending",
-    "skill-forge",
     "skill-scope",
-    "spec-mine",
     "tdd-workflow",
     "update-codemaps",
     "update-docs"
@@ -132,12 +126,11 @@
   "skippedSkills": [],
   "mcpServerNames": [],
   "fingerprints": {
-    "change-verdict": "5aec715958f19be3644acd1231d1670a5163ba14b4a199db80b4920580628c05",
+    "change-verdict": "468e9dc1d345691dcb4fed2a316e03ce5aa3ab29dc0085f0ac198bf7496c0bc6",
     "code-simplify": "0e66e1a906b5fdd5875c636e59575ecd26589b5f4583aed34f1b0c53a2e113d1",
-    "code-trace": "1836d4f581a129bee62c95fef7ed930f3811a09e578253a2390484330ab138ef",
+    "code-trace": "76ea5d814674f7e6b4a7ccd310013c4fd40a1ccb0657aea7c399ad0635ed9a8a",
     "create-pr": "1ca33c2fc3b8e50e740ee1e07d1fc34a9f6349c99f5afe326b0e3fcba6be4fa8",
     "dep-audit": "3c49d8b02465f55af14cb47c8949c05fb3771fc89f37f00ab2fe8b84a06b41a5",
-    "dhpk-agent-architecture-audit": "91815e5bb8f84d89c97caa4495d07dc25c0d81ab701758ff60c7ee55111d9b2a",
     "dhpk-agy-fast-worker": "f210a5909fe4730d089af3a6cd143aab045a6ccbc471338366425e57eddee293",
     "dhpk-cli-dispatch-context": "e1b74ef2ed3142c8256abe491c637c694c2b0a307604b266ad0535a79ff0662a",
     "dhpk-cli-transport": "65506d2795a747d7e2d878d0301db03b7875370b2ec33e1c6dd70fa50909a482",
@@ -155,22 +148,22 @@
     "dhpk-laravel-package-author": "7c3a42df9c11e1dfbe45d7c9e0c35f4183c85369c714728d9b624713630d8ef4",
     "dhpk-laravel-testbench-matrix": "bcaad0c43660c6626602e8c789d609c087fe9ab3619ace735394b9fe3e10aa79",
     "dhpk-module-design": "c9190c6495bf901212652e1bb9eb22a1cf53a6bef751f00016722e584b40fc27",
-    "dhpk-opsx-apply-goal": "5188bb29d65e343ab533080e9a55076ce007e2e9bb41000ad124ce6d38b2b474",
+    "dhpk-opsx-apply-goal": "cb828ac2806ea15e8cae2c31fb39093f2b290b48a24c04df75f6ec9a2979ffcd",
     "dhpk-opsx-load-context": "533883b313fccafbc34725d1bae1a6f8801fa7b53434806d76529750c88d819c",
     "dhpk-opsx-post-observation": "61d09727dac1b9758d74ad2b0fff1311f00ea850952fd1dfc1ada8b75d1d9400",
     "dhpk-polyfill-version-matrix-audit": "c18597d1bbc40c5691321f3490ff28a07ffa0f6ec665deb15f2698147d158d2b",
     "dhpk-project-audit": "a3426961b9149ebc86d76ec31d5080f5306aa837f0a1c5c6115bd4d6d542d3db",
-    "dhpk-project-setup": "350843298f69d8561879cdad021947a91196a8b4f625d7591279889e9477e8f6",
+    "dhpk-project-setup": "e5c2c88c98f02906ffe4b66aa881d36f28b2b4cd700cf18a96af0604d5cf59a8",
     "dhpk-prompt-optimize": "a9d91881566c0c05967a31334ce93cc1dcbe1bf0760dfed2a1f01c26b57223af",
     "dhpk-repo-intake": "3ce6f9da5cb781d08cebfd90321b9e657e2dfe978873ebac960d1f11ed37191b",
-    "dhpk-session-usage-audit": "ad6e21ac72573e80cb06a1eb0f585f2c10f0f1557af015c932709cd6e542ac12",
+    "dhpk-session-usage-audit": "bf438a6355ea41324dbabdc0e9dbc4e6704b94a5f2044500f96571edf23eb877",
     "doc-refactor": "24188cc9a98a780ace387611e216335c8b6b664ec0c6995040538fffad7ef299",
-    "flow-drive": "8ef157ee7b62f6cf12220224ab892a1fdfae0bb2e0e56bee6660a95d54596855",
-    "flow-guide": "d9116004ceebefd6beff6054e1b0a0d1c30d012e74c848481ac9881ba89665a4",
+    "flow-drive": "1e706f6f39dfcd1297debd4649c77a99492a11a5d36f67f9aa823684252daa62",
+    "flow-guide": "55ccb735e0c3ba7b8cf57a30417c915e13e3f997a7fc147e73b868ee19307d77",
     "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "harness-audit": "b751eaa79e54539cfd41422c6eeea0c848d75256bf8f165f9273263658489091",
-    "harness-govern": "42a18b083d6b1d6e2460c512f6cfb4d514f7e79f6156c3cc43462ff495b14863",
+    "harness-govern": "919782bf2b9a762a9a1d6b406a811a05e93bd79b04ccdf2edd3b993ad87d817b",
     "js-static-check-strategy": "6464d728360ec088489abc552a1f4e6a964d9e51a86883cead9f020ec399c9c9",
     "matrix-cell-onboard": "f70958741c684fcd4acc1051e27b43c0aa1900225ba43fdfa2d8899a774c2e03",
     "merge-prep": "480a57cf9f0733ab2b7f884175409202e811ca4def7fd3ba0e58854d06f1bead",
@@ -181,20 +174,17 @@
     "release-creator": "64f2f148db1b777637bc101edb1d02a317cb483a1b68eea77e7d2a3369a6604d",
     "repo-verify": "fce629f9198f4e9abba6077b3ebc9bce6caf32a2a1af52d7a2fe4cb8e3b620f2",
     "review-pending": "d9baf7433bca224f9a2499af6c2b0242a4015a954fd24f759c8363ad0e499bc2",
-    "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
-    "skill-scope": "e119692637c7c2070e0647277da231541e4336f2bcc125e2b346754edd01aa6c",
-    "spec-mine": "7bec895983b41759863a1eb6db2f91d0096180dc4d65844556d630e5befdc1a5",
+    "skill-scope": "08ef075ad04fce321d4590650dcaccda4889ab177fed2cd52a35944a726c110e",
     "tdd-workflow": "a790ffd9a1bc32e64c76e6a6724f509e71511c564f35a36dfb010fbd1ada0ec3",
     "update-codemaps": "f38f3424ae52c66c67effae3dfd03388c756e63466fd051911974e85c33e18d9",
     "update-docs": "f229b2dfcde6e136d368087f90da6a9aa2879151c93896cf1c7d2964f1f13054"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "5137b2f1aba850b03b0b9fe139cab7c838549086a9c3619d6f9a38e49af0d072",
+    "planId": "dc34628c44203200cf26842bb16e1c39b6b208160d7e96932946fc418b216882",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -242,17 +232,14 @@
       "repo-verify",
       "review-pending",
       "session-usage-audit",
-      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "update-codemaps",
       "update-docs"
     ],
     "supportClosure": {
       "stableIds": [
-        "agent-architecture-audit",
         "agy-fast-worker",
         "change-verdict",
         "cli-dispatch-context",
@@ -300,10 +287,8 @@
         "repo-verify",
         "review-pending",
         "session-usage-audit",
-        "skill-forge",
         "skill-scope",
         "software-architecture",
-        "spec-mine",
         "tdd",
         "update-codemaps",
         "update-docs"
@@ -316,10 +301,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "5137b2f1aba850b03b0b9fe139cab7c838549086a9c3619d6f9a38e49af0d072",
-      "inventory": "a27e391516f38815d4ece41f559879aae49d03a8d59097e9a1e6a011a323dfc5"
+      "plan": "dc34628c44203200cf26842bb16e1c39b6b208160d7e96932946fc418b216882",
+      "inventory": "284a366729d547bce690eb956213a430937442f5a9bd3db6a803f0012a4b9f6e"
     },
-    "rollbackIdentity": "246e3a085ab83f12b46e84c9f0985e6ccb7dfeacabd9e27159d5102b963b02a9"
+    "rollbackIdentity": "f3023c79abe7ae3430874aba6787fd8f39bc7632dde3a4dc41b5f13d83ac5168"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -1755,39 +1740,6 @@
         }
       ]
     },
-    "spec-mine": {
-      "display_name": "Spec Mine",
-      "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
-      "syntax": "$spec-mine [<capability-or-path>]",
-      "input_kind": "free-text",
-      "invocation_class": "implicit-eligible",
-      "effect_authority": "workspace-write",
-      "inputs": [
-        {
-          "id": "capability-or-path",
-          "syntax": "<capability-or-path>",
-          "value_kind": "string",
-          "required": false,
-          "summary": "Capability or path to mine first"
-        }
-      ],
-      "actions": [
-        {
-          "id": "mine",
-          "summary": "Write one bounded behavioral baseline",
-          "syntax": "$spec-mine [<capability-or-path>]",
-          "input_kind": "free-text",
-          "effect_authority": "workspace-write"
-        }
-      ],
-      "options": [],
-      "examples": [
-        {
-          "prompt": "$spec-mine billing",
-          "summary": "Use spec mine with its declared interface"
-        }
-      ]
-    },
     "tdd": {
       "display_name": "TDD",
       "summary": "Drive behavior-first tests through a minimal red-green loop",
@@ -1930,7 +1882,6 @@
     "repo-verify": "20da3565f32f9c5d58c5ea79701fbf98b76e1f83a506b67644ff225e65f6ccdb",
     "review-pending": "1a8af23d3337618651c3a1408255e1e90b59445ef26b22ca5e6e4640755a83d8",
     "skill-scope": "e17a0ce771f9d79a874c482c9e968878e86ce9f7ac6a094a89db8151cb3c7017",
-    "spec-mine": "918bc2cde6d9c328cbe8224867f68f3dc569b81f2434b0f04bcd598683c14a50",
     "tdd": "2b0cd39febeefaa18ff9fd70c8e0c9d068136599c488a35b3e06afa07eb20c6d",
     "update-codemaps": "0bf8b73840bccef16d4e4fbea12581029da9a48607769da14214b038f97ffa07",
     "update-docs": "ee780a213af1bf221ae7ff4685fade0c6421b1654a52216a5d9d9da814d1de9e"
