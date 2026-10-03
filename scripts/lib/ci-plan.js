@@ -3,10 +3,14 @@
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
+const { findTests } = require('../../tests/run-all');
+
 const JOBS = Object.freeze(['preflight', 'tests', 'validate', 'macos-installer', 'release-rehearsal', 'lint']);
 const LIGHT_REQUIRED = Object.freeze(['preflight', 'validate', 'lint']);
 const FULL_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'macos-installer', 'lint']);
+const SELECTED_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'lint']);
 const CANONICAL_PROSE = [
+  /^(?:README(?:\.zh-TW)?|AGENTS|CONTEXT|CODING_STANDARDS|RELEASE(?:\.zh-TW)?|CHANGELOG)\.md$/i,
   /^(?:skills|commands|agents|rules|docs|modules|templates|cursor|codex|openspec)\/.*\.md$/i,
   /^\.codex-plugin\/.*\.md$/i,
   /^changelog\.d\/.*\.md$/i,
@@ -24,6 +28,66 @@ function categoryFor(file) {
   if (/^(?:scripts|bin|tests)\//i.test(file)) return 'script';
   if (/^(?:plugins|generated|manifests|\.claude-plugin|\.codex-plugin)\//i.test(file)) return 'package';
   return 'unknown';
+}
+
+// These are intentionally coarse owner groups. They are an allowlist of
+// existing public suites, rather than a per-script dependency graph.
+const OWNER_GROUPS = Object.freeze([
+  { name: 'hooks', paths: [/^scripts\/hooks\//i], tests: ['hooks-wiring.test.js'] },
+  {
+    name: 'installer',
+    paths: [/^scripts\/install\//i, /^scripts\/install\.sh$/i, /^scripts\/dhpk-install\.js$/i, /^scripts\/hooks\/install-/i, /^scripts\/lib\/dhpk-install-lifecycle\.js$/i],
+    tests: ['dhpk-install-lifecycle.test.js', 'install.test.js', 'install-assets.test.js'],
+  },
+  {
+    name: 'resource',
+    paths: [/^scripts\/lib\/skill-resource-sync\.js$/i, /^scripts\/ci\/sync-skill-resources\.js$/i],
+    tests: ['skill-resource-sync-security.test.js'],
+  },
+  {
+    name: 'manifest',
+    paths: [/^manifests\//i, /^scripts\/ci\/validate-(?:plugin|agents-skills|distribution|openai-metadata)\.js$/i],
+    tests: ['validate-plugin.test.js', 'validate-distribution.test.js', 'agent-skill-integrity.test.js'],
+  },
+  {
+    name: 'adapter-package',
+    paths: [/^scripts\/lib\/.*(?:package|adapter)\.js$/i, /^scripts\/ci\/gen-(?:.*package|.*manifest|cursor-sync)\.js$/i, /^plugins\//i],
+    tests: ['agents-skills-package.test.js', 'codex-native-package-validate.test.js', 'cursor-plugin-package.test.js', 'gen-agent-plugin-package.test.js'],
+  },
+]);
+
+function discoveredTestFiles(root) {
+  return findTests(path.join(path.resolve(root), 'tests'))
+    .map((file) => path.relative(path.resolve(root, 'tests'), file).split(path.sep).join('/'))
+    .sort();
+}
+
+function selectedOwners(files, availableTests) {
+  const selected = new Set();
+  const owners = new Set();
+  let unmapped = false;
+  for (const file of files) {
+    if (/^(?:tests\/run-all\.js|tests\/_lib\/|scripts\/ci\/verify-test-shards\.js|scripts\/lib\/ci-plan\.js|scripts\/ci\/ci-plan\.js|\.github\/workflows\/)/i.test(file)) {
+      unmapped = true;
+      continue;
+    }
+    const suite = file.match(/^tests\/(.+\.test\.js)$/i);
+    if (suite) {
+      if (!availableTests.includes(suite[1])) unmapped = true;
+      else selected.add(suite[1]);
+      continue;
+    }
+    const groups = OWNER_GROUPS.filter((group) => group.paths.some((pattern) => pattern.test(file)));
+    if (groups.length === 0) { unmapped = true; continue; }
+    groups.forEach((group) => {
+      owners.add(group.name);
+      group.tests.forEach((testFile) => {
+        if (!availableTests.includes(testFile)) unmapped = true;
+        else selected.add(testFile);
+      });
+    });
+  }
+  return { testFiles: [...selected].sort(), owners: [...owners].sort(), unmapped };
 }
 
 function normalizeChange(change) {
@@ -81,7 +145,27 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
   const identities = { baseSha, headSha, checkoutSha, baseRef };
   try {
     const changes = gitChanges(path.resolve(root), baseSha, headSha);
-    return { ...classifyChangedPaths(changes, { baseRef }), identities };
+    const classified = classifyChangedPaths(changes, { baseRef });
+    if (classified.mode === 'light' || baseRef === 'main' || classified.categories.includes('unknown')) return { ...classified, identities };
+    const availableTests = discoveredTestFiles(root);
+    const selected = selectedOwners(classified.files, availableTests);
+    if (selected.unmapped || selected.testFiles.length === 0) {
+      return {
+        ...classified,
+        mode: 'full', reason: selected.unmapped ? 'owner-mapping-unavailable' : 'owner-suite-unavailable',
+        requiredJobs: [...FULL_REQUIRED, ...(baseRef === 'main' ? ['release-rehearsal'] : [])],
+        skippedJobs: JOBS.filter((job) => !FULL_REQUIRED.includes(job) && !(baseRef === 'main' && job === 'release-rehearsal')),
+        testFiles: [], shardCount: 4, identities,
+      };
+    }
+    const installer = selected.owners.includes('installer');
+    const requiredJobs = [...SELECTED_REQUIRED, ...(installer ? ['macos-installer'] : [])];
+    const skippedJobs = JOBS.filter((job) => !requiredJobs.includes(job));
+    return {
+      ...classified,
+      mode: 'selected', reason: 'selected-owner-suites', testFiles: selected.testFiles,
+      shardCount: 1, requiredJobs, skippedJobs, identities,
+    };
   } catch (error) {
     return {
       ...classifyChangedPaths([{ status: 'M', path: '__invalid_diff__' }], { baseRef }),
@@ -93,7 +177,7 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
 function validateCiPlan(plan, expected = {}) {
   const errors = [];
   if (!plan || plan.schema !== 'dhpk.ci-plan.v1') errors.push('plan schema is invalid');
-  if (!['light', 'full'].includes(plan && plan.mode)) errors.push('plan mode is invalid');
+  if (!['light', 'selected', 'full'].includes(plan && plan.mode)) errors.push('plan mode is invalid');
   if (!plan || !plan.identities || typeof plan.identities !== 'object') errors.push('plan identities are missing');
   if (!Array.isArray(plan && plan.changes) || !Array.isArray(plan && plan.files) || !Array.isArray(plan && plan.categories)) errors.push('plan change fields are missing');
   if (!Array.isArray(plan && plan.requiredJobs) || !Array.isArray(plan && plan.skippedJobs) || !Number.isInteger(plan && plan.shardCount) || !Array.isArray(plan && plan.testFiles) || !Array.isArray(plan && plan.packageSurfaces)) errors.push('plan execution fields are missing');
@@ -101,9 +185,10 @@ function validateCiPlan(plan, expected = {}) {
   if (plan && Array.isArray(plan.changes) && plan.identities) {
     const recomputed = classifyChangedPaths(plan.changes, { baseRef: plan.identities.baseRef });
     if (plan.reason !== 'diff-unavailable') {
-      for (const key of ['mode', 'reason']) if (plan[key] !== recomputed[key]) errors.push(`plan ${key} does not match changed paths`);
+      if (recomputed.mode === 'light' && plan.mode !== 'light') errors.push('plan mode does not match changed paths');
+      if (recomputed.mode === 'full' && !['full', 'selected'].includes(plan.mode) && plan.reason !== 'owner-mapping-unavailable' && plan.reason !== 'owner-suite-unavailable') errors.push('plan mode does not match changed paths');
     } else if (recomputed.mode !== 'full') errors.push('unavailable diff must produce a full plan');
-    for (const key of ['files', 'requiredJobs', 'skippedJobs', 'categories']) if (JSON.stringify(plan[key]) !== JSON.stringify(recomputed[key])) errors.push(`plan ${key} does not match changed paths`);
+    for (const key of ['files', 'categories']) if (JSON.stringify(plan[key]) !== JSON.stringify(recomputed[key])) errors.push(`plan ${key} does not match changed paths`);
   }
   for (const key of ['baseSha', 'headSha', 'checkoutSha', 'baseRef']) {
     if (!plan || !plan.identities || typeof plan.identities[key] !== 'string' || plan.identities[key].length === 0) errors.push(`plan identity ${key} is missing`);

@@ -6,7 +6,7 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { verifyShardReports, main } = require('../scripts/ci/verify-test-shards');
-const { classifyChangedPaths, verifyCiResults } = require('../scripts/lib/ci-plan');
+const { classifyChangedPaths, createCiPlan, validateCiPlan, verifyCiResults } = require('../scripts/lib/ci-plan');
 
 function gitFixture(setup, mutate, baseRef = 'develop') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-'));
@@ -762,6 +762,7 @@ test('CI plan classifies canonical prose as light and skips expensive jobs', () 
   assert.deepStrictEqual(plan.requiredJobs, ['preflight', 'validate', 'lint']);
   assert.ok(plan.skippedJobs.includes('tests'));
   assert.ok(plan.skippedJobs.includes('macos-installer'));
+  assert.strictEqual(classifyChangedPaths([{ status: 'M', path: 'README.md' }], { baseRef: 'develop' }).mode, 'light');
 });
 
 test('CI plan falls back to full for unknown, and release-base paths', () => {
@@ -817,6 +818,33 @@ test('public CI plan validation rejects forged identity, missing fields, and una
     const failedAggregate = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'aggregate', '--plan', unavailablePath, '--results', resultsPath, '--base-sha', 'missing', '--head-sha', fixture.headSha, '--checkout-sha', fixture.checkoutSha, '--base-ref', 'develop'], { cwd: fixture.root, encoding: 'utf8' });
     assert.notStrictEqual(failedAggregate.status, 0);
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
+test('public CI plan selects existing owner suites and enables macOS only for installers', () => {
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'scripts', 'hooks'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'scripts', 'hooks', 'sample.sh'), 'old\n');
+    fs.writeFileSync(path.join(root, 'tests', 'hooks-wiring.test.js'), '// owner\n');
+  }, (root) => fs.writeFileSync(path.join(root, 'scripts', 'hooks', 'sample.sh'), 'new\n'));
+  try {
+    assert.strictEqual(fixture.plan.mode, 'selected');
+    assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js']);
+    assert.strictEqual(fixture.plan.shardCount, 1);
+    assert.ok(fixture.plan.skippedJobs.includes('macos-installer'));
+    const plan = createCiPlan({ root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' });
+    assert.strictEqual(validateCiPlan(plan, { root: fixture.root, baseSha: fixture.baseSha, headSha: fixture.headSha, checkoutSha: fixture.checkoutSha, baseRef: 'develop' }).ok, true);
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
+test('selected shard verification uses the trusted plan file list exactly', () => {
+  withFixture(({ root, directory }) => {
+    const selected = verify({ root, directory, overrides: { expectedFiles: ['alpha.test.js'] } });
+    assertRejected(selected);
+    assert.ok(selected.errors.some((error) => /undiscovered|multiple|no shard result/i.test(error)));
+    const complete = verify({ root, directory, overrides: { expectedFiles: SHARD_FILES.flat() } });
+    assert.strictEqual(complete.ok, true, complete.errors.join('\n'));
+  });
 });
 
 run('verify-test-shards');
