@@ -19,6 +19,11 @@ specifications in `openspec/specs/<capability>/spec.md`.
 | `tests/fixtures/` | Fixed inputs and independent expected results required by tests | Versioned |
 | `manifests/` | Machine-readable runtime and distribution contracts | Versioned |
 
+The durable Host-runtime follow-up dispositions are recorded in
+[`contracts/host-runtime-followup-disposition.md`](contracts/host-runtime-followup-disposition.md).
+Ignored `openspec/changes/` plans are provenance and working state; they are not
+the only source of accepted policy in a fresh checkout.
+
 Classify by content and use, rather than filename: a current operating
 procedure belongs in a reusable guide; the output from one execution belongs
 in `docs/evidence/`. Promote accepted decisions to an ADR or contract and

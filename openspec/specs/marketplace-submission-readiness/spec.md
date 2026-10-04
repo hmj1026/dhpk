@@ -1,5 +1,16 @@
 # marketplace-submission-readiness Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
 ## Purpose
 
 Define the engineering deliverables and reproducible validation needed to hand off a skills-only OpenAI plugin submission, keeping platform account operations, scans, approval, and publication separate from local engineering evidence.

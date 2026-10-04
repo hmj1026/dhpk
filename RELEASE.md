@@ -2,6 +2,14 @@
 
 > **Languages**: **English** · [繁體中文](./RELEASE.zh-TW.md)
 
+## Acceptance applicability (#848/#854)
+
+The three release proofs, immutable tag, and human merge/publication boundary
+remain unchanged. Current SOURCE, PACKAGE, and applicable CONSUMER evidence may
+establish readiness without claiming every native Host workflow. Missing,
+unavailable, or failed required evidence remains non-passing; excluded runtime
+research stays visible with its real status.
+
 dhpk uses a direct, PR-driven release flow:
 
 ```

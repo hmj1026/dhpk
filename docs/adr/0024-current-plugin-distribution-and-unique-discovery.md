@@ -1,6 +1,21 @@
 # Current plugin distribution and unique skill discovery
 
-Status: accepted design; builder tasks 6.1–6.3 delivered; full implementation and submission preparation remain pending
+Status: accepted design, amended by #848/#854; builder tasks 6.1–6.3 delivered; full implementation and submission preparation remain pending
+
+## Applicability amendment (#848/#854)
+
+The ownership, self-contained resource, unique-discovery, coexistence,
+compatibility, support-tier, publication and manual-authorization decisions
+below remain in force. The former blanket prerequisites for fresh-session
+workflow execution, rendered discovery/context measurement, and complete
+cross-Host runtime observation are superseded as ordinary delivery gates.
+They apply when a named Host integration, loader/role/tool mapping, activation
+defect, or explicit native acceptance request makes the affected evidence
+necessary. Installation and package acceptance may pass while native evidence
+remains `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED`; those states are never rewritten
+as runtime `PASS`. See the tracked
+[follow-up disposition contract](../contracts/host-runtime-followup-disposition.md)
+for the twelve historical tasks and their owners.
 
 The user confirmed shared understanding of this scope on 2026-09-30.
 The planning artifacts are in the local OpenSpec change

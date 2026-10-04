@@ -7,6 +7,14 @@ This file describes how the `dhpk` plugin's content interacts with **Codex CLI**
 
 ## What dhpk provides to Codex CLI
 
+## Conditional runtime evidence (#848/#854)
+
+Installation and projection evidence establish the applicable Codex
+installation contract. A fresh native role session is required only when a
+loader, role registration, tool mapping, activation defect, or explicit native
+acceptance request is in scope. `codex plugin list` remains management evidence;
+it cannot promote `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED` to runtime `PASS`.
+
 When a user runs the bundled installer:
 
 ```bash

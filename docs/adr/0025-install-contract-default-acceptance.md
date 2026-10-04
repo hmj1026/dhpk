@@ -82,11 +82,13 @@ explicit native obligation. The role-dispatch scenarios in the
 remain the acceptance criteria when such a native check is requested; they are
 not prerequisites for ordinary installation acceptance.
 
-This ADR does not supersede ADR-0024's requirement for actual consumer
-execution evidence before selecting or claiming a public plugin workflow,
-native support, or submission readiness. It does not establish a fresh-session
-runtime result or OpenAI approval. It also preserves the distinct release proof
-boundaries in [ADR-0021](0021-three-proof-release-model.md): consumer
+This ADR supersedes the blanket ordinary-delivery reading of ADR-0024's actual
+consumer execution prerequisite. Actual execution evidence remains required
+when selecting or claiming a public plugin workflow, native support, or
+submission readiness as an applicable claim. It is not required for an
+unrelated installation-contract change. This ADR does not establish a
+fresh-session runtime result or OpenAI approval. It also preserves the distinct
+release proof boundaries in [ADR-0021](0021-three-proof-release-model.md): consumer
 installation acceptance is not authorization to merge, tag, publish, or
 deploy.
 

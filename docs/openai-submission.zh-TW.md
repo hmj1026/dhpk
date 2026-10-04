@@ -2,6 +2,14 @@
 
 > **語言**：[English](./openai-submission.md) · **繁體中文**
 
+## 驗收適用性（#848/#854）
+
+候選套件的安裝與 package 檢查，和原生 Host workflow、rendered discovery、
+context-budget 研究、portal submission 及 publication 分開。一般文件或套件
+變更不需要模型 session；命名的整合缺陷或明確 native 驗收要求時，才檢查受影響
+Host。`NOT_RUN`、`UNAVAILABLE`、`BLOCKED` 保持真實，不會改成 `PASS`。套件產生
+不代表 ChatGPT Work 已執行。十二項歷史 follow-up 見[持久處置契約](contracts/host-runtime-followup-disposition.md)。
+
 本文件是 dhpk skills-only OpenAI Public Plugin 候選版的提交準備 SSOT。
 目標是 Codex 與 ChatGPT Work 共用的公開 Plugins Directory。OpenAI 發布尚未
 完成：repository 已有 builder 與候選 metadata，但目前候選版尚未上傳、核准或
