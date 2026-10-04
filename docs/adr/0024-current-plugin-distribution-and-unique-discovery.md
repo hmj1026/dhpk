@@ -114,17 +114,22 @@ and must not restore the retired Review Gate lifecycle or artifacts.
   install and after replacement of an old installation. Static structure,
   package generation, and an installer success message do not prove uniqueness
   or usable runtime behavior.
-- Resolve the agents, prompts, AGENTS guidance, model-selection and context-budget
-  audit within this change, after test-consolidation acceptance and before final
-  engineering acceptance. First classify each existing role/configuration as
+- Resolve the agents, prompts, AGENTS guidance, and model-selection audit within
+  this change, after test-consolidation acceptance and before final engineering
+  acceptance. Context-budget and discovery measurements are separate opt-in
+  research and are required only when a task explicitly selects that outcome.
+  The existing strict eight-scope evaluator remains unchanged, and missing
+  measurements remain non-pass. First classify each existing role/configuration as
   retained, adapted or retired; repair only surviving contracts and verify
   successors instead of rebuilding an obsolete OpenAI installer. Read-only
   reviewers return identity-bound evidence; contract-required persistence belongs
   to an authorized parent, and saving failure cannot create a review PASS. An
   advisory returned-evidence route gains no new filesystem-write obligation. Optional Codex
   custom-role support remains separate from the skills-only plugin. Every
-  retained Host requires version-scoped model/tool/schema and context evidence;
-  one Host's structural or budget PASS cannot establish another Host's runtime.
+  retained Host requires version-scoped model/tool/schema evidence; a context or
+  rendered-discovery result is required only for an explicitly selected
+  research task and remains specific to its Host, version, and scope. One Host's
+  structural or budget PASS cannot establish another Host's runtime.
   Shipped Opus/Sonnet and Codex Sol defaults migrate to the current model lines
   (decided 2026-10-01; `haiku`/`fable` tiers and Luna stay as declared), and
   retained wording is calibrated to each selected line's official prompting

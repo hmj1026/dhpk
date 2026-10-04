@@ -279,3 +279,38 @@ Historical reports without `acceptance` retain their original unversioned
 schema, status semantics, and exit conventions. Reading a historical report
 does not synthesize `schemaVersion: 2`, acceptance checks, or runtime
 verification.
+
+## Context and discovery research
+
+The strict context/discovery evaluator is the exported
+`evaluateMarketplaceRuntimeAcceptance` API in
+[`marketplace-runtime-acceptance.js`](../../scripts/lib/marketplace-runtime-acceptance.js).
+Its configured eight-scope set is owned by
+[`marketplace-runtime-acceptance.json`](../../manifests/marketplace-runtime-acceptance.json).
+The evaluator is a separate research entrypoint; the consumer gate MUST NOT
+invoke it during ordinary installation acceptance.
+
+A normal consumer run evaluates only its selected installation contracts and
+declared requirements. CI state, installed client CLIs, and runtime-execution
+environment flags do not opt the run into context/discovery research or a
+cross-Host model workflow. Read-only installation inspections and
+non-inference format checks may still run when required by the selected
+installation contract. A successful installation does not claim a research
+result or native-runtime verification.
+
+Invoke the existing evaluator explicitly when a task asks for performance,
+cost, discovery, a relevant defect investigation, or another defined
+measurement question. An evaluator input records each scope's Host, profile,
+consumer, surface, rationale, identity, model context, estimator, and observed
+measurement. The strict evaluator keeps all eight configured scopes and its
+existing formulas. Every required scope must pass; missing, stale, invalid,
+unavailable, or skipped measurement remains non-pass. The evaluator does not
+launch a Host or model workflow itself, and an explicit request to measure does
+not authorize one.
+
+A research result applies only to its stated measurement question and scopes.
+It does not rewrite installation evidence, native-runtime observations,
+`runtimeVerified`, or Host, Provider, Model, and Route support or availability.
+If a downstream task explicitly makes research a required outcome, it must use
+that research result for that same scoped obligation; it cannot satisfy an
+unrelated installation or native-runtime check.

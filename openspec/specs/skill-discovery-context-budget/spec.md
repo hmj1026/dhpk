@@ -345,6 +345,40 @@ scope SHALL NOT stand in for another.
 - **THEN** it labels that collection and does not report it as observed
   per-session context for a task that selects only a subset
 
+### Requirement: Complete context and discovery baselines are opt-in research
+
+Ordinary consumer acceptance SHALL NOT invoke the strict marketplace runtime
+acceptance evaluator, run a complete context/discovery baseline, or start a
+cross-Host model workflow solely to collect research measurements. The existing
+evaluator MAY be used when performance, cost, discovery, a relevant defect, or
+another explicit measurement question requires it. An explicit evaluation
+SHALL retain the manifest's eight scopes, existing formulas, and fail-closed
+meaning: every required scope must pass, and missing or invalid measurement
+evidence remains non-pass. Research results SHALL remain separate from
+installation and native-runtime observations and SHALL NOT change Host,
+Provider, Model, or Route support and availability declarations.
+
+#### Scenario: Ordinary acceptance has no measurement request
+
+- **WHEN** a consumer acceptance run has no explicit context or discovery
+  research obligation
+- **THEN** it does not invoke the strict evaluator or start a model workflow to
+  measure context/discovery, and installation success does not claim that
+  research or native runtime was observed
+
+#### Scenario: One required strict research scope is missing
+
+- **WHEN** an explicitly requested strict evaluation omits any of the eight
+  configured scope measurements
+- **THEN** the overall research result remains non-pass and identifies the
+  missing scope without changing the configured scope set
+
+#### Scenario: Research does not replace consumer evidence
+
+- **WHEN** a context/discovery study reports a result for one Host and scope
+- **THEN** it leaves installation evidence, native-runtime evidence, and support
+  or availability declarations unchanged
+
 ### Requirement: Family selectors have an alias-free distribution contract
 
 The distribution inventory SHALL declare the live `laravel` and `phpunit` family selectors as safe paths under `skills/laravel/references/` and `skills/phpunit/references/` respectively: Laravel selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, and `mix` SHALL target `references/{5-4,6,7,8,9,10,11,mix}.md`, and PHPUnit selectors `9`, `10`, and `11` SHALL target `references/{9,10,11}.md`. The eleven former version-specific IDs (`laravel-10-notes`, `laravel-11-notes`, `laravel-5.4-notes`, `laravel-6-notes`, `laravel-7-notes`, `laravel-8-notes`, `laravel-9-notes`, `laravel-mix-notes`, `phpunit-10-notes`, `phpunit-11-notes`, and `phpunit-9-modern`) and their historical public names SHALL be retired, excluded from discovery/profile/projection artifacts, and rejected by direct resolution. Inventory validation and normalized projections SHALL fail closed on missing, ambiguous, escaping, or retired-alias-published targets.

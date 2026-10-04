@@ -92,6 +92,86 @@ function makeInput() {
   };
 }
 
+function makeEightScopeInput() {
+  const configuration = clone(CURRENT_MANIFEST_CONFIGURATION);
+  const identities = {};
+  const scopeIds = ['skill.alpha', 'skill.beta'];
+  for (const scope of configuration.requiredScopes) {
+    if (identities[scope.surface]) continue;
+    identities[scope.surface] = {
+      planFingerprint: `plan-${scope.surface}`,
+      selectionFingerprint: `selection-${scope.surface}`,
+      artifactFingerprint: `artifact-${scope.surface}`,
+      selectedStableIds: [...scopeIds],
+    };
+  }
+
+  const tokenMeasurement = {
+    estimator: {
+      id: 'fixture-token-counter',
+      version: '1',
+      unit: 'tokens',
+      kind: 'observed',
+      documentation: 'Fixture records the complete Host-rendered token list.',
+    },
+    fullConsumer: {
+      renderedText: '- alpha: Alpha workflow (skills/alpha/SKILL.md)\n- beta: Beta workflow (skills/beta/SKILL.md)\n- vendor: Foreign workflow (other/vendor/SKILL.md)',
+      stableIds: ['skill.alpha', 'skill.beta', 'foreign.gamma'],
+      value: 2000,
+    },
+    pluginContribution: {
+      renderedText: '- alpha: Alpha workflow (skills/alpha/SKILL.md)\n- beta: Beta workflow (skills/beta/SKILL.md)',
+      stableIds: [...scopeIds],
+      value: 300,
+    },
+  };
+  const characterMeasurement = {
+    estimator: {
+      id: 'fixture-character-counter',
+      version: '1',
+      unit: 'characters',
+      kind: 'estimated',
+      documentation: 'Counts Unicode code points in the captured rendered list.',
+    },
+    fullConsumer: {
+      renderedText: 'x'.repeat(7000),
+      stableIds: ['skill.alpha', 'skill.beta', 'foreign.gamma'],
+    },
+    pluginContribution: {
+      renderedText: 'x'.repeat(100),
+      stableIds: [...scopeIds],
+    },
+  };
+
+  const evidence = configuration.requiredScopes.map((scope) => {
+    const row = clone(makeInput().evidence[0]);
+    const identity = identities[scope.surface];
+    const measurement = scope.budget.policy === 'codex-skill-list' ? tokenMeasurement : characterMeasurement;
+    row.scopeId = scope.id;
+    row.sessionId = `fixture-${scope.id}`;
+    row.hostVersion = ({ codex: '0.50.0', claude: '2.0.0', cursor: '1.7.0', agy: '1.0.0' })[scope.host];
+    row.scope = { host: scope.host, profile: scope.profile, consumer: scope.consumer };
+    row.identity = clone(identity);
+    row.model = scope.host === 'codex'
+      ? { id: 'gpt-6-sol', contextWindowTokens: 100000 }
+      : { id: `${scope.host}-fixture`, contextWindowTokens: null };
+    row.measurement = {
+      identity: {
+        planFingerprint: identity.planFingerprint,
+        selectionFingerprint: identity.selectionFingerprint,
+        artifactFingerprint: identity.artifactFingerprint,
+      },
+      estimator: clone(measurement.estimator),
+      coverage: clone(makeInput().evidence[0].measurement.coverage),
+      fullConsumer: clone(measurement.fullConsumer),
+      pluginContribution: clone(measurement.pluginContribution),
+    };
+    return row;
+  });
+
+  return { configuration, identities, evidence };
+}
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -548,6 +628,31 @@ test('frozen inputs are repeatable and returned reports do not alias captured ev
   first.scopes[0].budgetReport.scope.host = 'changed-after-return';
   assert.strictEqual(second.scopes[0].budgetReport.scope.host, 'codex');
   assert.strictEqual(input.evidence[0].scope.host, 'codex');
+});
+
+test('the explicit marketplace research baseline accepts its complete eight-scope manifest', () => {
+  const input = makeEightScopeInput();
+  assert.strictEqual(input.configuration.requiredScopes.length, 8);
+
+  const report = evaluateMarketplaceRuntimeAcceptance(input);
+  assert.strictEqual(report.ok, true, JSON.stringify(report));
+  assert.strictEqual(report.verdict, 'PASS');
+  assert.strictEqual(report.scopes.length, 8);
+  assert.ok(report.scopes.every((scope) => scope.verdict === 'PASS'));
+});
+
+test('every missing configured marketplace research scope remains non-pass', () => {
+  const completeInput = makeEightScopeInput();
+  for (const missingScope of completeInput.configuration.requiredScopes) {
+    const input = {
+      ...completeInput,
+      evidence: completeInput.evidence.filter((row) => row.scopeId !== missingScope.id),
+    };
+    const report = evaluateMarketplaceRuntimeAcceptance(input);
+    assert.strictEqual(report.ok, false, `missing ${missingScope.id} was accepted`);
+    assert.notStrictEqual(report.verdict, 'PASS', `missing ${missingScope.id} was accepted`);
+    assertScopeVerdict(report, 'NOT_RUN', missingScope.id);
+  }
 });
 
 run('marketplace-runtime-acceptance');
