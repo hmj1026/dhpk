@@ -40,6 +40,134 @@ function withEnv(values, callback) {
   }
 }
 
+function setOpenSpecStatus(bin, response, expectedChange = 'demo-change') {
+  const expectedArgs = JSON.stringify(['status', '--change', expectedChange, '--json']);
+  const expectedArgsLiteral = JSON.stringify(expectedArgs);
+  const responseText = typeof response === 'string' ? response : JSON.stringify(response);
+  const responseLiteral = JSON.stringify(responseText);
+  const source = [
+    '#!/usr/bin/env node',
+    `if (JSON.stringify(process.argv.slice(2)) !== ${expectedArgsLiteral}) process.exit(91);`,
+    `process.stdout.write(${responseLiteral} + '\\n');`,
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(bin, 'openspec'), source, { mode: 0o755 });
+}
+
+test('analyzer follows CLI-resolved change and artifact paths for a custom store', () => {
+  const { spawnSync } = require('node:child_process');
+  const cli = fakeCli('openspec');
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-analyze-custom-store-')));
+  try {
+    const marker = path.join(repo, 'status-path-was-executed');
+    const changeRoot = path.join(repo, "planning'; touch " + marker + "; echo 'custom", 'changes', 'demo-change');
+    const tasksPath = path.join(changeRoot, 'work-items.md');
+    const proposalPath = path.join(changeRoot, 'context', 'brief.md');
+    const designPath = path.join(changeRoot, 'context', 'decisions.md');
+    fs.mkdirSync(path.dirname(proposalPath), { recursive: true });
+    fs.writeFileSync(tasksPath, '- [ ] 1.1 use the selected artifact paths\n');
+    fs.writeFileSync(proposalPath, '# Custom schema proposal\n');
+    fs.writeFileSync(designPath, '# Custom schema design\n');
+
+    const defaultChange = path.join(repo, 'openspec', 'changes', 'demo-change');
+    fs.mkdirSync(defaultChange, { recursive: true });
+    fs.writeFileSync(path.join(defaultChange, 'tasks.md'), Array(8).fill('- [ ] default path decoy').join('\n'));
+    fs.writeFileSync(path.join(defaultChange, 'proposal.md'), '# Default path decoy: Playwright\n');
+
+    setOpenSpecStatus(cli.bin, {
+      changeRoot,
+      schemaName: 'custom-planning',
+      planningHome: { changesDir: path.dirname(changeRoot) },
+      artifactPaths: {
+        tasks: { outputPath: tasksPath, resolvedOutputPath: tasksPath, existingOutputPaths: [tasksPath] },
+        proposal: { outputPath: proposalPath, resolvedOutputPath: proposalPath, existingOutputPaths: [proposalPath] },
+        design: { outputPath: designPath, resolvedOutputPath: designPath, existingOutputPaths: [designPath] },
+      },
+    });
+
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: repo, PATH: `${cli.bin}:${process.env.PATH}` };
+    delete env.CLAUDE_PLUGIN_ROOT;
+    const result = spawnSync('bash', [ANALYZER, 'demo-change'], { cwd: repo, env, encoding: 'utf8' });
+
+    assert.strictEqual(result.status, 0, `analyzer exited ${result.status}:\n${result.stderr}`);
+    const fields = Object.fromEntries(result.stdout.split('\n')
+      .filter((line) => line.includes('='))
+      .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
+    assert.strictEqual(fields.CHANGE_DIR, changeRoot, `${result.stdout}\n${result.stderr}`);
+    assert.strictEqual(fields.SCHEMA_NAME, 'custom-planning', result.stdout);
+    assert.strictEqual(fields.TASKS_PATH, tasksPath, result.stdout);
+    assert.strictEqual(fields.PROPOSAL_PATH, proposalPath, result.stdout);
+    assert.strictEqual(fields.DESIGN_PATH, designPath, result.stdout);
+    assert.strictEqual(fields.TOTAL_TASKS, '1', result.stdout);
+    assert.strictEqual(fields.OPEN_TASKS, '1', result.stdout);
+    assert.strictEqual(fields.HAS_DESIGN, 'true', result.stdout);
+    assert.strictEqual(fields.HAS_E2E, 'false', result.stdout);
+    assert.ok(fields.TASK_DIGEST.includes('use the selected artifact paths'), result.stdout);
+    assert.strictEqual(fs.existsSync(marker), false, 'CLI-returned paths must be treated as data, not shell code');
+  } finally {
+    fs.rmSync(cli.root, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('analyzer fails closed when OpenSpec status returns malformed JSON', () => {
+  const { spawnSync } = require('node:child_process');
+  const cli = fakeCli('openspec');
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-analyze-invalid-status-')));
+  try {
+    const defaultChange = path.join(repo, 'openspec', 'changes', 'demo-change');
+    fs.mkdirSync(defaultChange, { recursive: true });
+    fs.writeFileSync(path.join(defaultChange, 'tasks.md'), '- [ ] 1.1 default fallback must not be used\n');
+    fs.writeFileSync(path.join(defaultChange, 'proposal.md'), '# Default fallback\n');
+    setOpenSpecStatus(cli.bin, 'not-json');
+
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: repo, PATH: `${cli.bin}:${process.env.PATH}` };
+    delete env.CLAUDE_PLUGIN_ROOT;
+    const result = spawnSync('bash', [ANALYZER, 'demo-change'], { cwd: repo, env, encoding: 'utf8' });
+
+    assert.strictEqual(result.status, 0, `analyzer exited ${result.status}:\n${result.stderr}`);
+    assert.ok(result.stdout.includes('STATUS=error'), result.stdout);
+    assert.ok(!result.stdout.includes('STATUS=active'), result.stdout);
+  } finally {
+    fs.rmSync(cli.root, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('analyzer does not fall back when the CLI omits a required artifact mapping', () => {
+  const { spawnSync } = require('node:child_process');
+  const cli = fakeCli('openspec');
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-analyze-missing-artifact-')));
+  try {
+    const changeRoot = path.join(repo, 'planning store', 'changes', 'demo-change');
+    const tasksPath = path.join(changeRoot, 'work-items.md');
+    fs.mkdirSync(changeRoot, { recursive: true });
+    fs.writeFileSync(tasksPath, '- [ ] 1.1 selected task artifact\n');
+    const defaultChange = path.join(repo, 'openspec', 'changes', 'demo-change');
+    fs.mkdirSync(defaultChange, { recursive: true });
+    fs.writeFileSync(path.join(defaultChange, 'tasks.md'), '- [ ] 1.1 default fallback task\n');
+    fs.writeFileSync(path.join(defaultChange, 'proposal.md'), '# Default fallback proposal\n');
+    setOpenSpecStatus(cli.bin, {
+      changeRoot,
+      schemaName: 'custom-planning',
+      artifactPaths: {
+        tasks: { resolvedOutputPath: tasksPath, existingOutputPaths: [tasksPath] },
+      },
+    });
+
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: repo, PATH: `${cli.bin}:${process.env.PATH}` };
+    delete env.CLAUDE_PLUGIN_ROOT;
+    const result = spawnSync('bash', [ANALYZER, 'demo-change'], { cwd: repo, env, encoding: 'utf8' });
+
+    assert.strictEqual(result.status, 0, `analyzer exited ${result.status}:\n${result.stderr}`);
+    assert.ok(result.stdout.includes('STATUS=error'), result.stdout);
+    assert.ok(!result.stdout.includes('STATUS=active'), result.stdout);
+  } finally {
+    fs.rmSync(cli.root, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('analyzer invocation override selects available AGY over the configured default', () => {
   const { spawnSync } = require('node:child_process');
   const cli = fakeCli('agy');
@@ -49,6 +177,14 @@ test('analyzer invocation override selects available AGY over the configured def
     fs.mkdirSync(change, { recursive: true });
     fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] 1.1 select the requested worker\n');
     fs.writeFileSync(path.join(change, 'proposal.md'), '# Demo\n');
+    setOpenSpecStatus(cli.bin, {
+      changeRoot: change,
+      schemaName: 'spec-driven',
+      artifactPaths: {
+        tasks: { resolvedOutputPath: path.join(change, 'tasks.md'), existingOutputPaths: [path.join(change, 'tasks.md')] },
+        proposal: { resolvedOutputPath: path.join(change, 'proposal.md'), existingOutputPaths: [path.join(change, 'proposal.md')] },
+      },
+    });
 
     const result = withEnv({
       CLAUDE_PROJECT_DIR: repo,
@@ -68,7 +204,7 @@ test('analyzer invocation override selects available AGY over the configured def
     const fields = Object.fromEntries(result.stdout.split('\n')
       .filter((line) => line.includes('='))
       .map((line) => [line.slice(0, line.indexOf('=')), line.slice(line.indexOf('=') + 1)]));
-    assert.strictEqual(fields.STATUS, 'active', result.stdout);
+    assert.strictEqual(fields.STATUS, 'active', `${result.stdout}\n${result.stderr}`);
     assert.strictEqual(fields.FAST_WORKER_SELECTED, 'agy', result.stdout);
     assert.strictEqual(fields.FAST_WORKER_AGENT, 'dhpk:agy-worker', result.stdout);
   } finally {
@@ -217,14 +353,22 @@ test('taskDigest truncates a single oversized leading title with an ellipsis rat
 // root, exit 1, and truncate the block before every FAST_WORKER_* field.
 test('analyzer emits the full block when CLAUDE_PLUGIN_ROOT is unset (its real invocation condition)', () => {
   const { spawnSync } = require('node:child_process');
+  const cli = fakeCli('openspec');
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-analyze-e2e-')));
   try {
     const change = path.join(repo, 'openspec', 'changes', 'demo-change');
     fs.mkdirSync(change, { recursive: true });
     fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] 1.1 do the thing\n- [x] 1.2 done\n');
     fs.writeFileSync(path.join(change, 'proposal.md'), '# Demo\n');
+    setOpenSpecStatus(cli.bin, {
+      changeRoot: change, schemaName: 'spec-driven',
+      artifactPaths: {
+        tasks: { resolvedOutputPath: path.join(change, 'tasks.md') },
+        proposal: { resolvedOutputPath: path.join(change, 'proposal.md') },
+      },
+    });
 
-    const env = { ...process.env, CLAUDE_PROJECT_DIR: repo };
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: repo, PATH: [cli.bin, process.env.PATH].join(path.delimiter) };
     delete env.CLAUDE_PLUGIN_ROOT;
     const res = spawnSync('bash',
       [ANALYZER, 'demo-change'],
@@ -237,7 +381,10 @@ test('analyzer emits the full block when CLAUDE_PLUGIN_ROOT is unset (its real i
     for (const key of ['FAST_WORKER_SELECTED', 'FAST_WORKER_AGENT', 'FAST_WORKER_CLAUSE', 'HAS_E2E', 'TASK_DIGEST']) {
       assert.ok(key in fields, `${key} missing — the goal-context tail was truncated:\n${res.stdout}`);
     }
-  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+  } finally {
+    fs.rmSync(cli.root, { recursive: true, force: true });
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
 });
 
 test('analyzer forwards --cross-provider as a one-shot auto-selection opt-in', () => {
@@ -249,6 +396,13 @@ test('analyzer forwards --cross-provider as a one-shot auto-selection opt-in', (
     fs.mkdirSync(change, { recursive: true });
     fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] 1.1 do the thing\n');
     fs.writeFileSync(path.join(change, 'proposal.md'), '# Demo\n');
+    setOpenSpecStatus(cli.bin, {
+      changeRoot: change, schemaName: 'spec-driven',
+      artifactPaths: {
+        tasks: { resolvedOutputPath: path.join(change, 'tasks.md') },
+        proposal: { resolvedOutputPath: path.join(change, 'proposal.md') },
+      },
+    });
 
     const env = {
       ...process.env,
@@ -280,7 +434,7 @@ test('analyzer forwards --cross-provider as a one-shot auto-selection opt-in', (
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, assert } = require('./_lib/tinytest');
-const { generateFixture, readFixture } = require('./_lib/opsx-goal-fixtures');
+const { composeGoal, generateFixture, readFixture } = require('./_lib/opsx-goal-fixtures');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -289,12 +443,48 @@ test('representative goal fixtures stay within the target or hard-stop without o
     const result = generateFixture(readFixture(name));
     assert.ok(result.bytes <= 4000, `${name} exceeds hard cap: ${result.bytes}`);
     assert.strictEqual(result.mode, 'full', `${name} should emit normally`);
+    assert.ok(!/<[A-Z_]+>/.test(result.goal), `${name} leaked an unresolved template placeholder`);
   }
   assert.ok(generateFixture(readFixture('normal')).bytes <= 3600, 'normal fixture must meet target');
   assert.ok(
     generateFixture(readFixture('normal')).goal.includes('First run ONE Bash orientation command'),
     'fixture must compose the production goal-template literal, not a parallel test-only core',
   );
+  assert.ok(!generateFixture(readFixture('normal')).goal.includes('<MAX_DURATION>'),
+    'wall-clock stop text is omitted when no duration is requested');
+});
+
+test('goal fixture inserts the configured wall-clock duration', () => {
+  const goal = composeGoal({ ...readFixture('minimal'), max_duration: '30m' });
+  assert.ok(goal.includes('OR stop after 30m:'), goal);
+  assert.ok(!goal.includes('<MAX_DURATION>'), goal);
+});
+
+test('maximum gate goal stays within the hard cap with realistic resolved paths', () => {
+  const changeDir = '/tmp/consumer project/openspec/changes/maximum-gate';
+  const result = generateFixture({
+    ...readFixture('maximum-gate'),
+    change_dir: changeDir,
+    tasks_path: path.join(changeDir, 'tasks.md'),
+    proposal_path: path.join(changeDir, 'proposal.md'),
+    design_path: path.join(changeDir, 'design.md'),
+  });
+  assert.strictEqual(result.mode, 'full', 'resolved-path goal exceeded cap at ' + result.bytes + ' bytes');
+  assert.ok(result.bytes <= 4000, 'resolved-path goal exceeds cap: ' + result.bytes);
+});
+
+test('goal fixture blocks an oversized resolved path without emitting a partial goal', () => {
+  const changeDir = '/tmp/' + 'long-planning-root/'.repeat(32) + 'change';
+  const result = generateFixture({
+    ...readFixture('normal'),
+    change_dir: changeDir,
+    tasks_path: path.join(changeDir, 'tasks.md'),
+    proposal_path: path.join(changeDir, 'proposal.md'),
+    design_path: path.join(changeDir, 'design.md'),
+  });
+  assert.strictEqual(result.mode, 'blocked');
+  assert.strictEqual(result.goal, '');
+  assert.ok(result.blockA.includes('UTF-8 bytes'));
 });
 
 test('verification fixtures emit only their configured Part 3 gates into the measured goal', () => {
@@ -345,6 +535,22 @@ test('goal fixtures retain required safety tokens and compact gate contracts', (
     assert.ok(goal.includes(token), `missing gate token: ${token}`);
   }
 
+});
+
+test('goal fixtures render CLI-resolved custom planning paths', () => {
+  const values = {
+    change_id: 'custom-change',
+    change_dir: '/planning store/changes/custom-change',
+    schema_name: 'custom-planning',
+    tasks_path: '/planning store/changes/custom-change/work-items.md',
+    proposal_path: '/planning store/changes/custom-change/context/brief.md',
+    design_path: '/planning store/changes/custom-change/context/decisions.md',
+  };
+  const goal = composeGoal({ ...readFixture('minimal'), ...values });
+  for (const value of Object.values(values)) assert.ok(goal.includes(value), 'goal omitted resolved value: ' + value);
+  for (const placeholder of ['<CHANGE_DIR>', '<SCHEMA_NAME>', '<TASKS_PATH>', '<PROPOSAL_PATH>', '<DESIGN_PATH>']) {
+    assert.ok(!goal.includes(placeholder), 'goal leaked placeholder: ' + placeholder);
+  }
 });
 }
 
