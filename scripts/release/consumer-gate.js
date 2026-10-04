@@ -116,6 +116,29 @@ function requirementText(value, label, maximum) {
   return value.trim();
 }
 
+function readBoundedDescriptor(descriptor, openedStat, maximumBytes) {
+  if (openedStat.size > maximumBytes) return { status: 'TOO_LARGE' };
+
+  const buffer = Buffer.alloc(openedStat.size);
+  let offset = 0;
+  while (offset < buffer.length) {
+    const count = fs.readSync(descriptor, buffer, offset, Math.min(16 * 1024, buffer.length - offset), offset);
+    if (count === 0) return { status: 'CHANGED' };
+    offset += count;
+  }
+  const extra = Buffer.alloc(1);
+  if (fs.readSync(descriptor, extra, 0, 1, offset) !== 0) return { status: 'TOO_LARGE' };
+
+  const finalStat = fs.fstatSync(descriptor);
+  if (openedStat.dev !== finalStat.dev || openedStat.ino !== finalStat.ino
+    || openedStat.size !== finalStat.size
+    || openedStat.mtimeMs !== finalStat.mtimeMs
+    || openedStat.ctimeMs !== finalStat.ctimeMs) {
+    return { status: 'CHANGED' };
+  }
+  return { status: 'PASS', buffer, finalStat };
+}
+
 function readRequirementsFileBounded(filePath) {
   const initialStat = fs.lstatSync(filePath);
   if (!initialStat.isFile() || initialStat.isSymbolicLink()) {
@@ -129,31 +152,13 @@ function readRequirementsFileBounded(filePath) {
   try {
     const openedStat = fs.fstatSync(descriptor);
     if (!openedStat.isFile()) throw new Error('requirements input must be a regular file');
-    if (openedStat.size > MAX_REQUIREMENTS_BYTES) throw new Error('requirements file exceeds the configured byte limit');
     if (initialStat.dev !== openedStat.dev || initialStat.ino !== openedStat.ino) {
       throw new Error('requirements file changed before it could be read');
     }
-
-    const buffer = Buffer.alloc(openedStat.size);
-    let offset = 0;
-    while (offset < buffer.length) {
-      const count = fs.readSync(descriptor, buffer, offset, Math.min(16 * 1024, buffer.length - offset), offset);
-      if (count === 0) throw new Error('requirements file changed while it was read');
-      offset += count;
-    }
-    const extra = Buffer.alloc(1);
-    if (fs.readSync(descriptor, extra, 0, 1, offset) !== 0) {
-      throw new Error('requirements file exceeds the configured byte limit');
-    }
-
-    const finalStat = fs.fstatSync(descriptor);
-    if (openedStat.dev !== finalStat.dev || openedStat.ino !== finalStat.ino
-      || openedStat.size !== finalStat.size
-      || openedStat.mtimeMs !== finalStat.mtimeMs
-      || openedStat.ctimeMs !== finalStat.ctimeMs) {
-      throw new Error('requirements file changed while it was read');
-    }
-    return buffer;
+    const snapshot = readBoundedDescriptor(descriptor, openedStat, MAX_REQUIREMENTS_BYTES);
+    if (snapshot.status === 'TOO_LARGE') throw new Error('requirements file exceeds the configured byte limit');
+    if (snapshot.status !== 'PASS') throw new Error('requirements file changed while it was read');
+    return snapshot.buffer;
   } finally {
     fs.closeSync(descriptor);
   }
@@ -756,37 +761,19 @@ function readConsumerEvidenceFileBounded(filePath) {
   try {
     const openedStat = fs.fstatSync(descriptor);
     if (!openedStat.isFile()) throw new Error('evidence input must be a physical regular file');
-    if (openedStat.size > MAX_CONSUMER_EVIDENCE_BYTES) {
-      throw new Error('evidence input exceeds the 4 MiB size bound');
-    }
     if (initialStat.dev !== openedStat.dev || initialStat.ino !== openedStat.ino) {
       throw new Error('evidence input changed before it could be read');
     }
-
-    const buffer = Buffer.alloc(openedStat.size);
-    let offset = 0;
-    while (offset < buffer.length) {
-      const count = fs.readSync(descriptor, buffer, offset, Math.min(16 * 1024, buffer.length - offset), offset);
-      if (count === 0) throw new Error('evidence input changed while it was read');
-      offset += count;
-    }
-    const extra = Buffer.alloc(1);
-    if (fs.readSync(descriptor, extra, 0, 1, offset) !== 0) {
-      throw new Error('evidence input exceeds the 4 MiB size bound');
-    }
-
-    const finalStat = fs.fstatSync(descriptor);
+    const snapshot = readBoundedDescriptor(descriptor, openedStat, MAX_CONSUMER_EVIDENCE_BYTES);
+    if (snapshot.status === 'TOO_LARGE') throw new Error('evidence input exceeds the 4 MiB size bound');
+    if (snapshot.status !== 'PASS') throw new Error('evidence input changed while it was read');
     let pathStat;
     try { pathStat = fs.lstatSync(filePath); } catch (_) { pathStat = null; }
-    if (openedStat.dev !== finalStat.dev || openedStat.ino !== finalStat.ino
-      || openedStat.size !== finalStat.size
-      || openedStat.mtimeMs !== finalStat.mtimeMs
-      || openedStat.ctimeMs !== finalStat.ctimeMs
-      || !pathStat || !pathStat.isFile() || pathStat.isSymbolicLink()
-      || finalStat.dev !== pathStat.dev || finalStat.ino !== pathStat.ino) {
+    if (!pathStat || !pathStat.isFile() || pathStat.isSymbolicLink()
+      || snapshot.finalStat.dev !== pathStat.dev || snapshot.finalStat.ino !== pathStat.ino) {
       throw new Error('evidence input changed while it was read');
     }
-    return buffer;
+    return snapshot.buffer;
   } finally {
     fs.closeSync(descriptor);
   }

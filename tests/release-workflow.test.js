@@ -233,10 +233,10 @@ test('release consumer jobs invoke the result validators before classifying outc
 
   for (const [name, job] of [['release rehearsal', rehearsalJob], ['post-publish verification', consumerJob]]) {
     const invocationIdx = job.indexOf('bin/dhpk harness release --json');
-    const validatorIdx = job.indexOf('report_contract="$(node -', invocationIdx);
+    const validatorIdx = job.indexOf('node scripts/release/validate-harness-result.js', invocationIdx);
     const classifyIdx = job.indexOf('case "$outcome" in', validatorIdx);
     assert.ok(invocationIdx !== -1, `${name} must run the public release facade`);
-    assert.ok(validatorIdx > invocationIdx, `${name} must validate the public result after invoking the facade`);
+    assert.ok(validatorIdx > invocationIdx, `${name} must run the shared result validator after invoking the facade`);
     assert.ok(classifyIdx > validatorIdx, `${name} must classify outcomes after validating the result`);
   }
 });
@@ -294,6 +294,7 @@ test('release workflow validators enforce current verdict and process exit consi
   const verifyStart = raw.indexOf('consumer-verify:');
   const verifyEnd = raw.indexOf('sync-develop:', verifyStart);
   const jobs = [rehearsalJob, raw.slice(verifyStart, verifyEnd)];
+  const validatorPath = path.join(ROOT, 'scripts', 'release', 'validate-harness-result.js');
   const scenarios = [
     {
       result: {
@@ -361,22 +362,15 @@ test('release workflow validators enforce current verdict and process exit consi
 
   try {
     for (const job of jobs) {
-      const marker = 'node - "$result_file" "$probe_exit" <<\'NODE\'\n';
-      const scriptStart = job.indexOf(marker);
-      assert.ok(scriptStart !== -1, 'release workflow must contain an executable current-result validator');
-      const bodyStart = scriptStart + marker.length;
-      const bodyEnd = job.indexOf('\n          NODE\n', bodyStart);
-      assert.ok(bodyEnd > bodyStart, 'current-result validator heredoc must be closed');
-      const validator = job.slice(bodyStart, bodyEnd).replace(/^          /gm, '');
-
-      for (const scenario of scenarios) {
-        fs.writeFileSync(resultFile, JSON.stringify(scenario.result));
-        const checked = spawnSync(process.execPath, ['-e', validator, '-', resultFile, String(scenario.actualExit)], {
-          encoding: 'utf8',
-        });
-        assert.strictEqual(checked.status, scenario.expectedStatus, checked.stderr);
-        assert.strictEqual(checked.stdout.trim(), scenario.expectedOutput);
-      }
+      assert.ok(job.includes('node scripts/release/validate-harness-result.js'), 'both workflows must use the shared current-result validator');
+    }
+    for (const scenario of scenarios) {
+      fs.writeFileSync(resultFile, JSON.stringify(scenario.result));
+      const checked = spawnSync(process.execPath, [validatorPath, resultFile, String(scenario.actualExit)], {
+        encoding: 'utf8',
+      });
+      assert.strictEqual(checked.status, scenario.expectedStatus, checked.stderr);
+      assert.strictEqual(checked.stdout.trim(), scenario.expectedOutput);
     }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -392,6 +386,7 @@ test('release workflow validators keep schema-v1 pending evidence on the legacy 
   const verifyStart = raw.indexOf('consumer-verify:');
   const verifyEnd = raw.indexOf('sync-develop:', verifyStart);
   const jobs = [rehearsalJob, raw.slice(verifyStart, verifyEnd)];
+  const validatorPath = path.join(ROOT, 'scripts', 'release', 'validate-harness-result.js');
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-workflow-legacy-'));
   const resultFile = path.join(root, 'result.json');
 
@@ -402,17 +397,11 @@ test('release workflow validators keep schema-v1 pending evidence on the legacy 
       exitCode: 2,
     }));
     for (const job of jobs) {
-      const marker = 'node - "$result_file" "$probe_exit" <<\'NODE\'\n';
-      const scriptStart = job.indexOf(marker);
-      assert.ok(scriptStart !== -1, 'release workflow must contain a legacy-compatible validator');
-      const bodyStart = scriptStart + marker.length;
-      const bodyEnd = job.indexOf('\n          NODE\n', bodyStart);
-      assert.ok(bodyEnd > bodyStart, 'current-result validator heredoc must be closed');
-      const validator = job.slice(bodyStart, bodyEnd).replace(/^          /gm, '');
-      const checked = spawnSync(process.execPath, ['-e', validator, '-', resultFile, '2'], { encoding: 'utf8' });
-      assert.strictEqual(checked.status, 0, checked.stderr);
-      assert.strictEqual(checked.stdout.trim(), 'LEGACY');
+      assert.ok(job.includes('node scripts/release/validate-harness-result.js'), 'both workflows must use the legacy-compatible validator');
     }
+    const checked = spawnSync(process.execPath, [validatorPath, resultFile, '2'], { encoding: 'utf8' });
+    assert.strictEqual(checked.status, 0, checked.stderr);
+    assert.strictEqual(checked.stdout.trim(), 'LEGACY');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

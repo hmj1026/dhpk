@@ -344,6 +344,45 @@ function spawnConsumerGate(root, args, { timeout = 120000, maxBuffer = 8 * 1024 
   });
 }
 
+function prepareConsumerGateEvidence(payload, selectedSurfaces, root) {
+  if (!hasCurrentConsumerEnvelope(payload)) {
+    throw new Error('consumer gate omitted schema-v2 acceptance evidence');
+  }
+  const canonicalized = canonicalizeClaudeConsumerEnvelope(payload, selectedSurfaces);
+  const prepared = Array.isArray(canonicalized.surfaceResults)
+    ? {
+      ...canonicalized,
+      surfaceResults: canonicalized.surfaceResults.map((entry) => entry && typeof entry === 'object'
+        ? {
+          ...entry,
+          producer: entry.producer || 'consumer-gate',
+          commands: normalizeProbeCommands(entry.commands, root),
+        }
+        : entry),
+    }
+    : canonicalized;
+  return normalizeCurrentConsumerEnvelope(prepared, selectedSurfaces);
+}
+
+function consumerGateTransportDiagnostics(child, acceptance) {
+  const expectedExitCode = currentAcceptanceExitCode(acceptance.verdict);
+  if (child.error) return [`consumer gate process failed: ${child.error.message}`];
+  if (child.status === expectedExitCode) return [];
+  return [
+    `consumer gate acceptance '${acceptance.verdict}' requires exit ${expectedExitCode}, received ${child.status === null ? 'no exit code' : child.status}`,
+  ];
+}
+
+function bindConsumerArtifacts(surfaceResults, artifactManifest) {
+  const artifactBySurface = new Map((artifactManifest && Array.isArray(artifactManifest.packages)
+    ? artifactManifest.packages
+    : []).map((entry) => [entry.surface, entry]));
+  return surfaceResults.map((row) => ({
+    ...row,
+    ...(artifactBySurface.has(row.surface) ? { artifactBinding: artifactBySurface.get(row.surface) } : {}),
+  }));
+}
+
 function runRequirementsConsumerGate(root, requirementsScope, selectedSurfaces, artifactManifest = null) {
   const gateScript = path.join(root, 'scripts', 'release', 'consumer-gate.js');
   const version = releaseVersion(root);
@@ -362,41 +401,11 @@ function runRequirementsConsumerGate(root, requirementsScope, selectedSurfaces, 
   try { payload = JSON.parse(child.stdout || ''); } catch (_) { /* handled as current protocol failure below */ }
 
   try {
-    if (!hasCurrentConsumerEnvelope(payload)) {
-      throw new Error('consumer gate omitted schema-v2 acceptance evidence');
-    }
-    const canonicalized = canonicalizeClaudeConsumerEnvelope(payload, selectedSurfaces);
-    const prepared = Array.isArray(canonicalized.surfaceResults)
-      ? {
-        ...canonicalized,
-        surfaceResults: canonicalized.surfaceResults.map((entry) => entry && typeof entry === 'object'
-          ? {
-            ...entry,
-            producer: entry.producer || 'consumer-gate',
-            commands: normalizeProbeCommands(entry.commands, root),
-          }
-          : entry),
-      }
-      : canonicalized;
-    const normalized = normalizeCurrentConsumerEnvelope(prepared, selectedSurfaces);
+    const normalized = prepareConsumerGateEvidence(payload, selectedSurfaces, root);
     const combined = combineConsumerEvidence([normalized], selectedSurfaces);
-    const transportDiagnostics = [];
-    const expectedExitCode = currentAcceptanceExitCode(combined.acceptance.verdict);
-    if (child.error) {
-      transportDiagnostics.push(`consumer gate process failed: ${child.error.message}`);
-    } else if (child.status !== expectedExitCode) {
-      transportDiagnostics.push(
-        `consumer gate acceptance '${combined.acceptance.verdict}' requires exit ${expectedExitCode}, received ${child.status === null ? 'no exit code' : child.status}`,
-      );
-    }
+    const transportDiagnostics = consumerGateTransportDiagnostics(child, combined.acceptance);
     const transportStatus = transportDiagnostics.length > 0 ? 'FAIL' : 'PASS';
-    const artifactBySurface = new Map((artifactManifest && Array.isArray(artifactManifest.packages)
-      ? artifactManifest.packages
-      : []).map((entry) => [entry.surface, entry]));
-    const surfaceResults = combined.surfaceResults.map((row) => ({
-      ...row,
-      ...(artifactBySurface.has(row.surface) ? { artifactBinding: artifactBySurface.get(row.surface) } : {}),
-    }));
+    const surfaceResults = bindConsumerArtifacts(combined.surfaceResults, artifactManifest);
     return {
       ...combined,
       surfaceResults,
@@ -448,36 +457,12 @@ function runConfiguredConsumerGate(root, requiredRuntimeSurfaces, artifactManife
     : [];
   const selectedSurfaces = rawSurfaces.map((surface) => surface === 'claude' ? 'claude-core' : surface);
   try {
-    if (!hasCurrentConsumerEnvelope(payload)) {
-      throw new Error('consumer gate omitted schema-v2 acceptance evidence');
-    }
     const canonicalSurfaces = REQUIRED_SURFACES.filter((surface) => selectedSurfaces.includes(surface));
     if (canonicalSurfaces.length !== selectedSurfaces.length) {
       throw new Error('consumer gate emitted an unknown configured surface');
     }
-    const canonicalized = canonicalizeClaudeConsumerEnvelope(payload, canonicalSurfaces);
-    const prepared = Array.isArray(canonicalized.surfaceResults)
-      ? {
-        ...canonicalized,
-        surfaceResults: canonicalized.surfaceResults.map((entry) => entry && typeof entry === 'object'
-          ? {
-            ...entry,
-            producer: entry.producer || 'consumer-gate',
-            commands: normalizeProbeCommands(entry.commands, root),
-          }
-          : entry),
-      }
-      : canonicalized;
-    const normalized = normalizeCurrentConsumerEnvelope(prepared, canonicalSurfaces);
-    const transportDiagnostics = [];
-    const expectedExitCode = currentAcceptanceExitCode(normalized.acceptance.verdict);
-    if (child.error) {
-      transportDiagnostics.push(`consumer gate process failed: ${child.error.message}`);
-    } else if (child.status !== expectedExitCode) {
-      transportDiagnostics.push(
-        `consumer gate acceptance '${normalized.acceptance.verdict}' requires exit ${expectedExitCode}, received ${child.status === null ? 'no exit code' : child.status}`,
-      );
-    }
+    const normalized = prepareConsumerGateEvidence(payload, canonicalSurfaces, root);
+    const transportDiagnostics = consumerGateTransportDiagnostics(child, normalized.acceptance);
     const transportStatus = transportDiagnostics.length > 0 ? 'FAIL' : 'PASS';
     if (canonicalSurfaces.length === 0) {
       const configurationChecks = normalized.acceptance.requiredChecks.filter((check) => check.id === 'scope.configuration');
@@ -496,13 +481,7 @@ function runConfiguredConsumerGate(root, requiredRuntimeSurfaces, artifactManife
       };
     }
     const combined = combineConsumerEvidence([normalized], canonicalSurfaces);
-    const artifactBySurface = new Map((artifactManifest && Array.isArray(artifactManifest.packages)
-      ? artifactManifest.packages
-      : []).map((entry) => [entry.surface, entry]));
-    const surfaceResults = combined.surfaceResults.map((row) => ({
-      ...row,
-      ...(artifactBySurface.has(row.surface) ? { artifactBinding: artifactBySurface.get(row.surface) } : {}),
-    }));
+    const surfaceResults = bindConsumerArtifacts(combined.surfaceResults, artifactManifest);
     const selectedRuntimeSurfaces = (Array.isArray(requiredRuntimeSurfaces) ? requiredRuntimeSurfaces : [])
       .filter((surface) => canonicalSurfaces.includes(surface));
     const aggregate = aggregateRequiredSurfaces({
