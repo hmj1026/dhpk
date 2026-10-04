@@ -18,6 +18,9 @@ Never paper over a borrow / lifetime error with a stray `.clone()` or `unsafe`.
 > Build unit: a `Cargo.toml` ⇒ `cargo build` / `cargo test`. Use
 > `cargo build --message-format=short 2>&1` for a dense error list, then drill
 > into one error at a time with the full output.
+> Before a command that changes dependencies or build state, inspect
+> `git status --short` and the relevant `Cargo.toml` / `Cargo.lock` diff.
+> Preserve existing workspace changes.
 
 ## When NOT
 
@@ -47,7 +50,7 @@ sed -n '1,60p' Cargo.toml               # deps, edition, features
 | `future cannot be sent between threads safely` | Non-Send held across `.await` | Drop the guard before `.await`, or scope it in a `{ }` block |
 | `mismatched types` | Type mismatch | Fix the value / signature; avoid blanket `as` casts that truncate |
 | `no method named ... found` | Trait not in scope | `use` the trait, or fix the receiver type |
-| `unresolved import` / version conflict | `Cargo.toml` mismatch | Align / relax the version, dedupe via `cargo update -p <crate>` |
+| `unresolved import` / version conflict | `Cargo.toml` mismatch | Align / relax the implicated requirement; use `cargo update -p <crate>` only when the fix needs that crate's lock entry refreshed |
 
 For the async rows the fix usually follows from the tokio task / ownership model:
 a non-`Send` guard (`MutexGuard`, `Rc`, …) must not be held across an `.await`.
@@ -60,8 +63,16 @@ This resolver's own escape hatches to never use: new `unsafe`, `#[allow(...)]`
 `unsafe impl Send` just to satisfy the compiler.
 
 - **Honor edition + clippy.** A clippy error in CI is a build failure.
-- **Lockfile is a deliverable.** A dependency change commits the updated
-  `Cargo.lock`.
+- **Include required lockfile changes in the proposed repair.** When a
+  dependency change requires resolution, inspect the `Cargo.lock` diff and
+  include that necessary change with the repair. Use a package-scoped update
+  when possible; do not run a broad dependency update as generic cleanup.
+  Lockfile changes do not authorize a commit or push.
+
+Run `cargo clean` only when failure evidence points to stale or corrupt
+project-local build output and cleaning that scope is authorized. It does not
+repair a dependency conflict. Preserve dirty and untracked work, source files,
+and `Cargo.lock`; ask before clearing shared or user-level state.
 
 ## Stop conditions (escalate, don't loop)
 
