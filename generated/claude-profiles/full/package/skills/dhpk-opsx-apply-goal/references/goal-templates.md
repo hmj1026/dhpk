@@ -29,8 +29,8 @@ elaborations (dispatch-verify procedure, premise-verification routing, in-flight
 doubt cycle, explicit second-opinion path and its session-end evidence) live
 in the kernel and selected route reference and bind the session through the
 orientation read;
-they are NOT restated here. When the kernel or selected reference is unresolvable, the session
-proceeds on this condition's own inline gates.
+they are NOT restated here. Unresolvable policy emits `POLICY-UNRESOLVED`,
+records a handoff, and stops before apply.
 
 The orientation binds the project-owned orchestration decision policy, including
 outcome sufficiency, authority, and applicable planning and delegation guidance,
@@ -56,10 +56,8 @@ route when delegation becomes appropriate mid-session.
 **`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — no implementation
 dispatch clause; outcome and authority gates remain active:
 ```
-First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED` — reads the
-compact dhpk execution-policy kernel; never filesystem-scan; every reviewer dispatch
-still gets a fresh .claude/artifacts/reviews/ artifact, never
-reply-only — then invoke the Skill tool
+First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||{ echo POLICY-UNRESOLVED;exit 1; }` — reads the
+compact dhpk execution-policy kernel; never filesystem-scan — then invoke the Skill tool
 with the canonical ID `openspec-apply-change` for change <CHANGE_ID> and
 Resolved paths: `<CHANGE_DIR>`|`<SCHEMA_NAME>`|`<TASKS_PATH>`|`<PROPOSAL_PATH>`|`<DESIGN_PATH>`. Continue
 implementing the resolved task artifact from its first unchecked item without
@@ -78,9 +76,7 @@ until all of the following hold,
 **`DISPATCH_ON=true`** (default) — the same kickoff with the bounded dispatch
 roster appended before the transition into the stop conditions:
 ```
-First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch
-still gets a fresh .claude/artifacts/reviews/ artifact, never
-reply-only.
+First run ONE Bash orientation command — `p=<SKILL_ROOT_Q>; q(){ cat "$p/$1" 2>/dev/null; }; q references/execution-bundle/rules/execution-policy-kernel.md||{ echo POLICY-UNRESOLVED;exit 1; }; q references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md||{ echo POLICY-UNRESOLVED;exit 1; }` — never filesystem-scan.
 Run openspec-apply-change <CHANGE_ID>. Resolved paths:
 `<CHANGE_DIR>`|`<SCHEMA_NAME>`|`<TASKS_PATH>`|`<PROPOSAL_PATH>`|`<DESIGN_PATH>`. Tasks:<TASK_DIGEST>; continue.
 On "Unknown skill": retry once; then use resolved artifacts under gates.
