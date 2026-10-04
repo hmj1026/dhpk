@@ -2,23 +2,36 @@
 
 ## Purpose
 
-TBD - created by archiving change dhpk-advice-fe13512c-fixes. Update Purpose after archive.
+Define truthful Playwright journey verdicts: require applicable static checks,
+keep unavailable checks and runtime capabilities visible, and preserve the
+evidence needed to distinguish a focused browser result from a package-only
+or otherwise incomplete verification.
 
 ## Requirements
 
-### Requirement: Typecheck gate precedes a RED/GREEN verdict
+### Requirement: Applicable static checks precede a RED/GREEN verdict
 
-Before the `e2e-runner` agent reports a RED/GREEN (or PASS/FAIL) verdict on a Playwright user-journey run, it SHALL run the project's typecheck command (`tsc --noEmit` or the project's equivalent) and confirm it passes. A verdict SHALL NOT be reported GREEN/PASS while the typecheck fails, even if the Playwright assertions themselves pass, since a type error can mask a test that is silently exercising the wrong code path.
+Before the `e2e-runner` agent reports a RED/GREEN (or PASS/FAIL) verdict on a Playwright user-journey run, it SHALL run the project's configured typecheck or static checks when they are applicable to the changed scope. A verdict SHALL NOT be reported GREEN/PASS while an applicable check fails, even if the Playwright assertions themselves pass, since a failed check can mask a test that is silently exercising the wrong code path. When no such check is configured or applicable, the agent SHALL report that check as `NOT_RUN` with the reason and SHALL NOT invent a generic command or treat its absence as a pass.
 
-#### Scenario: Typecheck passes before a GREEN verdict
+#### Scenario: Applicable static checks pass before a GREEN verdict
 
 - **WHEN** `e2e-runner` finishes a Playwright run whose assertions all pass
-- **THEN** it runs the project's typecheck command first and only reports GREEN/PASS if that also passes
+- **THEN** it runs the project's configured applicable static checks first and only reports GREEN/PASS if those checks also pass
 
-#### Scenario: Failing typecheck blocks a GREEN verdict
+#### Scenario: Failing applicable static check blocks a GREEN verdict
 
-- **WHEN** the project's typecheck command fails after a Playwright run whose assertions passed
-- **THEN** `e2e-runner` does not report GREEN/PASS; it reports the typecheck failure and treats the verdict as blocked
+- **WHEN** an applicable project static check fails after a Playwright run whose assertions passed
+- **THEN** `e2e-runner` does not report GREEN/PASS; it reports the check failure and treats the verdict as failed
+
+#### Scenario: Missing applicable static check remains visible
+
+- **WHEN** the project has no configured typecheck or static check applicable to the changed scope
+- **THEN** `e2e-runner` reports that check as `NOT_RUN` with the reason and does not infer PASS from its absence
+
+#### Scenario: Missing browser or runtime blocks journey evidence
+
+- **WHEN** Playwright, the browser, the server, or another required runtime capability is unavailable
+- **THEN** `e2e-runner` returns `Verdict: BLOCKED` with the missing capability and resume command, and does not claim the critical journey passed from static or package evidence
 
 ### Requirement: Playwright trap sheet loads unconditionally
 
