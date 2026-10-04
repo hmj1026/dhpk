@@ -112,6 +112,12 @@ The distribution layer SHALL expose `verifyDistribution(stage, artifact, consume
 - **WHEN** a consumer adapter cannot execute the declared verification stage
 - **THEN** the result uses the configured non-pass support state such as `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, or `UNAVAILABLE` rather than reporting success
 
+#### Scenario: Installation acceptance does not promote runtime support
+
+- **WHEN** the current consumer gate accepts a selected installation while its raw runtime observation is `NOT_RUN`
+- **THEN** the projection evidence remains bound to its requested structural or package stage and does not claim consumer-runtime support
+- **AND** the separate [consumer acceptance contract](../../../docs/contracts/consumer-acceptance.md) remains the authority for that installation result
+
 ### Requirement: Projection contracts use one structured result strategy
 
 Compilation, materialization, and verification SHALL return explicit success or structured failure results with stable codes, stage, affected stable IDs/paths, and causal diagnostics. Core projection contracts MUST NOT mix exceptions, `null`, process exits, and ad hoc `{error}` payloads as caller-visible failure strategies. Existing CLIs SHALL translate the structured result at their interface boundary while preserving characterized messages, ordering, and exit codes.

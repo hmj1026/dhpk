@@ -67,10 +67,13 @@ function makeAttempt(root, options = {}) {
     diffId: 'diff-1',
     planFingerprint: PLAN,
     artifactFingerprint: ARTIFACT,
-    surface: 'agent-plugin',
-    adapter: 'codex-sync',
-    stage: 'verify',
-    producer: 'harness-test',
+    surface: options.surface || 'agent-plugin',
+    adapter: options.adapter || 'codex-sync',
+    stage: options.stage || 'verify',
+    producer: options.producer || 'harness-test',
+    ...(options.surfaceResults ? { surfaceResults: options.surfaceResults } : {}),
+    ...(options.consumerEvidence ? { consumerEvidence: options.consumerEvidence } : {}),
+    ...(options.outcome ? { outcome: options.outcome } : {}),
     identity: {
       targetCommit: current.sourceCommit,
       targetTree: current.sourceTree,
@@ -80,6 +83,136 @@ function makeAttempt(root, options = {}) {
     retryOf: options.retryOf,
     backupReference: options.backupReference,
   });
+}
+
+function installationOnlyConsumerEvidence(observationStatus = 'NOT_RUN') {
+  return {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    runtimeVerified: true,
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: 'install.codex-sync',
+        surface: 'codex-sync',
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'native.codex-sync',
+        surface: 'codex-sync',
+        kind: 'native',
+        reason: 'Native execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.codex-sync.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: observationStatus,
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: 'codex-sync',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+}
+
+// This follows requirementEvidenceReport in tests/release-evidence.test.js:
+// aggregate runtimeVerified is absent, while the required native capability
+// record carries the typed proof and its own runtimeVerified claim.
+function nativeRequirementConsumerEvidence() {
+  return {
+    version: '0.43.0',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'consumer-gate', version: '1.0.0' },
+    planFingerprint: PLAN,
+    artifactFingerprint: ARTIFACT,
+    schemaVersion: 2,
+    verdict: 'PASS',
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'PASS',
+      adapter: { id: 'codex-named-role-probe', version: '1.0.0' },
+      commands: [],
+      environment: { CI: 'true' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: [],
+      installationEvidence: { status: 'PASS', reason: 'Selected installation contract passed.' },
+      runtimeEvidence: { status: 'NOT_RUN', reason: 'No aggregate runtime claim was made.' },
+      requirementEvidence: {
+        check1: {
+          id: 'selected-capability',
+          host: 'codex',
+          capability: 'named-role-security-reviewer',
+          trigger: 'explicit-native',
+          reason: 'Verify only the selected capability.',
+          question: 'Did the selected check pass?',
+          requestedEvidenceKind: 'native',
+          evidenceKind: 'native',
+          authorized: true,
+          checkKey: 'codex-sync:named-role-security-reviewer:native',
+          status: 'PASS',
+          adapter: { id: 'codex-named-role-probe', version: '1.0.0' },
+          nativeProof: {
+            executionOrigin: 'native',
+            adapterRoute: 'codex-named-role',
+            roles: [{ id: 'security-reviewer', agentTypeAccepted: true, threadId: 'thread-1', childCompleted: true }],
+            registryPreconditions: {
+              disposableCodexHome: true,
+              authReference: 'symlink',
+              projectTrust: 'trusted',
+              userConfigIgnored: false,
+            },
+            cliVersion: 'codex-cli fixture',
+          },
+          runtimeVerified: true,
+        },
+      },
+    }],
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [
+        {
+          id: 'install.codex-sync',
+          surface: 'codex-sync',
+          kind: 'installation',
+          reason: 'Selected installation contract passed.',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+        },
+        {
+          id: 'requirement.selected-capability',
+          surface: 'codex-sync',
+          kind: 'native',
+          reason: 'Verify only the selected capability.',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.codex-sync.requirementEvidence.check1',
+        },
+      ],
+      excludedChecks: [],
+    },
+  };
+}
+
+function writeConsumerEvidence(attempt, consumerEvidence) {
+  const envelopePath = path.join(attempt.path, 'attempt.json');
+  const envelope = JSON.parse(fs.readFileSync(envelopePath, 'utf8'));
+  envelope.consumerEvidence = consumerEvidence;
+  fs.writeFileSync(envelopePath, JSON.stringify(envelope, null, 2) + '\n');
 }
 
 test('exact source commit and resolved tree must match the consuming checkout', () => {
@@ -106,6 +239,208 @@ test('exact source commit and resolved tree must match the consuming checkout', 
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(checkoutRoot, { recursive: true, force: true });
+  }
+});
+
+test('receipt v1 preserves the current consumer acceptance envelope as optional evidence', () => {
+  const root = temporaryReceiptRoot();
+  const consumerEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    runtimeVerified: false,
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: 'install.codex-sync',
+        surface: 'codex-sync',
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'native.codex-sync',
+        surface: 'codex-sync',
+        kind: 'native',
+        reason: 'Native execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.codex-sync.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: 'codex-sync',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      adapter: 'codex-sync-installer',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      surfaceResults: consumerEvidence.surfaceResults,
+      consumerEvidence,
+      outcome: 'PASS',
+    });
+    const checked = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+    assert.strictEqual(checked.envelope.schema, 'dhpk.harness.receipt.v1');
+    assert.deepStrictEqual(checked.envelope.surfaceResults, consumerEvidence.surfaceResults);
+    assert.deepStrictEqual(checked.envelope.consumerEvidence, consumerEvidence);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation rejects acceptance references that do not resolve to the selected observation', () => {
+  const root = temporaryReceiptRoot();
+  const surfaceResults = [{
+    surface: 'codex-sync',
+    status: 'PASS',
+    installationEvidence: { status: 'FAIL' },
+  }];
+  const attempt = makeAttempt(root, {
+    surface: 'codex-sync',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    surfaceResults,
+    outcome: 'PASS',
+  });
+  try {
+    const envelopePath = path.join(attempt.path, 'attempt.json');
+    const envelope = JSON.parse(fs.readFileSync(envelopePath, 'utf8'));
+    envelope.consumerEvidence = {
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      verdict: 'PASS',
+      acceptance: {
+        verdict: 'PASS',
+        requiredChecks: [{
+          id: 'install.codex-sync',
+          surface: 'codex-sync',
+          kind: 'installation',
+          reason: 'The selected installation contract passed.',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.cursor-sync.installationEvidence',
+        }],
+        excludedChecks: [],
+      },
+      surfaceResults,
+    };
+    fs.writeFileSync(envelopePath, JSON.stringify(envelope, null, 2) + '\n');
+
+    const checked = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(checked.ok, false);
+    assert.match(checked.errors.join('\n'), /acceptance|evidence|surface|reference/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation rejects v2 installation PASS beside runtime NOT_RUN with aggregate runtimeVerified true', () => {
+  const root = temporaryReceiptRoot();
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+    });
+    writeConsumerEvidence(attempt, installationOnlyConsumerEvidence('NOT_RUN'));
+
+    const rejected = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(rejected.ok, false);
+    assert.match(rejected.errors.join('\n'), /runtimeVerified|runtime proof|runtime evidence/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation rejects v2 aggregate runtimeVerified based only on an unrelated surface PASS', () => {
+  const root = temporaryReceiptRoot();
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+    });
+    writeConsumerEvidence(attempt, installationOnlyConsumerEvidence('PASS'));
+
+    const rejected = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(rejected.ok, false);
+    assert.match(rejected.errors.join('\n'), /runtimeVerified|runtime proof|runtime evidence/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation accepts v2 native capability proof without an aggregate runtimeVerified claim', () => {
+  const root = temporaryReceiptRoot();
+  const consumerEvidence = nativeRequirementConsumerEvidence();
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      adapter: 'codex-named-role-probe',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      outcome: 'PASS',
+    });
+    writeConsumerEvidence(attempt, consumerEvidence);
+
+    const accepted = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(accepted.ok, true, accepted.errors.join('; '));
+    assert.strictEqual(accepted.envelope.consumerEvidence.runtimeVerified, undefined);
+    assert.strictEqual(accepted.envelope.consumerEvidence.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.strictEqual(accepted.envelope.consumerEvidence.surfaceResults[0].requirementEvidence.check1.runtimeVerified, true);
+    assert.strictEqual(accepted.envelope.consumerEvidence.acceptance.requiredChecks[1].kind, 'native');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation preserves historical non-v2 runtimeVerified compatibility', () => {
+  const root = temporaryReceiptRoot();
+  const consumerEvidence = {
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    runtimeVerified: true,
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'PASS',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+    }],
+  };
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      adapter: 'codex-sync-installer',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      surfaceResults: consumerEvidence.surfaceResults,
+      consumerEvidence,
+      outcome: 'PASS',
+    });
+
+    const accepted = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(accepted.ok, true, accepted.errors.join('; '));
+    assert.strictEqual(accepted.envelope.consumerEvidence.runtimeVerified, true);
+    assert.strictEqual(accepted.envelope.consumerEvidence.schemaVersion, undefined);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

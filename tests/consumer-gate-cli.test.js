@@ -27,6 +27,8 @@ const {
 } = require(CLI);
 const { inspectCodexDiscovery } = require('../scripts/lib/codex-discovery-registry');
 const { normalizeConsumerEvidence } = require('../scripts/lib/release-evidence');
+const { materializeAgyPluginPackage } = require('../scripts/lib/agy-plugin-package');
+const { materializeAgentsSkillsProjection } = require('../scripts/lib/agents-skills-package');
 
 function mkBinStub(dir, name, body) {
   fs.mkdirSync(dir, { recursive: true });
@@ -403,6 +405,128 @@ function makeProjectedPackageRoot({ includeAgent = true, includeCursor = true } 
   return root;
 }
 
+function makeAgyGateRoot() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-gate-'));
+  const inventory = {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: [{ id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] }],
+    modules: [],
+    surface_membership: { 'agy-plugin': ['sample'] },
+    agy_plugin: {
+      agents: ['sample.md'],
+      rules: ['rules/sample.md'],
+      install_paths: {
+        schema: 'dhpk.agy-install-path.v1',
+        plugin_name: 'dhpk',
+        canonical_relative: '.gemini/antigravity-cli/plugins/dhpk',
+        legacy_relatives: ['.gemini/config/plugins/dhpk'],
+        sandbox_home: '/home/agy',
+      },
+    },
+  };
+  fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'rules'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'agents', 'sample.md'), [
+    '---', 'name: sample', 'description: Sample', 'tools: ["view_file"]', 'model: inherit', '---', '', '# Agent', '',
+  ].join('\n'));
+  fs.writeFileSync(path.join(root, 'rules', 'sample.md'), '# Rule\n');
+  fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), [
+    '---', 'name: dhpk-sample', 'description: Sample', '---', '# Skill', '',
+  ].join('\n'));
+  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(inventory)}\n`);
+  materializeAgyPluginPackage({
+    root,
+    inventory,
+    outDir: path.join(root, 'plugins', 'dhpk-agy'),
+    version: REAL_VERSION,
+    sourceVersion: REAL_VERSION,
+    sourceCommit: 'b'.repeat(40),
+  });
+  return root;
+}
+
+function materializeAgyProjectGateBinding(projectRoot) {
+  const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-project-source-'));
+  fs.mkdirSync(path.join(sourceRoot, 'skills', 'dhpk-probe'), { recursive: true });
+  fs.writeFileSync(path.join(sourceRoot, 'skills', 'dhpk-probe', 'SKILL.md'), [
+    '---',
+    'name: dhpk-probe',
+    "description: 'A project probe skill.'",
+    '---',
+    '# Project probe skill',
+    '',
+  ].join('\n'));
+  const inventory = {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: [{
+      id: 'probe',
+      name: 'dhpk-probe',
+      path: 'skills/dhpk-probe',
+      lifecycle: 'promoted',
+      surfaces: ['agy-plugin'],
+    }],
+    surface_membership: { 'agy-plugin': ['probe'] },
+    project_agent_projection: {
+      schema: 'dhpk.project-agent-projection.v1',
+      scope: 'project',
+      owner: 'dhpk.project-agent-projection',
+      managed_root: '.agents/skills',
+      receipt: '.agents/.dhpk-installed.json',
+      profiles: {
+        'portable-core': {
+          version: 'portable-core-v1',
+          compatibility_mode: 'portable-core',
+          stable_ids: ['probe'],
+          hosts: ['agy'],
+        },
+      },
+      hosts: {
+        agy: {
+          surface: 'agy-plugin',
+          evidence_source: 'entry_surfaces',
+          shape: 'project-skill-direct-file',
+          transform: { id: 'agy-project-direct-file', version: '1' },
+        },
+        claude: {
+          surface: 'claude-core',
+          evidence_source: 'entry_surfaces',
+          shape: 'project-skill-directory',
+          transform: { id: 'claude-project-skill', version: '1' },
+        },
+        codex: {
+          surface: 'codex-sync',
+          evidence_source: 'entry_surfaces',
+          shape: 'project-skill-directory',
+          transform: { id: 'codex-project-skill', version: '1' },
+        },
+        cursor: {
+          surface: 'cursor-plugin',
+          evidence_source: 'entry_surfaces',
+          shape: 'project-skill-directory',
+          transform: { id: 'cursor-project-skill', version: '1' },
+        },
+      },
+      dependencies: {},
+    },
+  };
+  try {
+    materializeAgentsSkillsProjection({
+      root: sourceRoot,
+      sourceRoot,
+      projectRoot,
+      inventory,
+      profileId: 'portable-core',
+      requestedHosts: ['agy'],
+    });
+    return sourceRoot;
+  } catch (error) {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 function successfulCursorLoaderProbeStub(expectedPluginDirs) {
   return `#!/usr/bin/env node
 const fs = require('node:fs');
@@ -555,7 +679,31 @@ test('keeps Claude and native Codex UNAVAILABLE when their CLIs are absent', () 
   assert.ok(nativeStage.failureReasons.some((reason) => /native.*codex|codex.*native/i.test(reason)));
 });
 
-test('all six public consumer surfaces round-trip through final evidence normalization', () => {
+test('configured Claude with a missing CLI keeps raw UNAVAILABLE and typed BLOCKED installation evidence', () => {
+  const root = makeConfiguredScopeRoot(['.claude-plugin/plugin.json']);
+  try {
+    const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH });
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const raw = stage.surfaceResults.find((entry) => entry.surface === 'claude');
+    assert.strictEqual(raw.status, 'UNAVAILABLE');
+
+    const normalized = normalizeConsumerEvidence(stage);
+    assert.strictEqual(normalized.schemaVersion, 2);
+    const row = normalized.surfaceResults.find((entry) => entry.surface === 'claude');
+    const installation = normalized.acceptance.requiredChecks.find((check) => check.id === 'install.claude');
+    assert.strictEqual(row.status, 'UNAVAILABLE');
+    assert.ok(row.installationEvidence, JSON.stringify(row));
+    assert.strictEqual(row.installationEvidence.status, 'BLOCKED');
+    assert.match(row.installationEvidence.reason, /claude CLI not found on PATH/i);
+    assert.strictEqual(installation.status, 'BLOCKED');
+    assert.strictEqual(installation.evidenceRef, 'surfaceResults.claude.installationEvidence');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('all seven public consumer surfaces round-trip through final evidence normalization', () => {
   const surfaces = [
     ['claude-core', 'claude'],
     ['codex-sync', 'codex-sync'],
@@ -563,6 +711,7 @@ test('all six public consumer surfaces round-trip through final evidence normali
     ['cursor-sync', 'cursor-sync'],
     ['agent-plugin', 'agent-plugin'],
     ['cursor-plugin', 'cursor-plugin'],
+    ['agy-plugin', 'agy-plugin'],
   ];
   for (const [selectedSurface, expectedSurface] of surfaces) {
     const result = runCli({ PATH: NODE_BASH_ONLY_PATH }, ['--surface', selectedSurface]);
@@ -573,6 +722,264 @@ test('all six public consumer surfaces round-trip through final evidence normali
       () => normalizeConsumerEvidence(stage),
       `${selectedSurface} final consumer evidence should normalize`,
     );
+  }
+});
+
+test('selected AGY installation passes without native runtime even when execute flags are set', () => {
+  const root = makeAgyGateRoot();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-home-'));
+  try {
+    withConsumerGateBin((bin) => {
+      const calls = path.join(bin, 'agy-calls.log');
+      mkBinStub(bin, 'agy', `#!/bin/sh\nprintf 'unexpected native invocation\\n' >> ${JSON.stringify(calls)}\nexit 0\n`);
+      const result = runCliAtRoot(root, {
+        PATH: `${bin}:${NODE_BASH_ONLY_PATH}`,
+        HOME: home,
+        CI: 'true',
+        DHPK_CONSUMER_PROBE_EXECUTE: '1',
+      }, ['--surface', 'agy-plugin']);
+
+      assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      const stage = JSON.parse(result.stdout);
+      const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+      const installation = stage.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin');
+      const runtime = stage.acceptance.excludedChecks.find((check) => check.id === 'runtime.agy-plugin');
+      assert.strictEqual(stage.acceptance.verdict, 'PASS', JSON.stringify(stage.acceptance));
+      assert.strictEqual(installation.status, 'PASS');
+      assert.strictEqual(row.status, 'NOT_RUN');
+      assert.strictEqual(row.installationEvidence.status, 'PASS');
+      assert.strictEqual(row.runtimeEvidence.status, 'NOT_RUN');
+      assert.strictEqual(runtime.status, 'NOT_RUN');
+      assert.notStrictEqual(stage.runtimeVerified, true);
+      assert.strictEqual(fs.existsSync(calls), false);
+      assert.deepStrictEqual(fs.readdirSync(home), []);
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('configured AGY package is selected with the AGY executable absent from PATH', () => {
+  const root = makeAgyGateRoot();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-configured-home-'));
+  try {
+    const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH, HOME: home });
+
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+    assert.ok(row, JSON.stringify(stage.surfaceResults));
+    assert.strictEqual(stage.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin').status, 'PASS');
+    assert.strictEqual(row.installationEvidence.status, 'PASS');
+    assert.strictEqual(row.runtimeEvidence.status, 'NOT_RUN');
+    assert.deepStrictEqual(fs.readdirSync(home), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('a corrupt AGY package fails the selected installation requirement', () => {
+  const root = makeAgyGateRoot();
+  try {
+    fs.appendFileSync(path.join(root, 'plugins', 'dhpk-agy', 'agents', 'sample.md'), '\n# Tampered after packaging\n');
+    const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'agy-plugin']);
+
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+    assert.strictEqual(stage.acceptance.verdict, 'FAIL', JSON.stringify(stage.acceptance));
+    assert.strictEqual(stage.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin').status, 'FAIL');
+    assert.strictEqual(row.installationEvidence.status, 'FAIL');
+    assert.strictEqual(row.runtimeEvidence.status, 'NOT_RUN');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('an invalid physical AGY project receipt cannot fall back to the package route', () => {
+  const root = makeAgyGateRoot();
+  try {
+    fs.mkdirSync(path.join(root, '.agents'), { recursive: true });
+    fs.writeFileSync(path.join(root, '.agents', '.dhpk-installed.json'), '{ malformed receipt\n');
+    const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'agy-plugin']);
+
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+    const installation = stage.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin');
+    assert.notStrictEqual(stage.acceptance.verdict, 'PASS', JSON.stringify(stage.acceptance));
+    assert.ok(['FAIL', 'BLOCKED'].includes(installation.status), JSON.stringify(installation));
+    assert.strictEqual(row.adapter.id, 'agy-project-direct-file');
+    assert.notStrictEqual(row.installationEvidence.status, 'PASS');
+    assert.strictEqual(row.runtimeEvidence.status, 'NOT_RUN');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('an unsafe physical AGY receipt cannot fall back to the valid package route', () => {
+  const root = makeAgyGateRoot();
+  try {
+    const agents = path.join(root, '.agents');
+    fs.mkdirSync(agents, { recursive: true });
+    fs.symlinkSync(
+      path.join(root, 'plugins', 'dhpk-agy', 'plugin.json'),
+      path.join(agents, '.dhpk-installed.json'),
+    );
+    const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'agy-plugin']);
+
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+    const installation = stage.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin');
+    assert.ok(['FAIL', 'BLOCKED'].includes(installation.status), JSON.stringify(installation));
+    assert.strictEqual(row.adapter.id, 'agy-project-direct-file');
+    assert.notStrictEqual(row.installationEvidence.status, 'PASS');
+    assert.strictEqual(row.runtimeEvidence.status, 'NOT_RUN');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a symlinked AGY receipt ancestor cannot fall back to the valid package route', () => {
+  const root = makeAgyGateRoot();
+  const externalAgents = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-external-agents-'));
+  try {
+    fs.writeFileSync(path.join(externalAgents, '.dhpk-installed.json'), '{ malformed receipt\n');
+    fs.symlinkSync(externalAgents, path.join(root, '.agents'));
+    const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'agy-plugin']);
+
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+    const installation = stage.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin');
+    assert.ok(['FAIL', 'BLOCKED'].includes(installation.status), JSON.stringify(installation));
+    assert.strictEqual(row.adapter.id, 'agy-project-direct-file');
+    assert.notStrictEqual(row.installationEvidence.status, 'PASS');
+    assert.strictEqual(row.runtimeEvidence.status, 'NOT_RUN');
+  } finally {
+    fs.rmSync(externalAgents, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a valid AGY project binding passes installation while its raw runtime stays NOT_RUN', () => {
+  const root = makeAgyGateRoot();
+  const sourceRoot = materializeAgyProjectGateBinding(root);
+  try {
+    const result = runCliAtRoot(root, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'agy-plugin']);
+
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+    const installation = stage.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin');
+    const runtime = stage.acceptance.excludedChecks.find((check) => check.id === 'runtime.agy-plugin');
+    assert.strictEqual(stage.acceptance.verdict, 'PASS', JSON.stringify(stage.acceptance));
+    assert.strictEqual(installation.status, 'PASS', JSON.stringify(installation));
+    assert.strictEqual(row.status, 'NOT_RUN');
+    assert.strictEqual(row.adapter.id, 'agy-project-direct-file');
+    assert.strictEqual(row.installationEvidence.status, 'PASS');
+    assert.match(row.installationEvidence.planFingerprint, /^sha256:[a-f0-9]{64}$/i);
+    assert.match(row.installationEvidence.artifactFingerprint, /^sha256:[a-f0-9]{64}$/i);
+    assert.ok(row.installationEvidence.artifacts.some((artifact) => /\/\.agents\/\.dhpk-installed\.json$/.test(artifact.path)));
+    assert.ok(row.installationEvidence.artifacts.some((artifact) => /\/\.agents\/skills\/dhpk-probe\.md$/.test(artifact.path)));
+    assert.strictEqual(row.runtimeEvidence.status, 'NOT_RUN');
+    assert.strictEqual(runtime.status, 'NOT_RUN');
+    assert.notStrictEqual(stage.runtimeVerified, true);
+  } finally {
+    fs.rmSync(sourceRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('an unauthorized explicit AGY native requirement remains blocked without invoking AGY', () => {
+  const root = makeAgyGateRoot();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-native-home-'));
+  try {
+    withConsumerGateBin((bin) => {
+      const calls = path.join(bin, 'agy-calls.log');
+      mkBinStub(bin, 'agy', `#!/bin/sh\nprintf 'unexpected native invocation\\n' >> ${JSON.stringify(calls)}\nexit 0\n`);
+      const result = runRequirementsAtRoot(root, {
+        schema: 'dhpk.consumer-requirements.v1',
+        selectedSurfaces: ['agy-plugin'],
+        checks: [{
+          id: 'agy-loader',
+          surface: 'agy-plugin',
+          host: 'agy',
+          capability: 'plugin-loader',
+          trigger: 'explicit-native',
+          reason: 'This test deliberately withholds native authorization.',
+          question: 'Was the AGY plugin loader executed?',
+          evidenceKind: 'native',
+          authorization: { authorized: false },
+        }],
+      }, {
+        PATH: `${bin}:${NODE_BASH_ONLY_PATH}`,
+        HOME: home,
+        CI: 'true',
+        DHPK_CONSUMER_PROBE_EXECUTE: '1',
+      });
+
+      assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+      const stage = JSON.parse(result.stdout);
+      const required = stage.acceptance.requiredChecks.find((check) => check.id === 'requirement.agy-loader');
+      const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+      assert.strictEqual(required.status, 'BLOCKED', JSON.stringify(required));
+      assert.strictEqual(row.requirementEvidence.check1.status, 'BLOCKED');
+      assert.notStrictEqual(row.runtimeEvidence.status, 'PASS');
+      assert.notStrictEqual(stage.runtimeVerified, true);
+      assert.strictEqual(fs.existsSync(calls), false);
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('an authorized but unsupported AGY plugin-loader requirement stays blocked without invoking AGY', () => {
+  const root = makeAgyGateRoot();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-authorized-home-'));
+  try {
+    withConsumerGateBin((bin) => {
+      const calls = path.join(bin, 'agy-calls.log');
+      mkBinStub(bin, 'agy', `#!/bin/sh\nprintf 'unexpected native invocation\\n' >> ${JSON.stringify(calls)}\nexit 0\n`);
+      const result = runRequirementsAtRoot(root, {
+        schema: 'dhpk.consumer-requirements.v1',
+        selectedSurfaces: ['agy-plugin'],
+        checks: [{
+          id: 'agy-loader-authorized',
+          surface: 'agy-plugin',
+          host: 'agy',
+          capability: 'plugin-loader',
+          trigger: 'explicit-native',
+          reason: 'Authorization does not make the unsupported native adapter available.',
+          question: 'Was the AGY plugin loader executed?',
+          evidenceKind: 'native',
+          authorization: { authorized: true },
+        }],
+      }, {
+        PATH: `${bin}:${NODE_BASH_ONLY_PATH}`,
+        HOME: home,
+        CI: 'true',
+        DHPK_CONSUMER_PROBE_EXECUTE: '1',
+      });
+
+      assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+      const stage = JSON.parse(result.stdout);
+      const required = stage.acceptance.requiredChecks.find((check) => check.id === 'requirement.agy-loader-authorized');
+      const row = stage.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+      assert.strictEqual(required.status, 'BLOCKED', JSON.stringify(required));
+      assert.strictEqual(row.requirementEvidence.check1.status, 'BLOCKED');
+      assert.strictEqual(row.runtimeEvidence.status, 'NOT_RUN');
+      assert.notStrictEqual(stage.runtimeVerified, true);
+      assert.strictEqual(fs.existsSync(calls), false);
+      assert.deepStrictEqual(fs.readdirSync(home), []);
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
   }
 });
 
@@ -1316,7 +1723,7 @@ test('default scope with no configured target blocks without invoking adapters',
         && check.status === 'BLOCKED'
         && check.evidenceRef === null
     )), JSON.stringify(stage.acceptance));
-    assert.strictEqual(stage.acceptance.excludedChecks.length, 6, JSON.stringify(stage.acceptance));
+    assert.strictEqual(stage.acceptance.excludedChecks.length, 7, JSON.stringify(stage.acceptance));
     assert.ok(stage.acceptance.excludedChecks.every((check) => check.status === 'NOT_CONFIGURED'));
     assert.doesNotThrow(() => normalizeConsumerEvidence(stage));
   } finally {

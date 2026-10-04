@@ -372,6 +372,39 @@ jobs:
           probe_exit="${PIPESTATUS[0]}"
           set -e
           outcome="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).outcome)" "$result_file")"
+          report_contract="$(node - "$result_file" "$probe_exit" <<'NODE'
+          const fs = require('node:fs');
+          const [file, rawExit] = process.argv.slice(2);
+          const result = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const fail = (message) => {
+            console.error(`::error::${message}`);
+            process.exit(1);
+          };
+          const current = result && result.schema === 'dhpk.harness.result.v2';
+          const hasAcceptance = result && Object.prototype.hasOwnProperty.call(result, 'acceptance');
+          if (!current) {
+            if (hasAcceptance) fail('non-current harness JSON cannot carry current acceptance evidence');
+            process.stdout.write('LEGACY\n');
+            process.exit(0);
+          }
+          const acceptance = result.acceptance;
+          if (!acceptance || !['PASS', 'FAIL', 'BLOCKED'].includes(acceptance.verdict)
+            || !Array.isArray(acceptance.requiredChecks) || acceptance.requiredChecks.length === 0
+            || !Array.isArray(acceptance.excludedChecks)) {
+            fail('current harness JSON has an invalid acceptance envelope');
+          }
+          const expectedExit = result.outcome === 'COMPLETE' ? 0 : 1;
+          if (result.exitCode !== expectedExit || Number(rawExit) !== expectedExit) {
+            fail(`current outcome ${result.outcome} requires exit ${expectedExit}`);
+          }
+          if (acceptance.verdict !== 'PASS' && result.outcome === 'COMPLETE') {
+            fail('current non-pass acceptance cannot report COMPLETE');
+          }
+          process.stdout.write('CURRENT\n');
+          NODE
+          )"
+          legacy_report=0
+          if [ "$report_contract" = "LEGACY" ]; then legacy_report=1; fi
           {
             echo "## Release rehearsal consumer gate"
             echo ""
@@ -385,6 +418,7 @@ jobs:
               exit 0
               ;;
             PUBLISHED_PENDING)
+              [ "$legacy_report" -eq 1 ] || exit 1
               [ "$probe_exit" -eq 2 ] || exit 1
               echo "Consumer runtime evidence is pending on the rehearsal runner; keeping the job non-blocking."
               exit 0

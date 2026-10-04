@@ -399,3 +399,32 @@ satisfied.
 - **THEN** the absent optional surface remains excluded as
   `NOT_CONFIGURED`
 - **AND** no required Host or `scope.configuration` check is added
+
+### Requirement: REQ-853-01 AGY installation acceptance is bounded and non-executing
+
+The consumer gate SHALL map `agy-plugin` to Host `agy` and verify its
+configured package or project installation using the bounded routes in the
+[consumer acceptance contract](../../../docs/contracts/consumer-acceptance.md).
+Installation acceptance MUST remain separate from native-runtime evidence;
+unsupported native AGY obligations remain required and `BLOCKED`.
+
+#### Scenario: Current AGY package is installed only in a temporary home
+
+- **WHEN** `agy-plugin` is selected and its package matches current inventory and version inputs
+- **THEN** the gate installs it in a temporary home at the inventory-owned canonical path and accepts only a current AGY-owned inspection with valid receipt and no changed, missing, or unsafe files
+- **AND** it removes the temporary home and records runtime `NOT_RUN`
+
+#### Scenario: Present AGY project receipt is malformed
+
+- **WHEN** `.agents/.dhpk-installed.json` exists but is unsafe, unreadable, malformed, or lacks the concrete AGY direct-file binding
+- **THEN** the gate fails closed and does not fall back to package installation
+
+#### Scenario: Valid AGY project binding is structural only
+
+- **WHEN** `.agents/.dhpk-installed.json` contains a concrete AGY direct-file binding and its artifact passes the fixed `agy-project` probe
+- **THEN** the gate records installation acceptance while preserving the raw native runtime status as `NOT_RUN`
+
+#### Scenario: AGY native obligation is unsupported
+
+- **WHEN** a requirements declaration makes native AGY execution required but no fixed native adapter is supported
+- **THEN** the requirement remains `BLOCKED`, no native call occurs, and installation evidence cannot satisfy it

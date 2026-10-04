@@ -524,7 +524,7 @@ function normalizeRequirementEvidence(raw, surface, surfaceRecord) {
       throw new Error('consumer evidence: requirement evidence slot is malformed');
     }
     if (typeof evidence.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(evidence.id)
-      || evidence.host !== ({ claude: 'claude', 'claude-core': 'claude', 'codex-sync': 'codex', 'codex-native': 'codex', 'cursor-sync': 'cursor', 'agent-plugin': 'cursor', 'cursor-plugin': 'cursor' })[surface]
+      || evidence.host !== ({ claude: 'claude', 'claude-core': 'claude', 'codex-sync': 'codex', 'codex-native': 'codex', 'cursor-sync': 'cursor', 'agent-plugin': 'cursor', 'cursor-plugin': 'cursor', 'agy-plugin': 'agy' })[surface]
       || typeof evidence.capability !== 'string' || !/^[a-z][a-z0-9-]{0,79}$/.test(evidence.capability)
       || !REQUIREMENT_TRIGGERS.has(evidence.trigger)
       || typeof evidence.reason !== 'string' || evidence.reason.trim().length === 0 || evidence.reason.length > 240
@@ -1121,6 +1121,119 @@ function normalizeConsumerEvidence(input) {
   };
 }
 
+function combineConsumerEvidence(evidenceEnvelopes, selectedSurfaces) {
+  if (!Array.isArray(evidenceEnvelopes)) {
+    throw new Error('consumer evidence: envelopes must be an array');
+  }
+  if (!Array.isArray(selectedSurfaces) || selectedSurfaces.length === 0
+    || selectedSurfaces.length > MAX_ACCEPTANCE_CHECKS) {
+    throw new Error('consumer evidence: selected surfaces must be a bounded non-empty array');
+  }
+
+  const selected = new Set();
+  for (const surface of selectedSurfaces) {
+    if (typeof surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(surface)) {
+      throw new Error('consumer evidence: selected surface is invalid');
+    }
+    if (selected.has(surface)) throw new Error(`consumer evidence: duplicate selected surface '${surface}'`);
+    selected.add(surface);
+  }
+
+  const normalizedEnvelopes = evidenceEnvelopes.map((envelope) => normalizeConsumerEvidence(envelope));
+  for (const envelope of normalizedEnvelopes) {
+    if (envelope.stage !== 'CONSUMER' || envelope.schemaVersion !== 2 || !envelope.acceptance) {
+      throw new Error('consumer evidence: combiner requires current schema-v2 CONSUMER envelopes');
+    }
+  }
+
+  const observations = new Map();
+  const requiredBySurface = new Map(selectedSurfaces.map((surface) => [surface, []]));
+  const requiredIds = new Set();
+  const exclusionsById = new Map();
+  const excludedBySurface = new Map(selectedSurfaces.map((surface) => [surface, []]));
+  const otherExclusions = [];
+
+  const sameCheck = (left, right) => {
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    return leftKeys.length === rightKeys.length
+      && leftKeys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && Object.is(left[key], right[key]));
+  };
+
+  for (const envelope of normalizedEnvelopes) {
+    for (const row of envelope.surfaceResults) {
+      if (!selected.has(row.surface)) {
+        throw new Error(`consumer evidence: foreign observation surface '${row.surface}'`);
+      }
+      if (observations.has(row.surface)) {
+        throw new Error(`consumer evidence: duplicate observation surface '${row.surface}'`);
+      }
+      observations.set(row.surface, row);
+    }
+
+    for (const check of envelope.acceptance.requiredChecks) {
+      if (!selected.has(check.surface)) {
+        throw new Error(`consumer evidence: required check '${check.id}' has a foreign surface`);
+      }
+      if (requiredIds.has(check.id)) {
+        throw new Error(`consumer evidence: duplicate required acceptance check '${check.id}'`);
+      }
+      requiredIds.add(check.id);
+      requiredBySurface.get(check.surface).push(check);
+    }
+
+    for (const check of envelope.acceptance.excludedChecks) {
+      if (check.id.startsWith('scope.') && selected.has(check.surface)) continue;
+      const previous = exclusionsById.get(check.id);
+      if (previous) {
+        if (!sameCheck(previous, check)) {
+          throw new Error(`consumer evidence: conflicting excluded check '${check.id}'`);
+        }
+        continue;
+      }
+      exclusionsById.set(check.id, check);
+      if (excludedBySurface.has(check.surface)) excludedBySurface.get(check.surface).push(check);
+      else otherExclusions.push(check);
+    }
+  }
+
+  for (const surface of selectedSurfaces) {
+    if (!observations.has(surface)) {
+      throw new Error(`consumer evidence: missing observation for selected surface '${surface}'`);
+    }
+    const installationChecks = requiredBySurface.get(surface)
+      .filter((check) => check.id === `install.${surface}` && check.kind === 'installation');
+    if (installationChecks.length !== 1) {
+      throw new Error(`consumer evidence: selected surface '${surface}' requires exactly one installation check`);
+    }
+  }
+
+  const excludedChecks = [
+    ...selectedSurfaces.flatMap((surface) => excludedBySurface.get(surface)),
+    ...otherExclusions,
+  ];
+  for (const check of excludedChecks) {
+    if (requiredIds.has(check.id)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' is both required and excluded`);
+    }
+  }
+
+  const requiredChecks = selectedSurfaces.flatMap((surface) => requiredBySurface.get(surface));
+  const verdict = requiredChecks.some((check) => check.status === 'FAIL')
+    ? 'FAIL'
+    : (requiredChecks.every((check) => check.status === 'PASS') ? 'PASS' : 'BLOCKED');
+  const surfaceResults = selectedSurfaces.map((surface) => observations.get(surface));
+  const combined = {
+    ...normalizedEnvelopes[0],
+    stage: 'CONSUMER',
+    schemaVersion: 2,
+    verdict,
+    surfaceResults,
+    acceptance: { verdict, requiredChecks, excludedChecks },
+  };
+  return normalizeConsumerEvidence(combined);
+}
+
 function validateConsumerEvidence(input) {
   try {
     normalizeConsumerEvidence(input);
@@ -1138,6 +1251,7 @@ module.exports = {
   buildEvidence,
   validateEvidence,
   normalizeConsumerEvidence,
+  combineConsumerEvidence,
   normalizeConsumerCheckIdentity,
   matchConsumerCheckEvidence,
   validateConsumerEvidence,

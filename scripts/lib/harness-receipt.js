@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const runtimePreflight = require('./consumer-runtime-preflight');
+const { normalizeConsumerEvidence } = require('./release-evidence');
 const {
   COMMIT,
   TREE,
@@ -95,6 +96,46 @@ function lifecycleTransition(previous, next) {
 function ensureId(value, name) {
   if (typeof value !== 'string' || !SAFE_ID.test(value)) throw new Error(`harness receipt: invalid ${name}`);
   return value;
+}
+
+function consumerEvidenceErrors(value) {
+  try {
+    let validationInput = value;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      validationInput = { ...value };
+      // Minimal receipt envelopes may omit environment metadata. The shared
+      // normalizer requires an enclosing key, so use null only for validation.
+      if (validationInput.environment === undefined) validationInput.environment = null;
+
+      // The receipt contract calls excluded runtime observations "native";
+      // this normalizer version names the same typed runtimeEvidence check
+      // "runtime". Adapt only the exact same-surface reference for validation.
+      const acceptance = value.acceptance;
+      if (acceptance && typeof acceptance === 'object' && !Array.isArray(acceptance)
+        && Array.isArray(acceptance.excludedChecks)) {
+        validationInput.acceptance = {
+          ...acceptance,
+          excludedChecks: acceptance.excludedChecks.map((check) => (
+            check && typeof check === 'object' && !Array.isArray(check)
+              && typeof check.surface === 'string'
+              && check.id === `native.${check.surface}`
+              && check.kind === 'native'
+              && check.evidenceRef === `surfaceResults.${check.surface}.runtimeEvidence`
+              ? { ...check, id: `runtime.${check.surface}` }
+              : check
+          )),
+        };
+      }
+    }
+    normalizeConsumerEvidence(validationInput);
+    if (value.stage !== 'CONSUMER') return ["consumer evidence stage must be 'CONSUMER'"];
+    if (value.schemaVersion === 2 && value.runtimeVerified === true) {
+      return ['aggregate runtimeVerified is not supported on schema-v2 consumer evidence'];
+    }
+    return [];
+  } catch (error) {
+    return [error && error.message ? error.message : 'consumer evidence is invalid'];
+  }
 }
 
 function findAttemptByOperationKey(root, operationKey) {
@@ -218,6 +259,7 @@ function createAttempt({
   requiredSurfaces = null,
   requiredRuntimeSurfaces = null,
   surfaceResults = null,
+  consumerEvidence,
   resumeCommand = null,
   byteReferences = [],
   lifecyclePhase = 'PLANNED',
@@ -239,6 +281,13 @@ function createAttempt({
   if (idempotencyKey !== null && idempotencyKey !== undefined) ensureId(idempotencyKey, 'idempotency key');
   if (operationKey && idempotencyKey && operationKey !== idempotencyKey) {
     throw new Error('harness receipt: operation and idempotency keys must match');
+  }
+  const persistedConsumerEvidence = consumerEvidence === undefined ? undefined : redact(consumerEvidence);
+  if (persistedConsumerEvidence !== undefined) {
+    const consumerErrors = consumerEvidenceErrors(persistedConsumerEvidence);
+    if (consumerErrors.length > 0) {
+      throw new Error(`harness receipt: invalid consumer evidence: ${consumerErrors.join('; ')}`);
+    }
   }
   const resolvedOperationKey = operationKey || idempotencyKey;
   if (resolvedOperationKey) {
@@ -288,6 +337,7 @@ function createAttempt({
     ...(Array.isArray(requiredSurfaces) ? { requiredSurfaces: redact(requiredSurfaces) } : {}),
     ...(Array.isArray(requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: redact(requiredRuntimeSurfaces) } : {}),
     ...(Array.isArray(surfaceResults) ? { surfaceResults: redact(surfaceResults) } : {}),
+    ...(persistedConsumerEvidence !== undefined ? { consumerEvidence: persistedConsumerEvidence } : {}),
     resumeCommand: resumeCommand === null || resumeCommand === undefined ? null : redact(resumeCommand),
     byteReferences: redact(Array.isArray(byteReferences) ? byteReferences : [byteReferences]),
     createdAt: new Date().toISOString(),
@@ -398,6 +448,10 @@ function validateReceipt(attemptPath, {
   if (!SAFE_ID.test(envelope.attemptId || '')) errors.push('invalid receipt attemptId');
   if (!Array.isArray(envelope.diagnostics)) errors.push('receipt diagnostics must be an array');
   if (!Array.isArray(envelope.artifacts)) errors.push('receipt artifacts must be an array');
+  if (Object.prototype.hasOwnProperty.call(envelope, 'consumerEvidence')) {
+    errors.push(...consumerEvidenceErrors(envelope.consumerEvidence)
+      .map((error) => `receipt consumer evidence: ${error}`));
+  }
   if (envelope.resumeCommand !== null && typeof envelope.resumeCommand !== 'string') errors.push('receipt resumeCommand must be a string or null');
   if (!Array.isArray(envelope.byteReferences)) errors.push('receipt byteReferences must be an array');
   for (const field of ['targetCommit', 'generatedFromCommit']) {

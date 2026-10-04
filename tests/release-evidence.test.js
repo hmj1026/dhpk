@@ -294,6 +294,261 @@ test('validateEvidence passes a well-formed evidence document', () => {
       };
     }
 
+    function scopeExclusion(surface, reason = `No ${surface} marker was found`) {
+      return {
+        id: `scope.${surface}`,
+        surface,
+        kind: 'installation',
+        reason,
+        status: 'NOT_RUN',
+        evidenceRef: null,
+      };
+    }
+
+    function currentConsumerEnvelope({
+      surface,
+      installationStatus = 'PASS',
+      observationStatus = 'PASS',
+      runtimeStatus = 'NOT_RUN',
+      excludedChecks = [],
+    }) {
+      const row = baseSurface({
+        surface,
+        status: observationStatus,
+        producer: `${surface}-row-producer`,
+        adapter: { id: `${surface}-surface-adapter`, version: '1.0.0' },
+        commands: [{ cmd: `probe ${surface}`, exitCode: 0 }],
+        environment: { CI: 'true', surface },
+        artifacts: [{ path: `<sandbox>/${surface}.json`, fingerprint: ARTIFACT }],
+        diagnostics: [{ stream: 'stdout', text: `${surface} evidence recorded` }],
+        reasons: [`raw ${surface} observation`],
+        installationEvidence: {
+          status: installationStatus,
+          producer: `${surface}-installer`,
+          adapter: { id: `${surface}-installer`, version: '1.0.0' },
+          proof: { artifactFingerprint: ARTIFACT },
+        },
+        runtimeEvidence: {
+          status: runtimeStatus,
+          adapter: { id: `${surface}-runtime`, version: '1.0.0' },
+          proof: { observation: `runtime ${surface}` },
+        },
+      });
+      const installCheck = {
+        id: `install.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: `Installation evidence for ${surface}`,
+        status: installationStatus,
+        evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+      };
+      const verdict = installationStatus === 'FAIL'
+        ? 'FAIL'
+        : (installationStatus === 'PASS' ? 'PASS' : 'BLOCKED');
+      const runtimeCheck = {
+        id: `runtime.${surface}`,
+        surface,
+        kind: 'native',
+        reason: `Native runtime for ${surface} was excluded`,
+        status: runtimeStatus,
+        evidenceRef: `surfaceResults.${surface}.runtimeEvidence`,
+      };
+      return baseEvidence({
+        producer: 'consumer-gate',
+        adapter: { id: `${surface}-envelope-adapter`, version: '1.0.0' },
+        schemaVersion: 2,
+        verdict,
+        surfaceResults: [row],
+        acceptance: {
+          verdict,
+          requiredChecks: [installCheck],
+          excludedChecks: [runtimeCheck, ...excludedChecks],
+        },
+      });
+    }
+
+    test('combines current consumer evidence in selected order without losing typed provenance', () => {
+      const codex = requirementEvidenceReport({
+        identity: CONSUMER_CHECK_IDENTITY,
+        nativeProof: CODEX_NATIVE_PROOF,
+        authorized: false,
+        evidenceReuse: {
+          decision: 'REUSED',
+          origin: { envelopeIndex: 0, surface: 'codex-sync', slot: 'check1', checkId: 'prior-capability' },
+          mismatchFields: [],
+        },
+      });
+      codex.surfaceResults[0] = {
+        ...codex.surfaceResults[0],
+        producer: 'codex-row-producer',
+        commands: [{ cmd: 'probe codex-sync', exitCode: 0 }],
+        environment: { CI: 'true', DHPK_CONSUMER_PROBE_NETWORK: 'disabled' },
+        artifacts: [{ path: '<sandbox>/codex-sync.json', fingerprint: ARTIFACT }],
+        diagnostics: [{ stream: 'stdout', text: 'codex evidence retained' }],
+        reasons: ['codex raw observation'],
+        installationEvidence: {
+          status: 'PASS',
+          producer: 'codex-installer',
+          adapter: { id: 'codex-installer', version: '1.0.0' },
+          proof: { artifactFingerprint: ARTIFACT },
+        },
+        runtimeEvidence: {
+          status: 'PASS',
+          adapter: { id: 'codex-runtime', version: '1.0.0' },
+          proof: CODEX_NATIVE_PROOF,
+        },
+      };
+      codex.acceptance.excludedChecks = [
+        {
+          id: 'runtime.codex-sync',
+          surface: 'codex-sync',
+          kind: 'native',
+          reason: 'No current native execution was requested',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.codex-sync.runtimeEvidence',
+        },
+        scopeExclusion('cursor-plugin'),
+        scopeExclusion('agent-plugin'),
+      ];
+
+      const cursor = currentConsumerEnvelope({
+        surface: 'cursor-plugin',
+        observationStatus: 'NOT_RUN',
+        runtimeStatus: 'PASS',
+        excludedChecks: [scopeExclusion('codex-sync'), scopeExclusion('agent-plugin')],
+      });
+      const inputs = [cursor, codex];
+      const originalInputs = JSON.parse(JSON.stringify(inputs));
+      const combined = releaseEvidence.combineConsumerEvidence(inputs, ['codex-sync', 'cursor-plugin']);
+
+      assert.strictEqual(combined.schemaVersion, 2);
+      assert.strictEqual(combined.acceptance.verdict, 'PASS');
+      assert.strictEqual(combined.producer, 'consumer-gate');
+      assert.deepStrictEqual(combined.surfaceResults.map((entry) => entry.surface), ['codex-sync', 'cursor-plugin']);
+      assert.deepStrictEqual(combined.surfaceResults.map((entry) => entry.status), ['PASS', 'NOT_RUN']);
+      assert.deepStrictEqual(combined.acceptance.requiredChecks.map((check) => check.id), [
+        'install.codex-sync', 'requirement.selected-capability', 'install.cursor-plugin',
+      ]);
+      assert.deepStrictEqual(combined.acceptance.excludedChecks.map((check) => check.id), [
+        'runtime.codex-sync', 'runtime.cursor-plugin', 'scope.agent-plugin',
+      ]);
+      assert.strictEqual(combined.surfaceResults[0].producer, 'codex-row-producer');
+      assert.deepStrictEqual(combined.surfaceResults[0].installationEvidence, codex.surfaceResults[0].installationEvidence);
+      assert.deepStrictEqual(combined.surfaceResults[0].runtimeEvidence.proof, CODEX_NATIVE_PROOF);
+      assert.deepStrictEqual(combined.surfaceResults[1].commands, cursor.surfaceResults[0].commands);
+      assert.deepStrictEqual(combined.surfaceResults[1].environment, cursor.surfaceResults[0].environment);
+      assert.deepStrictEqual(combined.surfaceResults[1].artifacts, cursor.surfaceResults[0].artifacts);
+      assert.deepStrictEqual(combined.surfaceResults[1].diagnostics, cursor.surfaceResults[0].diagnostics);
+      assert.deepStrictEqual(combined.surfaceResults[1].reasons, cursor.surfaceResults[0].reasons);
+      const reused = combined.surfaceResults[0].requirementEvidence.check1;
+      assert.deepStrictEqual(reused.identity, CONSUMER_CHECK_IDENTITY);
+      assert.deepStrictEqual(reused.nativeProof, CODEX_NATIVE_PROOF);
+      assert.deepStrictEqual(reused.evidenceReuse.origin, {
+        envelopeIndex: 0, surface: 'codex-sync', slot: 'check1', checkId: 'prior-capability',
+      });
+      assert.notStrictEqual(combined.runtimeVerified, true, 'excluded runtime evidence cannot verify aggregate execution');
+      assert.deepStrictEqual(inputs, originalInputs, 'combination must leave caller inputs unchanged');
+    });
+
+    test('combiner rejects duplicate, foreign, and missing observations and conflicting exclusions', () => {
+      const codex = currentConsumerEnvelope({ surface: 'codex-sync' });
+      const cursor = currentConsumerEnvelope({ surface: 'cursor-plugin' });
+      assert.throws(
+        () => releaseEvidence.combineConsumerEvidence([cursor, cursor], ['cursor-plugin']),
+        /duplicate|observation|surface/i,
+      );
+      assert.throws(
+        () => releaseEvidence.combineConsumerEvidence([codex, cursor], ['codex-sync']),
+        /foreign|unselected|surface/i,
+      );
+      assert.throws(
+        () => releaseEvidence.combineConsumerEvidence([codex], ['codex-sync', 'cursor-plugin']),
+        /missing|selected|surface/i,
+      );
+      const conflicting = currentConsumerEnvelope({
+        surface: 'cursor-plugin',
+        excludedChecks: [scopeExclusion('agent-plugin', 'Different scope reason')],
+      });
+      const duplicated = currentConsumerEnvelope({
+        surface: 'codex-sync',
+        excludedChecks: [scopeExclusion('agent-plugin')],
+      });
+      assert.throws(
+        () => releaseEvidence.combineConsumerEvidence([duplicated, conflicting], ['codex-sync', 'cursor-plugin']),
+        /conflict|excluded/i,
+      );
+    });
+
+    test('required FAIL dominates and other required non-PASS states remain BLOCKED', () => {
+      const failure = currentConsumerEnvelope({
+        surface: 'cursor-plugin',
+        installationStatus: 'FAIL',
+        observationStatus: 'PASS',
+      });
+      const pending = currentConsumerEnvelope({
+        surface: 'codex-sync',
+        installationStatus: 'NOT_RUN',
+        observationStatus: 'UNAVAILABLE',
+      });
+      const failed = releaseEvidence.combineConsumerEvidence(
+        [pending, failure],
+        ['cursor-plugin', 'codex-sync'],
+      );
+      assert.strictEqual(failed.acceptance.verdict, 'FAIL');
+      assert.deepStrictEqual(failed.acceptance.requiredChecks.map((check) => check.status), ['FAIL', 'NOT_RUN']);
+      assert.deepStrictEqual(failed.surfaceResults.map((entry) => entry.status), ['PASS', 'UNAVAILABLE']);
+
+      const passing = currentConsumerEnvelope({ surface: 'cursor-plugin' });
+      const blocked = releaseEvidence.combineConsumerEvidence(
+        [pending, passing],
+        ['codex-sync', 'cursor-plugin'],
+      );
+      assert.strictEqual(blocked.acceptance.verdict, 'BLOCKED');
+      assert.deepStrictEqual(blocked.acceptance.requiredChecks.map((check) => check.status), ['NOT_RUN', 'PASS']);
+    });
+
+    test('requires one installation check per selected surface and unique required IDs', () => {
+      const codex = requirementEvidenceReport({
+        identity: CONSUMER_CHECK_IDENTITY,
+        nativeProof: CODEX_NATIVE_PROOF,
+      });
+      const missingInstallation = JSON.parse(JSON.stringify(codex));
+      missingInstallation.acceptance.requiredChecks = missingInstallation.acceptance.requiredChecks
+        .filter((check) => check.kind !== 'installation');
+      assert.throws(
+        () => releaseEvidence.combineConsumerEvidence([missingInstallation], ['codex-sync']),
+        /exactly one installation check/i,
+      );
+
+      const duplicateRequirement = requirementEvidenceReport({
+        surface: 'cursor-plugin',
+        host: 'cursor',
+        capability: 'package-loader',
+        status: 'BLOCKED',
+        adapter: { id: 'consumer-platform-probe', version: '1.0.0' },
+        authorized: false,
+      });
+      assert.throws(
+        () => releaseEvidence.combineConsumerEvidence([codex, duplicateRequirement], ['codex-sync', 'cursor-plugin']),
+        /duplicate required acceptance check/i,
+      );
+    });
+
+    test('normalizes schema-v2 AGY requirement Host identity', () => {
+      const agy = requirementEvidenceReport({
+        surface: 'agy-plugin',
+        host: 'agy',
+        capability: 'installation-contract',
+        trigger: 'activation-defect',
+        requestedEvidenceKind: 'contract',
+        evidenceKind: 'contract',
+        status: 'BLOCKED',
+        adapter: { id: 'consumer-gate', version: '1.0.0' },
+        authorized: false,
+      });
+      assert.strictEqual(normalizeConsumerEvidence(agy).surfaceResults[0].requirementEvidence.check1.host, 'agy');
+    });
+
     test('normalizes schema-v2 acceptance checks and preserves their observed states', () => {
       const acceptance = {
         verdict: 'PASS',

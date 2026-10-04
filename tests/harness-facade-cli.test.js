@@ -113,6 +113,7 @@ function temporaryProbeFixture(payload, platform = 'cursor') {
     "const source = missing ? { status: 'BLOCKED', reason: 'package manifest is missing', commands: [] } : JSON.parse(process.env.PROBE_PAYLOAD);",
     "const payload = !missing && process.env.REQUIRE_EXECUTE === '1' && !configured ? { ...source, status: 'NOT_RUN', surfaceResults: (source.surfaceResults || []).map((entry) => ({ ...entry, status: 'NOT_RUN', reasons: ['execute required'] })) } : source;",
     'process.stdout.write(JSON.stringify(payload));',
+    "if (payload && payload.verdict) process.exit(['FAIL', 'BLOCKED'].includes(payload.verdict) ? 1 : 0);",
     'if (missing) process.exit(1);',
   ].join('\n') + '\n');
   fs.writeFileSync(path.join(root, 'harness-entry.js'), [
@@ -140,16 +141,29 @@ function temporaryProbeFixture(payload, platform = 'cursor') {
   return root;
 }
 
-function temporaryGateFixture(payload) {
+function temporaryGateFixture(payload, inventory = '{}\n') {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-gate-fixture-')));
   fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts', 'release'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), '{}\n');
+  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), inventory);
   fs.writeFileSync(path.join(root, 'scripts', 'release', 'consumer-gate.js'), [
     "const fs = require('node:fs');",
-    "fs.writeFileSync(process.env.GATE_ARGS_FILE, JSON.stringify(process.argv.slice(2)));",
-    `process.stdout.write(${JSON.stringify(JSON.stringify(payload))});`,
+    'const args = process.argv.slice(2);',
+    `const fixturePayload = ${JSON.stringify(payload)};`,
+    "if (process.env.MUTATE_REQUIREMENTS_SOURCE_FILE) fs.writeFileSync(process.env.MUTATE_REQUIREMENTS_SOURCE_FILE, '{\"schema\":\"dhpk.consumer-requirements.v1\",\"selectedSurfaces\":[\"agy-plugin\"],\"checks\":[]}\\n');",
+    "const surfaceIndex = args.indexOf('--surface');",
+    "const selectedSurface = surfaceIndex === -1 ? null : args[surfaceIndex + 1];",
+    'const payload = fixturePayload && fixturePayload.bySurface && selectedSurface',
+    '  ? fixturePayload.bySurface[selectedSurface]',
+    '  : fixturePayload;',
+    'fs.writeFileSync(process.env.GATE_ARGS_FILE, JSON.stringify(args));',
+    'if (process.env.GATE_CALLS_FILE) {',
+    "  const index = args.indexOf('--requirements');",
+    "  const requirements = index === -1 ? null : JSON.parse(fs.readFileSync(args[index + 1], 'utf8'));",
+    '  fs.appendFileSync(process.env.GATE_CALLS_FILE, `${JSON.stringify({ args, requirements })}\\n`);',
+    '}',
+    'process.stdout.write(JSON.stringify(payload));',
   ].join('\n') + '\n');
   fs.writeFileSync(path.join(root, 'harness-entry.js'), [
     "'use strict';",
@@ -519,6 +533,75 @@ test('operation replay rejects a different surface intent', () => {
   }
 });
 
+test('operation replay binds requirements bytes and plural surface scope', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  const requirementsFile = path.join(os.tmpdir(), `dhpk-replay-requirements-${process.pid}-${Date.now()}.json`);
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  let executions = 0;
+  const phaseExecutor = (_root, parsed) => {
+    executions += 1;
+    const selected = parsed.surfaces || ['codex-sync'];
+    return {
+      outcome: 'COMPLETE',
+      requiredSurfaces: selected,
+      requiredRuntimeSurfaces: [],
+      surfaceResults: selected.map((surface) => ({ surface, status: 'NOT_RUN' })),
+    };
+  };
+  const requirement = (surface, id) => ({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: [surface],
+    checks: [{
+      id,
+      surface,
+      host: surface === 'agy-plugin' ? 'agy' : (surface === 'codex-native' ? 'codex' : 'codex'),
+      capability: 'plugin-install',
+      trigger: 'new-host',
+      reason: `Verify ${surface} installation.`,
+      question: `Does ${surface} installation satisfy the contract?`,
+      evidenceKind: 'contract',
+      authorization: { authorized: false },
+    }],
+  });
+  try {
+    fs.writeFileSync(requirementsFile, `${JSON.stringify(requirement('codex-sync', 'codex-contract'))}\n`);
+    const firstRequirements = harness.execute([
+      'release', '--requirements', requirementsFile, '--task-id', 'replay-requirements',
+      '--operation-key', 'replay-requirements-key', '--json',
+    ], { root: fixtureRoot, env, phaseExecutor });
+    assert.strictEqual(firstRequirements.status, 0);
+
+    fs.writeFileSync(requirementsFile, `${JSON.stringify(requirement('agy-plugin', 'agy-native-contract'))}\n`);
+    const changedRequirements = harness.execute([
+      'release', '--requirements', requirementsFile, '--task-id', 'replay-requirements',
+      '--operation-key', 'replay-requirements-key', '--json',
+    ], { root: fixtureRoot, env, phaseExecutor: () => { throw new Error('changed requirements must not replay'); } });
+    assert.strictEqual(changedRequirements.status, 2);
+    assert.strictEqual(changedRequirements.result.outcome, 'BLOCKED');
+    assert.match(changedRequirements.result.diagnostics.join(' '), /intent|requirements|scope/i);
+    assert.strictEqual(executions, 1);
+
+    const firstSurfaces = harness.execute([
+      'release', '--surfaces', 'codex-sync', '--task-id', 'replay-surfaces',
+      '--operation-key', 'replay-surfaces-key', '--json',
+    ], { root: fixtureRoot, env, phaseExecutor });
+    assert.strictEqual(firstSurfaces.status, 0);
+    const changedSurfaces = harness.execute([
+      'release', '--surfaces', 'cursor-sync', '--task-id', 'replay-surfaces',
+      '--operation-key', 'replay-surfaces-key', '--json',
+    ], { root: fixtureRoot, env, phaseExecutor: () => { throw new Error('changed surface scope must not replay'); } });
+    assert.strictEqual(changedSurfaces.status, 2);
+    assert.strictEqual(changedSurfaces.result.outcome, 'BLOCKED');
+    assert.match(changedSurfaces.result.diagnostics.join(' '), /intent|scope/i);
+    assert.strictEqual(executions, 2);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+    fs.rmSync(requirementsFile, { force: true });
+  }
+});
+
 test('operation replay rejects an incomplete receipt envelope', () => {
   const fixtureRoot = temporaryPackageFixture();
   const receiptRoot = temporaryReceiptRoot();
@@ -703,27 +786,35 @@ test('generation records post-generation DIRTY binding and blocks a previous-rec
   }
 });
 
-test('release JSON preserves every required surface result at the public boundary', () => {
+test('release JSON preserves the gate-configured acceptance scope at the public boundary', () => {
   const receiptRoot = temporaryReceiptRoot();
   try {
     const result = invoke(['release', '--task-id', 'facade-release-surfaces', '--json'], {
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
       PATH: NODE_BASH_ONLY_PATH,
     }, RELEASE_INVOKE_TIMEOUT_MS);
-    assert.strictEqual(result.status, 2, result.stderr);
     const payload = parseSingleJson(result.stdout);
-    assert.deepStrictEqual(payload.requiredSurfaces, [
-      'claude-core', 'codex-sync', 'codex-native', 'cursor-sync',
-      'cursor-plugin', 'agent-plugin', 'agy-plugin',
-    ]);
-    assert.deepStrictEqual(payload.requiredRuntimeSurfaces, [
-      'claude-core', 'codex-sync', 'codex-native', 'cursor-plugin',
-      'agent-plugin', 'agy-plugin',
-    ]);
-    assert.strictEqual(payload.surfaceResults.length, 7);
+    assert.ok(['dhpk.harness.result.v1', 'dhpk.harness.result.v2'].includes(payload.schema));
+    assert.strictEqual(result.status, payload.exitCode);
+    if (payload.acceptance) {
+      const selectedByGate = payload.acceptance.requiredChecks
+        .filter((check) => check.id.startsWith('install.'))
+        .map((check) => check.surface);
+      assert.deepStrictEqual([...payload.requiredSurfaces].sort(), [...selectedByGate].sort());
+    } else {
+      assert.strictEqual(payload.outcome, 'PUBLISHED_UNHEALTHY');
+      assert.match(payload.diagnostics.join('\n'), /configured consumer evidence failed closed/i);
+      assert.deepStrictEqual(
+        payload.surfaceResults.map((entry) => entry.surface).sort(),
+        [...payload.requiredSurfaces].sort(),
+      );
+    }
+    assert.ok(payload.requiredSurfaces.length < 7, 'the configured scope should not be inferred from the inventory');
+    assert.ok(payload.requiredRuntimeSurfaces.every((surface) => payload.requiredSurfaces.includes(surface)));
+    assert.strictEqual(payload.surfaceResults.length, payload.requiredSurfaces.length);
     assert.deepStrictEqual(
-      payload.surfaceResults.map((entry) => entry.surface),
-      payload.requiredSurfaces,
+      payload.surfaceResults.map((entry) => entry.surface).sort(),
+      [...payload.requiredSurfaces].sort(),
     );
     assert.ok(payload.surfaceResults.every((entry) => entry.stage === 'CONSUMER'));
     assert.ok(payload.surfaceResults.every((entry) => typeof entry.producer === 'string' && entry.producer.length > 0));
@@ -731,15 +822,13 @@ test('release JSON preserves every required surface result at the public boundar
     assert.strictEqual(cursorSync.status, 'NOT_RUN', JSON.stringify(cursorSync));
     assert.strictEqual(cursorSync.producer, 'consumer-gate');
     assert.strictEqual(cursorSync.adapter.id, 'cursor-sync-installer');
-    const hasFailedSurface = payload.surfaceResults.some((entry) => entry.status === 'FAIL');
-    assert.strictEqual(payload.outcome, hasFailedSurface ? 'PUBLISHED_UNHEALTHY' : 'PUBLISHED_PENDING');
-    assert.strictEqual(payload.exitCode, 2);
+    assert.strictEqual(result.status, payload.exitCode);
     const attempt = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'attempt.json'), 'utf8'));
     const event = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'events', '0001.json'), 'utf8'));
     assert.strictEqual(attempt.outcome, payload.outcome);
     assert.deepStrictEqual(attempt.requiredRuntimeSurfaces, payload.requiredRuntimeSurfaces);
-    assert.strictEqual(attempt.artifacts.length, 7);
-    assert.strictEqual(event.artifacts.length, 7);
+    assert.strictEqual(attempt.artifacts.length, payload.surfaceResults.length);
+    assert.strictEqual(event.artifacts.length, payload.surfaceResults.length);
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
   }
@@ -871,27 +960,31 @@ test('dirty-at-start receipt remains DIRTY when phase execution restores a clean
   }
 });
 
-test('probe JSON preserves a consumer surface row when its runtime is unavailable', () => {
+test('probe acceptance stays separate from a runtime-unavailable surface observation', () => {
   const receiptRoot = temporaryReceiptRoot();
   try {
     const result = invoke(['probe', '--surface', 'cursor-plugin', '--task-id', 'facade-cursor-probe', '--json'], {
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
     });
-    assert.strictEqual(result.status, 2, result.stderr);
+    assert.strictEqual(result.status, 0, result.stderr);
     const payload = parseSingleJson(result.stdout);
-    assert.strictEqual(payload.outcome, 'UNAVAILABLE');
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.outcome, 'PASS');
+    assert.strictEqual(payload.acceptance.verdict, 'PASS');
     assert.strictEqual(payload.surfaceResults.length, 1);
     const [cursorPlugin] = payload.surfaceResults;
     assert.strictEqual(cursorPlugin.surface, 'cursor-plugin');
     assert.strictEqual(cursorPlugin.status, 'UNAVAILABLE');
     assert.ok(payload.surfaceResults.every((entry) => entry.stage === 'CONSUMER'));
     assert.ok(payload.surfaceResults.every((entry) => entry.status !== 'PASS'));
+    assert.strictEqual(cursorPlugin.producer, 'consumer-gate');
+    assert.notStrictEqual(cursorPlugin.runtimeEvidence.status, 'PASS');
     assert.match(JSON.stringify(cursorPlugin), /Cursor|loader|unavailable/i);
     assert.ok(payload.receiptReference);
     const attempt = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'attempt.json'), 'utf8'));
     assert.strictEqual(attempt.surface, 'cursor-plugin');
     assert.strictEqual(attempt.stage, 'CONSUMER');
-    assert.strictEqual(attempt.producer, 'consumer-platform-probe');
+    assert.strictEqual(attempt.producer, 'consumer-gate');
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
   }
@@ -903,9 +996,10 @@ test('probe facade delegates the Cursor project-local sync route to the consumer
     const result = invoke(['probe', '--surface', 'cursor-sync', '--task-id', 'facade-cursor-sync-probe', '--json'], {
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
     });
-    assert.strictEqual(result.status, 2, result.stderr);
+    assert.strictEqual(result.status, 0, result.stderr);
     const payload = parseSingleJson(result.stdout);
-    assert.strictEqual(payload.outcome, 'NOT_RUN');
+    assert.strictEqual(payload.outcome, 'PASS');
+    assert.strictEqual(payload.acceptance.verdict, 'PASS');
     assert.strictEqual(payload.surfaceResults.length, 1);
     assert.strictEqual(payload.surfaceResults[0].surface, 'cursor-sync');
     assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
@@ -1097,37 +1191,884 @@ test('probe facade delegates configured sync surfaces to the canonical consumer 
   }
 });
 
-test('probe facade preserves native AGY runtime evidence when no project artifact is configured', () => {
+test('probe facade canonicalizes Claude producer rows while preserving producer identity', () => {
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-gate-args-${process.pid}-${Date.now()}.json`);
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: 'install.claude',
+        surface: 'claude',
+        kind: 'installation',
+        reason: 'The selected Claude installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.claude.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'runtime.claude',
+        surface: 'claude',
+        kind: 'native',
+        reason: 'Native execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.claude.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface: 'claude',
+      producerSurface: 'claude',
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: 'claude-plugin-cli', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
   const receiptRoot = temporaryReceiptRoot();
   try {
-    const result = invoke(['probe', '--surface', 'agy-plugin', '--task-id', 'facade-agy-probe', '--json'], {
+    const result = invokeAt(root, [
+      'probe', '--surface', 'claude-core', '--task-id', 'facade-claude-alias-probe', '--json',
+    ], {
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '1',
+      GATE_ARGS_FILE: gateArgsFile,
     });
-    assert.notStrictEqual(result.status, 64, result.stderr);
+
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
     const payload = parseSingleJson(result.stdout);
-    assert.strictEqual(payload.surfaceResults.length, 1);
-    assert.strictEqual(payload.surfaceResults[0].surface, 'agy-plugin');
-    assert.strictEqual(payload.surfaceResults[0].stage, 'CONSUMER');
-    assert.strictEqual(payload.surfaceResults[0].producer, 'multi-ai-sync');
-    assert.ok(['PASS', 'FAIL', 'BLOCKED', 'NOT_RUN', 'NOT_CONFIGURED', 'UNAVAILABLE', 'SKIP_INCOMPATIBLE'].includes(payload.surfaceResults[0].status));
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'PASS');
+    assert.strictEqual(payload.acceptance.requiredChecks[0].surface, 'claude-core');
+    assert.strictEqual(payload.acceptance.requiredChecks[0].evidenceRef, 'surfaceResults.claude-core.installationEvidence');
+    assert.strictEqual(payload.acceptance.excludedChecks[0].surface, 'claude-core');
+    assert.strictEqual(payload.acceptance.excludedChecks[0].evidenceRef, 'surfaceResults.claude-core.runtimeEvidence');
+    assert.strictEqual(payload.surfaceResults[0].surface, 'claude-core');
+    assert.strictEqual(payload.surfaceResults[0].producerSurface, 'claude');
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(gateArgsFile, 'utf8')), [
+      '--repo-root', root,
+      '--surface', 'claude-core',
+    ]);
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateArgsFile, { force: true });
   }
 });
 
-test('probe facade selects the exact project artifact when its lifecycle receipt is present', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-agy-project-'));
+test('release forwards the complete requirements declaration in one consumer-gate call', () => {
+  const requirements = {
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['codex-sync', 'cursor-plugin'],
+    checks: [
+      {
+        id: 'codex-installation',
+        surface: 'codex-sync',
+        host: 'codex',
+        capability: 'plugin-install',
+        trigger: 'new-host',
+        reason: 'Verify the selected Codex installation contract.',
+        question: 'Does the selected Codex installation satisfy the contract?',
+        evidenceKind: 'contract',
+        authorization: { authorized: false },
+      },
+      {
+        id: 'cursor-installation',
+        surface: 'cursor-plugin',
+        host: 'cursor',
+        capability: 'plugin-install',
+        trigger: 'new-host',
+        reason: 'Verify the selected Cursor installation contract.',
+        question: 'Does the selected Cursor installation satisfy the contract?',
+        evidenceKind: 'contract',
+        authorization: { authorized: false },
+      },
+    ],
+  };
+  const surfaceResults = requirements.selectedSurfaces.map((surface) => ({
+    surface,
+    status: 'NOT_RUN',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    producerSurface: surface,
+    adapter: { id: `${surface}-fixture`, version: '1.0.0' },
+    commands: [],
+    environment: { network: 'disabled' },
+    artifacts: [],
+    diagnostics: [],
+    reasons: [],
+    checkedClaims: ['consumer-route'],
+    installationEvidence: { status: 'PASS' },
+    runtimeEvidence: { status: 'NOT_RUN' },
+  }));
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: requirements.selectedSurfaces.map((surface) => ({
+        id: `install.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+      })),
+      excludedChecks: [],
+    },
+    surfaceResults,
+  };
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
+  const requirementsFile = path.join(os.tmpdir(), `dhpk-requirements-${process.pid}-${Date.now()}.json`);
+  const gateCallsFile = path.join(os.tmpdir(), `dhpk-gate-calls-${process.pid}-${Date.now()}.jsonl`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-gate-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  fs.writeFileSync(requirementsFile, `${JSON.stringify(requirements, null, 2)}\n`);
   try {
-    fs.mkdirSync(path.join(root, '.agents'), { recursive: true });
-    fs.writeFileSync(path.join(root, '.agents', '.dhpk-installed.json'), '{}\n');
-    const execution = harness.runConsumerProbe(root, { surface: 'agy-plugin' });
-    assert.strictEqual(execution.surfaceResults.length, 1);
-    assert.strictEqual(execution.surfaceResults[0].producer, 'project-agent-projection');
-    assert.strictEqual(execution.surfaceResults[0].adapter.id, 'agy-project-direct-file');
-    assert.ok(['BLOCKED', 'NOT_CONFIGURED'].includes(execution.surfaceResults[0].status), execution.surfaceResults[0].status);
-    assert.match(execution.surfaceResults[0].commands[0], /agy-project/);
+    const result = invokeAt(root, [
+      'release', '--requirements', requirementsFile, '--task-id', 'facade-atomic-requirements', '--json',
+    ], {
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      GATE_CALLS_FILE: gateCallsFile,
+      GATE_ARGS_FILE: gateArgsFile,
+      MUTATE_REQUIREMENTS_SOURCE_FILE: requirementsFile,
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+
+    assert.notStrictEqual(result.status, 64, `${result.stderr}\n${result.stdout}`);
+    assert.ok(fs.existsSync(gateCallsFile), 'the consumer gate was not invoked');
+    const calls = fs.readFileSync(gateCallsFile, 'utf8').trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    assert.strictEqual(calls.length, 1, JSON.stringify(calls));
+    assert.deepStrictEqual(calls[0].requirements, requirements);
+    assert.strictEqual(calls[0].args.filter((arg) => arg === '--requirements').length, 1);
+    assert.ok(!calls[0].args.includes('--surface'), calls[0].args.join(' '));
+    assert.notDeepStrictEqual(JSON.parse(fs.readFileSync(requirementsFile, 'utf8')), requirements);
   } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(requirementsFile, { force: true });
+    fs.rmSync(gateCallsFile, { force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('release aggregates current consumer-gate acceptance across all seven selected surfaces', () => {
+  const selectedSurfaces = [
+    'claude-core', 'codex-sync', 'codex-native', 'cursor-sync',
+    'cursor-plugin', 'agent-plugin', 'agy-plugin',
+  ];
+  const bySurface = Object.fromEntries(selectedSurfaces.map((surface) => {
+    const row = {
+      surface,
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: surface === 'claude-core' ? 'claude' : surface,
+      adapter: { id: `${surface}-installer`, version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    };
+    return [surface, {
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      verdict: 'PASS',
+      acceptance: {
+        verdict: 'PASS',
+        requiredChecks: [{
+          id: `install.${surface}`,
+          surface,
+          kind: 'installation',
+          reason: 'The selected installation contract passed.',
+          status: 'PASS',
+          evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+        }],
+        excludedChecks: [{
+          id: `runtime.${surface}`,
+          surface,
+          kind: 'native',
+          reason: 'Native execution was not authorized by this facade probe.',
+          status: 'NOT_RUN',
+          evidenceRef: `surfaceResults.${surface}.runtimeEvidence`,
+        }],
+      },
+      surfaceResults: [row],
+    }];
+  }));
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture({ bySurface }, inventory);
+  const callsFile = path.join(os.tmpdir(), `dhpk-seven-surface-gate-calls-${process.pid}-${Date.now()}.jsonl`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-seven-surface-gate-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, [
+      'release', '--surfaces', selectedSurfaces.join(','),
+      '--task-id', 'facade-seven-current-surfaces', '--json',
+    ], {
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '1',
+      GATE_CALLS_FILE: callsFile,
+      GATE_ARGS_FILE: gateArgsFile,
+      PATH: NODE_BASH_ONLY_PATH,
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'PASS');
+    assert.strictEqual(payload.outcome, 'COMPLETE');
+    assert.strictEqual(payload.exitCode, 0);
+    assert.deepStrictEqual(payload.requiredSurfaces, selectedSurfaces);
+    assert.ok(payload.surfaceResults.every((entry) => entry.status === 'NOT_RUN'));
+    assert.ok(!Object.prototype.hasOwnProperty.call(payload, 'preflight'));
+    const calls = fs.readFileSync(callsFile, 'utf8').trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    assert.strictEqual(calls.length, selectedSurfaces.length, JSON.stringify(calls));
+    assert.deepStrictEqual(calls.map((call) => call.args[call.args.indexOf('--surface') + 1]), selectedSurfaces);
+    assert.ok(calls.every((call) => call.args.includes('--surface') && !call.args.includes('--execute')));
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(callsFile, { force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('release explicit subset limits current acceptance to the selected surfaces', () => {
+  const selectedSurfaces = ['codex-sync', 'cursor-sync'];
+  const bySurface = Object.fromEntries(selectedSurfaces.map((surface) => [surface, {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: `install.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+      }],
+      excludedChecks: [],
+    },
+    surfaceResults: [{
+      surface,
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: `${surface}-installer`, version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  }]));
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture({ bySurface }, inventory);
+  const callsFile = path.join(os.tmpdir(), `dhpk-subset-gate-calls-${process.pid}-${Date.now()}.jsonl`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-subset-gate-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, [
+      'release', '--surfaces', selectedSurfaces.join(','), '--task-id', 'facade-current-subset', '--json',
+    ], {
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      GATE_CALLS_FILE: callsFile,
+      GATE_ARGS_FILE: gateArgsFile,
+      PATH: NODE_BASH_ONLY_PATH,
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'PASS');
+    assert.deepStrictEqual(payload.requiredSurfaces, selectedSurfaces);
+    assert.strictEqual(payload.outcome, 'COMPLETE');
+    assert.strictEqual(payload.exitCode, 0);
+    const calls = fs.readFileSync(callsFile, 'utf8').trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    assert.strictEqual(calls.length, selectedSurfaces.length, JSON.stringify(calls));
+    assert.deepStrictEqual(calls.map((call) => call.args[call.args.indexOf('--surface') + 1]), selectedSurfaces);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(callsFile, { force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('current install-only release completes when the unrequired raw runtime is unavailable', () => {
+  const surface = 'cursor-sync';
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: `install.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: 'The selected Cursor sync installation contract passed.',
+        status: 'PASS',
+        evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+      }],
+      excludedChecks: [],
+    },
+    surfaceResults: [{
+      surface,
+      status: 'UNAVAILABLE',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: 'cursor-sync-installer', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: ['Runtime execution is not part of Cursor sync installation acceptance.'],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'UNAVAILABLE' },
+    }],
+  };
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
+  const gateCallsFile = path.join(os.tmpdir(), `dhpk-cursor-sync-gate-calls-${process.pid}-${Date.now()}.jsonl`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-cursor-sync-gate-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, [
+      'release', '--surfaces', surface, '--task-id', 'facade-cursor-sync-install-only', '--json',
+    ], {
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      GATE_CALLS_FILE: gateCallsFile,
+      GATE_ARGS_FILE: gateArgsFile,
+      PATH: NODE_BASH_ONLY_PATH,
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'PASS');
+    assert.deepStrictEqual(payload.requiredSurfaces, [surface]);
+    assert.deepStrictEqual(payload.requiredRuntimeSurfaces, []);
+    assert.strictEqual(payload.surfaceResults[0].status, 'UNAVAILABLE');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'UNAVAILABLE');
+    assert.strictEqual(payload.outcome, 'COMPLETE');
+    assert.strictEqual(payload.exitCode, 0);
+    assert.ok(!Object.prototype.hasOwnProperty.call(payload, 'preflight'));
+    const calls = fs.readFileSync(gateCallsFile, 'utf8').trim().split(/\r?\n/).filter(Boolean);
+    assert.strictEqual(calls.length, 1);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateCallsFile, { force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('requirements files reject FIFOs, symlinks, and non-regular files without invoking the gate', () => {
+  const surface = 'codex-sync';
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: `install.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+      }],
+      excludedChecks: [],
+    },
+    surfaceResults: [{
+      surface,
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: `${surface}-installer`, version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
+  const requirements = path.join(os.tmpdir(), `dhpk-invalid-requirements-${process.pid}-${Date.now()}.json`);
+  const regularTarget = `${requirements}.target`;
+  const symlink = `${requirements}.symlink`;
+  const fifo = `${requirements}.fifo`;
+  const directory = `${requirements}.directory`;
+  const gateCallsFile = path.join(os.tmpdir(), `dhpk-invalid-requirements-calls-${process.pid}-${Date.now()}.jsonl`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-invalid-requirements-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  const validRequirements = JSON.stringify({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: [surface],
+    checks: [],
+  });
+  fs.writeFileSync(regularTarget, `${validRequirements}\n`);
+  fs.symlinkSync(regularTarget, symlink);
+  execFileSync('mkfifo', [fifo]);
+  fs.mkdirSync(directory);
+  const invalidPaths = [
+    { path: fifo, timeout: 2000, kind: 'FIFO' },
+    { path: symlink, timeout: DEFAULT_INVOKE_TIMEOUT_MS, kind: 'symlink' },
+    { path: directory, timeout: DEFAULT_INVOKE_TIMEOUT_MS, kind: 'directory' },
+  ];
+  try {
+    const failures = [];
+    for (const entry of invalidPaths) {
+      fs.rmSync(gateCallsFile, { force: true });
+      const result = invokeAt(root, [
+        'release', '--requirements', entry.path, '--task-id', `invalid-requirements-${entry.kind}`, '--json',
+      ], {
+        DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+        GATE_CALLS_FILE: gateCallsFile,
+        GATE_ARGS_FILE: gateArgsFile,
+        PATH: NODE_BASH_ONLY_PATH,
+      }, entry.timeout);
+      try {
+        assert.notStrictEqual(result.status, null, `${entry.kind} read exceeded the bounded timeout`);
+        assert.strictEqual(result.status, 2, `${entry.kind}: ${result.stderr}\n${result.stdout}`);
+        const payload = parseSingleJson(result.stdout);
+        assert.strictEqual(payload.outcome, 'BLOCKED', `${entry.kind}: ${JSON.stringify(payload)}`);
+        assert.match(payload.diagnostics.join(' '), /requirements|regular|fifo|symlink/i);
+        assert.ok(!fs.existsSync(gateCallsFile), `${entry.kind} invoked consumer gate`);
+      } catch (error) {
+        failures.push(`${entry.kind}: ${error.message}`);
+      }
+    }
+    assert.strictEqual(failures.length, 0, failures.join('\n'));
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(regularTarget, { force: true });
+    fs.rmSync(symlink, { force: true });
+    fs.rmSync(fifo, { force: true });
+    fs.rmSync(directory, { recursive: true, force: true });
+    fs.rmSync(gateCallsFile, { force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('malformed current evidence redacts bearer and password canaries in both release catches', () => {
+  const sensitiveStage = 'Authorization: Bearer CANARY_BEARER_853 password=CANARY_PASSWORD_853';
+  const surface = 'codex-sync';
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: `install.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+      }],
+      excludedChecks: [],
+    },
+    surfaceResults: [{
+      surface,
+      status: 'PASS',
+      stage: sensitiveStage,
+      producer: 'consumer-gate',
+      adapter: { id: `${surface}-installer`, version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
+  const requirementsFile = path.join(os.tmpdir(), `dhpk-malformed-requirements-${process.pid}-${Date.now()}.json`);
+  const gateCallsFile = path.join(os.tmpdir(), `dhpk-malformed-evidence-calls-${process.pid}-${Date.now()}.jsonl`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-malformed-evidence-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  fs.writeFileSync(requirementsFile, `${JSON.stringify({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: [surface],
+    checks: [],
+  })}\n`);
+  try {
+    const invocations = [
+      ['release', '--requirements', requirementsFile, '--task-id', 'malformed-requirements-canary', '--json'],
+      ['release', '--task-id', 'malformed-configured-canary', '--json'],
+    ];
+    for (const args of invocations) {
+      const result = invokeAt(root, args, {
+        DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+        GATE_CALLS_FILE: gateCallsFile,
+        GATE_ARGS_FILE: gateArgsFile,
+        PATH: NODE_BASH_ONLY_PATH,
+      }, RELEASE_INVOKE_TIMEOUT_MS);
+      assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+      const payload = parseSingleJson(result.stdout);
+      assert.ok(['PUBLISHED_UNHEALTHY', 'BLOCKED'].includes(payload.outcome), JSON.stringify(payload));
+      assert.strictEqual(payload.exitCode, 1);
+      const serialized = JSON.stringify(payload);
+      assert.ok(!serialized.includes('CANARY_BEARER_853'), serialized);
+      assert.ok(!serialized.includes('CANARY_PASSWORD_853'), serialized);
+    }
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(requirementsFile, { force: true });
+    fs.rmSync(gateCallsFile, { force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('release with no configured consumer surface returns the gate scope block', () => {
+  const surfaces = ['claude-core', 'codex-sync', 'codex-native', 'cursor-sync', 'agent-plugin', 'cursor-plugin', 'agy-plugin'];
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'consumer-gate', version: '1.0.0' },
+    verdict: 'BLOCKED',
+    acceptance: {
+      verdict: 'BLOCKED',
+      requiredChecks: [{
+        id: 'scope.configuration',
+        surface: 'consumer-scope',
+        kind: 'contract',
+        reason: 'No configured consumer surface exists.',
+        status: 'BLOCKED',
+        evidenceRef: null,
+      }],
+      excludedChecks: surfaces.map((surface) => ({
+        id: `scope.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: 'No configured-target marker was found.',
+        status: 'NOT_CONFIGURED',
+        evidenceRef: null,
+      })),
+    },
+    surfaceResults: [],
+  };
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
+  const gateCallsFile = path.join(os.tmpdir(), `dhpk-no-config-gate-calls-${process.pid}-${Date.now()}.jsonl`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-no-config-gate-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, ['release', '--task-id', 'facade-no-configured-consumer', '--json'], {
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      GATE_CALLS_FILE: gateCallsFile,
+      GATE_ARGS_FILE: gateArgsFile,
+      PATH: NODE_BASH_ONLY_PATH,
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'BLOCKED');
+    assert.strictEqual(payload.outcome, 'BLOCKED');
+    assert.deepStrictEqual(payload.requiredSurfaces, []);
+    const calls = fs.readFileSync(gateCallsFile, 'utf8').trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    assert.strictEqual(calls.length, 1, JSON.stringify(calls));
+    assert.ok(!calls[0].args.includes('--surface'), calls[0].args.join(' '));
+    assert.ok(!calls[0].args.includes('--requirements'), calls[0].args.join(' '));
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateCallsFile, { force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('probe facade carries passing installation acceptance beside raw native NOT_RUN evidence', () => {
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    runtimeVerified: false,
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: 'install.codex-sync',
+        surface: 'codex-sync',
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'runtime.codex-sync',
+        surface: 'codex-sync',
+        kind: 'native',
+        reason: 'Native execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.codex-sync.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: 'codex-sync',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-gate-args-${process.pid}-${Date.now()}.json`);
+  const root = temporaryGateFixture(gateEvidence);
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, [
+      'probe', '--surface', 'codex-sync', '--task-id', 'facade-acceptance-probe', '--json',
+    ], { DHPK_HARNESS_RECEIPT_ROOT: receiptRoot, GATE_ARGS_FILE: gateArgsFile });
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.outcome, 'PASS');
+    assert.deepStrictEqual(payload.acceptance, gateEvidence.acceptance);
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[0].installationEvidence.status, 'PASS');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.notStrictEqual(payload.runtimeVerified, true);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('probe facade maps required BLOCKED acceptance to exit 1 while preserving raw observations', () => {
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'BLOCKED',
+    runtimeVerified: false,
+    acceptance: {
+      verdict: 'BLOCKED',
+      requiredChecks: [{
+        id: 'install.codex-sync',
+        surface: 'codex-sync',
+        kind: 'installation',
+        reason: 'The selected installation contract is unavailable.',
+        status: 'UNAVAILABLE',
+        evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+      }],
+      excludedChecks: [],
+    },
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: 'codex-sync',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'UNAVAILABLE' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-gate-args-${process.pid}-${Date.now()}.json`);
+  const root = temporaryGateFixture(gateEvidence);
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, [
+      'probe', '--surface', 'codex-sync', '--task-id', 'facade-blocked-acceptance', '--json',
+    ], { DHPK_HARNESS_RECEIPT_ROOT: receiptRoot, GATE_ARGS_FILE: gateArgsFile });
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2', JSON.stringify(payload));
+    assert.strictEqual(payload.outcome, 'BLOCKED');
+    assert.strictEqual(payload.exitCode, 1);
+    assert.deepStrictEqual(payload.acceptance, gateEvidence.acceptance);
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[0].installationEvidence.status, 'UNAVAILABLE');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.notStrictEqual(payload.runtimeVerified, true);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('probe facade routes AGY installation through the consumer gate with native NOT_RUN evidence', () => {
+  const surface = 'agy-plugin';
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: 'install.agy-plugin',
+        surface,
+        kind: 'installation',
+        reason: 'The selected AGY installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.agy-plugin.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'runtime.agy-plugin',
+        surface,
+        kind: 'native',
+        reason: 'Native AGY execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.agy-plugin.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface,
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: surface,
+      adapter: { id: 'agy-plugin-installer', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  const root = temporaryGateFixture(gateEvidence);
+  const receiptRoot = temporaryReceiptRoot();
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-gate-args-${process.pid}-${Date.now()}.json`);
+  try {
+    const result = invokeAt(root, [
+      'probe', '--surface', surface, '--task-id', 'facade-agy-install-probe', '--json',
+    ], { DHPK_HARNESS_RECEIPT_ROOT: receiptRoot, GATE_ARGS_FILE: gateArgsFile });
+
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    const gateArgs = JSON.parse(fs.readFileSync(gateArgsFile, 'utf8'));
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.outcome, 'PASS');
+    assert.deepStrictEqual(payload.acceptance, gateEvidence.acceptance);
+    assert.strictEqual(payload.surfaceResults[0].producer, 'consumer-gate');
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[0].installationEvidence.status, 'PASS');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.ok(gateArgs.includes('--surface') && gateArgs.includes(surface), gateArgs.join(' '));
+    assert.ok(!gateArgs.includes('--execute'), gateArgs.join(' '));
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('probe facade preserves blocked AGY project installation evidence from the consumer gate', () => {
+  const surface = 'agy-plugin';
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'BLOCKED',
+    acceptance: {
+      verdict: 'BLOCKED',
+      requiredChecks: [{
+        id: 'install.agy-plugin',
+        surface,
+        kind: 'installation',
+        reason: 'The physical AGY project receipt is invalid.',
+        status: 'BLOCKED',
+        evidenceRef: 'surfaceResults.agy-plugin.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'runtime.agy-plugin',
+        surface,
+        kind: 'native',
+        reason: 'Native AGY execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.agy-plugin.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface,
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: surface,
+      adapter: { id: 'agy-project-direct-file', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: ['The physical AGY project receipt is invalid.'],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'BLOCKED' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  const root = temporaryGateFixture(gateEvidence);
+  const receiptRoot = temporaryReceiptRoot();
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-gate-args-${process.pid}-${Date.now()}.json`);
+  try {
+    const result = invokeAt(root, [
+      'probe', '--surface', surface, '--task-id', 'facade-agy-project-probe', '--json',
+    ], { DHPK_HARNESS_RECEIPT_ROOT: receiptRoot, GATE_ARGS_FILE: gateArgsFile });
+
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.outcome, 'BLOCKED');
+    assert.strictEqual(payload.exitCode, 1);
+    assert.deepStrictEqual(payload.acceptance, gateEvidence.acceptance);
+    assert.strictEqual(payload.surfaceResults[0].adapter.id, 'agy-project-direct-file');
+    assert.strictEqual(payload.surfaceResults[0].installationEvidence.status, 'BLOCKED');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateArgsFile, { force: true });
   }
 });
 

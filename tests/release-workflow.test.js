@@ -6,7 +6,9 @@
 //   - notes are streamed via stdin so shell syntax in prose stays inert.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -217,6 +219,182 @@ test('release PRs run a read-only release rehearsal of the tag-only path', () =>
   assert.ok(/PUBLISHED_PENDING[\s\S]{0,240}exit 0/.test(job), 'pending consumer evidence stays green');
   assert.ok(/PUBLISHED_UNHEALTHY\|BLOCKED[\s\S]{0,240}exit 1/.test(job), 'unhealthy or blocked evidence fails the rehearsal');
   assert.ok(/Unexpected consumer rehearsal outcome[\s\S]{0,120}exit 1/.test(job), 'unknown evidence fails closed');
+});
+
+test('release consumer jobs validate current acceptance before legacy outcome classification', () => {
+  const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const rehearsalStart = ci.indexOf('\n  release-rehearsal:\n');
+  const rehearsalRest = ci.slice(rehearsalStart + 1);
+  const rehearsalNext = rehearsalRest.slice(1).search(/\n  [A-Za-z0-9][A-Za-z0-9_-]*:\n/);
+  const rehearsalJob = rehearsalNext === -1 ? rehearsalRest : rehearsalRest.slice(0, rehearsalNext + 1);
+  const verifyStart = raw.indexOf('consumer-verify:');
+  const verifyEnd = raw.indexOf('sync-develop:', verifyStart);
+  const consumerJob = raw.slice(verifyStart, verifyEnd);
+
+  for (const [name, job] of [['release rehearsal', rehearsalJob], ['post-publish verification', consumerJob]]) {
+    const invocationIdx = job.indexOf('bin/dhpk harness release --json');
+    const classifyIdx = job.indexOf('case "$outcome" in', invocationIdx);
+    assert.ok(invocationIdx !== -1, `${name} must run the public release facade`);
+    assert.ok(classifyIdx > invocationIdx, `${name} must classify results after invoking the facade`);
+    const validation = job.slice(invocationIdx, classifyIdx);
+    assert.ok(validation.includes('dhpk.harness.result.v2'), `${name} must identify current facade JSON`);
+    assert.match(validation, /acceptance[\s\S]{0,120}verdict|verdict[\s\S]{0,120}acceptance/i, `${name} must validate the current acceptance verdict`);
+    assert.ok(validation.includes('probe_exit'), `${name} must validate the process exit alongside JSON`);
+    assert.match(validation, /PASS[\s\S]{0,240}FAIL|FAIL[\s\S]{0,240}PASS/i, `${name} must distinguish current PASS and failure verdicts`);
+    assert.match(validation, /BLOCKED/, `${name} must classify a current BLOCKED verdict`);
+
+    const pendingIdx = job.indexOf('PUBLISHED_PENDING', classifyIdx);
+    const unhealthyIdx = job.indexOf('PUBLISHED_UNHEALTHY', pendingIdx);
+    const pendingBranch = job.slice(pendingIdx, unhealthyIdx);
+    assert.match(pendingBranch, /legacy_report/, `${name} may accept PUBLISHED_PENDING only for legacy reports`);
+  }
+});
+
+test('release workflow validators enforce current verdict and process exit consistency', () => {
+  const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const rehearsalStart = ci.indexOf('\n  release-rehearsal:\n');
+  const rehearsalRest = ci.slice(rehearsalStart + 1);
+  const rehearsalNext = rehearsalRest.slice(1).search(/\n  [A-Za-z0-9][A-Za-z0-9_-]*:\n/);
+  const rehearsalJob = rehearsalNext === -1 ? rehearsalRest : rehearsalRest.slice(0, rehearsalNext + 1);
+  const verifyStart = raw.indexOf('consumer-verify:');
+  const verifyEnd = raw.indexOf('sync-develop:', verifyStart);
+  const jobs = [rehearsalJob, raw.slice(verifyStart, verifyEnd)];
+  const scenarios = [
+    {
+      result: {
+        schema: 'dhpk.harness.result.v2', outcome: 'COMPLETE', exitCode: 0,
+        acceptance: { verdict: 'PASS', requiredChecks: [{}], excludedChecks: [] },
+      },
+      actualExit: 0,
+      expectedStatus: 0,
+      expectedOutput: 'CURRENT',
+    },
+    {
+      result: {
+        schema: 'dhpk.harness.result.v2', outcome: 'PUBLISHED_UNHEALTHY', exitCode: 1,
+        acceptance: { verdict: 'PASS', requiredChecks: [{}], excludedChecks: [] },
+      },
+      actualExit: 1,
+      expectedStatus: 0,
+      expectedOutput: 'CURRENT',
+    },
+    {
+      result: {
+        schema: 'dhpk.harness.result.v2', outcome: 'BLOCKED', exitCode: 1,
+        acceptance: { verdict: 'BLOCKED', requiredChecks: [{}], excludedChecks: [] },
+      },
+      actualExit: 1,
+      expectedStatus: 0,
+      expectedOutput: 'CURRENT',
+    },
+    {
+      result: {
+        schema: 'dhpk.harness.result.v2', outcome: 'COMPLETE', exitCode: 0,
+        acceptance: { verdict: 'BLOCKED', requiredChecks: [{}], excludedChecks: [] },
+      },
+      actualExit: 0,
+      expectedStatus: 1,
+      expectedOutput: '',
+    },
+    {
+      result: {
+        schema: 'dhpk.harness.result.v2', outcome: 'PUBLISHED_UNHEALTHY', exitCode: 1,
+        acceptance: { verdict: 'FAIL', requiredChecks: [{}], excludedChecks: [] },
+      },
+      actualExit: 1,
+      expectedStatus: 0,
+      expectedOutput: 'CURRENT',
+    },
+    {
+      result: {
+        schema: 'dhpk.harness.result.v2', outcome: 'BLOCKED', exitCode: 1,
+        acceptance: { verdict: 'BLOCKED', requiredChecks: [{}], excludedChecks: [] },
+      },
+      actualExit: 0,
+      expectedStatus: 1,
+      expectedOutput: '',
+    },
+    {
+      result: { schema: 'dhpk.harness.result.v2', outcome: 'BLOCKED', exitCode: 1 },
+      actualExit: 1,
+      expectedStatus: 1,
+      expectedOutput: '',
+    },
+  ];
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-workflow-contract-'));
+  const resultFile = path.join(root, 'result.json');
+
+  try {
+    for (const job of jobs) {
+      const marker = 'node - "$result_file" "$probe_exit" <<\'NODE\'\n';
+      const scriptStart = job.indexOf(marker);
+      assert.ok(scriptStart !== -1, 'release workflow must contain an executable current-result validator');
+      const bodyStart = scriptStart + marker.length;
+      const bodyEnd = job.indexOf('\n          NODE\n', bodyStart);
+      assert.ok(bodyEnd > bodyStart, 'current-result validator heredoc must be closed');
+      const validator = job.slice(bodyStart, bodyEnd).replace(/^          /gm, '');
+
+      for (const scenario of scenarios) {
+        fs.writeFileSync(resultFile, JSON.stringify(scenario.result));
+        const checked = spawnSync(process.execPath, ['-e', validator, '-', resultFile, String(scenario.actualExit)], {
+          encoding: 'utf8',
+        });
+        assert.strictEqual(checked.status, scenario.expectedStatus, checked.stderr);
+        assert.strictEqual(checked.stdout.trim(), scenario.expectedOutput);
+      }
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('release workflow validators keep schema-v1 pending evidence on the legacy path', () => {
+  const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const rehearsalStart = ci.indexOf('\n  release-rehearsal:\n');
+  const rehearsalRest = ci.slice(rehearsalStart + 1);
+  const rehearsalNext = rehearsalRest.slice(1).search(/\n  [A-Za-z0-9][A-Za-z0-9_-]*:\n/);
+  const rehearsalJob = rehearsalNext === -1 ? rehearsalRest : rehearsalRest.slice(0, rehearsalNext + 1);
+  const verifyStart = raw.indexOf('consumer-verify:');
+  const verifyEnd = raw.indexOf('sync-develop:', verifyStart);
+  const jobs = [rehearsalJob, raw.slice(verifyStart, verifyEnd)];
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-workflow-legacy-'));
+  const resultFile = path.join(root, 'result.json');
+
+  try {
+    fs.writeFileSync(resultFile, JSON.stringify({
+      schema: 'dhpk.harness.result.v1',
+      outcome: 'PUBLISHED_PENDING',
+      exitCode: 2,
+    }));
+    for (const job of jobs) {
+      const marker = 'node - "$result_file" "$probe_exit" <<\'NODE\'\n';
+      const scriptStart = job.indexOf(marker);
+      assert.ok(scriptStart !== -1, 'release workflow must contain a legacy-compatible validator');
+      const bodyStart = scriptStart + marker.length;
+      const bodyEnd = job.indexOf('\n          NODE\n', bodyStart);
+      assert.ok(bodyEnd > bodyStart, 'current-result validator heredoc must be closed');
+      const validator = job.slice(bodyStart, bodyEnd).replace(/^          /gm, '');
+      const checked = spawnSync(process.execPath, ['-e', validator, '-', resultFile, '2'], { encoding: 'utf8' });
+      assert.strictEqual(checked.status, 0, checked.stderr);
+      assert.strictEqual(checked.stdout.trim(), 'LEGACY');
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('post-publish summary reports selected acceptance checks separately from observations', () => {
+  const verifyStart = raw.indexOf('consumer-verify:');
+  const verifyEnd = raw.indexOf('sync-develop:', verifyStart);
+  const consumerJob = raw.slice(verifyStart, verifyEnd);
+  const summaryStart = consumerJob.indexOf('echo "## Consumer verification');
+  const summaryEnd = consumerJob.indexOf('} >> "$GITHUB_STEP_SUMMARY"', summaryStart);
+  const summary = consumerJob.slice(summaryStart, summaryEnd);
+
+  assert.ok(summaryStart !== -1 && summaryEnd > summaryStart, 'consumer verification summary must be bounded');
+  assert.match(summary, /acceptance[\s\S]{0,120}requiredChecks/i, 'summary must report the selected required-check scope');
+  assert.match(summary, /surfaceResults/, 'summary must preserve raw observation rows');
+  assert.doesNotMatch(summary, /all seven consumer rows are PASS/i, 'readiness does not require every runtime observation to pass');
 });
 
 test('CI preserves the required Validate harness assets check as the shard aggregate', () => {

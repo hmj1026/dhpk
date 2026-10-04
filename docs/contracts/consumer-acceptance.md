@@ -1,6 +1,7 @@
 # Consumer acceptance contract
 
-Status: accepted for issues #849–#851. This contract defines the selected-
+Status: baseline accepted for issues #849–#851; issue #853 adds AGY and
+selected-scope aggregate acceptance. This contract defines the selected-
 surface consumer gate's installation acceptance, bounded requirements input,
 fixed conditional capability checks, and identity-bound evidence reuse. A
 passing installation check does not claim that a consumer runtime was executed.
@@ -40,6 +41,7 @@ The fixed selected-surface IDs are owned by
 | `cursor-sync` | `cursor` | `cursor-sync` |
 | `agent-plugin` | `cursor` | `agent-plugin` |
 | `cursor-plugin` | `cursor` | `cursor-plugin` |
+| `agy-plugin` | `agy` | `agy-plugin` |
 
 `--surface` selects exactly one known surface. With `--requirements`, it MUST
 match a requirements scope containing exactly that one surface. A mismatch is
@@ -54,7 +56,7 @@ When neither `--surface` nor `--requirements` is supplied, the gate's default
 scope is the set of consumer surfaces configured by the repository's local
 target markers. It MUST NOT infer configuration from `PATH`, client binaries,
 CI, or ambient environment variables. The repository-relative markers below
-are the consumer-gate-owned map for this #849 contract; they apply ADR-0002's
+are the consumer-gate-owned map for this contract; they apply ADR-0002's
 [repository-local configured-scope principle](../adr/0002-scope-validation-to-configured-platforms.md):
 
 | Consumer surface | Configured-scope marker |
@@ -62,6 +64,7 @@ are the consumer-gate-owned map for this #849 contract; they apply ADR-0002's
 | `claude-core` | `.claude-plugin/plugin.json` |
 | `codex-sync`, `codex-native` | `.codex/config.toml` |
 | `cursor-sync`, `agent-plugin`, `cursor-plugin` | Any existing marker in the list below |
+| `agy-plugin` | `.agents/.dhpk-installed.json` or `plugins/dhpk-agy/plugin.json` |
 
 The Cursor-family marker list is:
 
@@ -123,7 +126,7 @@ The top-level object permits only `schema`, optional `selectedSurfaces`, and
 explicit scope from the declared checks; it does not discover scope from the
 machine.
 An explicit `selectedSurfaces` list is non-empty, contains unique known IDs,
-and is bounded by the six fixed surface IDs. `checks` contains 1–64 entries and
+and is bounded by the seven fixed surface IDs. `checks` contains 1–64 entries and
 the input file is at most 64 KiB. Unknown fields, malformed JSON, invalid
 surface/Host pairs, duplicate IDs, unsupported triggers, and invalid nested
 authorization are rejected at the CLI boundary.
@@ -135,7 +138,7 @@ Each check contains exactly `id`, `surface`, `host`, `capability`, `trigger`,
   dots. The validated ID is retained in the corresponding requirement
   evidence object's `id` field; the evidence reference uses a stable slot
   instead of embedding the ID in its path.
-- `surface` is one of the six fixed IDs above; `host` must exactly match its
+- `surface` is one of the seven fixed IDs above; `host` must exactly match its
   table entry.
 - `capability` and `host` are non-empty bounded single-line strings of at most
   80 characters. Unknown capabilities are retained as required blockers; they
@@ -196,6 +199,7 @@ The supported conditional mapping is fixed:
 | `codex-sync` | `named-role-<role>` | Exact role and referenced resources are independently verified against the current receipt | One exact, manifest-owned role is dispatched through the gate-owned Codex probe |
 | `agent-plugin` | `package-loader` | The fixed Agent Plugin package validator | The challenged one-package Cursor Agent loader route |
 | `cursor-plugin` | `package-loader` | The fixed Cursor package validator, including its required sibling Agent package | The challenged two-package Cursor loader route |
+| `agy-plugin` | `installation-contract` | The fixed AGY package inventory/provenance validator, isolated canonical install and receipt-owned inspection; or a validated project direct-file binding | No native route is supported; a native requirement remains required and `BLOCKED` without a native call |
 
 The Codex role suffix must be one of the roles in the canonical projection
 manifest and must have a concrete role TOML and current receipt entry. No other
@@ -234,6 +238,18 @@ gate-owned challenged loader route. Neither `CI` nor inherited
 `DHPK_CONSUMER_PROBE_EXECUTE` may activate plugin-directory runtime execution
 through the ordinary acceptance path. No runtime result is inferred from
 package copy or static materialization.
+
+The `agy-plugin` package route validates the version and current inventory
+selection, installs into an isolated temporary home at the canonical inventory
+path, and inspects the resulting current AGY-owned receipt and file set. The
+temporary home is removed after inspection. When `.agents/.dhpk-installed.json`
+is present, the project route validates that receipt and its concrete AGY
+direct-file binding; a symlink, unreadable or malformed receipt, or invalid
+binding blocks and does not fall back to package installation. The fixed
+`agy-project` structural probe must return its bound NOT_RUN result with the
+expected adapter, claims, and fingerprints. These routes can establish
+installation acceptance while `runtimeEvidence.status` remains `NOT_RUN`;
+the consumer gate never invokes the AGY native runtime.
 
 ## Capability evidence reuse
 

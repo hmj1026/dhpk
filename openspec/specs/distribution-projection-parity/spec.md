@@ -83,6 +83,11 @@ Every parity result SHALL bind target surface, profile or artifact identity when
 - **WHEN** structural or package parity passes but the requested consumer-runtime adapter is absent, unconfigured, or not run
 - **THEN** the structural or package result remains independently addressable while runtime evidence is `NOT_CONFIGURED`, `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE`, and no combined report claims runtime support
 
+#### Scenario: Selected installation acceptance retains a non-run observation
+
+- **WHEN** a schema-v2 CONSUMER acceptance passes for a selected installation and its separate raw runtime observation is `NOT_RUN`
+- **THEN** aggregation retains both results and does not promote the installation result to consumer-runtime parity
+
 ### Requirement: Parity migration preserves characterized behavior
 
 Moving parity checks from the discovery-budget path SHALL preserve

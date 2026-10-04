@@ -48,6 +48,13 @@ const { redactSensitiveText } = require('../lib/redaction');
 const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
+const { validateAgyPluginPackage } = require('../lib/agy-plugin-package');
+const {
+  inspectAgyPlugin,
+  installAgyPlugin,
+  resolveAgyInstallRoot,
+} = require('../lib/agy-plugin-install');
+const { loadAgyPathContract } = require('../lib/agy-path-contract');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
@@ -59,6 +66,7 @@ const CONSUMER_SURFACES = Object.freeze([
   'cursor-sync',
   'agent-plugin',
   'cursor-plugin',
+  'agy-plugin',
 ]);
 const CONSUMER_REQUIREMENTS_SCHEMA = 'dhpk.consumer-requirements.v1';
 const CONSUMER_SURFACE_HOSTS = Object.freeze({
@@ -68,6 +76,7 @@ const CONSUMER_SURFACE_HOSTS = Object.freeze({
   'cursor-sync': 'cursor',
   'agent-plugin': 'cursor',
   'cursor-plugin': 'cursor',
+  'agy-plugin': 'agy',
 });
 const CONSUMER_HOST_CONFIG_MARKERS = Object.freeze({
   claude: Object.freeze(['.claude-plugin/plugin.json']),
@@ -78,6 +87,10 @@ const CONSUMER_HOST_CONFIG_MARKERS = Object.freeze({
     '.cursor-plugin/plugin.json',
     '.cursor/plugins/local/dhpk-agent/plugin.json',
     '.cursor/plugins/local/dhpk-cursor/.cursor-plugin/plugin.json',
+  ]),
+  agy: Object.freeze([
+    '.agents/.dhpk-installed.json',
+    'plugins/dhpk-agy/plugin.json',
   ]),
 });
 const CONSUMER_REQUIREMENT_TRIGGERS = new Set([
@@ -2852,6 +2865,363 @@ function verifyProjectedConsumer(root, platform, version, options = {}) {
   };
 }
 
+const AGY_PROJECT_ADAPTER = Object.freeze({ id: 'agy-project-direct-file', version: '1.0.0' });
+const AGY_PACKAGE_ADAPTER = Object.freeze({ id: 'agy-plugin-package-install', version: '1.0.0' });
+const AGY_FINGERPRINT_PATTERN = /^sha256:[a-f0-9]{64}$/i;
+
+function agyInstallationResult({
+  status,
+  installationStatus,
+  reason,
+  adapter,
+  commands = [],
+  diagnostics = [],
+  artifacts = [],
+  checkedClaims = [],
+  planFingerprint = null,
+  artifactFingerprint = null,
+}) {
+  const evidence = {
+    status: installationStatus,
+    reason,
+    adapterRoute: adapter.id,
+    artifacts,
+    checkedClaims,
+    ...(planFingerprint ? { planFingerprint } : {}),
+    ...(artifactFingerprint ? { artifactFingerprint } : {}),
+  };
+  return {
+    status,
+    reason,
+    adapter,
+    commands,
+    diagnostics,
+    installationEvidence: evidence,
+    runtimeEvidence: {
+      status: 'NOT_RUN',
+      reason: 'AGY native runtime was not invoked by the consumer gate',
+    },
+    surfaceResults: [{
+      surface: 'agy-plugin',
+      status,
+      commands,
+      environment: process.env.CI ? 'ci' : 'local',
+      artifacts,
+      diagnostics,
+      reasons: reason ? [reason] : [],
+      checkedClaims,
+      ...(planFingerprint ? { planFingerprint } : {}),
+      ...(artifactFingerprint ? { artifactFingerprint } : {}),
+    }],
+  };
+}
+
+function inspectAgyProjectRoute(root) {
+  let rootStat;
+  try {
+    rootStat = fs.lstatSync(root);
+  } catch (_) {
+    return { route: 'project', error: 'AGY project root could not be inspected safely' };
+  }
+  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+    return { route: 'project', error: 'AGY project root must be a physical directory' };
+  }
+  try {
+    if (fs.realpathSync(root) !== root) {
+      return { route: 'project', error: 'AGY project root has a symlinked ancestor' };
+    }
+  } catch (_) {
+    return { route: 'project', error: 'AGY project root could not be resolved safely' };
+  }
+
+  const agentsPath = path.join(root, '.agents');
+  let agentsStat;
+  try {
+    agentsStat = fs.lstatSync(agentsPath);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return { route: 'package' };
+    return { route: 'project', error: 'AGY project artifact directory could not be inspected safely' };
+  }
+  if (agentsStat.isSymbolicLink() || !agentsStat.isDirectory()
+    || hasSymlinkedAncestor(agentsPath, root)) {
+    return { route: 'project', error: 'AGY project artifact directory is not a physical directory' };
+  }
+
+  const receiptPath = path.join(agentsPath, '.dhpk-installed.json');
+  let receiptStat;
+  try {
+    receiptStat = fs.lstatSync(receiptPath);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return { route: 'package' };
+    return { route: 'project', error: 'AGY project receipt could not be inspected safely' };
+  }
+  if (receiptStat.isSymbolicLink() || !receiptStat.isFile()
+    || hasSymlinkedAncestor(receiptPath, root)) {
+    return { route: 'project', error: 'AGY project receipt must be a physical regular file' };
+  }
+  return { route: 'project', receiptPath };
+}
+
+function inspectAgyProjectBinding(root, receiptPath) {
+  let receipt;
+  try {
+    receipt = JSON.parse(readConsumerEvidenceFileBounded(receiptPath).toString('utf8'));
+  } catch (_) {
+    throw new Error('AGY project receipt is unreadable or invalid JSON');
+  }
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) {
+    throw new Error('AGY project receipt must be an object');
+  }
+  const binding = receipt.hostBindings && receipt.hostBindings.agy;
+  if (!binding || binding.surface !== 'agy-plugin'
+    || binding.shape !== 'project-skill-direct-file'
+    || !binding.transform || binding.transform.id !== AGY_PROJECT_ADAPTER.id) {
+    throw new Error('AGY project receipt does not contain the direct-file Host binding');
+  }
+  const entries = Array.isArray(receipt.entries) ? receipt.entries : [];
+  const entry = entries[0];
+  if (!entry || typeof entry.name !== 'string' || entry.name.length === 0
+    || entry.name.length > 128 || entry.name.includes('/') || entry.name.includes('\\')) {
+    throw new Error('AGY project receipt has no safe direct-file entry');
+  }
+  const directPath = `${entry.name}.md`;
+  if (!safeConsumerRepoPath(directPath)
+    || !Array.isArray(entry.generatedPaths) || !entry.generatedPaths.includes(directPath)
+    || !Array.isArray(receipt.managedPaths) || !receipt.managedPaths.includes(directPath)) {
+    throw new Error('AGY project receipt does not own its direct-file artifact');
+  }
+  const skillsRoot = path.join(root, '.agents', 'skills');
+  const directFile = path.join(skillsRoot, directPath);
+  let skillsStat;
+  let directStat;
+  try {
+    skillsStat = fs.lstatSync(skillsRoot);
+    directStat = fs.lstatSync(directFile);
+  } catch (_) {
+    throw new Error('AGY project direct-file artifact is missing');
+  }
+  if (!skillsStat.isDirectory() || skillsStat.isSymbolicLink()
+    || !directStat.isFile() || directStat.isSymbolicLink()
+    || hasSymlinkedAncestor(directFile, root)) {
+    throw new Error('AGY project direct-file artifact is unsafe');
+  }
+  return {
+    directPath,
+    receipt,
+    artifacts: [
+      '<project-root>/.agents/.dhpk-installed.json',
+      `<project-root>/.agents/skills/${directPath}`,
+    ],
+  };
+}
+
+function verifyAgyProjectInstallation(root, receiptPath) {
+  let binding;
+  try {
+    binding = inspectAgyProjectBinding(root, receiptPath);
+  } catch (error) {
+    const reason = redactEvidence(error.message, root);
+    return agyInstallationResult({
+      status: 'BLOCKED',
+      installationStatus: 'BLOCKED',
+      reason,
+      adapter: AGY_PROJECT_ADAPTER,
+      artifacts: ['<project-root>/.agents/.dhpk-installed.json'],
+      checkedClaims: ['project-artifact-structure', 'project-agent-direct-file'],
+    });
+  }
+
+  const probe = path.join(__dirname, 'consumer-platform-probe.js');
+  const probeArgs = [probe, '--platform', 'agy-project', '--package-root', root];
+  const command = 'node scripts/release/consumer-platform-probe.js --platform agy-project --package-root <repo-root>';
+  const result = spawnSync(process.execPath, probeArgs, {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: MAX_CONSUMER_EVIDENCE_BYTES,
+    env: { ...process.env, CI: '', DHPK_CONSUMER_PROBE_EXECUTE: '' },
+  });
+  const commands = [{ cmd: command, exitCode: result.status }];
+  let payload;
+  try {
+    payload = JSON.parse(result.stdout || '{}');
+  } catch (_) {
+    payload = { status: 'FAIL', reason: `AGY project probe emitted invalid JSON (exit ${result.status})` };
+  }
+  const evidence = payload.surfaceEvidence;
+  const rawSurfaceResults = Array.isArray(payload.surfaceResults) ? payload.surfaceResults : [];
+  const checkedClaims = evidence && Array.isArray(evidence.checkedClaims) ? evidence.checkedClaims : [];
+  const artifacts = evidence && Array.isArray(evidence.artifacts) ? evidence.artifacts : [];
+  const artifactPaths = new Set(artifacts.map((artifact) => artifact && artifact.path).filter(Boolean));
+  const planFingerprint = evidence && evidence.planFingerprint;
+  const artifactFingerprint = evidence && evidence.artifactFingerprint;
+  const structuralSuccess = !result.error
+    && result.status === 0
+    && payload.platform === 'agy-project'
+    && payload.status === 'NOT_RUN'
+    && evidence && evidence.surface === 'agy-plugin' && evidence.status === 'NOT_RUN'
+    && payload.adapter && payload.adapter.id === AGY_PROJECT_ADAPTER.id
+    && rawSurfaceResults.length === 1
+    && rawSurfaceResults[0].surface === 'agy-plugin'
+    && checkedClaims.includes('project-artifact-structure')
+    && checkedClaims.includes('project-agent-direct-file')
+    && AGY_FINGERPRINT_PATTERN.test(planFingerprint || '')
+    && AGY_FINGERPRINT_PATTERN.test(artifactFingerprint || '')
+    && artifactPaths.has('<project-root>/.agents/.dhpk-installed.json')
+    && artifactPaths.has(`<project-root>/.agents/skills/${binding.directPath}`);
+  if (structuralSuccess) {
+    const reason = 'AGY project receipt, direct-file Host binding, paired fingerprints, and structural probe passed; native runtime remains NOT_RUN';
+    return agyInstallationResult({
+      status: 'NOT_RUN',
+      installationStatus: 'PASS',
+      reason,
+      adapter: AGY_PROJECT_ADAPTER,
+      commands,
+      diagnostics: evidence.diagnostics || [],
+      artifacts: artifacts.map((artifact) => ({ path: artifact.path, version: artifact.version || null })),
+      checkedClaims,
+      planFingerprint,
+      artifactFingerprint,
+    });
+  }
+
+  const observedStatus = ['FAIL', 'BLOCKED'].includes(payload.status)
+    ? payload.status
+    : (result.error ? 'BLOCKED' : 'FAIL');
+  const probeReason = payload.normalizationError || payload.reason
+    || (evidence && Array.isArray(evidence.reasons) ? evidence.reasons.join('; ') : '')
+    || 'AGY project structural evidence did not satisfy the direct-file binding contract';
+  const reason = redactEvidence(probeReason, root);
+  const diagnostics = evidence && Array.isArray(evidence.diagnostics) ? evidence.diagnostics : [];
+  return agyInstallationResult({
+    status: observedStatus,
+    installationStatus: observedStatus,
+    reason,
+    adapter: AGY_PROJECT_ADAPTER,
+    commands,
+    diagnostics,
+    artifacts: artifacts.map((artifact) => ({ path: artifact.path || null, version: artifact.version || null })),
+    checkedClaims,
+  });
+}
+
+function verifyAgyPackageInstallation(root, version) {
+  const packageRoot = path.join(root, 'plugins', 'dhpk-agy');
+  const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
+  let inventory;
+  try {
+    inventory = JSON.parse(readConsumerEvidenceFileBounded(inventoryPath).toString('utf8'));
+  } catch (_) {
+    return agyInstallationResult({
+      status: 'BLOCKED',
+      installationStatus: 'BLOCKED',
+      reason: 'AGY package inventory could not be read safely',
+      adapter: AGY_PACKAGE_ADAPTER,
+      checkedClaims: ['package-inventory-selection'],
+    });
+  }
+
+  let validation;
+  try {
+    validation = validateAgyPluginPackage(packageRoot, { expectedVersion: version, inventory, sourceRoot: root });
+  } catch (error) {
+    validation = { ok: false, errors: [redactEvidence(String(error && error.message ? error.message : error), root)] };
+  }
+  if (!validation.ok) {
+    const diagnostics = (validation.errors || []).slice(0, 12).map((error) => redactEvidence(error, root));
+    return agyInstallationResult({
+      status: 'FAIL',
+      installationStatus: 'FAIL',
+      reason: 'AGY package failed target-version, inventory, or source-selection validation',
+      adapter: AGY_PACKAGE_ADAPTER,
+      diagnostics,
+      artifacts: [{ path: 'plugins/dhpk-agy/plugin.json', version: null }],
+      checkedClaims: ['package-manifest', 'package-inventory-selection', 'package-fingerprints'],
+    });
+  }
+
+  let temporaryHome = null;
+  try {
+    temporaryHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-home-')));
+    const contract = loadAgyPathContract(root);
+    const targetRoot = resolveAgyInstallRoot(temporaryHome, contract);
+    installAgyPlugin({ sourceRoot: packageRoot, targetRoot, mode: 'install' });
+    const inspection = inspectAgyPlugin({ sourceRoot: packageRoot, targetRoot });
+    const counts = inspection.diff && inspection.diff.counts;
+    const current = inspection.status === 'PASS'
+      && inspection.state === 'CURRENT'
+      && inspection.classification === 'AGY_OWNED'
+      && inspection.target && inspection.target.manifest && inspection.target.manifest.valid
+      && inspection.target.manifest.name === 'dhpk'
+      && inspection.target.manifest.version === version
+      && inspection.target.receipt && inspection.target.receipt.valid
+      && inspection.target.receipt.source_version === version
+      && counts && counts.changed === 0 && counts.missing === 0
+      && Array.isArray(inspection.diff.unsafe_preview) && inspection.diff.unsafe_preview.length === 0;
+    if (!current) {
+      return agyInstallationResult({
+        status: inspection.status === 'FAIL' ? 'FAIL' : 'BLOCKED',
+        installationStatus: inspection.status === 'FAIL' ? 'FAIL' : 'BLOCKED',
+        reason: 'AGY isolated install did not inspect as a current receipt-owned canonical installation',
+        adapter: AGY_PACKAGE_ADAPTER,
+        diagnostics: [JSON.stringify({
+          status: inspection.status,
+          state: inspection.state,
+          classification: inspection.classification,
+          changed: counts && counts.changed,
+          missing: counts && counts.missing,
+          unsafe: inspection.diff && inspection.diff.unsafe_preview,
+        })],
+        checkedClaims: ['package-installation', 'canonical-install-target', 'receipt-ownership'],
+      });
+    }
+
+    const canonicalRelative = contract.canonical_relative.split(path.sep).join('/');
+    const artifacts = [
+      { path: 'plugins/dhpk-agy/plugin.json', version },
+      { path: 'plugins/dhpk-agy/provenance.json', version },
+      { path: `<sandbox-home>/${canonicalRelative}/plugin.json`, version },
+      { path: `<sandbox-home>/${canonicalRelative}/provenance.json`, version },
+    ];
+    return agyInstallationResult({
+      status: 'NOT_RUN',
+      installationStatus: 'PASS',
+      reason: 'AGY package version, inventory selection, canonical isolated installation, and receipt-owned file inspection passed; native runtime remains NOT_RUN',
+      adapter: AGY_PACKAGE_ADAPTER,
+      artifacts,
+      checkedClaims: ['package-manifest', 'package-inventory-selection', 'package-fingerprints', 'canonical-install-target', 'receipt-ownership'],
+    });
+  } catch (error) {
+    return agyInstallationResult({
+      status: 'BLOCKED',
+      installationStatus: 'BLOCKED',
+      reason: `AGY package installation inspection was blocked: ${redactEvidence(String(error && error.message ? error.message : error), root)}`,
+      adapter: AGY_PACKAGE_ADAPTER,
+      checkedClaims: ['package-installation', 'canonical-install-target', 'receipt-ownership'],
+    });
+  } finally {
+    if (temporaryHome) fs.rmSync(temporaryHome, { recursive: true, force: true });
+  }
+}
+
+function verifyAgyInstallation(root, version) {
+  const route = inspectAgyProjectRoute(root);
+  if (route.route === 'project') {
+    if (route.error) {
+      const reason = redactEvidence(route.error, root);
+      return agyInstallationResult({
+        status: 'BLOCKED',
+        installationStatus: 'BLOCKED',
+        reason,
+        adapter: AGY_PROJECT_ADAPTER,
+        artifacts: ['<project-root>/.agents/.dhpk-installed.json'],
+        checkedClaims: ['project-artifact-structure'],
+      });
+    }
+    return verifyAgyProjectInstallation(root, route.receiptPath);
+  }
+  return verifyAgyPackageInstallation(root, version);
+}
+
 function normalizeGateSurface(surface, producer, adapter, result, environment) {
   const surfaceResults = result.surfaceResults || [{
     surface,
@@ -2872,7 +3242,12 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
   });
   return normalized.surfaceResults.map((entry) => ({
     ...entry,
-    ...(result.installationEvidence ? { installationEvidence: result.installationEvidence } : {}),
+    installationEvidence: result.installationEvidence || entry.installationEvidence || {
+      status: (result.status || result.verdict) === 'FAIL' ? 'FAIL' : 'BLOCKED',
+      reason: entry.reasons && entry.reasons[0]
+        ? entry.reasons[0]
+        : `installation evidence was not produced for raw ${entry.status} observation`,
+    },
     ...(result.runtimeEvidence ? { runtimeEvidence: result.runtimeEvidence } : {}),
     ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
     ...(result.surfaceVerdict ? { legacySurfaceStatus: result.surfaceVerdict } : {}),
@@ -2975,6 +3350,9 @@ function runGate(args) {
   const projectedCursor = selectedOrAll('cursor-plugin')
     ? verifyProjectedConsumer(args.root, 'cursor', args.version)
     : null;
+  const agy = selectedOrAll('agy-plugin')
+    ? verifyAgyInstallation(args.root, args.version)
+    : null;
 
   const loaderEvidence = new Map();
   for (const surface of ['agent-plugin', 'cursor-plugin']) {
@@ -3025,6 +3403,7 @@ function runGate(args) {
     ...(cursorSync ? normalizeGateSurface('cursor-sync', 'consumer-gate', { id: 'cursor-sync-installer', version: '1.0.0' }, cursorSync, environment) : []),
     ...(projectedCodex ? projectedCodex.surfaceResults : []),
     ...(projectedCursor ? projectedCursor.surfaceResults : []),
+    ...(agy ? normalizeGateSurface('agy-plugin', 'consumer-gate', agy.adapter, agy, environment) : []),
   ];
 
   const requirementSurface = (surface) => (surface === 'claude-core' ? 'claude' : surface);
@@ -3173,6 +3552,7 @@ function runGate(args) {
     ...(cursorSync ? cursorSync.commands : []),
     ...(projectedCodex ? projectedCodex.commands : []),
     ...(projectedCursor ? projectedCursor.commands : []),
+    ...(agy ? agy.commands : []),
   ];
   const failureReasons = [
     ...(codex ? codex.reasons.map((r) => `codex-sync: ${r}`) : []),
@@ -3186,6 +3566,9 @@ function runGate(args) {
       : []),
     ...(projectedCursor && ['FAIL', 'BLOCKED'].includes(projectedCursor.status)
       ? [`cursor-plugin-consumer: ${projectedCursor.reason || projectedCursor.status.toLowerCase()}`]
+      : []),
+    ...(agy && ['FAIL', 'BLOCKED'].includes(agy.status)
+      ? [`agy-plugin-consumer: ${agy.reason || agy.status.toLowerCase()}`]
       : []),
   ];
 
@@ -3278,6 +3661,7 @@ function runGate(args) {
       `cursor-sync: ${cursorSync.status}${cursorSync.reasons && cursorSync.reasons.length > 0 ? ` (${cursorSync.reasons[0]})` : ''}`,
       `agent-plugin-consumer: ${projectedCodex.status}${projectedCodex.reason ? ` (${projectedCodex.reason})` : ''}`,
       `cursor-plugin-consumer: ${projectedCursor.status}${projectedCursor.reason ? ` (${projectedCursor.reason})` : ''}`,
+      `agy-plugin-consumer: ${agy.status}${agy.reason ? ` (${agy.reason})` : ''}`,
       ...(codex.surfaceVerdict ? [`codex-surface: ${codex.surfaceVerdict}`] : []),
       ...(Array.isArray(claude.warnings) && claude.warnings.length > 0
         ? [`claude-registry-teardown: WARN (${claude.warnings.join('; ')})`]
