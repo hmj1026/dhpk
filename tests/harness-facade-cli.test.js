@@ -1224,6 +1224,7 @@ test('probe facade delegates configured sync surfaces to the canonical consumer 
   const receiptRoot = temporaryReceiptRoot();
   try {
     const result = invokeAt(root, ['probe', '--surface', 'codex-sync', '--task-id', 'facade-codex-sync-probe', '--json'], {
+      CI: 'false',
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
       GATE_ARGS_FILE: gateArgsFile,
     });

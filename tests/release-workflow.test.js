@@ -221,7 +221,7 @@ test('release PRs run a read-only release rehearsal of the tag-only path', () =>
   assert.ok(/Unexpected consumer rehearsal outcome[\s\S]{0,120}exit 1/.test(job), 'unknown evidence fails closed');
 });
 
-test('release consumer jobs validate current acceptance before legacy outcome classification', () => {
+test('release consumer jobs invoke the result validators before classifying outcomes', () => {
   const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
   const rehearsalStart = ci.indexOf('\n  release-rehearsal:\n');
   const rehearsalRest = ci.slice(rehearsalStart + 1);
@@ -233,20 +233,55 @@ test('release consumer jobs validate current acceptance before legacy outcome cl
 
   for (const [name, job] of [['release rehearsal', rehearsalJob], ['post-publish verification', consumerJob]]) {
     const invocationIdx = job.indexOf('bin/dhpk harness release --json');
-    const classifyIdx = job.indexOf('case "$outcome" in', invocationIdx);
+    const validatorIdx = job.indexOf('report_contract="$(node -', invocationIdx);
+    const classifyIdx = job.indexOf('case "$outcome" in', validatorIdx);
     assert.ok(invocationIdx !== -1, `${name} must run the public release facade`);
-    assert.ok(classifyIdx > invocationIdx, `${name} must classify results after invoking the facade`);
-    const validation = job.slice(invocationIdx, classifyIdx);
-    assert.ok(validation.includes('dhpk.harness.result.v2'), `${name} must identify current facade JSON`);
-    assert.match(validation, /acceptance[\s\S]{0,120}verdict|verdict[\s\S]{0,120}acceptance/i, `${name} must validate the current acceptance verdict`);
-    assert.ok(validation.includes('probe_exit'), `${name} must validate the process exit alongside JSON`);
-    assert.match(validation, /PASS[\s\S]{0,240}FAIL|FAIL[\s\S]{0,240}PASS/i, `${name} must distinguish current PASS and failure verdicts`);
-    assert.match(validation, /BLOCKED/, `${name} must classify a current BLOCKED verdict`);
+    assert.ok(validatorIdx > invocationIdx, `${name} must validate the public result after invoking the facade`);
+    assert.ok(classifyIdx > validatorIdx, `${name} must classify outcomes after validating the result`);
+  }
+});
 
-    const pendingIdx = job.indexOf('PUBLISHED_PENDING', classifyIdx);
-    const unhealthyIdx = job.indexOf('PUBLISHED_UNHEALTHY', pendingIdx);
-    const pendingBranch = job.slice(pendingIdx, unhealthyIdx);
-    assert.match(pendingBranch, /legacy_report/, `${name} may accept PUBLISHED_PENDING only for legacy reports`);
+test('release consumer jobs classify validated current and legacy results with the intended exit status', () => {
+  const ci = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'ci.yml'), 'utf8');
+  const rehearsalStart = ci.indexOf('\n  release-rehearsal:\n');
+  const rehearsalRest = ci.slice(rehearsalStart + 1);
+  const rehearsalNext = rehearsalRest.slice(1).search(/\n  [A-Za-z0-9][A-Za-z0-9_-]*:\n/);
+  const rehearsalJob = rehearsalNext === -1 ? rehearsalRest : rehearsalRest.slice(0, rehearsalNext + 1);
+  const verifyStart = raw.indexOf('consumer-verify:');
+  const verifyEnd = raw.indexOf('sync-develop:', verifyStart);
+  const jobs = [rehearsalJob, raw.slice(verifyStart, verifyEnd)];
+  const scenarios = [
+    { outcome: 'COMPLETE', probeExit: '0', legacyReport: '0', expectedStatus: 0 },
+    { outcome: 'COMPLETE', probeExit: '1', legacyReport: '0', expectedStatus: 1 },
+    { outcome: 'PUBLISHED_PENDING', probeExit: '2', legacyReport: '1', expectedStatus: 0 },
+    { outcome: 'PUBLISHED_PENDING', probeExit: '2', legacyReport: '0', expectedStatus: 1 },
+    { outcome: 'PUBLISHED_PENDING', probeExit: '0', legacyReport: '1', expectedStatus: 1 },
+    { outcome: 'PUBLISHED_UNHEALTHY', probeExit: '1', legacyReport: '0', expectedStatus: 1 },
+    { outcome: 'BLOCKED', probeExit: '1', legacyReport: '0', expectedStatus: 1 },
+    { outcome: 'UNEXPECTED', probeExit: '2', legacyReport: '0', expectedStatus: 1 },
+  ];
+
+  for (const job of jobs) {
+    const invocationIdx = job.indexOf('bin/dhpk harness release --json');
+    const caseIdx = job.indexOf('case "$outcome" in', invocationIdx);
+    const caseEnd = job.indexOf('\n          esac', caseIdx);
+    assert.ok(caseIdx > invocationIdx, 'release workflow must classify after invoking the facade');
+    assert.ok(caseEnd > caseIdx, 'release outcome handler must close its case statement');
+    const caseScript = job.slice(caseIdx, caseEnd + '\n          esac'.length).replace(/^          /gm, '');
+
+    for (const scenario of scenarios) {
+      const checked = spawnSync('bash', ['-c', caseScript], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          outcome: scenario.outcome,
+          probe_exit: scenario.probeExit,
+          legacy_report: scenario.legacyReport,
+        },
+      });
+      assert.strictEqual(checked.status, scenario.expectedStatus, checked.stderr);
+    }
   }
 });
 
