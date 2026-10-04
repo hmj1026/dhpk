@@ -438,6 +438,66 @@ process.stdout.write(JSON.stringify({
 `;
 }
 
+function testCursorSandboxSimulation(root, bin) {
+  const bwrap = path.join(bin, 'bwrap');
+  const binAlias = path.join(root, 'fixture-bin-alias');
+  const preload = path.join(root, 'cursor-sandbox-fixture.js');
+  // Darwin CI has no OS bwrap backend; this wrapper only runs the controlled
+  // cursor-agent fixture, so it exercises the CLI proof path without a Host call.
+  fs.writeFileSync(bwrap, [
+    '#!/bin/sh',
+    'if [ "$1" = "--version" ]; then printf "bubblewrap fixture\\n"; exit 0; fi',
+    'while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do shift; done',
+    '[ "$#" -gt 0 ] || exit 97',
+    'shift',
+    '[ "$#" -gt 0 ] || exit 98',
+    'exec "$@"',
+    '',
+  ].join('\n'), { mode: 0o755 });
+  fs.symlinkSync(bin, binAlias, 'dir');
+  fs.writeFileSync(preload, [
+    "'use strict';",
+    "const fs = require('node:fs');",
+    "const path = require('node:path');",
+    'const bwrapValue = process.env.DHPK_TEST_CURSOR_BWRAP;',
+    "if (!bwrapValue) throw new Error('test sandbox fixture requires a bwrap path');",
+    'const bwrap = fs.realpathSync(path.resolve(bwrapValue));',
+    'const trustedPaths = new Set();',
+    'for (let current = path.dirname(bwrap); ; current = path.dirname(current)) {',
+    '  trustedPaths.add(current);',
+    "  if (current === path.parse(current).root) break;",
+    '}',
+    'const originalStatSync = fs.statSync;',
+    'fs.statSync = function statSync(target, options) {',
+    '  const result = originalStatSync.call(fs, target, options);',
+    '  const stack = new Error().stack || \'\';',
+    "  if (!stack.includes('verifiedSandboxExecutable')) return result;",
+    '  let resolved;',
+    '  try { resolved = fs.realpathSync(target); } catch (_) { return result; }',
+    '  if (resolved !== bwrap && !trustedPaths.has(resolved)) return result;',
+    '  return new Proxy(result, {',
+    '    get(stats, key) {',
+    "      if (key === 'uid') return 0;",
+    '      if (key === \'mode\') return stats.mode & ~0o022;',
+    '      const value = Reflect.get(stats, key, stats);',
+    "      return typeof value === 'function' ? value.bind(stats) : value;",
+    '    },',
+    '  });',
+    '};',
+    "if (process.env.DHPK_TEST_CURSOR_SANDBOX === '1'",
+    "  && /(?:consumer-gate|consumer-platform-probe)\\.js$/.test(process.argv[1] || '')) {",
+    "  Object.defineProperty(process, 'platform', { configurable: true, value: 'linux' });",
+    '}',
+    '',
+  ].join('\n'), { mode: 0o600 });
+  return {
+    DHPK_TEST_CURSOR_SANDBOX: '1',
+    DHPK_TEST_CURSOR_BWRAP: path.join(binAlias, 'bwrap'),
+    PATH: `${binAlias}:${NODE_BASH_ONLY_PATH}`,
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, `--require="${preload}"`].filter(Boolean).join(' '),
+  };
+}
+
 function recordingClaudeScript(logFile, {
   listVersion = REAL_VERSION,
   installExit = 0,
@@ -1030,6 +1090,7 @@ test('authorized Agent Plugin loader requirement passes through the challenged o
     fs.mkdirSync(path.join(home, '.config', 'cursor'), { recursive: true });
     fs.writeFileSync(path.join(home, '.config', 'cursor', 'auth.json'), '{"fixture":"local-only"}\n', { mode: 0o600 });
     mkBinStub(bin, 'cursor-agent', successfulCursorLoaderProbeStub(1));
+    const sandboxFixture = testCursorSandboxSimulation(root, bin);
 
     const result = runRequirementsAtRoot(root, {
       schema: 'dhpk.consumer-requirements.v1',
@@ -1045,7 +1106,7 @@ test('authorized Agent Plugin loader requirement passes through the challenged o
         evidenceKind: 'contract',
         authorization: { authorized: true },
       }],
-    }, { PATH: `${bin}:${NODE_BASH_ONLY_PATH}`, HOME: home });
+    }, { ...sandboxFixture, HOME: home });
 
     assertAuthorizedLoaderAcceptance(result, 'agent-plugin', 'agent-plugin-loader');
   } finally {
@@ -1062,6 +1123,7 @@ test('authorized Cursor Plugin loader requirement passes through the challenged 
     fs.mkdirSync(path.join(home, '.config', 'cursor'), { recursive: true });
     fs.writeFileSync(path.join(home, '.config', 'cursor', 'auth.json'), '{"fixture":"local-only"}\n', { mode: 0o600 });
     mkBinStub(bin, 'cursor-agent', successfulCursorLoaderProbeStub(2));
+    const sandboxFixture = testCursorSandboxSimulation(root, bin);
 
     const result = runRequirementsAtRoot(root, {
       schema: 'dhpk.consumer-requirements.v1',
@@ -1077,7 +1139,7 @@ test('authorized Cursor Plugin loader requirement passes through the challenged 
         evidenceKind: 'contract',
         authorization: { authorized: true },
       }],
-    }, { PATH: `${bin}:${NODE_BASH_ONLY_PATH}`, HOME: home });
+    }, { ...sandboxFixture, HOME: home });
 
     assertAuthorizedLoaderAcceptance(result, 'cursor-plugin', 'cursor-plugin-loader');
   } finally {
