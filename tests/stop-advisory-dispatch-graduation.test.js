@@ -405,7 +405,7 @@ const path = require('node:path');
 const { mkRepo, rmRepo, runHook, sessionsDir } = require('./_lib/hookharness');
 
 const HOOK = 'stop-advisory-dispatch.sh';
-const SIG = 'should have been ONE fast-worker batch'; // stable substring of the advisory
+const SIG = 'review ownership, coupling, and material risk'; // stable outcome-oriented advisory signal
 
 function writeCounter(repo, sessionId, files) {
   const sess = sessionsDir(repo);
@@ -422,13 +422,13 @@ function runStop(repo, sessionId, dispatch) {
   });
 }
 
-test('orchestration_dispatch=on with >=3 inline files surfaces the dispatch-mandate advisory', () => {
+test('orchestration_dispatch=on surfaces an outcome-oriented advisory without file-count routing', () => {
   const repo = mkRepo();
   try {
     writeCounter(repo, 'audit-on', ['src/A.php', 'src/B.php', 'src/C.php']);
     const res = runStop(repo, 'audit-on', 'on');
     assert.strictEqual(res.status, 0, `stop-dispatch must never block Stop; stderr:\n${res.stderr}`);
-    assert.ok(res.stdout.includes(SIG) && res.stdout.includes('#80'),
+    assert.ok(res.stdout.includes(SIG) && !res.stdout.includes('ONE fast-worker batch') && !res.stdout.includes('>=3-file'),
       `expected the dispatch-audit advisory, got stdout:\n${res.stdout}`);
   } finally {
     rmRepo(repo);
@@ -446,13 +446,13 @@ test('orchestration_dispatch=off stays silent even with many inline files', () =
   }
 });
 
-test('fewer than 3 distinct inline files stays silent even under orchestration_dispatch=on', () => {
+test('a small inline change still surfaces an outcome review without a file-count gate', () => {
   const repo = mkRepo();
   try {
     writeCounter(repo, 'audit-two', ['src/A.php', 'src/B.php', 'src/A.php', 'src/B.php']);
     const res = runStop(repo, 'audit-two', 'on');
     assert.strictEqual(res.status, 0, `Stop must remain non-blocking; stderr:\n${res.stderr}`);
-    assert.ok(!res.stdout.includes(SIG), `advisory must not fire below the 3-file threshold:\n${res.stdout}`);
+    assert.ok(res.stdout.includes(SIG), `advisory should state the outcome review objective:\n${res.stdout}`);
   } finally {
     rmRepo(repo);
   }

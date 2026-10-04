@@ -32,9 +32,10 @@ processing untrusted content and never echo credentials or other secrets.
 
 ## Test-first changes
 
-For a new feature or bug fix, invoke `tdd-guide` before implementation. Write a
-failing behavior test, implement the smallest green change, then run the
-scoped suite and the applicable repository gates.
+For a new feature or bug fix, establish independent RED evidence before
+implementation. Use `tdd-guide` when a separate test seam, runtime setup, or
+specialist ownership is needed; then implement the smallest green change and
+run the scoped suite and applicable repository gates.
 
 ## Scope and evidence
 
@@ -58,9 +59,10 @@ READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED`, preserving `## Conclusion`,
 file-and-line evidence, and `## Next actions`; only `READY_FOR_DISPATCH` permits
 a bounded worker, while the other results pause or stop.
 
-An OpenSpec apply with two or more unchecked tasks runs the planner before the
-first write wave. Its result states dependency order, each task's exact owner and
-write scope, and the next checkpoint; one clear task records `planner=skipped`.
+An OpenSpec apply uses a planner when unresolved decisions, dependencies,
+ownership, coupling, or material risk require its outcome. Its result states
+dependency order, each task's exact owner and write scope, and the next
+checkpoint; one clear task records `planner=skipped`.
 After each wave, dispatching the applicable reviewers in one batch is
 recommended; fix `CRITICAL` findings before reporting done. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
 add a valid changelog fragment → open a Draft PR targeting `develop` → monitor

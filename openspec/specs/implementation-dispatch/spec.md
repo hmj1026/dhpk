@@ -5,11 +5,10 @@
 Defines implementation routing across inline work, worker tiers, and specialist roles while preserving dispatch ownership and verification boundaries.
 
 ## Requirements
->
-> Retired compatibility note: sentinel-specific dispatch and clearance clauses
-> below describe the former compatibility workflow. Current implementation
-> review is selected from the Review Gate trigger table and completed by a
-> durable reviewer obligation.
+
+The requirements below describe the current dispatch, verification, review, and
+evidence contract. Acceptance is based on applicable outcomes and current
+evidence; orchestration does not depend on a retired marker or named producer.
 
 ### Requirement: Dispatch decision table in execution-policy (SSOT)
 
@@ -123,7 +122,7 @@ SHALL restate worker/reasoner decision rows.
 
 ### Requirement: opsx-apply-goal emits the dispatch directive for unattended sessions
 
-When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condition emitted by `skills/dhpk-opsx-apply-goal/SKILL.md` SHALL include a **compact** posture-first dispatch directive that (a) names the session as the orchestrator, (b) carries a one-line dispatch roster — bounded mechanical work to the Provider-neutral `worker` tier (implemented by `dhpk:fast-worker` where applicable), reasoning-heavy work to the Provider-neutral `reasoner` tier (implemented by `dhpk:deep-reasoner` where applicable), RED PHPUnit unit/integration tests to `dhpk:tdd-guide`, Playwright RED/E2E specs to `dhpk:e2e-runner` — (c) states that inline, worker, or parallel execution is selected from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit, with task and file counts alone not creating a gate, (d) prohibits `general-purpose` for implementation, (e) states the retired CODEX interface and its blocking deprecation diagnostic explicitly on one line, without treating it as a peer, worker, or reasoner selector, and (f) carries the self-locating pointer to `rules/execution-policy.md` — resolved via `$CLAUDE_PLUGIN_ROOT` first, then the newest installed cache path, never a filesystem scan — which the orientation step reads. The behavioral elaborations that previously rode Part 0 — the dispatch-verify procedure, the doc-consistency example, premise-verification routing (deep-reasoner vs e2e-runner/scratch-probe), and the explicit second-opinion path — reside in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §High-stakes second opinion after flag retirement) and SHALL NOT be restated in the emitted condition; they bind the session through the orientation-step policy read, with the concise posture, roster, and hard authority gates as the fallback when the policy file is unresolvable. The Part 1–4 stop/verification conditions retain their semantics; worker-produced sentinels still converge through the universal `ls .pending-*` gate (Part 2). The skill's Verification checklist SHALL assert the compact directive's presence — orchestrator naming, the four-role roster, outcome-based routing posture, the `general-purpose` prohibition, the retired CODEX/deprecation line, and the policy pointer — when `DISPATCH_ON=true`, and SHALL assert the relocated elaborations are present in `rules/execution-policy.md` rather than in the template.
+When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condition emitted by `skills/dhpk-opsx-apply-goal/SKILL.md` SHALL include a **compact** posture-first dispatch directive that (a) names the session as the orchestrator, (b) carries a one-line dispatch roster — bounded mechanical work to the Provider-neutral `worker` tier (implemented by `dhpk:fast-worker` where applicable), reasoning-heavy work to the Provider-neutral `reasoner` tier (implemented by `dhpk:deep-reasoner` where applicable), RED PHPUnit unit/integration tests to `dhpk:tdd-guide`, Playwright RED/E2E specs to `dhpk:e2e-runner` — (c) states that inline, worker, or parallel execution is selected from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit, with task and file counts alone not creating a gate, (d) prohibits `general-purpose` for implementation, (e) states the retired CODEX interface and its blocking deprecation diagnostic explicitly on one line, without treating it as a peer, worker, or reasoner selector, and (f) carries the self-locating pointer to `rules/execution-policy.md` — resolved via `$CLAUDE_PLUGIN_ROOT` first, then the newest installed cache path, never a filesystem scan — which the orientation step reads. The behavioral elaborations that previously rode Part 0 — the dispatch-verify procedure, the doc-consistency example, premise-verification routing (deep-reasoner vs e2e-runner/scratch-probe), and the explicit second-opinion path — reside in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §High-stakes second opinion after flag retirement) and SHALL NOT be restated in the emitted condition; they bind the session through the orientation-step policy read, and SHALL fail closed with an unresolved-policy handoff when the policy file cannot be resolved; the compact text is not authority to continue without the policy. The Part 1–4 stop/verification conditions retain their semantics; worker verification and applicable review outcomes remain visible to the goal gate. The skill's Verification checklist SHALL assert the compact directive's presence — orchestrator naming, the four-role roster, outcome-based routing posture, the `general-purpose` prohibition, the retired CODEX/deprecation line, and the policy pointer — when `DISPATCH_ON=true`, and SHALL assert the relocated elaborations are present in `rules/execution-policy.md` rather than in the template.
 
 #### Scenario: Dry-run output includes the compact directive
 
@@ -145,14 +144,14 @@ When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condi
 - **WHEN** a goal session's orientation step resolves and reads `rules/execution-policy.md`
 - **THEN** the premise-verification routing, doubt-cycle announcements, and explicit second-opinion obligations apply to the session from that read, while the retired CODEX interface remains a blocking deprecation outcome rather than a dispatch trigger
 
-### Requirement: Review gates are preserved under worker dispatch
+### Requirement: Applicable review outcomes are preserved under worker dispatch
 
-Worker edits SHALL remain subject to the full post-implementation agent gate and sentinel machinery. After a `fast-worker` dispatch returns, the orchestrator SHALL check for pending sentinels; if the project's post-edit hooks did not fire for subagent tool calls, the orchestrator SHALL derive the applicable reviewer gates from the worker's edited-file list and run them (back-stop). Dispatch never weakens a gate.
+Worker edits SHALL remain subject to the applicable post-implementation review outcomes and current project acceptance. The orchestrator SHALL derive applicable review domains from the edited-file list when required evidence is missing, and SHALL accept sufficient current external review evidence. Retired marker machinery, named reviewer prerequisites, and duplicate review receipts are not mandatory gates. Dispatch never weakens a required outcome.
 
 #### Scenario: Worker edits a PHP file
 
 - **WHEN** `fast-worker` edits a `*.php` file
-- **THEN** `code-reviewer` runs before the task is considered complete — via the sentinel if written, otherwise via the edited-file-list back-stop
+- **THEN** the applicable code-review outcome is established by the current review wave or sufficient external evidence; a named `code-reviewer` dispatch is used only when that outcome is missing or explicitly requested
 
 ### Requirement: High-stakes second opinions require explicit opt-in after CODEX retirement
 
@@ -174,7 +173,7 @@ retired `CODEX=on`/`--codex` interface never selects or implies a peer.
 
 ### Requirement: Orchestrator verifies worker output before accepting (implement phase)
 
-When a `fast-worker` (or a `deep-reasoner` → `fast-worker`) dispatch returns during the implement phase, the orchestrator SHALL, before marking the task complete: (a) re-surface the worker's verification line (`<command> → PASS|FAIL`) and its complete assigned-scope edited-file list plus any out-of-scope observations into the main conversation, so the goal loop's evidence is visible to the conversation-only Haiku evaluator; (b) in parallel mode, cross-check the reported assigned-scope list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigate any mismatch; (c) after all workers in the batch finish, perform the whole-tree reconciliation and shared-validator pass exactly once; (d) confirm the review sentinels expected for the edited file types are present, or were already cleared by a reviewer that ran — and when an expected sentinel is missing, invoke the reviewer derived from the assigned edited-file list (activating the edited-file-list back-stop defined by the "Review gates are preserved under worker dispatch" requirement, rather than leaving it dead); (e) on a worker FAIL or 3-attempt escalation, NOT mark the task complete, and re-scope or re-dispatch `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run remains the `opsx-apply-goal` Part 3 end-gate, not a per-task step.
+When a `fast-worker` (or a `deep-reasoner` → `fast-worker`) dispatch returns during the implement phase, the orchestrator SHALL, before marking the task complete: (a) re-surface the worker's verification line (`<command> → PASS|FAIL`) and its complete assigned-scope edited-file list plus any out-of-scope observations into the main conversation, so the goal loop's evidence is visible to the conversation-only Haiku evaluator; (b) in parallel mode, cross-check the reported assigned-scope list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigate any mismatch; (c) after all workers in the batch finish, perform the whole-tree reconciliation and shared-validator pass exactly once; (d) confirm that applicable review outcomes are present and current, accepting sufficient external evidence when it covers the scope; when an outcome is missing, request only that missing review or evidence derived from the assigned edited-file list; (e) on a worker FAIL or 3-attempt escalation, NOT mark the task complete, and re-scope or re-dispatch `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run remains the `opsx-apply-goal` Part 3 end-gate, not a per-task step.
 
 #### Scenario: Worker no-op detected via scoped diff mismatch
 
@@ -191,10 +190,10 @@ When a `fast-worker` (or a `deep-reasoner` → `fast-worker`) dispatch returns d
 - **WHEN** multiple parallel workers have returned and all assigned-scope verification has completed
 - **THEN** the orchestrator performs one whole-tree validator/reconciliation pass with sibling edits visible together
 
-#### Scenario: Missing sentinel activates the back-stop
+#### Scenario: Missing review outcome blocks acceptance
 
-- **WHEN** a worker edits a file type that should trigger a reviewer but no corresponding `.pending-*` sentinel exists and no reviewer ran
-- **THEN** the orchestrator invokes the reviewer derived from the assigned edited-file list before accepting the task
+- **WHEN** a worker edits a file type with an applicable review domain but no current review outcome or sufficient external evidence exists
+- **THEN** the orchestrator requests that scoped outcome before accepting the task
 
 #### Scenario: Worker failure is not marked complete
 
@@ -267,34 +266,24 @@ When a dispatched worker returns a finding that **overturns an existing design p
 - **WHEN** the orchestrator reframes a change's artifacts after a premise-overturning discovery
 - **THEN** it greps the change directory for the disproven wording and fixes every remaining occurrence before dispatching `doc-reviewer`, rather than letting the reviewer catch it and issuing a BLOCK
 
-### Requirement: Orchestrator confirms a reviewer cleared its sentinel (Closing-hook back-stop)
+### Requirement: Orchestrator reconciles applicable review outcomes before acceptance
 
-Reviewer sentinel clearance is hook-driven: `subagent-stop-verify.sh` auto-clears a successful reviewer's sentinel as the sanctioned path, and reviewer agent definitions carry no manual clear step. This is nonetheless not guaranteed (a crashed reviewer, a missed `SubagentStop` event, or a resumed `SendMessage` result that does not emit the same event). After a reviewer returns, the orchestrator SHALL verify the final verdict and fresh canonical artifact, then reconcile the exact sentinel basename through the native hook result or the recorded resumed-review/Stop-time back-stop. A stale or missing artifact SHALL leave the sentinel armed. A BLOCK/FAIL or actionable severity result SHALL remain visible through `.unresolved-verdict`; clearing the lifecycle obligation SHALL NOT be reported as approval.
+After a reviewer or sufficient external review evidence is returned, the orchestrator SHALL verify the final verdict, changed-scope coverage, freshness, and supporting artifact when one is supplied. Missing, stale, malformed, out-of-scope, or unresolved evidence SHALL remain pending and SHALL NOT be reported as approval. Actionable findings SHALL remain visible until resolved or explicitly escalated under the project review contract; acceptance SHALL be fail-closed on an unresolved applicable outcome.
 
-#### Scenario: Hook auto-clear handles the routine case
+#### Scenario: Current review evidence is accepted
 
-- **WHEN** a reviewer subagent stops successfully with a fresh review artifact
-- **THEN** `subagent-stop-verify.sh` clears the sentinel and the orchestrator's check confirms nothing is left to clear manually
+- **WHEN** a reviewer or external report covers the current scope with a current, well-formed verdict and supporting evidence
+- **THEN** the orchestrator records the applicable outcome and may proceed to the next acceptance gate
 
-#### Scenario: Resumed reviewer uses the artifact-backed back-stop
+#### Scenario: Missing or stale review evidence blocks acceptance
 
-- **WHEN** a reviewer reused through `SendMessage` returns a final verdict with a fresh canonical artifact but its sentinel remains present
-- **THEN** the orchestrator consumes the matching resumed-review obligation and clears only the exact corresponding sentinel through the sanctioned reconcile path
+- **WHEN** a review result is missing, stale, malformed, or does not cover the current scope
+- **THEN** the orchestrator leaves the outcome unresolved and requests only the missing review or evidence
 
-#### Scenario: Reviewer APPROVE without fresh evidence leaves a sentinel armed
+#### Scenario: Actionable review findings remain visible
 
-- **WHEN** a reviewer returns APPROVE but no fresh canonical artifact proves the current review cycle
-- **THEN** the orchestrator leaves the sentinel armed and does not treat the message as completed review evidence
-
-#### Scenario: Reviewer BLOCK remains unresolved
-
-- **WHEN** a reviewer returns BLOCK or FAIL, or its fresh artifact records actionable critical/high/medium findings
-- **THEN** the orchestrator preserves the unresolved-verdict evidence and does not mark the review gate approved even if the sentinel lifecycle is reconciled
-
-#### Scenario: Exact basename is required
-
-- **WHEN** the orchestrator or resumed-review fallback clears a sentinel manually through the SSOT
-- **THEN** it passes the full `.pending-*` basename from `SENTINEL_NAMES` (a keyword such as `review` is rejected as an unknown sentinel name)
+- **WHEN** a current review reports BLOCK, FAIL, or actionable critical/high/medium findings
+- **THEN** the orchestrator preserves that evidence, does not mark the task accepted, and routes the bounded fix or human escalation required by policy
 
 ### Requirement: No block-polling a running local_agent worker
 
@@ -329,7 +318,7 @@ Output silence is NOT a hang signal: a long Playwright step or a single mega-act
 
 ### Requirement: SendMessage reuse-vs-spawn criterion for worker agents
 
-When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker dispatch, the orchestrator SHALL reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), the orchestrator SHALL spawn a new agent instead. When the reused agent is any configured sentinel-backed reviewer, the orchestrator SHALL record one session-scoped resumed-review obligation before sending `SendMessage` and SHALL not consider the review complete until its final result passes the artifact-backed sentinel reconcile contract.
+When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker dispatch, the orchestrator SHALL reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), the orchestrator SHALL spawn a new agent instead. A reused reviewer or worker retains its task identity and context, but its final applicable outcome must still be current and evidence-backed; an intermediate message never completes the review.
 
 #### Scenario: Same E2E journey reuses the prior e2e-runner
 
@@ -341,33 +330,33 @@ When a follow-up dispatch targets the same test file, the same user journey, or 
 - **WHEN** a follow-up dispatch targets a different file and a different user journey with no shared accumulated context
 - **THEN** the orchestrator spawns a new agent rather than reusing an unrelated prior one via `SendMessage`
 
-#### Scenario: Resumed reviewer obligation is recorded
+#### Scenario: Resumed review retains identity and requires current evidence
 
-- **WHEN** a pending sentinel-backed reviewer is reused through `SendMessage`
-- **THEN** the orchestrator records the reviewer, exact sentinel basename, session/dispatch identity, and resume timestamp before awaiting the final result
+- **WHEN** a reviewer is reused through `SendMessage`
+- **THEN** the orchestrator preserves the task and dispatch identity, records the resume, and accepts completion only when the applicable outcome and supporting evidence are current
 
-#### Scenario: Resumed reviewer cannot silently satisfy the gate
+#### Scenario: Intermediate review messages do not satisfy acceptance
 
-- **WHEN** a resumed reviewer sends an intermediate message or a final-looking message without a fresh matching artifact
-- **THEN** the orchestrator leaves the review gate pending and does not clear the sentinel solely from that message
+- **WHEN** a resumed reviewer sends an intermediate or final-looking message without sufficient current evidence
+- **THEN** the orchestrator leaves the review outcome unresolved and requests the missing evidence or a bounded follow-up
 
 #### Scenario: One corrected resume precedes replacement
 
-- **WHEN** a resumed reviewer remains addressable but returns a missing, stale, malformed, or otherwise invalid result
-- **THEN** the orchestrator sends at most one corrected resume without dispatching a duplicate; a second failure leads to a replacement reviewer or an explicit human blocker
+- **WHEN** a reused reviewer remains addressable but returns a missing, stale, malformed, or otherwise invalid result
+- **THEN** the orchestrator sends at most one corrected resume without duplicating the dispatch; a second failure leads to a replacement review or an explicit human blocker
 
 ### Requirement: A warnings-only harness-validation result counts as green when pre-existing
 
-The `opsx-apply-goal` completion/verify gate SHALL treat a harness-validator result (e.g. `scripts/validate/validate-harness.sh`) of PASS-with-warnings as green when every remaining warning is proven pre-existing — present and identical on a `git stash`-ed clean HEAD, unrelated to the change — and each is named in the completion summary. A warning that DISAPPEARS when the change is stashed is change-introduced and SHALL block, mirroring the existing pre-existing-*failure* rule for test runners. Optionally, `validate-harness.sh` MAY exit 0 (not 2) when only warnings remain, so a non-zero exit reliably signals a real failure; while it continues to exit non-zero on warnings, the gate SHALL NOT treat that non-zero exit alone as a failure when the PASS-with-warnings line and the pre-existing proof are present.
+The `opsx-apply-goal` completion/verify gate SHALL treat a harness-validator result (e.g. `scripts/validate/validate-harness.sh`) of PASS-with-warnings as green when every remaining warning is proven pre-existing — present and identical on an owned clean baseline snapshot, unrelated to the change — and each is named in the completion summary. The comparison SHALL use a disposable snapshot or worktree and SHALL NOT automatically stash, reset, or restore the user's working tree. A warning that DISAPPEARS when compared with that baseline is change-introduced and SHALL block, mirroring the existing pre-existing-*failure* rule for test runners. Optionally, `validate-harness.sh` MAY exit 0 (not 2) when only warnings remain, so a non-zero exit reliably signals a real failure; while it continues to exit non-zero on warnings, the gate SHALL NOT treat that non-zero exit alone as a failure when the PASS-with-warnings line and the pre-existing proof are present.
 
 #### Scenario: Pre-existing warnings do not block the gate
 
-- **WHEN** `validate-harness.sh` reports PASS-with-warnings and each warning is identical on a stashed clean HEAD (unrelated to the change) and named in the summary
+- **WHEN** `validate-harness.sh` reports PASS-with-warnings and each warning is identical on an owned clean baseline snapshot (unrelated to the change) and named in the summary
 - **THEN** the completion gate treats the result as green
 
 #### Scenario: A change-introduced warning blocks
 
-- **WHEN** a `validate-harness.sh` warning disappears when the change is stashed (so the change introduced it)
+- **WHEN** a `validate-harness.sh` warning disappears when compared with the owned clean baseline (so the change introduced it)
 - **THEN** the gate does not treat the result as green until that warning is resolved
 
 ### Requirement: Explicit second-opinion triggers cover first-seen query patterns, framework internals, and explicit-rule deferrals
@@ -443,7 +432,7 @@ When `orchestration_dispatch` operates inside an unattended `/goal`-driven sessi
 #### Scenario: Compliance is genuinely blocked pending human input
 
 - **WHEN** complying with the hard rule requires a decision only a human can make and no human is present in the unattended session
-- **THEN** the orchestrator halts the goal loop immediately, writes `openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md`, and does not continue implementing past that point
+- **THEN** the orchestrator halts the goal loop immediately, writes `.hard-rule-escalation.md` under the resolved active change directory, and does not continue implementing past that point
 
 #### Scenario: "No human available" is never read as permission
 
@@ -506,9 +495,8 @@ main context.
 
 ### Requirement: Background waits use completion notifications, never bash polling
 
-The execution policy SHALL state that waiting on background agents or sentinel clearance is done
-by waiting for agent completion notifications; bash sleep/poll loops against `.pending-*`
-sentinels or idle sleep loops awaiting agent results are prohibited. This does not restrict the
+The execution policy SHALL state that waiting on background agents or review completion is done
+by waiting for agent completion notifications; bash sleep/poll loops awaiting agent results are prohibited. This does not restrict the
 deterministic-completion-signal polling already sanctioned by the existing "No block-polling a
 running local_agent worker" requirement (polling an observable artifact such as a DB row baseline
 for a mutating worker remains permitted).
@@ -520,7 +508,7 @@ for a mutating worker remains permitted).
 
 ### Requirement: Session-environment traps are documented in policy guidance
 
-The execution policy (or its implementation-dispatch reference) SHALL carry these one-line guidance notes: the shell is zsh where `status` is a read-only variable (use `st=`/`rc=`); words beginning with `=` trigger zsh `=cmd` path expansion (an unquoted `==` yields `== not found`) — quote such words; PR self-merge is classifier-blocked, so `gh pr merge --admin` and remote branch deletion must not be attempted (hand to the human); and the post-edit advisory SHALL tell the model to run the pending reviewer BEFORE attempting commit/push. `rules/tool-routing.md` SHALL additionally state: when the GitNexus index contains multiple repositories, always pass the `repo` parameter to `gitnexus_impact`/`gitnexus_query` calls.
+The execution policy (or its implementation-dispatch reference) SHALL carry these one-line guidance notes: the shell is zsh where `status` is a read-only variable (use `st=`/`rc=`); words beginning with `=` trigger zsh `=cmd` path expansion (an unquoted `==` yields `== not found`) — quote such words; PR self-merge is classifier-blocked, so `gh pr merge --admin` and remote branch deletion must not be attempted (hand to the human); and the post-edit advisory SHALL tell the model to complete the applicable review outcome BEFORE attempting commit/push. `rules/tool-routing.md` SHALL additionally state: when the GitNexus index contains multiple repositories, always pass the `repo` parameter to `gitnexus_impact`/`gitnexus_query` calls.
 
 #### Scenario: Model avoids the zsh status trap
 
@@ -539,8 +527,8 @@ The execution policy (or its implementation-dispatch reference) SHALL carry thes
 
 #### Scenario: Push attempted with a pending reviewer
 
-- **WHEN** edits produced a pending review sentinel and the model prepares to commit/push
-- **THEN** the post-edit advisory has already instructed running the reviewer first, so the push-gate block path is not exercised
+- **WHEN** edits have an unresolved applicable review outcome and the model prepares to commit/push
+- **THEN** the post-edit advisory has already instructed completing that review first, so the push-gate block path is not exercised
 
 ### Requirement: Dispatch rows for CLI-backed fast-worker variants
 
@@ -673,38 +661,38 @@ When a worker runs under an explicit parallel-dispatch marker, it SHALL NOT run 
 - **WHEN** a parallel worker verifies its own changes
 - **THEN** it uses path-scoped status/diff checks for the assigned list and does not infer ownership from a whole-tree status result
 
-### Requirement: Orchestration owns dispatch and handoff while Sentinel owns enforcement
+### Requirement: Orchestration owns dispatch and handoff while project policy owns acceptance
 
-The orchestration layer SHALL own worker/reviewer selection, dispatch, follow-up handoff, bounded retry, lifecycle transitions, result collection, and acceptance sequencing. The existing Sentinel enforcement core SHALL remain the independent source of pending review debt, reviewer-slot identity, evidence eligibility, and fail-closed clearance. Sentinel hooks MUST NOT become an agent scheduler, and orchestration MUST NOT directly erase or synthesize passing Sentinel evidence.
+The orchestration layer SHALL own worker/reviewer selection, dispatch, follow-up handoff, bounded retry, lifecycle transitions, result collection, and acceptance sequencing. Current project policy and the review contract SHALL remain the source of applicable review domains, evidence eligibility, and fail-closed acceptance. Orchestration MUST NOT synthesize passing evidence or bypass an unresolved outcome.
 
-#### Scenario: Edit arms a review obligation
+#### Scenario: Edit creates an applicable review obligation
 
-- **WHEN** an implementation edit matches a configured review trigger
-- **THEN** Sentinel records the pending obligation and orchestration dispatches the resolved reviewer without transferring clearance ownership to that reviewer
+- **WHEN** an implementation edit matches a configured review domain
+- **THEN** orchestration records the applicable obligation and dispatches or requests the relevant review without transferring acceptance ownership to the reviewer
 
 #### Scenario: Reviewer hands back a final result
 
-- **WHEN** a reviewer returns a result for the current dispatch
-- **THEN** orchestration records the handoff and invokes the existing evidence reconciliation path while Sentinel alone determines whether the obligation can clear
+- **WHEN** a reviewer or external reviewer returns a result for the current dispatch
+- **THEN** orchestration records the handoff and reconciles scope, freshness, verdict, and supporting evidence against current project policy
 
-#### Scenario: Reviewer result lacks qualifying evidence
+#### Scenario: Review result lacks qualifying evidence
 
-- **WHEN** a reviewer message appears successful but its artifact is missing, stale, malformed, out of scope, or non-passing
-- **THEN** orchestration leaves the task unresolved and Sentinel keeps the obligation armed
+- **WHEN** a review result is missing, stale, malformed, out of scope, or non-passing
+- **THEN** orchestration leaves the task unresolved and requests the missing or corrected outcome
 
 ### Requirement: Dispatch lifecycle integration is additive
 
-Architecture migration SHALL reuse the current dispatch table, reviewer slots, sentinel names, evidence artifact contract, and public orchestration commands. New coordination ports MAY wrap these behaviors, but MUST NOT introduce a second dispatch policy, second sentinel-clear implementation, parallel public command version, or alternate verdict vocabulary.
+Architecture migration SHALL reuse the current dispatch table, applicable review domains, evidence contract, public orchestration commands, and established verdict vocabulary. New coordination ports MAY wrap these behaviors, but MUST NOT introduce a second dispatch policy, duplicate review or evidence acceptance path, parallel public command version, or alternate verdict vocabulary.
 
 #### Scenario: Orchestration port wraps an existing reviewer dispatch
 
 - **WHEN** a dispatch/handoff adapter is introduced during migration
-- **THEN** it resolves the same agent, sentinel slot, and acceptance contract as the characterized existing flow
+- **THEN** it resolves the same applicable role, review domain, and acceptance contract as the characterized existing flow
 
-#### Scenario: Proposed component duplicates enforcement
+#### Scenario: Proposed component duplicates acceptance
 
-- **WHEN** a new coordinator attempts to clear review debt independently of the Sentinel core
-- **THEN** architecture validation rejects the duplicate enforcement path
+- **WHEN** a new coordinator attempts to establish acceptance independently of the project review contract
+- **THEN** architecture validation rejects the duplicate acceptance path
 
 ### Requirement: Flow-drive dispatch consumes the common Dispatch Engine
 
