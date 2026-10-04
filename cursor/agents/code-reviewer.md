@@ -117,6 +117,10 @@ This plugin reviews predominantly Claude-authored code. Bias attention toward th
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
+This is a read-only review role. Report findings and the requested fix for the
+owner; do not edit implementation files, apply fixes, or autofix the reviewed
+scope. The owner decides whether and how to repair findings.
+
 ### Specialist checks
 
 This file retains the code-quality and merge/dedup checks unique to `code-reviewer`.
