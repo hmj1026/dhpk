@@ -166,7 +166,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "opsx-apply-goal",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
+      "sha256": "sha256:3582a3cf96180dce7cae30743ecda727d524e4046938d0d023535aa4ab3d91e2",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/model-economics.md": {
@@ -496,7 +496,7 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
+      "sha256": "sha256:3582a3cf96180dce7cae30743ecda727d524e4046938d0d023535aa4ab3d91e2",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
@@ -622,7 +622,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
+      "sha256": "sha256:3582a3cf96180dce7cae30743ecda727d524e4046938d0d023535aa4ab3d91e2",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
