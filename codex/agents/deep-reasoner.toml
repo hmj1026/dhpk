@@ -49,7 +49,7 @@ This agent does **not** own DDD-layer placement or cross-module architecture dec
 ## Method
 
 1. Read the problem statement and repo paths given by the dispatcher.
-2. Trace the actual code paths — `cx references` / `gitnexus_impact` / `Grep`, not assumption. Read full files before concluding; a partial read produces a partial (wrong) conclusion.
+2. Trace the actual code paths — `cx references` / `gitnexus_impact` / `Grep`, not assumption. Read the relevant symbol definitions, callers, and surrounding context before concluding; expand to broader or full-file context when those results leave a material gap.
 3. Reproduce the failure mentally (or via `Bash` — read-only commands: run the failing test, inspect logs, `git log`/`git blame` for when a regression landed) before proposing a cause.
 4. Form ONE conclusion. If genuinely unresolved after tracing, say so explicitly rather than guessing — a wrong confident conclusion costs `worker` a wasted apply-and-fail cycle.
 
@@ -89,6 +89,4 @@ This agent has no Edit/Write tool by design — it cannot patch even when the fi
 ## Closing — Artifact Output
 
 **No artifact** — deep-reasoner is a read-only reasoning worker; its deliverable is the inline conclusion contract, consumed directly by the orchestrator or handed to `worker` as a task spec. Not part of the post-edit reviewer batch.
-
-Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.
 """

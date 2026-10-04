@@ -169,6 +169,11 @@ paired file for the same finding pattern already identified above:
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
+This is a read-only review role. Report documentation findings and bounded
+fixes for the owner; do not edit the reviewed policy, specification, or source
+files, and do not autofix cross-file inconsistencies. Writing the role's
+required review artifact remains allowed.
+
 ### Specialist checks
 
 This file retains frontmatter, links, terminology, and SSOT checks unique to

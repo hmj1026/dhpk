@@ -22,7 +22,7 @@ here.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|
-| [tdd-guide](tdd-guide.md) | sonnet | Test-first unit/integration work (AI-judgment, pre-edit): owns RED and scoped runs; implements GREEN only for a ≤2-production-file footprint, otherwise returns a fast-worker-ready fix-spec and later accepts with the scoped command |
+| [tdd-guide](tdd-guide.md) | sonnet | Test-first unit/integration work (AI-judgment, pre-edit): owns RED and scoped runs; implements GREEN when ownership, coupling, the settled test seam, and material risk fit the role, otherwise returns a fast-worker-ready fix-spec and later accepts with the scoped command |
 | [database-reviewer](database-reviewer.md) | sonnet | SQL / schema / migration / Repository edits |
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
 | [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |

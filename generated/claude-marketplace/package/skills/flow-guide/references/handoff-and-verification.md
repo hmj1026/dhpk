@@ -5,9 +5,9 @@
 ## Completion Expectations
 
 - `Feature Delivery`
-  - profile / work-item / legacy / RED / verification 都要交代清楚
+  - 回報已採用的計畫與 evidence、任務或專案明確要求的 profile / work-item / legacy / RED outcomes、verification 與剩餘缺口；不要重建已充分的 artifacts
 - `Bug Investigation & Fix`
-  - evidence、root cause path、work-item、legacy、RED / regression 都要交代清楚
+  - 回報適用的症狀與 root-cause evidence、任務或專案明確要求的 work-item / legacy / regression outcomes、verification 與剩餘缺口
 - `Lightweight Maintenance`
   - 明確列出 skip 項目與 targeted verification
 

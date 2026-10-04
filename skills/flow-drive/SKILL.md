@@ -55,9 +55,12 @@ preserved even when a caller presents a ready-looking route.
    command the current grant lists. On a Host without such tools, use its
    read-only shell access for discovery.
 2. Convert the work into dependency-ordered observable items. Preserve
-   OpenSpec task order and leave incomplete tasks unchecked.
-   An OpenSpec apply with two or more unchecked tasks requires the planner
-   gate before workspace writes; record the policy-approved skip for one task.
+   OpenSpec task order and leave incomplete tasks unchecked. Reuse sufficient
+   plan and handoff evidence; consult the planner only when an unresolved
+   decision, dependency, ownership boundary, cross-owner sequence, or material
+   risk leaves a required planning outcome missing. The number of unchecked
+   tasks alone does not trigger a planner. Preserve an accepted explicit
+   `--plan` request under the existing parser and capability rules.
 3. At each behavior boundary, run the smallest non-tautological test first,
    make the smallest compatible edit, inspect the diff, and run the focused
    verification. Preserve unrelated dirty work.
@@ -73,7 +76,8 @@ action.
 
 ## Implementation options
 
-- `--plan[=<model>:<effort>]` requests a planning pass.
+- `--plan[=<model>:<effort>]` explicitly requests a pre-implementation planner
+  consult on supported implementation-class routes.
 - `--worker=<claude|codex|agy|auto>` selects the Worker Selector and preserves
   the existing worker-routing enum.
 - `--worker-target=<provider>/<model>[:<effort>]` selects an explicit

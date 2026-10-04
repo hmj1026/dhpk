@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change harvest-advice-20260711. Update Purpose after archive.
+Define a bounded, self-locating kickoff that carries the selected OpenSpec
+artifacts and policy context into a fresh goal session.
 
 ## Requirements
 
@@ -20,7 +21,28 @@ skill, so the first Skill call never races plugin skill-catalog registration.
 #### Scenario: Skill catalog still unavailable after retry
 
 - **WHEN** the opsx:apply invocation returns "Unknown skill" and one retry on the next turn also fails
-- **THEN** the session proceeds by reading openspec/changes/<CHANGE_ID>/ artifacts directly and implementing tasks under the same gates, instead of aborting or hunting for the skill
+- **THEN** the session proceeds by reading the analyzer-resolved artifacts directly and implementing tasks under the same gates, instead of aborting or hunting for the skill
+
+### Requirement: Kickoff carries CLI-resolved artifact paths
+
+The analyzer SHALL obtain `changeRoot`, `schemaName`, and artifact paths from
+`openspec status --change <CHANGE_ID> --json`. Required tasks and proposal
+artifacts SHALL fail closed when missing or ambiguous; design is optional. The
+generated kickoff, resume note, hard-rule escalation, and archive handoff SHALL
+carry the resolved `CHANGE_DIR`, `TASKS_PATH`, `PROPOSAL_PATH`, `DESIGN_PATH`,
+and `SCHEMA_NAME` values instead of reconstructing a default
+`openspec/changes/<CHANGE_ID>` path. External `/opsx:apply` ownership and typed
+parser validation remain unchanged.
+
+#### Scenario: Custom planning store
+
+- **WHEN** OpenSpec resolves a change and its artifacts under a custom store
+- **THEN** the goal uses those concrete paths in every handoff and never reads a default-path lookalike
+
+#### Scenario: Required artifact cannot be resolved
+
+- **WHEN** tasks or proposal has no unique existing resolved path
+- **THEN** analysis stops with a specific missing or ambiguous resource outcome and emits no actionable goal
 
 ### Requirement: Emitted goal strings carry a self-locating policy path, never a baked absolute path
 
@@ -40,15 +62,22 @@ filesystem.
 - **WHEN** neither $CLAUDE_PLUGIN_ROOT nor the cache fallback yields the policy file
 - **THEN** the session continues using the dispatch and gate clauses embedded in the goal string, and does not block or scan the filesystem
 
-### Requirement: Inline-edit exception counts the whole implement-step footprint
+### Requirement: Inline work is bounded by applicable risk and ownership
 
-The goal template's inline-edit carve-out SHALL state that the ≤2-file threshold is measured on
-the entire implement-step's edited-file footprint, not on each individual edit.
+The goal template's inline-work guidance SHALL assess the whole implement-step
+footprint together with ownership, coupling, dependencies, edit shape, and
+material risk. A file count alone SHALL NOT force a worker; an explicitly
+requested worker remains binding.
 
-#### Scenario: Multi-file step exceeds the inline threshold
+#### Scenario: Coupled multi-file step
 
-- **WHEN** an implement step's fix spans 4 files even though each file needs only one surgical edit
-- **THEN** the goal discipline requires dispatching a worker for the step rather than editing inline
+- **WHEN** an implement step spans several coupled files owned by a delegated worker
+- **THEN** the goal routes one bounded worker batch for that step
+
+#### Scenario: Small independent step
+
+- **WHEN** an implement step has independent ownership and no material delegation risk
+- **THEN** the goal permits bounded inline work regardless of file count
 
 ### Requirement: Goal generator hard-stops over the length cap
 

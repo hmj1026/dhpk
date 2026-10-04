@@ -1,5 +1,6 @@
 {
   "name": "maximum-gate",
+  "change_id": "maximum-gate",
   "fast_worker_clause": "dhpk:codex-fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker",
   "test_command": "node tests/run-all.js",
   "coverage_threshold": 80,

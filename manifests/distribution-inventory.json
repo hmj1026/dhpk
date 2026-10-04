@@ -319,8 +319,8 @@
       "id": "codex-supporting-agent-traps-_common-trap-sheet-loader-md",
       "source": "codex/supporting/agent-traps/_common/trap-sheet-loader.md",
       "canonical_source": "agent-traps/_common/trap-sheet-loader.md",
-      "canonical_digest": "3a91e43ff71735426254494e34460df034f1c75ef81995115bd5a31df43ee77b",
-      "projection_digest": "1791f859680eb85074ac25e8e4aeaea5a3fdfbe95871a89695e57371e2fdc9d7",
+      "canonical_digest": "455bd99b50d68c2332a16dbdadc530a51767cccf4e29f6a3473a70c7929a3588",
+      "projection_digest": "a215bceb37660146caa1dd1191ea4efeea173564d03f301b55cc12d87382432b",
       "destination": "dhpk/agent-traps/_common/trap-sheet-loader.md"
     },
     {
@@ -435,8 +435,8 @@
       "id": "codex-supporting-agent-traps-security-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/security-reviewer/yii.md",
       "canonical_source": "agent-traps/security-reviewer/yii.md",
-      "canonical_digest": "3c86b9dc6097b73aba8a1df5426161aa0740e1969b21992bec48766f72e83b93",
-      "projection_digest": "c455e3d172257a01a7331dde8aa188f594150aa3854eec4d17f5b06c5c5fec64",
+      "canonical_digest": "a9193bf4021c69ffef55ce93beea35bc78ec05968c46c35606ad46c0ba6785b0",
+      "projection_digest": "d1b204ec3b44571e13029667c14a02c1d65c1b3c1fdc23b8ddae521aaad6b15d",
       "destination": "dhpk/agent-traps/security-reviewer/yii.md"
     },
     {
@@ -498,16 +498,16 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825",
-      "projection_digest": "1bd5984850ea0d011840abcecd2095615a5255a819a31a2d1d476d89e64ad72f",
+      "canonical_digest": "c9690a1f6f4415db324f42613f35138c4f39fbb34546be59f4f309318ff85961",
+      "projection_digest": "716812f9711f7776dc215c1e40fff37d37c11f2cb08c9a88cbabed37db5b0714",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
       "id": "codex-supporting-agent-traps-_common-build-resolver-skeleton-md",
       "source": "codex/supporting/agent-traps/_common/build-resolver-skeleton.md",
       "canonical_source": "agent-traps/_common/build-resolver-skeleton.md",
-      "canonical_digest": "a9a8cbc1d8c8efb249aaac1f12c79f71ebb375773d4b1a519209734469b7f125",
-      "projection_digest": "0c4491481d52237c657b208d019d921ab836362c11c7a284fbee3e8d05359c27",
+      "canonical_digest": "6dba9375b0fe8834f9086b423e5e6f812e83c29ed2800aed85550d24907868e5",
+      "projection_digest": "21b71a73d06407fb8a561b885a07d318630f0a44c93b91ac1b90ac0ddabd4041",
       "destination": "dhpk/agent-traps/_common/build-resolver-skeleton.md"
     },
     {

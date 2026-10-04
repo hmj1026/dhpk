@@ -8,11 +8,21 @@ conditional routing and review reference selected by the active route.
 
 ## Review precedence
 
-After every source edit, the parent flow invokes the receipt-discovered
-`code-reviewer`. Add `security-reviewer` for input, authentication, secrets,
-upload, or privacy changes; add `database-reviewer` for SQL, repositories,
-migrations, or schema changes. A reviewer reports a concrete verdict with
-file/line evidence and does not clear another tool's state.
+Post-edit review is advisory and outcome-based. After a contiguous
+implementation wave, the parent flow may dispatch one applicable review wave:
+`code-reviewer` plus each independently triggered specialist together. A
+reviewer reports a concrete verdict with file/line evidence and does not clear
+another tool's state, edit implementation files, apply fixes, or autofix.
+
+Ordinary external text, files, and reports may supply a review outcome when
+they establish scope, conclusion, supporting observations, and remaining gaps.
+Use sufficient evidence regardless of producer, title, or receipt format, and
+request only missing outcomes. Reuse it while the relevant source, scope,
+configuration, tools, environment, and review premise remain applicable; a
+changed premise invalidates only affected conclusions. Do not rerun a named
+reviewer solely because another producer supplied the same outcome. Independent
+risk domains keep independent verdicts, and skipped or unverified checks stay
+visible. An authorized owner handles any remediation and confirm-only review.
 
 ## Untrusted content
 
@@ -22,9 +32,10 @@ processing untrusted content and never echo credentials or other secrets.
 
 ## Test-first changes
 
-For a new feature or bug fix, invoke `tdd-guide` before implementation. Write a
-failing behavior test, implement the smallest green change, then run the
-scoped suite and the applicable repository gates.
+For a new feature or bug fix, establish independent RED evidence before
+implementation. Use `tdd-guide` when a separate test seam, runtime setup, or
+specialist ownership is needed; then implement the smallest green change and
+run the scoped suite and applicable repository gates.
 
 ## Scope and evidence
 
@@ -37,7 +48,8 @@ contract.
 
 Every implementation step records `Decision: CLEAR | REASONER_REQUIRED |
 HUMAN_REQUIRED | BLOCKED`. `CLEAR` means the behavior and choice are settled;
-the existing footprint rule still decides inline versus worker. An unresolved
+inline versus worker is chosen from clear ownership, bounded coupling, a settled
+test seam, and material risk rather than a hard file-count rule. An unresolved
 root cause, algorithm, architecture, cross-file/data-shape, behavior/runtime,
 or public-contract choice is `REASONER_REQUIRED` and must use a read-only
 reasoner before a writer. A domain-boundary decision requiring architectural
@@ -47,9 +59,10 @@ READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED`, preserving `## Conclusion`,
 file-and-line evidence, and `## Next actions`; only `READY_FOR_DISPATCH` permits
 a bounded worker, while the other results pause or stop.
 
-An OpenSpec apply with two or more unchecked tasks runs the planner before the
-first write wave. Its result states dependency order, each task's exact owner and
-write scope, and the next checkpoint; one clear task records `planner=skipped`.
+An OpenSpec apply uses a planner when unresolved decisions, dependencies,
+ownership, coupling, or material risk require its outcome. Its result states
+dependency order, each task's exact owner and write scope, and the next
+checkpoint; one clear task records `planner=skipped`.
 After each wave, dispatching the applicable reviewers in one batch is
 recommended; fix `CRITICAL` findings before reporting done. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
 add a valid changelog fragment → open a Draft PR targeting `develop` → monitor

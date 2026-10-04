@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change harden-opsx-goal-policy-fallbacks. Update Purpose after archive.
+Define bounded policy fallback and explicit failure behavior for generated goal
+orientation and reviewer evidence.
 
 ## Requirements
 
@@ -71,3 +72,17 @@ When policy resolution emits `POLICY-UNRESOLVED`, both generated goal dispatch m
 - **WHEN** the fallback artifact clause is used
 - **THEN** existing hook-owned sentinel clearance and `.unresolved-verdict` handling remain the
   authoritative lifecycle and verdict boundaries
+
+### Requirement: Required policy failure is explicit and fail closed
+
+When a policy or capability is required by a higher-priority instruction or the
+selected route and cannot be resolved, the goal SHALL stop with a specific gap.
+It SHALL NOT silently select another writer, provider, scheduler, receipt
+runtime, or broader scope. Optional unavailable skills may be reported as a
+missing outcome and skipped only when the required outcome remains otherwise
+authorized and evidenced.
+
+#### Scenario: Required policy is absent
+
+- **WHEN** a required execution policy is missing or unreadable
+- **THEN** the goal reports the missing policy and emits a blocked handoff without claiming completion

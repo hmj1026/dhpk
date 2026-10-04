@@ -138,7 +138,7 @@ test('empty file_path is a silent no-op (exit 0)', () => {
     });
   }
 
-  test('warns on third distinct file, ignores duplicates, and blocks fourth only in dispatch mode', () => {
+  test('warns when the third distinct file is reached in dispatch mode', () => {
     const repo = mkRepo({ prefix: 'dhpk-edit-batch-' });
     try {
       const env = { DHPK_ORCHESTRATION_DISPATCH: 'on' };
@@ -148,9 +148,21 @@ test('empty file_path is a silent no-op (exit 0)', () => {
       const third = edit(repo, 'src/c.js', { env });
       assert.strictEqual(third.status, 0, third.stderr);
       assert.ok(third.stderr.includes('WARN') && third.stderr.includes('3-file'), third.stderr);
+    } finally { rmRepo(repo); }
+  });
+
+  test('permits a fourth distinct file in dispatch mode', () => {
+    const repo = mkRepo({ prefix: 'dhpk-edit-batch-' });
+    try {
+      const env = { DHPK_ORCHESTRATION_DISPATCH: 'on' };
+      for (const name of ['a', 'b', 'c']) {
+        assert.strictEqual(edit(repo, `src/${name}.js`, { env }).status, 0);
+      }
+
       const fourth = edit(repo, 'src/d.js', { env });
-      assert.strictEqual(fourth.status, 2, fourth.stderr);
-      assert.ok(fourth.stderr.includes('fast-worker'), fourth.stderr);
+
+      assert.strictEqual(fourth.status, 0, fourth.stderr);
+      assert.ok(!fourth.stderr.includes('blocked'), fourth.stderr);
     } finally { rmRepo(repo); }
   });
 
@@ -178,10 +190,9 @@ test('empty file_path is a silent no-op (exit 0)', () => {
     } finally { rmRepo(repo); }
   });
 
-  // Issue #80 regression (warm-review MUST-FIX): DHPK_INLINE_BATCH_OK suppresses
-  // the WARN/block but the file MUST still be recorded, or the Stop-time dispatch
-  // audit stays silent for exactly the session-wide-override case it targets.
-  test('explicit acceptance suppresses the block but STILL counts for the dispatch audit', () => {
+  // Issue #80 regression: DHPK_INLINE_BATCH_OK suppresses the advisory but the
+  // file remains recorded for the Stop-time observation.
+  test('explicit acceptance suppresses the advisory but still counts for the dispatch audit', () => {
     const repo = mkRepo({ prefix: 'dhpk-edit-batch-' });
     try {
       const env = { DHPK_ORCHESTRATION_DISPATCH: 'on', DHPK_INLINE_BATCH_OK: '1' };
@@ -203,10 +214,15 @@ test('empty file_path is a silent no-op (exit 0)', () => {
     try {
       const env = { DHPK_ORCHESTRATION_DISPATCH: 'on' };
       for (const file of ['openspec/changes/x/proposal.md', '.claude/artifacts/a.md', 'tasks.md', '/tmp/outside.js']) {
-        assert.strictEqual(edit(repo, file, { env }).status, 0);
+        const result = edit(repo, file, { env });
+        assert.strictEqual(result.status, 0, result.stderr);
+        assert.ok(!result.stderr.includes('WARN'), result.stderr);
       }
-      for (const name of ['a', 'b', 'c']) assert.strictEqual(edit(repo, `src/${name}.js`, { env }).status, 0);
-      assert.strictEqual(edit(repo, 'src/d.js', { env }).status, 2);
+      assert.strictEqual(edit(repo, 'src/a.js', { env }).status, 0);
+      assert.strictEqual(edit(repo, 'src/b.js', { env }).status, 0);
+      const thirdSource = edit(repo, 'src/c.js', { env });
+      assert.strictEqual(thirdSource.status, 0, thirdSource.stderr);
+      assert.ok(thirdSource.stderr.includes('WARN'), thirdSource.stderr);
     } finally { rmRepo(repo); }
   });
 

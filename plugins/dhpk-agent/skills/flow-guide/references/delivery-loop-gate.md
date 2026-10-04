@@ -13,8 +13,8 @@ authority for directories, runners, fixtures, and coverage thresholds.
 
 1. Feature work starts with an independent RED test for the acceptance
    behavior. A bug fix starts with a regression test that reproduces the
-   reported failure. Use `tdd-workflow` (and the `tdd-guide` specialist
-   when a dispatched RED phase is required) for unit and integration behavior.
+   reported failure. Use the project's test-first workflow; select `tdd-guide`
+   when a separate test seam, runtime setup, or specialist owner is needed.
 2. Run the project's verification command, normally `/verify`, after the RED →
    GREEN → REFACTOR loop. Record the exact command, tree or commit, and result.
 3. Re-run verification after every implementation or review fix. Evidence from
@@ -23,7 +23,7 @@ authority for directories, runners, fixtures, and coverage thresholds.
 
 ## Gate 2 — Test adequacy and level routing
 
-Run `change-verdict` for code changes. The adequacy result is a separate gate:
+Assess code changes with the applicable review method. The adequacy result is a separate gate; an existing sufficient review report may satisfy it without dispatching a named dhpk producer again:
 
 - `PASS` means the changed behavior has sufficient unit/integration evidence
   for its risk and acceptance criteria.
@@ -31,21 +31,24 @@ Run `change-verdict` for code changes. The adequacy result is a separate gate:
 - `UNAVAILABLE` means the reviewer or required runtime could not run; it is not
   a passing substitute.
 
-When the missing behavior belongs to a Playwright user journey, dispatch
-`e2e-runner` to author and run the journey. If Playwright, the target runtime,
-or the agent is unavailable, record `UNAVAILABLE`, preserve the gate, and do
-not claim an E2E pass from static or unit evidence.
+When the missing behavior belongs to a Playwright user journey, use the
+applicable E2E capability or sufficient external runtime evidence. If
+Playwright, the target runtime, or the agent is unavailable, record
+`UNAVAILABLE`, preserve the gate, and do not claim an E2E pass from static or
+unit evidence.
 
 ## Gate 3 — Freshness and change review
 
-The test, adequacy, and review receipts must bind to the current worktree (or a
-named immutable commit) and the scoped files. After any edit, invalidate the
-affected receipt and repeat the relevant checks.
+Test, adequacy, and review evidence must bind to the current worktree (or a
+named immutable commit) and the scoped files when that evidence is supplied.
+After any edit, invalidate affected conclusions and repeat the relevant checks.
 
-Run `change-verdict` for the implementation wave. The review covers both
-repository standards and the requested behavior, reports file:line evidence,
-and ends with `READY` or `BLOCKED`. A degraded reviewer is reported explicitly;
-it never becomes an implicit approval.
+Run one applicable review wave for the implementation wave. The review covers
+repository standards and requested behavior, reports file:line evidence, and
+ends with `READY` or `BLOCKED`. Accept sufficient external review evidence and
+do not require a named reviewer, receipt, or report heading when the outcome
+is already established. A degraded reviewer is reported explicitly; it never
+becomes an implicit approval.
 
 ## Gate 4 — Bounded review loop and handoff
 

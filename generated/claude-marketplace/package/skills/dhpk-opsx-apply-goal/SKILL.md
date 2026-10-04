@@ -33,7 +33,7 @@ command for a fresh session to run the change unattended.
 
 | File | Read when |
 |------|-----------|
-| `scripts/analyze-change.sh` | Step 1 — deterministic argument normalization, physical Skill-root discovery, change-dir location, checkbox counts, and turn budget |
+| `scripts/analyze-change.sh` | Step 1 — deterministic argument normalization, physical Skill-root discovery, CLI-resolved change/artifact paths, checkbox counts, and turn budget |
 | `scripts/goal-context.js` | Step 1 — local selector-closure I/O for fast-worker selection, E2E detection, and the task digest |
 | `references/detection.md` | Step 2 — test/build/lint/coverage/smoke signal tables, non-automatable-task signals |
 | `references/gate-contracts.md` | Step 3 — compact evidence contracts that every emitted gate must preserve; cited policy, reviewer, and dispatch sources are synchronized under `references/execution-bundle/` (never edit them here) |
@@ -74,13 +74,22 @@ It prints a `# schema=v1` KEY=VALUE block. Act on `STATUS`:
 - `STATUS=archived` → print the `MESSAGE` (already archived — may be complete) and stop.
 - `STATUS=error` → print the `MESSAGE` (missing `tasks.md`/`proposal.md`, or a retired `--codex` deprecation diagnostic) and stop.
 - Exit code 2 → missing `CHANGE_ID`; print the usage line the script emitted and stop.
-- `STATUS=active` → read the remaining keys and continue: `CHANGE_DIR`, `HAS_DESIGN`,
+- `STATUS=active` → read the remaining keys and continue: `CHANGE_DIR`, `SCHEMA_NAME`,
+  `TASKS_PATH`, `PROPOSAL_PATH`, `DESIGN_PATH`, `HAS_DESIGN`,
   `TOTAL_TASKS`, `OPEN_TASKS`, `DONE_TASKS`, `TURN_BUDGET`, `TURN_BUDGET_SOURCE`,
   `SMOKE_FLAG`, `DRY_RUN`, `MAX_DURATION`, `MIN_COVERAGE`,
   `FAST_WORKER_REQUESTED`, `FAST_WORKER_SELECTED`, `FAST_WORKER_AGENT`,
   `FAST_WORKER_ORDER`, `FAST_WORKER_FALLBACK`, `FAST_WORKER_REJECTED`,
   `FAST_WORKER_CROSS_PROVIDER`, `FAST_WORKER_SCOPE`, `FAST_WORKER_CLAUSE`,
   `HAS_E2E`, and `TASK_DIGEST`.
+
+The analyzer obtains `CHANGE_DIR`, `SCHEMA_NAME`, and artifact paths from
+`openspec status --change <CHANGE_ID> --json`. Required `TASKS_PATH` and
+`PROPOSAL_PATH` must resolve to existing files; optional `DESIGN_PATH` is carried
+when present. It fails closed on a missing or ambiguous mapping and never falls
+back to `openspec/changes/<CHANGE_ID>` or another guessed store. Carry these
+resolved paths into the kickoff, resume, hard-rule escalation, and any later
+archive handoff; do not reconstruct them from the change ID.
 
 `analyze-change.sh` invokes the sibling `goal-context.js` helper after the
 deterministic fields. The helper accepts `--tasks=<path>`, `--proposal=<path>`,
@@ -114,8 +123,8 @@ because it needs judgment the analyzer deliberately does not attempt.
 
 ## Step 2 — Detect verification-gate scope and non-automatable tasks
 
-Read `tasks.md` + `proposal.md` (+ `design.md` when `HAS_DESIGN=true`) with the
-Read tool. From their combined text, set the gate flags per the signal/override
+Read `TASKS_PATH` + `PROPOSAL_PATH` (+ `DESIGN_PATH` when `HAS_DESIGN=true`) with
+the Read tool. From their combined text, set the gate flags per the signal/override
 tables in `references/detection.md`:
 
 - Test runners → `HAS_PHPUNIT` / `HAS_JEST` / `HAS_PYTEST` / `HAS_SWIFT_TEST` /
@@ -164,7 +173,7 @@ Compose `GOAL_CONDITION` from the verbatim templates in
   `mechanical → <FAST_WORKER_CLAUSE>;` segment, including its trailing separator,
   are always substituted in the `DISPATCH_ON=true` branch, regardless of what
   the footprint scan finds: mechanical work routinely surfaces mid-session that
-  no pre-written tasks.md footprint predicted. Deliberately NOT symmetric with
+  no pre-written task footprint predicted. Deliberately NOT symmetric with
   `<E2E_ROSTER_CLAUSE>` below — see `references/goal-templates.md` for why.
   Substitute `<E2E_ROSTER_CLAUSE>` with `RED/E2E Playwright → dhpk:e2e-runner;`
   only when `HAS_E2E=true`; otherwise substitute the empty string.
@@ -223,6 +232,7 @@ Block C/C2 material from `output-blocks.md`, with `--dry-run` ending after C2.
 ## Verification
 
 - [ ] Analyzer run first; `STATUS` handled — `missing`/`archived`/`error`/exit-2 all stop with the script's message; only `active` proceeds
+- [ ] Active output carries the CLI-resolved `CHANGE_DIR`, `SCHEMA_NAME`, `TASKS_PATH`, `PROPOSAL_PATH`, `DESIGN_PATH`, and `HAS_DESIGN`; no default artifact path is inferred
 - [ ] `SKILL_ROOT_Q` is the Bash-safe physical Skill root; local selector, policy, and launcher resources resolve below it, and a missing resource reports `BLOCKED_RESOURCE_MISSING` without ambient lookup
 - [ ] Block A shows correct task counts (from the schema block), detected runners, and manual-task count
 - [ ] Block B `/goal` string is entirely in English and opens with the Part 0 `openspec-apply-change` kickoff sentence before the stop conditions — single paste, no separate STEP 3
@@ -234,7 +244,7 @@ Block C/C2 material from `output-blocks.md`, with `--dry-run` ending after C2.
 - [ ] Non-automatable tasks appear in the Block A warning, NOT in Part 3
 - [ ] Part 3 emits build/lint lines only when detected; a coverage gate when `HAS_COVERAGE=true` OR `--min-coverage N` set (with `HAS_TEST=true`); the smoke line iff `HAS_SMOKE=true`
 - [ ] `--no-smoke` suppresses the smoke line regardless of signal; Block A `Smoke gate` row is exactly one of `on (signal)` / `on (--smoke)` / `off (--no-smoke)` / `off (no strong signal, hint emitted)`
-- [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line. Part 4 writes `openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md` with rule, conflicting decision with file:line evidence, and why compliance is blocked, then ends the turn, and writes `.resume-note.md` items (1)(2)(3) on stop
+- [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line. Part 4 writes `<CHANGE_DIR>/.hard-rule-escalation.md` with rule, conflicting decision with file:line evidence, and why compliance is blocked, then ends the turn, and writes `<CHANGE_DIR>/.resume-note.md` items (1)(2)(3) on stop
 - [ ] Block A `Goal length` row present, reporting the measured UTF-8-byte length and `full` / `⚠ BLOCKED` matching `GOAL_MODE`; a >4000-byte measurement hard-stops (should-never-fire template regression) — no unsafe gate-deleting substitution exists
 - [ ] `GOAL_MODE = blocked` suppresses Block B/C/C2 and prints the hard-stop notice with all four adjustment bullets instead
 - [ ] Block C2 monitor snippet is read-only (grep + ls only); `--dry-run` stops after it (no "THIS SESSION" block)

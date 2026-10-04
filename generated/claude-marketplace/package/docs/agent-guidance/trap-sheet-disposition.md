@@ -12,7 +12,7 @@ Loader SHA-256 (task 2.3; must match `agent-traps/_common/trap-sheet-loader.md`)
 |---|---|---|
 | `_common/trap-sheet-loader.md` | already-compliant | Detection-order SSOT. Not edited. |
 | `_common/prompt-defense.md` | already-compliant | Untrusted-diff SSOT. Pointer only elsewhere. |
-| `_common/build-resolver-skeleton.md` | already-compliant | Shared 3-attempt resolver SSOT. |
+| `_common/build-resolver-skeleton.md` | updated | Shared resolver SSOT; adds state-preserving, evidence-scoped cleanup and lockfile rules. |
 | `_common/cli-prompt-composition.md` | updated | Baselines 0.147.0 / `AGY_VERIFIED_BASELINE` 1.1.13. Wrapper degrade path landed. |
 | `code-reviewer/php.md` | updated | Floor/banned table → `modules/php-5.6/references/coding-style.md`. LSP exceptions kept. |
 | `code-reviewer/js.md` | updated | Trigger/Action/Non-apply rows; security → `security-reviewer/js.md`. |

@@ -38,49 +38,83 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 1-2. Loader: `.codex/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `migration-reviewer`). Manifest detection also covers `*.xcdatamodeld`.
 3. No sheet matches → apply only the framework-agnostic Audit Checklist below.
 
-The Audit Checklist below is the language-agnostic baseline; the loaded sheet adds stack-specific form, naming, and verification commands.
+The Audit Checklist below is a decision checklist. Each item applies only when
+the detected migration framework, engine, deployment topology, and risk profile
+support that concern; the loaded sheet supplies the matching form, naming, and
+verification commands. SQL and MySQL examples are illustrative evidence
+patterns, not universal commands.
 
 ## Audit Checklist
 
+Start by identifying the migration framework, database engine and version,
+table engine, deployment topology, and whether the affected table is actually
+high volume. Apply only the matching framework/engine guidance; the examples
+below are conditional anchors, not universal requirements.
+
 ### 1. up/down symmetry (HARD)
 
-- [ ] Every action in `up` has a matching reverse in `down` (`addColumn` ↔ `dropColumn`)
-- [ ] Drop column / FK / index in dependency order — drop the index / FK referencing a column **before** dropping the column itself
-- [ ] `down` executes SQL in **reverse order** of `up`
-- [ ] Pure data migrations (`INSERT` / `UPDATE`) either have a \"restore to original\" `down` path or are clearly annotated `// IRREVERSIBLE: <why>` with follow-up plan
+- [ ] When the active migration framework exposes up/down rollback, every
+      reversible schema action has a matching reverse (`addColumn` ↔
+      `dropColumn`); for versioned or snapshot systems, use that system's
+      supported rollback contract instead
+- [ ] For relational schemas with dependent indexes/FKs, remove dependencies
+      before their referenced columns; apply the active engine's dependency
+      rules for other schema systems
+- [ ] When rollback is supported, execute down operations in the framework's
+      required reverse dependency/order; do not impose SQL ordering on a
+      non-SQL migration system
+- [ ] Pure data migrations restore original data when the active system can do
+      so safely, or carry an explicit irreversible rationale and follow-up plan
 
 ### 2. Idempotency (HARD)
 
-- [ ] Add-column guarded by existence check (`Schema::getTable($table)->getColumn($col)` or `SHOW COLUMNS LIKE`)
-- [ ] Add-index guarded by `SHOW INDEX FROM $table WHERE Key_name = ?` against duplicates
-- [ ] Add-FK guarded by `information_schema.KEY_COLUMN_USAGE` against same-name collisions
-- [ ] Re-run safe — running `up` twice does not error out
+- [ ] When deployment retries can re-enter `up`, use the active framework's
+      schema-existence API or migration history to make supported operations
+      retry-safe; `SHOW COLUMNS` is only a MySQL example
+- [ ] When adding relational indexes, use the active engine/framework's
+      duplicate-index check; `SHOW INDEX ... WHERE Key_name = ?` is only a
+      MySQL example
+- [ ] When adding named relational FKs across independently deployed schemas,
+      check the active engine's constraint catalog for collisions; the
+      `information_schema.KEY_COLUMN_USAGE` query is only a MySQL example
+- [ ] Re-run safety is required only when the deployment contract permits a
+      migration to be retried or partially applied; otherwise verify the
+      framework's migration history and recovery behavior
 
 ### 3. FK / Index naming (HARD — multi-tenant collision risk)
 
-- [ ] FK names explicit: `fk_<table>_<column>_<ref_table>` — never rely on the framework's auto-naming (`FK_xxxxx`), because different deploy targets can end up with the same logical FK having different auto-generated names, blocking later cross-target migrations
-- [ ] Index names explicit: `idx_<table>_<col1>_<col2>` or `uk_<table>_<col>` (unique)
-- [ ] Identifier length ≤ 64 (MySQL identifier limit; other engines have similar limits — check yours)
-- [ ] Same-name migration deployed to multiple tenant databases will not collide on FK constraint names
+- [ ] For relational engines that persist constraint names, use explicit
+      framework-valid FK names when independently deployed schemas can collide;
+      `fk_<table>_<column>_<ref_table>` is an illustrative convention
+- [ ] For relational indexes, use explicit names when the active framework or
+      deployment topology requires stable names; `idx_...` and `uk_...` are
+      illustrative conventions
+- [ ] Identifier length fits the active engine/framework's documented limit
+- [ ] For multi-tenant or otherwise parallel schema deployments, confirm the
+      active engine's constraint/index namespace and collision behavior; skip
+      this check for systems without named relational constraints
 
 ### 4. Large ALTER strategy (HIGH — production downtime risk)
 
 For high-volume tables (declared per project via the `hot_tables` userConfig key or AGENTS.md; the names below are POS-system examples only):
 
-- [ ] Estimate row count: `SELECT COUNT(*) FROM <table>` — if > 1M rows, flag a warning
-- [ ] Confirm ALTER classification (MySQL 5.7 InnoDB online DDL matrix; consult your DB's online-DDL docs for other engines):
-  - ADD/DROP column → online (instant in 8.0, copy in 5.7)
-  - ADD INDEX → online (concurrent reads/writes OK)
-  - ADD FK → copy (locks)
-  - CHANGE COLUMN type → copy (locks)
-- [ ] Large-table ALTERs in `up` should be a single statement (don't split into multiple small ALTERs — each ALTER rebuilds the whole table)
+- [ ] For a declared high-volume relational table, estimate affected rows with
+      the engine-appropriate count/metadata method; `SELECT COUNT(*) FROM
+      <table>` and the 1M threshold are project-specific examples, not defaults
+- [ ] Confirm ALTER classification using the active engine/version's online-DDL matrix:
+  - classify locking, rewrite, and concurrent-read/write behavior from that matrix
+  - do not infer safety from a MySQL example when the project uses another engine
+- [ ] For a high-volume table, consolidate ALTER operations only when the
+      active engine/version rebuilds or locks the table per statement and the
+      deployment risk makes repeated rewrites material; follow the engine's
+      online-DDL and batching guidance when it does not
 - [ ] PR description states expected execution time (measure locally → extrapolate to prod row count)
 
 ### 5. Engine compatibility (MEDIUM)
 
-- [ ] New tables explicitly `'ENGINE=InnoDB'` (don't rely on default — some deploy targets may still have MyISAM as default engine)
-- [ ] Explicit `'CHARSET=<project-charset> COLLATE=<project-collation>'` (don't rely on server default)
-- [ ] Do not add FK on MyISAM tables (silent fail — FK constraints ignored)
+- [ ] New-table engine, charset, collation, and FK support match the active
+      database's requirements; do not impose MySQL/InnoDB clauses on another
+      engine
 
 ### 6. Multi-environment rollout risk (MEDIUM)
 
@@ -90,14 +124,27 @@ For high-volume tables (declared per project via the `hot_tables` userConfig key
 
 ### 7. Transaction safety (MEDIUM)
 
-- [ ] `safeUp` / `safeDown` rely on the framework's auto-transaction (note: DDL on MyISAM is **not** transactional — flag IRREVERSIBLE if MyISAM tables are touched)
+- [ ] When the framework and active engine provide transactional migrations,
+      use that transaction contract; otherwise record the engine's DDL atomicity
+      and recovery behavior. MyISAM is a MySQL-specific example.
 - [ ] Mixed DDL+DML across tables: commit DDL first, wrap DML in its own transaction
 - [ ] No external API calls (HTTP / queue) from within a migration — keep migrations purely database-side
 
 ### 8. Down executability (HIGH)
 
-- [ ] `safeDown` can actually be executed (`yiic migrate/down` / `php artisan migrate:rollback` / framework equivalent), not `throw new Exception(\"can't undo\")`
+- [ ] When rollback is part of the active delivery contract, the framework's
+      rollback command or equivalent can execute it; do not require a `safeDown`
+      method or a rollback command from a different framework
 - [ ] If genuinely IRREVERSIBLE (rare, only when necessary) — PHPDoc states the reason, and a follow-up \"compensating migration\" is planned
+
+## Child-dispatch boundary
+
+This role is read-only and reports findings only; it does not edit migrations
+or apply fixes unless a separate write authority explicitly delegates that
+scope. If a required framework or engine specialist, or a
+child-dispatch tool, is unavailable, return an explicit escalation naming the
+missing capability and the migration question it would cover. Do not require
+an unavailable delegate or silently substitute a different writer.
 
 ## Common failure modes
 

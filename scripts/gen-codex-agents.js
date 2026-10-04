@@ -49,10 +49,18 @@ const AGENTS = [
 
 const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
 
-// Codex has no host hook lifecycle. The generated role points to the Codex
-// artifact location its parent flow reads.
+// Codex has no host hook lifecycle. Only reviewer roles with a review artifact
+// deliverable receive this final-review location instruction.
 const CODEX_MANUAL_REVIEW_LIFECYCLE =
   "Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.";
+const CODEX_MANUAL_REVIEW_ROLES = new Set([
+  'code-reviewer',
+  'security-reviewer',
+  'database-reviewer',
+  'doc-reviewer',
+  'frontend-reviewer',
+  'migration-reviewer',
+]);
 
 function readJson(file, label) {
   if (!fs.existsSync(file)) {
@@ -323,7 +331,10 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`ui-ux-verifier`', 'a manual page-vs-spec UI audit fallback')
       .replaceAll('**ui-ux-verifier**', '**manual page-vs-spec UI audit fallback**')
       .replaceAll('ui-ux-verifier', 'manual page-vs-spec UI audit fallback')
-      .replaceAll('Verdict: PASS | WARNING | FAIL', 'Verdict: PASS | WARNING | FAIL | BLOCKED')
+      .replace(
+        /Verdict: PASS \| WARNING \| FAIL(?: \| BLOCKED)*/g,
+        'Verdict: PASS | WARNING | FAIL | BLOCKED',
+      )
       .replace(
         'Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project\'s typecheck command',
         "If Playwright or the browser capability is unavailable, return `Verdict: BLOCKED` as the first line with the missing capability and the exact command needed to resume. Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project's typecheck command",
@@ -417,8 +428,9 @@ function buildToml(agent, frontmatter, body) {
     'Use the supplied scoped task packet and load only references required by the route.',
     '',
     adaptCodexBody(agent.name, cleanBody(body)),
-    '',
-    CODEX_MANUAL_REVIEW_LIFECYCLE,
+    ...(CODEX_MANUAL_REVIEW_ROLES.has(agent.name)
+      ? ['', CODEX_MANUAL_REVIEW_LIFECYCLE]
+      : []),
   ]
     .join('\n')
     .trim();

@@ -26,19 +26,56 @@ const PART_2 = fencedAfter('## Part 2 (always');
 const FIXED_CORE = [DISPATCH_TRUE_FENCE, PART_1, PART_2];
 const FIXED_CORE_NO_DISPATCH = [DISPATCH_FALSE_FENCE, PART_1, PART_2];
 
-const STOP_LIMITS = fencedAfter('## Part 4 (always').replace(
-  /\nOR stop after <MAX_DURATION> wall-clock elapsed: write the same\n\.resume-note\.md \(state, next step, remaining tasks\), end the session/,
-  '\n',
-);
+const STOP_LIMITS = fencedAfter('## Part 4 (always');
+
+function stopLimits(fixture) {
+  if (fixture.max_duration !== undefined && fixture.max_duration !== null && fixture.max_duration !== '') {
+    return STOP_LIMITS.replaceAll('<MAX_DURATION>', String(fixture.max_duration));
+  }
+  const start = STOP_LIMITS.indexOf('\nOR stop after <MAX_DURATION>');
+  const end = start < 0 ? -1 : STOP_LIMITS.indexOf('\nOR ', start + 1);
+  if (start < 0 || end < 0) throw new Error('MAX_DURATION stop branch is missing from the Part 4 template');
+  return STOP_LIMITS.slice(0, start) + STOP_LIMITS.slice(end);
+}
 
 const readFixture = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, `${name}.json`), 'utf8'));
 
+function openSpecStatusStub() {
+  return {
+    body: [
+      "const fs=require('node:fs');const path=require('node:path');",
+      "const args=process.argv.slice(1);",
+      "if(args[0]!=='status'||args[1]!=='--change'||args[3]!=='--json')process.exit(91);",
+      "const changeId=args[2];if(!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(changeId||''))process.exit(92);",
+      "const changeRoot=path.resolve(process.cwd(),'openspec','changes',changeId);",
+      "const artifact=(name)=>{const file=path.join(changeRoot,name);return fs.statSync(file).isFile()?{outputPath:file,resolvedOutputPath:file,existingOutputPaths:[file]}:undefined;};",
+      "let tasks,proposal;try{tasks=artifact('tasks.md');proposal=artifact('proposal.md');}catch(_){process.exit(93);}",
+      "const artifactPaths={tasks,proposal};try{const design=artifact('design.md');if(design)artifactPaths.design=design;}catch(_){}",
+      "process.stdout.write(JSON.stringify({changeRoot,schemaName:'spec-driven',state:'active',artifactPaths})+'\\n');",
+    ].join(''),
+  };
+}
+
 const composeGoal = (fixture) => {
   const core = fixture.dispatch_on === false ? FIXED_CORE_NO_DISPATCH : FIXED_CORE;
+  const changeId = fixture.change_id || 'fixture-change';
+  const changeDir = fixture.change_dir
+    || path.posix.join('/tmp/project/openspec/changes', changeId);
+  const schemaName = fixture.schema_name || 'spec-driven';
+  const tasksPath = fixture.tasks_path || path.posix.join(changeDir, 'tasks.md');
+  const proposalPath = fixture.proposal_path || path.posix.join(changeDir, 'proposal.md');
+  const designPath = fixture.design_path === undefined
+    ? path.posix.join(changeDir, 'design.md')
+    : fixture.design_path;
   const fastWorkerClause = fixture.fast_worker_clause
     || 'dhpk:fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker';
   const parts = core.map((part) => part
-    .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
+    .replaceAll('<CHANGE_ID>', changeId)
+    .replaceAll('<CHANGE_DIR>', changeDir)
+    .replaceAll('<SCHEMA_NAME>', schemaName)
+    .replaceAll('<TASKS_PATH>', tasksPath)
+    .replaceAll('<PROPOSAL_PATH>', proposalPath)
+    .replaceAll('<DESIGN_PATH>', designPath)
     .replaceAll('<TASK_DIGEST>', fixture.task_digest || 'T'.repeat(200))
     // A realistic Bash-quoted relocated root keeps the byte budget honest.
     .replaceAll('<SKILL_ROOT_Q>', '/Users/example/.claude/plugins/cache/dhpk/dhpk/0.62.4/skills/dhpk-opsx-apply-goal')
@@ -60,8 +97,13 @@ const composeGoal = (fixture) => {
   }
   parts.push(...verification);
   if (fixture.padding_bytes) parts.push('x'.repeat(fixture.padding_bytes));
-  parts.push(STOP_LIMITS
-    .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
+  parts.push(stopLimits(fixture)
+    .replaceAll('<CHANGE_ID>', changeId)
+    .replaceAll('<CHANGE_DIR>', changeDir)
+    .replaceAll('<SCHEMA_NAME>', schemaName)
+    .replaceAll('<TASKS_PATH>', tasksPath)
+    .replaceAll('<PROPOSAL_PATH>', proposalPath)
+    .replaceAll('<DESIGN_PATH>', designPath)
     .replaceAll('<TURN_BUDGET>', String(fixture.turn_budget || 40)));
   return parts.join(',\n');
 };
@@ -96,4 +138,5 @@ module.exports = {
   generateFixture,
   measureBytes,
   readFixture,
+  openSpecStatusStub,
 };

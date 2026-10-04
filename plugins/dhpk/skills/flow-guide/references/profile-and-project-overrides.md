@@ -2,13 +2,13 @@
 
 只在下列情況讀取本檔：
 
-- workflow type 已確定為 `Feature Delivery`
-- `Bug Investigation & Fix` 需要補 profile 或確認環境規範
+- `Feature Delivery` 需要補足或確認 stack、runtime 或專案規範
+- `Bug Investigation & Fix` 需要補足尚未建立的環境規範
 - 使用者明確要求建立/更新 `profile.yaml`
 
 ## Workflow Profile Fields
 
-`profile.yaml` 至少應定義：
+若任務需要明確記錄 workflow profile，`profile.yaml` 至少應定義：
 
 1. `language`
 2. `runtime`

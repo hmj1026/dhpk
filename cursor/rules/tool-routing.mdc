@@ -36,7 +36,7 @@ SSOT for code exploration in dhpk-using projects. Cross-references the existing 
 
 - **Path-first**: before reading code detail, locate the entry point, trace the call chain (A→B→C), and map data flow (input→transform→output). Analysing logic without its execution context produces local-reasoning misdiagnosis. (codebase-exploration, root-cause-investigation, gitnexus-exploring)
 - **Single vs dual perspective**: default to single-perspective (cx / gitnexus_query / codebase-exploration) for clear errors with a stack trace. Escalate to the `codebase-exploration --dual` mode, issue-analyze + Codex, or gitnexus_context only when findings are uncertain, contradictory, or intermittent, or the decision spans multiple modules. (codebase-exploration, issue-analyze, gitnexus-debugging)
-- **Parallel exploration**: for ≥3 independent directions (e.g. frontend + backend + data, or several module boundaries) dispatch ≤3 Explore agents in one turn, each with explicit non-overlapping scope and the cx tool-priority block. Max 3 per round; consolidate before the next round. Not for single-file patches or symbol lookup. (harness-fill, flow-guide)
+- **Parallel exploration**: when independent directions materially affect the conclusion (e.g. frontend + backend + data, or several module boundaries), assess whether dispatching up to 3 Explore agents in one turn will reduce uncertainty. Give each explicit non-overlapping scope and the cx tool-priority block; consolidate before the next round. Do not dispatch for a single-file patch or symbol lookup. (harness-fill, flow-guide)
 
 ## gitnexus_impact timing
 
@@ -58,7 +58,13 @@ The session-start hook (if claude-mem ships one) auto-matches context but doesn'
 
 ## Sub-agent prompts
 
-Sub-agents do NOT inherit these rules — paste the relevant block from your project's sub-agent prompt template (or use the selected bundle at `${POLICY_BUNDLE_ROOT}/docs/subagent-prompt-template.md`) into the agent prompt. Required blocks: source-reading boilerplate (always), DB-access boilerplate (when the task touches a table).
+Sub-agents do NOT inherit these rules. Include only tool-compatible guidance
+from your project's sub-agent prompt template (or the selected bundle at
+`${POLICY_BUNDLE_ROOT}/docs/subagent-prompt-template.md`). Select source-reading
+and database instructions from the recipient's callable tools and task scope.
+The packet author supplies required evidence the recipient cannot obtain.
+Never require shell commands or child-agent dispatch unless the matching tool
+is available and authorized.
 
 ## Top anti-patterns
 
