@@ -2484,6 +2484,100 @@ test('Claude registry teardown failure records WARN without failing the selected
   });
 });
 
+test('restricted Claude installation evidence stays NOT_RUN without resolving or invoking the CLI', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'claude-argv.log');
+    mkBinStub(bin, 'claude', recordingClaudeScript(log));
+    const result = runCli(
+      { PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      ['--surface', 'claude-core', '--skip-claude-reinstall'],
+    );
+
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const claude = stage.surfaceResults.find((row) => row.surface === 'claude');
+    assert.strictEqual(stage.schemaVersion, 2, JSON.stringify(stage));
+    assert.strictEqual(stage.acceptance.verdict, 'BLOCKED', JSON.stringify(stage.acceptance));
+    assert.strictEqual(claude.status, 'NOT_RUN', JSON.stringify(claude));
+    assert.strictEqual(claude.installationEvidence.status, 'BLOCKED', JSON.stringify(claude));
+    assert.strictEqual(claude.runtimeEvidence.status, 'NOT_RUN', JSON.stringify(claude));
+    assert.deepStrictEqual(claude.commands, []);
+    assert.deepStrictEqual(claude.artifacts, []);
+    assert.strictEqual(claude.adapter.version, null);
+    assert.ok(stage.acceptance.requiredChecks.some((check) => (
+      check.id === 'install.claude' && check.status === 'BLOCKED'
+    )), JSON.stringify(stage.acceptance));
+    assert.strictEqual(fs.existsSync(log), false, 'restricted Claude check resolved or invoked the CLI');
+  });
+});
+
+test('restricted configured Claude selection returns typed BLOCKED without probing another host', () => {
+  const configuredRoot = makeConfiguredScopeRoot([
+    '.claude-plugin', 'skills', 'agents', 'commands', 'modules',
+  ]);
+  try {
+    withConsumerGateBin((bin) => {
+      const log = path.join(bin, 'claude-argv.log');
+      mkBinStub(bin, 'claude', recordingClaudeScript(log));
+      const result = runCliAtRoot(configuredRoot, { PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, [
+        '--skip-claude-reinstall',
+      ]);
+
+      assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+      const stage = JSON.parse(result.stdout);
+      const claude = stage.surfaceResults.find((row) => row.surface === 'claude');
+      assert.strictEqual(stage.acceptance.verdict, 'BLOCKED', JSON.stringify(stage.acceptance));
+      assert.deepStrictEqual(stage.surfaceResults.map((row) => row.surface), ['claude']);
+      assert.strictEqual(claude.status, 'NOT_RUN', JSON.stringify(claude));
+      assert.strictEqual(claude.installationEvidence.status, 'BLOCKED', JSON.stringify(claude));
+      assert.strictEqual(fs.existsSync(log), false, 'configured restriction resolved or invoked Claude');
+    });
+  } finally {
+    fs.rmSync(configuredRoot, { recursive: true, force: true });
+  }
+});
+
+test('restricted Claude requirements preserve an independently passing selected cursor result', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'claude-argv.log');
+    mkBinStub(bin, 'claude', recordingClaudeScript(log));
+    const result = runRequirements({
+      schema: 'dhpk.consumer-requirements.v1',
+      selectedSurfaces: ['claude-core', 'cursor-sync'],
+      checks: [{
+        id: 'claude-install',
+        surface: 'claude-core',
+        host: 'claude',
+        capability: 'installation-contract',
+        trigger: 'loader-change',
+        reason: 'Confirm the selected Claude installation contract.',
+        question: 'Did the selected Claude installation contract pass?',
+        evidenceKind: 'contract',
+        authorization: { authorized: false },
+      }],
+    }, { PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--skip-claude-reinstall']);
+
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const stage = JSON.parse(result.stdout);
+    const claude = stage.surfaceResults.find((row) => row.surface === 'claude');
+    const cursor = stage.surfaceResults.find((row) => row.surface === 'cursor-sync');
+    assert.strictEqual(stage.schemaVersion, 2, JSON.stringify(stage));
+    assert.strictEqual(stage.acceptance.verdict, 'BLOCKED', JSON.stringify(stage.acceptance));
+    assert.deepStrictEqual(stage.surfaceResults.map((row) => row.surface), ['claude', 'cursor-sync']);
+    assert.strictEqual(claude.status, 'NOT_RUN', JSON.stringify(claude));
+    assert.strictEqual(claude.installationEvidence.status, 'BLOCKED', JSON.stringify(claude));
+    assert.strictEqual(claude.runtimeEvidence.status, 'NOT_RUN', JSON.stringify(claude));
+    assert.strictEqual(cursor.installationEvidence.status, 'PASS', JSON.stringify(cursor));
+    assert.ok(stage.acceptance.requiredChecks.some((check) => (
+      check.id === 'requirement.claude-install' && check.status === 'BLOCKED'
+    )), JSON.stringify(stage.acceptance));
+    assert.ok(stage.acceptance.requiredChecks.some((check) => (
+      check.id === 'install.cursor-sync' && check.status === 'PASS'
+    )), JSON.stringify(stage.acceptance));
+    assert.strictEqual(fs.existsSync(log), false, 'requirements restriction resolved or invoked Claude');
+  });
+});
+
 test('withConsumerGateBin removes the stub PATH dir after success', () => {
   let captured;
   const result = withConsumerGateBin((bin) => {

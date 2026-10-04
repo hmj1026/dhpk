@@ -12,6 +12,7 @@ const CLI = path.join(ROOT, 'scripts', 'release', 'parallel-consumer-probes.js')
 
 function runStubbedProbe(execution, {
   worker = false,
+  currentAcceptance = false,
   childExitCode = 'none',
   timeoutMs = 3000,
   hangMs = null,
@@ -27,7 +28,7 @@ function runStubbedProbe(execution, {
     'Module._load = function loadWithControlledConsumerProbe(request, parent, isMain) {',
     "  if (request === '../lib/harness' && parent && parent.filename === cli) {",
     '    return {',
-    '      runConsumerProbe() {',
+    '      runConsumerProbe(repoRoot, options = {}) {',
     '        if (process.env.DHPK_PARALLEL_TEST_HANG_MS !== \'none\') {',
     '          const blocker = new Int32Array(new SharedArrayBuffer(4));',
     '          Atomics.wait(blocker, 0, 0, Number(process.env.DHPK_PARALLEL_TEST_HANG_MS));',
@@ -35,7 +36,14 @@ function runStubbedProbe(execution, {
     '        if (process.env.DHPK_PARALLEL_TEST_EXIT_CODE !== \'none\') {',
     '          setImmediate(() => { process.exitCode = Number(process.env.DHPK_PARALLEL_TEST_EXIT_CODE); });',
     '        }',
-    '        return JSON.parse(process.env.DHPK_PARALLEL_TEST_EXECUTION);',
+    '        const execution = JSON.parse(process.env.DHPK_PARALLEL_TEST_EXECUTION);',
+    '        if (!execution || typeof execution !== \'object\' || Array.isArray(execution)) return execution;',
+    '        const hasCurrentAcceptance = Object.prototype.hasOwnProperty.call(options, \'currentAcceptance\');',
+    '        execution.probeOptions = {',
+    '          hasCurrentAcceptance,',
+    '          ...(hasCurrentAcceptance ? { currentAcceptance: options.currentAcceptance } : {}),',
+    '        };',
+    '        return execution;',
     '      },',
     '    };',
     '  }',
@@ -45,6 +53,7 @@ function runStubbedProbe(execution, {
   ].join('\n'));
   const workerArgs = [
     CLI, '--worker', '--repo-root', root, '--surface', 'codex-sync', '--namespace', 'dhpk-release-probe-contract',
+    ...(currentAcceptance ? ['--current-acceptance'] : []),
   ];
   const batchArgs = [
     CLI,
@@ -54,6 +63,7 @@ function runStubbedProbe(execution, {
     '--timeout-ms', String(timeoutMs),
     '--task-id', 'parallel-contract',
     '--attempt-id', 'attempt-a1',
+    ...(currentAcceptance ? ['--current-acceptance'] : []),
   ];
   try {
     return spawnSync(process.execPath, worker ? workerArgs : batchArgs, {
@@ -290,6 +300,64 @@ test('worker exit status follows the current acceptance verdict', () => {
   const worker = JSON.parse(res.stdout);
   assert.deepStrictEqual(worker.execution.acceptance, execution.acceptance);
   assert.strictEqual(worker.execution.surfaceResults[0].status, 'NOT_RUN');
+  assert.deepStrictEqual(worker.execution.probeOptions, { hasCurrentAcceptance: false });
+});
+
+test('coordinator transports current acceptance mode to its worker harness call', () => {
+  const execution = acceptanceExecution('PASS', 'PASS');
+  const res = runStubbedProbe(execution, { currentAcceptance: true });
+
+  assert.strictEqual(res.status, 0, res.stderr);
+  const batch = JSON.parse(res.stdout);
+  assert.deepStrictEqual(batch.results[0].execution.probeOptions, {
+    hasCurrentAcceptance: true,
+    currentAcceptance: true,
+  });
+});
+
+test('current probe with no consumer gate fails transport without reaching legacy execute fallback', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parallel-current-no-gate-'));
+  const releaseDirectory = path.join(root, 'scripts', 'release');
+  const fallbackArgsFile = path.join(root, 'fallback-args.jsonl');
+  fs.mkdirSync(releaseDirectory, { recursive: true });
+  fs.mkdirSync(path.join(root, 'plugins', 'dhpk-agent'), { recursive: true });
+  fs.writeFileSync(path.join(releaseDirectory, 'consumer-platform-probe.js'), [
+    "const fs = require('node:fs');",
+    "fs.appendFileSync(process.env.DHPK_FALLBACK_ARGS_FILE, JSON.stringify(process.argv.slice(2)) + '\\n');",
+    "process.stdout.write(JSON.stringify({ status: 'PASS', stage: 'CONSUMER', producer: 'consumer-platform-probe', commands: [], artifacts: [], diagnostics: [], reasons: [], checkedClaims: ['consumer-route'] }));",
+  ].join('\n') + '\n');
+
+  try {
+    const result = spawnSync(process.execPath, [
+      CLI,
+      '--repo-root', root,
+      '--surfaces', 'agent-plugin',
+      '--concurrency', '2',
+      '--timeout-ms', '3000',
+      '--task-id', 'current-no-gate',
+      '--attempt-id', 'attempt-a1',
+      '--current-acceptance',
+    ], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: {
+        ...process.env,
+        CI: 'true',
+        DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '1',
+        DHPK_FALLBACK_ARGS_FILE: fallbackArgsFile,
+      },
+    });
+
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    const batch = JSON.parse(result.stdout);
+    assert.strictEqual(batch.results.length, 1);
+    assert.strictEqual(batch.results[0].transportStatus, 'FAIL');
+    assert.match(batch.results[0].diagnostic, /current|acceptance|evidence/i);
+    assert.strictEqual(batch.results[0].execution.outcome, 'FAIL');
+    assert.strictEqual(fs.existsSync(fallbackArgsFile), false, 'current mode invoked the legacy consumer-platform-probe fallback');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('coordinator fails when worker exit contradicts passing acceptance JSON', () => {

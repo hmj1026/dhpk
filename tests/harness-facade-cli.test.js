@@ -141,12 +141,18 @@ function temporaryProbeFixture(payload, platform = 'cursor') {
   return root;
 }
 
-function temporaryGateFixture(payload, inventory = '{}\n') {
+function temporaryGateFixture(payload, inventory = '{}\n', markerPaths = []) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-gate-fixture-')));
   fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts', 'release'), { recursive: true });
   fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), inventory);
+  for (const relative of markerPaths) {
+    const source = path.join(ROOT, relative);
+    const destination = path.join(root, relative);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.cpSync(source, destination, { recursive: true });
+  }
   fs.writeFileSync(path.join(root, 'scripts', 'release', 'consumer-gate.js'), [
     "const fs = require('node:fs');",
     'const args = process.argv.slice(2);',
@@ -160,10 +166,13 @@ function temporaryGateFixture(payload, inventory = '{}\n') {
     'fs.writeFileSync(process.env.GATE_ARGS_FILE, JSON.stringify(args));',
     'if (process.env.GATE_CALLS_FILE) {',
     "  const index = args.indexOf('--requirements');",
+    "  const requirementsText = index === -1 ? null : fs.readFileSync(args[index + 1], 'utf8');",
     "  const requirements = index === -1 ? null : JSON.parse(fs.readFileSync(args[index + 1], 'utf8'));",
-    '  fs.appendFileSync(process.env.GATE_CALLS_FILE, `${JSON.stringify({ args, requirements })}\\n`);',
+    '  fs.appendFileSync(process.env.GATE_CALLS_FILE, `${JSON.stringify({ args, requirements, requirementsText })}\\n`);',
     '}',
     'process.stdout.write(JSON.stringify(payload));',
+    "const verdict = payload && payload.acceptance && payload.acceptance.verdict;",
+    "if (process.env.GATE_EXIT_BY_VERDICT === '1' && verdict) process.exitCode = ['FAIL', 'BLOCKED'].includes(verdict) ? 1 : 0;",
   ].join('\n') + '\n');
   fs.writeFileSync(path.join(root, 'harness-entry.js'), [
     "'use strict';",
@@ -187,6 +196,50 @@ function temporaryGateFixture(payload, inventory = '{}\n') {
   git(root, ['add', '.']);
   git(root, ['commit', '-qm', 'gate fixture']);
   return root;
+}
+
+function restrictedClaudeGateEvidence({ additionalRows = [], additionalChecks = [], additionalExclusions = [] } = {}) {
+  const reason = 'Claude installation was restricted because it may write a shared cache.';
+  return {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'BLOCKED',
+    acceptance: {
+      verdict: 'BLOCKED',
+      requiredChecks: [{
+        id: 'install.claude',
+        surface: 'claude',
+        kind: 'installation',
+        reason,
+        status: 'BLOCKED',
+        evidenceRef: 'surfaceResults.claude.installationEvidence',
+      }, ...additionalChecks],
+      excludedChecks: [{
+        id: 'runtime.claude',
+        surface: 'claude',
+        kind: 'native',
+        reason: 'Claude runtime was not executed.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.claude.runtimeEvidence',
+      }, ...additionalExclusions],
+    },
+    surfaceResults: [{
+      surface: 'claude',
+      producerSurface: 'claude',
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: 'claude-plugin-cli', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [reason],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'BLOCKED', reason },
+      runtimeEvidence: { status: 'NOT_RUN', reason: 'Claude runtime was not executed.' },
+    }, ...additionalRows],
+  };
 }
 
 test('dispatches every public phase and rejects unknown options before execution', () => {
@@ -1183,10 +1236,181 @@ test('probe facade delegates configured sync surfaces to the canonical consumer 
     assert.deepStrictEqual(JSON.parse(fs.readFileSync(gateArgsFile, 'utf8')), [
       '--repo-root', root,
       '--surface', 'codex-sync',
+      '--skip-claude-reinstall',
     ]);
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('probe facade preserves current BLOCKED acceptance when Claude execution is restricted', () => {
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-gate-args-${process.pid}-${Date.now()}.json`);
+  const gateEvidence = restrictedClaudeGateEvidence();
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, [
+      'probe', '--surface', 'claude-core', '--task-id', 'facade-claude-restricted-probe', '--json',
+    ], {
+      CI: 'false',
+      DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '0',
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      GATE_ARGS_FILE: gateArgsFile,
+      GATE_EXIT_BY_VERDICT: '1',
+    });
+
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'BLOCKED');
+    assert.strictEqual(payload.acceptance.requiredChecks[0].status, 'BLOCKED');
+    assert.strictEqual(payload.surfaceResults[0].surface, 'claude-core');
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[0].installationEvidence.status, 'BLOCKED');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.deepStrictEqual(payload.surfaceResults[0].commands, []);
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(gateArgsFile, 'utf8')), [
+      '--repo-root', root,
+      '--surface', 'claude-core',
+      '--skip-claude-reinstall',
+    ]);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('configured release forwards Claude cache restriction and keeps current acceptance', () => {
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-configured-gate-args-${process.pid}-${Date.now()}.json`);
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(restrictedClaudeGateEvidence(), inventory, ['.claude-plugin']);
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, ['release', '--task-id', 'configured-claude-restricted', '--json'], {
+      CI: 'false',
+      DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '0',
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      GATE_ARGS_FILE: gateArgsFile,
+      GATE_EXIT_BY_VERDICT: '1',
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'BLOCKED');
+    assert.deepStrictEqual(payload.requiredSurfaces, ['claude-core']);
+    assert.strictEqual(payload.surfaceResults[0].surface, 'claude-core');
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[0].installationEvidence.status, 'BLOCKED');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.deepStrictEqual(payload.surfaceResults[0].commands, []);
+    assert.ok(JSON.parse(fs.readFileSync(gateArgsFile, 'utf8')).includes('--skip-claude-reinstall'));
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('requirements release keeps Claude BLOCKED and independent selected cursor evidence', () => {
+  const cursorRow = {
+    surface: 'cursor-sync',
+    producerSurface: 'cursor-sync',
+    status: 'NOT_RUN',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'cursor-sync-fixture', version: '1.0.0' },
+    commands: [],
+    environment: { network: 'disabled' },
+    artifacts: [],
+    diagnostics: [],
+    reasons: [],
+    checkedClaims: ['consumer-route'],
+    installationEvidence: { status: 'PASS' },
+    runtimeEvidence: { status: 'NOT_RUN', reason: 'Cursor runtime was not selected.' },
+  };
+  const requirements = {
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['claude-core', 'cursor-sync'],
+    checks: [
+      {
+        id: 'claude-installation',
+        surface: 'claude-core',
+        host: 'claude',
+        capability: 'installation-contract',
+        trigger: 'new-host',
+        reason: 'Verify the selected Claude installation contract.',
+        question: 'Did the Claude installation contract pass?',
+        evidenceKind: 'contract',
+        authorization: { authorized: false },
+      },
+      {
+        id: 'cursor-installation',
+        surface: 'cursor-sync',
+        host: 'cursor',
+        capability: 'installation-contract',
+        trigger: 'new-host',
+        reason: 'Verify the selected Cursor installation contract.',
+        question: 'Did the Cursor installation contract pass?',
+        evidenceKind: 'contract',
+        authorization: { authorized: false },
+      },
+    ],
+  };
+  const gateEvidence = restrictedClaudeGateEvidence({
+    additionalRows: [cursorRow],
+    additionalChecks: [{
+      id: 'install.cursor-sync',
+      surface: 'cursor-sync',
+      kind: 'installation',
+      reason: 'The selected Cursor installation contract passed.',
+      status: 'PASS',
+      evidenceRef: 'surfaceResults.cursor-sync.installationEvidence',
+    }],
+    additionalExclusions: [{
+      id: 'runtime.cursor-sync',
+      surface: 'cursor-sync',
+      kind: 'native',
+      reason: 'Cursor runtime was not selected.',
+      status: 'NOT_RUN',
+      evidenceRef: 'surfaceResults.cursor-sync.runtimeEvidence',
+    }],
+  });
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
+  const requirementsFile = path.join(os.tmpdir(), `dhpk-restricted-requirements-${process.pid}-${Date.now()}.json`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-restricted-gate-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  fs.writeFileSync(requirementsFile, `${JSON.stringify(requirements, null, 2)}\n`);
+  try {
+    const result = invokeAt(root, [
+      'release', '--requirements', requirementsFile, '--task-id', 'requirements-claude-restricted', '--json',
+    ], {
+      CI: 'false',
+      DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '0',
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      GATE_ARGS_FILE: gateArgsFile,
+      GATE_EXIT_BY_VERDICT: '1',
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'BLOCKED');
+    assert.deepStrictEqual(payload.requiredSurfaces, ['claude-core', 'cursor-sync']);
+    assert.deepStrictEqual(payload.surfaceResults.map((row) => row.surface), ['claude-core', 'cursor-sync']);
+    assert.strictEqual(payload.surfaceResults[0].installationEvidence.status, 'BLOCKED');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[1].installationEvidence.status, 'PASS');
+    assert.ok(JSON.parse(fs.readFileSync(gateArgsFile, 'utf8')).includes('--skip-claude-reinstall'));
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(requirementsFile, { force: true });
     fs.rmSync(gateArgsFile, { force: true });
   }
 });
@@ -1206,6 +1430,13 @@ test('probe facade canonicalizes Claude producer rows while preserving producer 
         reason: 'The selected Claude installation contract passed.',
         status: 'PASS',
         evidenceRef: 'surfaceResults.claude.installationEvidence',
+      }, {
+        id: 'requirement.claude-installation',
+        surface: 'claude',
+        kind: 'contract',
+        reason: 'The selected Claude installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.claude.requirementEvidence.check1',
       }],
       excludedChecks: [{
         id: 'runtime.claude',
@@ -1231,6 +1462,28 @@ test('probe facade canonicalizes Claude producer rows while preserving producer 
       checkedClaims: ['consumer-route'],
       installationEvidence: { status: 'PASS' },
       runtimeEvidence: { status: 'NOT_RUN' },
+      requirementEvidence: {
+        check1: {
+          id: 'claude-installation',
+          host: 'claude',
+          capability: 'installation-contract',
+          trigger: 'new-host',
+          reason: 'Verify only the selected Claude installation contract.',
+          question: 'Did the selected Claude installation contract pass?',
+          requestedEvidenceKind: 'contract',
+          evidenceKind: 'contract',
+          authorized: false,
+          checkKey: 'claude:installation-contract:contract',
+          status: 'PASS',
+          adapter: { id: 'consumer-gate', version: '1.0.0' },
+          contractEvidence: {
+            status: 'PASS',
+            adapterRoute: 'consumer-gate-installation',
+            reason: 'Installation evidence was observed.',
+            evidenceRef: 'surfaceResults.claude.installationEvidence',
+          },
+        },
+      },
     }],
   };
   const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
@@ -1253,10 +1506,16 @@ test('probe facade canonicalizes Claude producer rows while preserving producer 
     assert.strictEqual(payload.acceptance.requiredChecks[0].evidenceRef, 'surfaceResults.claude-core.installationEvidence');
     assert.strictEqual(payload.acceptance.excludedChecks[0].surface, 'claude-core');
     assert.strictEqual(payload.acceptance.excludedChecks[0].evidenceRef, 'surfaceResults.claude-core.runtimeEvidence');
+    assert.strictEqual(payload.acceptance.requiredChecks[1].id, 'requirement.claude-installation');
+    assert.strictEqual(payload.acceptance.requiredChecks[1].evidenceRef, 'surfaceResults.claude-core.requirementEvidence.check1');
     assert.strictEqual(payload.surfaceResults[0].surface, 'claude-core');
     assert.strictEqual(payload.surfaceResults[0].producerSurface, 'claude');
     assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
     assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.strictEqual(
+      payload.surfaceResults[0].requirementEvidence.check1.contractEvidence.evidenceRef,
+      'surfaceResults.claude-core.installationEvidence',
+    );
     assert.deepStrictEqual(JSON.parse(fs.readFileSync(gateArgsFile, 'utf8')), [
       '--repo-root', root,
       '--surface', 'claude-core',
@@ -1356,6 +1615,97 @@ test('release forwards the complete requirements declaration in one consumer-gat
     assert.strictEqual(calls[0].args.filter((arg) => arg === '--requirements').length, 1);
     assert.ok(!calls[0].args.includes('--surface'), calls[0].args.join(' '));
     assert.notDeepStrictEqual(JSON.parse(fs.readFileSync(requirementsFile, 'utf8')), requirements);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(requirementsFile, { force: true });
+    fs.rmSync(gateCallsFile, { force: true });
+    fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('release derives omitted requirements scope in declaration order without rewriting input bytes', () => {
+  const checks = ['cursor-sync', 'codex-sync', 'cursor-sync'].map((surface, index) => ({
+    id: `installation-${index + 1}`,
+    surface,
+    host: surface.startsWith('cursor') ? 'cursor' : 'codex',
+    capability: 'installation-contract',
+    trigger: 'new-host',
+    reason: `Verify the selected ${surface} installation contract.`,
+    question: `Did the selected ${surface} installation satisfy the contract?`,
+    evidenceKind: 'contract',
+    authorization: { authorized: false },
+  }));
+  const requirements = { schema: 'dhpk.consumer-requirements.v1', checks };
+  const requirementsBytes = `${JSON.stringify(requirements, null, 2)}\n`;
+  const selectedSurfaces = ['cursor-sync', 'codex-sync'];
+  const surfaceResults = selectedSurfaces.map((surface) => ({
+    surface,
+    status: 'NOT_RUN',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    producerSurface: surface,
+    adapter: { id: `${surface}-fixture`, version: '1.0.0' },
+    commands: [],
+    environment: { network: 'disabled' },
+    artifacts: [],
+    diagnostics: [],
+    reasons: [],
+    checkedClaims: ['consumer-route'],
+    installationEvidence: { status: 'PASS' },
+    runtimeEvidence: { status: 'NOT_RUN', reason: 'Runtime evidence was not selected.' },
+  }));
+  const gateEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: selectedSurfaces.map((surface) => ({
+        id: `install.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+      })),
+      excludedChecks: selectedSurfaces.map((surface) => ({
+        id: `runtime.${surface}`,
+        surface,
+        kind: 'native',
+        reason: 'Runtime evidence was not selected.',
+        status: 'NOT_RUN',
+        evidenceRef: `surfaceResults.${surface}.runtimeEvidence`,
+      })),
+    },
+    surfaceResults,
+  };
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryGateFixture(gateEvidence, inventory);
+  const requirementsFile = path.join(os.tmpdir(), `dhpk-derived-requirements-${process.pid}-${Date.now()}.json`);
+  const gateCallsFile = path.join(os.tmpdir(), `dhpk-derived-gate-calls-${process.pid}-${Date.now()}.jsonl`);
+  const gateArgsFile = path.join(os.tmpdir(), `dhpk-derived-gate-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  fs.writeFileSync(requirementsFile, requirementsBytes);
+  try {
+    const result = invokeAt(root, [
+      'release', '--requirements', requirementsFile, '--task-id', 'derived-requirements-scope', '--json',
+    ], {
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      GATE_CALLS_FILE: gateCallsFile,
+      GATE_ARGS_FILE: gateArgsFile,
+      MUTATE_REQUIREMENTS_SOURCE_FILE: requirementsFile,
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+
+    assert.strictEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
+    const payload = parseSingleJson(result.stdout);
+    assert.deepStrictEqual(payload.requiredSurfaces, selectedSurfaces);
+    const calls = fs.readFileSync(gateCallsFile, 'utf8').trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    assert.strictEqual(calls.length, 1, JSON.stringify(calls));
+    assert.strictEqual(calls[0].requirementsText, requirementsBytes);
+    assert.deepStrictEqual(calls[0].requirements, requirements);
+    assert.deepStrictEqual(JSON.parse(fs.readFileSync(gateArgsFile, 'utf8')).filter((arg) => arg === '--requirements').length, 1);
+    assert.notStrictEqual(fs.readFileSync(requirementsFile, 'utf8'), requirementsBytes, 'fixture did not exercise source-file replacement');
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
@@ -1513,6 +1863,97 @@ test('release explicit subset limits current acceptance to the selected surfaces
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(callsFile, { force: true });
     fs.rmSync(gateArgsFile, { force: true });
+  }
+});
+
+test('release current acceptance uses bounded coordinator and transports current mode', () => {
+  const selectedSurfaces = [
+    'claude-core', 'codex-sync', 'codex-native', 'cursor-sync',
+    'cursor-plugin', 'agent-plugin', 'agy-plugin',
+  ];
+  const bySurface = Object.fromEntries(selectedSurfaces.map((surface) => [surface, {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: `install.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+      }],
+      excludedChecks: [],
+    },
+    surfaceResults: [{
+      surface,
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: `${surface}-installer`, version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  }]));
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const root = temporaryPackageFixture();
+  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), inventory);
+  const coordinator = path.join(root, 'scripts', 'release', 'parallel-consumer-probes.js');
+  const argsFile = path.join(os.tmpdir(), `dhpk-current-coordinator-args-${process.pid}-${Date.now()}.json`);
+  const receiptRoot = temporaryReceiptRoot();
+  fs.mkdirSync(path.dirname(coordinator), { recursive: true });
+  fs.writeFileSync(coordinator, [
+    "const fs = require('node:fs');",
+    'const args = process.argv.slice(2);',
+    'const value = (name) => args[args.indexOf(name) + 1];',
+    'const surfaces = value(\'--surfaces\').split(\',\');',
+    'fs.writeFileSync(process.env.BATCH_ARGS_FILE, JSON.stringify(args));',
+    'const results = surfaces.map((surface, index) => ({',
+    '  surface, namespace: `fixture-${surface}-${index}`, diagnostic: null,',
+    '  execution: {',
+    "    schemaVersion: 2, stage: 'CONSUMER', outcome: 'PASS',",
+    "    acceptance: { verdict: 'PASS', requiredChecks: [{ id: `install.${surface}`, surface, kind: 'installation', reason: 'The selected installation contract passed.', status: 'PASS', evidenceRef: `surfaceResults.${surface}.installationEvidence` }], excludedChecks: [] },",
+    "    surfaceResults: [{ surface, status: 'NOT_RUN', stage: 'CONSUMER', producer: 'consumer-gate', adapter: { id: `${surface}-installer`, version: '1.0.0' }, commands: [], environment: { network: 'disabled' }, artifacts: [], diagnostics: [], reasons: [], checkedClaims: ['consumer-route'], installationEvidence: { status: 'PASS' }, runtimeEvidence: { status: 'NOT_RUN' } }],",
+    '  },',
+    '}));',
+    "process.stdout.write(JSON.stringify({ schema: 'dhpk.release-consumer-probe-batch.v1', concurrency: Number(value('--concurrency')), timeoutMs: Number(value('--timeout-ms')), wallTimeMs: 1, surfaces, results }));",
+  ].join('\n') + '\n');
+  git(root, ['add', 'manifests/distribution-inventory.json', 'scripts/release/parallel-consumer-probes.js']);
+  git(root, ['commit', '-qm', 'fixture bounded consumer coordinator']);
+  const originalNodePath = process.env.PATH;
+  try {
+    const result = invokeAt(root, [
+      'release', '--surfaces', selectedSurfaces.join(','), '--task-id', 'facade-current-parallel', '--json',
+    ], {
+      CI: 'false',
+      DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '0',
+      DHPK_HARNESS_RELEASE_PROBE_CONCURRENCY: '2',
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      BATCH_ARGS_FILE: argsFile,
+      GATE_ARGS_FILE: argsFile,
+      PATH: originalNodePath,
+    }, RELEASE_INVOKE_TIMEOUT_MS);
+
+    assert.ok(fs.existsSync(argsFile), 'current release did not use the bounded coordinator');
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.deepStrictEqual(payload.requiredSurfaces, selectedSurfaces);
+    assert.deepStrictEqual(payload.surfaceResults.map((row) => row.surface), selectedSurfaces);
+    assert.strictEqual(payload.probeExecution && payload.probeExecution.mode, 'bounded-child-processes');
+    assert.strictEqual(payload.probeExecution.concurrency, 2);
+    assert.strictEqual(JSON.parse(fs.readFileSync(argsFile, 'utf8')).includes('--current-acceptance'), true);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(argsFile, { force: true });
   }
 });
 
@@ -2080,10 +2521,13 @@ test('probe facade does not trust CI=false as permission for shared consumer pro
       DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '',
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
     });
-    assert.strictEqual(result.status, 2, result.stderr);
+    assert.strictEqual(result.status, 1, result.stderr);
     const payload = parseSingleJson(result.stdout);
-    assert.strictEqual(payload.outcome, 'NOT_CONFIGURED');
-    assert.match(payload.diagnostics.join('\n'), /opt-in|isolated|CI/i);
+    assert.strictEqual(payload.schema, 'dhpk.harness.result.v2');
+    assert.strictEqual(payload.acceptance.verdict, 'BLOCKED');
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[0].installationEvidence.status, 'BLOCKED');
+    assert.strictEqual(payload.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
   }
