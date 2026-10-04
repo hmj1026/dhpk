@@ -6,7 +6,7 @@
 // (openspec/changes/harden-dhpk-release-contracts/specs/consumer-post-install-validation/spec.md).
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { buildEvidence, validateEvidence, STAGES, VERDICTS, OVERALL_STATES } = require('../scripts/lib/release-evidence');
+const { buildEvidence, validateEvidence, normalizeConsumerEvidence, STAGES, VERDICTS, OVERALL_STATES } = require('../scripts/lib/release-evidence');
 
 function stage(verdict, overrides = {}) {
   return {
@@ -16,6 +16,87 @@ function stage(verdict, overrides = {}) {
     artifacts: [],
     failureReasons: verdict === VERDICTS.PASS ? [] : ['example failure'],
     ...overrides,
+  };
+}
+
+function requirementEvidenceReport({
+  surface = 'codex-sync',
+  host = 'codex',
+  capability = 'named-role-security-reviewer',
+  trigger = 'explicit-native',
+  requestedEvidenceKind = 'native',
+  evidenceKind = requestedEvidenceKind,
+  status = 'PASS',
+  adapter = { id: 'codex-named-role-probe', version: '1.0.0' },
+  nativeProof = null,
+  contractEvidence = null,
+} = {}) {
+  const verdict = status === 'PASS' ? 'PASS' : status === 'FAIL' ? 'FAIL' : 'BLOCKED';
+  const checkKey = `${surface}:${capability}:${evidenceKind}`;
+  const evidence = {
+    id: 'selected-capability',
+    host,
+    capability,
+    trigger,
+    reason: 'Verify only the selected capability.',
+    question: 'Did the selected check pass?',
+    requestedEvidenceKind,
+    evidenceKind,
+    authorized: true,
+    checkKey,
+    status,
+    adapter,
+    ...(contractEvidence ? { contractEvidence } : {}),
+    ...(nativeProof ? { nativeProof } : {}),
+    ...(evidenceKind === 'native' && status === 'PASS' ? { runtimeVerified: true } : {}),
+  };
+  const evidenceRef = `surfaceResults.${surface}.requirementEvidence.check1`;
+  return {
+    version: '0.43.0',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'consumer-gate', version: '1.0.0' },
+    planFingerprint: `sha256:${'a'.repeat(64)}`,
+    artifactFingerprint: `sha256:${'b'.repeat(64)}`,
+    schemaVersion: 2,
+    verdict,
+    runtimeVerified: true,
+    surfaceResults: [{
+      surface,
+      status: 'PASS',
+      adapter,
+      commands: [],
+      environment: { CI: 'true' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: [],
+      installationEvidence: { status: 'PASS', reason: 'Selected installation contract passed.' },
+      runtimeEvidence: { status: 'NOT_RUN', reason: 'No aggregate runtime claim was made.' },
+      requirementEvidence: { check1: evidence },
+    }],
+    acceptance: {
+      verdict,
+      requiredChecks: [
+        {
+          id: `install.${surface}`,
+          surface,
+          kind: 'installation',
+          reason: 'Selected installation contract passed.',
+          status: 'PASS',
+          evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+        },
+        {
+          id: 'requirement.selected-capability',
+          surface,
+          kind: evidenceKind,
+          reason: 'Verify only the selected capability.',
+          status,
+          evidenceRef,
+        },
+      ],
+      excludedChecks: [],
+    },
   };
 }
 
@@ -215,6 +296,49 @@ test('validateEvidence passes a well-formed evidence document', () => {
       assert.deepStrictEqual(evidence.acceptance, acceptance);
       assert.deepStrictEqual(evidence.surfaceResults[0].installationEvidence, surface.installationEvidence);
       assert.deepStrictEqual(evidence.surfaceResults[0].runtimeEvidence, surface.runtimeEvidence);
+    });
+
+    test('rejects arbitrary caller fields as evidence for a passing acceptance check', () => {
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        verdict: 'PASS',
+        acceptance: {
+          verdict: 'PASS',
+          requiredChecks: [{
+            id: 'install.cursor-plugin',
+            surface: 'cursor-plugin',
+            kind: 'installation',
+            reason: 'Claimed installation evidence',
+            status: 'PASS',
+            evidenceRef: 'surfaceResults.cursor-plugin.fakeProof',
+          }],
+          excludedChecks: [],
+        },
+        surfaceResults: [baseSurface({ fakeProof: { status: 'PASS' } })],
+      })), /evidenceRef|typed|supported/i);
+    });
+
+    test('does not accept runtime observations as installation evidence', () => {
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        verdict: 'PASS',
+        acceptance: {
+          verdict: 'PASS',
+          requiredChecks: [{
+            id: 'install.cursor-plugin',
+            surface: 'cursor-plugin',
+            kind: 'installation',
+            reason: 'Claimed installation evidence',
+            status: 'PASS',
+            evidenceRef: 'surfaceResults.cursor-plugin.runtimeEvidence',
+          }],
+          excludedChecks: [],
+        },
+        surfaceResults: [baseSurface({
+          installationEvidence: { status: 'FAIL', reason: 'Installation was invalid' },
+          runtimeEvidence: { status: 'PASS', reason: 'Runtime was observed' },
+        })],
+      })), /evidenceRef|typed|supported/i);
     });
 
     test('rejects malformed schema-v2 acceptance checks instead of preserving them as valid evidence', () => {
@@ -595,5 +719,223 @@ test('validateEvidence passes a well-formed evidence document', () => {
       assert.strictEqual(evidence.surfaceResults[0].status, 'UNAVAILABLE');
     });
   }
+
+test('accepts a bounded singleton Codex role proof only on its capability evidence', () => {
+  const report = requirementEvidenceReport({
+    nativeProof: {
+      executionOrigin: 'native',
+      adapterRoute: 'codex-named-role',
+      roles: [{ id: 'security-reviewer', agentTypeAccepted: true, threadId: 'thread-1', childCompleted: true }],
+      registryPreconditions: { disposableCodexHome: true, authReference: 'symlink', projectTrust: 'trusted', userConfigIgnored: false },
+      cliVersion: 'codex-cli fixture',
+    },
+  });
+  const normalized = normalizeConsumerEvidence(report);
+  const requirement = normalized.surfaceResults[0].requirementEvidence.check1;
+  assert.strictEqual(requirement.status, 'PASS');
+  assert.deepStrictEqual(requirement.nativeProof.roles, [{
+    id: 'security-reviewer',
+    agentTypeAccepted: true,
+    threadId: 'thread-1',
+    childCompleted: true,
+  }]);
+  assert.strictEqual(requirement.nativeProof.cliVersion, 'codex-cli fixture');
+  assert.strictEqual(requirement.runtimeVerified, true);
+  assert.notStrictEqual(normalized.runtimeVerified, true);
+  assert.strictEqual(normalized.acceptance.requiredChecks[1].evidenceRef, 'surfaceResults.codex-sync.requirementEvidence.check1');
+});
+
+test('accepts Cursor package-loader native proof only with a challenged sandboxed authenticated session', () => {
+  const makeReport = (nativeProof) => requirementEvidenceReport({
+    surface: 'cursor-plugin',
+    host: 'cursor',
+    capability: 'package-loader',
+    adapter: { id: 'consumer-platform-probe', version: '1.0.0' },
+    nativeProof,
+  });
+  const validProof = {
+    executionOrigin: 'native',
+    adapterRoute: 'cursor-plugin-loader',
+    exit_code: 0,
+    network: 'shared',
+    challenge_verified: true,
+    loader_attestation: true,
+    session_files: ['.config/cursor/auth.json'],
+  };
+  const normalized = normalizeConsumerEvidence(makeReport(validProof));
+  assert.deepStrictEqual(normalized.surfaceResults[0].requirementEvidence.check1.nativeProof, validProof);
+  for (const invalidProof of [
+    { ...validProof, network: 'unknown' },
+    { ...validProof, challenge_verified: false },
+    { ...validProof, loader_attestation: false },
+    { ...validProof, session_files: [] },
+    { ...validProof, exit_code: 1 },
+  ]) {
+    assert.throws(() => normalizeConsumerEvidence(makeReport(invalidProof)), /native|proof|runtime|evidence/i);
+  }
+});
+
+test('fixture and mismatched Codex role proofs cannot satisfy native acceptance', () => {
+  const proof = {
+    executionOrigin: 'native',
+    adapterRoute: 'codex-named-role',
+    roles: [{ id: 'security-reviewer', agentTypeAccepted: true, threadId: 'thread-1', childCompleted: true }],
+    registryPreconditions: { disposableCodexHome: true, authReference: 'symlink', projectTrust: 'trusted', userConfigIgnored: false },
+  };
+  assert.throws(() => normalizeConsumerEvidence(requirementEvidenceReport({
+    nativeProof: { ...proof, executionOrigin: 'fixture' },
+  })), /native|proof|origin|evidence/i);
+  assert.throws(() => normalizeConsumerEvidence(requirementEvidenceReport({
+    nativeProof: { ...proof, executionOrigin: 'static' },
+  })), /native|proof|origin|evidence/i);
+  assert.throws(() => normalizeConsumerEvidence(requirementEvidenceReport({
+    capability: 'named-role-explorer',
+    nativeProof: proof,
+  })), /native|proof|role|capability/i);
+  assert.throws(() => normalizeConsumerEvidence(requirementEvidenceReport({
+    surface: 'codex-native',
+    nativeProof: proof,
+  })), /native|proof|surface|capability/i);
+});
+
+test('contract proof cannot set runtimeVerified and preserves receipt-bound hashes beyond envelope depth', () => {
+  const report = requirementEvidenceReport({
+    requestedEvidenceKind: 'contract',
+    evidenceKind: 'contract',
+    trigger: 'activation-defect',
+    adapter: { id: 'codex-role-materialization', version: '1.0.0' },
+    contractEvidence: {
+      status: 'PASS',
+      adapterRoute: 'codex-role-materialization',
+      role: {
+        path: 'agents/security-reviewer.toml',
+        sourceFingerprint: 'c'.repeat(64),
+        destinationFingerprint: 'c'.repeat(64),
+      },
+      resources: [{
+        path: '.codex/dhpk/agent-traps/_common/prompt-defense.md',
+        sourceFingerprint: 'd'.repeat(64),
+        destinationFingerprint: 'd'.repeat(64),
+      }],
+    },
+  });
+  report.surfaceResults[0].requirementEvidence.check1.runtimeVerified = true;
+  const normalized = normalizeConsumerEvidence(report);
+  const requirement = normalized.surfaceResults[0].requirementEvidence.check1;
+  assert.strictEqual(requirement.contractEvidence.role.path, 'agents/security-reviewer.toml');
+  assert.strictEqual(requirement.contractEvidence.role.sourceFingerprint, 'c'.repeat(64));
+  assert.strictEqual(requirement.contractEvidence.role.destinationFingerprint, 'c'.repeat(64));
+  assert.strictEqual(requirement.contractEvidence.resources[0].sourceFingerprint, 'd'.repeat(64));
+  assert.notStrictEqual(requirement.runtimeVerified, true);
+  assert.notStrictEqual(normalized.runtimeVerified, true);
+});
+
+test('Codex role contract rejects resource paths that exceed the bounded evidence length', () => {
+  const report = requirementEvidenceReport({
+    requestedEvidenceKind: 'contract',
+    evidenceKind: 'contract',
+    trigger: 'activation-defect',
+    adapter: { id: 'codex-role-materialization', version: '1.0.0' },
+    contractEvidence: {
+      status: 'PASS',
+      adapterRoute: 'codex-role-materialization',
+      role: {
+        path: 'agents/security-reviewer.toml',
+        sourceFingerprint: 'c'.repeat(64),
+        destinationFingerprint: 'c'.repeat(64),
+      },
+      resources: [{
+        path: `.codex/dhpk/${'a'.repeat(20_000)}.md`,
+        sourceFingerprint: 'd'.repeat(64),
+        destinationFingerprint: 'd'.repeat(64),
+      }],
+    },
+  });
+  assert.throws(() => normalizeConsumerEvidence(report), /resource.*(?:invalid|bounded|length|path)|path.*(?:invalid|bounded|length)/i);
+});
+
+test('binds each requirement evidence slot bijectively to one exact required acceptance check', () => {
+  const codexRoleProof = {
+    executionOrigin: 'native',
+    adapterRoute: 'codex-named-role',
+    roles: [{ id: 'security-reviewer', agentTypeAccepted: true, threadId: 'thread-1', childCompleted: true }],
+    registryPreconditions: {
+      disposableCodexHome: true,
+      authReference: 'symlink',
+      projectTrust: 'trusted',
+      userConfigIgnored: false,
+    },
+  };
+  const invalidReports = [
+    ['omitted required check', (report) => {
+      report.acceptance.requiredChecks = report.acceptance.requiredChecks
+        .filter((check) => check.id !== 'requirement.selected-capability');
+    }],
+    ['excluded requirement', (report) => {
+      const [installation] = report.acceptance.requiredChecks;
+      const requirement = report.acceptance.requiredChecks[1];
+      report.acceptance.requiredChecks = [installation];
+      report.acceptance.excludedChecks.push(requirement);
+    }],
+    ['substituted installation reference', (report) => {
+      report.acceptance.requiredChecks[1].evidenceRef = 'surfaceResults.codex-sync.installationEvidence';
+    }],
+    ['mismatched requirement id', (report) => {
+      report.acceptance.requiredChecks[1].id = 'requirement.different-capability';
+    }],
+    ['mismatched effective evidence kind', (report) => {
+      report.acceptance.requiredChecks[1].kind = 'contract';
+    }],
+    ['mismatched requirement status', (report) => {
+      report.acceptance.requiredChecks[1].status = 'BLOCKED';
+      report.acceptance.verdict = 'BLOCKED';
+      report.verdict = 'BLOCKED';
+    }],
+    ['duplicate reference to one evidence slot', (report) => {
+      report.acceptance.requiredChecks.push({
+        ...report.acceptance.requiredChecks[1],
+        id: 'requirement.duplicate-reference',
+      });
+    }],
+    ['unreferenced requirement evidence slot', (report) => {
+      report.surfaceResults[0].requirementEvidence.check2 = {
+        ...report.surfaceResults[0].requirementEvidence.check1,
+        id: 'unreferenced-capability',
+      };
+    }],
+  ];
+
+  for (const [label, mutate] of invalidReports) {
+    const report = requirementEvidenceReport({ nativeProof: codexRoleProof });
+    mutate(report);
+    assert.throws(
+      () => normalizeConsumerEvidence(report),
+      /requirement|acceptance|evidenceRef/i,
+      label,
+    );
+  }
+
+  const blockedLoader = requirementEvidenceReport({
+    surface: 'cursor-plugin',
+    host: 'cursor',
+    capability: 'package-loader',
+    status: 'BLOCKED',
+    adapter: { id: 'consumer-platform-probe', version: '1.0.0' },
+  });
+  blockedLoader.surfaceResults[0].requirementEvidence.check1.authorized = false;
+  blockedLoader.surfaceResults[0].requirementEvidence.check1.observedStatus = 'UNAVAILABLE';
+  blockedLoader.acceptance.requiredChecks = blockedLoader.acceptance.requiredChecks
+    .filter((check) => check.id === 'install.cursor-plugin');
+  blockedLoader.acceptance.verdict = 'PASS';
+  blockedLoader.verdict = 'PASS';
+  assert.throws(
+    () => normalizeConsumerEvidence(blockedLoader),
+    /requirement|acceptance/i,
+    'a blocked native loader cannot pass through installation-only acceptance',
+  );
+
+  assert.doesNotThrow(() => normalizeConsumerEvidence(requirementEvidenceReport({ status: 'BLOCKED' })));
+  assert.doesNotThrow(() => normalizeConsumerEvidence(requirementEvidenceReport({ status: 'FAIL' })));
+});
 
 run('release-evidence');

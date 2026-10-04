@@ -105,6 +105,13 @@ and must not restore the retired Review Gate lifecycle or artifacts.
   extra dhpk agents, rules, or another plugin. Required independent review is
   preserved; a missing capability is an explicit blocker, never a fabricated
   PASS. Selection therefore depends on actual consumer execution evidence.
+  Conditional native checks are required only for an accepted new-Host,
+  loader/role-registration/tool-mapping change, reproducible activation defect,
+  or explicit native request, and run only for the affected Host and path.
+  Applicability does not grant execution authorization: missing authorization
+  or prerequisites is BLOCKED, an observed failure is FAIL, and fixtures do
+  not establish native success. A valid native result proves only its covered
+  capability.
 - CX, GitNexus, OpenSpec, and claude-mem are optional integrations. General
   workflows must have a native route in a new project without those tools.
   Explicit consumer-project instructions and genuine independent-review
@@ -125,11 +132,14 @@ and must not restore the retired Review Gate lifecycle or artifacts.
   reviewers return identity-bound evidence; contract-required persistence belongs
   to an authorized parent, and saving failure cannot create a review PASS. An
   advisory returned-evidence route gains no new filesystem-write obligation. Optional Codex
-  custom-role support remains separate from the skills-only plugin. Every
-  retained Host requires version-scoped model/tool/schema evidence; a context or
-  rendered-discovery result is required only for an explicitly selected
-  research task and remains specific to its Host, version, and scope. One Host's
-  structural or budget PASS cannot establish another Host's runtime.
+  custom-role support remains separate from the skills-only plugin.
+  Deterministic installation and schema contract checks remain required where
+  the applicable Host route defines them. Model/tool behavior evidence is
+  scoped to an applicable claim or declared native capability, not a blanket
+  runtime obligation for every retained Host. Context-budget and rendered-
+  discovery measurements remain separately selected research outcomes and are
+  specific to their Host, version, and scope. One Host's structural or budget
+  PASS cannot establish another Host's runtime.
   Shipped Opus/Sonnet and Codex Sol defaults migrate to the current model lines
   (decided 2026-10-01; `haiku`/`fable` tiers and Luna stay as declared), and
   retained wording is calibrated to each selected line's official prompting

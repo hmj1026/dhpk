@@ -821,6 +821,146 @@ function validateCodexAgentMaterialization(project, manifest) {
   return errors;
 }
 
+function receiptBoundedFileFingerprint(target, boundary) {
+  if (hasSymlinkedAncestor(target, boundary)) return '';
+  let stat;
+  try { stat = fs.lstatSync(target); } catch (_) { return ''; }
+  if (stat.isSymbolicLink() || !stat.isFile() || !insideRealRoot(target, boundary)) return '';
+  try {
+    readFileBounded(target);
+    return fingerprintPath(target, { allowedRoots: [boundary] });
+  } catch (_) {
+    return '';
+  }
+}
+
+function receiptBoundedResourceFingerprint(target, boundary, expectedSource, sourceBoundary, mode) {
+  if (mode === 'copy') return receiptBoundedFileFingerprint(target, boundary);
+  if (mode !== 'symlink' || hasSymlinkedAncestor(path.dirname(target), boundary)
+    || !insideRealRoot(path.dirname(target), boundary)) return '';
+  let targetStat;
+  let realTarget;
+  let realSource;
+  try {
+    targetStat = fs.lstatSync(target);
+    if (!targetStat.isSymbolicLink()) return '';
+    realTarget = fs.realpathSync(target);
+    realSource = fs.realpathSync(expectedSource);
+  } catch (_) {
+    return '';
+  }
+  if (realTarget !== realSource || !insideRealRoot(realSource, sourceBoundary)) return '';
+  try {
+    readFileBounded(realTarget);
+    return fingerprintPath(realTarget, { allowedRoots: [sourceBoundary] });
+  } catch (_) {
+    return '';
+  }
+}
+
+function observeCodexRoleMaterialization(project, root, receipt, role) {
+  const relativeRole = `agents/${role}.toml`;
+  const sourceRole = path.join(root, 'codex', 'agents', `${role}.toml`);
+  const installedRole = path.join(project, '.codex', ...relativeRole.split('/'));
+  const roleEntry = receipt && receipt.managed_entries && receipt.managed_entries.agents
+    ? receipt.managed_entries.agents[`${role}.toml`]
+    : null;
+  const sourceFingerprint = receiptBoundedFileFingerprint(sourceRole, root);
+  const destinationFingerprint = receiptBoundedFileFingerprint(installedRole, project);
+  const roleEvidence = {
+    path: relativeRole,
+    ...(sourceFingerprint ? { sourceFingerprint } : {}),
+    ...(destinationFingerprint ? {
+      fingerprint: destinationFingerprint,
+      destinationFingerprint,
+    } : {}),
+  };
+  const resources = [];
+  let reason = 'Codex role and its receipt-owned resources match the canonical projection';
+  let passed = Boolean(roleEntry
+    && roleEntry.destination === relativeRole
+    && roleEntry.source === relativeRole
+    && roleEntry.mode === 'copy'
+    && sourceFingerprint
+    && destinationFingerprint
+    && /^[a-f0-9]{64}$/.test(roleEntry.source_fingerprint || '')
+    && /^[a-f0-9]{64}$/.test(roleEntry.destination_fingerprint || '')
+    && sourceFingerprint === roleEntry.source_fingerprint
+    && destinationFingerprint === roleEntry.destination_fingerprint
+    && sourceFingerprint === destinationFingerprint);
+  let roleText = '';
+  try {
+    roleText = readFileBounded(installedRole).toString('utf8');
+  } catch (_) {
+    passed = false;
+  }
+  if (!roleEntry || !sourceFingerprint || !destinationFingerprint) {
+    reason = 'Codex role is missing, unsafe, or not receipt-owned';
+  } else if (!passed) {
+    reason = 'Codex role does not match its canonical source and receipt fingerprints';
+  }
+
+  const references = [...new Set(roleText.match(/\.codex\/dhpk\/[A-Za-z0-9._/<>{}-]+\.md/g) || [])]
+    .filter((reference) => !reference.includes('<') && !reference.includes('>'));
+  let inventory = null;
+  try {
+    inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+  } catch (_) {
+    passed = false;
+    reason = 'Codex role resource inventory could not be read safely';
+  }
+  const assetSources = new Map((inventory && Array.isArray(inventory.supporting_assets) ? inventory.supporting_assets : [])
+    .filter((asset) => asset && typeof asset.source === 'string' && typeof asset.destination === 'string')
+    .map((asset) => [asset.destination, asset.source]));
+  const supportingAssets = receipt && receipt.managed_entries && receipt.managed_entries.supporting_assets;
+  for (const reference of references) {
+    const resourceRelative = reference.slice('.codex/'.length);
+    const resourceKey = resourceRelative;
+    const relativeSource = assetSources.get(resourceKey);
+    const entry = supportingAssets && supportingAssets[resourceKey];
+    const safeSource = typeof relativeSource === 'string'
+      && !path.posix.isAbsolute(relativeSource)
+      && !relativeSource.split('/').includes('..')
+      && !relativeSource.includes('\\');
+    const sourcePath = safeSource ? path.join(root, ...relativeSource.split('/')) : '';
+    const destinationPath = path.join(project, '.codex', ...resourceRelative.split('/'));
+    const resourceSourceFingerprint = safeSource ? receiptBoundedFileFingerprint(sourcePath, root) : '';
+    const resourceDestinationFingerprint = safeSource
+      ? receiptBoundedResourceFingerprint(destinationPath, project, sourcePath, root, entry && entry.mode)
+      : '';
+    const valid = Boolean(entry
+      && entry.destination === resourceRelative
+      && entry.source === resourceRelative
+      && ['copy', 'symlink'].includes(entry.mode)
+      && resourceSourceFingerprint
+      && resourceDestinationFingerprint
+      && /^[a-f0-9]{64}$/.test(entry.source_fingerprint || '')
+      && /^[a-f0-9]{64}$/.test(entry.destination_fingerprint || '')
+      && resourceSourceFingerprint === entry.source_fingerprint
+      && resourceDestinationFingerprint === entry.destination_fingerprint
+      && resourceSourceFingerprint === resourceDestinationFingerprint);
+    resources.push({
+      path: reference,
+      ...(resourceSourceFingerprint ? { sourceFingerprint: resourceSourceFingerprint } : {}),
+      ...(resourceDestinationFingerprint ? {
+        fingerprint: resourceDestinationFingerprint,
+        destinationFingerprint: resourceDestinationFingerprint,
+      } : {}),
+    });
+    if (!valid) {
+      passed = false;
+      reason = 'Codex role references a missing, unsafe, or mismatched receipt-owned resource';
+    }
+  }
+  return {
+    status: passed ? 'PASS' : 'FAIL',
+    adapterRoute: 'codex-role-materialization',
+    reason,
+    role: roleEvidence,
+    resources,
+  };
+}
+
 function runCodexNamedRoleProbe(project, {
   env = process.env,
   roles = ['explorer', 'deep-reasoner', 'code-reviewer', 'doc-reviewer'],
@@ -1078,7 +1218,7 @@ function runCodexNamedRoleProbe(project, {
   }
 }
 
-function verifyCodexSync(root, version) {
+function verifyCodexSync(root, version, options = {}) {
   const commands = [];
   const project = mkTempProject();
   try {
@@ -1244,6 +1384,67 @@ function verifyCodexSync(root, version) {
         reconciliation: manifest.reconciliation || null,
       },
     };
+    const targetedRequirementEvidence = {};
+    const roleContracts = new Map();
+    for (const check of options.roleChecks || []) {
+      if (!roleContracts.has(check.role)) {
+        roleContracts.set(check.role, observeCodexRoleMaterialization(project, root, manifest, check.role));
+      }
+      const contractEvidence = roleContracts.get(check.role);
+      if (contractEvidence.status !== 'PASS') {
+        targetedRequirementEvidence[check.checkKey] = {
+          status: check.evidenceKind === 'contract' ? 'FAIL' : 'BLOCKED',
+          observedStatus: contractEvidence.status,
+          outcomeReason: contractEvidence.reason,
+          ...(check.evidenceKind === 'contract' ? { contractEvidence } : {}),
+        };
+        continue;
+      }
+      if (check.evidenceKind === 'contract') {
+        targetedRequirementEvidence[check.checkKey] = {
+          status: 'PASS',
+          observedStatus: 'PASS',
+          outcomeReason: contractEvidence.reason,
+          contractEvidence,
+        };
+        continue;
+      }
+      if (!check.authorized) {
+        targetedRequirementEvidence[check.checkKey] = {
+          status: 'BLOCKED',
+          observedStatus: 'NOT_RUN',
+          outcomeReason: 'native Codex role execution is not authorized',
+        };
+        continue;
+      }
+      const native = runCodexNamedRoleProbe(project, { roles: [check.role], env: process.env });
+      const nativeProof = native.status === 'PASS' && native.runtimeEvidence
+        && Array.isArray(native.runtimeEvidence.roles)
+        && native.runtimeEvidence.roles.length === 1
+        ? {
+          executionOrigin: 'native',
+          adapterRoute: 'codex-named-role',
+          roles: native.runtimeEvidence.roles,
+          registryPreconditions: native.runtimeEvidence.registryPreconditions,
+          ...(native.cliVersion && native.cliVersion.trim().length <= 200
+            ? { cliVersion: native.cliVersion.trim() }
+            : {}),
+        }
+        : null;
+      const status = native.status === 'PASS'
+        ? (nativeProof ? 'PASS' : 'BLOCKED')
+        : native.status === 'FAIL' ? 'FAIL' : 'BLOCKED';
+      commands.push({
+        cmd: `codex exec (authorized named-role ${check.role})`,
+        exitCode: native.status === 'PASS' ? 0 : native.status === 'FAIL' ? 1 : null,
+      });
+      targetedRequirementEvidence[check.checkKey] = {
+        status,
+        observedStatus: native.status,
+        outcomeReason: native.diagnostic || (nativeProof ? 'authorized Codex named role completed' : 'Codex role proof was incomplete'),
+        ...(nativeProof ? { nativeProof } : {}),
+      };
+    }
     return {
       verdict: VERDICTS.PASS,
       status: 'NOT_RUN',
@@ -1257,8 +1458,9 @@ function verifyCodexSync(root, version) {
       },
       runtimeEvidence: {
         status: 'NOT_RUN',
-        reason: 'Codex named-role runtime probe was not invoked by installation acceptance',
+        reason: 'Codex named-role runtime evidence is recorded only on its covered requirement',
       },
+      targetedRequirementEvidence,
       surfaceVerdict,
       duplicateEvidence,
       surfaces: surfacesEvidence,
@@ -1792,6 +1994,14 @@ function verifyClaudeReinstall(root, version) {
   };
   const finish = (result) => ({
     ...result,
+    ...(result.verdict === VERDICTS.PASS
+      ? {
+          installationEvidence: {
+            status: VERDICTS.PASS,
+            reason: 'official strict validation and project-scoped installed-cache validation passed',
+          },
+        }
+      : {}),
     cliVersion: versionDiscovery.version,
     versionDiscovery,
   });
@@ -1976,15 +2186,24 @@ function verifyCodexNative(root) {
   if (res.status !== 0) {
     return { verdict: VERDICTS.FAIL, commands, reasons: [`codex-native-install-smoke exited ${res.status}: ${redactEvidence((res.stdout + res.stderr).trim().slice(-800), root)}`] };
   }
-  return { verdict: VERDICTS.PASS, commands, reasons: [] };
+  return {
+    verdict: VERDICTS.PASS,
+    installationEvidence: {
+      status: VERDICTS.PASS,
+      reason: 'native Codex installation smoke test passed',
+    },
+    commands,
+    reasons: [],
+  };
 }
 
-function verifyProjectedConsumer(root, platform, version) {
+function verifyProjectedConsumer(root, platform, version, options = {}) {
   const agentPlugin = platform === 'agent-plugin' || platform === 'codex';
   const packageRoot = path.join(root, 'plugins', agentPlugin ? 'dhpk-agent' : 'dhpk-cursor');
   const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
   const probePlatform = agentPlugin ? 'agent-plugin' : 'cursor';
   const probeArgs = [probe, '--platform', probePlatform, '--package-root', packageRoot, '--inventory', path.join(root, 'manifests', 'distribution-inventory.json'), '--version', version];
+  if (options.execute === true) probeArgs.push('--execute');
   const res = spawnSync('node', probeArgs, {
     cwd: root,
     encoding: 'utf8',
@@ -2069,6 +2288,9 @@ function verifyProjectedConsumer(root, platform, version) {
       reason: payload.reason || `${surface} consumer runtime was not invoked`,
     }
     : null;
+  const nativeSurface = Array.isArray(payload.surfaceResults)
+    ? payload.surfaceResults.find((entry) => entry && entry.nativeProof)
+    : null;
   return {
     status: effectiveStatus,
     commands: Array.isArray(payload.commands) && payload.commands.length > 0
@@ -2082,6 +2304,13 @@ function verifyProjectedConsumer(root, platform, version) {
       ...(installationEvidence ? { installationEvidence } : {}),
       ...(runtimeEvidence ? { runtimeEvidence } : {}),
     })),
+    ...(options.execute === true ? {
+      nativeObservation: {
+        status: effectiveStatus,
+        reason: effectiveReason ? redactEvidence(effectiveReason, root) : null,
+        ...(nativeSurface && nativeSurface.nativeProof ? { nativeProof: nativeSurface.nativeProof } : {}),
+      },
+    } : {}),
   };
 }
 
@@ -2113,6 +2342,72 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
   }));
 }
 
+function codexPackageRoles(root) {
+  try {
+    const manifest = JSON.parse(readFileBounded(path.join(root, 'codex', 'agent-projection-manifest.json')).toString('utf8'));
+    if (!manifest || !Array.isArray(manifest.package_roles) || manifest.package_roles.length > 64) return new Set();
+    return new Set(manifest.package_roles.filter((role) => (
+      typeof role === 'string' && /^[a-z][a-z0-9-]{0,62}$/.test(role)
+    )));
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function resolveRequirementCheck(check, supportedCodexRoles) {
+  const evidenceKind = check.trigger === 'explicit-native' ? 'native' : check.evidenceKind;
+  const evidenceSurface = check.surface === 'claude-core' ? 'claude' : check.surface;
+  const checkKey = `${evidenceSurface}:${check.capability}:${evidenceKind}`;
+  let route = null;
+  let role = null;
+  if (check.capability === 'installation-contract'
+    && evidenceKind === 'contract'
+    && !['activation-defect', 'explicit-native'].includes(check.trigger)) {
+    route = 'installation-contract';
+  } else if (check.capability === 'package-loader'
+    && ['agent-plugin', 'cursor-plugin'].includes(check.surface)
+    && ['contract', 'native'].includes(evidenceKind)) {
+    route = 'package-loader';
+  } else if (check.surface === 'codex-sync' && check.capability.startsWith('named-role-')) {
+    const candidate = check.capability.slice('named-role-'.length);
+    if (supportedCodexRoles.has(candidate)) {
+      route = 'named-role';
+      role = candidate;
+    }
+  }
+  return {
+    ...check,
+    requestedEvidenceKind: check.evidenceKind,
+    evidenceKind,
+    checkKey,
+    route,
+    role,
+  };
+}
+
+function uniqueRequirementExecutions(checks, route) {
+  const grouped = new Map();
+  for (const check of checks.filter((entry) => entry.route === route)) {
+    if (!grouped.has(check.checkKey)) grouped.set(check.checkKey, []);
+    grouped.get(check.checkKey).push(check);
+  }
+  return [...grouped.values()].map((group) => ({
+    ...group[0],
+    authorized: group.some((check) => check.authorization.authorized),
+  }));
+}
+
+function requirementAdapter(check) {
+  if (check.route === 'installation-contract') return { id: 'consumer-gate', version: '1.0.0' };
+  if (check.route === 'package-loader') return { id: 'consumer-platform-probe', version: '1.0.0' };
+  if (check.route === 'named-role') {
+    return check.evidenceKind === 'native'
+      ? { id: 'codex-named-role-probe', version: '1.0.0' }
+      : { id: 'codex-role-materialization', version: '1.0.0' };
+  }
+  return null;
+}
+
 function runGate(args) {
   const requirements = args.requirements || null;
   const configurationMarkers = Object.fromEntries(CONSUMER_SURFACES.map((surface) => (
@@ -2121,8 +2416,14 @@ function runGate(args) {
   const scope = requirements
     ? requirements.selectedSurfaces
     : (args.surface ? [args.surface] : configuredConsumerSurfaces(args.root));
+  const resolvedRequirements = requirements
+    ? requirements.checks.map((check) => resolveRequirementCheck(check, codexPackageRoles(args.root)))
+    : [];
+  const roleChecks = uniqueRequirementExecutions(resolvedRequirements, 'named-role');
   const selectedOrAll = (surface) => scope.includes(surface);
-  const codex = selectedOrAll('codex-sync') ? verifyCodexSync(args.root, args.version) : null;
+  const codex = selectedOrAll('codex-sync')
+    ? verifyCodexSync(args.root, args.version, { roleChecks })
+    : null;
   const claude = selectedOrAll('claude-core') ? verifyClaudeReinstall(args.root, args.version) : null;
   const native = selectedOrAll('codex-native') ? verifyCodexNative(args.root) : null;
   const cursorSync = selectedOrAll('cursor-sync') ? verifyCursorSync(args.root, args.version) : null;
@@ -2132,6 +2433,47 @@ function runGate(args) {
   const projectedCursor = selectedOrAll('cursor-plugin')
     ? verifyProjectedConsumer(args.root, 'cursor', args.version)
     : null;
+
+  const loaderEvidence = new Map();
+  for (const surface of ['agent-plugin', 'cursor-plugin']) {
+    const selectedChecks = uniqueRequirementExecutions(resolvedRequirements
+      .filter((check) => check.surface === surface && check.evidenceKind === 'native'), 'package-loader')
+      .filter((check) => selectedOrAll(surface));
+    const projection = surface === 'agent-plugin' ? projectedCodex : projectedCursor;
+    if (selectedChecks.length === 0) continue;
+    const platform = surface === 'agent-plugin' ? 'agent-plugin' : 'cursor';
+    const canExecute = Boolean(projection && projection.surfaceResults.some((entry) => (
+      entry.installationEvidence && entry.installationEvidence.status === 'PASS'
+    )));
+    for (const check of selectedChecks) {
+      if (!check.authorized || !canExecute) {
+        loaderEvidence.set(check.checkKey, {
+          status: 'BLOCKED',
+          observedStatus: canExecute ? 'NOT_RUN' : (projection ? projection.status : 'NOT_RUN'),
+          outcomeReason: check.authorized
+            ? 'package installation contract must pass before native loader execution'
+            : 'native package-loader execution is not authorized',
+        });
+        continue;
+      }
+      const observed = verifyProjectedConsumer(args.root, platform, args.version, { execute: true });
+      if (projection) projection.commands.push(...observed.commands);
+      const nativeProof = observed.nativeObservation && observed.nativeObservation.nativeProof;
+      const status = observed.nativeObservation && observed.nativeObservation.status === 'PASS'
+        ? (nativeProof ? 'PASS' : 'BLOCKED')
+        : observed.nativeObservation && observed.nativeObservation.status === 'FAIL'
+          ? 'FAIL'
+          : 'BLOCKED';
+      loaderEvidence.set(check.checkKey, {
+        status,
+        observedStatus: observed.nativeObservation ? observed.nativeObservation.status : 'BLOCKED',
+        outcomeReason: observed.nativeObservation && observed.nativeObservation.reason
+          ? observed.nativeObservation.reason
+          : 'challenged package-loader proof was missing',
+        ...(nativeProof && status === 'PASS' ? { nativeProof } : {}),
+      });
+    }
+  }
 
   const environment = process.env.CI ? 'ci' : 'local';
   const observedSurfaceResults = [
@@ -2172,38 +2514,90 @@ function runGate(args) {
       .filter(({ check }) => requirementSurface(check.surface) === entry.surface);
     if (requirementChecks.length === 0) return entry;
     const requirementEvidence = Object.fromEntries(requirementChecks.map(({ check, index }) => {
+      const resolved = resolvedRequirements[index];
       const selected = scope.includes(check.surface);
-      const mustRemainRequired = check.evidenceKind === 'native'
-        || check.trigger === 'activation-defect'
-        || check.trigger === 'explicit-native';
-      const installationStatus = entry.installationEvidence
-        ? entry.installationEvidence.status
-        : entry.status;
-      const status = !selected
-        ? 'BLOCKED'
-        : (mustRemainRequired
-          ? (check.authorization.authorized ? 'PENDING' : 'BLOCKED')
-          : (check.capability !== 'installation-contract' ? 'BLOCKED' : installationStatus));
-      const reason = !selected
-        ? `Requirement ${check.id} is outside the selected adapter scope and remains required BLOCKED; no adapter was invoked`
-        : (mustRemainRequired
-          ? (check.authorization.authorized
-            ? `${check.reason}; native execution is deferred to the authorized runtime executor`
-            : `${check.reason}; native runtime execution is not authorized`)
-          : (check.capability !== 'installation-contract'
-            ? `${check.reason}; capability '${check.capability}' is not mapped to an installation contract`
-            : `${check.reason} Question: ${check.question}`));
-      return [`check${index + 1}`, {
+      let status = 'BLOCKED';
+      let observedStatus;
+      let outcomeReason;
+      let contractEvidence;
+      let nativeProof;
+      const installationEvidence = entry.installationEvidence;
+
+      if (!selected) {
+        outcomeReason = 'surface was outside the selected requirements scope; no adapter was invoked';
+      } else if (resolved.evidenceKind === 'native' && !check.authorization.authorized) {
+        const observation = resolved.route === 'named-role'
+          ? codex && codex.targetedRequirementEvidence && codex.targetedRequirementEvidence[resolved.checkKey]
+          : loaderEvidence.get(resolved.checkKey);
+        observedStatus = observation && observation.observedStatus;
+        outcomeReason = 'native execution is not authorized';
+      } else if (resolved.route === 'installation-contract'
+        || (resolved.route === 'package-loader' && resolved.evidenceKind === 'contract')) {
+        if (installationEvidence && installationEvidence.status) {
+          status = installationEvidence.status;
+          observedStatus = status;
+          outcomeReason = installationEvidence.reason || 'installation contract observed';
+          contractEvidence = {
+            status,
+            adapterRoute: resolved.capability === 'installation-contract'
+              ? 'consumer-gate-installation'
+              : `${resolved.surface === 'agent-plugin' ? 'agent' : 'cursor'}-plugin-package-contract`,
+            reason: outcomeReason,
+            evidenceRef: `surfaceResults.${entry.surface}.installationEvidence`,
+          };
+        } else {
+          observedStatus = entry.status;
+          outcomeReason = 'installation contract evidence was not produced';
+        }
+      } else if (resolved.route === 'named-role') {
+        const observation = codex && codex.targetedRequirementEvidence
+          ? codex.targetedRequirementEvidence[resolved.checkKey]
+          : null;
+        if (observation) {
+          status = observation.status;
+          observedStatus = observation.observedStatus;
+          outcomeReason = observation.outcomeReason;
+          contractEvidence = observation.contractEvidence;
+          nativeProof = check.authorization.authorized ? observation.nativeProof : undefined;
+        } else {
+          observedStatus = codex ? codex.status : entry.status;
+          outcomeReason = 'the selected Codex role check did not produce capability evidence';
+        }
+      } else if (resolved.route === 'package-loader' && resolved.evidenceKind === 'native') {
+        const observation = loaderEvidence.get(resolved.checkKey);
+        if (observation) {
+          status = observation.status;
+          observedStatus = observation.observedStatus;
+          outcomeReason = observation.outcomeReason;
+          nativeProof = observation.nativeProof;
+        } else {
+          observedStatus = entry.status;
+          outcomeReason = 'the selected package-loader check did not produce native evidence';
+        }
+      } else {
+        observedStatus = entry.status;
+        outcomeReason = `capability '${check.capability}' is not mapped to a supported evidence adapter`;
+      }
+
+      const result = {
         id: check.id,
         host: check.host,
         capability: check.capability,
         trigger: check.trigger,
+        reason: check.reason,
         question: check.question,
-        evidenceKind: check.evidenceKind,
+        requestedEvidenceKind: check.evidenceKind,
+        evidenceKind: resolved.evidenceKind,
         authorized: check.authorization.authorized,
+        checkKey: resolved.checkKey,
         status,
-        reason,
-      }];
+        ...(requirementAdapter(resolved) ? { adapter: requirementAdapter(resolved) } : {}),
+        ...(observedStatus ? { observedStatus } : {}),
+        ...(outcomeReason ? { outcomeReason: outcomeReason.slice(0, 512) } : {}),
+        ...(contractEvidence ? { contractEvidence } : {}),
+        ...(nativeProof && status === 'PASS' ? { nativeProof, runtimeVerified: true } : {}),
+      };
+      return [`check${index + 1}`, result];
     }));
     return { ...entry, requirementEvidence };
   });
@@ -2290,7 +2684,7 @@ function runGate(args) {
       const result = {
         id: `requirement.${check.id}`,
         surface,
-        kind: check.evidenceKind,
+        kind: resolvedRequirements[index].evidenceKind,
         reason: requirementEvidence.reason,
         status: requirementEvidence.status,
         evidenceRef: `surfaceResults.${surface}.requirementEvidence.${evidenceSlot}`,
@@ -2338,7 +2732,7 @@ function runGate(args) {
     ...(codex && codex.surfaceVerdict === 'WARN' ? { warnings: ['Codex duplicate-surface matrix returned WARN; compatibility status is not a canonical evidence verdict'] } : {}),
   };
 
-  return stage;
+  return requirements ? normalizeConsumerEvidence(stage) : stage;
 }
 
 if (require.main === module) {

@@ -1,24 +1,27 @@
 # Consumer acceptance contract
 
-Status: accepted for issue #849. This contract defines the existing selected-
-surface consumer gate's installation acceptance and bounded requirements
-input. It does not claim that a consumer runtime was executed.
+Status: accepted for issues #849 and #850. This contract defines the selected-
+surface consumer gate's installation acceptance, bounded requirements input,
+and fixed conditional capability checks. A passing installation check does not
+claim that a consumer runtime was executed.
 
 ## Purpose and authority
 
-The consumer gate reports two distinct things: observed installation results
-and consumer acceptance. Acceptance describes whether the selected installation
-contract and every declared requirement have adequate evidence. It is not a
-runtime-verification flag, support-tier decision, marketplace approval, or
+The consumer gate reports observed installation results and consumer
+acceptance. Acceptance describes whether the selected installation contract
+and every declared requirement have adequate evidence. A conditional native
+check runs only through a fixed adapter for its declared capability after the
+applicable prerequisites pass and its separate authorization is true. The
+contract is not a support-tier decision, marketplace approval, or
 release-publication decision. The `consumer-gate.js` entrypoint and
 `release-evidence.js` normalizer remain the public execution and normalization
 boundaries.
 
-The accepted requirement IDs for this slice are `REQ-849-01` through
-`REQ-849-05` in the
-[post-install validation specification](../../openspec/specs/consumer-post-install-validation/spec.md)
-and the
-[evidence normalization specification](../../openspec/specs/consumer-evidence-normalization/spec.md).
+The accepted consumer-gate requirements are `REQ-849-01` through `REQ-849-05`
+and `REQ-850-01` in the
+[post-install validation specification](../../openspec/specs/consumer-post-install-validation/spec.md).
+Evidence normalization retains its separate
+[normalization specification](../../openspec/specs/consumer-evidence-normalization/spec.md).
 
 ## Selected surfaces and Host mapping
 
@@ -156,6 +159,13 @@ For example, an input check at position 1 for `cursor-sync` is stored at
 The corresponding acceptance check uses that path in `evidenceRef`; the path
 does not contain the requirement ID.
 
+The requirement evidence record retains the validated ID, Host, surface,
+capability, trigger, reason, question, requested and effective evidence kinds,
+authorization assertion, stable check key, actual status, and fixed adapter
+identity when resolved. It also contains the matching observed contract record
+or typed native proof; an acceptance check must reference that final record,
+not installation evidence or a generic PASS marker.
+
 ## Requirement resolution and scope
 
 Every item in `checks` is a required obligation. If an item names a surface
@@ -169,19 +179,37 @@ item is never converted to an excluded `NOT_RUN` check. The
 obligation is resolved or the supported scope is changed explicitly, and
 installation evidence cannot satisfy either trigger.
 
-For #849, only a non-native check with `capability: "installation-contract"`
-together with `evidenceKind: "contract"` may use the actual selected surface's
-installation evidence. Every other capability/evidence combination remains
-required and non-passing. An in-scope native or explicit-native check is
-`PENDING` when authorized and `BLOCKED` when unauthorized because this slice
-has no native runtime executor. A check with the `activation-defect` or
-`explicit-native` trigger has that same native-obligation behavior, even if
-its capability and evidence kind otherwise match the installation pair. An
+Only a non-native check with `capability: "installation-contract"` and
+`evidenceKind: "contract"` may use the actual selected surface's installation
+evidence. A contract check for another mapped capability must resolve to that
+capability's independently observed contract record. An unsupported capability
+or evidence-kind pair stays required and `BLOCKED`.
+
+The supported conditional mapping is fixed:
+
+| Surface | Capability | Contract evidence | Native evidence |
+| --- | --- | --- | --- |
+| `codex-sync` | `named-role-<role>` | Exact role and referenced resources are independently verified against the current receipt | One exact, manifest-owned role is dispatched through the gate-owned Codex probe |
+| `agent-plugin` | `package-loader` | The fixed Agent Plugin package validator | The challenged one-package Cursor Agent loader route |
+| `cursor-plugin` | `package-loader` | The fixed Cursor package validator, including its required sibling Agent package | The challenged two-package Cursor loader route |
+
+The Codex role suffix must be one of the roles in the canonical projection
+manifest and must have a concrete role TOML and current receipt entry. No other
+surface/capability/evidence-kind tuple gains an adapter through requirements
+input. The `explicit-native` trigger makes effective evidence kind `native`
+even when the requested kind is `contract`; the report retains both values.
+`activation-defect` can pass only through a mapped check that observes the
+specific capability. It cannot reuse blanket installation acceptance.
+
+Applicability and authorization are separate. An applicable supported native
+check runs only when `authorization.authorized` is true and its fixed
+prerequisites pass. Unauthorized, unsupported, out-of-scope, or prerequisite-
+missing checks remain required and `BLOCKED` without a native call. An actual
+adapter failure is `FAIL`; absent evidence is never promoted to `PASS`. An
 out-of-scope requirement is always `BLOCKED`, regardless of authorization.
-None of these states invokes a native adapter. An optional surface with no
-declared requirement and outside the selected scope may be omitted or recorded
-as excluded with its applicability reason. Installation checks generated by
-the gate owner cannot be removed or downgraded by caller input.
+Optional surfaces outside the selected scope may be excluded with their
+applicability reason. Installation checks generated by the gate owner cannot
+be removed or downgraded by caller input.
 
 ## Installation and runtime observations
 
@@ -189,16 +217,19 @@ The CONSUMER envelope retains raw `surfaceResults` and distinct
 `installationEvidence` and `runtimeEvidence` records. Ordinary `codex-sync`
 acceptance verifies installation, ownership, physical role materialization,
 resource closure, and surface discovery; it does not start a Codex prompt or
-named-role probe. A successful check leaves the raw `codex-sync`
-`runtimeEvidence.status` as `NOT_RUN`.
+named-role probe. A declared, authorized `named-role-<role>` check may run the
+exact single-role probe after those structural prerequisites pass. Without
+that check, raw `codex-sync` runtime remains `NOT_RUN`.
 
 The `agent-plugin` probe uses Cursor Agent tooling. The `cursor-plugin`
 installation contract includes validation of the sibling Agent Plugin package
 closure required by its consumer route. These package and structural checks may
 pass installation acceptance while raw runtime remains `NOT_RUN` or
-`UNAVAILABLE`. Neither `CI` nor inherited `DHPK_CONSUMER_PROBE_EXECUTE` may
-activate plugin-directory runtime execution through the ordinary acceptance
-path. No runtime result is inferred from package copy or static materialization.
+`UNAVAILABLE`. Only a declared, authorized `package-loader` check can use the
+gate-owned challenged loader route. Neither `CI` nor inherited
+`DHPK_CONSUMER_PROBE_EXECUTE` may activate plugin-directory runtime execution
+through the ordinary acceptance path. No runtime result is inferred from
+package copy or static materialization.
 
 ## Version 2 report and verdict
 
@@ -254,6 +285,15 @@ selector for the entry whose `surface` field matches, followed by object-field
 segments. It is not a JSON array index or literal property on the array. The
 normalizer rejects dangling, cross-surface, or mismatched-status references.
 
+Normalization verifies evidence shape, supported references, applicability,
+status consistency, and requirement-to-check binding; it does not
+cryptographically authenticate who produced a report. Treating installation,
+contract, or native proof records as observations requires evidence from the
+trusted local consumer-gate or harness producer. An arbitrary supplied or
+edited JSON envelope is not proof of live execution merely because it passes
+normalization. External report authentication, signatures, and attempt binding
+are outside this contract.
+
 `requiredChecks` is non-empty. Acceptance is calculated only from that list:
 
 | Required check outcomes | Acceptance verdict |
@@ -271,9 +311,10 @@ The `codex-sync` default can therefore report installation PASS and raw runtime
 `NOT_RUN` in one envelope without conflating those results. A projected plugin
 installation PASS can coexist with raw runtime `UNAVAILABLE` or `NOT_RUN`.
 Installation acceptance never sets `runtimeVerified: true`. That field is
-permitted only when backed by valid, current native capability evidence; #849
-does not generate such evidence. A v2 normalizer rejects or removes an
-unsupported `runtimeVerified: true` value.
+permitted only on the individual requirement evidence covered by valid,
+current native capability proof. A partial role or loader observation cannot
+mark the whole surface or envelope runtime-verified. A v2 normalizer rejects
+or removes unsupported `runtimeVerified: true` values.
 
 Historical reports without `acceptance` retain their original unversioned
 schema, status semantics, and exit conventions. Reading a historical report

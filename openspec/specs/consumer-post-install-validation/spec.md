@@ -209,11 +209,11 @@ Only a non-native installation-contract check with
 `capability: "installation-contract"` and `evidenceKind: "contract"` MAY be
 satisfied by installation evidence. Native, `activation-defect`, and
 `explicit-native` requirements cannot be satisfied by installation evidence.
-A selected native, `activation-defect`, or `explicit-native` requirement SHALL
-remain PENDING when authorized and BLOCKED when unauthorized until separate
-native evidence is supplied. An out-of-scope declared requirement is BLOCKED
-regardless of its authorization. No native requirement is executed by this
-requirement's implementation.
+An out-of-scope requirement SHALL remain BLOCKED regardless of authorization.
+A selected requirement without a fixed adapter or with missing prerequisites
+SHALL remain BLOCKED; authorization alone SHALL NOT imply a PASS. Conditional
+native execution and its supported capability map are defined by
+REQ-850-01.
 
 For each declared check, the CONSUMER report SHALL retain a requirement
 evidence object at `surfaceResults.<surface>.requirementEvidence.checkN`, where
@@ -253,11 +253,11 @@ the [consumer acceptance contract](../../../docs/contracts/consumer-acceptance.m
 - **AND** `--surface cursor-sync` is accepted only when it exactly matches the
   one-surface requirements scope
 
-#### Scenario: Declared native check remains pending without an executor
+#### Scenario: Unsupported native check remains blocked without an adapter
 
-- **WHEN** a selected `codex-sync` check requests native named-agent dispatch
-  and declares authorization
-- **THEN** the requirement remains PENDING and acceptance is BLOCKED
+- **WHEN** a selected `codex-sync` check requests an unsupported native
+  capability and declares authorization
+- **THEN** the requirement remains BLOCKED and acceptance is BLOCKED
 - **AND** the gate invokes no native adapter, even when CI or
   `DHPK_CONSUMER_PROBE_EXECUTE` is set
 
@@ -276,6 +276,63 @@ the [consumer acceptance contract](../../../docs/contracts/consumer-acceptance.m
   observation passed
 - **AND** no arbitrary command, adapter path, executable, or model selection is
   accepted from the requirements file
+
+### Requirement: REQ-850-01 Conditional consumer checks use fixed capability adapters
+
+The consumer gate SHALL evaluate each declared requirement against a finite
+surface, capability, and effective evidence-kind map. Every declared check
+remains required. Only the existing `installation-contract`/`contract` pair
+may use the selected installation record across all six supported surfaces.
+The conditional map adds `codex-sync` `named-role-<role>` contract evidence
+from the exact role/resource receipt binding, with native evidence from one
+exact role dispatch; `agent-plugin` and `cursor-plugin` `package-loader`
+contract evidence from their fixed package validators, with native evidence
+from their existing challenged loader routes. The Codex role MUST be listed by
+the canonical projection manifest and have a concrete TOML and current receipt
+entry. No requirements field may select a command, executable, adapter path,
+model, or additional role.
+
+Applicability SHALL remain distinct from authorization. The `explicit-native`
+trigger SHALL force effective evidence kind `native` even when the requested
+kind is `contract`. A supported native adapter SHALL run only when the check is
+in scope, its exact contract prerequisites pass, and
+`authorization.authorized` is true. Unsupported, unauthorized, out-of-scope,
+or prerequisite-missing requirements SHALL remain BLOCKED without a native
+call; an observed execution failure SHALL remain FAIL. A contract PASS MUST
+resolve to the matching capability observation, and a native PASS MUST resolve
+to typed adapter proof for that same capability. Fixtures, generic PASS
+objects, and installation evidence cannot satisfy a native check. Only the
+individual requirement evidence covered by valid native proof MAY carry
+`runtimeVerified: true`; a partial check MUST NOT mark the full surface or
+envelope runtime-verified.
+
+#### Scenario: One authorized Codex role check runs as a singleton
+
+- **WHEN** a selected `codex-sync` requirement names one supported role, its
+  exact role TOML and referenced resources match the current receipt, the
+  contract prerequisites pass, and authorization is true
+- **THEN** the gate invokes the fixed Codex adapter for that role only and
+  records the role/resource binding and singleton native proof on the matching
+  requirement evidence
+- **AND** no unrelated optional role is dispatched or made required
+
+#### Scenario: Applicable native work is not authorized
+
+- **WHEN** a selected requirement resolves to a supported native adapter but
+  authorization is false
+- **THEN** the requirement remains BLOCKED and no native command is invoked,
+  even when CI or an inherited execute variable is present
+
+#### Scenario: Challenged package-loader evidence resolves only its own check
+
+- **WHEN** an authorized `package-loader` requirement uses the fixed Agent or
+  Cursor loader route and the response verifies its package challenge,
+  loader attestation, successful exit, authenticated session, and bounded
+  network policy
+- **THEN** only that loader requirement may pass and carry
+  `runtimeVerified: true`
+- **AND** missing or invalid proof is BLOCKED, an observed loader failure is
+  FAIL, and fixture or unrestricted output is not native evidence
 
 ### Requirement: REQ-849-05 Unscoped consumer acceptance follows configured local markers
 

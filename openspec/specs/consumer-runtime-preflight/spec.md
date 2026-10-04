@@ -32,7 +32,11 @@ A preflight SHALL report each requested consumer surface with an explicit
 machine-readable status and a bounded, redacted reason code for authentication,
 network, timeout, CLI compatibility, sandbox, or package conditions when
 available. `PASS` from a preflight SHALL indicate runner readiness only and MUST
-NOT satisfy a consumer-runtime `PASS` or full-release `COMPLETE` by itself.
+NOT satisfy a consumer-runtime `PASS` or full-release `COMPLETE` by itself. A
+preflight result MUST NOT establish requirement applicability or authorize a
+conditional native adapter. The consumer gate resolves those obligations from
+its bounded requirements input and accepts only the fixed adapter proof for
+the covered capability.
 
 #### Scenario: Runner dependency is unavailable
 
@@ -43,6 +47,21 @@ NOT satisfy a consumer-runtime `PASS` or full-release `COMPLETE` by itself.
 
 - **WHEN** all runner prerequisites pass but a consumer probe is `NOT_RUN`, `SKIP_INCOMPATIBLE`, or `UNAVAILABLE`
 - **THEN** the preflight remains informational and the required-runtime gate remains non-complete
+
+#### Scenario: Preflight readiness does not authorize a native check
+
+- **WHEN** preflight reports a ready runner while a declared native
+  requirement is unauthorized or has no supported capability adapter
+- **THEN** the consumer gate leaves that requirement BLOCKED and invokes no
+  native command
+- **AND** the preflight PASS remains runner-readiness evidence only
+
+#### Scenario: One capability proof does not verify the whole Host
+
+- **WHEN** a fixed native adapter proves one exact role or package-loader
+  capability
+- **THEN** only that requirement may be runtime-verified, while unrelated Host
+  capabilities and preflight statuses retain their own results
 
 ### Requirement: Preflight evidence excludes credentials and host overlays
 
