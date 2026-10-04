@@ -160,13 +160,13 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy-kernel.md": {
       "skill_id": "opsx-apply-goal",
       "source": "rules/execution-policy-kernel.md",
-      "sha256": "sha256:d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967",
+      "sha256": "sha256:485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "opsx-apply-goal",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825",
+      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/model-economics.md": {
@@ -232,7 +232,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "opsx-apply-goal",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5a6c6d17fc99968297a26d6602b159d1ba82f83226368a8ff76c65dfe1413364",
+      "sha256": "sha256:5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -490,13 +490,13 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy-kernel.md",
-      "sha256": "sha256:d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967",
+      "sha256": "sha256:485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825",
+      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
@@ -562,7 +562,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5a6c6d17fc99968297a26d6602b159d1ba82f83226368a8ff76c65dfe1413364",
+      "sha256": "sha256:5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -616,13 +616,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy-kernel.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy-kernel.md",
-      "sha256": "sha256:d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967",
+      "sha256": "sha256:485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825",
+      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
@@ -688,7 +688,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5a6c6d17fc99968297a26d6602b159d1ba82f83226368a8ff76c65dfe1413364",
+      "sha256": "sha256:5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
