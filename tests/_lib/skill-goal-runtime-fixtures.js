@@ -10,6 +10,7 @@ const { spawnSync } = require('node:child_process');
 const assert = require('node:assert');
 const { registerFixture, getFixtures } = require('./skill-directory-fixtures');
 const { outputText, assertExpected } = require('./fixture-assertions');
+const { openSpecStatusStub } = require('./opsx-goal-fixtures');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SOURCE = path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal');
@@ -256,6 +257,7 @@ function prepareDispatch(context, provider, { rejected = false } = {}) {
 
 function providerStubs() {
   return {
+    openspec: openSpecStatusStub(),
     codex: {
       body: [
         "const fs=require('node:fs');",
