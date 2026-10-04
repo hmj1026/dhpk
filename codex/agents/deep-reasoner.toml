@@ -89,6 +89,4 @@ This agent has no Edit/Write tool by design — it cannot patch even when the fi
 ## Closing — Artifact Output
 
 **No artifact** — deep-reasoner is a read-only reasoning worker; its deliverable is the inline conclusion contract, consumed directly by the orchestrator or handed to `worker` as a task spec. Not part of the post-edit reviewer batch.
-
-Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.
 """

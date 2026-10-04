@@ -113,6 +113,4 @@ Tech debt: | Item | Priority | Suggestion |
 ## References
 
 - Stack-specific layering conventions, code examples, and language limits are loaded on demand via the matching **Stack trap sheet** above (`.codex/dhpk/agent-traps/architect/<stack>.md`).
-
-Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.
 """
