@@ -101,6 +101,40 @@ Every `EvidenceResult` consumed by orchestration SHALL identify the producer dis
 - **WHEN** an evidence result has no new identity fields and carries an explicit legacy-compatibility marker
 - **THEN** orchestration applies the characterized legacy binding path and does not require fields that were not declared by that result
 
+### Requirement: Verification evidence is applicability-bound and mutation-ordered
+
+An evidence result SHALL be reusable only when its recorded scope, relevant source
+and specification content, command and configuration, tool identity, and execution
+environment still apply to the current obligation. A source, specification,
+lockfile, configuration, tool, environment, or acceptance change SHALL invalidate
+the affected evidence and SHALL trigger re-evaluation of that scope; unrelated
+changes MAY retain applicable evidence. Mutating checks SHALL run before the final
+affected review or verification, or the affected evidence SHALL be regenerated
+after the mutation. Unsupported runners, missing capabilities, skipped checks,
+and `NOT_RUN` SHALL remain non-passing outcomes, and a manual alternative SHALL
+be recorded as separate evidence rather than promoted to a pass for the original
+runner.
+
+#### Scenario: Unchanged evidence is reused
+
+- **WHEN** a prior result matches the current scope, source and specification fingerprints, command/configuration, tool, and environment
+- **THEN** orchestration reuses the result without rerunning unrelated checks
+
+#### Scenario: Changed source invalidates affected evidence
+
+- **WHEN** a source, lockfile, configuration, tool, environment, or acceptance criterion changes within the result's scope
+- **THEN** orchestration marks that result stale and re-evaluates the affected obligation while retaining unaffected evidence
+
+#### Scenario: Mutation precedes final verification
+
+- **WHEN** a formatter, generator, fixture refresh, package materialization, or migration changes the candidate after an earlier check
+- **THEN** orchestration runs the affected final verification after the mutation and does not use the earlier result as completion evidence
+
+#### Scenario: Unsupported verification remains visible
+
+- **WHEN** the requested runner is unavailable or a capability is missing and a manual alternative is performed
+- **THEN** orchestration records the original check as `UNAVAILABLE`, `BLOCKED`, or `NOT_RUN` and records the manual observation separately without claiming the runner passed
+
 ### Requirement: Handoffs preserve one traceable lifecycle identity
 
 Dispatch, follow-up handoff, corrected retry, artifact readiness, evidence production, and final acceptance SHALL remain linked by one canonical task identity plus explicit attempt identities. A handoff MUST preserve the prior context boundary and obligation identity; it MUST NOT create a false second completion or silently detach evidence from the originating task.
