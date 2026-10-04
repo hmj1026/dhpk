@@ -53,7 +53,7 @@ input may not invoke arbitrary commands or select adapters. Only
 `capability: "installation-contract"` with `evidenceKind: "contract"` can use
 installation evidence. Other capability/evidence pairs fail closed. Native
 requirements stay PENDING when authorized and BLOCKED when unauthorized;
-#849 implements no native executor. An obligation outside the selected adapter
+Issue #849 implements no native executor. An obligation outside the selected adapter
 scope remains required and BLOCKED without an adapter call. Unrequested,
 optional surfaces are the only surfaces eligible for exclusion.
 
