@@ -40,4 +40,9 @@ The sole condition list is in `../_dependencies/rules/execution-policy.md` Gloss
 
 ## Sub-agent inheritance
 
-Sub-agents do not inherit this skill's content. When spawning a sub-agent that will do code exploration, include the source-reading boilerplate from `../_dependencies/docs/subagent-prompt-template.md` in the agent prompt.
+Sub-agents do not inherit this skill's content. When dispatching code
+exploration, include only the source-reading guidance from
+`../_dependencies/docs/subagent-prompt-template.md` that matches the
+recipient's callable tools. Supply symbol, caller, graph, and surrounding-source
+context the recipient cannot obtain; do not require unavailable commands or
+child-agent tools.

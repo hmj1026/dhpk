@@ -47,7 +47,8 @@ contract.
 
 Every implementation step records `Decision: CLEAR | REASONER_REQUIRED |
 HUMAN_REQUIRED | BLOCKED`. `CLEAR` means the behavior and choice are settled;
-the existing footprint rule still decides inline versus worker. An unresolved
+inline versus worker is chosen from clear ownership, bounded coupling, a settled
+test seam, and material risk rather than a hard file-count rule. An unresolved
 root cause, algorithm, architecture, cross-file/data-shape, behavior/runtime,
 or public-contract choice is `REASONER_REQUIRED` and must use a read-only
 reasoner before a writer. A domain-boundary decision requiring architectural

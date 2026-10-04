@@ -13,6 +13,9 @@ blocks verbatim.
 ╔══════════════════════════════════════════════════════════════╗
 ║  opsx-apply-goal: <CHANGE_ID>
 ╠══════════════════════════════════════════════════════════════╣
+║  Change root : <CHANGE_DIR>  schema: <SCHEMA_NAME>
+║  Artifacts   : tasks <TASKS_PATH>; proposal <PROPOSAL_PATH>
+║                design <DESIGN_PATH> (when present)
 ║  Tasks       : <DONE_TASKS>/<TOTAL_TASKS> done, <OPEN_TASKS> open
 ║  Test runners: <detected runners, or "none detected">
 ║  Coverage    : <enforced threshold <T> (config | --min-coverage) | not enforced (pass --min-coverage N) | not enforced (no test runner) | --min-coverage ignored (no test runner)>
@@ -64,20 +67,24 @@ verbatim. Append the coverage-off NOTES line when
 • /goal acts immediately on submit — there is no window to paste a follow-up
   command, which is why the /goal string above already embeds the
   openspec-apply-change kickoff. Paste it as-is; do not split it into two steps.
-• Pre-flight before an unattended loop: clean git / worktree (a rollback path
-  exists), branch or worktree isolation in place, and a quality gate (test /
-  build / lint) detected above — if none is detected the loop has no safety net,
-  so add one or supervise the run
+• Pre-flight before an unattended loop: preserve dirty WIP, use an isolated
+  source-identifiable baseline when comparison is needed, keep branch or
+  worktree isolation in place, and confirm a quality gate (test / build / lint)
+  detected above — if none is detected the loop has no safety net, so add one
+  or supervise the run
 • /goal resets on /new or /clear — re-run this command in the new session
 • Reviewer dispatch is advisory: the goal satisfies once no CRITICAL reviewer
   finding remains unfixed
+• Repair, review-driven retry, and authorized backend fallback share one task
+  budget; a backend switch does not reset the count. Inspect and reconcile an
+  interrupted writer's work and diff before replacement.
 • Worker dispatch (dhpk:deep-reasoner / dhpk:fast-worker, when
   orchestration_dispatch=on) gets the same reviewer recommendation as
   main-loop edits
-• You are the orchestrator (the expensive tier); routing mechanical / multi-file
-  clear-spec work to dhpk:fast-worker is the point of dispatch, not an optional
-  nicety — inline is a ≤2-file exception plus your own bookkeeping, and when
-  unsure between inline and a worker, dispatch
+• You are the orchestrator; route work to dhpk:fast-worker when ownership,
+  coupling, dependencies, edit shape, or material risk make delegation
+  applicable. Inline work remains valid when those conditions do not apply;
+  file count alone does not decide the route.
 • Haiku evaluator reads the conversation only — Claude must explicitly paste
   the ls output and test results into conversation for evaluation to work
 • Combine with /auto mode for a fully unattended goal loop
@@ -137,8 +144,8 @@ without touching the running session. Pure reads, no side effects:
 ```
 ━━━ MONITOR (run in a SECOND terminal, read-only) ━━━━━━━━━━━━
 # open vs done tasks (re-run to watch progress)
-grep -c '^- \[ \]' openspec/changes/<CHANGE_ID>/tasks.md   # open
-grep -c '^- \[x\]' openspec/changes/<CHANGE_ID>/tasks.md   # done
+grep -c '^- \[ \]' <TASKS_PATH>   # open
+grep -c '^- \[x\]' <TASKS_PATH>   # done
 ```
 
 Stall read: if two consecutive checks show the same `open` count with no new

@@ -15,8 +15,12 @@ Goal and non-goals:
 - Non-goals: <explicit exclusions>
 
 Scope:
+- Target role and available tools: <exact role and only tools exposed to this
+  recipient for this task>
 - Read scope: <paths or systems the agent may inspect>
 - Write scope: <exact repo-relative files, or "read-only">
+- Supplied context for unavailable tools: <required symbol/caller/graph evidence,
+  command output, or source excerpts the recipient cannot obtain; or "none">
 
 Constraints and settled decisions:
 - <interfaces, invariants, compatibility limits, and user decisions>
@@ -32,23 +36,35 @@ Output contract:
 - <required headings, evidence shape, edited-file report, and terminal status>
 ```
 
-## Source-reading boilerplate (always include)
+## Source-reading guidance (select by capability)
+
+When a task needs source inspection, include only instructions for tools the
+recipient can call. The packet author supplies any required inspection results
+or source context the recipient cannot obtain. Never ask the recipient to run a
+shell command, CX or GitNexus query, repository search, database probe, or
+child-agent dispatch unless that capability is available and the task scope
+authorizes it. If required evidence is missing and no available tool can obtain
+it, the recipient reports that gap.
 
 ```
-You are operating in a codebase that prefers AST-aware tools over raw Read.
+Use only the repository-inspection tools listed for this dispatch and allowed by your role.
 
-Tool routing (cheap → expensive):
-- `cx overview <file>` for any file >200 lines BEFORE Read
-- `cx definition --name X` to read a specific function/type
-- `cx references --name X` to find call sites
-- `gitnexus_impact({target, direction:"upstream"})` to assess blast radius
-  before editing an existing symbol
-- `Grep` only for plain text (error messages, comments, docs)
-- `Read` only when (a) file is <100 lines OR (b) you need 5+ consecutive
-  method bodies AND `cx overview` confirmed the full file is necessary
+- When `cx` is available, prefer `cx overview <file>`,
+  `cx definition --name X --from <file>`, and `cx references --name X` for
+  symbol-level source inspection.
+- When GitNexus is available and project policy requires graph analysis, run
+  `impact({target, direction: "upstream"})` before editing an existing symbol.
+  The packet supplies the result when the recipient cannot run it; preserve an
+  `UNKNOWN` result and its text-search confirmation as unresolved evidence.
+- Use repository search and file-reading tools only when they are exposed to
+  this recipient. Supply definitions, callers, relevant paths, or excerpts when
+  the recipient cannot inspect them directly.
+- Run shell commands only through a declared command tool. Dispatch children
+  only when a child-agent tool is exposed and delegation is authorized.
 
-Anti-patterns: Read large file to find one function; Grep "function X" to
-locate a definition; find-and-replace for renaming (use `gitnexus_rename`).
+Avoid reading a large file to find one function or searching for a symbol
+definition in plain text when `cx` is available. Do not require unavailable
+tools; report missing evidence instead.
 
 Report results in the standard shape:
   Conclusion → Changed files → Verification → Risks/Open questions
@@ -74,7 +90,7 @@ relevant standards and evidence references only. A worker must report
 or verification contract; it must not infer missing context from parent
 history.
 
-## DB-access boilerplate (include when the task touches a database)
+## DB-access boilerplate (database scope + available recipient capability)
 
 ```
 You are working with a relational database via the project's Repository layer.
@@ -88,14 +104,19 @@ Conventions:
   interpolation.
 - Bind parameters: `$cmd->bindParam(':id', $id, PDO::PARAM_INT)`.
 
-Before designing any new query:
+Before designing any new query, use an available command/search tool to locate
+existing table usage:
   grep -rl "<target_table>" <repository-dir>   # adjust path to your project's repository layer
+
+If you do not have a command/search tool, the packet author must provide the
+matching repository references and search results so you can inspect existing
+usage first.
 
 If the project enables a different framework module (not yii-1.1), substitute
 the project's repository convention. The above is the dhpk yii-1.1 baseline.
 ```
 
-## Append-only exemption (when adding new symbols only)
+## GitNexus append-only exemption (when required and available)
 
 ```
 You may skip `gitnexus_impact` only when ALL of these hold:

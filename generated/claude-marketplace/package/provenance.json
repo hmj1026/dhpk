@@ -386,7 +386,7 @@
       "sourcePath": "docs/subagent-prompt-template.md",
       "destination": "skills/code-trace/references/_dependencies/docs/subagent-prompt-template.md",
       "kind": "dependency",
-      "sha256": "9989995ffb88bcbac19725223c95ad6e7115fa50347cd0df4238795275ab4208"
+      "sha256": "fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9"
     },
     {
       "skillId": "code-trace",
@@ -394,7 +394,7 @@
       "sourcePath": "rules/execution-policy-kernel.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy-kernel.md",
       "kind": "dependency",
-      "sha256": "d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967"
+      "sha256": "485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a"
     },
     {
       "skillId": "code-trace",
@@ -402,7 +402,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/code-trace/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825"
+      "sha256": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b"
     },
     {
       "skillId": "code-trace",
@@ -410,7 +410,7 @@
       "sourcePath": "rules/tool-routing.md",
       "destination": "skills/code-trace/references/_dependencies/rules/tool-routing.md",
       "kind": "dependency",
-      "sha256": "54c9afaa77e770b05947e3dcd5c4628d50555122e3d362c86f397f630451d4fb"
+      "sha256": "4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039"
     },
     {
       "skillId": "repo-intake",
@@ -578,7 +578,7 @@
       "sourcePath": "skills/code-trace/references/select-tool/decision-tree.md",
       "destination": "skills/code-trace/references/select-tool/decision-tree.md",
       "kind": "entry",
-      "sha256": "b8bcd098aabb626c5d20e72b23f8b08271d686b1d31d9541f53c2bbb25117484"
+      "sha256": "f36950e86873a4d499132e604e3c088e67ac4ebacbc1bb367dbad9eb8d774431"
     },
     {
       "skillId": "code-trace",
@@ -954,7 +954,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/SKILL.md",
       "destination": "skills/dhpk-opsx-apply-goal/SKILL.md",
       "kind": "entry",
-      "sha256": "691e609a50a6003db4b18df29e25c1ff5562a1e72a06980a066669dc0d1e9318"
+      "sha256": "6a323d3c746aa016275732485ce06a68333d3171eebfac396171757ed79f351f"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -978,7 +978,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/subagent-prompt-template.md",
       "kind": "entry",
-      "sha256": "9989995ffb88bcbac19725223c95ad6e7115fa50347cd0df4238795275ab4208"
+      "sha256": "fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1010,7 +1010,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy-kernel.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy-kernel.md",
       "kind": "entry",
-      "sha256": "d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967"
+      "sha256": "485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1018,7 +1018,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825"
+      "sha256": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1034,7 +1034,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/tool-routing.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/tool-routing.md",
       "kind": "entry",
-      "sha256": "54c9afaa77e770b05947e3dcd5c4628d50555122e3d362c86f397f630451d4fb"
+      "sha256": "4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1106,7 +1106,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "5a6c6d17fc99968297a26d6602b159d1ba82f83226368a8ff76c65dfe1413364"
+      "sha256": "5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1138,7 +1138,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "kind": "entry",
-      "sha256": "9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6"
+      "sha256": "3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1154,7 +1154,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/goal-templates.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/goal-templates.md",
       "kind": "entry",
-      "sha256": "a3fcc80dbfa843695d11b14119a484f643f11411f3f7aa7bde52f318576eb05d"
+      "sha256": "9049fb03a3321601ab4ce55c935f12c718af68e88b9131a44fd6c2ae3db09dd1"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1162,7 +1162,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/output-blocks.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/output-blocks.md",
       "kind": "entry",
-      "sha256": "d80e5c783955597d0d19f833597c9d8e13d5a3e7cdf96950f4ab4c040500bea6"
+      "sha256": "c4df6bd7afce3448aba4ddbd547975176c619302503e13f799fbbcf7c5b1f6d9"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1170,7 +1170,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/scripts/analyze-change.sh",
       "destination": "skills/dhpk-opsx-apply-goal/scripts/analyze-change.sh",
       "kind": "entry",
-      "sha256": "4663a0402b0acbc17aa1cb38c231c33b42c9518fc74f5067673b7f80fa610279"
+      "sha256": "b5032ef1d829e4e3814981a6e3876107a050b063c4ad52550a6fe7f156d8d39e"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -1514,7 +1514,7 @@
       "sourcePath": "skills/flow-drive/SKILL.md",
       "destination": "skills/flow-drive/SKILL.md",
       "kind": "entry",
-      "sha256": "e0d919a334b5dddbb65c33e7e300bb4d72f2910729c28b24055efd382f1ecb71"
+      "sha256": "5be7c5d9aceebf82fed9a2a932463b18fad24d647bc6dcfb5389a636bd9fc808"
     },
     {
       "skillId": "flow-drive",
@@ -1530,7 +1530,7 @@
       "sourcePath": "rules/execution-policy-kernel.md",
       "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy-kernel.md",
       "kind": "dependency",
-      "sha256": "d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967"
+      "sha256": "485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a"
     },
     {
       "skillId": "flow-drive",
@@ -1538,7 +1538,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-drive/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825"
+      "sha256": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b"
     },
     {
       "skillId": "flow-drive",
@@ -2306,7 +2306,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md",
       "kind": "entry",
-      "sha256": "9989995ffb88bcbac19725223c95ad6e7115fa50347cd0df4238795275ab4208"
+      "sha256": "fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9"
     },
     {
       "skillId": "flow-drive",
@@ -2338,7 +2338,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy-kernel.md",
       "kind": "entry",
-      "sha256": "d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967"
+      "sha256": "485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a"
     },
     {
       "skillId": "flow-drive",
@@ -2346,7 +2346,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825"
+      "sha256": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b"
     },
     {
       "skillId": "flow-drive",
@@ -2362,7 +2362,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/rules/tool-routing.md",
       "destination": "skills/flow-drive/references/execution-bundle/rules/tool-routing.md",
       "kind": "entry",
-      "sha256": "54c9afaa77e770b05947e3dcd5c4628d50555122e3d362c86f397f630451d4fb"
+      "sha256": "4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039"
     },
     {
       "skillId": "flow-drive",
@@ -2434,7 +2434,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "5a6c6d17fc99968297a26d6602b159d1ba82f83226368a8ff76c65dfe1413364"
+      "sha256": "5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9"
     },
     {
       "skillId": "flow-drive",
@@ -2466,7 +2466,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "kind": "entry",
-      "sha256": "9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6"
+      "sha256": "3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9"
     },
     {
       "skillId": "js-static-check-strategy",
@@ -2706,7 +2706,7 @@
       "sourcePath": "rules/execution-policy-kernel.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy-kernel.md",
       "kind": "dependency",
-      "sha256": "d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967"
+      "sha256": "485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a"
     },
     {
       "skillId": "flow-guide",
@@ -2714,7 +2714,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/flow-guide/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825"
+      "sha256": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b"
     },
     {
       "skillId": "flow-guide",
@@ -2746,7 +2746,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "761991111bd09e6da768e0c18c472a7f692ed9cc4ab01d94cd19ffc9aeea3f17"
+      "sha256": "4611d232a26efd018d9272a6c59899fb0b14cb085e319873407ae466ec6e8e74"
     },
     {
       "skillId": "flow-guide",
@@ -2786,7 +2786,7 @@
       "sourcePath": "skills/flow-guide/references/dispatch-and-gates.md",
       "destination": "skills/flow-guide/references/dispatch-and-gates.md",
       "kind": "entry",
-      "sha256": "5f851ccd98870722f7ad4973c52acdf4c9937466debc8be18f33d623fdfc0bc4"
+      "sha256": "a2e69296f61d89f4051883399a7b6daa19017c646ef5183c50435c92c1480007"
     },
     {
       "skillId": "flow-guide",
@@ -2794,7 +2794,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
       "destination": "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md",
       "kind": "entry",
-      "sha256": "9989995ffb88bcbac19725223c95ad6e7115fa50347cd0df4238795275ab4208"
+      "sha256": "fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9"
     },
     {
       "skillId": "flow-guide",
@@ -2826,7 +2826,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy-kernel.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy-kernel.md",
       "kind": "entry",
-      "sha256": "d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967"
+      "sha256": "485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a"
     },
     {
       "skillId": "flow-guide",
@@ -2834,7 +2834,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/execution-policy.md",
       "kind": "entry",
-      "sha256": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825"
+      "sha256": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b"
     },
     {
       "skillId": "flow-guide",
@@ -2850,7 +2850,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md",
       "destination": "skills/flow-guide/references/execution-bundle/rules/tool-routing.md",
       "kind": "entry",
-      "sha256": "54c9afaa77e770b05947e3dcd5c4628d50555122e3d362c86f397f630451d4fb"
+      "sha256": "4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039"
     },
     {
       "skillId": "flow-guide",
@@ -2922,7 +2922,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "5a6c6d17fc99968297a26d6602b159d1ba82f83226368a8ff76c65dfe1413364"
+      "sha256": "5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9"
     },
     {
       "skillId": "flow-guide",
@@ -2954,7 +2954,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
       "kind": "entry",
-      "sha256": "9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6"
+      "sha256": "3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9"
     },
     {
       "skillId": "flow-guide",
@@ -2962,7 +2962,7 @@
       "sourcePath": "skills/flow-guide/references/handoff-and-verification.md",
       "destination": "skills/flow-guide/references/handoff-and-verification.md",
       "kind": "entry",
-      "sha256": "fcd262ee709803779f9e91e1691011ca620b63d49957a9bdedf7e57fd137c6d3"
+      "sha256": "1de2158fa49c470cc147b4f25e562bae5bed9247cbde12900ae63c7122a10869"
     },
     {
       "skillId": "flow-guide",
@@ -2970,7 +2970,7 @@
       "sourcePath": "skills/flow-guide/references/implementation-dispatch.md",
       "destination": "skills/flow-guide/references/implementation-dispatch.md",
       "kind": "entry",
-      "sha256": "5a6c6d17fc99968297a26d6602b159d1ba82f83226368a8ff76c65dfe1413364"
+      "sha256": "5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9"
     },
     {
       "skillId": "flow-guide",
@@ -3010,7 +3010,7 @@
       "sourcePath": "skills/flow-guide/references/profile-and-project-overrides.md",
       "destination": "skills/flow-guide/references/profile-and-project-overrides.md",
       "kind": "entry",
-      "sha256": "3c8cf03e5ae4105f7c0e1349d1f94325afb911c74cb389597502b26c5ccb0d7e"
+      "sha256": "6a24f6451509dbebb2da47ed3ed7323d015e1ec3581c152d134a0b68d7e2020f"
     },
     {
       "skillId": "flow-guide",
@@ -3026,7 +3026,7 @@
       "sourcePath": "skills/flow-guide/references/projects-generic.md",
       "destination": "skills/flow-guide/references/projects-generic.md",
       "kind": "entry",
-      "sha256": "fa4894a6d595b2730e2a615e725353aa9f614596a9f3227264e9fdf1cd28e8e7"
+      "sha256": "c79256dd848892f69be963b5842fbd6fa86d2a88211363a7df319e1df009c99c"
     },
     {
       "skillId": "flow-guide",
@@ -3074,7 +3074,7 @@
       "sourcePath": "skills/flow-guide/references/task-modes.md",
       "destination": "skills/flow-guide/references/task-modes.md",
       "kind": "entry",
-      "sha256": "a23937b2f6c6ec3ca75295052df4453fdff7b478f582128a35958b5a64c04b71"
+      "sha256": "ac583875f1ed0b12dd3adbbbf29733250714c8be1a522083846299f82f10099a"
     },
     {
       "skillId": "flow-guide",
@@ -3082,7 +3082,7 @@
       "sourcePath": "skills/flow-guide/references/testing-policy.md",
       "destination": "skills/flow-guide/references/testing-policy.md",
       "kind": "entry",
-      "sha256": "9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6"
+      "sha256": "3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9"
     },
     {
       "skillId": "flow-guide",
@@ -3090,7 +3090,7 @@
       "sourcePath": "skills/flow-guide/references/work-item-and-gates.md",
       "destination": "skills/flow-guide/references/work-item-and-gates.md",
       "kind": "entry",
-      "sha256": "c628d47c1679ade987cbd302323c1ff977fd93987ff9c0030faebc5edceee540"
+      "sha256": "db83c535efd66df4d25e93df0ea90cc7e319ae4f554b4d3bc0ca68d960afc6ba"
     },
     {
       "skillId": "flow-guide",
@@ -3106,7 +3106,7 @@
       "sourcePath": "skills/flow-guide/references/workflow-bugfix.md",
       "destination": "skills/flow-guide/references/workflow-bugfix.md",
       "kind": "entry",
-      "sha256": "2018e1613255a981e447e2b82a6c22e4e39623afc0a873b8e9ae07175d439cb2"
+      "sha256": "029b03f1038f1d1d76faae72303c9ed3f11a0b35b40b21868505affab310d252"
     },
     {
       "skillId": "flow-guide",
@@ -3122,7 +3122,7 @@
       "sourcePath": "skills/flow-guide/references/workflow-feature-delivery.md",
       "destination": "skills/flow-guide/references/workflow-feature-delivery.md",
       "kind": "entry",
-      "sha256": "640652f69a3a2585ed1537b7f3c8bcf3a7aad98fb531937d50149994aa9a9cf5"
+      "sha256": "b9efc6cf15bee6757dbb98593a17d3d933e33e4ed4bf4527b3b64517f929d82a"
     },
     {
       "skillId": "flow-guide",
@@ -3338,7 +3338,7 @@
       "sourcePath": "docs/subagent-prompt-template.md",
       "destination": "skills/harness-govern/references/_dependencies/docs/subagent-prompt-template.md",
       "kind": "dependency",
-      "sha256": "9989995ffb88bcbac19725223c95ad6e7115fa50347cd0df4238795275ab4208"
+      "sha256": "fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9"
     },
     {
       "skillId": "harness-govern",
@@ -3346,7 +3346,7 @@
       "sourcePath": "rules/execution-policy-kernel.md",
       "destination": "skills/harness-govern/references/_dependencies/rules/execution-policy-kernel.md",
       "kind": "dependency",
-      "sha256": "d85e01ffc10043bfdde0247cb23af9ca5d87b09d6911a05f803734b9c8dfd967"
+      "sha256": "485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a"
     },
     {
       "skillId": "harness-govern",
@@ -3354,7 +3354,7 @@
       "sourcePath": "rules/execution-policy.md",
       "destination": "skills/harness-govern/references/_dependencies/rules/execution-policy.md",
       "kind": "dependency",
-      "sha256": "77eeadd3650b1dfa003006f1114b56dd48047b842324cebebf00509860bad825"
+      "sha256": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b"
     },
     {
       "skillId": "harness-govern",
@@ -4394,7 +4394,7 @@
       "sourcePath": "skills/tdd-workflow/SKILL.md",
       "destination": "skills/tdd-workflow/SKILL.md",
       "kind": "entry",
-      "sha256": "9813fcbf207b08580f84e5b569ff230e31eee6022f8fe683d3623186a330f850"
+      "sha256": "b3dff0c06601630ccfecf899710a9b87d781e3f095ad83bf012cc68dc2cb4fbd"
     },
     {
       "skillId": "tdd",

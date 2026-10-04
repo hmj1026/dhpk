@@ -186,28 +186,26 @@ test('canonical source changes require explicit update authority', () => {
   }
 });
 
-test('explicit update authority overwrites drifted receipt-owned managed files', () => {
+test('explicit update authority refuses to overwrite modified receipt-owned files', () => {
   const root = makeFixture();
   const outDir = path.join(root, '.agents', 'skills');
   try {
     materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
     write(path.join(root, 'skills', 'dhpk-sample', 'references', 'guide.md'), '# Updated guide\n');
-    write(path.join(outDir, 'dhpk-sample', 'references', 'guide.md'), '# Updated guide\n');
     fs.appendFileSync(path.join(outDir, 'dhpk-sample.md'), '\n# Local drift\n');
+    const beforeUpdate = snapshot(outDir);
     assert.throws(
-      () => materializeAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir }),
+      () => materializeAgentsSkillsProjection({
+        root,
+        inventory: fixtureInventory(),
+        outDir,
+        allowCanonicalChanges: true,
+      }),
       /modified or fingerprint drifted/i,
     );
-    materializeAgentsSkillsProjection({
-      root,
-      inventory: fixtureInventory(),
-      outDir,
-      allowCanonicalChanges: true,
-    });
-    assert.strictEqual(fs.readFileSync(path.join(outDir, 'dhpk-sample', 'references', 'guide.md'), 'utf8'), '# Updated guide\n');
-    assert.doesNotMatch(fs.readFileSync(path.join(outDir, 'dhpk-sample.md'), 'utf8'), /# Local drift/);
-    const checked = validateAgentsSkillsProjection({ root, inventory: fixtureInventory(), outDir });
-    assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+    assert.deepStrictEqual(snapshot(outDir), beforeUpdate);
+    assert.strictEqual(fs.readFileSync(path.join(outDir, 'dhpk-sample', 'references', 'guide.md'), 'utf8'), '# Guide\n');
+    assert.match(fs.readFileSync(path.join(outDir, 'dhpk-sample.md'), 'utf8'), /# Local drift/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

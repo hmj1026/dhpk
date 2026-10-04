@@ -319,8 +319,8 @@
       "id": "codex-supporting-agent-traps-_common-trap-sheet-loader-md",
       "source": "codex/supporting/agent-traps/_common/trap-sheet-loader.md",
       "canonical_source": "agent-traps/_common/trap-sheet-loader.md",
-      "canonical_digest": "3a91e43ff71735426254494e34460df034f1c75ef81995115bd5a31df43ee77b",
-      "projection_digest": "1791f859680eb85074ac25e8e4aeaea5a3fdfbe95871a89695e57371e2fdc9d7",
+      "canonical_digest": "455bd99b50d68c2332a16dbdadc530a51767cccf4e29f6a3473a70c7929a3588",
+      "projection_digest": "a215bceb37660146caa1dd1191ea4efeea173564d03f301b55cc12d87382432b",
       "destination": "dhpk/agent-traps/_common/trap-sheet-loader.md"
     },
     {
@@ -435,8 +435,8 @@
       "id": "codex-supporting-agent-traps-security-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/security-reviewer/yii.md",
       "canonical_source": "agent-traps/security-reviewer/yii.md",
-      "canonical_digest": "3c86b9dc6097b73aba8a1df5426161aa0740e1969b21992bec48766f72e83b93",
-      "projection_digest": "c455e3d172257a01a7331dde8aa188f594150aa3854eec4d17f5b06c5c5fec64",
+      "canonical_digest": "a9193bf4021c69ffef55ce93beea35bc78ec05968c46c35606ad46c0ba6785b0",
+      "projection_digest": "d1b204ec3b44571e13029667c14a02c1d65c1b3c1fdc23b8ddae521aaad6b15d",
       "destination": "dhpk/agent-traps/security-reviewer/yii.md"
     },
     {
@@ -499,7 +499,7 @@
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
       "canonical_digest": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b",
-      "projection_digest": "5566dd124bfb1ce43d4281ce9886913610a9c8009642a1713e00d7a59cfb02b0",
+      "projection_digest": "2bae3a717c8cefe2883a3b7e1f988bcb6807e353c4cdf1698687cfdf7908eb93",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {

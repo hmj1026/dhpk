@@ -178,7 +178,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/tool-routing.md": {
       "skill_id": "opsx-apply-goal",
       "source": "rules/tool-routing.md",
-      "sha256": "sha256:e9428334765f581b4be414cbbe9927e58d3c59054fc31ccd0d8205dbaec2a82f",
+      "sha256": "sha256:4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/fast-worker-selector.js": {
@@ -508,7 +508,7 @@
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
       "skill_id": "flow-drive",
       "source": "rules/tool-routing.md",
-      "sha256": "sha256:e9428334765f581b4be414cbbe9927e58d3c59054fc31ccd0d8205dbaec2a82f",
+      "sha256": "sha256:4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js": {
@@ -634,7 +634,7 @@
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
       "skill_id": "flow-guide",
       "source": "rules/tool-routing.md",
-      "sha256": "sha256:e9428334765f581b4be414cbbe9927e58d3c59054fc31ccd0d8205dbaec2a82f",
+      "sha256": "sha256:4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js": {

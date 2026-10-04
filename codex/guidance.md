@@ -120,7 +120,7 @@ When `$flow-guide` or `$flow-drive` is available, the roles below remain `/agent
 dispatch targets for the downstream handoff:
 
 - **Bug with unknown root cause**: use `bug-investigator` only for bounded intake triage; escalate confirmed reasoning-heavy cases to `deep-reasoner`, then invoke `worker` and `code-reviewer`.
-- **New feature / cross-module design**: invoke `architect` to decide layer placement, then `tdd-guide` to write tests first. If the settled GREEN footprint is ≤2 production files, `tdd-guide` may finish it and proceed to review; dispatch `worker` only for a larger-footprint handback, then invoke `code-reviewer`.
+- **New feature / cross-module design**: invoke `architect` to decide layer placement, then `tdd-guide` to write tests first. After RED, `tdd-guide` may finish GREEN when ownership is clear, coupling is bounded, the test seam is settled, and material risk fits the role; otherwise return a fast-worker-ready handback, then invoke `code-reviewer`. TDD and explicit higher-priority instructions remain binding.
 - **Investigation / "how does X work?"**: invoke `explorer` (read-only, no edits).
 - **Deep root-cause analysis or algorithm design**: invoke `deep-reasoner`.
 

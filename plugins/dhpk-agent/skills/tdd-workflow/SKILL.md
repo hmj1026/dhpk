@@ -37,6 +37,11 @@ Use this mode for `tdd-guide` and any task that owns test strategy:
 7. Repeat one vertical slice at a time; run the applicable full suite at phase
    exit rather than broad speculative tests on every loop.
 
+Choose inline implementation or a worker handback from ownership, coupling,
+the settled test seam, and material risk. A file count alone does not decide
+the route. Preserve any explicit higher-priority instruction or acceptance
+requirement that governs the task.
+
 Tests must assert return values, emitted state, or caller-visible side effects.
 Do not test private methods, internal call counts, or a value through a side
 channel that bypasses the public interface. Expected values must come from a

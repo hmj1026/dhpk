@@ -105,6 +105,10 @@ edits. Loads the following on demand:
 
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
 
+This is a read-only review role. Report frontend findings and bounded fixes for
+the owner; do not edit source, templates, tests, or configuration, and do not
+autofix the reviewed scope.
+
 ### Specialist checks
 
 This file retains browser, DOM, JS, and frontend-regression checks unique to `frontend-reviewer`.

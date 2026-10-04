@@ -6,3 +6,10 @@ Shared procedure for loading stack-specific traps on demand, referenced by gener
 2. For each detected stack `S`, Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/<agent-name>/<S>.md` if it exists and apply those traps; ignore stacks with no sheet. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/<agent-name>" -name '<S>.md'`.)
 
 Callers that need extra agent-specific manifest signals or module-id remapping beyond the above (e.g. a `fastapi` dependency, `vue-2`→`vue`, or a `frontend`/`ios` stack-id consolidation for perf sheets) document that exception inline in their own "Stack trap sheet" section rather than here — those remain agent-specific exceptions, not part of the shared fallback shape.
+
+Stack sheets are conditional evidence, not a universal pattern library. A
+matching sheet may add checks for the detected framework or engine; it must not
+turn an example from another stack into a requirement. When the required child
+dispatch capability is unavailable, the owning role reports an escalation and
+the unresolved outcome rather than inventing a delegate or silently changing
+authority.

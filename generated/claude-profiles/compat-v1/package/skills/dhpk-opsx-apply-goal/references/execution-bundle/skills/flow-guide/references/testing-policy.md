@@ -9,6 +9,18 @@ behavior, an important safety decision, or a high-impact side effect that can
 be exercised reliably. Prefer an existing CLI, hook, install, or distribution
 entry point and assert its observable result.
 
+Select checks from changed behavior and acceptance criteria. Reuse existing test
+or runtime evidence only when scope, relevant source and specification content,
+command and configuration, tool, and environment still apply. Recheck affected
+evidence after any such binding changes; unrelated changes do not require a full
+rerun when recorded bindings remain applicable.
+
+Run mutating checks such as formatters, generators, fixture refreshes, package
+materialization, or migrations before final affected tests and review. If a
+mutation happens afterward, rerun affected checks. A focused pass covers that
+scope only and does not replace applicable plugin, archive, CI, formal-package,
+or pre-tag checkpoints.
+
 A script or helper does not need a dedicated test by default. Thin wrappers
 can be exercised through their entry point, and helpers without independent
 behavior may remain untested. Organize suites around behavior or contracts;
@@ -38,3 +50,9 @@ with small fixtures rather than live skill documents. Content-size or discovery
 measurements may be requested as informational reports; they do not create a
 prose-correctness contract. Actual Host and package compatibility constraints
 remain enforced where they affect shipped behavior.
+
+Use explicit outcomes for every applicable check: `PASS`, `FAIL`, `BLOCKED`, or
+`NOT_RUN`; use `UNAVAILABLE` when an attempted provider or runtime cannot execute
+the check. `SKIPPED` is a visible non-pass outcome when a recommended check was
+deliberately omitted. A missing capability or unsupported runner cannot become
+`PASS` through a manual workaround; record that observation separately.

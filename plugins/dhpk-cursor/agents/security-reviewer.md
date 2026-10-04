@@ -38,7 +38,13 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 - **Secrets in code** — hardcoded API keys, passwords, tokens, or connection strings. Move to env / secret store; rotate anything already committed.
 - **Unvalidated file upload** — extension / MIME / size unchecked, or the file lands inside the webroot. Whitelist type, verify content, cap size, store outside the webroot.
 - **Sensitive data in logs** — PAN / passwords / tokens / PII in logs or error responses. Mask (PAN last-4, password `[REDACTED]`); keep detail out of the client-facing response.
-- **Missing CSRF on state-changing forms** — POST / PUT / DELETE handlers without an anti-CSRF token. Require the framework's CSRF token on every state-changing request.
+- **Request forgery** — assess CSRF only when the request authenticates with
+  ambient browser credentials (cookies, HTTP auth, or another automatically
+  attached credential) and the framework/request context provides a token
+  mechanism. For bearer-token, signed, webhook, service-to-service, or other
+  non-browser-authenticated requests, assess replay, origin, signature, and
+  authorization controls that actually apply; do not require an inapplicable
+  CSRF token. No role, including admin, receives a universal exemption.
 
 ## Severity anchors (cross-stack)
 
@@ -60,10 +66,26 @@ Document the finding → alert the owner → supply the secure fix → verify th
 
 - `echo $var` of server-side constant — no XSS path
 - `(int)` cast before SQL concat — uninjectable
-- Internal admin without CSRF when `accessRules` enforces login + IP/VPN
+- A CSRF conclusion without identifying the authentication mode, browser
+  credential behavior, request context, and a concrete cross-site attack path
+- A role or network label used as a blanket CSRF exemption
 - Logging `user_id` / `order_id` (not PII)
 
 Before reporting: *what attack does this enable?* No path → don't report.
+
+For each HIGH or CRITICAL conclusion, state the enabled attack or concrete
+financial failure, the trust-boundary crossing, the reachable principal and
+resource, and the control that is absent or bypassed. A matching syntax pattern
+is a lead for investigation, not a severity verdict.
+
+## Child-dispatch boundary
+
+This role is read-only and reports findings only; it does not edit code or
+configuration or apply fixes unless a separate write authority explicitly
+delegates that scope. If a required specialist or child-dispatch tool is not
+available, return an explicit escalation naming the missing capability and the
+security question it would cover. Do not require an unavailable delegate or
+silently substitute a different writer.
 
 ## Shared reviewer contract
 
