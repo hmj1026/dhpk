@@ -38,7 +38,7 @@ Load `${CLAUDE_PLUGIN_ROOT}/agent-traps/e2e-runner/playwright.md` on **every** d
 ```bash
 npx playwright test                      # run all
 npx playwright test tests/auth.spec.ts   # one file
-npx playwright test --repeat-each=10     # flakiness hunt
+npx playwright test --repeat-each=10     # only for suspected flakiness or an explicit acceptance requirement
 npx playwright test --trace on           # trace for debugging
 npx playwright show-report               # HTML report
 ```
@@ -47,13 +47,17 @@ npx playwright show-report               # HTML report
 
 1. **Plan** — identify critical journeys (auth, core CRUD, payments) and scenarios (happy / edge / error). Prioritize by risk: HIGH (money, auth) → MEDIUM (search, nav) → LOW (UI polish). **Render-surface completeness**: when a feature makes a field or output that was previously *always empty* begin to hold real data, inventory every render surface that consumes it — screen/edit, print, and export — and plan a journey for each, not only the edit/API path; a surface no journey exercises can hide a latent formatting bug (e.g. a print-layout misalignment) invisible on the tested surfaces.
 2. **Create** — Page Object Model; prefer `data-testid` locators (> CSS > XPath); assert at every key step; capture screenshots at critical points; use condition waits, never `waitForTimeout`.
-3. **Execute** — run locally 3-5× to surface flakiness; quarantine unstable tests; confirm artifacts are produced.
+3. **Execute** — run the focused journey once, then run only the project's configured and applicable checks. Repeat a journey when there is evidence of flakiness or the acceptance contract explicitly requires it; give each repeat a purpose and record the result. Quarantine an unstable test only with its failure evidence and tracking reference. Confirm required artifacts are produced.
 
 ## Verdict gate
 
-Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project's typecheck command (`tsc --noEmit` or the project's equivalent). A verdict is NOT GREEN/PASS while typecheck fails, even if the Playwright assertions pass — a type error can mask a test silently exercising the wrong code path.
+If Playwright or the browser capability is unavailable, return `Verdict: BLOCKED` as the first line with the missing capability and the exact command needed to resume.
 
-The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line of the reply (consistent with the `pass_rate` + PASS/WARNING/FAIL shape in `docs/contracts/artifact-contract.md`): FAIL = typecheck fails or any critical-journey test fails, WARNING = non-critical failures / flaky tests quarantined / pass rate below the 95% success metric, PASS = all critical journeys green and typecheck passes. It may additionally note the RED/GREEN language it already uses elsewhere in the reply.
+Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project's configured typecheck or static checks when they are applicable to the changed scope. A failed applicable check blocks PASS even if the Playwright assertions pass. If no such check is configured or applicable, report that check as `NOT_RUN` with the reason; do not invent a generic command or treat its absence as a pass.
+
+The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line of the reply (consistent with the `pass_rate` + PASS/WARNING/FAIL shape in `docs/contracts/artifact-contract.md`): FAIL = an applicable static check fails or any critical-journey test fails, WARNING = non-critical failures or quarantined flakiness remain, PASS = all required critical journeys and applicable checks are green. It may additionally note the RED/GREEN language it already uses elsewhere in the reply.
+
+Static and package checks do not establish browser or runtime behavior. When the browser, server, or required runtime is unavailable, report the specific journey and evidence that remain `NOT_RUN` or `BLOCKED`; never claim a critical journey PASS from source or package validation alone.
 
 ## Key principles
 
@@ -82,9 +86,9 @@ Quarantine with `test.fixme()` / `test.skip()` and a tracking reference — neve
 
 If the same test fails for the same reason **3 times**, stop iterating — report the failure, the suspected root cause (app bug vs test bug vs environment), and the captured trace. Do not keep re-running or pile on retries to force green.
 
-## Success metrics
+## Acceptance metrics and evidence
 
-Critical journeys 100% passing · overall pass rate > 95% · flaky rate < 5% · suite < 10 min · artifacts produced and accessible.
+The project or task acceptance contract defines any required suite success rate, flaky tolerance, and duration target. Do not apply universal percentages or time limits. Preserve evidence for every critical-journey failure, fixture-isolation problem, cleanup failure, and required trace or screenshot; report the affected journey and artifact path even when the overall result is WARNING or FAIL. Each journey must remain independently seeded and cleaned up, and a shared-database seed must be rolled back or explicitly deleted before reporting the verdict.
 
 ## Closing — Artifact Output
 

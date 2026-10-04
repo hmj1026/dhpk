@@ -1,0 +1,1 @@
+Clarify E2E acceptance guidance so focused journeys run once by default, configured checks are selected by applicability, and retries, thresholds, runtime gaps, and critical journey evidence remain explicit.
