@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change dhpk-orchestration-workers. Update Purpose after archive.
+Defines implementation routing across inline work, worker tiers, and specialist roles while preserving dispatch ownership and verification boundaries.
 
 ## Requirements
 >
@@ -17,11 +17,11 @@ TBD - created by archiving change dhpk-orchestration-workers. Update Purpose aft
 
 - Reasoning-heavy work (unknown root cause, algorithm design, cross-file complex analysis) → `deep-reasoner`
 - Purely mechanical work with a clear, spec-exact task (boilerplate, test scaffolds, rename sweeps, CLI-backed repetitive edits) → a Provider-neutral Dispatch Engine `worker` target
-- Judgment-dense but standardizable work touching more than two files (bounded description migrations, bilingual documentation restructuring, or a batch of known review fixes) → the Provider-neutral in-process `worker` tier by default
-- Small diffs (roughly ≤2 files with unambiguous intent) → inline in the main loop
-- Complex implementation → `deep-reasoner` produces the fix spec, then the resolved Provider-neutral `worker` tier applies it
+- Judgment-dense but standardizable work with a bounded, repeatable intent, known verification, and a coordination or consistency benefit from a shared owner → the Provider-neutral in-process `worker` tier when delegation fits
+- Work with settled decisions, one clear owner, adequate local context, and low coordination need → inline in the main loop, regardless of file count
+- Complex implementation → `deep-reasoner` resolves the non-trivial uncertainty before a writer; select inline or the resolved Provider-neutral `worker` tier from ownership, coupling, context locality, verification needs, and coordination benefit
 - RED PHPUnit unit/integration test that must be authored test-first and run against a live DB (e.g. Testbench / docker MySQL) → `tdd-guide` — distinct from `e2e-runner` (Playwright), read-only `deep-reasoner` (cannot run a test), and the `worker` tier (whose "make verification pass" contract conflicts with authoring a failing RED test)
-- Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end → `dhpk:planner`, opt-in via `/dhpk:do --plan` on the implementation-class routes (`dhpk:adaptive-dev-workflow`, `dhpk:opsx-apply-goal`)
+- Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end → `dhpk:planner`; pre-implementation consultation is explicit via `/dhpk:do --plan` on the implementation-class routes (`dhpk:adaptive-dev-workflow`, `dhpk:opsx-apply-goal`), while a missing planning outcome may also warrant a consult
 - Dispatching `general-purpose` for implementation is prohibited while `orchestration_dispatch=on`
 
 For a parallel mechanical batch, the section SHALL require every worker task spec to declare `Parallel: yes`, exact assigned repo-relative file paths, per-file intent, and a path-scoped verification command or explicit report-only outcome. Globs, directory guesses, and unlisted generated files are not valid scope; a worker that needs another file SHALL return `BLOCKED` rather than expand the list. A worker SHALL treat that assigned list as its write, diff, and verification boundary. Shared validators and ratchet/configuration files are reconciled once by the orchestrator after the batch.
@@ -30,7 +30,7 @@ Workers MAY report out-of-scope observations, but an out-of-scope write SHALL re
 
 When a validator reads or modifies shared ratchet/configuration state, workers SHALL use a dispatcher-provided scoped or no-write equivalent. If none exists, the default result is `BLOCKED`; report-only is permitted only when explicitly declared by the dispatcher. A task whose intended output includes shared state SHALL run serially.
 
-The section SHALL additionally state an **orchestrator posture**: the main session is the expensive, high-capability orchestrator whose implement-phase job is to decide, dispatch, and verify — not to hand-type mechanical edits. Dispatch to a worker is the **default**; inline is a **narrow exception**, not a co-equal option. The section SHALL state that the "≤2 files" inline bound is measured on the **whole implement-step footprint, not each individual Edit** — a run of individually-small mechanical edits that together touch more than two files is one `fast-worker` dispatch (batched into a single fix-spec), and that **when the choice between inline and `fast-worker` is unclear, the orchestrator dispatches**. The section SHALL further state a **plan-brief discipline** sentence: any brief assembled for a dispatched agent — including the `dhpk:planner` plan brief — SHALL follow conclusions-not-context, a bounded token budget, and a lookup fence, so downstream skills that build their own briefs for `dhpk:planner` follow the same shape.
+The section SHALL additionally state an **orchestrator posture**: the main session is the high-capability owner of the requested outcome whose implement-phase job is to decide, assign ownership, and verify. It SHALL select inline, worker, or parallel work from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit; task and file counts alone SHALL NOT trigger planning or delegation. A sufficient plan from any producer MAY be reused, and a supported explicit `--plan` request remains an explicit planner consult. The section SHALL further state a **plan-brief discipline** sentence: any brief assembled for a dispatched agent — including the `dhpk:planner` plan brief — SHALL follow conclusions-not-context, a bounded token budget, and a lookup fence, so downstream skills that build their own briefs for `dhpk:planner` follow the same shape.
 
 Downstream skills SHALL reference this section, not restate it.
 
@@ -39,20 +39,35 @@ Downstream skills SHALL reference this section, not restate it.
 - **WHEN** adaptive-dev-workflow reaches Implement with an approved, precise plan
 - **THEN** the orchestrator dispatches the Provider-neutral Dispatch Engine `worker` target, not `general-purpose`
 
-#### Scenario: Judgment-dense batch routes to the in-process fast-worker
+#### Scenario: Coordination benefit routes a standardizable batch to the in-process fast-worker
 
-- **WHEN** an implement step has a bounded, standardizable intent touching three or more files but requires consistent wording or cross-file judgment
-- **THEN** the orchestrator dispatches the Provider-neutral in-process `worker` tier with one fix-spec rather than authoring the batch inline
+- **WHEN** an implement step has a bounded, standardizable intent whose independent ownership or consistency needs make a separate worker useful
+- **THEN** the orchestrator dispatches the Provider-neutral in-process `worker` tier with one fix-spec because of that coordination benefit, regardless of file count
 
-#### Scenario: Small diff stays inline
+#### Scenario: Settled cohesive work stays inline
 
-- **WHEN** the change is a 1-file, unambiguous edit
-- **THEN** the orchestrator implements inline without dispatching any worker
+- **WHEN** a settled implementation has one clear owner, adequate local context, and low coordination need, even if its approved scope touches multiple files
+- **THEN** the orchestrator may implement inline without dispatching a worker based solely on file count
 
-#### Scenario: Multi-file mechanical work is not salami-sliced into inline
+#### Scenario: Independent ownership can warrant delegation
 
-- **WHEN** an implement step applies a clear, mechanical spec that together touches more than two files (e.g. a doc mirror plus a script and its test)
-- **THEN** the orchestrator dispatches one selector-resolved fast-worker with one batched fix-spec rather than performing the edits inline on the grounds that each individual edit is small
+- **WHEN** a settled implementation has independently owned scopes, meaningful coupling boundaries, or coordination risk that benefits from a separate owner
+- **THEN** the orchestrator may assign bounded worker scopes for those reasons without using task or file counts as the trigger
+
+#### Scenario: Adequate plan is reused
+
+- **WHEN** existing text, a file, or a report establishes scope, outcomes, supporting observations, and remaining gaps for an implementation with multiple tasks
+- **THEN** the orchestrator reuses that evidence and does not dispatch a planner solely because of task count
+
+#### Scenario: Missing outcome receives a targeted follow-up
+
+- **WHEN** existing planning evidence leaves one material dependency or ownership decision unresolved
+- **THEN** the orchestrator seeks that specific outcome before dependent writes without repeating settled planning work
+
+#### Scenario: Explicit planning consult remains available
+
+- **WHEN** `/dhpk:do --plan` is explicitly requested on an implementation-class route
+- **THEN** the planner consult runs under the existing interface even when a sufficient plan already exists
 
 #### Scenario: Ambiguous inline-vs-worker choice resolves to dispatch
 
@@ -108,12 +123,12 @@ SHALL restate worker/reasoner decision rows.
 
 ### Requirement: opsx-apply-goal emits the dispatch directive for unattended sessions
 
-When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condition emitted by `skills/opsx-apply-goal/SKILL.md` SHALL include a **compact** posture-first dispatch directive that (a) names the session as the orchestrator, (b) carries a one-line dispatch roster — mechanical/multi-file clear-spec work to the Provider-neutral `worker` tier (implemented by `dhpk:fast-worker` where applicable), reasoning-heavy work to the Provider-neutral `reasoner` tier (implemented by `dhpk:deep-reasoner` where applicable), RED PHPUnit unit/integration tests to `dhpk:tdd-guide`, Playwright RED/E2E specs to `dhpk:e2e-runner` — (c) restricts inline editing to a ≤2-file whole-implement-step footprint plus the orchestrator's own bookkeeping (tasks.md checkboxes, sentinel handling), (d) prohibits `general-purpose` for implementation, (e) states the retired CODEX interface and its blocking deprecation diagnostic explicitly on one line, without treating it as a peer, worker, or reasoner selector, and (f) carries the self-locating pointer to `rules/execution-policy.md` — resolved via `$CLAUDE_PLUGIN_ROOT` first, then the newest installed cache path, never a filesystem scan — which the orientation step reads. The behavioral elaborations that previously rode Part 0 — the dispatch-verify procedure, the doc-consistency example, "when unsure, dispatch", premise-verification routing (deep-reasoner vs e2e-runner/scratch-probe), and the explicit second-opinion path — reside in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §High-stakes second opinion after flag retirement) and SHALL NOT be restated in the emitted condition; they bind the session through the orientation-step policy read, with the condition's inline roster and gates as the fallback when the policy file is unresolvable. The Part 1–4 stop/verification conditions retain their semantics; worker-produced sentinels still converge through the universal `ls .pending-*` gate (Part 2). The skill's Verification checklist SHALL assert the compact directive's presence — orchestrator naming, the four-role roster, the inline bound, the `general-purpose` prohibition, the retired CODEX/deprecation line, and the policy pointer — when `DISPATCH_ON=true`, and SHALL assert the relocated elaborations are present in `rules/execution-policy.md` rather than in the template.
+When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condition emitted by `skills/dhpk-opsx-apply-goal/SKILL.md` SHALL include a **compact** posture-first dispatch directive that (a) names the session as the orchestrator, (b) carries a one-line dispatch roster — bounded mechanical work to the Provider-neutral `worker` tier (implemented by `dhpk:fast-worker` where applicable), reasoning-heavy work to the Provider-neutral `reasoner` tier (implemented by `dhpk:deep-reasoner` where applicable), RED PHPUnit unit/integration tests to `dhpk:tdd-guide`, Playwright RED/E2E specs to `dhpk:e2e-runner` — (c) states that inline, worker, or parallel execution is selected from ownership, coupling, context locality, scope clarity, verification needs, and coordination benefit, with task and file counts alone not creating a gate, (d) prohibits `general-purpose` for implementation, (e) states the retired CODEX interface and its blocking deprecation diagnostic explicitly on one line, without treating it as a peer, worker, or reasoner selector, and (f) carries the self-locating pointer to `rules/execution-policy.md` — resolved via `$CLAUDE_PLUGIN_ROOT` first, then the newest installed cache path, never a filesystem scan — which the orientation step reads. The behavioral elaborations that previously rode Part 0 — the dispatch-verify procedure, the doc-consistency example, premise-verification routing (deep-reasoner vs e2e-runner/scratch-probe), and the explicit second-opinion path — reside in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §High-stakes second opinion after flag retirement) and SHALL NOT be restated in the emitted condition; they bind the session through the orientation-step policy read, with the concise posture, roster, and hard authority gates as the fallback when the policy file is unresolvable. The Part 1–4 stop/verification conditions retain their semantics; worker-produced sentinels still converge through the universal `ls .pending-*` gate (Part 2). The skill's Verification checklist SHALL assert the compact directive's presence — orchestrator naming, the four-role roster, outcome-based routing posture, the `general-purpose` prohibition, the retired CODEX/deprecation line, and the policy pointer — when `DISPATCH_ON=true`, and SHALL assert the relocated elaborations are present in `rules/execution-policy.md` rather than in the template.
 
 #### Scenario: Dry-run output includes the compact directive
 
 - **WHEN** `/dhpk:opsx-apply-goal <change-id> --dry-run` runs with dispatch enabled
-- **THEN** the emitted `/goal` Part 0 names the session as orchestrator, carries the one-line four-role roster, bounds inline to a ≤2-file whole-step footprint plus bookkeeping, prohibits `general-purpose`, states the retired CODEX/deprecation status, and points to the self-locating execution-policy path — without restating the premise-verification, doubt-cycle, or explicit second-opinion elaborations
+- **THEN** the emitted `/goal` Part 0 names the session as orchestrator, carries the one-line four-role roster, states the outcome-based routing posture with no task/file-count gate, prohibits `general-purpose`, states the retired CODEX/deprecation status, and points to the self-locating execution-policy path — without restating the premise-verification, doubt-cycle, or explicit second-opinion elaborations
 
 #### Scenario: Dispatch disabled
 
@@ -437,7 +452,7 @@ When `orchestration_dispatch` operates inside an unattended `/goal`-driven sessi
 
 ### Requirement: opsx-apply-goal Part 0 carves out hard-rule conflicts from "without stopping for confirmation"
 
-`skills/opsx-apply-goal/SKILL.md` Part 0 SHALL state that "without stopping for confirmation" governs ordinary implementation judgment calls only, and SHALL NOT be read to authorize proceeding past an explicit project hard-rule conflict; Part 4 SHALL carry a corresponding stop clause that writes the hard-rule escalation artifact and ends the turn.
+`skills/dhpk-opsx-apply-goal/SKILL.md` Part 0 SHALL state that "without stopping for confirmation" governs ordinary implementation judgment calls only, and SHALL NOT be read to authorize proceeding past an explicit project hard-rule conflict; Part 4 SHALL carry a corresponding stop clause that writes the hard-rule escalation artifact and ends the turn.
 
 #### Scenario: Part 0 states the carve-out explicitly
 
@@ -562,17 +577,17 @@ requested and selected target and SHALL apply only policy-approved fallback.
 
 ### Requirement: Post-review fix application is a dispatch-table row
 
-The execution-policy dispatch decision table SHALL contain a row routing post-review fix application — reviewer findings forming a clear fix-spec whose whole batch exceeds the ≤2-file inline bound — to the Provider-neutral `worker` tier (in-process or adapter-resolved by the Dispatch Engine). The inline exception SHALL be measured on the whole fix batch, not per finding.
+The execution-policy dispatch decision table SHALL contain a row routing post-review fix application according to the whole fix batch's ownership, coupling, context locality, verification needs, and coordination benefit. A separate Provider-neutral `worker` owner is appropriate when it improves focus or coordination; file count alone SHALL NOT require delegation.
 
-#### Scenario: Orchestrator receives multi-file review findings
+#### Scenario: Review-fix batch benefits from a separate owner
 
-- **WHEN** consolidated review returns findings spanning more than two files
-- **THEN** the orchestrator dispatches the fixes as one batched fast-worker task instead of applying them inline
+- **WHEN** consolidated review returns a bounded fix batch with coordination or ownership needs that benefit from a separate worker
+- **THEN** the orchestrator dispatches one batched fast-worker task regardless of file count
 
-#### Scenario: Single trivial finding stays inline
+#### Scenario: Cohesive review-fix batch stays inline
 
-- **WHEN** the whole fix batch is a one-file, few-line edit
-- **THEN** the inline exception applies and no dispatch is required
+- **WHEN** the whole fix batch has a clear owner, adequate local context, and low coordination need
+- **THEN** the orchestrator may apply it inline regardless of file count
 
 ### Requirement: Specialist fix-spec handback is a dispatch-table row
 
@@ -580,22 +595,22 @@ The dispatch decision table SHALL contain a row routing fix-specs handed back by
 
 #### Scenario: tdd-guide hands back a GREEN fix-spec
 
-- **WHEN** tdd-guide returns RED tests plus a fix-spec exceeding the inline bound
+- **WHEN** tdd-guide returns RED tests plus a fix-spec whose bounded ownership or verification needs benefit from a separate writer
 - **THEN** the orchestrator dispatches the selector-resolved fast-worker with that fix-spec and re-runs the scoped tests as acceptance
 
 ### Requirement: RED Vitest/Jest tests have an explicit dispatch row
 
-The execution-policy Implementation dispatch table SHALL include a row for RED Vitest/Jest tests with the same routing semantics as the existing RED PHPUnit row: route to `tdd-guide`, with the inline exception permitted when the step's whole footprint is 2 files or fewer.
+The execution-policy Implementation dispatch table SHALL include a row for RED Vitest/Jest tests with routing based on test-first requirements, test seam, runtime setup, ownership, and task risk. A separate `tdd-guide` consult or handoff is appropriate when specialist test strategy or setup is needed; task/file count alone SHALL NOT determine the route.
 
 #### Scenario: RED Vitest test routes to tdd-guide
 
-- **WHEN** the orchestrator faces a failing (RED) Vitest or Jest test whose fix footprint exceeds 2 files
-- **THEN** the dispatch table directs it to `tdd-guide` rather than leaving the routing to ad-hoc judgment
+- **WHEN** a RED Vitest or Jest test has a non-trivial test seam or runtime setup that benefits from specialist strategy
+- **THEN** the dispatch table directs the work to `tdd-guide` without using file count as the criterion
 
 #### Scenario: Small Vitest fix stays inline
 
-- **WHEN** a RED Vitest/Jest fix has a whole-step footprint of 2 files or fewer
-- **THEN** the table permits inline handling, mirroring the PHPUnit row
+- **WHEN** a RED Vitest/Jest test has a settled seam, adequate local context, and one clear owner
+- **THEN** the table permits inline or existing-worker handling according to the task's ownership and verification needs
 
 ### Requirement: Reasoner backend selection is a dispatch-table row
 

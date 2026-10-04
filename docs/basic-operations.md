@@ -358,22 +358,26 @@ execution, and verification failures remain blocked.
 
 ### OpenSpec lifecycle boundary
 
-For unclear or multi-session work, record a wayfinder checkpoint, then use
-`/opsx:new` or `/opsx:ff` to author `openspec/changes/<change-id>/` artifacts.
-After the Planning Review Gate, apply with the external `/opsx:apply <change>`
-entry or the confirmed `$flow-drive <change-id>` entry. A plan, passing validator, or
-all-green test run is not archival evidence. Completion requires task checkboxes,
-applicable verification gates, review obligations, and human-only actions to be
-resolved; archive, issue closure, and release publication remain separate steps.
+When acceptance, cross-session handoff, or auditability needs an OpenSpec record
+and adequate artifacts do not already exist, record a bounded wayfinder
+checkpoint, then use `/opsx:new` or `/opsx:ff` to author
+`openspec/changes/<change-id>/` artifacts. Reuse sufficient plans and approved
+specifications without creating a duplicate. After the applicable review, apply
+with the external `/opsx:apply <change>` entry or the confirmed
+`$flow-drive <change-id>` entry. A plan, passing validator, or all-green test run
+is not archival evidence. Completion requires task checkboxes, applicable
+verification gates, review obligations, and human-only actions to be resolved;
+archive, issue closure, and release publication remain separate steps.
 
 Before implementation, record `Decision: CLEAR`, `REASONER_REQUIRED`,
 `HUMAN_REQUIRED`, or `BLOCKED`. A domain-boundary ownership question consults
 `architect` first; if uncertainty remains, record `REASONER_REQUIRED` and obtain
-a read-only reasoner result before any writer. Two or more unchecked OpenSpec
-tasks require a planner before the first write wave. Its result states dependency
-order, each task's exact owner and write scope, and the next checkpoint. For one
-clear task, record `planner=skipped`. The external `/opsx:apply` workflow is
-unchanged.
+a read-only reasoner result before any writer. Reuse an adequate plan regardless
+of its task count, and ask only for a missing outcome that could change the work.
+Consult a planner when unresolved decisions, dependencies, ownership, sequencing,
+or material risk leave planning necessary; honor an explicit supported consult
+request as well. Task count alone does not require a planner. The external
+`/opsx:apply` workflow is unchanged.
 
 After each implementation wave, dispatching the applicable reviewers in one
 parallel batch is recommended; fix CRITICAL findings before reporting done.

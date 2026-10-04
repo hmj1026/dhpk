@@ -39,19 +39,24 @@ Every reasoner-gated decision SHALL preserve a compact result with `## Conclusio
 - **WHEN** the reasoner lacks the required runtime or repository evidence
 - **THEN** the result is `BLOCKED`, no write dispatch occurs, and the user receives the blocker and next evidence request
 
-### Requirement: Multi-task OpenSpec applies use a planner ordering gate
+### Requirement: Planning responds to missing outcomes and coordination needs
 
-Before implementing an OpenSpec change with two or more unchecked tasks, the coordinator SHALL dispatch the project planner to order dependencies, identify task ownership, and name the next checkpoint. A single clear task MAY skip the planner only when the coordinator records the reason in the execution report. The planner is read-only and cannot authorize a write outside the approved task scope.
+Before implementation, the coordinator SHALL assess whether current evidence establishes the requested scope, intended outcomes, relevant observations, ownership, dependencies, and remaining gaps. An adequate plan from any producer MAY be used as-is. The coordinator SHALL request only a missing outcome and SHALL NOT dispatch a planner solely because an OpenSpec task count is above a threshold. A planner consult is appropriate when an unresolved decision, dependency order, ownership boundary, cross-owner sequence, or named material risk leaves a planning outcome missing. An explicit supported planning-consult request SHALL still be honored regardless of task count or plan sufficiency. The planner remains read-only and cannot authorize writes outside the approved task scope. Bounded Consult option grammar and budgets remain owned by #815.
 
-#### Scenario: Multi-task change receives an ordered plan
+#### Scenario: Adequate plan is reused regardless of task count
 
-- **WHEN** an OpenSpec apply has at least two unchecked tasks
-- **THEN** the coordinator obtains a planner result before the first write wave and executes tasks in the returned dependency order
+- **WHEN** an OpenSpec apply has multiple unchecked tasks and its supplied plan already establishes scope, outcomes, dependencies, ownership, and remaining gaps
+- **THEN** the coordinator reuses that plan without a duplicate planner dispatch and proceeds in its applicable dependency order
 
-#### Scenario: One clear task records a planner skip
+#### Scenario: Only a missing planning outcome is requested
 
-- **WHEN** an OpenSpec apply has one unchecked task with a complete, unambiguous scope
-- **THEN** the coordinator records `planner=skipped` with the clear-task reason and proceeds to the appropriate worker or inline path
+- **WHEN** a supplied plan establishes the intended outcomes but leaves one dependency owner unresolved
+- **THEN** the coordinator asks for or establishes that specific ownership outcome without repeating settled decisions or rebuilding the plan
+
+#### Scenario: Explicit consult request remains effective
+
+- **WHEN** a supported explicit planning-consult option is requested, even though existing planning evidence is adequate
+- **THEN** the coordinator honors the consult under its existing parser, capability, and budget rules; task count alone neither requires nor prevents it
 
 ### Requirement: Each implementation wave has a review checkpoint and bounded fix loop
 

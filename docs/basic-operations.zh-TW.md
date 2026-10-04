@@ -338,19 +338,20 @@ verification failure 都維持 blocked。
 
 ### OpenSpec 生命週期邊界
 
-不明確或跨 session 的工作先記錄 wayfinder checkpoint，再用 `/opsx:new` 或 `/opsx:ff`
-建立 `openspec/changes/<change-id>/` artifacts。通過 Planning Review Gate 後，以外部
-`/opsx:apply <change>` 或已確認的 `$flow-drive <change-id>` entry 實作。
+若 acceptance、跨 session handoff 或 auditability 需要 OpenSpec 記錄，而且尚無足夠 artifacts，
+先記錄有界的 wayfinder checkpoint，再用 `/opsx:new` 或 `/opsx:ff` 建立
+`openspec/changes/<change-id>/` artifacts。沿用充分計畫與已批准規格，不建立重複文件。完成適用的
+review 後，以外部 `/opsx:apply <change>` 或已確認的 `$flow-drive <change-id>` entry 實作。
 Plan、validator 通過或全綠測試都不是 archive evidence。完成仍需 task checkbox、適用的
 verification gate、Review obligation 與 human-only action 都已解決；archive、issue closure
 與 release publication 仍是分開的步驟。
 
 開始 implementation 前，記錄 `Decision: CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或
 `BLOCKED`。domain-boundary ownership 問題先諮詢 `architect`；若仍有不確定性，記錄
-`REASONER_REQUIRED`，並在任何 writer 前取得 read-only reasoner result。有兩個以上
-unchecked OpenSpec task 時，必須在第一個 write wave 前使用 planner；其 result 必須說明
-dependency order、每個 task 的 exact owner 與 write scope，以及下一個 checkpoint。只有一個
-clear task 時，記錄 `planner=skipped`。外部 `/opsx:apply` workflow 維持不變。
+`REASONER_REQUIRED`，並在任何 writer 前取得 read-only reasoner result。無論 task count，皆可沿用
+充分的既有計畫；只詢問會影響工作的缺失 outcome。若未決選擇、dependency、ownership、sequence
+或 material risk 使 planning outcome 仍必要，才 consult planner；也須遵守 caller 明確提出且受支援的
+consult request。Task count 本身不要求 planner。外部 `/opsx:apply` workflow 維持不變。
 
 每個 implementation wave 結束後，建議以一批 parallel batch 派遣適用的 reviewer；CRITICAL
 finding 須在回報完成前修正。delivery order
