@@ -21,6 +21,7 @@ const VERSION_COMMENT = /(?:^|\s)v?\d+(?:\.\d+){0,3}(?:[-+][\w.-]+)?(?:\s|$)/i;
 
 const WORKFLOW_TIMEOUTS = Object.freeze({
   'ci.yml': Object.freeze({
+    plan: 5,
     preflight: 10,
     tests: 10,
     validate: 10,

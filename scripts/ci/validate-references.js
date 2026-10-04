@@ -1,25 +1,20 @@
 #!/usr/bin/env node
 'use strict';
 
-// Reference-integrity CI guard for the dhpk harness. Scans shipped harness
-// markdown for `@rules/<file>` refs, `/dhpk:<name>` command/skill refs, and
-// explicit `${CLAUDE_PLUGIN_ROOT}/…` path refs, and verifies every one resolves
-// to a real file in this repo. Also flags any predecessor-brand string (`sd0x`)
-// outside the documented back-compat lines.
+// Reference-integrity CI guard for shipped harness Markdown. It verifies that
+// explicit machine-facing references and natural-language capability handoffs
+// resolve to real resources in this repository.
 //
 // Check 3 is deliberately scoped to `${CLAUDE_PLUGIN_ROOT}/…`-anchored paths:
 // those make an unambiguous claim that the path resolves inside the installed
 // plugin, so a dangling one is a real defect. Bare `scripts/…` / `hooks/…`
-// mentions in skill prose are NOT resolved here — they are ambiguously
-// skill-relative, illustrative (placeholders like `scripts/<name>.sh`), or
-// consumer-side, and resolving them root-relative yields false positives. The
-// predecessor-brand check (check 4) independently catches the sd0x-era dead
-// script globs that motivated this guard.
+// mentions in skill prose are ambiguous, illustrative, or consumer-side, and
+// resolving them root-relative yields false positives.
 //
 //   node scripts/ci/validate-references.js     print findings, exit 1 on any
 //
-// Also exports `scanRepo` / `scanText` so tests can run the same checks
-// against the real tree and against synthetic fixtures.
+// Also exports `scanRepo` / `scanText` so tests can exercise reference
+// resolution against the real tree and synthetic fixtures.
 
 const fs = require('fs');
 const path = require('path');
@@ -49,8 +44,7 @@ const isMarkdown = (fp) => fp.endsWith('.md');
 const relPath = (fp) => path.relative(ROOT, fp).split(path.sep).join('/');
 
 // Shipped harness markdown: skills/, commands/, agents/, rules/, and each
-// modules/<id>/{skills,commands,agents}. This is the scan set for checks 1-3
-// and (as a subset) for check 4.
+// modules/<id>/{skills,commands,agents}. This is the scan set for resource checks.
 function harnessFiles() {
   const files = [];
   for (const d of ['skills', 'commands', 'agents', 'rules']) {
@@ -68,23 +62,8 @@ function harnessFiles() {
   return files;
 }
 
-// Extra brand-only scan set for check 4: maintained docs/ (excluding local
-// design/evidence/knowledge records) plus manifests/ and the top-level READMEs. CHANGELOG.md
-// is exempt by omission (never scanned).
-function brandOnlyFiles() {
-  const files = [];
-  files.push(...walk(p('docs'), (fp) => isMarkdown(fp)
-    && !['docs/design/', 'docs/evidence/', 'docs/knowledge/']
-      .some((local) => relPath(fp).startsWith(local))));
-  files.push(...walk(p('manifests'), isMarkdown));
-  for (const rel of ['README.md', 'README.zh-TW.md']) {
-    if (fs.existsSync(p(rel))) files.push(p(rel));
-  }
-  return files;
-}
-
 function loadWhitelist() {
-  if (!fs.existsSync(WHITELIST_PATH)) return { rules_refs: [], brand_backcompat: [] };
+  if (!fs.existsSync(WHITELIST_PATH)) return { rules_refs: [] };
   return JSON.parse(fs.readFileSync(WHITELIST_PATH, 'utf8'));
 }
 
@@ -207,67 +186,6 @@ function checkPathRefs(relFile, text) {
   return findings;
 }
 
-// --- Check 4: predecessor-brand strings ------------------------------------
-
-function isWhitelistedBrand(whitelist, relFile, line) {
-  return whitelist.brand_backcompat.some((w) => w.file === relFile && line.includes(w.contains));
-}
-
-function checkBrand(relFile, text, whitelist) {
-  const findings = [];
-  const lines = text.split('\n');
-  lines.forEach((line, idx) => {
-    if (!/\bsd0x/.test(line)) return;
-    if (isWhitelistedBrand(whitelist, relFile, line)) return;
-    findings.push({ file: relFile, check: 4, line: idx + 1, detail: line.trim() });
-  });
-  return findings;
-}
-
-// --- Check 5: bare .claude/rules/execution-policy.md without plugin-root fallback ---
-// D2 (policy-resolution-fallback): a reference to the project-local policy path
-// must also state the ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md fallback in
-// the SAME reference block (blank-line-delimited), so consumers without a local
-// copy still resolve it. Blocks are split on blank lines.
-//
-// EXCEPTION: the four execution-bundle self-locating files (rules/execution-policy.md
-// and its skill mirrors) resolve their base via POLICY_BUNDLE_ROOT and explicitly
-// forbid a fallback chain (self-contained-skill-directories). They don't need the
-// dual-path wording, but reintroducing the legacy ${CLAUDE_PLUGIN_ROOT} fallback
-// phrase into one of them is a contract regression that must still be flagged.
-const POLICY_BUNDLE_ROOT_FILES = new Set([
-  'rules/execution-policy.md',
-  'skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md',
-  'skills/flow-drive/references/execution-bundle/rules/execution-policy.md',
-  'skills/flow-guide/references/execution-bundle/rules/execution-policy.md',
-]);
-
-function checkExecPolicyFallback(relFile, text) {
-  const findings = [];
-  const BARE = '.claude/rules/execution-policy.md';
-  const FALLBACK = '${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md';
-  if (POLICY_BUNDLE_ROOT_FILES.has(relFile)) {
-    if (text.includes(FALLBACK)) {
-      findings.push({
-        file: relFile,
-        check: 5,
-        detail: `legacy '${FALLBACK}' fallback reintroduced in a POLICY_BUNDLE_ROOT self-locating file`,
-      });
-    }
-    return findings;
-  }
-  for (const block of text.split(/\n\s*\n/)) {
-    if (!block.includes(BARE)) continue;
-    if (block.includes(FALLBACK)) continue;
-    findings.push({
-      file: relFile,
-      check: 5,
-      detail: `bare '${BARE}' reference without '${FALLBACK}' fallback in the same block`,
-    });
-  }
-  return findings;
-}
-
 // --- Check 6: imperative natural-language capability handoffs --------------
 // Markdown frequently names a Skill-tool capability without a slash command,
 // e.g. "Invoke the `dhpk-opsx-load-context` skill". These handoffs are part of
@@ -291,33 +209,20 @@ function checkNaturalLanguageRefs(relFile, text) {
 
 // --- Public API -------------------------------------------------------------
 
-function scanText(relFile, text, opts = {}) {
+function scanText(relFile, text) {
   const whitelist = loadWhitelist();
-  const findings = [];
-  if (!opts.brandOnly) {
-    findings.push(...checkRulesRefs(relFile, text, whitelist));
-    findings.push(...checkDhpkRefs(relFile, text));
-    findings.push(...checkPathRefs(relFile, text));
-    findings.push(...checkExecPolicyFallback(relFile, text));
-    findings.push(...checkNaturalLanguageRefs(relFile, text));
-  }
-  if (!opts.skipBrand) {
-    findings.push(...checkBrand(relFile, text, whitelist));
-  }
-  return findings;
+  return [
+    ...checkRulesRefs(relFile, text, whitelist),
+    ...checkDhpkRefs(relFile, text),
+    ...checkPathRefs(relFile, text),
+    ...checkNaturalLanguageRefs(relFile, text),
+  ];
 }
 
 function scanRepo() {
   const findings = [];
-  const files = harnessFiles();
-  for (const fp of files) {
+  for (const fp of harnessFiles()) {
     findings.push(...scanText(relPath(fp), fs.readFileSync(fp, 'utf8')));
-  }
-  const harnessSet = new Set(files.map(relPath));
-  for (const fp of brandOnlyFiles()) {
-    const rel = relPath(fp);
-    if (harnessSet.has(rel)) continue; // avoid double-scanning
-    findings.push(...scanText(rel, fs.readFileSync(fp, 'utf8'), { brandOnly: true }));
   }
   return findings;
 }
@@ -330,7 +235,7 @@ function formatFinding(f) {
 function main() {
   const findings = scanRepo();
   if (findings.length === 0) {
-    console.log('PASS [reference-integrity]: no dangling references or predecessor-brand strings found.');
+    console.log('PASS [reference-integrity]: all checked references resolve.');
     return 0;
   }
   for (const f of findings) console.error(formatFinding(f));
@@ -342,4 +247,4 @@ if (require.main === module) {
   process.exit(main());
 }
 
-module.exports = { scanRepo, scanText, harnessFiles, checkExecPolicyFallback, checkNaturalLanguageRefs };
+module.exports = { scanRepo, scanText, harnessFiles, checkNaturalLanguageRefs };

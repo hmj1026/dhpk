@@ -321,7 +321,6 @@ public name、destination、source、mode 與 fingerprint。Migration 只接管�
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
 bin/dhpk distribution codex-native verify --json
-node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 

@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { findTests } = require('../../tests/run-all');
+const { validateCiPlan } = require('../lib/ci-plan');
 
 const TIMING_SCHEMA = 'dhpk.test-timing.v1';
 const EXPECTED_JOBS = 4;
@@ -230,6 +231,7 @@ function verifyShardReports(input = {}) {
     runAttempt,
     checkoutSha,
     headSha,
+    expectedFiles: requestedFiles,
   } = input;
   if (typeof root !== 'string' || root.length === 0) errors.push('repository root is required.');
   if (typeof directory !== 'string' || directory.length === 0) errors.push('artifact directory is required.');
@@ -243,9 +245,19 @@ function verifyShardReports(input = {}) {
   try {
     const resolvedRoot = path.resolve(root);
     const testsDirectory = path.join(resolvedRoot, 'tests');
-    const expectedFiles = findTests(testsDirectory)
+    const discoveredFiles = findTests(testsDirectory)
       .map((file) => path.relative(testsDirectory, file).split(path.sep).join('/'))
       .sort();
+    const expectedFiles = requestedFiles === undefined ? discoveredFiles : requestedFiles;
+    if (!Array.isArray(expectedFiles) || expectedFiles.length === 0) errors.push('expected test file list must be non-empty.');
+    const normalizedExpected = (Array.isArray(expectedFiles) ? expectedFiles : []).map((file) => normalizeReportFile(file, 'expected test file'));
+    normalizedExpected.forEach((result) => errors.push(...result.errors));
+    const normalizedFiles = normalizedExpected.map((result) => result.file).filter(Boolean).sort();
+    if (new Set(normalizedFiles).size !== normalizedFiles.length) errors.push('expected test file list contains duplicates.');
+    normalizedFiles.forEach((file) => {
+      if (!discoveredFiles.includes(file)) errors.push(`expected test file is not discovered: ${file}.`);
+    });
+    if (errors.length > 0) return failureResult(errors);
     const resolvedDirectory = path.resolve(directory);
     const directoryEntries = fs.existsSync(resolvedDirectory)
       ? fs.readdirSync(resolvedDirectory, { withFileTypes: true })
@@ -326,7 +338,7 @@ function verifyShardReports(input = {}) {
 
 function parseArgs(argv = process.argv.slice(2)) {
   const options = {};
-  const names = new Set(['--directory', '--count', '--run-id', '--run-attempt', '--checkout-sha', '--head-sha', '--summary']);
+  const names = new Set(['--directory', '--count', '--run-id', '--run-attempt', '--checkout-sha', '--head-sha', '--base-sha', '--base-ref', '--summary', '--plan']);
   for (let index = 0; index < argv.length; index += 1) {
     const name = argv[index];
     if (!names.has(name)) throw new Error(`unknown option: ${name}`);
@@ -353,7 +365,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     runAttempt: options['--run-attempt'],
     checkoutSha: options['--checkout-sha'],
     headSha: options['--head-sha'],
+    baseSha: options['--base-sha'] || null,
+    baseRef: options['--base-ref'] || null,
     summary: options['--summary'] || null,
+    plan: options['--plan'] || null,
   };
 }
 
@@ -384,6 +399,19 @@ function formatSummary(result) {
 
 function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
+  if (options.plan) {
+    let plan;
+    try { plan = JSON.parse(fs.readFileSync(path.resolve(options.plan), 'utf8')); } catch (error) { throw new Error(`plan is not valid JSON: ${error.message}`); }
+    if (!plan || !Array.isArray(plan.testFiles) || !Number.isInteger(plan.shardCount)) throw new Error('plan does not contain testFiles and shardCount');
+    if (!options.baseSha || !options.baseRef) throw new Error('--base-sha and --base-ref are required with --plan');
+    const planValidation = validateCiPlan(plan, {
+      root: process.cwd(), baseSha: options.baseSha, headSha: options.headSha,
+      checkoutSha: options.checkoutSha, baseRef: options.baseRef,
+    });
+    if (!planValidation.ok) throw new Error(`plan is not authoritative: ${planValidation.errors.join('; ')}`);
+    if (plan.shardCount !== options.shardCount) throw new Error('plan shard count does not match --count');
+    options.expectedFiles = plan.testFiles;
+  }
   const result = verifyShardReports({ ...options, root: process.cwd() });
   if (!result.ok) {
     result.errors.forEach((error) => process.stderr.write(`FAIL: ${error}\n`));

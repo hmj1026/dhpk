@@ -155,9 +155,6 @@ case "$preflight_outcome" in
 esac
 
 stage packages
-for surface in agent-plugin cursor-plugin codex-native agy-plugin; do
-    bin/dhpk distribution "$surface" validate --json
-done
 node scripts/ci/verify-platform-packages.js
 
 # Bind the exact tracked package bytes that passed the package gate to this

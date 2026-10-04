@@ -27,8 +27,8 @@ does not write them.
    duplicate or generic advice, and classify the result into root rules,
    layer rules, skills, rules, agents, and memory.
 4. **Build.** Read `frontmatter-templates.md`; propose or apply only approved
-   skills, agents, and rules. Keep each generated SKILL.md within 250 lines and
-   preserve existing files incrementally. New agents/commands require their
+   skills, agents, and rules. Keep each generated SKILL.md focused; there is no
+   fixed line-count gate. Preserve existing files incrementally. New agents/commands require their
    index and execution-policy synchronization in the owning harness.
 5. **Write layers.** Update root or per-layer instructions only after checking
    symlink targets. Keep per-layer files focused and within their local line

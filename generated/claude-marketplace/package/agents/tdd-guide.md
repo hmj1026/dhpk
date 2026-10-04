@@ -9,7 +9,8 @@ skills: ["tdd-workflow"]
 
 # TDD Guide
 
-RED → GREEN → REFACTOR. Coverage ≥80%.
+RED → GREEN → REFACTOR. Choose coverage based on the behavior and risk under test;
+there is no project-wide fixed coverage threshold.
 
 ## Role boundary
 
@@ -65,7 +66,7 @@ Test files:
 ## TDD Report
 New tests: ✅ XxxTest::testMethod()
 Implementation: ✅
-Coverage: XX% (target 80%) — ✅/❌
+Coverage: XX% (measured when available; informational unless the task names an existing threshold)
 ```
 
 ## References

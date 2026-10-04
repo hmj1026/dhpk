@@ -843,6 +843,7 @@ function buildAgentPluginProjection(options = {}) {
     projectionLimits = {},
     selectionMode = 'compiler',
     profileSelection: initialProfileSelection = null,
+    publication = null,
   } = options;
   let profileSelection = initialProfileSelection;
   if (!root || !outDir) throw new Error('materializeAgentPluginPackage requires root and outDir');
@@ -1092,6 +1093,7 @@ function buildAgentPluginProjection(options = {}) {
     selectedSkillIds,
     selectedSkillNames,
     selectedPlatformMatrixIds: selectedMatrixIds,
+    ...(publication || {}),
     ...(hostPublication ? {
       marketplacePublication: {
         selectionDigest: hostPublication.selectionDigest,

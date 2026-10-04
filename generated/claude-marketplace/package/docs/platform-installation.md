@@ -189,7 +189,7 @@ skill.
 `bin/dhpk distribution <surface> <operation>` is the single deterministic
 package boundary for the retained native package surfaces: `agent-plugin`,
 `cursor-plugin`, `codex-native`, and `agy-plugin`. Its operations are
-`generate`, `validate`, and `verify`; each JSON result records structural
+`generate`, `preview`, `validate`, and `verify`; each JSON result records structural
 evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
@@ -201,6 +201,35 @@ bin/dhpk distribution agy-plugin validate --json
 These generation commands are maintainer/distribution preparation. Consumers
 installing from a clone should use the prepared package in the platform section
 below instead of regenerating a tracked package in place.
+
+For dirty-source inspection, `preview` snapshots the tracked `HEAD` plus
+nonignored worktree changes into a disposable external output. It records
+`publicationMode: preview`, `releaseEligible: false`, and separate base/snapshot
+identity; formal validation and release gates reject that marker by default.
+Preview output is temporary and is never an installation or release artifact:
+
+```bash
+bin/dhpk distribution agent-plugin preview \
+  --version=<version> --json
+# The JSON output path is disposable; formal validation rejects its preview receipt.
+```
+
+When producing formal packages, every `generate` command requires a clean source
+checkout. Generate all four packages into new directories outside the checkout
+from the same clean commit, then copy the owned outputs into their tracked paths
+and commit once; generating the first package in place dirties the checkout and
+blocks the next command:
+
+```bash
+packages=$(mktemp -d /tmp/dhpk-packages.XXXXXX)
+bin/dhpk distribution agent-plugin generate --output "$packages/dhpk-agent" --version=<version> --json
+bin/dhpk distribution cursor-plugin generate --output "$packages/dhpk-cursor" --version=<version> --json
+bin/dhpk distribution codex-native generate --output "$packages/dhpk" --version=<version> --json
+bin/dhpk distribution agy-plugin generate --output "$packages/dhpk-agy" --version=<version> --json
+```
+
+Stop on any failure. Validate existing tracked targets before replacing them and
+preserve bytes and modes when copying the four owned directories.
 
 The `openai-submission` surface builds a separate complete skills-only
 candidate from the public catalog. Its manifest, external output directory,

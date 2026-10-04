@@ -70,19 +70,40 @@ clean-checkout verifier. Do not stop after a single projection passes:
 node scripts/ci/gen-skill-usage.js --write
 git diff --check
 # Commit canonical sources and the regenerated usage catalog, then continue.
-bin/dhpk distribution agent-plugin generate --output plugins/dhpk-agent --version=<version> --json
-bin/dhpk distribution cursor-plugin generate --output plugins/dhpk-cursor --version=<version> --json
-bin/dhpk distribution codex-native generate --output plugins/dhpk --version=<version> --json
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=<version> --json
+# Every formal generate requires a clean source checkout; stage all four
+# packages outside the checkout from this same commit before copying owned
+# outputs into tracked paths.
+dhpk_packages=$(mktemp -d /tmp/dhpk-packages.XXXXXX)
+bin/dhpk distribution agent-plugin generate --output "$dhpk_packages/dhpk-agent" --version=<version> --json
+bin/dhpk distribution cursor-plugin generate --output "$dhpk_packages/dhpk-cursor" --version=<version> --json
+bin/dhpk distribution codex-native generate --output "$dhpk_packages/dhpk" --version=<version> --json
+bin/dhpk distribution agy-plugin generate --output "$dhpk_packages/dhpk-agy" --version=<version> --json
+# Copy only the owned outputs, then commit the generated projections once.
+rsync -a --delete "$dhpk_packages/dhpk-agent/" plugins/dhpk-agent/
+rsync -a --delete "$dhpk_packages/dhpk-cursor/" plugins/dhpk-cursor/
+rsync -a --delete "$dhpk_packages/dhpk/" plugins/dhpk/
+rsync -a --delete "$dhpk_packages/dhpk-agy/" plugins/dhpk-agy/
+git add plugins/dhpk-agent plugins/dhpk-cursor plugins/dhpk plugins/dhpk-agy
+git commit -m "chore: refresh generated platform packages"
 node scripts/ci/verify-platform-packages.js
 ```
+
+For daily CI, `verify-platform-packages.js --surface <name>` accepts the
+affected package subset; selecting Cursor automatically includes its Agent
+owner because Cursor consumes the Agent-owned shared skills. Canonical-only
+content plans can skip this heavy gate. Canonical content with an exact owned
+Markdown, receipt, fingerprint, or resource-ledger companion keeps the light
+route but runs every affected package and Claude check recorded by the plan;
+unknown generated data, executables, and generated-only changes use the full
+route. No-argument daily verification and release verification retain the
+complete four-surface check.
 
 The distribution generators and `verify-platform-packages.js` are
 provenance-bound and require a clean checkout. Run the generators after the
 canonical-source commit, commit their outputs, then run the verifier. If
 `.claude-plugin/plugin.json` or a profile manifest changes, also run
-`node tests/profile-scoped-claude-capability-bundle.test.js` and update
-its measured characterization bytes/hash from the generated result.
+`node tests/profile-scoped-claude-capability-bundle.test.js` to verify profile
+selection, generated bundle behavior, and artifact/source fingerprint binding.
 
 The project-local `.agents/skills` compatibility projection is generated from
 the same canonical `skills/` tree and is not hand-edited:

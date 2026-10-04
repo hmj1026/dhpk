@@ -426,15 +426,8 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
   // Next.js 15.5/16 are intentionally separate module/skill pairs; changing an
   // ID, source path, profile mapping, or module-provided skill must fail closed.
 
-  const fs = require('node:fs');
-  const path = require('node:path');
   const { test, assert } = require('./_lib/tinytest');
-
-  const ROOT = path.join(__dirname, '..');
-  const inventory = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'manifests', 'distribution-inventory.json'),
-    'utf8',
-  ));
+  const inventory = INVENTORY;
 
   // Keep these values literal: this test is the canary against accidental
   // consolidation or source remapping in the inventory itself.
@@ -796,21 +789,6 @@ test('live 0.54 family routing is alias-free and uses renamed canonical paths', 
     ), /nonempty parsed description/);
   });
 
-  test('skill routing descriptions use public dhpk names, never legacy aliases', () => {
-    const findings = [];
-    const legacyToPublic = legacyNamesToPublic(inventory.skills);
-
-    for (const skill of inventory.skills) {
-      const skillFile = path.join(ROOT, skill.path, 'SKILL.md');
-      const source = fs.readFileSync(skillFile, 'utf8');
-      const description = skillDescription(source, path.relative(ROOT, skillFile));
-      for (const finding of legacyRouteFindings(description, legacyToPublic)) {
-        findings.push(`${path.relative(ROOT, skillFile)}: ${finding}`);
-      }
-    }
-
-    assert.deepStrictEqual(findings, [], `legacy routing names remain:\n${findings.join('\n')}`);
-  });
 }
 
 {

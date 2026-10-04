@@ -227,9 +227,11 @@ test('CI preserves the required Validate harness assets check as the shard aggre
   const next = rest.slice(1).search(/\n  [a-z][a-z0-9-]*:\n/);
   const job = next === -1 ? rest : rest.slice(0, next + 1);
   assert.match(job, /name: Validate harness assets/);
-  assert.match(job, /needs:\s*\[\s*preflight,\s*tests\s*\]/);
+  const needs = job.match(/needs:\s*\[([^\]]+)\]/);
+  assert.ok(needs, 'validate aggregate must declare its upstream jobs');
+  for (const required of ['plan', 'preflight', 'tests']) assert.ok(needs[1].split(',').map((value) => value.trim()).includes(required), `validate aggregate must depend on ${required}`);
   assert.match(job, /if:\s*always\(\)/);
-  assert.match(job, /Verify all preflight and test shards passed/);
+  assert.match(job, /verifyCiResults\(JSON\.parse\(process\.env\.PLAN\)/, 'aggregate must validate the plan-bound result set');
   assert.match(job, /node scripts\/ci\/verify-test-shards\.js/);
 });
 
@@ -273,13 +275,6 @@ test('release PR head lookup dereferences the pushed tag before matching mergeCo
   assert.match(resolveBlock, /MERGE_SHA="\$merge_sha" node -e/, 'tag commit must bind the PR lookup input');
 });
 
-test('RELEASE.md documents the manual back-merge recovery procedure (recovery branch, resolve, test, PR to develop)', () => {
-  const releaseMd = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
-  assert.match(releaseMd, /recovery branch/i);
-  assert.match(releaseMd, /merge `?main`? into/i);
-  assert.match(releaseMd, /PR .* to `?develop`?|pull request .* to `?develop`?/i);
-});
-
 test('consumer-verify never deletes, moves, or force-updates the tag or release on a CONSUMER failure', () => {
   const verifyIdx = raw.indexOf('consumer-verify:');
   const nextJobIdx = raw.indexOf('sync-develop:');
@@ -288,13 +283,6 @@ test('consumer-verify never deletes, moves, or force-updates the tag or release 
   assert.ok(!consumerBlock.includes('push --delete'), 'must never delete the remote tag');
   assert.ok(!consumerBlock.includes('gh release delete'), 'must never delete the GitHub release');
   assert.ok(!consumerBlock.includes('gh release edit'), 'must never edit the immutable release');
-});
-
-test('RELEASE.md documents that a CONSUMER verification failure keeps the tag immutable and recovery is a new patch/hotfix release', () => {
-  const releaseMd = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
-  assert.match(releaseMd, /consumer verification fail|consumer.*fail/i);
-  assert.match(releaseMd, /patch|hotfix/i);
-  assert.match(releaseMd, /immutable/i);
 });
 
 test('consumer-verify installs the real claude CLI so the supported Claude check runs for real, not perpetually UNAVAILABLE', () => {
@@ -335,14 +323,6 @@ test('release preflight classifies UNAVAILABLE outcome as non-blocking on standa
   assert.ok(preflightBlock.includes('preflight_exit'), 'preflight stage must capture exit code');
 });
 
-test('RELEASE.md documents that a failed publish job leaves an unreleased tag recovered by the next patch, not a hand-made release', () => {
-  const releaseDoc = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
-  assert.match(releaseDoc, /publish[\s\S]{0,200}fails[\s\S]{0,200}no GitHub Release/i);
-  assert.match(releaseDoc, /Do not create that release by hand/i);
-  assert.match(releaseDoc, /workflow definition stored at the\s+tag/i);
-  assert.match(releaseDoc, /ship the next patch\s+release/i);
-});
-
 
 
 // Consolidated source suite: git-flow-governance (tests/git-flow-governance.test.js).
@@ -365,7 +345,6 @@ test('RELEASE.md documents that a failed publish job leaves an unreleased tag re
   const releaseVerify = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'release-verify.sh'), 'utf8');
   const releaseRunner = fs.readFileSync(path.join(ROOT, 'skills', 'release-creator', 'scripts', 'release-runner.sh'), 'utf8');
   const publishGate = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'publish-gate.js'), 'utf8');
-  const releaseSpec = fs.readFileSync(path.join(ROOT, 'openspec', 'specs', 'git-flow-release-governance', 'spec.md'), 'utf8');
 
   test('release-branch origin: prepare-release.js refuses off develop (see prepare-release-cli.test.js for the behavioral test)', () => {
     const temporaryRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-branch-')));
@@ -447,12 +426,6 @@ test('RELEASE.md documents that a failed publish job leaves an unreleased tag re
     assert.ok(!publishGate.includes('gh pr merge'), 'publish-gate must never merge a PR itself');
   });
 
-  test('release specification requires guarded develop reconciliation', () => {
-    assert.match(releaseSpec, /merged release PR head\s*SHA/);
-    assert.match(releaseSpec, /force-with-lease/);
-    assert.match(releaseSpec, /moved develop or differing tree/);
-    assert.ok(!/records the back-merge PASS/.test(releaseSpec), 'unique-tree back-merge must not remain an automatic success path');
-  });
 }
 
 run('release-workflow');

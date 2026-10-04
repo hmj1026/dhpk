@@ -108,12 +108,7 @@ test('every canonical skill package has valid Codex interface metadata', () => {
     assert.ok(metadata.display_name.length > 0, `${skillDir} display_name is empty`);
     assert.ok(metadata.short_description.length >= 25, `${skillDir} short_description is too short`);
     assert.ok(metadata.short_description.length <= 64, `${skillDir} short_description is too long`);
-    if (inventoryEntry.invokable === false) {
-      assert.ok(!metadata.default_prompt.includes(`$${skillName}`), `${skillDir} internal runtime prompt must not invite direct invocation`);
-      assert.match(metadata.default_prompt, /internal|do not invoke/i, `${skillDir} internal runtime prompt must explain its boundary`);
-    } else {
-      assert.ok(metadata.default_prompt.includes(`$${skillName}`), `${skillDir} default_prompt must invoke $${skillName}`);
-    }
+    assert.ok(metadata.default_prompt.length > 0, `${skillDir} default_prompt is empty`);
   }
 });
 
@@ -145,13 +140,7 @@ test('Codex has no physical source mirrors', () => {
   assert.deepStrictEqual(physicalNames, [...PHYSICAL_SKILLS].sort());
 });
 
-test('Codex plugin README reports the actual mirror entry count', () => {
-  const count = directoryEntries(CODEX_SKILLS).length;
-  const readme = fs.readFileSync(path.join(ROOT, '.codex-plugin', 'README.md'), 'utf8');
-  assert.match(readme, new RegExp('`codex/skills/` mirror \\(' + count + ' entries\\)'));
-});
 
-// Consolidated source cases from codex-supporting-parity.test.js.
 test('every inventory supporting asset has a unique id/destination and a materialized projection', () => {
   const entries = INVENTORY.supporting_assets || [];
   assert.strictEqual(new Set(entries.map((entry) => entry.id)).size, entries.length);

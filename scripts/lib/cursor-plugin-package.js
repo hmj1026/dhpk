@@ -827,7 +827,7 @@ function cursorReadmeContents() {
   };
 }
 
-function buildCursorProjection({ inventory, root, name, version, sourceCommit, generatorVersion, variables, traversalOptions = {}, selectionMode = 'compiler', profileSelection = null }) {
+function buildCursorProjection({ inventory, root, name, version, sourceCommit, generatorVersion, variables, traversalOptions = {}, selectionMode = 'compiler', profileSelection = null, publication = null }) {
   if (profileSelection) {
     const bound = bindSurfaceSelection({ selection: profileSelection, surface: 'cursor-plugin' });
     if (!bound.ok) throw new Error(bound.error.message);
@@ -1000,6 +1000,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     selectedSkillIds: [...selectedIds].sort(),
     selectedSkillNames: [...selectedNames].sort(),
     runtimeSupportStableIds: runtimeSupportSkillIds(inventory, 'cursor-plugin').slice().sort(),
+    ...(publication || {}),
     ...(hostPublication ? {
       marketplacePublication: {
         selectionDigest: hostPublication.selectionDigest,
@@ -1096,6 +1097,7 @@ function compileCursorPackage({
   traversalOptions = {},
   selectionMode = 'compiler',
   profileSelection = null,
+  publication = null,
 } = {}) {
   if (!inventory || typeof inventory !== 'object') throw new Error('Cursor package inventory is required');
   if (!root || !outDir) throw new Error('Cursor package root and outDir are required');
@@ -1107,7 +1109,7 @@ function compileCursorPackage({
   const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
     ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
     : undefined;
-  const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables, traversalOptions, selectionMode, profileSelection });
+  const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables, traversalOptions, selectionMode, profileSelection, publication });
   const entries = projection.files.map((file) => ({
       stableId: `cursor:${file.destination}`,
       source: file.source,

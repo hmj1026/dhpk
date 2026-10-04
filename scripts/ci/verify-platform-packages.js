@@ -42,6 +42,66 @@ const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/cap
 const { rewriteCursorHarnessBody, cursorDocumentDestinationName } = require('../lib/cursor-harness-adapt');
 
 const ROOT = path.join(__dirname, '..', '..');
+const SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+const SURFACE_DEPENDENCIES = Object.freeze({
+  'agent-plugin': Object.freeze([]),
+  'cursor-plugin': Object.freeze(['agent-plugin']),
+  'codex-native': Object.freeze([]),
+  'agy-plugin': Object.freeze([]),
+});
+
+function resolveSurfaceSelection(requested = null, dependencyMap = SURFACE_DEPENDENCIES) {
+  const values = requested === null || requested.length === 0 ? SURFACES : requested;
+  if (!Array.isArray(values) || values.length === 0) return { ok: false, error: 'at least one package surface is required' };
+  const unique = [...new Set(values)];
+  const unknown = unique.filter((surface) => !SURFACES.includes(surface));
+  if (unknown.length > 0) return { ok: false, error: `unknown package surface '${unknown[0]}'` };
+  const resolved = new Set(unique);
+  const pending = [...resolved];
+  while (pending.length > 0) {
+    const surface = pending.shift();
+    const dependencies = dependencyMap && dependencyMap[surface];
+    if (!Array.isArray(dependencies)) return { ok: false, error: `missing dependency metadata for package surface '${surface}'` };
+    for (const dependency of dependencies) {
+      if (!SURFACES.includes(dependency)) return { ok: false, error: `unknown dependency '${dependency}' for package surface '${surface}'` };
+      if (!resolved.has(dependency)) {
+        resolved.add(dependency);
+        pending.push(dependency);
+      }
+    }
+  }
+  return {
+    ok: true,
+    requested: SURFACES.filter((surface) => unique.includes(surface)),
+    resolved: SURFACES.filter((surface) => resolved.has(surface)),
+  };
+}
+
+function parseArgs(argv) {
+  const selected = [];
+  let root = ROOT;
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--surface' || arg === '--surfaces') {
+      const value = argv[++index];
+      if (!value) return { ok: false, status: 2, error: `${arg} requires a value` };
+      selected.push(...value.split(',').map((surface) => surface.trim()).filter(Boolean));
+    } else if (arg.startsWith('--surface=') || arg.startsWith('--surfaces=')) {
+      selected.push(...arg.slice(arg.indexOf('=') + 1).split(',').map((surface) => surface.trim()).filter(Boolean));
+    } else if (arg === '--repo-root') {
+      root = argv[++index];
+      if (!root) return { ok: false, status: 2, error: '--repo-root requires a value' };
+    } else if (arg.startsWith('--repo-root=')) {
+      root = arg.slice('--repo-root='.length);
+      if (!root) return { ok: false, status: 2, error: '--repo-root requires a value' };
+    } else {
+      return { ok: false, status: 2, error: `unknown argument '${arg}'` };
+    }
+  }
+  const selection = resolveSurfaceSelection(selected.length > 0 ? selected : null);
+  if (!selection.ok) return { ok: false, status: 2, error: selection.error };
+  return { ok: true, root: path.resolve(root), explicit: selected.length > 0, ...selection };
+}
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -209,14 +269,14 @@ function policyProjectionPaths(inventory) {
   const agyRule = inventory.agy_plugin && (inventory.agy_plugin.rules || []).find((entry) => path.basename(entry) === 'execution-policy.md');
   const agyContract = contractSurfaces['agy-plugin'];
   const cursorContract = contractSurfaces['cursor-plugin'];
-  if (!codex || !codex.canonical_source || !agyRule
-    || !agyContract || agyContract.owner !== 'agy-plugin'
-    || !cursorContract || cursorContract.owner !== 'cursor-plugin') return null;
+  if (!codex || !codex.canonical_source) return null;
   return {
     claude: codex.canonical_source,
     codex: codex.source,
-    agy: path.posix.join(SURFACE_OWNERS['agy-plugin'], agyRule),
-    cursor: path.posix.join(SURFACE_OWNERS['cursor-plugin'], 'rules', cursorDocumentDestinationName('rules', path.basename(codex.canonical_source))),
+    agy: agyRule && agyContract && agyContract.owner === 'agy-plugin'
+      ? path.posix.join(SURFACE_OWNERS['agy-plugin'], agyRule) : null,
+    cursor: cursorContract && cursorContract.owner === 'cursor-plugin'
+      ? path.posix.join(SURFACE_OWNERS['cursor-plugin'], 'rules', cursorDocumentDestinationName('rules', path.basename(codex.canonical_source))) : null,
     codexEntry: codex,
   };
 }
@@ -243,7 +303,7 @@ function verifySupportingAssetParity(root, inventory, errors) {
   return checked;
 }
 
-function verifySharedSkillParity(root, inventory, errors) {
+function verifySharedSkillParity(root, inventory, errors, selectedSurfaces = SURFACES) {
   const flowGuide = (inventory.skills || []).find((entry) => entry && entry.id === 'flow-guide');
   if (!flowGuide || typeof flowGuide.path !== 'string') {
     errors.push('inventory is missing the canonical flow-guide skill for fallback parity');
@@ -256,13 +316,13 @@ function verifySharedSkillParity(root, inventory, errors) {
     return [];
   }
   const canonicalContent = fs.readFileSync(canonical);
-  const roots = {
-    'agent-plugin': SURFACE_OWNERS['agent-plugin'],
-    'codex-native': SURFACE_OWNERS['codex-native'],
-    'agy-plugin': SURFACE_OWNERS['agy-plugin'],
-    // Cursor intentionally consumes the Agent Plugin-owned shared skill tree.
-    'cursor-plugin': SURFACE_OWNERS['agent-plugin'],
-  };
+  const selected = new Set(selectedSurfaces);
+  const roots = {};
+  if (selected.has('agent-plugin')) roots['agent-plugin'] = SURFACE_OWNERS['agent-plugin'];
+  if (selected.has('codex-native')) roots['codex-native'] = SURFACE_OWNERS['codex-native'];
+  if (selected.has('agy-plugin')) roots['agy-plugin'] = SURFACE_OWNERS['agy-plugin'];
+  // Cursor intentionally consumes the Agent Plugin-owned shared skill tree.
+  if (selected.has('cursor-plugin')) roots['cursor-plugin'] = SURFACE_OWNERS['agent-plugin'];
   const checked = [];
   for (const [surface, owner] of Object.entries(roots)) {
     const target = path.join(root, owner, reference);
@@ -288,7 +348,7 @@ function expectedCursorPolicyBody(canonical, canonicalPath, root) {
   return sanitizeCursorLinks(rewriteCursorHarnessBody(canonical), canonicalPath, root).trim();
 }
 
-function verifyPolicyParity(root, inventory) {
+function verifyPolicyParity(root, inventory, selectedSurfaces = SURFACES) {
   const paths = policyProjectionPaths(inventory);
   const errors = [];
   if (!paths) return { verdict: 'FAIL', errors: ['inventory is missing canonical policy projection metadata'] };
@@ -296,9 +356,19 @@ function verifyPolicyParity(root, inventory) {
   const canonical = fs.existsSync(canonicalPath) ? fs.readFileSync(canonicalPath, 'utf8') : '';
   if (!canonical) errors.push(`canonical policy is missing: ${paths.claude}`);
   const projections = {};
-  const supportingAssetCount = verifySupportingAssetParity(root, inventory, errors);
-  const sharedSkillProjections = verifySharedSkillParity(root, inventory, errors);
-  for (const [platform, relative] of Object.entries({ claude: paths.claude, codex: paths.codex, agy: paths.agy, cursor: paths.cursor })) {
+  const selected = new Set(selectedSurfaces);
+  const policyPaths = {};
+  if (selected.has('agent-plugin')) policyPaths.claude = paths.claude;
+  if (selected.has('codex-native')) policyPaths.codex = paths.codex;
+  if (selected.has('agy-plugin')) policyPaths.agy = paths.agy;
+  if (selected.has('cursor-plugin')) policyPaths.cursor = paths.cursor;
+  const supportingAssetCount = selected.has('codex-native') ? verifySupportingAssetParity(root, inventory, errors) : 0;
+  const sharedSkillProjections = verifySharedSkillParity(root, inventory, errors, selectedSurfaces);
+  for (const [platform, relative] of Object.entries(policyPaths)) {
+    if (!relative) {
+      errors.push(`${platform} policy projection metadata is missing`);
+      continue;
+    }
     const file = path.join(root, relative);
     const content = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
     if (!content) errors.push(`${platform} policy projection is missing: ${relative}`);
@@ -332,12 +402,13 @@ function verifyPolicyParity(root, inventory) {
   };
 }
 
-function reportFromSurfaces(surfaces, policyParity = null) {
+function reportFromSurfaces(surfaces, policyParity = null, selection = null) {
   const errors = Object.values(surfaces).flatMap((surface) => surface.errors);
   if (policyParity) errors.push(...policyParity.errors);
-  const agentIds = surfaces['agent-plugin'].selectedSkillIds || [];
+  const agent = surfaces['agent-plugin'];
   const cursor = surfaces['cursor-plugin'];
-  if (cursor.sharedSkillSurface === 'agent-plugin') {
+  if (agent && cursor && cursor.sharedSkillSurface === 'agent-plugin') {
+    const agentIds = agent.selectedSkillIds || [];
     const ownerIds = new Set(agentIds);
     const sharedIds = cursor.sharedSkillIds || [];
     const missingFromOwner = sharedIds.filter((id) => !ownerIds.has(id));
@@ -356,6 +427,7 @@ function reportFromSurfaces(surfaces, policyParity = null) {
   return {
     verdict: errors.length === 0 ? 'PASS' : 'FAIL',
     surfaces,
+    ...(selection ? { selection } : {}),
     ...(policyParity ? { policyParity } : {}),
     errors,
   };
@@ -370,18 +442,25 @@ function cleanCheckoutReport(root) {
   }
 }
 
-function main() {
-  const dirty = cleanCheckoutReport(ROOT);
+function main(argv = process.argv.slice(2)) {
+  const parsed = parseArgs(argv);
+  if (!parsed.ok) {
+    console.error(`verify-platform-packages: ${parsed.error}`);
+    process.exit(parsed.status);
+  }
+  const root = parsed.root;
+  const selectedSurfaces = parsed.resolved;
+  const dirty = cleanCheckoutReport(root);
   if (dirty) {
     console.log(JSON.stringify(dirty, null, 2));
     process.exit(1);
   }
-  const inventory = readJson(path.join(ROOT, 'manifests', 'distribution-inventory.json'));
-  const profiles = readJson(path.join(ROOT, 'manifests', 'install-profiles.json'));
-  const moduleCatalog = readJson(path.join(ROOT, 'manifests', 'module-catalog.json'));
-  const version = readJson(path.join(ROOT, '.claude-plugin', 'plugin.json')).version;
-  const targetCommit = sourceCommit(ROOT, 'unknown');
-  const targetTree = resolveGeneratedFromTree(ROOT, targetCommit);
+  const inventory = readJson(path.join(root, 'manifests', 'distribution-inventory.json'));
+  const profiles = readJson(path.join(root, 'manifests', 'install-profiles.json'));
+  const moduleCatalog = readJson(path.join(root, 'manifests', 'module-catalog.json'));
+  const version = readJson(path.join(root, '.claude-plugin', 'plugin.json')).version;
+  const targetCommit = sourceCommit(root, 'unknown');
+  const targetTree = resolveGeneratedFromTree(root, targetCommit);
   const tempRoot = fs.realpathSync(os.tmpdir());
   const tempAgent = fs.mkdtempSync(path.join(tempRoot, 'dhpk-agent-package-verify-'));
   const tempCursor = fs.mkdtempSync(path.join(tempRoot, 'dhpk-cursor-package-verify-'));
@@ -393,12 +472,13 @@ function main() {
   let report;
   try {
     const surfaces = {
-      'agent-plugin': verifyAgent({ root: ROOT, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-agent'), temp: tempAgent }),
-      'cursor-plugin': verifyCursor({ root: ROOT, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-cursor'), temp: tempCursor }),
-      'codex-native': verifyCodex({ root: ROOT, targetCommit, targetTree, inventory, version, tracked: path.join(ROOT, 'plugins/dhpk'), temp: tempCodex }),
-      'agy-plugin': verifyAgy({ root: ROOT, targetCommit, targetTree, inventory, version, tracked: path.join(ROOT, 'plugins/dhpk-agy'), temp: tempAgy }),
+      ...(selectedSurfaces.includes('agent-plugin') ? { 'agent-plugin': verifyAgent({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-agent'), temp: tempAgent }) } : {}),
+      ...(selectedSurfaces.includes('cursor-plugin') ? { 'cursor-plugin': verifyCursor({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-cursor'), temp: tempCursor }) } : {}),
+      ...(selectedSurfaces.includes('codex-native') ? { 'codex-native': verifyCodex({ root, targetCommit, targetTree, inventory, version, tracked: path.join(root, 'plugins/dhpk'), temp: tempCodex }) } : {}),
+      ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, version, tracked: path.join(root, 'plugins/dhpk-agy'), temp: tempAgy }) } : {}),
     };
-    report = reportFromSurfaces(surfaces, verifyPolicyParity(ROOT, inventory));
+    const selection = parsed.explicit ? { requested: parsed.requested, resolved: parsed.resolved } : null;
+    report = reportFromSurfaces(surfaces, verifyPolicyParity(root, inventory, selectedSurfaces), selection);
   } catch (error) {
     report = { verdict: 'FAIL', surfaces: {}, errors: [error.message] };
   } finally {
@@ -413,4 +493,11 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { reportFromSurfaces, expectedAgyPolicy, expectedCursorPolicyBody, cleanCheckoutReport };
+module.exports = {
+  parseArgs,
+  resolveSurfaceSelection,
+  reportFromSurfaces,
+  expectedAgyPolicy,
+  expectedCursorPolicyBody,
+  cleanCheckoutReport,
+};

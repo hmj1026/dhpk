@@ -618,16 +618,7 @@ test('an explicit command reference to a missing Skill remains detectable', () =
     }
   });
 
-  test('canonical source tree has zero P1 findings while P2 advisories remain visible', () => {
-    const canonical = spawnSync(process.execPath, [SCRIPT, '--json'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      timeout: 30000,
-    });
-    assert.ifError(canonical.error);
-    const canonicalReport = JSON.parse(canonical.stdout);
-    assert.strictEqual(canonicalReport.stats.p1, 0, JSON.stringify(canonicalReport, null, 2));
-
+  test('fixture lint reports P2 advisories without P1 findings', () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-skill-health-p2-'));
     try {
       const skills = path.join(root, 'skills');

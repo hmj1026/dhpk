@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change do-flags-and-harness-consolidation. Update Purpose after archive.
+Define the read-only execution, configuration, and registration contract for
+the Codex deep-reasoning agent.
 
 ## Requirements
 
@@ -29,11 +30,16 @@ TBD - created by archiving change do-flags-and-harness-consolidation. Update Pur
 - **WHEN** `codex_deep_reasoner_effort=medium` is configured and no flag segment overrides it
 - **THEN** the alias supplies effort `medium` for `codex-reasoner` dispatches and session start announces the non-default value once
 
-### Requirement: Agent count claims are updated atomically
+### Requirement: Agent inventory and registration stay current
 
-Adding `codex-deep-reasoner` SHALL bump every catalog-enforced agent count in the same change: agentsTotal 31→32 and root 30→31 across `README.md`, `README.zh-TW.md`, `agents/INDEX.md`, and the execution-policy roster table, such that `node scripts/ci/catalog.js --check all` passes.
+Adding `codex-deep-reasoner` SHALL register the agent in the canonical inventory and required agent indexes and execution-policy roster. The catalog SHALL report computed inventory counts; human-readable count claims are informational and are not checked for exact prose parity.
 
-#### Scenario: Catalog check stays green
+#### Scenario: Catalog check preserves machine-readable invariants
 
 - **WHEN** `node scripts/ci/catalog.js --check all` runs after the agent is added
-- **THEN** all exact-count claims match the live inventory
+- **THEN** machine-readable retirement and projection invariants pass
+
+#### Scenario: Printed count reflects the current inventory
+
+- **WHEN** `node scripts/ci/catalog.js` prints the inventory after the agent is added
+- **THEN** the computed agent count includes `codex-deep-reasoner`

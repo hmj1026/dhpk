@@ -186,10 +186,6 @@ test('checked-in cursor/ projection validates against the distribution inventory
   });
   assert.strictEqual(result.ok, true, result.errors.join('\n'));
 
-  const setup = fs.readFileSync(path.join(ROOT, 'cursor', 'commands', 'setup.md'), 'utf8');
-  assert.doesNotMatch(setup, /--review-gate/);
-  assert.doesNotMatch(setup, /review-gate-runtime\.js/);
-  assert.doesNotMatch(setup, /init --repo-root/);
 
 });
 

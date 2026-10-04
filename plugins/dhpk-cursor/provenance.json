@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "c314fb2f4b3ced4ecbb2757ffd64737e262b91fb",
-  "generatedFromCommit": "c314fb2f4b3ced4ecbb2757ffd64737e262b91fb",
-  "generatedFromTree": "1b2b6630008f78e0590687334ad3e40c1d77612b",
+  "sourceCommit": "e0735e2112238bfcda7135b0dc8af466f2f67ccd",
+  "generatedFromCommit": "e0735e2112238bfcda7135b0dc8af466f2f67ccd",
+  "generatedFromTree": "d23718ebfe4ab13359fcef6a5dcff236716f44af",
   "inventoryDigest": "990a4a557e5afa747ddc6565b819c97a33c3ee7af164374ddb7b80f44be281bc",
   "inventoryRevision": "sha256:24c1de777a6d9caff8c6b95821a3f77692663b40e7549d67c3c45c5e0042334c",
   "generatorVersion": "1.0.0",
@@ -1442,7 +1442,7 @@
         "ownerId": "flow-drive",
         "source": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
         "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
-        "originalGitBlobDigest": "6840c452a04525e6d7494021e5bdcb6db880a60f"
+        "originalGitBlobDigest": "0a95bcb4ca1a4f65beac9bed912f3d10c57dfbf5"
       },
       {
         "ownerId": "flow-drive",
@@ -1808,7 +1808,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
         "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md",
-        "originalGitBlobDigest": "6840c452a04525e6d7494021e5bdcb6db880a60f"
+        "originalGitBlobDigest": "0a95bcb4ca1a4f65beac9bed912f3d10c57dfbf5"
       },
       {
         "ownerId": "flow-guide",
@@ -1904,7 +1904,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/testing-policy.md",
         "destination": "skills/flow-guide/references/testing-policy.md",
-        "originalGitBlobDigest": "6840c452a04525e6d7494021e5bdcb6db880a60f"
+        "originalGitBlobDigest": "0a95bcb4ca1a4f65beac9bed912f3d10c57dfbf5"
       },
       {
         "ownerId": "flow-guide",
@@ -6038,7 +6038,7 @@
   "fingerprints": {
     "skills": "5f127cf0b433c6aee6fe23de87b10414075e78d0678993627abfb85aff225014",
     "rules": "481c5db93e414578d9cd235acef23a694fc11f8db2a554abd329105e8d09906b",
-    "agents": "61b6185a356d6f28c8e3667da9ceb9daf80d84465efa1d5f57d591d62747ebfb",
+    "agents": "32375b969d3204cda8301bbb800056e0ff002875901bd254d4a910c88447f9ab",
     "commands": "9980657de279c8bfb9e67b49769f13c6d9181cc1432c11ba7737230ed500a55f",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
@@ -7071,5 +7071,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "d1a93ea28f33b14d7dd4b19a36a02c0909a92e2912e15db832b8d4a4222cbbd5"
+  "planFingerprint": "7de6f52aea850c800be1d2cd740602533d38141189cd7d86a8ebc6ea04646e32"
 }
