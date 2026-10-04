@@ -53,7 +53,13 @@ The session-start hook (if claude-mem ships one) auto-matches context but doesn'
 
 ## Sub-agent prompts
 
-Sub-agents do NOT inherit these rules — paste the relevant block from your project's sub-agent prompt template (or use the selected bundle at `${POLICY_BUNDLE_ROOT}/docs/subagent-prompt-template.md`) into the agent prompt. Required blocks: source-reading boilerplate (always), DB-access boilerplate (when the task touches a table).
+Sub-agents do NOT inherit these rules. Include only tool-compatible guidance
+from your project's sub-agent prompt template (or the selected bundle at
+`${POLICY_BUNDLE_ROOT}/docs/subagent-prompt-template.md`). Select source-reading
+and database instructions from the recipient's callable tools and task scope.
+The packet author supplies required evidence the recipient cannot obtain.
+Never require shell commands or child-agent dispatch unless the matching tool
+is available and authorized.
 
 ## Top anti-patterns
 
