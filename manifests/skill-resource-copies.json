@@ -136,7 +136,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/subagent-prompt-template.md": {
       "skill_id": "opsx-apply-goal",
       "source": "docs/subagent-prompt-template.md",
-      "sha256": "sha256:9989995ffb88bcbac19725223c95ad6e7115fa50347cd0df4238795275ab4208",
+      "sha256": "sha256:fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/host-profiles.json": {
@@ -178,7 +178,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/tool-routing.md": {
       "skill_id": "opsx-apply-goal",
       "source": "rules/tool-routing.md",
-      "sha256": "sha256:54c9afaa77e770b05947e3dcd5c4628d50555122e3d362c86f397f630451d4fb",
+      "sha256": "sha256:e9428334765f581b4be414cbbe9927e58d3c59054fc31ccd0d8205dbaec2a82f",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/fast-worker-selector.js": {
@@ -466,7 +466,7 @@
     "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md": {
       "skill_id": "flow-drive",
       "source": "docs/subagent-prompt-template.md",
-      "sha256": "sha256:9989995ffb88bcbac19725223c95ad6e7115fa50347cd0df4238795275ab4208",
+      "sha256": "sha256:fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/manifests/host-profiles.json": {
@@ -508,7 +508,7 @@
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
       "skill_id": "flow-drive",
       "source": "rules/tool-routing.md",
-      "sha256": "sha256:54c9afaa77e770b05947e3dcd5c4628d50555122e3d362c86f397f630451d4fb",
+      "sha256": "sha256:e9428334765f581b4be414cbbe9927e58d3c59054fc31ccd0d8205dbaec2a82f",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/fast-worker-selector.js": {
@@ -592,7 +592,7 @@
     "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md": {
       "skill_id": "flow-guide",
       "source": "docs/subagent-prompt-template.md",
-      "sha256": "sha256:9989995ffb88bcbac19725223c95ad6e7115fa50347cd0df4238795275ab4208",
+      "sha256": "sha256:fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/manifests/host-profiles.json": {
@@ -634,7 +634,7 @@
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
       "skill_id": "flow-guide",
       "source": "rules/tool-routing.md",
-      "sha256": "sha256:54c9afaa77e770b05947e3dcd5c4628d50555122e3d362c86f397f630451d4fb",
+      "sha256": "sha256:e9428334765f581b4be414cbbe9927e58d3c59054fc31ccd0d8205dbaec2a82f",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/fast-worker-selector.js": {
