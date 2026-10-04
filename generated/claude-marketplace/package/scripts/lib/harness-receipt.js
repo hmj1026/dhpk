@@ -20,6 +20,8 @@ const {
   fingerprintDirectory,
   revalidateBytes,
   redact,
+  redactEvidence,
+  cloneBoundedJson,
   writeImmutable,
   replayJsonSequence,
   acquireProcessLock,
@@ -51,6 +53,26 @@ const OUTCOMES = Object.freeze([
   'OVERRIDDEN',
   'COMPLETE',
 ]);
+const CURRENT_EVIDENCE_MAX_BYTES = 4 * 1024 * 1024;
+const UNSAFE_CURRENT_EVIDENCE_PROPERTIES = new Set(['__proto__', 'constructor', 'prototype']);
+const CURRENT_EVIDENCE_JSON_OPTIONS = Object.freeze({
+  maxDepth: 12,
+  maxNodes: 65536,
+  maxTotalBytes: CURRENT_EVIDENCE_MAX_BYTES,
+  maxStringBytes: 16384,
+  maxKeys: 200,
+  maxArrayLength: 200,
+  maxArrayKeys: 201,
+  maxKeyBytes: 4096,
+  undefinedPolicy: 'allow',
+  propertyPolicy: ({ key }) => !UNSAFE_CURRENT_EVIDENCE_PROPERTIES.has(key),
+});
+const CURRENT_EVIDENCE_ERROR_CODES = Object.freeze({
+  SCHEMA_DESCRIPTOR: 'CURRENT_EVIDENCE_SCHEMA_DESCRIPTOR',
+  SCHEMA_ACCESSOR: 'CURRENT_EVIDENCE_SCHEMA_ACCESSOR',
+  UNSAFE_JSON: 'CURRENT_EVIDENCE_UNSAFE_JSON',
+  SERIALIZED_SIZE: 'CURRENT_EVIDENCE_SERIALIZED_SIZE',
+});
 const IDENTITY_FIELDS = Object.freeze([
   'taskId',
   'attemptId',
@@ -96,6 +118,42 @@ function lifecycleTransition(previous, next) {
 function ensureId(value, name) {
   if (typeof value !== 'string' || !SAFE_ID.test(value)) throw new Error(`harness receipt: invalid ${name}`);
   return value;
+}
+
+function currentEvidenceError(code) {
+  return new Error(`harness receipt: consumer evidence rejected (${code})`);
+}
+
+function isCurrentConsumerEvidence(value) {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function')) return false;
+  let descriptor;
+  try {
+    descriptor = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
+  } catch (_) {
+    throw currentEvidenceError(CURRENT_EVIDENCE_ERROR_CODES.SCHEMA_DESCRIPTOR);
+  }
+  if (!descriptor) return false;
+  if (!Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
+    throw currentEvidenceError(CURRENT_EVIDENCE_ERROR_CODES.SCHEMA_ACCESSOR);
+  }
+  return descriptor.value === 2;
+}
+
+function serializeCurrentConsumerEvidence(value) {
+  let redacted;
+  let serialized;
+  try {
+    const cloned = cloneBoundedJson(value, CURRENT_EVIDENCE_JSON_OPTIONS);
+    redacted = redactEvidence(cloned);
+    serialized = JSON.stringify(redacted);
+  } catch (_) {
+    throw currentEvidenceError(CURRENT_EVIDENCE_ERROR_CODES.UNSAFE_JSON);
+  }
+  if (typeof serialized !== 'string'
+    || Buffer.byteLength(serialized, 'utf8') > CURRENT_EVIDENCE_MAX_BYTES) {
+    throw currentEvidenceError(CURRENT_EVIDENCE_ERROR_CODES.SERIALIZED_SIZE);
+  }
+  return redacted;
 }
 
 function consumerEvidenceErrors(value) {
@@ -282,13 +340,22 @@ function createAttempt({
   if (operationKey && idempotencyKey && operationKey !== idempotencyKey) {
     throw new Error('harness receipt: operation and idempotency keys must match');
   }
-  const persistedConsumerEvidence = consumerEvidence === undefined ? undefined : redact(consumerEvidence);
+  const currentConsumerEvidence = consumerEvidence !== undefined
+    && isCurrentConsumerEvidence(consumerEvidence);
+  const persistedConsumerEvidence = consumerEvidence === undefined
+    ? undefined
+    : currentConsumerEvidence
+      ? serializeCurrentConsumerEvidence(consumerEvidence)
+      : redact(consumerEvidence);
   if (persistedConsumerEvidence !== undefined) {
     const consumerErrors = consumerEvidenceErrors(persistedConsumerEvidence);
     if (consumerErrors.length > 0) {
       throw new Error(`harness receipt: invalid consumer evidence: ${consumerErrors.join('; ')}`);
     }
   }
+  const persistedCurrentSurfaceResults = currentConsumerEvidence && Array.isArray(surfaceResults)
+    ? serializeCurrentConsumerEvidence(surfaceResults)
+    : undefined;
   const resolvedOperationKey = operationKey || idempotencyKey;
   if (resolvedOperationKey) {
     if (operationReservation) verifyOperationReservation(operationReservation, root, resolvedOperationKey, { taskId, attemptId });
@@ -336,7 +403,11 @@ function createAttempt({
     artifacts: redact(Array.isArray(artifacts) ? artifacts : [artifacts]),
     ...(Array.isArray(requiredSurfaces) ? { requiredSurfaces: redact(requiredSurfaces) } : {}),
     ...(Array.isArray(requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: redact(requiredRuntimeSurfaces) } : {}),
-    ...(Array.isArray(surfaceResults) ? { surfaceResults: redact(surfaceResults) } : {}),
+    ...(Array.isArray(surfaceResults) ? {
+      surfaceResults: currentConsumerEvidence
+        ? persistedCurrentSurfaceResults
+        : redact(surfaceResults),
+    } : {}),
     ...(persistedConsumerEvidence !== undefined ? { consumerEvidence: persistedConsumerEvidence } : {}),
     resumeCommand: resumeCommand === null || resumeCommand === undefined ? null : redact(resumeCommand),
     byteReferences: redact(Array.isArray(byteReferences) ? byteReferences : [byteReferences]),

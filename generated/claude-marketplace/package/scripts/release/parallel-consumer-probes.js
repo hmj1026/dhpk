@@ -21,6 +21,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--worker') args.worker = true;
+    else if (arg === '--current-acceptance') args.currentAcceptance = true;
     else if (arg === '--repo-root') args.root = argv[++i];
     else if (arg === '--surface') args.surface = argv[++i];
     else if (arg === '--surfaces') args.surfaces = argv[++i];
@@ -91,8 +92,14 @@ function expectedExitCode(execution) {
 function workerMain(args) {
   const harness = require('../lib/harness');
   try {
-    const execution = harness.runConsumerProbe(args.root, { surface: args.surface });
-    const failure = acceptanceFailure(execution);
+    const execution = harness.runConsumerProbe(args.root, {
+      surface: args.surface,
+      ...(args.currentAcceptance ? { currentAcceptance: true } : {}),
+    });
+    const failure = args.currentAcceptance
+      && (!execution || !Object.prototype.hasOwnProperty.call(execution, 'acceptance'))
+      ? 'current probe worker omitted current acceptance evidence'
+      : acceptanceFailure(execution);
     const status = failure ? 1 : expectedExitCode(execution);
     emit({ surface: args.surface, namespace: args.namespace, execution }, status === null ? 0 : status);
   } catch (error) {
@@ -128,7 +135,14 @@ function spawnWorker(args, surface, index, privateRoot) {
   const hostHome = process.env.HOME || os.homedir();
   const hostCodexHome = process.env.CODEX_HOME || path.join(hostHome, '.codex');
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [__filename, '--worker', '--repo-root', args.root, '--surface', surface, '--namespace', namespace], {
+    const child = spawn(process.execPath, [
+      __filename,
+      '--worker',
+      '--repo-root', args.root,
+      '--surface', surface,
+      '--namespace', namespace,
+      ...(args.currentAcceptance ? ['--current-acceptance'] : []),
+    ], {
       cwd: args.root,
       env: {
         ...process.env,

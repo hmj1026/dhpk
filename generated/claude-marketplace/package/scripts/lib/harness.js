@@ -124,8 +124,24 @@ function canonicalizeClaudeConsumerEnvelope(input, selectedSurfaces = []) {
       && !Array.isArray(row.requirementEvidence)
       ? Object.fromEntries(Object.entries(row.requirementEvidence).map(([slot, evidence]) => [
         slot,
-        evidence && typeof evidence === 'object' && typeof evidence.checkKey === 'string'
-          ? { ...evidence, checkKey: evidence.checkKey.replace(/^claude:/, 'claude-core:') }
+        evidence && typeof evidence === 'object' && !Array.isArray(evidence)
+          ? {
+            ...evidence,
+            ...(typeof evidence.checkKey === 'string'
+              ? { checkKey: evidence.checkKey.replace(/^claude:/, 'claude-core:') }
+              : {}),
+            ...(evidence.contractEvidence && typeof evidence.contractEvidence === 'object'
+              && !Array.isArray(evidence.contractEvidence)
+              ? {
+                contractEvidence: {
+                  ...evidence.contractEvidence,
+                  ...(typeof evidence.contractEvidence.evidenceRef === 'string'
+                    ? { evidenceRef: evidence.contractEvidence.evidenceRef.replace(/^surfaceResults\.claude\./, 'surfaceResults.claude-core.') }
+                    : {}),
+                },
+              }
+              : {}),
+          }
           : evidence,
       ]))
       : row.requirementEvidence;
@@ -287,10 +303,18 @@ function consumerRequirementsScope(root, requirementsFile) {
   } catch (_) {
     throw new Error('release requirements JSON is invalid');
   }
-  const selectedSurfaces = requirements && requirements.selectedSurfaces;
   if (!requirements || typeof requirements !== 'object' || Array.isArray(requirements)
-    || requirements.schema !== 'dhpk.consumer-requirements.v1'
-    || !Array.isArray(selectedSurfaces) || selectedSurfaces.length === 0) {
+    || requirements.schema !== 'dhpk.consumer-requirements.v1') {
+    throw new Error('release requirements must declare a non-empty selectedSurfaces list');
+  }
+  const selectedSurfaces = requirements.selectedSurfaces === undefined
+    ? (Array.isArray(requirements.checks)
+      ? [...new Set(requirements.checks.map((check) => (
+        check && typeof check === 'object' && !Array.isArray(check) ? check.surface : undefined
+      )))]
+      : [])
+    : requirements.selectedSurfaces;
+  if (!Array.isArray(selectedSurfaces) || selectedSurfaces.length === 0) {
     throw new Error('release requirements must declare a non-empty selectedSurfaces list');
   }
   const seen = new Set();
@@ -308,6 +332,18 @@ function consumerRequirementsScope(root, requirementsFile) {
   };
 }
 
+function spawnConsumerGate(root, args, { timeout = 120000, maxBuffer = 8 * 1024 * 1024 } = {}) {
+  const restrictedArgs = allowsRealConsumerProbe()
+    ? args
+    : [...args, '--skip-claude-reinstall'];
+  return spawnSync(process.execPath, restrictedArgs, {
+    cwd: root,
+    encoding: 'utf8',
+    timeout,
+    maxBuffer,
+  });
+}
+
 function runRequirementsConsumerGate(root, requirementsScope, selectedSurfaces, artifactManifest = null) {
   const gateScript = path.join(root, 'scripts', 'release', 'consumer-gate.js');
   const version = releaseVersion(root);
@@ -318,12 +354,7 @@ function runRequirementsConsumerGate(root, requirementsScope, selectedSurfaces, 
     fs.writeFileSync(snapshotFile, requirementsScope.bytes, { flag: 'wx', mode: 0o600 });
     const args = [gateScript, '--repo-root', root, '--requirements', snapshotFile];
     if (version) args.push('--version', version);
-    child = spawnSync(process.execPath, args, {
-      cwd: root,
-      encoding: 'utf8',
-      timeout: 120000,
-      maxBuffer: 8 * 1024 * 1024,
-    });
+    child = spawnConsumerGate(root, args, { maxBuffer: 8 * 1024 * 1024 });
   } finally {
     fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }
@@ -408,12 +439,7 @@ function runConfiguredConsumerGate(root, requiredRuntimeSurfaces, artifactManife
   const args = [gateScript, '--repo-root', root];
   const version = releaseVersion(root);
   if (version) args.push('--version', version);
-  const child = spawnSync(process.execPath, args, {
-    cwd: root,
-    encoding: 'utf8',
-    timeout: 120000,
-    maxBuffer: 8 * 1024 * 1024,
-  });
+  const child = spawnConsumerGate(root, args, { maxBuffer: 8 * 1024 * 1024 });
   let payload = null;
   try { payload = JSON.parse(child.stdout || ''); } catch (_) { /* handled as current protocol failure below */ }
 
@@ -1138,28 +1164,37 @@ function runConsumerProbe(root, parsed) {
   const gateAdapter = CONSUMER_GATE_ADAPTERS[surface];
   const gateScript = path.join(root, 'scripts', 'release', 'consumer-gate.js');
   const legacyProbeFallback = Boolean(adapter && !parsed.currentAcceptance && !fs.existsSync(gateScript));
-  if (gateAdapter && !legacyProbeFallback) {
-    if (surface === 'claude-core' && !allowsRealConsumerProbe()) {
-      const row = failedProbeRow(
+  if (parsed.currentAcceptance && (!gateAdapter || !fs.existsSync(gateScript))) {
+    const reason = 'current consumer acceptance requires the canonical consumer gate';
+    const row = failedProbeRow(
+      surface,
+      'FAIL',
+      reason,
+      root,
+      [],
+      'consumer-gate',
+      gateAdapter ? gateAdapter.adapterId : 'consumer-gate',
+    );
+    return {
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      outcome: 'FAIL',
+      transportStatus: 'FAIL',
+      diagnostics: [reason],
+      surfaceResults: [row],
+      identity: {
         surface,
-        'NOT_CONFIGURED',
-        'Claude consumer gate is opt-in outside CI because the CLI may write a shared global cache; set DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE=1 on an isolated runner',
-        root,
-        [],
-        'consumer-gate',
-        gateAdapter.adapterId,
-      );
-      return { outcome: row.status, diagnostics: row.reasons, surfaceResults: [row], identity: { surface, stage: row.stage, producer: row.producer, adapter: row.adapter } };
-    }
+        stage: row.stage,
+        producer: row.producer,
+        adapter: row.adapter,
+      },
+    };
+  }
+  if (gateAdapter && !legacyProbeFallback) {
     const version = releaseVersion(root);
     const args = [gateScript, '--repo-root', root, '--surface', gateAdapter.gateSurface];
     if (version) args.push('--version', version);
-    const child = spawnSync(process.execPath, args, {
-      cwd: root,
-      encoding: 'utf8',
-      timeout: 120000,
-      maxBuffer: 4 * 1024 * 1024,
-    });
+    const child = spawnConsumerGate(root, args, { maxBuffer: 4 * 1024 * 1024 });
     let payload;
     try {
       payload = JSON.parse(child.stdout || '{}');
@@ -1460,7 +1495,9 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
   const requestedConcurrency = options && options.probeConcurrency !== undefined
     ? Number(options.probeConcurrency)
     : 1;
-  if (probeExecutor === runConsumerProbe && Number.isSafeInteger(requestedConcurrency) && requestedConcurrency > 1) {
+  const currentAcceptanceMode = probeExecutor === runReleaseConsumerProbe;
+  const supportsBoundedBatch = probeExecutor === runConsumerProbe || currentAcceptanceMode;
+  if (supportsBoundedBatch && Number.isSafeInteger(requestedConcurrency) && requestedConcurrency > 1) {
     const batchScript = path.join(root, 'scripts', 'release', 'parallel-consumer-probes.js');
     const batchArgs = [
       batchScript,
@@ -1471,6 +1508,7 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
       '--task-id', options.taskId || 'release',
       '--attempt-id', options.attemptId || 'attempt',
     ];
+    if (currentAcceptanceMode) batchArgs.push('--current-acceptance');
     const child = spawnSync(process.execPath, batchArgs, {
       cwd: root,
       env: options.runtimeEnv || process.env,

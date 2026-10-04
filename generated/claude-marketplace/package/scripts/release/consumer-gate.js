@@ -835,11 +835,12 @@ function collectConsumerEvidenceCandidates(filePath) {
 }
 
 function parseArgs(argv) {
-  const args = { root: DEFAULT_ROOT };
+  const args = { root: DEFAULT_ROOT, skipClaudeReinstall: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--version') args.version = argv[++i];
     else if (arg === '--repo-root') args.root = argv[++i];
+    else if (arg === '--skip-claude-reinstall') args.skipClaudeReinstall = true;
     else if (arg === '--surface') {
       const value = argv[++i];
       if (!value || value.startsWith('--')) {
@@ -870,7 +871,7 @@ function parseArgs(argv) {
     }
   }
   if (!args.version) {
-    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>] [--requirements <json-file>] [--evidence <json-file>]');
+    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>] [--requirements <json-file>] [--evidence <json-file>] [--skip-claude-reinstall]');
     process.exit(2);
   }
   if (args.surface && !CONSUMER_SURFACES.includes(args.surface)) {
@@ -2533,8 +2534,25 @@ function teardownClaudeProjectRegistry(project, commands, warnings, root) {
   }
 }
 
-function verifyClaudeReinstall(root, version) {
+function verifyClaudeReinstall(root, version, { skipReinstall = false } = {}) {
   const strictCommand = 'claude plugin validate <manifest> --strict';
+  if (skipReinstall) {
+    const reason = 'Claude consumer gate is opt-in outside CI because the CLI may write a shared global cache; set DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE=1 on an isolated runner';
+    return {
+      status: 'NOT_RUN',
+      verdict: 'NOT_RUN',
+      reason,
+      commands: [],
+      artifacts: [],
+      cliVersion: null,
+      installationEvidence: { status: VERDICTS.BLOCKED, reason },
+      runtimeEvidence: {
+        status: 'NOT_RUN',
+        reason: 'Claude runtime was not executed by the restricted installation check',
+      },
+      reasons: [reason],
+    };
+  }
   const versionDiscovery = claudeCliVersion();
   const versionCommand = {
     cmd: 'claude --version',
@@ -3341,7 +3359,9 @@ function runGate(args) {
       evidenceSupplied: Boolean(args.evidenceFile),
     })
     : null;
-  const claude = selectedOrAll('claude-core') ? verifyClaudeReinstall(args.root, args.version) : null;
+  const claude = selectedOrAll('claude-core')
+    ? verifyClaudeReinstall(args.root, args.version, { skipReinstall: args.skipClaudeReinstall })
+    : null;
   const native = selectedOrAll('codex-native') ? verifyCodexNative(args.root) : null;
   const cursorSync = selectedOrAll('cursor-sync') ? verifyCursorSync(args.root, args.version) : null;
   const projectedCodex = selectedOrAll('agent-plugin')
