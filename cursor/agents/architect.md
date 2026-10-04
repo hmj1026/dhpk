@@ -20,13 +20,21 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 
 ## Baseline (language-agnostic)
 
-The generic Layers + ADR + Phased Plan below apply to any stack; the loaded sheet adds stack-specific layering conventions.
+The baseline protects dependency direction and explicit boundaries; it is not a
+universal DDD or framework-layering prescription. First identify the active
+framework, runtime, and module boundaries. Apply a stack sheet only when its
+trigger matches, and record an intentional exception when the project uses a
+different layering shape.
 
 ## Layers (forward only)
 
-`Interface (controllers/views/js) → Domain (services/entities/VOs) → Infrastructure (repositories) → Legacy Models → External`
+`Interface → application/domain logic → infrastructure or external adapters`
 
-No reverse / cyclic deps. Cross-layer payloads are DTO/Entity. Domain is framework-agnostic.
+Keep dependencies directed toward the owning abstraction and avoid accidental
+cycles. Use the project's established boundary types and naming; DTOs, entities,
+value objects, and framework models are not interchangeable by default. A
+framework-specific domain layer may be correct when the framework owns the
+runtime lifecycle.
 
 ## Anti-patterns to flag
 
@@ -40,6 +48,13 @@ Name the smell when the design exhibits it — each is a re-design trigger, not 
 - **Not-Invented-Here** — re-building what a vetted library already provides.
 - **Magic** — undocumented implicit behavior (hidden globals, action-at-a-distance).
 - **Analysis Paralysis** — design churn with no shippable slice.
+
+## Child-dispatch boundary
+
+This role is read-only. If a required specialist or child-dispatch tool is not
+available, return an explicit escalation naming the missing capability and the
+review or decision it would cover. Do not require an unavailable delegate or
+silently substitute a different writer.
 
 ## Interface & API contract
 
@@ -75,7 +90,10 @@ list. Discipline:
   where nothing works until the last phase is a red flag — re-slice it.
 - **Build order within a phase**: construct in dependency order — types / contracts →
   core logic → integration → UI → tests → docs — so each artifact compiles against
-  something that already exists.
+  something that already exists. When the change is behavioral, pair this plan
+  with the tdd-guide's RED-first sequence: establish the failing public behavior
+  before the production slice; architecture dependency order must not be read as
+  permission to implement before that RED evidence.
 - **Per step**: `Action` (exact file path) · `Why` · `Dependencies` (none / requires
   step N) · `Risk` (L/M/H). High-risk steps name the failure scenario.
 - **Risks & mitigations** + **success criteria** (checkbox, includes the test/verify

@@ -1,1 +1,2 @@
-Clarify E2E acceptance guidance so focused journeys run once by default, configured checks are selected by applicability, and retries, thresholds, runtime gaps, and critical journey evidence remain explicit.
+scope: e2e acceptance
+note: Run focused journeys once by default, select configured checks by applicability, and keep retries, project-defined thresholds, runtime gaps, and critical-journey evidence explicit.
