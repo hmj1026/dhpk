@@ -23,9 +23,9 @@
    runtime setup、scope ownership 與 coupling 選擇 `tdd-workflow`、`tdd-guide`、
    worker 或 inline 路徑。
 5. **Delivery loop**：依
-   `references/delivery-loop-gate.md` 完成
-   `/verify`、`change-verdict`、freshness、`change-verdict` 與
-   `/precommit`。
+   `references/delivery-loop-gate.md` 完成適用的 verification、test adequacy、
+   freshness、single review wave 與 `/precommit`；充分的外部 evidence 可提供
+   相同 outcome，不重複指定 producer 或 receipt。
 6. **Handoff**：更新工作單與 handoff；apply-ready 時指向 `/opsx:apply`，
    不重跑已通過的前置階段。
 
@@ -34,5 +34,5 @@
 - 缺少專案或驗收明確要求的 input outcome：先指出具體缺口，不能以新文件名稱代替
 - 缺 profile 或 legacy-reference 文件本身不構成 blocker；若其中有唯一必要事實未被其他證據建立，才要求該事實
 - 有行為變更但缺少需求獨立的 RED evidence：不得宣稱新行為已由測試確認
-- delivery-loop 的 test、adequacy、freshness 或 change-verdict 尚未 PASS：
+- delivery-loop 的 test、adequacy、freshness 或適用的 review outcome 尚未 PASS：
   不得宣稱 ready
