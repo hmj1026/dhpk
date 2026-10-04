@@ -32,11 +32,15 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 
 ## Baseline (language-agnostic)
 
+Apply these checks to the data-access behavior in scope. Detect the actual
+database family, driver, ORM/DAO, transaction model, and deployment topology
+before applying engine-specific advice. Engine, framework, and project rules
+loaded from a matching trap sheet take precedence over examples here.
+
 - **Parameterize everything** — every dynamic query is parameter-bound; never string-concatenate untrusted input into SQL / predicates.
 - **Indexing** — hot WHERE / ORDER BY columns are indexed; composite-index column order matches the predicate.
 - **No N+1** — fetch related rows via eager loading / batch fetch, not a query inside a loop.
 - **Transactions** — wrap multi-step writes in one transaction; update rows in a consistent order to avoid deadlocks.
-- **Reversible migrations** — every migration has a working down / rollback path.
 - **Query plans** — sample EXPLAIN / the query plan for complex queries; watch for full table scans.
 
 ## Checklist
@@ -45,8 +49,16 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 - [ ] No N+1 (use `with()` eager load)
 - [ ] Hot WHERE/ORDER BY columns indexed; composite order matches predicate
 - [ ] Multi-step writes wrapped in transaction; consistent row update order
-- [ ] Migration has DOWN; uses bound params
 - [ ] EXPLAIN sampled for complex queries (no full table scan)
+
+## Boundary with migration review
+
+Schema-change reversibility, idempotency, naming collisions, online DDL, engine
+compatibility, and rollback execution belong to `migration-reviewer`. Keep this
+role on SQL correctness, data-access behavior, transactions, and query plans;
+do not duplicate the migration checklist. If no migration reviewer or
+child-dispatch tool is available, return an explicit escalation naming that
+missing capability and leave migration-specific evidence unresolved.
 
 ## Shared reviewer contract
 

@@ -38,6 +38,11 @@ The Audit Checklist below is the language-agnostic baseline; the loaded sheet ad
 
 ## Audit Checklist
 
+Start by identifying the migration framework, database engine and version,
+table engine, deployment topology, and whether the affected table is actually
+high volume. Apply only the matching framework/engine guidance; the examples
+below are conditional anchors, not universal requirements.
+
 ### 1. up/down symmetry (HARD)
 
 - [ ] Every action in `up` has a matching reverse in `down` (`addColumn` ↔ `dropColumn`)
@@ -56,7 +61,7 @@ The Audit Checklist below is the language-agnostic baseline; the loaded sheet ad
 
 - [ ] FK names explicit: `fk_<table>_<column>_<ref_table>` — never rely on the framework's auto-naming (`FK_xxxxx`), because different deploy targets can end up with the same logical FK having different auto-generated names, blocking later cross-target migrations
 - [ ] Index names explicit: `idx_<table>_<col1>_<col2>` or `uk_<table>_<col>` (unique)
-- [ ] Identifier length ≤ 64 (MySQL identifier limit; other engines have similar limits — check yours)
+- [ ] Identifier length fits the active engine's documented limit
 - [ ] Same-name migration deployed to multiple tenant databases will not collide on FK constraint names
 
 ### 4. Large ALTER strategy (HIGH — production downtime risk)
@@ -64,19 +69,17 @@ The Audit Checklist below is the language-agnostic baseline; the loaded sheet ad
 For high-volume tables (declared per project via the `hot_tables` userConfig key or CLAUDE.md; the names below are POS-system examples only):
 
 - [ ] Estimate row count: `SELECT COUNT(*) FROM <table>` — if > 1M rows, flag a warning
-- [ ] Confirm ALTER classification (MySQL 5.7 InnoDB online DDL matrix; consult your DB's online-DDL docs for other engines):
-  - ADD/DROP column → online (instant in 8.0, copy in 5.7)
-  - ADD INDEX → online (concurrent reads/writes OK)
-  - ADD FK → copy (locks)
-  - CHANGE COLUMN type → copy (locks)
+- [ ] Confirm ALTER classification using the active engine/version's online-DDL matrix:
+  - classify locking, rewrite, and concurrent-read/write behavior from that matrix
+  - do not infer safety from a MySQL example when the project uses another engine
 - [ ] Large-table ALTERs in `up` should be a single statement (don't split into multiple small ALTERs — each ALTER rebuilds the whole table)
 - [ ] PR description states expected execution time (measure locally → extrapolate to prod row count)
 
 ### 5. Engine compatibility (MEDIUM)
 
-- [ ] New tables explicitly `'ENGINE=InnoDB'` (don't rely on default — some deploy targets may still have MyISAM as default engine)
-- [ ] Explicit `'CHARSET=<project-charset> COLLATE=<project-collation>'` (don't rely on server default)
-- [ ] Do not add FK on MyISAM tables (silent fail — FK constraints ignored)
+- [ ] New-table engine, charset, collation, and FK support match the active
+      database's requirements; do not impose MySQL/InnoDB clauses on another
+      engine
 
 ### 6. Multi-environment rollout risk (MEDIUM)
 
@@ -94,6 +97,13 @@ For high-volume tables (declared per project via the `hot_tables` userConfig key
 
 - [ ] `safeDown` can actually be executed (`yiic migrate/down` / `php artisan migrate:rollback` / framework equivalent), not `throw new Exception("can't undo")`
 - [ ] If genuinely IRREVERSIBLE (rare, only when necessary) — PHPDoc states the reason, and a follow-up "compensating migration" is planned
+
+## Child-dispatch boundary
+
+This role is read-only. If a required framework or engine specialist, or a
+child-dispatch tool, is unavailable, return an explicit escalation naming the
+missing capability and the migration question it would cover. Do not require
+an unavailable delegate or silently substitute a different writer.
 
 ## Common failure modes
 
