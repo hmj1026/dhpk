@@ -45,7 +45,7 @@ switches target or turns fallback evidence into a PASS.
    uncommitted working tree (`git diff --staged` + `git diff HEAD`). Only if BOTH fallback diffs are
    empty (clean tree), fall back to `git log --oneline -5` for context — do not
    review those commits.
-3. Read full files; trace callers via `cx references --name X`.
+3. Read the relevant symbol definitions, callers, and surrounding context via `cx references --name X`; expand to broader or full-file context when the review still has a material gap.
 4. Three perspectives: **Reuse → Quality → Efficiency**.
 5. Report only >80%-confidence findings (apply the **Confidence gate** below); merge similar; skip style nits. A zero-finding review is valid.
 

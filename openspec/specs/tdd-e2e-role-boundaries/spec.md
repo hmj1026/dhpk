@@ -75,18 +75,18 @@ During the RED→GREEN loop the tdd-guide SHALL invoke the test runner scoped to
 - **WHEN** the guide iterates RED→GREEN on a single test method
 - **THEN** each iteration runs only the scoped invocation, and the full suite runs once after GREEN
 
-### Requirement: TDD GREEN implementation is threshold-gated between inline and fast-worker handback
+### Requirement: TDD GREEN implementation follows ownership and risk
 
-tdd-guide SHALL implement the GREEN phase itself only when the whole GREEN footprint fits the inline bound (≤2 files). When the GREEN implementation exceeds that bound, tdd-guide SHALL NOT implement it; it SHALL return the RED tests plus a fast-worker-ready fix-spec (target files, exact change intent, scoped verification command) for the orchestrator to dispatch to the selector-resolved fast-worker, and acceptance SHALL be verified by re-running the scoped tests (by tdd-guide re-invocation or the orchestrator running the stated verification command).
+tdd-guide SHALL implement the GREEN phase itself when ownership is clear, coupling is bounded, the test seam is settled, and material risk fits the role. When those conditions are not met, tdd-guide SHALL return the RED tests plus a fast-worker-ready fix-spec (target files, exact change intent, scoped verification command) for the orchestrator to dispatch to the selector-resolved fast-worker, and acceptance SHALL be verified by re-running the scoped tests (by tdd-guide re-invocation or the orchestrator running the stated verification command). Explicit higher-priority instructions and required role constraints remain binding.
 
-#### Scenario: Small GREEN stays inline
+#### Scenario: Settled low-coupling GREEN stays inline
 
-- **WHEN** the failing test can be made green with edits to at most two files
-- **THEN** tdd-guide implements GREEN itself, as today
+- **WHEN** the failing test has a settled seam, clear ownership, bounded coupling, and manageable material risk
+- **THEN** tdd-guide implements GREEN itself and reports the scoped verification
 
-#### Scenario: Large GREEN hands back a fix-spec
+#### Scenario: Unsettled or risky GREEN hands back a fix-spec
 
-- **WHEN** making the test green requires edits across more than two files
+- **WHEN** ownership, coupling, test seam, or material risk is unsettled
 - **THEN** tdd-guide returns the RED tests and a fix-spec without implementing, the orchestrator dispatches the fast-worker tier, and the scoped tests are re-run as acceptance
 
 ### Requirement: e2e-runner does not implement business code
