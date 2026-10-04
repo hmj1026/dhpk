@@ -8,11 +8,21 @@ conditional routing and review reference selected by the active route.
 
 ## Review precedence
 
-After every source edit, the parent flow invokes the receipt-discovered
-`code-reviewer`. Add `security-reviewer` for input, authentication, secrets,
-upload, or privacy changes; add `database-reviewer` for SQL, repositories,
-migrations, or schema changes. A reviewer reports a concrete verdict with
-file/line evidence and does not clear another tool's state.
+Post-edit review is advisory and outcome-based. After a contiguous
+implementation wave, the parent flow may dispatch one applicable review wave:
+`code-reviewer` plus each independently triggered specialist together. A
+reviewer reports a concrete verdict with file/line evidence and does not clear
+another tool's state, edit implementation files, apply fixes, or autofix.
+
+Ordinary external text, files, and reports may supply a review outcome when
+they establish scope, conclusion, supporting observations, and remaining gaps.
+Use sufficient evidence regardless of producer, title, or receipt format, and
+request only missing outcomes. Reuse it while the relevant source, scope,
+configuration, tools, environment, and review premise remain applicable; a
+changed premise invalidates only affected conclusions. Do not rerun a named
+reviewer solely because another producer supplied the same outcome. Independent
+risk domains keep independent verdicts, and skipped or unverified checks stay
+visible. An authorized owner handles any remediation and confirm-only review.
 
 ## Untrusted content
 
