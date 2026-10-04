@@ -197,6 +197,146 @@ function normalizeConsumerSurface(raw, envelope) {
   };
 }
 
+function isBlockedConsumerScopeReceipt(input, rawResults) {
+  const acceptance = input && input.acceptance;
+  const requiredChecks = acceptance && acceptance.requiredChecks;
+  const excludedChecks = acceptance && acceptance.excludedChecks;
+  if (input.stage !== 'CONSUMER'
+    || input.producer !== 'consumer-gate'
+    || !input.adapter || input.adapter.id !== 'consumer-gate'
+    || input.schemaVersion !== 2
+    || rawResults.length !== 0
+    || !acceptance || acceptance.verdict !== 'BLOCKED'
+    || !Array.isArray(requiredChecks) || requiredChecks.length !== 1
+    || !Array.isArray(excludedChecks) || excludedChecks.length === 0) {
+    return false;
+  }
+
+  const [scopeCheck] = requiredChecks;
+  return scopeCheck
+    && scopeCheck.id === 'scope.configuration'
+    && scopeCheck.surface === 'consumer-scope'
+    && scopeCheck.kind === 'contract'
+    && scopeCheck.status === 'BLOCKED'
+    && scopeCheck.evidenceRef === null
+    && excludedChecks.every((check) => (
+      check
+      && typeof check.id === 'string'
+      && check.id.startsWith('scope.')
+      && check.kind === 'installation'
+      && check.status === 'NOT_CONFIGURED'
+      && check.evidenceRef === null
+    ));
+}
+
+const ACCEPTANCE_VERDICTS = new Set(['PASS', 'FAIL', 'BLOCKED']);
+const ACCEPTANCE_KINDS = new Set(['installation', 'contract', 'native', 'research']);
+const ACCEPTANCE_STATUSES = new Set([...CONSUMER_EVIDENCE_STATUS_VALUES, 'PENDING']);
+const ACCEPTANCE_CHECK_FIELDS = new Set(['id', 'surface', 'kind', 'reason', 'status', 'evidenceRef']);
+const MAX_ACCEPTANCE_CHECKS = 100;
+
+function normalizeAcceptance(input, surfaceResults) {
+  if (input.acceptance === undefined) {
+    if (input.schemaVersion !== undefined) {
+      throw new Error('consumer evidence: schemaVersion requires an acceptance object');
+    }
+    return null;
+  }
+  if (input.schemaVersion !== 2) throw new Error('consumer evidence: acceptance requires schemaVersion 2');
+  if (input.stage !== 'CONSUMER') throw new Error('consumer evidence: acceptance is only valid for CONSUMER');
+
+  const acceptance = input.acceptance;
+  if (!acceptance || typeof acceptance !== 'object' || Array.isArray(acceptance)) {
+    throw new Error('consumer evidence: acceptance must be an object');
+  }
+  if (Object.keys(acceptance).some((key) => !['verdict', 'requiredChecks', 'excludedChecks'].includes(key))) {
+    throw new Error('consumer evidence: acceptance contains an unknown field');
+  }
+  if (!ACCEPTANCE_VERDICTS.has(acceptance.verdict)) {
+    throw new Error(`consumer evidence: invalid acceptance verdict '${acceptance.verdict}'`);
+  }
+  if (!Array.isArray(acceptance.requiredChecks) || acceptance.requiredChecks.length === 0) {
+    throw new Error('consumer evidence: acceptance requiredChecks must be a non-empty array');
+  }
+  if (!Array.isArray(acceptance.excludedChecks)) {
+    throw new Error('consumer evidence: acceptance excludedChecks must be an array');
+  }
+  if (acceptance.requiredChecks.length > MAX_ACCEPTANCE_CHECKS
+    || acceptance.excludedChecks.length > MAX_ACCEPTANCE_CHECKS) {
+    throw new Error(`consumer evidence: acceptance check count exceeds ${MAX_ACCEPTANCE_CHECKS}`);
+  }
+
+  const seen = new Set();
+  const normalizeCheck = (check, listName) => {
+    if (!check || typeof check !== 'object' || Array.isArray(check)) {
+      throw new Error(`consumer evidence: acceptance ${listName} entries must be objects`);
+    }
+    if (Object.keys(check).some((key) => !ACCEPTANCE_CHECK_FIELDS.has(key))) {
+      throw new Error(`consumer evidence: acceptance ${listName} entry contains an unknown field`);
+    }
+    if (typeof check.id !== 'string' || !/^[a-z][a-z0-9._:-]{0,127}$/.test(check.id)) {
+      throw new Error(`consumer evidence: acceptance ${listName} entry has an invalid id`);
+    }
+    if (seen.has(check.id)) throw new Error(`consumer evidence: duplicate acceptance check '${check.id}'`);
+    seen.add(check.id);
+    if (typeof check.surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(check.surface)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' has an invalid surface`);
+    }
+    if (!ACCEPTANCE_KINDS.has(check.kind)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' has an invalid kind`);
+    }
+    if (typeof check.reason !== 'string' || check.reason.trim().length === 0 || check.reason.length > 512) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' requires a bounded reason`);
+    }
+    if (!ACCEPTANCE_STATUSES.has(check.status)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' has an invalid status`);
+    }
+    if (check.evidenceRef !== null && (typeof check.evidenceRef !== 'string' || check.evidenceRef.length > 256)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' has an invalid evidenceRef`);
+    }
+    if (check.status === 'PASS' && !check.evidenceRef) {
+      throw new Error(`consumer evidence: passing acceptance check '${check.id}' requires evidenceRef`);
+    }
+    if (check.evidenceRef) {
+      const segments = check.evidenceRef.split('.');
+      if (segments[0] !== 'surfaceResults' || segments.length < 2
+        || segments.some((segment) => !/^[a-z][a-zA-Z0-9_-]*$/.test(segment))) {
+        throw new Error(`consumer evidence: acceptance check '${check.id}' has an unsupported evidenceRef`);
+      }
+      const result = surfaceResults.find((row) => row.surface === segments[1]);
+      if (!result) throw new Error(`consumer evidence: acceptance check '${check.id}' references a missing surface`);
+      if (check.surface !== result.surface) {
+        throw new Error(`consumer evidence: acceptance check '${check.id}' references a different surface`);
+      }
+      let target = result;
+      for (const segment of segments.slice(2)) {
+        if (!target || typeof target !== 'object' || !Object.prototype.hasOwnProperty.call(target, segment)) {
+          throw new Error(`consumer evidence: acceptance check '${check.id}' has a dangling evidenceRef`);
+        }
+        target = target[segment];
+      }
+      if (!target || typeof target !== 'object' || Array.isArray(target)
+        || !Object.prototype.hasOwnProperty.call(target, 'status') || target.status !== check.status) {
+        throw new Error(`consumer evidence: acceptance check '${check.id}' status does not match referenced evidence`);
+      }
+    }
+    return boundedEvidenceValue(check);
+  };
+
+  const requiredChecks = acceptance.requiredChecks.map((check) => normalizeCheck(check, 'requiredChecks'));
+  const excludedChecks = acceptance.excludedChecks.map((check) => normalizeCheck(check, 'excludedChecks'));
+  const hasFailure = requiredChecks.some((check) => check.status === 'FAIL');
+  const allRequiredPass = requiredChecks.every((check) => check.status === 'PASS');
+  const derivedVerdict = hasFailure ? 'FAIL' : (allRequiredPass ? 'PASS' : 'BLOCKED');
+  if (acceptance.verdict !== derivedVerdict) {
+    throw new Error('consumer evidence: acceptance verdict does not match required check statuses');
+  }
+  if (input.verdict !== undefined && input.verdict !== acceptance.verdict) {
+    throw new Error('consumer evidence: stage verdict does not match acceptance verdict');
+  }
+  return { verdict: acceptance.verdict, requiredChecks, excludedChecks };
+}
+
 /**
  * Normalize producer-owned consumer evidence without executing a probe.
  * The returned object intentionally retains legacy top-level fields and adds
@@ -207,7 +347,10 @@ function normalizeConsumerEvidence(input) {
   const stage = input.stage;
   if (!STAGES.includes(stage)) throw new Error(`consumer evidence: invalid or missing stage '${stage || ''}'`);
   const rawResults = input.surfaceResults || (input.surface ? [input] : []);
-  if (!Array.isArray(rawResults) || rawResults.length === 0) throw new Error('consumer evidence: missing surface results');
+  if (!Array.isArray(rawResults)
+    || (rawResults.length === 0 && !isBlockedConsumerScopeReceipt(input, rawResults))) {
+    throw new Error('consumer evidence: missing surface results or blocked scope-selection receipt');
+  }
   const seen = new Set();
   const envelope = {
     stage,
@@ -226,6 +369,7 @@ function normalizeConsumerEvidence(input) {
     seen.add(normalized.surface);
     return normalized;
   });
+  const acceptance = normalizeAcceptance(input, surfaceResults);
   if (envelope.planFingerprint && !/^sha256:[a-f0-9]{64}$/i.test(envelope.planFingerprint)) {
     throw new Error('consumer evidence: invalid plan fingerprint');
   }
@@ -238,7 +382,9 @@ function normalizeConsumerEvidence(input) {
     ...safeEnvelope,
     stage,
     surfaceResults,
+    ...(acceptance ? { schemaVersion: 2, acceptance } : {}),
     ...(input.runtimeVerified === true
+      && !acceptance
       && stage === 'CONSUMER'
       && surfaceResults.every((result) => result.status === CONSUMER_EVIDENCE_STATUSES.PASS)
       ? { runtimeVerified: true }

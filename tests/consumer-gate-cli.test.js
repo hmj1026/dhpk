@@ -26,6 +26,7 @@ const {
   validateCodexAgentMaterialization,
 } = require(CLI);
 const { inspectCodexDiscovery } = require('../scripts/lib/codex-discovery-registry');
+const { normalizeConsumerEvidence } = require('../scripts/lib/release-evidence');
 
 function mkBinStub(dir, name, body) {
   fs.mkdirSync(dir, { recursive: true });
@@ -314,10 +315,67 @@ test('Codex named-role probe reports NOT_RUN when the CLI is absent', () => {
 });
 
 function runCli(env, extraArgs = []) {
-  return spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', ROOT, ...extraArgs], {
+  return runCliAtRoot(ROOT, env, extraArgs);
+}
+
+function runCliAtRoot(root, env = {}, extraArgs = []) {
+  return spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', root, ...extraArgs], {
     encoding: 'utf8',
     env: { ...process.env, ...env },
   });
+}
+
+function runRequirements(requirements, env = {}, extraArgs = []) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-requirements-'));
+  const file = path.join(directory, 'requirements.json');
+  try {
+    fs.writeFileSync(file, JSON.stringify(requirements));
+    return runCli(env, ['--requirements', file, ...extraArgs]);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+function makeConfiguredScopeRoot(markerPaths = []) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-scope-'));
+  for (const relative of markerPaths) {
+    const source = path.join(ROOT, relative);
+    const destination = path.join(root, relative);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.cpSync(source, destination, { recursive: true });
+  }
+  return root;
+}
+
+function makeProjectedPackageRoot({ includeAgent = true, includeCursor = true } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-projected-consumer-root-'));
+  const probeDirectory = path.join(root, 'scripts', 'release');
+  const pluginsDirectory = path.join(root, 'plugins');
+  const manifestsDirectory = path.join(root, 'manifests');
+  fs.mkdirSync(probeDirectory, { recursive: true });
+  fs.mkdirSync(pluginsDirectory, { recursive: true });
+  fs.mkdirSync(manifestsDirectory, { recursive: true });
+  const realProbe = path.join(ROOT, 'scripts', 'release', 'consumer-platform-probe.js');
+  fs.writeFileSync(path.join(probeDirectory, 'consumer-platform-probe.js'), [
+    "'use strict';",
+    "const { spawnSync } = require('node:child_process');",
+    `const result = spawnSync(process.execPath, [${JSON.stringify(realProbe)}, ...process.argv.slice(2)], { encoding: 'utf8' });`,
+    'process.stdout.write(result.stdout || "");',
+    'process.stderr.write(result.stderr || "");',
+    'process.exitCode = result.status === null ? 1 : result.status;',
+  ].join('\n'));
+  const packageNames = [
+    ...(includeAgent ? ['dhpk-agent'] : []),
+    ...(includeCursor ? ['dhpk-cursor'] : []),
+  ];
+  for (const packageName of packageNames) {
+    fs.cpSync(path.join(ROOT, 'plugins', packageName), path.join(pluginsDirectory, packageName), { recursive: true });
+  }
+  fs.copyFileSync(
+    path.join(ROOT, 'manifests', 'distribution-inventory.json'),
+    path.join(manifestsDirectory, 'distribution-inventory.json'),
+  );
+  return root;
 }
 
 function recordingClaudeScript(logFile, {
@@ -363,19 +421,21 @@ function assertClaudeProjectTeardown(logText, stage) {
 test('keeps Claude and native Codex UNAVAILABLE when their CLIs are absent', () => {
   const env = { PATH: NODE_BASH_ONLY_PATH };
   const claudeStage = JSON.parse(runCli(env, ['--surface', 'claude-core']).stdout);
-  assert.strictEqual(claudeStage.verdict, 'UNAVAILABLE', JSON.stringify(claudeStage));
+  assert.strictEqual(claudeStage.verdict, 'BLOCKED', JSON.stringify(claudeStage));
+  assert.strictEqual(claudeStage.acceptance.verdict, 'BLOCKED');
   assert.strictEqual(claudeStage.surfaceResults[0].surface, 'claude');
   assert.strictEqual(claudeStage.surfaceResults[0].status, 'UNAVAILABLE');
   assert.ok(claudeStage.failureReasons.some((reason) => /claude/i.test(reason)));
 
   const nativeStage = JSON.parse(runCli(env, ['--surface', 'codex-native']).stdout);
-  assert.strictEqual(nativeStage.verdict, 'UNAVAILABLE', JSON.stringify(nativeStage));
+  assert.strictEqual(nativeStage.verdict, 'BLOCKED', JSON.stringify(nativeStage));
+  assert.strictEqual(nativeStage.acceptance.verdict, 'BLOCKED');
   assert.strictEqual(nativeStage.surfaceResults[0].surface, 'codex-native');
   assert.strictEqual(nativeStage.surfaceResults[0].status, 'UNAVAILABLE');
   assert.ok(nativeStage.failureReasons.some((reason) => /native.*codex|codex.*native/i.test(reason)));
 });
 
-test('reports overall PENDING when supported checks pass but Cursor runtime is not invoked', () => {
+test('default installation acceptance passes configured contracts while runtime remains excluded', () => {
   withConsumerGateBin((bin) => {
     mkBinStub(bin, 'claude', `#!/bin/sh
 if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
@@ -387,27 +447,33 @@ exit 0
 `);
     const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
     const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    assert.strictEqual(stage.acceptance.verdict, 'PASS');
     assert.strictEqual(res.status, 0);
     assert.ok(stage.surfaceResults.every((result) => result.stage === 'CONSUMER'));
     assert.ok(stage.surfaceResults.some((result) => result.surface === 'agent-plugin'));
     assert.strictEqual(stage.surfaceResults.find((result) => result.surface === 'cursor-sync').status, 'NOT_RUN');
-    assert.ok(stage.artifacts.some((a) => /claude.*official.*PASS|official.*PASS.*claude/i.test(a)), JSON.stringify(stage));
     assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode === 0), JSON.stringify(stage));
+    assert.ok(stage.acceptance.excludedChecks.some((check) => (
+      check.surface === 'cursor-sync' && check.kind === 'native' && check.status === 'NOT_RUN'
+    )), JSON.stringify(stage.acceptance));
+    assert.ok(stage.acceptance.excludedChecks.some((check) => (
+      check.surface === 'codex-native' && check.status === 'NOT_CONFIGURED'
+    )), JSON.stringify(stage.acceptance));
   });
 });
 
 test('routes the portable Agent Plugin package through its dedicated probe', () => {
-  const res = runCli({ PATH: NODE_BASH_ONLY_PATH, CI: 'true' });
+  const res = runCli({ PATH: NODE_BASH_ONLY_PATH, CI: 'true', DHPK_CONSUMER_PROBE_EXECUTE: '1' });
   const stage = JSON.parse(res.stdout);
   const agent = stage.surfaceResults.find((result) => result.surface === 'agent-plugin');
   assert.ok(agent, JSON.stringify(stage));
-  assert.notStrictEqual(agent.status, 'NOT_CONFIGURED', JSON.stringify(agent));
   assert.strictEqual(agent.status, 'UNAVAILABLE', JSON.stringify(agent));
   const agentCommands = agent.commands.map((command) => command.cmd).join('\n');
-  assert.match(agentCommands, /cursor-agent --plugin-dir <agent-package> --mode ask --trust/);
-  assert.strictEqual((agentCommands.match(/--plugin-dir/g) || []).length, 1, agentCommands);
-  assert.match(agent.reasons.join('\n'), /Agent Plugin consumer runtime probe|opt-in|Cursor client tooling/i);
+  assert.strictEqual(agentCommands, '');
+  assert.doesNotMatch(agentCommands, /--execute/);
+  assert.strictEqual(agent.installationEvidence.status, 'PASS', JSON.stringify(agent));
+  assert.strictEqual(agent.runtimeEvidence.status, 'UNAVAILABLE', JSON.stringify(agent));
 });
 
 test('selected Agent Plugin evidence reports the portable runtime as unavailable when not executed', () => {
@@ -417,10 +483,39 @@ test('selected Agent Plugin evidence reports the portable runtime as unavailable
   });
   assert.strictEqual(res.status, 0, res.stdout + res.stderr);
   const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'UNAVAILABLE', JSON.stringify(stage));
+  assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+  assert.strictEqual(stage.acceptance.verdict, 'PASS');
   assert.strictEqual(stage.surfaceResults.length, 1, JSON.stringify(stage));
   assert.strictEqual(stage.surfaceResults[0].surface, 'agent-plugin');
   assert.strictEqual(stage.surfaceResults[0].status, 'UNAVAILABLE');
+});
+
+test('Cursor plugin installation acceptance requires its sibling Agent package closure', () => {
+  const validRoot = makeProjectedPackageRoot();
+  const missingRoot = makeProjectedPackageRoot({ includeAgent: false });
+  try {
+    const valid = runCliAtRoot(validRoot, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'cursor-plugin']);
+    assert.strictEqual(valid.status, 0, valid.stdout + valid.stderr);
+    const validStage = JSON.parse(valid.stdout);
+    const validCursor = validStage.surfaceResults.find((result) => result.surface === 'cursor-plugin');
+    assert.strictEqual(validStage.acceptance.verdict, 'PASS', JSON.stringify(validStage.acceptance));
+    assert.strictEqual(validCursor.installationEvidence.status, 'PASS', JSON.stringify(validCursor));
+    assert.strictEqual(validCursor.installationEvidence.companion.status, 'PASS', JSON.stringify(validCursor));
+    assert.strictEqual(validCursor.runtimeEvidence.status, 'UNAVAILABLE', JSON.stringify(validCursor));
+
+    const missing = runCliAtRoot(missingRoot, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'cursor-plugin']);
+    assert.strictEqual(missing.status, 1, missing.stdout + missing.stderr);
+    const missingStage = JSON.parse(missing.stdout);
+    const missingCursor = missingStage.surfaceResults.find((result) => result.surface === 'cursor-plugin');
+    assert.strictEqual(missingStage.acceptance.verdict, 'FAIL', JSON.stringify(missingStage.acceptance));
+    assert.strictEqual(missingCursor.status, 'UNAVAILABLE', JSON.stringify(missingCursor));
+    assert.strictEqual(missingCursor.installationEvidence.status, 'FAIL', JSON.stringify(missingCursor));
+    assert.strictEqual(missingCursor.installationEvidence.companion.status, 'FAIL', JSON.stringify(missingCursor));
+    assert.notStrictEqual(missingStage.runtimeVerified, true);
+  } finally {
+    fs.rmSync(validRoot, { recursive: true, force: true });
+    fs.rmSync(missingRoot, { recursive: true, force: true });
+  }
 });
 
 test('verifies the Cursor project-local sync route in an isolated project', () => {
@@ -442,11 +537,434 @@ test('selected Cursor sync evidence keeps the gate pending without a Cursor clie
   });
   assert.strictEqual(res.status, 0, res.stdout + res.stderr);
   const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+  assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+  assert.strictEqual(stage.acceptance.verdict, 'PASS');
   assert.strictEqual(stage.surfaceResults.length, 1, JSON.stringify(stage));
   assert.strictEqual(stage.surfaceResults[0].surface, 'cursor-sync');
   assert.strictEqual(stage.surfaceResults[0].status, 'NOT_RUN');
+  assert.strictEqual(stage.surfaceResults[0].installationEvidence.status, 'PASS');
   assert.ok(stage.commands.some((command) => /install-cursor-harness/.test(command.cmd)), JSON.stringify(stage.commands));
+});
+
+test('selected Cursor sync accepts the installation contract while retaining native NOT_RUN evidence', () => {
+  const res = runCli({ PATH: NODE_BASH_ONLY_PATH, CI: 'true' }, ['--surface', 'cursor-sync']);
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  const cursorSync = stage.surfaceResults.find((result) => result.surface === 'cursor-sync');
+
+  assert.strictEqual(stage.schemaVersion, 2, JSON.stringify(stage));
+  assert.strictEqual(stage.stage, 'CONSUMER');
+  assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+  assert.strictEqual(stage.acceptance.verdict, 'PASS', JSON.stringify(stage.acceptance));
+  assert.ok(stage.acceptance.requiredChecks.some((check) => (
+    check.kind === 'installation'
+      && check.surface === 'cursor-sync'
+      && check.status === 'PASS'
+      && check.evidenceRef === 'surfaceResults.cursor-sync.installationEvidence'
+  )), JSON.stringify(stage.acceptance));
+  assert.ok(stage.acceptance.excludedChecks.some((check) => (
+    check.kind === 'native'
+      && check.surface === 'cursor-sync'
+      && check.status === 'NOT_RUN'
+      && check.evidenceRef === 'surfaceResults.cursor-sync.runtimeEvidence'
+  )), JSON.stringify(stage.acceptance));
+  assert.strictEqual(cursorSync.status, 'NOT_RUN', JSON.stringify(cursorSync));
+  assert.strictEqual(cursorSync.installationEvidence.status, 'PASS', JSON.stringify(cursorSync));
+  assert.notStrictEqual(stage.runtimeVerified, true);
+});
+
+test('selected Codex sync accepts installation without running the named-role probe from CI or execute flags', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'codex-argv.log');
+    const codexHome = path.join(bin, 'empty-codex-home');
+    fs.mkdirSync(codexHome);
+    mkBinStub(bin, 'codex', `#!/bin/sh
+printf '%s\\n' "$*" >> ${JSON.stringify(log)}
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; fi
+exit 0
+`);
+
+    const res = runCli({
+      PATH: `${bin}:${NODE_BASH_ONLY_PATH}`,
+      CODEX_HOME: codexHome,
+      CI: 'true',
+      DHPK_CONSUMER_PROBE_EXECUTE: '1',
+    }, ['--surface', 'codex-sync']);
+    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    const stage = JSON.parse(res.stdout);
+    const codexSync = stage.surfaceResults.find((result) => result.surface === 'codex-sync');
+
+    assert.strictEqual(stage.schemaVersion, 2, JSON.stringify(stage));
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    assert.strictEqual(stage.acceptance.verdict, 'PASS', JSON.stringify(stage.acceptance));
+    assert.strictEqual(codexSync.installationEvidence.status, 'PASS', JSON.stringify(codexSync));
+    assert.strictEqual(codexSync.runtimeEvidence.status, 'NOT_RUN', JSON.stringify(codexSync));
+    assert.ok(stage.acceptance.excludedChecks.some((check) => (
+      check.kind === 'native' && check.surface === 'codex-sync' && check.status === 'NOT_RUN'
+    )), JSON.stringify(stage.acceptance));
+    const codexArguments = fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '';
+    assert.doesNotMatch(codexArguments, /(?:^|\n)exec(?:\s|$)/m, 'ordinary acceptance ran a Codex prompt');
+    assert.notStrictEqual(stage.runtimeVerified, true);
+  });
+});
+
+test('requirements select a deterministic surface and accept a passing installation contract', () => {
+  const res = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['cursor-sync'],
+    checks: [{
+      id: 'cursor-receipt',
+      surface: 'cursor-sync',
+      host: 'cursor',
+      capability: 'installation-contract',
+      trigger: 'loader-change',
+      reason: 'Confirm the installed project receipt.',
+      question: 'Did the sync contract pass?',
+      evidenceKind: 'contract',
+      authorization: { authorized: false },
+    }],
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.acceptance.verdict, 'PASS', JSON.stringify(stage));
+  assert.deepStrictEqual(stage.surfaceResults.map((result) => result.surface), ['cursor-sync']);
+  assert.ok(stage.acceptance.requiredChecks.some((check) => (
+    check.id === 'requirement.cursor-receipt'
+      && check.status === 'PASS'
+      && check.evidenceRef === 'surfaceResults.cursor-sync.requirementEvidence.check1'
+  )), JSON.stringify(stage.acceptance));
+  const normalized = normalizeConsumerEvidence(stage);
+  assert.deepStrictEqual(normalized.acceptance, stage.acceptance);
+});
+
+test('requirements bind Agent Plugin and Cursor Plugin surfaces to the canonical Cursor Host', () => {
+  const res = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['agent-plugin'],
+    checks: [{
+      id: 'agent-package',
+      surface: 'agent-plugin',
+      host: 'cursor',
+      capability: 'installation-contract',
+      trigger: 'loader-change',
+      reason: 'Confirm the portable package contract.',
+      question: 'Does the Agent Plugin package satisfy the contract?',
+      evidenceKind: 'contract',
+      authorization: { authorized: false },
+    }],
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.acceptance.verdict, 'PASS', JSON.stringify(stage.acceptance));
+  assert.strictEqual(stage.acceptance.requiredChecks.find((check) => check.id === 'requirement.agent-package').status, 'PASS');
+  assert.strictEqual(stage.surfaceResults.find((result) => result.surface === 'agent-plugin').runtimeEvidence.status, 'UNAVAILABLE');
+});
+
+test('authorized native requirements stay PENDING without invoking native adapters', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'codex-argv.log');
+    const codexHome = path.join(bin, 'empty-codex-home');
+    fs.mkdirSync(codexHome);
+    mkBinStub(bin, 'codex', `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(log)}\nexit 0\n`);
+    const res = runRequirements({
+      schema: 'dhpk.consumer-requirements.v1',
+      selectedSurfaces: ['codex-sync'],
+      checks: [{
+        id: 'named-role-runtime',
+        surface: 'codex-sync',
+        host: 'codex',
+        capability: 'named-agent-dispatch',
+        trigger: 'role-registration-change',
+        reason: 'Verify native named-role dispatch.',
+        question: 'Can the host discover the registered role?',
+        evidenceKind: 'native',
+        authorization: { authorized: true },
+      }],
+    }, {
+      PATH: `${bin}:${NODE_BASH_ONLY_PATH}`,
+      CODEX_HOME: codexHome,
+      CI: 'true',
+      DHPK_CONSUMER_PROBE_EXECUTE: '1',
+    });
+    assert.strictEqual(res.status, 1, res.stdout + res.stderr);
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.acceptance.verdict, 'BLOCKED', JSON.stringify(stage.acceptance));
+    assert.ok(stage.acceptance.requiredChecks.some((check) => (
+      check.id === 'requirement.named-role-runtime' && check.status === 'PENDING'
+    )), JSON.stringify(stage.acceptance));
+    const codexArguments = fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '';
+    assert.doesNotMatch(codexArguments, /(?:^|\n)exec(?:\s|$)/m, 'native requirement ran a Codex prompt');
+  });
+});
+
+test('requirements reject malformed schemas and conflicting CLI surface scope before adapters', () => {
+  const malformed = runRequirements({ schema: 'unknown', checks: [] }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(malformed.status, 2, malformed.stdout + malformed.stderr);
+  assert.match(malformed.stderr, /requirements.*schema/i);
+
+  const validCheck = {
+    id: 'codex-native', surface: 'codex-sync', host: 'codex', capability: 'named-role-registration',
+    trigger: 'explicit-native', reason: 'Check native dispatch.', question: 'Can it dispatch?',
+    evidenceKind: 'native', authorization: { authorized: true },
+  };
+  const mismatched = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['codex-sync'],
+    checks: [validCheck],
+  }, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'cursor-sync']);
+  assert.strictEqual(mismatched.status, 2, mismatched.stdout + mismatched.stderr);
+  assert.match(mismatched.stderr, /surface.*conflict/i);
+
+  const wrongHost = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['codex-sync'],
+    checks: [{ ...validCheck, host: 'cursor' }],
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(wrongHost.status, 2, wrongHost.stdout + wrongHost.stderr);
+  assert.match(wrongHost.stderr, /host.*surface/i);
+
+  const dottedId = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['codex-sync'],
+    checks: [{ ...validCheck, id: 'codex.roles.native' }],
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(dottedId.status, 2, dottedId.stdout + dottedId.stderr);
+  assert.match(dottedId.stderr, /id.*invalid/i);
+
+  const oversized = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['codex-sync'],
+    checks: [validCheck],
+    ignored: 'x'.repeat(65 * 1024),
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(oversized.status, 2, oversized.stdout + oversized.stderr);
+  assert.match(oversized.stderr, /bound/i);
+});
+
+test('out-of-scope explicit native requirements remain required without invoking their adapter', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'codex-argv.log');
+    const codexHome = path.join(bin, 'empty-codex-home');
+    fs.mkdirSync(codexHome);
+    mkBinStub(bin, 'codex', `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(log)}\nexit 0\n`);
+    const res = runRequirements({
+      schema: 'dhpk.consumer-requirements.v1',
+      selectedSurfaces: ['cursor-sync'],
+      checks: [{
+        id: 'cursor-contract', surface: 'cursor-sync', host: 'cursor', capability: 'sync',
+        trigger: 'new-host', reason: 'Check cursor sync.', question: 'Did sync pass?',
+        evidenceKind: 'contract', authorization: { authorized: false },
+      }, {
+        id: 'codex-native', surface: 'codex-sync', host: 'codex', capability: 'runtime',
+        trigger: 'explicit-native', reason: 'Check native dispatch.', question: 'Can it dispatch?',
+        evidenceKind: 'native', authorization: { authorized: true },
+      }],
+    }, { PATH: `${bin}:${NODE_BASH_ONLY_PATH}`, CODEX_HOME: codexHome });
+    assert.strictEqual(res.status, 1, res.stdout + res.stderr);
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.acceptance.verdict, 'BLOCKED', JSON.stringify(stage.acceptance));
+    assert.ok(stage.acceptance.requiredChecks.some((check) => (
+      check.id === 'requirement.codex-native' && check.status === 'BLOCKED'
+    )), JSON.stringify(stage.acceptance));
+    assert.ok(stage.acceptance.excludedChecks.every((check) => check.id !== 'requirement.codex-native'));
+    assert.deepStrictEqual(stage.surfaceResults.map((result) => result.surface), ['cursor-sync', 'codex-sync']);
+    assert.strictEqual(fs.existsSync(log), false, 'unselected Codex adapter ran');
+  });
+});
+
+test('activation-defect requirements cannot pass from installation evidence alone', () => {
+  const res = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['cursor-sync'],
+    checks: [{
+      id: 'cursor-activation-defect',
+      surface: 'cursor-sync',
+      host: 'cursor',
+      capability: 'installation-contract',
+      trigger: 'activation-defect',
+      reason: 'A known activation defect is under investigation.',
+      question: 'Does the native loader activate the package?',
+      evidenceKind: 'contract',
+      authorization: { authorized: false },
+    }],
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(res.status, 1, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.acceptance.verdict, 'BLOCKED', JSON.stringify(stage.acceptance));
+  assert.ok(stage.acceptance.requiredChecks.some((check) => (
+    check.id === 'requirement.cursor-activation-defect' && check.status === 'BLOCKED'
+  )), JSON.stringify(stage.acceptance));
+  assert.strictEqual(stage.surfaceResults[0].installationEvidence.status, 'PASS');
+});
+
+test('unsupported contract capabilities stay required and BLOCKED', () => {
+  const res = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['cursor-sync'],
+    checks: [{
+      id: 'cursor-custom-loader',
+      surface: 'cursor-sync',
+      host: 'cursor',
+      capability: 'custom-loader-activation',
+      trigger: 'loader-change',
+      reason: 'Verify custom loader activation.',
+      question: 'Does this loader activate?',
+      evidenceKind: 'contract',
+      authorization: { authorized: false },
+    }],
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(res.status, 1, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.ok(stage.acceptance.requiredChecks.some((check) => (
+    check.id === 'requirement.cursor-custom-loader' && check.status === 'BLOCKED'
+  )), JSON.stringify(stage.acceptance));
+});
+
+test('default scope runs configured targets and excludes unconfigured Hosts without probing them', () => {
+  const configuredRoot = makeConfiguredScopeRoot([
+    '.claude-plugin',
+    'skills',
+    'agents',
+    'commands',
+    'modules',
+  ]);
+  try {
+    withConsumerGateBin((bin) => {
+      const codexLog = path.join(bin, 'codex-argv.log');
+      mkBinStub(bin, 'claude', recordingClaudeScript(path.join(bin, 'claude-argv.log')));
+      mkBinStub(bin, 'codex', `#!/bin/sh\nprintf '%s\\n' "$*" >> ${JSON.stringify(codexLog)}\nexit 0\n`);
+
+      const result = runCliAtRoot(configuredRoot, { PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+      assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+      const stage = JSON.parse(result.stdout);
+      assert.strictEqual(stage.acceptance.verdict, 'PASS', JSON.stringify(stage.acceptance));
+      assert.deepStrictEqual(stage.surfaceResults.map((entry) => entry.surface), ['claude']);
+      assert.deepStrictEqual(stage.acceptance.requiredChecks.map((check) => check.surface), ['claude']);
+      assert.ok(['codex-sync', 'codex-native', 'cursor-sync', 'agent-plugin', 'cursor-plugin']
+        .every((surface) => stage.acceptance.excludedChecks.some((check) => (
+          check.surface === surface && check.status === 'NOT_CONFIGURED'
+        ))), JSON.stringify(stage.acceptance.excludedChecks));
+      assert.strictEqual(fs.existsSync(codexLog), false, 'unconfigured Codex adapters were invoked');
+    });
+  } finally {
+    fs.rmSync(configuredRoot, { recursive: true, force: true });
+  }
+});
+
+test('default scope with no configured target blocks without invoking adapters', () => {
+  const emptyRoot = makeConfiguredScopeRoot();
+  try {
+    const result = runCliAtRoot(emptyRoot, { PATH: NODE_BASH_ONLY_PATH });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const stage = JSON.parse(result.stdout);
+    assert.strictEqual(stage.acceptance.verdict, 'BLOCKED', JSON.stringify(stage.acceptance));
+    assert.deepStrictEqual(stage.surfaceResults, []);
+    assert.deepStrictEqual(stage.commands, []);
+    assert.ok(stage.acceptance.requiredChecks.some((check) => (
+      check.id === 'scope.configuration'
+        && check.surface === 'consumer-scope'
+        && check.status === 'BLOCKED'
+        && check.evidenceRef === null
+    )), JSON.stringify(stage.acceptance));
+    assert.strictEqual(stage.acceptance.excludedChecks.length, 6, JSON.stringify(stage.acceptance));
+    assert.ok(stage.acceptance.excludedChecks.every((check) => check.status === 'NOT_CONFIGURED'));
+    assert.doesNotThrow(() => normalizeConsumerEvidence(stage));
+  } finally {
+    fs.rmSync(emptyRoot, { recursive: true, force: true });
+  }
+});
+
+test('an explicit surface runs its adapter even when no default configuration marker exists', () => {
+  const emptyRoot = makeConfiguredScopeRoot();
+  try {
+    const result = runCliAtRoot(emptyRoot, { PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'codex-native']);
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const stage = JSON.parse(result.stdout);
+    assert.deepStrictEqual(stage.surfaceResults.map((entry) => entry.surface), ['codex-native']);
+    assert.strictEqual(stage.surfaceResults[0].status, 'UNAVAILABLE');
+    assert.ok(stage.acceptance.requiredChecks.some((check) => check.surface === 'codex-native'));
+    assert.ok(!stage.acceptance.excludedChecks.some((check) => check.surface === 'codex-native'));
+  } finally {
+    fs.rmSync(emptyRoot, { recursive: true, force: true });
+  }
+});
+
+test('authorized activation and explicit-native contract checks remain PENDING', () => {
+  const res = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['cursor-sync'],
+    checks: ['activation-defect', 'explicit-native'].map((trigger) => ({
+      id: trigger === 'activation-defect' ? 'activation-check' : 'native-trigger-check',
+      surface: 'cursor-sync',
+      host: 'cursor',
+      capability: 'installation-contract',
+      trigger,
+      reason: `Verify the ${trigger} behavior.`,
+      question: `Was ${trigger} behavior observed?`,
+      evidenceKind: 'contract',
+      authorization: { authorized: true },
+    })),
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(res.status, 1, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.acceptance.verdict, 'BLOCKED', JSON.stringify(stage.acceptance));
+  assert.deepStrictEqual(
+    stage.acceptance.requiredChecks.filter((check) => check.id.startsWith('requirement.'))
+      .map((check) => check.status),
+    ['PENDING', 'PENDING'],
+  );
+});
+
+test('valid hyphenated requirement IDs normalize without dangling evidence references', () => {
+  const res = runRequirements({
+    schema: 'dhpk.consumer-requirements.v1',
+    selectedSurfaces: ['cursor-sync'],
+    checks: [{
+      id: 'token-mapping',
+      surface: 'cursor-sync',
+      host: 'cursor',
+      capability: 'installation-contract',
+      trigger: 'loader-change',
+      reason: 'Confirm the loader mapping contract.',
+      question: 'Does the installed contract include the mapping?',
+      evidenceKind: 'contract',
+      authorization: { authorized: false },
+    }],
+  }, { PATH: NODE_BASH_ONLY_PATH });
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.doesNotThrow(() => normalizeConsumerEvidence(stage));
+  assert.strictEqual(
+    stage.acceptance.requiredChecks.find((check) => check.id === 'requirement.token-mapping').status,
+    'PASS',
+  );
+});
+
+test('requirements FIFO inputs are rejected promptly without blocking the gate', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-fifo-'));
+  const fifo = path.join(directory, 'requirements.json');
+  try {
+    const created = spawnSync('mkfifo', [fifo], { encoding: 'utf8' });
+    assert.strictEqual(created.status, 0, created.stdout + created.stderr);
+    const result = spawnSync(process.execPath, [
+      CLI,
+      '--version',
+      REAL_VERSION,
+      '--repo-root',
+      ROOT,
+      '--requirements',
+      fifo,
+    ], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
+      timeout: 1500,
+    });
+    assert.ifError(result.error);
+    assert.strictEqual(result.status, 2, result.stdout + result.stderr);
+    assert.match(result.stderr, /requirements file could not be read/i);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('Claude strict validation uses a consumer-shaped staged package without the development root instructions', () => {
@@ -690,9 +1208,9 @@ test('consumer gate resolves a relative repository root before entering its sand
     encoding: 'utf8',
     env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
   });
-  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  assert.strictEqual(res.status, 1, `${res.stdout}\n${res.stderr}`);
   const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'UNAVAILABLE', JSON.stringify(stage));
+  assert.strictEqual(stage.verdict, 'BLOCKED', JSON.stringify(stage));
 });
 
 test('consumer gate rejects a missing --surface value instead of running every probe', () => {
@@ -1140,9 +1658,11 @@ exit 0
 
 test('records unavailable Claude CLI discovery without inventing a version', () => {
   const res = runCli({ PATH: NODE_BASH_ONLY_PATH }, ['--surface', 'claude-core']);
-  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  assert.strictEqual(res.status, 1, `${res.stdout}\n${res.stderr}`);
   const stage = JSON.parse(res.stdout);
   const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+  assert.strictEqual(stage.verdict, 'BLOCKED');
+  assert.strictEqual(stage.acceptance.verdict, 'BLOCKED');
   assert.strictEqual(claude.status, 'UNAVAILABLE', JSON.stringify(stage));
   assert.strictEqual(claude.adapter.version, null, JSON.stringify(claude));
   assert.strictEqual(claude.versionDiscovery.status, 'UNAVAILABLE', JSON.stringify(claude));

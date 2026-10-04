@@ -185,6 +185,217 @@ test('validateEvidence passes a well-formed evidence document', () => {
       };
     }
 
+    test('normalizes schema-v2 acceptance checks and preserves their observed states', () => {
+      const acceptance = {
+        verdict: 'PASS',
+        requiredChecks: [{
+          id: 'install.cursor-plugin',
+          surface: 'cursor-plugin',
+          kind: 'installation',
+          reason: 'Selected package structure and resource closure passed',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.cursor-plugin.installationEvidence',
+        }],
+        excludedChecks: [{
+          id: 'runtime.cursor-plugin',
+          surface: 'cursor-plugin',
+          kind: 'native',
+          reason: 'Native runtime was not requested',
+          status: 'UNAVAILABLE',
+          evidenceRef: 'surfaceResults.cursor-plugin.runtimeEvidence',
+        }],
+      };
+      const surface = baseSurface({
+        installationEvidence: { status: 'PASS', reason: 'Package structure passed' },
+        runtimeEvidence: { status: 'UNAVAILABLE', reason: 'No Cursor client was configured' },
+      });
+      const evidence = normalize(baseEvidence({ schemaVersion: 2, acceptance, surfaceResults: [surface] }));
+
+      assert.strictEqual(evidence.schemaVersion, 2);
+      assert.deepStrictEqual(evidence.acceptance, acceptance);
+      assert.deepStrictEqual(evidence.surfaceResults[0].installationEvidence, surface.installationEvidence);
+      assert.deepStrictEqual(evidence.surfaceResults[0].runtimeEvidence, surface.runtimeEvidence);
+    });
+
+    test('rejects malformed schema-v2 acceptance checks instead of preserving them as valid evidence', () => {
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        acceptance: {
+          verdict: 'PASS',
+          requiredChecks: [{ id: 'install.cursor-plugin', surface: 'cursor-plugin', status: 'PASS' }],
+          excludedChecks: [],
+        },
+      })), /acceptance/i);
+    });
+
+    test('allows only a blocked scope-selection receipt to carry empty surface results', () => {
+      const evidence = normalize({
+        version: '0.43.0',
+        stage: 'CONSUMER',
+        producer: 'consumer-gate',
+        adapter: { id: 'consumer-gate', version: '1.0.0' },
+        schemaVersion: 2,
+        surfaceResults: [],
+        acceptance: {
+          verdict: 'BLOCKED',
+          requiredChecks: [{
+            id: 'scope.configuration',
+            surface: 'consumer-scope',
+            kind: 'contract',
+            reason: 'No configured or explicitly selected consumer surface exists',
+            status: 'BLOCKED',
+            evidenceRef: null,
+          }],
+          excludedChecks: [{
+            id: 'scope.claude-core',
+            surface: 'claude-core',
+            kind: 'installation',
+            reason: 'No configured-target marker was found',
+            status: 'NOT_CONFIGURED',
+            evidenceRef: null,
+          }],
+        },
+      });
+      assert.deepStrictEqual(evidence.surfaceResults, []);
+      assert.strictEqual(evidence.acceptance.verdict, 'BLOCKED');
+
+      assert.throws(() => normalize({
+        stage: 'CONSUMER',
+        producer: 'consumer-gate',
+        schemaVersion: 2,
+        surfaceResults: [],
+        acceptance: {
+          verdict: 'PASS',
+          requiredChecks: [{
+            id: 'scope.configuration', surface: 'consumer-scope', kind: 'contract',
+            reason: 'No scope', status: 'PASS', evidenceRef: null,
+          }],
+          excludedChecks: [],
+        },
+      }), /surface results|scope-selection/i);
+    });
+
+    test('rejects acceptance checks that mismatch their referenced surface or observed status', () => {
+      const passingCheck = {
+        id: 'install.cursor-plugin',
+        surface: 'cursor-plugin',
+        kind: 'installation',
+        reason: 'Package installation contract passed',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.cursor-plugin.installationEvidence',
+      };
+      const baseAcceptance = { verdict: 'PASS', requiredChecks: [passingCheck], excludedChecks: [] };
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        acceptance: baseAcceptance,
+        surfaceResults: [baseSurface({ installationEvidence: { status: 'FAIL' } })],
+      })), /acceptance.*status|status.*acceptance/i);
+
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        acceptance: {
+          ...baseAcceptance,
+          requiredChecks: [{ ...passingCheck, surface: 'agent-plugin' }],
+        },
+        surfaceResults: [
+          baseSurface({ installationEvidence: { status: 'PASS' } }),
+          baseSurface({ surface: 'agent-plugin', installationEvidence: { status: 'PASS' } }),
+        ],
+      })), /acceptance.*surface|surface.*acceptance/i);
+
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        acceptance: {
+          ...baseAcceptance,
+          requiredChecks: [{
+            ...passingCheck,
+            evidenceRef: 'surfaceResults.cursor-plugin.installationEvidence.reason',
+          }],
+        },
+        surfaceResults: [baseSurface({ installationEvidence: { status: 'FAIL', reason: 'package is invalid' } })],
+      })), /acceptance.*status|status.*acceptance/i);
+    });
+
+    test('rejects dangling acceptance references through null intermediate values', () => {
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        acceptance: {
+          verdict: 'BLOCKED',
+          requiredChecks: [{
+            id: 'runtime.cursor-plugin',
+            surface: 'cursor-plugin',
+            kind: 'native',
+            reason: 'Runtime evidence was not requested',
+            status: 'PENDING',
+            evidenceRef: 'surfaceResults.cursor-plugin.runtimeEvidence.status',
+          }],
+          excludedChecks: [],
+        },
+        surfaceResults: [baseSurface({ runtimeEvidence: null })],
+      })), /acceptance.*evidenceRef|evidenceRef.*acceptance/i);
+    });
+
+    test('bounds schema-v2 required and excluded acceptance check counts', () => {
+      const checks = (prefix) => Array.from({ length: 101 }, (_, index) => ({
+        id: `${prefix}-${index}`,
+        surface: 'cursor-plugin',
+        kind: 'native',
+        reason: 'Bounded pending native check',
+        status: 'PENDING',
+        evidenceRef: null,
+      }));
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        acceptance: { verdict: 'BLOCKED', requiredChecks: checks('required'), excludedChecks: [] },
+      })), /acceptance.*count|too many.*acceptance/i);
+      assert.throws(() => normalize(baseEvidence({
+        schemaVersion: 2,
+        acceptance: { verdict: 'PASS', requiredChecks: [{
+          id: 'install.cursor-plugin',
+          surface: 'cursor-plugin',
+          kind: 'installation',
+          reason: 'Package structure passed',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.cursor-plugin.installationEvidence',
+        }], excludedChecks: checks('excluded') },
+        surfaceResults: [baseSurface({ installationEvidence: { status: 'PASS' } })],
+      })), /acceptance.*count|too many.*acceptance/i);
+    });
+
+    test('keeps historical consumer evidence unversioned and without synthesized acceptance', () => {
+      const historical = normalize(baseEvidence());
+      assert.strictEqual(historical.schemaVersion, undefined);
+      assert.strictEqual(historical.acceptance, undefined);
+    });
+
+    test('does not preserve runtimeVerified on schema-v2 installation-only acceptance', () => {
+      const surface = baseSurface({
+        status: 'PASS',
+        installationEvidence: { status: 'PASS', reason: 'Package installation structure passed' },
+      });
+      const evidence = normalize(baseEvidence({
+        schemaVersion: 2,
+        runtimeVerified: true,
+        acceptance: {
+          verdict: 'PASS',
+          requiredChecks: [{
+            id: 'install.cursor-plugin',
+            surface: 'cursor-plugin',
+            kind: 'installation',
+            reason: 'Package installation structure passed',
+            status: 'PASS',
+            evidenceRef: 'surfaceResults.cursor-plugin.installationEvidence',
+          }],
+          excludedChecks: [],
+        },
+        surfaceResults: [surface],
+      }));
+      assert.strictEqual(Object.prototype.hasOwnProperty.call(evidence, 'runtimeVerified'), false);
+
+      const historical = normalize(baseEvidence({ runtimeVerified: true }));
+      assert.strictEqual(historical.runtimeVerified, true, 'legacy behavior remains unchanged without acceptance');
+    });
+
     test('exports exactly the closed canonical consumer status vocabulary', () => {
       assert.ok(releaseEvidence.CONSUMER_EVIDENCE_STATUSES, 'RED: missing CONSUMER_EVIDENCE_STATUSES');
       assert.deepStrictEqual(

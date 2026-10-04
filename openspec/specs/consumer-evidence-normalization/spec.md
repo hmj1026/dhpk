@@ -2,7 +2,9 @@
 
 ## Purpose
 
-TBD - created by archiving change normalize-consumer-evidence. Update Purpose after archive.
+Define the stage-bound consumer evidence contract, preserve installation and
+runtime observations independently, and validate versioned acceptance reports
+without executing consumer processes or synthesizing native runtime proof.
 
 ## Requirements
 
@@ -71,3 +73,92 @@ Consumer evidence normalization MUST NOT merge `dhpk-install` lifecycle aggregat
 
 - **WHEN** the legacy Codex duplicate-surface matrix returns `WARN` while the release gate retains its characterized aggregate behavior
 - **THEN** normalization preserves `WARN` as legacy surface status and warning metadata, uses only the closed canonical verdict vocabulary for the per-surface evidence result, and does not present the surface as a clean supported install
+
+### Requirement: REQ-849-03 Versioned consumer acceptance preserves observations
+
+A CONSUMER report that includes `acceptance` SHALL use `schemaVersion: 2` and
+the exact acceptance fields `verdict`, `requiredChecks`, and `excludedChecks`.
+Each check SHALL retain `id`, `surface`, `kind`, `reason`, `status`, and
+`evidenceRef`. The normalizer SHALL preserve the observed status instead of
+rewriting installation or runtime evidence to agree with acceptance. A check's
+reference SHALL resolve to an observed object on the same surface whose status
+exactly matches the check status. A passing check MUST have a resolving
+reference. For a declared requirements-file check, `evidenceRef` SHALL use the
+stable path `surfaceResults.<surface>.requirementEvidence.checkN`, where `N`
+is its one-based position in the input `checks` array. The referenced evidence
+object SHALL retain the validated requirement ID in its `id` field; the ID is
+not embedded in the reference path.
+
+`requiredChecks` SHALL be non-empty. Each list SHALL contain at most 100 checks
+with unique IDs across both lists. The normalized acceptance verdict SHALL be
+derived from required checks only: any required `FAIL` produces `FAIL`; if no
+required check fails but any required status is not `PASS`, the verdict is
+`BLOCKED`; otherwise it is `PASS`. The CONSUMER stage verdict SHALL equal the
+acceptance verdict. Excluded check outcomes and their reasons remain visible
+but do not satisfy or fail a required check. The accepted field and status
+contract is specified in the
+[consumer acceptance contract](../../../docs/contracts/consumer-acceptance.md).
+
+#### Scenario: Required installation PASS and excluded runtime NOT_RUN coexist
+
+- **WHEN** a selected installation check passes and its separately observed
+  native runtime check is `NOT_RUN`
+- **THEN** the report can have an overall acceptance PASS with installation in
+  `requiredChecks` and runtime in `excludedChecks`
+- **AND** the runtime observation remains `NOT_RUN` with a reference to that
+  observation
+
+#### Scenario: Unconfigured optional surface remains excluded
+
+- **WHEN** the unscoped consumer gate finds no local marker for an unrequested
+  optional surface
+- **THEN** the report retains that surface in `excludedChecks` as
+  `NOT_CONFIGURED` with the absent-marker reason
+- **AND** normalization preserves that observed state without invoking an
+  adapter or changing the acceptance verdict
+
+#### Scenario: Empty configured scope remains blocked
+
+- **WHEN** an unscoped report has no configured consumer target
+- **THEN** it retains a required `scope.configuration` check with
+  `surface: "consumer-scope"`, status `BLOCKED`, and `evidenceRef: null`
+- **AND** excluded `NOT_CONFIGURED` surface rows do not produce a vacuous PASS
+- **AND** `scope.configuration` represents missing scope, not a hidden Host
+
+#### Scenario: Absent optional surface does not create a missing-scope check
+
+- **WHEN** an unscoped report has a configured target whose installation
+  check passes and another optional surface has no marker
+- **THEN** the absent optional surface remains excluded as `NOT_CONFIGURED`
+- **AND** no required Host or `scope.configuration` check is added
+
+#### Scenario: Acceptance reference has a mismatched status
+
+- **WHEN** an acceptance check references a missing surface, a different
+  surface, a dangling evidence path, or an observed status different from its
+  own status
+- **THEN** normalization fails with a structured validation error and does not
+  accept the report
+
+### Requirement: REQ-849-04 Historical consumer evidence remains unsynthesized
+
+Historical consumer reports without an acceptance object SHALL retain their
+original versioning and status semantics. Normalization MUST NOT synthesize a
+schema-v2 acceptance object or a `runtimeVerified` claim when reading those
+reports. Installation PASS alone MUST NOT establish top-level
+`runtimeVerified: true`; a v2 input may retain that claim only when valid,
+current native capability evidence supports it. The #849 consumer gate emits no
+such claim because it does not execute a native runtime check.
+
+#### Scenario: Historical evidence is normalized without acceptance
+
+- **WHEN** a historical report has no acceptance object or schemaVersion
+- **THEN** its existing evidence remains readable under its original status
+  contract and no acceptance is synthesized
+
+#### Scenario: Installation success cannot establish runtime verification
+
+- **WHEN** a v2 report contains passing installation evidence but no valid
+  identity-matched native capability evidence
+- **THEN** normalization rejects or removes an unsupported `runtimeVerified:
+  true` value and preserves the raw runtime state

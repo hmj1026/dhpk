@@ -42,6 +42,7 @@ const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runt
 const { redactSensitiveText } = require('../lib/redaction');
 const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
+const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
@@ -54,6 +55,194 @@ const CONSUMER_SURFACES = Object.freeze([
   'agent-plugin',
   'cursor-plugin',
 ]);
+const CONSUMER_REQUIREMENTS_SCHEMA = 'dhpk.consumer-requirements.v1';
+const CONSUMER_SURFACE_HOSTS = Object.freeze({
+  'claude-core': 'claude',
+  'codex-sync': 'codex',
+  'codex-native': 'codex',
+  'cursor-sync': 'cursor',
+  'agent-plugin': 'cursor',
+  'cursor-plugin': 'cursor',
+});
+const CONSUMER_HOST_CONFIG_MARKERS = Object.freeze({
+  claude: Object.freeze(['.claude-plugin/plugin.json']),
+  codex: Object.freeze(['.codex/config.toml']),
+  cursor: Object.freeze([
+    '.cursor/.dhpk-installed.json',
+    'plugins/dhpk-agent/plugin.json',
+    '.cursor-plugin/plugin.json',
+    '.cursor/plugins/local/dhpk-agent/plugin.json',
+    '.cursor/plugins/local/dhpk-cursor/.cursor-plugin/plugin.json',
+  ]),
+});
+const CONSUMER_REQUIREMENT_TRIGGERS = new Set([
+  'new-host',
+  'loader-change',
+  'role-registration-change',
+  'tool-mapping-change',
+  'activation-defect',
+  'explicit-native',
+]);
+const MAX_REQUIREMENTS_BYTES = 64 * 1024;
+const MAX_REQUIREMENT_CHECKS = 64;
+const REQUIREMENT_TEXT_CONTROL = /[\u0000-\u001f\u007f]/;
+
+function requirementText(value, label, maximum) {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > maximum
+    || REQUIREMENT_TEXT_CONTROL.test(value)) {
+    throw new Error(`requirements ${label} must be a bounded, non-empty single-line string`);
+  }
+  return value.trim();
+}
+
+function readRequirementsFileBounded(filePath) {
+  const initialStat = fs.lstatSync(filePath);
+  if (!initialStat.isFile() || initialStat.isSymbolicLink()) {
+    throw new Error('requirements input must be a regular file');
+  }
+
+  const flags = fs.constants.O_RDONLY
+    | (fs.constants.O_NONBLOCK || 0)
+    | (fs.constants.O_NOFOLLOW || 0);
+  const descriptor = fs.openSync(filePath, flags);
+  try {
+    const openedStat = fs.fstatSync(descriptor);
+    if (!openedStat.isFile()) throw new Error('requirements input must be a regular file');
+    if (openedStat.size > MAX_REQUIREMENTS_BYTES) throw new Error('requirements file exceeds the configured byte limit');
+    if (initialStat.dev !== openedStat.dev || initialStat.ino !== openedStat.ino) {
+      throw new Error('requirements file changed before it could be read');
+    }
+
+    const buffer = Buffer.alloc(openedStat.size);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const count = fs.readSync(descriptor, buffer, offset, Math.min(16 * 1024, buffer.length - offset), offset);
+      if (count === 0) throw new Error('requirements file changed while it was read');
+      offset += count;
+    }
+    const extra = Buffer.alloc(1);
+    if (fs.readSync(descriptor, extra, 0, 1, offset) !== 0) {
+      throw new Error('requirements file exceeds the configured byte limit');
+    }
+
+    const finalStat = fs.fstatSync(descriptor);
+    if (openedStat.dev !== finalStat.dev || openedStat.ino !== finalStat.ino
+      || openedStat.size !== finalStat.size
+      || openedStat.mtimeMs !== finalStat.mtimeMs
+      || openedStat.ctimeMs !== finalStat.ctimeMs) {
+      throw new Error('requirements file changed while it was read');
+    }
+    return buffer;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function hasConfiguredHostMarker(root, marker) {
+  let current = path.resolve(root);
+  const parts = marker.split('/');
+  for (let index = 0; index < parts.length; index += 1) {
+    current = path.join(current, parts[index]);
+    let stat;
+    try {
+      stat = fs.lstatSync(current);
+    } catch (_) {
+      return false;
+    }
+    if (stat.isSymbolicLink()) return false;
+    if (index < parts.length - 1 ? !stat.isDirectory() : !stat.isFile()) return false;
+  }
+  return true;
+}
+
+function configuredHostMarkers(root, surface) {
+  return CONSUMER_HOST_CONFIG_MARKERS[CONSUMER_SURFACE_HOSTS[surface]]
+    .filter((marker) => hasConfiguredHostMarker(root, marker));
+}
+
+function configuredConsumerSurfaces(root) {
+  return CONSUMER_SURFACES.filter((surface) => configuredHostMarkers(root, surface).length > 0);
+}
+
+function parseRequirementsFile(filePath) {
+  let source;
+  try {
+    source = readRequirementsFileBounded(filePath).toString('utf8');
+  } catch (_) {
+    throw new Error('requirements file could not be read within the configured bounds');
+  }
+  let requirements;
+  try {
+    requirements = JSON.parse(source);
+  } catch (_) {
+    throw new Error('requirements file is not valid JSON');
+  }
+  if (!requirements || typeof requirements !== 'object' || Array.isArray(requirements)
+    || Object.keys(requirements).some((key) => !['schema', 'selectedSurfaces', 'checks'].includes(key))) {
+    throw new Error('requirements must be an object with only schema, selectedSurfaces, and checks');
+  }
+  if (requirements.schema !== CONSUMER_REQUIREMENTS_SCHEMA) {
+    throw new Error(`requirements schema must be '${CONSUMER_REQUIREMENTS_SCHEMA}'`);
+  }
+  if (!Array.isArray(requirements.checks) || requirements.checks.length === 0
+    || requirements.checks.length > MAX_REQUIREMENT_CHECKS) {
+    throw new Error(`requirements checks must contain 1-${MAX_REQUIREMENT_CHECKS} entries`);
+  }
+  let selectedSurfaces = null;
+  if (requirements.selectedSurfaces !== undefined) {
+    if (!Array.isArray(requirements.selectedSurfaces) || requirements.selectedSurfaces.length === 0
+      || requirements.selectedSurfaces.length > CONSUMER_SURFACES.length) {
+      throw new Error('requirements selectedSurfaces must be a non-empty bounded array');
+    }
+    if (requirements.selectedSurfaces.some((surface) => !CONSUMER_SURFACES.includes(surface))
+      || new Set(requirements.selectedSurfaces).size !== requirements.selectedSurfaces.length) {
+      throw new Error('requirements selectedSurfaces contains an unknown or duplicate surface');
+    }
+    selectedSurfaces = requirements.selectedSurfaces.slice();
+  }
+  const seen = new Set();
+  const checks = requirements.checks.map((check) => {
+    const allowedFields = ['id', 'surface', 'host', 'capability', 'trigger', 'reason', 'question', 'evidenceKind', 'authorization'];
+    if (!check || typeof check !== 'object' || Array.isArray(check)
+      || Object.keys(check).some((key) => !allowedFields.includes(key))) {
+      throw new Error('requirements check contains an unknown field or is not an object');
+    }
+    if (typeof check.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(check.id) || seen.has(check.id)) {
+      throw new Error('requirements check id is invalid or duplicated');
+    }
+    seen.add(check.id);
+    if (!CONSUMER_SURFACES.includes(check.surface)) throw new Error(`requirements check '${check.id}' has an unknown surface`);
+    if (check.host !== CONSUMER_SURFACE_HOSTS[check.surface]) {
+      throw new Error(`requirements check '${check.id}' host does not match its surface`);
+    }
+    if (!CONSUMER_REQUIREMENT_TRIGGERS.has(check.trigger)) throw new Error(`requirements check '${check.id}' has an unknown trigger`);
+    if (!['contract', 'native'].includes(check.evidenceKind)) {
+      throw new Error(`requirements check '${check.id}' evidenceKind must be contract or native`);
+    }
+    if (!check.authorization || typeof check.authorization !== 'object' || Array.isArray(check.authorization)
+      || Object.keys(check.authorization).some((key) => key !== 'authorized')
+      || typeof check.authorization.authorized !== 'boolean') {
+      throw new Error(`requirements check '${check.id}' authorization.authorized must be a boolean`);
+    }
+    const capability = requirementText(check.capability, `check '${check.id}' capability`, 80);
+    if (!/^[a-z][a-z0-9-]{0,79}$/.test(capability)) {
+      throw new Error(`requirements check '${check.id}' capability must be a bounded identifier`);
+    }
+    return {
+      id: check.id,
+      surface: check.surface,
+      host: check.host,
+      capability,
+      trigger: check.trigger,
+      reason: requirementText(check.reason, `check '${check.id}' reason`, 240),
+      question: requirementText(check.question, `check '${check.id}' question`, 240),
+      evidenceKind: check.evidenceKind,
+      authorization: { authorized: check.authorization.authorized },
+    };
+  });
+  if (selectedSurfaces === null) selectedSurfaces = [...new Set(checks.map((check) => check.surface))];
+  return { schema: CONSUMER_REQUIREMENTS_SCHEMA, selectedSurfaces, checks };
+}
 
 function canonicalAllowedRoots(roots) {
   return Array.isArray(roots) ? roots.map((root) => fs.realpathSync(path.resolve(root))) : [];
@@ -537,18 +726,39 @@ function parseArgs(argv) {
       }
       args.surface = value;
     }
+    else if (arg === '--requirements') {
+      const value = argv[++i];
+      if (!value || value.startsWith('--') || args.requirementsFile) {
+        console.error('consumer-gate: --requirements requires one JSON file path');
+        process.exit(2);
+      }
+      args.requirementsFile = value;
+    }
     else {
       console.error(`consumer-gate: unknown argument '${arg}'`);
       process.exit(2);
     }
   }
   if (!args.version) {
-    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>]');
+    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>] [--requirements <json-file>]');
     process.exit(2);
   }
   if (args.surface && !CONSUMER_SURFACES.includes(args.surface)) {
     console.error(`consumer-gate: unknown surface '${args.surface}'`);
     process.exit(2);
+  }
+  if (args.requirementsFile) {
+    try {
+      args.requirements = parseRequirementsFile(args.requirementsFile);
+    } catch (error) {
+      console.error(`consumer-gate: invalid --requirements: ${error.message}`);
+      process.exit(2);
+    }
+    if (args.surface && (args.requirements.selectedSurfaces.length !== 1
+      || args.requirements.selectedSurfaces[0] !== args.surface)) {
+      console.error('consumer-gate: --surface conflicts with the --requirements selected surface scope');
+      process.exit(2);
+    }
   }
   args.root = path.resolve(args.root);
   return args;
@@ -1020,12 +1230,6 @@ function verifyCodexSync(root, version) {
     const reasons = surfaceVerdict === CODEX_SURFACE_VERDICTS.WARN
       ? ['Codex duplicate-surface validation is WARN: project-local receipt-owned fallback takes precedence over experimental native content']
       : [];
-    const runtimeProbe = runCodexNamedRoleProbe(project);
-    commands.push({
-      cmd: 'codex exec with project-local auto-discovery for explorer, deep-reasoner, code-reviewer, and doc-reviewer',
-      exitCode: runtimeProbe.status === 'PASS' ? 0 : (runtimeProbe.status === 'NOT_RUN' ? null : 1),
-      codexCliVersion: runtimeProbe.cliVersion,
-    });
     const surfacesEvidence = {
       project: surfaces.project,
       native: surfaces.native,
@@ -1040,33 +1244,21 @@ function verifyCodexSync(root, version) {
         reconciliation: manifest.reconciliation || null,
       },
     };
-    if (runtimeProbe.status !== 'PASS') {
-      const verdict = runtimeProbe.status === 'NOT_RUN'
-        ? VERDICTS.PENDING
-        : (runtimeProbe.status === 'BLOCKED' ? VERDICTS.BLOCKED : VERDICTS.FAIL);
-      return {
-        verdict,
-        status: runtimeProbe.status,
-        commands,
-        reasons: [`Codex named-role runtime probe ${runtimeProbe.status}: ${redactEvidence(runtimeProbe.diagnostic, root)}`],
-        diagnostics: [redactEvidence(runtimeProbe.diagnostic, root)],
-        checkedClaims: ['physical-agent-materialization', 'named-role-runtime-dispatch'],
-        ...(runtimeProbe.runtimeEvidence ? { runtimeEvidence: runtimeProbe.runtimeEvidence } : {}),
-        ...(runtimeProbe.reasonCode ? { reasonCode: runtimeProbe.reasonCode } : {}),
-        surfaceVerdict,
-        duplicateEvidence,
-        surfaces: surfacesEvidence,
-      };
-    }
     return {
       verdict: VERDICTS.PASS,
-      status: 'PASS',
+      status: 'NOT_RUN',
       commands,
       reasons,
-      diagnostics: [`Codex named-role runtime dispatch passed with ${runtimeProbe.cliVersion}`],
-      checkedClaims: ['physical-agent-materialization', 'named-role-runtime-dispatch'],
-      ...(runtimeProbe.runtimeEvidence ? { runtimeEvidence: runtimeProbe.runtimeEvidence } : {}),
-      ...(runtimeProbe.reasonCode ? { reasonCode: runtimeProbe.reasonCode } : {}),
+      diagnostics: ['Codex installation and project-local materialization checks passed; named-role runtime was not invoked'],
+      checkedClaims: ['physical-agent-materialization', 'codex-installation-contract'],
+      installationEvidence: {
+        status: 'PASS',
+        reason: 'Codex installer receipt, ownership, physical agents, resource closure, and surface validation passed',
+      },
+      runtimeEvidence: {
+        status: 'NOT_RUN',
+        reason: 'Codex named-role runtime probe was not invoked by installation acceptance',
+      },
       surfaceVerdict,
       duplicateEvidence,
       surfaces: surfacesEvidence,
@@ -1492,6 +1684,14 @@ function verifyCursorSync(root, version) {
     return {
       verdict: VERDICTS.PENDING,
       status: 'NOT_RUN',
+      installationEvidence: {
+        status: 'PASS',
+        reason: 'Cursor sync validator, schema-v3 receipt, managed resource set, ownership, and native-link checks passed',
+      },
+      runtimeEvidence: {
+        status: 'NOT_RUN',
+        reason: 'Cursor client runtime/loader was not invoked',
+      },
       commands,
       artifacts: [{
         receipt: '<sandbox>/.cursor/.dhpk-installed.json',
@@ -1785,12 +1985,10 @@ function verifyProjectedConsumer(root, platform, version) {
   const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
   const probePlatform = agentPlugin ? 'agent-plugin' : 'cursor';
   const probeArgs = [probe, '--platform', probePlatform, '--package-root', packageRoot, '--inventory', path.join(root, 'manifests', 'distribution-inventory.json'), '--version', version];
-  if ((agentPlugin || platform === 'cursor') && (process.env.CI === '1' || process.env.CI === 'true' || process.env.DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE === '1')) {
-    probeArgs.push('--execute');
-  }
   const res = spawnSync('node', probeArgs, {
     cwd: root,
     encoding: 'utf8',
+    env: { ...process.env, CI: '', DHPK_CONSUMER_PROBE_EXECUTE: '' },
   });
   let payload;
   try { payload = JSON.parse(res.stdout || '{}'); } catch (_) {
@@ -1806,6 +2004,25 @@ function verifyProjectedConsumer(root, platform, version) {
     : (forcedChildFailure
       ? `consumer probe exited ${res.status} with producer status ${payload.status || 'missing'}`
       : payload.reason);
+  let companionEvidence = null;
+  if (!agentPlugin) {
+    try {
+      const companion = validateAgentPluginPackage(path.join(root, 'plugins', 'dhpk-agent'));
+      companionEvidence = {
+        status: companion.ok ? 'PASS' : 'FAIL',
+        reason: companion.ok
+          ? 'sibling Agent Plugin package passes physical package validation'
+          : 'sibling Agent Plugin package failed physical package validation',
+        diagnostics: (companion.errors || []).slice(0, 10).map((error) => redactEvidence(error, root)),
+      };
+    } catch (error) {
+      companionEvidence = {
+        status: 'FAIL',
+        reason: 'sibling Agent Plugin package could not be validated safely',
+        diagnostics: [redactEvidence(String(error && error.message ? error.message : error), root)],
+      };
+    }
+  }
   const surfaceResults = Array.isArray(payload.surfaceResults) && payload.surfaceResults.length > 0
     ? payload.surfaceResults.map((entry) => ({
       ...entry,
@@ -1829,6 +2046,29 @@ function verifyProjectedConsumer(root, platform, version) {
     adapter: { id: 'consumer-platform-probe', version: '1.0.0' },
     surfaceResults,
   });
+  const structuralValidationPassed = !childFailure
+    && ['NOT_RUN', 'UNAVAILABLE'].includes(effectiveStatus)
+    && Array.isArray(payload.surfaceResults)
+    && payload.surfaceResults.some((entry) => (
+      Array.isArray(entry.checkedClaims)
+        && entry.checkedClaims.includes('package-manifest')
+        && entry.checkedClaims.includes('consumer-route')
+    ));
+  const installationEvidence = structuralValidationPassed
+    ? {
+      status: companionEvidence && companionEvidence.status !== 'PASS' ? 'FAIL' : 'PASS',
+      reason: companionEvidence && companionEvidence.status !== 'PASS'
+        ? `${surface} package preflight passed but its sibling Agent Plugin package closure failed`
+        : `${surface} package preflight, manifest, and structural validation passed`,
+      ...(companionEvidence ? { companion: companionEvidence } : {}),
+    }
+    : null;
+  const runtimeEvidence = structuralValidationPassed
+    ? {
+      status: effectiveStatus,
+      reason: payload.reason || `${surface} consumer runtime was not invoked`,
+    }
+    : null;
   return {
     status: effectiveStatus,
     commands: Array.isArray(payload.commands) && payload.commands.length > 0
@@ -1837,7 +2077,11 @@ function verifyProjectedConsumer(root, platform, version) {
     reason: effectiveReason ? redactEvidence(effectiveReason, root) : null,
     diagnostics: payload.diagnostics || payload.diagnostic || [],
     artifacts: payload.artifacts || [],
-    surfaceResults: normalized.surfaceResults,
+    surfaceResults: normalized.surfaceResults.map((entry) => ({
+      ...entry,
+      ...(installationEvidence ? { installationEvidence } : {}),
+      ...(runtimeEvidence ? { runtimeEvidence } : {}),
+    })),
   };
 }
 
@@ -1861,6 +2105,7 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
   });
   return normalized.surfaceResults.map((entry) => ({
     ...entry,
+    ...(result.installationEvidence ? { installationEvidence: result.installationEvidence } : {}),
     ...(result.runtimeEvidence ? { runtimeEvidence: result.runtimeEvidence } : {}),
     ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
     ...(result.surfaceVerdict ? { legacySurfaceStatus: result.surfaceVerdict } : {}),
@@ -1869,8 +2114,14 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
 }
 
 function runGate(args) {
-  const selected = args.surface || null;
-  const selectedOrAll = (surface) => selected === null || selected === surface;
+  const requirements = args.requirements || null;
+  const configurationMarkers = Object.fromEntries(CONSUMER_SURFACES.map((surface) => (
+    [surface, configuredHostMarkers(args.root, surface)]
+  )));
+  const scope = requirements
+    ? requirements.selectedSurfaces
+    : (args.surface ? [args.surface] : configuredConsumerSurfaces(args.root));
+  const selectedOrAll = (surface) => scope.includes(surface);
   const codex = selectedOrAll('codex-sync') ? verifyCodexSync(args.root, args.version) : null;
   const claude = selectedOrAll('claude-core') ? verifyClaudeReinstall(args.root, args.version) : null;
   const native = selectedOrAll('codex-native') ? verifyCodexNative(args.root) : null;
@@ -1883,7 +2134,7 @@ function runGate(args) {
     : null;
 
   const environment = process.env.CI ? 'ci' : 'local';
-  const surfaceResults = [
+  const observedSurfaceResults = [
     ...(codex ? normalizeGateSurface('codex-sync', 'consumer-gate', { id: 'codex-sync-installer', version: '1.0.0' }, codex, environment) : []),
     ...(claude ? normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion }, claude, environment) : []),
     ...(native ? normalizeGateSurface('codex-native', 'consumer-gate', { id: 'codex-native-install-smoke', version: '1.0.0' }, native, environment) : []),
@@ -1891,6 +2142,71 @@ function runGate(args) {
     ...(projectedCodex ? projectedCodex.surfaceResults : []),
     ...(projectedCursor ? projectedCursor.surfaceResults : []),
   ];
+
+  const requirementSurface = (surface) => (surface === 'claude-core' ? 'claude' : surface);
+  const observedSurfaceNames = new Set(observedSurfaceResults.map((entry) => entry.surface));
+  const requirementSurfaces = requirements
+    ? [...new Set(requirements.checks
+      .filter((check) => !scope.includes(check.surface))
+      .map((check) => requirementSurface(check.surface)))]
+    : [];
+  const excludedRequirementSurfaces = requirementSurfaces
+    .filter((surface) => !observedSurfaceNames.has(surface))
+    .map((surface) => ({
+      surface,
+      status: 'NOT_RUN',
+      commands: [],
+      environment,
+      artifacts: [],
+      diagnostics: [],
+      reasons: ['surface was outside the selected requirements scope; no adapter was invoked'],
+      checkedClaims: [],
+      stage: 'CONSUMER',
+      adapter: { id: 'consumer-gate-requirements', version: '1.0.0' },
+    }));
+  const allObservedAndExcluded = [...observedSurfaceResults, ...excludedRequirementSurfaces];
+  const surfaceResults = allObservedAndExcluded.map((entry) => {
+    if (!requirements) return entry;
+    const requirementChecks = requirements.checks
+      .map((check, index) => ({ check, index }))
+      .filter(({ check }) => requirementSurface(check.surface) === entry.surface);
+    if (requirementChecks.length === 0) return entry;
+    const requirementEvidence = Object.fromEntries(requirementChecks.map(({ check, index }) => {
+      const selected = scope.includes(check.surface);
+      const mustRemainRequired = check.evidenceKind === 'native'
+        || check.trigger === 'activation-defect'
+        || check.trigger === 'explicit-native';
+      const installationStatus = entry.installationEvidence
+        ? entry.installationEvidence.status
+        : entry.status;
+      const status = !selected
+        ? 'BLOCKED'
+        : (mustRemainRequired
+          ? (check.authorization.authorized ? 'PENDING' : 'BLOCKED')
+          : (check.capability !== 'installation-contract' ? 'BLOCKED' : installationStatus));
+      const reason = !selected
+        ? `Requirement ${check.id} is outside the selected adapter scope and remains required BLOCKED; no adapter was invoked`
+        : (mustRemainRequired
+          ? (check.authorization.authorized
+            ? `${check.reason}; native execution is deferred to the authorized runtime executor`
+            : `${check.reason}; native runtime execution is not authorized`)
+          : (check.capability !== 'installation-contract'
+            ? `${check.reason}; capability '${check.capability}' is not mapped to an installation contract`
+            : `${check.reason} Question: ${check.question}`));
+      return [`check${index + 1}`, {
+        id: check.id,
+        host: check.host,
+        capability: check.capability,
+        trigger: check.trigger,
+        question: check.question,
+        evidenceKind: check.evidenceKind,
+        authorized: check.authorization.authorized,
+        status,
+        reason,
+      }];
+    }));
+    return { ...entry, requirementEvidence };
+  });
 
   const commands = [
     ...(codex ? codex.commands : []),
@@ -1915,22 +2231,88 @@ function runGate(args) {
       : []),
   ];
 
-  let verdict;
-  if (selected) {
-    const row = surfaceResults[0];
-    const pendingStatuses = new Set(['NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE']);
-    verdict = row && pendingStatuses.has(row.status) ? VERDICTS.PENDING : (row && row.status ? row.status : VERDICTS.FAIL);
-  } else if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL || cursorSync.status === 'FAIL' || projectedCodex.status === 'FAIL' || projectedCursor.status === 'FAIL') verdict = VERDICTS.FAIL;
-  else if (codex.verdict === VERDICTS.BLOCKED || cursorSync.status === 'BLOCKED' || projectedCodex.status === 'BLOCKED' || projectedCursor.status === 'BLOCKED') verdict = VERDICTS.BLOCKED;
-  else if (claude.verdict === VERDICTS.UNAVAILABLE) verdict = VERDICTS.UNAVAILABLE;
-  else if (codex.verdict === VERDICTS.PENDING || cursorSync.status === 'NOT_RUN') verdict = VERDICTS.PENDING;
-  else verdict = VERDICTS.PASS;
+  const requiredChecks = observedSurfaceResults.map((entry) => ({
+    id: `install.${entry.surface}`,
+    surface: entry.surface,
+    kind: 'installation',
+    reason: entry.installationEvidence
+      ? entry.installationEvidence.reason
+      : `Selected ${entry.surface} installation contract must pass`,
+    status: entry.installationEvidence ? entry.installationEvidence.status : entry.status,
+    evidenceRef: entry.installationEvidence
+      ? `surfaceResults.${entry.surface}.installationEvidence`
+      : `surfaceResults.${entry.surface}`,
+  }));
+  if (scope.length === 0) {
+    requiredChecks.push({
+      id: 'scope.configuration',
+      surface: 'consumer-scope',
+      kind: 'contract',
+      reason: 'No configured or explicitly selected consumer surface exists; select a target or add a supported configuration marker',
+      status: 'BLOCKED',
+      evidenceRef: null,
+    });
+  }
+  const unselectedSurfaceChecks = CONSUMER_SURFACES
+    .filter((surface) => !scope.includes(surface))
+    .map((surface) => {
+      const markers = configurationMarkers[surface];
+      return {
+        id: `scope.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: markers.length > 0
+          ? `Configured by ${markers.join(', ')} but outside the selected scope; no adapter was invoked`
+          : `No configured-target marker found (${CONSUMER_HOST_CONFIG_MARKERS[CONSUMER_SURFACE_HOSTS[surface]].join(', ')}); no adapter was invoked`,
+        status: markers.length > 0 ? 'NOT_RUN' : 'NOT_CONFIGURED',
+        evidenceRef: null,
+      };
+    });
+  const excludedChecks = observedSurfaceResults.flatMap((entry) => (
+    entry.runtimeEvidence
+      ? [{
+        id: `runtime.${entry.surface}`,
+        surface: entry.surface,
+        kind: 'native',
+        reason: entry.runtimeEvidence.reason,
+        status: entry.runtimeEvidence.status,
+        evidenceRef: `surfaceResults.${entry.surface}.runtimeEvidence`,
+      }]
+      : []
+  ));
+  excludedChecks.unshift(...unselectedSurfaceChecks);
+  if (requirements) {
+    requirements.checks.forEach((check, index) => {
+      const surface = requirementSurface(check.surface);
+      const entry = surfaceResults.find((row) => row.surface === surface);
+      const evidenceSlot = `check${index + 1}`;
+      const requirementEvidence = entry.requirementEvidence[evidenceSlot];
+      const result = {
+        id: `requirement.${check.id}`,
+        surface,
+        kind: check.evidenceKind,
+        reason: requirementEvidence.reason,
+        status: requirementEvidence.status,
+        evidenceRef: `surfaceResults.${surface}.requirementEvidence.${evidenceSlot}`,
+      };
+      requiredChecks.push(result);
+    });
+  }
+  const acceptance = {
+    verdict: requiredChecks.some((check) => check.status === 'FAIL')
+      ? 'FAIL'
+      : (requiredChecks.some((check) => check.status !== 'PASS') ? 'BLOCKED' : 'PASS'),
+    requiredChecks,
+    excludedChecks,
+  };
+  const verdict = acceptance.verdict;
 
   const stage = {
+    schemaVersion: 2,
     verdict,
     commands,
     environment,
-    artifacts: selected
+    artifacts: !CONSUMER_SURFACES.every((surface) => scope.includes(surface))
       ? []
       : [
       `claude-official-strict: ${claude.officialValidation ? claude.officialValidation.verdict : 'NOT RUN'}${claude.officialValidation && claude.officialValidation.reason ? ` (${claude.officialValidation.reason})` : ''}`,
@@ -1951,6 +2333,7 @@ function runGate(args) {
     producer: 'consumer-gate',
     adapter: { id: 'consumer-gate', version: '1.0.0' },
     surfaceResults,
+    acceptance,
     ...(codex && codex.surfaceVerdict ? { legacySurfaceStatus: codex.surfaceVerdict } : {}),
     ...(codex && codex.surfaceVerdict === 'WARN' ? { warnings: ['Codex duplicate-surface matrix returned WARN; compatibility status is not a canonical evidence verdict'] } : {}),
   };
