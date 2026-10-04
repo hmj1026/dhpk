@@ -55,7 +55,9 @@ loaded from a matching trap sheet take precedence over examples here.
 Schema-change reversibility, idempotency, naming collisions, online DDL, engine
 compatibility, and rollback execution belong to `migration-reviewer`. Keep this
 role on SQL correctness, data-access behavior, transactions, and query plans;
-do not duplicate the migration checklist. If no migration reviewer or
+do not duplicate the migration checklist. This role reports findings only; it
+does not edit queries or schemas or apply fixes unless a separate write
+authority explicitly delegates that scope. If no migration reviewer or
 child-dispatch tool is available, return an explicit escalation naming that
 missing capability and leave migration-specific evidence unresolved.
 

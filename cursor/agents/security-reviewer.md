@@ -80,7 +80,9 @@ is a lead for investigation, not a severity verdict.
 
 ## Child-dispatch boundary
 
-This role is read-only. If a required specialist or child-dispatch tool is not
+This role is read-only and reports findings only; it does not edit code or
+configuration or apply fixes unless a separate write authority explicitly
+delegates that scope. If a required specialist or child-dispatch tool is not
 available, return an explicit escalation naming the missing capability and the
 security question it would cover. Do not require an unavailable delegate or
 silently substitute a different writer.
