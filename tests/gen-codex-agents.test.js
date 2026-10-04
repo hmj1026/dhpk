@@ -372,6 +372,24 @@ test('generated E2E runner keeps its journey artifact contract without a review 
   }
 });
 
+test('E2E verdict projection is idempotent when BLOCKED is already present', () => {
+  const root = cloneGeneratorFixture('gen-codex-e2e-verdict-idempotence');
+  try {
+    const e2eSource = fs.readFileSync(path.join(root, 'agents', 'e2e-runner.md'), 'utf8');
+    assert.match(e2eSource, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED/);
+
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    assert.strictEqual(result.status, 0, diagnostic(result));
+
+    const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
+    assert.match(e2eRunner, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED/);
+    assert.doesNotMatch(e2eRunner, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED(?: \| BLOCKED)+/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('planner projection uses direct Codex explorer fallback and reconsult semantics', () => {
   const tmp = mkTmp();
   try {

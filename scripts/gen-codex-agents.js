@@ -331,7 +331,10 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`ui-ux-verifier`', 'a manual page-vs-spec UI audit fallback')
       .replaceAll('**ui-ux-verifier**', '**manual page-vs-spec UI audit fallback**')
       .replaceAll('ui-ux-verifier', 'manual page-vs-spec UI audit fallback')
-      .replaceAll('Verdict: PASS | WARNING | FAIL', 'Verdict: PASS | WARNING | FAIL | BLOCKED')
+      .replace(
+        /Verdict: PASS \| WARNING \| FAIL(?: \| BLOCKED)*/g,
+        'Verdict: PASS | WARNING | FAIL | BLOCKED',
+      )
       .replace(
         'Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project\'s typecheck command',
         "If Playwright or the browser capability is unavailable, return `Verdict: BLOCKED` as the first line with the missing capability and the exact command needed to resume. Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project's typecheck command",
