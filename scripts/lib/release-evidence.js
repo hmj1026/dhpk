@@ -155,10 +155,147 @@ const REQUIREMENT_TRIGGERS = new Set([
 const REQUIREMENT_EVIDENCE_FIELDS = new Set([
   'id', 'host', 'capability', 'trigger', 'reason', 'question', 'requestedEvidenceKind',
   'evidenceKind', 'authorized', 'checkKey', 'status', 'adapter', 'contractEvidence',
-  'nativeProof', 'runtimeVerified', 'outcomeReason', 'observedStatus',
+  'nativeProof', 'runtimeVerified', 'outcomeReason', 'observedStatus', 'identity', 'evidenceReuse',
 ]);
 const REQUIREMENT_ADAPTER_FIELDS = new Set(['id', 'version']);
 const NATIVE_PROOF_HASH = /^[a-f0-9]{64}$/i;
+const CONSUMER_CHECK_IDENTITY_FIELDS = Object.freeze([
+  'contractVersion',
+  'sourceFingerprint',
+  'artifactFingerprint',
+  'selectionFingerprint',
+  'hostVersion',
+  'configFingerprint',
+]);
+const CONSUMER_CHECK_IDENTITY_FINGERPRINT_FIELDS = Object.freeze([
+  'sourceFingerprint',
+  'artifactFingerprint',
+  'selectionFingerprint',
+  'configFingerprint',
+]);
+const CONSUMER_CHECK_IDENTITY_FINGERPRINT = /^sha256:[a-f0-9]{64}$/;
+const CONSUMER_CHECK_IDENTITY_MISMATCH_FIELDS = new Set([
+  ...CONSUMER_CHECK_IDENTITY_FIELDS,
+  'checkKey',
+  'evidenceKind',
+  'status',
+  'nativeProof',
+]);
+
+function normalizeConsumerCheckIdentity(identity) {
+  if (!identity || typeof identity !== 'object' || Array.isArray(identity)
+    || Object.keys(identity).length !== CONSUMER_CHECK_IDENTITY_FIELDS.length
+    || Object.keys(identity).some((key) => !CONSUMER_CHECK_IDENTITY_FIELDS.includes(key))) {
+    throw new Error('consumer evidence: consumer check identity must match the frozen flat contract');
+  }
+  if (identity.contractVersion !== 'consumer-check-identity.v1') {
+    throw new Error('consumer evidence: consumer check identity contractVersion is invalid');
+  }
+  for (const field of CONSUMER_CHECK_IDENTITY_FINGERPRINT_FIELDS) {
+    if (typeof identity[field] !== 'string' || !CONSUMER_CHECK_IDENTITY_FINGERPRINT.test(identity[field])) {
+      throw new Error(`consumer evidence: consumer check identity ${field} must be sha256 plus 64 lowercase hex characters`);
+    }
+  }
+  if (typeof identity.hostVersion !== 'string' || identity.hostVersion.length === 0
+    || identity.hostVersion.length > 200 || identity.hostVersion.trim() !== identity.hostVersion
+    || /[\u0000-\u001f\u007f]/.test(identity.hostVersion)) {
+    throw new Error('consumer evidence: consumer check identity hostVersion must be an exact bounded Host version');
+  }
+  return {
+    contractVersion: identity.contractVersion,
+    sourceFingerprint: identity.sourceFingerprint,
+    artifactFingerprint: identity.artifactFingerprint,
+    selectionFingerprint: identity.selectionFingerprint,
+    hostVersion: identity.hostVersion,
+    configFingerprint: identity.configFingerprint,
+  };
+}
+
+function normalizeConsumerEvidenceReuse(evidenceReuse) {
+  const allowed = new Set(['decision', 'origin', 'mismatchFields', 'rejectionReason', 'conflicts']);
+  if (!evidenceReuse || typeof evidenceReuse !== 'object' || Array.isArray(evidenceReuse)
+    || Object.keys(evidenceReuse).some((key) => !allowed.has(key))
+    || !['REUSED', 'REJECTED'].includes(evidenceReuse.decision)
+    || !Array.isArray(evidenceReuse.mismatchFields)
+    || evidenceReuse.mismatchFields.length > CONSUMER_CHECK_IDENTITY_MISMATCH_FIELDS.size
+    || evidenceReuse.mismatchFields.some((field) => (
+      typeof field !== 'string' || !CONSUMER_CHECK_IDENTITY_MISMATCH_FIELDS.has(field)
+    ))
+    || new Set(evidenceReuse.mismatchFields).size !== evidenceReuse.mismatchFields.length) {
+    throw new Error('consumer evidence: requirement evidenceReuse is malformed');
+  }
+  let origin = null;
+  if (evidenceReuse.origin !== undefined && evidenceReuse.origin !== null) {
+    const candidate = evidenceReuse.origin;
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)
+      || Object.keys(candidate).sort().join(',') !== 'checkId,envelopeIndex,slot,surface'
+      || !Number.isInteger(candidate.envelopeIndex) || candidate.envelopeIndex < 0 || candidate.envelopeIndex > 15
+      || typeof candidate.surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(candidate.surface)
+      || typeof candidate.slot !== 'string' || !/^check[1-9][0-9]{0,2}$/.test(candidate.slot)
+      || typeof candidate.checkId !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(candidate.checkId)) {
+      throw new Error('consumer evidence: requirement evidenceReuse origin is malformed');
+    }
+    origin = {
+      envelopeIndex: candidate.envelopeIndex,
+      surface: candidate.surface,
+      slot: candidate.slot,
+      checkId: candidate.checkId,
+    };
+  }
+  if (evidenceReuse.decision === 'REUSED'
+    && (!origin || evidenceReuse.mismatchFields.length > 0)) {
+    throw new Error('consumer evidence: reused evidence requires an exact origin and no mismatch fields');
+  }
+  let conflicts;
+  if (evidenceReuse.conflicts !== undefined) {
+    const rawConflicts = evidenceReuse.conflicts;
+    if (!Array.isArray(rawConflicts) || rawConflicts.length < 2 || rawConflicts.length > 100) {
+      throw new Error('consumer evidence: conflicting reuse evidence requires a bounded origin list');
+    }
+    const seen = new Set();
+    conflicts = rawConflicts.map((candidate) => {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)
+        || Object.keys(candidate).sort().join(',') !== 'checkId,envelopeIndex,slot,status,surface'
+        || !Number.isInteger(candidate.envelopeIndex) || candidate.envelopeIndex < 0 || candidate.envelopeIndex > 15
+        || typeof candidate.surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(candidate.surface)
+        || typeof candidate.slot !== 'string' || !/^check[1-9][0-9]{0,2}$/.test(candidate.slot)
+        || typeof candidate.checkId !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(candidate.checkId)
+        || !['PASS', 'FAIL'].includes(candidate.status)) {
+        throw new Error('consumer evidence: conflicting reuse origin is malformed');
+      }
+      const key = `${candidate.envelopeIndex}:${candidate.surface}:${candidate.slot}:${candidate.checkId}`;
+      if (seen.has(key)) throw new Error('consumer evidence: conflicting reuse origins must be unique');
+      seen.add(key);
+      return {
+        envelopeIndex: candidate.envelopeIndex,
+        surface: candidate.surface,
+        slot: candidate.slot,
+        checkId: candidate.checkId,
+        status: candidate.status,
+      };
+    });
+    if (!conflicts.some((entry) => entry.status === 'PASS')
+      || !conflicts.some((entry) => entry.status === 'FAIL')) {
+      throw new Error('consumer evidence: conflict provenance must retain both PASS and FAIL outcomes');
+    }
+  }
+  if (evidenceReuse.rejectionReason !== undefined
+    && (evidenceReuse.decision !== 'REJECTED'
+      || evidenceReuse.rejectionReason !== 'CONFLICTING_EVIDENCE'
+      || !conflicts)) {
+    throw new Error('consumer evidence: reuse rejection reason is unsupported');
+  }
+  if (conflicts && evidenceReuse.rejectionReason !== 'CONFLICTING_EVIDENCE') {
+    throw new Error('consumer evidence: conflict provenance requires a conflicting-evidence reason');
+  }
+  return {
+    decision: evidenceReuse.decision,
+    origin,
+    mismatchFields: [...evidenceReuse.mismatchFields],
+    ...(evidenceReuse.rejectionReason !== undefined ? { rejectionReason: evidenceReuse.rejectionReason } : {}),
+    ...(conflicts ? { conflicts } : {}),
+  };
+}
 
 function requirementTuple(surface, capability, kind, trigger) {
   if (capability === 'installation-contract') {
@@ -407,10 +544,13 @@ function normalizeRequirementEvidence(raw, surface, surfaceRecord) {
     if (evidence.trigger === 'explicit-native' && evidence.evidenceKind !== 'native') {
       throw new Error('consumer evidence: explicit-native requirements must use native evidence');
     }
-    if (evidence.evidenceKind === 'native' && !evidence.authorized && evidence.status !== 'BLOCKED') {
-      throw new Error('consumer evidence: unauthorized native requirements must remain BLOCKED');
-    }
     const adapter = normalizeRequirementAdapter(evidence.adapter, surface, evidence.capability, evidence.evidenceKind);
+    const identity = evidence.identity === undefined
+      ? null
+      : normalizeConsumerCheckIdentity(evidence.identity);
+    const evidenceReuse = evidence.evidenceReuse === undefined
+      ? null
+      : normalizeConsumerEvidenceReuse(evidence.evidenceReuse);
     let contractEvidence = null;
     let nativeProof = null;
     if (evidence.evidenceKind === 'contract') {
@@ -434,6 +574,14 @@ function normalizeRequirementEvidence(raw, surface, surfaceRecord) {
       && (evidence.status !== 'PASS' || !nativeProof)) {
       throw new Error('consumer evidence: runtimeVerified requires passing native proof on this capability');
     }
+    if (evidenceReuse && evidenceReuse.decision === 'REUSED'
+      && (!identity || evidence.evidenceKind !== 'native' || evidence.status !== 'PASS' || !nativeProof)) {
+      throw new Error('consumer evidence: reused evidence requires current native PASS identity and typed proof');
+    }
+    if (evidence.evidenceKind === 'native' && !evidence.authorized && evidence.status !== 'BLOCKED'
+      && (!evidenceReuse || evidenceReuse.decision !== 'REUSED')) {
+      throw new Error('consumer evidence: unauthorized native requirements must remain BLOCKED unless typed evidence was reused');
+    }
     if (evidence.observedStatus !== undefined && !REQUIREMENT_STATUSES.has(evidence.observedStatus)) {
       throw new Error('consumer evidence: requirement observedStatus is invalid');
     }
@@ -455,6 +603,8 @@ function normalizeRequirementEvidence(raw, surface, surfaceRecord) {
       status: evidence.status,
       ...(evidence.observedStatus !== undefined ? { observedStatus: evidence.observedStatus } : {}),
       ...(evidence.outcomeReason !== undefined ? { outcomeReason: boundedEvidenceValue(evidence.outcomeReason) } : {}),
+      ...(identity ? { identity } : {}),
+      ...(evidenceReuse ? { evidenceReuse } : {}),
       ...(adapter ? { adapter } : {}),
       ...(contractEvidence ? { contractEvidence } : {}),
       ...(nativeProof ? { nativeProof } : {}),
@@ -464,6 +614,147 @@ function normalizeRequirementEvidence(raw, surface, surfaceRecord) {
     };
   }
   return result;
+}
+
+function evidenceIdentityMismatchFields(expectedIdentity, candidateIdentity) {
+  let normalizedCandidate = null;
+  try {
+    normalizedCandidate = normalizeConsumerCheckIdentity(candidateIdentity);
+  } catch (_) {
+    // Missing or malformed historical identity remains ineligible. Return
+    // each absent/different component so callers can explain the rejection.
+  }
+  const mismatches = CONSUMER_CHECK_IDENTITY_FIELDS.filter((field) => (
+    !normalizedCandidate || normalizedCandidate[field] !== expectedIdentity[field]
+  ));
+  if (!normalizedCandidate && mismatches.length === 0) mismatches.push('contractVersion');
+  return mismatches;
+}
+
+function consumerEvidenceCandidate(candidate) {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  if (candidate.evidence && typeof candidate.evidence === 'object' && !Array.isArray(candidate.evidence)) {
+    return candidate.evidence;
+  }
+  return candidate;
+}
+
+function consumerEvidenceCandidateOrigin(candidate, evidence) {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  const envelopeIndex = candidate.envelopeIndex;
+  const surface = candidate.surface;
+  const slot = candidate.slot;
+  if (!Number.isInteger(envelopeIndex) || envelopeIndex < 0 || envelopeIndex > 15
+    || typeof surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(surface)
+    || typeof slot !== 'string' || !/^check[1-9][0-9]{0,2}$/.test(slot)
+    || typeof evidence.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(evidence.id)) {
+    return null;
+  }
+  return { envelopeIndex, surface, slot, checkId: evidence.id };
+}
+
+/**
+ * Compare one current semantic check with already normalized historical
+ * checks. Request IDs, reason/question text, producer and workflow are
+ * attribution only; the canonical checkKey, kind, identity and typed proof
+ * determine applicability.
+ */
+function matchConsumerCheckEvidence(expectedCheck, candidates) {
+  if (!expectedCheck || typeof expectedCheck !== 'object' || Array.isArray(expectedCheck)
+    || typeof expectedCheck.checkKey !== 'string' || expectedCheck.checkKey.length === 0
+    || !['contract', 'native'].includes(expectedCheck.evidenceKind)) {
+    throw new Error('consumer evidence: expected consumer check is malformed');
+  }
+  const expectedIdentity = normalizeConsumerCheckIdentity(expectedCheck.identity);
+  const keyParts = expectedCheck.checkKey.split(':');
+  if (keyParts.length !== 3 || keyParts[2] !== expectedCheck.evidenceKind) {
+    return { decision: 'REJECTED', selected: null, origin: null, mismatchFields: ['checkKey'] };
+  }
+  if (!Array.isArray(candidates) || candidates.length > 100) {
+    return { decision: 'REJECTED', selected: null, origin: null, mismatchFields: ['checkKey'] };
+  }
+
+  const keyedCandidates = candidates.flatMap((candidate) => {
+    const evidence = consumerEvidenceCandidate(candidate);
+    if (!evidence) return [];
+    if (evidence.checkKey !== expectedCheck.checkKey) return [];
+    if (evidence.evidenceKind !== expectedCheck.evidenceKind) return [];
+    return [{ candidate, evidence }];
+  });
+  if (keyedCandidates.length === 0) {
+    return { decision: 'REJECTED', selected: null, origin: null, mismatchFields: ['checkKey'] };
+  }
+
+  const exactCandidates = [];
+  const mismatchFields = new Set();
+  for (const entry of keyedCandidates) {
+    const mismatches = evidenceIdentityMismatchFields(expectedIdentity, entry.evidence.identity);
+    if (mismatches.length === 0) exactCandidates.push(entry);
+    else mismatches.forEach((field) => mismatchFields.add(field));
+  }
+
+  const exactPasses = exactCandidates.filter(({ evidence }) => evidence.status === 'PASS');
+  const exactFailures = exactCandidates.filter(({ evidence }) => evidence.status === 'FAIL');
+  if (exactPasses.length > 0 && exactFailures.length > 0) {
+    const conflictCandidates = exactCandidates
+      .filter(({ evidence }) => ['PASS', 'FAIL'].includes(evidence.status))
+      .map(({ candidate, evidence }) => {
+        const origin = consumerEvidenceCandidateOrigin(candidate, evidence);
+        return origin ? { ...origin, status: evidence.status } : null;
+      })
+      .filter(Boolean);
+    if (conflictCandidates.some((entry) => entry.status === 'PASS')
+      && conflictCandidates.some((entry) => entry.status === 'FAIL')) {
+      return {
+        decision: 'CONFLICT',
+        selected: null,
+        origin: null,
+        mismatchFields: [],
+        conflicts: conflictCandidates,
+      };
+    }
+    return { decision: 'REJECTED', selected: null, origin: null, mismatchFields: ['status'] };
+  }
+
+  const [surface, capability] = keyParts;
+  const reusablePasses = exactPasses.filter(({ evidence }) => {
+    if (expectedCheck.evidenceKind !== 'native' || !evidence.nativeProof) return false;
+    try {
+      normalizeRequirementProof(evidence.nativeProof, surface, capability);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  });
+  reusablePasses.sort((left, right) => {
+    const leftIndex = Number.isInteger(left.candidate.envelopeIndex) ? left.candidate.envelopeIndex : Number.MAX_SAFE_INTEGER;
+    const rightIndex = Number.isInteger(right.candidate.envelopeIndex) ? right.candidate.envelopeIndex : Number.MAX_SAFE_INTEGER;
+    return leftIndex - rightIndex
+      || String(left.candidate.surface || '').localeCompare(String(right.candidate.surface || ''))
+      || String(left.candidate.slot || '').localeCompare(String(right.candidate.slot || ''));
+  });
+  if (reusablePasses.length > 0) {
+    const selected = reusablePasses[0];
+    return {
+      decision: 'REUSED',
+      selected: selected.evidence,
+      origin: consumerEvidenceCandidateOrigin(selected.candidate, selected.evidence),
+      mismatchFields: [],
+    };
+  }
+
+  if (exactCandidates.length > 0) {
+    const reasonField = exactPasses.length > 0 ? 'nativeProof' : 'status';
+    mismatchFields.add(reasonField);
+  }
+  return {
+    decision: 'REJECTED',
+    selected: null,
+    origin: keyedCandidates.length > 0
+      ? consumerEvidenceCandidateOrigin(keyedCandidates[0].candidate, keyedCandidates[0].evidence)
+      : null,
+    mismatchFields: [...mismatchFields],
+  };
 }
 
 function normalizeConsumerSurface(raw, envelope) {
@@ -847,6 +1138,8 @@ module.exports = {
   buildEvidence,
   validateEvidence,
   normalizeConsumerEvidence,
+  normalizeConsumerCheckIdentity,
+  matchConsumerCheckEvidence,
   validateConsumerEvidence,
   normalizeConsumerResult: normalizeConsumerEvidence,
   validateConsumerResult: validateConsumerEvidence,

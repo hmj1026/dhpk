@@ -7,6 +7,29 @@
 
 const { test, run, assert } = require('./_lib/tinytest');
 const { buildEvidence, validateEvidence, normalizeConsumerEvidence, STAGES, VERDICTS, OVERALL_STATES } = require('../scripts/lib/release-evidence');
+const releaseEvidence = require('../scripts/lib/release-evidence');
+
+const CONSUMER_CHECK_IDENTITY = {
+  contractVersion: 'consumer-check-identity.v1',
+  sourceFingerprint: `sha256:${'1'.repeat(64)}`,
+  artifactFingerprint: `sha256:${'2'.repeat(64)}`,
+  selectionFingerprint: `sha256:${'3'.repeat(64)}`,
+  hostVersion: 'codex-cli fixture 1.0',
+  configFingerprint: `sha256:${'4'.repeat(64)}`,
+};
+
+const CODEX_NATIVE_PROOF = {
+  executionOrigin: 'native',
+  adapterRoute: 'codex-named-role',
+  roles: [{ id: 'security-reviewer', agentTypeAccepted: true, threadId: 'thread-previous', childCompleted: true }],
+  registryPreconditions: {
+    disposableCodexHome: true,
+    authReference: 'symlink',
+    projectTrust: 'trusted',
+    userConfigIgnored: false,
+  },
+  cliVersion: 'codex-cli fixture 1.0',
+};
 
 function stage(verdict, overrides = {}) {
   return {
@@ -30,6 +53,9 @@ function requirementEvidenceReport({
   adapter = { id: 'codex-named-role-probe', version: '1.0.0' },
   nativeProof = null,
   contractEvidence = null,
+  identity = null,
+  authorized = true,
+  evidenceReuse = null,
 } = {}) {
   const verdict = status === 'PASS' ? 'PASS' : status === 'FAIL' ? 'FAIL' : 'BLOCKED';
   const checkKey = `${surface}:${capability}:${evidenceKind}`;
@@ -42,10 +68,12 @@ function requirementEvidenceReport({
     question: 'Did the selected check pass?',
     requestedEvidenceKind,
     evidenceKind,
-    authorized: true,
+    authorized,
     checkKey,
     status,
     adapter,
+    ...(identity ? { identity } : {}),
+    ...(evidenceReuse ? { evidenceReuse } : {}),
     ...(contractEvidence ? { contractEvidence } : {}),
     ...(nativeProof ? { nativeProof } : {}),
     ...(evidenceKind === 'native' && status === 'PASS' ? { runtimeVerified: true } : {}),
@@ -518,6 +546,137 @@ test('validateEvidence passes a well-formed evidence document', () => {
 
       const historical = normalize(baseEvidence({ runtimeVerified: true }));
       assert.strictEqual(historical.runtimeVerified, true, 'legacy behavior remains unchanged without acceptance');
+    });
+
+    test('roundtrips a flat capability identity and typed proof for an explicitly reused native result', () => {
+      const source = requirementEvidenceReport({
+        identity: CONSUMER_CHECK_IDENTITY,
+        nativeProof: CODEX_NATIVE_PROOF,
+        authorized: false,
+        evidenceReuse: {
+          decision: 'REUSED',
+          origin: { envelopeIndex: 0, surface: 'codex-sync', slot: 'check1', checkId: 'prior-capability' },
+          mismatchFields: [],
+        },
+      });
+
+      const normalized = normalizeConsumerEvidence(JSON.parse(JSON.stringify(source)));
+      const evidence = normalized.surfaceResults[0].requirementEvidence.check1;
+      assert.deepStrictEqual(evidence.identity, CONSUMER_CHECK_IDENTITY);
+      assert.deepStrictEqual(evidence.nativeProof, CODEX_NATIVE_PROOF);
+      assert.strictEqual(evidence.authorized, false, 'reuse must not copy execution authorization');
+      assert.strictEqual(evidence.evidenceReuse.decision, 'REUSED');
+      assert.strictEqual(evidence.evidenceReuse.origin.checkId, 'prior-capability');
+
+      const roundTrip = normalizeConsumerEvidence(JSON.parse(JSON.stringify(normalized)));
+      const roundTripEvidence = roundTrip.surfaceResults[0].requirementEvidence.check1;
+      assert.deepStrictEqual(roundTripEvidence.identity, CONSUMER_CHECK_IDENTITY);
+      assert.deepStrictEqual(roundTripEvidence.nativeProof, CODEX_NATIVE_PROOF);
+      assert.strictEqual(roundTripEvidence.evidenceReuse.origin.envelopeIndex, 0);
+      assert.strictEqual(roundTripEvidence.runtimeVerified, true);
+    });
+
+    test('rejects malformed capability identity fields instead of filling missing values', () => {
+      const release = require('../scripts/lib/release-evidence');
+      assert.strictEqual(typeof release.normalizeConsumerCheckIdentity, 'function');
+      assert.deepStrictEqual(
+        release.normalizeConsumerCheckIdentity(CONSUMER_CHECK_IDENTITY),
+        CONSUMER_CHECK_IDENTITY,
+      );
+      for (const identity of [
+        { ...CONSUMER_CHECK_IDENTITY, sourceFingerprint: undefined },
+        { ...CONSUMER_CHECK_IDENTITY, artifactFingerprint: 'not-a-sha256' },
+        { ...CONSUMER_CHECK_IDENTITY, contractVersion: 'consumer-check-identity.v2' },
+        { ...CONSUMER_CHECK_IDENTITY, extra: 'not in the frozen identity contract' },
+      ]) {
+        assert.throws(() => release.normalizeConsumerCheckIdentity(identity));
+      }
+    });
+
+    test('matches native evidence by exact capability identity while ignoring request attribution', () => {
+      const release = require('../scripts/lib/release-evidence');
+      assert.strictEqual(typeof release.matchConsumerCheckEvidence, 'function');
+      const oldEnvelope = normalizeConsumerEvidence(requirementEvidenceReport({
+        identity: CONSUMER_CHECK_IDENTITY,
+        nativeProof: CODEX_NATIVE_PROOF,
+      }));
+      oldEnvelope.producer = 'harness';
+      oldEnvelope.workflow = 'different-workflow';
+      const previous = oldEnvelope.surfaceResults[0].requirementEvidence.check1;
+      previous.id = 'old-request-id';
+      previous.reason = 'old request reason';
+      previous.question = 'old request question';
+      const expected = {
+        checkKey: 'codex-sync:named-role-security-reviewer:native',
+        evidenceKind: 'native',
+        identity: CONSUMER_CHECK_IDENTITY,
+      };
+      const candidate = {
+        envelopeIndex: 0,
+        surface: 'codex-sync',
+        slot: 'check1',
+        evidence: previous,
+        producer: oldEnvelope.producer,
+        workflow: oldEnvelope.workflow,
+      };
+
+      const selected = release.matchConsumerCheckEvidence(expected, [candidate]);
+      assert.strictEqual(selected.decision, 'REUSED');
+      assert.strictEqual(selected.selected.id, 'old-request-id');
+      assert.deepStrictEqual(selected.mismatchFields, []);
+    });
+
+    test('reports each changed identity component and rejects non-native or contradictory candidates', () => {
+      const release = require('../scripts/lib/release-evidence');
+      assert.strictEqual(typeof release.matchConsumerCheckEvidence, 'function');
+      const expected = {
+        checkKey: 'codex-sync:named-role-security-reviewer:native',
+        evidenceKind: 'native',
+        identity: CONSUMER_CHECK_IDENTITY,
+      };
+      const passEnvelope = normalizeConsumerEvidence(requirementEvidenceReport({
+        identity: CONSUMER_CHECK_IDENTITY,
+        nativeProof: CODEX_NATIVE_PROOF,
+      }));
+      const passEvidence = passEnvelope.surfaceResults[0].requirementEvidence.check1;
+      const candidate = (evidence, envelopeIndex = 0) => ({
+        envelopeIndex,
+        surface: 'codex-sync',
+        slot: 'check1',
+        evidence,
+      });
+
+      for (const field of ['sourceFingerprint', 'artifactFingerprint', 'selectionFingerprint', 'hostVersion', 'configFingerprint']) {
+        const changed = {
+          ...passEvidence,
+          identity: {
+            ...CONSUMER_CHECK_IDENTITY,
+            [field]: field === 'hostVersion' ? 'codex-cli fixture 2.0' : `sha256:${'f'.repeat(64)}`,
+          },
+        };
+        const rejected = release.matchConsumerCheckEvidence(expected, [candidate(changed)]);
+        assert.strictEqual(rejected.decision, 'REJECTED', field);
+        assert.ok(rejected.mismatchFields.includes(field), `${field}: ${JSON.stringify(rejected)}`);
+      }
+
+      const markerOnly = release.matchConsumerCheckEvidence(expected, [candidate({
+        ...passEvidence,
+        nativeProof: undefined,
+        runtimeVerified: true,
+      })]);
+      assert.notStrictEqual(markerOnly.decision, 'REUSED', 'runtimeVerified alone cannot replace typed native proof');
+
+      const failedEnvelope = normalizeConsumerEvidence(requirementEvidenceReport({
+        identity: CONSUMER_CHECK_IDENTITY,
+        status: 'FAIL',
+        nativeProof: null,
+      }));
+      const failed = failedEnvelope.surfaceResults[0].requirementEvidence.check1;
+      const conflict = release.matchConsumerCheckEvidence(expected, [
+        candidate(passEvidence, 0),
+        candidate(failed, 1),
+      ]);
+      assert.strictEqual(conflict.decision, 'CONFLICT');
     });
 
     test('exports exactly the closed canonical consumer status vocabulary', () => {

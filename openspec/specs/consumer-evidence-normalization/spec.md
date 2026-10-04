@@ -162,3 +162,56 @@ such claim because it does not execute a native runtime check.
   identity-matched native capability evidence
 - **THEN** normalization rejects or removes an unsupported `runtimeVerified:
   true` value and preserves the raw runtime state
+
+### Requirement: REQ-851-01 Capability identity and reuse provenance survive normalization
+
+Requirement evidence MAY include a flat `consumer-check-identity.v1` object
+with exactly `contractVersion`, `sourceFingerprint`, `artifactFingerprint`,
+`selectionFingerprint`, `hostVersion`, and `configFingerprint`. Fingerprints
+SHALL use the normalized `sha256:<64 lowercase hex>` form; the Host version
+SHALL be a bounded, exact non-empty string. When declared, an incomplete,
+malformed, or unknown identity field MUST be rejected rather than filled from
+the current run. Historical evidence without an identity remains reportable but
+is ineligible for reuse.
+
+Requirement evidence MAY also include bounded `evidenceReuse` metadata. A
+`REUSED` result SHALL preserve one explicit origin, have no identity mismatches,
+and retain the current identity, `PASS` status, and the existing typed native
+proof. A `REJECTED` result MAY retain the bounded mismatch field names. A
+conflicting result SHALL retain a `CONFLICTING_EVIDENCE` reason and unique
+origins containing both the historical `PASS` and `FAIL` outcomes. Normalization
+MUST NOT rewrite those origins or their original observations.
+
+An identity and reuse record are applicability metadata, not standalone
+observations. A reused native requirement MAY satisfy its current check while
+the current surface runtime observation and requirement `observedStatus`
+remain `NOT_RUN`. The normalizer MUST continue to reject a native `PASS`
+without typed proof, and MUST NOT treat installation or static contract
+evidence as native proof.
+
+#### Scenario: A matching native identity survives a round trip
+
+- **WHEN** a normalized native requirement has a complete identity, typed
+  proof, and valid reuse origin
+- **THEN** serialization and subsequent normalization preserve the exact
+  identity, proof, and origin for exact check-level matching
+
+#### Scenario: Historical evidence cannot gain a current identity
+
+- **WHEN** a legacy candidate omits identity or a candidate contains a partial
+  or malformed identity
+- **THEN** normalization preserves a valid legacy record without making it
+  reusable, and rejects a record that declares an invalid identity
+
+#### Scenario: Reuse does not claim a fresh runtime observation
+
+- **WHEN** a current native requirement is satisfied from a matching prior
+  proof without executing the native adapter
+- **THEN** the requirement may be `PASS` with `observedStatus: NOT_RUN`
+- **AND** the surface runtime observation remains `NOT_RUN`
+
+#### Scenario: Conflicting origins remain visible
+
+- **WHEN** current-identity evidence contains both `PASS` and `FAIL` outcomes
+- **THEN** normalized rejection metadata retains unique origin records for
+  both outcomes and cannot present either record as an unambiguous reuse

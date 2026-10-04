@@ -1,9 +1,9 @@
 # Consumer acceptance contract
 
-Status: accepted for issues #849 and #850. This contract defines the selected-
+Status: accepted for issues #849–#851. This contract defines the selected-
 surface consumer gate's installation acceptance, bounded requirements input,
-and fixed conditional capability checks. A passing installation check does not
-claim that a consumer runtime was executed.
+fixed conditional capability checks, and identity-bound evidence reuse. A
+passing installation check does not claim that a consumer runtime was executed.
 
 ## Purpose and authority
 
@@ -22,6 +22,10 @@ and `REQ-850-01` in the
 [post-install validation specification](../../openspec/specs/consumer-post-install-validation/spec.md).
 Evidence normalization retains its separate
 [normalization specification](../../openspec/specs/consumer-evidence-normalization/spec.md).
+The #851 identity shape and normalized reuse record are specified by
+[REQ-851-01](../../openspec/specs/consumer-evidence-normalization/spec.md#requirement-req-851-01-capability-identity-and-reuse-provenance-survive-normalization).
+The #851 reuse requirements are recorded in the
+[orchestration evidence lifecycle specification](../../openspec/specs/orchestration-evidence-lifecycle/spec.md#requirement-req-851-02-per-capability-reuse-is-exact-and-execution-authority-separated).
 
 ## Selected surfaces and Host mapping
 
@@ -230,6 +234,61 @@ gate-owned challenged loader route. Neither `CI` nor inherited
 `DHPK_CONSUMER_PROBE_EXECUTE` may activate plugin-directory runtime execution
 through the ordinary acceptance path. No runtime result is inferred from
 package copy or static materialization.
+
+## Capability evidence reuse
+
+`--evidence <json-file>` supplies prior normalized CONSUMER evidence for the
+checks declared by `--requirements`. It is accepted only with
+`--requirements`. The input is one existing normalized Consumer Evidence
+envelope or an array of 1–16 such envelopes, at most 4 MiB in total and at most
+100 candidate checks. It must be a physical regular file; symlinks and special
+files are rejected. Invalid JSON, invalid envelopes, and bound violations are
+usage errors (exit 2). The gate reads the input without modifying it and adds
+no evidence-store schema.
+
+The current reusable native route is one exact `codex-sync` named-role
+capability. Before considering its prior result, the gate runs the current
+installation and role-materialization checks. It then computes the expected
+identity from the fixed role descriptor and actual inputs: selected canonical
+role/spec/resource sources and relevant ownership rows; the delivered role and
+required resource bytes and bindings; the selected role and proof claims; the
+exact current Codex CLI version; and effective role/adapter configuration.
+When a selected loader resource declares the supported dynamic
+`agent-traps/<agent-name>/<S>.md` family, every inventory-declared Markdown
+resource in that selected role's family is included. An unavailable or
+unresolvable identity input prevents reuse.
+
+The per-check identity is a flat object with exactly these fields:
+`contractVersion: "consumer-check-identity.v1"`, `sourceFingerprint`,
+`artifactFingerprint`, `selectionFingerprint`, `hostVersion`, and
+`configFingerprint`. Its semantic check key separately binds the exact surface,
+capability, and evidence kind. Fingerprints are
+recomputed from current bounded file content and delivery metadata. Version,
+producer, workflow, request ID, reason, question, timestamp, and authorization
+are attribution or execution policy, not identity fields. A candidate is
+reusable only when the semantic key and every identity field match exactly,
+its own recorded status is `PASS`, and its existing typed native proof passes
+the Codex named-role proof checks. Installation evidence, static evidence,
+`runtimeVerified` alone, and historical evidence without a complete identity
+cannot satisfy a native requirement.
+
+A matching result can satisfy the current requirement even when current
+authorization is false, but it never grants authority to execute a native
+probe. Reuse records `evidenceReuse.decision: "REUSED"` and the immutable
+origin envelope index, surface, slot, and original check ID. The current
+requirement status is `PASS`, while its observation remains `NOT_RUN`; the
+historical payload is not rewritten as a fresh run. If identity is unavailable
+or does not match and no current authorization permits execution, the required
+check stays `BLOCKED` and records the changed or missing identity fields.
+Fresh installation failures remain independently blocking.
+
+Contradictory `PASS` and `FAIL` candidates for the same semantic check and exact
+identity are never resolved by ordering. Reuse is rejected and both original
+origins and outcomes remain visible under the conflict rejection metadata. A
+separately authorized fresh probe may produce a new observation, but does not
+erase that historical conflict. Normalization and identity matching establish
+applicability within the operator-supplied evidence boundary; they do not
+cryptographically authenticate a producer.
 
 ## Version 2 report and verdict
 

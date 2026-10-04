@@ -169,3 +169,64 @@ Artifact stores and consumer adapters SHALL persist and report evidence but SHAL
 
 - **WHEN** a worker and reviewer have reached terminal states but current qualifying Sentinel evidence is absent
 - **THEN** orchestration reports incomplete review closure and does not declare completion
+
+### Requirement: REQ-851-02 Per-capability reuse is exact and execution-authority separated
+
+An orchestration evidence result SHALL be reused only for the same gate-owned
+semantic check key and complete current capability identity. The identity
+SHALL bind relevant canonical source and specification content, delivered
+artifact bytes and bindings, selected capability and proof claims, exact
+current Host version, and effective configuration. Producer, workflow,
+request ID, reason, question, timestamp, and authorization are not capability
+identity. A change to an identity component invalidates only checks whose
+fixed descriptor includes that component; unrelated source or attribution
+changes MUST NOT require unrelated capability re-execution.
+
+Reuse SHALL require the candidate check's own `PASS` status and the existing
+typed proof for its native capability. Installation/static evidence and a
+generic runtime flag are insufficient. Current installation validation and
+required prerequisites SHALL still run and may independently block acceptance.
+Reuse satisfies an obligation but MUST NOT grant authority for a new native
+execution. When current authorization is false, exact valid prior evidence may
+satisfy the obligation without a new native call; absent or mismatched evidence
+remains `BLOCKED`. If current authorization separately permits a fresh probe,
+its observation remains distinct from prior evidence and does not erase prior
+conflicts. Exact-identity contradictory `PASS` and `FAIL` records are
+ambiguous and MUST be retained as an explicit conflict rather than resolved by
+last-wins selection. Consumed evidence remains immutable.
+
+#### Scenario: Attribution changes do not invalidate a capability result
+
+- **WHEN** the semantic check and complete current identity are unchanged but
+  request ID, producer, workflow, reason, or question changes
+- **THEN** the prior typed proof may satisfy the current check without another
+  native call, and its origin remains traceable
+
+#### Scenario: A relevant resource change invalidates only its role check
+
+- **WHEN** a source, specification, delivered role/resource, Host version, or
+  effective setting inside one role descriptor changes
+- **THEN** that role's historical evidence is rejected with its changed
+  identity field, while independent checks outside that closure remain
+  reusable
+
+#### Scenario: Old evidence does not authorize execution
+
+- **WHEN** prior evidence is absent or mismatched and current authorization is
+  false
+- **THEN** the required native obligation remains `BLOCKED` without invoking
+  the native adapter
+
+#### Scenario: Authorized replacement preserves a historical conflict
+
+- **WHEN** contradictory same-identity `PASS` and `FAIL` evidence is present
+  and current authorization permits a new native probe
+- **THEN** the fresh observation may resolve the current required check, but
+  the rejection record retains both historical outcomes and their origins
+
+#### Scenario: Reuse preserves the not-run observation
+
+- **WHEN** matching prior native evidence satisfies an unauthorized current
+  check
+- **THEN** the current obligation may pass with zero native calls while the
+  current runtime observation remains `NOT_RUN`

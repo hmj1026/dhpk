@@ -35,7 +35,12 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
-const { VERDICTS, normalizeConsumerEvidence } = require('../lib/release-evidence');
+const {
+  VERDICTS,
+  normalizeConsumerEvidence,
+  matchConsumerCheckEvidence,
+} = require('../lib/release-evidence');
+const { fingerprint: fingerprintStructuredValue } = require('../lib/distribution-projection-contract');
 const { fingerprintDir } = require('../lib/codex-native-package');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
@@ -85,6 +90,9 @@ const CONSUMER_REQUIREMENT_TRIGGERS = new Set([
 ]);
 const MAX_REQUIREMENTS_BYTES = 64 * 1024;
 const MAX_REQUIREMENT_CHECKS = 64;
+const MAX_CONSUMER_EVIDENCE_BYTES = 4 * 1024 * 1024;
+const MAX_CONSUMER_EVIDENCE_ENVELOPES = 16;
+const MAX_CONSUMER_EVIDENCE_CHECKS = 100;
 const REQUIREMENT_TEXT_CONTROL = /[\u0000-\u001f\u007f]/;
 
 function requirementText(value, label, maximum) {
@@ -712,6 +720,107 @@ function applyCodexHostBindingOwnership(project, entries) {
   });
 }
 
+function readConsumerEvidenceFileBounded(filePath) {
+  let initialStat;
+  try {
+    initialStat = fs.lstatSync(filePath);
+  } catch (_) {
+    throw new Error('evidence input could not be read safely');
+  }
+  if (!initialStat.isFile() || initialStat.isSymbolicLink()) {
+    throw new Error('evidence input must be a physical regular file');
+  }
+
+  const flags = fs.constants.O_RDONLY
+    | (fs.constants.O_NONBLOCK || 0)
+    | (fs.constants.O_NOFOLLOW || 0);
+  let descriptor;
+  try {
+    descriptor = fs.openSync(filePath, flags);
+  } catch (_) {
+    throw new Error('evidence input could not be opened safely');
+  }
+  try {
+    const openedStat = fs.fstatSync(descriptor);
+    if (!openedStat.isFile()) throw new Error('evidence input must be a physical regular file');
+    if (openedStat.size > MAX_CONSUMER_EVIDENCE_BYTES) {
+      throw new Error('evidence input exceeds the 4 MiB size bound');
+    }
+    if (initialStat.dev !== openedStat.dev || initialStat.ino !== openedStat.ino) {
+      throw new Error('evidence input changed before it could be read');
+    }
+
+    const buffer = Buffer.alloc(openedStat.size);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const count = fs.readSync(descriptor, buffer, offset, Math.min(16 * 1024, buffer.length - offset), offset);
+      if (count === 0) throw new Error('evidence input changed while it was read');
+      offset += count;
+    }
+    const extra = Buffer.alloc(1);
+    if (fs.readSync(descriptor, extra, 0, 1, offset) !== 0) {
+      throw new Error('evidence input exceeds the 4 MiB size bound');
+    }
+
+    const finalStat = fs.fstatSync(descriptor);
+    let pathStat;
+    try { pathStat = fs.lstatSync(filePath); } catch (_) { pathStat = null; }
+    if (openedStat.dev !== finalStat.dev || openedStat.ino !== finalStat.ino
+      || openedStat.size !== finalStat.size
+      || openedStat.mtimeMs !== finalStat.mtimeMs
+      || openedStat.ctimeMs !== finalStat.ctimeMs
+      || !pathStat || !pathStat.isFile() || pathStat.isSymbolicLink()
+      || finalStat.dev !== pathStat.dev || finalStat.ino !== pathStat.ino) {
+      throw new Error('evidence input changed while it was read');
+    }
+    return buffer;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function collectConsumerEvidenceCandidates(filePath) {
+  let bytes;
+  try {
+    bytes = readConsumerEvidenceFileBounded(filePath);
+  } catch (error) {
+    throw new Error(`evidence file is invalid: ${error.message}`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8'));
+  } catch (_) {
+    throw new Error('evidence JSON is malformed');
+  }
+  const envelopes = Array.isArray(parsed) ? parsed : [parsed];
+  if (envelopes.length === 0 || envelopes.length > MAX_CONSUMER_EVIDENCE_ENVELOPES) {
+    throw new Error('evidence file must contain between 1 and 16 Consumer Evidence envelopes');
+  }
+
+  const candidates = [];
+  for (const [envelopeIndex, envelope] of envelopes.entries()) {
+    let normalized;
+    try {
+      normalized = normalizeConsumerEvidence(envelope);
+    } catch (_) {
+      throw new Error(`evidence envelope ${envelopeIndex} is not a valid normalized Consumer Evidence envelope`);
+    }
+    if (normalized.stage !== 'CONSUMER') {
+      throw new Error(`evidence envelope ${envelopeIndex} must use the CONSUMER stage`);
+    }
+    for (const surfaceResult of normalized.surfaceResults) {
+      const requirementEvidence = surfaceResult.requirementEvidence || {};
+      for (const [slot, evidence] of Object.entries(requirementEvidence)) {
+        candidates.push({ envelopeIndex, surface: surfaceResult.surface, slot, evidence });
+        if (candidates.length > MAX_CONSUMER_EVIDENCE_CHECKS) {
+          throw new Error('evidence file exceeds the 100 consumer check bound');
+        }
+      }
+    }
+  }
+  return candidates;
+}
+
 function parseArgs(argv) {
   const args = { root: DEFAULT_ROOT };
   for (let i = 0; i < argv.length; i += 1) {
@@ -734,13 +843,21 @@ function parseArgs(argv) {
       }
       args.requirementsFile = value;
     }
+    else if (arg === '--evidence') {
+      const value = argv[++i];
+      if (!value || value.startsWith('--') || args.evidenceFile) {
+        console.error('consumer-gate: --evidence requires one JSON file path');
+        process.exit(2);
+      }
+      args.evidenceFile = value;
+    }
     else {
       console.error(`consumer-gate: unknown argument '${arg}'`);
       process.exit(2);
     }
   }
   if (!args.version) {
-    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>] [--requirements <json-file>]');
+    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>] [--requirements <json-file>] [--evidence <json-file>]');
     process.exit(2);
   }
   if (args.surface && !CONSUMER_SURFACES.includes(args.surface)) {
@@ -757,6 +874,18 @@ function parseArgs(argv) {
     if (args.surface && (args.requirements.selectedSurfaces.length !== 1
       || args.requirements.selectedSurfaces[0] !== args.surface)) {
       console.error('consumer-gate: --surface conflicts with the --requirements selected surface scope');
+      process.exit(2);
+    }
+  }
+  if (args.evidenceFile) {
+    if (!args.requirementsFile) {
+      console.error('consumer-gate: --evidence requires --requirements');
+      process.exit(2);
+    }
+    try {
+      args.evidenceCandidates = collectConsumerEvidenceCandidates(args.evidenceFile);
+    } catch (error) {
+      console.error(`consumer-gate: invalid --evidence: ${error.message}`);
       process.exit(2);
     }
   }
@@ -959,6 +1088,342 @@ function observeCodexRoleMaterialization(project, root, receipt, role) {
     role: roleEvidence,
     resources,
   };
+}
+
+function structuredConsumerFingerprint(value) {
+  return `sha256:${fingerprintStructuredValue(value)}`;
+}
+
+function safeConsumerRepoPath(value) {
+  return typeof value === 'string'
+    && value.length > 0
+    && value.length <= 512
+    && !value.includes('\\')
+    && !/^[A-Za-z]:/.test(value)
+    && !/[\u0000-\u001f\u007f]/.test(value)
+    && !path.posix.isAbsolute(value)
+    && value.split('/').every((part) => part && part !== '.' && part !== '..')
+    && path.posix.normalize(value) === value;
+}
+
+function currentConsumerSourceRecord(root, relativePath) {
+  if (!safeConsumerRepoPath(relativePath)) throw new Error('consumer identity source path is unsafe');
+  const digest = fingerprintPath(path.join(root, ...relativePath.split('/')), { allowedRoots: [root] });
+  if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error(`consumer identity source is missing: ${relativePath}`);
+  return { path: relativePath, digest };
+}
+
+function readConsumerRoleSourceText(root, relativePath) {
+  if (!safeConsumerRepoPath(relativePath)) throw new Error('Codex role resource source path is unsafe');
+  const target = path.join(root, ...relativePath.split('/'));
+  const canonical = resolveCanonicalPath(target, { allowedRoots: [root] });
+  return readFileBounded(canonical).toString('utf8');
+}
+
+function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed }) {
+  const destination = asset && asset.destination;
+  if (!safeConsumerRepoPath(destination)
+    || !asset || !safeConsumerRepoPath(asset.source)
+    || (asset.canonical_source !== undefined && !safeConsumerRepoPath(asset.canonical_source))
+    || !installed || installed.destination !== destination
+    || installed.source !== destination
+    || !['copy', 'symlink'].includes(installed.mode)) {
+    throw new Error(`Codex role resource ownership is incomplete: ${String(destination || '')}`);
+  }
+  const sourcePath = path.join(root, ...asset.source.split('/'));
+  const destinationPath = path.join(project, '.codex', ...destination.split('/'));
+  const sourceFingerprint = receiptBoundedFileFingerprint(sourcePath, root);
+  const destinationFingerprint = receiptBoundedResourceFingerprint(
+    destinationPath,
+    project,
+    sourcePath,
+    root,
+    installed.mode,
+  );
+  if (!sourceFingerprint || !destinationFingerprint
+    || !/^[a-f0-9]{64}$/.test(installed.source_fingerprint || '')
+    || !/^[a-f0-9]{64}$/.test(installed.destination_fingerprint || '')
+    || sourceFingerprint !== installed.source_fingerprint
+    || destinationFingerprint !== installed.destination_fingerprint
+    || sourceFingerprint !== destinationFingerprint) {
+    throw new Error(`Codex role resource is not currently receipt-bound: ${destination}`);
+  }
+  return { destination, asset, installed };
+}
+
+function selectedCodexRoleDynamicFamilies(root, role, references) {
+  const prefixes = new Set();
+  for (const reference of references) {
+    const loaderText = readConsumerRoleSourceText(root, reference.asset.source);
+    const hasTemplatedResourcePath = /agent-traps\/<|agent-traps\/[^\s"'`]*<[^>]+>/.test(loaderText);
+    if (!hasTemplatedResourcePath) continue;
+    const supportedPattern = /agent-traps\/<agent-name>\/<S>\.md/.test(loaderText);
+    if (!supportedPattern) {
+      throw new Error('Codex role resource declares an unsupported dynamic trap-sheet family');
+    }
+    prefixes.add(`dhpk/agent-traps/${role}/`);
+  }
+  return [...prefixes].sort();
+}
+
+function deliveredConsumerFileRecord(target, logicalPath, { project, root, mode, binding = null } = {}) {
+  if (!safeConsumerRepoPath(logicalPath)) throw new Error('consumer identity artifact path is unsafe');
+  const stat = fs.lstatSync(target);
+  const type = stat.isSymbolicLink() ? 'symlink' : stat.isFile() ? 'file' : '';
+  if (!type || (mode === 'copy' && type !== 'file') || (mode === 'symlink' && type !== 'symlink')) {
+    throw new Error(`consumer identity artifact has an unexpected physical type: ${logicalPath}`);
+  }
+  const canonical = resolveCanonicalPath(target, { allowedRoots: [project, root] });
+  if (!fs.statSync(canonical).isFile()) throw new Error(`consumer identity artifact is not a file: ${logicalPath}`);
+  const digest = fingerprintPath(target, { allowedRoots: [project, root] });
+  if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error(`consumer identity artifact is missing: ${logicalPath}`);
+  return {
+    path: logicalPath,
+    digest,
+    type,
+    mode: (stat.mode & 0o777).toString(8).padStart(4, '0'),
+    ...(type === 'symlink' ? { linkBinding: binding } : {}),
+  };
+}
+
+function selectedCodexRoleSetting(roleText, key) {
+  const assignment = new RegExp(`^\\s*${key}\\s*=`, 'm');
+  if (!assignment.test(roleText)) return 'Codex CLI default';
+  const value = new RegExp(`^\\s*${key}\\s*=\\s*"([^"\\r\\n]{1,200})"\\s*(?:#.*)?$`, 'm').exec(roleText);
+  if (!value || /[\u0000-\u001f\u007f]/.test(value[1])) {
+    throw new Error(`Codex role ${key} setting is not a bounded TOML string`);
+  }
+  return value[1];
+}
+
+function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey, hostVersion, contractEvidence }) {
+  const missingFields = new Set();
+  try {
+    if (typeof hostVersion !== 'string' || hostVersion.trim() !== hostVersion
+      || hostVersion.length === 0 || hostVersion.length > 200 || /[\u0000-\u001f\u007f]/.test(hostVersion)) {
+      missingFields.add('hostVersion');
+      throw new Error('current Codex CLI version is unavailable or malformed');
+    }
+    if (!contractEvidence || contractEvidence.status !== 'PASS'
+      || !contractEvidence.role || contractEvidence.role.path !== `agents/${role}.toml`
+      || !Array.isArray(contractEvidence.resources)) {
+      missingFields.add('artifactFingerprint');
+      throw new Error('fresh Codex role and resource materialization did not pass');
+    }
+
+    const rolePath = `codex/agents/${role}.toml`;
+    missingFields.add('sourceFingerprint');
+    const roleText = readFileBounded(path.join(root, ...rolePath.split('/'))).toString('utf8');
+    missingFields.add('configFingerprint');
+    const model = selectedCodexRoleSetting(roleText, 'model');
+    const effort = selectedCodexRoleSetting(roleText, 'model_reasoning_effort');
+    const sandboxMode = selectedCodexRoleSetting(roleText, 'sandbox_mode');
+    missingFields.delete('configFingerprint');
+    const roleEntry = receipt && receipt.managed_entries && receipt.managed_entries.agents
+      ? receipt.managed_entries.agents[`${role}.toml`]
+      : null;
+    if (!roleEntry || roleEntry.destination !== `agents/${role}.toml`
+      || roleEntry.source !== `agents/${role}.toml` || roleEntry.mode !== 'copy') {
+      missingFields.add('sourceFingerprint');
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex role ownership row is unavailable');
+    }
+
+    const projectionManifest = JSON.parse(readFileBounded(path.join(root, 'codex', 'agent-projection-manifest.json')).toString('utf8'));
+    if (!projectionManifest || !Array.isArray(projectionManifest.generated_roles)
+      || !Array.isArray(projectionManifest.package_roles)
+      || !Array.isArray(projectionManifest.workspace_local_extensions)) {
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex role projection ownership map is malformed');
+    }
+    const generated = projectionManifest.generated_roles.includes(role);
+    const packageOwned = projectionManifest.package_roles.includes(role);
+    const workspaceLocal = projectionManifest.workspace_local_extensions.includes(role);
+    if (!packageOwned || workspaceLocal) {
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex role is not in the fixed package-owned role set');
+    }
+
+    let inventory;
+    try {
+      inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+    } catch (error) {
+      missingFields.add('sourceFingerprint');
+      missingFields.add('selectionFingerprint');
+      throw new Error(`Codex supporting-resource inventory is unavailable: ${error.message}`);
+    }
+    if (!inventory || !Array.isArray(inventory.supporting_assets)) {
+      missingFields.add('sourceFingerprint');
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex supporting-resource inventory is malformed');
+    }
+    const installedAssets = receipt.managed_entries && receipt.managed_entries.supporting_assets;
+    if (!installedAssets || typeof installedAssets !== 'object') {
+      missingFields.add('artifactFingerprint');
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex supporting-resource receipt is unavailable');
+    }
+
+    missingFields.add('sourceFingerprint');
+    missingFields.add('artifactFingerprint');
+    missingFields.add('selectionFingerprint');
+    const referencesByDestination = new Map();
+    for (const resource of contractEvidence.resources) {
+      if (!resource || typeof resource.path !== 'string' || !resource.path.startsWith('.codex/dhpk/')) {
+        throw new Error('Codex role resource closure contains an unsupported path');
+      }
+      const destination = resource.path.slice('.codex/'.length);
+      const asset = inventory.supporting_assets.find((entry) => entry && entry.destination === destination);
+      const installed = installedAssets[destination];
+      if (!asset) throw new Error(`Codex role resource is absent from the current inventory: ${destination}`);
+      const verified = verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed });
+      referencesByDestination.set(destination, verified);
+    }
+    const declaredDynamicFamilies = selectedCodexRoleDynamicFamilies(root, role, [...referencesByDestination.values()]);
+    for (const prefix of declaredDynamicFamilies) {
+      const familyAssets = inventory.supporting_assets.filter((asset) => {
+        if (!asset || typeof asset.destination !== 'string' || !asset.destination.startsWith(prefix)) return false;
+        const relative = asset.destination.slice(prefix.length);
+        return relative.length > 0 && !relative.includes('/') && relative.endsWith('.md');
+      });
+      if (familyAssets.length === 0) {
+        throw new Error(`Codex role dynamic resource family has no inventory members: ${prefix}`);
+      }
+      for (const asset of familyAssets) {
+        const installed = installedAssets[asset.destination];
+        const verified = verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed });
+        referencesByDestination.set(asset.destination, verified);
+      }
+    }
+    const references = [...referencesByDestination.values()]
+      .sort((left, right) => left.destination.localeCompare(right.destination));
+
+    const sourcePaths = new Set([
+      rolePath,
+      'openspec/specs/codex-agent-role-parity/spec.md',
+      'openspec/specs/codex-install-materialization/spec.md',
+    ]);
+    if (generated) sourcePaths.add(`agents/${role}.md`);
+    for (const { asset } of references) {
+      sourcePaths.add(asset.source);
+      if (asset.canonical_source) sourcePaths.add(asset.canonical_source);
+    }
+    const sourceRecords = [...sourcePaths]
+      .sort()
+      .map((relativePath) => currentConsumerSourceRecord(root, relativePath));
+    const relevantInventoryRows = references.map(({ asset }) => ({
+      id: asset.id || null,
+      source: asset.source,
+      canonical_source: asset.canonical_source || null,
+      destination: asset.destination,
+      canonical_digest: asset.canonical_digest || null,
+      projection_digest: asset.projection_digest || null,
+    }));
+    const selectedRoleOwnership = {
+      destination: roleEntry.destination,
+      source: roleEntry.source,
+      mode: roleEntry.mode,
+      source_fingerprint: roleEntry.source_fingerprint,
+      destination_fingerprint: roleEntry.destination_fingerprint,
+      generated,
+      packageOwned,
+      workspaceLocal,
+    };
+    const sourceFingerprint = structuredConsumerFingerprint({
+      proofContract: 'codex-named-role-probe.v1',
+      sourceRecords,
+      roleOwnership: selectedRoleOwnership,
+      supportingInventoryRows: relevantInventoryRows,
+    });
+    missingFields.delete('sourceFingerprint');
+
+    missingFields.add('artifactFingerprint');
+    const artifacts = [deliveredConsumerFileRecord(
+      path.join(project, '.codex', 'agents', `${role}.toml`),
+      `agents/${role}.toml`,
+      { project, root, mode: roleEntry.mode },
+    )];
+    for (const { destination, asset, installed } of references) {
+      artifacts.push(deliveredConsumerFileRecord(
+        path.join(project, '.codex', ...destination.split('/')),
+        destination,
+        {
+          project,
+          root,
+          mode: installed.mode,
+          binding: installed.mode === 'symlink' ? (asset.canonical_source || asset.source) : null,
+        },
+      ));
+    }
+    artifacts.sort((left, right) => left.path.localeCompare(right.path));
+    const artifactFingerprint = structuredConsumerFingerprint(artifacts);
+    missingFields.delete('artifactFingerprint');
+    missingFields.add('selectionFingerprint');
+    const selectionFingerprint = structuredConsumerFingerprint({
+      route: 'codex-named-role',
+      checkKey,
+      role,
+      roleOwnership: { generated, packageOwned, workspaceLocal },
+      resources: references.map(({ asset, installed }) => ({
+        id: asset.id || null,
+        source: asset.source,
+        canonical_source: asset.canonical_source || null,
+        destination: asset.destination,
+        mode: installed.mode,
+      })),
+      requiredClaims: ['physical-agent-materialization', 'codex-installation-contract', 'completed-unique-child-role'],
+    });
+    missingFields.delete('selectionFingerprint');
+    missingFields.add('configFingerprint');
+    const configFingerprint = structuredConsumerFingerprint({
+      adapterRoute: 'codex-named-role',
+      commandProfile: ['codex', 'exec', '--strict-config', '--json', '--sandbox', 'read-only', '--skip-git-repo-check'],
+      projectTrust: 'trusted',
+      configurationLoading: 'strict-config',
+      model,
+      effort,
+      roleSandboxMode: sandboxMode,
+      networkPolicy: 'Codex read-only sandbox default',
+      authentication: 'operator auth.json referenced read-only; secret contents excluded',
+    });
+    missingFields.delete('configFingerprint');
+    return {
+      identity: {
+        contractVersion: 'consumer-check-identity.v1',
+        sourceFingerprint,
+        artifactFingerprint,
+        selectionFingerprint,
+        hostVersion,
+        configFingerprint,
+      },
+      missingFields: [],
+      reason: null,
+    };
+  } catch (error) {
+    if (missingFields.size === 0) missingFields.add('sourceFingerprint');
+    return {
+      identity: null,
+      missingFields: [...missingFields],
+      reason: redactEvidence(error && error.message ? error.message : String(error), root).slice(0, 512),
+    };
+  }
+}
+
+function discoverCodexIdentityVersion(project, commands) {
+  const result = spawnSync('codex', ['--version'], {
+    cwd: project,
+    encoding: 'utf8',
+    env: process.env,
+    timeout: 10000,
+    maxBuffer: 64 * 1024,
+  });
+  commands.push({ cmd: 'codex --version (consumer-check identity)', exitCode: result.status });
+  if (result.error || result.status !== 0) return { version: null, reason: 'current Codex CLI version could not be established' };
+  const version = (result.stdout || result.stderr || '').trim();
+  if (version.length === 0 || version.length > 200 || /[\u0000-\u001f\u007f]/.test(version)) {
+    return { version: null, reason: 'current Codex CLI version output was malformed' };
+  }
+  return { version, reason: null };
 }
 
 function runCodexNamedRoleProbe(project, {
@@ -1409,16 +1874,81 @@ function verifyCodexSync(root, version, options = {}) {
         };
         continue;
       }
+      const versionObservation = discoverCodexIdentityVersion(project, commands);
+      const identityResult = versionObservation.version
+        ? collectCodexNamedRoleIdentity({
+          root,
+          project,
+          receipt: manifest,
+          role: check.role,
+          checkKey: check.checkKey,
+          hostVersion: versionObservation.version,
+          contractEvidence,
+        })
+        : {
+          identity: null,
+          missingFields: ['hostVersion'],
+          reason: versionObservation.reason,
+        };
+      let evidenceMatch = null;
+      if (options.evidenceSupplied) {
+        evidenceMatch = identityResult.identity
+          ? matchConsumerCheckEvidence({
+            checkKey: check.checkKey,
+            evidenceKind: 'native',
+            identity: identityResult.identity,
+          }, options.evidenceCandidates || [])
+          : {
+            decision: 'REJECTED',
+            selected: null,
+            origin: null,
+            mismatchFields: identityResult.missingFields,
+          };
+      }
+      const evidenceReuse = evidenceMatch
+        ? {
+          decision: evidenceMatch.decision === 'REUSED' ? 'REUSED' : 'REJECTED',
+          origin: evidenceMatch.decision === 'REUSED' ? evidenceMatch.origin : null,
+          mismatchFields: evidenceMatch.decision === 'REUSED' ? [] : evidenceMatch.mismatchFields,
+          ...(evidenceMatch.decision === 'CONFLICT'
+            ? {
+              rejectionReason: 'CONFLICTING_EVIDENCE',
+              conflicts: evidenceMatch.conflicts,
+            }
+            : {}),
+        }
+        : null;
+      if (evidenceMatch && evidenceMatch.decision === 'REUSED') {
+        targetedRequirementEvidence[check.checkKey] = {
+          status: 'PASS',
+          observedStatus: 'NOT_RUN',
+          outcomeReason: 'matching current Codex named-role evidence was reused without native execution',
+          identity: identityResult.identity,
+          evidenceReuse,
+          nativeProof: evidenceMatch.selected.nativeProof,
+        };
+        continue;
+      }
       if (!check.authorized) {
         targetedRequirementEvidence[check.checkKey] = {
           status: 'BLOCKED',
           observedStatus: 'NOT_RUN',
-          outcomeReason: 'native Codex role execution is not authorized',
+          outcomeReason: evidenceMatch && evidenceMatch.decision === 'CONFLICT'
+            ? 'current consumer evidence contains contradictory outcomes for this Codex named role'
+            : evidenceMatch && evidenceMatch.mismatchFields.length > 0
+              ? `no reusable current Codex named-role evidence matched: ${evidenceMatch.mismatchFields.join(', ')}`
+              : identityResult.reason
+                ? `native Codex role execution is not authorized; identity unavailable: ${identityResult.reason}`
+                : 'native Codex role execution is not authorized',
+          ...(identityResult.identity ? { identity: identityResult.identity } : {}),
+          ...(evidenceReuse ? { evidenceReuse } : {}),
         };
         continue;
       }
       const native = runCodexNamedRoleProbe(project, { roles: [check.role], env: process.env });
-      const nativeProof = native.status === 'PASS' && native.runtimeEvidence
+      const nativeVersionMatches = !identityResult.identity
+        || (typeof native.cliVersion === 'string' && native.cliVersion.trim() === identityResult.identity.hostVersion);
+      const nativeProof = native.status === 'PASS' && nativeVersionMatches && native.runtimeEvidence
         && Array.isArray(native.runtimeEvidence.roles)
         && native.runtimeEvidence.roles.length === 1
         ? {
@@ -1440,8 +1970,16 @@ function verifyCodexSync(root, version, options = {}) {
       });
       targetedRequirementEvidence[check.checkKey] = {
         status,
-        observedStatus: native.status,
-        outcomeReason: native.diagnostic || (nativeProof ? 'authorized Codex named role completed' : 'Codex role proof was incomplete'),
+        observedStatus: native.status === 'PASS' && !nativeVersionMatches ? 'BLOCKED' : native.status,
+        outcomeReason: native.status === 'PASS' && !nativeVersionMatches
+          ? 'Codex CLI version changed between identity capture and native execution'
+          : native.diagnostic || (nativeProof
+            ? identityResult.reason
+              ? `authorized Codex named role completed; identity unavailable: ${identityResult.reason}`
+              : 'authorized Codex named role completed'
+            : 'Codex role proof was incomplete'),
+        ...(identityResult.identity ? { identity: identityResult.identity } : {}),
+        ...(evidenceReuse ? { evidenceReuse } : {}),
         ...(nativeProof ? { nativeProof } : {}),
       };
     }
@@ -2422,7 +2960,11 @@ function runGate(args) {
   const roleChecks = uniqueRequirementExecutions(resolvedRequirements, 'named-role');
   const selectedOrAll = (surface) => scope.includes(surface);
   const codex = selectedOrAll('codex-sync')
-    ? verifyCodexSync(args.root, args.version, { roleChecks })
+    ? verifyCodexSync(args.root, args.version, {
+      roleChecks,
+      evidenceCandidates: args.evidenceCandidates || [],
+      evidenceSupplied: Boolean(args.evidenceFile),
+    })
     : null;
   const claude = selectedOrAll('claude-core') ? verifyClaudeReinstall(args.root, args.version) : null;
   const native = selectedOrAll('codex-native') ? verifyCodexNative(args.root) : null;
@@ -2521,6 +3063,8 @@ function runGate(args) {
       let outcomeReason;
       let contractEvidence;
       let nativeProof;
+      let identity;
+      let evidenceReuse;
       const installationEvidence = entry.installationEvidence;
 
       if (!selected) {
@@ -2529,8 +3073,21 @@ function runGate(args) {
         const observation = resolved.route === 'named-role'
           ? codex && codex.targetedRequirementEvidence && codex.targetedRequirementEvidence[resolved.checkKey]
           : loaderEvidence.get(resolved.checkKey);
-        observedStatus = observation && observation.observedStatus;
-        outcomeReason = 'native execution is not authorized';
+        if (observation && observation.evidenceReuse && observation.evidenceReuse.decision === 'REUSED') {
+          status = observation.status;
+          observedStatus = observation.observedStatus;
+          outcomeReason = observation.outcomeReason;
+          identity = observation.identity;
+          evidenceReuse = observation.evidenceReuse;
+          nativeProof = observation.nativeProof;
+        } else {
+          observedStatus = observation && observation.observedStatus;
+          outcomeReason = observation && observation.outcomeReason
+            ? observation.outcomeReason
+            : 'native execution is not authorized';
+          identity = observation && observation.identity;
+          evidenceReuse = observation && observation.evidenceReuse;
+        }
       } else if (resolved.route === 'installation-contract'
         || (resolved.route === 'package-loader' && resolved.evidenceKind === 'contract')) {
         if (installationEvidence && installationEvidence.status) {
@@ -2558,7 +3115,12 @@ function runGate(args) {
           observedStatus = observation.observedStatus;
           outcomeReason = observation.outcomeReason;
           contractEvidence = observation.contractEvidence;
-          nativeProof = check.authorization.authorized ? observation.nativeProof : undefined;
+          nativeProof = check.authorization.authorized
+            || (observation.evidenceReuse && observation.evidenceReuse.decision === 'REUSED')
+            ? observation.nativeProof
+            : undefined;
+          identity = observation.identity;
+          evidenceReuse = observation.evidenceReuse;
         } else {
           observedStatus = codex ? codex.status : entry.status;
           outcomeReason = 'the selected Codex role check did not produce capability evidence';
@@ -2591,6 +3153,8 @@ function runGate(args) {
         authorized: check.authorization.authorized,
         checkKey: resolved.checkKey,
         status,
+        ...(identity ? { identity } : {}),
+        ...(evidenceReuse ? { evidenceReuse } : {}),
         ...(requirementAdapter(resolved) ? { adapter: requirementAdapter(resolved) } : {}),
         ...(observedStatus ? { observedStatus } : {}),
         ...(outcomeReason ? { outcomeReason: outcomeReason.slice(0, 512) } : {}),
