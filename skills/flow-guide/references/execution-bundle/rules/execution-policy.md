@@ -595,9 +595,50 @@ The `change-verdict` skill's `pr` mode includes an optional
 
 Output: `Conclusion → Changed files → Verification → Risks/Open questions`. Blocked: `Blocker → Tried → Next viable option`.
 
-## Testing
+## Verification and evidence reuse
 
-Run the project's standard test suite + browser verify (playwright-cli, manual, or stack-equivalent). For Docker projects: see your `${PHP_CONTAINER:-php}` workflow. Commands per stack live in the matching dhpk module reference (e.g. `modules/phpunit-5.7/references/testing.md`).
+Verification is an applicability decision before it is a command choice. Reuse a
+prior result only when its recorded scope, relevant source content, specification
+or acceptance criteria, command and configuration, tool identity, and execution
+environment still match the current obligation. A timestamp, producer name, or
+successful dispatch alone is not applicability evidence. Record the evidence
+identity and the conclusion that it supports; ordinary text, files, and reports
+are valid evidence carriers when they establish scope, observations, conclusion,
+and remaining gaps.
+
+Reassess only affected evidence when source files, specifications, lockfiles,
+configuration, tools, or environment change. A changed behavior invalidates the
+affected test or review result; a changed specification or acceptance criterion
+invalidates evidence whose conclusion no longer covers the requested outcome.
+Unchanged, unrelated work does not require a complete rerun when the existing
+checkpoint and all applicability bindings remain valid.
+
+Order checks by their effect on evidence: run formatters, generators, migrations,
+fixture refreshes, package materialization, and other mutating checks before the
+final affected review or verification. If a mutating check runs afterward, rerun
+the affected checks before claiming completion. Never use evidence produced before
+the last mutation as the final result for the changed scope.
+
+Choose focused or selected checks from changed behavior and acceptance criteria,
+then retain every applicable plugin handoff, archive, CI, formal-package, and
+pre-tag checkpoint. Focused success closes only the focused obligation. Unsupported
+runners, missing capabilities, skipped checks, and `NOT_RUN` remain non-passing
+states; a manual alternative is separate evidence and does not become a pass for
+the unsupported runner. Keep implementation, verification, archive, commit, PR,
+CI, merge, release, and deployment states separate.
+
+### Testing
+
+Run meaningful behavior tests for changed behavior and use the project's standard
+suite, browser/runtime check, or stack-equivalent when its acceptance criteria
+make that boundary applicable. For Docker projects: see your
+`${PHP_CONTAINER:-php}` workflow. Commands per stack live in the matching dhpk
+module reference (e.g. `modules/phpunit-5.7/references/testing.md`). Do not impose
+a fixed coverage percentage, browser run, or full-suite rerun when the changed
+behavior and project acceptance do not require it; record the reason and any
+remaining gap. Test-first remains the default for new or repaired behavior, while
+prose guidance is established through semantic review and applicable metadata,
+reference, and lint checks rather than mirror tests.
 
 Script-test requirements live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/testing-policy.md`.
 
