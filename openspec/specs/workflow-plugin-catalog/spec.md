@@ -11,6 +11,12 @@ remain visible and are never synthesized as `PASS`. Ownership, compatibility,
 coexistence, rollback, publication, and manual authorization requirements remain
 in force.
 
+This amendment qualifies representative-consumer-evidence language in this
+specification: selected workflow claims still require the evidence named by the
+requirement, while ordinary catalog, installation, or documentation changes do
+not inherit a complete native workflow matrix. A representative probe never
+proves every selected workflow.
+
 ## Purpose
 
 Define the reviewed inventory-owned marketplace catalog, contained resource ownership, approved public identities, licensing exclusions, and workflow authority boundaries.

@@ -2,6 +2,12 @@
 
 > **語言**： [English](./basic-operations.md) · **繁體中文**
 
+## 驗收適用性（#848/#854）
+
+已安裝結構與選定生命週期檢查是預設驗收邊界。CLI 存在不代表 native runtime
+已執行；只有受影響的整合、啟用缺陷或明確要求才觸發 native 檢查。操作紀錄要
+保留 `NOT_RUN`、`UNAVAILABLE` 與 `BLOCKED`。
+
 本頁說明 dhpk 的操作生命週期：安裝、日常指令流程、自動 Review 週期，以及
 如何將既有專案遷移到 dhpk。Codex/Cursor 的安裝、狀態與回滾細節請看
 [平台安裝 SSOT](./platform-installation.zh-TW.md)；完整的 `userConfig` 旋鈕請看

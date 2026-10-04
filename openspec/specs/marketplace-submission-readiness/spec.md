@@ -11,6 +11,13 @@ remain visible and are never synthesized as `PASS`. Ownership, compatibility,
 coexistence, rollback, publication, and manual authorization requirements remain
 in force.
 
+This amendment supersedes the ordinary-delivery reading of the workflow
+evidence requirement below: direct workflow probes remain required when
+submission readiness claims a selected workflow or when a native check is
+explicitly requested, but they are not a blanket prerequisite for unrelated
+installation, documentation, or package-policy changes. ChatGPT Work remains
+unverified until its own evidence exists.
+
 ## Purpose
 
 Define the engineering deliverables and reproducible validation needed to hand off a skills-only OpenAI plugin submission, keeping platform account operations, scans, approval, and publication separate from local engineering evidence.

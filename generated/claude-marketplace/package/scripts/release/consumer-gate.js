@@ -35,13 +35,26 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
-const { VERDICTS, normalizeConsumerEvidence } = require('../lib/release-evidence');
+const {
+  VERDICTS,
+  normalizeConsumerEvidence,
+  matchConsumerCheckEvidence,
+} = require('../lib/release-evidence');
+const { fingerprint: fingerprintStructuredValue } = require('../lib/distribution-projection-contract');
 const { fingerprintDir } = require('../lib/codex-native-package');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 const { redactSensitiveText } = require('../lib/redaction');
 const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
 const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
+const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
+const { validateAgyPluginPackage } = require('../lib/agy-plugin-package');
+const {
+  inspectAgyPlugin,
+  installAgyPlugin,
+  resolveAgyInstallRoot,
+} = require('../lib/agy-plugin-install');
+const { loadAgyPathContract } = require('../lib/agy-path-contract');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
@@ -53,7 +66,204 @@ const CONSUMER_SURFACES = Object.freeze([
   'cursor-sync',
   'agent-plugin',
   'cursor-plugin',
+  'agy-plugin',
 ]);
+const CONSUMER_REQUIREMENTS_SCHEMA = 'dhpk.consumer-requirements.v1';
+const CONSUMER_SURFACE_HOSTS = Object.freeze({
+  'claude-core': 'claude',
+  'codex-sync': 'codex',
+  'codex-native': 'codex',
+  'cursor-sync': 'cursor',
+  'agent-plugin': 'cursor',
+  'cursor-plugin': 'cursor',
+  'agy-plugin': 'agy',
+});
+const CONSUMER_HOST_CONFIG_MARKERS = Object.freeze({
+  claude: Object.freeze(['.claude-plugin/plugin.json']),
+  codex: Object.freeze(['.codex/config.toml']),
+  cursor: Object.freeze([
+    '.cursor/.dhpk-installed.json',
+    'plugins/dhpk-agent/plugin.json',
+    '.cursor-plugin/plugin.json',
+    '.cursor/plugins/local/dhpk-agent/plugin.json',
+    '.cursor/plugins/local/dhpk-cursor/.cursor-plugin/plugin.json',
+  ]),
+  agy: Object.freeze([
+    '.agents/.dhpk-installed.json',
+    'plugins/dhpk-agy/plugin.json',
+  ]),
+});
+const CONSUMER_REQUIREMENT_TRIGGERS = new Set([
+  'new-host',
+  'loader-change',
+  'role-registration-change',
+  'tool-mapping-change',
+  'activation-defect',
+  'explicit-native',
+]);
+const MAX_REQUIREMENTS_BYTES = 64 * 1024;
+const MAX_REQUIREMENT_CHECKS = 64;
+const MAX_CONSUMER_EVIDENCE_BYTES = 4 * 1024 * 1024;
+const MAX_CONSUMER_EVIDENCE_ENVELOPES = 16;
+const MAX_CONSUMER_EVIDENCE_CHECKS = 100;
+const REQUIREMENT_TEXT_CONTROL = /[\u0000-\u001f\u007f]/;
+
+function requirementText(value, label, maximum) {
+  if (typeof value !== 'string' || value.trim().length === 0 || value.length > maximum
+    || REQUIREMENT_TEXT_CONTROL.test(value)) {
+    throw new Error(`requirements ${label} must be a bounded, non-empty single-line string`);
+  }
+  return value.trim();
+}
+
+function readRequirementsFileBounded(filePath) {
+  const initialStat = fs.lstatSync(filePath);
+  if (!initialStat.isFile() || initialStat.isSymbolicLink()) {
+    throw new Error('requirements input must be a regular file');
+  }
+
+  const flags = fs.constants.O_RDONLY
+    | (fs.constants.O_NONBLOCK || 0)
+    | (fs.constants.O_NOFOLLOW || 0);
+  const descriptor = fs.openSync(filePath, flags);
+  try {
+    const openedStat = fs.fstatSync(descriptor);
+    if (!openedStat.isFile()) throw new Error('requirements input must be a regular file');
+    if (openedStat.size > MAX_REQUIREMENTS_BYTES) throw new Error('requirements file exceeds the configured byte limit');
+    if (initialStat.dev !== openedStat.dev || initialStat.ino !== openedStat.ino) {
+      throw new Error('requirements file changed before it could be read');
+    }
+
+    const buffer = Buffer.alloc(openedStat.size);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const count = fs.readSync(descriptor, buffer, offset, Math.min(16 * 1024, buffer.length - offset), offset);
+      if (count === 0) throw new Error('requirements file changed while it was read');
+      offset += count;
+    }
+    const extra = Buffer.alloc(1);
+    if (fs.readSync(descriptor, extra, 0, 1, offset) !== 0) {
+      throw new Error('requirements file exceeds the configured byte limit');
+    }
+
+    const finalStat = fs.fstatSync(descriptor);
+    if (openedStat.dev !== finalStat.dev || openedStat.ino !== finalStat.ino
+      || openedStat.size !== finalStat.size
+      || openedStat.mtimeMs !== finalStat.mtimeMs
+      || openedStat.ctimeMs !== finalStat.ctimeMs) {
+      throw new Error('requirements file changed while it was read');
+    }
+    return buffer;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function hasConfiguredHostMarker(root, marker) {
+  let current = path.resolve(root);
+  const parts = marker.split('/');
+  for (let index = 0; index < parts.length; index += 1) {
+    current = path.join(current, parts[index]);
+    let stat;
+    try {
+      stat = fs.lstatSync(current);
+    } catch (_) {
+      return false;
+    }
+    if (stat.isSymbolicLink()) return false;
+    if (index < parts.length - 1 ? !stat.isDirectory() : !stat.isFile()) return false;
+  }
+  return true;
+}
+
+function configuredHostMarkers(root, surface) {
+  return CONSUMER_HOST_CONFIG_MARKERS[CONSUMER_SURFACE_HOSTS[surface]]
+    .filter((marker) => hasConfiguredHostMarker(root, marker));
+}
+
+function configuredConsumerSurfaces(root) {
+  return CONSUMER_SURFACES.filter((surface) => configuredHostMarkers(root, surface).length > 0);
+}
+
+function parseRequirementsFile(filePath) {
+  let source;
+  try {
+    source = readRequirementsFileBounded(filePath).toString('utf8');
+  } catch (_) {
+    throw new Error('requirements file could not be read within the configured bounds');
+  }
+  let requirements;
+  try {
+    requirements = JSON.parse(source);
+  } catch (_) {
+    throw new Error('requirements file is not valid JSON');
+  }
+  if (!requirements || typeof requirements !== 'object' || Array.isArray(requirements)
+    || Object.keys(requirements).some((key) => !['schema', 'selectedSurfaces', 'checks'].includes(key))) {
+    throw new Error('requirements must be an object with only schema, selectedSurfaces, and checks');
+  }
+  if (requirements.schema !== CONSUMER_REQUIREMENTS_SCHEMA) {
+    throw new Error(`requirements schema must be '${CONSUMER_REQUIREMENTS_SCHEMA}'`);
+  }
+  if (!Array.isArray(requirements.checks) || requirements.checks.length === 0
+    || requirements.checks.length > MAX_REQUIREMENT_CHECKS) {
+    throw new Error(`requirements checks must contain 1-${MAX_REQUIREMENT_CHECKS} entries`);
+  }
+  let selectedSurfaces = null;
+  if (requirements.selectedSurfaces !== undefined) {
+    if (!Array.isArray(requirements.selectedSurfaces) || requirements.selectedSurfaces.length === 0
+      || requirements.selectedSurfaces.length > CONSUMER_SURFACES.length) {
+      throw new Error('requirements selectedSurfaces must be a non-empty bounded array');
+    }
+    if (requirements.selectedSurfaces.some((surface) => !CONSUMER_SURFACES.includes(surface))
+      || new Set(requirements.selectedSurfaces).size !== requirements.selectedSurfaces.length) {
+      throw new Error('requirements selectedSurfaces contains an unknown or duplicate surface');
+    }
+    selectedSurfaces = requirements.selectedSurfaces.slice();
+  }
+  const seen = new Set();
+  const checks = requirements.checks.map((check) => {
+    const allowedFields = ['id', 'surface', 'host', 'capability', 'trigger', 'reason', 'question', 'evidenceKind', 'authorization'];
+    if (!check || typeof check !== 'object' || Array.isArray(check)
+      || Object.keys(check).some((key) => !allowedFields.includes(key))) {
+      throw new Error('requirements check contains an unknown field or is not an object');
+    }
+    if (typeof check.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(check.id) || seen.has(check.id)) {
+      throw new Error('requirements check id is invalid or duplicated');
+    }
+    seen.add(check.id);
+    if (!CONSUMER_SURFACES.includes(check.surface)) throw new Error(`requirements check '${check.id}' has an unknown surface`);
+    if (check.host !== CONSUMER_SURFACE_HOSTS[check.surface]) {
+      throw new Error(`requirements check '${check.id}' host does not match its surface`);
+    }
+    if (!CONSUMER_REQUIREMENT_TRIGGERS.has(check.trigger)) throw new Error(`requirements check '${check.id}' has an unknown trigger`);
+    if (!['contract', 'native'].includes(check.evidenceKind)) {
+      throw new Error(`requirements check '${check.id}' evidenceKind must be contract or native`);
+    }
+    if (!check.authorization || typeof check.authorization !== 'object' || Array.isArray(check.authorization)
+      || Object.keys(check.authorization).some((key) => key !== 'authorized')
+      || typeof check.authorization.authorized !== 'boolean') {
+      throw new Error(`requirements check '${check.id}' authorization.authorized must be a boolean`);
+    }
+    const capability = requirementText(check.capability, `check '${check.id}' capability`, 80);
+    if (!/^[a-z][a-z0-9-]{0,79}$/.test(capability)) {
+      throw new Error(`requirements check '${check.id}' capability must be a bounded identifier`);
+    }
+    return {
+      id: check.id,
+      surface: check.surface,
+      host: check.host,
+      capability,
+      trigger: check.trigger,
+      reason: requirementText(check.reason, `check '${check.id}' reason`, 240),
+      question: requirementText(check.question, `check '${check.id}' question`, 240),
+      evidenceKind: check.evidenceKind,
+      authorization: { authorized: check.authorization.authorized },
+    };
+  });
+  if (selectedSurfaces === null) selectedSurfaces = [...new Set(checks.map((check) => check.surface))];
+  return { schema: CONSUMER_REQUIREMENTS_SCHEMA, selectedSurfaces, checks };
+}
 
 function canonicalAllowedRoots(roots) {
   return Array.isArray(roots) ? roots.map((root) => fs.realpathSync(path.resolve(root))) : [];
@@ -523,6 +733,107 @@ function applyCodexHostBindingOwnership(project, entries) {
   });
 }
 
+function readConsumerEvidenceFileBounded(filePath) {
+  let initialStat;
+  try {
+    initialStat = fs.lstatSync(filePath);
+  } catch (_) {
+    throw new Error('evidence input could not be read safely');
+  }
+  if (!initialStat.isFile() || initialStat.isSymbolicLink()) {
+    throw new Error('evidence input must be a physical regular file');
+  }
+
+  const flags = fs.constants.O_RDONLY
+    | (fs.constants.O_NONBLOCK || 0)
+    | (fs.constants.O_NOFOLLOW || 0);
+  let descriptor;
+  try {
+    descriptor = fs.openSync(filePath, flags);
+  } catch (_) {
+    throw new Error('evidence input could not be opened safely');
+  }
+  try {
+    const openedStat = fs.fstatSync(descriptor);
+    if (!openedStat.isFile()) throw new Error('evidence input must be a physical regular file');
+    if (openedStat.size > MAX_CONSUMER_EVIDENCE_BYTES) {
+      throw new Error('evidence input exceeds the 4 MiB size bound');
+    }
+    if (initialStat.dev !== openedStat.dev || initialStat.ino !== openedStat.ino) {
+      throw new Error('evidence input changed before it could be read');
+    }
+
+    const buffer = Buffer.alloc(openedStat.size);
+    let offset = 0;
+    while (offset < buffer.length) {
+      const count = fs.readSync(descriptor, buffer, offset, Math.min(16 * 1024, buffer.length - offset), offset);
+      if (count === 0) throw new Error('evidence input changed while it was read');
+      offset += count;
+    }
+    const extra = Buffer.alloc(1);
+    if (fs.readSync(descriptor, extra, 0, 1, offset) !== 0) {
+      throw new Error('evidence input exceeds the 4 MiB size bound');
+    }
+
+    const finalStat = fs.fstatSync(descriptor);
+    let pathStat;
+    try { pathStat = fs.lstatSync(filePath); } catch (_) { pathStat = null; }
+    if (openedStat.dev !== finalStat.dev || openedStat.ino !== finalStat.ino
+      || openedStat.size !== finalStat.size
+      || openedStat.mtimeMs !== finalStat.mtimeMs
+      || openedStat.ctimeMs !== finalStat.ctimeMs
+      || !pathStat || !pathStat.isFile() || pathStat.isSymbolicLink()
+      || finalStat.dev !== pathStat.dev || finalStat.ino !== pathStat.ino) {
+      throw new Error('evidence input changed while it was read');
+    }
+    return buffer;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function collectConsumerEvidenceCandidates(filePath) {
+  let bytes;
+  try {
+    bytes = readConsumerEvidenceFileBounded(filePath);
+  } catch (error) {
+    throw new Error(`evidence file is invalid: ${error.message}`);
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(bytes.toString('utf8'));
+  } catch (_) {
+    throw new Error('evidence JSON is malformed');
+  }
+  const envelopes = Array.isArray(parsed) ? parsed : [parsed];
+  if (envelopes.length === 0 || envelopes.length > MAX_CONSUMER_EVIDENCE_ENVELOPES) {
+    throw new Error('evidence file must contain between 1 and 16 Consumer Evidence envelopes');
+  }
+
+  const candidates = [];
+  for (const [envelopeIndex, envelope] of envelopes.entries()) {
+    let normalized;
+    try {
+      normalized = normalizeConsumerEvidence(envelope);
+    } catch (_) {
+      throw new Error(`evidence envelope ${envelopeIndex} is not a valid normalized Consumer Evidence envelope`);
+    }
+    if (normalized.stage !== 'CONSUMER') {
+      throw new Error(`evidence envelope ${envelopeIndex} must use the CONSUMER stage`);
+    }
+    for (const surfaceResult of normalized.surfaceResults) {
+      const requirementEvidence = surfaceResult.requirementEvidence || {};
+      for (const [slot, evidence] of Object.entries(requirementEvidence)) {
+        candidates.push({ envelopeIndex, surface: surfaceResult.surface, slot, evidence });
+        if (candidates.length > MAX_CONSUMER_EVIDENCE_CHECKS) {
+          throw new Error('evidence file exceeds the 100 consumer check bound');
+        }
+      }
+    }
+  }
+  return candidates;
+}
+
 function parseArgs(argv) {
   const args = { root: DEFAULT_ROOT };
   for (let i = 0; i < argv.length; i += 1) {
@@ -537,18 +848,59 @@ function parseArgs(argv) {
       }
       args.surface = value;
     }
+    else if (arg === '--requirements') {
+      const value = argv[++i];
+      if (!value || value.startsWith('--') || args.requirementsFile) {
+        console.error('consumer-gate: --requirements requires one JSON file path');
+        process.exit(2);
+      }
+      args.requirementsFile = value;
+    }
+    else if (arg === '--evidence') {
+      const value = argv[++i];
+      if (!value || value.startsWith('--') || args.evidenceFile) {
+        console.error('consumer-gate: --evidence requires one JSON file path');
+        process.exit(2);
+      }
+      args.evidenceFile = value;
+    }
     else {
       console.error(`consumer-gate: unknown argument '${arg}'`);
       process.exit(2);
     }
   }
   if (!args.version) {
-    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>]');
+    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>] [--requirements <json-file>] [--evidence <json-file>]');
     process.exit(2);
   }
   if (args.surface && !CONSUMER_SURFACES.includes(args.surface)) {
     console.error(`consumer-gate: unknown surface '${args.surface}'`);
     process.exit(2);
+  }
+  if (args.requirementsFile) {
+    try {
+      args.requirements = parseRequirementsFile(args.requirementsFile);
+    } catch (error) {
+      console.error(`consumer-gate: invalid --requirements: ${error.message}`);
+      process.exit(2);
+    }
+    if (args.surface && (args.requirements.selectedSurfaces.length !== 1
+      || args.requirements.selectedSurfaces[0] !== args.surface)) {
+      console.error('consumer-gate: --surface conflicts with the --requirements selected surface scope');
+      process.exit(2);
+    }
+  }
+  if (args.evidenceFile) {
+    if (!args.requirementsFile) {
+      console.error('consumer-gate: --evidence requires --requirements');
+      process.exit(2);
+    }
+    try {
+      args.evidenceCandidates = collectConsumerEvidenceCandidates(args.evidenceFile);
+    } catch (error) {
+      console.error(`consumer-gate: invalid --evidence: ${error.message}`);
+      process.exit(2);
+    }
   }
   args.root = path.resolve(args.root);
   return args;
@@ -609,6 +961,482 @@ function validateCodexAgentMaterialization(project, manifest) {
     else if (!stat.isFile()) errors.push(`Codex agent '${name}' installed destination is not a regular file`);
   }
   return errors;
+}
+
+function receiptBoundedFileFingerprint(target, boundary) {
+  if (hasSymlinkedAncestor(target, boundary)) return '';
+  let stat;
+  try { stat = fs.lstatSync(target); } catch (_) { return ''; }
+  if (stat.isSymbolicLink() || !stat.isFile() || !insideRealRoot(target, boundary)) return '';
+  try {
+    readFileBounded(target);
+    return fingerprintPath(target, { allowedRoots: [boundary] });
+  } catch (_) {
+    return '';
+  }
+}
+
+function receiptBoundedResourceFingerprint(target, boundary, expectedSource, sourceBoundary, mode) {
+  if (mode === 'copy') return receiptBoundedFileFingerprint(target, boundary);
+  if (mode !== 'symlink' || hasSymlinkedAncestor(path.dirname(target), boundary)
+    || !insideRealRoot(path.dirname(target), boundary)) return '';
+  let targetStat;
+  let realTarget;
+  let realSource;
+  try {
+    targetStat = fs.lstatSync(target);
+    if (!targetStat.isSymbolicLink()) return '';
+    realTarget = fs.realpathSync(target);
+    realSource = fs.realpathSync(expectedSource);
+  } catch (_) {
+    return '';
+  }
+  if (realTarget !== realSource || !insideRealRoot(realSource, sourceBoundary)) return '';
+  try {
+    readFileBounded(realTarget);
+    return fingerprintPath(realTarget, { allowedRoots: [sourceBoundary] });
+  } catch (_) {
+    return '';
+  }
+}
+
+function observeCodexRoleMaterialization(project, root, receipt, role) {
+  const relativeRole = `agents/${role}.toml`;
+  const sourceRole = path.join(root, 'codex', 'agents', `${role}.toml`);
+  const installedRole = path.join(project, '.codex', ...relativeRole.split('/'));
+  const roleEntry = receipt && receipt.managed_entries && receipt.managed_entries.agents
+    ? receipt.managed_entries.agents[`${role}.toml`]
+    : null;
+  const sourceFingerprint = receiptBoundedFileFingerprint(sourceRole, root);
+  const destinationFingerprint = receiptBoundedFileFingerprint(installedRole, project);
+  const roleEvidence = {
+    path: relativeRole,
+    ...(sourceFingerprint ? { sourceFingerprint } : {}),
+    ...(destinationFingerprint ? {
+      fingerprint: destinationFingerprint,
+      destinationFingerprint,
+    } : {}),
+  };
+  const resources = [];
+  let reason = 'Codex role and its receipt-owned resources match the canonical projection';
+  let passed = Boolean(roleEntry
+    && roleEntry.destination === relativeRole
+    && roleEntry.source === relativeRole
+    && roleEntry.mode === 'copy'
+    && sourceFingerprint
+    && destinationFingerprint
+    && /^[a-f0-9]{64}$/.test(roleEntry.source_fingerprint || '')
+    && /^[a-f0-9]{64}$/.test(roleEntry.destination_fingerprint || '')
+    && sourceFingerprint === roleEntry.source_fingerprint
+    && destinationFingerprint === roleEntry.destination_fingerprint
+    && sourceFingerprint === destinationFingerprint);
+  let roleText = '';
+  try {
+    roleText = readFileBounded(installedRole).toString('utf8');
+  } catch (_) {
+    passed = false;
+  }
+  if (!roleEntry || !sourceFingerprint || !destinationFingerprint) {
+    reason = 'Codex role is missing, unsafe, or not receipt-owned';
+  } else if (!passed) {
+    reason = 'Codex role does not match its canonical source and receipt fingerprints';
+  }
+
+  const references = [...new Set(roleText.match(/\.codex\/dhpk\/[A-Za-z0-9._/<>{}-]+\.md/g) || [])]
+    .filter((reference) => !reference.includes('<') && !reference.includes('>'));
+  let inventory = null;
+  try {
+    inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+  } catch (_) {
+    passed = false;
+    reason = 'Codex role resource inventory could not be read safely';
+  }
+  const assetSources = new Map((inventory && Array.isArray(inventory.supporting_assets) ? inventory.supporting_assets : [])
+    .filter((asset) => asset && typeof asset.source === 'string' && typeof asset.destination === 'string')
+    .map((asset) => [asset.destination, asset.source]));
+  const supportingAssets = receipt && receipt.managed_entries && receipt.managed_entries.supporting_assets;
+  for (const reference of references) {
+    const resourceRelative = reference.slice('.codex/'.length);
+    const resourceKey = resourceRelative;
+    const relativeSource = assetSources.get(resourceKey);
+    const entry = supportingAssets && supportingAssets[resourceKey];
+    const safeSource = typeof relativeSource === 'string'
+      && !path.posix.isAbsolute(relativeSource)
+      && !relativeSource.split('/').includes('..')
+      && !relativeSource.includes('\\');
+    const sourcePath = safeSource ? path.join(root, ...relativeSource.split('/')) : '';
+    const destinationPath = path.join(project, '.codex', ...resourceRelative.split('/'));
+    const resourceSourceFingerprint = safeSource ? receiptBoundedFileFingerprint(sourcePath, root) : '';
+    const resourceDestinationFingerprint = safeSource
+      ? receiptBoundedResourceFingerprint(destinationPath, project, sourcePath, root, entry && entry.mode)
+      : '';
+    const valid = Boolean(entry
+      && entry.destination === resourceRelative
+      && entry.source === resourceRelative
+      && ['copy', 'symlink'].includes(entry.mode)
+      && resourceSourceFingerprint
+      && resourceDestinationFingerprint
+      && /^[a-f0-9]{64}$/.test(entry.source_fingerprint || '')
+      && /^[a-f0-9]{64}$/.test(entry.destination_fingerprint || '')
+      && resourceSourceFingerprint === entry.source_fingerprint
+      && resourceDestinationFingerprint === entry.destination_fingerprint
+      && resourceSourceFingerprint === resourceDestinationFingerprint);
+    resources.push({
+      path: reference,
+      ...(resourceSourceFingerprint ? { sourceFingerprint: resourceSourceFingerprint } : {}),
+      ...(resourceDestinationFingerprint ? {
+        fingerprint: resourceDestinationFingerprint,
+        destinationFingerprint: resourceDestinationFingerprint,
+      } : {}),
+    });
+    if (!valid) {
+      passed = false;
+      reason = 'Codex role references a missing, unsafe, or mismatched receipt-owned resource';
+    }
+  }
+  return {
+    status: passed ? 'PASS' : 'FAIL',
+    adapterRoute: 'codex-role-materialization',
+    reason,
+    role: roleEvidence,
+    resources,
+  };
+}
+
+function structuredConsumerFingerprint(value) {
+  return `sha256:${fingerprintStructuredValue(value)}`;
+}
+
+function safeConsumerRepoPath(value) {
+  return typeof value === 'string'
+    && value.length > 0
+    && value.length <= 512
+    && !value.includes('\\')
+    && !/^[A-Za-z]:/.test(value)
+    && !/[\u0000-\u001f\u007f]/.test(value)
+    && !path.posix.isAbsolute(value)
+    && value.split('/').every((part) => part && part !== '.' && part !== '..')
+    && path.posix.normalize(value) === value;
+}
+
+function currentConsumerSourceRecord(root, relativePath) {
+  if (!safeConsumerRepoPath(relativePath)) throw new Error('consumer identity source path is unsafe');
+  const digest = fingerprintPath(path.join(root, ...relativePath.split('/')), { allowedRoots: [root] });
+  if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error(`consumer identity source is missing: ${relativePath}`);
+  return { path: relativePath, digest };
+}
+
+function readConsumerRoleSourceText(root, relativePath) {
+  if (!safeConsumerRepoPath(relativePath)) throw new Error('Codex role resource source path is unsafe');
+  const target = path.join(root, ...relativePath.split('/'));
+  const canonical = resolveCanonicalPath(target, { allowedRoots: [root] });
+  return readFileBounded(canonical).toString('utf8');
+}
+
+function verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed }) {
+  const destination = asset && asset.destination;
+  if (!safeConsumerRepoPath(destination)
+    || !asset || !safeConsumerRepoPath(asset.source)
+    || (asset.canonical_source !== undefined && !safeConsumerRepoPath(asset.canonical_source))
+    || !installed || installed.destination !== destination
+    || installed.source !== destination
+    || !['copy', 'symlink'].includes(installed.mode)) {
+    throw new Error(`Codex role resource ownership is incomplete: ${String(destination || '')}`);
+  }
+  const sourcePath = path.join(root, ...asset.source.split('/'));
+  const destinationPath = path.join(project, '.codex', ...destination.split('/'));
+  const sourceFingerprint = receiptBoundedFileFingerprint(sourcePath, root);
+  const destinationFingerprint = receiptBoundedResourceFingerprint(
+    destinationPath,
+    project,
+    sourcePath,
+    root,
+    installed.mode,
+  );
+  if (!sourceFingerprint || !destinationFingerprint
+    || !/^[a-f0-9]{64}$/.test(installed.source_fingerprint || '')
+    || !/^[a-f0-9]{64}$/.test(installed.destination_fingerprint || '')
+    || sourceFingerprint !== installed.source_fingerprint
+    || destinationFingerprint !== installed.destination_fingerprint
+    || sourceFingerprint !== destinationFingerprint) {
+    throw new Error(`Codex role resource is not currently receipt-bound: ${destination}`);
+  }
+  return { destination, asset, installed };
+}
+
+function selectedCodexRoleDynamicFamilies(root, role, references) {
+  const prefixes = new Set();
+  for (const reference of references) {
+    const loaderText = readConsumerRoleSourceText(root, reference.asset.source);
+    const hasTemplatedResourcePath = /agent-traps\/<|agent-traps\/[^\s"'`]*<[^>]+>/.test(loaderText);
+    if (!hasTemplatedResourcePath) continue;
+    const supportedPattern = /agent-traps\/<agent-name>\/<S>\.md/.test(loaderText);
+    if (!supportedPattern) {
+      throw new Error('Codex role resource declares an unsupported dynamic trap-sheet family');
+    }
+    prefixes.add(`dhpk/agent-traps/${role}/`);
+  }
+  return [...prefixes].sort();
+}
+
+function deliveredConsumerFileRecord(target, logicalPath, { project, root, mode, binding = null } = {}) {
+  if (!safeConsumerRepoPath(logicalPath)) throw new Error('consumer identity artifact path is unsafe');
+  const stat = fs.lstatSync(target);
+  const type = stat.isSymbolicLink() ? 'symlink' : stat.isFile() ? 'file' : '';
+  if (!type || (mode === 'copy' && type !== 'file') || (mode === 'symlink' && type !== 'symlink')) {
+    throw new Error(`consumer identity artifact has an unexpected physical type: ${logicalPath}`);
+  }
+  const canonical = resolveCanonicalPath(target, { allowedRoots: [project, root] });
+  if (!fs.statSync(canonical).isFile()) throw new Error(`consumer identity artifact is not a file: ${logicalPath}`);
+  const digest = fingerprintPath(target, { allowedRoots: [project, root] });
+  if (!/^[a-f0-9]{64}$/.test(digest)) throw new Error(`consumer identity artifact is missing: ${logicalPath}`);
+  return {
+    path: logicalPath,
+    digest,
+    type,
+    mode: (stat.mode & 0o777).toString(8).padStart(4, '0'),
+    ...(type === 'symlink' ? { linkBinding: binding } : {}),
+  };
+}
+
+function selectedCodexRoleSetting(roleText, key) {
+  const assignment = new RegExp(`^\\s*${key}\\s*=`, 'm');
+  if (!assignment.test(roleText)) return 'Codex CLI default';
+  const value = new RegExp(`^\\s*${key}\\s*=\\s*"([^"\\r\\n]{1,200})"\\s*(?:#.*)?$`, 'm').exec(roleText);
+  if (!value || /[\u0000-\u001f\u007f]/.test(value[1])) {
+    throw new Error(`Codex role ${key} setting is not a bounded TOML string`);
+  }
+  return value[1];
+}
+
+function collectCodexNamedRoleIdentity({ root, project, receipt, role, checkKey, hostVersion, contractEvidence }) {
+  const missingFields = new Set();
+  try {
+    if (typeof hostVersion !== 'string' || hostVersion.trim() !== hostVersion
+      || hostVersion.length === 0 || hostVersion.length > 200 || /[\u0000-\u001f\u007f]/.test(hostVersion)) {
+      missingFields.add('hostVersion');
+      throw new Error('current Codex CLI version is unavailable or malformed');
+    }
+    if (!contractEvidence || contractEvidence.status !== 'PASS'
+      || !contractEvidence.role || contractEvidence.role.path !== `agents/${role}.toml`
+      || !Array.isArray(contractEvidence.resources)) {
+      missingFields.add('artifactFingerprint');
+      throw new Error('fresh Codex role and resource materialization did not pass');
+    }
+
+    const rolePath = `codex/agents/${role}.toml`;
+    missingFields.add('sourceFingerprint');
+    const roleText = readFileBounded(path.join(root, ...rolePath.split('/'))).toString('utf8');
+    missingFields.add('configFingerprint');
+    const model = selectedCodexRoleSetting(roleText, 'model');
+    const effort = selectedCodexRoleSetting(roleText, 'model_reasoning_effort');
+    const sandboxMode = selectedCodexRoleSetting(roleText, 'sandbox_mode');
+    missingFields.delete('configFingerprint');
+    const roleEntry = receipt && receipt.managed_entries && receipt.managed_entries.agents
+      ? receipt.managed_entries.agents[`${role}.toml`]
+      : null;
+    if (!roleEntry || roleEntry.destination !== `agents/${role}.toml`
+      || roleEntry.source !== `agents/${role}.toml` || roleEntry.mode !== 'copy') {
+      missingFields.add('sourceFingerprint');
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex role ownership row is unavailable');
+    }
+
+    const projectionManifest = JSON.parse(readFileBounded(path.join(root, 'codex', 'agent-projection-manifest.json')).toString('utf8'));
+    if (!projectionManifest || !Array.isArray(projectionManifest.generated_roles)
+      || !Array.isArray(projectionManifest.package_roles)
+      || !Array.isArray(projectionManifest.workspace_local_extensions)) {
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex role projection ownership map is malformed');
+    }
+    const generated = projectionManifest.generated_roles.includes(role);
+    const packageOwned = projectionManifest.package_roles.includes(role);
+    const workspaceLocal = projectionManifest.workspace_local_extensions.includes(role);
+    if (!packageOwned || workspaceLocal) {
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex role is not in the fixed package-owned role set');
+    }
+
+    let inventory;
+    try {
+      inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+    } catch (error) {
+      missingFields.add('sourceFingerprint');
+      missingFields.add('selectionFingerprint');
+      throw new Error(`Codex supporting-resource inventory is unavailable: ${error.message}`);
+    }
+    if (!inventory || !Array.isArray(inventory.supporting_assets)) {
+      missingFields.add('sourceFingerprint');
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex supporting-resource inventory is malformed');
+    }
+    const installedAssets = receipt.managed_entries && receipt.managed_entries.supporting_assets;
+    if (!installedAssets || typeof installedAssets !== 'object') {
+      missingFields.add('artifactFingerprint');
+      missingFields.add('selectionFingerprint');
+      throw new Error('Codex supporting-resource receipt is unavailable');
+    }
+
+    missingFields.add('sourceFingerprint');
+    missingFields.add('artifactFingerprint');
+    missingFields.add('selectionFingerprint');
+    const referencesByDestination = new Map();
+    for (const resource of contractEvidence.resources) {
+      if (!resource || typeof resource.path !== 'string' || !resource.path.startsWith('.codex/dhpk/')) {
+        throw new Error('Codex role resource closure contains an unsupported path');
+      }
+      const destination = resource.path.slice('.codex/'.length);
+      const asset = inventory.supporting_assets.find((entry) => entry && entry.destination === destination);
+      const installed = installedAssets[destination];
+      if (!asset) throw new Error(`Codex role resource is absent from the current inventory: ${destination}`);
+      const verified = verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed });
+      referencesByDestination.set(destination, verified);
+    }
+    const declaredDynamicFamilies = selectedCodexRoleDynamicFamilies(root, role, [...referencesByDestination.values()]);
+    for (const prefix of declaredDynamicFamilies) {
+      const familyAssets = inventory.supporting_assets.filter((asset) => {
+        if (!asset || typeof asset.destination !== 'string' || !asset.destination.startsWith(prefix)) return false;
+        const relative = asset.destination.slice(prefix.length);
+        return relative.length > 0 && !relative.includes('/') && relative.endsWith('.md');
+      });
+      if (familyAssets.length === 0) {
+        throw new Error(`Codex role dynamic resource family has no inventory members: ${prefix}`);
+      }
+      for (const asset of familyAssets) {
+        const installed = installedAssets[asset.destination];
+        const verified = verifyReceiptOwnedCodexRoleResource({ root, project, asset, installed });
+        referencesByDestination.set(asset.destination, verified);
+      }
+    }
+    const references = [...referencesByDestination.values()]
+      .sort((left, right) => left.destination.localeCompare(right.destination));
+
+    const sourcePaths = new Set([
+      rolePath,
+      'openspec/specs/codex-agent-role-parity/spec.md',
+      'openspec/specs/codex-install-materialization/spec.md',
+    ]);
+    if (generated) sourcePaths.add(`agents/${role}.md`);
+    for (const { asset } of references) {
+      sourcePaths.add(asset.source);
+      if (asset.canonical_source) sourcePaths.add(asset.canonical_source);
+    }
+    const sourceRecords = [...sourcePaths]
+      .sort()
+      .map((relativePath) => currentConsumerSourceRecord(root, relativePath));
+    const relevantInventoryRows = references.map(({ asset }) => ({
+      id: asset.id || null,
+      source: asset.source,
+      canonical_source: asset.canonical_source || null,
+      destination: asset.destination,
+      canonical_digest: asset.canonical_digest || null,
+      projection_digest: asset.projection_digest || null,
+    }));
+    const selectedRoleOwnership = {
+      destination: roleEntry.destination,
+      source: roleEntry.source,
+      mode: roleEntry.mode,
+      source_fingerprint: roleEntry.source_fingerprint,
+      destination_fingerprint: roleEntry.destination_fingerprint,
+      generated,
+      packageOwned,
+      workspaceLocal,
+    };
+    const sourceFingerprint = structuredConsumerFingerprint({
+      proofContract: 'codex-named-role-probe.v1',
+      sourceRecords,
+      roleOwnership: selectedRoleOwnership,
+      supportingInventoryRows: relevantInventoryRows,
+    });
+    missingFields.delete('sourceFingerprint');
+
+    missingFields.add('artifactFingerprint');
+    const artifacts = [deliveredConsumerFileRecord(
+      path.join(project, '.codex', 'agents', `${role}.toml`),
+      `agents/${role}.toml`,
+      { project, root, mode: roleEntry.mode },
+    )];
+    for (const { destination, asset, installed } of references) {
+      artifacts.push(deliveredConsumerFileRecord(
+        path.join(project, '.codex', ...destination.split('/')),
+        destination,
+        {
+          project,
+          root,
+          mode: installed.mode,
+          binding: installed.mode === 'symlink' ? (asset.canonical_source || asset.source) : null,
+        },
+      ));
+    }
+    artifacts.sort((left, right) => left.path.localeCompare(right.path));
+    const artifactFingerprint = structuredConsumerFingerprint(artifacts);
+    missingFields.delete('artifactFingerprint');
+    missingFields.add('selectionFingerprint');
+    const selectionFingerprint = structuredConsumerFingerprint({
+      route: 'codex-named-role',
+      checkKey,
+      role,
+      roleOwnership: { generated, packageOwned, workspaceLocal },
+      resources: references.map(({ asset, installed }) => ({
+        id: asset.id || null,
+        source: asset.source,
+        canonical_source: asset.canonical_source || null,
+        destination: asset.destination,
+        mode: installed.mode,
+      })),
+      requiredClaims: ['physical-agent-materialization', 'codex-installation-contract', 'completed-unique-child-role'],
+    });
+    missingFields.delete('selectionFingerprint');
+    missingFields.add('configFingerprint');
+    const configFingerprint = structuredConsumerFingerprint({
+      adapterRoute: 'codex-named-role',
+      commandProfile: ['codex', 'exec', '--strict-config', '--json', '--sandbox', 'read-only', '--skip-git-repo-check'],
+      projectTrust: 'trusted',
+      configurationLoading: 'strict-config',
+      model,
+      effort,
+      roleSandboxMode: sandboxMode,
+      networkPolicy: 'Codex read-only sandbox default',
+      authentication: 'operator auth.json referenced read-only; secret contents excluded',
+    });
+    missingFields.delete('configFingerprint');
+    return {
+      identity: {
+        contractVersion: 'consumer-check-identity.v1',
+        sourceFingerprint,
+        artifactFingerprint,
+        selectionFingerprint,
+        hostVersion,
+        configFingerprint,
+      },
+      missingFields: [],
+      reason: null,
+    };
+  } catch (error) {
+    if (missingFields.size === 0) missingFields.add('sourceFingerprint');
+    return {
+      identity: null,
+      missingFields: [...missingFields],
+      reason: redactEvidence(error && error.message ? error.message : String(error), root).slice(0, 512),
+    };
+  }
+}
+
+function discoverCodexIdentityVersion(project, commands) {
+  const result = spawnSync('codex', ['--version'], {
+    cwd: project,
+    encoding: 'utf8',
+    env: process.env,
+    timeout: 10000,
+    maxBuffer: 64 * 1024,
+  });
+  commands.push({ cmd: 'codex --version (consumer-check identity)', exitCode: result.status });
+  if (result.error || result.status !== 0) return { version: null, reason: 'current Codex CLI version could not be established' };
+  const version = (result.stdout || result.stderr || '').trim();
+  if (version.length === 0 || version.length > 200 || /[\u0000-\u001f\u007f]/.test(version)) {
+    return { version: null, reason: 'current Codex CLI version output was malformed' };
+  }
+  return { version, reason: null };
 }
 
 function runCodexNamedRoleProbe(project, {
@@ -868,7 +1696,7 @@ function runCodexNamedRoleProbe(project, {
   }
 }
 
-function verifyCodexSync(root, version) {
+function verifyCodexSync(root, version, options = {}) {
   const commands = [];
   const project = mkTempProject();
   try {
@@ -1020,12 +1848,6 @@ function verifyCodexSync(root, version) {
     const reasons = surfaceVerdict === CODEX_SURFACE_VERDICTS.WARN
       ? ['Codex duplicate-surface validation is WARN: project-local receipt-owned fallback takes precedence over experimental native content']
       : [];
-    const runtimeProbe = runCodexNamedRoleProbe(project);
-    commands.push({
-      cmd: 'codex exec with project-local auto-discovery for explorer, deep-reasoner, code-reviewer, and doc-reviewer',
-      exitCode: runtimeProbe.status === 'PASS' ? 0 : (runtimeProbe.status === 'NOT_RUN' ? null : 1),
-      codexCliVersion: runtimeProbe.cliVersion,
-    });
     const surfacesEvidence = {
       project: surfaces.project,
       native: surfaces.native,
@@ -1040,33 +1862,156 @@ function verifyCodexSync(root, version) {
         reconciliation: manifest.reconciliation || null,
       },
     };
-    if (runtimeProbe.status !== 'PASS') {
-      const verdict = runtimeProbe.status === 'NOT_RUN'
-        ? VERDICTS.PENDING
-        : (runtimeProbe.status === 'BLOCKED' ? VERDICTS.BLOCKED : VERDICTS.FAIL);
-      return {
-        verdict,
-        status: runtimeProbe.status,
-        commands,
-        reasons: [`Codex named-role runtime probe ${runtimeProbe.status}: ${redactEvidence(runtimeProbe.diagnostic, root)}`],
-        diagnostics: [redactEvidence(runtimeProbe.diagnostic, root)],
-        checkedClaims: ['physical-agent-materialization', 'named-role-runtime-dispatch'],
-        ...(runtimeProbe.runtimeEvidence ? { runtimeEvidence: runtimeProbe.runtimeEvidence } : {}),
-        ...(runtimeProbe.reasonCode ? { reasonCode: runtimeProbe.reasonCode } : {}),
-        surfaceVerdict,
-        duplicateEvidence,
-        surfaces: surfacesEvidence,
+    const targetedRequirementEvidence = {};
+    const roleContracts = new Map();
+    for (const check of options.roleChecks || []) {
+      if (!roleContracts.has(check.role)) {
+        roleContracts.set(check.role, observeCodexRoleMaterialization(project, root, manifest, check.role));
+      }
+      const contractEvidence = roleContracts.get(check.role);
+      if (contractEvidence.status !== 'PASS') {
+        targetedRequirementEvidence[check.checkKey] = {
+          status: check.evidenceKind === 'contract' ? 'FAIL' : 'BLOCKED',
+          observedStatus: contractEvidence.status,
+          outcomeReason: contractEvidence.reason,
+          ...(check.evidenceKind === 'contract' ? { contractEvidence } : {}),
+        };
+        continue;
+      }
+      if (check.evidenceKind === 'contract') {
+        targetedRequirementEvidence[check.checkKey] = {
+          status: 'PASS',
+          observedStatus: 'PASS',
+          outcomeReason: contractEvidence.reason,
+          contractEvidence,
+        };
+        continue;
+      }
+      const versionObservation = discoverCodexIdentityVersion(project, commands);
+      const identityResult = versionObservation.version
+        ? collectCodexNamedRoleIdentity({
+          root,
+          project,
+          receipt: manifest,
+          role: check.role,
+          checkKey: check.checkKey,
+          hostVersion: versionObservation.version,
+          contractEvidence,
+        })
+        : {
+          identity: null,
+          missingFields: ['hostVersion'],
+          reason: versionObservation.reason,
+        };
+      let evidenceMatch = null;
+      if (options.evidenceSupplied) {
+        evidenceMatch = identityResult.identity
+          ? matchConsumerCheckEvidence({
+            checkKey: check.checkKey,
+            evidenceKind: 'native',
+            identity: identityResult.identity,
+          }, options.evidenceCandidates || [])
+          : {
+            decision: 'REJECTED',
+            selected: null,
+            origin: null,
+            mismatchFields: identityResult.missingFields,
+          };
+      }
+      const evidenceReuse = evidenceMatch
+        ? {
+          decision: evidenceMatch.decision === 'REUSED' ? 'REUSED' : 'REJECTED',
+          origin: evidenceMatch.decision === 'REUSED' ? evidenceMatch.origin : null,
+          mismatchFields: evidenceMatch.decision === 'REUSED' ? [] : evidenceMatch.mismatchFields,
+          ...(evidenceMatch.decision === 'CONFLICT'
+            ? {
+              rejectionReason: 'CONFLICTING_EVIDENCE',
+              conflicts: evidenceMatch.conflicts,
+            }
+            : {}),
+        }
+        : null;
+      if (evidenceMatch && evidenceMatch.decision === 'REUSED') {
+        targetedRequirementEvidence[check.checkKey] = {
+          status: 'PASS',
+          observedStatus: 'NOT_RUN',
+          outcomeReason: 'matching current Codex named-role evidence was reused without native execution',
+          identity: identityResult.identity,
+          evidenceReuse,
+          nativeProof: evidenceMatch.selected.nativeProof,
+        };
+        continue;
+      }
+      if (!check.authorized) {
+        targetedRequirementEvidence[check.checkKey] = {
+          status: 'BLOCKED',
+          observedStatus: 'NOT_RUN',
+          outcomeReason: evidenceMatch && evidenceMatch.decision === 'CONFLICT'
+            ? 'current consumer evidence contains contradictory outcomes for this Codex named role'
+            : evidenceMatch && evidenceMatch.mismatchFields.length > 0
+              ? `no reusable current Codex named-role evidence matched: ${evidenceMatch.mismatchFields.join(', ')}`
+              : identityResult.reason
+                ? `native Codex role execution is not authorized; identity unavailable: ${identityResult.reason}`
+                : 'native Codex role execution is not authorized',
+          ...(identityResult.identity ? { identity: identityResult.identity } : {}),
+          ...(evidenceReuse ? { evidenceReuse } : {}),
+        };
+        continue;
+      }
+      const native = runCodexNamedRoleProbe(project, { roles: [check.role], env: process.env });
+      const nativeVersionMatches = !identityResult.identity
+        || (typeof native.cliVersion === 'string' && native.cliVersion.trim() === identityResult.identity.hostVersion);
+      const nativeProof = native.status === 'PASS' && nativeVersionMatches && native.runtimeEvidence
+        && Array.isArray(native.runtimeEvidence.roles)
+        && native.runtimeEvidence.roles.length === 1
+        ? {
+          executionOrigin: 'native',
+          adapterRoute: 'codex-named-role',
+          roles: native.runtimeEvidence.roles,
+          registryPreconditions: native.runtimeEvidence.registryPreconditions,
+          ...(native.cliVersion && native.cliVersion.trim().length <= 200
+            ? { cliVersion: native.cliVersion.trim() }
+            : {}),
+        }
+        : null;
+      const status = native.status === 'PASS'
+        ? (nativeProof ? 'PASS' : 'BLOCKED')
+        : native.status === 'FAIL' ? 'FAIL' : 'BLOCKED';
+      commands.push({
+        cmd: `codex exec (authorized named-role ${check.role})`,
+        exitCode: native.status === 'PASS' ? 0 : native.status === 'FAIL' ? 1 : null,
+      });
+      targetedRequirementEvidence[check.checkKey] = {
+        status,
+        observedStatus: native.status === 'PASS' && !nativeVersionMatches ? 'BLOCKED' : native.status,
+        outcomeReason: native.status === 'PASS' && !nativeVersionMatches
+          ? 'Codex CLI version changed between identity capture and native execution'
+          : native.diagnostic || (nativeProof
+            ? identityResult.reason
+              ? `authorized Codex named role completed; identity unavailable: ${identityResult.reason}`
+              : 'authorized Codex named role completed'
+            : 'Codex role proof was incomplete'),
+        ...(identityResult.identity ? { identity: identityResult.identity } : {}),
+        ...(evidenceReuse ? { evidenceReuse } : {}),
+        ...(nativeProof ? { nativeProof } : {}),
       };
     }
     return {
       verdict: VERDICTS.PASS,
-      status: 'PASS',
+      status: 'NOT_RUN',
       commands,
       reasons,
-      diagnostics: [`Codex named-role runtime dispatch passed with ${runtimeProbe.cliVersion}`],
-      checkedClaims: ['physical-agent-materialization', 'named-role-runtime-dispatch'],
-      ...(runtimeProbe.runtimeEvidence ? { runtimeEvidence: runtimeProbe.runtimeEvidence } : {}),
-      ...(runtimeProbe.reasonCode ? { reasonCode: runtimeProbe.reasonCode } : {}),
+      diagnostics: ['Codex installation and project-local materialization checks passed; named-role runtime was not invoked'],
+      checkedClaims: ['physical-agent-materialization', 'codex-installation-contract'],
+      installationEvidence: {
+        status: 'PASS',
+        reason: 'Codex installer receipt, ownership, physical agents, resource closure, and surface validation passed',
+      },
+      runtimeEvidence: {
+        status: 'NOT_RUN',
+        reason: 'Codex named-role runtime evidence is recorded only on its covered requirement',
+      },
+      targetedRequirementEvidence,
       surfaceVerdict,
       duplicateEvidence,
       surfaces: surfacesEvidence,
@@ -1492,6 +2437,14 @@ function verifyCursorSync(root, version) {
     return {
       verdict: VERDICTS.PENDING,
       status: 'NOT_RUN',
+      installationEvidence: {
+        status: 'PASS',
+        reason: 'Cursor sync validator, schema-v3 receipt, managed resource set, ownership, and native-link checks passed',
+      },
+      runtimeEvidence: {
+        status: 'NOT_RUN',
+        reason: 'Cursor client runtime/loader was not invoked',
+      },
       commands,
       artifacts: [{
         receipt: '<sandbox>/.cursor/.dhpk-installed.json',
@@ -1592,6 +2545,14 @@ function verifyClaudeReinstall(root, version) {
   };
   const finish = (result) => ({
     ...result,
+    ...(result.verdict === VERDICTS.PASS
+      ? {
+          installationEvidence: {
+            status: VERDICTS.PASS,
+            reason: 'official strict validation and project-scoped installed-cache validation passed',
+          },
+        }
+      : {}),
     cliVersion: versionDiscovery.version,
     versionDiscovery,
   });
@@ -1776,21 +2737,28 @@ function verifyCodexNative(root) {
   if (res.status !== 0) {
     return { verdict: VERDICTS.FAIL, commands, reasons: [`codex-native-install-smoke exited ${res.status}: ${redactEvidence((res.stdout + res.stderr).trim().slice(-800), root)}`] };
   }
-  return { verdict: VERDICTS.PASS, commands, reasons: [] };
+  return {
+    verdict: VERDICTS.PASS,
+    installationEvidence: {
+      status: VERDICTS.PASS,
+      reason: 'native Codex installation smoke test passed',
+    },
+    commands,
+    reasons: [],
+  };
 }
 
-function verifyProjectedConsumer(root, platform, version) {
+function verifyProjectedConsumer(root, platform, version, options = {}) {
   const agentPlugin = platform === 'agent-plugin' || platform === 'codex';
   const packageRoot = path.join(root, 'plugins', agentPlugin ? 'dhpk-agent' : 'dhpk-cursor');
   const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
   const probePlatform = agentPlugin ? 'agent-plugin' : 'cursor';
   const probeArgs = [probe, '--platform', probePlatform, '--package-root', packageRoot, '--inventory', path.join(root, 'manifests', 'distribution-inventory.json'), '--version', version];
-  if ((agentPlugin || platform === 'cursor') && (process.env.CI === '1' || process.env.CI === 'true' || process.env.DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE === '1')) {
-    probeArgs.push('--execute');
-  }
+  if (options.execute === true) probeArgs.push('--execute');
   const res = spawnSync('node', probeArgs, {
     cwd: root,
     encoding: 'utf8',
+    env: { ...process.env, CI: '', DHPK_CONSUMER_PROBE_EXECUTE: '' },
   });
   let payload;
   try { payload = JSON.parse(res.stdout || '{}'); } catch (_) {
@@ -1806,6 +2774,25 @@ function verifyProjectedConsumer(root, platform, version) {
     : (forcedChildFailure
       ? `consumer probe exited ${res.status} with producer status ${payload.status || 'missing'}`
       : payload.reason);
+  let companionEvidence = null;
+  if (!agentPlugin) {
+    try {
+      const companion = validateAgentPluginPackage(path.join(root, 'plugins', 'dhpk-agent'));
+      companionEvidence = {
+        status: companion.ok ? 'PASS' : 'FAIL',
+        reason: companion.ok
+          ? 'sibling Agent Plugin package passes physical package validation'
+          : 'sibling Agent Plugin package failed physical package validation',
+        diagnostics: (companion.errors || []).slice(0, 10).map((error) => redactEvidence(error, root)),
+      };
+    } catch (error) {
+      companionEvidence = {
+        status: 'FAIL',
+        reason: 'sibling Agent Plugin package could not be validated safely',
+        diagnostics: [redactEvidence(String(error && error.message ? error.message : error), root)],
+      };
+    }
+  }
   const surfaceResults = Array.isArray(payload.surfaceResults) && payload.surfaceResults.length > 0
     ? payload.surfaceResults.map((entry) => ({
       ...entry,
@@ -1829,6 +2816,32 @@ function verifyProjectedConsumer(root, platform, version) {
     adapter: { id: 'consumer-platform-probe', version: '1.0.0' },
     surfaceResults,
   });
+  const structuralValidationPassed = !childFailure
+    && ['NOT_RUN', 'UNAVAILABLE'].includes(effectiveStatus)
+    && Array.isArray(payload.surfaceResults)
+    && payload.surfaceResults.some((entry) => (
+      Array.isArray(entry.checkedClaims)
+        && entry.checkedClaims.includes('package-manifest')
+        && entry.checkedClaims.includes('consumer-route')
+    ));
+  const installationEvidence = structuralValidationPassed
+    ? {
+      status: companionEvidence && companionEvidence.status !== 'PASS' ? 'FAIL' : 'PASS',
+      reason: companionEvidence && companionEvidence.status !== 'PASS'
+        ? `${surface} package preflight passed but its sibling Agent Plugin package closure failed`
+        : `${surface} package preflight, manifest, and structural validation passed`,
+      ...(companionEvidence ? { companion: companionEvidence } : {}),
+    }
+    : null;
+  const runtimeEvidence = structuralValidationPassed
+    ? {
+      status: effectiveStatus,
+      reason: payload.reason || `${surface} consumer runtime was not invoked`,
+    }
+    : null;
+  const nativeSurface = Array.isArray(payload.surfaceResults)
+    ? payload.surfaceResults.find((entry) => entry && entry.nativeProof)
+    : null;
   return {
     status: effectiveStatus,
     commands: Array.isArray(payload.commands) && payload.commands.length > 0
@@ -1837,8 +2850,376 @@ function verifyProjectedConsumer(root, platform, version) {
     reason: effectiveReason ? redactEvidence(effectiveReason, root) : null,
     diagnostics: payload.diagnostics || payload.diagnostic || [],
     artifacts: payload.artifacts || [],
-    surfaceResults: normalized.surfaceResults,
+    surfaceResults: normalized.surfaceResults.map((entry) => ({
+      ...entry,
+      ...(installationEvidence ? { installationEvidence } : {}),
+      ...(runtimeEvidence ? { runtimeEvidence } : {}),
+    })),
+    ...(options.execute === true ? {
+      nativeObservation: {
+        status: effectiveStatus,
+        reason: effectiveReason ? redactEvidence(effectiveReason, root) : null,
+        ...(nativeSurface && nativeSurface.nativeProof ? { nativeProof: nativeSurface.nativeProof } : {}),
+      },
+    } : {}),
   };
+}
+
+const AGY_PROJECT_ADAPTER = Object.freeze({ id: 'agy-project-direct-file', version: '1.0.0' });
+const AGY_PACKAGE_ADAPTER = Object.freeze({ id: 'agy-plugin-package-install', version: '1.0.0' });
+const AGY_FINGERPRINT_PATTERN = /^sha256:[a-f0-9]{64}$/i;
+
+function agyInstallationResult({
+  status,
+  installationStatus,
+  reason,
+  adapter,
+  commands = [],
+  diagnostics = [],
+  artifacts = [],
+  checkedClaims = [],
+  planFingerprint = null,
+  artifactFingerprint = null,
+}) {
+  const evidence = {
+    status: installationStatus,
+    reason,
+    adapterRoute: adapter.id,
+    artifacts,
+    checkedClaims,
+    ...(planFingerprint ? { planFingerprint } : {}),
+    ...(artifactFingerprint ? { artifactFingerprint } : {}),
+  };
+  return {
+    status,
+    reason,
+    adapter,
+    commands,
+    diagnostics,
+    installationEvidence: evidence,
+    runtimeEvidence: {
+      status: 'NOT_RUN',
+      reason: 'AGY native runtime was not invoked by the consumer gate',
+    },
+    surfaceResults: [{
+      surface: 'agy-plugin',
+      status,
+      commands,
+      environment: process.env.CI ? 'ci' : 'local',
+      artifacts,
+      diagnostics,
+      reasons: reason ? [reason] : [],
+      checkedClaims,
+      ...(planFingerprint ? { planFingerprint } : {}),
+      ...(artifactFingerprint ? { artifactFingerprint } : {}),
+    }],
+  };
+}
+
+function inspectAgyProjectRoute(root) {
+  let rootStat;
+  try {
+    rootStat = fs.lstatSync(root);
+  } catch (_) {
+    return { route: 'project', error: 'AGY project root could not be inspected safely' };
+  }
+  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+    return { route: 'project', error: 'AGY project root must be a physical directory' };
+  }
+  try {
+    if (fs.realpathSync(root) !== root) {
+      return { route: 'project', error: 'AGY project root has a symlinked ancestor' };
+    }
+  } catch (_) {
+    return { route: 'project', error: 'AGY project root could not be resolved safely' };
+  }
+
+  const agentsPath = path.join(root, '.agents');
+  let agentsStat;
+  try {
+    agentsStat = fs.lstatSync(agentsPath);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return { route: 'package' };
+    return { route: 'project', error: 'AGY project artifact directory could not be inspected safely' };
+  }
+  if (agentsStat.isSymbolicLink() || !agentsStat.isDirectory()
+    || hasSymlinkedAncestor(agentsPath, root)) {
+    return { route: 'project', error: 'AGY project artifact directory is not a physical directory' };
+  }
+
+  const receiptPath = path.join(agentsPath, '.dhpk-installed.json');
+  let receiptStat;
+  try {
+    receiptStat = fs.lstatSync(receiptPath);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return { route: 'package' };
+    return { route: 'project', error: 'AGY project receipt could not be inspected safely' };
+  }
+  if (receiptStat.isSymbolicLink() || !receiptStat.isFile()
+    || hasSymlinkedAncestor(receiptPath, root)) {
+    return { route: 'project', error: 'AGY project receipt must be a physical regular file' };
+  }
+  return { route: 'project', receiptPath };
+}
+
+function inspectAgyProjectBinding(root, receiptPath) {
+  let receipt;
+  try {
+    receipt = JSON.parse(readConsumerEvidenceFileBounded(receiptPath).toString('utf8'));
+  } catch (_) {
+    throw new Error('AGY project receipt is unreadable or invalid JSON');
+  }
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) {
+    throw new Error('AGY project receipt must be an object');
+  }
+  const binding = receipt.hostBindings && receipt.hostBindings.agy;
+  if (!binding || binding.surface !== 'agy-plugin'
+    || binding.shape !== 'project-skill-direct-file'
+    || !binding.transform || binding.transform.id !== AGY_PROJECT_ADAPTER.id) {
+    throw new Error('AGY project receipt does not contain the direct-file Host binding');
+  }
+  const entries = Array.isArray(receipt.entries) ? receipt.entries : [];
+  const entry = entries[0];
+  if (!entry || typeof entry.name !== 'string' || entry.name.length === 0
+    || entry.name.length > 128 || entry.name.includes('/') || entry.name.includes('\\')) {
+    throw new Error('AGY project receipt has no safe direct-file entry');
+  }
+  const directPath = `${entry.name}.md`;
+  if (!safeConsumerRepoPath(directPath)
+    || !Array.isArray(entry.generatedPaths) || !entry.generatedPaths.includes(directPath)
+    || !Array.isArray(receipt.managedPaths) || !receipt.managedPaths.includes(directPath)) {
+    throw new Error('AGY project receipt does not own its direct-file artifact');
+  }
+  const skillsRoot = path.join(root, '.agents', 'skills');
+  const directFile = path.join(skillsRoot, directPath);
+  let skillsStat;
+  let directStat;
+  try {
+    skillsStat = fs.lstatSync(skillsRoot);
+    directStat = fs.lstatSync(directFile);
+  } catch (_) {
+    throw new Error('AGY project direct-file artifact is missing');
+  }
+  if (!skillsStat.isDirectory() || skillsStat.isSymbolicLink()
+    || !directStat.isFile() || directStat.isSymbolicLink()
+    || hasSymlinkedAncestor(directFile, root)) {
+    throw new Error('AGY project direct-file artifact is unsafe');
+  }
+  return {
+    directPath,
+    receipt,
+    artifacts: [
+      '<project-root>/.agents/.dhpk-installed.json',
+      `<project-root>/.agents/skills/${directPath}`,
+    ],
+  };
+}
+
+function verifyAgyProjectInstallation(root, receiptPath) {
+  let binding;
+  try {
+    binding = inspectAgyProjectBinding(root, receiptPath);
+  } catch (error) {
+    const reason = redactEvidence(error.message, root);
+    return agyInstallationResult({
+      status: 'BLOCKED',
+      installationStatus: 'BLOCKED',
+      reason,
+      adapter: AGY_PROJECT_ADAPTER,
+      artifacts: ['<project-root>/.agents/.dhpk-installed.json'],
+      checkedClaims: ['project-artifact-structure', 'project-agent-direct-file'],
+    });
+  }
+
+  const probe = path.join(__dirname, 'consumer-platform-probe.js');
+  const probeArgs = [probe, '--platform', 'agy-project', '--package-root', root];
+  const command = 'node scripts/release/consumer-platform-probe.js --platform agy-project --package-root <repo-root>';
+  const result = spawnSync(process.execPath, probeArgs, {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: MAX_CONSUMER_EVIDENCE_BYTES,
+    env: { ...process.env, CI: '', DHPK_CONSUMER_PROBE_EXECUTE: '' },
+  });
+  const commands = [{ cmd: command, exitCode: result.status }];
+  let payload;
+  try {
+    payload = JSON.parse(result.stdout || '{}');
+  } catch (_) {
+    payload = { status: 'FAIL', reason: `AGY project probe emitted invalid JSON (exit ${result.status})` };
+  }
+  const evidence = payload.surfaceEvidence;
+  const rawSurfaceResults = Array.isArray(payload.surfaceResults) ? payload.surfaceResults : [];
+  const checkedClaims = evidence && Array.isArray(evidence.checkedClaims) ? evidence.checkedClaims : [];
+  const artifacts = evidence && Array.isArray(evidence.artifacts) ? evidence.artifacts : [];
+  const artifactPaths = new Set(artifacts.map((artifact) => artifact && artifact.path).filter(Boolean));
+  const planFingerprint = evidence && evidence.planFingerprint;
+  const artifactFingerprint = evidence && evidence.artifactFingerprint;
+  const structuralSuccess = !result.error
+    && result.status === 0
+    && payload.platform === 'agy-project'
+    && payload.status === 'NOT_RUN'
+    && evidence && evidence.surface === 'agy-plugin' && evidence.status === 'NOT_RUN'
+    && payload.adapter && payload.adapter.id === AGY_PROJECT_ADAPTER.id
+    && rawSurfaceResults.length === 1
+    && rawSurfaceResults[0].surface === 'agy-plugin'
+    && checkedClaims.includes('project-artifact-structure')
+    && checkedClaims.includes('project-agent-direct-file')
+    && AGY_FINGERPRINT_PATTERN.test(planFingerprint || '')
+    && AGY_FINGERPRINT_PATTERN.test(artifactFingerprint || '')
+    && artifactPaths.has('<project-root>/.agents/.dhpk-installed.json')
+    && artifactPaths.has(`<project-root>/.agents/skills/${binding.directPath}`);
+  if (structuralSuccess) {
+    const reason = 'AGY project receipt, direct-file Host binding, paired fingerprints, and structural probe passed; native runtime remains NOT_RUN';
+    return agyInstallationResult({
+      status: 'NOT_RUN',
+      installationStatus: 'PASS',
+      reason,
+      adapter: AGY_PROJECT_ADAPTER,
+      commands,
+      diagnostics: evidence.diagnostics || [],
+      artifacts: artifacts.map((artifact) => ({ path: artifact.path, version: artifact.version || null })),
+      checkedClaims,
+      planFingerprint,
+      artifactFingerprint,
+    });
+  }
+
+  const observedStatus = ['FAIL', 'BLOCKED'].includes(payload.status)
+    ? payload.status
+    : (result.error ? 'BLOCKED' : 'FAIL');
+  const probeReason = payload.normalizationError || payload.reason
+    || (evidence && Array.isArray(evidence.reasons) ? evidence.reasons.join('; ') : '')
+    || 'AGY project structural evidence did not satisfy the direct-file binding contract';
+  const reason = redactEvidence(probeReason, root);
+  const diagnostics = evidence && Array.isArray(evidence.diagnostics) ? evidence.diagnostics : [];
+  return agyInstallationResult({
+    status: observedStatus,
+    installationStatus: observedStatus,
+    reason,
+    adapter: AGY_PROJECT_ADAPTER,
+    commands,
+    diagnostics,
+    artifacts: artifacts.map((artifact) => ({ path: artifact.path || null, version: artifact.version || null })),
+    checkedClaims,
+  });
+}
+
+function verifyAgyPackageInstallation(root, version) {
+  const packageRoot = path.join(root, 'plugins', 'dhpk-agy');
+  const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
+  let inventory;
+  try {
+    inventory = JSON.parse(readConsumerEvidenceFileBounded(inventoryPath).toString('utf8'));
+  } catch (_) {
+    return agyInstallationResult({
+      status: 'BLOCKED',
+      installationStatus: 'BLOCKED',
+      reason: 'AGY package inventory could not be read safely',
+      adapter: AGY_PACKAGE_ADAPTER,
+      checkedClaims: ['package-inventory-selection'],
+    });
+  }
+
+  let validation;
+  try {
+    validation = validateAgyPluginPackage(packageRoot, { expectedVersion: version, inventory, sourceRoot: root });
+  } catch (error) {
+    validation = { ok: false, errors: [redactEvidence(String(error && error.message ? error.message : error), root)] };
+  }
+  if (!validation.ok) {
+    const diagnostics = (validation.errors || []).slice(0, 12).map((error) => redactEvidence(error, root));
+    return agyInstallationResult({
+      status: 'FAIL',
+      installationStatus: 'FAIL',
+      reason: 'AGY package failed target-version, inventory, or source-selection validation',
+      adapter: AGY_PACKAGE_ADAPTER,
+      diagnostics,
+      artifacts: [{ path: 'plugins/dhpk-agy/plugin.json', version: null }],
+      checkedClaims: ['package-manifest', 'package-inventory-selection', 'package-fingerprints'],
+    });
+  }
+
+  let temporaryHome = null;
+  try {
+    temporaryHome = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-agy-home-')));
+    const contract = loadAgyPathContract(root);
+    const targetRoot = resolveAgyInstallRoot(temporaryHome, contract);
+    installAgyPlugin({ sourceRoot: packageRoot, targetRoot, mode: 'install' });
+    const inspection = inspectAgyPlugin({ sourceRoot: packageRoot, targetRoot });
+    const counts = inspection.diff && inspection.diff.counts;
+    const current = inspection.status === 'PASS'
+      && inspection.state === 'CURRENT'
+      && inspection.classification === 'AGY_OWNED'
+      && inspection.target && inspection.target.manifest && inspection.target.manifest.valid
+      && inspection.target.manifest.name === 'dhpk'
+      && inspection.target.manifest.version === version
+      && inspection.target.receipt && inspection.target.receipt.valid
+      && inspection.target.receipt.source_version === version
+      && counts && counts.changed === 0 && counts.missing === 0
+      && Array.isArray(inspection.diff.unsafe_preview) && inspection.diff.unsafe_preview.length === 0;
+    if (!current) {
+      return agyInstallationResult({
+        status: inspection.status === 'FAIL' ? 'FAIL' : 'BLOCKED',
+        installationStatus: inspection.status === 'FAIL' ? 'FAIL' : 'BLOCKED',
+        reason: 'AGY isolated install did not inspect as a current receipt-owned canonical installation',
+        adapter: AGY_PACKAGE_ADAPTER,
+        diagnostics: [JSON.stringify({
+          status: inspection.status,
+          state: inspection.state,
+          classification: inspection.classification,
+          changed: counts && counts.changed,
+          missing: counts && counts.missing,
+          unsafe: inspection.diff && inspection.diff.unsafe_preview,
+        })],
+        checkedClaims: ['package-installation', 'canonical-install-target', 'receipt-ownership'],
+      });
+    }
+
+    const canonicalRelative = contract.canonical_relative.split(path.sep).join('/');
+    const artifacts = [
+      { path: 'plugins/dhpk-agy/plugin.json', version },
+      { path: 'plugins/dhpk-agy/provenance.json', version },
+      { path: `<sandbox-home>/${canonicalRelative}/plugin.json`, version },
+      { path: `<sandbox-home>/${canonicalRelative}/provenance.json`, version },
+    ];
+    return agyInstallationResult({
+      status: 'NOT_RUN',
+      installationStatus: 'PASS',
+      reason: 'AGY package version, inventory selection, canonical isolated installation, and receipt-owned file inspection passed; native runtime remains NOT_RUN',
+      adapter: AGY_PACKAGE_ADAPTER,
+      artifacts,
+      checkedClaims: ['package-manifest', 'package-inventory-selection', 'package-fingerprints', 'canonical-install-target', 'receipt-ownership'],
+    });
+  } catch (error) {
+    return agyInstallationResult({
+      status: 'BLOCKED',
+      installationStatus: 'BLOCKED',
+      reason: `AGY package installation inspection was blocked: ${redactEvidence(String(error && error.message ? error.message : error), root)}`,
+      adapter: AGY_PACKAGE_ADAPTER,
+      checkedClaims: ['package-installation', 'canonical-install-target', 'receipt-ownership'],
+    });
+  } finally {
+    if (temporaryHome) fs.rmSync(temporaryHome, { recursive: true, force: true });
+  }
+}
+
+function verifyAgyInstallation(root, version) {
+  const route = inspectAgyProjectRoute(root);
+  if (route.route === 'project') {
+    if (route.error) {
+      const reason = redactEvidence(route.error, root);
+      return agyInstallationResult({
+        status: 'BLOCKED',
+        installationStatus: 'BLOCKED',
+        reason,
+        adapter: AGY_PROJECT_ADAPTER,
+        artifacts: ['<project-root>/.agents/.dhpk-installed.json'],
+        checkedClaims: ['project-artifact-structure'],
+      });
+    }
+    return verifyAgyProjectInstallation(root, route.receiptPath);
+  }
+  return verifyAgyPackageInstallation(root, version);
 }
 
 function normalizeGateSurface(surface, producer, adapter, result, environment) {
@@ -1861,6 +3242,12 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
   });
   return normalized.surfaceResults.map((entry) => ({
     ...entry,
+    installationEvidence: result.installationEvidence || entry.installationEvidence || {
+      status: (result.status || result.verdict) === 'FAIL' ? 'FAIL' : 'BLOCKED',
+      reason: entry.reasons && entry.reasons[0]
+        ? entry.reasons[0]
+        : `installation evidence was not produced for raw ${entry.status} observation`,
+    },
     ...(result.runtimeEvidence ? { runtimeEvidence: result.runtimeEvidence } : {}),
     ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
     ...(result.surfaceVerdict ? { legacySurfaceStatus: result.surfaceVerdict } : {}),
@@ -1868,10 +3255,92 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
   }));
 }
 
+function codexPackageRoles(root) {
+  try {
+    const manifest = JSON.parse(readFileBounded(path.join(root, 'codex', 'agent-projection-manifest.json')).toString('utf8'));
+    if (!manifest || !Array.isArray(manifest.package_roles) || manifest.package_roles.length > 64) return new Set();
+    return new Set(manifest.package_roles.filter((role) => (
+      typeof role === 'string' && /^[a-z][a-z0-9-]{0,62}$/.test(role)
+    )));
+  } catch (_) {
+    return new Set();
+  }
+}
+
+function resolveRequirementCheck(check, supportedCodexRoles) {
+  const evidenceKind = check.trigger === 'explicit-native' ? 'native' : check.evidenceKind;
+  const evidenceSurface = check.surface === 'claude-core' ? 'claude' : check.surface;
+  const checkKey = `${evidenceSurface}:${check.capability}:${evidenceKind}`;
+  let route = null;
+  let role = null;
+  if (check.capability === 'installation-contract'
+    && evidenceKind === 'contract'
+    && !['activation-defect', 'explicit-native'].includes(check.trigger)) {
+    route = 'installation-contract';
+  } else if (check.capability === 'package-loader'
+    && ['agent-plugin', 'cursor-plugin'].includes(check.surface)
+    && ['contract', 'native'].includes(evidenceKind)) {
+    route = 'package-loader';
+  } else if (check.surface === 'codex-sync' && check.capability.startsWith('named-role-')) {
+    const candidate = check.capability.slice('named-role-'.length);
+    if (supportedCodexRoles.has(candidate)) {
+      route = 'named-role';
+      role = candidate;
+    }
+  }
+  return {
+    ...check,
+    requestedEvidenceKind: check.evidenceKind,
+    evidenceKind,
+    checkKey,
+    route,
+    role,
+  };
+}
+
+function uniqueRequirementExecutions(checks, route) {
+  const grouped = new Map();
+  for (const check of checks.filter((entry) => entry.route === route)) {
+    if (!grouped.has(check.checkKey)) grouped.set(check.checkKey, []);
+    grouped.get(check.checkKey).push(check);
+  }
+  return [...grouped.values()].map((group) => ({
+    ...group[0],
+    authorized: group.some((check) => check.authorization.authorized),
+  }));
+}
+
+function requirementAdapter(check) {
+  if (check.route === 'installation-contract') return { id: 'consumer-gate', version: '1.0.0' };
+  if (check.route === 'package-loader') return { id: 'consumer-platform-probe', version: '1.0.0' };
+  if (check.route === 'named-role') {
+    return check.evidenceKind === 'native'
+      ? { id: 'codex-named-role-probe', version: '1.0.0' }
+      : { id: 'codex-role-materialization', version: '1.0.0' };
+  }
+  return null;
+}
+
 function runGate(args) {
-  const selected = args.surface || null;
-  const selectedOrAll = (surface) => selected === null || selected === surface;
-  const codex = selectedOrAll('codex-sync') ? verifyCodexSync(args.root, args.version) : null;
+  const requirements = args.requirements || null;
+  const configurationMarkers = Object.fromEntries(CONSUMER_SURFACES.map((surface) => (
+    [surface, configuredHostMarkers(args.root, surface)]
+  )));
+  const scope = requirements
+    ? requirements.selectedSurfaces
+    : (args.surface ? [args.surface] : configuredConsumerSurfaces(args.root));
+  const resolvedRequirements = requirements
+    ? requirements.checks.map((check) => resolveRequirementCheck(check, codexPackageRoles(args.root)))
+    : [];
+  const roleChecks = uniqueRequirementExecutions(resolvedRequirements, 'named-role');
+  const selectedOrAll = (surface) => scope.includes(surface);
+  const codex = selectedOrAll('codex-sync')
+    ? verifyCodexSync(args.root, args.version, {
+      roleChecks,
+      evidenceCandidates: args.evidenceCandidates || [],
+      evidenceSupplied: Boolean(args.evidenceFile),
+    })
+    : null;
   const claude = selectedOrAll('claude-core') ? verifyClaudeReinstall(args.root, args.version) : null;
   const native = selectedOrAll('codex-native') ? verifyCodexNative(args.root) : null;
   const cursorSync = selectedOrAll('cursor-sync') ? verifyCursorSync(args.root, args.version) : null;
@@ -1881,16 +3350,200 @@ function runGate(args) {
   const projectedCursor = selectedOrAll('cursor-plugin')
     ? verifyProjectedConsumer(args.root, 'cursor', args.version)
     : null;
+  const agy = selectedOrAll('agy-plugin')
+    ? verifyAgyInstallation(args.root, args.version)
+    : null;
+
+  const loaderEvidence = new Map();
+  for (const surface of ['agent-plugin', 'cursor-plugin']) {
+    const selectedChecks = uniqueRequirementExecutions(resolvedRequirements
+      .filter((check) => check.surface === surface && check.evidenceKind === 'native'), 'package-loader')
+      .filter((check) => selectedOrAll(surface));
+    const projection = surface === 'agent-plugin' ? projectedCodex : projectedCursor;
+    if (selectedChecks.length === 0) continue;
+    const platform = surface === 'agent-plugin' ? 'agent-plugin' : 'cursor';
+    const canExecute = Boolean(projection && projection.surfaceResults.some((entry) => (
+      entry.installationEvidence && entry.installationEvidence.status === 'PASS'
+    )));
+    for (const check of selectedChecks) {
+      if (!check.authorized || !canExecute) {
+        loaderEvidence.set(check.checkKey, {
+          status: 'BLOCKED',
+          observedStatus: canExecute ? 'NOT_RUN' : (projection ? projection.status : 'NOT_RUN'),
+          outcomeReason: check.authorized
+            ? 'package installation contract must pass before native loader execution'
+            : 'native package-loader execution is not authorized',
+        });
+        continue;
+      }
+      const observed = verifyProjectedConsumer(args.root, platform, args.version, { execute: true });
+      if (projection) projection.commands.push(...observed.commands);
+      const nativeProof = observed.nativeObservation && observed.nativeObservation.nativeProof;
+      const status = observed.nativeObservation && observed.nativeObservation.status === 'PASS'
+        ? (nativeProof ? 'PASS' : 'BLOCKED')
+        : observed.nativeObservation && observed.nativeObservation.status === 'FAIL'
+          ? 'FAIL'
+          : 'BLOCKED';
+      loaderEvidence.set(check.checkKey, {
+        status,
+        observedStatus: observed.nativeObservation ? observed.nativeObservation.status : 'BLOCKED',
+        outcomeReason: observed.nativeObservation && observed.nativeObservation.reason
+          ? observed.nativeObservation.reason
+          : 'challenged package-loader proof was missing',
+        ...(nativeProof && status === 'PASS' ? { nativeProof } : {}),
+      });
+    }
+  }
 
   const environment = process.env.CI ? 'ci' : 'local';
-  const surfaceResults = [
+  const observedSurfaceResults = [
     ...(codex ? normalizeGateSurface('codex-sync', 'consumer-gate', { id: 'codex-sync-installer', version: '1.0.0' }, codex, environment) : []),
     ...(claude ? normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion }, claude, environment) : []),
     ...(native ? normalizeGateSurface('codex-native', 'consumer-gate', { id: 'codex-native-install-smoke', version: '1.0.0' }, native, environment) : []),
     ...(cursorSync ? normalizeGateSurface('cursor-sync', 'consumer-gate', { id: 'cursor-sync-installer', version: '1.0.0' }, cursorSync, environment) : []),
     ...(projectedCodex ? projectedCodex.surfaceResults : []),
     ...(projectedCursor ? projectedCursor.surfaceResults : []),
+    ...(agy ? normalizeGateSurface('agy-plugin', 'consumer-gate', agy.adapter, agy, environment) : []),
   ];
+
+  const requirementSurface = (surface) => (surface === 'claude-core' ? 'claude' : surface);
+  const observedSurfaceNames = new Set(observedSurfaceResults.map((entry) => entry.surface));
+  const requirementSurfaces = requirements
+    ? [...new Set(requirements.checks
+      .filter((check) => !scope.includes(check.surface))
+      .map((check) => requirementSurface(check.surface)))]
+    : [];
+  const excludedRequirementSurfaces = requirementSurfaces
+    .filter((surface) => !observedSurfaceNames.has(surface))
+    .map((surface) => ({
+      surface,
+      status: 'NOT_RUN',
+      commands: [],
+      environment,
+      artifacts: [],
+      diagnostics: [],
+      reasons: ['surface was outside the selected requirements scope; no adapter was invoked'],
+      checkedClaims: [],
+      stage: 'CONSUMER',
+      adapter: { id: 'consumer-gate-requirements', version: '1.0.0' },
+    }));
+  const allObservedAndExcluded = [...observedSurfaceResults, ...excludedRequirementSurfaces];
+  const surfaceResults = allObservedAndExcluded.map((entry) => {
+    if (!requirements) return entry;
+    const requirementChecks = requirements.checks
+      .map((check, index) => ({ check, index }))
+      .filter(({ check }) => requirementSurface(check.surface) === entry.surface);
+    if (requirementChecks.length === 0) return entry;
+    const requirementEvidence = Object.fromEntries(requirementChecks.map(({ check, index }) => {
+      const resolved = resolvedRequirements[index];
+      const selected = scope.includes(check.surface);
+      let status = 'BLOCKED';
+      let observedStatus;
+      let outcomeReason;
+      let contractEvidence;
+      let nativeProof;
+      let identity;
+      let evidenceReuse;
+      const installationEvidence = entry.installationEvidence;
+
+      if (!selected) {
+        outcomeReason = 'surface was outside the selected requirements scope; no adapter was invoked';
+      } else if (resolved.evidenceKind === 'native' && !check.authorization.authorized) {
+        const observation = resolved.route === 'named-role'
+          ? codex && codex.targetedRequirementEvidence && codex.targetedRequirementEvidence[resolved.checkKey]
+          : loaderEvidence.get(resolved.checkKey);
+        if (observation && observation.evidenceReuse && observation.evidenceReuse.decision === 'REUSED') {
+          status = observation.status;
+          observedStatus = observation.observedStatus;
+          outcomeReason = observation.outcomeReason;
+          identity = observation.identity;
+          evidenceReuse = observation.evidenceReuse;
+          nativeProof = observation.nativeProof;
+        } else {
+          observedStatus = observation && observation.observedStatus;
+          outcomeReason = observation && observation.outcomeReason
+            ? observation.outcomeReason
+            : 'native execution is not authorized';
+          identity = observation && observation.identity;
+          evidenceReuse = observation && observation.evidenceReuse;
+        }
+      } else if (resolved.route === 'installation-contract'
+        || (resolved.route === 'package-loader' && resolved.evidenceKind === 'contract')) {
+        if (installationEvidence && installationEvidence.status) {
+          status = installationEvidence.status;
+          observedStatus = status;
+          outcomeReason = installationEvidence.reason || 'installation contract observed';
+          contractEvidence = {
+            status,
+            adapterRoute: resolved.capability === 'installation-contract'
+              ? 'consumer-gate-installation'
+              : `${resolved.surface === 'agent-plugin' ? 'agent' : 'cursor'}-plugin-package-contract`,
+            reason: outcomeReason,
+            evidenceRef: `surfaceResults.${entry.surface}.installationEvidence`,
+          };
+        } else {
+          observedStatus = entry.status;
+          outcomeReason = 'installation contract evidence was not produced';
+        }
+      } else if (resolved.route === 'named-role') {
+        const observation = codex && codex.targetedRequirementEvidence
+          ? codex.targetedRequirementEvidence[resolved.checkKey]
+          : null;
+        if (observation) {
+          status = observation.status;
+          observedStatus = observation.observedStatus;
+          outcomeReason = observation.outcomeReason;
+          contractEvidence = observation.contractEvidence;
+          nativeProof = check.authorization.authorized
+            || (observation.evidenceReuse && observation.evidenceReuse.decision === 'REUSED')
+            ? observation.nativeProof
+            : undefined;
+          identity = observation.identity;
+          evidenceReuse = observation.evidenceReuse;
+        } else {
+          observedStatus = codex ? codex.status : entry.status;
+          outcomeReason = 'the selected Codex role check did not produce capability evidence';
+        }
+      } else if (resolved.route === 'package-loader' && resolved.evidenceKind === 'native') {
+        const observation = loaderEvidence.get(resolved.checkKey);
+        if (observation) {
+          status = observation.status;
+          observedStatus = observation.observedStatus;
+          outcomeReason = observation.outcomeReason;
+          nativeProof = observation.nativeProof;
+        } else {
+          observedStatus = entry.status;
+          outcomeReason = 'the selected package-loader check did not produce native evidence';
+        }
+      } else {
+        observedStatus = entry.status;
+        outcomeReason = `capability '${check.capability}' is not mapped to a supported evidence adapter`;
+      }
+
+      const result = {
+        id: check.id,
+        host: check.host,
+        capability: check.capability,
+        trigger: check.trigger,
+        reason: check.reason,
+        question: check.question,
+        requestedEvidenceKind: check.evidenceKind,
+        evidenceKind: resolved.evidenceKind,
+        authorized: check.authorization.authorized,
+        checkKey: resolved.checkKey,
+        status,
+        ...(identity ? { identity } : {}),
+        ...(evidenceReuse ? { evidenceReuse } : {}),
+        ...(requirementAdapter(resolved) ? { adapter: requirementAdapter(resolved) } : {}),
+        ...(observedStatus ? { observedStatus } : {}),
+        ...(outcomeReason ? { outcomeReason: outcomeReason.slice(0, 512) } : {}),
+        ...(contractEvidence ? { contractEvidence } : {}),
+        ...(nativeProof && status === 'PASS' ? { nativeProof, runtimeVerified: true } : {}),
+      };
+      return [`check${index + 1}`, result];
+    }));
+    return { ...entry, requirementEvidence };
+  });
 
   const commands = [
     ...(codex ? codex.commands : []),
@@ -1899,6 +3552,7 @@ function runGate(args) {
     ...(cursorSync ? cursorSync.commands : []),
     ...(projectedCodex ? projectedCodex.commands : []),
     ...(projectedCursor ? projectedCursor.commands : []),
+    ...(agy ? agy.commands : []),
   ];
   const failureReasons = [
     ...(codex ? codex.reasons.map((r) => `codex-sync: ${r}`) : []),
@@ -1913,24 +3567,93 @@ function runGate(args) {
     ...(projectedCursor && ['FAIL', 'BLOCKED'].includes(projectedCursor.status)
       ? [`cursor-plugin-consumer: ${projectedCursor.reason || projectedCursor.status.toLowerCase()}`]
       : []),
+    ...(agy && ['FAIL', 'BLOCKED'].includes(agy.status)
+      ? [`agy-plugin-consumer: ${agy.reason || agy.status.toLowerCase()}`]
+      : []),
   ];
 
-  let verdict;
-  if (selected) {
-    const row = surfaceResults[0];
-    const pendingStatuses = new Set(['NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE']);
-    verdict = row && pendingStatuses.has(row.status) ? VERDICTS.PENDING : (row && row.status ? row.status : VERDICTS.FAIL);
-  } else if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL || cursorSync.status === 'FAIL' || projectedCodex.status === 'FAIL' || projectedCursor.status === 'FAIL') verdict = VERDICTS.FAIL;
-  else if (codex.verdict === VERDICTS.BLOCKED || cursorSync.status === 'BLOCKED' || projectedCodex.status === 'BLOCKED' || projectedCursor.status === 'BLOCKED') verdict = VERDICTS.BLOCKED;
-  else if (claude.verdict === VERDICTS.UNAVAILABLE) verdict = VERDICTS.UNAVAILABLE;
-  else if (codex.verdict === VERDICTS.PENDING || cursorSync.status === 'NOT_RUN') verdict = VERDICTS.PENDING;
-  else verdict = VERDICTS.PASS;
+  const requiredChecks = observedSurfaceResults.map((entry) => ({
+    id: `install.${entry.surface}`,
+    surface: entry.surface,
+    kind: 'installation',
+    reason: entry.installationEvidence
+      ? entry.installationEvidence.reason
+      : `Selected ${entry.surface} installation contract must pass`,
+    status: entry.installationEvidence ? entry.installationEvidence.status : entry.status,
+    evidenceRef: entry.installationEvidence
+      ? `surfaceResults.${entry.surface}.installationEvidence`
+      : `surfaceResults.${entry.surface}`,
+  }));
+  if (scope.length === 0) {
+    requiredChecks.push({
+      id: 'scope.configuration',
+      surface: 'consumer-scope',
+      kind: 'contract',
+      reason: 'No configured or explicitly selected consumer surface exists; select a target or add a supported configuration marker',
+      status: 'BLOCKED',
+      evidenceRef: null,
+    });
+  }
+  const unselectedSurfaceChecks = CONSUMER_SURFACES
+    .filter((surface) => !scope.includes(surface))
+    .map((surface) => {
+      const markers = configurationMarkers[surface];
+      return {
+        id: `scope.${surface}`,
+        surface,
+        kind: 'installation',
+        reason: markers.length > 0
+          ? `Configured by ${markers.join(', ')} but outside the selected scope; no adapter was invoked`
+          : `No configured-target marker found (${CONSUMER_HOST_CONFIG_MARKERS[CONSUMER_SURFACE_HOSTS[surface]].join(', ')}); no adapter was invoked`,
+        status: markers.length > 0 ? 'NOT_RUN' : 'NOT_CONFIGURED',
+        evidenceRef: null,
+      };
+    });
+  const excludedChecks = observedSurfaceResults.flatMap((entry) => (
+    entry.runtimeEvidence
+      ? [{
+        id: `runtime.${entry.surface}`,
+        surface: entry.surface,
+        kind: 'native',
+        reason: entry.runtimeEvidence.reason,
+        status: entry.runtimeEvidence.status,
+        evidenceRef: `surfaceResults.${entry.surface}.runtimeEvidence`,
+      }]
+      : []
+  ));
+  excludedChecks.unshift(...unselectedSurfaceChecks);
+  if (requirements) {
+    requirements.checks.forEach((check, index) => {
+      const surface = requirementSurface(check.surface);
+      const entry = surfaceResults.find((row) => row.surface === surface);
+      const evidenceSlot = `check${index + 1}`;
+      const requirementEvidence = entry.requirementEvidence[evidenceSlot];
+      const result = {
+        id: `requirement.${check.id}`,
+        surface,
+        kind: resolvedRequirements[index].evidenceKind,
+        reason: requirementEvidence.reason,
+        status: requirementEvidence.status,
+        evidenceRef: `surfaceResults.${surface}.requirementEvidence.${evidenceSlot}`,
+      };
+      requiredChecks.push(result);
+    });
+  }
+  const acceptance = {
+    verdict: requiredChecks.some((check) => check.status === 'FAIL')
+      ? 'FAIL'
+      : (requiredChecks.some((check) => check.status !== 'PASS') ? 'BLOCKED' : 'PASS'),
+    requiredChecks,
+    excludedChecks,
+  };
+  const verdict = acceptance.verdict;
 
   const stage = {
+    schemaVersion: 2,
     verdict,
     commands,
     environment,
-    artifacts: selected
+    artifacts: !CONSUMER_SURFACES.every((surface) => scope.includes(surface))
       ? []
       : [
       `claude-official-strict: ${claude.officialValidation ? claude.officialValidation.verdict : 'NOT RUN'}${claude.officialValidation && claude.officialValidation.reason ? ` (${claude.officialValidation.reason})` : ''}`,
@@ -1938,6 +3661,7 @@ function runGate(args) {
       `cursor-sync: ${cursorSync.status}${cursorSync.reasons && cursorSync.reasons.length > 0 ? ` (${cursorSync.reasons[0]})` : ''}`,
       `agent-plugin-consumer: ${projectedCodex.status}${projectedCodex.reason ? ` (${projectedCodex.reason})` : ''}`,
       `cursor-plugin-consumer: ${projectedCursor.status}${projectedCursor.reason ? ` (${projectedCursor.reason})` : ''}`,
+      `agy-plugin-consumer: ${agy.status}${agy.reason ? ` (${agy.reason})` : ''}`,
       ...(codex.surfaceVerdict ? [`codex-surface: ${codex.surfaceVerdict}`] : []),
       ...(Array.isArray(claude.warnings) && claude.warnings.length > 0
         ? [`claude-registry-teardown: WARN (${claude.warnings.join('; ')})`]
@@ -1951,11 +3675,12 @@ function runGate(args) {
     producer: 'consumer-gate',
     adapter: { id: 'consumer-gate', version: '1.0.0' },
     surfaceResults,
+    acceptance,
     ...(codex && codex.surfaceVerdict ? { legacySurfaceStatus: codex.surfaceVerdict } : {}),
     ...(codex && codex.surfaceVerdict === 'WARN' ? { warnings: ['Codex duplicate-surface matrix returned WARN; compatibility status is not a canonical evidence verdict'] } : {}),
   };
 
-  return stage;
+  return requirements ? normalizeConsumerEvidence(stage) : stage;
 }
 
 if (require.main === module) {

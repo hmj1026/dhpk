@@ -11,6 +11,11 @@ remain visible and are never synthesized as `PASS`. Ownership, compatibility,
 coexistence, rollback, publication, and manual authorization requirements remain
 in force.
 
+This amendment supersedes any implication that management-command availability
+is native execution proof. The guide's native-runtime instructions apply when
+the affected route is selected or explicitly requested; installation success
+alone remains installation evidence.
+
 ## Purpose
 
 Define paired basic-operation guides that route installation, maintenance, verification, and release preparation using the current supported surfaces and explicit evidence boundaries.

@@ -44,18 +44,37 @@ evidence result. The two fields are intentionally independent.
 
 | Outcome | Meaning | Exit |
 | --- | --- | ---: |
-| `PASS`, `COMPLETE` | Evidence passed; `COMPLETE` is aggregate release success | 0 |
-| `FAIL` | Deterministic assertion or gate failed | 1 |
-| `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN` | Evidence is absent, non-pass, or explicitly held | 2 |
+| `PASS` from a non-release phase or current consumer-gate child; aggregate `COMPLETE` | Evidence passed; `COMPLETE` is aggregate readiness for the selected release scope | 0 |
+| Any current schema-v2 outer release result except aggregate `COMPLETE` | Current selected-scope acceptance or release readiness is incomplete or non-pass, even if its outcome is `PASS`, `BLOCKED`, `PUBLISHED_PENDING`, or `PUBLISHED_UNHEALTHY` | 1 |
+| Legacy or unrelated-phase `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN` | Historical or unrelated-phase evidence is absent, non-pass, or explicitly held | 2 |
 | invalid usage | Unknown phase, option, or missing argument | 64 |
 | unexpected harness error | Unhandled facade failure | 70 |
 
-Structural and package evidence remain separate from consumer runtime evidence.
-For example, a package may be `PASS` while a required runtime probe is
-`NOT_RUN` or `UNAVAILABLE`; that state cannot be promoted to full-platform
-`COMPLETE`. The seven full-release surface IDs are owned by the inventory
-platform matrix: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`,
+For the consumer-gate CLI, a current schema-v2 CONSUMER result exits according
+to `acceptance.verdict`: `PASS` exits 0; `FAIL` and `BLOCKED` exit 1. The
+facade preserves this envelope and verifies that the JSON result and actual
+child exit are consistent. The outer release facade separately maps a current
+schema-v2 result to exit 0 only when its aggregate outcome is `COMPLETE`; an
+incomplete outcome such as `PUBLISHED_PENDING` exits 1 even if consumer
+acceptance itself passed. A historical result without acceptance keeps its
+existing outcome and exit convention, including `PUBLISHED_PENDING` exit 2; it
+does not gain a synthetic schema-v2 acceptance.
+
+Structural, package, consumer installation, and native-runtime evidence remain
+separate. A selected-scope installation acceptance may be `PASS` while a raw
+runtime observation is `NOT_RUN`; that does not claim runtime support. Release
+readiness combines SOURCE, PACKAGE, and the current acceptance verdict for the
+selected consumer scope. `COMPLETE` means those readiness gates passed; it is
+not publication or deployment authority. The seven supported consumer surface
+IDs are `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`,
 `cursor-plugin`, `agent-plugin`, and `agy-plugin`.
+
+An explicit requirements declaration stays atomic across the facade boundary.
+For example, `bin/dhpk harness release --requirements requirements.json --json`
+passes that complete file to one consumer gate invocation; it is not partitioned
+into per-surface calls. Without `--requirements`, the release uses its
+deterministic selected-surface scope and combines the current per-surface gate
+envelopes in that scope.
 
 ## Receipts and resume
 

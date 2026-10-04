@@ -2,6 +2,13 @@
 
 > **語言**：[English](./distribution-surfaces.md) · **繁體中文**
 
+## 驗收適用性（#848/#854）
+
+結構與 package 證據可以完成適用的安裝契約，但 native consumer observation
+仍是獨立、按觸發條件執行的要求。不得將 experimental surface 升級，也不得把
+`NOT_RUN`、`UNAVAILABLE` 或 `BLOCKED` 改成 runtime success。所有權、provenance、
+共存、唯一 discovery、rollback 與 publication authorization 維持不變。
+
 本文件說明 dhpk 如何決定每個 skill/module 會進入哪個 consumer surface，以及各
 host 能與不能過濾的內容。所有數值與歸屬以
 `manifests/distribution-inventory.json` 為 SSOT。

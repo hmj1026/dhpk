@@ -143,6 +143,620 @@ function consumerStatus(input) {
   return input && (input.status || input.verdict);
 }
 
+const REQUIREMENT_STATUSES = new Set([...CONSUMER_EVIDENCE_STATUS_VALUES, 'PENDING']);
+const REQUIREMENT_TRIGGERS = new Set([
+  'new-host',
+  'loader-change',
+  'role-registration-change',
+  'tool-mapping-change',
+  'activation-defect',
+  'explicit-native',
+]);
+const REQUIREMENT_EVIDENCE_FIELDS = new Set([
+  'id', 'host', 'capability', 'trigger', 'reason', 'question', 'requestedEvidenceKind',
+  'evidenceKind', 'authorized', 'checkKey', 'status', 'adapter', 'contractEvidence',
+  'nativeProof', 'runtimeVerified', 'outcomeReason', 'observedStatus', 'identity', 'evidenceReuse',
+]);
+const REQUIREMENT_ADAPTER_FIELDS = new Set(['id', 'version']);
+const NATIVE_PROOF_HASH = /^[a-f0-9]{64}$/i;
+const CONSUMER_CHECK_IDENTITY_FIELDS = Object.freeze([
+  'contractVersion',
+  'sourceFingerprint',
+  'artifactFingerprint',
+  'selectionFingerprint',
+  'hostVersion',
+  'configFingerprint',
+]);
+const CONSUMER_CHECK_IDENTITY_FINGERPRINT_FIELDS = Object.freeze([
+  'sourceFingerprint',
+  'artifactFingerprint',
+  'selectionFingerprint',
+  'configFingerprint',
+]);
+const CONSUMER_CHECK_IDENTITY_FINGERPRINT = /^sha256:[a-f0-9]{64}$/;
+const CONSUMER_CHECK_IDENTITY_MISMATCH_FIELDS = new Set([
+  ...CONSUMER_CHECK_IDENTITY_FIELDS,
+  'checkKey',
+  'evidenceKind',
+  'status',
+  'nativeProof',
+]);
+
+function normalizeConsumerCheckIdentity(identity) {
+  if (!identity || typeof identity !== 'object' || Array.isArray(identity)
+    || Object.keys(identity).length !== CONSUMER_CHECK_IDENTITY_FIELDS.length
+    || Object.keys(identity).some((key) => !CONSUMER_CHECK_IDENTITY_FIELDS.includes(key))) {
+    throw new Error('consumer evidence: consumer check identity must match the frozen flat contract');
+  }
+  if (identity.contractVersion !== 'consumer-check-identity.v1') {
+    throw new Error('consumer evidence: consumer check identity contractVersion is invalid');
+  }
+  for (const field of CONSUMER_CHECK_IDENTITY_FINGERPRINT_FIELDS) {
+    if (typeof identity[field] !== 'string' || !CONSUMER_CHECK_IDENTITY_FINGERPRINT.test(identity[field])) {
+      throw new Error(`consumer evidence: consumer check identity ${field} must be sha256 plus 64 lowercase hex characters`);
+    }
+  }
+  if (typeof identity.hostVersion !== 'string' || identity.hostVersion.length === 0
+    || identity.hostVersion.length > 200 || identity.hostVersion.trim() !== identity.hostVersion
+    || /[\u0000-\u001f\u007f]/.test(identity.hostVersion)) {
+    throw new Error('consumer evidence: consumer check identity hostVersion must be an exact bounded Host version');
+  }
+  return {
+    contractVersion: identity.contractVersion,
+    sourceFingerprint: identity.sourceFingerprint,
+    artifactFingerprint: identity.artifactFingerprint,
+    selectionFingerprint: identity.selectionFingerprint,
+    hostVersion: identity.hostVersion,
+    configFingerprint: identity.configFingerprint,
+  };
+}
+
+function normalizeConsumerEvidenceReuse(evidenceReuse) {
+  const allowed = new Set(['decision', 'origin', 'mismatchFields', 'rejectionReason', 'conflicts']);
+  if (!evidenceReuse || typeof evidenceReuse !== 'object' || Array.isArray(evidenceReuse)
+    || Object.keys(evidenceReuse).some((key) => !allowed.has(key))
+    || !['REUSED', 'REJECTED'].includes(evidenceReuse.decision)
+    || !Array.isArray(evidenceReuse.mismatchFields)
+    || evidenceReuse.mismatchFields.length > CONSUMER_CHECK_IDENTITY_MISMATCH_FIELDS.size
+    || evidenceReuse.mismatchFields.some((field) => (
+      typeof field !== 'string' || !CONSUMER_CHECK_IDENTITY_MISMATCH_FIELDS.has(field)
+    ))
+    || new Set(evidenceReuse.mismatchFields).size !== evidenceReuse.mismatchFields.length) {
+    throw new Error('consumer evidence: requirement evidenceReuse is malformed');
+  }
+  let origin = null;
+  if (evidenceReuse.origin !== undefined && evidenceReuse.origin !== null) {
+    const candidate = evidenceReuse.origin;
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)
+      || Object.keys(candidate).sort().join(',') !== 'checkId,envelopeIndex,slot,surface'
+      || !Number.isInteger(candidate.envelopeIndex) || candidate.envelopeIndex < 0 || candidate.envelopeIndex > 15
+      || typeof candidate.surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(candidate.surface)
+      || typeof candidate.slot !== 'string' || !/^check[1-9][0-9]{0,2}$/.test(candidate.slot)
+      || typeof candidate.checkId !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(candidate.checkId)) {
+      throw new Error('consumer evidence: requirement evidenceReuse origin is malformed');
+    }
+    origin = {
+      envelopeIndex: candidate.envelopeIndex,
+      surface: candidate.surface,
+      slot: candidate.slot,
+      checkId: candidate.checkId,
+    };
+  }
+  if (evidenceReuse.decision === 'REUSED'
+    && (!origin || evidenceReuse.mismatchFields.length > 0)) {
+    throw new Error('consumer evidence: reused evidence requires an exact origin and no mismatch fields');
+  }
+  let conflicts;
+  if (evidenceReuse.conflicts !== undefined) {
+    const rawConflicts = evidenceReuse.conflicts;
+    if (!Array.isArray(rawConflicts) || rawConflicts.length < 2 || rawConflicts.length > 100) {
+      throw new Error('consumer evidence: conflicting reuse evidence requires a bounded origin list');
+    }
+    const seen = new Set();
+    conflicts = rawConflicts.map((candidate) => {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)
+        || Object.keys(candidate).sort().join(',') !== 'checkId,envelopeIndex,slot,status,surface'
+        || !Number.isInteger(candidate.envelopeIndex) || candidate.envelopeIndex < 0 || candidate.envelopeIndex > 15
+        || typeof candidate.surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(candidate.surface)
+        || typeof candidate.slot !== 'string' || !/^check[1-9][0-9]{0,2}$/.test(candidate.slot)
+        || typeof candidate.checkId !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(candidate.checkId)
+        || !['PASS', 'FAIL'].includes(candidate.status)) {
+        throw new Error('consumer evidence: conflicting reuse origin is malformed');
+      }
+      const key = `${candidate.envelopeIndex}:${candidate.surface}:${candidate.slot}:${candidate.checkId}`;
+      if (seen.has(key)) throw new Error('consumer evidence: conflicting reuse origins must be unique');
+      seen.add(key);
+      return {
+        envelopeIndex: candidate.envelopeIndex,
+        surface: candidate.surface,
+        slot: candidate.slot,
+        checkId: candidate.checkId,
+        status: candidate.status,
+      };
+    });
+    if (!conflicts.some((entry) => entry.status === 'PASS')
+      || !conflicts.some((entry) => entry.status === 'FAIL')) {
+      throw new Error('consumer evidence: conflict provenance must retain both PASS and FAIL outcomes');
+    }
+  }
+  if (evidenceReuse.rejectionReason !== undefined
+    && (evidenceReuse.decision !== 'REJECTED'
+      || evidenceReuse.rejectionReason !== 'CONFLICTING_EVIDENCE'
+      || !conflicts)) {
+    throw new Error('consumer evidence: reuse rejection reason is unsupported');
+  }
+  if (conflicts && evidenceReuse.rejectionReason !== 'CONFLICTING_EVIDENCE') {
+    throw new Error('consumer evidence: conflict provenance requires a conflicting-evidence reason');
+  }
+  return {
+    decision: evidenceReuse.decision,
+    origin,
+    mismatchFields: [...evidenceReuse.mismatchFields],
+    ...(evidenceReuse.rejectionReason !== undefined ? { rejectionReason: evidenceReuse.rejectionReason } : {}),
+    ...(conflicts ? { conflicts } : {}),
+  };
+}
+
+function requirementTuple(surface, capability, kind, trigger) {
+  if (capability === 'installation-contract') {
+    return kind === 'contract' && !['activation-defect', 'explicit-native'].includes(trigger);
+  }
+  if (capability === 'package-loader') {
+    return ['agent-plugin', 'cursor-plugin'].includes(surface) && ['contract', 'native'].includes(kind);
+  }
+  return surface === 'codex-sync'
+    && /^named-role-[a-z][a-z0-9-]{0,62}$/.test(capability)
+    && ['contract', 'native'].includes(kind);
+}
+
+function normalizeRequirementAdapter(adapter, surface, capability, kind) {
+  if (adapter === undefined || adapter === null) return null;
+  if (!adapter || typeof adapter !== 'object' || Array.isArray(adapter)
+    || Object.keys(adapter).some((key) => !REQUIREMENT_ADAPTER_FIELDS.has(key))
+    || typeof adapter.id !== 'string' || adapter.id.length === 0 || adapter.id.length > 100
+    || typeof adapter.version !== 'string' || adapter.version.length === 0 || adapter.version.length > 80) {
+    throw new Error('consumer evidence: requirement adapter is malformed');
+  }
+  const expectedId = capability === 'installation-contract'
+    ? 'consumer-gate'
+    : capability === 'package-loader'
+      ? 'consumer-platform-probe'
+      : kind === 'native' ? 'codex-named-role-probe' : 'codex-role-materialization';
+  if (adapter.id !== expectedId) throw new Error(`consumer evidence: requirement adapter does not match ${surface}:${capability}:${kind}`);
+  return boundedEvidenceValue(adapter);
+}
+
+function normalizeRoleContract(contractEvidence, capability, status, surfaceRecord) {
+  const roleId = capability.slice('named-role-'.length);
+  const role = contractEvidence.role;
+  if (!role || typeof role !== 'object' || Array.isArray(role)
+    || Object.keys(role).some((key) => !['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'].includes(key))
+    || role.path !== `agents/${roleId}.toml`) {
+    throw new Error('consumer evidence: Codex role contract proof does not match its capability');
+  }
+  const normalizedRole = { path: role.path };
+  for (const field of ['fingerprint', 'sourceFingerprint', 'destinationFingerprint']) {
+    if (role[field] !== undefined) {
+      if (typeof role[field] !== 'string' || !NATIVE_PROOF_HASH.test(role[field])) {
+        throw new Error(`consumer evidence: Codex role contract ${field} is invalid`);
+      }
+      normalizedRole[field] = role[field].toLowerCase();
+    }
+  }
+  const resources = contractEvidence.resources;
+  if (!Array.isArray(resources) || resources.length > 64) {
+    throw new Error('consumer evidence: Codex role contract resources must be a bounded array');
+  }
+  const normalizedResources = resources.map((resource) => {
+    if (!resource || typeof resource !== 'object' || Array.isArray(resource)
+      || Object.keys(resource).some((key) => !['path', 'fingerprint', 'sourceFingerprint', 'destinationFingerprint'].includes(key))
+      || typeof resource.path !== 'string' || !/^\.codex\/dhpk\/[A-Za-z0-9._/-]+\.md$/.test(resource.path)
+      || resource.path.length > 4096
+      || resource.path.split('/').includes('..')) {
+      throw new Error('consumer evidence: Codex role contract resource is invalid');
+    }
+    const normalized = { path: resource.path };
+    for (const field of ['fingerprint', 'sourceFingerprint', 'destinationFingerprint']) {
+      if (resource[field] !== undefined) {
+        if (typeof resource[field] !== 'string' || !NATIVE_PROOF_HASH.test(resource[field])) {
+          throw new Error(`consumer evidence: Codex role contract resource ${field} is invalid`);
+        }
+        normalized[field] = resource[field].toLowerCase();
+      }
+    }
+    return normalized;
+  });
+  if (status === 'PASS') {
+    if (!NATIVE_PROOF_HASH.test(normalizedRole.sourceFingerprint || '')
+      || !NATIVE_PROOF_HASH.test(normalizedRole.destinationFingerprint || '')
+      || normalizedRole.sourceFingerprint !== normalizedRole.destinationFingerprint
+      || (normalizedRole.fingerprint && normalizedRole.fingerprint !== normalizedRole.destinationFingerprint)
+      || normalizedResources.some((resource) => (
+        !NATIVE_PROOF_HASH.test(resource.sourceFingerprint || '')
+          || !NATIVE_PROOF_HASH.test(resource.destinationFingerprint || '')
+          || resource.sourceFingerprint !== resource.destinationFingerprint
+      ))) {
+      throw new Error('consumer evidence: passing Codex role contract lacks matching receipt fingerprints');
+    }
+  }
+  return { role: normalizedRole, resources: normalizedResources };
+}
+
+function normalizeRequirementContract(contractEvidence, surface, capability, status, surfaceRecord) {
+  if (contractEvidence === undefined || contractEvidence === null) {
+    if (status === 'PASS') throw new Error('consumer evidence: contract PASS requires observed contract evidence');
+    return null;
+  }
+  const allowed = new Set(['status', 'adapterRoute', 'reason', 'evidenceRef', 'role', 'resources']);
+  if (!contractEvidence || typeof contractEvidence !== 'object' || Array.isArray(contractEvidence)
+    || Object.keys(contractEvidence).some((key) => !allowed.has(key))
+    || !REQUIREMENT_STATUSES.has(contractEvidence.status)
+    || contractEvidence.status !== status
+    || typeof contractEvidence.adapterRoute !== 'string'
+    || (contractEvidence.reason !== undefined
+      && (typeof contractEvidence.reason !== 'string' || contractEvidence.reason.length > 512))) {
+    throw new Error('consumer evidence: requirement contract evidence is malformed or has a mismatched status');
+  }
+  const expectedRoute = capability === 'installation-contract'
+    ? 'consumer-gate-installation'
+    : capability === 'package-loader'
+      ? `${surface === 'agent-plugin' ? 'agent' : 'cursor'}-plugin-package-contract`
+      : 'codex-role-materialization';
+  if (contractEvidence.adapterRoute !== expectedRoute) {
+    throw new Error('consumer evidence: contract evidence adapter route does not match its capability');
+  }
+  if (capability === 'named-role-security-reviewer' || capability.startsWith('named-role-')) {
+    const proof = normalizeRoleContract(contractEvidence, capability, status, surfaceRecord);
+    return {
+      status,
+      adapterRoute: expectedRoute,
+      reason: boundedEvidenceValue(contractEvidence.reason || 'Codex role receipt evidence was observed'),
+      ...proof,
+    };
+  }
+  const expectedRef = `surfaceResults.${surface}.installationEvidence`;
+  if (contractEvidence.evidenceRef !== expectedRef) {
+    throw new Error('consumer evidence: contract evidence must reference the observed installation contract');
+  }
+  const installationEvidence = surfaceRecord.installationEvidence;
+  if (!installationEvidence || installationEvidence.status !== status) {
+    throw new Error('consumer evidence: contract evidence does not resolve to the observed installation record');
+  }
+  return {
+    status,
+    adapterRoute: expectedRoute,
+    reason: boundedEvidenceValue(contractEvidence.reason || 'Installation contract evidence was observed'),
+    evidenceRef: expectedRef,
+  };
+}
+
+function normalizeCodexNativeProof(proof, capability) {
+  const expectedRole = capability.slice('named-role-'.length);
+  const allowed = new Set(['executionOrigin', 'adapterRoute', 'roles', 'registryPreconditions', 'cliVersion']);
+  if (!proof || typeof proof !== 'object' || Array.isArray(proof)
+    || Object.keys(proof).some((key) => !allowed.has(key))
+    || proof.executionOrigin !== 'native' || proof.adapterRoute !== 'codex-named-role'
+    || !Array.isArray(proof.roles) || proof.roles.length !== 1) {
+    throw new Error('consumer evidence: Codex native role proof is missing or malformed');
+  }
+  const [role] = proof.roles;
+  if (!role || typeof role !== 'object' || Array.isArray(role)
+    || Object.keys(role).some((key) => !['id', 'agentTypeAccepted', 'threadId', 'childCompleted'].includes(key))
+    || role.id !== expectedRole || role.agentTypeAccepted !== true
+    || typeof role.threadId !== 'string' || role.threadId.trim().length === 0 || role.threadId.length > 200
+    || role.childCompleted !== true) {
+    throw new Error('consumer evidence: Codex native proof must cover the exact completed singleton role');
+  }
+  const preconditions = proof.registryPreconditions;
+  if (!preconditions || typeof preconditions !== 'object' || Array.isArray(preconditions)
+    || Object.keys(preconditions).sort().join(',') !== 'authReference,disposableCodexHome,projectTrust,userConfigIgnored'
+    || preconditions.disposableCodexHome !== true || preconditions.authReference !== 'symlink'
+    || preconditions.projectTrust !== 'trusted' || preconditions.userConfigIgnored !== false) {
+    throw new Error('consumer evidence: Codex native proof is missing registry preconditions');
+  }
+  if (proof.cliVersion !== undefined
+    && (typeof proof.cliVersion !== 'string' || proof.cliVersion.trim().length === 0 || proof.cliVersion.length > 200)) {
+    throw new Error('consumer evidence: Codex native proof CLI version is invalid');
+  }
+  return {
+    executionOrigin: 'native',
+    adapterRoute: 'codex-named-role',
+    roles: [{ id: expectedRole, agentTypeAccepted: true, threadId: role.threadId, childCompleted: true }],
+    registryPreconditions: {
+      disposableCodexHome: true,
+      authReference: 'symlink',
+      projectTrust: 'trusted',
+      userConfigIgnored: false,
+    },
+    ...(proof.cliVersion !== undefined ? { cliVersion: boundedEvidenceValue(proof.cliVersion) } : {}),
+  };
+}
+
+function normalizeLoaderNativeProof(proof, surface) {
+  const expectedRoute = `${surface === 'agent-plugin' ? 'agent' : 'cursor'}-plugin-loader`;
+  const allowed = new Set([
+    'executionOrigin', 'adapterRoute', 'exit_code', 'network', 'challenge_verified',
+    'loader_attestation', 'session_files',
+  ]);
+  if (!proof || typeof proof !== 'object' || Array.isArray(proof)
+    || Object.keys(proof).some((key) => !allowed.has(key))
+    || proof.executionOrigin !== 'native' || proof.adapterRoute !== expectedRoute
+    || proof.exit_code !== 0 || !['shared', 'disabled'].includes(proof.network)
+    || proof.challenge_verified !== true || proof.loader_attestation !== true
+    || !Array.isArray(proof.session_files) || proof.session_files.length > 32
+    || !proof.session_files.includes('.config/cursor/auth.json')
+    || proof.session_files.some((file) => typeof file !== 'string' || file.length > 200
+      || pathIsAbsolute(file) || file.split(/[\\/]/).includes('..'))) {
+    throw new Error('consumer evidence: challenged package-loader native proof is missing or malformed');
+  }
+  return {
+    executionOrigin: 'native',
+    adapterRoute: expectedRoute,
+    exit_code: 0,
+    network: proof.network,
+    challenge_verified: true,
+    loader_attestation: true,
+    session_files: boundedEvidenceValue(proof.session_files),
+  };
+}
+
+function pathIsAbsolute(value) {
+  return value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value);
+}
+
+function normalizeRequirementProof(proof, surface, capability) {
+  return capability === 'package-loader'
+    ? normalizeLoaderNativeProof(proof, surface)
+    : normalizeCodexNativeProof(proof, capability);
+}
+
+function normalizeRequirementEvidence(raw, surface, surfaceRecord) {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)
+    || Object.keys(raw).length === 0 || Object.keys(raw).length > MAX_ACCEPTANCE_CHECKS) {
+    throw new Error('consumer evidence: requirementEvidence must be a bounded non-empty object');
+  }
+  const result = {};
+  for (const [slot, evidence] of Object.entries(raw)) {
+    if (!/^check[1-9][0-9]{0,2}$/.test(slot)
+      || !evidence || typeof evidence !== 'object' || Array.isArray(evidence)
+      || Object.keys(evidence).some((key) => !REQUIREMENT_EVIDENCE_FIELDS.has(key))) {
+      throw new Error('consumer evidence: requirement evidence slot is malformed');
+    }
+    if (typeof evidence.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(evidence.id)
+      || evidence.host !== ({ claude: 'claude', 'claude-core': 'claude', 'codex-sync': 'codex', 'codex-native': 'codex', 'cursor-sync': 'cursor', 'agent-plugin': 'cursor', 'cursor-plugin': 'cursor', 'agy-plugin': 'agy' })[surface]
+      || typeof evidence.capability !== 'string' || !/^[a-z][a-z0-9-]{0,79}$/.test(evidence.capability)
+      || !REQUIREMENT_TRIGGERS.has(evidence.trigger)
+      || typeof evidence.reason !== 'string' || evidence.reason.trim().length === 0 || evidence.reason.length > 240
+      || typeof evidence.question !== 'string' || evidence.question.trim().length === 0 || evidence.question.length > 240
+      || !['contract', 'native'].includes(evidence.requestedEvidenceKind)
+      || !['contract', 'native'].includes(evidence.evidenceKind)
+      || evidence.evidenceKind !== (evidence.trigger === 'explicit-native' ? 'native' : evidence.requestedEvidenceKind)
+      || typeof evidence.authorized !== 'boolean'
+      || evidence.checkKey !== `${surface}:${evidence.capability}:${evidence.evidenceKind}`
+      || !REQUIREMENT_STATUSES.has(evidence.status)) {
+      throw new Error(`consumer evidence: requirement evidence '${slot}' has invalid identity or status`);
+    }
+    const supported = requirementTuple(surface, evidence.capability, evidence.evidenceKind, evidence.trigger);
+    if (!supported && evidence.status !== 'BLOCKED') {
+      throw new Error('consumer evidence: unsupported capability/evidence pair must remain BLOCKED');
+    }
+    if (evidence.trigger === 'explicit-native' && evidence.evidenceKind !== 'native') {
+      throw new Error('consumer evidence: explicit-native requirements must use native evidence');
+    }
+    const adapter = normalizeRequirementAdapter(evidence.adapter, surface, evidence.capability, evidence.evidenceKind);
+    const identity = evidence.identity === undefined
+      ? null
+      : normalizeConsumerCheckIdentity(evidence.identity);
+    const evidenceReuse = evidence.evidenceReuse === undefined
+      ? null
+      : normalizeConsumerEvidenceReuse(evidence.evidenceReuse);
+    let contractEvidence = null;
+    let nativeProof = null;
+    if (evidence.evidenceKind === 'contract') {
+      contractEvidence = normalizeRequirementContract(
+        evidence.contractEvidence,
+        surface,
+        evidence.capability,
+        evidence.status,
+        surfaceRecord,
+      );
+      if (evidence.runtimeVerified === true) {
+        // Contract evidence cannot make a runtime claim.
+      }
+    } else if (evidence.nativeProof !== undefined) {
+      nativeProof = normalizeRequirementProof(evidence.nativeProof, surface, evidence.capability);
+    }
+    if (evidence.evidenceKind === 'native' && evidence.status === 'PASS' && !nativeProof) {
+      throw new Error('consumer evidence: native PASS requires typed native proof');
+    }
+    if (evidence.runtimeVerified === true && evidence.evidenceKind === 'native'
+      && (evidence.status !== 'PASS' || !nativeProof)) {
+      throw new Error('consumer evidence: runtimeVerified requires passing native proof on this capability');
+    }
+    if (evidenceReuse && evidenceReuse.decision === 'REUSED'
+      && (!identity || evidence.evidenceKind !== 'native' || evidence.status !== 'PASS' || !nativeProof)) {
+      throw new Error('consumer evidence: reused evidence requires current native PASS identity and typed proof');
+    }
+    if (evidence.evidenceKind === 'native' && !evidence.authorized && evidence.status !== 'BLOCKED'
+      && (!evidenceReuse || evidenceReuse.decision !== 'REUSED')) {
+      throw new Error('consumer evidence: unauthorized native requirements must remain BLOCKED unless typed evidence was reused');
+    }
+    if (evidence.observedStatus !== undefined && !REQUIREMENT_STATUSES.has(evidence.observedStatus)) {
+      throw new Error('consumer evidence: requirement observedStatus is invalid');
+    }
+    if (evidence.outcomeReason !== undefined
+      && (typeof evidence.outcomeReason !== 'string' || evidence.outcomeReason.length > 512)) {
+      throw new Error('consumer evidence: requirement outcomeReason is invalid');
+    }
+    result[slot] = {
+      id: evidence.id,
+      host: evidence.host,
+      capability: evidence.capability,
+      trigger: evidence.trigger,
+      reason: boundedEvidenceValue(evidence.reason),
+      question: boundedEvidenceValue(evidence.question),
+      requestedEvidenceKind: evidence.requestedEvidenceKind,
+      evidenceKind: evidence.evidenceKind,
+      authorized: evidence.authorized,
+      checkKey: evidence.checkKey,
+      status: evidence.status,
+      ...(evidence.observedStatus !== undefined ? { observedStatus: evidence.observedStatus } : {}),
+      ...(evidence.outcomeReason !== undefined ? { outcomeReason: boundedEvidenceValue(evidence.outcomeReason) } : {}),
+      ...(identity ? { identity } : {}),
+      ...(evidenceReuse ? { evidenceReuse } : {}),
+      ...(adapter ? { adapter } : {}),
+      ...(contractEvidence ? { contractEvidence } : {}),
+      ...(nativeProof ? { nativeProof } : {}),
+      ...(evidence.evidenceKind === 'native' && evidence.status === 'PASS' && nativeProof
+        ? { runtimeVerified: true }
+        : {}),
+    };
+  }
+  return result;
+}
+
+function evidenceIdentityMismatchFields(expectedIdentity, candidateIdentity) {
+  let normalizedCandidate = null;
+  try {
+    normalizedCandidate = normalizeConsumerCheckIdentity(candidateIdentity);
+  } catch (_) {
+    // Missing or malformed historical identity remains ineligible. Return
+    // each absent/different component so callers can explain the rejection.
+  }
+  const mismatches = CONSUMER_CHECK_IDENTITY_FIELDS.filter((field) => (
+    !normalizedCandidate || normalizedCandidate[field] !== expectedIdentity[field]
+  ));
+  if (!normalizedCandidate && mismatches.length === 0) mismatches.push('contractVersion');
+  return mismatches;
+}
+
+function consumerEvidenceCandidate(candidate) {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  if (candidate.evidence && typeof candidate.evidence === 'object' && !Array.isArray(candidate.evidence)) {
+    return candidate.evidence;
+  }
+  return candidate;
+}
+
+function consumerEvidenceCandidateOrigin(candidate, evidence) {
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+  const envelopeIndex = candidate.envelopeIndex;
+  const surface = candidate.surface;
+  const slot = candidate.slot;
+  if (!Number.isInteger(envelopeIndex) || envelopeIndex < 0 || envelopeIndex > 15
+    || typeof surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(surface)
+    || typeof slot !== 'string' || !/^check[1-9][0-9]{0,2}$/.test(slot)
+    || typeof evidence.id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(evidence.id)) {
+    return null;
+  }
+  return { envelopeIndex, surface, slot, checkId: evidence.id };
+}
+
+/**
+ * Compare one current semantic check with already normalized historical
+ * checks. Request IDs, reason/question text, producer and workflow are
+ * attribution only; the canonical checkKey, kind, identity and typed proof
+ * determine applicability.
+ */
+function matchConsumerCheckEvidence(expectedCheck, candidates) {
+  if (!expectedCheck || typeof expectedCheck !== 'object' || Array.isArray(expectedCheck)
+    || typeof expectedCheck.checkKey !== 'string' || expectedCheck.checkKey.length === 0
+    || !['contract', 'native'].includes(expectedCheck.evidenceKind)) {
+    throw new Error('consumer evidence: expected consumer check is malformed');
+  }
+  const expectedIdentity = normalizeConsumerCheckIdentity(expectedCheck.identity);
+  const keyParts = expectedCheck.checkKey.split(':');
+  if (keyParts.length !== 3 || keyParts[2] !== expectedCheck.evidenceKind) {
+    return { decision: 'REJECTED', selected: null, origin: null, mismatchFields: ['checkKey'] };
+  }
+  if (!Array.isArray(candidates) || candidates.length > 100) {
+    return { decision: 'REJECTED', selected: null, origin: null, mismatchFields: ['checkKey'] };
+  }
+
+  const keyedCandidates = candidates.flatMap((candidate) => {
+    const evidence = consumerEvidenceCandidate(candidate);
+    if (!evidence) return [];
+    if (evidence.checkKey !== expectedCheck.checkKey) return [];
+    if (evidence.evidenceKind !== expectedCheck.evidenceKind) return [];
+    return [{ candidate, evidence }];
+  });
+  if (keyedCandidates.length === 0) {
+    return { decision: 'REJECTED', selected: null, origin: null, mismatchFields: ['checkKey'] };
+  }
+
+  const exactCandidates = [];
+  const mismatchFields = new Set();
+  for (const entry of keyedCandidates) {
+    const mismatches = evidenceIdentityMismatchFields(expectedIdentity, entry.evidence.identity);
+    if (mismatches.length === 0) exactCandidates.push(entry);
+    else mismatches.forEach((field) => mismatchFields.add(field));
+  }
+
+  const exactPasses = exactCandidates.filter(({ evidence }) => evidence.status === 'PASS');
+  const exactFailures = exactCandidates.filter(({ evidence }) => evidence.status === 'FAIL');
+  if (exactPasses.length > 0 && exactFailures.length > 0) {
+    const conflictCandidates = exactCandidates
+      .filter(({ evidence }) => ['PASS', 'FAIL'].includes(evidence.status))
+      .map(({ candidate, evidence }) => {
+        const origin = consumerEvidenceCandidateOrigin(candidate, evidence);
+        return origin ? { ...origin, status: evidence.status } : null;
+      })
+      .filter(Boolean);
+    if (conflictCandidates.some((entry) => entry.status === 'PASS')
+      && conflictCandidates.some((entry) => entry.status === 'FAIL')) {
+      return {
+        decision: 'CONFLICT',
+        selected: null,
+        origin: null,
+        mismatchFields: [],
+        conflicts: conflictCandidates,
+      };
+    }
+    return { decision: 'REJECTED', selected: null, origin: null, mismatchFields: ['status'] };
+  }
+
+  const [surface, capability] = keyParts;
+  const reusablePasses = exactPasses.filter(({ evidence }) => {
+    if (expectedCheck.evidenceKind !== 'native' || !evidence.nativeProof) return false;
+    try {
+      normalizeRequirementProof(evidence.nativeProof, surface, capability);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  });
+  reusablePasses.sort((left, right) => {
+    const leftIndex = Number.isInteger(left.candidate.envelopeIndex) ? left.candidate.envelopeIndex : Number.MAX_SAFE_INTEGER;
+    const rightIndex = Number.isInteger(right.candidate.envelopeIndex) ? right.candidate.envelopeIndex : Number.MAX_SAFE_INTEGER;
+    return leftIndex - rightIndex
+      || String(left.candidate.surface || '').localeCompare(String(right.candidate.surface || ''))
+      || String(left.candidate.slot || '').localeCompare(String(right.candidate.slot || ''));
+  });
+  if (reusablePasses.length > 0) {
+    const selected = reusablePasses[0];
+    return {
+      decision: 'REUSED',
+      selected: selected.evidence,
+      origin: consumerEvidenceCandidateOrigin(selected.candidate, selected.evidence),
+      mismatchFields: [],
+    };
+  }
+
+  if (exactCandidates.length > 0) {
+    const reasonField = exactPasses.length > 0 ? 'nativeProof' : 'status';
+    mismatchFields.add(reasonField);
+  }
+  return {
+    decision: 'REJECTED',
+    selected: null,
+    origin: keyedCandidates.length > 0
+      ? consumerEvidenceCandidateOrigin(keyedCandidates[0].candidate, keyedCandidates[0].evidence)
+      : null,
+    mismatchFields: [...mismatchFields],
+  };
+}
+
 function normalizeConsumerSurface(raw, envelope) {
   if (!raw || typeof raw !== 'object') throw new Error('consumer evidence: surface result must be an object');
   const surface = raw.surface || envelope.surface;
@@ -178,7 +792,14 @@ function normalizeConsumerSurface(raw, envelope) {
     throw new Error(`consumer evidence: stale artifact binding for surface '${surface}'`);
   }
   const safeRaw = boundedEvidenceValue(raw);
-  const { runtimeVerified: _runtimeVerified, runtimeStatus: _runtimeStatus, stage: _stage, ...safeSurface } = safeRaw;
+  const {
+    runtimeVerified: _runtimeVerified,
+    runtimeStatus: _runtimeStatus,
+    stage: _stage,
+    requirementEvidence: _requirementEvidence,
+    ...safeSurface
+  } = safeRaw;
+  const requirementEvidence = normalizeRequirementEvidence(raw.requirementEvidence, surface, raw);
   return {
     ...safeSurface,
     stage: envelope.stage,
@@ -193,8 +814,255 @@ function normalizeConsumerSurface(raw, envelope) {
     checkedClaims: boundedEvidenceValue(raw.checkedClaims || []),
     planFingerprint,
     artifactFingerprint,
+    ...(requirementEvidence ? { requirementEvidence } : {}),
     ...(legacySurfaceStatus ? { legacySurfaceStatus } : {}),
   };
+}
+
+function isBlockedConsumerScopeReceipt(input, rawResults) {
+  const acceptance = input && input.acceptance;
+  const requiredChecks = acceptance && acceptance.requiredChecks;
+  const excludedChecks = acceptance && acceptance.excludedChecks;
+  if (input.stage !== 'CONSUMER'
+    || input.producer !== 'consumer-gate'
+    || !input.adapter || input.adapter.id !== 'consumer-gate'
+    || input.schemaVersion !== 2
+    || rawResults.length !== 0
+    || !acceptance || acceptance.verdict !== 'BLOCKED'
+    || !Array.isArray(requiredChecks) || requiredChecks.length !== 1
+    || !Array.isArray(excludedChecks) || excludedChecks.length === 0) {
+    return false;
+  }
+
+  const [scopeCheck] = requiredChecks;
+  return scopeCheck
+    && scopeCheck.id === 'scope.configuration'
+    && scopeCheck.surface === 'consumer-scope'
+    && scopeCheck.kind === 'contract'
+    && scopeCheck.status === 'BLOCKED'
+    && scopeCheck.evidenceRef === null
+    && excludedChecks.every((check) => (
+      check
+      && typeof check.id === 'string'
+      && check.id.startsWith('scope.')
+      && check.kind === 'installation'
+      && check.status === 'NOT_CONFIGURED'
+      && check.evidenceRef === null
+    ));
+}
+
+const ACCEPTANCE_VERDICTS = new Set(['PASS', 'FAIL', 'BLOCKED']);
+const ACCEPTANCE_KINDS = new Set(['installation', 'contract', 'native', 'research']);
+const ACCEPTANCE_STATUSES = new Set([...CONSUMER_EVIDENCE_STATUS_VALUES, 'PENDING']);
+const ACCEPTANCE_CHECK_FIELDS = new Set(['id', 'surface', 'kind', 'reason', 'status', 'evidenceRef']);
+const MAX_ACCEPTANCE_CHECKS = 100;
+
+function validateAcceptanceEvidenceReference(check, listName, input, surfaceResults) {
+  const surfacePath = `surfaceResults.${check.surface}`;
+  const evidenceRef = check.evidenceRef;
+  if (check.id === 'scope.configuration') {
+    if (listName === 'requiredChecks'
+      && check.surface === 'consumer-scope'
+      && check.kind === 'contract'
+      && check.status === 'BLOCKED'
+      && evidenceRef === null
+      && isBlockedConsumerScopeReceipt(input, [])) {
+      return;
+    }
+    throw new Error('consumer evidence: scope.configuration requires the blocked empty-scope receipt');
+  }
+  if (check.id.startsWith('scope.')) {
+    const expectedId = `scope.${check.surface}`;
+    if (listName === 'excludedChecks'
+      && check.id === expectedId
+      && check.kind === 'installation'
+      && ['NOT_RUN', 'NOT_CONFIGURED'].includes(check.status)
+      && evidenceRef === null) {
+      return;
+    }
+    throw new Error('consumer evidence: scope exclusion must remain an unreferenced non-pass check');
+  }
+
+  if (evidenceRef === null) {
+    throw new Error('consumer evidence: acceptance evidenceRef is required for observed evidence');
+  }
+  if (check.id === `install.${check.surface}`) {
+    const installationRef = `${surfacePath}.installationEvidence`;
+    const nonPassSurfaceFallback = evidenceRef === surfacePath && check.status !== 'PASS';
+    if (listName === 'requiredChecks'
+      && check.kind === 'installation'
+      && (evidenceRef === installationRef || nonPassSurfaceFallback)) {
+      return;
+    }
+    throw new Error('consumer evidence: installation acceptance status must reference typed installationEvidence');
+  }
+  if (check.id === `runtime.${check.surface}`) {
+    if (listName === 'excludedChecks'
+      && check.kind === 'native'
+      && evidenceRef === `${surfacePath}.runtimeEvidence`) {
+      return;
+    }
+    throw new Error('consumer evidence: acceptance evidenceRef for runtime observations may only reference runtimeEvidence');
+  }
+  if (check.id.startsWith('requirement.')) {
+    const requirementEvidenceRef = new RegExp(`^surfaceResults\\.${check.surface}\\.requirementEvidence\\.check[1-9][0-9]{0,2}$`);
+    if (listName === 'requiredChecks'
+      && ['contract', 'native'].includes(check.kind)
+      && requirementEvidenceRef.test(evidenceRef)) {
+      return;
+    }
+    throw new Error('consumer evidence: requirement acceptance must reference an exact requirement evidence slot');
+  }
+  throw new Error('consumer evidence: acceptance check surface/evidenceRef does not identify a supported typed evidence record');
+}
+
+function normalizeAcceptance(input, surfaceResults) {
+  if (input.acceptance === undefined) {
+    if (input.schemaVersion !== undefined) {
+      throw new Error('consumer evidence: schemaVersion requires an acceptance object');
+    }
+    return null;
+  }
+  if (input.schemaVersion !== 2) throw new Error('consumer evidence: acceptance requires schemaVersion 2');
+  if (input.stage !== 'CONSUMER') throw new Error('consumer evidence: acceptance is only valid for CONSUMER');
+
+  const acceptance = input.acceptance;
+  if (!acceptance || typeof acceptance !== 'object' || Array.isArray(acceptance)) {
+    throw new Error('consumer evidence: acceptance must be an object');
+  }
+  if (Object.keys(acceptance).some((key) => !['verdict', 'requiredChecks', 'excludedChecks'].includes(key))) {
+    throw new Error('consumer evidence: acceptance contains an unknown field');
+  }
+  if (!ACCEPTANCE_VERDICTS.has(acceptance.verdict)) {
+    throw new Error(`consumer evidence: invalid acceptance verdict '${acceptance.verdict}'`);
+  }
+  if (!Array.isArray(acceptance.requiredChecks) || acceptance.requiredChecks.length === 0) {
+    throw new Error('consumer evidence: acceptance requiredChecks must be a non-empty array');
+  }
+  if (!Array.isArray(acceptance.excludedChecks)) {
+    throw new Error('consumer evidence: acceptance excludedChecks must be an array');
+  }
+  if (acceptance.requiredChecks.length > MAX_ACCEPTANCE_CHECKS
+    || acceptance.excludedChecks.length > MAX_ACCEPTANCE_CHECKS) {
+    throw new Error(`consumer evidence: acceptance check count exceeds ${MAX_ACCEPTANCE_CHECKS}`);
+  }
+
+  const seen = new Set();
+  const normalizeCheck = (check, listName) => {
+    if (!check || typeof check !== 'object' || Array.isArray(check)) {
+      throw new Error(`consumer evidence: acceptance ${listName} entries must be objects`);
+    }
+    if (Object.keys(check).some((key) => !ACCEPTANCE_CHECK_FIELDS.has(key))) {
+      throw new Error(`consumer evidence: acceptance ${listName} entry contains an unknown field`);
+    }
+    if (typeof check.id !== 'string' || !/^[a-z][a-z0-9._:-]{0,127}$/.test(check.id)) {
+      throw new Error(`consumer evidence: acceptance ${listName} entry has an invalid id`);
+    }
+    if (seen.has(check.id)) throw new Error(`consumer evidence: duplicate acceptance check '${check.id}'`);
+    seen.add(check.id);
+    if (typeof check.surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(check.surface)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' has an invalid surface`);
+    }
+    if (!ACCEPTANCE_KINDS.has(check.kind)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' has an invalid kind`);
+    }
+    if (typeof check.reason !== 'string' || check.reason.trim().length === 0 || check.reason.length > 512) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' requires a bounded reason`);
+    }
+    if (!ACCEPTANCE_STATUSES.has(check.status)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' has an invalid status`);
+    }
+    if (check.evidenceRef !== null && (typeof check.evidenceRef !== 'string' || check.evidenceRef.length > 256)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' has an invalid evidenceRef`);
+    }
+    if (check.status === 'PASS' && !check.evidenceRef) {
+      throw new Error(`consumer evidence: passing acceptance check '${check.id}' requires evidenceRef`);
+    }
+    validateAcceptanceEvidenceReference(check, listName, input, surfaceResults);
+    if (check.evidenceRef) {
+      const segments = check.evidenceRef.split('.');
+      if (segments[0] !== 'surfaceResults' || segments.length < 2
+        || segments.some((segment) => !/^[a-z][a-zA-Z0-9_-]*$/.test(segment))) {
+        throw new Error(`consumer evidence: acceptance check '${check.id}' has an unsupported evidenceRef`);
+      }
+      const result = surfaceResults.find((row) => row.surface === segments[1]);
+      if (!result) throw new Error(`consumer evidence: acceptance check '${check.id}' references a missing surface`);
+      if (check.surface !== result.surface) {
+        throw new Error(`consumer evidence: acceptance check '${check.id}' references a different surface`);
+      }
+      let target = result;
+      for (const segment of segments.slice(2)) {
+        if (!target || typeof target !== 'object' || !Object.prototype.hasOwnProperty.call(target, segment)) {
+          throw new Error(`consumer evidence: acceptance check '${check.id}' has a dangling evidenceRef`);
+        }
+        target = target[segment];
+      }
+      if (!target || typeof target !== 'object' || Array.isArray(target)
+        || !Object.prototype.hasOwnProperty.call(target, 'status') || target.status !== check.status) {
+        throw new Error(`consumer evidence: acceptance check '${check.id}' status does not match referenced evidence`);
+      }
+    }
+    return boundedEvidenceValue(check);
+  };
+
+  const requiredChecks = acceptance.requiredChecks.map((check) => normalizeCheck(check, 'requiredChecks'));
+  const excludedChecks = acceptance.excludedChecks.map((check) => normalizeCheck(check, 'excludedChecks'));
+  const hasFailure = requiredChecks.some((check) => check.status === 'FAIL');
+  const allRequiredPass = requiredChecks.every((check) => check.status === 'PASS');
+  const derivedVerdict = hasFailure ? 'FAIL' : (allRequiredPass ? 'PASS' : 'BLOCKED');
+  if (acceptance.verdict !== derivedVerdict) {
+    throw new Error('consumer evidence: acceptance verdict does not match required check statuses');
+  }
+  if (input.verdict !== undefined && input.verdict !== acceptance.verdict) {
+    throw new Error('consumer evidence: stage verdict does not match acceptance verdict');
+  }
+  return { verdict: acceptance.verdict, requiredChecks, excludedChecks };
+}
+
+function validateRequirementAcceptance(acceptance, surfaceResults) {
+  const requirementRecords = surfaceResults.flatMap((surfaceResult) => (
+    Object.entries(surfaceResult.requirementEvidence || {}).map(([slot, evidence]) => ({
+      surface: surfaceResult.surface,
+      slot,
+      evidence,
+    }))
+  ));
+  const requirementChecks = acceptance
+    ? [...acceptance.requiredChecks, ...acceptance.excludedChecks]
+      .filter((check) => check.id.startsWith('requirement.'))
+    : [];
+  if (requirementRecords.length === 0 && requirementChecks.length === 0) return;
+  if (!acceptance) {
+    throw new Error('consumer evidence: requirement evidence requires schema-v2 acceptance checks');
+  }
+
+  const required = acceptance.requiredChecks.filter((check) => check.id.startsWith('requirement.'));
+  const excluded = acceptance.excludedChecks.filter((check) => check.id.startsWith('requirement.'));
+  if (excluded.length > 0) {
+    throw new Error('consumer evidence: requirement acceptance checks cannot be excluded');
+  }
+  if (required.length !== requirementRecords.length) {
+    throw new Error('consumer evidence: requirement evidence and required acceptance checks are not one-to-one');
+  }
+
+  const matched = new Set();
+  for (const { surface, slot, evidence } of requirementRecords) {
+    const expectedId = `requirement.${evidence.id}`;
+    const expectedEvidenceRef = `surfaceResults.${surface}.requirementEvidence.${slot}`;
+    const matches = required.filter((check) => check.id === expectedId);
+    if (matches.length !== 1) {
+      throw new Error(`consumer evidence: requirement '${evidence.id}' must have exactly one required acceptance check`);
+    }
+    const [check] = matches;
+    if (matched.has(check.id)
+      || check.surface !== surface
+      || check.kind !== evidence.evidenceKind
+      || check.status !== evidence.status
+      || check.evidenceRef !== expectedEvidenceRef) {
+      throw new Error(`consumer evidence: requirement '${evidence.id}' does not match its exact acceptance evidenceRef, kind, surface, and status`);
+    }
+    matched.add(check.id);
+  }
 }
 
 /**
@@ -207,7 +1075,10 @@ function normalizeConsumerEvidence(input) {
   const stage = input.stage;
   if (!STAGES.includes(stage)) throw new Error(`consumer evidence: invalid or missing stage '${stage || ''}'`);
   const rawResults = input.surfaceResults || (input.surface ? [input] : []);
-  if (!Array.isArray(rawResults) || rawResults.length === 0) throw new Error('consumer evidence: missing surface results');
+  if (!Array.isArray(rawResults)
+    || (rawResults.length === 0 && !isBlockedConsumerScopeReceipt(input, rawResults))) {
+    throw new Error('consumer evidence: missing surface results or blocked scope-selection receipt');
+  }
   const seen = new Set();
   const envelope = {
     stage,
@@ -226,6 +1097,8 @@ function normalizeConsumerEvidence(input) {
     seen.add(normalized.surface);
     return normalized;
   });
+  const acceptance = normalizeAcceptance(input, surfaceResults);
+  validateRequirementAcceptance(acceptance, surfaceResults);
   if (envelope.planFingerprint && !/^sha256:[a-f0-9]{64}$/i.test(envelope.planFingerprint)) {
     throw new Error('consumer evidence: invalid plan fingerprint');
   }
@@ -238,12 +1111,127 @@ function normalizeConsumerEvidence(input) {
     ...safeEnvelope,
     stage,
     surfaceResults,
+    ...(acceptance ? { schemaVersion: 2, acceptance } : {}),
     ...(input.runtimeVerified === true
+      && !acceptance
       && stage === 'CONSUMER'
       && surfaceResults.every((result) => result.status === CONSUMER_EVIDENCE_STATUSES.PASS)
       ? { runtimeVerified: true }
       : {}),
   };
+}
+
+function combineConsumerEvidence(evidenceEnvelopes, selectedSurfaces) {
+  if (!Array.isArray(evidenceEnvelopes)) {
+    throw new Error('consumer evidence: envelopes must be an array');
+  }
+  if (!Array.isArray(selectedSurfaces) || selectedSurfaces.length === 0
+    || selectedSurfaces.length > MAX_ACCEPTANCE_CHECKS) {
+    throw new Error('consumer evidence: selected surfaces must be a bounded non-empty array');
+  }
+
+  const selected = new Set();
+  for (const surface of selectedSurfaces) {
+    if (typeof surface !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(surface)) {
+      throw new Error('consumer evidence: selected surface is invalid');
+    }
+    if (selected.has(surface)) throw new Error(`consumer evidence: duplicate selected surface '${surface}'`);
+    selected.add(surface);
+  }
+
+  const normalizedEnvelopes = evidenceEnvelopes.map((envelope) => normalizeConsumerEvidence(envelope));
+  for (const envelope of normalizedEnvelopes) {
+    if (envelope.stage !== 'CONSUMER' || envelope.schemaVersion !== 2 || !envelope.acceptance) {
+      throw new Error('consumer evidence: combiner requires current schema-v2 CONSUMER envelopes');
+    }
+  }
+
+  const observations = new Map();
+  const requiredBySurface = new Map(selectedSurfaces.map((surface) => [surface, []]));
+  const requiredIds = new Set();
+  const exclusionsById = new Map();
+  const excludedBySurface = new Map(selectedSurfaces.map((surface) => [surface, []]));
+  const otherExclusions = [];
+
+  const sameCheck = (left, right) => {
+    const leftKeys = Object.keys(left);
+    const rightKeys = Object.keys(right);
+    return leftKeys.length === rightKeys.length
+      && leftKeys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && Object.is(left[key], right[key]));
+  };
+
+  for (const envelope of normalizedEnvelopes) {
+    for (const row of envelope.surfaceResults) {
+      if (!selected.has(row.surface)) {
+        throw new Error(`consumer evidence: foreign observation surface '${row.surface}'`);
+      }
+      if (observations.has(row.surface)) {
+        throw new Error(`consumer evidence: duplicate observation surface '${row.surface}'`);
+      }
+      observations.set(row.surface, row);
+    }
+
+    for (const check of envelope.acceptance.requiredChecks) {
+      if (!selected.has(check.surface)) {
+        throw new Error(`consumer evidence: required check '${check.id}' has a foreign surface`);
+      }
+      if (requiredIds.has(check.id)) {
+        throw new Error(`consumer evidence: duplicate required acceptance check '${check.id}'`);
+      }
+      requiredIds.add(check.id);
+      requiredBySurface.get(check.surface).push(check);
+    }
+
+    for (const check of envelope.acceptance.excludedChecks) {
+      if (check.id.startsWith('scope.') && selected.has(check.surface)) continue;
+      const previous = exclusionsById.get(check.id);
+      if (previous) {
+        if (!sameCheck(previous, check)) {
+          throw new Error(`consumer evidence: conflicting excluded check '${check.id}'`);
+        }
+        continue;
+      }
+      exclusionsById.set(check.id, check);
+      if (excludedBySurface.has(check.surface)) excludedBySurface.get(check.surface).push(check);
+      else otherExclusions.push(check);
+    }
+  }
+
+  for (const surface of selectedSurfaces) {
+    if (!observations.has(surface)) {
+      throw new Error(`consumer evidence: missing observation for selected surface '${surface}'`);
+    }
+    const installationChecks = requiredBySurface.get(surface)
+      .filter((check) => check.id === `install.${surface}` && check.kind === 'installation');
+    if (installationChecks.length !== 1) {
+      throw new Error(`consumer evidence: selected surface '${surface}' requires exactly one installation check`);
+    }
+  }
+
+  const excludedChecks = [
+    ...selectedSurfaces.flatMap((surface) => excludedBySurface.get(surface)),
+    ...otherExclusions,
+  ];
+  for (const check of excludedChecks) {
+    if (requiredIds.has(check.id)) {
+      throw new Error(`consumer evidence: acceptance check '${check.id}' is both required and excluded`);
+    }
+  }
+
+  const requiredChecks = selectedSurfaces.flatMap((surface) => requiredBySurface.get(surface));
+  const verdict = requiredChecks.some((check) => check.status === 'FAIL')
+    ? 'FAIL'
+    : (requiredChecks.every((check) => check.status === 'PASS') ? 'PASS' : 'BLOCKED');
+  const surfaceResults = selectedSurfaces.map((surface) => observations.get(surface));
+  const combined = {
+    ...normalizedEnvelopes[0],
+    stage: 'CONSUMER',
+    schemaVersion: 2,
+    verdict,
+    surfaceResults,
+    acceptance: { verdict, requiredChecks, excludedChecks },
+  };
+  return normalizeConsumerEvidence(combined);
 }
 
 function validateConsumerEvidence(input) {
@@ -263,6 +1251,9 @@ module.exports = {
   buildEvidence,
   validateEvidence,
   normalizeConsumerEvidence,
+  combineConsumerEvidence,
+  normalizeConsumerCheckIdentity,
+  matchConsumerCheckEvidence,
   validateConsumerEvidence,
   normalizeConsumerResult: normalizeConsumerEvidence,
   validateConsumerResult: validateConsumerEvidence,

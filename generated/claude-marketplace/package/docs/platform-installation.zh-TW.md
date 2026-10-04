@@ -2,6 +2,13 @@
 
 > **Languages**: [English](./platform-installation.md) · **繁體中文**
 
+## 範圍與 runtime 證據（#848/#854）
+
+安裝驗收涵蓋選定的格式、資源、設定、所有權與生命週期檢查。只有選定的整合
+變更、啟用缺陷或明確 native 要求，才需要 native runtime 證據。Named-role
+canary 與 registry diagnostics 仍可供這些情境使用；必要檢查不可用或失敗時仍
+不是通過。Skills-only 安裝不代表所有 Host 都已有 runtime proof。
+
 本文件是 dhpk 各 distribution surface 的安裝、驗證、支援層級與 rollback
 SSOT。package 或 manifest 只能證明結構；只有指定的 consumer probe 找到
 projection 內容後，才能宣稱 client 可呼叫。

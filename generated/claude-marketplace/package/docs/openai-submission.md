@@ -2,6 +2,17 @@
 
 > **Languages**: **English** · [繁體中文](./openai-submission.zh-TW.md)
 
+## Acceptance applicability (#848/#854)
+
+Installation and package checks are separate from native Host workflow,
+rendered discovery, context-budget research, portal submission and publication.
+Ordinary documentation or package changes do not require a model session. A
+named integration defect or explicit native request requires the affected Host
+evidence; `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` remain truthful and never
+become `PASS`. ChatGPT Work execution is not claimed by package generation.
+The twelve historical follow-ups are tracked in the
+[durable disposition contract](contracts/host-runtime-followup-disposition.md).
+
 This is the submission-preparation SSOT for dhpk's skills-only OpenAI Public
 Plugin candidate. The target is the shared public Plugins Directory for Codex
 and ChatGPT Work. OpenAI publication is not complete: this repository has a

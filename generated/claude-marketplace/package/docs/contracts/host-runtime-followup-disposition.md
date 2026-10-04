@@ -1,0 +1,144 @@
+# Host runtime follow-up disposition
+
+Status: accepted policy record for #854. This contract records the disposition
+of the twelve historical tasks from the three ignored OpenSpec follow-ups. It
+does not claim that any task was executed or completed. The source plans remain
+local provenance; this tracked contract is the fresh-checkout policy source.
+
+## Decision vocabulary
+
+`RETAINED` remains an owned task; `CONDITIONAL` is required only for its named
+trigger; `RESEARCH` is an independently requested measurement; `OUT OF SCOPE`
+removes a routine gate while preserving the historical task. No task below is
+cancelled. A disposition never changes historical `NOT_RUN` or `FAIL` into
+`PASS`.
+
+## Traceability register
+
+The exact source is `/home/paul/projects/dhpk/openspec/changes` in the original
+checkout. SHA-256 hashes identify the provenance even when ignored plans are
+absent from a fresh checkout.
+
+| Follow-up | Source | SHA-256 | Disposition | Owner / required evidence |
+|---|---|---|---|---|
+| marketplace-native-observation-followup | tasks.md:3-6 | `94985128b3fc8d957bd2487051b04fc5f70ccd410c66831c2816ff762fe0fda9` | T-1 `CONDITIONAL`; T-2–T-4 `RESEARCH` | consumer/research owner; exact Host, artifact, session and configuration evidence when requested |
+| marketplace-native-procedure-followup | tasks.md:3-6 | `bb8cfb5b152157eb6dad6f2575d207ecd840f311cc64a257611759a6e94069dd` | T-1/T-2/T-4 `RETAINED`; T-3 `RETAINED + CONDITIONAL INTEGRATION` | source, selector, parity and procedure owners; task-specific evidence, native evidence only on trigger |
+| marketplace-cutover-retirement-followup | tasks.md:3-6 | `ce8bb3cff1ece266e146805e8c343785587a15490619a3e206715d2e4a39a694` | T-1/T-3 `RETAINED`; T-2/T-4 `CONDITIONAL` | migration owner; receipt, ownership, recovery, compatibility, publication and authorization evidence |
+
+## Original tasks and disposition
+
+### marketplace-native-observation-followup
+
+**T-1 — CONDITIONAL / OUT OF SCOPE AS ROUTINE GATE.** Original: “Capture
+Claude direct, indirect, follow-up, and boundary workflows in a fresh session
+for the exact current candidate. Prerequisite: supported Claude configuration
+and available execution context. Evidence: direct Host output bound to source,
+artifact, profile, Host version, configuration, and session. If unavailable,
+preserve the row as non-pass.” Routine complete workflow observation exits the
+required backlog. A named loader/integration defect, affected mechanism, or
+explicit native request still requires the exact affected cases; unavailable
+evidence stays unavailable.
+
+**T-2 — RESEARCH.** Original: “Capture Cursor's rendered initial discovery list
+and complete context budget using the supported GUI observation environment.
+Prerequisite: exact current candidate is installed or selected in that
+environment. Evidence: observed list and budget result with candidate and
+GUI/configuration identity; a package-only result does not satisfy runtime
+observation.” This is opt-in discovery and budget research. A concrete defect or
+explicit performance requirement can make a bounded check necessary; package
+evidence never substitutes for requested rendered measurement.
+
+**T-3 — RESEARCH.** Original: “Capture AGY's actual skill discovery and initial
+context after normal operator onboarding. Prerequisite: supported AGY version
+and configuration. Evidence: direct discovery output and context observation
+bound to the candidate and Host; onboarding alone does not satisfy the task.”
+This remains independent research with direct-observation requirements intact.
+
+**T-4 — RESEARCH.** Original: “Run the unchanged strict evaluator against the
+current evidence and account for all eight rows independently. Evidence: the
+evaluator's complete report and supporting Host results. Close the strict
+baseline only when every declared row passes; keep ChatGPT Work separately
+identified and preserve every unavailable row as non-pass.” The evaluator is
+unchanged, reports every row, and remains outside ordinary delivery; unavailable
+rows remain non-pass.
+
+### marketplace-native-procedure-followup
+
+**T-1 — RETAINED.** Original: “Reconcile the original completion/workflow task
+separately: preserve historical 4.2 planning and policy-blocker cases, 4.3
+implementation/TDD handoff, and 4.4 read-only verification/documentation
+effects. Check current task-specific completion outputs and focused branch/effect
+evidence; carry forward only review work required by current policy. Close each
+item only against its exact owner and evidence.” Source-gap rows remain separate
+and are not closed by this policy. Current review follows the advisory reviewer
+policy and does not restore retired Review Gate artifacts.
+
+**T-2 — RETAINED.** Original: “Reconcile the original specialist-reference
+task (historical 4.5). Check current task/version selection, standalone copy
+behavior, sibling-version exclusion, resource resolution, and public discovery
+counts against the existing selectors and tests. Record each source gap or
+no-code decision independently.” These deterministic owner checks remain and
+each gap requires its own evidence.
+
+**T-3 — RETAINED + CONDITIONAL INTEGRATION.** Original: “Reconcile the original
+optional Host/role task and historical 4.8/4.9. Record that the #847 baseline
+did not change model defaults; do not inherit old proposed model values as a
+current decision. Check the actual Host/version model, effort, permission,
+role, and tool behavior when claimed. For AGY, retain schema, actual tool-call,
+timeout-negative, generated-artifact, and fresh-session cases. If evidence shows
+a source/default gap, define a separate owner-scoped implementation decision
+rather than closing or suppressing it here.” The #847 decision and each AGY
+case remain traceable. Native checks are conditional on an affected mechanism
+or explicit native acceptance; no blanket Host matrix is required.
+
+**T-4 — RETAINED.** Original: “Reconcile the original parity/installation-
+contract task. Reuse current independent usage/provenance parity evidence and
+identify the selected installation contract. Keep static parity, installation,
+and runtime as separate stages; change an accepted specification only if
+observed behavior differs from its current owner.” Parity, installation and
+runtime remain separate. The final sentence is superseded where #848 changes
+accepted applicability policy; owners may update policy without inventing a
+behavior mismatch.
+
+### marketplace-cutover-retirement-followup
+
+**T-1 — RETAINED.** Original: “Map the current executable profiles and
+installers to their accepted ownership and lifecycle contracts. Define the exact
+source, destination, receipt, supported Hosts, current path states, successor
+artifact, and read-only public plan seam. Evidence: source/spec references and a
+deterministic plan result; package generation alone does not establish installed
+migration.” The map and plan remain required. No installed migration is claimed.
+
+**T-2 — CONDITIONAL.** Original: “If T-1 finds an unowned behavior gap, define
+and implement the narrow plan/apply/recovery change under its existing owner.
+Name exact source files and public seam before implementation. Use disposable
+fixtures for unchanged receipt-owned paths, modified managed paths,
+unowned/foreign/orphaned paths, path collisions, changed-after-plan state, and
+partial failure. Show that preserved content remains byte-identical.” This starts
+only after a demonstrated gap and owner decision; all listed fixtures remain
+required when triggered.
+
+**T-3 — RETAINED + CONDITIONAL NATIVE CHECKS.** Original: “After successor
+publication, verify exact-artifact consumer acceptance and unique discovery for
+each relevant supported Host. Verify that removing one Host binding preserves
+shared content and discovery for the remaining Hosts. Keep source, structural,
+package, and runtime results distinct.” Publication, applicable acceptance,
+unique discovery, coexistence and shared-content preservation remain
+prerequisites. Native checks are limited to the relevant trigger or explicit
+request. This ticket performs none of those operations.
+
+**T-4 — CONDITIONAL.** Original: “Consider a named compatibility route for
+retirement only after T-3 passes for its relevant consumers. Record remaining
+references, the scoped removal and recovery path, and the separate retirement
+decision. If publication or any applicable consumer result is missing or
+non-pass, leave retirement open.” Retirement remains separate after applicable
+publication, acceptance, live-reference/recovery review and explicit removal
+authority. No retirement or removal occurred.
+
+## Authority and historical state
+
+This contract preserves ownership, retention/recovery, coexistence, unique
+discovery, compatibility, publication alternatives and authorization
+boundaries. It does not close the parent issue, execute a Host/model workflow,
+perform cutover or retirement, publish a package, or grant release/deployment
+authority.
