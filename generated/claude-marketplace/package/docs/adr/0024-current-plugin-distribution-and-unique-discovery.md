@@ -1,6 +1,21 @@
 # Current plugin distribution and unique skill discovery
 
-Status: accepted design; builder tasks 6.1–6.3 delivered; full implementation and submission preparation remain pending
+Status: accepted design, amended by #848/#854; builder tasks 6.1–6.3 delivered; full implementation and submission preparation remain pending
+
+## Applicability amendment (#848/#854)
+
+The ownership, self-contained resource, unique-discovery, coexistence,
+compatibility, support-tier, publication and manual-authorization decisions
+below remain in force. The former blanket prerequisites for fresh-session
+workflow execution, rendered discovery/context measurement, and complete
+cross-Host runtime observation are superseded as ordinary delivery gates.
+They apply when a named Host integration, loader/role/tool mapping, activation
+defect, or explicit native acceptance request makes the affected evidence
+necessary. Installation and package acceptance may pass while native evidence
+remains `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED`; those states are never rewritten
+as runtime `PASS`. See the tracked
+[follow-up disposition contract](../contracts/host-runtime-followup-disposition.md)
+for the twelve historical tasks and their owners.
 
 The user confirmed shared understanding of this scope on 2026-09-30.
 The planning artifacts are in the local OpenSpec change
@@ -105,6 +120,13 @@ and must not restore the retired Review Gate lifecycle or artifacts.
   extra dhpk agents, rules, or another plugin. Required independent review is
   preserved; a missing capability is an explicit blocker, never a fabricated
   PASS. Selection therefore depends on actual consumer execution evidence.
+  Conditional native checks are required only for an accepted new-Host,
+  loader/role-registration/tool-mapping change, reproducible activation defect,
+  or explicit native request, and run only for the affected Host and path.
+  Applicability does not grant execution authorization: missing authorization
+  or prerequisites is BLOCKED, an observed failure is FAIL, and fixtures do
+  not establish native success. A valid native result proves only its covered
+  capability.
 - CX, GitNexus, OpenSpec, and claude-mem are optional integrations. General
   workflows must have a native route in a new project without those tools.
   Explicit consumer-project instructions and genuine independent-review
@@ -114,17 +136,25 @@ and must not restore the retired Review Gate lifecycle or artifacts.
   install and after replacement of an old installation. Static structure,
   package generation, and an installer success message do not prove uniqueness
   or usable runtime behavior.
-- Resolve the agents, prompts, AGENTS guidance, model-selection and context-budget
-  audit within this change, after test-consolidation acceptance and before final
-  engineering acceptance. First classify each existing role/configuration as
+- Resolve the agents, prompts, AGENTS guidance, and model-selection audit within
+  this change, after test-consolidation acceptance and before final engineering
+  acceptance. Context-budget and discovery measurements are separate opt-in
+  research and are required only when a task explicitly selects that outcome.
+  The existing strict eight-scope evaluator remains unchanged, and missing
+  measurements remain non-pass. First classify each existing role/configuration as
   retained, adapted or retired; repair only surviving contracts and verify
   successors instead of rebuilding an obsolete OpenAI installer. Read-only
   reviewers return identity-bound evidence; contract-required persistence belongs
   to an authorized parent, and saving failure cannot create a review PASS. An
   advisory returned-evidence route gains no new filesystem-write obligation. Optional Codex
-  custom-role support remains separate from the skills-only plugin. Every
-  retained Host requires version-scoped model/tool/schema and context evidence;
-  one Host's structural or budget PASS cannot establish another Host's runtime.
+  custom-role support remains separate from the skills-only plugin.
+  Deterministic installation and schema contract checks remain required where
+  the applicable Host route defines them. Model/tool behavior evidence is
+  scoped to an applicable claim or declared native capability, not a blanket
+  runtime obligation for every retained Host. Context-budget and rendered-
+  discovery measurements remain separately selected research outcomes and are
+  specific to their Host, version, and scope. One Host's structural or budget
+  PASS cannot establish another Host's runtime.
   Shipped Opus/Sonnet and Codex Sol defaults migrate to the current model lines
   (decided 2026-10-01; `haiku`/`fable` tiers and Luna stay as declared), and
   retained wording is calibrated to each selected line's official prompting

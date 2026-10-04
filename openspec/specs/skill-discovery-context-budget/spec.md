@@ -1,5 +1,16 @@
 # skill-discovery-context-budget Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
 ## Purpose
 
 Define the discovery-visible metadata budget, progressive-loading boundary, family-router compatibility contract, and deterministic publication parity for dhpk skills.
@@ -344,6 +355,40 @@ scope SHALL NOT stand in for another.
 - **WHEN** a static estimate sums multiple role definitions or task resources
 - **THEN** it labels that collection and does not report it as observed
   per-session context for a task that selects only a subset
+
+### Requirement: Complete context and discovery baselines are opt-in research
+
+Ordinary consumer acceptance SHALL NOT invoke the strict marketplace runtime
+acceptance evaluator, run a complete context/discovery baseline, or start a
+cross-Host model workflow solely to collect research measurements. The existing
+evaluator MAY be used when performance, cost, discovery, a relevant defect, or
+another explicit measurement question requires it. An explicit evaluation
+SHALL retain the manifest's eight scopes, existing formulas, and fail-closed
+meaning: every required scope must pass, and missing or invalid measurement
+evidence remains non-pass. Research results SHALL remain separate from
+installation and native-runtime observations and SHALL NOT change Host,
+Provider, Model, or Route support and availability declarations.
+
+#### Scenario: Ordinary acceptance has no measurement request
+
+- **WHEN** a consumer acceptance run has no explicit context or discovery
+  research obligation
+- **THEN** it does not invoke the strict evaluator or start a model workflow to
+  measure context/discovery, and installation success does not claim that
+  research or native runtime was observed
+
+#### Scenario: One required strict research scope is missing
+
+- **WHEN** an explicitly requested strict evaluation omits any of the eight
+  configured scope measurements
+- **THEN** the overall research result remains non-pass and identifies the
+  missing scope without changing the configured scope set
+
+#### Scenario: Research does not replace consumer evidence
+
+- **WHEN** a context/discovery study reports a result for one Host and scope
+- **THEN** it leaves installation evidence, native-runtime evidence, and support
+  or availability declarations unchanged
 
 ### Requirement: Family selectors have an alias-free distribution contract
 

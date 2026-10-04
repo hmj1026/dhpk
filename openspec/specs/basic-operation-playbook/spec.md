@@ -1,5 +1,21 @@
 # basic-operation-playbook Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
+This amendment supersedes any implication that management-command availability
+is native execution proof. The guide's native-runtime instructions apply when
+the affected route is selected or explicitly requested; installation success
+alone remains installation evidence.
+
 ## Purpose
 
 Define paired basic-operation guides that route installation, maintenance, verification, and release preparation using the current supported surfaces and explicit evidence boundaries.
@@ -95,3 +111,34 @@ The bilingual guides SHALL distinguish the portable OpenAI submission candidate 
 
 - **WHEN** the candidate has not been published in the platform directory
 - **THEN** the guide describes the preparation and developer route and retains current compatibility procedures without claiming the cutover has shipped
+
+### Requirement: Context and discovery measurement remains explicit research
+
+The paired guides SHALL describe context and discovery baselines as optional
+research rather than prerequisites for ordinary installation or consumer
+acceptance. When a reader explicitly requests a performance, cost, discovery,
+or related defect study, the guides SHALL point to the existing strict
+measurement contract, preserve its eight-scope and missing-evidence semantics,
+and distinguish its result from installation acceptance, native-runtime
+observation, and Host support or availability. A request to measure SHALL NOT
+by itself authorize a real Host or model workflow.
+
+#### Scenario: Reader follows the ordinary verification route
+
+- **WHEN** a reader verifies a selected installation without requesting a
+  context or discovery study
+- **THEN** the guide does not require a full baseline or cross-Host model
+  workflow for that acceptance result
+
+#### Scenario: Reader explicitly requests context or discovery research
+
+- **WHEN** a reader's task explicitly requires context, discovery, performance,
+  cost, or related defect measurements
+- **THEN** the guide directs the reader to the strict eight-scope measurement
+  contract and states that each required scope needs its own passing evidence
+
+#### Scenario: A research result is reported
+
+- **WHEN** a measurement report covers only the requested research scope
+- **THEN** the guide does not present it as installation success, native-runtime
+  verification, or a change in Host support or availability

@@ -2,6 +2,13 @@
 
 > **語言**：[English](./RELEASE.md) · **繁體中文**
 
+## 驗收適用性（#848/#854）
+
+三段 release proof、immutable tag 與人工 merge/publication 邊界維持不變。目前
+SOURCE、PACKAGE 與適用的 CONSUMER 證據可以建立 readiness，但不宣稱所有 native
+Host workflow 都已執行。必要證據缺少、不可用或失敗時仍不是通過；排除的 runtime
+研究保留真實狀態。
+
 本文件是 dhpk maintainer 的繁中 release 契約。欄位、script 參數與 failure handling
 以 [英文版本](./RELEASE.md) 為工程 SSOT；本頁完整覆蓋分支、changelog、package、
 consumer gate、發布與 rollback 流程。

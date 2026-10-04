@@ -325,6 +325,16 @@ test('agent-plugin runtime probe uses exactly one portable plugin directory', ()
     assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin', JSON.stringify(payload));
     assert.strictEqual(payload.surfaceResults[0].status, payload.status, JSON.stringify(payload));
     if (payload.status === 'PASS') assert.strictEqual(payload.network, 'shared', JSON.stringify(payload));
+    if (payload.status === 'PASS') {
+      const nativeProof = payload.surfaceResults[0].nativeProof;
+      assert.strictEqual(nativeProof.executionOrigin, 'native', JSON.stringify(payload.surfaceResults[0]));
+      assert.strictEqual(nativeProof.adapterRoute, 'agent-plugin-loader');
+      assert.strictEqual(nativeProof.exit_code, 0);
+      assert.strictEqual(nativeProof.network, 'shared');
+      assert.strictEqual(nativeProof.challenge_verified, true);
+      assert.strictEqual(nativeProof.loader_attestation, true);
+      assert.ok(nativeProof.session_files.includes('.config/cursor/auth.json'), JSON.stringify(nativeProof));
+    }
     assert.strictEqual(
       (payload.commands[0].cmd.match(/--plugin-dir/g) || []).length,
       1,
@@ -425,6 +435,16 @@ test('Cursor --execute keeps an isolated profile and uses the verified shared ne
     assert.strictEqual(payload.surfaceResults[0].status, payload.status, JSON.stringify(payload));
     if (payload.status === 'PASS') assert.strictEqual(payload.network, 'shared', JSON.stringify(payload));
     assert.ok(payload.session_files.includes('.config/cursor/auth.json'), JSON.stringify(payload));
+    if (payload.status === 'PASS') {
+      const nativeProof = payload.surfaceResults[0].nativeProof;
+      assert.strictEqual(nativeProof.executionOrigin, 'native', JSON.stringify(payload.surfaceResults[0]));
+      assert.strictEqual(nativeProof.adapterRoute, 'cursor-plugin-loader');
+      assert.strictEqual(nativeProof.exit_code, 0);
+      assert.strictEqual(nativeProof.network, 'shared');
+      assert.strictEqual(nativeProof.challenge_verified, true);
+      assert.strictEqual(nativeProof.loader_attestation, true);
+      assert.ok(nativeProof.session_files.includes('.config/cursor/auth.json'), JSON.stringify(nativeProof));
+    }
     assert.ok(payload.commands.some((command) => /cursor-agent/.test(command.cmd)), JSON.stringify(payload));
     const command = payload.commands.map((entry) => entry.cmd || '').join('\n');
     assert.match(command, /--output-format stream-json/);
@@ -643,7 +663,9 @@ test('Cursor --execute rejects output that only echoes the smoke prompt', () => 
       PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
     });
     assert.notStrictEqual(result.status, 0, result.stdout + result.stderr);
-    assert.strictEqual(JSON.parse(result.stdout).status, 'BLOCKED');
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED');
+    assert.strictEqual(payload.surfaceResults[0].nativeProof, undefined);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

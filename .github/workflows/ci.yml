@@ -372,6 +372,9 @@ jobs:
           probe_exit="${PIPESTATUS[0]}"
           set -e
           outcome="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).outcome)" "$result_file")"
+          report_contract="$(node scripts/release/validate-harness-result.js "$result_file" "$probe_exit")"
+          legacy_report=0
+          if [ "$report_contract" = "LEGACY" ]; then legacy_report=1; fi
           {
             echo "## Release rehearsal consumer gate"
             echo ""
@@ -385,6 +388,7 @@ jobs:
               exit 0
               ;;
             PUBLISHED_PENDING)
+              [ "$legacy_report" -eq 1 ] || exit 1
               [ "$probe_exit" -eq 2 ] || exit 1
               echo "Consumer runtime evidence is pending on the rehearsal runner; keeping the job non-blocking."
               exit 0

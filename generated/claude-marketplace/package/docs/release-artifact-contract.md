@@ -26,21 +26,42 @@ bytes or rewrite maintainer provenance.
 
 ## Consumer probe scheduling
 
-The canonical contract remains seven identity rows and six required-runtime
-rows. `cursor-sync` stays an identity/health row outside the required-runtime
-list. On the authorized ephemeral release runner, the coordinator starts
-surface-scoped child processes with a maximum concurrency of two. Each child
-gets a task/attempt/surface namespace and receipt root under a private
-temporary directory. Existing probe implementations retain their own private
-HOME/cache/project/sandbox behavior; host credentials are never copied, and
-network or client availability remains `UNAVAILABLE`, `BLOCKED`, or `NOT_RUN`
-according to the existing adapter contract.
+The supported consumer IDs are `claude-core`, `codex-sync`, `codex-native`,
+`cursor-sync`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`. A release
+attempt records the selected acceptance scope and the independent observation
+for each selected surface. Selection comes from the explicit requirements
+declaration, an explicit surface option, or deterministic repository
+configuration, in that order. The coordinator must not silently expand the
+scope because a client CLI is present.
 
-The coordinator keeps canonical surface order in the aggregate, records
-per-probe namespace and measured wall time, and fails closed for missing, duplicate,
-foreign, malformed, conflicting, cancelled, or timed-out results. Local and
+An explicit requirements declaration is passed unchanged to one atomic gate
+invocation. Without that declaration, the coordinator may start surface-scoped
+child processes with a maximum concurrency of two. Each child gets a
+task/attempt/surface namespace and receipt root under a private temporary
+directory. Existing probe implementations retain their own private
+HOME/cache/project/sandbox behavior; host credentials are never copied.
+
+The coordinator retains canonical selected-surface order and every validated
+installation check, requirement, exclusion, raw observation, and evidence
+reference, along with each child's namespace and measured wall time. Local and
 custom test executors remain sequential by default; only the release workflow
-opts into concurrency two.
+opts into concurrency two. It fails closed for missing or duplicate selected observations,
+foreign surfaces, malformed or conflicting checks, inconsistent child exits,
+cancelled work, or timeouts. Acceptance is derived from required checks:
+`FAIL` dominates, then `BLOCKED`, otherwise `PASS`. A current acceptance
+`PASS` can coexist with a raw native-runtime `NOT_RUN` observation when no
+native obligation was selected; it does not claim that the runtime ran. A
+required native obligation that remains unavailable or unexecuted stays
+`BLOCKED`.
+
+For schema-v2 CONSUMER results, `PASS` requires process exit 0 and `FAIL` or
+`BLOCKED` requires exit 1. Legacy reports without acceptance keep their
+historical outcome and exit behavior, including the seven identity rows and
+six required-runtime rows; `cursor-sync` remains an identity row whose `FAIL`
+is unhealthy even though it is outside that legacy runtime subset. Release
+summaries name the selected acceptance scope and show raw observations
+separately; they do not summarize unselected surfaces as runtime `PASS`.
+Publication and deployment remain independent authorized steps.
 
 ## Publication and rollback
 

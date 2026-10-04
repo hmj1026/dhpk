@@ -83,6 +83,9 @@ test('CLI exposes the harness help contract', () => {
 
   // RED-first tests for harness-facade-receipt-contract task 1.3.
 
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
   const { test, assert } = require('./_lib/tinytest');
   const harnessResult = require('../scripts/lib/harness-result');
   const harness = require('../scripts/lib/harness');
@@ -108,6 +111,85 @@ test('CLI exposes the harness help contract', () => {
   function all(status = 'PASS') {
     return REQUIRED.map((surface) => ({ surface, status }));
   }
+
+  function currentConsumerExecution(surface, verdict, installationStatus) {
+    return {
+      outcome: verdict,
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      verdict,
+      producer: 'consumer-gate',
+      adapter: { id: 'consumer-gate', version: '1.0.0' },
+      acceptance: {
+        verdict,
+        requiredChecks: [{
+          id: `install.${surface}`,
+          surface,
+          kind: 'installation',
+          reason: 'Selected installation evidence was inspected.',
+          status: installationStatus,
+          evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+        }],
+        excludedChecks: [{
+          id: `runtime.${surface}`,
+          surface,
+          kind: 'native',
+          reason: 'Native runtime execution was not required.',
+          status: 'NOT_RUN',
+          evidenceRef: `surfaceResults.${surface}.runtimeEvidence`,
+        }],
+      },
+      surfaceResults: [{
+        surface,
+        status: 'NOT_RUN',
+        stage: 'CONSUMER',
+        producer: 'consumer-gate',
+        adapter: { id: `${surface}-installer`, version: '1.0.0' },
+        commands: [],
+        environment: { network: 'disabled' },
+        artifacts: [],
+        diagnostics: [],
+        reasons: [],
+        checkedClaims: ['consumer-route'],
+        installationEvidence: {
+          status: installationStatus,
+          reason: 'Selected installation evidence was inspected.',
+        },
+        runtimeEvidence: {
+          status: 'NOT_RUN',
+          reason: 'Native runtime execution was not required.',
+        },
+      }],
+    };
+  }
+
+  test('current PASS acceptance exits 1 when the effective public outcome is PUBLISHED_PENDING', () => {
+    const receiptRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-current-pending-receipt-'));
+    const execution = {
+      ...currentConsumerExecution('codex-sync', 'PASS', 'PASS'),
+      outcome: 'PUBLISHED_PENDING',
+      transportStatus: 'PASS',
+    };
+    try {
+      const invocation = harness.execute([
+        'release', '--json', '--task-id', 'current-pass-pending',
+        '--attempt-id', 'current-pass-pending-attempt', '--receipt-root', receiptRoot,
+      ], {
+        root: ROOT,
+        env: process.env,
+        phaseExecutor: () => execution,
+      });
+
+      assert.strictEqual(invocation.status, 1);
+      assert.strictEqual(invocation.result.exitCode, 1);
+      assert.strictEqual(invocation.result.outcome, 'PUBLISHED_PENDING');
+      assert.strictEqual(invocation.result.acceptance.verdict, 'PASS');
+      const receipt = JSON.parse(fs.readFileSync(path.join(invocation.result.receiptReference, 'attempt.json'), 'utf8'));
+      assert.strictEqual(receipt.consumerEvidence.acceptance.verdict, 'PASS');
+    } finally {
+      fs.rmSync(receiptRoot, { recursive: true, force: true });
+    }
+  });
 
   test('full-release aggregation requires exactly the seven canonical surfaces', () => {
     assert.deepStrictEqual(harnessResult.REQUIRED_SURFACES, REQUIRED);
@@ -200,6 +282,89 @@ test('CLI exposes the harness help contract', () => {
     assert.ok(result.surfaceResults.every((entry) => entry.producer === 'fixture-probe'));
   });
 
+  test('release aggregation completes on required PASS while native observations remain NOT_RUN', () => {
+    const executions = Object.fromEntries(REQUIRED.map((surface) => [
+      surface,
+      currentConsumerExecution(surface, 'PASS', 'PASS'),
+    ]));
+    const result = harness.runReleaseProbes('/tmp/dhpk-current-consumer-fixture', REQUIRED, (_root, parsed) => executions[parsed.surface]);
+
+    assert.strictEqual(result.outcome, 'COMPLETE');
+    assert.strictEqual(result.exitCode, 0);
+    assert.strictEqual(result.schemaVersion, 2);
+    assert.strictEqual(result.acceptance.verdict, 'PASS');
+    assert.deepStrictEqual(result.acceptance.requiredChecks.map((check) => check.id), REQUIRED.map((surface) => `install.${surface}`));
+    assert.ok(result.surfaceResults.every((entry) => entry.status === 'NOT_RUN'));
+    assert.ok(result.surfaceResults.every((entry) => entry.runtimeEvidence.status === 'NOT_RUN'));
+  });
+
+  test('release aggregation retains each required installation failure and its raw observation', () => {
+    const passing = Object.fromEntries(REQUIRED.filter((surface) => surface !== 'agy-plugin').map((surface) => [
+      surface,
+      currentConsumerExecution(surface, 'PASS', 'PASS'),
+    ]));
+    const executions = {
+      ...passing,
+      'agy-plugin': currentConsumerExecution('agy-plugin', 'FAIL', 'FAIL'),
+    };
+    const result = harness.runReleaseProbes('/tmp/dhpk-current-consumer-fixture', REQUIRED, (_root, parsed) => executions[parsed.surface]);
+    const failedCheck = result.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin');
+    const failedObservation = result.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+
+    assert.strictEqual(result.acceptance.verdict, 'FAIL');
+    assert.strictEqual(result.outcome, 'PUBLISHED_UNHEALTHY');
+    assert.strictEqual(result.exitCode, 1);
+    assert.strictEqual(failedCheck.status, 'FAIL');
+    assert.strictEqual(failedObservation.status, 'NOT_RUN');
+    assert.strictEqual(failedObservation.installationEvidence.status, 'FAIL');
+  });
+
+  test('release aggregation blocks unavailable required installation evidence and preserves raw status', () => {
+    const passing = Object.fromEntries(REQUIRED.filter((surface) => surface !== 'cursor-plugin').map((surface) => [
+      surface,
+      currentConsumerExecution(surface, 'PASS', 'PASS'),
+    ]));
+    const executions = {
+      ...passing,
+      'cursor-plugin': currentConsumerExecution('cursor-plugin', 'BLOCKED', 'UNAVAILABLE'),
+    };
+    const result = harness.runReleaseProbes('/tmp/dhpk-current-consumer-fixture', REQUIRED, (_root, parsed) => executions[parsed.surface]);
+    const unavailableCheck = result.acceptance.requiredChecks.find((check) => check.id === 'install.cursor-plugin');
+    const unavailableObservation = result.surfaceResults.find((entry) => entry.surface === 'cursor-plugin');
+
+    assert.strictEqual(result.acceptance.verdict, 'BLOCKED');
+    assert.strictEqual(result.outcome, 'BLOCKED');
+    assert.strictEqual(result.exitCode, 1);
+    assert.strictEqual(unavailableCheck.status, 'UNAVAILABLE');
+    assert.strictEqual(unavailableObservation.status, 'NOT_RUN');
+    assert.strictEqual(unavailableObservation.installationEvidence.status, 'UNAVAILABLE');
+  });
+
+  test('release keeps transport failure separate from passing acceptance and raw observations', () => {
+    const executions = Object.fromEntries(REQUIRED.map((surface) => [
+      surface,
+      currentConsumerExecution(surface, 'PASS', 'PASS'),
+    ]));
+    executions['agy-plugin'] = {
+      ...executions['agy-plugin'],
+      transportStatus: 'FAIL',
+      diagnostics: ['worker transport failed after emitting evidence'],
+    };
+    const result = harness.runReleaseProbes(
+      '/tmp/dhpk-current-consumer-transport-fixture',
+      REQUIRED,
+      (_root, parsed) => executions[parsed.surface],
+    );
+    const transported = result.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+
+    assert.strictEqual(result.acceptance.verdict, 'PASS');
+    assert.notStrictEqual(result.outcome, 'COMPLETE');
+    assert.strictEqual(result.exitCode, 1);
+    assert.strictEqual(transported.status, 'NOT_RUN');
+    assert.strictEqual(transported.installationEvidence.status, 'PASS');
+    assert.match(result.diagnostics.join('\n'), /transport failed after emitting evidence/i);
+  });
+
   test('release execution aggregates the explicit runtime list separately from identity rows', () => {
     const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, REQUIRED_RUNTIME, (root, parsed) => ({
       outcome: parsed.surface === 'cursor-sync' ? 'NOT_RUN' : 'PASS',
@@ -233,6 +398,47 @@ test('CLI exposes the harness help contract', () => {
     const native = result.surfaceResults.find((entry) => entry.surface === 'codex-native');
     assert.strictEqual(native.artifactBinding.bindingFingerprint, 'sha256:' + 'b'.repeat(64));
     assert.strictEqual(result.artifactManifestFingerprint, 'sha256:' + 'a'.repeat(64));
+  });
+
+  test('release execution rejects valid batch JSON when the coordinator exits nonzero', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-parallel-exit-'));
+    const batchScript = path.join(root, 'scripts', 'release', 'parallel-consumer-probes.js');
+    const batch = {
+      schema: 'dhpk.release-consumer-probe-batch.v1',
+      concurrency: 2,
+      timeoutMs: 1000,
+      wallTimeMs: 1,
+      surfaces: REQUIRED,
+      results: REQUIRED.map((surface) => ({
+        surface,
+        namespace: `fixture-${surface}`,
+        diagnostic: null,
+        execution: {
+          outcome: 'PASS',
+          surfaceResults: [{ surface, status: 'PASS', stage: 'CONSUMER', producer: 'fixture-probe' }],
+        },
+      })),
+    };
+    fs.mkdirSync(path.dirname(batchScript), { recursive: true });
+    fs.writeFileSync(batchScript, [
+      "process.stdout.write(`${process.env.DHPK_TEST_BATCH_JSON}\\n`);",
+      'process.exitCode = 1;',
+      '',
+    ].join('\n'));
+
+    try {
+      const result = harness.runReleaseProbes(root, REQUIRED, undefined, harness.runConsumerProbe, {
+        probeConcurrency: 2,
+        probeTimeoutMs: 1000,
+        runtimeEnv: { ...process.env, DHPK_TEST_BATCH_JSON: JSON.stringify(batch) },
+      });
+
+      assert.notStrictEqual(result.outcome, 'COMPLETE');
+      assert.notStrictEqual(result.exitCode, 0);
+      assert.match(result.diagnostics.join('\n'), /coordinator|exit|parallel/i);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('release execution rejects a non-canonical required runtime subset before COMPLETE', () => {

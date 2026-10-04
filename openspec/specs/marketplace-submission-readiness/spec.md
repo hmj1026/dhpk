@@ -1,5 +1,23 @@
 # marketplace-submission-readiness Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
+This amendment supersedes the ordinary-delivery reading of the workflow
+evidence requirement below: direct workflow probes remain required when
+submission readiness claims a selected workflow or when a native check is
+explicitly requested, but they are not a blanket prerequisite for unrelated
+installation, documentation, or package-policy changes. ChatGPT Work remains
+unverified until its own evidence exists.
+
 ## Purpose
 
 Define the engineering deliverables and reproducible validation needed to hand off a skills-only OpenAI plugin submission, keeping platform account operations, scans, approval, and publication separate from local engineering evidence.
@@ -57,6 +75,14 @@ Selected workflows MUST have representative direct, indirect, follow-up,
 negative, and boundary probes on Codex; ChatGPT Work SHALL be listed as
 unverified in the handoff and checklist; retained Host catalog and coexistence evidence SHALL identify the actual tested configurations and any explicitly accepted, round-scoped exceptions. An exception MUST remain SKIPPED or NOT_RUN, MUST identify its follow-up, and MUST NOT change a strict runtime or discovery-budget evaluator into PASS.
 
+Any schema-v2 consumer acceptance in the handoff SHALL identify its selected
+surface scope and present required-check acceptance separately from raw runtime
+observations. An installation `PASS` with runtime `NOT_RUN` establishes only
+the selected installation contract; it MUST NOT satisfy a separately required
+native probe or be described as completed Host-runtime evidence. The
+[consumer acceptance contract](../../../docs/contracts/consumer-acceptance.md)
+owns this result boundary.
+
 #### Scenario: ZIP URL fields are absent
 
 - **WHEN** a skills-only artifact passes schema without privacy/support URLs
@@ -66,6 +92,11 @@ unverified in the handoff and checklist; retained Host catalog and coexistence e
 
 - **WHEN** a probe tests a package with a different digest or selected catalog
 - **THEN** it does not satisfy the delivered ZIP's runtime acceptance
+
+#### Scenario: Installation acceptance is not native-runtime evidence
+
+- **WHEN** a selected consumer installation passes while its raw runtime observation is `NOT_RUN`
+- **THEN** the handoff reports installation acceptance and runtime observation independently and does not claim that a native probe passed
 
 ### Requirement: Engineering closure and platform milestones are independent
 

@@ -21,6 +21,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--worker') args.worker = true;
+    else if (arg === '--current-acceptance') args.currentAcceptance = true;
     else if (arg === '--repo-root') args.root = argv[++i];
     else if (arg === '--surface') args.surface = argv[++i];
     else if (arg === '--surfaces') args.surfaces = argv[++i];
@@ -68,11 +69,39 @@ function emit(value, status = 0) {
   process.exitCode = status;
 }
 
+function acceptanceFailure(execution) {
+  if (!execution || !Object.prototype.hasOwnProperty.call(execution, 'acceptance')) return null;
+  const acceptance = execution.acceptance;
+  if (!acceptance || typeof acceptance !== 'object' || Array.isArray(acceptance)
+    || !['PASS', 'FAIL', 'BLOCKED'].includes(acceptance.verdict)
+    || !Array.isArray(acceptance.requiredChecks) || acceptance.requiredChecks.length === 0
+    || !Array.isArray(acceptance.excludedChecks)) {
+    return 'worker emitted an invalid current acceptance envelope';
+  }
+  if (execution.outcome !== acceptance.verdict) {
+    return `worker JSON outcome '${execution.outcome}' disagrees with acceptance '${acceptance.verdict}'`;
+  }
+  return null;
+}
+
+function expectedExitCode(execution) {
+  if (!execution || !execution.acceptance) return null;
+  return execution.acceptance.verdict === 'PASS' ? 0 : 1;
+}
+
 function workerMain(args) {
   const harness = require('../lib/harness');
   try {
-    const execution = harness.runConsumerProbe(args.root, { surface: args.surface });
-    emit({ surface: args.surface, namespace: args.namespace, execution });
+    const execution = harness.runConsumerProbe(args.root, {
+      surface: args.surface,
+      ...(args.currentAcceptance ? { currentAcceptance: true } : {}),
+    });
+    const failure = args.currentAcceptance
+      && (!execution || !Object.prototype.hasOwnProperty.call(execution, 'acceptance'))
+      ? 'current probe worker omitted current acceptance evidence'
+      : acceptanceFailure(execution);
+    const status = failure ? 1 : expectedExitCode(execution);
+    emit({ surface: args.surface, namespace: args.namespace, execution }, status === null ? 0 : status);
   } catch (error) {
     emit({
       surface: args.surface,
@@ -106,7 +135,14 @@ function spawnWorker(args, surface, index, privateRoot) {
   const hostHome = process.env.HOME || os.homedir();
   const hostCodexHome = process.env.CODEX_HOME || path.join(hostHome, '.codex');
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, [__filename, '--worker', '--repo-root', args.root, '--surface', surface, '--namespace', namespace], {
+    const child = spawn(process.execPath, [
+      __filename,
+      '--worker',
+      '--repo-root', args.root,
+      '--surface', surface,
+      '--namespace', namespace,
+      ...(args.currentAcceptance ? ['--current-acceptance'] : []),
+    ], {
       cwd: args.root,
       env: {
         ...process.env,
@@ -166,22 +202,57 @@ function spawnWorker(args, surface, index, privateRoot) {
             checkedClaims: ['consumer-route'],
           }],
         },
+        diagnostic: `consumer probe timed out after ${args.timeoutMs} ms`,
+        transportStatus: 'FAIL',
       });
     }, args.timeoutMs);
     child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
     child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
     child.on('error', (error) => {
       clearTimeout(timer);
-      finish({ surface, namespace, execution: { outcome: 'FAIL', surfaceResults: [] }, diagnostic: error.message });
+      finish({
+        surface,
+        namespace,
+        execution: { outcome: 'FAIL', surfaceResults: [] },
+        diagnostic: error.message,
+        transportStatus: 'FAIL',
+      });
     });
     child.on('close', (code) => {
       clearTimeout(timer);
       if (settled) return;
       try {
         const result = JSON.parse(stdout);
-        finish({ ...result, surface, namespace, diagnostic: code === 0 ? null : stderr.slice(-1000) });
+        let diagnostic = null;
+        const failure = acceptanceFailure(result && result.execution);
+        const expected = expectedExitCode(result && result.execution);
+        if (!result || typeof result !== 'object' || Array.isArray(result)
+          || !result.execution || typeof result.execution !== 'object' || Array.isArray(result.execution)) {
+          diagnostic = 'probe worker JSON omitted a valid execution result';
+        } else if (result.surface !== surface || result.namespace !== namespace) {
+          diagnostic = `probe worker identity disagrees with requested surface '${surface}' or namespace`;
+        } else if (failure) {
+          diagnostic = failure;
+        } else if (expected !== null && code !== expected) {
+          diagnostic = `worker JSON acceptance '${result.execution.acceptance.verdict}' requires exit ${expected}, received ${code === null ? 'no exit code' : code}`;
+        } else if (code !== 0 && expected === null) {
+          diagnostic = stderr.slice(-1000) || `probe worker exited ${code} without current acceptance evidence`;
+        }
+        finish({
+          ...result,
+          surface,
+          namespace,
+          diagnostic,
+          ...(diagnostic ? { transportStatus: 'FAIL' } : {}),
+        });
       } catch (_) {
-        finish({ surface, namespace, execution: { outcome: code === null ? 'BLOCKED' : 'FAIL', surfaceResults: [] }, diagnostic: stderr.slice(-1000) || 'probe worker emitted invalid JSON' });
+        finish({
+          surface,
+          namespace,
+          execution: { outcome: code === null ? 'BLOCKED' : 'FAIL', surfaceResults: [] },
+          diagnostic: stderr.slice(-1000) || 'probe worker emitted invalid JSON',
+          transportStatus: 'FAIL',
+        });
       }
     });
   });
@@ -201,6 +272,11 @@ async function batchMain(args) {
       args.concurrency,
       (surface, index) => spawnWorker(args, surface, index, privateRoot),
     );
+    const failedCurrentAcceptance = results.some((result) => {
+      const acceptance = result && result.execution && result.execution.acceptance;
+      return result && result.transportStatus === 'FAIL'
+        || acceptance && acceptance.verdict !== 'PASS';
+    });
     emit({
       schema: 'dhpk.release-consumer-probe-batch.v1',
       concurrency: args.concurrency,
@@ -208,7 +284,7 @@ async function batchMain(args) {
       wallTimeMs: Date.now() - started,
       surfaces,
       results,
-    });
+    }, failedCurrentAcceptance ? 1 : 0);
   } finally {
     fs.rmSync(privateRoot, { recursive: true, force: true });
   }

@@ -10,6 +10,113 @@ const { parseArgs, namespaceFor } = require('../scripts/release/parallel-consume
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'parallel-consumer-probes.js');
 
+function runStubbedProbe(execution, {
+  worker = false,
+  currentAcceptance = false,
+  childExitCode = 'none',
+  timeoutMs = 3000,
+  hangMs = null,
+} = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parallel-probe-contract-'));
+  const preload = path.join(root, 'probe-harness.js');
+  const originalNodeOptions = process.env.NODE_OPTIONS || '';
+  fs.writeFileSync(preload, [
+    "'use strict';",
+    "const Module = require('node:module');",
+    'const cli = process.env.DHPK_PARALLEL_PROBE_CLI;',
+    'const originalLoad = Module._load;',
+    'Module._load = function loadWithControlledConsumerProbe(request, parent, isMain) {',
+    "  if (request === '../lib/harness' && parent && parent.filename === cli) {",
+    '    return {',
+    '      runConsumerProbe(repoRoot, options = {}) {',
+    '        if (process.env.DHPK_PARALLEL_TEST_HANG_MS !== \'none\') {',
+    '          const blocker = new Int32Array(new SharedArrayBuffer(4));',
+    '          Atomics.wait(blocker, 0, 0, Number(process.env.DHPK_PARALLEL_TEST_HANG_MS));',
+    '        }',
+    '        if (process.env.DHPK_PARALLEL_TEST_EXIT_CODE !== \'none\') {',
+    '          setImmediate(() => { process.exitCode = Number(process.env.DHPK_PARALLEL_TEST_EXIT_CODE); });',
+    '        }',
+    '        const execution = JSON.parse(process.env.DHPK_PARALLEL_TEST_EXECUTION);',
+    '        if (!execution || typeof execution !== \'object\' || Array.isArray(execution)) return execution;',
+    '        const hasCurrentAcceptance = Object.prototype.hasOwnProperty.call(options, \'currentAcceptance\');',
+    '        execution.probeOptions = {',
+    '          hasCurrentAcceptance,',
+    '          ...(hasCurrentAcceptance ? { currentAcceptance: options.currentAcceptance } : {}),',
+    '        };',
+    '        return execution;',
+    '      },',
+    '    };',
+    '  }',
+    '  return originalLoad.call(this, request, parent, isMain);',
+    '};',
+    '',
+  ].join('\n'));
+  const workerArgs = [
+    CLI, '--worker', '--repo-root', root, '--surface', 'codex-sync', '--namespace', 'dhpk-release-probe-contract',
+    ...(currentAcceptance ? ['--current-acceptance'] : []),
+  ];
+  const batchArgs = [
+    CLI,
+    '--repo-root', root,
+    '--surfaces', 'codex-sync',
+    '--concurrency', '1',
+    '--timeout-ms', String(timeoutMs),
+    '--task-id', 'parallel-contract',
+    '--attempt-id', 'attempt-a1',
+    ...(currentAcceptance ? ['--current-acceptance'] : []),
+  ];
+  try {
+    return spawnSync(process.execPath, worker ? workerArgs : batchArgs, {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: {
+        ...process.env,
+        NODE_OPTIONS: `${originalNodeOptions} --require "${preload}"`.trim(),
+        DHPK_PARALLEL_PROBE_CLI: CLI,
+        DHPK_PARALLEL_TEST_EXECUTION: JSON.stringify(execution),
+        DHPK_PARALLEL_TEST_EXIT_CODE: childExitCode,
+        DHPK_PARALLEL_TEST_HANG_MS: hangMs === null ? 'none' : String(hangMs),
+      },
+    });
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+function acceptanceExecution(verdict = 'PASS', status = 'PASS') {
+  return {
+    outcome: verdict,
+    acceptance: {
+      verdict,
+      requiredChecks: [{
+        id: 'install.codex-sync',
+        surface: 'codex-sync',
+        kind: 'installation',
+        reason: 'The selected installation contract result is recorded.',
+        status,
+        evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'native.codex-sync',
+        surface: 'codex-sync',
+        kind: 'native',
+        reason: 'Native execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.codex-sync.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      installationEvidence: { status },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+}
+
 test('parallel consumer coordinator requires canonical surfaces and bounds concurrency', () => {
   const args = parseArgs([
     '--repo-root', '/tmp/dhpk',
@@ -50,6 +157,24 @@ test('coordinator runs isolated child probes and reports each surface result', (
     '      runConsumerProbe(repoRoot, { surface }) {',
     '        return {',
     "          outcome: 'PASS',",
+    '          acceptance: {',
+    "            verdict: 'PASS',",
+    '            requiredChecks: [{',
+    '              id: `install.${surface}`, surface, kind: \'installation\',',
+    "              reason: 'The selected installation contract passed.', status: 'PASS',",
+    '              evidenceRef: `surfaceResults.${surface}.installationEvidence`,',
+    '            }],',
+    '            excludedChecks: [{',
+    '              id: `native.${surface}`, surface, kind: \'native\',',
+    "              reason: 'Native execution was not required.', status: 'NOT_RUN',",
+    '              evidenceRef: `surfaceResults.${surface}.runtimeEvidence`,',
+    '            }],',
+    '          },',
+    '          surfaceResults: [{',
+    "            surface, status: 'NOT_RUN', stage: 'CONSUMER', producer: 'consumer-gate',",
+    "            adapter: { id: 'consumer-installation', version: '1.0.0' },",
+    "            installationEvidence: { status: 'PASS' }, runtimeEvidence: { status: 'NOT_RUN' },",
+    '          }],',
     '          probeEnvironment: {',
     '            repoRoot, surface,',
     '            namespace: process.env.DHPK_HARNESS_PROBE_NAMESPACE,',
@@ -117,6 +242,28 @@ test('coordinator runs isolated child probes and reports each surface result', (
       const env = result.execution.probeEnvironment;
       assert.strictEqual(result.execution.outcome, 'PASS');
       assert.strictEqual(result.diagnostic, null);
+      assert.deepStrictEqual(result.execution.acceptance, {
+        verdict: 'PASS',
+        requiredChecks: [{
+          id: `install.${surface}`,
+          surface,
+          kind: 'installation',
+          reason: 'The selected installation contract passed.',
+          status: 'PASS',
+          evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+        }],
+        excludedChecks: [{
+          id: `native.${surface}`,
+          surface,
+          kind: 'native',
+          reason: 'Native execution was not required.',
+          status: 'NOT_RUN',
+          evidenceRef: `surfaceResults.${surface}.runtimeEvidence`,
+        }],
+      });
+      assert.strictEqual(result.execution.surfaceResults[0].status, 'NOT_RUN');
+      assert.strictEqual(result.execution.surfaceResults[0].installationEvidence.status, 'PASS');
+      assert.strictEqual(result.execution.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
       assert.match(result.namespace, new RegExp(`^dhpk-release-probe-issue-660-attempt-a1-${surface}-\\d+$`));
       assert.strictEqual(env.repoRoot, root);
       assert.strictEqual(env.surface, surface);
@@ -143,6 +290,107 @@ test('coordinator runs isolated child probes and reports each surface result', (
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('worker exit status follows the current acceptance verdict', () => {
+  const execution = acceptanceExecution('BLOCKED', 'UNAVAILABLE');
+  const res = runStubbedProbe(execution, { worker: true });
+
+  assert.strictEqual(res.status, 1, res.stderr);
+  const worker = JSON.parse(res.stdout);
+  assert.deepStrictEqual(worker.execution.acceptance, execution.acceptance);
+  assert.strictEqual(worker.execution.surfaceResults[0].status, 'NOT_RUN');
+  assert.deepStrictEqual(worker.execution.probeOptions, { hasCurrentAcceptance: false });
+});
+
+test('coordinator transports current acceptance mode to its worker harness call', () => {
+  const execution = acceptanceExecution('PASS', 'PASS');
+  const res = runStubbedProbe(execution, { currentAcceptance: true });
+
+  assert.strictEqual(res.status, 0, res.stderr);
+  const batch = JSON.parse(res.stdout);
+  assert.deepStrictEqual(batch.results[0].execution.probeOptions, {
+    hasCurrentAcceptance: true,
+    currentAcceptance: true,
+  });
+});
+
+test('current probe with no consumer gate fails transport without reaching legacy execute fallback', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parallel-current-no-gate-'));
+  const releaseDirectory = path.join(root, 'scripts', 'release');
+  const fallbackArgsFile = path.join(root, 'fallback-args.jsonl');
+  fs.mkdirSync(releaseDirectory, { recursive: true });
+  fs.mkdirSync(path.join(root, 'plugins', 'dhpk-agent'), { recursive: true });
+  fs.writeFileSync(path.join(releaseDirectory, 'consumer-platform-probe.js'), [
+    "const fs = require('node:fs');",
+    "fs.appendFileSync(process.env.DHPK_FALLBACK_ARGS_FILE, JSON.stringify(process.argv.slice(2)) + '\\n');",
+    "process.stdout.write(JSON.stringify({ status: 'PASS', stage: 'CONSUMER', producer: 'consumer-platform-probe', commands: [], artifacts: [], diagnostics: [], reasons: [], checkedClaims: ['consumer-route'] }));",
+  ].join('\n') + '\n');
+
+  try {
+    const result = spawnSync(process.execPath, [
+      CLI,
+      '--repo-root', root,
+      '--surfaces', 'agent-plugin',
+      '--concurrency', '2',
+      '--timeout-ms', '3000',
+      '--task-id', 'current-no-gate',
+      '--attempt-id', 'attempt-a1',
+      '--current-acceptance',
+    ], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: {
+        ...process.env,
+        CI: 'true',
+        DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE: '1',
+        DHPK_FALLBACK_ARGS_FILE: fallbackArgsFile,
+      },
+    });
+
+    assert.strictEqual(result.status, 1, `${result.stderr}\n${result.stdout}`);
+    const batch = JSON.parse(result.stdout);
+    assert.strictEqual(batch.results.length, 1);
+    assert.strictEqual(batch.results[0].transportStatus, 'FAIL');
+    assert.match(batch.results[0].diagnostic, /current|acceptance|evidence/i);
+    assert.strictEqual(batch.results[0].execution.outcome, 'FAIL');
+    assert.strictEqual(fs.existsSync(fallbackArgsFile), false, 'current mode invoked the legacy consumer-platform-probe fallback');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('coordinator fails when worker exit contradicts passing acceptance JSON', () => {
+  const execution = acceptanceExecution('PASS', 'PASS');
+  const res = runStubbedProbe(execution, { childExitCode: '1' });
+
+  assert.strictEqual(res.status, 1, res.stderr);
+  const batch = JSON.parse(res.stdout);
+  const worker = batch.results[0];
+  assert.deepStrictEqual(worker.execution.acceptance, execution.acceptance);
+  assert.deepStrictEqual(worker.execution.surfaceResults, execution.surfaceResults);
+  assert.match(worker.diagnostic, /exit|contradict/i);
+});
+
+test('coordinator rejects worker JSON that omits its execution result', () => {
+  const res = runStubbedProbe(null);
+
+  assert.strictEqual(res.status, 1, res.stderr);
+  const batch = JSON.parse(res.stdout);
+  assert.strictEqual(batch.results[0].transportStatus, 'FAIL');
+  assert.match(batch.results[0].diagnostic, /execution|result/i);
+});
+
+test('coordinator marks a timed-out worker as failed transport', () => {
+  const res = runStubbedProbe(acceptanceExecution('PASS', 'PASS'), {
+    timeoutMs: 1000,
+    hangMs: 5000,
+  });
+
+  assert.strictEqual(res.status, 1, res.stderr);
+  const result = JSON.parse(res.stdout).results[0];
+  assert.strictEqual(result.transportStatus, 'FAIL');
+  assert.match(result.diagnostic, /timeout|timed out|ETIMEDOUT/i);
 });
 
 

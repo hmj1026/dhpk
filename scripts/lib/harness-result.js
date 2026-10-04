@@ -87,15 +87,33 @@ function assertSurfaceList(requiredSurfaces, { fullRelease = true } = {}) {
   return [...requiredSurfaces];
 }
 
-function aggregateRequiredSurfaces({ requiredSurfaces, requiredRuntimeSurfaces, surfaceResults, fullRelease = true } = {}) {
-  const selected = assertSurfaceList(requiredSurfaces, { fullRelease });
+function aggregateRequiredSurfaces({
+  requiredSurfaces,
+  requiredRuntimeSurfaces,
+  surfaceResults,
+  acceptance = null,
+  transportStatus = 'PASS',
+  fullRelease = true,
+} = {}) {
+  const hasAcceptance = acceptance !== null && acceptance !== undefined;
+  if (hasAcceptance && (!acceptance || typeof acceptance !== 'object' || Array.isArray(acceptance)
+    || !['PASS', 'FAIL', 'BLOCKED'].includes(acceptance.verdict))) {
+    throw new Error('harness: current acceptance verdict is invalid');
+  }
+  if (hasAcceptance && !['PASS', 'FAIL'].includes(transportStatus)) {
+    throw new Error(`harness: invalid current transport status '${transportStatus}'`);
+  }
+  const selected = assertSurfaceList(requiredSurfaces, { fullRelease: fullRelease && !hasAcceptance });
   const explicitRuntimeList = requiredRuntimeSurfaces !== undefined;
-  const runtime = assertSurfaceList(explicitRuntimeList ? requiredRuntimeSurfaces : selected, { fullRelease: false });
+  const runtime = hasAcceptance && (!explicitRuntimeList
+    || (Array.isArray(requiredRuntimeSurfaces) && requiredRuntimeSurfaces.length === 0))
+    ? []
+    : assertSurfaceList(explicitRuntimeList ? requiredRuntimeSurfaces : selected, { fullRelease: false });
   const selectedSet = new Set(selected);
   const foreignRuntime = runtime.filter((surface) => !selectedSet.has(surface));
   if (foreignRuntime.length > 0) throw new Error(`harness: runtime surfaces must be a subset of required surfaces: ${foreignRuntime.join(', ')}`);
-  if (explicitRuntimeList && runtime.includes('cursor-sync')) throw new Error('harness: required runtime surfaces must not include cursor-sync');
-  if (fullRelease && explicitRuntimeList
+  if (!hasAcceptance && explicitRuntimeList && runtime.includes('cursor-sync')) throw new Error('harness: required runtime surfaces must not include cursor-sync');
+  if (!hasAcceptance && fullRelease && explicitRuntimeList
     && (runtime.length !== REQUIRED_RUNTIME_SURFACES.length
       || runtime.some((surface, index) => surface !== REQUIRED_RUNTIME_SURFACES[index]))) {
     throw new Error('harness: full release must use the canonical required runtime surface list');
@@ -112,6 +130,28 @@ function aggregateRequiredSurfaces({ requiredSurfaces, requiredRuntimeSurfaces, 
   if (missing.length > 0) throw new Error(`harness: missing required surface results: ${missing.join(', ')}`);
 
   const selectedResults = selected.map((surface) => bySurface.get(surface));
+  if (hasAcceptance) {
+    let outcome = fullRelease ? 'COMPLETE' : 'PASS';
+    if (acceptance.verdict === 'FAIL') outcome = 'PUBLISHED_UNHEALTHY';
+    else if (acceptance.verdict === 'BLOCKED') outcome = 'BLOCKED';
+    else if (transportStatus === 'FAIL') outcome = 'PUBLISHED_UNHEALTHY';
+    return {
+      schema: 'dhpk.harness.surface-aggregate.v1',
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      verdict: acceptance.verdict,
+      requiredSurfaces: selected,
+      requiredRuntimeSurfaces: runtime,
+      fullRelease,
+      surfaceResults: selectedResults,
+      acceptance,
+      ...(transportStatus ? { transportStatus } : {}),
+      outcome,
+      exitCode: acceptance.verdict === 'PASS' && transportStatus === 'PASS'
+        ? exitCodeForOutcome(outcome)
+        : 1,
+    };
+  }
   const runtimeResults = runtime.map((surface) => bySurface.get(surface));
   const statuses = runtimeResults.map((result) => result.status || result.outcome || result.verdict);
   const excludedFailures = selectedResults

@@ -2,6 +2,15 @@
 
 > **Languages**: **English** · [繁體中文](./distribution-surfaces.zh-TW.md)
 
+## Acceptance applicability (#848/#854)
+
+Structural and package evidence may complete the applicable installation
+contract while native consumer observation remains a separate, triggered
+obligation. Do not promote an experimental surface or rewrite `NOT_RUN`,
+`UNAVAILABLE`, or `BLOCKED` as runtime success. Ownership, provenance,
+coexistence, unique discovery, rollback, and publication authorization remain
+unchanged.
+
 How dhpk decides which skills and modules reach each consumer surface
 (Claude plugin, opt-in stack modules, Codex project-local sync, experimental
 Codex marketplace), and what each surface can and cannot filter.

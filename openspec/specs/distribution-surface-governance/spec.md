@@ -1,5 +1,22 @@
 # distribution-surface-governance Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
+This amendment qualifies successor consumer evidence: structural and package
+acceptance may establish the applicable surface contract, while native discovery
+or runtime evidence remains required for a selected native claim, affected
+integration, defect, or explicit request. It does not weaken retirement,
+ownership, coexistence, rollback, or publication prerequisites.
+
 ## Purpose
 
 Define the governed publication lifecycle for every consumer-reachable skill

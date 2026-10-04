@@ -2,6 +2,14 @@
 
 > **Languages**: **English** · [繁體中文](./basic-operations.zh-TW.md)
 
+## Acceptance applicability (#848/#854)
+
+Installed structure and selected lifecycle checks are the default acceptance
+boundary. A command or CLI being present does not prove native runtime
+execution; native checks are triggered by an affected integration, activation
+defect, or explicit request. Preserve `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED`
+states in operational records.
+
 This page walks through the operational lifecycle of dhpk: installing it, the day-to-day command flow, the automatic review cycle, and how to migrate an existing project onto it. For exact Codex/Cursor installation, status, and rollback instructions, use the [platform installation SSOT](./platform-installation.md). For the full `userConfig` knob reference, see [`docs/configuration.md`](./configuration.md).
 
 ## Decision ladder

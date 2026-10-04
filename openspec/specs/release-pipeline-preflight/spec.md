@@ -1,5 +1,16 @@
 # release-pipeline-preflight Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
 ## Purpose
 
 Governs how dhpk exercises the tag-only release path before merge. The release
@@ -98,10 +109,38 @@ tag or GitHub Release, and SHALL hold only `contents: read`.
 - **WHEN** the `release-rehearsal` job definition is inspected
 - **THEN** its permissions are exactly `contents: read`, and neither it nor dry-run mode invokes `gh release create` or `git tag`
 
-#### Scenario: Consumer evidence is pending on the rehearsal runner
+Before classifying the outcome, each workflow SHALL validate the harness JSON
+contract and process exit. A current `dhpk.harness.result.v2` report SHALL carry
+a non-empty schema-v2 CONSUMER acceptance envelope. The report's outer outcome,
+declared exit, and actual process exit SHALL agree: `COMPLETE` requires exit
+`0`; other current non-pass outcomes use the current non-pass exit. A current
+non-pass acceptance MUST NOT be reported as `COMPLETE`. Malformed,
+contradictory, or incomplete current acceptance SHALL fail closed.
+`PUBLISHED_PENDING` with exit `2` remains a
+non-blocking rehearsal case only for a historical report without current
+acceptance; workflows MUST NOT use that legacy case to waive a current
+acceptance failure.
 
-- **WHEN** the consumer gate reports `PUBLISHED_PENDING` during rehearsal
-- **THEN** the job stays green and records the outcome in the step summary, while `PUBLISHED_UNHEALTHY`, `BLOCKED`, or an unexpected outcome fails the job
+The post-publish consumer summary SHALL show the selected required acceptance checks
+separately from raw per-surface observations. It MUST NOT state that every
+runtime row passed when the current result establishes only selected-scope
+installation acceptance. These checks do not change immutable tag or
+publication boundaries.
+
+#### Scenario: Current consumer acceptance passes
+
+- **WHEN** the harness emits current schema-v2 CONSUMER acceptance `PASS` with a matching `COMPLETE` outcome and JSON/process exit `0`
+- **THEN** the workflow records the selected required checks and raw observations separately and applies its existing publication boundary
+
+#### Scenario: Current consumer acceptance is non-pass
+
+- **WHEN** the current acceptance verdict is `FAIL` or `BLOCKED`, or the outer JSON outcome and process exit contradict each other
+- **THEN** the workflow fails before legacy outcome classification and does not treat `PUBLISHED_PENDING` as an exception
+
+#### Scenario: Historical pending consumer evidence
+
+- **WHEN** a historical result without an acceptance field reports `PUBLISHED_PENDING` and exits `2`
+- **THEN** rehearsal may remain green and record the pending outcome, preserving the legacy path only
 
 ### Requirement: Release runner derives release file scope from release parity
 

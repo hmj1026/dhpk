@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const runtimePreflight = require('./consumer-runtime-preflight');
+const { normalizeConsumerEvidence } = require('./release-evidence');
 const {
   COMMIT,
   TREE,
@@ -19,6 +20,8 @@ const {
   fingerprintDirectory,
   revalidateBytes,
   redact,
+  redactEvidence,
+  cloneBoundedJson,
   writeImmutable,
   replayJsonSequence,
   acquireProcessLock,
@@ -50,6 +53,26 @@ const OUTCOMES = Object.freeze([
   'OVERRIDDEN',
   'COMPLETE',
 ]);
+const CURRENT_EVIDENCE_MAX_BYTES = 4 * 1024 * 1024;
+const UNSAFE_CURRENT_EVIDENCE_PROPERTIES = new Set(['__proto__', 'constructor', 'prototype']);
+const CURRENT_EVIDENCE_JSON_OPTIONS = Object.freeze({
+  maxDepth: 12,
+  maxNodes: 65536,
+  maxTotalBytes: CURRENT_EVIDENCE_MAX_BYTES,
+  maxStringBytes: 16384,
+  maxKeys: 200,
+  maxArrayLength: 200,
+  maxArrayKeys: 201,
+  maxKeyBytes: 4096,
+  undefinedPolicy: 'allow',
+  propertyPolicy: ({ key }) => !UNSAFE_CURRENT_EVIDENCE_PROPERTIES.has(key),
+});
+const CURRENT_EVIDENCE_ERROR_CODES = Object.freeze({
+  SCHEMA_DESCRIPTOR: 'CURRENT_EVIDENCE_SCHEMA_DESCRIPTOR',
+  SCHEMA_ACCESSOR: 'CURRENT_EVIDENCE_SCHEMA_ACCESSOR',
+  UNSAFE_JSON: 'CURRENT_EVIDENCE_UNSAFE_JSON',
+  SERIALIZED_SIZE: 'CURRENT_EVIDENCE_SERIALIZED_SIZE',
+});
 const IDENTITY_FIELDS = Object.freeze([
   'taskId',
   'attemptId',
@@ -95,6 +118,82 @@ function lifecycleTransition(previous, next) {
 function ensureId(value, name) {
   if (typeof value !== 'string' || !SAFE_ID.test(value)) throw new Error(`harness receipt: invalid ${name}`);
   return value;
+}
+
+function currentEvidenceError(code) {
+  return new Error(`harness receipt: consumer evidence rejected (${code})`);
+}
+
+function isCurrentConsumerEvidence(value) {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function')) return false;
+  let descriptor;
+  try {
+    descriptor = Object.getOwnPropertyDescriptor(value, 'schemaVersion');
+  } catch (_) {
+    throw currentEvidenceError(CURRENT_EVIDENCE_ERROR_CODES.SCHEMA_DESCRIPTOR);
+  }
+  if (!descriptor) return false;
+  if (!Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
+    throw currentEvidenceError(CURRENT_EVIDENCE_ERROR_CODES.SCHEMA_ACCESSOR);
+  }
+  return descriptor.value === 2;
+}
+
+function serializeCurrentConsumerEvidence(value) {
+  let redacted;
+  let serialized;
+  try {
+    const cloned = cloneBoundedJson(value, CURRENT_EVIDENCE_JSON_OPTIONS);
+    redacted = redactEvidence(cloned);
+    serialized = JSON.stringify(redacted);
+  } catch (_) {
+    throw currentEvidenceError(CURRENT_EVIDENCE_ERROR_CODES.UNSAFE_JSON);
+  }
+  if (typeof serialized !== 'string'
+    || Buffer.byteLength(serialized, 'utf8') > CURRENT_EVIDENCE_MAX_BYTES) {
+    throw currentEvidenceError(CURRENT_EVIDENCE_ERROR_CODES.SERIALIZED_SIZE);
+  }
+  return redacted;
+}
+
+function consumerEvidenceErrors(value) {
+  try {
+    let validationInput = value;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      validationInput = { ...value };
+      // Minimal receipt envelopes may omit environment metadata. The shared
+      // normalizer requires an enclosing key, so use null only for validation.
+      if (validationInput.environment === undefined) validationInput.environment = null;
+
+      // The receipt contract calls excluded runtime observations "native";
+      // this normalizer version names the same typed runtimeEvidence check
+      // "runtime". Adapt only the exact same-surface reference for validation.
+      const acceptance = value.acceptance;
+      if (acceptance && typeof acceptance === 'object' && !Array.isArray(acceptance)
+        && Array.isArray(acceptance.excludedChecks)) {
+        validationInput.acceptance = {
+          ...acceptance,
+          excludedChecks: acceptance.excludedChecks.map((check) => (
+            check && typeof check === 'object' && !Array.isArray(check)
+              && typeof check.surface === 'string'
+              && check.id === `native.${check.surface}`
+              && check.kind === 'native'
+              && check.evidenceRef === `surfaceResults.${check.surface}.runtimeEvidence`
+              ? { ...check, id: `runtime.${check.surface}` }
+              : check
+          )),
+        };
+      }
+    }
+    normalizeConsumerEvidence(validationInput);
+    if (value.stage !== 'CONSUMER') return ["consumer evidence stage must be 'CONSUMER'"];
+    if (value.schemaVersion === 2 && value.runtimeVerified === true) {
+      return ['aggregate runtimeVerified is not supported on schema-v2 consumer evidence'];
+    }
+    return [];
+  } catch (error) {
+    return [error && error.message ? error.message : 'consumer evidence is invalid'];
+  }
 }
 
 function findAttemptByOperationKey(root, operationKey) {
@@ -218,6 +317,7 @@ function createAttempt({
   requiredSurfaces = null,
   requiredRuntimeSurfaces = null,
   surfaceResults = null,
+  consumerEvidence,
   resumeCommand = null,
   byteReferences = [],
   lifecyclePhase = 'PLANNED',
@@ -240,6 +340,22 @@ function createAttempt({
   if (operationKey && idempotencyKey && operationKey !== idempotencyKey) {
     throw new Error('harness receipt: operation and idempotency keys must match');
   }
+  const currentConsumerEvidence = consumerEvidence !== undefined
+    && isCurrentConsumerEvidence(consumerEvidence);
+  const persistedConsumerEvidence = consumerEvidence === undefined
+    ? undefined
+    : currentConsumerEvidence
+      ? serializeCurrentConsumerEvidence(consumerEvidence)
+      : redact(consumerEvidence);
+  if (persistedConsumerEvidence !== undefined) {
+    const consumerErrors = consumerEvidenceErrors(persistedConsumerEvidence);
+    if (consumerErrors.length > 0) {
+      throw new Error(`harness receipt: invalid consumer evidence: ${consumerErrors.join('; ')}`);
+    }
+  }
+  const persistedCurrentSurfaceResults = currentConsumerEvidence && Array.isArray(surfaceResults)
+    ? serializeCurrentConsumerEvidence(surfaceResults)
+    : undefined;
   const resolvedOperationKey = operationKey || idempotencyKey;
   if (resolvedOperationKey) {
     if (operationReservation) verifyOperationReservation(operationReservation, root, resolvedOperationKey, { taskId, attemptId });
@@ -287,7 +403,12 @@ function createAttempt({
     artifacts: redact(Array.isArray(artifacts) ? artifacts : [artifacts]),
     ...(Array.isArray(requiredSurfaces) ? { requiredSurfaces: redact(requiredSurfaces) } : {}),
     ...(Array.isArray(requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: redact(requiredRuntimeSurfaces) } : {}),
-    ...(Array.isArray(surfaceResults) ? { surfaceResults: redact(surfaceResults) } : {}),
+    ...(Array.isArray(surfaceResults) ? {
+      surfaceResults: currentConsumerEvidence
+        ? persistedCurrentSurfaceResults
+        : redact(surfaceResults),
+    } : {}),
+    ...(persistedConsumerEvidence !== undefined ? { consumerEvidence: persistedConsumerEvidence } : {}),
     resumeCommand: resumeCommand === null || resumeCommand === undefined ? null : redact(resumeCommand),
     byteReferences: redact(Array.isArray(byteReferences) ? byteReferences : [byteReferences]),
     createdAt: new Date().toISOString(),
@@ -398,6 +519,10 @@ function validateReceipt(attemptPath, {
   if (!SAFE_ID.test(envelope.attemptId || '')) errors.push('invalid receipt attemptId');
   if (!Array.isArray(envelope.diagnostics)) errors.push('receipt diagnostics must be an array');
   if (!Array.isArray(envelope.artifacts)) errors.push('receipt artifacts must be an array');
+  if (Object.prototype.hasOwnProperty.call(envelope, 'consumerEvidence')) {
+    errors.push(...consumerEvidenceErrors(envelope.consumerEvidence)
+      .map((error) => `receipt consumer evidence: ${error}`));
+  }
   if (envelope.resumeCommand !== null && typeof envelope.resumeCommand !== 'string') errors.push('receipt resumeCommand must be a string or null');
   if (!Array.isArray(envelope.byteReferences)) errors.push('receipt byteReferences must be an array');
   for (const field of ['targetCommit', 'generatedFromCommit']) {

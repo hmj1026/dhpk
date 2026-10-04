@@ -16,17 +16,18 @@ const {
 } = require('./harness-result');
 const receipts = require('./harness-receipt');
 const inventoryApi = require('./distribution-inventory');
-const { normalizeConsumerEvidence } = require('./release-evidence');
+const { normalizeConsumerEvidence, combineConsumerEvidence } = require('./release-evidence');
 const runtimePreflight = require('./consumer-runtime-preflight');
 const releaseArtifactManifest = require('./release-artifact-manifest');
 
 const PHASES = Object.freeze(['preflight', 'plan', 'generate', 'validate', 'test', 'probe', 'verify', 'release']);
 const PHASE_INDEX = new Map(PHASES.map((phase, index) => [phase, index]));
 const HANDOFF_OUTCOMES = new Set(['PASS', 'COMPLETE']);
+const MAX_CONSUMER_REQUIREMENTS_BYTES = 1024 * 1024;
 const OPTIONS_WITH_VALUE = new Set([
   '--task-id', '--attempt-id', '--surface', '--test-file', '--diagnostic', '--receipt-root',
   '--operation-key', '--idempotency-key', '--previous-receipt', '--retry-of',
-  '--source-commit', '--source-tree', '--target-commit', '--target-tree', '--surfaces',
+  '--source-commit', '--source-tree', '--target-commit', '--target-tree', '--surfaces', '--requirements',
 ]);
 const HELP = 'usage: bin/dhpk harness <preflight|plan|generate|validate|test|probe|verify|release> [options]\n'
   + 'options: --json --task-id <id> --attempt-id <id> --surface <surface> --test-file <file> --diagnostic <text>\n'
@@ -70,6 +71,7 @@ function parseArgs(argv = []) {
         '--target-commit': 'targetCommit',
         '--target-tree': 'targetTree',
         '--surfaces': 'surfaces',
+        '--requirements': 'requirementsFile',
       }[arg] || arg.slice(2);
       parsed[optionName] = value;
     } else if (arg.startsWith('--')) {
@@ -95,7 +97,442 @@ function parseArgs(argv = []) {
     parsed.surfaces = parsed.surfaces.split(',').map((surface) => surface.trim()).filter(Boolean);
     if (parsed.surfaces.length === 0) throw new Error('--surfaces must contain at least one surface');
   }
+  if (parsed.requirementsFile && parsed.phase !== 'release') {
+    throw new Error("--requirements is only supported for 'release'");
+  }
+  if (parsed.requirementsFile && (parsed.surface || parsed.surfaces)) {
+    throw new Error('--requirements cannot be combined with an explicit surface scope');
+  }
   return parsed;
+}
+
+function hasCurrentConsumerEnvelope(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+    && (Object.prototype.hasOwnProperty.call(value, 'schemaVersion')
+      || Object.prototype.hasOwnProperty.call(value, 'acceptance')
+      || Object.prototype.hasOwnProperty.call(value, 'transportStatus'));
+}
+
+function canonicalizeClaudeConsumerEnvelope(input, selectedSurfaces = []) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)
+    || !selectedSurfaces.includes('claude-core')) return input;
+
+  const canonicalSurface = (surface) => surface === 'claude' ? 'claude-core' : surface;
+  const canonicalizeRow = (row) => {
+    if (!row || typeof row !== 'object' || Array.isArray(row) || row.surface !== 'claude') return row;
+    const requirementEvidence = row.requirementEvidence && typeof row.requirementEvidence === 'object'
+      && !Array.isArray(row.requirementEvidence)
+      ? Object.fromEntries(Object.entries(row.requirementEvidence).map(([slot, evidence]) => [
+        slot,
+        evidence && typeof evidence === 'object' && !Array.isArray(evidence)
+          ? {
+            ...evidence,
+            ...(typeof evidence.checkKey === 'string'
+              ? { checkKey: evidence.checkKey.replace(/^claude:/, 'claude-core:') }
+              : {}),
+            ...(evidence.contractEvidence && typeof evidence.contractEvidence === 'object'
+              && !Array.isArray(evidence.contractEvidence)
+              ? {
+                contractEvidence: {
+                  ...evidence.contractEvidence,
+                  ...(typeof evidence.contractEvidence.evidenceRef === 'string'
+                    ? { evidenceRef: evidence.contractEvidence.evidenceRef.replace(/^surfaceResults\.claude\./, 'surfaceResults.claude-core.') }
+                    : {}),
+                },
+              }
+              : {}),
+          }
+          : evidence,
+      ]))
+      : row.requirementEvidence;
+    return {
+      ...row,
+      surface: 'claude-core',
+      producerSurface: row.producerSurface || 'claude',
+      ...(requirementEvidence ? { requirementEvidence } : {}),
+    };
+  };
+  const canonicalizeCheck = (check) => {
+    if (!check || typeof check !== 'object' || Array.isArray(check) || check.surface !== 'claude') return check;
+    let id = check.id;
+    if (id === 'install.claude') id = 'install.claude-core';
+    else if (id === 'runtime.claude') id = 'runtime.claude-core';
+    else if (id === 'scope.claude') id = 'scope.claude-core';
+    return {
+      ...check,
+      id,
+      surface: 'claude-core',
+      ...(typeof check.evidenceRef === 'string'
+        ? { evidenceRef: check.evidenceRef.replace(/^surfaceResults\.claude\./, 'surfaceResults.claude-core.') }
+        : {}),
+    };
+  };
+  const acceptance = input.acceptance && typeof input.acceptance === 'object' && !Array.isArray(input.acceptance)
+    ? {
+      ...input.acceptance,
+      ...(Array.isArray(input.acceptance.requiredChecks)
+        ? { requiredChecks: input.acceptance.requiredChecks.map(canonicalizeCheck) }
+        : {}),
+      ...(Array.isArray(input.acceptance.excludedChecks)
+        ? { excludedChecks: input.acceptance.excludedChecks.map(canonicalizeCheck) }
+        : {}),
+    }
+    : input.acceptance;
+  return {
+    ...input,
+    ...(input.surface === 'claude' ? { surface: 'claude-core' } : {}),
+    ...(Array.isArray(input.surfaceResults) ? { surfaceResults: input.surfaceResults.map(canonicalizeRow) } : {}),
+    ...(acceptance ? { acceptance } : {}),
+  };
+}
+
+function normalizeCurrentConsumerEnvelope(input, selectedSurfaces = []) {
+  if (!hasCurrentConsumerEnvelope(input)) {
+    throw new Error('consumer gate omitted schema-v2 acceptance evidence');
+  }
+  const normalized = normalizeConsumerEvidence(canonicalizeClaudeConsumerEnvelope(input, selectedSurfaces));
+  if (normalized.schemaVersion !== 2 || normalized.stage !== 'CONSUMER' || !normalized.acceptance) {
+    throw new Error('consumer gate emitted an invalid schema-v2 CONSUMER envelope');
+  }
+  if (input.outcome !== undefined && input.outcome !== normalized.acceptance.verdict
+    && input.transportStatus !== 'FAIL') {
+    throw new Error('consumer gate execution outcome disagrees with acceptance verdict');
+  }
+  return normalized;
+}
+
+function currentAcceptanceExitCode(verdict) {
+  return verdict === 'PASS' ? 0 : 1;
+}
+
+function diagnosticList(value) {
+  if (Array.isArray(value)) return value.filter((entry) => typeof entry === 'string' && entry);
+  return typeof value === 'string' && value ? [value] : [];
+}
+
+function consumerEvidenceForExecution(execution) {
+  if (!execution || typeof execution !== 'object' || !execution.acceptance
+    || !Array.isArray(execution.surfaceResults)) return null;
+  return normalizeConsumerEvidence({
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: execution.acceptance.verdict,
+    acceptance: execution.acceptance,
+    surfaceResults: execution.surfaceResults,
+    ...(execution.producer ? { producer: execution.producer } : {}),
+    ...(execution.adapter ? { adapter: execution.adapter } : {}),
+    ...(execution.environment !== undefined ? { environment: execution.environment } : {}),
+    ...(execution.planFingerprint ? { planFingerprint: execution.planFingerprint } : {}),
+    ...(execution.artifactFingerprint ? { artifactFingerprint: execution.artifactFingerprint } : {}),
+    ...(execution.transportStatus ? { transportStatus: execution.transportStatus } : {}),
+    ...(Array.isArray(execution.diagnostics) ? { diagnostics: execution.diagnostics } : {}),
+  });
+}
+
+function restoreConsumerEvidenceReplay(replayed, envelope) {
+  if (!envelope || !envelope.consumerEvidence) return replayed;
+  const evidence = normalizeConsumerEvidence(envelope.consumerEvidence);
+  if (!evidence.acceptance) return replayed;
+  const result = {
+    ...replayed.result,
+    schema: 'dhpk.harness.result.v2',
+    acceptance: evidence.acceptance,
+    surfaceResults: evidence.surfaceResults,
+    ...(evidence.transportStatus ? { transportStatus: evidence.transportStatus } : {}),
+  };
+  const outcome = result.outcome;
+  const passEffective = evidence.acceptance.verdict === 'PASS'
+    && ['PASS', 'COMPLETE'].includes(outcome)
+    && evidence.transportStatus !== 'FAIL';
+  const failedTransport = evidence.acceptance.verdict === 'PASS'
+    && evidence.transportStatus === 'FAIL'
+    && outcome === 'PUBLISHED_UNHEALTHY';
+  result.exitCode = passEffective ? 0 : 1;
+  return { ...replayed, status: result.exitCode, result };
+}
+
+function readConsumerRequirementsBytes(file) {
+  const { O_RDONLY, O_NOFOLLOW, O_NONBLOCK } = fs.constants;
+  if (!Number.isInteger(O_NOFOLLOW) || !Number.isInteger(O_NONBLOCK)) {
+    throw new Error('safe release requirements file opening is unavailable');
+  }
+
+  let descriptor;
+  try {
+    descriptor = fs.openSync(file, O_RDONLY | O_NOFOLLOW | O_NONBLOCK);
+  } catch (error) {
+    if (error && ['ELOOP', 'EMLINK'].includes(error.code)) {
+      throw new Error('release requirements must not be a symbolic link');
+    }
+    throw new Error('release requirements could not be opened safely');
+  }
+
+  try {
+    const stats = fs.fstatSync(descriptor);
+    if (!stats.isFile()) throw new Error('release requirements must be a regular file');
+    if (!Number.isSafeInteger(stats.size) || stats.size > MAX_CONSUMER_REQUIREMENTS_BYTES) {
+      throw new Error('release requirements exceed the bounded file size');
+    }
+    const chunks = [];
+    let total = 0;
+    const chunk = Buffer.alloc(64 * 1024);
+    while (true) {
+      const remaining = MAX_CONSUMER_REQUIREMENTS_BYTES + 1 - total;
+      const count = fs.readSync(descriptor, chunk, 0, Math.min(chunk.length, remaining), null);
+      if (count === 0) break;
+      total += count;
+      if (total > MAX_CONSUMER_REQUIREMENTS_BYTES) {
+        throw new Error('release requirements exceed the bounded file size');
+      }
+      chunks.push(Buffer.from(chunk.subarray(0, count)));
+    }
+    return Buffer.concat(chunks, total);
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function consumerRequirementsScope(root, requirementsFile) {
+  const file = path.isAbsolute(requirementsFile)
+    ? requirementsFile
+    : path.resolve(root, requirementsFile);
+  const bytes = readConsumerRequirementsBytes(file);
+  let requirements;
+  try {
+    requirements = JSON.parse(bytes.toString('utf8'));
+  } catch (_) {
+    throw new Error('release requirements JSON is invalid');
+  }
+  if (!requirements || typeof requirements !== 'object' || Array.isArray(requirements)
+    || requirements.schema !== 'dhpk.consumer-requirements.v1') {
+    throw new Error('release requirements must declare a non-empty selectedSurfaces list');
+  }
+  const selectedSurfaces = requirements.selectedSurfaces === undefined
+    ? (Array.isArray(requirements.checks)
+      ? [...new Set(requirements.checks.map((check) => (
+        check && typeof check === 'object' && !Array.isArray(check) ? check.surface : undefined
+      )))]
+      : [])
+    : requirements.selectedSurfaces;
+  if (!Array.isArray(selectedSurfaces) || selectedSurfaces.length === 0) {
+    throw new Error('release requirements must declare a non-empty selectedSurfaces list');
+  }
+  const seen = new Set();
+  for (const surface of selectedSurfaces) {
+    if (!REQUIRED_SURFACES.includes(surface)) throw new Error(`release requirements contain unknown surface '${surface}'`);
+    if (seen.has(surface)) throw new Error(`release requirements contain duplicate surface '${surface}'`);
+    seen.add(surface);
+  }
+  return {
+    file,
+    bytes,
+    digest: `sha256:${receipts.sha256(bytes)}`,
+    requirements,
+    selectedSurfaces: [...selectedSurfaces],
+  };
+}
+
+function spawnConsumerGate(root, args, { timeout = 120000, maxBuffer = 8 * 1024 * 1024 } = {}) {
+  const restrictedArgs = allowsRealConsumerProbe()
+    ? args
+    : [...args, '--skip-claude-reinstall'];
+  return spawnSync(process.execPath, restrictedArgs, {
+    cwd: root,
+    encoding: 'utf8',
+    timeout,
+    maxBuffer,
+  });
+}
+
+function prepareConsumerGateEvidence(payload, selectedSurfaces, root) {
+  if (!hasCurrentConsumerEnvelope(payload)) {
+    throw new Error('consumer gate omitted schema-v2 acceptance evidence');
+  }
+  const canonicalized = canonicalizeClaudeConsumerEnvelope(payload, selectedSurfaces);
+  const prepared = Array.isArray(canonicalized.surfaceResults)
+    ? {
+      ...canonicalized,
+      surfaceResults: canonicalized.surfaceResults.map((entry) => entry && typeof entry === 'object'
+        ? {
+          ...entry,
+          producer: entry.producer || 'consumer-gate',
+          commands: normalizeProbeCommands(entry.commands, root),
+        }
+        : entry),
+    }
+    : canonicalized;
+  return normalizeCurrentConsumerEnvelope(prepared, selectedSurfaces);
+}
+
+function consumerGateTransportDiagnostics(child, acceptance) {
+  const expectedExitCode = currentAcceptanceExitCode(acceptance.verdict);
+  if (child.error) return [`consumer gate process failed: ${child.error.message}`];
+  if (child.status === expectedExitCode) return [];
+  return [
+    `consumer gate acceptance '${acceptance.verdict}' requires exit ${expectedExitCode}, received ${child.status === null ? 'no exit code' : child.status}`,
+  ];
+}
+
+function bindConsumerArtifacts(surfaceResults, artifactManifest) {
+  const artifactBySurface = new Map((artifactManifest && Array.isArray(artifactManifest.packages)
+    ? artifactManifest.packages
+    : []).map((entry) => [entry.surface, entry]));
+  return surfaceResults.map((row) => ({
+    ...row,
+    ...(artifactBySurface.has(row.surface) ? { artifactBinding: artifactBySurface.get(row.surface) } : {}),
+  }));
+}
+
+function runRequirementsConsumerGate(root, requirementsScope, selectedSurfaces, artifactManifest = null) {
+  const gateScript = path.join(root, 'scripts', 'release', 'consumer-gate.js');
+  const version = releaseVersion(root);
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-requirements-'));
+  let child;
+  try {
+    const snapshotFile = path.join(temporaryDirectory, 'requirements.json');
+    fs.writeFileSync(snapshotFile, requirementsScope.bytes, { flag: 'wx', mode: 0o600 });
+    const args = [gateScript, '--repo-root', root, '--requirements', snapshotFile];
+    if (version) args.push('--version', version);
+    child = spawnConsumerGate(root, args, { maxBuffer: 8 * 1024 * 1024 });
+  } finally {
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+  }
+  let payload = null;
+  try { payload = JSON.parse(child.stdout || ''); } catch (_) { /* handled as current protocol failure below */ }
+
+  try {
+    const normalized = prepareConsumerGateEvidence(payload, selectedSurfaces, root);
+    const combined = combineConsumerEvidence([normalized], selectedSurfaces);
+    const transportDiagnostics = consumerGateTransportDiagnostics(child, combined.acceptance);
+    const transportStatus = transportDiagnostics.length > 0 ? 'FAIL' : 'PASS';
+    const surfaceResults = bindConsumerArtifacts(combined.surfaceResults, artifactManifest);
+    return {
+      ...combined,
+      surfaceResults,
+      outcome: transportStatus === 'FAIL' && combined.acceptance.verdict === 'PASS'
+        ? 'FAIL'
+        : combined.acceptance.verdict,
+      transportStatus,
+      diagnostics: [
+        ...diagnosticList(combined.diagnostics),
+        ...surfaceResults.flatMap((row) => [...diagnosticList(row.reasons), ...diagnosticList(row.diagnostics)]),
+        ...transportDiagnostics,
+      ].slice(0, 50),
+      ...(artifactManifest ? { artifactManifestFingerprint: artifactManifest.manifestFingerprint } : {}),
+    };
+  } catch (error) {
+    const reason = `consumer gate current evidence failed closed: ${error.message}`;
+    const rows = selectedSurfaces.map((surface) => failedProbeRow(
+      surface,
+      'FAIL',
+      reason,
+      root,
+      [],
+      'consumer-gate',
+      'current-consumer-evidence',
+    ));
+    return {
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      outcome: 'FAIL',
+      transportStatus: 'FAIL',
+      surfaceResults: rows,
+      diagnostics: [reason],
+      ...(artifactManifest ? { artifactManifestFingerprint: artifactManifest.manifestFingerprint } : {}),
+    };
+  }
+}
+
+function runConfiguredConsumerGate(root, requiredRuntimeSurfaces, artifactManifest = null) {
+  const gateScript = path.join(root, 'scripts', 'release', 'consumer-gate.js');
+  const args = [gateScript, '--repo-root', root];
+  const version = releaseVersion(root);
+  if (version) args.push('--version', version);
+  const child = spawnConsumerGate(root, args, { maxBuffer: 8 * 1024 * 1024 });
+  let payload = null;
+  try { payload = JSON.parse(child.stdout || ''); } catch (_) { /* handled as current protocol failure below */ }
+
+  const rawSurfaces = Array.isArray(payload && payload.surfaceResults)
+    ? payload.surfaceResults.map((row) => row && row.surface).filter((surface) => typeof surface === 'string')
+    : [];
+  const selectedSurfaces = rawSurfaces.map((surface) => surface === 'claude' ? 'claude-core' : surface);
+  try {
+    const canonicalSurfaces = REQUIRED_SURFACES.filter((surface) => selectedSurfaces.includes(surface));
+    if (canonicalSurfaces.length !== selectedSurfaces.length) {
+      throw new Error('consumer gate emitted an unknown configured surface');
+    }
+    const normalized = prepareConsumerGateEvidence(payload, canonicalSurfaces, root);
+    const transportDiagnostics = consumerGateTransportDiagnostics(child, normalized.acceptance);
+    const transportStatus = transportDiagnostics.length > 0 ? 'FAIL' : 'PASS';
+    if (canonicalSurfaces.length === 0) {
+      const configurationChecks = normalized.acceptance.requiredChecks.filter((check) => check.id === 'scope.configuration');
+      if (normalized.acceptance.verdict !== 'BLOCKED' || configurationChecks.length !== 1) {
+        throw new Error('consumer gate must block when no configured surface exists');
+      }
+      return {
+        ...normalized,
+        requiredSurfaces: [],
+        requiredRuntimeSurfaces: [],
+        surfaceResults: [],
+        outcome: 'BLOCKED',
+        exitCode: 1,
+        transportStatus,
+        diagnostics: [...diagnosticList(normalized.diagnostics), ...transportDiagnostics].slice(0, 50),
+      };
+    }
+    const combined = combineConsumerEvidence([normalized], canonicalSurfaces);
+    const surfaceResults = bindConsumerArtifacts(combined.surfaceResults, artifactManifest);
+    const selectedRuntimeSurfaces = (Array.isArray(requiredRuntimeSurfaces) ? requiredRuntimeSurfaces : [])
+      .filter((surface) => canonicalSurfaces.includes(surface));
+    const aggregate = aggregateRequiredSurfaces({
+      requiredSurfaces: canonicalSurfaces,
+      requiredRuntimeSurfaces: selectedRuntimeSurfaces,
+      surfaceResults,
+      acceptance: combined.acceptance,
+      transportStatus,
+      fullRelease: true,
+    });
+    return {
+      ...combined,
+      ...aggregate,
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      verdict: combined.acceptance.verdict,
+      acceptance: combined.acceptance,
+      requiredSurfaces: canonicalSurfaces,
+      requiredRuntimeSurfaces: selectedRuntimeSurfaces,
+      surfaceResults: aggregate.surfaceResults,
+      transportStatus,
+      diagnostics: [
+        ...diagnosticList(combined.diagnostics),
+        ...surfaceResults.flatMap((row) => [...diagnosticList(row.reasons), ...diagnosticList(row.diagnostics)]),
+        ...transportDiagnostics,
+      ].slice(0, 50),
+      ...(artifactManifest ? { artifactManifestFingerprint: artifactManifest.manifestFingerprint } : {}),
+    };
+  } catch (error) {
+    const reason = sanitizeDiagnostics(`configured consumer evidence failed closed: ${error.message}`);
+    const canonicalSurfaces = REQUIRED_SURFACES.filter((surface) => selectedSurfaces.includes(surface));
+    const rawEvidence = canonicalizeClaudeConsumerEnvelope(payload, canonicalSurfaces);
+    const rawSurfaceResults = Array.isArray(rawEvidence && rawEvidence.surfaceResults)
+      ? rawEvidence.surfaceResults.map((row) => row && typeof row === 'object'
+        ? receipts.redact({ ...row, producer: row.producer || 'consumer-gate' })
+        : row)
+      : [];
+    return {
+      schema: 'dhpk.harness.surface-aggregate.v1',
+      requiredSurfaces: canonicalSurfaces,
+      requiredRuntimeSurfaces: (Array.isArray(requiredRuntimeSurfaces) ? requiredRuntimeSurfaces : [])
+        .filter((surface) => canonicalSurfaces.includes(surface)),
+      fullRelease: true,
+      surfaceResults: rawSurfaceResults,
+      outcome: 'PUBLISHED_UNHEALTHY',
+      exitCode: 1,
+      transportStatus: 'FAIL',
+      diagnostics: [reason],
+      ...(artifactManifest ? { artifactManifestFingerprint: artifactManifest.manifestFingerprint } : {}),
+    };
+  }
 }
 
 function helpFor(phase = null) {
@@ -322,6 +759,9 @@ const CONSUMER_GATE_ADAPTERS = Object.freeze({
   'codex-sync': Object.freeze({ gateSurface: 'codex-sync', producerSurface: 'codex-sync', adapterId: 'codex-sync-installer' }),
   'codex-native': Object.freeze({ gateSurface: 'codex-native', producerSurface: 'codex-native', adapterId: 'codex-native-install-smoke' }),
   'cursor-sync': Object.freeze({ gateSurface: 'cursor-sync', producerSurface: 'cursor-sync', adapterId: 'cursor-sync-installer' }),
+  'cursor-plugin': Object.freeze({ gateSurface: 'cursor-plugin', producerSurface: 'cursor-plugin', adapterId: 'cursor-plugin-package-install' }),
+  'agent-plugin': Object.freeze({ gateSurface: 'agent-plugin', producerSurface: 'agent-plugin', adapterId: 'agent-plugin-package-install' }),
+  'agy-plugin': Object.freeze({ gateSurface: 'agy-plugin', producerSurface: 'agy-plugin', adapterId: 'agy-plugin-package-install' }),
 });
 
 const PROBE_STATUSES = new Set([
@@ -699,37 +1139,118 @@ function normalizedProbeRow(surface, packageRoot, payload, childStatus, consumer
 
 function runConsumerProbe(root, parsed) {
   const surface = parsed.surface;
-  if (surface === 'agy-plugin') return runAgyConsumerProbe(root);
   const adapter = PROBE_ADAPTERS[surface];
   const gateAdapter = CONSUMER_GATE_ADAPTERS[surface];
-  if (gateAdapter) {
-    if (surface === 'claude-core' && !allowsRealConsumerProbe()) {
-      const row = failedProbeRow(
+  const gateScript = path.join(root, 'scripts', 'release', 'consumer-gate.js');
+  const legacyProbeFallback = Boolean(adapter && !parsed.currentAcceptance && !fs.existsSync(gateScript));
+  if (parsed.currentAcceptance && (!gateAdapter || !fs.existsSync(gateScript))) {
+    const reason = 'current consumer acceptance requires the canonical consumer gate';
+    const row = failedProbeRow(
+      surface,
+      'FAIL',
+      reason,
+      root,
+      [],
+      'consumer-gate',
+      gateAdapter ? gateAdapter.adapterId : 'consumer-gate',
+    );
+    return {
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      outcome: 'FAIL',
+      transportStatus: 'FAIL',
+      diagnostics: [reason],
+      surfaceResults: [row],
+      identity: {
         surface,
-        'NOT_CONFIGURED',
-        'Claude consumer gate is opt-in outside CI because the CLI may write a shared global cache; set DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE=1 on an isolated runner',
-        root,
-        [],
-        'consumer-gate',
-        gateAdapter.adapterId,
-      );
-      return { outcome: row.status, diagnostics: row.reasons, surfaceResults: [row], identity: { surface, stage: row.stage, producer: row.producer, adapter: row.adapter } };
-    }
+        stage: row.stage,
+        producer: row.producer,
+        adapter: row.adapter,
+      },
+    };
+  }
+  if (gateAdapter && !legacyProbeFallback) {
     const version = releaseVersion(root);
-    const gateScript = path.join(root, 'scripts', 'release', 'consumer-gate.js');
     const args = [gateScript, '--repo-root', root, '--surface', gateAdapter.gateSurface];
     if (version) args.push('--version', version);
-    const child = spawnSync(process.execPath, args, {
-      cwd: root,
-      encoding: 'utf8',
-      timeout: 120000,
-      maxBuffer: 4 * 1024 * 1024,
-    });
+    const child = spawnConsumerGate(root, args, { maxBuffer: 4 * 1024 * 1024 });
     let payload;
     try {
       payload = JSON.parse(child.stdout || '{}');
     } catch (_) {
       payload = { status: 'FAIL', reason: `consumer gate emitted invalid JSON (exit ${child.status === null ? 127 : child.status})` };
+    }
+    if (hasCurrentConsumerEnvelope(payload)) {
+      try {
+        const canonicalized = canonicalizeClaudeConsumerEnvelope(payload, [surface]);
+        const prepared = Array.isArray(canonicalized.surfaceResults)
+          ? {
+            ...canonicalized,
+            surfaceResults: canonicalized.surfaceResults.map((entry) => entry && typeof entry === 'object'
+              ? {
+                ...entry,
+                producer: entry.producer || 'consumer-gate',
+                adapter: entry.adapter || { id: gateAdapter.adapterId, version: '1.0.0' },
+                commands: normalizeProbeCommands(entry.commands, root),
+              }
+              : entry),
+          }
+          : canonicalized;
+        const normalized = normalizeCurrentConsumerEnvelope(prepared, [surface]);
+        if (normalized.surfaceResults.length !== 1 || normalized.surfaceResults[0].surface !== surface) {
+          throw new Error(`consumer gate must emit exactly one '${surface}' observation`);
+        }
+        const acceptance = normalized.acceptance;
+        const expectedExitCode = currentAcceptanceExitCode(acceptance.verdict);
+        const transportDiagnostics = [];
+        if (child.error) {
+          transportDiagnostics.push(`consumer gate process failed: ${child.error.message}`);
+        } else if (child.status !== expectedExitCode) {
+          transportDiagnostics.push(
+            `consumer gate acceptance '${acceptance.verdict}' requires exit ${expectedExitCode}, received ${child.status === null ? 'no exit code' : child.status}`,
+          );
+        }
+        const row = normalized.surfaceResults[0];
+        const diagnostics = [
+          ...diagnosticList(normalized.diagnostics),
+          ...diagnosticList(row.reasons),
+          ...diagnosticList(row.diagnostics),
+          ...transportDiagnostics,
+        ].slice(0, 50);
+        const transportStatus = transportDiagnostics.length > 0 ? 'FAIL' : 'PASS';
+        return {
+          ...normalized,
+          outcome: transportStatus === 'FAIL' && acceptance.verdict === 'PASS' ? 'FAIL' : acceptance.verdict,
+          transportStatus,
+          diagnostics,
+          surfaceResults: [row],
+          identity: {
+            surface,
+            stage: row.stage,
+            producer: row.producer || 'consumer-gate',
+            adapter: row.adapter || { id: gateAdapter.adapterId, version: '1.0.0' },
+          },
+        };
+      } catch (error) {
+        const row = failedProbeRow(
+          surface,
+          'FAIL',
+          `consumer gate current evidence is invalid: ${error.message}`,
+          root,
+          payload.commands,
+          'consumer-gate',
+          gateAdapter.adapterId,
+        );
+        return {
+          schemaVersion: 2,
+          stage: 'CONSUMER',
+          outcome: 'FAIL',
+          transportStatus: 'FAIL',
+          diagnostics: [...row.reasons, ...row.diagnostics],
+          surfaceResults: [row],
+          identity: { surface, stage: row.stage, producer: row.producer, adapter: row.adapter },
+        };
+      }
     }
     const producerSurface = gateAdapter.producerSurface;
     const matches = Array.isArray(payload.surfaceResults)
@@ -829,6 +1350,10 @@ function runConsumerProbe(root, parsed) {
       adapter: row.adapter,
     },
   };
+}
+
+function runReleaseConsumerProbe(root, parsed) {
+  return runConsumerProbe(root, { ...parsed, currentAcceptance: true });
 }
 
 function normalizeReleaseProbeResult(root, surface, execution) {
@@ -944,10 +1469,14 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
     if (!checked.ok) identityErrors.push(...checked.errors.map((error) => `foreign or stale preflight: ${error}`));
   }
   let batch = null;
+  let batchProcessStatus = null;
+  let batchProcessError = null;
   const requestedConcurrency = options && options.probeConcurrency !== undefined
     ? Number(options.probeConcurrency)
     : 1;
-  if (probeExecutor === runConsumerProbe && Number.isSafeInteger(requestedConcurrency) && requestedConcurrency > 1) {
+  const currentAcceptanceMode = probeExecutor === runReleaseConsumerProbe;
+  const supportsBoundedBatch = probeExecutor === runConsumerProbe || currentAcceptanceMode;
+  if (supportsBoundedBatch && Number.isSafeInteger(requestedConcurrency) && requestedConcurrency > 1) {
     const batchScript = path.join(root, 'scripts', 'release', 'parallel-consumer-probes.js');
     const batchArgs = [
       batchScript,
@@ -958,6 +1487,7 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
       '--task-id', options.taskId || 'release',
       '--attempt-id', options.attemptId || 'attempt',
     ];
+    if (currentAcceptanceMode) batchArgs.push('--current-acceptance');
     const child = spawnSync(process.execPath, batchArgs, {
       cwd: root,
       env: options.runtimeEnv || process.env,
@@ -965,6 +1495,8 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
       timeout: (Number(options.probeTimeoutMs) || 120000) * requiredSurfaces.length,
       maxBuffer: 8 * 1024 * 1024,
     });
+    batchProcessStatus = child.status;
+    batchProcessError = child.error || null;
     try { batch = JSON.parse(child.stdout || '{}'); } catch (_) { batch = null; }
     if (!batch || !Array.isArray(batch.results)) {
       const reason = child.error && child.error.code === 'ETIMEDOUT'
@@ -988,16 +1520,40 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
   const batchBySurface = new Map((batch && Array.isArray(batch.results) ? batch.results : [])
     .filter((entry) => entry && typeof entry.surface === 'string')
     .map((entry) => [entry.surface, entry]));
+  const batchIdentityErrors = [];
+  if (batch && Array.isArray(batch.results)) {
+    const counts = new Map();
+    for (const entry of batch.results) {
+      if (!entry || typeof entry.surface !== 'string') {
+        batchIdentityErrors.push('bounded consumer probe coordinator emitted a worker without a surface identity');
+        continue;
+      }
+      counts.set(entry.surface, (counts.get(entry.surface) || 0) + 1);
+      if (!requiredSurfaces.includes(entry.surface)) {
+        batchIdentityErrors.push(`bounded consumer probe coordinator emitted foreign worker surface '${entry.surface}'`);
+      }
+    }
+    for (const surface of requiredSurfaces) {
+      const count = counts.get(surface) || 0;
+      if (count === 0) batchIdentityErrors.push(`bounded consumer probe coordinator omitted worker surface '${surface}'`);
+      else if (count !== 1) batchIdentityErrors.push(`bounded consumer probe coordinator emitted worker surface '${surface}' ${count} times`);
+    }
+  }
   const artifactBySurface = new Map((options.artifactManifest && Array.isArray(options.artifactManifest.packages)
     ? options.artifactManifest.packages
     : []).map((entry) => [entry.surface, entry]));
+  const probeRecords = [];
   const surfaceResults = requiredSurfaces.map((surface) => {
     let execution;
     let probeNamespace = null;
+    let workerTransportStatus = null;
+    let workerDiagnostic = null;
     if (batch) {
       const entry = batchBySurface.get(surface);
       execution = entry && entry.execution;
       probeNamespace = entry && entry.namespace;
+      workerTransportStatus = entry && entry.transportStatus;
+      workerDiagnostic = entry && entry.diagnostic;
       if (!execution) {
         execution = {
           outcome: 'BLOCKED',
@@ -1008,8 +1564,21 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
       try {
         execution = probeExecutor(root, { surface });
       } catch (error) {
-        return failedProbeRow(surface, 'FAIL', `consumer probe failed before emitting evidence: ${error.message}`, root);
+        execution = {
+          outcome: 'FAIL',
+          surfaceResults: [failedProbeRow(surface, 'FAIL', `consumer probe failed before emitting evidence: ${error.message}`, root)],
+        };
       }
+    }
+    probeRecords.push({ surface, execution, probeNamespace, workerTransportStatus, workerDiagnostic });
+    if (hasCurrentConsumerEnvelope(execution)) {
+      const firstRow = Array.isArray(execution.surfaceResults) ? execution.surfaceResults[0] : null;
+      const artifactBinding = artifactBySurface.get(surface);
+      return {
+        ...(firstRow && typeof firstRow === 'object' ? firstRow : failedProbeRow(surface, 'FAIL', 'current consumer evidence omitted its surface observation', root)),
+        ...(probeNamespace ? { probeNamespace } : {}),
+        ...(artifactBinding ? { artifactBinding } : {}),
+      };
     }
     const normalized = normalizeReleaseProbeResult(root, surface, execution);
     const rowIdentity = normalized.preflightIdentity
@@ -1027,6 +1596,128 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
       ...(preflightIdentity ? { preflightIdentity: rowIdentity || preflightIdentity } : {}),
     };
   });
+  const currentProtocol = probeRecords.some((record) => hasCurrentConsumerEnvelope(record.execution));
+  if (currentProtocol) {
+    const currentEnvelopes = [];
+    const currentRows = new Map();
+    const transportDiagnostics = [...batchIdentityErrors];
+    let transportFailed = batchIdentityErrors.length > 0;
+    try {
+      for (const record of probeRecords) {
+        if (!hasCurrentConsumerEnvelope(record.execution)) {
+          throw new Error(`worker '${record.surface}' omitted current schema-v2 consumer evidence`);
+        }
+        const execution = {
+          ...record.execution,
+          ...(record.workerTransportStatus ? { transportStatus: record.workerTransportStatus } : {}),
+        };
+        const normalized = normalizeCurrentConsumerEnvelope(execution, [record.surface]);
+        if (normalized.surfaceResults.length !== 1 || normalized.surfaceResults[0].surface !== record.surface) {
+          throw new Error(`worker '${record.surface}' must emit exactly one matching observation`);
+        }
+        const rowIdentity = normalized.surfaceResults[0].preflightIdentity
+          || execution.preflightIdentity
+          || (execution.preflight && execution.preflight.identity);
+        if (preflightIdentity && rowIdentity) {
+          const checked = runtimePreflight.comparePreflightIdentity(preflightIdentity, rowIdentity);
+          if (!checked.ok) identityErrors.push(...checked.errors.map((error) => `consumer row '${record.surface}' has foreign preflight: ${error}`));
+        }
+        currentEnvelopes.push(normalized);
+        currentRows.set(record.surface, {
+          ...normalized.surfaceResults[0],
+          ...(record.probeNamespace ? { probeNamespace: record.probeNamespace } : {}),
+          ...(artifactBySurface.has(record.surface) ? { artifactBinding: artifactBySurface.get(record.surface) } : {}),
+          ...(preflightIdentity ? { preflightIdentity: rowIdentity || preflightIdentity } : {}),
+        });
+        if (record.workerTransportStatus === 'FAIL' || execution.transportStatus === 'FAIL' || record.workerDiagnostic) {
+          transportFailed = true;
+          transportDiagnostics.push(...diagnosticList(record.workerDiagnostic));
+          if ((record.workerTransportStatus === 'FAIL' || execution.transportStatus === 'FAIL') && !record.workerDiagnostic) {
+            transportDiagnostics.push(`worker '${record.surface}' transport failed after emitting evidence`);
+          }
+        }
+      }
+
+      const combined = combineConsumerEvidence(currentEnvelopes, requiredSurfaces);
+      if (batch) {
+        const expectedStatus = combined.acceptance.verdict === 'PASS' && !transportFailed ? 0 : 1;
+        if (batchProcessError) {
+          transportFailed = true;
+          transportDiagnostics.push(`bounded consumer probe coordinator failed: ${batchProcessError.message}`);
+        } else if (batchProcessStatus !== expectedStatus) {
+          transportFailed = true;
+          transportDiagnostics.push(
+            `bounded consumer probe coordinator acceptance '${combined.acceptance.verdict}' requires exit ${expectedStatus}, received ${batchProcessStatus === null ? 'no exit code' : batchProcessStatus}`,
+          );
+        }
+      }
+      const transportStatus = transportFailed ? 'FAIL' : 'PASS';
+      const orderedRows = requiredSurfaces.map((surface) => currentRows.get(surface));
+      const aggregate = aggregateRequiredSurfaces({
+        requiredSurfaces,
+        requiredRuntimeSurfaces: Array.isArray(requiredRuntimeSurfaces)
+          ? requiredRuntimeSurfaces.filter((surface) => requiredSurfaces.includes(surface))
+          : undefined,
+        surfaceResults: orderedRows,
+        acceptance: combined.acceptance,
+        transportStatus,
+        fullRelease: true,
+      });
+      const rowDiagnostics = orderedRows.flatMap((entry) => [
+        ...diagnosticList(entry.reasons),
+        ...diagnosticList(entry.diagnostics),
+      ]);
+      let outcome = aggregate.outcome;
+      let exitCode = aggregate.exitCode;
+      if (identityErrors.length > 0) {
+        outcome = 'BLOCKED';
+        exitCode = combined.acceptance.verdict === 'PASS' ? exitCodeForOutcome(outcome) : 1;
+      } else if (preflight && preflight.status !== 'PASS' && outcome === 'COMPLETE') {
+        outcome = preflight.status === 'BLOCKED' ? 'BLOCKED' : 'PUBLISHED_PENDING';
+        exitCode = exitCodeForOutcome(outcome);
+      }
+      return {
+        ...combined,
+        ...aggregate,
+        schemaVersion: 2,
+        stage: 'CONSUMER',
+        verdict: combined.acceptance.verdict,
+        acceptance: combined.acceptance,
+        surfaceResults: orderedRows,
+        outcome,
+        exitCode,
+        ...(preflight ? { preflight, runnerCapabilities: preflight.runner } : {}),
+        ...(batch ? {
+          probeExecution: {
+            mode: 'bounded-child-processes',
+            concurrency: batch.concurrency,
+            timeoutMs: batch.timeoutMs,
+            wallTimeMs: batch.wallTimeMs,
+            namespaces: orderedRows.map((entry) => entry.probeNamespace || null),
+          },
+        } : {}),
+        ...(options.artifactManifest ? { artifactManifestFingerprint: options.artifactManifest.manifestFingerprint } : {}),
+        transportStatus,
+        diagnostics: [...identityErrors, ...transportDiagnostics, ...rowDiagnostics].slice(0, 50),
+      };
+    } catch (error) {
+      const reason = `current consumer evidence failed closed: ${error.message}`;
+      return {
+        schema: 'dhpk.harness.surface-aggregate.v1',
+        requiredSurfaces: [...requiredSurfaces],
+        requiredRuntimeSurfaces: Array.isArray(requiredRuntimeSurfaces)
+          ? requiredRuntimeSurfaces.filter((surface) => requiredSurfaces.includes(surface))
+          : [],
+        fullRelease: true,
+        surfaceResults,
+        outcome: 'PUBLISHED_UNHEALTHY',
+        exitCode: 1,
+        transportStatus: 'FAIL',
+        ...(preflight ? { preflight, runnerCapabilities: preflight.runner } : {}),
+        diagnostics: [...identityErrors, ...transportDiagnostics, reason].slice(0, 50),
+      };
+    }
+  }
   const aggregate = aggregateRequiredSurfaces({
     requiredSurfaces,
     requiredRuntimeSurfaces,
@@ -1042,7 +1733,15 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
   else if (preflight && preflight.status !== 'PASS' && outcome === 'COMPLETE') {
     outcome = preflight.status === 'BLOCKED' ? 'BLOCKED' : 'PUBLISHED_PENDING';
   }
-  const allDiagnostics = [...identityErrors, ...diagnostics].slice(0, 50);
+  if (batch && (batchProcessError || batchProcessStatus !== 0) && outcome === 'COMPLETE') {
+    outcome = 'PUBLISHED_PENDING';
+  }
+  const coordinatorDiagnostics = batch && (batchProcessError || batchProcessStatus !== 0)
+    ? [batchProcessError
+      ? `bounded consumer probe coordinator failed: ${batchProcessError.message}`
+      : `bounded consumer probe coordinator emitted valid evidence but exited ${batchProcessStatus === null ? 'without a status' : batchProcessStatus}`]
+    : [];
+  const allDiagnostics = [...identityErrors, ...coordinatorDiagnostics, ...diagnostics].slice(0, 50);
   return {
     ...aggregate,
     outcome,
@@ -1069,7 +1768,20 @@ function phaseExecution(root, parsed, inventory, binding, runtimeEnv = process.e
   if (parsed.phase === 'release') {
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
     if (required.errors.length > 0) return { outcome: 'BLOCKED', diagnostics: required.errors.slice(0, 20) };
-    const preflight = runtimePreflight.preflightForCheckout({
+    let requirementsScope = null;
+    try {
+      requirementsScope = parsed.requirementsScope || null;
+    } catch (error) {
+      return { outcome: 'BLOCKED', diagnostics: [sanitizeDiagnostics(`release requirements are invalid: ${error.message}`)] };
+    }
+    const declaredSurfaces = requirementsScope
+      ? requirementsScope.selectedSurfaces
+      : (Array.isArray(parsed.surfaces) ? parsed.surfaces : null);
+    let selectedSurfaces = declaredSurfaces || [];
+    let selectedRuntimeSurfaces = declaredSurfaces
+      ? required.requiredRuntimeSurfaces.filter((surface) => declaredSurfaces.includes(surface))
+      : [];
+    const createPreflight = () => runtimePreflight.preflightForCheckout({
       root,
       env: runtimeEnv,
       identity: {
@@ -1080,10 +1792,11 @@ function phaseExecution(root, parsed, inventory, binding, runtimeEnv = process.e
         targetCommit: binding.targetCommit,
         targetTree: binding.targetTree,
         worktree: binding.dirty ? 'DIRTY' : 'CLEAN',
-        selectedSurfaces: required.requiredSurfaces,
-        requiredRuntimeSurfaces: required.requiredRuntimeSurfaces,
+        selectedSurfaces,
+        requiredRuntimeSurfaces: selectedRuntimeSurfaces,
       },
     });
+    let preflight = null;
     let artifactManifest = null;
     const artifactManifestPath = runtimeEnv.DHPK_RELEASE_ARTIFACT_MANIFEST;
     if (artifactManifestPath) {
@@ -1104,31 +1817,93 @@ function phaseExecution(root, parsed, inventory, binding, runtimeEnv = process.e
       }
       artifactManifest = checkedManifest.manifest;
     }
-    const release = runReleaseProbes(root, required.requiredSurfaces, required.requiredRuntimeSurfaces, runConsumerProbe, {
-      preflight,
-      expectedIdentity: preflight.identity,
-      artifactManifest,
-      probeConcurrency: runtimeEnv.DHPK_HARNESS_RELEASE_PROBE_CONCURRENCY || 1,
-      probeTimeoutMs: runtimeEnv.DHPK_HARNESS_RELEASE_PROBE_TIMEOUT_MS || 120000,
-      taskId: parsed.taskId,
-      attemptId: parsed.attemptId,
-      runtimeEnv,
-    });
-    const blockedByPreflight = preflight.status === 'BLOCKED' || preflight.status === 'UNAVAILABLE' || preflight.status === 'FAIL';
-    const outcome = blockedByPreflight && release.outcome === 'COMPLETE'
-      ? (preflight.status === 'BLOCKED' ? 'BLOCKED' : 'PUBLISHED_PENDING')
-      : release.outcome;
+    let release;
+    if (requirementsScope) {
+      const evidence = runRequirementsConsumerGate(root, requirementsScope, selectedSurfaces, artifactManifest);
+      const runtimeScope = selectedRuntimeSurfaces.length > 0 ? selectedRuntimeSurfaces : undefined;
+      const aggregate = evidence.acceptance
+        ? aggregateRequiredSurfaces({
+          requiredSurfaces: selectedSurfaces,
+          requiredRuntimeSurfaces: runtimeScope,
+          surfaceResults: evidence.surfaceResults,
+          acceptance: evidence.acceptance,
+          transportStatus: evidence.transportStatus || 'FAIL',
+          fullRelease: true,
+        })
+        : {
+          schema: 'dhpk.harness.surface-aggregate.v1',
+          requiredSurfaces: [...selectedSurfaces],
+          requiredRuntimeSurfaces: runtimeScope || [],
+          fullRelease: true,
+          surfaceResults: evidence.surfaceResults,
+          outcome: 'PUBLISHED_UNHEALTHY',
+          exitCode: 1,
+        };
+      release = {
+        ...evidence,
+        ...aggregate,
+        ...(evidence.schemaVersion === 2 ? { schemaVersion: 2, stage: 'CONSUMER' } : {}),
+        ...(evidence.acceptance ? { verdict: evidence.acceptance.verdict, acceptance: evidence.acceptance } : {}),
+        requiredSurfaces: [...selectedSurfaces],
+        requiredRuntimeSurfaces: runtimeScope || [],
+        surfaceResults: aggregate.surfaceResults,
+      };
+    } else if (Array.isArray(parsed.surfaces)) {
+      release = runReleaseProbes(root, selectedSurfaces, selectedRuntimeSurfaces, runReleaseConsumerProbe, {
+        artifactManifest,
+        probeConcurrency: runtimeEnv.DHPK_HARNESS_RELEASE_PROBE_CONCURRENCY || 1,
+        probeTimeoutMs: runtimeEnv.DHPK_HARNESS_RELEASE_PROBE_TIMEOUT_MS || 120000,
+        taskId: parsed.taskId,
+        attemptId: parsed.attemptId,
+        runtimeEnv,
+      });
+    } else {
+      release = runConfiguredConsumerGate(root, required.requiredRuntimeSurfaces, artifactManifest);
+      selectedSurfaces = Array.isArray(release.requiredSurfaces) ? release.requiredSurfaces : [];
+      selectedRuntimeSurfaces = Array.isArray(release.requiredRuntimeSurfaces)
+        ? release.requiredRuntimeSurfaces
+        : [];
+    }
+    const currentRelease = Boolean(release && (release.acceptance
+      || release.schemaVersion === 2
+      || release.transportStatus));
+    const preflightDiagnostics = [];
+    if (!currentRelease) {
+      preflight = createPreflight();
+      const checkedPreflight = runtimePreflight.aggregatePreflight({
+        preflight,
+        expectedIdentity: preflight.identity,
+        requiredRuntimeSurfaces: selectedRuntimeSurfaces,
+        surfaceResults: Array.isArray(release.surfaceResults) ? release.surfaceResults : [],
+      });
+      preflightDiagnostics.push(...checkedPreflight.diagnostics.map((error) => `invalid preflight: ${error}`));
+      for (const row of Array.isArray(release.surfaceResults) ? release.surfaceResults : []) {
+        const rowIdentity = row && (row.preflightIdentity || (row.preflight && row.preflight.identity));
+        if (!rowIdentity) continue;
+        const checked = runtimePreflight.comparePreflightIdentity(preflight.identity, rowIdentity);
+        if (!checked.ok) {
+          preflightDiagnostics.push(...checked.errors.map((error) => `consumer row '${row.surface}' has foreign preflight: ${error}`));
+        }
+      }
+    }
+    const blockedByPreflight = preflight
+      && ['BLOCKED', 'UNAVAILABLE', 'FAIL'].includes(preflight.status);
+    const outcome = preflightDiagnostics.length > 0
+      ? 'BLOCKED'
+      : (blockedByPreflight && release.outcome === 'COMPLETE'
+        ? (preflight.status === 'BLOCKED' ? 'BLOCKED' : 'PUBLISHED_PENDING')
+        : release.outcome);
     return {
       ...release,
       outcome,
-      preflight,
-      runnerCapabilities: preflight.runner,
-      identity: preflight.identity,
+      exitCode: outcome === release.outcome ? release.exitCode : exitCodeForOutcome(outcome),
+      ...(preflight ? { preflight, runnerCapabilities: preflight.runner, identity: preflight.identity } : {}),
       ...(release.probeExecution ? { probeExecution: release.probeExecution } : {}),
       ...(release.artifactManifestFingerprint ? { artifactManifestFingerprint: release.artifactManifestFingerprint } : {}),
       diagnostics: [
         ...(Array.isArray(release.diagnostics) ? release.diagnostics : []),
-        ...(Array.isArray(preflight.diagnostics) ? preflight.diagnostics : []),
+        ...preflightDiagnostics,
+        ...(preflight && Array.isArray(preflight.diagnostics) ? preflight.diagnostics : []),
       ].slice(0, 50),
     };
   }
@@ -1218,11 +1993,17 @@ function blockedHandoffError(message) {
 }
 
 function operationIntent(parsed) {
-  return {
+  const intent = {
     phase: parsed.phase,
     surface: parsed.surface || null,
     testFile: parsed.testFile || null,
   };
+  if (Array.isArray(parsed.surfaces)) intent.surfaces = [...parsed.surfaces];
+  if (parsed.requirementsScope) {
+    intent.requirementsDigest = parsed.requirementsScope.digest;
+    intent.requirementsSurfaces = [...parsed.requirementsScope.selectedSurfaces];
+  }
+  return intent;
 }
 
 function assertReplayIntent(parsed, envelope) {
@@ -1240,6 +2021,9 @@ function assertReplayIntent(parsed, envelope) {
   }
   if (requested.testFile !== null) {
     throw blockedHandoffError('operation key replay cannot prove the original operation intent from a legacy receipt');
+  }
+  if (requested.surfaces !== undefined || requested.requirementsDigest !== undefined) {
+    throw blockedHandoffError('operation key replay cannot prove the original surface scope or requirements from a legacy receipt');
   }
 }
 
@@ -1359,6 +2143,13 @@ function execute(argv = [], {
     }
     const inventory = readInventory(root);
     const binding = resolveSourceBinding(root);
+    if (parsed.requirementsFile) {
+      try {
+        parsed.requirementsScope = consumerRequirementsScope(root, parsed.requirementsFile);
+      } catch (error) {
+        throw blockedHandoffError(sanitizeDiagnostics(`release requirements are invalid: ${error.message}`));
+      }
+    }
     const operationKey = parsed.operationKey || parsed.idempotencyKey || null;
     if (operationKey) {
       const existing = receipts.findAttemptByOperationKey(resolvedReceiptRoot, operationKey);
@@ -1380,7 +2171,10 @@ function execute(argv = [], {
           || checked.lastEvent.lifecyclePhase !== checked.envelope.lifecyclePhase) {
           throw blockedHandoffError('idempotent replay requires a terminal event matching the receipt envelope');
         }
-        return replayAttempt(parsed.phase, { ...existing, envelope: checked.envelope }, parsed);
+        return restoreConsumerEvidenceReplay(
+          replayAttempt(parsed.phase, { ...existing, envelope: checked.envelope }, parsed),
+          checked.envelope,
+        );
       }
     }
     let previousReceipt = null;
@@ -1458,6 +2252,7 @@ function execute(argv = [], {
       operationKey: parsed.operationKey || null,
       idempotencyKey: parsed.idempotencyKey || null,
       operationReservation,
+      consumerEvidence: consumerEvidenceForExecution(execution) || undefined,
       identity: {
         ...receiptIdentity,
         operationIntent: operationIntent(parsed),
@@ -1485,6 +2280,8 @@ function execute(argv = [], {
       ...(Array.isArray(execution.requiredSurfaces) ? { requiredSurfaces: execution.requiredSurfaces } : {}),
       ...(Array.isArray(execution.requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: execution.requiredRuntimeSurfaces } : {}),
       ...(Array.isArray(execution.surfaceResults) ? { surfaceResults: execution.surfaceResults } : {}),
+      ...(execution.acceptance ? { schema: 'dhpk.harness.result.v2', acceptance: execution.acceptance } : {}),
+      ...(execution.transportStatus ? { transportStatus: execution.transportStatus } : {}),
       ...(execution.preflight ? { preflight: execution.preflight } : {}),
       ...(execution.runnerCapabilities ? { runnerCapabilities: execution.runnerCapabilities } : {}),
       ...(execution.probeExecution ? { probeExecution: execution.probeExecution } : {}),
@@ -1500,7 +2297,16 @@ function execute(argv = [], {
       byteReferences: execution.byteReferences || [],
       resumeCommand: result.resumeCommand,
     });
-    result.exitCode = exitCodeForOutcome(result.outcome);
+    if (execution && execution.acceptance) {
+      const passEffective = execution.acceptance.verdict === 'PASS'
+        && ['PASS', 'COMPLETE'].includes(result.outcome)
+        && execution.transportStatus !== 'FAIL';
+      result.exitCode = passEffective ? 0 : 1;
+    } else if (execution && execution.transportStatus === 'FAIL' && execution.exitCode === 1) {
+      result.exitCode = 1;
+    } else {
+      result.exitCode = exitCodeForOutcome(result.outcome);
+    }
     return { status: result.exitCode, result };
   } catch (error) {
     const blocked = error && error.code === 'HARNESS_BLOCKED';

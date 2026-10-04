@@ -2,6 +2,15 @@
 
 > **Languages**: **English** · [繁體中文](./platform-installation.zh-TW.md)
 
+## Scope and runtime evidence (#848/#854)
+
+Installation acceptance covers the selected format, resources, configuration,
+ownership and lifecycle checks. Native runtime evidence is required only for a
+selected integration change, activation defect, or explicit native request.
+The named-role canary and registry diagnostics remain available for those
+cases; an unavailable or failing required check remains non-passing. Skills-only
+installation does not imply blanket Host runtime proof.
+
 This is the installation and support-status SSOT for dhpk distribution
 surfaces. A package or manifest is structural evidence only; a client is
 callable only after the named consumer probe discovers the projected content.
