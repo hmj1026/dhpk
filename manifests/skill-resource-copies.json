@@ -166,7 +166,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "opsx-apply-goal",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
+      "sha256": "sha256:e87369ae97c19d086f3ae64f55b4e8d39afe4c5ef4b10ab271da919619bcdc94",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/model-economics.md": {
@@ -256,7 +256,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
       "skill_id": "opsx-apply-goal",
       "source": "skills/flow-guide/references/testing-policy.md",
-      "sha256": "sha256:9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6",
+      "sha256": "sha256:3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/scripts/build-cli-dispatch-context.js": {
@@ -496,7 +496,7 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
+      "sha256": "sha256:e87369ae97c19d086f3ae64f55b4e8d39afe4c5ef4b10ab271da919619bcdc94",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
@@ -586,7 +586,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/testing-policy.md",
-      "sha256": "sha256:9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6",
+      "sha256": "sha256:3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/docs/subagent-prompt-template.md": {
@@ -622,7 +622,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:10af078e720e78b43e4c16f933ac83db93b7a877633551b2715871ec607b0f30",
+      "sha256": "sha256:e87369ae97c19d086f3ae64f55b4e8d39afe4c5ef4b10ab271da919619bcdc94",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
@@ -712,7 +712,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/testing-policy.md",
-      "sha256": "sha256:9ba9f3f9a0f64c5395843cf641493181bfd8dc75e71f7ee21bc199897e984dc6",
+      "sha256": "sha256:3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9",
       "mode": "0644"
     },
     "skills/flow-guide/scripts/_lib/command-namespace.js": {

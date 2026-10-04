@@ -2,7 +2,9 @@
 
 ## Purpose
 
-TBD - created by archiving change harden-session-audit-and-agent-orchestration. Update Purpose after archive.
+Define the durable lifecycle and evidence bindings that let orchestration
+consume worker and reviewer results without confusing readiness, freshness,
+scope, or gate enforcement with task completion.
 
 ## Requirements
 
