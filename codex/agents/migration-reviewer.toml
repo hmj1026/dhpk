@@ -104,7 +104,10 @@ For high-volume tables (declared per project via the `hot_tables` userConfig key
 - [ ] Confirm ALTER classification using the active engine/version's online-DDL matrix:
   - classify locking, rewrite, and concurrent-read/write behavior from that matrix
   - do not infer safety from a MySQL example when the project uses another engine
-- [ ] Large-table ALTERs in `up` should be a single statement (don't split into multiple small ALTERs — each ALTER rebuilds the whole table)
+- [ ] For a high-volume table, consolidate ALTER operations only when the
+      active engine/version rebuilds or locks the table per statement and the
+      deployment risk makes repeated rewrites material; follow the engine's
+      online-DDL and batching guidance when it does not
 - [ ] PR description states expected execution time (measure locally → extrapolate to prod row count)
 
 ### 5. Engine compatibility (MEDIUM)
