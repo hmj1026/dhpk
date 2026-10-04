@@ -797,6 +797,36 @@ test('orientation reads the kernel and selected route reference without loading 
   }
 });
 
+test('missing required policy stops orientation before any apply or dependent dispatch', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-goal-policy-missing-'));
+  try {
+    const skill = path.join(tmp, 'skill root');
+    const project = path.join(tmp, 'project');
+    fs.mkdirSync(path.join(skill, 'references', 'execution-bundle', 'rules'), { recursive: true });
+    fs.mkdirSync(project, { recursive: true });
+    const rootQuote = spawnSync('bash', ['-c', 'printf "%q" "$1"', 'quote', skill], { encoding: 'utf8' }).stdout;
+    const env = { ...process.env, CLAUDE_PLUGIN_ROOT: path.join(tmp, 'missing host') };
+    const result = spawnSync('bash', ['-c', orientationCommand(FENCES['DISPATCH_ON=false']).replaceAll('<SKILL_ROOT_Q>', rootQuote)], {
+      cwd: project, env, encoding: 'utf8',
+    });
+    assert.notStrictEqual(result.status, 0, 'missing required policy must stop orientation');
+    assert.match(`${result.stdout}${result.stderr}`, /POLICY-UNRESOLVED/);
+    assert.doesNotMatch(`${result.stdout}${result.stderr}`, /Run openspec-apply-change|fast-worker|tdd-guide/,
+      'a missing policy must not continue into apply or dependent dispatch');
+
+    fs.writeFileSync(path.join(skill, 'references', 'execution-bundle', 'rules', 'execution-policy-kernel.md'), 'KERNEL\n');
+    const routeResult = spawnSync('bash', ['-c', orientationCommand(FENCES['DISPATCH_ON=true']).replaceAll('<SKILL_ROOT_Q>', rootQuote)], {
+      cwd: project, env, encoding: 'utf8',
+    });
+    assert.notStrictEqual(routeResult.status, 0, 'missing selected route must stop dispatch-on orientation');
+    assert.match(`${routeResult.stdout}${routeResult.stderr}`, /POLICY-UNRESOLVED/);
+    assert.doesNotMatch(`${routeResult.stdout}${routeResult.stderr}`, /Run openspec-apply-change|fast-worker|tdd-guide/,
+      'a missing route must not continue into apply or dependent dispatch');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 
 
 test('DISPATCH_ON=false goal stays under the hard cap and the normal target', () => {

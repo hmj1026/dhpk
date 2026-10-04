@@ -498,8 +498,8 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "675c2a1e0d61217f5f146593a8f48f5215f9d1d2cc2ea575b0e29fb1df32ee3b",
-      "projection_digest": "2bae3a717c8cefe2883a3b7e1f988bcb6807e353c4cdf1698687cfdf7908eb93",
+      "canonical_digest": "c9690a1f6f4415db324f42613f35138c4f39fbb34546be59f4f309318ff85961",
+      "projection_digest": "716812f9711f7776dc215c1e40fff37d37c11f2cb08c9a88cbabed37db5b0714",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
