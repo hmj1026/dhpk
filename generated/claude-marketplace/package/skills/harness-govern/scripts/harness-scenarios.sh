@@ -3,11 +3,9 @@
 # after a harness trim/optimization pass. Exit code = FAIL count.
 #
 # Scope (post-2026-06-12 dhpk cutover): only project-owned assets are tested here.
-# Sentinel routing (post-edit-remind), sensitive-path guard (pre-edit-guard),
-# CRLF fix (post-write-crlf-fix) and stop reminder (stop-review-reminder) are now
-# OWNED BY the dhpk plugin (>=0.10.0) hooks.json and validated by the plugin's own
-# contract tests — re-testing them from here would assert plugin internals, so they
-# are intentionally out of scope. See memory `harness-dhpk-hook-coexistence`.
+# Plugin-owned hook behavior is validated by the plugin's contract tests.
+# This battery checks project-local hooks and configuration without taking
+# ownership of review state or asserting plugin hook internals.
 #
 # Usage: bash scripts/harness-scenarios.sh [--dir .claude]
 set -o pipefail
@@ -74,9 +72,8 @@ probe_bash() {
   if [[ "$rc" == "$want_rc" ]]; then echo "  PASS $label (rc=$rc)"; pass=$((pass+1)); else echo "  FAIL $label (rc=$rc want=$want_rc)"; fail=$((fail+1)); fi
 }
 
-echo "[note] Plugin-owned scenarios (dhpk >=0.10.0, out of project scope):"
-echo "       post-edit-remind (sentinel routing), pre-edit-guard (sensitive path),"
-echo "       post-write-crlf-fix, stop-review-reminder — validated by dhpk's own tests."
+echo "[note] Plugin-owned hook behavior is validated by dhpk's own tests."
+echo "       This battery checks project-local hooks and configuration."
 
 echo ""
 if [[ -f "$HARNESS_DIR/hooks/pre-bash-guard.sh" ]]; then
@@ -123,9 +120,8 @@ for h in "${LOCAL_HOOKS[@]}"; do
 done
 
 echo ""
-echo "=== S6 dhpk plugin wiring smoke check (sentinel/guard/lint SSOT) ==="
-# The cutover moved review routing to the dhpk plugin. Assert the project still
-# declares the plugin as SSOT rather than re-testing the plugin's hooks.
+echo "=== S6 dhpk version pin and plugin configuration ==="
+# Check optional project-local version and plugin configuration declarations.
 if [[ ! -f "$HARNESS_DIR/dhpk-versions.json" ]]; then
   echo "  SKIP dhpk-versions.json absent (project may not pin a dhpk version)"
 elif jq . "$HARNESS_DIR/dhpk-versions.json" >/dev/null 2>&1; then
