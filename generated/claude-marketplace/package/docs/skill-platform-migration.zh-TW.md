@@ -8,7 +8,7 @@ Pocock 或其他全域 skill 的使用者。
 
 目前 Codex/Cursor 安裝路徑與 rollback 邊界請以[平台安裝 SSOT](./platform-installation.zh-TW.md)為準。
 
-Issue #534 預設轉換時，Claude 先執行 `bash scripts/install.sh --dry-run`；
+轉換到 minimal 預設 profile 時，Claude 先執行 `bash scripts/install.sh --dry-run`；
 其他 host 分別使用 `scripts/hooks/install-codex-skills.sh`、
 `scripts/hooks/install-cursor-harness.sh` 或
 `node scripts/ci/install-agy-plugin.js plan`。Clean install 選擇精確四項的
