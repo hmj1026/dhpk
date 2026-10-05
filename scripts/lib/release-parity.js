@@ -32,6 +32,7 @@ const MANIFEST_PATHS = [
   'generated/claude-profiles/minimal/package/plugin.json',
   'generated/claude-profiles/full/package/plugin.json',
   'generated/claude-profiles/compat-v1/package/plugin.json',
+  'package.json',
 ];
 
 const AGY_GENERATOR_DOC_PATHS = [

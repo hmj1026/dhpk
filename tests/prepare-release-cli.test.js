@@ -32,6 +32,7 @@ function mkRepo({ branch = 'develop' } = {}) {
     }
     fs.writeFileSync(path.join(root, 'generated/claude-marketplace/package/.claude-plugin/plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
     fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
+    fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0', private: true }));
     fs.writeFileSync(path.join(root, '.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
     fs.writeFileSync(path.join(root, 'plugins/dhpk/.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
     fs.writeFileSync(path.join(root, '.agents/plugins', 'marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version: '1.0.0' }] }));
