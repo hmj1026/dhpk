@@ -9,7 +9,6 @@ specifications in `openspec/specs/<capability>/spec.md`.
 | `docs/*.md` | User guides and reusable contributor documentation | Versioned |
 | `docs/agent-guidance/` | Agent authoring and workflow contracts | Versioned |
 | `docs/agents/` | Domain and issue-tracker guidance | Versioned |
-| `docs/proposals/` | Explicitly requested versioned proposals for PR review; adoption and implementation remain separate | Versioned |
 | `docs/adr/` | Accepted architecture decisions and their rationale | Versioned |
 | `docs/contracts/` | Reusable artifact and review contracts | Versioned |
 | `docs/design/` | Proposals, design exploration, implementation plans, historical designs | Local, ignored |
@@ -25,7 +24,11 @@ The durable Host-runtime follow-up dispositions are recorded in
 Ignored `openspec/changes/` plans are provenance and working state; they are not
 the only source of accepted policy in a fresh checkout.
 
-The [proposal review index](proposals/README.md) contains the explicitly requested versioned review records for #817 telemetry and cutover planning. This is a review-publication exception to local design storage: keep general drafts and run evidence ignored. A proposal PR merge does not adopt its requirements or authorize implementation. Record adoption separately before synchronizing accepted behavior into `openspec/specs/`.
+Keep publicly shared execution checklists in the existing issue tracker. Link
+accepted behavior to `openspec/specs/` and reusable implementation context to
+its existing guide, contract, or package reference. Adoption and implementation
+remain separate; an accepted specification does not establish implementation
+or behavioral verification.
 
 Classify by content and use, rather than filename: a current operating
 procedure belongs in a reusable guide; the output from one execution belongs
