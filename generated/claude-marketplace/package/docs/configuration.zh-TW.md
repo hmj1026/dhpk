@@ -95,10 +95,10 @@ mode 時預設為 `auto`。這不是 `userConfig` 設定，不會改變 `planner
 | `codex_worker_model` | string | `gpt-6-luna` | codex CLI 接受的任何模型 | 規範角色 `codex-worker` 派發時傳給 codex CLI 後端的模型。依標準分層解析（專案 pluginConfigs > 全域 pluginConfigs > 出廠預設）後傳入 `run-codex.sh`。Codex 模型名稱汰換快速——預設值失效時在此覆寫，而非改原始碼（可用 `codex models` 查詢）。舊別名：`codex_fast_worker_model`。 |
 | `codex_worker_effort` | string | `xhigh` | codex CLI 接受的任何強度（如 `low` \| `medium` \| `high` \| `xhigh`） | `codex-worker` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`——強力機械層。舊別名：`codex_fast_worker_effort`。 |
 | `codex_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_fast_worker_timeout_secs`。 |
-| `codex_reasoner_model` | string | `gpt-6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex-cli/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 是相容性 shorthand。舊別名：`codex_deep_reasoner_model`。 |
+| `codex_reasoner_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex-cli/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 是相容性 shorthand。舊別名：`codex_deep_reasoner_model`。 |
 | `codex_reasoner_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reasoner` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。舊別名：`codex_deep_reasoner_effort`。 |
 | `codex_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed。舊別名：`codex_deep_reasoner_timeout_secs`。 |
-| `codex_reviewer_model` | string | `gpt-6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reviewer` 派發時傳給 codex CLI 後端的模型（此版本內部只用，無法直接派發）。 |
+| `codex_reviewer_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reviewer` 派發時傳給 codex CLI 後端的模型（此版本內部只用，無法直接派發）。 |
 | `codex_reviewer_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reviewer` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。 |
 | `codex_reviewer_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reviewer` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_bridge_timeout_secs`。 |
 | `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 所有 Codex CLI 角色共用的 dispatcher deadline。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。解析後的值會寫入 immutable transport context，wrapper 不會從環境讀取它。 |

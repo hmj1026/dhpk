@@ -218,14 +218,14 @@
     "codex_deep_reasoner_model": {
       "type": "string",
       "title": "codex-deep-reasoner model",
-      "description": "Model passed to the codex CLI backend when the codex-deep-reasoner agent is dispatched via `--reasoner=codex` (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). Resolved via the standard layering (project pluginConfigs > global > this default) and passed into run-codex.sh (read-only sandbox). Model names on the codex CLI rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Default 'gpt-6-sol'.",
-      "default": "gpt-6-sol"
+      "description": "Model passed to the codex CLI backend when the codex-deep-reasoner agent is dispatched via `--reasoner=codex` (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). Resolved via the standard layering (project pluginConfigs > global > this default) and passed into run-codex.sh (read-only sandbox). Model names on the codex CLI rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Default 'gpt-6.1-sol'.",
+      "default": "gpt-6.1-sol"
     },
     "codex_reasoner_model": {
       "type": "string",
       "title": "codex-reasoner model",
       "description": "Canonical model key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_model alias.",
-      "default": "gpt-6-sol"
+      "default": "gpt-6.1-sol"
     },
     "codex_deep_reasoner_effort": {
       "type": "string",
@@ -279,7 +279,7 @@
       "type": "string",
       "title": "codex-reviewer model",
       "description": "Canonical model key for the internal shared-runner codex-reviewer role.",
-      "default": "gpt-6-sol"
+      "default": "gpt-6.1-sol"
     },
     "codex_reviewer_effort": {
       "type": "string",

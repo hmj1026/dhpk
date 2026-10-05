@@ -239,7 +239,7 @@ bridge is an explicitly selected optional `codex-bridge` capability, with
 output quarantined in the subagent and relayed verbatim. Its host-provided
 CLI transport is separate from the retired in-session MCP `codex-*` identities
 and the external `codex:` app-server plugin. Read-only requests use
-`codex-reviewer` (`gpt-6-sol` / `high`) and workspace-write requests use
+`codex-reviewer` (`gpt-6.1-sol` / `high`) and workspace-write requests use
 `codex-worker` (`gpt-6-luna` / `xhigh`), per the §Implementation dispatch row.
 A pre-GPT-6 model is never an automatic fallback and cannot satisfy runtime
 acceptance evidence; an explicit user `codex_*_model` override is still honored. The default path never dispatches this bridge; a retired

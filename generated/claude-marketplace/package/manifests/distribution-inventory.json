@@ -498,7 +498,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "20be8b98f2b8bde033ebf18db44665a8dcf23124d4b0cc0e5b832029220f07ad",
+      "canonical_digest": "d7069c054f2619e7ceb31019ba52af35ccbbad57dc0a952bc921cceebf00a0b5",
       "projection_digest": "ba068511f42bac22d06ebfc59c4c0a4fc4007d4d6a8dd22ecdab75986ce2611a",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -514,8 +514,8 @@
       "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
       "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
       "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
-      "canonical_digest": "510702d0fdc82908ea2049a51779bf123866efee078dd05e6ba7c124d9cb7f14",
-      "projection_digest": "e9344365e347160bea810c46a580678113474c34f93dd99f4781e8f3bc34470e",
+      "canonical_digest": "566306b9a9757b5cb413181e8d9c73ffbd0122757853df1dcdd2b60444741e4c",
+      "projection_digest": "ce688871d91c199c68f8395ac8a6614237dca27dc94d651dfc5c2b98a46b879c",
       "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
     },
     {

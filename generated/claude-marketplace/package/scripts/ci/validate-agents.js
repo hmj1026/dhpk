@@ -5,7 +5,7 @@
 //   FAIL: missing frontmatter, missing/empty name or description, duplicate
 //         keys, name/basename mismatch, missing/empty tools, invalid model /
 //         effort / maxTurns value.
-//   WARN: missing model / effort / maxTurns (promoted to FAIL under
+//   WARN: missing model / effort (promoted to FAIL under
 //         --strict for fields that are explicitly present but empty).
 //   Local policy (not official schema): tools required; name matches basename.
 // INDEX.md is a navigation file, not an agent — skipped.
@@ -105,7 +105,6 @@ for (const fullPath of files) {
   }
   if (isEmpty(fm.values.maxTurns)) {
     if (hasFrontmatterKey(fm.values, 'maxTurns')) r.warn(`${file} — missing/empty 'maxTurns'`);
-    else warnOptional(`${file} — missing 'maxTurns'`);
   } else if (!isPositiveInteger(fm.values.maxTurns)) {
     r.err(`${file} — invalid maxTurns '${fm.values.maxTurns}' (expected a positive integer)`);
   }

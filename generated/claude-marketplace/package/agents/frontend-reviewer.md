@@ -17,7 +17,6 @@ description: >-
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
-maxTurns: 15
 ---
 
 # Frontend reviewer

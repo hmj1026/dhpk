@@ -4,7 +4,6 @@ description: 'Expert code review specialist. Recommended after any source-code E
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
-maxTurns: 25
 ---
 
 # Code Reviewer
