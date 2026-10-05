@@ -4,7 +4,6 @@ description: 'Database review specialist (relational + object stores, framework-
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
-maxTurns: 20
 ---
 
 # Database Reviewer

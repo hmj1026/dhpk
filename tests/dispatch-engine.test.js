@@ -394,7 +394,7 @@ test('Codex Host native fallback is derived from its Host profile', () => {
   });
 
   assert.strictEqual(result.status, 'FALLBACK');
-  assert.strictEqual(result.target.identity, 'codex-cli/gpt-6-sol');
+  assert.strictEqual(result.target.identity, 'codex-cli/gpt-6.1-sol');
   assert.strictEqual(result.target.native, true);
 });
 
@@ -753,6 +753,8 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     assert.deepStrictEqual(Object.keys(catalog.models).slice(0, 2), ['anthropic/opus5', 'anthropic/sonnet5']);
     assert.strictEqual(catalog.models['openai/gpt-6-sol'].model_id, 'gpt-6-sol');
     assert.ok(catalog.routes.some((route) => route.provider === 'openai' && route.model_id === 'gpt-6-sol'));
+    assert.strictEqual(catalog.models['openai/gpt-6.1-sol'].model_id, 'gpt-6.1-sol');
+    assert.ok(catalog.routes.some((route) => route.provider === 'openai' && route.model_id === 'gpt-6.1-sol'));
     assert.deepStrictEqual(profiles.profiles.map((profile) => profile.host).sort(), ['agy', 'claude-code', 'codex-cli', 'cursor']);
     const cursorProfile = profiles.profiles.find((profile) => profile.host === 'cursor');
     assert.strictEqual(cursorProfile.native_provider, 'cursor');

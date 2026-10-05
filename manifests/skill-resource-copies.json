@@ -142,13 +142,13 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/host-profiles.json": {
       "skill_id": "opsx-apply-goal",
       "source": "manifests/host-profiles.json",
-      "sha256": "sha256:ceab6f5803b6ff39c6df9eb9888a6374d8d0fd5a39c67748c40b4725aefbcacd",
+      "sha256": "sha256:3af9a81e2e5bdd78f2af845436ac2f78f5ffcf1f58389309e936c9b07f5a92e0",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "opsx-apply-goal",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:6876fb3b620282be3f81c25a04255dc52082093136eb1f01ac8c88b8d0fc9233",
+      "sha256": "sha256:630e9ec9b1b8c53987af1c688f8c415462d0fe6689d8e5498c2ccd06ba421d76",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/anti-rationalization.md": {
@@ -166,13 +166,13 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "opsx-apply-goal",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:c9690a1f6f4415db324f42613f35138c4f39fbb34546be59f4f309318ff85961",
+      "sha256": "sha256:e3da904a4354d0f0ba0b8ce0b3e7c7a7bec8165b68ee3b22e7ede5bf211ead76",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "opsx-apply-goal",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:4b49d3f637b8abef3271830060b2475f8dd1aa6c72d5d46f6805b07757456d07",
+      "sha256": "sha256:234205a89be4a63ecc3f91c219eb84692d10f4b78975a15b6a7f697844ddbe5a",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/tool-routing.md": {
@@ -232,7 +232,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "opsx-apply-goal",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9",
+      "sha256": "sha256:aa3f37a13ba54f58a6dc629ba28a130fdf7fcadeb387aba0acf9c01411bea9fe",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -472,13 +472,13 @@
     "skills/flow-drive/references/execution-bundle/manifests/host-profiles.json": {
       "skill_id": "flow-drive",
       "source": "manifests/host-profiles.json",
-      "sha256": "sha256:ceab6f5803b6ff39c6df9eb9888a6374d8d0fd5a39c67748c40b4725aefbcacd",
+      "sha256": "sha256:3af9a81e2e5bdd78f2af845436ac2f78f5ffcf1f58389309e936c9b07f5a92e0",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-drive",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:6876fb3b620282be3f81c25a04255dc52082093136eb1f01ac8c88b8d0fc9233",
+      "sha256": "sha256:630e9ec9b1b8c53987af1c688f8c415462d0fe6689d8e5498c2ccd06ba421d76",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md": {
@@ -496,13 +496,13 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:c9690a1f6f4415db324f42613f35138c4f39fbb34546be59f4f309318ff85961",
+      "sha256": "sha256:e3da904a4354d0f0ba0b8ce0b3e7c7a7bec8165b68ee3b22e7ede5bf211ead76",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-drive",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:4b49d3f637b8abef3271830060b2475f8dd1aa6c72d5d46f6805b07757456d07",
+      "sha256": "sha256:234205a89be4a63ecc3f91c219eb84692d10f4b78975a15b6a7f697844ddbe5a",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
@@ -562,7 +562,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9",
+      "sha256": "sha256:aa3f37a13ba54f58a6dc629ba28a130fdf7fcadeb387aba0acf9c01411bea9fe",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -598,13 +598,13 @@
     "skills/flow-guide/references/execution-bundle/manifests/host-profiles.json": {
       "skill_id": "flow-guide",
       "source": "manifests/host-profiles.json",
-      "sha256": "sha256:ceab6f5803b6ff39c6df9eb9888a6374d8d0fd5a39c67748c40b4725aefbcacd",
+      "sha256": "sha256:3af9a81e2e5bdd78f2af845436ac2f78f5ffcf1f58389309e936c9b07f5a92e0",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-guide",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:6876fb3b620282be3f81c25a04255dc52082093136eb1f01ac8c88b8d0fc9233",
+      "sha256": "sha256:630e9ec9b1b8c53987af1c688f8c415462d0fe6689d8e5498c2ccd06ba421d76",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md": {
@@ -622,13 +622,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:c9690a1f6f4415db324f42613f35138c4f39fbb34546be59f4f309318ff85961",
+      "sha256": "sha256:e3da904a4354d0f0ba0b8ce0b3e7c7a7bec8165b68ee3b22e7ede5bf211ead76",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:4b49d3f637b8abef3271830060b2475f8dd1aa6c72d5d46f6805b07757456d07",
+      "sha256": "sha256:234205a89be4a63ecc3f91c219eb84692d10f4b78975a15b6a7f697844ddbe5a",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
@@ -688,7 +688,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5fcbab9b8ed1c8f0bb0047ca5378d0a495189f0bf89bd2ca41b205128bf7a5d9",
+      "sha256": "sha256:aa3f37a13ba54f58a6dc629ba28a130fdf7fcadeb387aba0acf9c01411bea9fe",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {

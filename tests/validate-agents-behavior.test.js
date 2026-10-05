@@ -201,10 +201,10 @@ test('missing optional fields remain non-fatal on the default run', () => {
     const before = fs.readFileSync(path.join(tmp, 'agents', 'architect.md'), 'utf8');
     const result = runValidator(tmp);
     assert.strictEqual(result.status, 0, result.out);
-    assert.match(result.out, /missing 'maxTurns'/);
+    assert.doesNotMatch(result.out, /missing 'maxTurns'/);
     const strictResult = runValidator(tmp, ['--strict']);
     assert.strictEqual(strictResult.status, 0, strictResult.out);
-    assert.match(strictResult.out, /missing 'maxTurns'/);
+    assert.doesNotMatch(strictResult.out, /missing 'maxTurns'/);
     assert.strictEqual(
       fs.readFileSync(path.join(tmp, 'agents', 'architect.md'), 'utf8'),
       before,

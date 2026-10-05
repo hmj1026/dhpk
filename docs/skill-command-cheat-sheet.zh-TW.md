@@ -55,7 +55,7 @@ $flow-drive <change-id> --plan
 $flow-drive <change-id> --plan=opus:xhigh
 $flow-drive <change-id> --worker=claude|codex|agy|auto
 $flow-drive <change-id> --worker-target=<provider>/<model>[:<effort>] [--cross-provider]
-$flow-drive <change-id> --reasoner=codex-cli/gpt-6-sol:high
+$flow-drive <change-id> --reasoner=codex-cli/gpt-6.1-sol:high
 $flow-drive <change-id> --architect
 $flow-drive <change-id> --no-architect
 ```

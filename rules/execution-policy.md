@@ -125,7 +125,7 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
 | `codex-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; canonical role ID, legacy alias: `codex-fast-worker`; see §Implementation dispatch | — |
 | `agy-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run the agy CLI backend; canonical role ID, legacy alias: `agy-fast-worker`; see §Implementation dispatch | — |
-| `codex-bridge` | **Explicit CLI `codex exec` path, not the legacy MCP peer** — outsource a self-contained clear-spec task, or a blind second opinion, to the GPT-6 family; output isolated in the subagent, relayed verbatim; mode-qualified alias (read-only → `codex-reviewer` → `gpt-6-sol`/`high`, workspace-write → `codex-worker` → `gpt-6-luna`/`xhigh`); `codex-reviewer` is internal-only in this rollout; see §Implementation dispatch | — |
+| `codex-bridge` | **Explicit CLI `codex exec` path, not the legacy MCP peer** — outsource a self-contained clear-spec task, or a blind second opinion, to the GPT-6 family; output isolated in the subagent, relayed verbatim; mode-qualified alias (read-only → `codex-reviewer` → `gpt-6.1-sol`/`high`, workspace-write → `codex-worker` → `gpt-6-luna`/`xhigh`); `codex-reviewer` is internal-only in this rollout; see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
 | `code-reviewer` | Code review — triggered by source-file edits | consolidated wave |
 | `database-reviewer` | SQL / Repository / migration (SQL correctness) — triggered or back-stop | consolidated wave |
@@ -159,6 +159,16 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
 
 **Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Completion requires a terminal lifecycle result; a message or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${POLICY_BUNDLE_ROOT}/skills/flow-guide/references/implementation-dispatch.md`; this rule intentionally does not duplicate the dispatch table.
+
+**Partial Claude subagent continuation:** Claude Code marks turn-cap partial
+outputs from v2.1.246. When an identified resumable subagent returns partial
+output, send one `SendMessage` continuation before re-dispatching. Do not
+continue built-in one-shot Explore or Plan results without an agent ID, safety
+or blocker stops, or explicitly cancelled work. If the continuation remains
+partial, follow the existing retry and recovery policy without another
+continuation for that handoff. This rule depends on the host's resumable-agent
+capability; it does not promise that every partial result can be resumed. See
+the [Claude Code subagents guide](https://code.claude.com/docs/en/sub-agents).
 
 ### Context tiers and dispatch packet
 
@@ -270,7 +280,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | Work shape | Dispatch |
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
-| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex-cli/<model>[:<effort>]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-6-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex-cli/<model>[:<effort>]` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-6.1-sol` @ `high`); same reasoning brief, same conclusion contract. Confirmed CLI or auth/model unavailability with no provider side effect follows the shared native-first fallback; safety/task/timeout failures stay on their existing blocked or recovery paths. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
 | Bounded mechanical work with an exact scope and an independent owner or coordination benefit (boilerplate, test scaffolds, rename sweeps, doc-consistency work, applying an approved plan) | `fast-worker` when delegation improves ownership, focus, or concurrency |
 | Judgment-dense but standardizable work with a bounded repeatable intent, exact scope, and known verification (documentation migration, bilingual restructuring, or a known fix batch) | In-process `fast-worker` when a shared owner improves consistency |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; the retired `CODEX=on`/`--codex` review-peer flags cannot select it. | `codex-worker` (canonical role ID; legacy alias: `codex-fast-worker`) |

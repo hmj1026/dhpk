@@ -4,7 +4,6 @@ description: 'Type-design analysis specialist. Scores type design on encapsulati
 tools: Read, Grep, Glob
 model: sonnet
 effort: medium
-maxTurns: 12
 ---
 
 # Type Design Analyzer

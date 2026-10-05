@@ -165,7 +165,7 @@ test('generates exactly the 11-agent allowlist as .toml files with derived field
 
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
     assert.ok(architect.includes('name = "architect"'), architect);
-    assert.ok(architect.includes('model = "gpt-6-sol"'), architect);
+    assert.ok(architect.includes('model = "gpt-6.1-sol"'), architect);
     assert.ok(architect.includes('model_reasoning_effort = "high"'), architect);
     assert.ok(architect.includes('developer_instructions = """'), architect);
 
@@ -298,7 +298,7 @@ test('generated planner keeps its inline verdict protocol without a review artif
     const planner = fs.readFileSync(path.join(outDir, 'planner.toml'), 'utf8');
     assert.doesNotMatch(planner, /Write the final review under `\.codex\/artifacts\/reviews\//);
     assert.match(planner, /Every reply begins with `VERDICT:` and ends with literal `END`/);
-    assert.match(planner, /model = "gpt-6-sol"/);
+    assert.match(planner, /model = "gpt-6.1-sol"/);
     assert.match(planner, /model_reasoning_effort = "high"/);
     assert.match(planner, /sandbox_mode = "read-only"/);
   } finally {
@@ -317,7 +317,7 @@ test('generated deep reasoner keeps its inline conclusion contract without a rev
     assert.doesNotMatch(reasoner, /Write the final review under `\.codex\/artifacts\/reviews\//);
     assert.match(reasoner, /Reasoner result: READY_FOR_DISPATCH/);
     assert.match(reasoner, /## Next actions/);
-    assert.match(reasoner, /model = "gpt-6-sol"/);
+    assert.match(reasoner, /model = "gpt-6.1-sol"/);
     assert.match(reasoner, /model_reasoning_effort = "high"/);
     assert.match(reasoner, /sandbox_mode = "read-only"/);
   } finally {

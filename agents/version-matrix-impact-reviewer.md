@@ -4,7 +4,6 @@ description: 'Specialist for libraries shipping a CI matrix across multiple depe
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
-maxTurns: 15
 ---
 
 # Version Matrix Impact Reviewer
