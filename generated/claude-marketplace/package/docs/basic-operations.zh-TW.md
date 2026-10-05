@@ -259,7 +259,7 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | 路由/決策 | `flow-guide`、`flow-drive` | Discovery、提供建議，並只實作已確認工作 | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
 | 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore\|diagnose\|history` |
 | 只讀審閱 | `change-verdict`（`code\|pr\|security\|tests\|docs\|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
-| 交付前置 | `tdd-workflow`、`dhpk-module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `tdd-workflow` 做 RED |
+| 交付前置 | `tdd-workflow`、`module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `tdd-workflow` 做 RED |
 | OpenSpec 續作 | `dhpk-opsx-load-context`、`dhpk-opsx-post-observation`、`dhpk-opsx-apply-goal` | 續接 / 交付長時間 `/opsx:apply` 工作流 | 長跑用 `dhpk-opsx-apply-goal <change-id>`，續場景用 `dhpk-opsx-load-context` |
 | Harness / 平台 | `harness-govern`（`health\|budget\|fill\|revise\|sync`） | 同步跨 host 的 harness、plugin、版本與規格 | 先 `$harness-govern health --dry-run` |
 | 技能治理 | `skill-scope` | 稽核、比較 skill 品質 | 快速盤點用 `skill-scope` |

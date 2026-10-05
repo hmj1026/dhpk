@@ -37,7 +37,7 @@ When input is a **Review Thread**:
 ## Workflow
 
 1. **Read** the issue with `gh issue view --json ...`, or use the supplied review-thread fields. Extract symptoms, reproduction, errors, and file clues.
-2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/dhpk:code-trace`; regression → `/dhpk:code-trace`; complex root → `/dhpk:code-trace --dual`; multiple causes → `/dhpk:dhpk-module-design --mode adversarial`.
+2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/dhpk:code-trace`; regression → `/dhpk:code-trace`; complex root → `/dhpk:code-trace --dual`; multiple causes → `/dhpk:module-design --mode adversarial`.
 3. **Blind verdict** in a fresh read-only isolated reviewer context without the primary classification. Triage mode stops after this phase.
 4. **Investigate** unless policy maps the verdict to `DISMISS_VERIFIED`.
 5. **Report** the combined evidence, verdict, root-cause hypothesis, and recommendation.
@@ -49,7 +49,7 @@ When input is a **Review Thread**:
 | `/dhpk:code-trace`     | Quick code exploration | Fast    | Single     |
 | `/dhpk:code-trace`  | Track change history   | Medium  | Single     |
 | `/dhpk:code-trace --dual` | Dual confirmation      | Slow    | Dual-view  |
-| `/dhpk:dhpk-module-design --mode adversarial` | Exhaust possibilities  | Slowest | Adversarial|
+| `/dhpk:module-design --mode adversarial` | Exhaust possibilities  | Slowest | Adversarial|
 
 ## Phase 2.5: Verdict Assessment
 

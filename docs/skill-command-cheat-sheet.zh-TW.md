@@ -70,7 +70,7 @@ $flow-drive <change-id> --no-architect
 | 技能 | 觸發 | 主要邊界 |
 |---|---|---|
 | [`tdd-workflow`](../skills/tdd-workflow/SKILL.md) | 需要 tests-first RED/GREEN/REFACTOR | 不負責瀏覽器旅程或未確認的需求 authoring |
-| [`dhpk-module-design`](../skills/dhpk-module-design/SKILL.md) | 需要 module boundary、deep-module 或 architecture decision | 不取代 OpenSpec proposal owner |
+| [`module-design`](../skills/module-design/SKILL.md) | 需要 module boundary、deep-module 或 architecture decision | 不取代 OpenSpec proposal owner |
 | [`dhpk-php-runtime-router`](../skills/dhpk-php-runtime-router/SKILL.md) | PHP/Laravel/Symfony/Yii runtime 需要分流 | 先判斷 runtime，再載入一條 reference |
 | [`dhpk-yii1-php56-development`](../skills/dhpk-yii1-php56-development/SKILL.md) | Yii 1.x / PHP 5.6 backend 工作 | 不用於前端或非 PHP 專案 |
 | [`dhpk-yii1-security-audit`](../skills/dhpk-yii1-security-audit/SKILL.md) | Yii 1.1 安全白盒審計 | 不用於 Yii2 或非 PHP 專案 |

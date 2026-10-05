@@ -1,15 +1,19 @@
 # Feasibility comparison handoff
 
 Use this note when a feasibility request must hand off to the external
-`dhpk-module-design` comparison capability. The handoff preserves the useful
+`module-design` comparison capability. The handoff preserves the useful
 parts of the retired feasibility workflow: quantified alternatives,
 independent evidence, and an explicit recommendation boundary.
 
 Invoke the external owner with a concrete comparison request, for example:
 
 ```text
-$dhpk-module-design --mode compare "<question>"
+/dhpk:module-design --mode compare "<question>"
 ```
+
+This is the Claude plugin invocation. Use another Host's discovered entry only
+when that environment supplies it; the current inventory does not select
+`module-design` for the formal Codex surfaces.
 
 Attach this packet when the comparison needs repository context or a second
 opinion. Do not turn the packet into an implementation plan.
@@ -91,7 +95,8 @@ Before handing off, verify:
 - no implementation, commit, deployment, or release claim is smuggled into
   the feasibility result.
 
-Current owner: `skills/proposal-analyze/references/dhpk-module-design/SKILL.md`. The retirement mapping and
+Current owner: `module-design` (stable ID `software-architecture`); its canonical
+source path is recorded in `manifests/distribution-inventory.json`. The retirement mapping and
 rollback boundary for the former feasibility skill are recorded in
 `docs/skill-platform-migration.md`; this document retains its quantified and
 independent-comparison requirements without depending on deleted sources.

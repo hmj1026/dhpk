@@ -582,6 +582,7 @@
         "references/diagnose/defense-in-depth.md",
         "references/diagnose/examples.md",
         "references/diagnose/phase-templates.md",
+        "references/diagnose/reproduction-evidence.md",
         "references/diagnose/root-cause-tracing.md",
         "references/diagnose/scripts.md",
         "references/diagnose/wait-for-helper.ts",
@@ -1474,7 +1475,8 @@
     "software-architecture": {
       "entry": "SKILL.md",
       "references": [
-        "agents/openai.yaml"
+        "agents/openai.yaml",
+        "references/dependency-and-tests.md"
       ],
       "executable_entries": [],
       "host_capabilities": []

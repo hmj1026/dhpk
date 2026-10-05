@@ -274,7 +274,7 @@ Use the skill groups below as a reusable decision ladder:
 | Routing/decision | `flow-guide`, `flow-drive` | Discover, advise, and execute only confirmed work. | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
 | Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore\|diagnose\|history` |
 | Read-only verdict | `change-verdict` (`code\|pr\|security\|tests\|docs\|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
-| Delivery / implementation prep | `tdd-workflow`, `dhpk-module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `tdd-workflow` + scoped verification |
+| Delivery / implementation prep | `tdd-workflow`, `module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `tdd-workflow` + scoped verification |
 | OpenSpec session control | `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`, `dhpk-opsx-apply-goal` | Resume / handoff an OpenSpec edit sequence. | `dhpk-opsx-apply-goal <change-id>` for long-run, `dhpk-opsx-load-context` for resume |
 | Harness and platform hygiene | `harness-govern` (`health\|budget\|fill\|revise\|sync`) | Keep plugin/sync state clean and repeatable across environments. | `$harness-govern health --dry-run` (read-first) |
 | Skill governance | `skill-scope` | Audit and compare skill quality or usage | `skill-scope` for quick checks |

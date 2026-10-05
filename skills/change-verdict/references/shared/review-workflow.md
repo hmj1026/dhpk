@@ -1,64 +1,76 @@
 # Read-only verdict workflow
 
-This reference defines the shared sequence for `change-verdict`. It keeps all
-state in the current response and process memory; it does not create state
-files, review snapshots, gate files, or sentinel updates.
+This reference owns scope resolution, fixed-point handling, evidence collection,
+and the shared review sequence. The review and its final gate exist only in the
+response; no state file, review snapshot, gate file, or sentinel is created.
 
 ## Sequence
 
 ```text
-resolve mode → pin fixed point → collect metadata → read evidence
-→ primary verdict → optional CLI comparison → aggregate → return response
+resolve one mode and scope → pin the reviewed snapshot → collect metadata
+→ read evidence → primary verdict → optional CLI comparison
+→ normalize findings → return the response
 ```
 
-## Step 1: resolve and pin
+## Step 1: resolve scope and pin the snapshot
 
-Select exactly one mode and one scope. For an uncommitted diff, pin `HEAD`; for
-a branch comparison, resolve a non-empty `git merge-base <base> HEAD`. If no
-fixed point or readable scope exists, return `INCONCLUSIVE` and stop.
+Choose exactly one mode and a concrete, readable scope: a diff, branch, path
+set, document, PR, or supplied evidence set. Record the scope in the report.
+If the mode or scope is missing, ambiguous, contradictory, or unreadable,
+return `INCONCLUSIVE` and stop.
 
-## Step 2: collect metadata
+For Git-backed changes, record the exact commit used as the comparison point:
 
-Read metadata only; the primary reviewer must read the actual source and diff.
+- For an uncommitted diff, pin the current `HEAD`; the selected scope is the
+  working-tree change relative to that commit.
+- For a branch comparison, resolve a non-empty `git merge-base <base> HEAD`
+  once and record its commit SHA. Use that SHA for later diff and history
+  reads; the named base branch is only an input to resolution.
+- For a path or document review, record the source revision or supplied
+  snapshot that provides the reviewed content.
+
+Do not re-resolve a moving branch name after the point is recorded. A changed
+scope or snapshot needs a new review. If the selected scope cannot be
+reproduced from the recorded point, return `INCONCLUSIVE`.
+
+## Step 2: collect mode-specific metadata
+
+Collect only the metadata needed to navigate to evidence. The primary reviewer
+must read the actual source and change contents.
 
 | Mode | Read-only collection |
 |---|---|
-| `code` | `git status`, changed files, diff/stat, fixed point, relevant callers and tests. |
-| `pr` | branch/base, commits, changed files, declared merge method, and PR metadata when supplied. |
+| `code` | status, selected paths, diff/stat, fixed point, relevant callers and tests. |
+| `pr` | branch/base, commits, changed files, declared merge method, and supplied PR metadata. |
 | `security` | requested scope, auth/input/data boundaries, dependency manifests, and relevant tests. |
-| `tests` | request/AC document, source files, tests, and available runtime evidence. |
-| `docs` | complete document plus referenced source/configuration. |
+| `tests` | request or acceptance criteria, source, tests, and available runtime evidence. |
+| `docs` | complete target plus referenced source or configuration. |
 | `risk` | current diff, changed files, imports/dependents, and optionally bounded history. |
 
-Do not run formatters, fixers, migrations, generators, commits, staging, or
-commands whose purpose is to create an artifact. A command that writes a cache
-is also outside this workflow.
+Commands must remain read-only. Do not run formatters, fixers, migrations,
+generators, commits, staging, or commands whose purpose is to create an
+artifact. A command that writes a cache is also outside this workflow.
 
-## Step 3: primary verdict
+## Step 3: form the primary verdict
 
-Use the current model in the read-only context. Research independently from
-the supplied metadata and cite file:line, commit, command, or tool evidence.
-Keep Standards and Spec axes separate for `code`; keep mode-specific dimensions
-for every other mode. Redact secrets before including evidence in the response.
+Read the selected evidence independently and follow the evidence and finding
+rules in [`review-common.md`](review-common.md). In `code` mode, assess the
+Standards and Spec axes separately. Other modes use only their relevant
+dimensions. Keep unsupported claims and unavailable evidence visible.
 
-## Step 4: optional CLI comparison
+## Step 4: compare an optional CLI opinion
 
-Only the explicit `--second-opinion=codex-exec` option enables the bundled CLI
-transport. Send a self-contained scope, fixed point, and task; do not send the
-primary conclusion. Record its exit status and a bounded, redacted result as a
-separate source. If it is absent or unavailable, state
-`degraded: primary model only`.
+Only explicit `--second-opinion=codex-exec` enables the bundled CLI transport.
+Send the selected scope and pinned point, not the primary conclusion. The
+wrapper-generated workflow text carries the selected scope, review depth, and
+pinned merge-base value. Use those values as supplied; obtain any needed file
+or commit details by reading the selected repository snapshot. Record the CLI
+exit status and a bounded, redacted result separately. If the option is absent
+or the CLI is unavailable, report `degraded: primary model only`.
 
-## Step 5: aggregate and return
+## Step 5: normalize and return
 
-Deduplicate findings by canonical file and issue text, tolerate nearby line
-movement, and retain the highest severity. A finding must survive evidence,
-context, false-positive, severity, and gap checks. Return the normalized report
-with one verdict:
-
-- `READY`: scope and fixed point are valid, evidence is sufficient, and no P0/P1 remains.
-- `BLOCKED`: a P0/P1 or required safety condition prevents a complete verdict.
-- `INCONCLUSIVE`: evidence or mode selection is insufficient to classify the request.
-
-The final gate exists only in the response. Never emit or clear a repository
-sentinel, write a report, or invoke a writer.
+Use [`review-common.md`](review-common.md) for finding normalization and
+source labels, [`review-rubric.md`](review-rubric.md) for severity and final
+verdict meanings, and [`../../templates/review_output.md`](../../templates/review_output.md)
+for the response shape. Do not persist the report or emit or clear a sentinel.

@@ -1,142 +1,23 @@
-# 根因回溯追蹤
+# 根因追蹤
 
-## 概述
+當症狀可能由上游呼叫、輸入或資料路徑造成時，從已觀察到的症狀往回追。目標是找出最早有證據支持、且能解釋症狀的分歧點；不必為了「追到源頭」而無限擴大範圍。
 
-Bug 常出現在深層呼叫堆疊（例如在錯的目錄 `git init`、用錯路徑開 DB）。直覺修正出錯點只是在治標。
+## 追蹤步驟
 
-**核心原則：** 沿著呼叫鏈往回追，找到最初觸發點，從源頭修正。
+1. **固定症狀。** 記錄預期與實際行為、執行過的命令或操作、相關輸出，以及判定失敗的條件。無法安全執行時，標示重現受阻並列出現有證據。
+2. **定位邊界。** 由症狀發生的入口開始，使用 CX 或可用的程式導覽工具確認直接呼叫者、被呼叫端與資料轉換。需要時再用文字搜尋補足工具無法解析的動態路徑或字串。
+3. **比較相鄰狀態。** 沿著已知路徑記錄每個邊界收到及送出的關鍵輸入、狀態或結果。優先採用現有日誌、追蹤資料、執行輸出與唯讀狀態查詢。
+4. **定位最早分歧。** 找出第一個與預期不同且能解釋症狀的值、決策或控制路徑。若證據只能指出可能路徑，保留為假設，不要宣稱已確認。
+5. **選擇區辨檢查。** 對排名最高的假設提出一個最小、可否證且安全的檢查，並寫下支持或排除它的預期結果。詳見 [`reproduction-evidence.md`](reproduction-evidence.md)。
 
-## 使用時機
+追蹤中遇到缺失的呼叫端、資料來源或環境證據時，記錄缺口與下一個可取得的證據；不要以猜測補齊路徑。若問題間歇發生，記錄已觀察到的嘗試、成功次數與條件，不以單次成功或失敗推論穩定性。
 
-```dot
-digraph when_to_use {
-    "Bug 出現在深層堆疊？" [shape=diamond];
-    "能否往回追溯？" [shape=diamond];
-    "只能在症狀點修復" [shape=box];
-    "追到原始觸發點" [shape=box];
-    "更好：加上多層防護" [shape=box];
+## 需要額外執行證據時
 
-    "Bug 出現在深層堆疊？" -> "能否往回追溯？" [label="是"];
-    "能否往回追溯？" -> "追到原始觸發點" [label="是"];
-    "能否往回追溯？" -> "只能在症狀點修復" [label="否 - 死胡同"];
-    "追到原始觸發點" -> "更好：加上多層防護";
-}
-```
+先使用既有日誌、追蹤與執行紀錄。若仍需新探查，遵守主技能的唯讀與共享資源界線，並在執行前確認操作範圍與可能效果。需要插入記錄、改動程式、重跑可能有副作用的流程，或驗證共享資料庫寫入時，交由既有實作／環境工作流程，在獲授權的隔離環境處理；本診斷流程不加入程式碼、不建立測試探針，也不重現破壞性效果。
 
-**適用情境：**
-- 錯誤發生在深層執行流程
-- Stack trace 很長
-- 不清楚錯誤資料來源
-- 需要找出是哪個測試/流程觸發
+## 停止與交接
 
-## 回溯步驟
-
-### 1. 觀察症狀
-
-```
-Error: git init failed in /Users/jesse/project/packages/core
-```
-
-### 2. 找到直接原因
-
-**哪段程式碼直接造成這個錯誤？**
-```typescript
-await execFileAsync('git', ['init'], { cwd: projectDir });
-```
-
-### 3. 問：是誰呼叫它？
-
-```typescript
-WorktreeManager.createSessionWorktree(projectDir, sessionId)
-  → called by Session.initializeWorkspace()
-  → called by Session.create()
-  → called by test at Project.create()
-```
-
-### 4. 持續往上追
-
-**傳入的值是什麼？**
-- `projectDir = ''`（空字串）
-- 空字串作為 `cwd` 會落到 `process.cwd()`
-- 結果在錯誤目錄建立 `.git`
-
-### 5. 找到最初觸發點
-
-**空字串從哪裡來？**
-```typescript
-const context = setupCoreTest(); // Returns { tempDir: '' }
-Project.create('name', context.tempDir); // Accessed before beforeEach!
-```
-
-## 加入堆疊紀錄（無法手動回溯時）
-
-```typescript
-// 在危險操作之前加記錄
-async function gitInit(directory: string) {
-  const stack = new Error().stack;
-  console.error('DEBUG git init:', {
-    directory,
-    cwd: process.cwd(),
-    nodeEnv: process.env.NODE_ENV,
-    stack,
-  });
-
-  await execFileAsync('git', ['init'], { cwd: directory });
-}
-```
-
-**關鍵：** 在測試中用 `console.error()`（logger 可能被抑制）
-
-**執行並擷取：**
-```bash
-npm test 2>&1 | grep 'DEBUG git init'
-```
-
-**分析 stack trace：**
-- 找出測試檔名
-- 定位觸發行號
-- 觀察模式（特定測試？特定參數？）
-
-## 不知道是哪個測試污染時
-
-- 先縮小範圍：單檔 → 子資料夾 → 全部
-- 一次只跑一個測試，或用二分法縮小範圍
-- 如需自動化，使用 `scripts/diagnose/find-polluter.sh` 逐一執行並在第一次出現污染時停下
-
-範例：
-```bash
-./scripts/diagnose/find-polluter.sh .git 'src/**/*.test.ts'
-```
-
-## 關鍵原則
-
-```dot
-digraph principle {
-    "找到直接原因" [shape=ellipse];
-    "能否再往上一層？" [shape=diamond];
-    "持續回溯" [shape=box];
-    "是否已到源頭？" [shape=diamond];
-    "在源頭修復" [shape=box];
-    "每層加上防護" [shape=box];
-    "Bug 幾乎不可能再發生" [shape=doublecircle];
-    "切勿只修症狀" [shape=octagon, style=filled, fillcolor=red, fontcolor=white];
-
-    "找到直接原因" -> "能否再往上一層？";
-    "能否再往上一層？" -> "持續回溯" [label="是"];
-    "能否再往上一層？" -> "切勿只修症狀" [label="否"];
-    "持續回溯" -> "是否已到源頭？";
-    "是否已到源頭？" -> "持續回溯" [label="否 - 繼續"];
-    "是否已到源頭？" -> "在源頭修復" [label="是"];
-    "在源頭修復" -> "每層加上防護";
-    "每層加上防護" -> "Bug 幾乎不可能再發生";
-}
-```
-
-**永遠不要只修錯誤出現的位置。**
-
-## 堆疊追蹤小技巧
-
-- **測試中**：用 `console.error()`
-- **在操作之前**：不要等失敗後才記錄
-- **帶上下文**：目錄、cwd、環境變數、時間
-- **保留堆疊**：`new Error().stack` 可看到完整呼叫鏈
+- 已有區辨檢查支持最早分歧點：回報確認結果、證據位置與適用條件，再交給既有修正流程。
+- 缺少可安全執行的探查、必要環境或資料權限：回報目前證據、受阻原因，以及一項最小的下一步證據需求。
+- 僅有相關性或靜態路徑：標記為尚未確認，保留能推翻該假設的檢查。
