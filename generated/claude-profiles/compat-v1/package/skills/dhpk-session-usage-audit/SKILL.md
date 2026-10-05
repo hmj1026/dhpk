@@ -87,14 +87,22 @@ ignored output directory. Its schema is
 `dhpk.session-usage-audit.telemetry.v1`; the six legacy files and returned
 `report.v1` remain unchanged.
 
-Supported counter profiles produce typed observations and reconciled
-unattributed known subtotals. Repeated events, cumulative intervals and
-descendant-inclusive aggregates require independent identity and basis
-evidence before contributing. Unknown formats, missing baselines and
-conflicting measurements remain nullable or excluded with fixed reasons.
-Planner and descendant attribution remains pending in
-[issue #817](https://github.com/hmj1026/dhpk/issues/817); complete totals remain
-null. An empty observation list means no supported extraction, not zero usage.
+Supported counter profiles produce typed observations and reconciled known
+subtotals. The package includes a pure attribution consumer for adapter-verified
+invocation, consumption-binding, and ancestry links. It accepts only
+per-event contributions, requires exact session/context/attempt agreement,
+and keeps missing, conflicting, cyclic, truncated, malformed, or unsupported
+links unattributed. A truncated or malformed link set disables attribution
+for the entire result.
+The consumer validates link shape, evidence-reference membership, scope, and
+ancestry; a reference alone does not establish that a relationship is true.
+Only an adapter that independently verifies the relationship may supply a
+link. No supported native adapter currently produces these links, so the CLI
+passes none: its contributions remain unattributed and attribution coverage
+reports `adapter-not-supported`. Synthetic fixtures verify the consumer
+contract only; they are not native runtime or ancestry evidence. Complete
+totals remain null. An empty observation list means no supported extraction,
+not zero usage.
 
 The sidecar contains typed scan statistics, hashed selectors/source locators,
 fixed reasons and nullable values; it excludes transcript and tool content.

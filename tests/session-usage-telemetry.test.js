@@ -747,6 +747,10 @@ test('metadata-only SDK usage joins only the selected same-session context and l
     assert.strictEqual(telemetry.totals.unattributed.known_subtotal.value, 230);
     assert.strictEqual(telemetry.totals.unattributed.complete, false);
     assert.strictEqual(telemetry.totals.unattributed.complete_total.value, null);
+    assert.ok(telemetry.contributions.every((item) => (
+      item.attribution === 'unattributed' && item.attribution_evidence?.reason === 'missing-binding'
+    )));
+    assert.strictEqual(telemetry.coverage.attribution.reason, 'adapter-not-supported');
     assert.ok(telemetry.coverage.usage_extraction.unsupported >= 1);
     const serialized = JSON.stringify(telemetry);
     assert.ok(!serialized.includes('SYNTHETIC_UNRELATED_SESSION'));

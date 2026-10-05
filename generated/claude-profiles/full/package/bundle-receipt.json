@@ -2252,6 +2252,10 @@
       "destination": "skills/dhpk-session-usage-audit/scripts/lib/usage-adapters.js"
     },
     {
+      "stableId": "claude-profile:skill-resource:session-usage-audit:scripts/lib/usage-attribution.js",
+      "destination": "skills/dhpk-session-usage-audit/scripts/lib/usage-attribution.js"
+    },
+    {
       "stableId": "claude-profile:skill-resource:session-usage-audit:scripts/lib/usage-contract.js",
       "destination": "skills/dhpk-session-usage-audit/scripts/lib/usage-contract.js"
     },
@@ -2658,5 +2662,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "2fc1c0fb4127602155e5936aac4bfeaeb29dc60ae13172e2ccdc99c8f8349f41"
+  "planFingerprint": "c5d6ac0c7bd6ec05b758586d2378ba20b3cda5d527c6ec7d88c5d54d955351d9"
 }

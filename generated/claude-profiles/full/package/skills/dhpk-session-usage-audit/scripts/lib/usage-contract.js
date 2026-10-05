@@ -119,9 +119,11 @@ function nullableFields(fields) {
 }
 
 function buildTelemetry({ selection = {}, sourceStats = [], omittedSources = [], partial = false, usage } = {}) {
-  // Only the immutable, allowlisted reconciliation result may cross this seam.
-  // Loading here avoids a cycle with the scalar constructors used by adapters.
-  const reconciled = usage && require('./usage-reconciliation').isReconciledUsage(usage) ? usage : null;
+  // Only immutable, branded pipeline outputs may cross this seam. Lazy loading
+  // avoids cycles with scalar constructors and the attribution consumer.
+  const attributed = usage && require('./usage-attribution').isAttributedUsage(usage) ? usage : null;
+  const reconciled = !attributed && usage && require('./usage-reconciliation').isReconciledUsage(usage) ? usage : null;
+  const telemetryUsage = attributed || reconciled;
   const sources = (Array.isArray(sourceStats) ? sourceStats : []).map((source) => ({
     locator: typeof source?.path === 'string' && source.path ? opaque('source', source.path) : null,
     kind: SOURCE_KINDS.includes(source?.kind) ? source.kind : 'unsupported',
@@ -158,8 +160,8 @@ function buildTelemetry({ selection = {}, sourceStats = [], omittedSources = [],
     omitted_sources: omitted,
     metrics: nullableFields(COUNTERS),
     identities: nullableFields(IDENTITIES),
-    observations: reconciled ? reconciled.observations : [],
-    ...(reconciled ? { contributions: reconciled.contributions } : {}),
+    observations: telemetryUsage ? telemetryUsage.observations : [],
+    ...(telemetryUsage ? { contributions: telemetryUsage.contributions } : {}),
     coverage: {
       scan: {
         status: 'unavailable', complete: null, reason: 'scan-truncation-unverified',
@@ -178,16 +180,16 @@ function buildTelemetry({ selection = {}, sourceStats = [], omittedSources = [],
         reason: omitted.length ? 'source-omitted' : 'legacy-source-inventory-only',
         omitted: omitted.length,
       },
-      usage_extraction: reconciled ? reconciled.coverage.usage_extraction : unsupported(),
-      semantics: reconciled ? reconciled.coverage.semantics : unsupported(),
-      reconciliation: reconciled ? reconciled.coverage.reconciliation : unsupported(),
-      attribution: reconciled ? reconciled.coverage.attribution : unsupported(),
-      cache_categories: reconciled ? reconciled.coverage.cache_categories : {
+      usage_extraction: telemetryUsage ? telemetryUsage.coverage.usage_extraction : unsupported(),
+      semantics: telemetryUsage ? telemetryUsage.coverage.semantics : unsupported(),
+      reconciliation: telemetryUsage ? telemetryUsage.coverage.reconciliation : unsupported(),
+      attribution: telemetryUsage ? telemetryUsage.coverage.attribution : unsupported(),
+      cache_categories: telemetryUsage ? telemetryUsage.coverage.cache_categories : {
         ...unsupported(),
         categories: Object.fromEntries(['fresh_input', 'cache_read_input', 'cache_write_input'].map((key) => [key, unsupported()])),
       },
     },
-    totals: reconciled ? reconciled.totals : Object.fromEntries(['planner', 'descendants', 'unattributed'].map((key) => [key, {
+    totals: telemetryUsage ? telemetryUsage.totals : Object.fromEntries(['planner', 'descendants', 'unattributed'].map((key) => [key, {
       known_subtotal: createScalar({ field: 'reported_total', status: 'unsupported' }),
       complete_total: createScalar({ field: 'reported_total', status: 'unsupported' }),
       complete: false,

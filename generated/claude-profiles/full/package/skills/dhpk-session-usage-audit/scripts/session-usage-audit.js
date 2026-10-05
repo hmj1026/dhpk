@@ -10,6 +10,7 @@ const { StringDecoder } = require('node:string_decoder');
 const { buildTelemetry } = require('./lib/usage-contract');
 const { adaptUsageRecord } = require('./lib/usage-adapters');
 const { reconcileUsage } = require('./lib/usage-reconciliation');
+const { attributeUsage } = require('./lib/usage-attribution');
 
 const DEFAULT_TIME_ZONE = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const TEST_FIXTURE_ENV = 'DHPK_SESSION_USAGE_AUDIT_TEST_MODE';
@@ -1842,9 +1843,15 @@ function runAudit(options = {}) {
     const output = usageTelemetry ? telemetryOutput : candidate;
     const target = writeReport(report, output);
     if (usageTelemetry) {
-      const usage = usageObservations.length || usagePartial || usageCounts.unsupported ? reconcileUsage(usageObservations, {
+      const reconciled = usageObservations.length || usagePartial || usageCounts.unsupported ? reconcileUsage(usageObservations, {
         selection: parsed, partial: partial || usagePartial, omitted: normalizedOmittedSources,
         collector: usageCounts,
+      }) : null;
+      // No supported native producer currently binds usage to invocation ancestry.
+      // Empty typed links therefore preserve known totals but keep ownership unresolved.
+      const usage = reconciled ? attributeUsage(reconciled, {
+        selection: parsed,
+        partial: partial || usagePartial,
       }) : null;
       const telemetry = buildTelemetry({ selection: parsed, sourceStats, omittedSources: normalizedOmittedSources, partial, usage });
       const sidecar = path.join(target, 'usage-telemetry.json');
