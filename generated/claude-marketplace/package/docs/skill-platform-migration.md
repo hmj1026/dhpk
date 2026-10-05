@@ -24,7 +24,7 @@ migration. Structural success never upgrades an unobserved consumer: record
 | Concern | Current implementation |
 |---|---|
 | Canonical source | 81 flat packages at `skills/<public-name>/` |
-| Public identity | 31 public names are unprefixed, including the eight capability families and the portable command skills; the other 50 first-party names retain `dhpk-*` |
+| Public identity | 32 public names are unprefixed, including the eight capability families and the portable command skills; the other 49 first-party names retain `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
 | Codex project projection | 33 relative symlinks under `codex/skills/` (31 invokable plus two internal transport and dispatch-context runtimes) |
@@ -37,6 +37,25 @@ migration. Structural success never upgrades an unobserved consumer: record
 Directory placement and README lists are not authoritative. The inventory
 owns stable ids, public names, lifecycle, modules, and publication surfaces;
 the validators reconcile every projection against it.
+
+### Module design public-name migration
+
+`dhpk-module-design` is renamed to `module-design`; the canonical package is
+`skills/proposal-analyze/references/module-design/`. The stable ID `software-architecture`, capability ID,
+four modes, parameters, and Claude/Cursor surface selection are unchanged.
+The rename ledger maps the old public name to the current owner for diagnostics
+and receipt-owned migration. It does not install a second compatibility skill.
+The `software-architecture` legacy identifier still resolves to that owner.
+
+Existing project receipts migrate only when their old files remain owned and
+unchanged. Modified or unowned destinations retain the existing collision
+handling. Rollback uses the recorded `0.64.4` release. Current generated packages
+and installed consumers keep their published content until they are refreshed
+through their own update flow; a canonical-source rename alone is not an update.
+
+Claude invocation is `/dhpk:module-design`. The inventory does not select this
+skill for `codex-sync` or `codex-native`; Codex usage requires independently
+discovered availability and must not be inferred from its metadata file.
 
 ## Invocation syntax
 
@@ -95,7 +114,7 @@ add it to discovery or package membership.
 | `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | current successor `flow-guide` (`classify` mode); the historical 0.47.0 route was `adaptive-dev-workflow` (`bug` mode) | `0.46.1` |
 | `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | current successor `flow-guide` (`classify` mode); the historical 0.47.0 route was `adaptive-dev-workflow` (`feature` mode) | `0.46.1` |
 | `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`; Claude `/dhpk:dhpk-tdd-workflow`; Codex `$dhpk-tdd-workflow` (`unit-integration` mode); agent `e2e-runner` (`playwright-journey` mode) | `0.46.1` |
-| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`; Claude `/dhpk:dhpk-module-design`; Codex `$dhpk-module-design` (`adversarial` mode) | `0.46.1` |
+| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`; Claude `/dhpk:module-design` (`adversarial` mode); not currently Codex-selected | `0.46.1` |
 | `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` guidance; no successor package | `0.46.1` |
 
 ### Direct-host invocation boundary
@@ -130,7 +149,7 @@ evidence; this table records the identity disposition and rollback pin.
 
 | Former stable ID | Former MCP-facing identity | Replacement owner and behavior | `reasonCode` | `rollback.release` |
 |---|---|---|---|---|
-| `codex-architect` | `dhpk-codex-architect` | `dhpk-module-design`; current-model design/review/compare/adversarial modes, with explicit optional `codex exec` only | `migrated-to-module-design` | `0.51.0` |
+| `codex-architect` | `dhpk-codex-architect` | `module-design`; current-model design/review/compare/adversarial modes, with explicit optional `codex exec` only | `migrated-to-module-design` | `0.51.0` |
 | `codex-implement` | `dhpk-codex-implement` | `flow-drive`; current-model decomposition, implementation, verification, review, and bounded retry loop (`implement` mode) | `migrated-to-backend-neutral-implement` | `0.51.0` |
 | `codex-code-review` | `dhpk-change-review` with the MCP default | `dhpk-change-review --backend cli`; current-model default and explicit CLI review, with no MCP fallback | `migrated-to-cli-review-owner` | `0.51.0` |
 | `doc-review` | `dhpk-doc-review` with MCP review/reply | `dhpk-doc-review`; portable five-dimension review and gate, with explicit optional `codex exec` only | `migrated-to-portable-review` | `0.51.0` |

@@ -1,7 +1,7 @@
 ---
-name: dhpk-module-design
+name: module-design
 argument-hint: '"<question>" [--context <files>] [--mode design|review|compare|adversarial] [--second-opinion=codex-exec]'
-description: 'Use when users need architecture decisions, module boundaries, or implementation guidance for software development tasks. Supports design, review, compare, and bounded adversarial modes. Not for pure documentation editing or non-technical writing tasks. Output: actionable, stack-neutral architecture guidance with explicit seams, trade-offs, and implementation-ready recommendations.'
+description: 'Design or compare module responsibilities, public interfaces, and architecture trade-offs. Use when a boundary or adapter choice is unresolved. Supports design, review, compare, and bounded adversarial modes. Not for implementing a confirmed design, tracing code, or reviewing code correctness. Output: a bounded recommendation with evidence and verification needs.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -61,6 +61,11 @@ criteria, failure modes, and any changed recommendation for that opinion.
   prefactor that improves locality only when the next requested behavior needs
   it, and record speculative candidates as deferred rather than building them.
 
+For dependencies that cross an I/O or ownership boundary, load
+[Dependency and test choices](references/dependency-and-tests.md) before
+recommending adapters or substitutes. Record what is actually available;
+the table guides a decision rather than mandating a new abstraction.
+
 ## Language and scenarios
 
 - Maintain an **active glossary** for domain terms; challenge an
@@ -72,7 +77,9 @@ criteria, failure modes, and any changed recommendation for that opinion.
 
 ## Decisions and output
 
-Recommend a boundary, interface, data flow, and trade-offs. Record an ADR only
+Recommend a boundary, interface, data flow, and trade-offs. For an I/O boundary,
+include the dependency owner, available test substitute, and verification gap.
+Record an ADR only
 when the decision is surprising, hard-to-reverse, or likely to be revisited;
 routine local choices belong in the implementation plan or tests.
 
@@ -88,8 +95,7 @@ second opinion actually ran.
   `code-trace`).
 - Implementing an already-confirmed design (use `flow-guide` or the
   matching OpenSpec apply route).
-- Reviewing code or security controls (use `change-verdict` or
-  `change-verdict`).
+- Reviewing code or security controls (use `change-verdict`).
 
 ## Verification
 

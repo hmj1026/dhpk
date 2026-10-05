@@ -7,143 +7,92 @@ metadata:
 
 # Change Verdict
 
-Use the smallest mode that answers the question. This is a read-only observer
-of source, diffs, tests, documents, metadata, and tool output; it returns a
-verdict and text-only recommendations, never repository or review-state edits.
+Use the smallest mode and scope that answer the request. This skill reads
+evidence and returns a verdict with text-only recommendations; it does not
+change repository or review state.
 
 ## Modes
 
 | Mode | Question answered | Read when |
 |---|---|---|
-| `code` | Is a fixed-point diff correct, safe, and consistent with its spec? | Reviewing code changes or a branch. |
-| `pr` | Is a proposed PR complete and hygienic for its declared merge method? | Self-reviewing a branch or inspecting PR metadata. |
+| `code` | Is the selected code change sound against applicable standards and specifications? | Reviewing a code diff or branch. |
+| `pr` | Is a proposed PR complete and hygienic for its declared merge method? | Reviewing branch changes or PR metadata. |
 | `security` | Are security-sensitive paths exposed to OWASP risks or unsafe dependencies? | Auditing auth, input, secrets, dependencies, or security-sensitive changes. |
-| `tests` | Do existing tests and acceptance evidence cover the behavior? | Reviewing test adequacy or tracing ACs to evidence. |
+| `tests` | Do existing tests and acceptance evidence cover the behavior? | Reviewing test adequacy or tracing acceptance criteria to evidence. |
 | `docs` | Is a document accurate, complete, and consistent with the code? | Reviewing Markdown, specs, READMEs, or design documents. |
 | `risk` | What breaking surface, blast radius, and change-scope signals are present? | Assessing an uncommitted diff or large refactor. |
 
-If `--mode` is omitted, infer one mode only when unambiguous; otherwise report
-`INCONCLUSIVE` with the minimum clarification needed. Do not run multiple modes.
+Choose one mode. If the mode or requested scope is ambiguous or cannot be
+resolved, return `INCONCLUSIVE` and state the minimum evidence or clarification
+needed.
 
 ## When NOT to Use
 
-- Implement or fix a finding → use `flow-drive`.
-- Trace an unfamiliar code path → use `code-trace`.
-- Audit a skill → use `skill-scope`.
+- Implement or fix a finding: use `flow-drive`.
+- Trace an unfamiliar code path: use `code-trace`.
+- Audit a skill: use `skill-scope`.
 
-## Shared read-only protocol
+## Procedure
 
-1. Resolve a fixed point before reading findings: use a non-empty
-   `git merge-base <base> HEAD` for branch work, or `HEAD` for an uncommitted
-   diff. Record the exact value.
-2. Read the actual diff and relevant files yourself. Treat caller-provided
-   summaries as navigation hints, never as evidence.
-3. Use file-and-line evidence for every material finding. Redact secrets,
-   tokens, cookies, private keys, and personal data from output.
-4. Keep primary-model evidence separate from an optional CLI second opinion.
-   The primary path is complete without the CLI; unavailable or unrequested
-   CLI evidence is explicitly `degraded: primary model only`.
-5. Return a verdict without changing repository state. A missing fixed point,
-   unavailable dependency, unreadable scope, or contradictory evidence keeps
-   the result `INCONCLUSIVE` or `BLOCKED`; it never becomes an assumed pass.
+Follow [`references/shared/review-workflow.md`](references/shared/review-workflow.md)
+for scope resolution, fixed-point handling, evidence collection, and aggregation.
+It owns the shared read-only sequence.
 
-No mode may run a formatter, fixer, generator, commit, staging command,
-artifact writer, gate/sentinel emitter, or writer-dispatch loop. A re-review
-continuation must remain read-only and re-read only a caller-supplied snapshot.
+Load only the selected mode's references:
 
-## Mode procedures
+- `code`: use the branch prompt for a branch scope; otherwise use the fast or
+  full prompt matching the selected depth. The shared code research instructions
+  own Git reads; apply the code-only Standards and Spec status rules in
+  [`references/shared/review-common.md`](references/shared/review-common.md).
+- `pr`: read PR metadata and use `scripts/check-unrelated-changes.sh` only as a
+  read-only advisory scan when PR metadata is available.
+- `security`: use `references/security/codex-prompt-security.md` and label
+  findings with their OWASP category.
+- `tests`: read source, tests, acceptance criteria, and available runtime
+  evidence. `--ac-trace` maps criteria to evidence; `--coverage` loads
+  `references/tests/codex-prompt-test-review.md`. Legacy `--scope tests` means
+  `--mode tests`.
+- `docs`: read the full target and enough source or configuration to check it.
+  Load `references/docs/review-loop-doc.md` only when a prior snapshot is
+  supplied.
+- `risk`: run `scripts/risk-analyze.js --json` on the current read-only tree and
+  use `references/risk/` to interpret its score.
 
-### `code`
-
-Pin the diff, inspect changed files and their callers/callees, then evaluate
-the Standards and Spec axes independently. Load the relevant prompt in
-`references/code/` and the shared evidence rules in
-`references/shared/review-common.md`. Rank findings `P0`, `P1`, `P2`, or
-`Nit`; only P0/P1 block a complete verdict. Do not call a P2/Nit suggestion a
-fix cycle.
-
-### `pr`
-
-Read branch/base metadata, commits, changed files, and the declared merge
-method. Run `scripts/check-unrelated-changes.sh` only as a read-only advisory
-scan when PR metadata is available. Report correctness, security, performance,
-tests, docs, and squash hygiene separately. The scan's advisory exit status
-does not override evidence or hide unrelated files.
-
-### `security`
-
-Inspect the requested scope and its boundaries, then apply the OWASP checklist
-from `references/security/codex-prompt-security.md`. Dependency checks are
-advisory unless their command and result are present. Label each issue with
-its OWASP category, severity, location, impact, remediation text, and a safe
-verification method.
-
-### `tests`
-
-Read source/corresponding tests at the public seam; assess happy path, errors, edge cases, and mock quality.
-With `--ac-trace`, map each non-quality-gate acceptance criterion to independent test/runtime evidence or a validated exception.
-In tests mode, `--coverage` loads `references/tests/codex-prompt-test-review.md`; legacy `--scope tests` is accepted as `--mode tests`.
-Conflicting mode/scope values are `INCONCLUSIVE`. Coverage review is read-only: do not write tests, files, artifacts, or invoke an automatic CLI.
-Unavailable coverage evidence remains a gap, never a pass; missing evidence is not an instruction to add tests in this skill.
-
-### `docs`
-
-Read the complete target document and enough source/configuration to check
-accuracy. Rate architecture, performance, security, documentation quality,
-and code consistency. Load `references/docs/review-loop-doc.md` only when the
-caller supplies a prior snapshot for comparison; never edit the document or
-persist a review snapshot.
-
-### `risk`
-
-Run `scripts/risk-analyze.js --json` only against the current read-only tree
-and capture its JSON output. Interpret breaking surface, blast radius, and
-change scope with `references/risk/`. If deep history is requested, read git
-history without writing caches or reports. Preserve the script's score and
-add a qualitative explanation; do not turn risk into authorization to change
-the code.
+For every mode, report evidence gaps and use the response shape in
+[`templates/review_output.md`](templates/review_output.md). The code-only
+Standards and Spec section is omitted from all other modes. Severity and final
+verdict meanings are owned by
+[`references/shared/review-rubric.md`](references/shared/review-rubric.md).
 
 ## Optional CLI second opinion
 
-Only an explicit `--second-opinion=codex-exec` may invoke
-`scripts/review-cli.sh --backend cli`. Pass a self-contained scope and pinned
-snapshot, never the primary conclusion; keep output separate, redact it, record
-its status, and reconcile after both observations. A CLI failure is degraded
-evidence, not a fallback or a reason to write an artifact.
+Only explicit `--second-opinion=codex-exec` may invoke
+`scripts/review-cli.sh --backend cli`. Pass the selected scope and fixed point,
+not the primary conclusion. Keep the CLI result separate, redact it, and
+record its status. The primary review is complete without this optional check;
+an unavailable CLI is reported as degraded evidence.
 
-## Output contract
+## Read-only boundary
 
-```markdown
-## Change verdict: <mode>
-- Fixed point: <merge-base or HEAD>
-- Scope: <path/diff/branch/document>
-- Sources: primary=<complete|degraded>; cli=<not requested|passed|failed>
-
-### Findings
-- [P0/P1/P2/Nit] <file:line> <evidence-backed issue> -> <text-only remediation>
-
-### Evidence gaps
-- <missing or contradictory evidence, or none>
-
-### Verdict: READY | BLOCKED | INCONCLUSIVE
-```
-
-`READY` requires a pinned point, readable scope, and no blocking finding;
-`BLOCKED` means a P0/P1 finding or required safety condition prevents a
-complete verdict, while `INCONCLUSIVE` means evidence is insufficient. The
-response is the only output; no file, state, or sentinel is created.
+Return the review in the response. Keep repository state unchanged: do not run
+formatters, fixers, generators, staging, commits, artifact writers, gate or
+sentinel emitters, or a writer-dispatch loop. A re-review is a new observation
+of a caller-supplied snapshot.
 
 ## References
 
-- `references/shared/review-workflow.md` — read-only collection and aggregation sequence.
-- `references/shared/review-common.md` — severity, evidence, and degradation rules.
+- `references/shared/review-workflow.md` — shared sequence and fixed-point handling.
+- `references/shared/review-common.md` — evidence, source labels, and finding normalization.
+- `references/shared/review-rubric.md` — severity and final verdict definitions.
+- `references/shared/codex-research-instructions.md` — research guidance used by code prompts.
 - `references/shared/cli-backend.md` — explicit CLI transport contract.
-- `references/code/`, `references/security/`, `references/tests/`, `references/docs/`, `references/risk/` — mode-specific prompts and checklists.
+- `references/code/`, `references/security/`, `references/tests/`, `references/docs/`, `references/risk/` — mode-specific instructions.
 - `scripts/review-cli.sh`, `scripts/check-unrelated-changes.sh`, `scripts/risk-analyze.js` — read-only helpers.
 
-## Verification
+## Completion check
 
-- [ ] Exactly one mode, scope, and fixed point are recorded.
-- [ ] The actual source/diff/document was independently read and evidence is file:line based.
-- [ ] Findings are severity-ranked and mode-appropriate; unknowns remain explicit; no file, artifact, gate/sentinel, staging area, or writer was invoked.
-- [ ] Optional CLI use was explicit, isolated, redacted, and labeled; otherwise degradation is stated.
+- One mode and a readable, resolved scope are recorded.
+- The reported fixed point and evidence anchors match the reviewed snapshot.
+- Findings are normalized and ranked; missing evidence remains visible.
+- Only an explicitly requested CLI opinion is reported, with its actual status.
+- No repository state or review artifact was written.

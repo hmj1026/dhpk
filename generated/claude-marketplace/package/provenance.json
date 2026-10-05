@@ -42,7 +42,7 @@
       "sourcePath": "skills/change-verdict/SKILL.md",
       "destination": "skills/change-verdict/SKILL.md",
       "kind": "entry",
-      "sha256": "a4118fb193946acb461cdc1a7bec88cf4d52511e8f62b3077d403d45ce1cdcee"
+      "sha256": "d6efcb2b3d436988d71c122c9282ba2d7b05cdfd43246e137be2a1374bc97d81"
     },
     {
       "skillId": "change-verdict",
@@ -58,7 +58,7 @@
       "sourcePath": "skills/change-verdict/references/code/codex-prompt-branch.md",
       "destination": "skills/change-verdict/references/code/codex-prompt-branch.md",
       "kind": "entry",
-      "sha256": "b80bfe2691ae83d10e4f4c7efca3f59c3de61e2b37cb2bd68838ac133a1be79d"
+      "sha256": "15f3969db250580262242b2ef75a98255fe6f04b6c082a813aae69e804fcf096"
     },
     {
       "skillId": "change-verdict",
@@ -66,7 +66,7 @@
       "sourcePath": "skills/change-verdict/references/code/codex-prompt-fast.md",
       "destination": "skills/change-verdict/references/code/codex-prompt-fast.md",
       "kind": "entry",
-      "sha256": "49eedb44b1ea39e44964e297a38de6c5c97cfab09415b72637263c0ca51ac9cd"
+      "sha256": "818aee129fc0120170953f583c5c34aa0c184c305ac5bebcb641dcc02642ca5f"
     },
     {
       "skillId": "change-verdict",
@@ -74,7 +74,7 @@
       "sourcePath": "skills/change-verdict/references/code/codex-prompt-full.md",
       "destination": "skills/change-verdict/references/code/codex-prompt-full.md",
       "kind": "entry",
-      "sha256": "d020709c0795df6e31c891439caadb49b12204181e1b9c1ea92676b80c0c75f6"
+      "sha256": "0515b66ff0a781ce89794f6773072f1008669c2d9dcc73976c612fccf28b8fb8"
     },
     {
       "skillId": "composer-package-hygiene",
@@ -266,7 +266,7 @@
       "sourcePath": "skills/change-verdict/references/shared/codex-research-instructions.md",
       "destination": "skills/change-verdict/references/shared/codex-research-instructions.md",
       "kind": "entry",
-      "sha256": "26bd8f223c58511bd5032effcfe62c8041d811ad41d40f2b4f35f387275a1541"
+      "sha256": "5586b3a015f3da9d7c2785bd7f9bd382a32edee4ea2565fd822e960fc3e8a6bc"
     },
     {
       "skillId": "change-verdict",
@@ -282,7 +282,7 @@
       "sourcePath": "skills/change-verdict/references/shared/review-common.md",
       "destination": "skills/change-verdict/references/shared/review-common.md",
       "kind": "entry",
-      "sha256": "57050ae736d5a6bbca39eb41fddd4aec3d1ac157e7f8022cb0b30ca0f9d57b6f"
+      "sha256": "fea9f98fb28ba8265edee4931cb06eadd6f343f0326400060f0cef7a8725cb5e"
     },
     {
       "skillId": "change-verdict",
@@ -298,7 +298,7 @@
       "sourcePath": "skills/change-verdict/references/shared/review-workflow.md",
       "destination": "skills/change-verdict/references/shared/review-workflow.md",
       "kind": "entry",
-      "sha256": "2d30e866791b2029b429287db41f6e0c6cfbb80be5f39c17ec72d35c411c5de0"
+      "sha256": "4acd641fd919d953a2e2e4a4a7be33b97e99f8e003bcb781fe2a67b4d77a83e0"
     },
     {
       "skillId": "change-verdict",
@@ -362,7 +362,7 @@
       "sourcePath": "skills/change-verdict/templates/review_output.md",
       "destination": "skills/change-verdict/templates/review_output.md",
       "kind": "entry",
-      "sha256": "4b6e11d38999f881b56ebf0f9b565186d95895a6ccf818569670441880792dfc"
+      "sha256": "e334671e92b12c2397cd0e2a3e1b810aa18dbefda658ea6e45a9a7f07b0112af"
     },
     {
       "skillId": "code-trace",
@@ -370,7 +370,7 @@
       "sourcePath": "skills/code-trace/SKILL.md",
       "destination": "skills/code-trace/SKILL.md",
       "kind": "entry",
-      "sha256": "55539cdc327ae6ff91372533b973e19a30f0dabf89e4d6646f32eb13171816bd"
+      "sha256": "a6c14186000bf97e7b26965ab406430ca30187189f585f3238a3b85bea3c68f3"
     },
     {
       "skillId": "code-trace",
@@ -474,7 +474,7 @@
       "sourcePath": "skills/code-trace/references/diagnose/checklists.md",
       "destination": "skills/code-trace/references/diagnose/checklists.md",
       "kind": "entry",
-      "sha256": "d3f6dda895284c2b70b493d3b5366488baf463f1f386aaafc2a5c038034cb7c2"
+      "sha256": "bc75198382e9d1c88bda31a4f1923ee7db98afe13543a8a12bd0c79282e3f3c5"
     },
     {
       "skillId": "code-trace",
@@ -498,7 +498,7 @@
       "sourcePath": "skills/code-trace/references/diagnose/examples.md",
       "destination": "skills/code-trace/references/diagnose/examples.md",
       "kind": "entry",
-      "sha256": "3b43027e892e5a5d6e74caa67310594c4cb7afb4f789cdffb6d98b03e164d4dd"
+      "sha256": "2494b7d047c6cc36019a7f1b484cc01cd6858281df033c691ec5331d04655972"
     },
     {
       "skillId": "code-trace",
@@ -506,7 +506,15 @@
       "sourcePath": "skills/code-trace/references/diagnose/phase-templates.md",
       "destination": "skills/code-trace/references/diagnose/phase-templates.md",
       "kind": "entry",
-      "sha256": "06841dddac892338dc7c537cb8bbc78a8e3e7ea99f10d9522cc8a714c5c53079"
+      "sha256": "d3a53fb72723f9d9883b1bfde170fd66cd26936088abab8130ae3b680670d674"
+    },
+    {
+      "skillId": "code-trace",
+      "ownerId": "code-trace",
+      "sourcePath": "skills/code-trace/references/diagnose/reproduction-evidence.md",
+      "destination": "skills/code-trace/references/diagnose/reproduction-evidence.md",
+      "kind": "entry",
+      "sha256": "e3005f589fa6b18f55389eff89c4e977899e9aaa41e23e9d675c19a43f9304dc"
     },
     {
       "skillId": "code-trace",
@@ -514,7 +522,7 @@
       "sourcePath": "skills/code-trace/references/diagnose/root-cause-tracing.md",
       "destination": "skills/code-trace/references/diagnose/root-cause-tracing.md",
       "kind": "entry",
-      "sha256": "79f13223cd8d81eafae9897b784a9cd7eddba552faae2a0aed99781a0a3a19bd"
+      "sha256": "01943dfeaf93ab79aca6efb9bbbc1d97bf81ea31ea649801127dfb8993bc592d"
     },
     {
       "skillId": "code-trace",
@@ -634,7 +642,7 @@
       "sourcePath": "skills/create-pr/SKILL.md",
       "destination": "skills/create-pr/SKILL.md",
       "kind": "entry",
-      "sha256": "68a3366d3f1ad98e5afe388160c7f56d8216cc9412fa6217d377cf73de8b61b0"
+      "sha256": "7e6f8f2ecb806b5e508dc58ae38c917000d9d5776e941a3312e410f504b61549"
     },
     {
       "skillId": "create-pr",
@@ -698,7 +706,7 @@
       "sourcePath": "skills/create-pr/references/workflow.md",
       "destination": "skills/create-pr/references/workflow.md",
       "kind": "entry",
-      "sha256": "68cb40d53f1478c331166b12d14258413d87cfae4f1d5d4205b54e8ecb888018"
+      "sha256": "55fc41100592dbbea1913dc96be57b1e82d8069b2c695d8f52790332db6d77eb"
     },
     {
       "skillId": "dep-audit",
@@ -1130,7 +1138,7 @@
       "sourcePath": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
       "destination": "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
       "kind": "entry",
-      "sha256": "f22bcd144a61ca38382b54c3ecba172c94cd2a043d9cbc40f977287e5b396aa4"
+      "sha256": "97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d"
     },
     {
       "skillId": "opsx-apply-goal",
@@ -2458,7 +2466,7 @@
       "sourcePath": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
       "destination": "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
       "kind": "entry",
-      "sha256": "f22bcd144a61ca38382b54c3ecba172c94cd2a043d9cbc40f977287e5b396aa4"
+      "sha256": "97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d"
     },
     {
       "skillId": "flow-drive",
@@ -2682,7 +2690,7 @@
       "sourcePath": "skills/flow-guide/SKILL.md",
       "destination": "skills/flow-guide/SKILL.md",
       "kind": "entry",
-      "sha256": "8916d9c4dd8a3d28052a095482ff0d30e27a6ffde31f31b95f308602ef91694d"
+      "sha256": "8d774e572db4c4f468a36288e9b745cfca249b17074e25fbadfea6d79cb2a723"
     },
     {
       "skillId": "flow-guide",
@@ -2738,7 +2746,7 @@
       "sourcePath": "skills/flow-guide/references/codex-mode.md",
       "destination": "skills/flow-guide/references/codex-mode.md",
       "kind": "entry",
-      "sha256": "429614846dd4485ccb9b9d9c399918b5503de468c061011207ebcc6c0cfd6b6f"
+      "sha256": "0234970e54764b9e8d3a07125b9baa5679f9fb818af5d0df9019fe0e202487c5"
     },
     {
       "skillId": "flow-guide",
@@ -2746,7 +2754,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "a1959bfdb9a7a519d4c3fd6d93ef89b137bfa46b6cbdd4e890f500e654f79cea"
+      "sha256": "3e88968132ca14c74ae288c00c651db3e3b6fb7dc46b3d00ff6642179a846c2f"
     },
     {
       "skillId": "flow-guide",
@@ -2946,7 +2954,7 @@
       "sourcePath": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
       "destination": "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/premise-verification.md",
       "kind": "entry",
-      "sha256": "f22bcd144a61ca38382b54c3ecba172c94cd2a043d9cbc40f977287e5b396aa4"
+      "sha256": "97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d"
     },
     {
       "skillId": "flow-guide",
@@ -3002,7 +3010,7 @@
       "sourcePath": "skills/flow-guide/references/premise-verification.md",
       "destination": "skills/flow-guide/references/premise-verification.md",
       "kind": "entry",
-      "sha256": "f22bcd144a61ca38382b54c3ecba172c94cd2a043d9cbc40f977287e5b396aa4"
+      "sha256": "97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d"
     },
     {
       "skillId": "flow-guide",
@@ -3018,7 +3026,7 @@
       "sourcePath": "skills/flow-guide/references/progression-tables.md",
       "destination": "skills/flow-guide/references/progression-tables.md",
       "kind": "entry",
-      "sha256": "872cb0c3a816260520340ddc1eac66bb365cd533310114818c1b5872e90042dd"
+      "sha256": "5c60423cdf7691d0841a762bc9a2e1cc9560079dbb6ddb178bbbc0f3196bd683"
     },
     {
       "skillId": "flow-guide",
@@ -3762,7 +3770,7 @@
       "sourcePath": "skills/opsx-apply-resume/references/resume.md",
       "destination": "skills/opsx-apply-resume/references/resume.md",
       "kind": "entry",
-      "sha256": "8ad84c652aeefc9489a1b23fd9d1169b13e9d31dcae026a4eabae4a0fcabfa87"
+      "sha256": "2ca089d16dc49b14464d23e9d3739d7f6444834e92566d661f4ea16ac0dc410d"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -3770,7 +3778,7 @@
       "sourcePath": "skills/opsx-apply-resume/references/save.md",
       "destination": "skills/opsx-apply-resume/references/save.md",
       "kind": "entry",
-      "sha256": "1d9fabb70a498a1b750e4a72d6faa70ab21bb1293f83b5bd8e7bdd1d22ca7418"
+      "sha256": "0599fa98758178a8d240fdd8b0f740de66fbf5d74d5ac2c5a5af1f8ffe1c327f"
     },
     {
       "skillId": "opsx-apply-resume",
@@ -3866,7 +3874,7 @@
       "sourcePath": "skills/proposal-analyze/SKILL.md",
       "destination": "skills/proposal-analyze/SKILL.md",
       "kind": "entry",
-      "sha256": "3f7caa7a4041f2c6f6c70e017862b82b9a6f2f9d52b62b764b9d304eb3fe2686"
+      "sha256": "6becd45aa105c2cc7ceb70da489ed3b0b171fa706bd6dba901d3529a239bbd7d"
     },
     {
       "skillId": "proposal-analyze",
@@ -3882,7 +3890,7 @@
       "sourcePath": "skills/dhpk-issue-analyze/SKILL.md",
       "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/SKILL.md",
       "kind": "branch",
-      "sha256": "69ce827956548b02e33bce9f842ffc4c2b78aa22d91f436e5d5e72066574c02d"
+      "sha256": "300c7bc346399b2101c5f2d85c73f90a4cb5c77f6999b7baf9785473f0a361e3"
     },
     {
       "skillId": "issue-analyze",
@@ -3898,7 +3906,7 @@
       "sourcePath": "skills/dhpk-issue-analyze/references/classification.md",
       "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/references/classification.md",
       "kind": "branch",
-      "sha256": "e27acc81d50e8967a549ca541626c20b4b61d002264f0f56cceed165f3d2aed3"
+      "sha256": "4ddb7d11fa4d17fda0301b4deefe7372a804934c991ac7b2b0b9007352468813"
     },
     {
       "skillId": "issue-analyze",
@@ -3906,23 +3914,31 @@
       "sourcePath": "skills/dhpk-issue-analyze/references/report-template.md",
       "destination": "skills/proposal-analyze/references/dhpk-issue-analyze/references/report-template.md",
       "kind": "branch",
-      "sha256": "51f256e4c0448f781c5ba699924a58f1c789bd06244f54eccc59414297555306"
+      "sha256": "d8f9e8b2f1ab442c961febd3effc57df688ae4d9705a6d2eb5e9dab6950ab6a1"
     },
     {
       "skillId": "software-architecture",
       "ownerId": "proposal-analyze",
-      "sourcePath": "skills/dhpk-module-design/SKILL.md",
-      "destination": "skills/proposal-analyze/references/dhpk-module-design/SKILL.md",
+      "sourcePath": "skills/module-design/SKILL.md",
+      "destination": "skills/proposal-analyze/references/module-design/SKILL.md",
       "kind": "reference",
-      "sha256": "e4e0a8da8b825cd80cc62cf9cb4fc164972cab07fd935dea1f230ea712cb0a9c"
+      "sha256": "6d4633b1fac59371f46c8db35305fadd26c6b0b3a3fafadee59bbefe9874486a"
     },
     {
       "skillId": "software-architecture",
       "ownerId": "proposal-analyze",
-      "sourcePath": "skills/dhpk-module-design/agents/openai.yaml",
-      "destination": "skills/proposal-analyze/references/dhpk-module-design/agents/openai.yaml",
+      "sourcePath": "skills/module-design/agents/openai.yaml",
+      "destination": "skills/proposal-analyze/references/module-design/agents/openai.yaml",
       "kind": "reference",
-      "sha256": "6b54a76f36f53a5b1a1d7aa62782bcc168715972e966b053305b77844618e03d"
+      "sha256": "7609b739f6ef95b5f7a1c492223cc4f676632e0ed297e04d152340b296d017bb"
+    },
+    {
+      "skillId": "software-architecture",
+      "ownerId": "proposal-analyze",
+      "sourcePath": "skills/module-design/references/dependency-and-tests.md",
+      "destination": "skills/proposal-analyze/references/module-design/references/dependency-and-tests.md",
+      "kind": "reference",
+      "sha256": "ce1370f5bac75d0e66b6628ae517e421466d76a2fa25fc8076c4a81c339d0bf8"
     },
     {
       "skillId": "project-brief",

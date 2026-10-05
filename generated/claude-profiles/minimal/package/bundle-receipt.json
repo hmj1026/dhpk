@@ -10,7 +10,7 @@
     ],
     "excludes": [],
     "id": "minimal",
-    "inventoryFingerprint": "bf63ed3858f8a1dce9ddd58dbc7373f1b6637485aa42d3733a40d57cf8bec43b",
+    "inventoryFingerprint": "c80d3515b02cc7a1668654e6196e7a1aa93d856bdb75d3747b8217822f385179",
     "mode": "profile",
     "modules": [],
     "profileFingerprint": "e6fced74bf8dd6e7a3464c7b9b070196cf2a8276b01f1942d260884815b80fd6",
@@ -21,7 +21,7 @@
       "flow-drive",
       "flow-guide"
     ],
-    "selectionFingerprint": "3b9b34ffcb95e16e037b25712b9fc6c5d6e5bbd426dd4d953ea0143b799cbc22",
+    "selectionFingerprint": "7f75c22e0b2c6459f26e8a34f4a059e38c0cc61e2a0e1a905058d00c6f685275",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "ce6aa9073dce16a1b4b8852295f788018b17315a241a3a848797f535efe14e56",
@@ -84,7 +84,7 @@
         "repo-verify"
       ]
     },
-    "surfaceSelectionFingerprint": "2fed31f596f158d30c1f8f57df2bc08825d279c8e79449309d6ce111eb8b30a5",
+    "surfaceSelectionFingerprint": "4772a0351bb9c09adf09840c83f96bc78742832eea97de7769dcc63dd1227cec",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -236,6 +236,10 @@
     {
       "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/phase-templates.md",
       "destination": "skills/code-trace/references/diagnose/phase-templates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/reproduction-evidence.md",
+      "destination": "skills/code-trace/references/diagnose/reproduction-evidence.md"
     },
     {
       "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/root-cause-tracing.md",
@@ -768,5 +772,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "e141c30e31f9ffedf6fa9a9bc95529ba310970268ee32ec31335db7c2cc15d7c"
+  "planFingerprint": "34bf764b678a57eb3e7bce58ed2969e53794383db56ff8b1584bc2250dd88c11"
 }

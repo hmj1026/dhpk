@@ -17,7 +17,7 @@ Used when script shows P0 gate issues or when determining which workflow step co
 
 | Last Completed | Next Step |
 |----------------|-----------|
-| (nothing yet) | `/dhpk:dhpk-module-design --mode compare` or external `$openspec-propose` (large feature) |
+| (nothing yet) | `/dhpk:module-design --mode compare` or external `$openspec-propose` (large feature) |
 | Architecture designed | `$flow-drive <confirmed-spec-or-change-id>` or manual coding |
 | Code written, no tests | Write tests, then `/verify` |
 | `/verify` pass | `/dhpk:change-verdict --mode code` + `/dhpk:change-verdict --mode tests` |
@@ -61,5 +61,5 @@ Used when script shows P0 gate issues or when determining which workflow step co
 | Want to understand code | `/dhpk:code-trace --mode explore` |
 | Track a specific change | `/dhpk:code-trace --mode history` |
 | Analyze a GitHub issue | `/dhpk:dhpk-issue-analyze` |
-| Need architecture advice | `/dhpk:dhpk-module-design` or `/dhpk:dhpk-module-design --mode adversarial` |
-| Evaluate feasibility | `/dhpk:dhpk-module-design --mode compare` |
+| Need architecture advice | `/dhpk:module-design` or `/dhpk:module-design --mode adversarial` |
+| Evaluate feasibility | `/dhpk:module-design --mode compare` |

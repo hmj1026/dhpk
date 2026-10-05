@@ -2542,8 +2542,10 @@
     },
     {
       "id": "software-architecture",
-      "name": "dhpk-module-design",
-      "path": "skills/dhpk-module-design",
+      "name": "module-design",
+      "name_style": "portable-skill",
+      "invocation_class": "implicit-eligible",
+      "path": "skills/module-design",
       "capability_id": "dhpk.skill.software-architecture",
       "lifecycle": "promoted",
       "tier": "core",
@@ -5849,6 +5851,16 @@
     }
   ],
   "renamed_skill_names": [
+    {
+      "id": "software-architecture",
+      "oldName": "dhpk-module-design",
+      "oldPath": "skills/dhpk-module-design",
+      "newName": "module-design",
+      "newPath": "skills/module-design",
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
     {
       "id": "laravel",
       "oldName": "dhpk-laravel",
