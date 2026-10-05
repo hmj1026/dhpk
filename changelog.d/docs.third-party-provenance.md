@@ -1,2 +1,2 @@
-scope: Marketplace source provenance and remediation
-note: Correct incomplete first-party claims, record ECC script provenance and other author sources, and retain separate rewrite, notice, package, and publication acceptance checkpoints.
+scope: Marketplace documentation
+note: Remove the standalone licensing review document and its links; maintain source acknowledgments with the relevant content.

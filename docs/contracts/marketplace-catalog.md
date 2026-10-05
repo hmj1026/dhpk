@@ -1,7 +1,7 @@
 # Marketplace catalog classification
 
 This accepted catalog maps each active stable ID to its publication kind, owner,
-selection, current distribution surfaces, historical license labels,
+selection, current distribution surfaces, license labels,
 and recorded test-evidence state. `manifests/marketplace-selection.json` is the
 machine-readable copy of the ID, authority, kind, owner, and selection columns;
 `scripts/lib/marketplace-selection.js` compiles it against the distribution
@@ -42,18 +42,13 @@ surfaces listed in the inventory. Withdrawn rows are never published.
 - The version condition of each ID is its inventory `profiles` without `core`:
   an empty condition means the skill is always available, otherwise the named
   module must be enabled.
-- The `license` column retains catalog-level labels; `first-party` does not
-  establish authorship of every bundled script, reference, or supporting asset.
-  File-level source review and remediation remain open under the
-  [licensing contract](marketplace-licensing.md). Catalog membership does not
-  grant rights acceptance or publication readiness.
+- The `license` column classifies catalog entries. Applicable licensing and
+  source acknowledgments for bundled resources are stated with those resources.
 
 The accepted catalog contains 81 IDs: 15 common entries, 20 common branches,
 25 common references, 13 Host-only entries, 2 Host-only internal skills, and 6
-withdrawn skills owned upstream by GitNexus. The `agent-architecture-audit`,
-`skill-forge`, and `spec-mine` skills were removed from the inventory and from
-every package on 2026-10-03 for third-party text overlap, so they have no row
-here (see [marketplace-licensing.md](marketplace-licensing.md)).
+withdrawn skills owned upstream by GitNexus. Retired entries have no row here;
+their status is maintained in `manifests/distribution-inventory.json`.
 
 ## Accepted classifications
 
