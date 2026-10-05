@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { StringDecoder } = require('node:string_decoder');
+const { buildTelemetry } = require('./lib/usage-contract');
 
 const DEFAULT_TIME_ZONE = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const TEST_FIXTURE_ENV = 'DHPK_SESSION_USAGE_AUDIT_TEST_MODE';
@@ -93,6 +94,8 @@ function parseArgs(argv = [], context = {}) {
       parsed.source = valueFor(index, arg); index += 1;
     } else if (arg === '--format') {
       parsed.format = valueFor(index, arg); index += 1;
+    } else if (arg === '--usage-telemetry') {
+      parsed.usageTelemetry = true;
     } else if (arg === '--create-issues') {
       parsed.createIssues = true;
     } else if (arg === '--confirm') {
@@ -162,6 +165,7 @@ function usage() {
     'Usage: session-usage-audit.js [options]',
     '  --date YYYY-MM-DD | --from YYYY-MM-DD --to YYYY-MM-DD',
     '  --agent NAME (repeatable) --source auto|claude|codex|orca',
+    '  --usage-telemetry (optional nullable coverage sidecar; usage adapters unsupported)',
     '  --format text|json --create-issues [--confirm] [--confirm-digest sha256:<64hex>] [--verification-file PATH --execute-verification --verification-digest sha256:<64hex>] [--plugin-root PATH]',
   ].join('\n');
 }
@@ -1565,7 +1569,13 @@ function runAudit(options = {}) {
     assertNoSymlinkComponents(resolved);
     return resolved;
   };
+  if (parsed.usageTelemetry) {
+    assertNoSymlinkComponents(path.resolve(parsed.output || path.join(process.cwd(), '.claude', 'artifacts', 'audits', 'session-usage')));
+  }
   parsed.output = resolveLocalInput(parsed.output, 'output');
+  const telemetryOutput = parsed.usageTelemetry
+    ? resolveLocalInput(parsed.output || path.join(process.cwd(), '.claude', 'artifacts', 'audits', 'session-usage'), 'output')
+    : '';
   parsed.verificationFile = resolveLocalInput(parsed.verificationFile, 'verification-file');
   parsed.pluginRoot = resolveLocalInput(parsed.pluginRoot, 'plugin-root');
   const discovery = discoverSources(parsed.home, options);
@@ -1674,10 +1684,11 @@ function runAudit(options = {}) {
       typeof value === 'string' ? redactText(value, { home: parsed.home }) : value,
     ])))
     : [];
+  const { usageTelemetry, ...legacyArgs } = parsed;
   const report = {
     schema: 'dhpk.session-usage-audit.report.v1',
     args: {
-      ...parsed,
+      ...legacyArgs,
       home: '<HOME>',
       output: parsed.output ? redactText(parsed.output, { home: parsed.home }) : '',
       pluginRoot: pluginRoot ? redactValue(pluginRoot, parsed.home, 0, additionalRedactionRoots) : '',
@@ -1777,7 +1788,17 @@ function runAudit(options = {}) {
   report.stats.sourceCoverageComplete = sourceCoverageComplete;
   report.stats.malformedCount = malformedCount;
   report.stats.unsupportedCount = unsupportedCount;
-  if (options.write || parsed.output) writeReport(report, parsed.output || path.join(process.cwd(), '.claude', 'artifacts', 'audits', 'session-usage'));
+  if (options.write || parsed.output || usageTelemetry) {
+    const candidate = parsed.output || path.join(process.cwd(), '.claude', 'artifacts', 'audits', 'session-usage');
+    const output = usageTelemetry ? telemetryOutput : candidate;
+    const target = writeReport(report, output);
+    if (usageTelemetry) {
+      const telemetry = buildTelemetry({ selection: parsed, sourceStats, omittedSources: normalizedOmittedSources, partial });
+      const sidecar = path.join(target, 'usage-telemetry.json');
+      assertNoSymlinkComponents(sidecar);
+      writePrivateFile(sidecar, `${JSON.stringify(telemetry, null, 2)}\n`);
+    }
+  }
   return report;
 }
 

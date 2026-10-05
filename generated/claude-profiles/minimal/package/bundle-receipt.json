@@ -10,7 +10,7 @@
     ],
     "excludes": [],
     "id": "minimal",
-    "inventoryFingerprint": "c80d3515b02cc7a1668654e6196e7a1aa93d856bdb75d3747b8217822f385179",
+    "inventoryFingerprint": "241c102b1e67ecff8f6725a32558896ee6d7e815ad903b0fd1ef2f2766c2314e",
     "mode": "profile",
     "modules": [],
     "profileFingerprint": "e6fced74bf8dd6e7a3464c7b9b070196cf2a8276b01f1942d260884815b80fd6",
@@ -21,7 +21,7 @@
       "flow-drive",
       "flow-guide"
     ],
-    "selectionFingerprint": "7f75c22e0b2c6459f26e8a34f4a059e38c0cc61e2a0e1a905058d00c6f685275",
+    "selectionFingerprint": "26a0b84a1d6a86adae1b44c7c036d0feaeb3b3e2503dccf074f19130ab5ac776",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "ce6aa9073dce16a1b4b8852295f788018b17315a241a3a848797f535efe14e56",
@@ -84,7 +84,7 @@
         "repo-verify"
       ]
     },
-    "surfaceSelectionFingerprint": "4772a0351bb9c09adf09840c83f96bc78742832eea97de7769dcc63dd1227cec",
+    "surfaceSelectionFingerprint": "e0b57d9486ee0950a8b162c862dee0590a6a4bb8cfbec60595b23fc6716827a7",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -772,5 +772,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "6564a601953041b9df66e859738cb0fc91a8dddb15f658d0f2db0d67eb959bef"
+  "planFingerprint": "eb089b61f773ea8a3477b1b3875fb18ce3de21c979a744e2bf0e1303302f54af"
 }

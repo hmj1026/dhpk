@@ -1,6 +1,6 @@
 ---
 name: dhpk-session-usage-audit
-argument-hint: '[--date YYYY-MM-DD | --from YYYY-MM-DD --to YYYY-MM-DD] [--agent NAME] [--format text|json] [--create-issues]'
+argument-hint: '[--date YYYY-MM-DD | --from YYYY-MM-DD --to YYYY-MM-DD] [--agent NAME] [--format text|json] [--create-issues] [--usage-telemetry]'
 description: 'Audits dhpk usage evidence in the current user home, correlates session failures with installed agents and package versions, verifies candidate defects, and prepares deduplicated GitHub issue evidence. Not for: remote fleet scans or automatic source changes. Output: redacted report, verified findings, and confirmed issue handoff. Explicit invocation only.'
 allowed-tools: 'Read, Grep, Glob, Bash(node:*), Bash(gh:*), Bash(git:*), Bash(claude:*)'
 disable-model-invocation: true
@@ -79,6 +79,33 @@ The output follows `dhpk.session-usage-audit.report.v1` and contains
 also writes `report.md`, `report.json`, `findings.json`, `issue-drafts.json`,
 `issue-results.json`, and `sessions.jsonl` below the requested output directory.
 The output directory is runtime evidence and must remain gitignored.
+
+### Optional usage coverage
+
+Add `--usage-telemetry` to write `usage-telemetry.json` in the same private,
+ignored output directory. Its schema is
+`dhpk.session-usage-audit.telemetry.v1`; the six legacy files and returned
+`report.v1` remain unchanged.
+
+This first slice reports contract-only support: usage counters and execution
+identities are null/unsupported, all usage and ancestry coverage is incomplete,
+and planner/descendants/unattributed subtotals remain null. An empty observation
+list means no supported extraction, not zero usage. Counter normalization,
+reconciliation and attribution await the later phases of
+[issue #817](https://github.com/hmj1026/dhpk/issues/817).
+
+The sidecar contains typed scan statistics, hashed selectors/source locators,
+fixed reasons and nullable values; it excludes transcript and tool content.
+The legacy scan result is separate from telemetry completeness, which remains
+unknown because the existing bounded reader does not independently prove line
+truncation coverage. See [source-adapters.md](references/source-adapters.md)
+for the contract and privacy boundaries.
+
+A default invocation leaves any earlier sidecar untouched. This slice has no
+source-content fingerprint and reports `reusable: false`; file presence,
+matching selectors or matching locators cannot establish fresh telemetry.
+The sidecar describes local evidence only, without billing, quota, savings or
+planner-quality claims. It performs no model run or provider API request.
 
 ## Issue gate
 

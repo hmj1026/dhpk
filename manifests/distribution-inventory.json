@@ -2438,7 +2438,79 @@
       ],
       "legacy_names": [
         "session-usage-audit"
-      ]
+      ],
+      "invocation_class": "explicit-only",
+      "usage": {
+        "display_name": "Session Usage Audit",
+        "summary": "Audit local evidence with optional nullable usage coverage",
+        "syntax": "$dhpk-session-usage-audit [--date YYYY-MM-DD | --from YYYY-MM-DD --to YYYY-MM-DD] [--agent NAME] [--format text|json] [--create-issues] [--usage-telemetry]",
+        "input_kind": "none",
+        "invocation_class": "explicit-only",
+        "effect_authority": "external-write",
+        "inputs": [],
+        "actions": [],
+        "options": [
+          {
+            "id": "date",
+            "syntax": "--date",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Select one local day"
+          },
+          {
+            "id": "from",
+            "syntax": "--from",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Select the first day; requires --to"
+          },
+          {
+            "id": "to",
+            "syntax": "--to",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Select the last day; requires --from"
+          },
+          {
+            "id": "agent",
+            "syntax": "--agent",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Narrow agent selection; repeatable"
+          },
+          {
+            "id": "format",
+            "syntax": "--format",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Choose legacy report rendering",
+            "enum_values": [
+              "text",
+              "json"
+            ]
+          },
+          {
+            "id": "create-issues",
+            "syntax": "--create-issues",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Prepare issue creation under existing verification and digest confirmation gates"
+          },
+          {
+            "id": "usage-telemetry",
+            "syntax": "--usage-telemetry",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Write a nullable unsupported-coverage sidecar without changing the legacy report"
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$dhpk-session-usage-audit --date 2026-08-06 --usage-telemetry",
+            "summary": "Write local legacy audit artifacts and optional nullable usage coverage"
+          }
+        ]
+      }
     },
     {
       "id": "skill-scope",
