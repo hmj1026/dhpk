@@ -81,7 +81,7 @@ Each entry also declares its publication `surfaces`: `claude-core`,
 `claude-module`, `codex-sync` (the supported `install-codex-skills.sh` path),
 `codex-native` (the experimental marketplace package — see
 [ADR-0006](adr/0006-codex-native-publication-artifact.md)
-and [Codex native plugin package](#codex-native-plugin-package-github-issue-88)
+and [Codex native plugin package](#codex-native-plugin-package)
 below), `agent-plugin`, `cursor-plugin`, and `cursor-sync` (the supported
 `install-cursor-harness.sh` project-local path). `agent-plugin` and
 `cursor-plugin` identify the generated Agent Plugin and Cursor publication

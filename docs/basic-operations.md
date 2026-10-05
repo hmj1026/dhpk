@@ -593,7 +593,7 @@ the manifest level (both `.codex-plugin/plugin.json` and
 `plugins/dhpk/.codex-plugin/plugin.json` now resolve to the same tracked
 physical tree). This proof runs as part of the release CONSUMER gate
 whenever a `codex` CLI is available; see
-[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package-github-issue-88)
+[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package)
 for the full gate model.
 
 A passing install proof is necessary evidence, not sufficient by itself:
