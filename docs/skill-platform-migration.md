@@ -10,7 +10,7 @@ installed.
 Current Codex/Cursor installation routes and rollback boundaries live in the
 [platform installation SSOT](./platform-installation.md).
 
-For the Issue #534 default transition, preview Claude with `bash scripts/install.sh
+When moving to the minimal default profile, preview Claude with `bash scripts/install.sh
 --dry-run`; use `scripts/hooks/install-codex-skills.sh`,
 `scripts/hooks/install-cursor-harness.sh`, or `node scripts/ci/install-agy-plugin.js
 plan` for the other hosts. A clean install selects the exact four-capability

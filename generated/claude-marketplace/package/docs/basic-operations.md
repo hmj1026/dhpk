@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./basic-operations.zh-TW.md)
 
-## Acceptance applicability (#848/#854)
+## Acceptance applicability
 
 Installed structure and selected lifecycle checks are the default acceptance
 boundary. A command or CLI being present does not prove native runtime

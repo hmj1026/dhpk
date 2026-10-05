@@ -106,9 +106,9 @@ See [distribution surface ownership](distribution-surfaces.md) for the
 inventory/compiler boundary and [platform installation](platform-installation.zh-TW.md)
 for consumer installation and verification details.
 
-## Issue #237 controlled runtime-proof runner
+## Controlled consumer runtime-proof runner
 
-The local runner is the exact-head promotion wrapper for a complete Issue #237
+The local runner is the exact-head promotion wrapper for a complete
 consumer-runtime proof. The installation and support policy remains in the
 [platform installation SSOT](platform-installation.md). Run this wrapper from
 a clean checkout of the exact merged commit. It starts an empty disposable

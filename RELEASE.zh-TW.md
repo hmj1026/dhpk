@@ -2,7 +2,7 @@
 
 > **語言**：[English](./RELEASE.md) · **繁體中文**
 
-## 驗收適用性（#848/#854）
+## 驗收適用性
 
 三段 release proof、immutable tag 與人工 merge/publication 邊界維持不變。目前
 SOURCE、PACKAGE 與適用的 CONSUMER 證據可以建立 readiness，但不宣稱所有 native

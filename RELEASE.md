@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./RELEASE.zh-TW.md)
 
-## Acceptance applicability (#848/#854)
+## Acceptance applicability
 
 The three release proofs, immutable tag, and human merge/publication boundary
 remain unchanged. Current SOURCE, PACKAGE, and applicable CONSUMER evidence may

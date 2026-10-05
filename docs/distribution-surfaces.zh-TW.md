@@ -2,7 +2,7 @@
 
 > **語言**：[English](./distribution-surfaces.md) · **繁體中文**
 
-## 驗收適用性（#848/#854）
+## 驗收適用性
 
 結構與 package 證據可以完成適用的安裝契約，但 native consumer observation
 仍是獨立、按觸發條件執行的要求。不得將 experimental surface 升級，也不得把

@@ -2,7 +2,7 @@
 
 > **語言**：[English](./openai-submission.md) · **繁體中文**
 
-## 驗收適用性（#848/#854）
+## 驗收適用性
 
 候選套件的安裝與 package 檢查，和原生 Host workflow、rendered discovery、
 context-budget 研究、portal submission 及 publication 分開。一般文件或套件
