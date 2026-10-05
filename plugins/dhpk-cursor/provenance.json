@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "ccec4d505c3700a76a0601e180e0a958752a9fed",
-  "generatedFromCommit": "ccec4d505c3700a76a0601e180e0a958752a9fed",
-  "generatedFromTree": "10b5e14f5ea574d8515ef3294fbb1ebe9023312d",
+  "sourceCommit": "ca2bd8f32b4f335c0feea70ad854201275760b26",
+  "generatedFromCommit": "ca2bd8f32b4f335c0feea70ad854201275760b26",
+  "generatedFromTree": "59375dd937287114f43bce11d965dbe4830fb6fb",
   "inventoryDigest": "d3f12491cc58543bdc23ad42db85e682508485ea8803ac95271572a4f92fb9f1",
   "inventoryRevision": "sha256:b0ebab96f86484fea85bcc4af9896133b4200ec5a17e487fe94b7efb8097bccb",
   "generatorVersion": "1.0.0",
@@ -2000,7 +2000,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/pre-route.sh",
         "destination": "skills/flow-guide/scripts/pre-route.sh",
-        "originalGitBlobDigest": "cc3230b2c5a2385eae0dd70c44f910273e6eeb0a"
+        "originalGitBlobDigest": "792a9d45366157a0a5b0db939be2998df94f9866"
       },
       {
         "ownerId": "flow-guide",
