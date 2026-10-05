@@ -60,9 +60,8 @@ and installation are owned by the external tool.
   [skill platform migration](skill-platform-migration.md), and
   [Codex transport ownership](codex-mcp-capability-parity.md).
 - Agent authoring: [guidance index](agent-guidance/README.md).
-- Contracts: [artifacts](contracts/artifact-contract.md),
-  [marketplace classifications](contracts/marketplace-catalog.md), and
-  [marketplace licensing](contracts/marketplace-licensing.md).
+- Contracts: [artifacts](contracts/artifact-contract.md) and
+  [marketplace classifications](contracts/marketplace-catalog.md).
 - Decisions: accepted rationale lives in `adr/`; domain and issue management
   guidance lives in `agents/`.
 
