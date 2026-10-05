@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:b0ebab96f86484fea85bcc4af9896133b4200ec5a17e487fe94b7efb8097bccb",
+  "sourceInventoryRevision": "sha256:d5b3e1c91e4bed42b97b4124ad00b6833f5645870172ff6090451630beda53e4",
   "entries": [
     {
       "id": "change-verdict",
@@ -1523,7 +1523,7 @@
       "session-usage-audit": {
         "id": "session-usage-audit",
         "publicName": "dhpk-session-usage-audit",
-        "invocationClass": "not-configured",
+        "invocationClass": "explicit-only",
         "command": "$dhpk-session-usage-audit <input>",
         "codexInvokable": false
       },

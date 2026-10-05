@@ -2,7 +2,7 @@
 
 ## Adoption and implementation status
 
-The maintainer adopted REQ-1 through REQ-8 on 2026-10-05 after reviewing the proposal published by PR #864. This file is the authoritative behavioral contract. Adoption records desired behavior; implementation and behavioral verification remain NOT_RUN. The existing [source-adapter reference](../../../skills/dhpk-session-usage-audit/references/source-adapters.md) preserves proposed integration context; [issue #817](https://github.com/hmj1026/dhpk/issues/817) owns the complete future implementation checklist and delivery gates.
+The maintainer adopted REQ-1 through REQ-8 on 2026-10-05 after reviewing the proposal published by PR #864. This file is the authoritative behavioral contract. Implementation is partial: the optional sidecar provides the nullable contract and explicit unsupported coverage. Supported counter extraction, normalization, reconciliation and verified attribution remain pending. The existing [source-adapter reference](../../../skills/dhpk-session-usage-audit/references/source-adapters.md) describes the current slice and pending adapter rules; [issue #817](https://github.com/hmj1026/dhpk/issues/817) owns the full implementation checklist and independent phase delivery gates. Native runtime and provider accounting verification remain NOT_RUN.
 
 ## Purpose
 
