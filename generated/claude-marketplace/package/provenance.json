@@ -3210,7 +3210,7 @@
       "sourcePath": "skills/flow-guide/scripts/pre-route.sh",
       "destination": "skills/flow-guide/scripts/pre-route.sh",
       "kind": "entry",
-      "sha256": "d92412b9d90c895b19b023a5b75ad6bdd83ff054aa6ce8e7502e60a7a50296a4"
+      "sha256": "5a5bae48c991bbd35f38eee57330e4f991898cb2d4fdc289105c11f3cd2798a2"
     },
     {
       "skillId": "flow-guide",

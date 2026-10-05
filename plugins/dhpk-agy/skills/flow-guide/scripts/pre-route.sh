@@ -20,12 +20,11 @@ set -o pipefail
 SKILL_ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 ROUTE_TABLE="${DHPK_ROUTE_TABLE:-$SKILL_ROOT/references/route-table.json}"
 
-# Query: prefer positional args; fall back to stdin so callers can pipe.
+# Query: prefer positional args; fall back to stdin only when no args are
+# given, so an explicit empty argument never blocks on an inherited stdin.
 QUERY="$*"
-if [ -z "${QUERY//[[:space:]]/}" ]; then
-    if [ ! -t 0 ]; then
-        QUERY="$(cat 2>/dev/null || true)"
-    fi
+if [ "$#" -eq 0 ] && [ ! -t 0 ]; then
+    QUERY="$(cat 2>/dev/null || true)"
 fi
 if [ -z "${QUERY//[[:space:]]/}" ]; then
     echo "NO_QUERY"

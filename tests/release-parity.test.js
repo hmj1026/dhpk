@@ -12,6 +12,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { MANIFEST_PATHS, checkParity } = require('../scripts/lib/release-parity');
+const { writeVersionManifests } = require('./_lib/release-manifest-fixtures');
 
 function writeAgyInstallDocs(root, version) {
   fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
@@ -22,52 +23,12 @@ function writeAgyInstallDocs(root, version) {
 
 function mkRepo({ versions, changelogHeading, agyDocVersion = '1.0.0' } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-parity-'));
-  const defaults = {
-    '.claude-plugin/plugin.json': '1.0.0',
-    '.codex-plugin/plugin.json': '1.0.0',
-    'plugins/dhpk/.codex-plugin/plugin.json': '1.0.0',
-    'plugins/dhpk-agent/plugin.json': '1.0.0',
-    'plugins/dhpk-agy/plugin.json': '1.0.0',
-    'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.0.0',
-  };
-  const merged = { ...defaults, ...(versions || {}) };
-  for (const rel of [
-    'generated/claude-marketplace/package/.claude-plugin/plugin.json',
-    'generated/claude-profiles/minimal/package/plugin.json',
-    'generated/claude-profiles/full/package/plugin.json',
-    'generated/claude-profiles/compat-v1/package/plugin.json',
-    'package.json',
-  ]) {
-    if (merged[rel] === undefined) merged[rel] = merged['.claude-plugin/plugin.json'];
-  }
-  for (const [rel, version] of Object.entries(merged)) {
-    const abs = path.join(root, rel);
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
-    fs.writeFileSync(abs, JSON.stringify({ name: 'dhpk', version }));
-  }
-  fs.mkdirSync(path.join(root, '.agents', 'plugins'), { recursive: true });
-  fs.writeFileSync(
-    path.join(root, '.agents', 'plugins', 'marketplace.json'),
-    JSON.stringify({ plugins: [{ name: 'dhpk', version: (versions && versions['.agents/plugins/marketplace.json']) || '1.0.0' }] })
-  );
-  fs.mkdirSync(path.join(root, 'plugins', 'dhpk'), { recursive: true });
-  fs.writeFileSync(
-    path.join(root, 'plugins', 'dhpk', 'provenance.json'),
-    JSON.stringify({ sourceVersion: (versions && versions['plugins/dhpk/provenance.json']) || '1.0.0' })
-  );
-  fs.writeFileSync(
-    path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'),
-    JSON.stringify({ sourceVersion: (versions && versions['plugins/dhpk-agent/provenance.json']) || '1.0.0' })
-  );
-  fs.writeFileSync(
-    path.join(root, 'plugins', 'dhpk-cursor', 'provenance.json'),
-    JSON.stringify({ sourceVersion: (versions && versions['plugins/dhpk-cursor/provenance.json']) || '1.0.0' })
-  );
-  fs.mkdirSync(path.join(root, 'plugins', 'dhpk-agy'), { recursive: true });
-  fs.writeFileSync(
-    path.join(root, 'plugins', 'dhpk-agy', 'provenance.json'),
-    JSON.stringify({ sourceVersion: (versions && versions['plugins/dhpk-agy/provenance.json']) || '1.0.0' })
-  );
+  const overrides = versions || {};
+  const claudeVersion = overrides['.claude-plugin/plugin.json'];
+  const mirrored = claudeVersion === undefined ? {} : Object.fromEntries(MANIFEST_PATHS
+    .filter((rel) => rel.startsWith('generated/') || rel === 'package.json')
+    .map((rel) => [rel, claudeVersion]));
+  writeVersionManifests(root, '1.0.0', { versions: { ...mirrored, ...overrides } });
   fs.writeFileSync(
     path.join(root, 'CHANGELOG.md'),
     `# Changelog\n\n## [Unreleased]\n\n${changelogHeading !== undefined ? changelogHeading : '## 1.0.0 — 2026-07-27 — Summary'}\n\nNotes.\n`
@@ -157,7 +118,7 @@ test('checkParity rejects a non-semver target version', () => {
 });
 
 test('checkParity passes when every manifest, native package provenance, and the changelog heading match the target', () => {
-  withRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-agy/plugin.json': '1.2.3', 'plugins/dhpk-agy/provenance.json': '1.2.3', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
+  withRepo({ versions: Object.fromEntries(MANIFEST_PATHS.map((rel) => [rel, '1.2.3'])), changelogHeading: '## 1.2.3 — 2026-07-27 — Summary', agyDocVersion: '1.2.3' }, (root) => {
     const result = checkParity(root, '1.2.3');
     assert.strictEqual(result.ok, true, JSON.stringify(result.errors));
   });
@@ -239,17 +200,7 @@ test('checkParity fails when the changelog heading for the target version is mis
 
     function mkRepo(version) {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-verify-parity-'));
-      for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', 'plugins/dhpk-agent', 'plugins/dhpk-agy', 'plugins/dhpk-cursor/.cursor-plugin', '.agents/plugins', 'generated/claude-marketplace/package/.claude-plugin', 'generated/claude-profiles/minimal/package', 'generated/claude-profiles/full/package', 'generated/claude-profiles/compat-v1/package']) {
-        fs.mkdirSync(path.join(root, rel), { recursive: true });
-      }
-      for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-agy/plugin.json', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json', 'generated/claude-marketplace/package/.claude-plugin/plugin.json', 'generated/claude-profiles/minimal/package/plugin.json', 'generated/claude-profiles/full/package/plugin.json', 'generated/claude-profiles/compat-v1/package/plugin.json', 'package.json']) {
-        fs.writeFileSync(path.join(root, rel), JSON.stringify({ name: 'dhpk', version }));
-      }
-      fs.writeFileSync(path.join(root, '.agents/plugins/marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version }] }));
-      fs.writeFileSync(path.join(root, 'plugins/dhpk/provenance.json'), JSON.stringify({ sourceVersion: version }));
-      fs.writeFileSync(path.join(root, 'plugins/dhpk-agent/provenance.json'), JSON.stringify({ sourceVersion: version }));
-      fs.writeFileSync(path.join(root, 'plugins/dhpk-agy/provenance.json'), JSON.stringify({ sourceVersion: version }));
-      fs.writeFileSync(path.join(root, 'plugins/dhpk-cursor/provenance.json'), JSON.stringify({ sourceVersion: version }));
+      writeVersionManifests(root, version);
       fs.writeFileSync(path.join(root, 'CHANGELOG.md'), `# Changelog\n\n## [Unreleased]\n\n## ${version} — 2026-07-27 — Summary\n\nNotes.\n`);
       fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
       const agyPin = `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json\n`;

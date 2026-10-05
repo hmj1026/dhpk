@@ -860,16 +860,28 @@ test('selected package changes carry only their affected platform surfaces', () 
   assert.deepStrictEqual(packageSurfacesForFiles(['scripts/ci/verify-platform-packages.js']), ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 });
 
+test('testCiPlan_lightDocsOnlyChange_runsEveryGeneratedCompanionCheck', () => {
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs', 'contracts'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'contracts', 'licensing.md'), 'old\n');
+  }, (root) => fs.rmSync(path.join(root, 'docs', 'contracts', 'licensing.md')));
+  try {
+    assert.strictEqual(fixture.plan.mode, 'light');
+    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace', 'claude-profile:compat-v1', 'claude-profile:full', 'claude-profile:minimal']);
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
 test('canonical content with owned evidence companions stays light and carries exact checks', () => {
   const cases = [
-    ['plugins/dhpk-agent/skills/demo/SKILL.md', [], ['agent-plugin']],
-    ['plugins/dhpk-agent/provenance.json', [], ['agent-plugin']],
-    ['generated/claude-marketplace/package/docs/README.md', ['claude-marketplace'], []],
-    ['generated/claude-profiles/minimal/package/bundle-receipt.json', ['claude-profile:minimal'], []],
-    ['manifests/skill-resource-copies.json', [], []],
-    ['generated/claude-marketplace/package/manifests/skill-resource-copies.json', ['claude-marketplace'], []],
+    ['plugins/dhpk-agent/skills/demo/SKILL.md', ['agent-plugin']],
+    ['plugins/dhpk-agent/provenance.json', ['agent-plugin']],
+    ['generated/claude-marketplace/package/docs/README.md', []],
+    ['generated/claude-profiles/minimal/package/bundle-receipt.json', []],
+    ['manifests/skill-resource-copies.json', []],
+    ['generated/claude-marketplace/package/manifests/skill-resource-copies.json', []],
   ];
-  for (const [companion, generatedChecks, packageSurfaces] of cases) {
+  const generatedChecks = ['claude-marketplace', 'claude-profile:compat-v1', 'claude-profile:full', 'claude-profile:minimal'];
+  for (const [companion, packageSurfaces] of cases) {
     const fixture = gitFixture((root) => {
       fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
       fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
