@@ -12,6 +12,10 @@ const FULL_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'macos-in
 const SELECTED_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'lint']);
 const PACKAGE_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 const FULL_GENERATED_CHECKS = Object.freeze(['claude-marketplace', 'claude-profile:minimal', 'claude-profile:full', 'claude-profile:compat-v1']);
+// Light plans skip the full validate job, so they run every generated companion
+// check: canonical docs/content edits feed the generated packages even when the
+// PR does not touch generated/ itself (#865/#870 drift). All four take ~2s.
+const LIGHT_GENERATED_CHECKS = Object.freeze([...FULL_GENERATED_CHECKS].sort());
 const RESOURCE_COMPANIONS = Object.freeze([
   'manifests/skill-resource-copies.json',
   'generated/claude-marketplace/package/manifests/skill-resource-copies.json',
@@ -192,7 +196,7 @@ function classifyChangedPaths(changes, { baseRef = 'develop' } = {}) {
   return {
     schema: 'dhpk.ci-plan.v1', mode, reason: onlyLight ? companionRouting.eligible && categories.some((category) => category === 'package') ? 'canonical-with-bounded-companions' : 'canonical-content-only' : release ? 'release-base' : 'full-fallback',
     changes: normalized.filter(Boolean), categories: [...new Set(categories)], files: files.sort(), requiredJobs, skippedJobs,
-    testFiles: [], shardCount: mode === 'light' ? 0 : 4, packageSurfaces: [], generatedChecks: companionRouting.generatedChecks,
+    testFiles: [], shardCount: mode === 'light' ? 0 : 4, packageSurfaces: [], generatedChecks: mode === 'light' ? LIGHT_GENERATED_CHECKS.slice() : companionRouting.generatedChecks,
   };
 }
 
@@ -232,7 +236,7 @@ function createCiPlan({ root = process.cwd(), baseSha, headSha, checkoutSha = he
         skippedJobs: JOBS.filter((job) => !LIGHT_REQUIRED.includes(job)),
         testFiles: [], shardCount: 0,
         packageSurfaces: companionRouting.packageSurfaces,
-        generatedChecks: companionRouting.generatedChecks,
+        generatedChecks: LIGHT_GENERATED_CHECKS.slice(),
         identities,
       };
     }

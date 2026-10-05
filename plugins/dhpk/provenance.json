@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "183368b93397938f5806e9bf553de943f277a0ad",
-  "generatedFromCommit": "183368b93397938f5806e9bf553de943f277a0ad",
-  "generatedFromTree": "89b995436b5abb169e4f8c5837644c716cd15c1f",
+  "sourceCommit": "3e30dcaa017c7f24ca2fb938412f32d95d24236a",
+  "generatedFromCommit": "3e30dcaa017c7f24ca2fb938412f32d95d24236a",
+  "generatedFromTree": "ab9b016709f71511b565c13b9ad35fab1720e268",
   "inventoryDigest": "d3f12491cc58543bdc23ad42db85e682508485ea8803ac95271572a4f92fb9f1",
   "inventoryRevision": "sha256:b0ebab96f86484fea85bcc4af9896133b4200ec5a17e487fe94b7efb8097bccb",
   "generatorVersion": "2.3.0",
@@ -2095,7 +2095,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/scripts/pre-route.sh",
         "destination": "skills/flow-guide/scripts/pre-route.sh",
-        "originalGitBlobDigest": "cc3230b2c5a2385eae0dd70c44f910273e6eeb0a"
+        "originalGitBlobDigest": "792a9d45366157a0a5b0db939be2998df94f9866"
       },
       {
         "ownerId": "flow-guide",
@@ -6584,7 +6584,7 @@
     "dhpk-opsx-load-context": "8fcbc041f1f1bf6cc015cc8ed13b5d7f1520f63d533138be9bd9704ba83e3acf",
     "dhpk-opsx-post-observation": "23d7f375b49110c3d4c66a8fe596dd9403f1ec7bcac83f20469f4ec4135bd50f",
     "flow-drive": "37866fa583e84829d4dbdb4c843d07fbf767ec1caae0e3eb2dccd8c1646b5faa",
-    "flow-guide": "26a2efd2a93607ca3e3ccaef3593680cd22e182ce608a27349a1137e577d77d2",
+    "flow-guide": "fd761dadf2a87c2f008ef18469c6c83b33adfc6434b4eb5f7a6df3293f65468b",
     "git-smart-commit": "6ba0613a9271fcfe68ab8f3fc55a1e6c85ef7368355b16d256a0b1447cf37967",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
     "harness-audit": "31eb5483b6e5abdb162121739087ee596542680106792238fdb2696e1f3955a3",
