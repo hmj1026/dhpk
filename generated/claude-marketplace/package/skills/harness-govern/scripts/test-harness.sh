@@ -195,10 +195,9 @@ else
 fi
 
 # ============================================================
-# T3 post-edit-remind.sh — PLUGIN-OWNED (dhpk >=0.10.0). Sentinel routing (which
-# review slots a given edit triggers) is the plugin's responsibility post-cutover.
+# T3 post-edit-remind.sh is retired; no review-state lifecycle is tested here.
 echo ""
-echo "=== T3 post-edit-remind.sh (SKIP: plugin-owned, dhpk >=0.10.0) ==="
+echo "=== T3 post-edit-remind.sh (SKIP: retired hook) ==="
 
 # ============================================================
 echo ""
@@ -432,7 +431,7 @@ fi
 
 # ============================================================
 echo ""
-echo "=== T10 dhpk plugin wiring (review routing SSOT) ==="
+echo "=== T10 dhpk project-local version pin ==="
 # Verify a project-local dhpk version pin when one is present.
 if [[ ! -f "$ROOT/$HARNESS_DIR/dhpk-versions.json" ]]; then
     echo "  SKIP T10.1 dhpk-versions.json absent (project may not pin a dhpk version)"
