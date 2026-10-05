@@ -9,6 +9,7 @@ specifications in `openspec/specs/<capability>/spec.md`.
 | `docs/*.md` | User guides and reusable contributor documentation | Versioned |
 | `docs/agent-guidance/` | Agent authoring and workflow contracts | Versioned |
 | `docs/agents/` | Domain and issue-tracker guidance | Versioned |
+| `docs/proposals/` | Explicitly requested versioned proposals for PR review; adoption and implementation remain separate | Versioned |
 | `docs/adr/` | Accepted architecture decisions and their rationale | Versioned |
 | `docs/contracts/` | Reusable artifact and review contracts | Versioned |
 | `docs/design/` | Proposals, design exploration, implementation plans, historical designs | Local, ignored |
@@ -23,6 +24,8 @@ The durable Host-runtime follow-up dispositions are recorded in
 [`contracts/host-runtime-followup-disposition.md`](contracts/host-runtime-followup-disposition.md).
 Ignored `openspec/changes/` plans are provenance and working state; they are not
 the only source of accepted policy in a fresh checkout.
+
+The [proposal review index](proposals/README.md) contains the explicitly requested versioned review records for #817 telemetry and cutover planning. This is a review-publication exception to local design storage: keep general drafts and run evidence ignored. A proposal PR merge does not adopt its requirements or authorize implementation. Record adoption separately before synchronizing accepted behavior into `openspec/specs/`.
 
 Classify by content and use, rather than filename: a current operating
 procedure belongs in a reusable guide; the output from one execution belongs
@@ -57,9 +60,8 @@ and installation are owned by the external tool.
   [skill platform migration](skill-platform-migration.md), and
   [Codex transport ownership](codex-mcp-capability-parity.md).
 - Agent authoring: [guidance index](agent-guidance/README.md).
-- Contracts: [artifacts](contracts/artifact-contract.md),
-  [marketplace classifications](contracts/marketplace-catalog.md), and
-  [marketplace licensing](contracts/marketplace-licensing.md).
+- Contracts: [artifacts](contracts/artifact-contract.md) and
+  [marketplace classifications](contracts/marketplace-catalog.md).
 - Decisions: accepted rationale lives in `adr/`; domain and issue management
   guidance lives in `agents/`.
 

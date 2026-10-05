@@ -65,6 +65,10 @@ use `quick-diff.sh` and re-evaluate only changed entries; persist approved
 results with `save-results.sh`. Batch judgment in bounded groups and keep the
 inventory, verdict, and consolidation recommendation separate.
 
+Capability reference: [ECC's skill stocktake](https://github.com/affaan-m/ECC/tree/91b7ccf5/skills/skill-stocktake).
+dhpk implements inventory, change detection, and result persistence in its own
+package-local runtime.
+
 ### `scout`
 
 Search local installed sources first, then marketplace sources, then GitHub or

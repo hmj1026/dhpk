@@ -3298,7 +3298,7 @@
       "sourcePath": "skills/harness-audit/SKILL.md",
       "destination": "skills/harness-audit/SKILL.md",
       "kind": "entry",
-      "sha256": "b0bc1f14e2bb7e899dca4fb115035ceee2fdc2520aeaf082fe677420b031c1d6"
+      "sha256": "a4e51b1955c743dde3deca1d079f1a8802184bf2631b4437749abd1c44ebf5d1"
     },
     {
       "skillId": "harness-audit",
@@ -3322,7 +3322,7 @@
       "sourcePath": "skills/harness-audit/scripts/harness-audit.js",
       "destination": "skills/harness-audit/scripts/harness-audit.js",
       "kind": "entry",
-      "sha256": "5fca57667212d4055a01a06a1a94ce7cd6e6abf31d7213cc10f01cea64070d98"
+      "sha256": "f74c96b566856a3b5273f3b4e87582903d55a09de3318e4c93548c6791a24696"
     },
     {
       "skillId": "harness-govern",
@@ -4330,7 +4330,7 @@
       "sourcePath": "skills/skill-scope/SKILL.md",
       "destination": "skills/skill-scope/SKILL.md",
       "kind": "entry",
-      "sha256": "b602adf2003a2c32360554a37d0b619720f6d7f556b6d4f84665131609fe01cd"
+      "sha256": "a5b01effba546423fa39d0d3c3f64bd780221ed8ac5a377d8717597bd0db8743"
     },
     {
       "skillId": "skill-scope",
@@ -4378,7 +4378,7 @@
       "sourcePath": "skills/skill-scope/scripts/quick-diff.sh",
       "destination": "skills/skill-scope/scripts/quick-diff.sh",
       "kind": "entry",
-      "sha256": "be119c9b9fafc5fcf51bc87eb178f990115cae9f43a96268721e2597c0afebfc"
+      "sha256": "e7a3c428696a04f745a0cf2f03823d5a76065fdf8cba9805147a4e89b9340fe1"
     },
     {
       "skillId": "skill-scope",
@@ -4386,7 +4386,7 @@
       "sourcePath": "skills/skill-scope/scripts/save-results.sh",
       "destination": "skills/skill-scope/scripts/save-results.sh",
       "kind": "entry",
-      "sha256": "250968532dc3bf1074f024a710d5d8aeec930e6798269703072f062fad1905bd"
+      "sha256": "b87aac2258aa7992c85ab70e2837e26c6cf793d595ed95fe74138f32d6776d7c"
     },
     {
       "skillId": "skill-scope",
@@ -4394,7 +4394,7 @@
       "sourcePath": "skills/skill-scope/scripts/scan.sh",
       "destination": "skills/skill-scope/scripts/scan.sh",
       "kind": "entry",
-      "sha256": "00eb0f6d706789c9d81466da5af8c22f723baa2437a399033424a3e9ac0d13da"
+      "sha256": "5c8ec9a733930826384706e3393a0f8636c15683a88c082c398466f076002e8f"
     },
     {
       "skillId": "skill-scope",
@@ -4403,6 +4403,14 @@
       "destination": "skills/skill-scope/scripts/skill-lint.js",
       "kind": "entry",
       "sha256": "cb2a8aeedf589b8c7e745dd905dcc8fcbe24bc096cf479cab2bdf9892c42895d"
+    },
+    {
+      "skillId": "skill-scope",
+      "ownerId": "skill-scope",
+      "sourcePath": "skills/skill-scope/scripts/stocktake-runtime.js",
+      "destination": "skills/skill-scope/scripts/stocktake-runtime.js",
+      "kind": "entry",
+      "sha256": "f7acca2feb0a59695dca291b7a8f9a55f501003e45bbaf447a1c1ad1576e8b91"
     },
     {
       "skillId": "tdd",
