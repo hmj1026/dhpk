@@ -38,6 +38,27 @@ existing parser and capability rules; where it overlaps another planning need,
 one consult can satisfy both. #815 owns option grammar, model/effort resolution,
 and bounded-consult budgets. Task count alone does not require planner.
 
+`--plan-mode=auto|bounded|discovery` sets the scope of that consult and requires
+an enabled `--plan`; an enabled legacy handoff without a mode uses `auto`. The
+parser validates grammar, while Flow Drive selects scope from the supplied
+brief according to the single policy in
+[`rules/execution-policy.md`](../../../rules/execution-policy.md#planner-consult-scope).
+For `auto`, bounded requires a clear consult question and intended outcome,
+named sources sufficient within the bounded limit (including required protocol
+reads), and no named Material Risk Signal. Otherwise select discovery and name
+the unmet condition. Keep consult scope separate from planner work mode and
+from the implementation `Decision` gate.
+
+Bounded consults allow at most four direct reads of the named sources and no
+discovery children. All required protocol reads count toward the four. A
+missing necessary fact in explicit bounded scope is a blocker; do not search,
+spawn, or upgrade scope. If the facts are resolved, reaching four reads is not
+itself a blocker. Discovery retains twelve reads and two read-only children.
+Warm review retains its separate maximum of four new reads and uses the
+selected scope's child limit. Report the requested and selected scope, selection
+reason, overridden signals, budgets, observed reads and children, and blockers;
+unobserved actuals remain null with `NOT_RUN` or `UNAVAILABLE`.
+
 Choose inline, worker, or parallel execution by independent ownership, coupling,
 context locality, exact scope, verification needs, and coordination benefit.
 Keep a cohesive implementation step together when making this choice; do not

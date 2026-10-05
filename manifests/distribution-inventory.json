@@ -1725,7 +1725,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "inputs": [
           {
@@ -1757,6 +1757,22 @@
             "value_kind": "string",
             "required": false,
             "summary": "Request a planning pass before implementation",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "plan-mode",
+            "syntax": "--plan-mode=auto|bounded|discovery",
+            "value_kind": "enum",
+            "required": false,
+            "default": "auto",
+            "enum_values": [
+              "auto",
+              "bounded",
+              "discovery"
+            ],
+            "summary": "Select the consult scope; requires --plan and defaults to auto when enabled",
             "applies_to": [
               "apply"
             ]

@@ -145,7 +145,7 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.strictEqual(context.status, 'ready');
     assert.strictEqual(context.changeId, 'confirmed-change-123');
     assert.deepStrictEqual(context.options, {
-      plan: { enabled: true, model: 'sol', effort: 'medium' },
+      plan: { enabled: true, model: 'sol', effort: 'medium', mode: 'auto' },
       worker: 'auto',
       workerTarget: null,
       crossProvider: true,
@@ -157,6 +157,77 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.ok(Object.isFrozen(context.options));
     assert.ok(Object.isFrozen(context.options.plan));
     assert.throws(() => { context.options.worker = 'codex'; }, TypeError);
+  });
+
+  test('flow-drive keeps planner mode null when planning is disabled', () => {
+    const context = parseInvocation(['confirmed-change-123']);
+
+    assert.strictEqual(context.status, 'ready');
+    assert.strictEqual(context.schema, 'dhpk.flow-drive-invocation.v1');
+    assert.deepStrictEqual(context.options.plan, {
+      enabled: false,
+      model: null,
+      effort: null,
+      mode: null,
+    });
+    assert.ok(Object.isFrozen(context.options.plan));
+  });
+
+  test('flow-drive defaults a bare --plan option to auto mode', () => {
+    const context = parseInvocation(['confirmed-change-123', '--plan']);
+
+    assert.strictEqual(context.status, 'ready');
+    assert.deepStrictEqual(context.options.plan, {
+      enabled: true,
+      model: null,
+      effort: null,
+      mode: 'auto',
+    });
+  });
+
+  test('flow-drive accepts planner modes in either option order and preserves model and effort', () => {
+    for (const mode of ['auto', 'bounded', 'discovery']) {
+      const modeFirst = parseInvocation([
+        'confirmed-change-123',
+        `--plan-mode=${mode}`,
+        '--plan=sol:medium',
+      ]);
+      const planFirst = parseInvocation([
+        'confirmed-change-123',
+        '--plan=sol:medium',
+        `--plan-mode=${mode}`,
+      ]);
+      const expected = { enabled: true, model: 'sol', effort: 'medium', mode };
+
+      assert.strictEqual(modeFirst.status, 'ready', modeFirst.diagnostics.join('\n'));
+      assert.strictEqual(planFirst.status, 'ready', planFirst.diagnostics.join('\n'));
+      assert.deepStrictEqual(modeFirst.options.plan, expected);
+      assert.deepStrictEqual(planFirst.options.plan, expected);
+      assert.ok(Object.isFrozen(modeFirst.options.plan));
+      assert.ok(Object.isFrozen(planFirst.options.plan));
+    }
+  });
+
+  test('flow-drive blocks invalid planner-mode forms', () => {
+    const invalidOptions = [
+      ['empty', ['--plan', '--plan-mode='], /plan-mode/i],
+      ['unknown', ['--plan', '--plan-mode=unknown'], /plan-mode/i],
+      ['duplicate', ['--plan', '--plan-mode=bounded', '--plan-mode=discovery'], /plan-mode.*may only be specified once/i],
+      ['orphan', ['--plan-mode=bounded'], /--plan-mode.*requires.*--plan/i],
+      ['bare', ['--plan-mode'], /plan-mode/i],
+      ['separated', ['--plan-mode', 'bounded'], /plan-mode/i],
+    ];
+
+    for (const [label, args, diagnostic] of invalidOptions) {
+      const context = parseInvocation(['confirmed-change-123', ...args]);
+
+      assert.strictEqual(context.status, 'blocked', label);
+      assert.ok(context.diagnostics.some((item) => diagnostic.test(item)), `${label}: ${context.diagnostics.join('\n')}`);
+      if (label === 'orphan') {
+        assert.strictEqual(context.options.plan.enabled, false);
+        assert.strictEqual(context.options.plan.mode, null);
+      }
+    }
   });
 
   test('flow-drive fails closed on conflicting architecture flags', () => {
@@ -249,10 +320,13 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
   });
 
   test('flow-drive reports an unapplied planner effort on the Claude Code host', () => {
-    const context = parseInvocation(['confirmed-change-123', '--plan=opus:medium'], { host: 'claude-code' });
+    const context = parseInvocation(
+      ['confirmed-change-123', '--plan=opus:medium', '--plan-mode=bounded'],
+      { host: 'claude-code' },
+    );
 
     assert.strictEqual(context.status, 'ready');
-    assert.deepStrictEqual(context.options.plan, { enabled: true, model: 'opus', effort: 'medium' });
+    assert.deepStrictEqual(context.options.plan, { enabled: true, model: 'opus', effort: 'medium', mode: 'bounded' });
     assert.ok(
       context.notices.some((item) => /effort 'medium' is not applied/.test(item) && /'high'/.test(item)),
       context.notices.join('\n'),
