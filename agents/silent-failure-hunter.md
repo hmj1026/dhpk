@@ -4,7 +4,6 @@ description: 'Error-handling specialist — hunts silent failures: empty catch b
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
-maxTurns: 20
 ---
 
 # Silent Failure Hunter

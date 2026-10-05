@@ -8,7 +8,6 @@ description: >-
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: haiku
 effort: medium
-maxTurns: 15
 ---
 
 # Documentation Updater

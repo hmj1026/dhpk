@@ -4,7 +4,6 @@ description: 'Reviewer for multi-major-version polyfill code. Recommended after 
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
-maxTurns: 12
 ---
 
 # Polyfill Reviewer

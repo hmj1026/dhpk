@@ -4,7 +4,6 @@ description: 'Security review specialist (web + mobile, framework-agnostic). Rec
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: high
-maxTurns: 30
 ---
 
 # Security Reviewer

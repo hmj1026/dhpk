@@ -4,7 +4,6 @@ description: 'When the user asks how to use a library, framework, or API or need
 tools: Read, Grep, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: haiku
 effort: low
-maxTurns: 8
 ---
 
 # Docs Lookup (Context7)

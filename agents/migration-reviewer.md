@@ -4,7 +4,6 @@ description: Database migration safety specialist. Reviews schema-migration file
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
-maxTurns: 15
 ---
 
 # Migration Reviewer

@@ -44,15 +44,15 @@ roster navigation for the shipped worker/reasoner roles.
 | Agent | Model (default) | Role |
 |-------|-------|----------------|
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
-| [codex-reasoner](codex-reasoner.md) | sonnet + codex CLI | **codex CLI available** — canonical `deep-reasoner` backend selected by `--reasoner=codex-cli/<model>[:<effort>]` (default `gpt-6-sol` @ `high`), with a read-only sandbox, dispatcher-attested runtime/deadline, and the same conclusion contract; the retired `CODEX=on`/`--codex` review-peer switch cannot select it |
-| [codex-deep-reasoner](codex-deep-reasoner.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `deep-reasoner` backend via `--reasoner=codex-cli/<model>[:<effort>]` (default `gpt-6-sol` @ `high`, read-only sandbox via `skills/dhpk-codex-bridge/scripts/run-codex.sh`); dispatcher-attested model, runtime and deadline; same read-only conclusion contract, never modifies the working tree; the retired `CODEX=on`/`--codex` review-peer switch cannot select it |
+| [codex-reasoner](codex-reasoner.md) | sonnet + codex CLI | **codex CLI available** — canonical `deep-reasoner` backend selected by `--reasoner=codex-cli/<model>[:<effort>]` (default `gpt-6.1-sol` @ `high`), with a read-only sandbox, dispatcher-attested runtime/deadline, and the same conclusion contract; the retired `CODEX=on`/`--codex` review-peer switch cannot select it |
+| [codex-deep-reasoner](codex-deep-reasoner.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `deep-reasoner` backend via `--reasoner=codex-cli/<model>[:<effort>]` (default `gpt-6.1-sol` @ `high`, read-only sandbox via `skills/dhpk-codex-bridge/scripts/run-codex.sh`); dispatcher-attested model, runtime and deadline; same read-only conclusion contract, never modifies the working tree; the retired `CODEX=on`/`--codex` review-peer switch cannot select it |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
 | [codex-worker](codex-worker.md) | sonnet + codex CLI | **codex CLI available** — canonical `fast-worker` backend (default `gpt-6-luna` @ `xhigh`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
 | [codex-fast-worker](codex-fast-worker.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `fast-worker` backend (default `gpt-6-luna` @ `xhigh`, via `skills/dhpk-codex-bridge/scripts/run-codex.sh`); dispatcher-attested model, runtime and deadline; the retired `CODEX=on`/`--codex` review-peer switch cannot select it, with the same task-spec and verification/edited-file accounting contract |
 | [agy-worker](agy-worker.md) | sonnet + agy CLI | **agy CLI available** — canonical mechanical worker on the agy backend (default `Gemini 3.8 Flash (High)`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
 | [agy-fast-worker](agy-fast-worker.md) | sonnet + agy CLI | **agy CLI available** — a `fast-worker` whose edits run on the agy CLI backend (default `Gemini 3.8 Flash (High)`, via `skills/dhpk-agy-fast-worker/scripts/run-agy.sh`); dispatcher-attested model, runtime and deadline, with the same task-spec contract + independent verification/edited-file accounting |
 | [codex-reviewer](codex-reviewer.md) | sonnet + codex CLI | Internal shared-runner read-only reviewer; capability-gated and not a native Codex dispatch target; routes through the canonical launcher only when the capability is available |
-| [codex-bridge](codex-bridge.md) | sonnet | **Explicit `codex-bridge` route only** — thin bridge that outsources a self-contained clear-spec task, or a blind second opinion, to the GPT-6 family via the Codex CLI (`codex exec`); read-only resolves to `gpt-6-sol`/`high`, workspace-write to `gpt-6-luna`/`xhigh`; uses an immutable dispatcher-attested transport context while retaining the three-argument wrapper shape, and relays Codex's output **verbatim** (output isolated in the subagent) |
+| [codex-bridge](codex-bridge.md) | sonnet | **Explicit `codex-bridge` route only** — thin bridge that outsources a self-contained clear-spec task, or a blind second opinion, to the GPT-6 family via the Codex CLI (`codex exec`); read-only resolves to `gpt-6.1-sol`/`high`, workspace-write to `gpt-6-luna`/`xhigh`; uses an immutable dispatcher-attested transport context while retaining the three-argument wrapper shape, and relays Codex's output **verbatim** (output isolated in the subagent) |
 
 Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
 
@@ -70,7 +70,7 @@ This index only lists the shipped roles above.
 
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
-| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (cheap consult tier; up-only escalation for HIGH-risk designs) |
+| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (Fable 5.1 is the highest per-token Claude tier; up-only escalation for HIGH-risk designs) |
 | [planner](planner.md) | opus | Plan consultant, opt-in via `$flow-drive --plan`. Consult scope is `auto\|bounded\|discovery`, distinct from critique / blind-sketch / dual-plan / review work modes; bounded permits ≤4 named-source reads and 0 children, discovery ≤12 reads and ≤2 read-only children, and warm review ≤4 new reads. Pre-implementation verdicts remain `ENDORSE\|AMEND\|REPLACE`; review verdicts remain `SHIP\|FIX-THEN-SHIP\|RECONSULT`; actual reads, children, and blockers fit the existing 400-token VERDICT-first + `END` protocol. Neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries this verdict/critique contract or dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
@@ -114,39 +114,21 @@ This index only lists the shipped roles above.
 - **opus**: deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-worker, agy-worker, codex-fast-worker, agy-fast-worker, codex-reasoner, codex-deep-reasoner, codex-reviewer, codex-bridge (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
-- **fable**: architect (cheap architecture-consult tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
+- **fable**: architect (Fable 5.1 is the highest per-token Claude tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
 
-## maxTurns (safety-net caps)
+## Partial outputs and agent continuation
 
-Not every agent needs a cap — `maxTurns` in frontmatter is a **safety net**
-against a stuck reasoning loop (repeated failed cx/gitnexus retries, an
-oversized diff), not a target step count; a well-behaved run finishes well
-under the cap. Review-family agents (Bash + multi-file Read + cx/gitnexus
-reference tracing + artifact write) get a generous cap sized to their actual
-scope; narrower / read-only agents get a tighter one. Rationale lives here,
-not as inline frontmatter comments — no agent in this repo uses `#` comments
-inside frontmatter (untested by the schema parser); keep frontmatter
-comment-free.
-
-| Agent | maxTurns | Rationale |
-|---|---|---|
-| `docs-lookup` | 8 | Self-capped at 3 resolve+query pairs (see agent body) |
-| `polyfill-reviewer` | 12 | Bounded input set (triggered paths + composer.json + workflow YAML + phpunit.xml + per-file git log) — no cx/multi-file traversal |
-| `type-design-analyzer` | 12 | Read-only, no Bash/gitnexus — single/few-type scoring against a fixed rubric |
-| `doc-updater` | 15 | Bounded to `/update-codemaps` + `/update-docs` runs, pre-existing cap |
-| `database-reviewer` | 20 | Trap-sheet load + `cx references` tracing across Repository/migration files |
-| `performance-analyzer` | 20 | Same shape as `database-reviewer` + optional EXPLAIN sampling |
-| `silent-failure-hunter` | 20 | Pattern-hunt across the diff's full blast radius, pre-existing cap |
-| `doc-reviewer` | 15 | Bounded doc-only scope, pinned by the orchestrator-supplied changed-file scope |
-| `frontend-reviewer` | 15 | Bounded frontend-tier scope, pinned by the orchestrator-supplied changed-file scope |
-| `migration-reviewer` | 15 | Migration files only, typically a handful per PR |
-| `version-matrix-impact-reviewer` | 15 | Single detect-once pass + one risk table, no per-file loop |
-| `code-reviewer` | 25 | Broadest scope — any file/language + delegate table + `cx references` tracing |
-| `harness-reviser` | 25 | Iterative apply-fix → re-run-script loop multiplies turns per G1–G13 gap |
-| `security-reviewer` | 30 | `effort: high`, deepest audit + Emergency Response flow — largest safety net |
-
-Agents not listed above keep the frontmatter default (no cap) unless a future
-incident shows a runaway-loop pattern — do not add caps speculatively.
+Canonical agent definitions omit `maxTurns`; Claude Code treats the field as
+optional and sets no default cap. In-body stop conditions and scoped work
+budgets remain the runaway protections. For a partial result from a resumable
+Claude agent with an addressable agent ID, continue it once with `SendMessage`
+before re-dispatching. Claude Code exposes partial markers from v2.1.246.
+Built-in Explore and Plan are one-shot and have no agent ID, so they cannot be
+resumed. Preserve safety or blocker stops and explicit cancellation. The
+durable continuation rule lives in
+[`rules/execution-policy.md`](../rules/execution-policy.md). See the [Claude
+Code subagents guide](https://code.claude.com/docs/en/sub-agents) for host
+capabilities.
 
 ## Language-module context
 

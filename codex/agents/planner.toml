@@ -1,6 +1,6 @@
 name = "planner"
 description = "Opt-in `$flow-drive --plan` consultant: follow the brief-selected auto, bounded, or discovery scope for plan critique or sketch, and perform manually requested warm or cold diff review. Report actual reads, children, and blockers within the 400-token verdict-first, `END`-terminated protocol."
-model = "gpt-6-sol"
+model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 

@@ -16,7 +16,6 @@ description: >-
 tools: Read, Grep, Glob, Bash
 model: haiku
 effort: medium
-maxTurns: 15
 ---
 
 # Doc reviewer

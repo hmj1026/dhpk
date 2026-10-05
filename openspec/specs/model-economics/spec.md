@@ -116,10 +116,10 @@ map:
 
 | Roles | Model | Effort |
 |---|---|---|
-| `architect`, `bug-investigator`, `deep-reasoner`, `security-reviewer`, `migration-reviewer`, `planner` | `gpt-6-sol` | `high` |
-| `code-reviewer` | `gpt-6-sol` | `medium` |
-| `database-reviewer`, `frontend-reviewer`, `e2e-runner` | `gpt-6-sol` | `high` |
-| `explorer` | `gpt-6-sol` | `medium` |
+| `architect`, `bug-investigator`, `deep-reasoner`, `security-reviewer`, `migration-reviewer`, `planner` | `gpt-6.1-sol` | `high` |
+| `code-reviewer` | `gpt-6.1-sol` | `medium` |
+| `database-reviewer`, `frontend-reviewer`, `e2e-runner` | `gpt-6.1-sol` | `high` |
+| `explorer` | `gpt-6.1-sol` | `medium` |
 | `worker`, `tdd-guide` | `gpt-6-luna` | `max` |
 | `doc-reviewer` | `gpt-6-luna` | `medium` |
 | `monitor` | `gpt-6-luna` | `low` |
@@ -135,6 +135,46 @@ map:
 - **WHEN** a role file explicitly sets model or effort
 - **THEN** its explicit values take precedence over the global defaults
 - **AND** the global defaults are `gpt-6-luna` and `medium`
+
+### Requirement: Subagent turn caps are not used as a safety net
+
+Canonical agent definitions SHALL omit `maxTurns`; runaway protection comes
+from in-body stop conditions and scope budgets. When Claude Code marks an
+identified resumable subagent result partial, the orchestrator SHALL send one
+`SendMessage` continuation before re-dispatching. Built-in one-shot Explore
+and Plan results without an agent ID, safety or blocker stops, and explicit
+cancellation SHALL NOT be resumed. The validator SHALL NOT warn when
+`maxTurns` is absent and SHALL reject any present nonempty value that is not a
+positive integer.
+Explicitly empty values SHALL retain the existing warning behavior and
+`--strict` promotion.
+
+#### Scenario: Review agents are not cut off before their verdict
+
+- **WHEN** a review-family agent traces a large diff
+- **THEN** no frontmatter turn cap stops it before it emits its verdict
+
+#### Scenario: Addressable partial output is resumed once before re-dispatch
+
+- **WHEN** an identified resumable Claude subagent returns a partial result on
+  a Claude Code version that supports partial markers
+- **THEN** the orchestrator sends one `SendMessage` continuation before any
+  re-dispatch
+
+#### Scenario: One-shot and stopped work is not resumed
+
+- **WHEN** a built-in one-shot Explore or Plan result has no agent ID, a run
+  stopped for safety or a blocker, or the user cancelled it
+- **THEN** the orchestrator does not send a `SendMessage` continuation
+
+#### Scenario: Missing and invalid maxTurns values keep distinct outcomes
+
+- **WHEN** an agent definition omits `maxTurns` or contains a present
+  nonempty value that is not a positive integer
+- **THEN** the validator emits no missing-value warning for the absent field
+- **AND** it rejects the present nonempty invalid value
+- **AND** an explicitly empty value retains its current normal warning and
+  strict-mode failure behavior
 
 ### Requirement: Model selection accounts for token and retry cost
 

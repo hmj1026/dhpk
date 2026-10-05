@@ -1,6 +1,6 @@
 ---
 name: dhpk-codex-bridge
-description: 'Use when an explicit CLI handoff or blind second opinion should go to the GPT-6 family through one-shot codex exec: gpt-6-sol/high for read-only or gpt-6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.'
+description: 'Use when an explicit CLI handoff or blind second opinion should go to the GPT-6 family through one-shot codex exec: gpt-6.1-sol/high for read-only or gpt-6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.'
 allowed-tools: 'Bash(bash:*), Bash(codex exec:*), Read, Write'
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -66,7 +66,7 @@ A prompt is ready only when another agent could execute it without seeing this c
    ```
 
    - `mode` = `read-only` for investigation / review (`codex-reviewer` →
-     `gpt-6-sol` / `high`), `workspace-write` when Codex must edit files
+     `gpt-6.1-sol` / `high`), `workspace-write` when Codex must edit files
      (`codex-worker` → `gpt-6-luna` / `xhigh`). A pre-GPT-6 model is never
      an automatic fallback and cannot satisfy runtime acceptance evidence; an
      explicit user `codex_*_model` override is still honored.

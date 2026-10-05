@@ -17,20 +17,20 @@
       "role_fallbacks": {
         "planner": [], "reasoner": [],
         "worker": [{"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6-luna", "effort": "high", "route": "headless-cli", "transport": "local-cli"}, {"target_agent": "agy", "provider": "google", "model_id": "gemini-3.8-flash-high", "effort": "high", "route": "headless-cli", "transport": "local-cli"}],
-        "reviewer": [{"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6-sol", "effort": "high", "route": "headless-cli", "transport": "local-cli"}]
+        "reviewer": [{"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6.1-sol", "effort": "high", "route": "headless-cli", "transport": "local-cli"}]
       },
       "observed_at": "2026-09-16T00:00:00.000Z"
     },
     {
-      "schema": "dhpk.host.profile.v1", "version": "codex-cli.v2", "host": "codex-cli", "native_target_agent": "codex-cli", "native_provider": "openai", "native_model": "gpt-6-sol", "native_route": "native", "native_transport": "native-runtime",
+      "schema": "dhpk.host.profile.v1", "version": "codex-cli.v2", "host": "codex-cli", "native_target_agent": "codex-cli", "native_provider": "openai", "native_model": "gpt-6.1-sol", "native_route": "native", "native_transport": "native-runtime",
       "allowed_providers": ["openai", "anthropic", "google"],
       "access": {"openai": {"status": "AVAILABLE", "evidence": "declared Host-native runtime"}, "anthropic": {"status": "NOT_RUN", "evidence": "bounded probe not run"}, "google": {"status": "NOT_RUN", "evidence": "bounded probe not run"}},
       "quota_pools": {"openai": "codex", "anthropic": "claude", "google": "agy"}, "concurrency_limits": {"codex": 1, "claude": 1, "agy": 1},
       "role_defaults": {
-        "planner": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6-sol", "effort": "high", "route": "native", "transport": "native-runtime"},
-        "reasoner": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6-sol", "effort": "high", "route": "native", "transport": "native-runtime"},
+        "planner": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6.1-sol", "effort": "high", "route": "native", "transport": "native-runtime"},
+        "reasoner": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6.1-sol", "effort": "high", "route": "native", "transport": "native-runtime"},
         "worker": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6-luna", "effort": "max", "route": "native", "transport": "native-runtime"},
-        "reviewer": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6-sol", "effort": "high", "route": "native", "transport": "native-runtime"}
+        "reviewer": {"target_agent": "codex-cli", "provider": "openai", "model_id": "gpt-6.1-sol", "effort": "high", "route": "native", "transport": "native-runtime"}
       },
       "role_fallbacks": {
         "planner": [], "reasoner": [], "worker": [{"target_agent": "agy", "provider": "google", "model_id": "gemini-3.8-flash-high", "effort": "high", "route": "headless-cli", "transport": "local-cli"}], "reviewer": [{"target_agent": "claude-code", "provider": "anthropic", "model_id": "claude-opus-5-5", "effort": "high", "route": "headless-cli", "transport": "local-cli"}]

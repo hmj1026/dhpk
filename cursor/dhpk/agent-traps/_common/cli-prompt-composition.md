@@ -50,9 +50,9 @@ The heading name is a stable contract (`openspec/specs/cli-prompt-composition`);
 
 - **Source**: OpenAI latest-model guide. Treat minor-version gaps as
   directionally correct, not exact.
-- **Verified CLI baseline**: codex-cli 0.156.0 (`codex --version` and `codex debug
-  models`, re-checked 2026-09-23). `model_reasoning_effort=ultra` is present on
-  `gpt-6-sol` but intentionally unused by the wrapper.
+- **Verified CLI baseline**: codex-cli 0.160.0 (`codex --version` and `codex debug
+  models --bundled`, checked 2026-10-05). `model_reasoning_effort=ultra` is present on
+  `gpt-6.1-sol` but intentionally unused by the wrapper.
 - **Autonomy boundary**: `read-only` sandbox → inspect-and-report; `workspace-write`
   → in-scope-changes-only, naming exactly the files the task spec authorizes.
 - **Report shape**: conclusion first, then evidence, then next action — GPT-5.x/6
