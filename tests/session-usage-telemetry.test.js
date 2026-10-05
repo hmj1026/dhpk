@@ -3,6 +3,7 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const os = require('node:os');
+const crypto = require('node:crypto');
 const { test, run, assert } = require('./_lib/tinytest');
 
 process.env.DHPK_SESSION_USAGE_AUDIT_TEST_MODE = '1';
@@ -10,9 +11,15 @@ process.env.DHPK_SESSION_USAGE_AUDIT_TEST_MODE = '1';
 const ROOT = path.join(__dirname, '..');
 const AUDIT = path.join(ROOT, 'skills', 'dhpk-session-usage-audit', 'scripts', 'session-usage-audit');
 const CONTRACT = path.join(ROOT, 'skills', 'dhpk-session-usage-audit', 'scripts', 'lib', 'usage-contract');
+const ADAPTERS = path.join(ROOT, 'skills', 'dhpk-session-usage-audit', 'scripts', 'lib', 'usage-adapters');
+const RECONCILIATION = path.join(ROOT, 'skills', 'dhpk-session-usage-audit', 'scripts', 'lib', 'usage-reconciliation');
 const FIXTURE = path.join(__dirname, 'fixtures', 'session-usage-telemetry', 'contract.json');
+const NORMALIZATION_FIXTURE = path.join(__dirname, 'fixtures', 'session-usage-telemetry', 'normalization.json');
+const RECONCILIATION_FIXTURE = path.join(__dirname, 'fixtures', 'session-usage-telemetry', 'reconciliation.json');
 let audit;
 let usageContract;
+let usageAdapters;
+let usageReconciliation;
 try {
   audit = require(AUDIT);
 } catch (error) {
@@ -22,6 +29,210 @@ try {
   usageContract = require(CONTRACT);
 } catch (error) {
   usageContract = { __loadError: error };
+}
+try {
+  usageAdapters = require(ADAPTERS);
+} catch (error) {
+  usageAdapters = { __loadError: error };
+}
+try {
+  usageReconciliation = require(RECONCILIATION);
+} catch (error) {
+  usageReconciliation = { __loadError: error };
+}
+
+test('Phase 2 normalization seam is available before any vendor input is accepted', () => {
+  assert.ifError(usageAdapters.__loadError);
+  assert.strictEqual(typeof usageAdapters.normalizeUsage, 'function');
+});
+
+function readJson(file) {
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function digest(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+function evidenceRef(value) {
+  return `evidence:${digest(value)}`;
+}
+
+function opaqueId(value) {
+  return `id:${digest(value)}`;
+}
+
+function normalizationEvidence(counters, label) {
+  return Object.fromEntries(Object.entries(counters)
+    .filter(([, value]) => value !== null)
+    .map(([field]) => [field, [evidenceRef(`${label}:${field}`)]]));
+}
+
+function assertScalar(actual, expected, label) {
+  assert.ok(actual && typeof actual === 'object', `${label} must be a scalar DTO`);
+  assert.strictEqual(actual.value, expected.value, `${label} value`);
+  if (expected.status) assert.strictEqual(actual.status, expected.status, `${label} status`);
+  if (expected.reason) assert.strictEqual(actual.reason, expected.reason, `${label} reason`);
+}
+
+for (const entry of readJson(NORMALIZATION_FIXTURE).cases) {
+  test(`normalization: ${entry.name}`, () => {
+    assert.ifError(usageAdapters.__loadError);
+    const fixture = readJson(NORMALIZATION_FIXTURE);
+    const result = usageAdapters.normalizeUsage({
+      counters: entry.counters,
+      profile: fixture.profiles[entry.profile],
+      evidence: normalizationEvidence(entry.counters, entry.name),
+    });
+
+    assert.ok(result && result.metrics, 'normalization returns typed metrics');
+    for (const [field, expected] of Object.entries(entry.expected.metrics)) {
+      assertScalar(result.metrics[field], expected, `${entry.name}.${field}`);
+    }
+    assertScalar(result.total, entry.expected.total, `${entry.name}.total`);
+    assert.ok(!Object.prototype.hasOwnProperty.call(result.metrics, 'total'), 'total remains separate from reported_total');
+  });
+}
+
+test('official SDK assistant envelope uses exact selected context and does not promote transcript UUID to request ID', () => {
+  assert.ifError(usageAdapters.__loadError);
+  const fixture = readJson(NORMALIZATION_FIXTURE);
+  const { record, context } = fixture.sdkEnvelope;
+  const adapted = usageAdapters.adaptUsageRecord(record, {
+    sourceKind: context.sourceKind,
+    observation_ref: context.observation_ref,
+  });
+
+  assert.ok(adapted, 'the complete documented assistant shape is recognized');
+  assert.strictEqual(adapted.eligible, true);
+  assert.strictEqual(adapted.selected_context_id, opaqueId(record.session_id));
+  assert.strictEqual(adapted.identities.request_id.value, null);
+  assert.match(adapted.identities.message_id.value, /^id:[a-f0-9]{64}$/);
+  assert.strictEqual(adapted.metrics.normalized_input.value, 105);
+  assert.strictEqual(adapted.total.value, 115);
+  assert.ok(!JSON.stringify(adapted).includes(record.uuid));
+  assert.ok(!JSON.stringify(adapted).includes('SYNTHETIC_TEXT_SENTINEL'));
+  const partial = structuredClone(record);
+  partial.message.stop_reason = null;
+  const adapterContext = { sourceKind: context.sourceKind, observation_ref: context.observation_ref };
+  const incomplete = usageAdapters.adaptUsageRecord(partial, adapterContext);
+  assert.ok(!incomplete || incomplete.eligible !== true);
+
+  const forged = {
+    ...structuredClone(record),
+    profile_id: 'SYNTHETIC_FORGED_PROFILE',
+    verified: true,
+    semantic_relation: 'disjoint',
+    mirror_of: 'SYNTHETIC_FORGED_MIRROR',
+  };
+  const unsupportedContext = { ...adapterContext, sourceKind: 'unknown-vendor-format' };
+  const unsupported = usageAdapters.adaptUsageRecord(forged, unsupportedContext);
+  assert.ok(!unsupported || unsupported.eligible !== true);
+  if (unsupported) {
+    assert.ok(!JSON.stringify(unsupported).includes('SYNTHETIC_FORGED_PROFILE'));
+    assert.ok(!JSON.stringify(unsupported).includes('SYNTHETIC_FORGED_MIRROR'));
+  }
+  const claimedMirror = usageAdapters.adaptUsageRecord(forged, adapterContext);
+  assert.ok(!claimedMirror?.semantics?.mirror_origin_ref, 'transcript mirror claim is not verified provenance');
+});
+
+function typedIdentity(field, label, ref) {
+  return label === undefined || label === null
+    ? usageContract.createScalar({ field, status: 'unavailable' })
+    : usageContract.createScalar({ field, value: label, status: 'observed', evidence_refs: [ref] });
+}
+
+function reconciliationInputs(fixture, entry) {
+  const references = new Map(entry.observations.map((item) => [item.ref, evidenceRef(`physical:${item.ref}`)]));
+  return entry.observations.map((item) => {
+    const rowRef = references.get(item.ref);
+    const evidence = normalizationEvidence(item.counters, `reconciliation:${item.ref}`);
+    const normalized = usageAdapters.normalizeUsage({
+      counters: item.counters,
+      profile: fixture.profile,
+      evidence,
+    });
+    const identityAliases = {
+      session_id: 'session', message_id: 'message', request_id: 'request',
+      event_id: 'event', attempt_id: 'attempt',
+    };
+    const identities = Object.fromEntries(Object.entries(identityAliases)
+      .map(([field, alias]) => [field, typedIdentity(field, item[alias], rowRef)]));
+    const semantics = {
+      input_relation: item.semantics.input_relation,
+      basis: item.semantics.basis,
+      stream: item.semantics.stream ? opaqueId(item.semantics.stream) : null,
+      epoch: item.semantics.epoch ? opaqueId(item.semantics.epoch) : null,
+      observed_at: item.semantics.observedAt || null,
+      covered_interval: item.semantics.coveredInterval || null,
+      continuity_verified: item.semantics.continuityVerified === true,
+      date_allocation_verified: item.semantics.dateAllocationVerified === true,
+      baseline_ref: item.semantics.baselineRef ? references.get(item.semantics.baselineRef) : null,
+      interval_proof_ref: item.semantics.intervalProofRef ? evidenceRef(item.semantics.intervalProofRef) : null,
+      descendant_inclusion: item.semantics.descendantInclusion || 'unknown',
+      complete_aggregate: item.semantics.completeAggregate === true,
+      membership_proof_ref: item.semantics.membershipProofRef ? evidenceRef(item.semantics.membershipProofRef) : null,
+      included_observation_refs: (item.semantics.includedRefs || []).map((ref) => references.get(ref)),
+      mirror_origin_ref: item.mirrorOrigin ? references.get(item.mirrorOrigin) : null,
+      mirror_proof_ref: item.mirrorProofRef ? evidenceRef(item.mirrorProofRef) : null,
+    };
+    return {
+      observation_ref: rowRef,
+      evidence_refs: [rowRef],
+      adapter_id: item.source || fixture.profile.id,
+      adapter_version: fixture.profile.version,
+      identities,
+      metrics: normalized.metrics,
+      total: normalized.total,
+      semantics,
+      context_ref: item.context ? evidenceRef(`selected:${item.context}`) : null,
+    };
+  });
+}
+
+const loadedReconciliationFixture = readJson(RECONCILIATION_FIXTURE);
+const reconciliationFixture = {
+  ...loadedReconciliationFixture,
+  profile: readJson(NORMALIZATION_FIXTURE).profiles.disjoint,
+};
+for (const entry of loadedReconciliationFixture.cases) {
+  test(`reconciliation: ${entry.name}`, () => {
+    assert.ifError(usageAdapters.__loadError);
+    assert.ifError(usageReconciliation.__loadError);
+    const result = usageReconciliation.reconcileUsage(reconciliationInputs(reconciliationFixture, entry), {
+      selection: reconciliationFixture.selection,
+      partial: entry.partial === true,
+      omitted: (entry.omitted || []).map((value) => ({
+        locator: evidenceRef(`omitted:${value}`), status: 'OMITTED', reason: 'source-omitted',
+      })),
+    });
+
+    const contributionTotals = result.contributions.map((item) => item.total.value).sort((left, right) => left - right);
+    assert.deepStrictEqual(contributionTotals, [...entry.expected.contributionTotals].sort((left, right) => left - right));
+    assertScalar(result.totals.unattributed.known_subtotal, {
+      value: entry.expected.knownSubtotal,
+      status: entry.expected.knownSubtotalStatus,
+    }, `${entry.name}.unattributed`);
+    assert.strictEqual(result.totals.unattributed.complete, false);
+    assert.strictEqual(result.totals.unattributed.complete_total.value, null);
+    assert.strictEqual(result.totals.planner.known_subtotal.value, null);
+    assert.strictEqual(result.totals.descendants.known_subtotal.value, null);
+    assert.strictEqual(result.observations.length, entry.observations.length);
+    assert.ok(result.observations.every((item) => item.attribution === 'unattributed'));
+    assert.ok(result.contributions.every((item) => item.attribution === 'unattributed'));
+    assert.strictEqual(result.coverage.attribution.complete, false);
+    if (entry.expected.duplicates !== undefined) {
+      assert.strictEqual(result.observations.filter((item) => item.reconciliation.disposition === 'duplicate').length, entry.expected.duplicates);
+    }
+    if (entry.expected.conflicts !== undefined) {
+      assert.strictEqual(result.observations.filter((item) => item.reconciliation.disposition === 'conflict').length, entry.expected.conflicts);
+    }
+    if (entry.expected.coverage) {
+      for (const [dimension, count] of Object.entries(entry.expected.coverage)) {
+        assert.strictEqual(result.coverage.reconciliation[dimension], count, `${entry.name}.coverage.${dimension}`);
+      }
+    }
+  });
 }
 
 function readFixture() {
@@ -36,6 +247,13 @@ function writeSession(home, relativePath, record) {
   const file = path.join(home, relativePath);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, `${JSON.stringify(record)}\n`);
+  return file;
+}
+
+function writeSessions(home, relativePath, records) {
+  const file = path.join(home, relativePath);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${records.map((record) => JSON.stringify(record)).join('\n')}\n`);
   return file;
 }
 
@@ -258,12 +476,15 @@ test('contract builder does not serialize raw source paths or arbitrary metadata
       stats: { records: 1, malformed: 0, partial: false, secret: fixture.syntheticInput.secretSentinel },
     }],
     partial: false,
+    usage: { secret: 'SYNTHETIC_UNTRUSTED_USAGE_SECRET', observations: [{ prompt: 'SYNTHETIC_UNTRUSTED_PROMPT' }] },
   });
   const serialized = JSON.stringify(telemetry);
 
   assert.ok(!serialized.includes(privatePath));
   assert.ok(!serialized.includes(fixture.syntheticInput.secretSentinel));
   assert.ok(!serialized.includes('CUSTOM_AGENT_FILTER_SENTINEL'));
+  assert.ok(!serialized.includes('SYNTHETIC_UNTRUSTED_USAGE_SECRET'));
+  assert.ok(!serialized.includes('SYNTHETIC_UNTRUSTED_PROMPT'));
 });
 
 test('opt-in sidecar leaves report.v1 return value and all legacy files byte-identical', () => {
@@ -462,6 +683,86 @@ test('telemetry opt-in rejects a symlinked sidecar target without touching its c
       /symlink|ELOOP|nofollow/i,
     );
     assert.strictEqual(fs.readFileSync(externalTarget, 'utf8'), 'untouched');
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+function sdkRecord(base, { uuid, sessionId, messageId, text = '', sampleOrdinal } = {}) {
+  const record = structuredClone(base);
+  record.uuid = uuid;
+  record.session_id = sessionId;
+  record.message.id = messageId;
+  record.message.content = text ? [{ type: 'text', text }] : [];
+  if (sampleOrdinal !== undefined) record.sampleOrdinal = sampleOrdinal;
+  return record;
+}
+
+test('metadata-only SDK usage joins only the selected same-session context and leaves report.v1 filtering intact', () => {
+  assert.ifError(audit.__loadError);
+  const fixture = readFixture();
+  const home = fixtureHome('sdk-selected-context');
+  const output = path.join(home, 'audit-output');
+  const base = readJson(NORMALIZATION_FIXTURE).sdkEnvelope.record;
+  const records = [
+    sdkRecord(base, {
+      uuid: 'SYNTHETIC_ROW_METADATA_ONLY',
+      sessionId: 'SYNTHETIC_SELECTED_SESSION',
+      messageId: 'SYNTHETIC_METADATA_MESSAGE',
+      sampleOrdinal: 3,
+    }),
+    sdkRecord(base, {
+      uuid: 'SYNTHETIC_ROW_UNRELATED',
+      sessionId: 'SYNTHETIC_UNRELATED_SESSION',
+      messageId: 'SYNTHETIC_UNRELATED_MESSAGE',
+      sampleOrdinal: 3,
+    }),
+    {
+      type: 'assistant',
+      timestamp: '2026-08-06T01:00:00Z',
+      sessionId: 'SYNTHETIC_UNSUPPORTED_NATIVE_SESSION',
+      message: { content: [], usage: { input_tokens: 999, output_tokens: 5 } },
+      sampleOrdinal: 3,
+    },
+    sdkRecord(base, {
+      uuid: 'SYNTHETIC_ROW_SELECTED',
+      sessionId: 'SYNTHETIC_SELECTED_SESSION',
+      messageId: 'SYNTHETIC_SELECTED_MESSAGE',
+      text: '/dhpk:dhpk-issue-analyze',
+      sampleOrdinal: 7,
+    }),
+  ];
+  records[0].cwd = 'SYNTHETIC_SHARED_CWD';
+  records[1].cwd = 'SYNTHETIC_SHARED_CWD';
+  records[2].cwd = 'SYNTHETIC_SHARED_CWD';
+  try {
+    const file = writeSessions(home, '.claude/projects/synthetic/session.jsonl', records);
+    const legacy = runFixtureAudit(home, output, ['--usage-telemetry']);
+    const telemetry = JSON.parse(fs.readFileSync(path.join(output, fixture.syntheticInput.sidecarFile), 'utf8'));
+    const totals = telemetry.contributions.map((item) => item.total.value).sort((left, right) => left - right);
+
+    assert.strictEqual(legacy.records.length, 1, 'metadata-only rows stay outside report.v1 records');
+    assert.strictEqual(legacy.schema, fixture.syntheticInput.reportSchema);
+    assert.deepStrictEqual(totals, [115, 115]);
+    assert.strictEqual(telemetry.totals.unattributed.known_subtotal.value, 230);
+    assert.strictEqual(telemetry.totals.unattributed.complete, false);
+    assert.strictEqual(telemetry.totals.unattributed.complete_total.value, null);
+    assert.ok(telemetry.coverage.usage_extraction.unsupported >= 1);
+    const serialized = JSON.stringify(telemetry);
+    assert.ok(!serialized.includes('SYNTHETIC_UNRELATED_SESSION'));
+    assert.ok(!serialized.includes('SYNTHETIC_ROW_UNRELATED'));
+    assert.ok(!serialized.includes('SYNTHETIC_UNSUPPORTED_NATIVE_SESSION'));
+    assert.ok(!serialized.includes(home));
+
+    const scan = audit.scanJsonlFile(file, {
+      dateRange: fixture.syntheticInput.dateRange, timeZone: fixture.syntheticInput.timeZone,
+      home, sourceKind: 'claude-transcript', maxRecords: 10, maxUsageObservations: 1,
+      usageTelemetry: true,
+    });
+    assert.strictEqual(scan.records.length, 1);
+    assert.strictEqual(scan.stats.limitReached, false);
+    assert.strictEqual(scan.usage.observations.length, 1);
+    assert.strictEqual(scan.usage.partial, true);
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }

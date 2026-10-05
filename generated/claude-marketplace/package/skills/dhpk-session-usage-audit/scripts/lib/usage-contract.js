@@ -19,7 +19,7 @@ const REASONS = Object.freeze([
   'conflicting-evidence', 'scan-truncation-unverified', 'content-fingerprint-unavailable',
 ]);
 const RULES = Object.freeze([
-  'inclusive-input-minus-cache', 'disjoint-input-sum', 'input-plus-output', 'cumulative-delta',
+  'inclusive-input-minus-cache', 'disjoint-input-sum', 'input-plus-output', 'cumulative-delta', 'subtotal-sum',
 ]);
 const SOURCE_KINDS = Object.freeze([
   'claude-transcript', 'claude-artifact', 'codex-transcript', 'orca-trace',
@@ -118,7 +118,10 @@ function nullableFields(fields) {
   return Object.fromEntries(fields.map((field) => [field, createScalar({ field, status: 'unsupported' })]));
 }
 
-function buildTelemetry({ selection = {}, sourceStats = [], omittedSources = [], partial = false } = {}) {
+function buildTelemetry({ selection = {}, sourceStats = [], omittedSources = [], partial = false, usage } = {}) {
+  // Only the immutable, allowlisted reconciliation result may cross this seam.
+  // Loading here avoids a cycle with the scalar constructors used by adapters.
+  const reconciled = usage && require('./usage-reconciliation').isReconciledUsage(usage) ? usage : null;
   const sources = (Array.isArray(sourceStats) ? sourceStats : []).map((source) => ({
     locator: typeof source?.path === 'string' && source.path ? opaque('source', source.path) : null,
     kind: SOURCE_KINDS.includes(source?.kind) ? source.kind : 'unsupported',
@@ -155,7 +158,8 @@ function buildTelemetry({ selection = {}, sourceStats = [], omittedSources = [],
     omitted_sources: omitted,
     metrics: nullableFields(COUNTERS),
     identities: nullableFields(IDENTITIES),
-    observations: [],
+    observations: reconciled ? reconciled.observations : [],
+    ...(reconciled ? { contributions: reconciled.contributions } : {}),
     coverage: {
       scan: {
         status: 'unavailable', complete: null, reason: 'scan-truncation-unverified',
@@ -174,16 +178,16 @@ function buildTelemetry({ selection = {}, sourceStats = [], omittedSources = [],
         reason: omitted.length ? 'source-omitted' : 'legacy-source-inventory-only',
         omitted: omitted.length,
       },
-      usage_extraction: unsupported(),
-      semantics: unsupported(),
-      reconciliation: unsupported(),
-      attribution: unsupported(),
-      cache_categories: {
+      usage_extraction: reconciled ? reconciled.coverage.usage_extraction : unsupported(),
+      semantics: reconciled ? reconciled.coverage.semantics : unsupported(),
+      reconciliation: reconciled ? reconciled.coverage.reconciliation : unsupported(),
+      attribution: reconciled ? reconciled.coverage.attribution : unsupported(),
+      cache_categories: reconciled ? reconciled.coverage.cache_categories : {
         ...unsupported(),
         categories: Object.fromEntries(['fresh_input', 'cache_read_input', 'cache_write_input'].map((key) => [key, unsupported()])),
       },
     },
-    totals: Object.fromEntries(['planner', 'descendants', 'unattributed'].map((key) => [key, {
+    totals: reconciled ? reconciled.totals : Object.fromEntries(['planner', 'descendants', 'unattributed'].map((key) => [key, {
       known_subtotal: createScalar({ field: 'reported_total', status: 'unsupported' }),
       complete_total: createScalar({ field: 'reported_total', status: 'unsupported' }),
       complete: false,
@@ -191,4 +195,8 @@ function buildTelemetry({ selection = {}, sourceStats = [], omittedSources = [],
   });
 }
 
-module.exports = { createScalar, buildTelemetry };
+const VOCABULARY = Object.freeze({
+  counters: COUNTERS, identities: IDENTITIES, statuses: STATUSES, reasons: REASONS, rules: RULES,
+});
+
+module.exports = { createScalar, buildTelemetry, VOCABULARY };

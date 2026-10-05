@@ -87,12 +87,14 @@ ignored output directory. Its schema is
 `dhpk.session-usage-audit.telemetry.v1`; the six legacy files and returned
 `report.v1` remain unchanged.
 
-This first slice reports contract-only support: usage counters and execution
-identities are null/unsupported, all usage and ancestry coverage is incomplete,
-and planner/descendants/unattributed subtotals remain null. An empty observation
-list means no supported extraction, not zero usage. Counter normalization,
-reconciliation and attribution await the later phases of
-[issue #817](https://github.com/hmj1026/dhpk/issues/817).
+Supported counter profiles produce typed observations and reconciled
+unattributed known subtotals. Repeated events, cumulative intervals and
+descendant-inclusive aggregates require independent identity and basis
+evidence before contributing. Unknown formats, missing baselines and
+conflicting measurements remain nullable or excluded with fixed reasons.
+Planner and descendant attribution remains pending in
+[issue #817](https://github.com/hmj1026/dhpk/issues/817); complete totals remain
+null. An empty observation list means no supported extraction, not zero usage.
 
 The sidecar contains typed scan statistics, hashed selectors/source locators,
 fixed reasons and nullable values; it excludes transcript and tool content.
