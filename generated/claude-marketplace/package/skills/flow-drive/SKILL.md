@@ -1,6 +1,6 @@
 ---
 name: flow-drive
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
+argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
 description: 'Explicit-only implementation workflow for a confirmed specification or OpenSpec change whose target and acceptance contract are settled. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: ordered implementation and verification evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
@@ -78,6 +78,14 @@ action.
 
 - `--plan[=<model>:<effort>]` explicitly requests a pre-implementation planner
   consult on supported implementation-class routes.
+- `--plan-mode=auto|bounded|discovery` selects that consult's scope. It
+  requires `--plan`, is independent of option order, and does not change the
+  planner's work mode or model/effort. An enabled plan with no mode defaults to
+  `auto`; a disabled plan has mode `null`. The parser checks grammar only.
+  Flow Drive applies the scope-selection policy in
+  [`execution-policy.md`](references/execution-bundle/rules/execution-policy.md#planner-consult-scope),
+  reports its selection and evidence, and preserves the required authority and
+  specialist gates.
 - `--worker=<claude|codex|agy|auto>` selects the Worker Selector and preserves
   the existing worker-routing enum.
 - `--worker-target=<provider>/<model>[:<effort>]` selects an explicit
@@ -104,9 +112,12 @@ configured effort and the parser reports that as a notice.
 ## Output
 
 Report the ordered work items, changed files, tests and static checks, retry
-state, unresolved risks, and next handoff. Mark missing evidence as `BLOCKED`
-or `NOT RUN`. Keep implementation, verification, and archive as separate
-states.
+state, unresolved risks, and next handoff. For a planner consult, include the
+requested and selected scope, selection reason, overridden signals, read and
+child budgets, observed actual use, and blockers. Mark unobserved actuals as
+`null` with `NOT_RUN` or `UNAVAILABLE`; never present a maximum as observed use.
+Mark missing evidence as `BLOCKED` or `NOT RUN`. Keep implementation,
+verification, and archive as separate states.
 
 ## References
 

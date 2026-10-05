@@ -5,6 +5,7 @@ const path = require('node:path');
 const HOST_PROFILES = require(path.join(__dirname, '..', 'references', 'execution-bundle', 'manifests', 'host-profiles.json'));
 
 const SCHEMA = 'dhpk.flow-drive-invocation.v1';
+const PLAN_MODES = Object.freeze(['auto', 'bounded', 'discovery']);
 const WORKERS = Object.freeze(['claude', 'codex', 'agy', 'auto']);
 const TARGET_PROVIDERS = Object.freeze(['claude', 'codex', 'agy']);
 const REASONER_BACKENDS = Object.freeze(['claude', 'codex']);
@@ -139,6 +140,7 @@ function parseInvocation(argv = [], { host = null } = {}) {
   const seen = new Set();
   let changeId = null;
   let architect = null;
+  let requestedPlanMode = null;
   const options = {
     plan: { enabled: false, model: null, effort: null },
     worker: 'auto',
@@ -165,6 +167,14 @@ function parseInvocation(argv = [], { host = null } = {}) {
     }
     if (token === '--plan' || token.startsWith('--plan=')) {
       if (markOnce('--plan')) options.plan = parsePlan(token.includes('=') ? token.slice('--plan='.length) : undefined, diagnostics);
+      continue;
+    }
+    if (token.startsWith('--plan-mode=')) {
+      if (markOnce('--plan-mode')) {
+        const mode = token.slice('--plan-mode='.length);
+        if (PLAN_MODES.includes(mode)) requestedPlanMode = mode;
+        else diagnostic(diagnostics, `invalid --plan-mode value '${mode}'; choose ${PLAN_MODES.join('|')}.`);
+      }
       continue;
     }
     if (token.startsWith('--worker=')) {
@@ -195,17 +205,27 @@ function parseInvocation(argv = [], { host = null } = {}) {
   }
 
   if (!changeId) diagnostic(diagnostics, 'a confirmed specification or change id is required.');
+  if (seen.has('--plan-mode') && !options.plan.enabled) {
+    diagnostic(diagnostics, '--plan-mode requires --plan to enable a planner consult.');
+  }
   if (architect !== null && seen.has('--architect') && seen.has('--no-architect')) {
     diagnostic(diagnostics, '--architect and --no-architect are mutually exclusive.');
     architect = null;
   }
-  options.architect = architect;
-  checkHostSupport(host, options, diagnostics, notices);
+  const normalizedOptions = {
+    ...options,
+    plan: {
+      ...options.plan,
+      mode: options.plan.enabled ? requestedPlanMode || 'auto' : null,
+    },
+    architect,
+  };
+  checkHostSupport(host, normalizedOptions, diagnostics, notices);
   return freezeDeep({
     schema: SCHEMA,
     status: diagnostics.length === 0 ? 'ready' : 'blocked',
     changeId,
-    options,
+    options: normalizedOptions,
     diagnostics,
     notices,
   });

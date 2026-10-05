@@ -270,7 +270,7 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | Skill | 常用參數 |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `[--plan[=<model>[:<effort>]]]` `[--plan-mode=auto\|bounded\|discovery]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `tdd-workflow` | `test-generation` `fast-worker` `standard` |
@@ -328,6 +328,7 @@ navigation fallback。
 | Modifier | 效果與邊界 |
 |---|---|
 | `--plan[=<model>[:<effort>]]` | 為已確認的 implementation work 加入 planner critique。 |
+| `--plan-mode=auto\|bounded\|discovery` | 選擇已啟用 `--plan` 的 consult 範圍；省略時預設 `auto`，不改變 planner work mode 或 model/effort。 |
 | `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker，不會持久化設定。 |
 | `--cross-provider` | 當使用 `--worker=auto` 時，僅對本次 invocation 開放設定的 external candidate；不會持久化，也不會擴大明確選定的 worker target。 |
 | `--reasoner=<provider>/<model>[:<effort>]` | 為已確認 implementation work 要求 bounded reasoning pass。 |
@@ -341,6 +342,16 @@ reasoning pass；裸值 `--reasoner=codex` 只保留作為相容性 shorthand。
 deprecation diagnostic，絕不選擇 peer、worker、reasoner 或 hidden backend。只有選定
 executable 缺少時才允許 configured Claude fallback；authentication、task、execution 與
 verification failure 都維持 blocked。
+
+例如，`$flow-drive confirmed-change-id --plan --plan-mode=bounded` 會要求 planner
+只檢查 brief 列出的證據。`auto` 只有在 consult 問題與預期結果清楚、包含必要 protocol
+reads 的 named sources 足以在有界預算內回答，而且沒有 named Material Risk Signal 時才選
+bounded；否則選 discovery。Bounded 最多四次 direct reads，包含必要 protocol read，且不得建立
+discovery child。必要事實不足時要回報 blocker，不得搜尋、spawn 或自行升級 scope。明確選擇
+bounded 時，必須揭露被覆寫的 signal；這不會略過 authorization、write prerequisite 或必要的
+specialist decision。Discovery 維持十二次 reads 與兩個唯讀 children；明確要求的 warm review
+維持四次新的 reads，並遵守已選 scope 的 child limit。named signals 與回報契約見
+[execution policy](../rules/execution-policy.md#planner-consult-scope)。
 
 ### OpenSpec 生命週期邊界
 

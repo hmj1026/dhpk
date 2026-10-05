@@ -95,7 +95,7 @@
       "react-19"
     ],
     "id": "full",
-    "inventoryFingerprint": "c3109d4ec399c9a18405ad296a533df0f936d19804c25b6e1dc7f99e7d18bd6e",
+    "inventoryFingerprint": "bf63ed3858f8a1dce9ddd58dbc7373f1b6637485aa42d3733a40d57cf8bec43b",
     "mode": "profile",
     "modules": [
       "fastapi",
@@ -188,7 +188,7 @@
       "opsx-apply-resume",
       "ui-ux-verify"
     ],
-    "selectionFingerprint": "c9d6db8009f2e16c58260a1b97744e5ec3cedeaac844afc971b0a2d65ce61fc3",
+    "selectionFingerprint": "476ca89853c809ea53535808568754e9188fe065a415f45bb0c761eda5a2965e",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "c9c3f5d89634e8c10ce7c796c4c05e4b92a38d26f157ab04318b30b0d47be2f8",
@@ -263,7 +263,7 @@
       ],
       "skillStableIds": []
     },
-    "surfaceSelectionFingerprint": "4be2932f390fc9bc34d60478efa920c2b968cdc1bcef7d474999c6a712d2ff7e",
+    "surfaceSelectionFingerprint": "ec3765604c93c4b00bb59c1e67c5b840eec7ae02c6227d92e00be86dd7f068c1",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -2634,5 +2634,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "fd93b586ebb53eb60bd8c2cc17c1ec956674d44ef317e68a798bc950acec9cc2"
+  "planFingerprint": "86bc38b94a5ff0692b09f68b31c0b967633c061451055bd7b69433e61f84867d"
 }
