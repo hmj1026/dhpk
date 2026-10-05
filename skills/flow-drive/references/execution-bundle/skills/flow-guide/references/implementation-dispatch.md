@@ -42,7 +42,7 @@ and bounded-consult budgets. Task count alone does not require planner.
 an enabled `--plan`; an enabled legacy handoff without a mode uses `auto`. The
 parser validates grammar, while Flow Drive selects scope from the supplied
 brief according to the single policy in
-[`rules/execution-policy.md`](../../../rules/execution-policy.md#planner-consult-scope).
+`${POLICY_BUNDLE_ROOT}/rules/execution-policy.md` §Planner consult scope.
 For `auto`, bounded requires a clear consult question and intended outcome,
 named sources sufficient within the bounded limit (including required protocol
 reads), and no named Material Risk Signal. Otherwise select discovery and name

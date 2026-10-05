@@ -232,7 +232,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "opsx-apply-goal",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:1f3ea7b50c37bc6c1dc5ba975ea96f5ec9f1bdfb24280adc4b341153321e517f",
+      "sha256": "sha256:bddbdafabc11e6a8b87e851d81586b87339b901b191d5fa330921264a25cb742",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -562,7 +562,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:1f3ea7b50c37bc6c1dc5ba975ea96f5ec9f1bdfb24280adc4b341153321e517f",
+      "sha256": "sha256:bddbdafabc11e6a8b87e851d81586b87339b901b191d5fa330921264a25cb742",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -688,7 +688,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:1f3ea7b50c37bc6c1dc5ba975ea96f5ec9f1bdfb24280adc4b341153321e517f",
+      "sha256": "sha256:bddbdafabc11e6a8b87e851d81586b87339b901b191d5fa330921264a25cb742",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
