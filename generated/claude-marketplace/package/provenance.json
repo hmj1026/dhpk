@@ -1506,7 +1506,7 @@
       "sourcePath": "skills/dhpk-session-usage-audit/references/source-adapters.md",
       "destination": "skills/dhpk-session-usage-audit/references/source-adapters.md",
       "kind": "entry",
-      "sha256": "67490821898b4e7a3bf40087f0722d12cd46fd3ca726c3756101f4e1b39bc6d9"
+      "sha256": "cb8073ab5b2eab265cf99c51b58a215d2d03809af7883719bcf5fa3f6fe11396"
     },
     {
       "skillId": "session-usage-audit",
