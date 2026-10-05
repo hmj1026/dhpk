@@ -15,6 +15,7 @@ const {
 } = require('./agent-plugin-package');
 const { resolveInventoryRevision } = require('./distribution-projection-contract');
 const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
+const { planRetiredAgentSkills } = require('./agents-skills-retirement');
 const {
   materializeRelocatableAgentsSkillsProjection,
   validateRelocatableAgentsSkillsProjection,
@@ -649,12 +650,14 @@ function materializeAgentsSkillsProjection(options = {}) {
     const renamed = previous ? renamedReceiptPaths(outputRoot, previous, selected, inventory) : [];
     const renamedIds = new Set(renamed.map((migration) => migration.entry.id));
     const renamedPaths = new Set(renamed.flatMap((migration) => migration.paths));
+    const retired = planRetiredAgentSkills({ inventory, previous, selected, outputRoot,
+      safeName, assertSafeRelative, pathInOutput, lstatOrNull, digest, treeFingerprint });
     const carriedEntries = previous
-      ? previous.entries.filter((entry) => !currentNames.has(entry.name) && !renamedIds.has(entry.id))
+      ? previous.entries.filter((entry) => !currentNames.has(entry.name) && !renamedIds.has(entry.id) && !retired.ids.has(entry.id))
       : [];
     const carriedPaths = previous
       ? previous.managedPaths.filter((relative) => {
-          if (currentPathSet.has(relative) || renamedPaths.has(relative)) return false;
+          if (currentPathSet.has(relative) || renamedPaths.has(relative) || retired.paths.has(relative)) return false;
           const top = relative.split('/')[0].replace(/\.md$/, '');
           return !currentNames.has(top);
         })
@@ -678,7 +681,7 @@ function materializeAgentsSkillsProjection(options = {}) {
     writeJson(path.join(stage, RECEIPT_NAME), receipt);
 
     const oldPaths = previous
-      ? [...new Set([...previous.trustedManagedPaths, ...renamedPaths, RECEIPT_NAME])]
+      ? [...new Set([...previous.trustedManagedPaths, ...renamedPaths, ...retired.paths, RECEIPT_NAME])]
       : [];
     const oldPathSet = new Set(oldPaths);
     const newPaths = [...stageManaged.map((file) => file.path), RECEIPT_NAME];
