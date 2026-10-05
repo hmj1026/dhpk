@@ -62,29 +62,52 @@ changing the report schema. A source filter that selects an unavailable adapter
 returns an empty scan plus the omitted-source record; it never broadens the
 allowlist.
 
-## Accepted telemetry contract — pending implementation
+## Optional telemetry contract — first slice
 
-Use this proposed integration reference when implementing the accepted
+Use the accepted
 [telemetry specification](https://github.com/hmj1026/dhpk/blob/develop/openspec/specs/session-usage-telemetry/spec.md)
-and public [issue #817](https://github.com/hmj1026/dhpk/issues/817). Adoption
-sets desired behavior, not runtime support; implementation and behavioral
-verification remain `NOT_RUN`; the current CLI has no option or sidecar support.
+and public [issue #817](https://github.com/hmj1026/dhpk/issues/817) as the
+behavior and delivery owners. The CLI accepts `--usage-telemetry`; this slice
+implements the nullable contract and unsupported coverage. Source-format
+counter extraction, normalization, reconciliation and ancestry attribution
+remain pending; the rules below govern those later adapters. Native runtime
+verification remains `NOT_RUN`.
 
 ### Optional output and evidence
 
-- Future opt-in `--usage-telemetry` emits ignored `usage-telemetry.json` with schema `dhpk.session-usage-audit.telemetry.v1` in the selected audit output.
+- Opt-in `--usage-telemetry` emits ignored `usage-telemetry.json` with schema `dhpk.session-usage-audit.telemetry.v1` in the selected audit output.
 - Without the option, `report.v1`, filtering, findings, and verification gates retain their meanings; telemetry adds no second collector or report version.
 - Keeping the optional schema in a sidecar isolates evolving numeric semantics
   from legacy consumers. Future rollback can disable the option or reinstall
   the prior package; no database or `report.v1` migration is planned.
-- Bind the sidecar to selected dates, timezone, filters, sources, adapter
-  version, and sanitized source fingerprints. Reuse requires scope and source
-  binding matches; file presence alone cannot validate a stale sidecar.
+- The current sidecar carries dates, timezone, source/resource selectors,
+  hashed agent filters and source locators, `contract-only.v1` adapter markers,
+  and allowlisted scan counts. Content fingerprints are null/unavailable and
+  `reusable` is false. Matching scope or file presence does not prove freshness.
+  Default invocations retain earlier sidecars; future reuse requires verified
+  source-content binding.
 - Each numeric or identity scalar carries `{value, status, evidence_refs,
   derivation}`; status is `observed`, `derived`, `unavailable`, `unsupported`,
   or `conflict`. Derived values name their rule and input evidence.
 - Keep observed zero distinct from missing data. Missing stays null with a
   fixed reason; never invent zero, session identity, or execution fact.
+
+### Current coverage
+
+`metrics` and `identities` contain separate nullable scalars, all unsupported
+in CLI output until verified adapters are implemented. `observations` is empty;
+planner, descendants and unattributed known/total subtotals are null and
+incomplete. The contract helper preserves explicitly evidenced zero and hashes
+string identities, including separate requested/observed role and effort; it
+never derives an execution identity from a selector or legacy diagnostic alias.
+
+Coverage separates scan, source inventory, extraction, semantics,
+reconciliation, attribution and cache categories. Scan counts retain malformed,
+missing-timestamp, unsupported, partial and omitted information. Usage counts
+and truncation counts are unknown; `legacy_scan_complete` describes the existing
+bounded scan only. Telemetry scan completeness stays null/unavailable with
+`scan-truncation-unverified`. Each usage dimension reports unsupported and
+incomplete rather than converting absent evidence to zero.
 
 ### Allowlisted fields and selection
 
@@ -97,7 +120,7 @@ verification remain `NOT_RUN`; the current CLI has no option or sidecar support.
   reported total separate. Record stream, epoch, basis, interval,
   self/descendant inclusion, canonical contribution, duplicate/conflict status,
   verified planner-root ancestry, unattributed usage, and independent coverage.
-- Extract allowlisted numeric metadata only within the selected session, task,
+- Later adapters extract allowlisted numeric metadata only within the selected session, task,
   or invocation scope, before the legacy text filter. It may add telemetry
   evidence but cannot expand legacy records or change findings.
 - Package-local telemetry helpers consume orchestration identity read-only;
@@ -108,7 +131,7 @@ verification remain `NOT_RUN`; the current CLI has no option or sidecar support.
   transcripts, prompts, tool content, secrets, and home paths; never spread
   arbitrary source metadata into the sidecar.
 
-### Adapter and reconciliation rules
+### Pending adapter and reconciliation rules
 
 - A versioned adapter profile declares field paths, identity rules, counter
   basis, and an independent semantic oracle. Provider names and local samples

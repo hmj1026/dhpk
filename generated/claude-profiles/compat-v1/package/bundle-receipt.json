@@ -84,7 +84,7 @@
     ],
     "excludes": [],
     "id": "compat-v1",
-    "inventoryFingerprint": "c80d3515b02cc7a1668654e6196e7a1aa93d856bdb75d3747b8217822f385179",
+    "inventoryFingerprint": "241c102b1e67ecff8f6725a32558896ee6d7e815ad903b0fd1ef2f2766c2314e",
     "mode": "compat-v1",
     "modules": [],
     "profileFingerprint": "3460b20aaac9bc3f188d850a0a43c74dd34fd06624df2c61838a27ec3a0bd659",
@@ -169,7 +169,7 @@
       "xcode-build-tooling",
       "yii1-security-audit"
     ],
-    "selectionFingerprint": "ea2207356c2edbf8ef582780131d23277c713fab91bab59d58d53607048c1e31",
+    "selectionFingerprint": "7864233b809a883b964d8c1fa103519acacbd6b0993e102f73a890cf0a5d0b25",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "671db98a7801565782e82ab8e481d854d28c0c6079ef6a86c64c19b3b30c623d",
@@ -244,7 +244,7 @@
       ],
       "skillStableIds": []
     },
-    "surfaceSelectionFingerprint": "a467dc56728232a9529b24edb4c3c166b58d1ac64db7deedba5247591962d6f2",
+    "surfaceSelectionFingerprint": "fba397bf8746fbdafe9f3e9019f6f3fa2fa054df0c99ab4daa3c70d6abe80efe",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "compat-v1",
@@ -2376,6 +2376,10 @@
       "destination": "skills/dhpk-session-usage-audit/references/source-adapters.md"
     },
     {
+      "stableId": "claude-profile:skill-resource:session-usage-audit:scripts/lib/usage-contract.js",
+      "destination": "skills/dhpk-session-usage-audit/scripts/lib/usage-contract.js"
+    },
+    {
       "stableId": "claude-profile:skill-resource:session-usage-audit:scripts/session-usage-audit.js",
       "destination": "skills/dhpk-session-usage-audit/scripts/session-usage-audit.js"
     },
@@ -2766,5 +2770,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "7a48e3a8233a5e00db833ec4f3bce8c2175e76e06adae16701bb1c0f0e598d26"
+  "planFingerprint": "a1702ef17d8efab746bd6f53c7399f4718ffb7db3b9651f03257c14c6ec5b8ea"
 }

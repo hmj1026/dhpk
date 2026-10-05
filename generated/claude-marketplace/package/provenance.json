@@ -1474,7 +1474,7 @@
       "sourcePath": "skills/dhpk-session-usage-audit/SKILL.md",
       "destination": "skills/dhpk-session-usage-audit/SKILL.md",
       "kind": "entry",
-      "sha256": "7f53a0585377c1473b9d512992ff7c2a49d79a4f751c84bcc8d1e32a912c785c"
+      "sha256": "ee5197a130b433407a587acf586e6e55717626a5010a04cd8678569491357acb"
     },
     {
       "skillId": "session-usage-audit",
@@ -1506,7 +1506,15 @@
       "sourcePath": "skills/dhpk-session-usage-audit/references/source-adapters.md",
       "destination": "skills/dhpk-session-usage-audit/references/source-adapters.md",
       "kind": "entry",
-      "sha256": "cb8073ab5b2eab265cf99c51b58a215d2d03809af7883719bcf5fa3f6fe11396"
+      "sha256": "1ee8340eeafd048a81ac98037e4f8863bcf5b3e9c8deed4571a42efd167aa710"
+    },
+    {
+      "skillId": "session-usage-audit",
+      "ownerId": "session-usage-audit",
+      "sourcePath": "skills/dhpk-session-usage-audit/scripts/lib/usage-contract.js",
+      "destination": "skills/dhpk-session-usage-audit/scripts/lib/usage-contract.js",
+      "kind": "entry",
+      "sha256": "19addba756d976196d7144025c2ab6e7a735bbbbad802c81c4c0f63983b433dd"
     },
     {
       "skillId": "session-usage-audit",
@@ -1514,7 +1522,7 @@
       "sourcePath": "skills/dhpk-session-usage-audit/scripts/session-usage-audit.js",
       "destination": "skills/dhpk-session-usage-audit/scripts/session-usage-audit.js",
       "kind": "entry",
-      "sha256": "4893055d2ac3ef450fd47e1ec9325f6681aa3c2c0c71afbc87daa81033a74b2c"
+      "sha256": "632c1f4099313b4b12610cda5aae6fbb2af10c82756e1242b0e16ca577d63152"
     },
     {
       "skillId": "flow-drive",
@@ -2754,7 +2762,7 @@
       "sourcePath": "skills/flow-guide/references/codex-usage-catalog.json",
       "destination": "skills/flow-guide/references/codex-usage-catalog.json",
       "kind": "entry",
-      "sha256": "0dd36c3c8d58520eecfe2c0544ca40998cb585ec0cdce88fa62b7bd33ebec6bd"
+      "sha256": "3dba6a857fa043174ee1a25f22413e0c4710d9730b303f0b3ed77b4e584770c3"
     },
     {
       "skillId": "flow-guide",
