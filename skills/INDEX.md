@@ -84,7 +84,7 @@ front doors. Invoke the public name directly from Codex.
 | [dhpk-issue-analyze](dhpk-issue-analyze/SKILL.md) | `issue-analyze` | GitHub issue and review-thread triage |
 | [dhpk-laravel-package-author](dhpk-laravel-package-author/SKILL.md) | `laravel-package-author` | Laravel package publication patterns |
 | [dhpk-laravel-testbench-matrix](dhpk-laravel-testbench-matrix/SKILL.md) | `laravel-testbench-matrix` | Laravel package Testbench matrix |
-| [dhpk-module-design](dhpk-module-design/SKILL.md) | `software-architecture` | Architecture boundaries and deep-module design |
+| [module-design](module-design/SKILL.md) | `software-architecture` | Architecture boundaries and deep-module design |
 | [dhpk-opsx-apply-goal](dhpk-opsx-apply-goal/SKILL.md) | `opsx-apply-goal` | Bounded long-running OpenSpec apply goal |
 | [dhpk-opsx-load-context](dhpk-opsx-load-context/SKILL.md) | `opsx-load-context` | Resume context loading |
 | [dhpk-opsx-post-observation](dhpk-opsx-post-observation/SKILL.md) | `opsx-post-obs` | Save-phase observation posting |

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Module Design"
+  short_description: "Design module boundaries, public interfaces, and adapter choices"
+  default_prompt: "Use $module-design to apply the Module Design workflow with its verification rules."

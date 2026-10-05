@@ -22,7 +22,7 @@ minimal profile；既有 receipt 在明確 migration 前保留原 selection。�
 | 關注點 | 目前實作 |
 |---|---|
 | Canonical source | `skills/<public-name>/` 下 81 個扁平 package |
-| Public identity | 31 個 public name 不加前綴，包含八個 capability family 與可攜 command skill；其他 50 個 first-party name 維持 `dhpk-*` |
+| Public identity | 32 個 public name 不加前綴，包含八個 capability family 與可攜 command skill；其他 49 個 first-party name 維持 `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
 | Codex 專案 projection | `codex/skills/` 下 33 個相對 symlink（31 個可呼叫加內部 transport 與 dispatch-context runtime） |
@@ -34,6 +34,23 @@ minimal profile；既有 receipt 在明確 migration 前保留原 selection。�
 
 目錄位置與 README 清單都不是權威來源。Inventory 管理 stable id、public name、
 lifecycle、module 與 publication surface；validator 會將每個 projection 與它對齊。
+
+### Module design 公開名稱遷移
+
+`dhpk-module-design` 更名為 `module-design`，canonical package 位於
+`skills/module-design/`。Stable ID `software-architecture`、capability ID、
+四種 mode、參數與 Claude/Cursor surface selection 維持原契約。
+Rename ledger 讓舊公開名稱指向目前 owner，供診斷與 receipt-owned 遷移使用；
+它不安裝第二份相容技能。`software-architecture` legacy identifier 仍解析至同一 owner。
+
+既有專案 receipt 只在舊檔案仍受管理且未修改時遷移。使用者修改或未受管理的
+目的地維持既有 collision handling，rollback 使用記錄的 `0.64.4` release。
+Generated package 與已安裝 consumer 會保留原發佈內容，直到各自 update flow
+完成更新；canonical source 更名本身不代表 consumer 已更新。
+
+Claude 呼叫方式為 `/dhpk:module-design`。Inventory 並未將此技能選入
+`codex-sync` 或 `codex-native`；Codex 呼叫需要獨立的 discovery 證據，不能由
+metadata 檔案推論可用。
 
 ## 呼叫語法
 
@@ -84,7 +101,7 @@ generated usage catalog 可以保留原名稱，用來回傳退役診斷。這�
 | `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | current successor `flow-guide`（`classify` mode）；0.47.0 historical route was `adaptive-dev-workflow`（`bug` mode） | `0.46.1` |
 | `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | current successor `flow-guide`（`classify` mode）；0.47.0 historical route was `adaptive-dev-workflow`（`feature` mode） | `0.46.1` |
 | `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`；Claude `/dhpk:dhpk-tdd-workflow`；Codex `$dhpk-tdd-workflow`（`unit-integration` mode）；agent `e2e-runner`（`playwright-journey` mode） | `0.46.1` |
-| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`；Claude `/dhpk:dhpk-module-design`；Codex `$dhpk-module-design`（`adversarial` mode） | `0.46.1` |
+| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`；Claude `/dhpk:module-design`（`adversarial` mode）；目前未選入 Codex | `0.46.1` |
 | `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` 指引；沒有 successor package | `0.46.1` |
 
 ### Direct-host 呼叫邊界
@@ -115,7 +132,7 @@ target 或 hidden fallback。Parity matrix 記錄完整 capability evidence；�
 
 | Former stable ID | Former MCP-facing identity | Replacement owner and behavior | `reasonCode` | `rollback.release` |
 |---|---|---|---|---|
-| `codex-architect` | `dhpk-codex-architect` | `dhpk-module-design`；current-model design/review/compare/adversarial mode，只能明確選用 `codex exec` | `migrated-to-module-design` | `0.51.0` |
+| `codex-architect` | `dhpk-codex-architect` | `module-design`；current-model design/review/compare/adversarial mode，只能明確選用 `codex exec` | `migrated-to-module-design` | `0.51.0` |
 | `codex-implement` | `dhpk-codex-implement` | `flow-drive`；current-model decomposition、implementation、verification、review 與 bounded retry loop（`implement` mode） | `migrated-to-backend-neutral-implement` | `0.51.0` |
 | `codex-code-review` | `dhpk-change-review` 的 MCP default | `dhpk-change-review --backend cli`；current-model default 與明確 CLI review，不提供 MCP fallback | `migrated-to-cli-review-owner` | `0.51.0` |
 | `doc-review` | `dhpk-doc-review` 的 MCP review/reply | `dhpk-doc-review`；portable 五維 review 與 gate，只能明確選用 `codex exec` | `migrated-to-portable-review` | `0.51.0` |

@@ -640,7 +640,7 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.notStrictEqual(unknown.status, 0);
     assert.match(output(unknown), /unknown-skill/i);
 
-    const nonCodex = runHelp(['dhpk-module-design']);
+    const nonCodex = runHelp(['module-design']);
     assert.notStrictEqual(nonCodex.status, 0);
     assert.match(output(nonCodex), /not-codex-invokable/i);
     assert.doesNotMatch(output(nonCodex), /unknown-skill/i);
