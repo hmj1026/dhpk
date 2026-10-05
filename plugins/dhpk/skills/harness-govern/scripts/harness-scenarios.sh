@@ -57,8 +57,6 @@ if [[ "$EXECUTE_HOOKS" != "1" ]]; then
     exit 3
 fi
 
-SESS="$HARNESS_DIR/artifacts/sessions"
-mkdir -p "$SESS"
 fail=0; pass=0
 
 # Project-local hooks are discovered, not hardcoded: every *.sh under
@@ -96,21 +94,6 @@ if [[ -f "$HARNESS_DIR/hooks/pre-bash-guard.sh" ]]; then
   fi
 else
   echo "=== S1 pre-bash-guard (SKIP: project ships no pre-bash-guard.sh) ==="
-fi
-
-echo ""
-if [[ -f "$HARNESS_DIR/hooks/clear-sentinel.sh" ]]; then
-  echo "=== S2 clear-sentinel.sh lifecycle ==="
-  rm -f "$SESS"/.pending-* 2>/dev/null
-  echo x > "$SESS/.pending-review"
-  out=$(bash "$HARNESS_DIR/hooks/clear-sentinel.sh" .pending-review code-reviewer 2>&1)
-  [[ "$out" == *"sentinel cleared"* ]] && { echo "  PASS clear: cleared msg"; pass=$((pass+1)); } || { echo "  FAIL clear: $out"; fail=$((fail+1)); }
-  out=$(bash "$HARNESS_DIR/hooks/clear-sentinel.sh" .pending-review code-reviewer 2>&1)
-  [[ "$out" == *"already clean"* ]] && { echo "  PASS clear: idempotent msg"; pass=$((pass+1)); } || { echo "  FAIL clear: $out"; fail=$((fail+1)); }
-  rc=0; bash "$HARNESS_DIR/hooks/clear-sentinel.sh" 2>/dev/null || rc=$?
-  [[ "$rc" != "0" ]] && { echo "  PASS clear: missing-arg errors"; pass=$((pass+1)); } || { echo "  FAIL clear: missing arg didn't error"; fail=$((fail+1)); }
-else
-  echo "=== S2 clear-sentinel.sh lifecycle (SKIP: hook is plugin-owned, not project-local) ==="
 fi
 
 echo ""
