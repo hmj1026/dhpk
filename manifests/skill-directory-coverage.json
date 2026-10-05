@@ -1470,6 +1470,16 @@
           ]
         }
       ],
+      "internal_helpers": [
+        {
+          "path": "scripts/stocktake-runtime.js",
+          "required_by": [
+            "scripts/scan.sh",
+            "scripts/quick-diff.sh",
+            "scripts/save-results.sh"
+          ]
+        }
+      ],
       "host_capabilities": []
     },
     "software-architecture": {
