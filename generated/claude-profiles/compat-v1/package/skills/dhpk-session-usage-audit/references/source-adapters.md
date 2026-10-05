@@ -62,16 +62,16 @@ changing the report schema. A source filter that selects an unavailable adapter
 returns an empty scan plus the omitted-source record; it never broadens the
 allowlist.
 
-## Optional telemetry contract — first slice
+## Optional telemetry contract
 
 Use the accepted
 [telemetry specification](https://github.com/hmj1026/dhpk/blob/develop/openspec/specs/session-usage-telemetry/spec.md)
 and public [issue #817](https://github.com/hmj1026/dhpk/issues/817) as the
-behavior and delivery owners. The CLI accepts `--usage-telemetry`; this slice
-implements the nullable contract and unsupported coverage. Source-format
-counter extraction, normalization, reconciliation and ancestry attribution
-remain pending; the rules below govern those later adapters. Native runtime
-verification remains `NOT_RUN`.
+behavior and delivery owners. The CLI accepts `--usage-telemetry`; supported
+schema profiles extract typed counters and reconcile known unattributed
+consumption. Verified planner ancestry remains pending. Native runtime
+verification remains `NOT_RUN`; synthetic fixtures establish helper behavior
+and schema acceptance separately.
 
 ### Optional output and evidence
 
@@ -94,20 +94,25 @@ verification remains `NOT_RUN`.
 
 ### Current coverage
 
-`metrics` and `identities` contain separate nullable scalars, all unsupported
-in CLI output until verified adapters are implemented. `observations` is empty;
-planner, descendants and unattributed known/total subtotals are null and
+Envelope `metrics` and `identities` remain nullable placeholders; per-record
+values live in `observations`, and selected non-overlapping usage lives in
+`contributions`. Only the unattributed known subtotal may be populated.
+Planner/descendant subtotals and every complete total remain null and
 incomplete. The contract helper preserves explicitly evidenced zero and hashes
 string identities, including separate requested/observed role and effort; it
 never derives an execution identity from a selector or legacy diagnostic alias.
 
 Coverage separates scan, source inventory, extraction, semantics,
 reconciliation, attribution and cache categories. Scan counts retain malformed,
-missing-timestamp, unsupported, partial and omitted information. Usage counts
-and truncation counts are unknown; `legacy_scan_complete` describes the existing
+missing-timestamp, unsupported, partial and omitted information. Usage
+extraction, semantic and reconciliation counts come from bounded typed
+candidates; `legacy_scan_complete` describes the existing
 bounded scan only. Telemetry scan completeness stays null/unavailable with
-`scan-truncation-unverified`. Each usage dimension reports unsupported and
-incomplete rather than converting absent evidence to zero.
+`scan-truncation-unverified`. Unsupported usage dimensions stay incomplete
+rather than converting absent evidence to zero. Telemetry candidate
+limits do not change legacy filtering. A metadata-only candidate can join a
+strong dhpk context record only through a supported session identity in the
+same selected file, including a context record encountered later in that scan.
 
 ### Allowlisted fields and selection
 
@@ -120,7 +125,7 @@ incomplete rather than converting absent evidence to zero.
   reported total separate. Record stream, epoch, basis, interval,
   self/descendant inclusion, canonical contribution, duplicate/conflict status,
   verified planner-root ancestry, unattributed usage, and independent coverage.
-- Later adapters extract allowlisted numeric metadata only within the selected session, task,
+- Adapters extract allowlisted numeric metadata only within the selected session, task,
   or invocation scope, before the legacy text filter. It may add telemetry
   evidence but cannot expand legacy records or change findings.
 - Package-local telemetry helpers consume orchestration identity read-only;
@@ -131,7 +136,50 @@ incomplete rather than converting absent evidence to zero.
   transcripts, prompts, tool content, secrets, and home paths; never spread
   arbitrary source metadata into the sidecar.
 
-### Pending adapter and reconciliation rules
+### Adapter and reconciliation rules
+
+#### Activated schema profiles
+
+`claude.sdk-assistant.v0.2.163` (`schema-v0.2.163`) accepts only the
+documented SDK assistant envelope in an already allowlisted Claude JSONL
+source: root `type: assistant` and `session_id`, nested
+`message.type: message`, `role: assistant`, `id`, `model`, `usage`, and a
+completed stop reason (`end_turn`, `max_tokens`, `stop_sequence`, `tool_use`).
+The mapping is pinned to the
+[SDK v0.2.163 parser](https://github.com/anthropics/claude-agent-sdk-python/blob/v0.2.163/src/claude_agent_sdk/_internal/message_parser.py#L151).
+This is schema compatibility, not detection of an installed SDK version.
+`session_id` plus the API message ID identifies the logical event; transcript
+`uuid` is not a provider request ID. Compatible repeats count once; changed
+counters for that identity conflict. Provider stays null; `message.model`
+supplies only an opaque observed model identity.
+
+The profile maps fresh input from `input_tokens`, cache read from
+`cache_read_input_tokens`, cache write from `cache_creation_input_tokens`,
+and output from `output_tokens`. The
+[Messages cache contract](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+defines these input categories as disjoint. Missing categories stay null.
+[Streaming usage](https://platform.claude.com/docs/en/build-with-claude/streaming)
+is cumulative within a message; raw stream events and incomplete messages
+therefore do not enter this completed-message adapter.
+
+Claude Code camelCase disk envelopes are not verified by that SDK mapping.
+Unknown formats do not activate support through `profile_id`, `verified`,
+mirror claims or ordinal metadata. Native Codex `token_count` snapshots may
+retain allowlisted raw input/cache/output/total values but remain ineligible:
+the [Codex 0.160.0 protocol](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/protocol/src/protocol.rs#L2087)
+does not provide a response identity or independently prove an interval
+baseline. Its [provider mapping](https://github.com/openai/codex/blob/rust-v0.160.0/codex-rs/codex-api/src/sse/responses.rs#L112)
+places cache read within input and reasoning within output. The inclusive
+110 and verified cumulative 40 fixtures test those pure arithmetic rules;
+they do not certify a native Codex consumption interval.
+
+The pure reconciliation helper accepts adapter-owned evidence for mirror
+origins, interval baselines/continuity/date allocation and complete aggregate
+membership. Current native adapters do not copy such proofs from arbitrary
+transcript flags. Unsupported native relationships remain unresolved even
+when a synthetic helper oracle passes.
+
+#### Counting rules
 
 - A versioned adapter profile declares field paths, identity rules, counter
   basis, and an independent semantic oracle. Provider names and local samples

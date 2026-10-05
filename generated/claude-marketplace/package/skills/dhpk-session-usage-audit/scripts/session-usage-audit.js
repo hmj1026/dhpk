@@ -8,6 +8,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { StringDecoder } = require('node:string_decoder');
 const { buildTelemetry } = require('./lib/usage-contract');
+const { adaptUsageRecord } = require('./lib/usage-adapters');
+const { reconcileUsage } = require('./lib/usage-reconciliation');
 
 const DEFAULT_TIME_ZONE = process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
 const TEST_FIXTURE_ENV = 'DHPK_SESSION_USAGE_AUDIT_TEST_MODE';
@@ -735,6 +737,10 @@ function scanJsonlFile(file, options = {}) {
   const home = options.home || process.env.HOME || '';
   const maxBytes = options.maxBytes || 512 * 1024 * 1024;
   const records = [];
+  const usageCandidates = [];
+  const selectedContexts = new Map();
+  let usageTruncated = false;
+  const usageCounts = { unsupported: 0, failures: 0, truncated: 0 };
   const stats = {
     lines: 0,
     matched: 0,
@@ -796,6 +802,31 @@ function scanJsonlFile(file, options = {}) {
       ]) || '';
       if (options.agents && options.agents.length > 0 && !options.agents.includes(rawAgent)) return;
       stats.matched += 1;
+      if (options.usageTelemetry) {
+        const budget = Number.isSafeInteger(options.maxUsageObservations) ? options.maxUsageObservations : 5000;
+        const hasUsageMetadata = (record.type === 'assistant' && record.message !== null
+          && typeof record.message === 'object' && Object.hasOwn(record.message, 'usage'))
+          || (record.type === 'event_msg' && record.payload?.type === 'token_count');
+        if (usageCandidates.length < budget) {
+          const observationRef = `evidence:${crypto.createHash('sha256').update(`${options.sourceKind}|${file}|${stats.lines}`).digest('hex')}`;
+          try {
+            const candidate = adaptUsageRecord(record, { sourceKind: options.sourceKind, observation_ref: observationRef });
+            if (candidate) {
+              usageCandidates.push(candidate);
+              if (evidence.level === 'strong' && candidate.selected_context_id) {
+                selectedContexts.set(candidate.selected_context_id, observationRef);
+              }
+            } else if (hasUsageMetadata) {
+              usageCounts.unsupported += 1;
+            }
+          } catch (_error) {
+            usageCounts.failures += 1;
+          }
+        } else if (hasUsageMetadata) {
+          usageTruncated = true;
+          usageCounts.truncated += 1;
+        }
+      }
       if (evidence.level === 'none') {
         stats.nonDhpk += 1;
         return;
@@ -838,7 +869,15 @@ function scanJsonlFile(file, options = {}) {
   } catch (_error) {
     stats.partial = true;
   }
-  return { schema: 'dhpk.session-usage-audit.scan.v1', file, records, stats };
+  const usage = options.usageTelemetry ? {
+    observations: usageCandidates.map((candidate) => ({
+      ...candidate,
+      context_ref: selectedContexts.get(candidate.selected_context_id) || null,
+    })),
+    partial: usageTruncated || usageCounts.failures > 0,
+    counts: usageCounts,
+  } : null;
+  return { schema: 'dhpk.session-usage-audit.scan.v1', file, records, stats, ...(usage ? { usage } : {}) };
 }
 
 const FINDING_RULES = [
@@ -1597,6 +1636,9 @@ function runAudit(options = {}) {
     .filter((source) => parsed.source === 'auto' || source.kind.includes(parsed.source));
   const records = [];
   const sourceStats = [];
+  const usageObservations = [];
+  let usagePartial = false;
+  const usageCounts = { unsupported: 0, failures: 0, truncated: 0 };
   let partial = false;
   for (const source of sourceFiles) {
     const remaining = parsed.maxSessions - records.length;
@@ -1615,7 +1657,14 @@ function runAudit(options = {}) {
       maxRecords: remaining,
       packageVersion,
       knownAgents,
+      usageTelemetry: parsed.usageTelemetry,
+      maxUsageObservations: parsed.maxSessions - usageObservations.length,
     });
+    if (scan.usage) {
+      usageObservations.push(...scan.usage.observations);
+      usagePartial = usagePartial || scan.usage.partial;
+      for (const key of Object.keys(usageCounts)) usageCounts[key] += scan.usage.counts[key];
+    }
     sourceStats.push({ path: redactSourcePath(source.path, parsed.home), kind: source.kind, stats: scan.stats });
     records.push(...scan.records);
     partial = partial || scan.stats.partial;
@@ -1793,7 +1842,11 @@ function runAudit(options = {}) {
     const output = usageTelemetry ? telemetryOutput : candidate;
     const target = writeReport(report, output);
     if (usageTelemetry) {
-      const telemetry = buildTelemetry({ selection: parsed, sourceStats, omittedSources: normalizedOmittedSources, partial });
+      const usage = usageObservations.length || usagePartial || usageCounts.unsupported ? reconcileUsage(usageObservations, {
+        selection: parsed, partial: partial || usagePartial, omitted: normalizedOmittedSources,
+        collector: usageCounts,
+      }) : null;
+      const telemetry = buildTelemetry({ selection: parsed, sourceStats, omittedSources: normalizedOmittedSources, partial, usage });
       const sidecar = path.join(target, 'usage-telemetry.json');
       assertNoSymlinkComponents(sidecar);
       writePrivateFile(sidecar, `${JSON.stringify(telemetry, null, 2)}\n`);
