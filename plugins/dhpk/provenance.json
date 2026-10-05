@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "ae7692aa271507e69bf3c899e12e84ce22165361",
-  "generatedFromCommit": "ae7692aa271507e69bf3c899e12e84ce22165361",
-  "generatedFromTree": "35ef17cf9364d552fee88e22f8796c1b7e90045b",
-  "inventoryDigest": "53e4e49cc26f6f1e3c524b63b090ca13672233e48a9157199ea9a68e2b2df941",
-  "inventoryRevision": "sha256:4a8d065166cd715894291d3fbc5a4b2f53aa5cf76748a7ade2437697cfe2128a",
+  "sourceCommit": "8c25eb497a25d23b4abbdfb055af501fd4b92c83",
+  "generatedFromCommit": "8c25eb497a25d23b4abbdfb055af501fd4b92c83",
+  "generatedFromTree": "c7169f3f4284ef987f3ca3b2e654d5952ac04b7b",
+  "inventoryDigest": "3869f75dd73e0e53720426d48cba78103f2c5eb2d67d4acfa503e91880c95130",
+  "inventoryRevision": "sha256:fd464ce590edb538559742f9f8039555c7972b5085cecdc31f30c58ede9ca99e",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
@@ -1747,7 +1747,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "6a94848d32e53533ce2555cf6178a351a258dd56"
+        "originalGitBlobDigest": "8f81de6cc8678c98025120d37a4e126f28250d43"
       },
       {
         "ownerId": "flow-guide",
@@ -2905,7 +2905,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "001a333b5ec6f12f19606ba1ed1b43557c1de8f6"
+        "originalGitBlobDigest": "603b8e8a95e792fbfa8d7171f95db6840f6ce190"
       },
       {
         "ownerId": "tdd",
@@ -6545,7 +6545,7 @@
     "dhpk-opsx-load-context": "8fcbc041f1f1bf6cc015cc8ed13b5d7f1520f63d533138be9bd9704ba83e3acf",
     "dhpk-opsx-post-observation": "23d7f375b49110c3d4c66a8fe596dd9403f1ec7bcac83f20469f4ec4135bd50f",
     "flow-drive": "29a4cf3112c6f1d597a966189c36908c742c9d6af3b9fafa18213dda4a9fce1c",
-    "flow-guide": "9182f602e989383e2e91accfdf079f45bf2556bf8b865a71a00d7855a7828c7e",
+    "flow-guide": "76199e6cf4a78f276c3811844b7e5a42ef73bfba574965863127ca614db6957a",
     "git-smart-commit": "6ba0613a9271fcfe68ab8f3fc55a1e6c85ef7368355b16d256a0b1447cf37967",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
     "harness-audit": "5a697f5e350f2c93bc9bf723d1276c0cc8658ab2e4b892e9904bbda5ac35cc34",
@@ -6555,13 +6555,13 @@
     "release-creator": "e2dd86197a7461ed8493e36673db6a602d0acb9eb79442539c8205d1b19e9c63",
     "repo-verify": "ad199643d8b917bc0211f806bb9eeaac265d758bd549d330d0723bdb1cab8c8a",
     "skill-scope": "aeebfd62258b9831556e83cb59dae20799d7b401848615bfa2161d2b172bbc1b",
-    "tdd-workflow": "a578902fb964e68d7309432a058ec18f586da4330098ed0c9c77825060e4aa59",
+    "tdd-workflow": "e982fde7e4694bd5c2a754ba327042e3413877a2d9f77f70335f8f9b870c3cb2",
     "ui-ux-verify": "a116cb22d82d85de9bc89862cdd585f3f7505a3ea4edb5dc1be803e6e696eb9a",
     "update-docs": "0897ee969a5ebee4ed4b9d98b6fe01f1f7bb5404156e4c2a3aa1ec6e58d3d024"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "1654527f1a3333b3de85caae24b3bac6d12de96581b4a2b6123560501eb28ff8",
+    "planId": "c76902715337979164d12e5477ef9822c8eeb3333dc313166d2ba259fcc5cb9a",
     "scope": "project",
     "profileId": "compat-v1",
     "selectedStableIds": [
@@ -6621,10 +6621,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "1654527f1a3333b3de85caae24b3bac6d12de96581b4a2b6123560501eb28ff8",
-      "inventory": "53e4e49cc26f6f1e3c524b63b090ca13672233e48a9157199ea9a68e2b2df941"
+      "plan": "c76902715337979164d12e5477ef9822c8eeb3333dc313166d2ba259fcc5cb9a",
+      "inventory": "3869f75dd73e0e53720426d48cba78103f2c5eb2d67d4acfa503e91880c95130"
     },
-    "rollbackIdentity": "7937d58d0e2c8a1d182271af0510a22982cfa1e4b90f1356798e1f2cf0429fb1"
+    "rollbackIdentity": "0800bb208ee0a4237088c3e325c68e360e5b1c089090645899259b2e01535cc1"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

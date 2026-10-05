@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "ae7692aa271507e69bf3c899e12e84ce22165361",
-  "generatedFromCommit": "ae7692aa271507e69bf3c899e12e84ce22165361",
-  "generatedFromTree": "35ef17cf9364d552fee88e22f8796c1b7e90045b",
-  "inventoryDigest": "0451b10c2321f05f98c21ff6414b6a18f1bfb103ae1bf8a127746843c498a00e",
-  "inventoryRevision": "sha256:4a8d065166cd715894291d3fbc5a4b2f53aa5cf76748a7ade2437697cfe2128a",
+  "sourceCommit": "8c25eb497a25d23b4abbdfb055af501fd4b92c83",
+  "generatedFromCommit": "8c25eb497a25d23b4abbdfb055af501fd4b92c83",
+  "generatedFromTree": "c7169f3f4284ef987f3ca3b2e654d5952ac04b7b",
+  "inventoryDigest": "64ca89159ceabb714bcbac81a9c10b31aa8bd0dd9f3f6bbb3df5c863e2157219",
+  "inventoryRevision": "sha256:fd464ce590edb538559742f9f8039555c7972b5085cecdc31f30c58ede9ca99e",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
@@ -1695,7 +1695,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "6a94848d32e53533ce2555cf6178a351a258dd56"
+        "originalGitBlobDigest": "8f81de6cc8678c98025120d37a4e126f28250d43"
       },
       {
         "ownerId": "flow-guide",
@@ -2469,7 +2469,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "001a333b5ec6f12f19606ba1ed1b43557c1de8f6"
+        "originalGitBlobDigest": "603b8e8a95e792fbfa8d7171f95db6840f6ce190"
       },
       {
         "ownerId": "tdd",
@@ -5661,20 +5661,20 @@
     "dhpk-cli-dispatch-context": "e1b74ef2ed3142c8256abe491c637c694c2b0a307604b266ad0535a79ff0662a",
     "dhpk-cli-transport": "65506d2795a747d7e2d878d0301db03b7875370b2ec33e1c6dd70fa50909a482",
     "flow-drive": "a8afd8ad5256a22ca3ca8178252605da3c09e08c1c9b6b8227ea906c769311f6",
-    "flow-guide": "2889e6b7e6339e26faeafaafb868a5967f0556b71831a9f3f1a7ac55956849a5",
+    "flow-guide": "1777e0da475f9c11c6b58a89d1a4e6594e028390f9399b62e4d30031ec01a44b",
     "git-smart-commit": "4d2aa4f52a45e7a99bcee9e6b26165055c3c35f3104234cd3fbabca2f48be37c",
     "git-worktree": "e6876818fdd52e681804b08a10642ed9e8c04e2bb29c4aed4b91f7e94eea50e2",
     "precommit": "64198cabda6f826b5b9c5d63e761256ba4ece088ff45582a0fba987718b9ca27",
     "proposal-analyze": "47f4216b0e7409d245dff986d1049762658b2fca99dc930812e567514669afad",
     "release-creator": "317bc878402b7e724cb3d7528c8d50b4e5bc921f11c378d43838e2fb78d9a96c",
     "repo-verify": "41e7b3761b8dcdb41eb49294643790c36aa8d330c5adab2a10f70f90f816ffb8",
-    "tdd-workflow": "41335ee9216e6b5a44675a8b8e6f6562de88cc5f1f67269acadfb5a8ba3ccf0f",
+    "tdd-workflow": "eef6f9b92403c864382d311afbe5940c4b2a1003c099223f26934bcef85573dc",
     "ui-ux-verify": "f0f38aec3d091ebe2ff1f805292c5692d41d9f028c22ecd4a72a8f4ace85f2f0",
     "update-docs": "f194607fafde76ed1b548717921c44bbf96178b565b5abe770bf3bebcd5dc90a"
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "07f9132a824574420921e927f7608a5f083723fa0f9110efe33160370ec67785",
+    "planId": "f4327746c1a961c8dfe423d25f91ceb235a6506d82381e9809c88709d9399008",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -5724,10 +5724,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "07f9132a824574420921e927f7608a5f083723fa0f9110efe33160370ec67785",
-      "inventory": "0451b10c2321f05f98c21ff6414b6a18f1bfb103ae1bf8a127746843c498a00e"
+      "plan": "f4327746c1a961c8dfe423d25f91ceb235a6506d82381e9809c88709d9399008",
+      "inventory": "64ca89159ceabb714bcbac81a9c10b31aa8bd0dd9f3f6bbb3df5c863e2157219"
     },
-    "rollbackIdentity": "c9cdc2407c0427e8712b4f69b1606e787f440e36805b524323178e44c40788de"
+    "rollbackIdentity": "6c1f18d3fa4b5177c74cc7ae4c3dc047e963bb0a82f1be0f202f1a0488fc626b"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {

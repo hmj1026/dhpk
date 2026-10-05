@@ -5,11 +5,11 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "ae7692aa271507e69bf3c899e12e84ce22165361",
-  "generatedFromCommit": "ae7692aa271507e69bf3c899e12e84ce22165361",
-  "generatedFromTree": "35ef17cf9364d552fee88e22f8796c1b7e90045b",
-  "inventoryDigest": "53e4e49cc26f6f1e3c524b63b090ca13672233e48a9157199ea9a68e2b2df941",
-  "inventoryRevision": "sha256:4a8d065166cd715894291d3fbc5a4b2f53aa5cf76748a7ade2437697cfe2128a",
+  "sourceCommit": "8c25eb497a25d23b4abbdfb055af501fd4b92c83",
+  "generatedFromCommit": "8c25eb497a25d23b4abbdfb055af501fd4b92c83",
+  "generatedFromTree": "c7169f3f4284ef987f3ca3b2e654d5952ac04b7b",
+  "inventoryDigest": "3869f75dd73e0e53720426d48cba78103f2c5eb2d67d4acfa503e91880c95130",
+  "inventoryRevision": "sha256:fd464ce590edb538559742f9f8039555c7972b5085cecdc31f30c58ede9ca99e",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "cli-dispatch-context",
@@ -1652,7 +1652,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "6a94848d32e53533ce2555cf6178a351a258dd56"
+        "originalGitBlobDigest": "8f81de6cc8678c98025120d37a4e126f28250d43"
       },
       {
         "ownerId": "flow-guide",
@@ -2426,7 +2426,7 @@
         "ownerId": "tdd",
         "source": "skills/tdd-workflow/SKILL.md",
         "destination": "skills/tdd-workflow/SKILL.md",
-        "originalGitBlobDigest": "001a333b5ec6f12f19606ba1ed1b43557c1de8f6"
+        "originalGitBlobDigest": "603b8e8a95e792fbfa8d7171f95db6840f6ce190"
       },
       {
         "ownerId": "tdd",
@@ -6044,7 +6044,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "3df6d293f7aa8b9aedb5f63637120ccad91c30f8f9f8d5f2ea311442a0a433c3",
+    "planId": "cba7ec7bb934eb0adad32ac643ffec7f6bfbaebfdb627045df9db7f3adfdea03",
     "scope": "project",
     "profileId": "surface-default",
     "selectedStableIds": [
@@ -6094,10 +6094,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "3df6d293f7aa8b9aedb5f63637120ccad91c30f8f9f8d5f2ea311442a0a433c3",
-      "inventory": "53e4e49cc26f6f1e3c524b63b090ca13672233e48a9157199ea9a68e2b2df941"
+      "plan": "cba7ec7bb934eb0adad32ac643ffec7f6bfbaebfdb627045df9db7f3adfdea03",
+      "inventory": "3869f75dd73e0e53720426d48cba78103f2c5eb2d67d4acfa503e91880c95130"
     },
-    "rollbackIdentity": "69e7407de113d55839baf31ed720d7635cbb1df0e8a16c17b8a2690fc45fd3a8"
+    "rollbackIdentity": "1456efd5b52b5ccda059c6cf3bda36eedc70f46b30cd0c0d98c914bad6ea140b"
   },
   "usageSchema": "dhpk.skill-usage.v1",
   "usage": {
@@ -7087,5 +7087,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "87caad698f63477cb94cb57e57bbc0b3593cc70b82b376c0777dcee59d23955e"
+  "planFingerprint": "3c190b60cd7644734ef204216aa2106dcf11c0c83b86b2df5bc6372d41a575e9"
 }
