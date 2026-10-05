@@ -1,2 +1,2 @@
-scope: Telemetry and cutover proposals
-note: Publish reviewable session-usage telemetry and cutover proposals while keeping adoption, implementation, installation and retirement as separate checkpoints.
+scope: Telemetry and cutover planning
+note: Share telemetry and cutover planning through their existing specifications, issue checklist, audit reference and installation guide while keeping implementation, installation and retirement as separate checkpoints.

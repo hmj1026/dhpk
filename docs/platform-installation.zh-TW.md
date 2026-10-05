@@ -164,6 +164,59 @@ diagnostic。尤其是 Codex project-local write 仍應使用既有
 `install-cursor-harness.sh`。Generic route 會持續 fail-closed，直到未來變更明確
 移交 ArtifactStore write ownership；只有 adapter characterization 絕不會啟用 mutation。
 
+### Cutover 計畫與 owned-path recovery
+
+本指南是 installation operating SSOT。[Host runtime follow-up disposition](contracts/host-runtime-followup-disposition.md)
+擁有歷史 T-1–T-4 disposition 與目前 conditional native-runtime policy。已接受的 owner：
+[distribution surface governance](../openspec/specs/distribution-surface-governance/spec.md)、
+[distribution projection contract](../openspec/specs/distribution-projection-contract/spec.md)，
+以及 [skill retirement migration](../openspec/specs/skill-retirement-migration/spec.md)。
+
+1. **指定單一目標。** 每次 apply 前記錄 consumer project、target surface/Host、
+   predecessor route 與 successor exact artifact。
+2. **綁定 plan。** 記錄 source commit/tree/version、artifact digest、inventory revision、
+   profile、selected stable IDs、Host configuration、receipt schema/current digest、
+   owned roots；逐 path 記錄 previous/current/expected fingerprints 與 action。缺少事實
+   用 `null` 加 `UNAVAILABLE`；不可由 package generation 或 default 推測。
+3. **以既有 adapter 驗證 destination ownership。** Generic
+   `dhpk-install <surface> plan` 僅代表 selection/request，不證明已安裝路徑 ownership。
+   實際 target 使用唯讀 adapter plan：Codex `.codex/.dhpk-installed.json`、Cursor
+   `.cursor/.dhpk-installed.json`（schema v3）或 AGY receipt-owned plan；並檢查共享的
+   `.agents/.dhpk-installed.json` receipt 與 Host bindings。預設
+   `node scripts/ci/gen-agents-skills.js` 會寫入，不能當 plan。Generic writes 維持
+   `BLOCKED` / `NOT_IMPLEMENTED`；不要發明 flags。
+4. **逐一分類目標路徑。**
+   - 未變更且 receipt-owned：僅限獨立核准的 action。
+   - 已修改但 receipt-owned：保留並回報 path conflict。
+   - unowned、foreign 或 orphaned：保留，不 adoption。
+   - retargeted symlink、malformed receipt 或 ownership ambiguous：fail closed。
+   Source、destination、candidate、receipt 或 path identity 在 plan 後變更即使 plan
+   失效，必須重做。AGY canonical
+   與 legacy targets 同時符合時，停止並回報 `BLOCKED` / `AMBIGUOUS_TARGETS`。
+   Collision decision 僅適用於明確列出的路徑。
+5. **記錄授權操作與 recovery。** Installed transition 必須等待 successor publication、
+   適用的 exact-artifact consumer acceptance 與具名 path 的獨立 apply 核准；才可備份
+   核准的 receipt-owned content，再記錄 receipt/path identities、exact transaction、
+   named paths、expected actions 與 changed paths。部分失敗時，只能由 adapter journal
+   還原已證明屬於該 transaction 的路徑；保留 foreign 或新修改內容。ownership 無法
+   證明時停止並交由人工 recovery。
+6. **依序完成 cutover 驗收。** 先產生 deterministic source plan。只有發現 unowned
+   behavior gap 時，才實作該 gap 並以 disposable fixtures 驗證 path states；否則沿用
+   既有 adapter，不新增 code。發布 successor 後，對每個
+   相關 consumer 安裝並驗收 exact artifact，確認 discovery 預期且唯一。移除一個 Host
+   binding 後，共享 content 與其餘 Host discovery 必須保留。只有具名 routes 與剩餘
+   consumers/references 已盤點、適用 consumers 通過、deprecation window 與 recovery
+   path 已記錄、且另有 retirement 核准後，才 retire。
+
+Codex native 維持 experimental 與 isolated；active project/native overlap 必須因
+duplicate discovery 停止。Cursor native components 與 portable Agent Plugin 保有
+各自 owner；某 surface 的 plan 不會授權另一 surface 的 writes。
+
+Native runtime evidence 僅適用於具名 integration、受影響的 loader/role/tool mapping、
+activation defect 或明確
+native-acceptance request；package 不代表 native runtime evidence。本流程不授予
+apply、publication 或 retirement 權限，也不宣稱 cutover 已執行。
+
 ### Standalone 選取與 profile 選取
 
 沒有明確選取的新安裝仍使用 inventory-owned 的 `minimal` profile。standalone

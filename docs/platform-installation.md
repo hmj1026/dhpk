@@ -173,6 +173,59 @@ the supported `install-codex-skills.sh` route for Codex project-local writes and
 stays fail-closed until a future change explicitly transfers ArtifactStore
 write ownership; adapter characterization alone never enables mutation.
 
+### Cutover planning and owned-path recovery
+
+This guide is the installation operating SSOT. The [Host runtime follow-up disposition](contracts/host-runtime-followup-disposition.md)
+owns historical T-1–T-4 dispositions and current conditional native-runtime policy. Accepted owners are
+[distribution surface governance](../openspec/specs/distribution-surface-governance/spec.md),
+[distribution projection contract](../openspec/specs/distribution-projection-contract/spec.md), and
+[skill retirement migration](../openspec/specs/skill-retirement-migration/spec.md).
+
+1. **Choose one target.** Before each apply, name the consumer project, target surface and Host,
+   predecessor route, and exact successor artifact.
+2. **Bind the plan.** Record source commit/tree/version and artifact digest; inventory revision,
+   profile, selected stable IDs, Host configuration, receipt schema/current digest, owned roots,
+   and each path's previous/current/expected fingerprints plus intended action. Use `null` with
+   `UNAVAILABLE` for missing facts; never infer them from package generation or defaults.
+3. **Prove destination ownership with its adapter.** Generic
+   `dhpk-install <surface> plan` proves selection/request only. Use the actual target's read-only
+   plan: Codex `.codex/.dhpk-installed.json`, Cursor `.cursor/.dhpk-installed.json` (schema v3),
+   or AGY's receipt-owned plan. Also inspect shared `.agents/.dhpk-installed.json` and Host
+   bindings. The default `node scripts/ci/gen-agents-skills.js` writes; it is not a plan.
+   Generic writes remain `BLOCKED` / `NOT_IMPLEMENTED`; do not invent flags.
+4. **Classify each path.**
+   - Unchanged receipt-owned: eligible only for a separately approved action.
+   - Modified receipt-owned: preserve and report a path conflict.
+   - Unowned, foreign, or orphaned: preserve; never adopt.
+   - Retargeted symlink, malformed receipt, or ambiguous ownership: fail closed.
+   Any source, destination, candidate, receipt, or path identity change invalidates the plan;
+   replan. If AGY's canonical and
+   legacy targets both match, stop as `BLOCKED` with `AMBIGUOUS_TARGETS`. A collision decision
+   covers only its named path.
+5. **Record authorized work and recovery.** An installed transition waits for successor
+   publication, applicable exact-artifact consumer acceptance, and explicit apply approval
+   for named paths. Then back up
+   approved receipt-owned content; record receipt/path identities, exact transaction, expected
+   actions, and changed paths. On partial failure, use the adapter journal to restore only paths
+   proven changed by that transaction; preserve foreign or newly modified content. If ownership
+   is unproven, stop for manual recovery.
+6. **Close cutover in order.** Produce a deterministic source plan. If it exposes an unowned
+   behavior gap, implement only that gap and test path states in disposable fixtures; otherwise
+   retain the existing adapter without new code. Publish the successor, then validate its exact
+   artifact with each relevant consumer and unique intended discovery. Removing one Host binding
+   must preserve shared content and remaining Hosts' discovery. Retire compatibility only after
+   named routes and their remaining consumers/references are inventoried, applicable consumers
+   pass, a deprecation window/recovery path, and separate approval are recorded.
+
+Codex native remains experimental and isolated; active project/native overlap must stop on
+duplicate discovery. Cursor native components and the portable Agent Plugin retain separate
+owners; one surface's plan cannot authorize another's writes.
+
+Native runtime evidence is conditional on a named integration, affected loader/role/tool mapping,
+activation defect, or
+explicit native-acceptance request; package results are not native-runtime evidence. This
+procedure authorizes no apply, publication, or retirement and claims no cutover execution.
+
 ### Standalone selection and profile selection
 
 New installs without an explicit selection continue to use the inventory-owned
