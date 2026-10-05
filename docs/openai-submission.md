@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./openai-submission.zh-TW.md)
 
-## Acceptance applicability (#848/#854)
+## Acceptance applicability
 
 Installation and package checks are separate from native Host workflow,
 rendered discovery, context-budget research, portal submission and publication.
