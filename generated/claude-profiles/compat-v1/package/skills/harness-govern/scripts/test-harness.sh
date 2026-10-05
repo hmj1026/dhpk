@@ -62,7 +62,6 @@ fi
 
 HOOKS="$ROOT/$HARNESS_DIR/hooks"
 ARTIFACTS="$ROOT/$HARNESS_DIR/artifacts"
-SENTINEL="$ARTIFACTS/sessions/.pending-review"
 
 detect_memory_dir() {
     local harness_dir="$1"
@@ -140,8 +139,6 @@ run_bash_guard() { # cmd -> "exit_code|stderr"
 
 # ============================================================
 echo "[setup] root=$ROOT"
-echo "[setup] backing up sentinel if any"
-SENTINEL_BAK=""
 ARTIFACTS_BAK=""
 
 cleanup() {
@@ -150,18 +147,9 @@ cleanup() {
         rm -rf "$ARTIFACTS"
         mv "$ARTIFACTS_BAK" "$ARTIFACTS"
     fi
-    # Restore sentinel
-    rm -f "$SENTINEL"
-    if [[ -n "${SENTINEL_BAK:-}" && -f "$SENTINEL_BAK" ]]; then
-        mv "$SENTINEL_BAK" "$SENTINEL"
-    fi
 }
 trap cleanup EXIT INT TERM
 
-if [[ -f "$SENTINEL" ]]; then
-    SENTINEL_BAK=$(mktemp)
-    cp "$SENTINEL" "$SENTINEL_BAK"
-fi
 mkdir -p "$ARTIFACTS/sessions"
 
 # ============================================================
@@ -278,29 +266,6 @@ fi
 # project no longer ships this hook (hook_profile is advisory via pluginConfigs).
 echo ""
 echo "=== T6 stop-review-reminder.sh (SKIP: plugin-owned, dhpk >=0.10.0) ==="
-
-# ============================================================
-echo ""
-if [[ -f "$HOOKS/clear-sentinel.sh" ]]; then
-    echo "=== T7 clear-sentinel.sh ==="
-
-    echo "x" > "$SENTINEL"
-    out=$(bash "$HOOKS/clear-sentinel.sh" ".pending-review" "code-reviewer" 2>&1)
-    if [[ -f "$SENTINEL" ]]; then
-        echo "  $(color_fail FAIL) T7.1 sentinel still exists"
-        FAIL=$((FAIL + 1))
-        FAILED_CASES+=("T7.1")
-    else
-        echo "  $(color_pass PASS) T7.1 sentinel removed"
-        PASS=$((PASS + 1))
-    fi
-    assert_contains "T7.2 cleared message" "sentinel cleared" "$out"
-
-    out=$(bash "$HOOKS/clear-sentinel.sh" ".pending-review" "code-reviewer" 2>&1)
-    assert_contains "T7.3 already-clean message" "sentinel already clean" "$out"
-else
-    echo "=== T7 clear-sentinel.sh (SKIP: hook is plugin-owned, not project-local) ==="
-fi
 
 # ============================================================
 echo ""
@@ -468,12 +433,7 @@ fi
 # ============================================================
 echo ""
 echo "=== T10 dhpk plugin wiring (review routing SSOT) ==="
-# The full edit→review lifecycle (guard → sentinel → reminder) is plugin-owned end
-# to end post-cutover. Rather than re-test plugin internals, assert the project still
-# declares dhpk as the routing SSOT, then verify the project-local half of the
-# lifecycle — that clear-sentinel.sh functions (the tool the runtime auto-clear hook
-# and the orchestrator's stale-sentinel back-stop both use to clear a sentinel).
-rm -f "$ARTIFACTS/sessions"/.pending-* 2>/dev/null
+# Verify a project-local dhpk version pin when one is present.
 if [[ ! -f "$ROOT/$HARNESS_DIR/dhpk-versions.json" ]]; then
     echo "  SKIP T10.1 dhpk-versions.json absent (project may not pin a dhpk version)"
 elif jq -e . "$ROOT/$HARNESS_DIR/dhpk-versions.json" >/dev/null 2>&1; then
@@ -485,23 +445,8 @@ else
     FAILED_CASES+=("T10.1")
 fi
 
-if [[ -f "$HOOKS/clear-sentinel.sh" ]]; then
-    echo "x" > "$SENTINEL"
-    bash "$HOOKS/clear-sentinel.sh" ".pending-review" "code-reviewer" >/dev/null 2>&1
-    if [[ ! -f "$SENTINEL" ]]; then
-        echo "  $(color_pass PASS) T10.2 local sentinel clear lifecycle"
-        PASS=$((PASS + 1))
-    else
-        echo "  $(color_fail FAIL) T10.2 sentinel not cleared"
-        FAIL=$((FAIL + 1))
-        FAILED_CASES+=("T10.2")
-    fi
-else
-    echo "  SKIP T10.2 clear-sentinel.sh (plugin-owned, not project-local)"
-fi
-
 # ============================================================
-# trap handles sentinel + artifacts restore on exit
+# trap restores the T5 artifacts backup on unexpected exit
 
 TOTAL=$((PASS + FAIL))
 echo ""

@@ -3514,7 +3514,7 @@
       "sourcePath": "skills/harness-govern/scripts/harness-scenarios.sh",
       "destination": "skills/harness-govern/scripts/harness-scenarios.sh",
       "kind": "entry",
-      "sha256": "e00686aca9a0a3e4a70c7a73a6a677a023f5f12a7523e1d242eb242d102156ca"
+      "sha256": "72223b3ee60c69ec5efc40b6aba6c17a504464641968ccb0d03c2165a9b412d6"
     },
     {
       "skillId": "harness-govern",
@@ -3658,7 +3658,7 @@
       "sourcePath": "skills/harness-govern/scripts/test-harness.sh",
       "destination": "skills/harness-govern/scripts/test-harness.sh",
       "kind": "entry",
-      "sha256": "2b01de8636568da17628137835705b175b1ef90cefed54460593be2bb3d5a192"
+      "sha256": "5d3a123802a8be79f54fce049e479bbdb1fc3deeee6868e52e0e8754a21b8fad"
     },
     {
       "skillId": "harness-setup",

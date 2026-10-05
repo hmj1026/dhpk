@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "6712e3247a2a56be169c3aa57fb68c5616af286d",
-  "generatedFromCommit": "6712e3247a2a56be169c3aa57fb68c5616af286d",
-  "generatedFromTree": "7781d87fa1b8f34811b91fee886b282f536b25d1",
+  "sourceCommit": "4e16f7fe99f344f175c23c5e3c294d349595cfe2",
+  "generatedFromCommit": "4e16f7fe99f344f175c23c5e3c294d349595cfe2",
+  "generatedFromTree": "af84d24886fed21393b7f8594729fc61eee9873e",
   "inventoryDigest": "8ac28bab64e7a98e2859e42676b648a78f9b76048f0808d36e97d9632631b15d",
   "inventoryRevision": "sha256:7ded83f0abb55d229e0f44fe8b03f93c67c80201103adb20bb1ee473f5892bfb",
   "generatorVersion": "2.3.0",
@@ -2323,7 +2323,7 @@
         "ownerId": "harness-govern",
         "source": "skills/harness-govern/scripts/harness-scenarios.sh",
         "destination": "skills/harness-govern/scripts/harness-scenarios.sh",
-        "originalGitBlobDigest": "7ea295c0821b0ed331f053e1885233bce786b517"
+        "originalGitBlobDigest": "fde1f6fd4781d7c1eb7687daa035c80b3c60cc72"
       },
       {
         "ownerId": "harness-govern",
@@ -2431,7 +2431,7 @@
         "ownerId": "harness-govern",
         "source": "skills/harness-govern/scripts/test-harness.sh",
         "destination": "skills/harness-govern/scripts/test-harness.sh",
-        "originalGitBlobDigest": "583f01054ec0ce6e86aef8b6ab317bd6314c90a1"
+        "originalGitBlobDigest": "52d523bfa925c9a6582b5078259dabf1016b1fea"
       },
       {
         "ownerId": "opsx-load-context",
@@ -6549,7 +6549,7 @@
     "git-smart-commit": "6ba0613a9271fcfe68ab8f3fc55a1e6c85ef7368355b16d256a0b1447cf37967",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
     "harness-audit": "5a697f5e350f2c93bc9bf723d1276c0cc8658ab2e4b892e9904bbda5ac35cc34",
-    "harness-govern": "f79ce98ee389acb17e76a8b2df3adfe9cf8975065c65f97c4c8be4093c0b2d62",
+    "harness-govern": "88140ccc15f9b51f1255622849ce6dc78d1b6215112a23d35ce1f2ecf7685b54",
     "precommit": "46311444e480082877e7784e715968c90a20a0237a4eb58ab939bae0f7e8e777",
     "proposal-analyze": "87e5529ad5fe74ca96d3e0bafc30ba21520e65f9bc1a0976c66690be53b3b212",
     "release-creator": "e2dd86197a7461ed8493e36673db6a602d0acb9eb79442539c8205d1b19e9c63",
