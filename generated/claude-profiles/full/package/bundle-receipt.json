@@ -2292,6 +2292,10 @@
       "destination": "skills/skill-scope/scripts/skill-lint.js"
     },
     {
+      "stableId": "claude-profile:skill-resource:skill-scope:scripts/stocktake-runtime.js",
+      "destination": "skills/skill-scope/scripts/stocktake-runtime.js"
+    },
+    {
       "stableId": "claude-profile:skill:software-architecture",
       "destination": "skills/module-design/SKILL.md"
     },
@@ -2642,5 +2646,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "70c38b9245097284dcb6140e414ff14c077524ada4fb4943a305c2cb1b4ee506"
+  "planFingerprint": "7bbf37de331336e9f9c89736c523e572e68a293c2f39da8a534021bb9a4591fd"
 }

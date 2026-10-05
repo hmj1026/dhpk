@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "e19bc537c2ec1fb63b8988c1233baaf2f1294b3a",
-  "generatedFromCommit": "e19bc537c2ec1fb63b8988c1233baaf2f1294b3a",
-  "generatedFromTree": "6c87b7a4bec671aaec8783c056e23367acecd14e",
+  "sourceCommit": "fbd0a3189dcfda88fa72f49fb074d9c0c9192576",
+  "generatedFromCommit": "fbd0a3189dcfda88fa72f49fb074d9c0c9192576",
+  "generatedFromTree": "dcdb1c6966ae90d3f22b7ce34f688d9ca4911326",
   "inventoryDigest": "845375474b0d74e874e063a0ad3d54b945a1a66f348272b870dbb4bcf8a0fcf7",
   "inventoryRevision": "sha256:200c524a6622fb503c0390cae18102f3244138f7fe4b783c6285104d4bed9dfc",
   "generatorVersion": "2.3.0",
@@ -2161,7 +2161,7 @@
         "ownerId": "harness-audit",
         "source": "skills/harness-audit/SKILL.md",
         "destination": "skills/harness-audit/SKILL.md",
-        "originalGitBlobDigest": "b5f9e2914b1591fe47738d426a4d9cf6f5f2e653"
+        "originalGitBlobDigest": "efb42a50510f44467835adffad82178b2c35397f"
       },
       {
         "ownerId": "harness-audit",
@@ -2179,7 +2179,7 @@
         "ownerId": "harness-audit",
         "source": "skills/harness-audit/scripts/harness-audit.js",
         "destination": "skills/harness-audit/scripts/harness-audit.js",
-        "originalGitBlobDigest": "2eb73c3f97abf8b5ac68dba7ff120d4be44b28af"
+        "originalGitBlobDigest": "30f4ecf9c6bd5620725f9862004fe3157bb328c8"
       },
       {
         "ownerId": "harness-govern",
@@ -2857,7 +2857,7 @@
         "ownerId": "skill-scope",
         "source": "skills/skill-scope/SKILL.md",
         "destination": "skills/skill-scope/SKILL.md",
-        "originalGitBlobDigest": "563a3685a48eb747cea25d82693eabeb91f8c002"
+        "originalGitBlobDigest": "a3825b60501adf2384dca2160679bf70d681079e"
       },
       {
         "ownerId": "skill-scope",
@@ -2893,25 +2893,31 @@
         "ownerId": "skill-scope",
         "source": "skills/skill-scope/scripts/quick-diff.sh",
         "destination": "skills/skill-scope/scripts/quick-diff.sh",
-        "originalGitBlobDigest": "22f415d8283c380b7e937778fec22d789dd5bbf1"
+        "originalGitBlobDigest": "dc1c1cda632ceae5144cf485e262ae1f43dd3eb4"
       },
       {
         "ownerId": "skill-scope",
         "source": "skills/skill-scope/scripts/save-results.sh",
         "destination": "skills/skill-scope/scripts/save-results.sh",
-        "originalGitBlobDigest": "32952007217c86c21a368c0b1c8096eaed5cba3a"
+        "originalGitBlobDigest": "4a407ed656c3fe9c9ae9cdeaf754256a2a0ba11b"
       },
       {
         "ownerId": "skill-scope",
         "source": "skills/skill-scope/scripts/scan.sh",
         "destination": "skills/skill-scope/scripts/scan.sh",
-        "originalGitBlobDigest": "d7e485ef9d1737c1ef866b2a97837d97d943180c"
+        "originalGitBlobDigest": "63705728eeb3b8aed5020af427888ac087e13049"
       },
       {
         "ownerId": "skill-scope",
         "source": "skills/skill-scope/scripts/skill-lint.js",
         "destination": "skills/skill-scope/scripts/skill-lint.js",
         "originalGitBlobDigest": "8994f15c6a969374629b4e6f75e98370d1bb7fe3"
+      },
+      {
+        "ownerId": "skill-scope",
+        "source": "skills/skill-scope/scripts/stocktake-runtime.js",
+        "destination": "skills/skill-scope/scripts/stocktake-runtime.js",
+        "originalGitBlobDigest": "9f9513b624a13a1a98456959243f66de64acc43d"
       },
       {
         "ownerId": "tdd",
@@ -6294,6 +6300,13 @@
         "kind": "entry"
       },
       {
+        "ownerId": "skill-scope",
+        "skillId": "skill-scope",
+        "sourcePath": "skills/skill-scope/scripts/stocktake-runtime.js",
+        "destination": "skills/skill-scope/scripts/stocktake-runtime.js",
+        "kind": "entry"
+      },
+      {
         "ownerId": "tdd",
         "skillId": "tdd",
         "sourcePath": "skills/tdd-workflow/SKILL.md",
@@ -6574,13 +6587,13 @@
     "flow-guide": "db4efd222fe001a9a3e77553ed4dee4dd694f961ed646e4744990165286e5987",
     "git-smart-commit": "6ba0613a9271fcfe68ab8f3fc55a1e6c85ef7368355b16d256a0b1447cf37967",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
-    "harness-audit": "5a697f5e350f2c93bc9bf723d1276c0cc8658ab2e4b892e9904bbda5ac35cc34",
+    "harness-audit": "31eb5483b6e5abdb162121739087ee596542680106792238fdb2696e1f3955a3",
     "harness-govern": "fb84ffdf89f47200048bb5131e4a2709efb2905c4c3c61b18952e039a0557404",
     "precommit": "46311444e480082877e7784e715968c90a20a0237a4eb58ab939bae0f7e8e777",
     "proposal-analyze": "f92e6ee8080697e49a9ea565320b216113d9132b4efa9cc1d8052b363a34bc16",
     "release-creator": "e2dd86197a7461ed8493e36673db6a602d0acb9eb79442539c8205d1b19e9c63",
     "repo-verify": "ad199643d8b917bc0211f806bb9eeaac265d758bd549d330d0723bdb1cab8c8a",
-    "skill-scope": "aeebfd62258b9831556e83cb59dae20799d7b401848615bfa2161d2b172bbc1b",
+    "skill-scope": "ac388ce9b1ee983676aeb3135c426ec87ecb0d81ebe9c93e53cc9af351b44246",
     "tdd-workflow": "e982fde7e4694bd5c2a754ba327042e3413877a2d9f77f70335f8f9b870c3cb2",
     "ui-ux-verify": "a116cb22d82d85de9bc89862cdd585f3f7505a3ea4edb5dc1be803e6e696eb9a",
     "update-docs": "0897ee969a5ebee4ed4b9d98b6fe01f1f7bb5404156e4c2a3aa1ec6e58d3d024"

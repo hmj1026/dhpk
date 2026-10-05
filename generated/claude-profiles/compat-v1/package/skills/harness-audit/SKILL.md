@@ -24,6 +24,10 @@ the score and check source of truth; preserve rubric `2026-03-30`, all seven
 categories, and its output. Read
 [`references/workflow.md`](references/workflow.md) for format handling.
 
+Capability reference: [ECC's harness audit](https://github.com/affaan-m/ECC/blob/b9a01d3c/scripts/harness-audit.js).
+dhpk retains the public audit interface and scoring contract with an independently
+written runtime.
+
 ## When NOT to Use
 
 - Harness files should be edited or conformed (use `$harness-govern`).
