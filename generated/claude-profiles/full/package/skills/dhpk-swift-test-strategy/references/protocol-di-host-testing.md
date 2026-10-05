@@ -1,111 +1,114 @@
-# Protocol-based DI for host-testable Swift
+# Protocol Seams for Host-Side Tests
 
-The reliable way to unit-test code that touches the file system, Keychain,
-network, or any device-only API is to put a **small protocol** in front of each
-external boundary, inject a default real implementation in production, and inject
-a fake in tests. This is what lets babylon's crypto/key-store units run under a
-plain host `swift test` (seconds, no simulator) — see the `ios-platform` module's
-`cryptokit-keychain.md` for *why* the real `SecItem` path can't run on the host
-(`errSecMissingEntitlement`).
+## What a host test can and cannot prove
 
-## 1. One focused protocol per external concern
+A host unit test proves your type's logic against a stand-in for external I/O. It does not prove code signing, entitlements, device behavior, or real Keychain access. Keychain sharing between apps depends on signed access groups and entitlements ([Apple: Sharing access to keychain items](https://developer.apple.com/documentation/security/sharing-access-to-keychain-items-among-a-collection-of-apps)), so a fake that returns success says nothing about whether the platform will. Keep a separate on-device or integration check for those paths. Do not write a blanket rule that host tests can never have entitlements; check the consumer's actual signing setup.
 
-Keep them small and `Sendable` (they cross actor boundaries):
+## Check the toolchain first
 
-```swift
-public protocol KeyStoring: Sendable {
-    func loadOrCreateKey() async throws -> SymmetricKey
-    func deleteKey() async throws
-}
+- Find the toolchain the consumer actually builds with (`xcrun swift --version`, plus the Xcode version in use). Swift Testing is included with Xcode 16 and later ([Apple: Swift Testing](https://developer.apple.com/xcode/swift-testing/)). On older toolchains, use XCTest instead.
+- Find the consumer's test target, and its Swift language mode, before you add files ([Apple: Adding tests to your Xcode project](https://developer.apple.com/documentation/xcode/adding-tests-to-your-xcode-project)).
 
-public protocol FileAccessing: Sendable {
-    func read(from url: URL) throws -> Data
-    func write(_ data: Data, to url: URL) throws
-    func fileExists(at url: URL) -> Bool
-}
-```
+## Designing the seam
 
-Avoid a single "god" protocol — one boundary, one protocol.
+- Write one protocol per external boundary (files, network, secure storage). Shape it around what the service needs, not around the platform API.
+- Mark it `Sendable` and give it `async throws` requirements. That way the production type and the fake satisfy the same contract under strict concurrency checking.
+- Inject the protocol through the initializer. Avoid globals and singletons that the test has to reset.
 
-## 2. Default (production) implementation
+## Rules for fakes
+
+- Build a fresh fake inside each test. Do not share fake instances through static or global state.
+- Put the fake's mutable state (recorded calls, scripted outcomes) in an actor. Do not reach for `@unchecked Sendable` or `nonisolated(unsafe)` just because the type is a test double.
+- Swift Testing runs tests in parallel by default. The `.serialized` trait only orders the tests within the suite or parameterized test it is applied to. It is not a process-wide lock ([swift-testing: Parallelization](https://github.com/swiftlang/swift-testing/blob/main/Sources/Testing/Testing.docc/Parallelization.md)). Isolation is the fix, not serialization.
+- `@Test` functions can be `async`, `throws`, and actor-isolated ([swift-testing: Defining tests](https://github.com/swiftlang/swift-testing/blob/main/Sources/Testing/Testing.docc/DefiningTests.md)). Add `@MainActor` only when the code under test is actually main-actor isolated.
+
+## Example: one seam, three outcomes
 
 ```swift
-public struct DefaultFileAccessor: FileAccessing {
-    public init() {}
-    public func read(from url: URL) throws -> Data { try Data(contentsOf: url) }
-    public func write(_ data: Data, to url: URL) throws { try data.write(to: url, options: .atomic) }
-    public func fileExists(at url: URL) -> Bool { FileManager.default.fileExists(atPath: url.path) }
-}
-```
-
-## 3. Configurable fake (test)
-
-Give the fake injectable error properties so you can drive failure paths
-deterministically — testing error handling is the main payoff of DI.
-
-```swift
-public final class InMemoryFileAccessor: FileAccessing, @unchecked Sendable {
-    public var files: [URL: Data] = [:]
-    public var readError: Error?
-    public var writeError: Error?
-    public init() {}
-    public func read(from url: URL) throws -> Data {
-        if let readError { throw readError }
-        guard let data = files[url] else { throw CocoaError(.fileReadNoSuchFile) }
-        return data
-    }
-    public func write(_ data: Data, to url: URL) throws {
-        if let writeError { throw writeError }
-        files[url] = data
-    }
-    public func fileExists(at url: URL) -> Bool { files[url] != nil }
-}
-```
-
-(`@unchecked Sendable` is acceptable on a test double; production types earn
-`Sendable` honestly — value type or actor.)
-
-## 4. Inject via default parameters
-
-Production callers pass nothing; tests pass the fake:
-
-```swift
-public actor SyncManager {
-    private let files: FileAccessing
-    public init(files: FileAccessing = DefaultFileAccessor()) { self.files = files }
-    public func load(_ url: URL) throws -> Data { try files.read(from: url) }
-}
-```
-
-## 5. Test with Swift Testing
-
-```swift
+import Foundation
 import Testing
 
-@Test("read surfaces a domain error when the file is missing")
-func missingFile() async {
-    let files = InMemoryFileAccessor()
-    let sut = SyncManager(files: files)
-    await #expect(throws: CocoaError.self) { try await sut.load(URL(filePath: "/nope")) }
+// Production code
+protocol ProfileSource: Sendable {
+    func readProfile(id: String) async throws -> Data?
 }
 
-@Test("read returns stored bytes")
-func readsStored() async throws {
-    let files = InMemoryFileAccessor()
-    let url = URL(filePath: "/x"); files.files[url] = Data("hi".utf8)
-    let sut = SyncManager(files: files)
-    #expect(try await sut.load(url) == Data("hi".utf8))
+struct Profile: Codable, Equatable, Sendable {
+    let id: String
+    let displayName: String
+}
+
+enum ProfileLoadError: Error, Equatable {
+    case notFound
+    case sourceUnavailable
+}
+
+struct ProfileLoader: Sendable {
+    let source: any ProfileSource
+
+    func load(id: String) async throws -> Profile {
+        let data: Data?
+        do { data = try await source.readProfile(id: id) }
+        catch { throw ProfileLoadError.sourceUnavailable }
+        guard let data else { throw ProfileLoadError.notFound }
+        return try JSONDecoder().decode(Profile.self, from: data)
+    }
+}
+
+// Test target
+struct SourceDown: Error {}
+
+actor ScriptedProfileSource: ProfileSource {
+    enum Outcome: Sendable { case stored(Data), absent, fails }
+    private let script: [String: Outcome]
+    private(set) var requestedIDs: [String] = []
+
+    init(_ script: [String: Outcome]) { self.script = script }
+
+    func readProfile(id: String) async throws -> Data? {
+        requestedIDs.append(id)
+        switch script[id] ?? .absent {
+        case .stored(let data): return data
+        case .absent: return nil
+        case .fails: throw SourceDown()
+        }
+    }
+}
+
+struct ProfileLoaderTests {
+    @Test func returnsDecodedProfileWhenStored() async throws {
+        let expected = Profile(id: "p1", displayName: "Rin")
+        let source = ScriptedProfileSource(["p1": .stored(try JSONEncoder().encode(expected))])
+        let loaded = try await ProfileLoader(source: source).load(id: "p1")
+        #expect(loaded == expected)
+        let requested = await source.requestedIDs
+        #expect(requested == ["p1"])
+    }
+
+    @Test func reportsNotFoundWhenAbsent() async {
+        let loader = ProfileLoader(source: ScriptedProfileSource([:]))
+        do {
+            _ = try await loader.load(id: "missing")
+            Issue.record("Expected notFound")
+        } catch {
+            #expect(error as? ProfileLoadError == .notFound)
+        }
+    }
+
+    @Test func mapsSourceFailure() async {
+        let loader = ProfileLoader(source: ScriptedProfileSource(["p2": .fails]))
+        do {
+            _ = try await loader.load(id: "p2")
+            Issue.record("Expected sourceUnavailable")
+        } catch {
+            #expect(error as? ProfileLoadError == .sourceUnavailable)
+        }
+    }
 }
 ```
 
-## Rules
+The error tests use explicit do/catch. That avoids relying on one particular overload of the throwing-expectation macro across toolchain versions.
 
-- **Only mock boundaries.** External I/O (file, Keychain, network, clock) gets a
-  protocol; internal pure types do not — over-abstracting is its own smell.
-- **`Sendable` on every injected protocol** — they are awaited across actors.
-- **Default-parameter injection**, not `#if DEBUG` swaps — keep one code path.
-- The fake conforms to the *same* protocol the production type does, so the unit
-  test exercises the real logic, only the boundary is substituted.
-- Keep device-only side effects (`.completeFileProtection` writes, real `SecItem`)
-  behind the protocol so the core logic stays host-testable; integration-test the
-  real implementation on a simulator (see `test-taxonomy.md`).
+## Running
+
+Run the tests in the consumer's own configured test target: `swift test --filter ProfileLoaderTests` for packages, or the scheme's test action / `xcodebuild test` for app projects. Report the result you actually observe. Passing host tests do not remove the need for platform checks such as signing, entitlements, and on-device Keychain behavior.

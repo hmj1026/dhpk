@@ -1650,7 +1650,7 @@
       "sourcePath": "skills/dhpk-ios-platform/references/actor-persistence.md",
       "destination": "skills/flow-drive/references/dhpk-ios-platform/references/actor-persistence.md",
       "kind": "reference",
-      "sha256": "fd4f78c6e1bfae25d9336826788aeeca0bf9b076b07a3961ece4d5462a7b227f"
+      "sha256": "8b4efa741a95cfdd1f3fad3bbd1b5aa27b6afda5ae10897af767086456901711"
     },
     {
       "skillId": "ios-platform",
@@ -1994,7 +1994,7 @@
       "sourcePath": "skills/dhpk-php-runtime-router/references/testing-quality.md",
       "destination": "skills/flow-drive/references/dhpk-php-runtime-router/references/testing-quality.md",
       "kind": "branch",
-      "sha256": "208a3983a1ba5db6361607573c71254d36868bbd260cd0266138e2dfeb744dd7"
+      "sha256": "f41ed61cd1aa35cb7b7fc79715dacbd3cfd6eeaf6d3066d68fc4d247e6d8e3a1"
     },
     {
       "skillId": "php-pro",
@@ -2106,7 +2106,7 @@
       "sourcePath": "skills/dhpk-swift-language/references/approachable-concurrency.md",
       "destination": "skills/flow-drive/references/dhpk-swift-language/references/approachable-concurrency.md",
       "kind": "reference",
-      "sha256": "8cc37f2ba95d437b332a0d25469798f50f1a84f301d5dd1d38fcee858c576cc7"
+      "sha256": "59b785ce22680b177110805cc624afe0e2ef4189dff44dad7152a7c89c209a13"
     },
     {
       "skillId": "swift-language",
@@ -3938,7 +3938,7 @@
       "sourcePath": "skills/module-design/references/dependency-and-tests.md",
       "destination": "skills/proposal-analyze/references/module-design/references/dependency-and-tests.md",
       "kind": "reference",
-      "sha256": "ce1370f5bac75d0e66b6628ae517e421466d76a2fa25fc8076c4a81c339d0bf8"
+      "sha256": "952f4cf98f12f7edd9d7723c4a4717beb3a04472867bf127bc1c626125a0e8ae"
     },
     {
       "skillId": "project-brief",
@@ -4538,7 +4538,7 @@
       "sourcePath": "skills/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
       "destination": "skills/tdd-workflow/references/dhpk-swift-test-strategy/references/protocol-di-host-testing.md",
       "kind": "reference",
-      "sha256": "e163235b796250333c213962f162f01d8aa71362f6c07ae7daa57e162cc7fe8e"
+      "sha256": "eb3003c291bb292b19b169dc1e5833cc4d1412c22c4311d32f3746a726933ee4"
     },
     {
       "skillId": "swift-test-strategy",

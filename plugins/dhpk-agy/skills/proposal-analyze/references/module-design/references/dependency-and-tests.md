@@ -1,41 +1,53 @@
-# Dependency and test choices
+# Dependency Boundaries and Tests
 
-Use this reference when a proposed module crosses an I/O or ownership boundary.
-Classify the actual dependencies before choosing a substitute or adapter.
+Use this reference when a module design changes who owns a dependency, what
+callers can vary, or how behavior is verified. Trace the current code paths
+before proposing a seam.
 
-| Dependency | Evidence to collect | Test choice |
-| --- | --- | --- |
-| Computation or memory owned by the module | Inputs, observable outputs, and state lifetime | Exercise the public interface directly. Keep implementation details private. |
-| Local I/O with an available substitute | Installed substitute, its supported behavior, and relevant differences from production | Use it for the behavior it can represent; verify differences at the real integration boundary. |
-| A service maintained by the same organization | Owner, transport contract, failure behavior, and existing test facilities | Exercise domain behavior with a justified adapter; verify the transport contract separately. |
-| A service maintained externally | Supported contract, failure modes, and available sandbox or captured fixtures | Inject the external boundary for deterministic tests. Record what still requires a sandbox or live observation. |
+## Name the owner and real callers
 
-An available substitute is evidence from the checkout or test environment,
-not a hypothetical library. If none is available, report the missing prerequisite
-and the smallest experiment that would resolve it. Synthetic results prove
-the tested boundary, not availability or correctness of a live service.
+Identify the module that owns the dependency’s configuration, lifecycle, and
+failure handling. Trace actual callers and state which behavior each one uses.
+Do not design for hypothetical consumers.
 
-## Choosing a seam
+## Expose only caller-needed variation
 
-Apply the caller-leverage, deletion, and adapter tests in the skill's primary
-path. Place an internal test substitute behind the public interface when
-callers do not need to choose it. Expose a dependency choice only when it is
-part of the caller's real decision or a justified deployment boundary.
+For each real caller, identify the choice or input that must vary. Expose that
+variation at the narrowest useful boundary and keep other decisions with the
+owner. If callers need the same behavior, do not add options for imagined
+future use.
 
-Keep existing tests that protect distinct behavior. Consolidate overlapping
-tests only after the replacement preserves their observable contracts; module
-deepening alone is not evidence that old tests can be removed.
+## Reuse available replacements
 
-## Decision record
+Check the repository for existing replacements, fakes, adapters, and fixtures.
+Name which one lets each relevant caller test its contract. Add a new seam only
+when a real caller or test needs substitution that the existing boundary cannot
+provide.
 
-For each material dependency, report its owner and boundary, the available
-substitute, the behavior that can be verified, and the remaining integration
-evidence. Stop short of implementation when a required dependency or boundary
-decision remains unresolved.
+## State observable success and failure
 
-## Source basis
+Describe what callers observe on success and on failure, including relevant
+results, side effects, and error handling. Keep these outcomes stable across
+the proposed boundary and test them through the caller-visible contract.
 
-This decision aid combines the existing dhpk module-boundary rules with the
-dependency-classification idea examined in Matt Pocock's
-[`codebase-design` reference](https://github.com/mattpocock/skills/blob/24fe0ef7737efae15c87225755e9f6f5965e4888/skills/engineering/codebase-design/DEEPENING.md).
-Its choices and evidence requirements are written for dhpk's existing workflow.
+## Protect existing behavior independently
+
+Identify the existing tests and the behavior each protects. Preserve those
+assertions when changing an interface. If a test must change, keep independent
+coverage of the same behavior through a real caller or another public
+boundary; do not let an interface rewrite erase the only protection.
+
+## Separate evidence from gaps
+
+Unit tests provide evidence for the local contract. Integration tests provide
+evidence that real callers and dependencies are wired together. Permissions
+and deployment behavior need evidence from their appropriate environment and
+owner. Record what was exercised and name any integration, permission, or
+deployment check that remains open.
+
+## Stop at a missing decision
+
+If the dependency owner, real caller, required variation, or success/failure
+contract is unknown, name the missing decision and who can resolve it. Keep
+the design bounded until that boundary is clear; do not add a generic
+abstraction to hide an unresolved ownership decision.
