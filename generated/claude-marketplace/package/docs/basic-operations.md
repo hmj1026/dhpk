@@ -642,3 +642,39 @@ claude --plugin-dir ~/projects/dhpk
 Edits to plugin files take effect after `/reload-plugins` (hooks, MCP, LSP) or session restart (monitors, skill listings).
 
 The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update -y dhpk@dhpk` (or the equivalent command with `--scope project` for a project-scoped install).
+
+### npm script shortcuts
+
+The root `package.json` is private and has zero dependencies. It offers two kinds of commands.
+
+**For package installers (`bin`)** — available through `npx` or after a global install:
+
+| Command | Purpose |
+|---------|---------|
+| `dhpk-install <claude\|cursor\|codex-sync\|agy-plugin> <plan\|status\|verify>` | Plan, check, or verify an install surface |
+| `dhpk harness ...` | Harness facade |
+| `dhpk distribution <surface> <generate\|preview\|validate\|verify>` | Distribution package operations |
+
+**For developers (`npm run` inside a clone)**:
+
+| Group | Command | Runs |
+|-------|---------|------|
+| Setup | `npm run setup` | Interactive installer (`scripts/install.sh`) |
+| | `npm run setup:dry-run` | Non-interactive installer dry run |
+| | `npm run setup:status` | `dhpk-install claude status --scope user` |
+| | `npm run dhpk-install -- <surface> <action>` | `scripts/dhpk-install.js` |
+| Test | `npm test` | Full suite (`tests/run-all.js`) |
+| | `npm run test:hooks` | Hook tests |
+| | `npm run test:one -- tests/<name>.test.js` | One test file |
+| Validate | `npm run validate` | Every CI validator (`validate:*`) |
+| | `npm run check:generated` | Generated manifest, marketplace, profile, skill-resource, and package drift checks |
+| | `npm run check:portability` | Portability check |
+| | `npm run catalog:check` | `catalog.js --check all` |
+| | `npm run ci` | `validate` + `check:generated` + `catalog:check` + `test` |
+| Generate (writes files) | `npm run gen:all` | `catalog:write`, then `gen:manifest`, `gen:marketplace`, `gen:codex-agents` |
+
+Notes:
+- `catalog:write` must run before the other generators; `gen:all` keeps that order.
+- No npm lifecycle script (`install`, `postinstall`, `prepare`, ...) is defined, so installing the package never runs developer scripts.
+- Release scripts and `gen-distribution-inventory.js --write` are intentionally not exposed; run them by hand.
+- The `package.json` version is part of the release version lockstep.
