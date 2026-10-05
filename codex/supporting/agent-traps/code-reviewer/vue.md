@@ -1,36 +1,29 @@
-# code-reviewer — Vue traps
+# Vue Review Traps
 
-Vue-specific reactivity / template / component lanes. Generic TS type-safety + async
-correctness → `code-reviewer/js.md` (load both on a `.vue` diff). ESLint-tier / AJAX
-facade → `frontend-reviewer`. Detect the major from `package.json` `vue` (the `vue-2`
-module pins Options-API conventions); confirm `eslint-plugin-vue` + `vue-tsc` exist.
+Apply these checks only when the changed code uses Vue. First identify the configured Vue version and compiler path from the project’s dependency lock and build configuration; use that version’s semantics.
 
-| Lane | Trigger | Action | Non-apply |
-|---|---|---|---|
-| Reactivity | destructuring `defineProps` in Vue < 3.5; `reactive()` on a primitive; reassigning a whole `reactive()` object; `watch(() => myRef, …)` | `toRefs()` / `props.x`; `ref()` for primitives; mutate fields or `Object.assign`; `watch(() => myRef.value, …)` | Vue ≥ 3.5 reactive props destructure; a `computed` used instead of `watch` |
-| `.value` | `ref()` object read without `.value` inside `<script>` | add `.value` | templates (auto-unwrap); `v-once` static text |
-| Template | `v-for` without `:key`; `:key="index"`; `v-if` + `v-for` on the same element; `v-model` to a computed without a setter | stable id key; `<template v-for>` + inner `v-if`; writable get+set | a static list that never reorders |
-| Composable | side effects in module scope; missing cleanup; stores a `.value` snapshot of a passed ref | move into `setup`/lifecycle; teardown via `onUnmounted`; keep the ref | a pure helper that does not take refs |
-| Component | SFC > 300 lines; mutating a prop; raw `document.querySelector` | extract; `emit`/`v-model` up; `useTemplateRef` | generated SFCs |
-| Router | guard returns `false` with no redirect; `useRoute().params` destructured at top level | redirect/explain; `toRefs`/`computed` | a guard that already redirects |
-| Pinia | multi-field mutation outside an action/`$patch`; non-serializable state | move into actions; keep state serializable | a store used only in tests |
-| SSR (Nuxt) | `window`/`document`/`localStorage` without `process.client`/`onMounted` | client-guard | a `<ClientOnly>` island that is not SEO content |
-| Perf (MEDIUM) | expensive `computed` over large data; `<KeepAlive>` without `:max` | memoize/watcher; bound the cache | a computed over a tiny constant list |
+## Reactivity and template unwrapping
 
-Security: `v-html` with unsanitized input and `:href`/`:src` accepting `javascript:`/`data:`
-URLs → sanitize (DOMPurify) / validate the URL scheme. OWASP baseline → `security-reviewer/js.md`.
+**Trigger → evidence/action:** A ref or reactive value crosses between script, template, nested object, array, or collection code. Inspect the exact access context and test the rendered or updated behavior. Vue unwraps top-level template-context refs, while nested expressions and refs inside arrays or collections have different behavior; see [Reactivity Fundamentals](https://vuejs.org/guide/essentials/reactivity-fundamentals.html).
 
-## Worked example
+**Do not apply when:** The value is a plain object or the code already follows the configured version’s access rules. A `.value` occurrence or its absence is not a defect without a demonstrated stale or incorrect update.
 
-```vue
-<!-- BAD (Vue < 3.5) — destructured props are a snapshot; title never updates -->
-<script setup>
-const { title } = defineProps(['title'])
-</script>
-<!-- GOOD — keep the reactive link -->
-<script setup>
-const props = defineProps(['title'])
-</script>
-```
+## List identity
 
-Diagnostics: `vue-tsc --noEmit` · `eslint . --ext .vue,.ts,.js` · `npm run typecheck --if-present`.
+**Trigger → evidence/action:** A `v-for` list can reorder, insert, remove, or render stateful child components or form controls. Check whether each item has a stable key from its domain identity, then test reordering and state retention. Vue’s [list-rendering guide](https://vuejs.org/guide/essentials/list.html) describes when keyed identity matters.
+
+**Do not apply when:** The rendered list is static or its output has no child or DOM state that depends on item identity. Do not require a key to be globally unique outside its list.
+
+## Resources and subscriptions
+
+**Trigger → evidence/action:** A component or watcher creates a timer, listener, observer, subscription, or request that can outlive the state that created it. Trace its owner and stop or dispose it at the matching lifecycle boundary; test unmount, replacement, and stale watcher results as relevant. See Vue’s [lifecycle hooks](https://vuejs.org/guide/essentials/lifecycle.html).
+
+**Do not apply when:** Vue already owns and stops a synchronously created component-scoped effect, or the resource is deliberately application-scoped with an explicit owner and shutdown path. Do not demand redundant teardown for framework-managed effects.
+
+## Server rendering
+
+**Trigger → evidence/action:** The project configuration shows Vue SSR or another server-rendered entry. Check module-level mutable state for cross-request sharing, and check setup-time side effects and browser globals against the server/client lifecycle. See [Vue SSR guidance](https://vuejs.org/guide/scaling-up/ssr.html).
+
+**Do not apply when:** The project is client-only and has no server-rendering entry. Do not add SSR constraints based on a possible future deployment mode.
+
+For generic TypeScript boundaries, promises, and async error ownership, use the [JavaScript review traps](js.md).

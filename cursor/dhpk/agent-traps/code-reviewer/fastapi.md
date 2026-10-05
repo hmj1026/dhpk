@@ -1,39 +1,51 @@
-# code-reviewer — FastAPI traps
+# FastAPI review traps
 
-Generic Python idioms → `code-reviewer/python.md`. Auth / secrets / CORS /
-injection → `security-reviewer/fastapi.md`. Query plans / N+1 / index coverage →
-`database-reviewer/fastapi.md`. Locate the app entry (`main.py`, `app/main.py`);
-review changed routers/schemas/deps first.
+Confirm the installed FastAPI, Starlette, and validation-library versions before relying on version-specific behavior. Use the [Python review traps](python.md) for language-level concerns.
 
-| Lane | Trigger | Action | Non-apply |
-|---|---|---|---|
-| Async correctness | blocking DB/HTTP client (`requests`, sync `psycopg`, sync `Session`) inside an `async def` route | async client (`httpx.AsyncClient`, async SQLAlchemy) | a plain `def` route that FastAPI threadpools — not a blocking-in-async finding |
-| Dependency injection | DB session / settings created inline in the handler; auth logic duplicated per route | `Depends(get_db)` / `Depends(get_settings)`; one auth dependency | a one-off script or test that constructs the session on purpose |
-| Pydantic schemas | one model reused for create + update + response; write endpoint without request validation; response leaks internal fields | separate `Create`/`Update`/`Read`; validate the body; explicit `response_model` | a read-only probe schema that is already a dedicated `Read` model |
-| OpenAPI | list endpoint without pagination; missing `response_model` / error responses in docs | add pagination params; document responses | internal admin routes explicitly marked excluded from OpenAPI |
-| Structure | route logic duplicated across handlers; external HTTP client with no timeout | extract into a service/dependency; set a timeout | a single-handler prototype that already uses a shared client |
+## Async and blocking work
 
-## Worked example
+**Trigger:** An async path operation or dependency calls synchronous I/O, or code is being converted between synchronous and asynchronous forms.
 
-```python
-# BAD — sync HTTP call blocks the event loop for every concurrent request
-@app.get("/rate")
-async def rate():
-    return requests.get(UPSTREAM, timeout=5).json()
-# GOOD — async client, shared, with a timeout
-@app.get("/rate")
-async def rate(client: httpx.AsyncClient = Depends(get_client)):
-    r = await client.get(UPSTREAM, timeout=5.0)
-    return r.json()
-```
+**Check and act:** Trace the call chain and identify blocking database, filesystem, network, or CPU work. FastAPI documents that normal synchronous path operations and dependencies run in a thread pool, while directly called utilities do not receive that handling. Keep the route form aligned with the libraries it calls. [FastAPI async guidance](https://fastapi.tiangolo.com/async/)
 
-```python
-# BAD — response model echoes the hashed password
-class UserOut(BaseModel):
-    id: int; email: str; hashed_password: str
-# GOOD — response model exposes only public fields
-class UserOut(BaseModel):
-    id: int; email: str
-```
+**Do not apply when:** A synchronous route intentionally uses a blocking library, or an async operation is properly awaited. Do not convert every route to async as a style rule.
 
-Diagnostics (only if configured): `ruff check .` · `mypy .` · `pytest`.
+## Dependency and resource lifetime
+
+**Trigger:** A dependency uses yield, manages a database session or other resource, or is used by streaming or background work.
+
+**Check and act:** Trace setup and cleanup, including exceptions and who still uses the resource after the route returns. Check the installed FastAPI version and dependency scope: current documentation describes request-scoped cleanup after the response by default and a function scope that closes earlier. [Dependencies with yield](https://fastapi.tiangolo.com/tutorial/dependencies/dependencies-with-yield/)
+
+**Do not apply when:** The dependency has no cleanup responsibility, or its lifetime already covers every consumer. Do not shorten a dependency lifetime if a response stream or task still needs it.
+
+## Request and response contracts
+
+**Trigger:** Request models, validation, response types, or serialization change.
+
+**Check and act:** Verify accepted input, invalid-input behavior, and the documented output shape. FastAPI’s response_model performs output validation and filtering; test that fields outside the intended response are absent. [FastAPI response models](https://fastapi.tiangolo.com/tutorial/response-model/)
+
+**Do not apply when:** A route deliberately returns a raw, streaming, or file response with a separately tested contract. Do not treat input validation as authorization.
+
+## Sensitive response fields
+
+**Trigger:** A response exposes ORM models, nested objects, account data, credentials, or internal fields.
+
+**Check and act:** Inspect the serialized response for each caller class, including unauthorized and error paths. Use explicit response projections where appropriate and send access-control or secret-exposure findings to security-reviewer.
+
+**Do not apply when:** The field is deliberately public under the endpoint contract and tests establish that boundary.
+
+## Timeouts and cancellation
+
+**Trigger:** An endpoint calls another service, holds a resource during awaited work, or creates background tasks.
+
+**Check and act:** Trace timeout configuration, task ownership, cancellation, and cleanup through the upstream call. Recommend a timeout only from the service’s configured deadline or reliability contract; avoid inventing a duration.
+
+**Do not apply when:** The operation has no external wait or resource lifetime at issue. A blanket timeout value is not evidence of a defect.
+
+## Handoffs
+
+**Trigger:** A finding concerns credentials, authorization, data exposure, SQL construction, or transaction ownership.
+
+**Check and act:** Preserve the endpoint, caller, and observed input/output path, then hand off security questions to security-reviewer and persistence or transaction questions to database-reviewer.
+
+**Do not apply when:** The evidence is limited to a local schema or lifecycle behavior that this review can verify.
