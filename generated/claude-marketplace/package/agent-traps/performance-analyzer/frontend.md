@@ -1,31 +1,27 @@
-# performance-analyzer — Frontend traps
+# Frontend Performance Traps
 
-Client-runtime perf for JS/TS/React/Vue bundles. Correctness/type lanes →
-`code-reviewer/js.md` (+ `vue.md`); this sheet owns latency, render cost, bundle
-size, and memory.
+Investigate a user-visible performance concern or a change with a plausible measured cost. Start with a representative route, interaction, data shape, device, and network; record the baseline and the same measurements after a proposed fix.
 
-| Trigger | Action | Non-apply |
-|---|---|---|
-| Algorithmic: O(n²) over large arrays (nested `.find`/`.includes` in a loop, sort inside a loop, repeated `.filter().map()` passes) | precompute a `Map`/`Set` for lookups; sort once; single pass | — |
-| React render: inline object/array/fn literal passed as a prop; expensive compute in render body; missing `React.memo` on a pure child re-rendering with parent | hoist / `useMemo` / `useCallback`; memoize the child; stabilize deps | — |
-| Effects: `useEffect` recomputing derived state that could be computed in render; missing / over-broad dependency array | derive in render; tighten deps (exhaustive-deps lint) | — |
-| Lists: long list rendered without virtualization; `key={index}` defeating reconciliation | `react-window`/virtual scroller; stable id keys | `key={index}` on a static never-reordered list |
-| Bundle: `import _ from 'lodash'` / `import * as X`; heavy lib imported eagerly on a route that rarely needs it; no code-splitting | named/tree-shakeable imports; `React.lazy` / dynamic `import()`; route-level split | one-off scripts outside the UI bundle |
-| **Memory leak**: `addEventListener` / `setInterval` / subscription without teardown; growing module-level cache; closure retaining a large object | remove listener / `clearInterval` / unsubscribe in cleanup; bound the cache; drop the reference | — |
+## Rendering and collection costs
 
-## Web Vitals budget (flag regressions)
+**Trigger → evidence/action:** A profile or reproducible interaction points to repeated expensive rendering, layout, sorting, filtering, or nested collection work. Use a representative dataset and browser profile to identify the hot path, then compare the focused change under the same workload. Apply memoization, virtualization, caching, or a different collection strategy only when the measurement identifies a cost and confirms improvement.
 
-LCP > 2.5s · CLS > 0.1 · INP/TBT high · JS bundle > ~250KB gzip on a critical route → investigate. Red flags needing action: bundle > 500KB gzip, LCP > 4s, steadily growing heap across interactions.
+**Do not apply when:** The work is small and bounded or no user-visible cost is established. Do not add blanket memoization or virtualization based only on the presence of a list.
 
-## Worked example
+## Bundle and route cost
 
-```jsx
-// BAD — new array identity every render → child re-renders even when data is unchanged
-<List items={rows.filter(r => r.active)} onPick={r => pick(r)} />
-// GOOD — memoize the derived data and the handler
-const active = useMemo(() => rows.filter(r => r.active), [rows])
-const onPick = useCallback(r => pick(r), [pick])
-<List items={active} onPick={onPick} />
-```
+**Trigger → evidence/action:** A shipped entry or route has evidence of costly transfer, parse, compile, or evaluation. Inspect the built bundle and route loading behavior, then measure the affected scenario and compare before and after. Split or defer code only where it reduces the relevant initial or route cost.
 
-Diagnostics (read-only): a bundle analyzer (`source-map-explorer` / `webpack-bundle-analyzer`), a Lighthouse run, the Profiler flamegraph, `performance.memory` / heap snapshots across repeated interactions.
+**Do not apply when:** The dependency is not shipped to the client, or its contribution is not material in the affected route. Respect existing project budgets; do not invent arbitrary bundle-size caps.
+
+## Memory and retained resources
+
+**Trigger → evidence/action:** Memory grows over repeated interactions or route transitions, or profiles show retained DOM, collections, listeners, or subscriptions. Reproduce the sequence and compare heap snapshots or allocation profiles; identify the retaining path and verify that the fix releases it. Chrome documents [heap snapshots](https://developer.chrome.com/docs/devtools/memory-problems/heap-snapshots/) for comparing retained objects and leaks.
+
+**Do not apply when:** A bounded allocation is released after the task or route, or a single snapshot shows no growth pattern. Distinguish expected caching from a leak before recommending eviction.
+
+## Evidence quality
+
+Use lab profiling to reproduce a specific regression and field data when available to understand actual user experience. Lab and field results can differ; keep the workload and environment attached to each conclusion. See web.dev’s [Web Vitals measurement guidance](https://web.dev/articles/vitals-measurement-getting-started) and [lab/field comparison](https://web.dev/articles/lab-and-field-data-differences).
+
+**Do not apply when:** A micro-optimization has no representative workload or before/after measurement. Report the affected user scenario, evidence, expected trade-off, and follow-up measurement instead of a generic performance score.

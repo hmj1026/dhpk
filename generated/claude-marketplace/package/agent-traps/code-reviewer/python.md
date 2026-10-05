@@ -1,48 +1,43 @@
-# code-reviewer — Python traps
+# Python review traps
 
-Code-quality lanes for Python. Security lanes (SQL f-strings, `eval`/`exec`, unsafe
-`yaml.load`, weak crypto, command/path injection) → `security-reviewer/python.md`.
-FastAPI-specific lanes → `code-reviewer/fastapi.md`. Detect the floor from
-`pyproject.toml` `requires-python`; honor an explicit project convention in CLAUDE.md.
+Use the project’s declared Python support floor and runtime configuration. This guidance is host-neutral; consult supplemental project guidance only when it is available. Apply a trap when a changed path or behavior matches its trigger.
 
-| Lane | Trigger | Action | Non-apply |
-|---|---|---|---|
-| Type hints | public fn without annotations; `Any` where a precise type exists; nullable param without `Optional`/`\| None` | annotate; narrow `Any`; `Optional[T]` | generated stubs; `**kwargs` on a private helper |
-| Pythonic idiom | C-style index loop; `type(x) == T`; `"" + s` in a loop | comprehension; `isinstance`; `"".join(...)` | a loop that needs the index for a documented side channel |
-| Mutable default arg | `def f(x=[])` / `={}` | `def f(x=None)` then copy inside | a default that is an immutable `()` / `""` / `0` |
-| Resource mgmt | manual `open()/close()`, hand-rolled lock acquire | `with` context manager | a test fixture that already uses `try/finally` |
-| Error handling | `except:` / `except Exception: pass` | catch the specific class; log + handle or re-raise | a CLI top-level handler that logs then exits |
-| Concurrency | shared mutable state without a lock; mixing sync calls into async paths | `threading.Lock`; keep async pure-async | a single-threaded script |
-| Quality | fn > 50 lines / > 5 params; `value == None`; shadowing `list`/`dict`/`id` | extract; `is None`; rename | generated code |
-| Best practice | `print()` for diagnostics; `from m import *`; missing docstring on public API | `logging`; explicit imports; one-line docstring | `__main__` scripts that print by design |
+## Runtime compatibility
 
-**Framework quick-checks** — Django: `select_related`/`prefetch_related` for N+1,
-`transaction.atomic()` for multi-step writes. Flask: error handlers + CSRF.
+**Trigger:** A change uses new syntax, standard-library APIs, typing features, or dependency behavior.
 
-## Worked examples
+**Check and act:** Confirm the minimum supported Python version from project metadata, CI, and deployment configuration. Record contradictions as unresolved; assess compatibility against every declared runtime before recommending a change.
 
-```python
-# BAD — mutable default shared across every call; grows forever
-def add(item, bucket=[]):
-    bucket.append(item); return bucket
-# GOOD — fresh per call
-def add(item, bucket=None):
-    bucket = list(bucket or [])
-    bucket.append(item); return bucket
-```
+**Do not apply when:** The feature is supported by all configured runtimes, or the changed code is explicitly isolated behind a runtime-specific boundary with tests for that boundary.
 
-```python
-# BAD — bare except hides the real failure
-try:
-    n = int(raw)
-except:
-    n = 0
-# GOOD — catch the expected class, name the fallback
-try:
-    n = int(raw)
-except ValueError:
-    log.warning("non-numeric %r, defaulting to 0", raw)
-    n = 0
-```
+## Mutable defaults
 
-Diagnostics: `ruff check .` · `mypy .` · `black --check .` (run only those the project already configures).
+**Trigger:** A function default is a list, dictionary, set, or another mutable object.
+
+**Check and act:** Python evaluates defaults when defining the function, so a mutable default can retain changes across calls. Trace reads and writes across repeated calls; introduce per-call state only if the contract expects it, and test both omitted and explicit arguments. [Python’s tutorial on default argument values](https://docs.python.org/3/tutorial/controlflow.html#default-argument-values)
+
+**Do not apply when:** The default is immutable, or shared state is deliberate, documented, and covered by caller-visible tests.
+
+## Resource and exception boundaries
+
+**Trigger:** A change acquires a file, lock, temporary resource, session, or other value that needs cleanup, or adds exception handling.
+
+**Check and act:** Follow success, failure, and cancellation paths. Confirm cleanup has a clear owner, the relevant exception remains observable, and a broad handler does not hide failure.
+
+**Do not apply when:** Ownership is explicitly transferred, or a surrounding context manager or lifecycle owner already proves cleanup.
+
+## Async completion
+
+**Trigger:** The change creates tasks, schedules callbacks, or catches cancellation.
+
+**Check and act:** Identify who retains and awaits each task, observes its exception, and handles cancellation cleanup. Preserve cancellation after cleanup unless the contract explicitly requires suppression; Python’s asyncio guidance describes cancellation as part of structured task behavior. [asyncio task cancellation](https://docs.python.org/3/library/asyncio-task.html#task-cancellation)
+
+**Do not apply when:** The framework or a structured task owner clearly tracks completion and propagates errors.
+
+## Framework and specialist handoffs
+
+**Trigger:** The finding depends on framework request lifecycles, authorization, sensitive data, database behavior, or migrations.
+
+**Check and act:** For FastAPI lifecycle or response behavior, use [the FastAPI review traps](fastapi.md). Send security evidence to security-reviewer; query, transaction, or storage concerns to database-reviewer; schema-change concerns to migration-reviewer. Include the affected path and observed behavior.
+
+**Do not apply when:** The concern is a local behavior the current review can verify directly. For prompt content or tool-boundary concerns, use the shared [prompt-defense guidance](../_common/prompt-defense.md) rather than duplicating it here.

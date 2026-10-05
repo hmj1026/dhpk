@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.64.4",
-  "sourceCommit": "fbd0a3189dcfda88fa72f49fb074d9c0c9192576",
-  "generatedFromCommit": "fbd0a3189dcfda88fa72f49fb074d9c0c9192576",
-  "generatedFromTree": "dcdb1c6966ae90d3f22b7ce34f688d9ca4911326",
-  "inventoryDigest": "845375474b0d74e874e063a0ad3d54b945a1a66f348272b870dbb4bcf8a0fcf7",
-  "inventoryRevision": "sha256:200c524a6622fb503c0390cae18102f3244138f7fe4b783c6285104d4bed9dfc",
+  "sourceCommit": "4d933a290477062dfb281157467b08a6075924df",
+  "generatedFromCommit": "4d933a290477062dfb281157467b08a6075924df",
+  "generatedFromTree": "35f33331b3d53a182b267f56123d4820836e867f",
+  "inventoryDigest": "d3f12491cc58543bdc23ad42db85e682508485ea8803ac95271572a4f92fb9f1",
+  "inventoryRevision": "sha256:b0ebab96f86484fea85bcc4af9896133b4200ec5a17e487fe94b7efb8097bccb",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "change-verdict",
@@ -1753,7 +1753,7 @@
         "ownerId": "flow-guide",
         "source": "skills/flow-guide/references/codex-usage-catalog.json",
         "destination": "skills/flow-guide/references/codex-usage-catalog.json",
-        "originalGitBlobDigest": "1db2f2851e95057eeead96b2dd939624fea5ec5b"
+        "originalGitBlobDigest": "4dc30dfcd21b4b0c39c8672ee8938ce0237c26eb"
       },
       {
         "ownerId": "flow-guide",
@@ -6584,7 +6584,7 @@
     "dhpk-opsx-load-context": "8fcbc041f1f1bf6cc015cc8ed13b5d7f1520f63d533138be9bd9704ba83e3acf",
     "dhpk-opsx-post-observation": "23d7f375b49110c3d4c66a8fe596dd9403f1ec7bcac83f20469f4ec4135bd50f",
     "flow-drive": "37866fa583e84829d4dbdb4c843d07fbf767ec1caae0e3eb2dccd8c1646b5faa",
-    "flow-guide": "db4efd222fe001a9a3e77553ed4dee4dd694f961ed646e4744990165286e5987",
+    "flow-guide": "26a2efd2a93607ca3e3ccaef3593680cd22e182ce608a27349a1137e577d77d2",
     "git-smart-commit": "6ba0613a9271fcfe68ab8f3fc55a1e6c85ef7368355b16d256a0b1447cf37967",
     "git-worktree": "6fb92280158d9a59299bd4e6434b42f5cd6313a0553ec5888833609d0d7b15ed",
     "harness-audit": "31eb5483b6e5abdb162121739087ee596542680106792238fdb2696e1f3955a3",
@@ -6600,7 +6600,7 @@
   },
   "installation": {
     "schema": "dhpk.installation-receipt.v1",
-    "planId": "19cd2d51897f3a695c2fc056f3ddb62d689a89bb7b49961c06f9752325dca25b",
+    "planId": "22c56a4c1b6ab12672d9b8bea5cc2012ee140bf0faea89ae44613297e8a371dc",
     "scope": "project",
     "profileId": "compat-v1",
     "selectedStableIds": [
@@ -6660,10 +6660,10 @@
       ]
     },
     "fingerprints": {
-      "plan": "19cd2d51897f3a695c2fc056f3ddb62d689a89bb7b49961c06f9752325dca25b",
-      "inventory": "845375474b0d74e874e063a0ad3d54b945a1a66f348272b870dbb4bcf8a0fcf7"
+      "plan": "22c56a4c1b6ab12672d9b8bea5cc2012ee140bf0faea89ae44613297e8a371dc",
+      "inventory": "d3f12491cc58543bdc23ad42db85e682508485ea8803ac95271572a4f92fb9f1"
     },
-    "rollbackIdentity": "78280024f7bf844215ab1da57fc78cb0bf74afb1333d8840e9fdf3f0e78add52"
+    "rollbackIdentity": "c1107b1f74334cb5c1faf4b524642619969e6e0329c1580a632a475d50b9dee9"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",
