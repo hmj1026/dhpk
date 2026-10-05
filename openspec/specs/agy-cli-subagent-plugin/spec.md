@@ -58,20 +58,41 @@ symlinks SHALL fail closed.
 
 The AGY adapter SHALL accept `tools:` as either a YAML/JSON array or a
 comma-separated scalar and SHALL emit one deterministic array. It SHALL map
-`Read` to `read_file`, `Write` to `write_to_file`, `Edit` to
+`Read` to `view_file`, `Write` to `write_to_file`, `Edit` to
 `replace_file_content`, `Bash` to `run_command`, `Grep` to `grep_search`,
 `Glob` to `list_dir`, `WebSearch` to `search_web`, `WebFetch` to
 `read_url_content`, `Agent` and `Skill` to `invoke_subagent`, and normalize
 `mcp__server__tool` to `mcp_server_tool`. The adapter SHALL map models as
 `opus → pro`, `sonnet → pro`, `fable → flash`, `haiku → flash_lite`, preserve
 valid AGY enum values, and use `inherit` when no model is declared.
+The adapter SHALL accept native `view_file` in tool frontmatter and SHALL
+reject `read_file` there as unsupported, reporting the agent path. Adaptation
+SHALL preserve Markdown body bytes, including literal `read_file` references.
 
 #### Scenario: Claude-style frontmatter is adapted
 
 - **WHEN** an agent contains `tools: Read, Grep, Glob`, `model: sonnet`, and
   a normal Markdown body
-- **THEN** the generated agent contains an array of AGY tool names,
+- **THEN** the generated agent contains `tools: [view_file, grep_search, list_dir]`,
   `model: pro`, and the unchanged body
+
+#### Scenario: Native view_file is already compatible
+
+- **WHEN** an already-compatible agent declares `tools: ["view_file"]` and
+  `model: inherit`
+- **THEN** adaptation leaves the file byte-identical and reports no change
+
+#### Scenario: Unsupported read_file is declared in frontmatter
+
+- **WHEN** an agent declares `tools: [read_file]`
+- **THEN** adaptation fails with the unsupported tool name and agent path
+
+#### Scenario: Body literals survive Read adaptation
+
+- **WHEN** an agent declares `tools: [Read, view_file, Read, Write]` and its
+  Markdown body contains a literal `read_file` reference
+- **THEN** the generated tools are `[view_file, write_to_file]` and the
+  Markdown body remains byte-identical
 
 #### Scenario: Adaptation is idempotent
 
