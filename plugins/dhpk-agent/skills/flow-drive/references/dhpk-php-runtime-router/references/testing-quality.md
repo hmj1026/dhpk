@@ -1,478 +1,174 @@
-# Testing & Quality Assurance
+# PHP testing quality
 
-## Contents
+Use this reference after the PHP runtime and framework route has been selected. It covers test quality; it does not select or broaden a framework route or replace the dedicated legacy PHP 5.6 Yii route. Keep each recommendation within the actual PHP runtime, framework, test runner, and configured test command.
 
-- PHPUnit with Strict Types
-- Data Providers
-- Laravel Feature Tests
-- Pest Testing (Modern Alternative)
-- PHPStan Configuration
-- PHPStan Annotations
-- Mockery (Advanced Mocking)
-- Code Coverage
-- Quick Reference
+## Confirm the runtime and test runner
 
-## PHPUnit with Strict Types
+**Trigger:** A test recommendation depends on PHP syntax, framework behavior, a PHPUnit API, a static-analysis tool, or an extension.
+
+**Check and act:** Inspect the PHP executable used by the project test command and CI, the declared PHP floor, Composer constraints and lockfile, the installed framework and test-runner versions, runner configuration, and required extensions. A Composer lockfile records resolved package versions, while Composer’s platform setting can emulate a PHP or extension version; verify the actual runtime separately before relying on either value. [Composer lockfiles](https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies), [Composer platform configuration](https://getcomposer.org/doc/06-config.md#platform)
+
+**Do not apply when:** The change does not depend on runtime, framework, runner, or extension behavior. When evidence conflicts or a version cannot be confirmed, mark it NOT VERIFIED and avoid version-specific advice.
+
+## Test observable behavior
+
+**Trigger:** A change affects a caller-visible result, validation outcome, exception, persistence effect, route response, or resource access.
+
+**Check and act:** Derive expected outcomes from the established contract. Cover representative success and rejection or error cases; use separate tests when setup or expected behavior differs, and a data provider when the same assertion should run over distinct inputs. Assert values and effects callers can observe, not only a helper call or implementation detail.
+
+**Do not apply when:** The change is non-behavioral or an existing contract already proves the affected outcome. Do not invent requirements or a universal test-count or coverage target.
+
+## Use a dependency seam for isolated unit tests
+
+**Trigger:** A unit under test depends on a repository, gateway, clock, transport, or other replaceable collaborator.
+
+**Check and act:** Inject the dependency through a small interface or constructor seam and supply a deterministic fake with controlled success and failure values. The complete example below uses PHPUnit 5.7-era APIs and PHP 5.6 syntax: public test methods, expectException(), and a public @dataProvider method are documented in the official 5.7 manual. Use this example only on a confirmed compatible legacy path; it does not identify the runner configured by another project. [PHPUnit 5.7: writing tests](https://phpunit.de/manual/5.7/en/writing-tests-for-phpunit.html#writing-tests-for-phpunit.data-providers), [PHPUnit 5.7: testing exceptions](https://phpunit.de/manual/5.7/en/writing-tests-for-phpunit.html#writing-tests-for-phpunit.exceptions)
 
 ```php
 <?php
-
-declare(strict_types=1);
-
-namespace Tests\Unit\Service;
-
-use App\Repository\UserRepositoryInterface;
-use App\Service\UserService;
-use App\Service\EmailService;
 use PHPUnit\Framework\TestCase;
-use PHPUnit\Framework\MockObject\MockObject;
 
-final class UserServiceTest extends TestCase
+interface PriceCatalog
 {
-    private UserRepositoryInterface&MockObject $userRepository;
-    private EmailService&MockObject $emailService;
-    private UserService $userService;
+    public function priceFor($sku);
+}
 
-    protected function setUp(): void
+class QuoteService
+{
+    private $catalog;
+
+    public function __construct(PriceCatalog $catalog)
     {
-        $this->userRepository = $this->createMock(UserRepositoryInterface::class);
-        $this->emailService = $this->createMock(EmailService::class);
-        $this->userService = new UserService(
-            $this->userRepository,
-            $this->emailService
+        $this->catalog = $catalog;
+    }
+
+    public function quote($sku)
+    {
+        if (!is_string($sku) || trim($sku) === '') {
+            throw new InvalidArgumentException('SKU must not be empty');
+        }
+
+        $price = $this->catalog->priceFor($sku);
+        if (!is_int($price) || $price < 0) {
+            throw new UnexpectedValueException('Catalog returned an invalid price');
+        }
+
+        return $price;
+    }
+}
+
+class FakePriceCatalog implements PriceCatalog
+{
+    private $price;
+    private $failure;
+    private $lastSku;
+
+    public function __construct($price, $failure = null)
+    {
+        $this->price = $price;
+        $this->failure = $failure;
+        $this->lastSku = null;
+    }
+
+    public function priceFor($sku)
+    {
+        $this->lastSku = $sku;
+        if ($this->failure !== null) {
+            throw $this->failure;
+        }
+
+        return $this->price;
+    }
+
+    public function lastSku()
+    {
+        return $this->lastSku;
+    }
+}
+
+class QuoteServiceTest extends TestCase
+{
+    public function testReturnsCatalogPrice()
+    {
+        $catalog = new FakePriceCatalog(499);
+        $service = new QuoteService($catalog);
+
+        $this->assertSame(499, $service->quote('SKU-1'));
+        $this->assertSame('SKU-1', $catalog->lastSku());
+    }
+
+    public function testRejectsEmptySku()
+    {
+        $service = new QuoteService(new FakePriceCatalog(499));
+
+        $this->expectException(InvalidArgumentException::class);
+        $service->quote('');
+    }
+
+    /**
+     * @dataProvider invalidPrices
+     */
+    public function testRejectsInvalidCatalogPrice($price)
+    {
+        $service = new QuoteService(new FakePriceCatalog($price));
+
+        $this->expectException(UnexpectedValueException::class);
+        $service->quote('SKU-1');
+    }
+
+    public function invalidPrices()
+    {
+        return array(
+            array(-1),
+            array('499'),
+            array(null)
         );
     }
 
-    public function testCreateUserSuccessfully(): void
+    public function testPropagatesCatalogFailure()
     {
-        $email = 'test@example.com';
-        $password = 'SecurePass123!';
+        $catalog = new FakePriceCatalog(0, new RuntimeException('catalog unavailable'));
+        $service = new QuoteService($catalog);
 
-        $this->userRepository
-            ->expects($this->once())
-            ->method('findByEmail')
-            ->with($email)
-            ->willReturn(null);
-
-        $this->userRepository
-            ->expects($this->once())
-            ->method('create')
-            ->willReturn($this->createUser($email));
-
-        $this->emailService
-            ->expects($this->once())
-            ->method('sendWelcomeEmail');
-
-        $user = $this->userService->createUser($email, $password);
-
-        $this->assertSame($email, $user->email);
-    }
-
-    public function testCreateUserThrowsExceptionWhenEmailExists(): void
-    {
-        $this->expectException(\DomainException::class);
-        $this->expectExceptionMessage('Email already exists');
-
-        $this->userRepository
-            ->method('findByEmail')
-            ->willReturn($this->createUser('test@example.com'));
-
-        $this->userService->createUser('test@example.com', 'password');
-    }
-
-    private function createUser(string $email): User
-    {
-        return new User(
-            id: 1,
-            email: $email,
-            password: password_hash('password', PASSWORD_ARGON2ID),
-        );
+        $this->expectException(RuntimeException::class);
+        $service->quote('SKU-1');
     }
 }
+?>
 ```
 
-## Data Providers
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Tests\Unit\Validator;
-
-use App\Validator\EmailValidator;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
-
-final class EmailValidatorTest extends TestCase
-{
-    #[Test]
-    #[DataProvider('validEmailProvider')]
-    public function itValidatesCorrectEmails(string $email): void
-    {
-        $validator = new EmailValidator();
-        $this->assertTrue($validator->isValid($email));
-    }
-
-    #[Test]
-    #[DataProvider('invalidEmailProvider')]
-    public function itRejectsInvalidEmails(string $email): void
-    {
-        $validator = new EmailValidator();
-        $this->assertFalse($validator->isValid($email));
-    }
-
-    public static function validEmailProvider(): array
-    {
-        return [
-            ['user@example.com'],
-            ['john.doe@company.co.uk'],
-            ['test+filter@domain.org'],
-        ];
-    }
-
-    public static function invalidEmailProvider(): array
-    {
-        return [
-            ['invalid'],
-            ['@example.com'],
-            ['user@'],
-            ['user space@example.com'],
-        ];
-    }
-}
-```
-
-## Laravel Feature Tests
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Tests\Feature;
-
-use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
-use Tests\TestCase;
-
-final class UserControllerTest extends TestCase
-{
-    use RefreshDatabase, WithFaker;
-
-    public function testUserCanViewTheirProfile(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->get('/api/users/me');
-
-        $response->assertOk()
-            ->assertJson([
-                'data' => [
-                    'id' => $user->id,
-                    'email' => $user->email,
-                ],
-            ]);
-    }
-
-    public function testUserCanUpdateTheirProfile(): void
-    {
-        $user = User::factory()->create();
-        $newName = $this->faker->name();
-
-        $response = $this->actingAs($user)->putJson('/api/users/me', [
-            'name' => $newName,
-        ]);
-
-        $response->assertOk();
-
-        $this->assertDatabaseHas('users', [
-            'id' => $user->id,
-            'name' => $newName,
-        ]);
-    }
-
-    public function testUnauthorizedUserCannotAccessProfile(): void
-    {
-        $response = $this->getJson('/api/users/me');
-
-        $response->assertUnauthorized();
-    }
-
-    public function testValidationFailsWithInvalidData(): void
-    {
-        $user = User::factory()->create();
-
-        $response = $this->actingAs($user)->putJson('/api/users/me', [
-            'email' => 'not-an-email',
-        ]);
-
-        $response->assertUnprocessable()
-            ->assertJsonValidationErrors(['email']);
-    }
-}
-```
-
-## Pest Testing (Modern Alternative)
-
-```php
-<?php
-
-declare(strict_types=1);
-
-use App\Models\User;
-use App\Services\UserService;
-
-beforeEach(function () {
-    $this->userService = app(UserService::class);
-});
-
-it('creates a user successfully', function () {
-    $user = $this->userService->createUser(
-        email: 'test@example.com',
-        password: 'SecurePass123!'
-    );
-
-    expect($user)
-        ->toBeInstanceOf(User::class)
-        ->email->toBe('test@example.com');
-});
-
-it('validates email format', function (string $email, bool $valid) {
-    $validator = new EmailValidator();
-
-    expect($validator->isValid($email))->toBe($valid);
-})->with([
-    ['test@example.com', true],
-    ['invalid', false],
-    ['@example.com', false],
-]);
-
-test('authenticated user can view profile', function () {
-    $user = User::factory()->create();
-
-    $this->actingAs($user)
-        ->get('/api/users/me')
-        ->assertOk()
-        ->assertJson(['data' => ['email' => $user->email]]);
-});
-
-test('guest cannot access protected routes', function () {
-    $this->getJson('/api/users/me')
-        ->assertUnauthorized();
-});
-```
-
-## PHPStan Configuration
-
-```neon
-# phpstan.neon
-parameters:
-    level: 9
-    paths:
-        - src
-        - tests
-    excludePaths:
-        - src/bootstrap.php
-        - vendor
-    checkMissingIterableValueType: true
-    checkGenericClassInNonGenericObjectType: true
-    reportUnmatchedIgnoredErrors: true
-    tmpDir: var/cache/phpstan
-
-    ignoreErrors:
-        # Ignore specific Laravel magic
-        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder#'
-
-    type_coverage:
-        return_type: 100
-        param_type: 100
-        property_type: 100
-
-includes:
-    - vendor/phpstan/phpstan-strict-rules/rules.neon
-    - vendor/phpstan/phpstan-deprecation-rules/rules.neon
-```
-
-## PHPStan Annotations
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace App\Repository;
-
-use App\Entity\User;
-use Doctrine\ORM\EntityRepository;
-
-/**
- * @extends EntityRepository<User>
- */
-final class UserRepository extends EntityRepository
-{
-    /**
-     * @return User[]
-     */
-    public function findActive(): array
-    {
-        return $this->createQueryBuilder('u')
-            ->where('u.status = :status')
-            ->setParameter('status', 'active')
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * @param int[] $ids
-     * @return User[]
-     */
-    public function findByIds(array $ids): array
-    {
-        return $this->createQueryBuilder('u')
-            ->where('u.id IN (:ids)')
-            ->setParameter('ids', $ids)
-            ->getQuery()
-            ->getResult();
-    }
-}
-
-/**
- * @template T
- */
-final readonly class Result
-{
-    /**
-     * @param T $data
-     */
-    public function __construct(
-        public mixed $data,
-        public bool $success,
-    ) {}
-
-    /**
-     * @return T
-     */
-    public function getData(): mixed
-    {
-        return $this->data;
-    }
-}
-```
-
-## Mockery (Advanced Mocking)
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Tests\Unit\Service;
-
-use App\Repository\UserRepository;
-use App\Service\NotificationService;
-use Mockery;
-use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
-use PHPUnit\Framework\TestCase;
-
-final class NotificationServiceTest extends TestCase
-{
-    use MockeryPHPUnitIntegration;
-
-    public function testSendsNotificationToActiveUsers(): void
-    {
-        $repository = Mockery::mock(UserRepository::class);
-        $repository->shouldReceive('findActive')
-            ->once()
-            ->andReturn([
-                $this->createUser('user1@example.com'),
-                $this->createUser('user2@example.com'),
-            ]);
-
-        $service = new NotificationService($repository);
-        $result = $service->notifyActiveUsers('Important message');
-
-        $this->assertSame(2, $result->count());
-    }
-
-    public function testHandlesEmailServiceFailure(): void
-    {
-        $emailService = Mockery::mock(EmailService::class);
-        $emailService->shouldReceive('send')
-            ->once()
-            ->andThrow(new \RuntimeException('Email service down'));
-
-        $service = new NotificationService($emailService);
-
-        $this->expectException(\RuntimeException::class);
-        $service->sendNotification('test@example.com', 'Hello');
-    }
-
-    private function createUser(string $email): User
-    {
-        return new User(id: 1, email: $email, password: 'hashed');
-    }
-}
-```
-
-## Code Coverage
-
-```xml
-<!-- phpunit.xml -->
-<?xml version="1.0" encoding="UTF-8"?>
-<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="vendor/autoload.php"
-         colors="true"
-         failOnRisky="true"
-         failOnWarning="true"
-         stopOnFailure="false">
-    <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Feature">
-            <directory>tests/Feature</directory>
-        </testsuite>
-    </testsuites>
-    <coverage>
-        <include>
-            <directory suffix=".php">src</directory>
-        </include>
-        <exclude>
-            <directory>src/bootstrap</directory>
-            <file>src/Kernel.php</file>
-        </exclude>
-        <report>
-            <html outputDirectory="coverage/html"/>
-            <clover outputFile="coverage/clover.xml"/>
-        </report>
-    </coverage>
-    <php>
-        <env name="APP_ENV" value="testing"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-    </php>
-</phpunit>
-```
-
-## Quick Reference
-
-| Tool | Purpose | Command |
-|------|---------|---------|
-| PHPUnit | Unit/Feature tests | `./vendor/bin/phpunit` |
-| Pest | Modern testing | `./vendor/bin/pest` |
-| PHPStan | Static analysis | `./vendor/bin/phpstan analyse` |
-| Psalm | Alternative static analysis | `./vendor/bin/psalm` |
-| PHP-CS-Fixer | Code style | `./vendor/bin/php-cs-fixer fix` |
-| PHPMD | Mess detector | `./vendor/bin/phpmd src text cleancode` |
-
-| Assertion | PHPUnit | Pest |
-|-----------|---------|------|
-| Equality | `$this->assertSame()` | `expect()->toBe()` |
-| Type | `$this->assertInstanceOf()` | `expect()->toBeInstanceOf()` |
-| Array | `$this->assertContains()` | `expect()->toContain()` |
-| Exception | `$this->expectException()` | `expect()->toThrow()` |
-| Count | `$this->assertCount()` | `expect()->toHaveCount()` |
+The PHPUnit 5.7 command-line runner accepts a test class and optional source file, but a project may require its configured bootstrap, XML settings, or wrapper command. Run this example through the project’s actual runner invocation after confirming that runner version; do not copy the command for a different repository. [PHPUnit 5.7: command-line runner](https://phpunit.de/manual/5.7/en/textui.html)
+
+**Do not apply when:** The code under test has no collaborator boundary or the real behavior requires a framework or external system. Do not install Mockery, Pest, or another test dependency just for this example; use one only when the project already configures it.
+
+## Exercise HTTP and framework behavior in its real test context
+
+**Trigger:** A changed route or controller relies on HTTP authentication, resource ownership, request validation, middleware, or framework response handling.
+
+**Check and act:** Confirm the installed framework and its test harness, then test through that configured application path. Assert the contract for authorized and unauthorized callers, owned and unowned resources, valid and rejected inputs, responses, and relevant persisted effects. Consult official documentation for the confirmed framework version when framework-specific test APIs are needed.
+
+**Do not apply when:** The changed code is a standalone service or value transformation with no route or framework lifecycle. Do not scaffold a Laravel application or assume Laravel, Yii, or modern framework APIs for a PHP file.
+
+## Isolate database state and writes
+
+**Trigger:** A test reads or changes database state, including setup, cleanup, fixtures, or rollback behavior.
+
+**Check and act:** Use an owned disposable database or isolated test schema with credentials authorized for that target. Make setup and cleanup safe for that resource, and verify both successful and failed state transitions. Stop before any shared-database write unless the user has explicitly authorized the target and write operation. PHPUnit’s database-testing guidance calls for per-test cleanup and fixtures and describes how shared mutable database state can make tests interfere with one another. [PHPUnit 5.7: database testing](https://phpunit.de/manual/5.7/en/database.html)
+
+**Do not apply when:** The test is database-free, or the operation is read-only and uses a verified isolated snapshot. A transaction alone does not establish that the target database is safe to mutate.
+
+## Match static analysis and coverage to project configuration
+
+**Trigger:** A change adds or adjusts a static-analysis, coding-standard, coverage, or extension check.
+
+**Check and act:** Confirm the installed tool version, its configuration, required PHP extensions, supported PHP floor, and the exact invocation used in CI. Run the configured tool against the affected scope and record unavailable extensions or unsupported syntax as NOT RUN or NOT VERIFIED. Apply only the coverage threshold configured by the project or task; if none exists, report coverage evidence without introducing an 80% default. Composer treats PHP and extensions as platform packages, and PHPUnit 5.7 documents its own coverage configuration and requirements; verify these against the actual CLI environment. [Composer platform packages](https://getcomposer.org/doc/01-basic-usage.md#platform-packages), [PHPUnit 5.7: code coverage](https://phpunit.de/manual/5.7/en/code-coverage-analysis.html)
+
+**Do not apply when:** The change neither affects these tools nor claims coverage or static-analysis evidence. Do not invent analyzer commands, extension requirements, or thresholds.
+
+## Report the verification boundary
+
+**Trigger:** Test, lint, static-analysis, framework, database, or coverage evidence is reported.
+
+**Check and act:** Record the exact configured command, PHP/runtime and runner versions, affected test scope, and observed result. Distinguish a passed test from a skipped test, an unavailable tool, a syntax-only check, or an unverified environment. The PHPUnit 5.7 runner documents separate failure, error, skipped, and incomplete outcomes; report the outcome actually produced. [PHPUnit 5.7: command-line runner](https://phpunit.de/manual/5.7/en/textui.html)
+
+**Do not apply when:** No verification claim is made. Do not promote a local syntax check or an unrun suite to a test pass.

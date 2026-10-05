@@ -64,7 +64,7 @@
     "skills/dhpk-ios-platform/references/actor-persistence.md": {
       "skill_id": "ios-platform",
       "source": "modules/ios-platform/references/actor-persistence.md",
-      "sha256": "sha256:fd4f78c6e1bfae25d9336826788aeeca0bf9b076b07a3961ece4d5462a7b227f",
+      "sha256": "sha256:8b4efa741a95cfdd1f3fad3bbd1b5aa27b6afda5ae10897af767086456901711",
       "mode": "0644"
     },
     "skills/dhpk-ios-platform/references/coredata-encryption.md": {
@@ -358,7 +358,7 @@
     "skills/dhpk-swift-language/references/approachable-concurrency.md": {
       "skill_id": "swift-language",
       "source": "modules/swift/references/approachable-concurrency.md",
-      "sha256": "sha256:8cc37f2ba95d437b332a0d25469798f50f1a84f301d5dd1d38fcee858c576cc7",
+      "sha256": "sha256:59b785ce22680b177110805cc624afe0e2ef4189dff44dad7152a7c89c209a13",
       "mode": "0644"
     },
     "skills/dhpk-swift-language/references/concurrency.md": {
@@ -388,7 +388,7 @@
     "skills/dhpk-swift-test-strategy/references/protocol-di-host-testing.md": {
       "skill_id": "swift-test-strategy",
       "source": "modules/swift-testing/references/protocol-di-host-testing.md",
-      "sha256": "sha256:e163235b796250333c213962f162f01d8aa71362f6c07ae7daa57e162cc7fe8e",
+      "sha256": "sha256:eb3003c291bb292b19b169dc1e5833cc4d1412c22c4311d32f3746a726933ee4",
       "mode": "0644"
     },
     "skills/dhpk-swift-test-strategy/references/snapshot-testing.md": {
