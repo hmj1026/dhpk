@@ -1,6 +1,6 @@
 # Design
 
-Status: Proposed / decision pending. Implementation and behavioral validation: `NOT_RUN`. Motivation and architecture decision: [proposal.md](proposal.md). Contract: [session-usage-telemetry delta](requirements.md).
+Status: Supporting design for the requirements adopted on 2026-10-05. Implementation and behavioral validation: `NOT_RUN`. Motivation and architecture decision: [proposal.md](proposal.md). Contract: [session-usage-telemetry Specification](../../../openspec/specs/session-usage-telemetry/spec.md).
 
 ## Context
 
@@ -75,7 +75,7 @@ Report separate source/scan, extraction, semantics, reconciliation, ancestry/att
 
 ## Migration Plan
 
-After separate specification acceptance and implementation authorization, ship three independently useful slices: optional nullable contract/coverage; supported counter normalization and reconciliation; verified planner/descendant attribution. Each slice remains usable with unsupported/unattributed evidence. Construct contracts and RED fixtures before implementation, then integrate, document and regenerate declared projections. Normal deployment/publication authority is unchanged. Rollback disables the option or reinstalls the prior package; no DB or report.v1 migration is required. Publication of this proposal records the proposed decisions; implementation remains a separate checkpoint.
+After the recorded specification acceptance and separate implementation authorization, ship three independently useful slices: optional nullable contract/coverage; supported counter normalization and reconciliation; verified planner/descendant attribution. Each slice remains usable with unsupported/unattributed evidence. Construct contracts and RED fixtures before implementation, then integrate, document and regenerate declared projections. Normal deployment/publication authority is unchanged. Rollback disables the option or reinstalls the prior package; no DB or report.v1 migration is required. This supporting design records implementation options; the adopted main spec owns the behavioral contract and implementation remains a separate checkpoint.
 
 ## Traceability and acceptance
 
@@ -92,4 +92,4 @@ After separate specification acceptance and implementation authorization, ship t
 
 ## Open Questions
 
-Which additional source-format versions have trustworthy identity and semantic evidence can be answered per adapter without changing this contract: unsupported versions remain explicit. Whether future planner comparisons warrant separately authorized native experiments or provider accounting remains a separate work item. The sidecar grammar, ownership, missing-value behavior and conservative attribution are proposed decisions in this change, not unresolved implementation guesses.
+Which additional source-format versions have trustworthy identity and semantic evidence can be answered per adapter without changing this contract: unsupported versions remain explicit. Whether future planner comparisons warrant separately authorized native experiments or provider accounting remains a separate work item. The adopted main spec owns sidecar grammar, ownership, missing-value behavior and conservative attribution. Source-version support and helper layout remain implementation design work.

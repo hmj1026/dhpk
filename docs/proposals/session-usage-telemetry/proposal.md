@@ -1,6 +1,6 @@
 # Proposal
 
-Status: Proposed / decision pending. Issue: #817. Authorized checkpoint: research and specification only. No implementation or model experiments are authorized by this artifact set.
+Status: Requirements adopted on 2026-10-05; implementation pending. Issue: #817. Authorized checkpoint: research and specification only. No implementation or model experiments are authorized by this artifact set.
 
 ## Why
 
@@ -29,7 +29,7 @@ None. `session-audit-integrity` remains the owner of existing finding predicates
 
 Future owned source: `skills/dhpk-session-usage-audit/scripts/session-usage-audit.js`, package-local telemetry helpers, `SKILL.md`, and `references/source-adapters.md`; behavioral fixtures/tests; the existing distribution inventory usage grammar and declared generated projections. No new collector skill, arbitrary transcript roots, dispatch writer, provider/admin billing integration, private-store adapter, model policy change, or automatic model run is proposed.
 
-Default `dhpk.session-usage-audit.report.v1` behavior and existing report files remain compatible. The sidecar extends the existing owner with one optional surface; it does not introduce competing report versions or redefine existing findings. Reusable requirements would enter `openspec/specs/session-usage-telemetry/spec.md` only after acceptance and the normal synchronization workflow. This versioned proposal is a review record. The local OpenSpec workflow remains ignored; proposed requirements are not accepted behavior or a shipped feature.
+Default `dhpk.session-usage-audit.report.v1` behavior and existing report files remain compatible. The sidecar extends the existing owner with one optional surface; it does not introduce competing report versions or redefine existing findings. REQ-1 through REQ-8 are adopted in the [main spec](../../../openspec/specs/session-usage-telemetry/spec.md). This proposal retains the decision rationale. The local OpenSpec workflow remains ignored; the adopted contract is not a shipped feature.
 
 ## Decision
 
@@ -57,4 +57,4 @@ Propose an opt-in sidecar under the existing audit owner. Reuse the allowlisted 
 
 ### Status
 
-Proposed; pending specification acceptance. Architecture and schema recommendations are not implementation authorization. Implementation, behavioral tests, native model experiments, provider billing verification, release and publication are `NOT_RUN` in this planning pass.
+REQ-1 through REQ-8 adopted by the maintainer on 2026-10-05. Implementation authorization remains separate. The main spec owns behavioral requirements; design and schema sketches support them. Implementation, behavioral tests, native model experiments, provider billing verification, release and publication are `NOT_RUN` in this planning pass.

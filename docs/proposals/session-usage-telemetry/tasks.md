@@ -1,6 +1,6 @@
 # Tasks
 
-Status: Pending / proposed. Every task below is future implementation work and remains unchecked. Begin only after specification acceptance and separate implementation authorization. [Design and traceability](design.md) map eight requirements to observable oracles. Current implementation, tests, model runs and provider accounting: `NOT_RUN`.
+Status: Pending implementation; requirements adopted on 2026-10-05. Every task below is future implementation work and remains unchecked. Specification acceptance is recorded in the [main spec](../../../openspec/specs/session-usage-telemetry/spec.md); begin implementation only with its separate authorization. [Design and traceability](design.md) map eight requirements to observable oracles. Current implementation, tests, model runs and provider accounting: `NOT_RUN`.
 
 ## 1. Phase 1 — Optional contract and honest coverage
 
