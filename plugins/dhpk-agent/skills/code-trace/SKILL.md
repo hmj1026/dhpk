@@ -51,18 +51,31 @@ Use the five-phase loop:
 
 `Clarify → Gather evidence → Trace and confirm → Design the fix → Preserve knowledge`
 
-Turn the symptom into a minimal red-capable reproduction or probe before broad
-theorizing. Maintain ranked, falsifiable hypotheses with a discriminating
-check and rejection evidence. Redact secrets from commands, logs, traces, and
-handoffs. Do not promote a plausible explanation to root cause without the
-smallest confirming check; verify the cause with that check.
+Before broad theorizing, run the smallest symptom-specific reproduction or
+probe that is available and safe. Record the command or interaction, relevant
+output, and the expected-versus-actual assertion. If reproduction is
+unavailable, blocked, or flaky, state that; for flaky behavior, include the
+observed attempts, successes, and known conditions. For performance symptoms,
+record a baseline from a comparable workload when available. Reduce one input
+at a time only while the check is bounded and preserves the signal. See
+`references/diagnose/reproduction-evidence.md` for these evidence details and
+`references/diagnose/root-cause-tracing.md` when following a call or data path.
+
+Keep diagnosis read-only: do not reproduce a destructive action or write to a
+shared database by default. Use existing evidence and authorized read-only
+queries; route any side-effecting confirmation through an authorized isolated
+environment. Maintain ranked, falsifiable hypotheses with a discriminating
+check and evidence that could reject each one. Redact secrets from commands,
+logs, traces, and handoffs. Do not promote a plausible explanation to root
+cause without a confirming check.
 
 Load the phase-specific material from `references/diagnose/` only when that
-phase requires it. The bundled scripts are deterministic read/query helpers;
-run them with bounded output and preserve their actual exit status. If the
-repository's policy calls for an investigation document, ask for or receive
-explicit authorization before creating it; otherwise return the phase report
-in the response and name the single next handoff.
+phase requires it. Inspect a selected bundled script's operation and effects
+before running it, keep output bounded, and preserve its actual exit status.
+Return the phase report in the response and name the single next handoff by
+default. Write an investigation artifact only when explicitly authorized; this
+skill does not create directories or files and does not implement the proposed
+repair.
 
 ## `history`
 
@@ -121,7 +134,7 @@ findings separate before the agreement/difference table.
 ## References
 
 - `references/explore/` — search patterns, explanation depth, and independent perspective.
-- `references/diagnose/` — phase templates, tracing, waiting, defense-in-depth, checklists, and scripts.
+- `references/diagnose/` — reproduction evidence, phase templates, tracing, waiting, defense-in-depth, checklists, and scripts.
 - `references/history/` — git command/report reference and environment traps.
 - `references/select-tool/decision-tree.md` — edge cases and routing rationale.
 

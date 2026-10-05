@@ -19,7 +19,7 @@
 | Regression     | Intermittent | -          | `/dhpk:code-trace --dual`                      |
 | Always existed | Reproducible | Low        | `/dhpk:code-trace`                          |
 | Always existed | Reproducible | High       | `/dhpk:code-trace --dual`                      |
-| Always existed | Intermittent | -          | `/dhpk:dhpk-module-design --mode adversarial`    |
+| Always existed | Intermittent | -          | `/dhpk:module-design --mode adversarial`    |
 | Uncertain      | -            | -          | `/dhpk:code-trace` first                    |
 
 ## Keyword Triggers
@@ -39,7 +39,7 @@
 - "Need confirmation" "somewhat complex" "unsure of the cause"
 - "Intermittent" "sometimes happens" "random"
 
-### -> `/dhpk:dhpk-module-design --mode adversarial`
+### -> `/dhpk:module-design --mode adversarial`
 
 - "Many possible causes" "how to determine" "exhaust possibilities"
 - "What are the possibilities" "not sure what the problem is"
@@ -52,7 +52,7 @@ When the problem is complex, combine strategies:
 1. /dhpk:code-trace -> Establish baseline understanding first
 2. /dhpk:code-trace -> If regression is suspected
 3. /dhpk:code-trace --dual -> When dual confirmation is needed
-4. /dhpk:dhpk-module-design --mode adversarial -> Exhaust all possible causes
+4. /dhpk:module-design --mode adversarial -> Exhaust all possible causes
 ```
 
 ## Review Thread Classification
@@ -96,5 +96,5 @@ Initial investigation insufficient -> Escalate strategy
     -> Combine with /dhpk:code-trace (understand change logic)
 
 /dhpk:code-trace --dual views diverge
-    -> Escalate to /dhpk:dhpk-module-design --mode adversarial (bounded debate)
+    -> Escalate to /dhpk:module-design --mode adversarial (bounded debate)
 ```

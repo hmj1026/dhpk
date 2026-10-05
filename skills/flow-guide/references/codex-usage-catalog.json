@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:29f4f17a762546323713f155967193b5cd6e8366e8bddd522e66faca75a905f5",
+  "sourceInventoryRevision": "sha256:200c524a6622fb503c0390cae18102f3244138f7fe4b783c6285104d4bed9dfc",
   "entries": [
     {
       "id": "change-verdict",
@@ -1536,9 +1536,9 @@
       },
       "software-architecture": {
         "id": "software-architecture",
-        "publicName": "dhpk-module-design",
-        "invocationClass": "not-configured",
-        "command": "$dhpk-module-design <input>",
+        "publicName": "module-design",
+        "invocationClass": "implicit-eligible",
+        "command": "$module-design <input>",
         "codexInvokable": false
       },
       "swift-language": {
@@ -1658,11 +1658,11 @@
         "disposition": "retired"
       },
       "dhpk-codex-architect": {
-        "target": "dhpk-module-design",
+        "target": "module-design",
         "disposition": "retired"
       },
       "dhpk-codex-brainstorm": {
-        "target": "dhpk-module-design",
+        "target": "module-design",
         "disposition": "retired"
       },
       "dhpk-codex-implement": {
@@ -1702,7 +1702,7 @@
         "disposition": "retired"
       },
       "dhpk-feasibility-study": {
-        "target": "dhpk-module-design",
+        "target": "module-design",
         "disposition": "retired"
       },
       "dhpk-feature-dev": {
@@ -1775,6 +1775,10 @@
       },
       "dhpk-matrix-cell-onboard": {
         "target": "matrix-cell-onboard",
+        "disposition": "renamed"
+      },
+      "dhpk-module-design": {
+        "target": "module-design",
         "disposition": "renamed"
       },
       "dhpk-next-step": {
@@ -2014,7 +2018,7 @@
         "disposition": "retired"
       },
       "software-architecture": {
-        "target": "dhpk-module-design",
+        "target": "module-design",
         "disposition": "legacy"
       },
       "spec-mine": {

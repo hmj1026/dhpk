@@ -95,7 +95,7 @@
       "react-19"
     ],
     "id": "full",
-    "inventoryFingerprint": "bf63ed3858f8a1dce9ddd58dbc7373f1b6637485aa42d3733a40d57cf8bec43b",
+    "inventoryFingerprint": "c80d3515b02cc7a1668654e6196e7a1aa93d856bdb75d3747b8217822f385179",
     "mode": "profile",
     "modules": [
       "fastapi",
@@ -188,7 +188,7 @@
       "opsx-apply-resume",
       "ui-ux-verify"
     ],
-    "selectionFingerprint": "476ca89853c809ea53535808568754e9188fe065a415f45bb0c761eda5a2965e",
+    "selectionFingerprint": "ee8046f107b504e485fd139924c3cc1dcf60d94209218a79f5c2e02fc088d714",
     "selectionMode": "profile",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
     "sourceFingerprint": "c9c3f5d89634e8c10ce7c796c4c05e4b92a38d26f157ab04318b30b0d47be2f8",
@@ -263,7 +263,7 @@
       ],
       "skillStableIds": []
     },
-    "surfaceSelectionFingerprint": "ec3765604c93c4b00bb59c1e67c5b840eec7ae02c6227d92e00be86dd7f068c1",
+    "surfaceSelectionFingerprint": "051db4194801059b9f9c740a229ac812d9033e8eb5678f354785a09f0e5a050e",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
@@ -518,6 +518,10 @@
     {
       "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/phase-templates.md",
       "destination": "skills/code-trace/references/diagnose/phase-templates.md"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/reproduction-evidence.md",
+      "destination": "skills/code-trace/references/diagnose/reproduction-evidence.md"
     },
     {
       "stableId": "claude-profile:skill-resource:code-trace:references/diagnose/root-cause-tracing.md",
@@ -2289,11 +2293,15 @@
     },
     {
       "stableId": "claude-profile:skill:software-architecture",
-      "destination": "skills/dhpk-module-design/SKILL.md"
+      "destination": "skills/module-design/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill-resource:software-architecture:agents/openai.yaml",
-      "destination": "skills/dhpk-module-design/agents/openai.yaml"
+      "destination": "skills/module-design/agents/openai.yaml"
+    },
+    {
+      "stableId": "claude-profile:skill-resource:software-architecture:references/dependency-and-tests.md",
+      "destination": "skills/module-design/references/dependency-and-tests.md"
     },
     {
       "stableId": "claude-profile:skill:swift-language",
@@ -2634,5 +2642,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "cbeeb6cdee6e16f3fc1e7772eabe62f963da0d9ecb45bb75c9d82f30609b52eb"
+  "planFingerprint": "58ccff43c183d15d24f9acf7e8ecda796f8baebf18563dc146a2de9b2e7ee612"
 }

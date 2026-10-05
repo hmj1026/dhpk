@@ -73,6 +73,12 @@ current branch/worktree evidence, each required or unavailable gate, and one
 next route. If the script cannot run, record the fallback evidence and the
 reason instead of treating the missing check as a pass.
 
+When the request is an inbound issue with unsettled intent or acceptance, use
+the bounded read-only intake in
+`references/execution-bundle/skills/flow-guide/references/premise-verification.md`.
+Settled specifications, approved tasks, and resumptions skip that intake and
+continue from their existing evidence.
+
 ## `close`
 
 Account for changed files, TDD evidence when behavior changed, applicable
@@ -141,4 +147,6 @@ repository inventory, environment variable, or upward search is consulted.
 
 - [ ] Exactly one action was selected and its completion criterion is met; only action-relevant references and scripts were loaded.
 - [ ] Required, skipped, unavailable, and failed gates are distinct; a route report was validated as `dhpk.route-result.v3`.
+- [ ] Raw issue intake ran only for unsettled intent, reused relevant
+      discussion and decisions, and left tracker state unchanged.
 - [ ] No target was executed and no target authority was inherited.

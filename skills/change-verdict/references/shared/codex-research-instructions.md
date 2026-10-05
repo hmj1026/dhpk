@@ -6,29 +6,49 @@ reference this file instead of inlining the research block.
 ## Core Principle
 
 **Give direction, not content.** The selected reviewer has read-only sandbox
-access. Instead of dumping diffs or file contents into the prompt, provide
-metadata (changed file list, diff stats, file path) and let the reviewer read
-the actual content itself. This ensures full context, not a truncated slice.
+access. Supply the resolved scope and fixed point, plus any metadata the caller
+actually provides, then let the reviewer read the source. Treat summaries as
+navigation hints and collect missing metadata from the selected repository
+snapshot. This keeps the prompt aligned with the reviewed content.
 
 ## Standard Research Block (Code Review)
 
-Include this block verbatim in code review prompts (fast, full, branch):
+This is the single research block for code prompts (fast, full, branch). Each
+prompt links here rather than copying it:
 
 ```
-## ⚠️ Important: You must independently research the project ⚠️
+## Scope and fixed point
 
-The changed files and diff stats are listed above. You **must** read the actual diffs and file contents yourself using your sandbox access. Do NOT expect a pre-provided diff — you are responsible for reading all changes in context.
+Use the exact scope and fixed point already resolved by the shared review
+workflow. Read actual changes and relevant context within that scope. If either
+value is missing, contradictory, or unreadable, return `INCONCLUSIVE`.
 
-### Git Exploration (Priority)
-1. Check change status: `git status`
-2. Read the full diff: `git diff HEAD`
-3. For each changed file, read the full diff: `git diff HEAD -- <file-path>`
-4. Read full content of changed files for context: `cat <changed file> | head -200`
+- For an uncommitted diff, use the recorded `HEAD` commit as the comparison
+  point and inspect the selected working-tree changes.
+- For a branch, use the recorded merge-base SHA for diff and history reads. Do
+  not resolve the named base branch again or use a moving `BASE_BRANCH..HEAD`
+  range.
+- For a selected path set, keep reads and conclusions within those paths and
+  the context needed to assess them.
 
-### Project Research
-- Search called functions: `grep -r "functionName" . -l --include="*.ts" --include="*.js" --include="*.md" | head -10`
-- Read related files: `cat <file-path> | head -100`
-- Understand class definitions: `grep -rA 20 "class ClassName" . --include="*.ts" --include="*.js"`
+The bundled CLI wrapper supplies the selected scope, review depth, and pinned
+merge-base value in its workflow text. It does not synthesize a changed-file
+list, diff statistics, focus text, request document, local check results,
+branch name, or commit count. Read any additional metadata from the selected
+repository snapshot; do not assume other prompt values are injected.
+
+## Project research
+
+Read related source, callers, dependencies, tests, and documentation only when
+they help assess the selected changes. Use the repository's available
+read-only code navigation and file-reading tools. Preserve the same scope and
+fixed point for every follow-up read.
+
+## Code-only evidence
+
+Assess Standards and Spec separately as described by the sibling
+`review-common.md`. Report unavailable evidence as a visible gap and use the
+sibling `review-rubric.md` for the final verdict.
 ```
 
 ## Variant: Document Review

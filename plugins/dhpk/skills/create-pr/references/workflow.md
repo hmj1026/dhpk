@@ -9,8 +9,15 @@
    ticket URL convention when building the ticket link. If no ticket can be
    resolved, state that in the report rather than inventing one.
 3. Derive the title as `<type>: [<TICKET>] <summary>` unless `--title` is
-   supplied. Build the body from summary bullets, the ticket link, and a test
-   plan. Keep shell quoting intact in the emitted command.
+   supplied. Build a concise body with the summary, the ticket link when
+   resolved, and a verification section. List commands and results only for
+   checks actually observed; put planned or unavailable checks under `NOT RUN`
+   with the reason. For a behavior change, show a compact before/after example
+   or evidence, and label an unobserved after-state as expected with its check
+   marked `NOT RUN`. Include rollback and blast-radius details only when they
+   materially affect review. Add a visual aid only when it clarifies the
+   change; do not include one by default. Keep shell quoting intact in the
+   emitted command.
 4. Resolve `{TARGET_BRANCH}` first and `main` second when `--base` is absent.
    Run:
 

@@ -250,7 +250,7 @@
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/premise-verification.md": {
       "skill_id": "opsx-apply-goal",
       "source": "skills/flow-guide/references/premise-verification.md",
-      "sha256": "sha256:f22bcd144a61ca38382b54c3ecba172c94cd2a043d9cbc40f977287e5b396aa4",
+      "sha256": "sha256:97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d",
       "mode": "0644"
     },
     "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
@@ -580,7 +580,7 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/premise-verification.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/premise-verification.md",
-      "sha256": "sha256:f22bcd144a61ca38382b54c3ecba172c94cd2a043d9cbc40f977287e5b396aa4",
+      "sha256": "sha256:97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
@@ -706,7 +706,7 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/premise-verification.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/premise-verification.md",
-      "sha256": "sha256:f22bcd144a61ca38382b54c3ecba172c94cd2a043d9cbc40f977287e5b396aa4",
+      "sha256": "sha256:97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {

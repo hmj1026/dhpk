@@ -1,5 +1,34 @@
 # Premise verification and independent doubt
 
+## Raw issue-intent intake
+
+Use this bounded check only when an inbound issue still lacks a settled
+outcome or acceptance. A confirmed specification, approved task, or resumed
+handoff already carries intent; continue from that evidence without repeating
+intake.
+
+1. Start with the user's current request and issue material already in context.
+   If the user supplied an issue reference and a read-only tracker view is
+   available, read that issue and only the relevant discussion. Do not list or
+   reprocess a backlog.
+2. Reconcile new information with the open questions already recorded.
+   Incorporate a reporter's `needs-info` reply, retain only unanswered
+   decisions, and call out material conflicts with older statements. Do not
+   repeat questions that the discussion or current request already answers.
+3. Check a relevant ADR or repository decision/retirement note when one is
+   identified or found through a bounded concept lookup. Then inspect current
+   behavior by the request's domain terms when that can establish whether the
+   behavior already exists. Cite the decision or behavior and state whether
+   new information changes its applicability; distinguish observation from
+   inference.
+4. Recommend one next route from the remaining evidence. If intent is still
+   unsettled, state only the decision or information that blocks the route.
+
+This check is read-only: do not change issue fields or labels, post comments,
+close issues, or consult, create, or update an out-of-scope/rejection database.
+Finding an existing implementation or prior decision is evidence for the
+requester to review, not authority to close or reject the issue.
+
 ## Multi-AI / dual-perspective independence
 
 When a step uses a second AI or perspective, each side MUST form its own conclusion from the source. The secondary prompt carries only the question, project path, stack, artifact, and contract—not the first model's analysis, verdict, or theory. Avoid leading questions, scope pre-filtering, and reused threads; compare independent conclusions and report divergences.

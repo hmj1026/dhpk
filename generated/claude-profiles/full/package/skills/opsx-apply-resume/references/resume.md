@@ -35,10 +35,12 @@ Codex may continue in the current turn or start a new turn, with no required
 ## Steps
 
 1. **Load the handoff.** Read `HANDOFF_PATH` and parse `change_id`,
-   `model_suggestion`, `risk_level`, `precommit`, `commit`, optional
-   `compact_json_path`, optional `claude_mem_obs_id`, Next Actions (or legacy
-   Remaining Tasks), and Completion Criteria. A missing or malformed handoff
-   is `BLOCKED`.
+   `model_suggestion` when present, `risk_level`, `precommit`, `commit`,
+   optional `compact_json_path`, optional `claude_mem_obs_id`, Next Actions
+   (or legacy Remaining Tasks), and Completion Criteria. A missing or
+   malformed handoff is `BLOCKED`. A missing legacy `model_suggestion` is
+   displayed as `unavailable`; display an existing suggestion as advisory,
+   without recalculating it from task count or switching models automatically.
 2. **Load context with the fallback chain.** Stop at the first successful tier
    and record `CONTEXT_SOURCE`:
 
@@ -58,8 +60,8 @@ Codex may continue in the current turn or start a new turn, with no required
    `openspec/changes/<change-id>/tasks.md` exists. If it does not, stop and
    report that the change may have been archived or renamed; do not continue.
 4. **Display the restore summary.** Show the Host, change, context source,
-   goal, completed/in-progress items, Next Actions, model suggestion, and
-   prior precommit/commit states. Keep failed, skipped, unavailable, and
+   goal, completed/in-progress items, Next Actions, advisory model suggestion,
+   and prior precommit/commit states. Keep failed, skipped, unavailable, and
    not-configured evidence distinct.
 5. **Mark in flight.** After the handoff and external capability are valid,
    update its state to `consuming` through
@@ -90,6 +92,8 @@ availability/result, archive path when successful, and exactly one next action.
 - [ ] Handoff and change were validated before `consuming`.
 - [ ] The first successful context tier was recorded; optional failures did
       not erase the embedded summary.
+- [ ] Legacy `Remaining Tasks` and existing model-suggestion values remain
+      readable; the suggestion is advisory and does not trigger a model change.
 - [ ] External continuation used only the canonical available skill.
 - [ ] `consumed-*` exists only after success; failed apply retains recoverable
       `latest.md`.

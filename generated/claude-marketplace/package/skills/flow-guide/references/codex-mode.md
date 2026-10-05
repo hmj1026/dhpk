@@ -23,16 +23,21 @@ workflow 的預設 discovery 使用實體化的 `minimal` profile；`full` 與
 
 ## Phase Mapping
 
+`module-design` below names the architecture owner, not a Codex availability
+claim. Its inventory selection remains Claude/Cursor. Use it in Codex only if
+independently discovered; otherwise hand the boundary question to the available
+`architect` role without installing or exposing another surface.
+
 | Phase | Default route | Explicit optional backend or second opinion |
 |------|---------------|----------------------------------------------|
-| Planning（跨模組 / DDD） | `dhpk-module-design --mode design` | `--mode review\|compare\|adversarial`；需要額外 CLI 視角時使用 `--second-opinion=codex-exec` |
-| Planning（根因未知） | `code-trace` | `code-trace --dual` 的 isolated perspective，或明確使用 `--second-opinion=codex-exec`；多重原因才使用 `dhpk-module-design --mode adversarial` |
+| Planning（跨模組 / DDD） | `module-design --mode design` | `--mode review\|compare\|adversarial`；需要額外 CLI 視角時使用 `--second-opinion=codex-exec` |
+| Planning（根因未知） | `code-trace` | `code-trace --dual` 的 isolated perspective，或明確使用 `--second-opinion=codex-exec`；多重原因才使用 `module-design --mode adversarial` |
 | Implementation hand-off | `flow-drive`（current model） | `flow-drive --backend cli` 或 `--backend agy`；需要額外 blind 意見時使用 `--second-opinion=codex-exec` |
 | Test gate | `tdd-workflow` + `change-verdict` | 依 owner 支援度選 isolated reviewer；或明確使用 `--second-opinion=codex-exec` |
 | Review gate | `change-verdict`（current model） | `change-verdict --backend cli`；額外意見使用 owner 支援的 `--second-opinion=codex-exec` |
 | Security gate | `change-verdict`（isolated read-only current-model audit） | 僅在明確要求且 owner 支援時使用 isolated reviewer 或 `--second-opinion=codex-exec` |
 
-Phase mapping 只指定 route，不會替 caller 選擇 optional backend。`dhpk-module-design`、
+Phase mapping 只指定 route，不會替 caller 選擇 optional backend。`module-design`、
 `flow-drive` 與 `change-verdict` 是本 workflow 的明確 owner；需要
 second opinion 時，沿用 owner 的 option 並在輸出中標記 primary 與獨立意見的
 差異。
@@ -55,5 +60,5 @@ second opinion 時，沿用 owner 的 option 並在輸出中標記 primary 與�
 Next Command 應保留 caller 已明確選取的 backend 或 second-opinion option；若
 沒有選取，就不要附加任何 Codex option，讓下游 owner 使用 current-model
 default。實作、架構與 review hand-off 分別指向
-`flow-drive`、`dhpk-module-design` 與 `change-verdict`，不透過舊的
+`flow-drive`、`module-design` 與 `change-verdict`，不透過舊的
 alias 或隱藏 route。
