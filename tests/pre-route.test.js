@@ -128,4 +128,12 @@ test('specific security, bug, and Playwright routes outrank broad unit/integrati
   }
 });
 
+test('testPreRoute_explicitEmptyArgWithOpenStdin_returnsNoQueryWithoutBlocking', () => {
+  // An explicit "" argument must not fall back to stdin: under `npm run` the
+  // inherited stdin stays open and the fallback `cat` would block forever.
+  const res = spawnSync('bash', ['-c', 'bash "$0" "" < <(sleep 10 2>/dev/null)', SCRIPT], { encoding: 'utf8', timeout: 5000 });
+  assert.strictEqual(res.error, undefined, 'pre-route.sh blocked reading stdin');
+  assert.strictEqual(res.stdout.trim(), 'NO_QUERY');
+});
+
 run('pre-route');

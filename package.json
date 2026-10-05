@@ -29,7 +29,7 @@
     "setup:status": "node scripts/dhpk-install.js claude status --scope user",
     "dhpk-install": "node scripts/dhpk-install.js",
     "test": "node tests/run-all.js",
-    "test:hooks": "bash scripts/validate/test-hooks.sh </dev/null",
+    "test:hooks": "bash scripts/validate/test-hooks.sh",
     "test:one": "node",
     "validate:agents": "node scripts/ci/validate-agents.js --strict",
     "validate:skills": "node scripts/ci/validate-skills.js --strict",
