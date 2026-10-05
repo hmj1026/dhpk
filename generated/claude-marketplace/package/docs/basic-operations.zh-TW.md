@@ -570,3 +570,39 @@ Marketplace install path（`claude plugin install`）會將 plugin 複製到
 `~/.claude/plugins/cache/`；source repository 的修改要等到
 `claude plugin update -y dhpk@dhpk` 才會反映（project scope 安裝則使用加上
 `--scope project` 的對應指令）。
+
+### npm script 快速指令
+
+Root `package.json` 為 private、零 dependency，提供兩類指令。
+
+**套件安裝者（`bin`）**：可透過 `npx` 或全域安裝後使用：
+
+| 指令 | 用途 |
+|------|------|
+| `dhpk-install <claude\|cursor\|codex-sync\|agy-plugin> <plan\|status\|verify>` | 規劃、查詢或驗證安裝面 |
+| `dhpk harness ...` | Harness facade |
+| `dhpk distribution <surface> <generate\|preview\|validate\|verify>` | 分發套件操作 |
+
+**開發者（clone 後在 repo 內 `npm run`）**：
+
+| 分類 | 指令 | 執行內容 |
+|------|------|----------|
+| 安裝 | `npm run setup` | 互動式安裝（`scripts/install.sh`） |
+| | `npm run setup:dry-run` | 非互動式安裝 dry run |
+| | `npm run setup:status` | `dhpk-install claude status --scope user` |
+| | `npm run dhpk-install -- <surface> <action>` | `scripts/dhpk-install.js` |
+| 測試 | `npm test` | 完整測試（`tests/run-all.js`） |
+| | `npm run test:hooks` | Hook 測試 |
+| | `npm run test:one -- tests/<name>.test.js` | 單一測試檔 |
+| 驗證 | `npm run validate` | 所有 CI validator（`validate:*`） |
+| | `npm run check:generated` | 產生的 manifest、marketplace、profile、skill resource、package drift 檢查 |
+| | `npm run check:portability` | 可攜性檢查 |
+| | `npm run catalog:check` | `catalog.js --check all` |
+| | `npm run ci` | `validate` + `check:generated` + `catalog:check` + `test` |
+| 產生（會寫檔） | `npm run gen:all` | 先 `catalog:write`，再 `gen:manifest`、`gen:marketplace`、`gen:codex-agents` |
+
+注意事項：
+- `catalog:write` 必須先於其他 generator；`gen:all` 已維持此順序。
+- 未定義任何 npm lifecycle script（`install`、`postinstall`、`prepare` 等），安裝套件不會執行開發者腳本。
+- 發版腳本與 `gen-distribution-inventory.js --write` 刻意不提供，請手動執行。
+- `package.json` 的版本納入 release version lockstep。
