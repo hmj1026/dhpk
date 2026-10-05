@@ -88,8 +88,8 @@ settled test owner supplies RED evidence, seam selection, and test strategy.
 Reuse adequate existing RED/GREEN evidence from inline or worker work when it
 covers the current behavior and public seam. Resolve an unsettled test seam or
 runtime setup with `tdd-guide` when separate specialist expertise is needed,
-before dependent implementation. Follow the canonical
-[execution policy](../../rules/execution-policy.md) for ownership and dispatch.
+before dependent implementation. In dhpk, `rules/execution-policy.md` owns
+ownership and dispatch decisions.
 If the specialist is unavailable, a capable settled owner may supply the
 equivalent test-first outcome only when applicable instructions allow it;
 otherwise report `BLOCKED` with the missing role, seam or runtime capability,
