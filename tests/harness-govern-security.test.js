@@ -51,6 +51,42 @@ test('default harness scenario and test runs never execute project-local hooks',
   }
 });
 
+test('test harness preserves pre-existing user-owned pending artifacts', () => {
+  const root = temporaryRoot();
+  const pendingArtifacts = [
+    {
+      path: path.join(root, '.claude', 'artifacts', 'sessions', '.pending-review'),
+      bytes: Buffer.from('{"owner":"user","evidence":"review-bytes"}\n', 'utf8'),
+    },
+    {
+      path: path.join(root, '.claude', 'artifacts', 'sessions', '.pending-user-owned-evidence.json'),
+      bytes: Buffer.from('{"owner":"user","evidence":"keep-this-byte-sequence"}\n', 'utf8'),
+    },
+  ];
+  try {
+    fs.mkdirSync(path.dirname(pendingArtifacts[0].path), { recursive: true });
+    for (const artifact of pendingArtifacts) fs.writeFileSync(artifact.path, artifact.bytes);
+    assert.strictEqual(fs.existsSync(path.join(root, '.claude')), true);
+    assert.deepStrictEqual(pendingArtifacts.map((artifact) => fs.readFileSync(artifact.path)), pendingArtifacts.map((artifact) => artifact.bytes));
+
+    const result = spawnSync('bash', [TEST_HARNESS, '--dir', '.claude', '--execute-hooks'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    const report = `${result.stdout}\n${result.stderr}`;
+    assert.strictEqual(result.status, 0, report);
+    assert.match(result.stdout, /Harness Test Report/);
+    assert.match(result.stdout, /PASS: \d+ \/ \d+/);
+    assert.doesNotMatch(result.stdout, /FAIL:/);
+    const actualBytes = pendingArtifacts.map((artifact) => (
+      fs.existsSync(artifact.path) ? fs.readFileSync(artifact.path) : null
+    ));
+    assert.deepStrictEqual(actualBytes, pendingArtifacts.map((artifact) => artifact.bytes), 'user-owned pending artifact bytes must remain');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('sync apply rejects traversal paths before writing, even in dry-run', () => {
   const root = temporaryRoot();
   try {
