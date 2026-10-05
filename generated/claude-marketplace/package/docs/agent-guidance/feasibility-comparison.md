@@ -95,7 +95,8 @@ Before handing off, verify:
 - no implementation, commit, deployment, or release claim is smuggled into
   the feasibility result.
 
-Current owner: `skills/proposal-analyze/references/module-design/SKILL.md`. The retirement mapping and
+Current owner: `module-design` (stable ID `software-architecture`); its canonical
+source path is recorded in `manifests/distribution-inventory.json`. The retirement mapping and
 rollback boundary for the former feasibility skill are recorded in
 `docs/skill-platform-migration.md`; this document retains its quantified and
 independent-comparison requirements without depending on deleted sources.

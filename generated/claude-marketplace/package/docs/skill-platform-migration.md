@@ -40,8 +40,9 @@ the validators reconcile every projection against it.
 
 ### Module design public-name migration
 
-`dhpk-module-design` is renamed to `module-design`; the canonical package is
-`skills/proposal-analyze/references/module-design/`. The stable ID `software-architecture`, capability ID,
+`dhpk-module-design` is renamed to `module-design`; its canonical source path
+is owned by the `module-design` entry in the distribution inventory.
+The stable ID `software-architecture`, capability ID,
 four modes, parameters, and Claude/Cursor surface selection are unchanged.
 The rename ledger maps the old public name to the current owner for diagnostics
 and receipt-owned migration. It does not install a second compatibility skill.

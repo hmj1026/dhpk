@@ -37,8 +37,9 @@ lifecycle、module 與 publication surface；validator 會將每個 projection �
 
 ### Module design 公開名稱遷移
 
-`dhpk-module-design` 更名為 `module-design`，canonical package 位於
-`skills/proposal-analyze/references/module-design/`。Stable ID `software-architecture`、capability ID、
+`dhpk-module-design` 更名為 `module-design`；canonical source 路徑以
+distribution inventory 中的 `module-design` entry 為準。
+Stable ID `software-architecture`、capability ID、
 四種 mode、參數與 Claude/Cursor surface selection 維持原契約。
 Rename ledger 讓舊公開名稱指向目前 owner，供診斷與 receipt-owned 遷移使用；
 它不安裝第二份相容技能。`software-architecture` legacy identifier 仍解析至同一 owner。
