@@ -1,43 +1,23 @@
-# code-reviewer — JS / TypeScript traps
+# JavaScript Review Traps
 
-Code-quality + correctness lanes for `.ts/.tsx/.js/.jsx`. Vue-specific reactivity /
-template lanes → `code-reviewer/vue.md` (load both on a `.vue` diff). ESLint-tier /
-AJAX-facade / `@ts-check` placement → `frontend-reviewer` (JS module references).
-Run the project's canonical `typecheck` script (or `tsc --noEmit -p <config that owns
-the changed files>`) before commenting; skip cleanly for JS-only projects.
+Apply a check when its trigger is present in the changed path. For Vue-specific reactivity or template behavior, use [the Vue review traps](vue.md). Generic JavaScript and TypeScript boundary, async, and request-path findings belong here.
 
-| Lane | Trigger | Action | Non-apply |
-|---|---|---|---|
-| Type safety | `any` without justification; `value!` without a preceding guard; `as` to an unrelated type; a `tsconfig` edit that weakens strictness | `unknown` + narrow, or a precise type; add a runtime guard; fix the type; call out the strictness regression | `any` in generated `.d.ts`; `as const`; JS-only projects (skip typecheck) |
-| Async | `async` fn called without `await`/`.catch()`; `await` in a loop over independent work; `array.forEach(async …)` | handle/await; `Promise.all`; `for…of` or `Promise.all` | a fire-and-forget logger the project already documents as un-awaited |
-| Error handling | empty `catch {}`; `JSON.parse` without try/catch; `throw "str"`; React data subtree with no error boundary | act/log in catch; wrap parse; `throw new Error(...)`; add `<ErrorBoundary>` | a catch that rethrows after logging |
-| Idiomatic | module-level mutable state; `var`; missing return type on public fn; `==` | immutable + pure; `const`/`let`; explicit return type; `===` | `== null` as an explicit null-or-undefined check |
-| Node | `fs.readFileSync` in a request handler; no schema validation at an external boundary; `process.env.X` with no fallback/startup check | async fs; validate inbound data; validate env at startup | CLI/build scripts that are allowed to be sync |
-| Perf (MEDIUM) | inline object/array prop causing re-render; N+1 calls in a loop; `import _ from 'lodash'` | hoist/memoize; batch / `Promise.all`; named tree-shakeable imports | a one-off script outside the UI bundle |
+For prompt-construction or instruction-trust questions, route to the shared [prompt-defense owner](../_common/prompt-defense.md).
 
-Security lanes (`eval`/`new Function`, `innerHTML`/`dangerouslySetInnerHTML` XSS,
-SQL/NoSQL injection, `child_process` with user input, prototype pollution, hardcoded
-secrets) are reportable here too, but the OWASP baseline lives in `security-reviewer/js.md`.
+## Runtime boundaries
 
-## Worked examples
+**Trigger → evidence/action:** A changed value comes from an HTTP response, parsed JSON, storage, a message, environment, file, or plugin boundary, and the code relies on `any`, a type assertion, a non-null assertion, or an unchecked property access. Trace the value to its first trust-sensitive use; verify a runtime schema or guard before relying on its shape, and exercise invalid input. TypeScript assertions do not add runtime checks; see [TypeScript type erasure](https://www.typescriptlang.org/docs/handbook/typescript-from-scratch.html#erased-types) and [narrowing](https://www.typescriptlang.org/docs/handbook/2/narrowing.html).
 
-```ts
-// BAD — forEach does not await; errors vanish, "done" logs before writes finish
-items.forEach(async (i) => { await save(i) })
-console.log('done')
-// GOOD — await the batch
-await Promise.all(items.map((i) => save(i)))
-console.log('done')
-```
+**Do not apply when:** The value is produced and constrained inside the same typed path, or a runtime validator already establishes the claimed invariant. An assertion by itself is a review clue, not a defect.
 
-```ts
-// BAD — any erases the contract; the cast hides a real shape mismatch
-function parse(input: any) { return (input as User).id }
-// GOOD — accept unknown, validate, then it is a User
-function parse(input: unknown): string {
-  const u = UserSchema.parse(input)
-  return u.id
-}
-```
+## Promise completion and errors
 
-Diagnostics: `npm run typecheck --if-present` · `eslint . --ext .ts,.tsx,.js,.jsx` · `npm audit`.
+**Trigger → evidence/action:** A changed handler, callback, task, or public function starts asynchronous work. Follow the promise to its owner and verify it is returned or awaited, rejection reaches the documented error boundary, and partial completion or cancellation follows the caller’s contract. Test both fulfillment and rejection where both are possible. See [Using promises](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises).
+
+**Do not apply when:** A caller intentionally owns the returned promise and demonstrably handles its rejection, or a rejection is deliberately converted to a documented result at the correct boundary.
+
+## Request-path blocking
+
+**Trigger → evidence/action:** Work runs on a server request path or interactive browser path and processes variable-sized input, performs synchronous I/O or expensive computation, or repeats work per row or render. Identify the caller and representative workload, then profile or bound the work and preserve the result contract while moving, limiting, or reducing it. Node’s [event-loop guidance](https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop) explains why long callbacks delay other requests.
+
+**Do not apply when:** The work is a short bounded operation, startup-only task, or background job with no interactive completion requirement. Do not infer a defect from a loop or synchronous call without evidence that its workload affects the relevant path.

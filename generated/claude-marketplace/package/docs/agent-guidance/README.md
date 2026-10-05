@@ -13,8 +13,6 @@ current branch of work.
   SSOT ownership, completion evidence, and document-class contracts.
 - [Frontmatter schema](frontmatter-schema.md) — official Claude Code agent and
   skill fields, plugin-ignored fields, and labeled dhpk local policy.
-- [Trap-sheet disposition](trap-sheet-disposition.md) — canonical
-  `agent-traps/` inventory for the trap-sheet document class.
 - [Command contract](command-contract.md) — invocation, failure boundaries,
   preserved arguments, and observable completion.
 - [Deprecated aliases](command-aliases.md) — compatibility forwarding and

@@ -38,9 +38,9 @@ than copying it into this repository.
   `codex/guidance.md`.
 - Trap sheets: unique agent×stack traps in `agent-traps/<agent>/<stack>.md`;
   shared loader, prompt-defense, build-resolver skeleton, and CLI prompt
-  composition live only in `agent-traps/_common/`; every canonical file needs a
-  disposition in [trap-sheet-disposition.md](trap-sheet-disposition.md). Do not
-  restate per-stack traps here.
+  composition live only in `agent-traps/_common/`. Keep source credits beside
+  retained sourced material and use existing OpenSpec tasks for review decisions;
+  do not create a separate disposition report or restate per-stack traps here.
 
 Run Markdownlint, the strict frontmatter/invocation validators, route and
 distribution checks, and the focused contract test before claiming completion.

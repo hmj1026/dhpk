@@ -356,10 +356,7 @@
     },
     {
       "id": "codex-supporting-agent-traps-code-reviewer-python-md",
-      "source": "codex/supporting/agent-traps/code-reviewer/python.md",
-      "canonical_source": "agent-traps/code-reviewer/python.md",
-      "canonical_digest": "0e61065c5208a799804222e10a915fa65a1037d33c954eacf6b87aab37893fc4",
-      "projection_digest": "b3054f8681a533798bd745aedf1048abe0f2b499cabc764ea01e8d8ac969ecaa",
+      "source": "agent-traps/code-reviewer/python.md",
       "destination": "dhpk/agent-traps/code-reviewer/python.md"
     },
     {
@@ -420,10 +417,7 @@
     },
     {
       "id": "codex-supporting-agent-traps-security-reviewer-php-md",
-      "source": "codex/supporting/agent-traps/security-reviewer/php.md",
-      "canonical_source": "agent-traps/security-reviewer/php.md",
-      "canonical_digest": "56718d2b3d645eb310fffe62232a0c75269330f42291973d1aaf03d747b1e57a",
-      "projection_digest": "435ff3d678304cd7dc5aa3472cdcf22ce95c4e48c413ac9522c522a3ddb2f106",
+      "source": "agent-traps/security-reviewer/php.md",
       "destination": "dhpk/agent-traps/security-reviewer/php.md"
     },
     {
@@ -454,10 +448,7 @@
     },
     {
       "id": "codex-supporting-agent-traps-tdd-guide-python-md",
-      "source": "codex/supporting/agent-traps/tdd-guide/python.md",
-      "canonical_source": "agent-traps/tdd-guide/python.md",
-      "canonical_digest": "1d36094aff0bad44a832521ca396c70e60f2ac99ea10757c528b004cd4c760c2",
-      "projection_digest": "9202e20ff8a178ae3e547e42725aa3a10e92b8e0b3c6a82a419de15045d5e0ca",
+      "source": "agent-traps/tdd-guide/python.md",
       "destination": "dhpk/agent-traps/tdd-guide/python.md"
     },
     {

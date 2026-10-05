@@ -1,23 +1,39 @@
-# tdd-guide × js / TypeScript
+# JavaScript TDD Traps
 
-For the tdd-guide agent on Jest / Vitest (unit + integration) and Playwright (E2E) for `.ts/.tsx/.js/.jsx`. Neighboring agents: e2e-runner (Playwright journeys — boundingBox/dialog traps live in `agent-traps/e2e-runner/playwright.md`). Vue component-test specifics → pair with the `vue` module if active.
+Use the project’s configured test runner, scripts, and test layout. Apply these checks when JavaScript or TypeScript behavior changes; do not assume a particular framework or create a new runner to satisfy a generic preference.
 
-Layout: `*.test.ts` beside source (or `__tests__/`) = unit (pure functions / components in isolation; mock externals at the boundary); `*.integration.test.ts` = route handler + real query path against an in-memory / test store; `e2e/*.spec.ts` = Playwright, one critical user journey per file. Method names: `it('<subject> <condition> <expected>')`, not `it('works')`.
+## Test the observable behavior first
 
-| Trigger | Action | Non-apply |
-|---|---|---|
-| test name needs "and"; multiple behaviors in one case | Arrange-Act-Assert — one observable behavior per test; split | — |
-| spy `toHaveBeenCalledTimes` as a proxy for behavior | assert observable output: return value / rendered DOM / emitted event a caller sees | a documented fire-and-forget logger |
-| shared mutable module state; test B depends on test A's order | isolate: reset with `beforeEach` / `vi.restoreAllMocks()` | — |
-| mock of the unit under test | mock external boundaries only (network / fs / clock / third-party SDK); prefer `vi.mock` / `jest.mock` at the module edge | — |
-| floating promise / un-awaited assertion | `await` the assertion or return the promise; fake timers for time-dependent code | a documented fire-and-forget logger |
-| brittle CSS / nth-child Playwright selectors | `getByRole` / `getByLabel` / `data-testid`; assert on user-visible state | E2E files that belong to e2e-runner — boundingBox/dialog traps live in `agent-traps/e2e-runner/playwright.md` |
-| happy-path only | cover null / empty / boundary / invalid-type / thrown-error (`expect(fn).rejects.toThrow(...)`) | — |
+**Trigger → evidence/action:** A feature or bug fix changes an observable contract. Write a failing assertion against the public function, request boundary, rendered behavior, or persisted result before implementation; make it pass with the smallest change, then refactor while the assertion remains. Prefer user-observable output over private helper structure.
 
-## Run
+**Do not apply when:** The change is documentation-only or a mechanical edit with no behavior change. Keep the exception bounded to the actual change.
 
-```bash
-npm test                      # or: vitest run / jest
-npx playwright test           # E2E
-npm run test:coverage         # threshold via coverageThreshold (jest) / coverage.thresholds (vitest), floor 80%
-```
+## Mock external boundaries
+
+**Trigger → evidence/action:** A test needs network, database, filesystem, clock, random, or process behavior. Replace that external dependency at its boundary with a controlled result, then exercise the production decision logic and error mapping. Keep fixture data local and deterministic.
+
+**Do not apply when:** A pure function already runs deterministically without a dependency, or the actual boundary behavior is the subject of an integration test. Avoid mocking internal collaborators merely to mirror the implementation.
+
+## Await asynchronous outcomes
+
+**Trigger → evidence/action:** The code returns a promise, schedules a callback, or starts a request. Await the operation and its assertions; cover the success path and contract-relevant rejection, timeout, cancellation, or stale-result path. Make the test fail if the async work rejects or never reaches its expected completion. See [Using promises](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Using_promises).
+
+**Do not apply when:** The operation is synchronous and no async boundary is involved. Avoid fixed sleeps when a completion signal or controlled clock can express the contract.
+
+## Isolate each test
+
+**Trigger → evidence/action:** A test mutates environment, timers, mocks, storage, files, database rows, or shared process state. Allocate unique fixture state and restore or remove it in cleanup, including after failure; run the test alone to confirm it does not depend on suite order.
+
+**Do not apply when:** A read-only unit test has no shared state to isolate. Do not mutate a shared database without the project’s authorized test fixture.
+
+## Keep browser journeys separate
+
+**Trigger → evidence/action:** The behavior depends on a real browser journey across pages, navigation, or integrated UI and service boundaries. Keep unit and integration tests focused on their own contract and hand the full journey to the project’s E2E setup. Playwright’s guidance recommends [user-visible assertions and isolated tests](https://playwright.dev/docs/best-practices).
+
+**Do not apply when:** The changed contract is fully represented at a smaller public boundary. Do not substitute an E2E test for focused failure-path coverage.
+
+## Use configured coverage gates
+
+**Trigger → evidence/action:** The task or project configuration sets a coverage threshold. Run that configured gate and report its actual result; add cases for changed decisions and relevant branches.
+
+**Do not apply when:** No project or task threshold exists. Do not impose a universal percentage target.
