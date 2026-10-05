@@ -1,6 +1,6 @@
 ---
 description: 'Short Claude front door for explicit-only implementation of a confirmed specification or OpenSpec change.'
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
+argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 disable-model-invocation: true
 metadata:
@@ -19,9 +19,12 @@ Not for: route selection, proposal authoring, review, debugging without a confir
 `--worker=<worker>` remains the Worker Selector. Use
 `--worker-target=<provider>/<model>[:<effort>]` for an explicit execution
 target. The retired `--codex` diagnostic remains owned by the canonical Skill.
+The command has no route or workflow mode of its own. When supplied with
+`--plan`, `--plan-mode=auto|bounded|discovery` is forwarded unchanged as the
+planner consult scope.
 
-This front door does not add a mode, route selection, proposal authoring,
-procedure, or second Usage Grammar.
+This front door does not add a separate route or workflow mode, route
+selection, proposal-authoring procedure, or second Usage Grammar.
 
 Completion: report the canonical Skill result and preserve its `PASS`,
 `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

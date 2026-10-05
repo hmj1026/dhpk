@@ -14,9 +14,12 @@ Not for: route selection, proposal authoring, review, debugging without a confir
 `--worker=<worker>` remains the Worker Selector. Use
 `--worker-target=<provider>/<model>[:<effort>]` for an explicit execution
 target. The retired `--codex` diagnostic remains owned by the canonical Skill.
+The command has no route or workflow mode of its own. When supplied with
+`--plan`, `--plan-mode=auto|bounded|discovery` is forwarded unchanged as the
+planner consult scope.
 
-This front door does not add a mode, route selection, proposal authoring,
-procedure, or second Usage Grammar.
+This front door does not add a separate route or workflow mode, route
+selection, proposal-authoring procedure, or second Usage Grammar.
 
 Completion: report the canonical Skill result and preserve its `PASS`,
 `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE` evidence state.

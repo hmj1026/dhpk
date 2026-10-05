@@ -285,7 +285,7 @@ Use the skill groups below as a reusable decision ladder:
 | Skill | Common invocation pattern |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `[--plan[=<model>[:<effort>]]]` `[--plan-mode=auto\|bounded\|discovery]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `tdd-workflow` | `test-generation` `fast-worker` `standard` |
@@ -348,6 +348,7 @@ Use these invocation-only modifiers when they change the decision for this run:
 | Modifier | Effect and boundary |
 |---|---|
 | `--plan[=<model>[:<effort>]]` | Adds a planner critique to confirmed implementation work. |
+| `--plan-mode=auto\|bounded\|discovery` | Selects the scope for an enabled `--plan` consult. Omitted mode defaults to `auto`; it does not change planner work mode or model/effort. |
 | `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; it does not persist configuration. |
 | `--cross-provider` | One-shot opt-in for configured external candidates when `--worker=auto`; it does not persist configuration or broaden an explicit worker target. |
 | `--reasoner=<provider>/<model>[:<effort>]` | Requests a bounded reasoning pass for confirmed implementation work. |
@@ -363,6 +364,20 @@ retired compatibility flags: they emit a deprecation diagnostic and never
 select a peer, worker, reasoner, or hidden backend. Only a missing selected
 executable may use the configured Claude fallback; authentication, task,
 execution, and verification failures remain blocked.
+
+For example, `$flow-drive confirmed-change-id --plan --plan-mode=bounded`
+requests a planner consult over named evidence. `auto` selects bounded only
+when the consult question and intended outcome are clear, the named sources
+including required protocol reads are sufficient within the bounded limit, and
+no named Material Risk Signal applies; otherwise it selects discovery. The
+bounded limit is four direct reads in total and zero discovery children. A
+missing necessary fact is reported as a blocker without searching, spawning, or
+upgrading scope. An explicit bounded choice discloses any overridden signal and
+does not waive authorization, write prerequisites, or specialist decisions.
+Discovery retains twelve reads and two read-only children; a manually requested
+warm review retains four new reads and the selected scope's child limit. See the
+[execution policy](../rules/execution-policy.md#planner-consult-scope) for the
+named signals and reporting contract.
 
 ### OpenSpec lifecycle boundary
 

@@ -337,7 +337,7 @@ test('generated usage artifacts bind to one catalog revision and derive Argument
 
   const flowDrive = inventory.skills.find((skill) => skill.id === 'flow-drive');
   assert.ok(flowDrive, 'the source inventory must contain flow-drive');
-  const expectedArgumentHint = '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]';
+  const expectedArgumentHint = '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]';
   assert.strictEqual(flowDrive.usage.syntax, '$flow-drive ' + expectedArgumentHint);
   const frontmatter = fs.readFileSync(path.join(ROOT, 'skills/flow-drive/SKILL.md'), 'utf8');
   assert.ok(

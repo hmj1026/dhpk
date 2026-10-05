@@ -498,8 +498,8 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "c9690a1f6f4415db324f42613f35138c4f39fbb34546be59f4f309318ff85961",
-      "projection_digest": "716812f9711f7776dc215c1e40fff37d37c11f2cb08c9a88cbabed37db5b0714",
+      "canonical_digest": "20be8b98f2b8bde033ebf18db44665a8dcf23124d4b0cc0e5b832029220f07ad",
+      "projection_digest": "ba068511f42bac22d06ebfc59c4c0a4fc4007d4d6a8dd22ecdab75986ce2611a",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
@@ -1725,7 +1725,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "inputs": [
           {
@@ -1757,6 +1757,22 @@
             "value_kind": "string",
             "required": false,
             "summary": "Request a planning pass before implementation",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "plan-mode",
+            "syntax": "--plan-mode=auto|bounded|discovery",
+            "value_kind": "enum",
+            "required": false,
+            "default": "auto",
+            "enum_values": [
+              "auto",
+              "bounded",
+              "discovery"
+            ],
+            "summary": "Select the consult scope; requires --plan and defaults to auto when enabled",
             "applies_to": [
               "apply"
             ]

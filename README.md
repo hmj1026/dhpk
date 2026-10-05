@@ -125,6 +125,7 @@ read-only review, and `skill-scope` for skill governance. Full walkthrough with 
 $flow-guide route reset-password email flow                 # advisory route
 $flow-guide route --go reset-password email flow            # one bounded handoff
 $flow-drive confirmed-change-id --plan                      # implement a confirmed change
+$flow-drive confirmed-change-id --plan --plan-mode=bounded   # limit the consult to named sources
 $flow-drive confirmed-change-id --worker=codex              # explicit worker override
 $code-trace --mode diagnose investigate the login redirect loop # root-cause evidence
 /dhpk:review-pending                              # trigger pending reviewers immediately
@@ -135,7 +136,8 @@ $code-trace --mode diagnose investigate the login redirect loop # root-cause evi
 `flow-guide` is the read-only owner of help, route, rules, next, and close.
 `route` without `--go` is advice; `route --go` can hand off one available
 implicit-eligible target and never executes an explicit-only target.
-`flow-drive` is explicit-only and mode-free: it accepts a confirmed
+`flow-drive` is explicit-only and has no route or workflow mode; `--plan-mode`
+selects only the optional planner consult scope. It accepts a confirmed
 specification or change ID. Proposal authoring belongs to the external
 `$openspec-propose` skill. See the [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md)
 and [feasibility comparison guidance](./docs/agent-guidance/feasibility-comparison.md).
