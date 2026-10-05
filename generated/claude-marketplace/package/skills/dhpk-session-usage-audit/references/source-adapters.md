@@ -68,10 +68,12 @@ Use the accepted
 [telemetry specification](https://github.com/hmj1026/dhpk/blob/develop/openspec/specs/session-usage-telemetry/spec.md)
 and public [issue #817](https://github.com/hmj1026/dhpk/issues/817) as the
 behavior and delivery owners. The CLI accepts `--usage-telemetry`; supported
-schema profiles extract typed counters and reconcile known unattributed
-consumption. Verified planner ancestry remains pending. Native runtime
-verification remains `NOT_RUN`; synthetic fixtures establish helper behavior
-and schema acceptance separately.
+schema profiles extract typed counters and reconcile known consumption. The
+package also has a pure consumer for verified planner and ancestry links, but
+no supported native adapter currently produces those links. The CLI therefore
+leaves usage unattributed and reports `adapter-not-supported` attribution
+coverage. Native runtime verification remains `NOT_RUN`; synthetic fixtures
+establish helper behavior and schema acceptance separately.
 
 ### Optional output and evidence
 
@@ -96,11 +98,13 @@ and schema acceptance separately.
 
 Envelope `metrics` and `identities` remain nullable placeholders; per-record
 values live in `observations`, and selected non-overlapping usage lives in
-`contributions`. Only the unattributed known subtotal may be populated.
-Planner/descendant subtotals and every complete total remain null and
-incomplete. The contract helper preserves explicitly evidenced zero and hashes
-string identities, including separate requested/observed role and effort; it
-never derives an execution identity from a selector or legacy diagnostic alias.
+`contributions`. With the current CLI adapters, only the unattributed known
+subtotal may be populated because no native adapter emits verified invocation
+links. Planner/descendant subtotals remain null in CLI output, and every
+complete total remains null and incomplete. The contract helper preserves
+explicitly evidenced zero and hashes string identities, including separate
+requested/observed role and effort; it never derives an execution identity
+from a selector or legacy diagnostic alias.
 
 Coverage separates scan, source inventory, extraction, semantics,
 reconciliation, attribution and cache categories. Scan counts retain malformed,
@@ -178,6 +182,39 @@ origins, interval baselines/continuity/date allocation and complete aggregate
 membership. Current native adapters do not copy such proofs from arbitrary
 transcript flags. Unsupported native relationships remain unresolved even
 when a synthetic helper oracle passes.
+
+### Attribution consumer contract
+
+The package-local `usage-attribution` helper consumes three adapter-verified
+link sets. These are internal inputs, not fields copied or inferred from raw
+transcripts:
+
+- A planner root binds an opaque invocation reference to the exact selected
+  session and context, with a sanitized source evidence reference.
+- A consumption binding links one reconciled observation to that invocation,
+  exact session/context, and optional attempt; its proof reference must belong
+  to the observation's evidence set.
+- An ancestry edge links a parent and child invocation in the same selected
+  context; its proof reference must be present in the source evidence for both
+  endpoints. Duplicate equivalent edges collapse; conflicting parents and
+  cycles leave affected contributions unattributed.
+
+The helper cross-checks references, selected scope, session, attempt, event
+basis and acyclicity. A matching hash or a caller-supplied `verified` flag does
+not prove a relationship. The adapter that supplies a link must establish its
+meaning from a supported source format before calling the helper. Only
+non-overlapping `per-event` contributions can be attributed; cumulative
+intervals and parent-inclusive aggregates remain unattributed unless a future
+adapter proves a consumption-level binding. If any link set is malformed or
+truncated, the helper leaves all contributions unattributed so omitted links
+cannot hide a conflicting root, binding, or ancestry edge. Known subtotals stay
+separate from complete totals.
+
+No current native source adapter emits planner roots, consumption bindings,
+or ancestry edges. The CLI passes empty link sets, so all current CLI usage
+remains unattributed and attribution coverage is `adapter-not-supported`.
+Synthetic attribution fixtures prove only this consumer's behavior; they do
+not establish native source compatibility or runtime ancestry.
 
 #### Counting rules
 

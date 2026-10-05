@@ -1474,7 +1474,7 @@
       "sourcePath": "skills/dhpk-session-usage-audit/SKILL.md",
       "destination": "skills/dhpk-session-usage-audit/SKILL.md",
       "kind": "entry",
-      "sha256": "0d6fe206c8a5f7833c47a5946909c827693303bf0c29a38df92d950a2b57c47d"
+      "sha256": "11828e725a40fee61517266d32cf0cdf078aa6ac715fb21d7e0327a731e3a6c5"
     },
     {
       "skillId": "session-usage-audit",
@@ -1506,7 +1506,7 @@
       "sourcePath": "skills/dhpk-session-usage-audit/references/source-adapters.md",
       "destination": "skills/dhpk-session-usage-audit/references/source-adapters.md",
       "kind": "entry",
-      "sha256": "e780a18c65fab687f05eb806fc4fbf25a9b805b137f4ff54c055f143eaa76c28"
+      "sha256": "50c0645c277dfbdefe343f55eb582b8bbe6d970df4a0c2107b2f037b4659e212"
     },
     {
       "skillId": "session-usage-audit",
@@ -1519,10 +1519,18 @@
     {
       "skillId": "session-usage-audit",
       "ownerId": "session-usage-audit",
+      "sourcePath": "skills/dhpk-session-usage-audit/scripts/lib/usage-attribution.js",
+      "destination": "skills/dhpk-session-usage-audit/scripts/lib/usage-attribution.js",
+      "kind": "entry",
+      "sha256": "a79d154b9902526b642b72fd8bef1336620e489a4b5efc52996392a4f2ed4248"
+    },
+    {
+      "skillId": "session-usage-audit",
+      "ownerId": "session-usage-audit",
       "sourcePath": "skills/dhpk-session-usage-audit/scripts/lib/usage-contract.js",
       "destination": "skills/dhpk-session-usage-audit/scripts/lib/usage-contract.js",
       "kind": "entry",
-      "sha256": "9b9bb435b3233c15953d5ac33dda298787aa260916982a0cd1d55d89673dd256"
+      "sha256": "6b1457fe9cbb3a543823b07d352f05b868e7400efc6bd05a5c60bbc8276141c6"
     },
     {
       "skillId": "session-usage-audit",
@@ -1538,7 +1546,7 @@
       "sourcePath": "skills/dhpk-session-usage-audit/scripts/session-usage-audit.js",
       "destination": "skills/dhpk-session-usage-audit/scripts/session-usage-audit.js",
       "kind": "entry",
-      "sha256": "242702308262d892cd78c3a70247ce1b180ccc6f4d1f689060d85c0f39c02597"
+      "sha256": "3707d78cf3c94fcc4c7d7e055f51387fee2bd3ebd5ad29e75145263d2c031d56"
     },
     {
       "skillId": "flow-drive",
