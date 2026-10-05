@@ -1,6 +1,6 @@
 ---
 name: tdd-workflow
-description: 'Framework-agnostic test-driven development guidance for behavior-first unit and integration tests, test scaffolds, and minimal RED-GREEN-REFACTOR changes. Use when building a feature or fixing a bug test-first, writing a test scaffold, or reviewing test seams and mocks. Not for: Playwright journey authoring, pure documentation or rename work, or replacing dhpk''s tdd-guide dispatch. Output: a failing-test proof, minimal implementation/test change, scoped verification, and a concise TDD report.'
+description: 'Framework-agnostic test-driven development guidance for behavior-first unit and integration tests, test scaffolds, and minimal RED-GREEN-REFACTOR changes. Use when building a feature or fixing a bug test-first, writing a test scaffold, or reviewing test seams and mocks; reuse adequate test-first evidence and settled ownership. Not for: Playwright journey authoring or pure documentation or rename work. Explicit tdd-guide requirements remain binding. Output: a failing-test proof, minimal implementation/test change, scoped verification, and a concise TDD report.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -71,7 +71,8 @@ with the same logic as the implementation.
 ## Fast-worker mode
 
 Use this mode when `fast-worker`, `codex-fast-worker`, or `dhpk-agy-fast-worker`
-receives an approved task spec or a `tdd-guide` GREEN handback:
+receives an approved task spec or a proven RED/GREEN handback from the settled
+test owner:
 
 1. Treat the dispatcher's target files, behavior, and verification command as
    the pre-approved seam and contract. Do not pause for another seam approval.
@@ -82,8 +83,18 @@ receives an approved task spec or a `tdd-guide` GREEN handback:
 4. Run the task's scoped verification command yourself and report the exact
    result and edited files. Escalate ambiguity instead of guessing.
 
-The fast-worker mode prevents this skill from conflicting with the mechanical
-worker contract: `tdd-guide` still owns RED, seam selection, and test strategy.
+The fast-worker mode preserves the mechanical GREEN worker boundary: the
+settled test owner supplies RED evidence, seam selection, and test strategy.
+Reuse adequate existing RED/GREEN evidence from inline or worker work when it
+covers the current behavior and public seam. Resolve an unsettled test seam or
+runtime setup with `tdd-guide` when separate specialist expertise is needed,
+before dependent implementation. In dhpk, `rules/execution-policy.md` owns
+ownership and dispatch decisions.
+If the specialist is unavailable, a capable settled owner may supply the
+equivalent test-first outcome only when applicable instructions allow it;
+otherwise report `BLOCKED` with the missing role, seam or runtime capability,
+and the action needed to resume. Explicit Host, user, acceptance, or
+higher-priority requirements for `tdd-guide` remain binding.
 
 ## Tautological tests considered harmful
 
@@ -100,8 +111,9 @@ and ownership rules and the rejection checklist.
 - Use `change-verdict` for a post-hoc coverage or acceptance-criteria audit.
 - Skip the TDD loop for pure documentation, rename, formatting, or harness
   configuration tasks that do not change testable runtime behavior.
-- Do not replace the dhpk dispatch boundary: business feature/bug RED work
-  still goes to `tdd-guide` before production implementation.
+- Reuse adequate test-first evidence and settled ownership for business
+  features and bugs; dispatch `tdd-guide` to resolve a missing specialist
+  outcome or satisfy an explicit applicable requirement.
 
 ## Mocking boundary
 

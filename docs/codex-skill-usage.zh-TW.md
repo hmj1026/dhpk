@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:d416b295128938610c6268dfcc814efe6f1c338b4155aa147dfcfd04f8e0ff4b`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:29f4f17a762546323713f155967193b5cd6e8366e8bddd522e66faca75a905f5`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -96,7 +96,7 @@ Actions：
 ### `$flow-drive`
 
 摘要：Implement a confirmed specification with bounded evidence
-語法：`$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]`
+語法：`$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]`
 呼叫類別：`explicit-only`
 最高 authority：`workspace-write`
 
@@ -108,6 +108,7 @@ Actions：
 
 選項：
 - `plan` `--plan[=<model>:<effort>]` (可選, string) — Request a planning pass before implementation
+- `plan-mode` `--plan-mode=auto|bounded|discovery` (可選, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
 - `worker` `--worker=<worker>` (可選, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
 - `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select an explicit provider, model, and effort target
 - `cross-provider` `--cross-provider` (可選, boolean, default=false) — Allow the explicitly selected provider boundary

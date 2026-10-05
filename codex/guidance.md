@@ -99,7 +99,8 @@ Use `$flow-guide` when ownership, policy, the next action, closeout, or Codex
 arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
 `next`, and `close`. Use `$flow-drive <confirmed-spec-or-change-id>` only when
 the implementation target and acceptance contract are settled; it is
-explicit-only and has no mode. Codex CLI has no `/dhpk:do` command or dhpk
+explicit-only and has no route/workflow mode. Its `--plan-mode` selects planner
+consult scope only. Codex CLI has no `/dhpk:do` command or dhpk
 slash-command router. The eight portable families
 (`skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`,
 `code-trace`, `laravel`, `phpunit`, and `harness-govern`) use their unprefixed

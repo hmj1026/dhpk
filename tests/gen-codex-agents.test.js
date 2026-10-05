@@ -401,7 +401,6 @@ test('planner projection uses direct Codex explorer fallback and reconsult seman
       planner,
       /several-file discovery, dispatch the direct Codex `explorer` role\. If `explorer` is unavailable, return `VERDICT: RECONSULT/,
     );
-    assert.match(planner, /bounded read-only discovery uses at most 2 Explore children/);
     assert.strictEqual(
       planner.includes('spawn the built-in read-only `Explore` agent through\n  `Agent`'),
       false,

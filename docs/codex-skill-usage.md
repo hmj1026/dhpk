@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:d416b295128938610c6268dfcc814efe6f1c338b4155aa147dfcfd04f8e0ff4b`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:29f4f17a762546323713f155967193b5cd6e8366e8bddd522e66faca75a905f5`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -96,7 +96,7 @@ Examples:
 ### `$flow-drive`
 
 Summary: Implement a confirmed specification with bounded evidence
-Syntax: `$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]`
+Syntax: `$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]`
 Invocation class: `explicit-only`
 Maximum authority: `workspace-write`
 
@@ -108,6 +108,7 @@ Actions:
 
 Options:
 - `plan` `--plan[=<model>:<effort>]` (optional, string) — Request a planning pass before implementation
+- `plan-mode` `--plan-mode=auto|bounded|discovery` (optional, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
 - `worker` `--worker=<worker>` (optional, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
 - `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (optional, string) — Select an explicit provider, model, and effort target
 - `cross-provider` `--cross-provider` (optional, boolean, default=false) — Allow the explicitly selected provider boundary

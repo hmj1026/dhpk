@@ -122,6 +122,7 @@ Codex 使用者不必猜參數：執行 `$flow-guide help` 查看可用的 Codex
 $flow-guide route reset-password email flow                 # 建議路由
 $flow-guide route --go reset-password email flow            # 單一有界 handoff
 $flow-drive confirmed-change-id --plan                      # 實作已確認 change
+$flow-drive confirmed-change-id --plan --plan-mode=bounded   # 限定 planner consult 的 named sources
 $flow-drive confirmed-change-id --worker=codex              # 明確指定本次 worker
 $code-trace diagnose the login redirect loop                 # 根因證據
 /dhpk:review-pending                              # 立即觸發待處理的 reviewer
@@ -131,8 +132,9 @@ $code-trace diagnose the login redirect loop                 # 根因證據
 
 `flow-guide` 是唯讀的 help、route、rules、next、close owner。`route` 不帶 `--go` 只
 提供建議；`route --go` 最多 handoff 一個可用的 implicit-eligible target，絕不執行
-explicit-only target。`flow-drive` 是 explicit-only 且沒有 mode，只接受已確認的
-specification 或 change ID。提案 authoring 由外部 `$openspec-propose` skill 負責。另見
+explicit-only target。`flow-drive` 是 explicit-only，沒有 route/workflow mode；`--plan-mode`
+只選擇 optional planner consult scope。它只接受已確認的 specification 或 change ID。
+提案 authoring 由外部 `$openspec-propose` skill 負責。另見
 [OpenSpec authoring handoff](./docs/agent-guidance/openspec-authoring.md) 與
 [feasibility comparison guidance](./docs/agent-guidance/feasibility-comparison.md)。
 完整的 inspect → route → implement → review → verify → handoff 流程請看

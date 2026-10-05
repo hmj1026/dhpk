@@ -105,6 +105,14 @@ are independent from Model default/fallback pairs.
 
 ## Core dispatch & review
 
+Planner consult scope is selected per invocation with
+`--plan-mode=auto|bounded|discovery` and requires `--plan`; an enabled `--plan`
+without a mode defaults to `auto`. This is not a `userConfig` key and does not
+change the `planner_model` / `planner_effort` defaults or the planner's work
+mode. See [Basic Operations](./basic-operations.md)
+for the scope budgets and [execution policy](../rules/execution-policy.md#planner-consult-scope)
+for the selection rule.
+
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of active deterministic hook output. Retired Stop reminders are not default-wired. |

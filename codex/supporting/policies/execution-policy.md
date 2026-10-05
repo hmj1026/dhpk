@@ -62,7 +62,8 @@ a bounded worker, while the other results pause or stop.
 An OpenSpec apply uses a planner when unresolved decisions, dependencies,
 ownership, coupling, or material risk require its outcome. Its result states
 dependency order, each task's exact owner and write scope, and the next
-checkpoint; one clear task records `planner=skipped`.
+checkpoint. Adequate existing planning evidence is reusable; task count alone
+does not require a consult, while an explicit supported `--plan` still does.
 After each wave, dispatching the applicable reviewers in one batch is
 recommended; fix `CRITICAL` findings before reporting done. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
 add a valid changelog fragment → open a Draft PR targeting `develop` → monitor
@@ -70,6 +71,35 @@ that PR's actual CI to a completed conclusion → human merge gate. Queued or
 partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 `UNAVAILABLE` is non-terminal and cannot count as completed CI. The external
 `/opsx:apply` flow remains unchanged.
+
+## Planner consult scope
+
+Flow Drive's `--plan-mode=auto|bounded|discovery` requires `--plan` and selects
+consult scope, independently of planner work mode and model/effort. Enabled
+planning without a mode, including legacy handoffs, uses `auto`; disabled
+planning has no scope. The parser validates grammar only. The orchestrator
+selects bounded for auto only when the consult question and intended outcome
+are clear, named sources can answer within four direct reads including required
+protocol resources, and no Material Risk Signal applies. Otherwise select
+discovery and report the unmet condition. Signals cover irreversible/external
+actions; security/privacy/authentication/money; database/schema/migration;
+public contract/release/compatibility; cross-domain/shared-state/multi-writer
+work; and high uncertainty/unknown root cause/failed verification.
+
+An explicit mode wins; disclose any signal overridden by bounded, while
+preserving authorization, write prerequisites, and specialist decisions.
+Bounded reads only named sources, counts all required protocol reads within
+four, and creates no discovery children. Missing necessary facts or unresolved
+judgment block completion; do not search or upgrade scope. Four completed reads
+with all necessary facts resolved may finish. Discovery retains twelve direct
+reads and two read-only children; manual warm review retains four new reads
+and the selected child limit, without automatic continuation. Report requested
+and selected scope, selection source, reason, overrides, budgets, actual use,
+and blockers. Actual use remains null with `NOT_RUN` or `UNAVAILABLE` when
+unobserved; preserve the existing 400-token verdict-first, `END` protocol.
+A legacy direct planner brief without a selected scope may use the existing
+discovery allowance when needed, disclosing unspecified scope and missing
+selection context without deriving scope from its work mode.
 
 ## Native dispatch baseline
 

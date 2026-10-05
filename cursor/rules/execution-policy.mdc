@@ -104,6 +104,53 @@ model/effort precedence, bounded-consult choices, and consult budgets; this
 policy changes planner applicability when the caller did not explicitly
 request a consult.
 
+#### Planner consult scope
+
+Scope selection is an orchestrator judgment for an already requested planner
+consult. `--plan-mode=auto|bounded|discovery` selects consult scope; it does not
+select the planner's critique, blind-sketch, dual-plan, warm-review, or
+cold-review work mode. The Flow Drive parser validates the option grammar but
+does not choose scope or calculate risk. An enabled legacy handoff with no mode
+uses `auto`; a disabled plan has no consult scope.
+
+For `auto`, Flow Drive selects **bounded** only when all three conditions hold:
+the consult question and intended outcome are clear; the named sources are
+sufficient to answer it within the bounded read limit, including mandatory
+role-protocol reads; and no named Material Risk Signal applies. If any condition
+is missing, select **discovery** and state which condition is unmet. This is a
+judgment from the supplied brief, not a separate implementation `Decision`
+gate or a runtime risk engine.
+
+Material Risk Signals are irreversible or external actions; security, privacy,
+authentication, or money; database, schema, or migration work; public contract,
+release, or compatibility; cross-domain, shared-state, or multi-writer work;
+and high uncertainty, unknown root cause, or failed verification. Keep these
+categories available in this policy so scope selection does not depend on an
+ADR lookup.
+
+An explicit `bounded` or `discovery` selection takes precedence over `auto`.
+Disclose any Material Risk Signal an explicit bounded selection overrides.
+Bounded scope does not waive authorization, an unresolved write prerequisite,
+or a required specialist decision. A bounded brief names every permitted source,
+including mandatory role-protocol resources; all such reads count toward its
+four direct-read maximum. Read only named sources and spawn no discovery child.
+If an explicit bounded brief omits a source needed to establish a necessary
+fact, report that fact as a blocker; do not search, spawn a child, or upgrade the
+scope. A later scope change requires a new explicit request. Reaching four
+reads is not itself a blocker when the necessary facts are resolved; stop only
+for a missing necessary fact or unresolved judgment.
+
+Discovery retains at most twelve direct reads and two read-only discovery
+children. Warm review remains manually requested and retains its separate
+maximum of four new direct reads, with the selected scope's child limit; this
+scope policy does not restore automatic review continuation. Planner evidence reports requested and
+selected scope, selection source, reason, any overridden signals, budgets,
+observed reads/children, and blockers. The planner supplies actual use and
+blockers within the existing verdict-first, 400-token, `END`-terminated reply;
+it does not add a `VERDICT: BLOCKED` value. Unobserved actual counts are `null`
+with `NOT_RUN` or `UNAVAILABLE`, never the budget. Static guidance and package
+checks do not establish native quality, cache-token totals, billing, or savings.
+
 ## Invocation precedence & entry selection
 
 Every distributed skill/command carries `metadata.dhpk-invocation-class`
