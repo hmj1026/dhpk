@@ -1,0 +1,121 @@
+{
+  "evidence_scope": "synthetic consumer-contract inputs only; no native producer validation",
+  "selection": {"dateRange": {"from": "2026-08-06", "to": "2026-08-06"}, "timeZone": "UTC"},
+  "selected_context": "selected-run-context",
+  "profile": {
+    "id": "synthetic.attribution.disjoint.v1", "version": "fixture-v1", "verified": true,
+    "input_relation": "disjoint", "cache_categories": ["cache_read_input", "cache_write_input"],
+    "total_definition": "input-plus-output", "output_subcategories_included": []
+  },
+  "observations": [
+    {"ref": "planner-usage", "session": "parent-session", "message": "planner-event", "attempt": "planner-attempt", "context": "selected-run-context", "sampleOrdinal": 3, "probe": "probe-a", "counters": {"fresh_input": 10, "cache_read_input": 0, "cache_write_input": 0, "output": 0}},
+    {"ref": "unrelated-parent-usage", "session": "parent-session", "message": "unrelated-event", "attempt": "unrelated-attempt", "context": "selected-run-context", "role": "planner", "nickname": "planner-agent", "sampleOrdinal": 3, "probe": "probe-b", "counters": {"fresh_input": 7, "cache_read_input": 0, "cache_write_input": 0, "output": 0}},
+    {"ref": "child-usage", "session": "child-session", "message": "child-event", "attempt": "child-attempt", "context": "selected-run-context", "role": "planner", "isSidechain": true, "parentUuid": "planner-message-only", "counters": {"fresh_input": 20, "cache_read_input": 0, "cache_write_input": 0, "output": 0}},
+    {"ref": "grandchild-usage", "session": "grandchild-session", "message": "grandchild-event", "attempt": "grandchild-attempt", "context": "selected-run-context", "nickname": "planner-agent", "isSidechain": true, "parentUuid": "child-message-only", "counters": {"fresh_input": 30, "cache_read_input": 0, "cache_write_input": 0, "output": 0}}
+  ],
+  "proofs": {
+    "roots": {
+      "planner-root": {"invocation": "planner-root", "session": "parent-session", "context": "selected-run-context", "proof": "verified-selected-invocation"},
+      "wrong-context-root": {"invocation": "planner-root", "session": "parent-session", "context": "other-selected-context", "proof": "wrong-selected-context"},
+      "caller-claimed-root": {"invocation": "planner-root", "session": "parent-session", "context": "selected-run-context", "proof": "unobserved-root-proof", "verified": true, "evidence_available": false}
+    },
+    "bindings": {
+      "planner": {"observation": "planner-usage", "invocation": "planner-root", "session": "parent-session", "attempt": "planner-attempt", "context": "selected-run-context", "proof": "exact-planner-consumption"},
+      "planner-copy": {"observation": "planner-usage", "invocation": "planner-root", "session": "parent-session", "attempt": "planner-attempt", "context": "selected-run-context", "proof": "repeated-planner-consumption-proof"},
+      "planner-other-invocation": {"observation": "planner-usage", "invocation": "different-planner", "session": "parent-session", "attempt": "planner-attempt", "context": "selected-run-context", "proof": "conflicting-planner-consumption"},
+      "planner-wrong-session": {"observation": "planner-usage", "invocation": "planner-root", "session": "other-session", "attempt": "planner-attempt", "context": "selected-run-context", "proof": "exact-planner-consumption"},
+      "planner-wrong-attempt": {"observation": "planner-usage", "invocation": "planner-root", "session": "parent-session", "attempt": "other-attempt", "context": "selected-run-context", "proof": "exact-planner-consumption"},
+      "planner-wrong-context": {"observation": "planner-usage", "invocation": "planner-root", "session": "parent-session", "attempt": "planner-attempt", "context": "other-selected-context", "proof": "exact-planner-consumption"},
+      "unrelated": {"observation": "unrelated-parent-usage", "invocation": "other-invocation", "session": "parent-session", "attempt": "unrelated-attempt", "context": "selected-run-context", "proof": "exact-other-consumption"},
+      "child": {"observation": "child-usage", "invocation": "child-invocation", "session": "child-session", "attempt": "child-attempt", "context": "selected-run-context", "proof": "exact-child-consumption"},
+      "grandchild": {"observation": "grandchild-usage", "invocation": "grandchild-invocation", "session": "grandchild-session", "attempt": "grandchild-attempt", "context": "selected-run-context", "proof": "exact-grandchild-consumption"}
+    },
+    "ancestry": {
+      "root-child": {"parent": "planner-root", "child": "child-invocation", "context": "selected-run-context", "proof": "verified-root-child-edge"},
+      "root-child-copy": {"parent": "planner-root", "child": "child-invocation", "context": "selected-run-context", "proof": "repeated-root-child-edge-proof"},
+      "child-grandchild": {"parent": "child-invocation", "child": "grandchild-invocation", "context": "selected-run-context", "proof": "verified-child-grandchild-edge"},
+      "grandchild-child": {"parent": "grandchild-invocation", "child": "child-invocation", "context": "selected-run-context", "proof": "synthetic-cycle-edge"},
+      "child-planner-root": {"parent": "child-invocation", "child": "planner-root", "context": "selected-run-context", "proof": "synthetic-root-cycle-edge"},
+      "grandchild-planner-root": {"parent": "grandchild-invocation", "child": "planner-root", "context": "selected-run-context", "proof": "synthetic-conflicting-root-edge"},
+      "other-child": {"parent": "other-invocation", "child": "child-invocation", "context": "selected-run-context", "proof": "synthetic-conflicting-parent-edge"}
+    }
+  },
+  "cases": [
+    {
+      "name": "exact invocation binding attributes only planner usage and verified child chain",
+      "roots": ["planner-root"], "bindings": ["planner", "unrelated", "child", "grandchild"],
+      "ancestry": ["root-child", "child-grandchild"],
+      "expected": {
+        "classes": {"planner-usage": "planner", "unrelated-parent-usage": "unattributed", "child-usage": "descendant", "grandchild-usage": "descendant"},
+        "totals": {"planner": 10, "descendants": 50, "unattributed": 7}, "consumed": 67,
+        "nullIdentityObservation": "planner-usage", "nullIdentityFields": ["wave_id", "stage", "source_tree", "plan_fingerprint", "artifact_fingerprint"]
+      }
+    },
+    {
+      "name": "missing grandchild ancestry moves only grandchild usage to unattributed",
+      "roots": ["planner-root"], "bindings": ["planner", "unrelated", "child", "grandchild"], "ancestry": ["root-child"],
+      "expected": {"classes": {"planner-usage": "planner", "unrelated-parent-usage": "unattributed", "child-usage": "descendant", "grandchild-usage": "unattributed"}, "totals": {"planner": 10, "descendants": 20, "unattributed": 37}, "consumed": 67}
+    },
+    {
+      "name": "identical binding and parent-edge duplicates do not duplicate usage",
+      "roots": ["planner-root"], "bindings": ["planner", "planner-copy", "unrelated", "child", "grandchild"],
+      "ancestry": ["root-child", "root-child-copy", "child-grandchild"],
+      "expected": {"classes": {"planner-usage": "planner", "unrelated-parent-usage": "unattributed", "child-usage": "descendant", "grandchild-usage": "descendant"}, "totals": {"planner": 10, "descendants": 50, "unattributed": 7}, "consumed": 67}
+    },
+    {
+      "name": "cyclic ancestry keeps both descendant events unattributed",
+      "roots": ["planner-root"], "bindings": ["planner", "unrelated", "child", "grandchild"], "ancestry": ["child-grandchild", "grandchild-child"],
+      "expected": {"classes": {"planner-usage": "planner", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": 10, "descendants": null, "unattributed": 57}, "consumed": 67}
+    },
+    {
+      "name": "a cycle through the planner root invalidates the root and its descendants",
+      "roots": ["planner-root"], "bindings": ["planner", "unrelated", "child", "grandchild"], "ancestry": ["root-child", "child-planner-root", "child-grandchild"],
+      "expected": {"classes": {"planner-usage": "unattributed", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": null, "descendants": null, "unattributed": 67}, "consumed": 67}
+    },
+    {
+      "name": "conflicting parent claims on the planner root keep its usage and descendants unattributed",
+      "roots": ["planner-root"], "bindings": ["planner", "unrelated", "child", "grandchild"], "ancestry": ["root-child", "child-planner-root", "grandchild-planner-root", "child-grandchild"],
+      "expected": {"classes": {"planner-usage": "unattributed", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": null, "descendants": null, "unattributed": 67}, "consumed": 67}
+    },
+    {
+      "name": "conflicting parent edges keep affected descendant events unattributed",
+      "roots": ["planner-root"], "bindings": ["planner", "unrelated", "child", "grandchild"], "ancestry": ["root-child", "child-grandchild", "other-child"],
+      "expected": {"classes": {"planner-usage": "planner", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": 10, "descendants": null, "unattributed": 57}, "consumed": 67}
+    },
+    {
+      "name": "role nickname sidechain parent UUID and equal sample ordinals do not create ownership",
+      "roots": ["planner-root"], "bindings": ["planner"], "ancestry": [],
+      "expected": {"classes": {"planner-usage": "planner", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": 10, "descendants": null, "unattributed": 57}, "consumed": 67}
+    },
+    {
+      "name": "metadata-only usage cannot bind through a different selected context",
+      "roots": ["wrong-context-root"], "bindings": ["planner", "unrelated", "child", "grandchild"], "ancestry": ["root-child", "child-grandchild"],
+      "expected": {"classes": {"planner-usage": "unattributed", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": null, "descendants": null, "unattributed": 67}, "consumed": 67}
+    },
+    {
+      "name": "matching session does not override an exact attempt mismatch",
+      "roots": ["planner-root"], "bindings": ["planner-wrong-attempt"], "ancestry": [],
+      "expected": {"classes": {"planner-usage": "unattributed", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": null, "descendants": null, "unattributed": 67}, "consumed": 67}
+    },
+    {
+      "name": "matching invocation does not override a session mismatch",
+      "roots": ["planner-root"], "bindings": ["planner-wrong-session"], "ancestry": [],
+      "expected": {"classes": {"planner-usage": "unattributed", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": null, "descendants": null, "unattributed": 67}, "consumed": 67}
+    },
+    {
+      "name": "matching invocation does not override a selected-context mismatch",
+      "roots": ["planner-root"], "bindings": ["planner-wrong-context"], "ancestry": [],
+      "expected": {"classes": {"planner-usage": "unattributed", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": null, "descendants": null, "unattributed": 67}, "consumed": 67}
+    },
+    {
+      "name": "a caller verified flag cannot replace a source-bound root proof",
+      "roots": ["caller-claimed-root"], "bindings": ["planner"], "ancestry": [],
+      "expected": {"classes": {"planner-usage": "unattributed", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": null, "descendants": null, "unattributed": 67}, "consumed": 67}
+    },
+    {
+      "name": "conflicting invocation bindings make the contribution unattributed",
+      "roots": ["planner-root"], "bindings": ["planner", "planner-other-invocation"], "ancestry": [],
+      "expected": {"classes": {"planner-usage": "unattributed", "unrelated-parent-usage": "unattributed", "child-usage": "unattributed", "grandchild-usage": "unattributed"}, "totals": {"planner": null, "descendants": null, "unattributed": 67}, "consumed": 67}
+    }
+  ]
+}
