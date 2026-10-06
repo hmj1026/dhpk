@@ -82,6 +82,61 @@ const { test, run, assert } = require('./_lib/tinytest');
     );
   });
 
+  test('mixed Host selections keep Claude discovery isolated through update, rollback, and uninstall', () => {
+    const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-mixed-publisher-source-'));
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-mixed-publisher-project-'));
+    const base = projectInventory();
+    const inventory = {
+      ...base,
+      skills: [...base.skills, {
+        id: 'other', name: 'dhpk-other', path: 'skills/dhpk-other',
+        lifecycle: 'promoted', surfaces: ['codex-sync'],
+      }],
+      surface_membership: { ...base.surface_membership, 'codex-sync': ['sample', 'other'] },
+    };
+    const options = {
+      sourceRoot, projectRoot, inventory, profileId: 'portable-core',
+      requestedHosts: ['claude', 'codex'], selectedStableIds: ['sample', 'other'], declaredSelection: true,
+      hostSelections: { claude: ['sample'], codex: ['other'] },
+    };
+    const sourceSkill = path.join(sourceRoot, 'skills', 'dhpk-sample', 'SKILL.md');
+    const original = '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Original\n';
+    const updated = '---\nname: dhpk-sample\ndescription: Fixture\n---\n# Updated\n';
+    const managedSkill = path.join(projectRoot, '.agents', 'skills', 'dhpk-sample', 'SKILL.md');
+    const claudeLink = path.join(projectRoot, '.claude', 'skills', 'dhpk-sample');
+    const codexLink = path.join(projectRoot, '.codex', 'skills', 'dhpk-other');
+    const foreignFile = path.join(projectRoot, '.claude', 'skills', 'foreign', 'keep.md');
+    try {
+      write(sourceSkill, original);
+      write(path.join(sourceRoot, 'skills', 'dhpk-other', 'SKILL.md'),
+        '---\nname: dhpk-other\ndescription: Codex fixture\n---\n# Other\n');
+      const installed = publisher.materializeRelocatableAgentsSkillsProjection(options);
+      assert.deepStrictEqual(installed.receipt.bindingPaths.claude.map((entry) => entry.path), ['.claude/skills/dhpk-sample']);
+      assert.deepStrictEqual(installed.receipt.bindingPaths.codex.map((entry) => entry.path), ['.codex/skills/dhpk-other']);
+      assert.strictEqual(fs.existsSync(path.join(projectRoot, '.claude', 'skills', 'dhpk-other')), false);
+      assert.strictEqual(fs.existsSync(claudeLink), true);
+      assert.strictEqual(fs.existsSync(codexLink), true);
+      const checked = publisher.validateRelocatableAgentsSkillsProjection(options);
+      assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+      write(foreignFile, '# User-owned\n');
+      write(sourceSkill, updated);
+      publisher.materializeRelocatableAgentsSkillsProjection({ ...options, allowCanonicalChanges: true });
+      assert.strictEqual(fs.readFileSync(managedSkill, 'utf8'), updated);
+      const rolledBack = publisher.rollbackAgentsSkillsProjection({ projectRoot });
+      assert.strictEqual(rolledBack.ok, true, rolledBack.error && rolledBack.error.message);
+      assert.deepStrictEqual(rolledBack.receipt.bindingPaths.claude.map((entry) => entry.path), ['.claude/skills/dhpk-sample']);
+      assert.strictEqual(fs.readFileSync(managedSkill, 'utf8'), original);
+      const removed = publisher.uninstallAgentsSkillsProjection({ projectRoot });
+      assert.strictEqual(removed.ok, true, removed.error && removed.error.message);
+      assert.strictEqual(fs.existsSync(claudeLink), false);
+      assert.strictEqual(fs.existsSync(codexLink), false);
+      assert.strictEqual(fs.readFileSync(foreignFile, 'utf8'), '# User-owned\n');
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   test('project publisher installs, validates, rolls back an authorized update, and uninstalls only owned paths', () => {
     const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-publisher-source-'));
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-project-publisher-project-'));

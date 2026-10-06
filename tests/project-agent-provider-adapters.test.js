@@ -284,27 +284,33 @@ const { test, run, assert } = require('./_lib/tinytest');
     const entries = [
       { stableId: 'emitted', name: 'dhpk-emitted' },
       { stableId: 'selected-only', name: 'dhpk-selected-only' },
+      { stableId: 'codex-only', name: 'dhpk-codex-only' },
     ];
-    for (const { cursorSelection, expected } of [
-      { cursorSelection: { selectedStableIds: ['selected-only', 'emitted'], emittedStableIds: ['emitted'] }, expected: ['emitted'] },
-      { cursorSelection: { selectedStableIds: ['selected-only'], emittedStableIds: [] }, expected: [] },
-      { cursorSelection: { selectedStableIds: ['selected-only'] }, expected: ['selected-only'] },
+    for (const { selection, expected } of [
+      { selection: { selectedStableIds: ['selected-only', 'emitted'], emittedStableIds: ['emitted'] }, expected: ['emitted'] },
+      { selection: { selectedStableIds: ['selected-only'], emittedStableIds: [] }, expected: [] },
+      { selection: { selectedStableIds: ['selected-only'] }, expected: ['selected-only'] },
     ]) {
       const hostBindings = {
         cursor: {
           host: 'cursor', surface: 'cursor-plugin', shape: 'project-skill-directory',
-          transform: { id: 'cursor-project-skill', version: '1' }, ...cursorSelection,
+          transform: { id: 'cursor-project-skill', version: '1' }, ...selection,
+        },
+        claude: {
+          host: 'claude', surface: 'claude-core', shape: 'project-skill-directory',
+          transform: { id: 'claude-project-skill', version: '1' }, ...selection,
         },
         codex: {
           host: 'codex', surface: 'codex-sync', shape: 'project-skill-directory',
-          transform: { id: 'codex-project-skill', version: '1' }, selectedStableIds: ['selected-only'],
+          transform: { id: 'codex-project-skill', version: '1' }, selectedStableIds: ['codex-only'],
         },
       };
       const before = JSON.stringify(hostBindings);
       const adapters = createProjectAgentProviderAdapters(hostBindings, { entries });
       assert.deepStrictEqual(policy.boundStableIds(hostBindings.cursor), expected);
       assert.deepStrictEqual(adapters.forHost.cursor.discovery.entries.map((entry) => entry.stableId), expected);
-      assert.deepStrictEqual(adapters.forHost.codex.discovery.entries.map((entry) => entry.stableId), ['selected-only']);
+      assert.deepStrictEqual(adapters.forHost.claude.discovery.entries.map((entry) => entry.stableId), expected);
+      assert.deepStrictEqual(adapters.forHost.codex.discovery.entries.map((entry) => entry.stableId), ['codex-only']);
       assert.strictEqual(JSON.stringify(hostBindings), before);
     }
     assert.deepStrictEqual(policy.selectedAdapterEntries(entries, {}), entries);
