@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.skill-usage-catalog.v1",
-  "sourceInventoryRevision": "sha256:4b5d17e435f30ee8b4bdbb67c38f07880e65f77f7acd5e6fad0fef1fc58796a9",
+  "sourceInventoryRevision": "sha256:033da58eb56038ecf3a1266e0a8ef87748fc80e1428abdc9b7dd1c221aa1bcf1",
   "entries": [
     {
       "id": "change-verdict",
@@ -1625,6 +1625,30 @@
       "dhpk-git-smart-commit": {
         "target": "git-smart-commit",
         "disposition": "renamed"
+      },
+      "dhpk-gitnexus-cli": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-debugging": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-exploring": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-guide": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-impact-analysis": {
+        "target": "flow-guide",
+        "disposition": "retired"
+      },
+      "dhpk-gitnexus-refactoring": {
+        "target": "flow-guide",
+        "disposition": "retired"
       },
       "dhpk-harness-budget": {
         "target": "harness-govern",

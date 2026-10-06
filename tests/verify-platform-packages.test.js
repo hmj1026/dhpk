@@ -182,9 +182,14 @@ function createHistoricalFixture() {
   const clone = path.join(root, 'repo');
   const cloned = spawnSync('git', ['clone', '--quiet', ROOT, clone], { encoding: 'utf8' });
   assert.strictEqual(cloned.status, 0, cloned.stdout + cloned.stderr);
+  // Freeze the matching generation before checkout exposes older package outputs.
+  const frozenCursor = path.join(root, 'frozen-cursor');
+  fs.cpSync(path.join(clone, 'plugins', 'dhpk-cursor'), frozenCursor, { recursive: true });
   const provenance = JSON.parse(fs.readFileSync(path.join(clone, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
   const checkedOut = spawnSync('git', ['checkout', '--quiet', provenance.generatedFromCommit], { cwd: clone, encoding: 'utf8' });
   assert.strictEqual(checkedOut.status, 0, checkedOut.stdout + checkedOut.stderr);
+  fs.rmSync(path.join(clone, 'plugins', 'dhpk-cursor'), { recursive: true });
+  fs.cpSync(frozenCursor, path.join(clone, 'plugins', 'dhpk-cursor'), { recursive: true });
   const cursorReceiptPath = path.join(clone, 'plugins', 'dhpk-cursor', 'provenance.json');
   const cursorReceipt = JSON.parse(fs.readFileSync(cursorReceiptPath, 'utf8'));
   cursorReceipt.owner = 'plugins/dhpk-agent';
@@ -193,7 +198,7 @@ function createHistoricalFixture() {
     const configured = spawnSync('git', args, { cwd: clone, encoding: 'utf8' });
     assert.strictEqual(configured.status, 0, configured.stdout + configured.stderr);
   }
-  const committed = spawnSync('git', ['add', 'plugins/dhpk-cursor/provenance.json'], { cwd: clone, encoding: 'utf8' });
+  const committed = spawnSync('git', ['add', 'plugins/dhpk-cursor'], { cwd: clone, encoding: 'utf8' });
   assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
   const commit = spawnSync('git', ['commit', '--quiet', '-m', 'corrupt unrelated Cursor receipt'], { cwd: clone, encoding: 'utf8' });
   assert.strictEqual(commit.status, 0, commit.stdout + commit.stderr);
