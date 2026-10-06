@@ -6,6 +6,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { compileProjectAgentProjection } = require('./project-agent-projection-plan');
 const {
   materializeRelocatableAgentsSkillsProjection,
   uninstallAgentsSkillsProjection,
@@ -120,6 +121,55 @@ function throwIfUninstallFailed(result) {
   return result;
 }
 
+function pruneRetiredHostBinding(binding, retiredIds, retiredNames) {
+  if (!binding || typeof binding !== 'object' || Array.isArray(binding)) {
+    return { binding, retiredPaths: new Set() };
+  }
+  const next = { ...binding };
+  for (const field of ['selectedStableIds', 'emittedStableIds']) {
+    if (Array.isArray(binding[field])) {
+      next[field] = binding[field].filter((id) => !retiredIds.has(id));
+    }
+  }
+  const retiredPaths = new Set();
+  const destinationRoot = binding.discovery && binding.discovery.destinationRoot;
+  if (typeof destinationRoot === 'string') {
+    for (const name of retiredNames) {
+      retiredPaths.add(`${destinationRoot}/${name}`);
+      retiredPaths.add(`${destinationRoot}/${name}.md`);
+    }
+  }
+  if (Array.isArray(binding.bindings)) {
+    for (const entry of binding.bindings) {
+      if (entry && retiredIds.has(entry.stableId) && typeof entry.path === 'string') {
+        retiredPaths.add(entry.path);
+      }
+    }
+    next.bindings = binding.bindings.filter((entry) => !entry || !retiredIds.has(entry.stableId));
+  }
+  if (binding.discovery && typeof binding.discovery === 'object' && !Array.isArray(binding.discovery)) {
+    next.discovery = { ...binding.discovery };
+    if (Array.isArray(binding.discovery.paths)) {
+      next.discovery.paths = binding.discovery.paths.filter((entryPath) => !retiredPaths.has(entryPath));
+    }
+  }
+  return { binding: next, retiredPaths };
+}
+
+function compileRetirementGuard(inventory, profileId, requestedHosts) {
+  const result = compileProjectAgentProjection({
+    inventory,
+    profileId,
+    requestedHosts,
+    declaredSelection: true,
+  });
+  if (result.ok) return;
+  const error = new Error(result.error.message);
+  error.projectionCode = result.error.code;
+  error.projectionDetails = result.error.details || {};
+  throw error;
+}
+
 function uninstallNativeSharedSkills({
   sourceRoot,
   projectRoot,
@@ -147,17 +197,40 @@ function uninstallNativeSharedSkills({
       inventory: resolvedInventory,
     }));
   }
+  const profileId = previous.profileId || 'portable-core';
+  compileRetirementGuard(resolvedInventory, profileId, remainingHosts);
+  const currentIds = new Set([
+    ...(Array.isArray(resolvedInventory.skills) ? resolvedInventory.skills : []),
+    ...(Array.isArray(resolvedInventory.modules) ? resolvedInventory.modules : []),
+  ].map((entry) => entry && entry.id).filter((id) => typeof id === 'string'));
+  const originalEntries = Array.isArray(previous.entries) ? previous.entries : [];
+  const originalIds = [
+    ...(Array.isArray(previous.selectedIds) ? previous.selectedIds : []),
+    ...(Array.isArray(previous.emittedIds) ? previous.emittedIds : []),
+    ...originalEntries.map((entry) => entry && entry.stableId),
+    ...Object.values(previousBindings).flatMap((binding) => [
+      ...(binding && Array.isArray(binding.selectedStableIds) ? binding.selectedStableIds : []),
+      ...(binding && Array.isArray(binding.emittedStableIds) ? binding.emittedStableIds : []),
+      ...(binding && Array.isArray(binding.bindings) ? binding.bindings.map((entry) => entry && entry.stableId) : []),
+    ]),
+  ];
+  const retiredIds = new Set(originalIds.filter((id) => typeof id === 'string' && !currentIds.has(id)));
+  const retiredEntries = originalEntries.filter((entry) => entry && retiredIds.has(entry.stableId));
+  const retiredNames = retiredEntries.map((entry) => entry.name)
+    .filter((name) => typeof name === 'string');
   const preserveHostBindings = {};
   const preserveBindingPaths = {};
   const remainingIds = [];
   const hostSelections = {};
   for (const other of remainingHosts) {
-    preserveHostBindings[other] = previousBindings[other];
-    const ids = boundStableIds(previousBindings[other]);
+    const pruned = pruneRetiredHostBinding(previousBindings[other], retiredIds, retiredNames);
+    preserveHostBindings[other] = pruned.binding;
+    const ids = boundStableIds(preserveHostBindings[other]);
     remainingIds.push(...ids);
     hostSelections[other] = ids;
     if (previous.bindingPaths && Array.isArray(previous.bindingPaths[other])) {
-      preserveBindingPaths[other] = previous.bindingPaths[other];
+      preserveBindingPaths[other] = previous.bindingPaths[other]
+        .filter((entry) => !entry || !pruned.retiredPaths.has(entry.path));
     }
   }
   const unionIds = uniqueSorted(remainingIds);
@@ -172,7 +245,7 @@ function uninstallNativeSharedSkills({
     sourceRoot,
     projectRoot,
     inventory: resolvedInventory,
-    profileId: previous.profileId || 'portable-core',
+    profileId,
     requestedHosts: remainingHosts,
     selectedStableIds: unionIds,
     declaredSelection: true,
