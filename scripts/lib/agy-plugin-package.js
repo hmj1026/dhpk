@@ -236,8 +236,8 @@ function selectedConfiguration(inventory, profileSelection = null, root = null, 
     profileSelection,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
-  const marketplace = publicationView || (!profileSelection && root
-    ? loadMarketplaceHostPublication({ root, inventory, hostSurface: SURFACE }) : null);
+  const marketplace = publicationView || (root
+    ? loadMarketplaceHostPublication({ root, inventory, hostSurface: SURFACE, profileSelection }) : null);
   const selectedIds = marketplace
     ? [...marketplace.publicEntries, ...marketplace.hostOnly].map((entry) => entry.id)
     : compiled.value.entries.map((entry) => entry.stableId);

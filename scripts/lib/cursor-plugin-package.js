@@ -842,10 +842,10 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   const skippedSkills = [];
   const files = [];
   const traversalBudget = createTraversalBudget(traversalOptions);
-  const hostPublication = !profileSelection && selectionMode !== 'legacy'
-    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'cursor-plugin' })
+  const hostPublication = selectionMode !== 'legacy'
+    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'cursor-plugin', profileSelection })
     : null;
-  const selection = selectionMode === 'legacy' || hostPublication
+  const selection = selectionMode === 'legacy' || (hostPublication && !profileSelection)
     ? null
     : compileDistribution({ inventory, surface: 'cursor-plugin', profileSelection });
   if (selection && !selection.ok) throw new Error(selection.error.message);
@@ -1153,7 +1153,7 @@ function compileCursorPackage({
       selectionPolicy: !projection.provenance.marketplacePublication && projection.selection && projection.selection.selectionPolicy
         ? projection.selection.selectionPolicy
         : undefined,
-      selectionEntries: !projection.provenance.marketplacePublication && projection.selection && projection.selection.selectionPolicy
+      selectionEntries: projection.selection && projection.selection.selectionPolicy
         ? (projection.selection.selectionEntries || projection.selection.entries).map((entry) => {
           const skill = (inventory.skills || []).find((candidate) => candidate.id === entry.stableId || candidate.id === entry.skillId);
           return skill ? {
