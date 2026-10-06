@@ -20,8 +20,8 @@ function uniqueSorted(values) {
 
 function boundStableIds(hostBinding) {
   if (!hostBinding || typeof hostBinding !== 'object' || Array.isArray(hostBinding)) return [];
-  if (Array.isArray(hostBinding.selectedStableIds)) return uniqueSorted(hostBinding.selectedStableIds);
   if (Array.isArray(hostBinding.emittedStableIds)) return uniqueSorted(hostBinding.emittedStableIds);
+  if (Array.isArray(hostBinding.selectedStableIds)) return uniqueSorted(hostBinding.selectedStableIds);
   if (Array.isArray(hostBinding.bindings)) {
     return uniqueSorted(hostBinding.bindings.map((entry) => entry && entry.stableId));
   }
@@ -29,9 +29,9 @@ function boundStableIds(hostBinding) {
 }
 
 function selectedAdapterEntries(entries, hostBinding) {
-  const selected = hostBinding && Array.isArray(hostBinding.selectedStableIds)
-    ? hostBinding.selectedStableIds
-    : null;
+  const selected = hostBinding && Array.isArray(hostBinding.emittedStableIds)
+    ? hostBinding.emittedStableIds
+    : (hostBinding && Array.isArray(hostBinding.selectedStableIds) ? hostBinding.selectedStableIds : null);
   if (!selected) return entries;
   const allowed = new Set(selected);
   return entries.filter((entry) => allowed.has(entry.stableId));
