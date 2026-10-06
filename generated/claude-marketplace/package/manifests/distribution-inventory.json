@@ -5403,6 +5403,138 @@
       "rollback": {
         "release": "0.64.4"
       }
+    },
+    {
+      "id": "gitnexus-cli",
+      "name": "dhpk-gitnexus-cli",
+      "canonicalPath": "skills/dhpk-gitnexus-cli",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "external-package-removal",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "gitnexus-debugging",
+      "name": "dhpk-gitnexus-debugging",
+      "canonicalPath": "skills/dhpk-gitnexus-debugging",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "external-package-removal",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "gitnexus-exploring",
+      "name": "dhpk-gitnexus-exploring",
+      "canonicalPath": "skills/dhpk-gitnexus-exploring",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "external-package-removal",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "gitnexus-guide",
+      "name": "dhpk-gitnexus-guide",
+      "canonicalPath": "skills/dhpk-gitnexus-guide",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "external-package-removal",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "gitnexus-impact-analysis",
+      "name": "dhpk-gitnexus-impact-analysis",
+      "canonicalPath": "skills/dhpk-gitnexus-impact-analysis",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "external-package-removal",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "gitnexus-refactoring",
+      "name": "dhpk-gitnexus-refactoring",
+      "canonicalPath": "skills/dhpk-gitnexus-refactoring",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync",
+        "agent-plugin",
+        "cursor-plugin",
+        "agy-plugin"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "external-package-removal",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
     }
   ],
   "external_skill_packages": [],
