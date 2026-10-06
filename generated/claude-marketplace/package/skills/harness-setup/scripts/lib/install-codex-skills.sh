@@ -877,6 +877,20 @@ def receipt_destination(kind, name, old):
     return safe_destination(expected)
 
 
+def receipt_path_missing(relative):
+    """Prove absence without following links or suppressing filesystem errors."""
+    safe_destination(relative)
+    parent_relative, name = os.path.split(relative)
+    try:
+        parent_fd = open_relative_directory(parent_relative)
+    except FileNotFoundError:
+        return True
+    try:
+        return not fd_entry_exists(parent_fd, name)
+    finally:
+        os.close(parent_fd)
+
+
 def remove_relative_path(relative, expected_fingerprint=None):
     """Remove one receipt-relative entry through a pinned parent directory.
 
@@ -4585,7 +4599,7 @@ if UNINSTALL:
             uninstall_shared_projection()
     except ValueError as error:
         fail_open_transaction(error)
-    if not entries and not orphaned:
+    if not any(entries[kind] for kind in MANAGED_KINDS) and not orphaned:
         try:
             archive_receipt_for_uninstall()
             finish_transaction('committed')
@@ -4601,18 +4615,27 @@ if UNINSTALL:
         except Exception as error:
             fail_open_transaction(f'uninstall receipt quarantine failed: {error}')
     remaining = {kind: {} for kind in MANAGED_KINDS}
+    managed_relatives = set()
     try:
         for kind in MANAGED_KINDS:
             for name, old in entries[kind].items():
                 relative = (old.get('destination') or old.get('source')) if isinstance(old, dict) else f'{kind}/{name}'
                 relative = relative or f'{kind}/{name}'
+                managed_relatives.add(relative)
                 try:
                     destination = receipt_destination(kind, name, old)
-                except ValueError as error:
+                    missing = receipt_path_missing(relative)
+                except (ValueError, OSError) as error:
                     remaining[kind][name] = dict(old, orphaned=True) if isinstance(old, dict) else {'destination': relative, 'orphaned': True}
                     orphaned[relative] = dict(remaining[kind][name], reason='unsafe-receipt-path')
                     counts['orphaned'] += 1
                     print(f'[install-codex-skills] orphaned preserved: {relative} ({error})')
+                    continue
+                if missing:
+                    clear_orphaned(relative)
+                    counts['retired'] += 1
+                    record_path('retired', relative)
+                    record_ownership(relative, 'missing')
                     continue
                 if is_owned(old, destination):
                     backup = backup_destination(relative, destination, 'uninstall')
@@ -4620,6 +4643,7 @@ if UNINSTALL:
                         register_pending_prune(relative, destination, backup)
                         counts['backed_up'] += 1
                     remove_relative_path(relative, recorded_copy_fingerprint(old))
+                    clear_orphaned(relative)
                     counts['pruned'] += 1
                     counts['retired'] += 1
                     record_path('retired', relative)
@@ -4630,6 +4654,23 @@ if UNINSTALL:
                     counts['orphaned'] += 1
                     record_path('orphaned', relative)
                     record_ownership(relative, 'orphaned')
+        for relative, old in list(orphaned.items()):
+            if relative in managed_relatives:
+                continue
+            if (not isinstance(old, dict)
+                    or (old.get('destination') or old.get('source')) != relative
+                    or old.get('source') not in (None, relative)):
+                continue
+            try:
+                missing = receipt_path_missing(relative)
+            except (ValueError, OSError) as error:
+                print(f'[install-codex-skills] orphaned preserved: {relative} ({error})')
+                continue
+            if missing:
+                clear_orphaned(relative)
+                counts['retired'] += 1
+                record_path('retired', relative)
+                record_ownership(relative, 'missing')
         if not orphaned and not any(remaining[kind] for kind in remaining):
             archive_receipt_for_uninstall()
             finish_transaction('committed')
