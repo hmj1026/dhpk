@@ -1,6 +1,6 @@
 ---
 name: flow-drive
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
+argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]'
 description: 'Explicit-only implementation workflow for a confirmed specification or OpenSpec change whose target and acceptance contract are settled. Not for route selection, proposal authoring, review, debugging without a confirmed cause, or release. Output: ordered implementation and verification evidence, or an explicit blocker.'
 disable-model-invocation: true
 metadata:
@@ -51,8 +51,9 @@ preserved even when a caller presents a ready-looking route.
    verification commands before editing. When the Host has dedicated
    file-reading and search tools (on Claude Code: Read, Grep, Glob), use them
    for this discovery, and run shell commands only for the step 0 parser, the
-   verification commands resolved here, the diff inspection in step 3, or a
-   command the current grant lists. On a Host without such tools, use its
+   verification commands resolved here, the diff inspection in step 3, the
+   selected CLI dispatch and availability checks described in
+   `references/parent-cli-dispatch.md`, or a command the current grant lists. On a Host without such tools, use its
    read-only shell access for discovery.
 2. Convert the work into dependency-ordered observable items. Preserve
    OpenSpec task order and leave incomplete tasks unchecked. Reuse sufficient
@@ -67,6 +68,9 @@ preserved even when a caller presents a ready-looking route.
 4. Keep planner, worker, reasoner, and architecture choices within the
    implementation policy. Optional backends are explicit and cannot silently
    replace the current implementer.
+   On Claude Code, launch selected Codex roles from the parent session through
+   `scripts/launch-dispatch.js`; follow `references/parent-cli-dispatch.md` for the
+   dispatcher packet, reasoner-before-worker gate, and independent verification.
 5. Stop on an evidence-changing blocker. A rejected or modified item may be
    retried at most twice with its failure and current diff supplied as context.
 
@@ -93,7 +97,7 @@ action.
   is not an alias for the selector.
 - `--cross-provider` permits the explicitly selected provider boundary when
   the surrounding policy and evidence allow it.
-- `--reasoner=<provider>/<model>[:<effort>]` requests a bounded second opinion
+- `--reasoner=<provider>[/<model>[:<effort>]]` requests a bounded second opinion
   with a Provider-scoped target; canonical Role remains `reasoner`.
 - `--architect` or `--no-architect` controls the architecture pass.
 - `--codex` is a retired diagnostic and produces a blocking report; it never
@@ -102,10 +106,13 @@ action.
 These options refine confirmed implementation work; they do not change its
 owner or completion contract.
 
-Host support: on Claude Code, `--worker=codex|agy`, a `codex`/`agy`
-`--worker-target`, and `--reasoner=codex` are blocked at parse time because
-its subagents cannot receive the dispatcher-attested
-`DHPK_CLI_TRANSPORT_CONTEXT`; use `--worker=claude` or `--reasoner=claude`.
+Host support: on Claude Code, Codex workers and reasoners use the bundled CLI
+launcher from the parent session. `--reasoner=codex` uses the resolved role
+configuration; `--reasoner=codex/gpt-6.1-sol:high` overrides model and effort.
+`codex-cli` is a compatibility spelling. Parser readiness establishes valid
+syntax; launch still checks current access, supported model/effort, and scope.
+AGY workers and AGY worker targets remain blocked on this Host until their
+Flow Drive launch integration is delivered.
 The `--plan` effort is not applied there either: the planner runs at its
 configured effort and the parser reports that as a notice.
 
@@ -134,6 +141,9 @@ verification, and archive as separate states.
 - `scripts/invocation.js` — local invocation parsing; `scripts/dispatch.js` —
   dispatch-target resolution over the bundled contracts. Flow Drive has no
   mandatory peer Skill dependency.
+- `references/parent-cli-dispatch.md` — Claude Code parent-session Codex launch;
+  `scripts/launch-dispatch.js` consumes its explicit dispatcher packet and the
+  self-contained runtime under `references/cli-dispatch/scripts/`.
 - `skills/flow-guide/SKILL.md` — optional separately invoked route guidance;
   Flow Drive does not load it as a prerequisite.
 - An optional consumer-project writing-for-agents guide may be supplied when the

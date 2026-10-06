@@ -51,6 +51,38 @@
     ],
     "flow-drive": [
       {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
+        "destination": "references/cli-dispatch/scripts/launch-cli-dispatch.js"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
+        "destination": "references/cli-dispatch/scripts/build-cli-dispatch-context.js"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
+        "destination": "references/cli-dispatch/scripts/cli-role-resolver.js"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
+        "destination": "references/cli-dispatch/scripts/physical-file.js"
+      },
+      {
+        "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
+        "destination": "references/cli-dispatch/scripts/physical-file.py"
+      },
+      {
+        "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
+        "destination": "references/cli-dispatch/scripts/run-codex.sh"
+      },
+      {
+        "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
+        "destination": "references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py"
+      },
+      {
+        "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
+        "destination": "references/cli-dispatch/scripts/cli-transport/run-cli-transport.py"
+      },
+      {
         "source": "rules/execution-policy.md",
         "destination": "references/execution-bundle/rules/execution-policy.md"
       },

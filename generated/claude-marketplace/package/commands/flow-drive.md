@@ -1,6 +1,6 @@
 ---
 description: 'Short Claude front door for explicit-only implementation of a confirmed specification or OpenSpec change.'
-argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]'
+argument-hint: '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 disable-model-invocation: true
 metadata:

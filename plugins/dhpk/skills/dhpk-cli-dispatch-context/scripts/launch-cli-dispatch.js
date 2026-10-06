@@ -177,8 +177,6 @@ function requireContainedPhysicalPath(workdir, workdirRealPath, filePath, label,
 }
 
 function validatePhysicalPaths(options, scope) {
-  requireFileParent(options.scope, 'scope');
-  requireFile(options.scope, 'scope');
   requireFileParent(options.prompt, 'prompt');
   const workdir = requireDirectory(options.workdir, 'workdir');
   let workdirRealPath;
@@ -230,6 +228,11 @@ function readJsonObject(filePath, label) {
 
 function loadScope(filePath) {
   const scope = readJsonObject(filePath, 'scope');
+  return validateScope(scope);
+}
+
+function validateScope(scope) {
+  if (!isPlainRecord(scope)) throw new CliError('scope must be a JSON object');
   const keys = Object.keys(scope).sort();
   const expected = [...SCOPE_KEYS].sort();
   if (JSON.stringify(keys) !== JSON.stringify(expected)) {
@@ -306,10 +309,26 @@ function launch(options) {
   requireFileParent(options.scope, 'scope');
   requireFile(options.scope, 'scope');
   const scope = loadScope(options.scope);
+  const config = loadConfigLayers(options['config-layer']);
+  return launchWithInputs(options, scope, config);
+}
+
+// The caller supplies resolved records; the same physical-path and immutable
+// context checks apply to CLI and parent-session dispatch alike.
+function launchWithInputs(options, suppliedScope, config, expectedPromptEvidence) {
+  requireAbsolutePath(options.workdir, 'workdir');
+  requireAbsolutePath(options.prompt, 'prompt');
+  if (!isContained(options.workdir, options.prompt)) throw new CliError('prompt must be lexically contained by workdir');
+  const scope = validateScope(suppliedScope);
+  if (!isPlainRecord(config)) throw new CliError('config must be a JSON object');
   validateScopePaths(options.workdir, scope);
   const physicalPaths = validatePhysicalPaths(options, scope);
-  const config = loadConfigLayers(options['config-layer']);
   const evidence = promptEvidence(options.prompt);
+  if (expectedPromptEvidence !== undefined
+      && (!isPlainRecord(expectedPromptEvidence)
+        || ['path', 'dev', 'ino', 'sha256'].some((key) => expectedPromptEvidence[key] !== evidence[key]))) {
+    throw new CliError('prompt changed after dispatch preparation');
+  }
   const result = buildContext({
     dispatching_agent: options['dispatching-agent'],
     execution_provider: options['execution-provider'],
@@ -364,4 +383,4 @@ function main(argv = process.argv.slice(2)) {
 
 if (require.main === module) process.exitCode = main();
 
-module.exports = Object.freeze({ main });
+module.exports = Object.freeze({ main, launchWithInputs, readJsonObject, promptEvidence });

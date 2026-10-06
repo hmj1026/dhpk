@@ -1694,7 +1694,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "inputs": [
           {
@@ -1785,7 +1785,7 @@
           },
           {
             "id": "reasoner",
-            "syntax": "--reasoner=<provider>/<model>[:<effort>]",
+            "syntax": "--reasoner=<provider>[/<model>[:<effort>]]",
             "value_kind": "string",
             "required": false,
             "summary": "Request a bounded second opinion",
