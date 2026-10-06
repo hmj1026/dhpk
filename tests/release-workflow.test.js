@@ -433,7 +433,9 @@ test('CI preserves the required Validate harness assets check as the shard aggre
   assert.ok(needs, 'validate aggregate must declare its upstream jobs');
   for (const required of ['plan', 'preflight', 'tests']) assert.ok(needs[1].split(',').map((value) => value.trim()).includes(required), `validate aggregate must depend on ${required}`);
   assert.match(job, /if:\s*always\(\)/);
-  assert.match(job, /verifyCiResults\(JSON\.parse\(process\.env\.PLAN\)/, 'aggregate must validate the plan-bound result set');
+  assert.match(job, /verifyCiResults\(plan,/, 'aggregate must validate the plan-bound result set');
+  assert.match(job, /fs\.readFileSync/, 'aggregate must read the complete artifact plan');
+  assert.doesNotMatch(job, /process\.env\.PLAN|needs\.plan\.outputs\.plan/);
   assert.match(job, /node scripts\/ci\/verify-test-shards\.js/);
 });
 

@@ -357,7 +357,7 @@ function main() {
   return report.violations.length || (report.configurationErrors && report.configurationErrors.length) ? 1 : 0;
 }
 
-if (require.main === module) process.exit(main());
+if (require.main === module) process.exitCode = main();
 
 module.exports = {
   DEFAULT_MANIFEST,

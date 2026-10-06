@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -406,11 +407,20 @@ test('aggregate CLI emits a JSON report with an exit code matching its verdict',
   });
 
   test('legacy context-budget CLI keeps its summary headings and exit behavior', () => {
-    const result = spawnSync(process.execPath, [CONTEXT_BUDGET_CLI, '--json'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    });
+    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-context-stdout-'));
+    const preload = path.join(temporary, 'delayed-stdout.cjs');
+    fs.writeFileSync(preload, 'const write = process.stdout.write.bind(process.stdout);\nprocess.stdout.write = (...args) => { setImmediate(() => write(...args)); return true; };\n');
+    let result;
+    try {
+      result = spawnSync(process.execPath, ['--require', preload, CONTEXT_BUDGET_CLI, '--json'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+      });
+    } finally {
+      fs.rmSync(temporary, { recursive: true, force: true });
+    }
     assert.ifError(result.error);
+    assert.ok(result.stdout.length > 0, 'the CLI must drain pending stdout before terminating');
     const lines = result.stdout.trim().split('\n');
     const report = JSON.parse(lines[lines.length - 1]);
     const hasFailure = report.violations.length > 0 || report.configurationErrors.length > 0;
