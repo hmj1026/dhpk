@@ -46,8 +46,20 @@ This project is indexed by GitNexus as **dhpk**.
 - **Changing `generated/` or `plugins/` outputs:** follow the [generated-output preflight](docs/agent-guidance/plugin-development.md#ci-preflight-for-generated-and-release-shaped-changes) for commands and clean-checkout ordering; use [distribution surfaces](docs/distribution-surfaces.md) for surface ownership.
 - **Orchestrating implementation:** follow the canonical [execution policy](rules/execution-policy.md) — record decision state, run the read-only reasoner before a writer when required, keep planner/review/CI/archive/PR checkpoints, and leave external `/opsx:apply` unchanged.
 - **Project workflow defaults:** Agent-First and multi-file Plan Mode are task-fit recommendations; use them when ownership, uncertainty, risk, or coordination supports them. Apply an 80% coverage target only when project/task acceptance or runner configuration makes it applicable; do not invent a universal threshold. See the [execution policy](rules/execution-policy.md) and [testing governance](docs/testing-governance.md). They do not override stronger current-session instructions or change user-global settings.
-- **Issues and triage:** use `gh` per [issue-tracker.md](docs/agents/issue-tracker.md) and the labels in [triage-labels.md](docs/agents/triage-labels.md).
-- **Domain terms and decisions:** read root `CONTEXT.md` and the relevant `docs/adr/` entries; see [domain.md](docs/agents/domain.md).
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues 是本專案的 issue tracker。依 `docs/agents/issue-tracker.md` 使用 `gh`。
+
+### Triage labels
+
+使用 `needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。詳見 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+本專案採 single-context。讀取根目錄的 `CONTEXT.md` 和相關 `docs/adr/`。詳見 `docs/agents/domain.md`。
 
 ## Guidance ownership
 
