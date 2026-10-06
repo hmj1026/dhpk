@@ -397,4 +397,70 @@ test('foreign Python cache artifacts inside retired output are preserved', () =>
   }
 });
 
+// Historical identities and paths from the parent of removal commit 096cba21.
+const GITNEXUS_IDS = [
+  'gitnexus-cli', 'gitnexus-debugging', 'gitnexus-exploring',
+  'gitnexus-guide', 'gitnexus-impact-analysis', 'gitnexus-refactoring',
+];
+
+function gitnexusUpgradeFixture() {
+  const root = tmpDir();
+  const outDir = path.join(root, '.agents', 'skills');
+  const historicSkills = GITNEXUS_IDS.map((id) => ({
+    id, name: `dhpk-${id}`, path: `skills/dhpk-${id}`, lifecycle: 'promoted',
+    surfaces: ['agent-plugin'],
+  }));
+  for (const skill of [ACTIVE, ...historicSkills]) {
+    write(path.join(root, skill.path, 'SKILL.md'), `---\nname: ${skill.name}\ndescription: Upgrade fixture\n---\n# ${skill.name}\n`);
+    write(path.join(root, skill.path, 'references', 'guide.md'), '# Fixture resource\n');
+  }
+  materializeAgentsSkillsProjection({ root, outDir, inventory: inventory([ACTIVE, ...historicSkills]) });
+  const historicalReceipt = readReceipt(outDir);
+  for (const skill of historicSkills) fs.rmSync(path.join(root, skill.path), { recursive: true });
+  const current = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const currentInventory = inventory([ACTIVE], current.retired_skills.filter((entry) => GITNEXUS_IDS.includes(entry.id)));
+  return { root, outDir, currentInventory, historicalReceipt };
+}
+
+test('historical GitNexus projection upgrades through the current retirement ledger', () => {
+  const fixture = gitnexusUpgradeFixture();
+  try {
+    materializeCurrent(fixture);
+    const validation = validateAgentsSkillsProjection({ root: fixture.root, outDir: fixture.outDir, inventory: fixture.currentInventory });
+    assert.deepStrictEqual(validation.errors, [], 'upgraded projection must validate without stale ownership');
+    const receipt = readReceipt(fixture.outDir);
+    const retiredPaths = fixture.historicalReceipt.entries
+      .filter((entry) => GITNEXUS_IDS.includes(entry.id))
+      .flatMap((entry) => fixture.historicalReceipt.managedPaths.filter((relative) => (
+        relative === `${entry.name}.md` || relative.startsWith(`${entry.name}/`)
+      )));
+    assert.ok(retiredPaths.length > 0, 'historical receipt must contain retired paths');
+    for (const relative of retiredPaths) {
+      assert.ok(!fs.existsSync(path.join(fixture.outDir, relative)), relative);
+      assert.ok(!receipt.managedPaths.includes(relative), relative);
+      assert.ok(!Object.hasOwn(receipt.generatedFingerprints, relative), relative);
+    }
+    assert.ok(!receipt.entries.some((entry) => GITNEXUS_IDS.includes(entry.id)));
+    materializeCurrent(fixture);
+    assert.deepStrictEqual(validateAgentsSkillsProjection({ root: fixture.root, outDir: fixture.outDir, inventory: fixture.currentInventory }).errors, []);
+    const freshOut = path.join(fixture.root, 'fresh', 'skills');
+    materializeAgentsSkillsProjection({ root: fixture.root, outDir: freshOut, inventory: fixture.currentInventory });
+    assert.deepStrictEqual(validateAgentsSkillsProjection({ root: fixture.root, outDir: freshOut, inventory: fixture.currentInventory }).errors, []);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test('GitNexus retirement preserves edited historical output without publication', () => {
+  const fixture = gitnexusUpgradeFixture();
+  try {
+    const edited = path.join(fixture.outDir, 'dhpk-gitnexus-cli', 'SKILL.md');
+    fs.appendFileSync(edited, '\nUser changes\n');
+    assertRejectedWithoutPublication(fixture, /modified|fingerprint|conflict|orphan/i);
+    assert.match(fs.readFileSync(edited, 'utf8'), /User changes/);
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+});
+
 run('agents-skills-retirement');
