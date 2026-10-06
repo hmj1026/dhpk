@@ -243,12 +243,14 @@ inspect → verify surface → route → plan/classify → implement → review 
 日常開發請遵循以下 5 步標準推進節奏，每一步均有明確的輸入、執行指令與完成門禁（Completion Criteria）：
 
 #### 步驟一：確認環境與安裝狀態
+
 - **操作**：
   - 執行 `/dhpk:flow-guide help`（Codex: `$flow-guide help`）列出所有註冊的可用技能與指令。
   - 執行 `/dhpk:setup --show` 檢查當前啟用的技術棧模組（如 PHP、Laravel、JS、Python 等）與 Hook 配置。
 - **完成標準**：確認環境 active modules 與當前專案需求相符，無需額外調整配置。
 
 #### 步驟二：任務諮詢、探索與路由
+
 - **操作**：
   - **流程諮詢**：不確定指令或作法時，直接提問：
     ```text
@@ -265,6 +267,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **完成標準**：產出明確的責任歸屬與任務邊界，或確定一項有證據支持的可證偽根因；不在此步驟修改程式碼。
 
 #### 步驟三：規格確認後實作與 TDD
+
 - **操作**：
   - 當驗收條件、OpenSpec change 或修復方案確認後，呼叫實作入口：
     ```text
@@ -280,6 +283,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **完成標準**：所有變更均具備聚焦驗證（Focused Verification）與綠燈測試證據；不遺留未說明的測試跳過。
 
 #### 步驟四：變更審查與品質門禁
+
 - **操作**：
   - **即時專業審查**：修改代碼後，依變更檔案路徑自動分派對應領域 Reviewer：
     ```text
@@ -306,6 +310,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **完成標準**：無任何 CRITICAL 阻礙，Precommit 全綠，所有審查意見與門禁狀態皆有憑證。
 
 #### 步驟五：分組提交、PR 與上線
+
 - **操作**：
   - **智慧分組提交**：按凝聚度（Cohesion）將改動分群，產生符合專案風格的 Commit 訊息與 Git 指令：
     ```text
@@ -342,6 +347,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：唯讀的工作流程顧問與路由中心。負責導航、策略查詢、狀態檢查與有界交接。不具備修改代碼或執行 explicit-only 命令的權限。
 - **呼叫語法**：`/dhpk:flow-guide <action> [--go] [<query>]`（Codex: `$flow-guide <action> [--go] [<query>]`）
 - **參數說明**：
+
   | 參數 | 類型 / 選項 | 必填 | 說明 |
   |---|---|---|---|
   | `<action>` | `help` \| `route` \| `rules` \| `next` \| `close` | 是 | 欲執行的單一動作（五選一）。 |
@@ -352,6 +358,7 @@ inspect → verify surface → route → plan/classify → implement → review 
   | `close` | 子指令 | — | 收尾門禁檢查：核對改動檔案、測試證據、Review 狀態與風險。 |
   | `[--go]` | 布林旗標 | 否 | 僅在 `route` 動作生效。若目標為可隱式執行（implicit-eligible），自動進行一次有界交接；若為 explicit-only 目標則僅提示語法。 |
   | `[query]` | 字串 | 否 | 欲諮詢的任務描述、錯誤現象、或特定技能名稱。 |
+
 - **實戰範例**：
   ```text
   # 查詢特定技能的參數說明卡片
@@ -375,6 +382,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：明確實作（explicit-only）入口，負責執行驗收邊界已確認的變更。不選路由、不草擬提案、不跳過測試。
 - **呼叫語法**：`/dhpk:flow-drive <confirmed-spec-or-change-id> [options]`（Codex: `$flow-drive ...`）
 - **參數說明**：
+
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
   |---|---|---|---|
   | `<confirmed-spec-or-change-id>` | 字串 | （必填） | 已確認的規格名稱或 OpenSpec Change ID（例如 `auth-oauth2-flow`）。 |
@@ -385,6 +393,7 @@ inspect → verify surface → route → plan/classify → implement → review 
   | `--cross-provider` | 布林旗標 | 關閉 | 在 `--worker=auto` 時允許考慮外部跨供應商候選（如 Codex），不影響明確指定的 target。 |
   | `--reasoner=<target>` | `<provider>/<model>[:<effort>]` | 無 | 請求外部獨立 Reasoner 進行唯讀架構或複雜決策審查（例如 `codex-cli/gpt-6.1-sol:high`）。 |
   | `--architect` / `--no-architect` | 布林旗標 | 依政策 | 控制本次實作是否強制執行架構層面審查。 |
+
 - **實戰範例**：
   ```text
   # 最簡實作：以當前環境實作已確認的 change
@@ -405,6 +414,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：唯讀的代碼探索與診斷工具。追查呼叫鏈、重現失敗、回溯 Git 變更，或挑選最佳代碼導航工具。
 - **呼叫語法**：`/dhpk:code-trace [--mode <mode>] [options] <target>`
 - **參數說明**：
+
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
   |---|---|---|---|
   | `--mode <mode>` | `explore` \| `diagnose` \| `history` \| `select-tool` | 自動推斷 | 追蹤模式。`explore`（探索符號/流程）、`diagnose`（排查 Bug/回歸）、`history`（Git 演進）、`select-tool`（工具挑選）。 |
@@ -412,6 +422,7 @@ inspect → verify surface → route → plan/classify → implement → review 
   | `--dual` | 布林旗標 | 關閉 | 派發兩個完全隔離的獨立探索視角，最後交叉比對共識與分歧。 |
   | `--explain` | 布林旗標 | 關閉 | 針對探索目標輸出逐步的白話解釋與資料流說明。 |
   | `<target>` | 字串 | （必填） | 符號名稱、類別、檔案路徑、錯誤訊息或異常現象描述。 |
+
 - **實戰範例**：
   ```text
   # 深度探索認證流程架構
@@ -435,12 +446,14 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：唯讀的品質審查技能，從代碼標準、安全、測試覆蓋、文件一致性與變更風險等多個面向輸出獨立裁決（`READY`、`BLOCKED` 或 `INCONCLUSIVE`）。
 - **呼叫語法**：`/dhpk:change-verdict --mode <mode> [options] [scope]`
 - **參數說明**：
+
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
   |---|---|---|---|
   | `--mode <mode>` | `code` \| `pr` \| `security` \| `tests` \| `docs` \| `risk` | （必填） | 審查維度。`code`（代碼規範/規格）、`pr`（PR 衛生度）、`security`（OWASP 安全）、`tests`（測試覆蓋）、`docs`（文件一致）、`risk`（變更爆炸半徑）。 |
   | `--ac-trace` | 布林旗標 | 關閉 | 僅用於 `tests` 模式。將驗收條件逐條追蹤對應到具體測試案例與運行結果。 |
   | `--second-opinion=codex-exec` | 字串 | 無 | 請求外部獨立的 Codex CLI 執行盲審第二意見，並將其結果隔離呈現。 |
   | `[scope]` | Git commit / branch / 檔案列表 | 當前未提交變更 | 審查範圍（例如 `HEAD~1..HEAD`、`main..feature` 或 `app/Models/`）。 |
+
 - **實戰範例**：
   ```text
   # 審查當前所有未提交代碼修改是否符合標準
@@ -464,9 +477,11 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：自動比對當前工作目錄變更，依據檔案副檔名與路徑派遣對應領域專業 Reviewer（代碼、資料庫、安全、前端等）。
 - **呼叫語法**：`/dhpk:review-pending [--files=<rel-paths>]`
 - **參數說明**：
+
   | 參數 | 類型 | 預設值 | 說明 |
   |---|---|---|---|
   | `--files=<rel-paths>` | 逗號分隔字串 | `git diff HEAD --name-only` | 限定審查的相對檔案路徑清單。省略時自動審查所有修改中檔案。 |
+
 - **實戰範例**：
   ```text
   # 審查所有當前修改中（Staged + Unstaged）的檔案
@@ -481,6 +496,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：引導嚴格遵循 RED → GREEN → REFACTOR 的行為驅動開發流程，拒絕無效的套套邏輯測試（Tautological Tests）。
 - **呼叫語法**：`/dhpk:tdd-workflow <mode> [target]`
 - **參數說明**：
+
   | 參數 | 類型 / 選項 | 必填 | 說明 |
   |---|---|---|---|
   | `<mode>` | `standard` \| `test-generation` \| `fast-worker` | 是 | 執行模式。 |
@@ -488,6 +504,7 @@ inspect → verify surface → route → plan/classify → implement → review 
   | `test-generation` | 模式 | — | 針對現有生產代碼接縫，生成以可觀察行為為核心的最小測試骨架。 |
   | `fast-worker` | 模式 | — | 由已確認的 RED 規格或 Task 描述，交由 Worker 進行機械式的 GREEN 實作。 |
   | `[target]` | 字串 | 否 | 目標檔案、函式或功能接縫名稱。 |
+
 - **實戰範例**：
   ```text
   # 啟動標準 TDD 流程實作新行為
@@ -505,9 +522,11 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：封裝確定性的提交前品質檢查管線，自動依專案生態系執行 Lint 修復、編譯建置與單元測試。
 - **呼叫語法**：`/dhpk:precommit [--fast]`
 - **參數說明**：
+
   | 參數 | 類型 | 說明 |
   |---|---|---|
   | `--fast` | 布林旗標 | 快速模式。僅執行快速靜態檢查與單元測試，跳過耗時的大型建置與整合檢查。省略時執行完整管線（`lint:fix -> build -> test:unit`）。 |
+
 - **實戰範例**：
   ```text
   # 執行日常快速提交前檢查
@@ -522,11 +541,13 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：唯讀執行專案各層級的完整驗證（Lint、型別、單元測試、整合測試、E2E）。
 - **呼叫語法**：`/dhpk:verify [<mode>] [--integration=<path>] [--e2e=<path>]`（Codex: `$repo-verify ...`）
 - **參數說明**：
+
   | 參數 | 類型 / 選項 | 預設值 | 說明 |
   |---|---|---|---|
   | `<mode>` | `fast` \| `full` | `full` | 驗證模式。`fast`（Lint + 單元測試）；`full`（Lint + Typecheck + Unit + Integration + E2E）。 |
   | `--integration=<path>` | 字串 | 無 | 指定自訂的整合測試路徑。 |
   | `--e2e=<path>` | 字串 | 無 | 指定自訂的端到端（E2E）測試路徑。 |
+
 - **實戰範例**：
   ```text
   # 執行全庫完整驗證
@@ -544,11 +565,13 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：分析未提交檔案，按凝聚度（Cohesion）智慧分組，依 Conventional Commits 風格生成 Commit 訊息，輸出可複製執行的 Git 指令。
 - **呼叫語法**：`/dhpk:smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
 - **參數說明**：
+
   | 參數 | 類型 | 說明 |
   |---|---|---|
   | `--scope <path>` | 路徑字串 | 限定只提交特定路徑下的修改。 |
   | `--type <type>` | 字串 | 強制指定提交類型（如 `feat`、`fix`、`refactor`、`docs`、`test`、`chore`）。 |
   | `--ai-co-author` | 布林旗標 | 在 Commit 訊息末端附上 AI 協作者 Trailer（`Co-authored-by`）。 |
+
 - **實戰範例**：
   ```text
   # 智慧分析所有變更並分組提交
@@ -566,6 +589,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：自動從當前分支與 Commit 歷程提取 Ticket 編號，生成符合專案風格的 PR 標題與說明本文。
 - **呼叫語法**：`/dhpk:create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]`
 - **參數說明**：
+
   | 參數 | 類型 | 預設值 | 說明 |
   |---|---|---|---|
   | `--dry-run` | 布林旗標 | 啟用 | 僅輸出建議的 `gh pr create` 指令預覽，不執行修改。 |
@@ -573,6 +597,7 @@ inspect → verify surface → route → plan/classify → implement → review 
   | `--head=<branch>` | 字串 | 當前分支 | 來源分支。 |
   | `--base=<branch>` | 字串 | `develop` 或 `main` | 目標分支（預設為專案設定的 Target Branch）。 |
   | `--title=<text>` | 字串 | 自動產生 | 自訂 PR 標題（覆寫自動產生的 Ticket 格式標題）。 |
+
 - **實戰範例**：
   ```text
   # 預覽 PR 標題與內文（乾跑模式）
@@ -590,6 +615,7 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：從 Git 歷史中萃取發布清單，過濾測試與 CI 檔案，依技術棧 Preset（Yii、Laravel、Node、Python 等）分群輸出確定性的上線檔案檢查清單。
 - **呼叫語法**：`dhpk-deploy-list --tag <[TAG]> --description "<text>" [options]`
 - **參數說明**：
+
   | 參數 | 類型 | 必填 | 說明 |
   |---|---|---|---|
   | `--tag <[TAG]>` | 字串 | 是 | 發布標籤元資料（格式必須為中括號，如 `[PROD-20261006]`）。 |
@@ -600,6 +626,7 @@ inspect → verify surface → route → plan/classify → implement → review 
   | `--preset <preset>` | 字串 | 否 | 指定技術棧規則（`php-yii`、`laravel`、`node`、`python`、`generic`）。 |
   | `--lang <zh-TW\|en>` | 字串 | 否 | 輸出語言（預設 `en`）。 |
   | `--auto-detect-tag` | 布林旗標 | 否 | 在 Commit 訊息中自動搜尋標籤並填入 `--deploy-commits`。 |
+
 - **實戰範例**：
   ```text
   # 產生常規上線清單（以當前分支比對 main）
@@ -614,9 +641,11 @@ inspect → verify surface → route → plan/classify → implement → review 
 - **定位**：在長時間大型 OpenSpec 任務接近 Token 上限時保存現場快照，或在開啟新 Session 後恢復執行進度與門禁證據。
 - **呼叫語法**：`/dhpk:opsx-apply-resume [<change-id>]`
 - **參數說明**：
+
   | 參數 | 類型 | 說明 |
   |---|---|---|
   | `<change-id>` | 字串（可選） | 目標 OpenSpec Change 名稱。若省略，自動偵測最近一次進行中的 Change。 |
+
 - **實戰範例**：
   ```text
   # 在當前 Session 上下文耗盡前執行儲存

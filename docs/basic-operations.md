@@ -258,12 +258,14 @@ For a fast lookup, see the cheat sheet: [Skill and Slash Command Cheat Sheet](./
 Follow this 5-step standard cadence for day-to-day work, where each step defines clear inputs, execution commands, and explicit completion criteria:
 
 #### Step 1: Verify Environment & Active Modules
+
 - **Actions**:
   - Run `/dhpk:flow-guide help` (Codex: `$flow-guide help`) to list all registered skills and commands.
   - Run `/dhpk:setup --show` to inspect currently active stack modules (PHP, Laravel, JS, Python, etc.) and hook configurations.
 - **Completion Criterion**: Active modules and configuration match project requirements without missing prerequisites.
 
 #### Step 2: Inquire, Explore & Route
+
 - **Actions**:
   - **Workflow Consultation**: Ask the guide directly instead of guessing commands:
     ```text
@@ -280,6 +282,7 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
 - **Completion Criterion**: Clear ownership boundary identified or a single falsifiable root cause supported by evidence; no code is modified in this step.
 
 #### Step 3: Implement Confirmed Work with TDD
+
 - **Actions**:
   - Once requirements, acceptance criteria, or OpenSpec changes are confirmed, invoke the implementation front door:
     ```text
@@ -295,6 +298,7 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
 - **Completion Criterion**: All changes carry focused verification and all-green test evidence; no unexplained skipped checks remain.
 
 #### Step 4: Review, Audit & Quality Gates
+
 - **Actions**:
   - **Advisory Specialist Review**: Dispatch matching reviewers based on modified file extensions and paths:
     ```text
@@ -321,6 +325,7 @@ Follow this 5-step standard cadence for day-to-day work, where each step defines
 - **Completion Criterion**: Zero CRITICAL blockers, precommit all-green, and all gate verdicts backed by fresh evidence.
 
 #### Step 5: Atomic Commit, PR & Release
+
 - **Actions**:
   - **Smart Batch Commit**: Group changes by cohesion into Conventional Commit messages and runnable Git commands:
     ```text
@@ -357,6 +362,7 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Read-only workflow consultant and routing hub. Handles navigation, policy queries, readiness verification, and bounded handoffs. Never mutates workspace code or invokes explicit-only commands.
 - **Invocation Syntax**: `/dhpk:flow-guide <action> [--go] [<query>]` (Codex: `$flow-guide <action> [--go] [<query>]`)
 - **Parameter Breakdown**:
+
   | Parameter | Type / Choices | Required | Description |
   |---|---|---|---|
   | `<action>` | `help` \| `route` \| `rules` \| `next` \| `close` | Yes | The single action to execute. |
@@ -367,6 +373,7 @@ The following sections provide comprehensive parameter references, types, defaul
   | `close` | Subcommand | — | Closeout gate check: inspect changed files, test evidence, review obligations, and open risks. |
   | `[--go]` | Boolean flag | No | Valid only with `route`. If the matched target is implicit-eligible, executes a single bounded handoff; if explicit-only, outputs the exact command syntax without executing. |
   | `[query]` | String | No | Free-text task description, error symptom, or skill name. |
+
 - **Practical Examples**:
   ```text
   # View parameter usage card for a specific skill
@@ -390,6 +397,7 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Explicit-only implementation entrypoint for changes with confirmed specifications and acceptance boundaries. Never selects routes, drafts proposals, or skips tests.
 - **Invocation Syntax**: `/dhpk:flow-drive <confirmed-spec-or-change-id> [options]` (Codex: `$flow-drive ...`)
 - **Parameter Breakdown**:
+
   | Parameter | Type / Choices | Default | Description |
   |---|---|---|---|
   | `<confirmed-spec-or-change-id>` | String | (Required) | Settled specification name or OpenSpec Change ID (e.g., `auth-oauth2-flow`). |
@@ -400,6 +408,7 @@ The following sections provide comprehensive parameter references, types, defaul
   | `--cross-provider` | Boolean flag | Off | Allow external cross-provider candidates (such as Codex) when `--worker=auto` is used. |
   | `--reasoner=<target>` | `<provider>/<model>[:<effort>]` | None | Request an external read-only Reasoner pass for architecture or complex decisions (e.g., `codex-cli/gpt-6.1-sol:high`). |
   | `--architect` / `--no-architect` | Boolean flag | Policy default | Explicitly enable or bypass the architectural design review pass. |
+
 - **Practical Examples**:
   ```text
   # Minimal implementation: execute confirmed change in the current environment
@@ -420,6 +429,7 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Read-only code exploration and diagnostic tool. Traces call hierarchies, reproduces failures, inspects Git history, or selects optimal code-navigation tools.
 - **Invocation Syntax**: `/dhpk:code-trace [--mode <mode>] [options] <target>`
 - **Parameter Breakdown**:
+
   | Parameter | Type / Choices | Default | Description |
   |---|---|---|---|
   | `--mode <mode>` | `explore` \| `diagnose` \| `history` \| `select-tool` | Inferred | Trace mode. `explore` (symbols/flows), `diagnose` (bugs/regressions), `history` (Git evolution), `select-tool` (navigation tool selection). |
@@ -427,6 +437,7 @@ The following sections provide comprehensive parameter references, types, defaul
   | `--dual` | Boolean flag | Off | Dispatches two fully isolated exploration perspectives and reconciles consensus vs differences. |
   | `--explain` | Boolean flag | Off | Generates step-by-step explanatory prose and dataflow narrative. |
   | `<target>` | String | (Required) | Symbol name, class, file path, error message, or symptom description. |
+
 - **Practical Examples**:
   ```text
   # Deeply explore authentication flow architecture
@@ -450,12 +461,14 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Read-only quality review skill providing evidence-backed verdicts (`READY`, `BLOCKED`, or `INCONCLUSIVE`) across code standards, security, test coverage, documentation consistency, and change risk.
 - **Invocation Syntax**: `/dhpk:change-verdict --mode <mode> [options] [scope]`
 - **Parameter Breakdown**:
+
   | Parameter | Type / Choices | Default | Description |
   |---|---|---|---|
   | `--mode <mode>` | `code` \| `pr` \| `security` \| `tests` \| `docs` \| `risk` | (Required) | Review dimension. `code` (standards/spec), `pr` (PR hygiene), `security` (OWASP/secrets), `tests` (coverage), `docs` (consistency), `risk` (blast radius). |
   | `--ac-trace` | Boolean flag | Off | Used in `tests` mode: traces acceptance criteria to concrete test cases and outcomes. |
   | `--second-opinion=codex-exec` | String | None | Requests an independent blind review pass via Codex CLI, presented in isolation. |
   | `[scope]` | Commit range / branch / file list | Uncommitted diff | Review scope (e.g., `HEAD~1..HEAD`, `main..feature`, or `app/Models/`). |
+
 - **Practical Examples**:
   ```text
   # Review all uncommitted code modifications against project standards
@@ -479,9 +492,11 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Automatically inspects working tree changes and dispatches specialist reviewers (code, database, security, frontend, docs) based on edited file paths.
 - **Invocation Syntax**: `/dhpk:review-pending [--files=<rel-paths>]`
 - **Parameter Breakdown**:
+
   | Parameter | Type | Default | Description |
   |---|---|---|---|
   | `--files=<rel-paths>` | Comma-separated string | `git diff HEAD --name-only` | Restrict review to specific relative file paths. Defaults to all modified files. |
+
 - **Practical Examples**:
   ```text
   # Review all currently modified (staged + unstaged) files
@@ -496,6 +511,7 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Guides strict behavior-first unit and integration testing following RED → GREEN → REFACTOR, eliminating tautological test antipatterns.
 - **Invocation Syntax**: `/dhpk:tdd-workflow <mode> [target]`
 - **Parameter Breakdown**:
+
   | Parameter | Type / Choices | Required | Description |
   |---|---|---|---|
   | `<mode>` | `standard` \| `test-generation` \| `fast-worker` | Yes | TDD operational mode. |
@@ -503,6 +519,7 @@ The following sections provide comprehensive parameter references, types, defaul
   | `test-generation` | Mode | — | Generate a minimal behavior-focused test scaffold for an existing production seam. |
   | `fast-worker` | Mode | — | Mechanical GREEN implementation driven by settled RED specs or task contracts. |
   | `[target]` | String | No | Target file, method, or production seam name. |
+
 - **Practical Examples**:
   ```text
   # Initiate standard TDD cycle for a new behavior
@@ -520,9 +537,11 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Deterministic pre-commit verification pipeline executing lint formatting, build checks, and unit tests tailored to the project ecosystem.
 - **Invocation Syntax**: `/dhpk:precommit [--fast]`
 - **Parameter Breakdown**:
+
   | Parameter | Type | Description |
   |---|---|---|
   | `--fast` | Boolean flag | Fast mode: runs rapid static checks and unit tests, skipping heavy builds and end-to-end stages. Omitted = runs full pipeline (`lint:fix -> build -> test:unit`). |
+
 - **Practical Examples**:
   ```text
   # Run fast pre-commit check
@@ -537,11 +556,13 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Read-only cross-layer validation across all project levels (lint, typecheck, unit, integration, e2e).
 - **Invocation Syntax**: `/dhpk:verify [<mode>] [--integration=<path>] [--e2e=<path>]` (Codex: `$repo-verify ...`)
 - **Parameter Breakdown**:
+
   | Parameter | Type / Choices | Default | Description |
   |---|---|---|---|
   | `<mode>` | `fast` \| `full` | `full` | Verification mode. `fast` (lint + unit tests); `full` (all stages: lint + typecheck + unit + integration + e2e). |
   | `--integration=<path>` | String | None | Specify custom integration test path. |
   | `--e2e=<path>` | String | None | Specify custom end-to-end test path. |
+
 - **Practical Examples**:
   ```text
   # Run full repository verification
@@ -559,11 +580,13 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Analyzes unstaged/staged files, groups them by cohesion, formats Conventional Commit messages matching project conventions, and produces copy-pasteable Git commands.
 - **Invocation Syntax**: `/dhpk:smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
 - **Parameter Breakdown**:
+
   | Parameter | Type | Description |
   |---|---|---|
   | `--scope <path>` | Path string | Restrict staging and commit grouping to a designated directory or path. |
   | `--type <type>` | String | Enforce commit type prefix (e.g., `feat`, `fix`, `refactor`, `docs`, `test`, `chore`). |
   | `--ai-co-author` | Boolean flag | Append AI co-author trailer (`Co-authored-by: ...`) to commit messages. |
+
 - **Practical Examples**:
   ```text
   # Analyze all working tree changes and group into atomic commits
@@ -581,6 +604,7 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Extracts ticket IDs from branch history and commits, composing project-compliant PR titles, summaries, and verification evidence.
 - **Invocation Syntax**: `/dhpk:create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]`
 - **Parameter Breakdown**:
+
   | Parameter | Type | Default | Description |
   |---|---|---|---|
   | `--dry-run` | Boolean flag | Enabled | Outputs copy-pasteable `gh pr create` command preview without making changes. |
@@ -588,6 +612,7 @@ The following sections provide comprehensive parameter references, types, defaul
   | `--head=<branch>` | String | Current branch | Source branch to open PR from. |
   | `--base=<branch>` | String | `develop` or `main` | Target branch (defaults to project configured target branch). |
   | `--title=<text>` | String | Auto-generated | Explicit PR title overriding ticket-aware default. |
+
 - **Practical Examples**:
   ```text
   # Preview PR title, body, and gh command (dry-run mode)
@@ -605,6 +630,7 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Generates a release file checklist from Git history, filtering dev-only assets (tests, CI, docs) and grouping files by ecosystem preset (Yii, Laravel, Node, Python, generic).
 - **Invocation Syntax**: `dhpk-deploy-list --tag <[TAG]> --description "<text>" [options]`
 - **Parameter Breakdown**:
+
   | Parameter | Type | Required | Description |
   |---|---|---|---|
   | `--tag <[TAG]>` | String | Yes | Release tag metadata (must match bracket format `^\[.+\]$`, e.g. `[PROD-20261006]`). |
@@ -615,6 +641,7 @@ The following sections provide comprehensive parameter references, types, defaul
   | `--preset <preset>` | String | No | Ecosystem preset rule (`php-yii`, `laravel`, `node`, `python`, `generic`). |
   | `--lang <en\|zh-TW>` | String | No | Output checklist language (default: `en`). |
   | `--auto-detect-tag` | Boolean flag | No | Auto-search `$TAG` in commit messages to populate `--deploy-commits`. |
+
 - **Practical Examples**:
   ```text
   # Generate standard deployment checklist against main
@@ -629,9 +656,11 @@ The following sections provide comprehensive parameter references, types, defaul
 - **Purpose**: Snapshots live workspace state when approaching context/token limits in long apply sessions, and restores execution progress and verification gates in a fresh session.
 - **Invocation Syntax**: `/dhpk:opsx-apply-resume [<change-id>]`
 - **Parameter Breakdown**:
+
   | Parameter | Type | Description |
   |---|---|---|
   | `<change-id>` | String (optional) | Target OpenSpec Change ID. If omitted, automatically detects latest active change. |
+
 - **Practical Examples**:
   ```text
   # Save live state before context exhaustion in current session
