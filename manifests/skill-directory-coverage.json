@@ -838,7 +838,7 @@
       "entry": "SKILL.md",
       "references": [
         "agents/openai.yaml",
-        "references/cli-dispatch.md",
+        "references/parent-cli-dispatch.md",
         "references/execution-bundle/docs/subagent-prompt-template.md",
         "references/execution-bundle/manifests/host-profiles.json",
         "references/execution-bundle/manifests/provider-model-catalog.json",

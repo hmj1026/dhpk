@@ -53,7 +53,7 @@ preserved even when a caller presents a ready-looking route.
    for this discovery, and run shell commands only for the step 0 parser, the
    verification commands resolved here, the diff inspection in step 3, the
    selected CLI dispatch and availability checks described in
-   `references/cli-dispatch.md`, or a command the current grant lists. On a Host without such tools, use its
+   `references/parent-cli-dispatch.md`, or a command the current grant lists. On a Host without such tools, use its
    read-only shell access for discovery.
 2. Convert the work into dependency-ordered observable items. Preserve
    OpenSpec task order and leave incomplete tasks unchecked. Reuse sufficient
@@ -69,7 +69,7 @@ preserved even when a caller presents a ready-looking route.
    implementation policy. Optional backends are explicit and cannot silently
    replace the current implementer.
    On Claude Code, launch selected Codex roles from the parent session through
-   `scripts/launch-dispatch.js`; follow `references/cli-dispatch.md` for the
+   `scripts/launch-dispatch.js`; follow `references/parent-cli-dispatch.md` for the
    dispatcher packet, reasoner-before-worker gate, and independent verification.
 5. Stop on an evidence-changing blocker. A rejected or modified item may be
    retried at most twice with its failure and current diff supplied as context.
@@ -141,7 +141,7 @@ verification, and archive as separate states.
 - `scripts/invocation.js` — local invocation parsing; `scripts/dispatch.js` —
   dispatch-target resolution over the bundled contracts. Flow Drive has no
   mandatory peer Skill dependency.
-- `references/cli-dispatch.md` — Claude Code parent-session Codex launch;
+- `references/parent-cli-dispatch.md` — Claude Code parent-session Codex launch;
   `scripts/launch-dispatch.js` consumes its explicit dispatcher packet and the
   self-contained runtime under `references/cli-dispatch/scripts/`.
 - `skills/flow-guide/SKILL.md` — optional separately invoked route guidance;

@@ -1,4 +1,4 @@
-# Claude Code CLI dispatch
+# Claude Code parent-session CLI dispatch
 
 Use this branch when Flow Drive selects a Codex worker or reasoner on Claude
 Code. The parent session launches the bundled CLI runtime through Bash; it
