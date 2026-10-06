@@ -271,6 +271,54 @@
       "sha256": "sha256:4d4fe6561fbf37a16566d3262db55f746865100429b59fab3b9a327e96591608",
       "mode": "0644"
     },
+    "skills/flow-drive/references/cli-dispatch/scripts/build-cli-dispatch-context.js": {
+      "skill_id": "flow-drive",
+      "source": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
+      "sha256": "sha256:a8330be39319fc8fcf6c71d7a17dfe61b62ee851c2b9753594fef21b7d62446e",
+      "mode": "0644"
+    },
+    "skills/flow-drive/references/cli-dispatch/scripts/cli-role-resolver.js": {
+      "skill_id": "flow-drive",
+      "source": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
+      "sha256": "sha256:5bca594d35d92312e56b8ebe179f7d7f6bda5ac384372dd650e7202431d7e7fb",
+      "mode": "0644"
+    },
+    "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/prepare-cli-request.py": {
+      "skill_id": "flow-drive",
+      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
+      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
+      "mode": "0755"
+    },
+    "skills/flow-drive/references/cli-dispatch/scripts/cli-transport/run-cli-transport.py": {
+      "skill_id": "flow-drive",
+      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
+      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
+      "mode": "0755"
+    },
+    "skills/flow-drive/references/cli-dispatch/scripts/launch-cli-dispatch.js": {
+      "skill_id": "flow-drive",
+      "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
+      "sha256": "sha256:3471c66782fdcffa564da411623232b62cfb3b2fdff4d395b80db07f638b9db6",
+      "mode": "0755"
+    },
+    "skills/flow-drive/references/cli-dispatch/scripts/physical-file.js": {
+      "skill_id": "flow-drive",
+      "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
+      "sha256": "sha256:fc3698a983dca798bbe66899606d4f98f308cd5c7bfedc85254966cfc4b24b77",
+      "mode": "0644"
+    },
+    "skills/flow-drive/references/cli-dispatch/scripts/physical-file.py": {
+      "skill_id": "flow-drive",
+      "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
+      "sha256": "sha256:5b313380d83f8d2c20eb666a588ad641547522bea7c38f048114a674bd020bed",
+      "mode": "0644"
+    },
+    "skills/flow-drive/references/cli-dispatch/scripts/run-codex.sh": {
+      "skill_id": "flow-drive",
+      "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
+      "sha256": "sha256:c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140",
+      "mode": "0755"
+    },
     "skills/flow-drive/references/execution-bundle/docs/subagent-prompt-template.md": {
       "skill_id": "flow-drive",
       "source": "docs/subagent-prompt-template.md",
@@ -286,7 +334,7 @@
     "skills/flow-drive/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-drive",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:630e9ec9b1b8c53987af1c688f8c415462d0fe6689d8e5498c2ccd06ba421d76",
+      "sha256": "sha256:9d70971569a0ef052adaf241589cd975aaf367dcb513a13069539e6f2e583736",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/anti-rationalization.md": {
@@ -304,7 +352,7 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:31496cc65eef5b44d2ab0c37b94b976279118c1c8a09a74ca8c219dc7ea87a64",
+      "sha256": "sha256:bdbbb4000a5aaa5bc099aefa79ab0d5cc93fe50437246cdf9bd93646f921207a",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
@@ -328,7 +376,7 @@
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:943f22d39cbe34bd6deb31e38f28175c8ea6b1d013c6bb755a61d1871a93bc1b",
+      "sha256": "sha256:9e6e7ea7425e21a45f3ad0b9ae98e7fee2d14295f5351e3f252a46211320bc7f",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/dispatch-engine.js": {
@@ -340,7 +388,7 @@
     "skills/flow-drive/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {
       "skill_id": "flow-drive",
       "source": "scripts/lib/flow-handoff-contract.js",
-      "sha256": "sha256:d784b09cef0e9847e0b2a1586b1ce2d1578db45065456b1cfb457f22a49c8a70",
+      "sha256": "sha256:5d9adae49b755ad85fcf5eba0a990be99dbffdb26f20489928f29e6349f222e2",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/scripts/lib/native-dispatch-policy.js": {
@@ -412,7 +460,7 @@
     "skills/flow-guide/references/execution-bundle/manifests/provider-model-catalog.json": {
       "skill_id": "flow-guide",
       "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:630e9ec9b1b8c53987af1c688f8c415462d0fe6689d8e5498c2ccd06ba421d76",
+      "sha256": "sha256:9d70971569a0ef052adaf241589cd975aaf367dcb513a13069539e6f2e583736",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/anti-rationalization.md": {
@@ -430,7 +478,7 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:31496cc65eef5b44d2ab0c37b94b976279118c1c8a09a74ca8c219dc7ea87a64",
+      "sha256": "sha256:bdbbb4000a5aaa5bc099aefa79ab0d5cc93fe50437246cdf9bd93646f921207a",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
@@ -454,7 +502,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:943f22d39cbe34bd6deb31e38f28175c8ea6b1d013c6bb755a61d1871a93bc1b",
+      "sha256": "sha256:9e6e7ea7425e21a45f3ad0b9ae98e7fee2d14295f5351e3f252a46211320bc7f",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/dispatch-engine.js": {
@@ -466,7 +514,7 @@
     "skills/flow-guide/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {
       "skill_id": "flow-guide",
       "source": "scripts/lib/flow-handoff-contract.js",
-      "sha256": "sha256:d784b09cef0e9847e0b2a1586b1ce2d1578db45065456b1cfb457f22a49c8a70",
+      "sha256": "sha256:5d9adae49b755ad85fcf5eba0a990be99dbffdb26f20489928f29e6349f222e2",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/scripts/lib/native-dispatch-policy.js": {

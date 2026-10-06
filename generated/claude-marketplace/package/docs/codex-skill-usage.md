@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-Source inventory revision: `sha256:a3945c392dcc3b5914d993c865a012282b789ee73bb345ff4c77a724550a4bdf`. Use `$flow-guide help` for read-only progressive usage cards.
+Source inventory revision: `sha256:4b5d17e435f30ee8b4bdbb67c38f07880e65f77f7acd5e6fad0fef1fc58796a9`. Use `$flow-guide help` for read-only progressive usage cards.
 
 ## Available skills
 
@@ -96,7 +96,7 @@ Examples:
 ### `$flow-drive`
 
 Summary: Implement a confirmed specification with bounded evidence
-Syntax: `$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]`
+Syntax: `$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
 Invocation class: `explicit-only`
 Maximum authority: `workspace-write`
 
@@ -112,7 +112,7 @@ Options:
 - `worker` `--worker=<worker>` (optional, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
 - `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (optional, string) — Select an explicit provider, model, and effort target
 - `cross-provider` `--cross-provider` (optional, boolean, default=false) — Allow the explicitly selected provider boundary
-- `reasoner` `--reasoner=<provider>/<model>[:<effort>]` (optional, string) — Request a bounded second opinion
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (optional, string) — Request a bounded second opinion
 - `architect` `--architect` (optional, boolean) — Enable the architecture pass
 - `no-architect` `--no-architect` (optional, boolean) — Disable the architecture pass
 

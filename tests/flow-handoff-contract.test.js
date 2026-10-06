@@ -17,6 +17,17 @@ test('creates an immutable neutral handoff with bounded evidence', () => {
   assert.throws(() => createFlowHandoff({ handoff_id: 'bad-evidence', owner: 'flow-guide', host: 'cursor', disposition: 'ready', evidence: [{ kind: 'route', state: 'guessed', detail: 'fixture' }], next_action: 'stop' }), /state/i);
 });
 
+test('preserves CLI reasoning efforts in neutral handoff targets', () => {
+  for (const effort of ['xhigh', 'ultra']) {
+    const result = createFlowHandoff({
+      handoff_id: `cli-${effort}`, owner: 'flow-drive', host: 'claude-code', disposition: 'ready',
+      target: { provider: 'codex-cli', role: 'reasoner', effort, transport: 'local-cli' }, next_action: 'execute',
+    });
+    assert.strictEqual(result.target.effort, effort);
+    assert.doesNotThrow(() => validateFlowHandoff(result));
+  }
+});
+
 test('rejects unsupported target evidence and execution claims', () => {
   assert.throws(() => createFlowHandoff({ handoff_id: 'bad', owner: 'flow-guide', host: 'cursor', disposition: 'ready', target: { provider: 'codex-cli', argv: ['codex'] }, next_action: 'stop' }), /unsupported/i);
   assert.throws(() => validateFlowHandoff({ handoff_id: 'bad', owner: 'flow-guide', host: 'cursor', disposition: 'ready', execution: 'SUCCEEDED', next_action: 'stop' }), /execution/i);
@@ -254,6 +265,22 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     });
   });
 
+  test('flow-drive lets an explicit Codex worker target override AGY selection on Claude Code', () => {
+    const context = parseInvocation([
+      'confirmed-change-123',
+      '--worker=agy',
+      '--worker-target=codex/gpt-6-luna:xhigh',
+    ], { host: 'claude-code' });
+
+    assert.strictEqual(context.status, 'ready', context.diagnostics.join('\n'));
+    assert.strictEqual(context.options.worker, 'agy');
+    assert.deepStrictEqual(context.options.workerTarget, {
+      provider: 'codex',
+      model: 'gpt-6-luna',
+      effort: 'xhigh',
+    });
+  });
+
   test('flow-drive rejects malformed worker targets and duplicate target selectors', () => {
     const malformed = parseInvocation(['confirmed-change-123', '--worker-target=auto/model']);
     assert.strictEqual(malformed.status, 'blocked');
@@ -283,24 +310,63 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
   });
 
   const CLI_BACKED_SELECTIONS = [
-    ['--worker=codex'],
     ['--worker=agy'],
-    ['--worker-target=codex/gpt-6-luna:high'],
     ['--worker-target=agy/gemini-3.8-flash-high'],
-    ['--reasoner=codex'],
   ];
 
   for (const selection of CLI_BACKED_SELECTIONS) {
-    test(`flow-drive blocks ${selection[0]} before dispatch on the Claude Code host`, () => {
+    test(`flow-drive keeps ${selection[0]} blocked on the Claude Code host`, () => {
       const context = parseInvocation(['confirmed-change-123', ...selection], { host: 'claude-code' });
 
       assert.strictEqual(context.status, 'blocked');
       assert.ok(
-        context.diagnostics.some((item) => /claude-code/.test(item) && /DHPK_CLI_TRANSPORT_CONTEXT/.test(item) && /--worker=claude|--reasoner=claude/.test(item)),
+        context.diagnostics.some((item) => /AGY dispatch is not supported by (?:the )?parent-session CLI launcher/i.test(item)),
         context.diagnostics.join('\n'),
       );
     });
   }
+
+  test('flow-drive accepts all configured Codex options on Claude Code and normalizes the codex-cli reasoner alias', () => {
+    const context = parseInvocation([
+      'confirmed-change-123',
+      '--plan=opus:high',
+      '--plan-mode=bounded',
+      '--worker=codex',
+      '--worker-target=codex/gpt-6-luna:xhigh',
+      '--cross-provider',
+      '--reasoner=codex-cli/gpt-6.1-sol:high',
+      '--architect',
+    ], { host: 'claude-code' });
+
+    assert.strictEqual(context.status, 'ready', context.diagnostics.join('\n'));
+    assert.deepStrictEqual(context.options, {
+      plan: { enabled: true, model: 'opus', effort: 'high', mode: 'bounded' },
+      worker: 'codex',
+      workerTarget: { provider: 'codex', model: 'gpt-6-luna', effort: 'xhigh' },
+      crossProvider: true,
+      reasoner: { backend: 'codex', model: 'gpt-6.1-sol', effort: 'high' },
+      architect: true,
+    });
+    assert.deepStrictEqual(context.notices, []);
+  });
+
+  test('flow-drive discloses native reasoner and worker-target effort overrides on Claude Code', () => {
+    const context = parseInvocation([
+      'confirmed-change-123',
+      '--reasoner=claude:claude-opus-5-5:medium',
+      '--worker-target=claude/claude-opus-5-5:high',
+    ], { host: 'claude-code' });
+
+    assert.strictEqual(context.status, 'ready', context.diagnostics.join('\n'));
+    assert.ok(
+      context.notices.some((item) => /reasoner.*effort 'medium'.*configured effort 'high'/i.test(item)),
+      context.notices.join('\n'),
+    );
+    assert.ok(
+      context.notices.some((item) => /worker-target.*effort 'high'.*configured effort 'medium'/i.test(item)),
+      context.notices.join('\n'),
+    );
+  });
 
   test('flow-drive keeps CLI-backed selections ready when the host is unspecified or CLI-native', () => {
     for (const selection of CLI_BACKED_SELECTIONS) {
@@ -354,7 +420,7 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     }
   });
 
-  test('flow-drive CLI derives the Claude Code host from the environment', () => {
+  test('flow-drive CLI derives the Claude Code host from the environment and keeps Codex intent ready', () => {
     const { spawnSync } = require('node:child_process');
     const script = require.resolve('../skills/flow-drive/scripts/invocation');
     const run = (env) => spawnSync(process.execPath, [script, 'confirmed-change-123', '--worker=codex'], {
@@ -363,8 +429,8 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     });
 
     const claude = run({ CLAUDECODE: '1' });
-    assert.strictEqual(claude.status, 2, claude.stdout + claude.stderr);
-    assert.strictEqual(JSON.parse(claude.stdout).status, 'blocked');
+    assert.strictEqual(claude.status, 0, claude.stdout + claude.stderr);
+    assert.strictEqual(JSON.parse(claude.stdout).status, 'ready');
 
     const neutral = run({});
     assert.strictEqual(neutral.status, 0, neutral.stdout + neutral.stderr);

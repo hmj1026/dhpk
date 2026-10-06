@@ -560,6 +560,7 @@ const EXPECTED_FLOW_DRIVE = [
   ['flow-drive-confirmed-input', 'scripts/invocation.js'],
   ['flow-drive-retired-codex-block', 'scripts/invocation.js'],
   ['flow-drive-dispatch-valid', 'scripts/dispatch.js'],
+  ['flow-drive-cli-missing-packet', 'scripts/launch-dispatch.js'],
   ['flow-drive-dispatch-invalid-authority', 'scripts/dispatch.js'],
 ];
 
