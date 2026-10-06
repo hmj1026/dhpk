@@ -250,4 +250,135 @@ test('uninstall preserves a retargeted symlink even when the replacement has ide
   }
 });
 
+test('retired receipt can be archived after its edited agent is manually removed', () => {
+  const scratch = projectRoot();
+  const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, installed.stdout + installed.stderr);
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const agentName = Object.keys(receipt.managed_entries.agents)[0];
+    assert.ok(agentName, 'fixture requires a managed agent');
+    const target = path.join(scratch, '.codex', 'agents', agentName);
+    fs.appendFileSync(target, '\n# user edit\n');
+    const edited = fs.readFileSync(target, 'utf8');
+    fs.writeFileSync(receiptPath, JSON.stringify({ ...receipt, profileId: 'compat-v1', compatibilityMode: 'compat-v1' }));
+    assert.notStrictEqual(runInstaller(scratch, ['--update', '--force']).status, 0);
+    const first = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(first.status, 0, first.stdout + first.stderr);
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), edited);
+    assert.ok(JSON.parse(fs.readFileSync(receiptPath, 'utf8')).orphaned_entries[`agents/${agentName}`]);
+    fs.unlinkSync(target);
+    const second = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(second.status, 0, second.stdout + second.stderr);
+    assert.ok(!fs.existsSync(receiptPath), 'deleted orphan must not trap the retired receipt');
+    assert.strictEqual(runInstaller(scratch, ['--uninstall', '--force']).status, 0);
+    const fresh = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(fresh.status, 0, fresh.stdout + fresh.stderr);
+    assert.strictEqual(JSON.parse(fs.readFileSync(receiptPath, 'utf8')).profileId, 'common');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+for (const modeArgs of [[], ['--copy']]) {
+  test(`uninstall retires a missing managed leaf in ${modeArgs.length ? 'copy' : 'symlink'} mode`, () => {
+    const scratch = projectRoot();
+    try {
+      const installed = runInstaller(scratch, [...modeArgs, '--force']);
+      assert.strictEqual(installed.status, 0, installed.stdout + installed.stderr);
+      fs.rmSync(path.join(scratch, '.codex', 'skills', firstNativeManagedSkill(scratch)), { recursive: true });
+      const removed = runInstaller(scratch, ['--uninstall', '--force']);
+      assert.strictEqual(removed.status, 0, removed.stdout + removed.stderr);
+      assert.ok(!fs.existsSync(path.join(scratch, '.codex', '.dhpk-installed.json')));
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+}
+
+function writeOrphanReceipt(scratch, orphanedEntries, managedEntries = {}) {
+  const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+  fs.mkdirSync(path.dirname(receiptPath), { recursive: true });
+  fs.writeFileSync(receiptPath, JSON.stringify({
+    schema_version: 2, plugin_version: 'legacy', source_fingerprint: 'fixture', mode: 'copy',
+    profileId: 'compat-v1', compatibilityMode: 'compat-v1',
+    managed_entries: { skills: {}, agents: {}, supporting_assets: {}, ...managedEntries },
+    orphaned_entries: orphanedEntries,
+  }));
+  return receiptPath;
+}
+
+test('missing standalone orphan retires while existing edited content remains', () => {
+  const scratch = projectRoot();
+  try {
+    const receiptPath = writeOrphanReceipt(scratch, {
+      'agents/missing.toml': { destination: 'agents/missing.toml', orphaned: true },
+      'agents/edited.toml': { destination: 'agents/edited.toml', orphaned: true },
+    });
+    const target = path.join(scratch, '.codex', 'agents', 'edited.toml');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, '# user owned\n');
+    const result = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.deepStrictEqual(Object.keys(receipt.orphaned_entries), ['agents/edited.toml']);
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), '# user owned\n');
+    fs.unlinkSync(target);
+    const removed = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(removed.status, 0, removed.stdout + removed.stderr);
+    assert.ok(!fs.existsSync(receiptPath));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+for (const scenario of ['traversal', 'metadata-mismatch', 'malformed', 'dangling-leaf', 'symlink-parent', 'file-parent', 'malformed-managed']) {
+  test(`uninstall preserves unresolved orphan evidence: ${scenario}`, () => {
+    const scratch = projectRoot();
+    try {
+      const relative = scenario === 'traversal' ? '../missing' : 'agents/missing.toml';
+      const entry = scenario === 'malformed' ? 'invalid' : {
+        destination: scenario === 'metadata-mismatch' ? 'agents/other.toml' : relative,
+        orphaned: true,
+      };
+      const managed = scenario === 'malformed-managed' ? { agents: { wrong: entry } } : {};
+      const receiptPath = writeOrphanReceipt(scratch, { [relative]: entry }, managed);
+      const parent = path.join(scratch, '.codex', 'agents');
+      if (scenario === 'file-parent') fs.writeFileSync(parent, 'keep parent\n');
+      if (scenario === 'symlink-parent') fs.symlinkSync(path.join(scratch, 'absent-external'), parent);
+      if (scenario === 'dangling-leaf') {
+        fs.mkdirSync(parent);
+        fs.symlinkSync('absent', path.join(parent, 'missing.toml'));
+      }
+      const result = runInstaller(scratch, ['--uninstall', '--force']);
+      assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+      assert.ok(Object.hasOwn(JSON.parse(fs.readFileSync(receiptPath, 'utf8')).orphaned_entries, relative));
+      if (scenario === 'file-parent') assert.strictEqual(fs.readFileSync(parent, 'utf8'), 'keep parent\n');
+      if (scenario === 'symlink-parent') assert.ok(fs.lstatSync(parent).isSymbolicLink());
+      if (scenario === 'dangling-leaf') assert.ok(fs.lstatSync(path.join(parent, 'missing.toml')).isSymbolicLink());
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+}
+
+test('missing-only receipt quarantine failure restores evidence and allows retry', () => {
+  const scratch = projectRoot();
+  try {
+    const receiptPath = writeOrphanReceipt(scratch, {
+      'agents/missing.toml': { destination: 'agents/missing.toml', orphaned: true },
+    });
+    const before = fs.readFileSync(receiptPath, 'utf8');
+    const failed = runInstaller(scratch, ['--uninstall', '--force'], ROOT, { DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' });
+    assert.notStrictEqual(failed.status, 0, failed.stdout + failed.stderr);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), before);
+    const retry = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(retry.status, 0, retry.stdout + retry.stderr);
+    assert.ok(!fs.existsSync(receiptPath));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 run('install-codex-skills-uninstall');
