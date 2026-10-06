@@ -281,6 +281,149 @@ test('retired receipt can be archived after its edited agent is manually removed
   }
 });
 
+test('fresh install succeeds after uninstall preserves an edited agent from a retired minimal receipt', () => {
+  const scratch = projectRoot();
+  const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, installed.stdout + installed.stderr);
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const agentName = Object.keys(receipt.managed_entries.agents)[0];
+    assert.ok(agentName, 'fixture requires a managed agent');
+    const target = path.join(scratch, '.codex', 'agents', agentName);
+    fs.appendFileSync(target, '\n# user edit\n');
+    const edited = fs.readFileSync(target, 'utf8');
+    fs.writeFileSync(receiptPath, JSON.stringify({ ...receipt, profileId: 'minimal', compatibilityMode: 'minimal' }));
+
+    const removed = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(removed.status, 0, removed.stdout + removed.stderr);
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), edited);
+    const retiredReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.ok(retiredReceipt.orphaned_entries[`agents/${agentName}`]);
+
+    const fresh = runInstaller(scratch, []);
+    assert.strictEqual(fresh.status, 0, fresh.stdout + fresh.stderr);
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), edited);
+    const currentReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(currentReceipt.profileId, 'common');
+    assert.strictEqual(currentReceipt.state, 'partial');
+    assert.ok(currentReceipt.orphaned_entries[`agents/${agentName}`]);
+    assert.ok(Object.keys(currentReceipt.managed_entries.skills).length > 0,
+      'fresh common install must fill the other missing managed assets');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('fresh install preserves orphaned agents from full and compat-v1 retired profiles', () => {
+  for (const profileId of ['full', 'compat-v1']) {
+    const scratch = projectRoot();
+    try {
+      const installed = runInstaller(scratch, ['--copy', '--force']);
+      assert.strictEqual(installed.status, 0, installed.stdout + installed.stderr);
+      const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      const agentName = Object.keys(receipt.managed_entries.agents)[0];
+      const target = path.join(scratch, '.codex', 'agents', agentName);
+      fs.appendFileSync(target, '\n# user edit\n');
+      const edited = fs.readFileSync(target, 'utf8');
+      fs.writeFileSync(receiptPath, JSON.stringify({ ...receipt, profileId, legacy_pending: true }));
+      const removed = runInstaller(scratch, ['--uninstall', '--force']);
+      assert.strictEqual(removed.status, 0, removed.stdout + removed.stderr);
+      const residue = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      assert.strictEqual(residue.profileId, profileId);
+      assert.strictEqual(residue.state, 'partial');
+      assert.ok(!residue.legacy_pending);
+      const fresh = runInstaller(scratch, []);
+      assert.strictEqual(fresh.status, 0, fresh.stdout + fresh.stderr);
+      assert.strictEqual(fs.readFileSync(target, 'utf8'), edited);
+      const current = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      assert.strictEqual(current.profileId, 'common');
+      assert.strictEqual(current.state, 'partial');
+      assert.strictEqual(current.managed_entries.agents[agentName].orphaned, true);
+      assert.ok(current.orphaned_entries[`agents/${agentName}`]);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('fresh install accepts safely recorded standalone orphan residue from a retired profile', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, installed.stdout + installed.stderr);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const agentName = Object.keys(receipt.managed_entries.agents)[0];
+    const target = path.join(scratch, '.codex', 'agents', agentName);
+    fs.appendFileSync(target, '\n# user edit\n');
+    fs.writeFileSync(receiptPath, JSON.stringify({ ...receipt, profileId: 'compat-v1' }));
+    const removed = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(removed.status, 0, removed.stdout + removed.stderr);
+    const residue = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    fs.writeFileSync(receiptPath, JSON.stringify({
+      ...residue,
+      managed_entries: Object.fromEntries(Object.keys(residue.managed_entries).map((kind) => [kind, {}])),
+    }));
+    const edited = fs.readFileSync(target, 'utf8');
+    const second = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(second.status, 0, second.stdout + second.stderr);
+    const retired = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(retired.profileId, 'compat-v1');
+    assert.strictEqual(retired.state, 'partial');
+    assert.ok(!retired.legacy_pending);
+    const fresh = runInstaller(scratch, []);
+    assert.strictEqual(fresh.status, 0, fresh.stdout + fresh.stderr);
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), edited);
+    const common = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(common.profileId, 'common');
+    assert.strictEqual(common.state, 'partial');
+    assert.ok(common.orphaned_entries[`agents/${agentName}`]);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('fresh install preserves a retired orphan leaf symlink and restores ownership only after its removal', () => {
+  const scratch = projectRoot();
+  const external = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, installed.stdout + installed.stderr);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const agentName = Object.keys(receipt.managed_entries.agents)[0];
+    const outside = path.join(external, 'user-agent.toml');
+    fs.writeFileSync(outside, '# external user file\n');
+    const rewritten = rewriteAgentAsHistoricalManagedSymlink(scratch, agentName, outside);
+    const old = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    fs.writeFileSync(receiptPath, JSON.stringify({ ...old, profileId: 'minimal' }));
+    const removed = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(removed.status, 0, removed.stdout + removed.stderr);
+    const fresh = runInstaller(scratch, []);
+    assert.strictEqual(fresh.status, 0, fresh.stdout + fresh.stderr);
+    assert.strictEqual(fs.readlinkSync(rewritten.destination), outside);
+    assert.strictEqual(fs.readFileSync(outside, 'utf8'), '# external user file\n');
+    const partial = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(partial.profileId, 'common');
+    assert.strictEqual(partial.state, 'partial');
+    assert.strictEqual(partial.managed_entries.agents[agentName].orphaned, true);
+    fs.unlinkSync(rewritten.destination);
+    const restored = runInstaller(scratch, []);
+    assert.strictEqual(restored.status, 0, restored.stdout + restored.stderr);
+    assert.ok(fs.lstatSync(rewritten.destination).isFile());
+    const current = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(current.state, 'current');
+    assert.ok(!current.managed_entries.agents[agentName].orphaned);
+    assert.deepStrictEqual(current.orphaned_entries, {});
+    assert.strictEqual(fs.readFileSync(outside, 'utf8'), '# external user file\n');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(external, { recursive: true, force: true });
+  }
+});
+
 for (const modeArgs of [[], ['--copy']]) {
   test(`uninstall retires a missing managed leaf in ${modeArgs.length ? 'copy' : 'symlink'} mode`, () => {
     const scratch = projectRoot();
