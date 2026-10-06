@@ -1,2 +1,0 @@
-scope: consumer acceptance
-note: Scope unrequested consumer surfaces from ADR-0002 local markers, report empty scope as a blocker distinct from absent optional Hosts, preserve native runtime observations separately, and keep declared requirements fail-closed with versioned installation acceptance evidence. Requirement evidence references use stable one-based checkN slots while each evidence value retains its validated ID.
