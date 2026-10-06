@@ -204,8 +204,11 @@ function verifyCursor({ root, targetCommit, targetTree, inventory, profiles, mod
   };
 }
 
-function verifyCodex({ root, targetCommit, targetTree, inventory, version, tracked, temp }) {
+function verifyCodex({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked, temp }) {
   const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
+  const profileSelection = profileSelectionFromReceipt({
+    receipt: trackedProvenance, surface: 'codex-native', inventory, profiles, moduleCatalog,
+  });
   const generated = materializeNativePackage({
     inventory,
     root,
@@ -213,8 +216,11 @@ function verifyCodex({ root, targetCommit, targetTree, inventory, version, track
     name: 'dhpk',
     version,
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
+    profileSelection,
   });
-  const structural = verifyNativePackage({ packageRoot: temp, inventory, sourceRoot: root, stage: 'structural' });
+  const structural = verifyNativePackage({
+    packageRoot: temp, inventory, sourceRoot: root, profileSelection, stage: 'structural',
+  });
   const receipt = validateSurfaceReceipt(trackedProvenance, 'codex-native', { root, targetCommit, targetTree });
   const fingerprintMatches = fingerprintNative(temp) === fingerprintNative(tracked);
   return {
@@ -227,8 +233,11 @@ function verifyCodex({ root, targetCommit, targetTree, inventory, version, track
   };
 }
 
-function verifyAgy({ root, targetCommit, targetTree, inventory, version, tracked, temp }) {
+function verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked, temp }) {
   const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
+  const profileSelection = profileSelectionFromReceipt({
+    receipt: trackedProvenance, surface: 'agy-plugin', inventory, profiles, moduleCatalog,
+  });
   const generated = materializeAgyPluginPackage({
     inventory,
     root,
@@ -236,8 +245,11 @@ function verifyAgy({ root, targetCommit, targetTree, inventory, version, tracked
     version,
     sourceVersion: version,
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
+    profileSelection,
   });
-  const structural = validateAgyPluginPackage(temp, { inventory, sourceRoot: root, expectedVersion: version });
+  const structural = validateAgyPluginPackage(temp, {
+    inventory, sourceRoot: root, profileSelection, expectedVersion: version,
+  });
   const receipt = validateSurfaceReceipt(
     { ...trackedProvenance, schema: trackedProvenance.provenanceSchema },
     'agy-plugin',
@@ -474,8 +486,8 @@ function main(argv = process.argv.slice(2)) {
     const surfaces = {
       ...(selectedSurfaces.includes('agent-plugin') ? { 'agent-plugin': verifyAgent({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-agent'), temp: tempAgent }) } : {}),
       ...(selectedSurfaces.includes('cursor-plugin') ? { 'cursor-plugin': verifyCursor({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-cursor'), temp: tempCursor }) } : {}),
-      ...(selectedSurfaces.includes('codex-native') ? { 'codex-native': verifyCodex({ root, targetCommit, targetTree, inventory, version, tracked: path.join(root, 'plugins/dhpk'), temp: tempCodex }) } : {}),
-      ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, version, tracked: path.join(root, 'plugins/dhpk-agy'), temp: tempAgy }) } : {}),
+      ...(selectedSurfaces.includes('codex-native') ? { 'codex-native': verifyCodex({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk'), temp: tempCodex }) } : {}),
+      ...(selectedSurfaces.includes('agy-plugin') ? { 'agy-plugin': verifyAgy({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(root, 'plugins/dhpk-agy'), temp: tempAgy }) } : {}),
     };
     const selection = parsed.explicit ? { requested: parsed.requested, resolved: parsed.resolved } : null;
     report = reportFromSurfaces(surfaces, verifyPolicyParity(root, inventory, selectedSurfaces), selection);
