@@ -57,9 +57,8 @@ The former review aliases are retired without forwarding aliases. Use the
 read-only `change-verdict` skill with its `code`, `pr`, `security`, `tests`,
 `docs`, or `risk` mode. Test generation uses the retained
 `tdd-workflow test-generation` capability. The default Claude
-discovery artifact is the materialized `minimal` profile; `full` and `compat-v1`
-are explicit opt-in artifacts. Minimal contains exactly `change-verdict`,
-`code-trace`, `flow-drive`, and `flow-guide`; use `flow-guide help <skill>` for
+discovery artifact is the `common` collection from `manifests/install-profiles.json`;
+public profiles are retired. Use `flow-guide help <skill>` for
 output and stop-condition metadata. Coverage review uses
 `change-verdict --mode tests --coverage`.
 

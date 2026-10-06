@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.md#codex-project-local-sync-supported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.md#cursor-project-local-sync-supported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.md#surface-matrix)
 
-A generic, install-and-go Claude Code harness. It ships **34 role-based agents** (33 root-level agents plus one module-scoped reviewer), registered dhpk commands, eight task-shaped capability families, a cross-session learning DB (opt-in), advisory reviewer dispatch (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. It ships **34 role-based agents** (33 root-level agents plus one module-scoped reviewer), registered dhpk commands, six task-shaped capability families, a cross-session learning DB (opt-in), advisory reviewer dispatch (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
 
 > **Harness engineering over prompt engineering.** dhpk treats the agent's operating environment — hooks, reviewer dispatch, routing rules, and stack-aware modules — as the unit of leverage. Rather than hand-tuning one-off prompts, you install a reusable harness that makes the right checks fire automatically and keeps the model on the rails across sessions.
 
@@ -116,20 +116,35 @@ the human-oriented explanation is [`docs/codex-skill-usage.md`](./docs/codex-ski
 
 ## Common workflows
 
-Use `flow-guide` to discover, classify, or advise, `flow-drive` to explicitly
-implement a confirmed task, `code-trace` to investigate, and `change-verdict`
-for read-only review. Full walkthrough with worked examples: **[`docs/basic-operations.md`](./docs/basic-operations.md)**.
+After installation, daily development follows this 5-step standard workflow (using `/dhpk:<name>` in Claude Code, or `$<name>` in Codex):
 
-```text
-$flow-guide route reset-password email flow                 # advisory route
-$flow-guide route --go reset-password email flow            # one bounded handoff
-$flow-drive confirmed-change-id --plan                      # implement a confirmed change
-$flow-drive confirmed-change-id --plan --plan-mode=bounded   # limit the consult to named sources
-$flow-drive confirmed-change-id --worker=codex              # explicit worker override
-$code-trace --mode diagnose investigate the login redirect loop # root-cause evidence
-/dhpk:review-pending                              # trigger pending reviewers immediately
-/dhpk:smart-commit && /dhpk:create-pr             # commit + PR
-```
+1. **Inquire and Route**: When uncertain about commands or next steps, consult the guide directly:
+   ```text
+   /dhpk:flow-guide route implement password reset notification email  # advisory route and rules
+   /dhpk:flow-guide route --go implement password reset notification   # single bounded handoff
+   /dhpk:code-trace --mode diagnose login redirect loop                # root-cause failure evidence
+   ```
+2. **Implement Confirmed Work**: Once requirements and boundaries are settled, invoke implementation (or lead test-first via `tdd-workflow`):
+   ```text
+   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan                     # implement confirmed change
+   /dhpk:flow-drive <confirmed-spec-or-change-id> --plan --plan-mode=bounded # limit planner consult scope
+   /dhpk:flow-drive <confirmed-spec-or-change-id> --worker=codex             # explicit worker override
+   ```
+3. **Review Changes**: After editing code, dispatch specialized reviewers:
+   ```text
+   /dhpk:review-pending                              # trigger applicable reviewers (code, security, db)
+   /dhpk:change-verdict --mode code                  # produce read-only change verdict
+   ```
+4. **Pre-Commit Verification**: Run pre-commit quality gates (lint, typecheck, tests):
+   ```text
+   /dhpk:precommit                                   # run fast or full local verification pipeline
+   /dhpk:verify                                      # run cross-project verification
+   ```
+5. **Commit and PR**: Deliver safely once all gates pass green:
+   ```text
+   /dhpk:smart-commit                                # cleanly staged atomic commit
+   /dhpk:create-pr                                   # create PR targeting develop branch
+   ```
 
 `flow-guide` is the read-only owner of help, route, rules, next, and close.
 `route` without `--go` is advice; `route --go` can hand off one available
@@ -389,7 +404,7 @@ dhpk/
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 34 role-based agents (INDEX.md is navigation)
 ├── commands/                     # slash commands (review, setup, codex-*, smart-commit, opsx-apply-resume, ...)
-├── skills/                       # SSOT: 81 flat canonical packages rooted at skills/<public-name>/ (eight portable family names are unprefixed)
+├── skills/                       # SSOT: 68 flat canonical packages rooted at skills/<public-name>/ (six portable family names are unprefixed)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
 ├── modules/                      # 31 opt-in modules; skills/ entries are relative symlink projections
@@ -424,10 +439,10 @@ dhpk/
 ├── codex/                        # Codex CLI dual-track (Claude Code does NOT auto-load)
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md, README.zh-TW.md # how to sync into a project
-│   ├── skills/                   # 33 relative symlinks (31 invokable + internal transport + dispatch-context runtimes)
+│   ├── skills/                   # 32 relative symlinks (30 invokable + internal transport + dispatch-context runtimes)
 │   ├── agents/, config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
-├── plugins/dhpk/                 # tracked Codex-native package: 33 physical entries, zero symlinks
+├── plugins/dhpk/                 # tracked Codex-native package: 19 physical entries, zero symlinks
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

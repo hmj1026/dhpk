@@ -228,202 +228,403 @@ containment 或 modified-file safety。`--uninstall` 只移除 receipt-owned 且
 
 ## 常見工作流
 
-使用者工作流只有一個安全 front door，以及幾個明確的出口：
+dhpk 為日常開發提供單一安全的前門與結構化的交付出口：
 
 ```text
 inspect → verify surface → route → plan/classify → implement → review → verify → handoff
 ```
 
-當你知道成果但不知道要用哪個 family，使用 Claude `/dhpk:flow-guide` 或
-`/dhpk:flow-drive`、Cursor 產生的 command，或 Codex `$flow-guide`／`$flow-drive`。
-Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
-明確 command 或 skill。Plugin 管理（`claude plugin …`、`codex plugin …`）只安裝／
-更新 surface，不會呼叫 workflow。
+當知道目標但尚未決定調度哪項能力時，Claude 使用 `/dhpk:flow-guide`，Codex 使用 `$flow-guide`，Cursor 使用對應的本地指令。明確已知特定任務時，可直接呼叫專案技能或 slash 指令。
 
-不確定要先做哪一步時，也可以直接用：
-[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)
+快速查閱清單可參考：[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
-### 技能群組與高效率進退場
+### 標準五步開發工作流
 
-建議先依場景走群組再縮小到 skill，能減少誤路由與重複參數輸入：
+日常開發請遵循以下 5 步標準推進節奏，每一步均有明確的輸入、執行指令與完成門禁（Completion Criteria）：
 
-| 群組 | 代表技能 | 使用時機 | 最快路徑 |
-|---|---|---|---|
-| 路由/決策 | `flow-guide`、`flow-drive` | Discovery、提供建議，並只實作已確認工作 | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
-| 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore\|diagnose\|history` |
-| 只讀審閱 | `change-verdict`（`code\|pr\|security\|tests\|docs\|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
-| 交付前置 | `tdd-workflow`、`module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `tdd-workflow` 做 RED |
-| OpenSpec 續作 | `opsx-apply-resume`、`dhpk-opsx-load-context`、`dhpk-opsx-post-observation` | 儲存或續接既有 change 證據 | `opsx-apply-resume <change-id>` |
-| Git / 發版準備 | `git-smart-commit`、`release-creator`、`dhpk-deploy-list` | 分群提交、發版與部署檔清單 | 明確呼叫所選 owner |
+#### 步驟一：確認環境與安裝狀態
+- **操作**：
+  - 執行 `/dhpk:flow-guide help`（Codex: `$flow-guide help`）列出所有註冊的可用技能與指令。
+  - 執行 `/dhpk:setup --show` 檢查當前啟用的技術棧模組（如 PHP、Laravel、JS、Python 等）與 Hook 配置。
+- **完成標準**：確認環境 active modules 與當前專案需求相符，無需額外調整配置。
 
-### 參數速查
+#### 步驟二：任務諮詢、探索與路由
+- **操作**：
+  - **流程諮詢**：不確定指令或作法時，直接提問：
+    ```text
+    /dhpk:flow-guide route 實作使用者密碼重設郵件通知
+    /dhpk:flow-guide route 排查使用者登入驗證碼逾時問題
+    ```
+    加上 `--go` 旗標（如 `/dhpk:flow-guide route --go <task>`）可對 `implicit-eligible` 目標自動觸發一次有界交接；若目標為 `explicit-only` 則僅顯示建議語法，不自動執行。
+  - **程式碼探索與根因排查**：面對陌生模組、歷史變更或 Bug 時，使用唯讀診斷：
+    ```text
+    /dhpk:code-trace --mode explore <模組或類別名稱>       # 探索符號、呼叫鏈與架構
+    /dhpk:code-trace --mode diagnose <錯誤訊息或異常現象>    # 收集可證偽的失敗證據
+    /dhpk:code-trace --mode history <函式或檔案>          # 比對 Git 演進與破壞性原因
+    ```
+- **完成標準**：產出明確的責任歸屬與任務邊界，或確定一項有證據支持的可證偽根因；不在此步驟修改程式碼。
 
-| Skill | 常用參數 |
-|---|---|
-| `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `[--plan[=<model>[:<effort>]]]` `[--plan-mode=auto\|bounded\|discovery]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
-| `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
-| `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
-| `tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
+#### 步驟三：規格確認後實作與 TDD
+- **操作**：
+  - 當驗收條件、OpenSpec change 或修復方案確認後，呼叫實作入口：
+    ```text
+    /dhpk:flow-drive <confirmed-spec-or-change-id>
+    ```
+  - **測試驅動開發（TDD）**：使用 `tdd-workflow`（或由 `tdd-guide` subagent 引導）推進 RED → GREEN → REFACTOR。先寫可觀察行為的失敗測試（RED），以最小代碼通過測試（GREEN），再進行重構。
+- **實作決策與調度規範（Co-located Rules）**：
+  - **決策前置狀態**：開始實作前必須具備明確狀態標記：`CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或 `BLOCKED`。若涉及領域邊界應先諮詢 `architect`；仍有不確定性時取得唯讀 Reasoner 結果後才允許 Writer 介入。
+  - **OpenSpec 生命週期**：跨 session 或複雜大型工作，應先以 `/opsx:new` 建立 `openspec/changes/<id>/` artifacts。實作完成必須滿足所有 Task 核選、通過適用驗證門禁、解決 Review 意見，才能執行歸檔（Archive）；測試通過或 Plan 批准不等於歸檔憑證。
+  - **Planner 諮詢範疇**：`--plan` 可搭配 `--plan-mode=bounded`（限制最多 4 次直接讀取且無子代理）或 `--plan-mode=discovery`（最多 12 次讀取與 2 個子代理）。未指定時預設 `auto`，在無 Material Risk Signal 且依據充足時自動採 bounded。
+  - **Worker 調度邊界**：`orchestration_dispatch=on`（預設）時，雙檔案以下明確任務可留在 inline；大型機械化變更指定 `--worker=<claude|codex|agy>`。
+  - **Codex CLI 整合**：dhpk 預設不啟用 Codex。使用 `--worker=codex` 走 CLI 機械 Worker；`--reasoner=codex-cli/<model>[:<effort>]` 走獨立推理；`--second-opinion=codex-exec` 取得單次盲審意見。缺少執行檔時回報可選後端不可用，不繞過安全檢查。
+- **完成標準**：所有變更均具備聚焦驗證（Focused Verification）與綠燈測試證據；不遺留未說明的測試跳過。
 
-建議原則：先選對群組再補齊最少參數，路由與回呼會更穩定。
+#### 步驟四：變更審查與品質門禁
+- **操作**：
+  - **即時專業審查**：修改代碼後，依變更檔案路徑自動分派對應領域 Reviewer：
+    ```text
+    /dhpk:review-pending                              # 審查當前所有修改中檔案
+    /dhpk:review-pending --files="app/Models/User.php" # 審查指定檔案清單
+    ```
+  - **獨立品質裁決**：以唯讀方式評審代碼規範、安全漏洞、測試覆蓋或變更風險：
+    ```text
+    /dhpk:change-verdict --mode code                  # 程式碼品質與架構規格
+    /dhpk:change-verdict --mode security              # OWASP 與敏感資料審計
+    /dhpk:change-verdict --mode tests --ac-trace      # 驗收條件與測試對齊
+    /dhpk:change-verdict --mode risk                  # 變更爆炸半徑與破壞性風險
+    ```
+  - **提交前驗證管線**：
+    ```text
+    /dhpk:precommit --fast                            # 本機快速檢查（靜態分析 + 單元測試）
+    /dhpk:precommit                                   # 完整管線（lint:fix -> build -> test:unit）
+    /dhpk:verify                                      # 專案跨層完整驗證（含整合與 E2E）
+    ```
+- **門禁與交付順序**：
+  - Review 發現之 CRITICAL 問題必須在交付前修復。
+  - 交付順序固定為：全數 Task 與門禁通過 → 歸檔/同步 OpenSpec → 加入 Changelog 碎片 → 開啟 Draft PR（目標 `develop`）→ 以 `gh run watch` 監看 CI 執行至完成 → 人工 Merge Gate。
+  - 交接紀錄必須誠實標註 `PASS`、`FAIL`、`BLOCKED`、`NOT_RUN` 或 `UNAVAILABLE`，不得將未執行標記為通過。
+- **完成標準**：無任何 CRITICAL 阻礙，Precommit 全綠，所有審查意見與門禁狀態皆有憑證。
 
-### 選擇入口
-
-| 需求 | 入口 | 完成訊號 |
-|---|---|---|
-| 只看會執行什麼 | `/dhpk:flow-guide route <task>` | Route report；不執行 downstream。加 `--go` 才能要求一個可用 target 的 handoff。 |
-| 功能、Bug、重構或大型變更 | `/dhpk:flow-guide route <task>` 後 `/dhpk:flow-drive <confirmed-spec-or-change-id>` | 一個命名 owner，接著是已確認 implementation 證據。 |
-| 檢查程式或 execution flow | `/dhpk:code-trace --mode explore <area>` | 有檔案／symbol 引用的證據說明。 |
-| Review 既有修改 | `/dhpk:review-pending` 或 `/dhpk:change-verdict --mode code` | Reviewer verdict 加上新鮮 artifact，或明確 blocker。 |
-| Commit、PR 或 release | `/dhpk:smart-commit`、`/dhpk:create-pr` 或 `/dhpk:create-release` | 明確的 command 結果；不會自動 commit、push 或 merge。 |
-
-`/dhpk:flow-guide` 可以識別 `implicit-eligible` target。若路由選到 `explicit-only` target，
-會印出確切的直接 invocation 後停止；route confidence 不能越過 target 的 invocation
-class。Route table 是 deterministic fast path；ambiguous compound request 會使用有界
-classification，不會猜測。
-Deterministic probe 會回報 `MATCH`、`NO_MATCH` 或 `NO_QUERY`；這些是
-machine-readable routing state，不是 implementation 結果。
-
-### 執行前先檢查 guidance
-
-```text
-/dhpk:flow-guide route implement a password-reset email flow
-/dhpk:flow-guide route fix the login redirect loop
-```
-
-`flow-guide route` 預設只提供建議；只有在 target 可用且為 implicit-eligible 時，
-才可使用 `flow-guide route --go <task>` 要求一次有界 handoff。它不會把路由選擇
-轉成 proposal authoring 或已確認工作的實作。若 target 是 explicit-only，guide 只會回報直接
-invocation，不會替它 dispatch。空白或模糊輸入仍是分類問題。Route report 不是
-implementation、review、commit、merge、archive、release 或 deploy 證據。
-
-### 主要交付流程——功能與 Bug
-
-```text
-/dhpk:flow-guide route implement a password-reset email flow
-/dhpk:flow-guide route fix the login redirect loop
-```
-
-`flow-guide` 先提供唯讀 route 與 policy guidance，再載入分支所需 context。Feature work 進入
-TDD RED → GREEN → REFACTOR；Bug work 記錄 root-cause evidence，並在修正前建立
-regression-test RED gate。Specification 與 acceptance boundary 確認後，再呼叫
-`/dhpk:flow-drive <confirmed-spec-or-change-id>`。Repository 提供 GitNexus 時，既有
-symbol 會先做 pre-edit impact analysis；`cx` 的 overview／definition／references 是主要
-navigation fallback。
-
-只有在本次 invocation 改變決策時才加入 modifier：
-
-| Modifier | 效果與邊界 |
-|---|---|
-| `--plan[=<model>[:<effort>]]` | 為已確認的 implementation work 加入 planner critique。 |
-| `--plan-mode=auto\|bounded\|discovery` | 選擇已啟用 `--plan` 的 consult 範圍；省略時預設 `auto`，不改變 planner work mode 或 model/effort。 |
-| `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker，不會持久化設定。 |
-| `--cross-provider` | 當使用 `--worker=auto` 時，僅對本次 invocation 開放設定的 external candidate；不會持久化，也不會擴大明確選定的 worker target。 |
-| `--reasoner=<provider>/<model>[:<effort>]` | 為已確認 implementation work 要求 bounded reasoning pass。 |
-| `--architect` / `--no-architect` | 控制本次 invocation 的 architecture pass。 |
-| `--codex` | 已退休的相容性旗標。Parser 會產生 deprecation diagnostic，不會選擇 peer 或 backend；請改用明確的 worker、reasoner 或 owner 第二意見選項。 |
-
-`--worker=auto --cross-provider` 只會讓設定的 external candidate 參與本次 automatic
-selection。沒有這個 flag 時，automatic selection 維持 native-only；`--worker=codex` 或
-`--worker=agy` 仍是定向的明確選擇。`--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex-cli/<model>[:<effort>]` 是選 Codex CLI
-reasoning pass；裸值 `--reasoner=codex` 只保留作為相容性 shorthand。`CODEX=on` 與 `--codex` 是已退休的相容性旗標：會產生
-deprecation diagnostic，絕不選擇 peer、worker、reasoner 或 hidden backend。只有選定
-executable 缺少時才允許 configured Claude fallback；authentication、task、execution 與
-verification failure 都維持 blocked。
-
-例如，`$flow-drive confirmed-change-id --plan --plan-mode=bounded` 會要求 planner
-只檢查 brief 列出的證據。`auto` 只有在 consult 問題與預期結果清楚、包含必要 protocol
-reads 的 named sources 足以在有界預算內回答，而且沒有 named Material Risk Signal 時才選
-bounded；否則選 discovery。Bounded 最多四次 direct reads，包含必要 protocol read，且不得建立
-discovery child。必要事實不足時要回報 blocker，不得搜尋、spawn 或自行升級 scope。明確選擇
-bounded 時，必須揭露被覆寫的 signal；這不會略過 authorization、write prerequisite 或必要的
-specialist decision。Discovery 維持十二次 reads 與兩個唯讀 children；明確要求的 warm review
-維持四次新的 reads，並遵守已選 scope 的 child limit。named signals 與回報契約見
-[execution policy](../rules/execution-policy.md#planner-consult-scope)。
-
-### OpenSpec 生命週期邊界
-
-若 acceptance、跨 session handoff 或 auditability 需要 OpenSpec 記錄，而且尚無足夠 artifacts，
-先記錄有界的 wayfinder checkpoint，再用 `/opsx:new` 或 `/opsx:ff` 建立
-`openspec/changes/<change-id>/` artifacts。沿用充分計畫與已批准規格，不建立重複文件。完成適用的
-review 後，以外部 `/opsx:apply <change>` 或已確認的 `$flow-drive <change-id>` entry 實作。
-Plan、validator 通過或全綠測試都不是 archive evidence。完成仍需 task checkbox、適用的
-verification gate、Review obligation 與 human-only action 都已解決；archive、issue closure
-與 release publication 仍是分開的步驟。
-
-開始 implementation 前，記錄 `Decision: CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或
-`BLOCKED`。domain-boundary ownership 問題先諮詢 `architect`；若仍有不確定性，記錄
-`REASONER_REQUIRED`，並在任何 writer 前取得 read-only reasoner result。無論 task count，皆可沿用
-充分的既有計畫；只詢問會影響工作的缺失 outcome。若未決選擇、dependency、ownership、sequence
-或 material risk 使 planning outcome 仍必要，才 consult planner；也須遵守 caller 明確提出且受支援的
-consult request。Task count 本身不要求 planner。外部 `/opsx:apply` workflow 維持不變。
-
-每個 implementation wave 結束後，建議以一批 parallel batch 派遣適用的 reviewer；CRITICAL
-finding 須在回報完成前修正。delivery order
-為：verify all tasks and gates → archive/sync OpenSpec → add a valid changelog fragment → open a
-Draft PR targeting `develop` → 使用 `gh run watch` 監視該 PR 的 actual CI 到 completed conclusion → human
-merge gate。queued 或 partial CI 都不是 completion。
-
-### Review、驗證與交接
-
-每次 Edit／Write／MultiEdit 後，建議依 trigger table 派遣 reviewer；沒有強制的 review
-gate。dhpk 不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
-`/dhpk:review-pending` 會為指定路徑派工 reviewer；legacy `sentinel_commit_gate` 僅為
-相容性保留。
-
-```text
-/dhpk:review-pending
-/dhpk:precommit
-/dhpk:verify
-/dhpk:smart-commit
-/dhpk:create-pr
-```
-
-每次 handoff 都要只報一個下一步 command、涵蓋的 files／evidence，以及任何 `BLOCKED`、
-`NOT_RUN`、`UNAVAILABLE` 或 `NO_SHIP`。Release 或 consumer 結果必須將 structural／package
-證據與 live runtime proof 分開；請看 [`docs/harness-workflow.md`](./harness-workflow.md)。
-
-### OpenSpec session 退役與續作
-
-無人值守 goal 產生入口已退役。外部 `/opsx:apply` 不變；
-`opsx-apply-resume` 保留既有 change 的 save／resume，context loader 保留
-`.hard-rule-escalation.md` 與 `.resume-note.md` 的讀取。這不提供原有 goal loop。
+#### 步驟五：分組提交、PR 與上線
+- **操作**：
+  - **智慧分組提交**：按凝聚度（Cohesion）將改動分群，產生符合專案風格的 Commit 訊息與 Git 指令：
+    ```text
+    /dhpk:smart-commit
+    /dhpk:smart-commit --scope resources/assets/js --type refactor
+    ```
+  - **建立 Pull Request**：自動提取 Ticket 編號並組裝 PR 摘要：
+    ```text
+    /dhpk:create-pr                                   # 乾跑預覽（--dry-run 預設）
+    /dhpk:create-pr --execute                         # 正式建立 PR（目標為 develop）
+    ```
+  - **發布與部署清單**：
+    ```text
+    /dhpk:create-release                              # 升版、更新 Changelog 與 Tag
+    dhpk-deploy-list --tag="[RELEASE-1.0.0]" --description="上線摘要" --lang=zh-TW
+    ```
+- **完成標準**：Git working tree 乾淨無殘留，PR 建立成功且 CI 檢查全數通過。
 
 ### 獨立協助工作流
 
-```text
-/dhpk:flow-guide route write E2E tests for the checkout flow
-```
+除上述主工作流外，特定情境可直接調用獨立代理人：
+- **E2E 測試流程**：`/dhpk:flow-guide route write E2E tests`，交由 `e2e-runner` 負責，僅撰寫 spec、helper、fixture 與 artifact；若遭遇 application failure 則回傳修復規格交由 Worker 處理。
+- **文件同步更新**：架構異動時由 `doc-updater` 依證據同步 codemap 與使用文件。
+- **OpenSpec 長任務狀態接續**：使用 `/dhpk:opsx-apply-resume [<change-id>]`，在 Token 耗盡前快照現場，並在新 Session 中接續推進。<a id="6-unattended-openspec-session-large-uncertainty-on-ramp"></a>
 
-E2E 工作由 `e2e-runner`
-負責，只能寫 spec、helper、fixture 與 artifact；application failure 會回傳 worker-ready
-fix spec。專用 harness audit 與治理工作流已退役。Structural change
-也會路由 `doc-updater` 更新 codemap 與使用者文件。
+---
 
-### Implementation dispatch
+### 核心工作流技能參數詳解與範例
 
-`orchestration_dispatch=on`（預設）時，reasoning-heavy work 交給 `deep-reasoner`；mechanical
-work 透過 shared selector 交給 `fast-worker`、`codex-fast-worker` 或 `agy-fast-worker`。
-最多兩個檔案且 specification 清楚的 implementation step 可留在 inline；更大的明確批次
-使用一個指定的 worker scope。TDD 負責 RED 與 scoped verification；phase 結束執行完整的
-適用 suite。完整 dispatch 與 reviewer batching 規則在
-[`rules/execution-policy.md`](../rules/execution-policy.md)。
+以下詳細說明標準五步工作流中各核心技能的所有可用參數、型別與預設值、邊界限制與實戰範例：
 
-### Codex CLI 第二意見
+#### 1. flow-guide（工作流諮詢、路由與政策導引）
 
-dhpk **預設不使用 Codex**。已退休的 `CODEX=on` 與 legacy `--codex` 旗標會產生
-`DEPRECATED_CODEX_FLAG`，不會加入 hidden peer 或 backend。需要明確選擇時，使用
-`--worker=codex` 走 CLI worker、`--reasoner=codex-cli/<model>[:<effort>]` 走 CLI reasoning pass（裸值
-`--reasoner=codex` 只是相容性 shorthand），或在 migrated
-owner 上使用 `--second-opinion=codex-exec` 取得 additive、one-shot 的 `codex exec` 意見。
-`change-verdict --mode code --backend cli` 是明確的 CLI review path；current-model path 仍是預設。
-缺少 CLI executable 時會回報 optional backend 不可用；authentication、task、execution 與
-verification failure 都維持 blocked。
+- **定位**：唯讀的工作流程顧問與路由中心。負責導航、策略查詢、狀態檢查與有界交接。不具備修改代碼或執行 explicit-only 命令的權限。
+- **呼叫語法**：`/dhpk:flow-guide <action> [--go] [<query>]`（Codex: `$flow-guide <action> [--go] [<query>]`）
+- **參數說明**：
+  | 參數 | 類型 / 選項 | 必填 | 說明 |
+  |---|---|---|---|
+  | `<action>` | `help` \| `route` \| `rules` \| `next` \| `close` | 是 | 欲執行的單一動作（五選一）。 |
+  | `help` | 子指令 | — | 查詢技能目錄；若附加技能名稱（如 `help flow-drive`）則顯示單一技能用法卡片。 |
+  | `route` | 子指令 | — | 依據自然語言需求匹配最佳技能或工作流。 |
+  | `rules` | 子指令 | — | 查詢當前階段的政策指引、Pre-plan 清單或交付標準。 |
+  | `next` | 子指令 | — | 根據當前工作目錄、Git 分支與狀態，建議下一步行動。 |
+  | `close` | 子指令 | — | 收尾門禁檢查：核對改動檔案、測試證據、Review 狀態與風險。 |
+  | `[--go]` | 布林旗標 | 否 | 僅在 `route` 動作生效。若目標為可隱式執行（implicit-eligible），自動進行一次有界交接；若為 explicit-only 目標則僅提示語法。 |
+  | `[query]` | 字串 | 否 | 欲諮詢的任務描述、錯誤現象、或特定技能名稱。 |
+- **實戰範例**：
+  ```text
+  # 查詢特定技能的參數說明卡片
+  /dhpk:flow-guide help flow-drive
 
-這與下方的 Codex CLI content sync 不同；後者只是將 curated projection mirror 到 `.codex/`，
-不需要 server registration。
+  # 諮詢新任務的最佳流程（純建議，不執行下游）
+  /dhpk:flow-guide route 實作使用者密碼重設郵件通知
+
+  # 諮詢並自動交接給可隱式執行的目標（如直接轉交排查）
+  /dhpk:flow-guide route --go 排查使用者登入驗證碼逾時問題
+
+  # 查詢當前工作階段的建議下一步
+  /dhpk:flow-guide next
+
+  # 在準備提交或結案前進行全面門禁審核
+  /dhpk:flow-guide close
+  ```
+
+#### 2. flow-drive（已確認規格實作入口）
+
+- **定位**：明確實作（explicit-only）入口，負責執行驗收邊界已確認的變更。不選路由、不草擬提案、不跳過測試。
+- **呼叫語法**：`/dhpk:flow-drive <confirmed-spec-or-change-id> [options]`（Codex: `$flow-drive ...`）
+- **參數說明**：
+  | 參數 | 類型 / 選項 | 預設值 | 說明 |
+  |---|---|---|---|
+  | `<confirmed-spec-or-change-id>` | 字串 | （必填） | 已確認的規格名稱或 OpenSpec Change ID（例如 `auth-oauth2-flow`）。 |
+  | `--plan[=<model>:<effort>]` | 字串（可選值） | 無 | 在實作前啟動 Planner 進行審查；可選指定模型與強度（例如 `opus:xhigh`、`sonnet:high`）。 |
+  | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner 審查範圍（需搭配 `--plan`）。`bounded` 嚴格限制最多 4 次讀取且無子代理；`discovery` 允許深入探索。 |
+  | `--worker=<worker>` | `claude` \| `codex` \| `agy` \| `auto` | `auto` | 指定本次變更實作的 Worker 類型（通常使用當前模型）。 |
+  | `--worker-target=<target>` | `<provider>/<model>[:<effort>]` | 無 | 明確指定 Worker 的供應商與模型目標（例如 `anthropic/claude-3-7-sonnet`）。 |
+  | `--cross-provider` | 布林旗標 | 關閉 | 在 `--worker=auto` 時允許考慮外部跨供應商候選（如 Codex），不影響明確指定的 target。 |
+  | `--reasoner=<target>` | `<provider>/<model>[:<effort>]` | 無 | 請求外部獨立 Reasoner 進行唯讀架構或複雜決策審查（例如 `codex-cli/gpt-6.1-sol:high`）。 |
+  | `--architect` / `--no-architect` | 布林旗標 | 依政策 | 控制本次實作是否強制執行架構層面審查。 |
+- **實戰範例**：
+  ```text
+  # 最簡實作：以當前環境實作已確認的 change
+  /dhpk:flow-drive change-add-user-avatar
+
+  # 包含限定範圍（Bounded）的 Planner 審查
+  /dhpk:flow-drive change-add-user-avatar --plan --plan-mode=bounded
+
+  # 使用高強度模型進行規劃並指定 Worker
+  /dhpk:flow-drive payment-webhook-retry --plan=opus:xhigh --worker=claude
+
+  # 包含外部 CLI Reasoner 第二意見與架構審查
+  /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex-cli/gpt-6.1-sol:high
+  ```
+
+#### 3. code-trace（程式碼追蹤、根因診斷與工具選取）
+
+- **定位**：唯讀的代碼探索與診斷工具。追查呼叫鏈、重現失敗、回溯 Git 變更，或挑選最佳代碼導航工具。
+- **呼叫語法**：`/dhpk:code-trace [--mode <mode>] [options] <target>`
+- **參數說明**：
+  | 參數 | 類型 / 選項 | 預設值 | 說明 |
+  |---|---|---|---|
+  | `--mode <mode>` | `explore` \| `diagnose` \| `history` \| `select-tool` | 自動推斷 | 追蹤模式。`explore`（探索符號/流程）、`diagnose`（排查 Bug/回歸）、`history`（Git 演進）、`select-tool`（工具挑選）。 |
+  | `--depth <depth>` | `brief` \| `normal` \| `deep` | `normal` | 報告詳盡程度。 |
+  | `--dual` | 布林旗標 | 關閉 | 派發兩個完全隔離的獨立探索視角，最後交叉比對共識與分歧。 |
+  | `--explain` | 布林旗標 | 關閉 | 針對探索目標輸出逐步的白話解釋與資料流說明。 |
+  | `<target>` | 字串 | （必填） | 符號名稱、類別、檔案路徑、錯誤訊息或異常現象描述。 |
+- **實戰範例**：
+  ```text
+  # 深度探索認證流程架構
+  /dhpk:code-trace --mode explore --depth deep "App\Services\AuthManager"
+
+  # 雙視角獨立探索複雜的訂單狀態機
+  /dhpk:code-trace --mode explore --dual "OrderStateMachine"
+
+  # 排查具體 Bug 根因與重現條件
+  /dhpk:code-trace --mode diagnose "OAuth2 redirect loop on Safari"
+
+  # 調查特定函式近期變更歷史與破壞性原因
+  /dhpk:code-trace --mode history "UserController::updateProfile"
+
+  # 查詢當前操作的最佳導航工具路徑（cx vs gitnexus vs grep）
+  /dhpk:code-trace --mode select-tool "Find all callers of PaymentGateway::charge"
+  ```
+
+#### 4. change-verdict（變更審查與多維度品質裁決）
+
+- **定位**：唯讀的品質審查技能，從代碼標準、安全、測試覆蓋、文件一致性與變更風險等多個面向輸出獨立裁決（`READY`、`BLOCKED` 或 `INCONCLUSIVE`）。
+- **呼叫語法**：`/dhpk:change-verdict --mode <mode> [options] [scope]`
+- **參數說明**：
+  | 參數 | 類型 / 選項 | 預設值 | 說明 |
+  |---|---|---|---|
+  | `--mode <mode>` | `code` \| `pr` \| `security` \| `tests` \| `docs` \| `risk` | （必填） | 審查維度。`code`（代碼規範/規格）、`pr`（PR 衛生度）、`security`（OWASP 安全）、`tests`（測試覆蓋）、`docs`（文件一致）、`risk`（變更爆炸半徑）。 |
+  | `--ac-trace` | 布林旗標 | 關閉 | 僅用於 `tests` 模式。將驗收條件逐條追蹤對應到具體測試案例與運行結果。 |
+  | `--second-opinion=codex-exec` | 字串 | 無 | 請求外部獨立的 Codex CLI 執行盲審第二意見，並將其結果隔離呈現。 |
+  | `[scope]` | Git commit / branch / 檔案列表 | 當前未提交變更 | 審查範圍（例如 `HEAD~1..HEAD`、`main..feature` 或 `app/Models/`）。 |
+- **實戰範例**：
+  ```text
+  # 審查當前所有未提交代碼修改是否符合標準
+  /dhpk:change-verdict --mode code
+
+  # 對特定分支差異進行 OWASP 安全漏洞審計
+  /dhpk:change-verdict --mode security origin/main..HEAD
+
+  # 驗收條件逐條對齊測試覆蓋率
+  /dhpk:change-verdict --mode tests --ac-trace
+
+  # 評估當前修改的破壞性變更風險與爆炸半徑
+  /dhpk:change-verdict --mode risk
+
+  # 審查文件與實作的一致性
+  /dhpk:change-verdict --mode docs docs/basic-operations.md
+  ```
+
+#### 5. review-pending（待審變更即時派工）
+
+- **定位**：自動比對當前工作目錄變更，依據檔案副檔名與路徑派遣對應領域專業 Reviewer（代碼、資料庫、安全、前端等）。
+- **呼叫語法**：`/dhpk:review-pending [--files=<rel-paths>]`
+- **參數說明**：
+  | 參數 | 類型 | 預設值 | 說明 |
+  |---|---|---|---|
+  | `--files=<rel-paths>` | 逗號分隔字串 | `git diff HEAD --name-only` | 限定審查的相對檔案路徑清單。省略時自動審查所有修改中檔案。 |
+- **實戰範例**：
+  ```text
+  # 審查所有當前修改中（Staged + Unstaged）的檔案
+  /dhpk:review-pending
+
+  # 僅針對特定受影響檔案派發審查
+  /dhpk:review-pending --files="app/Models/User.php,routes/api.php"
+  ```
+
+#### 6. tdd-workflow（測試驅動開發工作流）
+
+- **定位**：引導嚴格遵循 RED → GREEN → REFACTOR 的行為驅動開發流程，拒絕無效的套套邏輯測試（Tautological Tests）。
+- **呼叫語法**：`/dhpk:tdd-workflow <mode> [target]`
+- **參數說明**：
+  | 參數 | 類型 / 選項 | 必填 | 說明 |
+  |---|---|---|---|
+  | `<mode>` | `standard` \| `test-generation` \| `fast-worker` | 是 | 執行模式。 |
+  | `standard` | 模式 | — | 標準 TDD 流程。依序推進 RED（失敗測試）→ GREEN（最小通過代碼）→ REFACTOR（重構）。 |
+  | `test-generation` | 模式 | — | 針對現有生產代碼接縫，生成以可觀察行為為核心的最小測試骨架。 |
+  | `fast-worker` | 模式 | — | 由已確認的 RED 規格或 Task 描述，交由 Worker 進行機械式的 GREEN 實作。 |
+  | `[target]` | 字串 | 否 | 目標檔案、函式或功能接縫名稱。 |
+- **實戰範例**：
+  ```text
+  # 啟動標準 TDD 流程實作新行為
+  /dhpk:tdd-workflow standard "使用者輸入錯誤密碼三次後鎖定帳號 15 分鐘"
+
+  # 針對現有 API Controller 產生可觀察行為的測試骨架
+  /dhpk:tdd-workflow test-generation "app/Http/Controllers/Api/OrderController.php"
+
+  # 機械化完成 GREEN 測試通過階段
+  /dhpk:tdd-workflow fast-worker "tests/Unit/DiscountCalculatorTest.php"
+  ```
+
+#### 7. precommit（提交前品質驗證管線）
+
+- **定位**：封裝確定性的提交前品質檢查管線，自動依專案生態系執行 Lint 修復、編譯建置與單元測試。
+- **呼叫語法**：`/dhpk:precommit [--fast]`
+- **參數說明**：
+  | 參數 | 類型 | 說明 |
+  |---|---|---|
+  | `--fast` | 布林旗標 | 快速模式。僅執行快速靜態檢查與單元測試，跳過耗時的大型建置與整合檢查。省略時執行完整管線（`lint:fix -> build -> test:unit`）。 |
+- **實戰範例**：
+  ```text
+  # 執行日常快速提交前檢查
+  /dhpk:precommit --fast
+
+  # 執行完整嚴格驗證管線
+  /dhpk:precommit
+  ```
+
+#### 8. repo-verify / /dhpk:verify（專案完整驗證）
+
+- **定位**：唯讀執行專案各層級的完整驗證（Lint、型別、單元測試、整合測試、E2E）。
+- **呼叫語法**：`/dhpk:verify [<mode>] [--integration=<path>] [--e2e=<path>]`（Codex: `$repo-verify ...`）
+- **參數說明**：
+  | 參數 | 類型 / 選項 | 預設值 | 說明 |
+  |---|---|---|---|
+  | `<mode>` | `fast` \| `full` | `full` | 驗證模式。`fast`（Lint + 單元測試）；`full`（Lint + Typecheck + Unit + Integration + E2E）。 |
+  | `--integration=<path>` | 字串 | 無 | 指定自訂的整合測試路徑。 |
+  | `--e2e=<path>` | 字串 | 無 | 指定自訂的端到端（E2E）測試路徑。 |
+- **實戰範例**：
+  ```text
+  # 執行全庫完整驗證
+  /dhpk:verify
+
+  # 僅執行快速驗證
+  /dhpk:verify fast
+
+  # 執行完整驗證並指定自訂測試目錄
+  /dhpk:verify full --integration=tests/Integration --e2e=tests/E2E
+  ```
+
+#### 9. smart-commit（智慧分組原子提交）
+
+- **定位**：分析未提交檔案，按凝聚度（Cohesion）智慧分組，依 Conventional Commits 風格生成 Commit 訊息，輸出可複製執行的 Git 指令。
+- **呼叫語法**：`/dhpk:smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
+- **參數說明**：
+  | 參數 | 類型 | 說明 |
+  |---|---|---|
+  | `--scope <path>` | 路徑字串 | 限定只提交特定路徑下的修改。 |
+  | `--type <type>` | 字串 | 強制指定提交類型（如 `feat`、`fix`、`refactor`、`docs`、`test`、`chore`）。 |
+  | `--ai-co-author` | 布林旗標 | 在 Commit 訊息末端附上 AI 協作者 Trailer（`Co-authored-by`）。 |
+- **實戰範例**：
+  ```text
+  # 智慧分析所有變更並分組提交
+  /dhpk:smart-commit
+
+  # 僅提交前端相關目錄，並強制標註為 refactor
+  /dhpk:smart-commit --scope resources/assets/js --type refactor
+
+  # 提交並加入 AI 協作者標記
+  /dhpk:smart-commit --ai-co-author
+  ```
+
+#### 10. create-pr（建立 Pull Request）
+
+- **定位**：自動從當前分支與 Commit 歷程提取 Ticket 編號，生成符合專案風格的 PR 標題與說明本文。
+- **呼叫語法**：`/dhpk:create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]`
+- **參數說明**：
+  | 參數 | 類型 | 預設值 | 說明 |
+  |---|---|---|---|
+  | `--dry-run` | 布林旗標 | 啟用 | 僅輸出建議的 `gh pr create` 指令預覽，不執行修改。 |
+  | `--execute` | 布林旗標 | 關閉 | 實際執行 `gh pr create` 並回傳建立成功的 PR 網址。 |
+  | `--head=<branch>` | 字串 | 當前分支 | 來源分支。 |
+  | `--base=<branch>` | 字串 | `develop` 或 `main` | 目標分支（預設為專案設定的 Target Branch）。 |
+  | `--title=<text>` | 字串 | 自動產生 | 自訂 PR 標題（覆寫自動產生的 Ticket 格式標題）。 |
+- **實戰範例**：
+  ```text
+  # 預覽 PR 標題與內文（乾跑模式）
+  /dhpk:create-pr
+
+  # 正式執行建立目標為 develop 的 PR
+  /dhpk:create-pr --execute
+
+  # 指定目標分支並自訂標題
+  /dhpk:create-pr --base=main --title="feat: [PROJ-890] 重構訂單支付處理管線" --execute
+  ```
+
+#### 11. dhpk-deploy-list（跨技術棧部署清單產生器）
+
+- **定位**：從 Git 歷史中萃取發布清單，過濾測試與 CI 檔案，依技術棧 Preset（Yii、Laravel、Node、Python 等）分群輸出確定性的上線檔案檢查清單。
+- **呼叫語法**：`dhpk-deploy-list --tag <[TAG]> --description "<text>" [options]`
+- **參數說明**：
+  | 參數 | 類型 | 必填 | 說明 |
+  |---|---|---|---|
+  | `--tag <[TAG]>` | 字串 | 是 | 發布標籤元資料（格式必須為中括號，如 `[PROD-20261006]`）。 |
+  | `--description "<text>"` | 字串 | 是 | 發布簡要說明。 |
+  | `--deploy-commits <shas>` | 逗號分隔字串 | 否 | 指定 Commit SHA 清單，將其 Diff 作為主要部署群組。 |
+  | `--anchor "<string>"` | 字串 | 否 | 以程式碼內的標記字串搜尋異動檔案（與 `--deploy-commits` 互斥）。 |
+  | `--base <ref>` / `--head <ref>` | Git ref | 否 | 比對的 Git 範圍（預設 `main..HEAD`）。 |
+  | `--preset <preset>` | 字串 | 否 | 指定技術棧規則（`php-yii`、`laravel`、`node`、`python`、`generic`）。 |
+  | `--lang <zh-TW\|en>` | 字串 | 否 | 輸出語言（預設 `en`）。 |
+  | `--auto-detect-tag` | 布林旗標 | 否 | 在 Commit 訊息中自動搜尋標籤並填入 `--deploy-commits`。 |
+- **實戰範例**：
+  ```text
+  # 產生常規上線清單（以當前分支比對 main）
+  dhpk-deploy-list --tag="[RELEASE-1.4.0]" --description="會員中心資料改版" --lang=zh-TW
+
+  # 指定特定上線 Commits
+  dhpk-deploy-list --tag="[HOTFIX-20261006]" --description="修正結帳計算浮點數精度" --deploy-commits="a1b2c3d,e4f5a6b" --lang=zh-TW
+  ```
+
+#### 12. opsx-apply-resume（長任務跨 Context 狀態保存與接續）
+
+- **定位**：在長時間大型 OpenSpec 任務接近 Token 上限時保存現場快照，或在開啟新 Session 後恢復執行進度與門禁證據。
+- **呼叫語法**：`/dhpk:opsx-apply-resume [<change-id>]`
+- **參數說明**：
+  | 參數 | 類型 | 說明 |
+  |---|---|---|
+  | `<change-id>` | 字串（可選） | 目標 OpenSpec Change 名稱。若省略，自動偵測最近一次進行中的 Change。 |
+- **實戰範例**：
+  ```text
+  # 在當前 Session 上下文耗盡前執行儲存
+  /dhpk:opsx-apply-resume change-refactor-auth-v2
+
+  # 在新 Session 中接續未完任務
+  /dhpk:opsx-apply-resume
+  ```
 
 ## 同步 Codex CLI 內容
 

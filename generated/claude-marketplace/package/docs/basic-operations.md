@@ -243,231 +243,403 @@ and is also the safe order for copy mode.
 
 ## Common workflows
 
-The user-facing workflow has one safe front door and several explicit exits:
+dhpk provides a single safe front door and structured delivery exits for daily development:
 
 ```text
 inspect → verify surface → route → plan/classify → implement → review → verify → handoff
 ```
 
-Use Claude `/dhpk:flow-guide` (classification), `/dhpk:flow-drive` (execution),
-the Cursor generated command, or Codex `$flow-guide` / `$flow-drive` when you
-know the outcome but not the right family. Codex has no `/dhpk:*` command.
+When you know the outcome but haven't decided which capability to dispatch, Claude uses `/dhpk:flow-guide`, Codex uses `$flow-guide`, and Cursor uses its local commands. When the exact workflow is known, invoke the specific project skill or slash command directly.
 
-Need a quick entry map before this table? See the cheat sheet:
-[技能與 Slash Command 快速速查（繁體中文）](./skill-command-cheat-sheet.zh-TW.md)
-Use a direct command or skill when you already know the exact workflow. Plugin management
-(`claude plugin …`, `codex plugin …`) installs or updates a surface; it does not
-invoke a workflow.
+For a fast lookup, see the cheat sheet: [Skill and Slash Command Cheat Sheet](./skill-command-cheat-sheet.md) · [繁體中文](./skill-command-cheat-sheet.zh-TW.md).
 
-### Skill groups and efficient workflows
+### Standard 5-Step Development Workflow
 
-Use the skill groups below as a reusable decision ladder:
+Follow this 5-step standard cadence for day-to-day work, where each step defines clear inputs, execution commands, and explicit completion criteria:
 
-| Lane | Representative skills | What to use it for | Fast path |
-|---|---|---|---|
-| Routing/decision | `flow-guide`, `flow-drive` | Discover, advise, and execute only confirmed work. | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
-| Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore\|diagnose\|history` |
-| Read-only verdict | `change-verdict` (`code\|pr\|security\|tests\|docs\|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
-| Delivery / implementation prep | `tdd-workflow`, `module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `tdd-workflow` + scoped verification |
-| OpenSpec session handoff | `opsx-apply-resume`, `dhpk-opsx-load-context`, `dhpk-opsx-post-observation` | Resume and save evidence for an existing change. | `opsx-apply-resume <change-id>` |
-| Git / release prep | `git-smart-commit`, `release-creator`, `dhpk-deploy-list` | Group commits and prepare release or deploy artifacts. | Explicitly invoke the selected owner. |
+#### Step 1: Verify Environment & Active Modules
+- **Actions**:
+  - Run `/dhpk:flow-guide help` (Codex: `$flow-guide help`) to list all registered skills and commands.
+  - Run `/dhpk:setup --show` to inspect currently active stack modules (PHP, Laravel, JS, Python, etc.) and hook configurations.
+- **Completion Criterion**: Active modules and configuration match project requirements without missing prerequisites.
 
-### Parameter quick reference
+#### Step 2: Inquire, Explore & Route
+- **Actions**:
+  - **Workflow Consultation**: Ask the guide directly instead of guessing commands:
+    ```text
+    /dhpk:flow-guide route implement user password reset email notification
+    /dhpk:flow-guide route investigate user login captcha timeout issue
+    ```
+    Adding `--go` (e.g., `/dhpk:flow-guide route --go <task>`) triggers a single bounded handoff if the matched target is `implicit-eligible`; `explicit-only` targets report exact command syntax without executing.
+  - **Code Exploration & Root-Cause Diagnosis**: For unfamiliar modules, history investigations, or regressions, use read-only inspection:
+    ```text
+    /dhpk:code-trace --mode explore <module-or-class>      # inspect symbols, callers, and structure
+    /dhpk:code-trace --mode diagnose <error-or-symptom>   # gather falsifiable root-cause evidence
+    /dhpk:code-trace --mode history <function-or-file>    # trace Git timeline and breaking changes
+    ```
+- **Completion Criterion**: Clear ownership boundary identified or a single falsifiable root cause supported by evidence; no code is modified in this step.
 
-| Skill | Common invocation pattern |
-|---|---|
-| `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `[--plan[=<model>[:<effort>]]]` `[--plan-mode=auto\|bounded\|discovery]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
-| `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
-| `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
-| `tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
+#### Step 3: Implement Confirmed Work with TDD
+- **Actions**:
+  - Once requirements, acceptance criteria, or OpenSpec changes are confirmed, invoke the implementation front door:
+    ```text
+    /dhpk:flow-drive <confirmed-spec-or-change-id>
+    ```
+  - **Test-Driven Development (TDD)**: Use `tdd-workflow` (or the `tdd-guide` subagent) to drive RED → GREEN → REFACTOR. Write failing observable tests first (RED), implement minimal code to pass (GREEN), then refactor.
+- **Implementation & Dispatch Policy (Co-located Rules)**:
+  - **Pre-Implementation Decision State**: Every task must begin with an explicit state label: `CLEAR`, `REASONER_REQUIRED`, `HUMAN_REQUIRED`, or `BLOCKED`. Domain boundary questions consult `architect`; unresolved uncertainty requires a read-only Reasoner before any Writer runs.
+  - **OpenSpec Lifecycle**: Cross-session or complex initiatives author `openspec/changes/<id>/` artifacts via `/opsx:new`. Completion requires all task checkboxes, verification gates, and review obligations resolved before archiving; passing tests or approved plans alone are not archival clearance.
+  - **Planner Consult Scope**: `--plan` supports `--plan-mode=bounded` (max 4 direct reads, 0 child agent) or `--plan-mode=discovery` (up to 12 reads, 2 child agents). Defaults to `auto` (chooses bounded when evidence is clear and no Material Risk Signal applies).
+  - **Worker Dispatch**: When `orchestration_dispatch=on` (default), changes up to 2 files stay inline; larger mechanical batches designate `--worker=<claude|codex|agy>`.
+  - **Codex CLI Integration**: dhpk is Codex-free by default. Use `--worker=codex` for CLI mechanical execution, `--reasoner=codex-cli/<model>[:<effort>]` for independent reasoning passes, or `--second-opinion=codex-exec` for single blind reviews. Missing binaries report unavailable optional backends without bypassing security gates.
+- **Completion Criterion**: All changes carry focused verification and all-green test evidence; no unexplained skipped checks remain.
 
-Use the lane first, then reduce flags: fewer inputs -> fewer routing misses and cleaner outputs.
+#### Step 4: Review, Audit & Quality Gates
+- **Actions**:
+  - **Advisory Specialist Review**: Dispatch matching reviewers based on modified file extensions and paths:
+    ```text
+    /dhpk:review-pending                              # review all currently modified files
+    /dhpk:review-pending --files="app/Models/User.php" # review designated file subset
+    ```
+  - **Standalone Quality Verdicts**: Evaluate code standards, security vulnerabilities, test adequacy, or change risk:
+    ```text
+    /dhpk:change-verdict --mode code                  # code quality and specification conformance
+    /dhpk:change-verdict --mode security              # OWASP security and secrets audit
+    /dhpk:change-verdict --mode tests --ac-trace      # acceptance criteria traced to test results
+    /dhpk:change-verdict --mode risk                  # blast radius and breaking change risk
+    ```
+  - **Pre-Commit Verification Pipelines**:
+    ```text
+    /dhpk:precommit --fast                            # fast local pipeline (lint + unit tests)
+    /dhpk:precommit                                   # full pipeline (lint:fix -> build -> test:unit)
+    /dhpk:verify                                      # cross-layer validation (includes integration & e2e)
+    ```
+- **Delivery Sequence & Handoff Policy**:
+  - CRITICAL findings must be remediated prior to delivery.
+  - Delivery sequence is strictly: all tasks and gates pass → archive/sync OpenSpec → add changelog fragment → open Draft PR targeting `develop` → monitor CI via `gh run watch` to completed conclusion → human merge gate.
+  - Handoff reports must record explicit states: `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, or `UNAVAILABLE`.
+- **Completion Criterion**: Zero CRITICAL blockers, precommit all-green, and all gate verdicts backed by fresh evidence.
 
-### Choose an entry
+#### Step 5: Atomic Commit, PR & Release
+- **Actions**:
+  - **Smart Batch Commit**: Group changes by cohesion into Conventional Commit messages and runnable Git commands:
+    ```text
+    /dhpk:smart-commit
+    /dhpk:smart-commit --scope resources/assets/js --type refactor
+    ```
+  - **Open Pull Request**: Extract ticket IDs and generate project-compliant PR summaries:
+    ```text
+    /dhpk:create-pr                                   # preview gh pr create command (--dry-run default)
+    /dhpk:create-pr --execute                         # create PR targeting develop branch
+    ```
+  - **Release & Deployment Checklist**:
+    ```text
+    /dhpk:create-release                              # version bump, changelog update, and Git tag
+    dhpk-deploy-list --tag="[RELEASE-1.0.0]" --description="Release summary" --lang=en
+    ```
+- **Completion Criterion**: Working tree clean, PR opened, and remote CI checks pass green.
 
-| Need | Entry | Completion signal |
-|---|---|---|
-| See what would run | `/dhpk:flow-guide route <task>` | A route report; no downstream work runs. Add `--go` for one eligible handoff. |
-| Feature, bug, refactor, or other substantial change | `/dhpk:flow-guide route <task>` then `/dhpk:flow-drive <confirmed-spec-or-change-id>` | One named owner followed by confirmed implementation evidence. |
-| Inspect code or execution flow | `/dhpk:code-trace --mode explore <area>` | Evidence-backed explanation with file/symbol references. |
-| Review existing edits | `/dhpk:review-pending` or `/dhpk:change-verdict --mode code` | Reviewer verdict plus fresh artifact or an explicit blocker. |
-| Commit, PR, or release | `/dhpk:smart-commit`, `/dhpk:create-pr`, or `/dhpk:create-release` | Explicit command result; no automatic commit, push, or merge. |
+### Standalone Assistance Workflows
 
-`/dhpk:flow-guide` may identify an `implicit-eligible` target. If routing selects an
-`explicit-only` target, it prints the exact direct invocation and stops; routing
-confidence never bypasses the target's invocation class. The route table is the
-deterministic fast path, while ambiguous compound requests use bounded
-classification rather than a guessed match.
-The deterministic probe reports `MATCH`, `NO_MATCH`, or `NO_QUERY`; these are
-machine-readable routing states, not implementation results.
+Outside the primary delivery flow, specialized agents can be invoked directly:
+- **E2E Testing Workflow**: `/dhpk:flow-guide route write E2E tests` routes to `e2e-runner` to author specs, helpers, fixtures, and journey artifacts. Application defects yield a worker-ready fix specification.
+- **Documentation Updates**: Structural changes route to `doc-updater` to synchronize codemaps and user documentation against fresh evidence.
+- **OpenSpec Long Apply Save & Resume**: Use `/dhpk:opsx-apply-resume [<change-id>]` to snapshot working state before token exhaustion and resume execution in a fresh session.<a id="6-unattended-openspec-session-large-uncertainty-on-ramp"></a>
 
-### Inspect guidance before execution
+---
 
-```text
-/dhpk:flow-guide route implement a password-reset email flow
-/dhpk:flow-guide route fix the login redirect loop
-```
+### Detailed Parameter Reference & Examples for Core Workflow Skills
 
-`flow-guide route` is advice by default. `flow-guide route --go <task>` may
-request one bounded handoff only when the selected target is available and
-implicit-eligible. It never turns route selection into proposal authoring or
-confirmed implementation. An
-explicit-only target is reported with its direct invocation and is never
-dispatched by the guide. Empty or ambiguous input remains a classification
-question. The route report is not implementation, review, commit, merge,
-archive, release, or deploy evidence.
+The following sections provide comprehensive parameter references, types, default values, boundary limits, and practical examples for each core skill in the 5-step standard workflow:
 
-### Main delivery flow — feature and bug work
+#### 1. flow-guide (Workflow Consultation, Routing & Policy Guidance)
 
-```text
-/dhpk:flow-guide route implement a password-reset email flow
-/dhpk:flow-guide route fix the login redirect loop
-```
+- **Purpose**: Read-only workflow consultant and routing hub. Handles navigation, policy queries, readiness verification, and bounded handoffs. Never mutates workspace code or invokes explicit-only commands.
+- **Invocation Syntax**: `/dhpk:flow-guide <action> [--go] [<query>]` (Codex: `$flow-guide <action> [--go] [<query>]`)
+- **Parameter Breakdown**:
+  | Parameter | Type / Choices | Required | Description |
+  |---|---|---|---|
+  | `<action>` | `help` \| `route` \| `rules` \| `next` \| `close` | Yes | The single action to execute. |
+  | `help` | Subcommand | — | Query the skill catalog; when given a skill name (e.g., `help flow-drive`), prints a single metadata usage card. |
+  | `route` | Subcommand | — | Match natural language intent to the best skill or workflow. |
+  | `rules` | Subcommand | — | Retrieve policy pointers, pre-plan checklists, or phase delivery criteria. |
+  | `next` | Subcommand | — | Recommend the next action based on current workspace, Git branch, and status. |
+  | `close` | Subcommand | — | Closeout gate check: inspect changed files, test evidence, review obligations, and open risks. |
+  | `[--go]` | Boolean flag | No | Valid only with `route`. If the matched target is implicit-eligible, executes a single bounded handoff; if explicit-only, outputs the exact command syntax without executing. |
+  | `[query]` | String | No | Free-text task description, error symptom, or skill name. |
+- **Practical Examples**:
+  ```text
+  # View parameter usage card for a specific skill
+  /dhpk:flow-guide help flow-drive
 
-`flow-guide` provides the read-only route and policy guidance before loading
-branch-specific context. Feature work enters TDD RED → GREEN → REFACTOR; bug
-work records root-cause evidence and a regression-test RED gate before the fix.
-Once the specification and acceptance boundary are confirmed, invoke
-`/dhpk:flow-drive <confirmed-spec-or-change-id>`. Existing symbols receive
-pre-edit impact analysis when the repository provides GitNexus; `cx`
-overview/definition/references remain the primary navigation fallback.
+  # Consult route for a new task (advisory only, no downstream execution)
+  /dhpk:flow-guide route implement user password reset email notification
 
-Use these invocation-only modifiers when they change the decision for this run:
+  # Consult and automatically hand off to an implicit-eligible target
+  /dhpk:flow-guide route --go investigate user login captcha timeout issue
 
-| Modifier | Effect and boundary |
-|---|---|
-| `--plan[=<model>[:<effort>]]` | Adds a planner critique to confirmed implementation work. |
-| `--plan-mode=auto\|bounded\|discovery` | Selects the scope for an enabled `--plan` consult. Omitted mode defaults to `auto`; it does not change planner work mode or model/effort. |
-| `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; it does not persist configuration. |
-| `--cross-provider` | One-shot opt-in for configured external candidates when `--worker=auto`; it does not persist configuration or broaden an explicit worker target. |
-| `--reasoner=<provider>/<model>[:<effort>]` | Requests a bounded reasoning pass for confirmed implementation work. |
-| `--architect` / `--no-architect` | Enables or disables the architecture pass for this invocation. |
-| `--codex` | Retired compatibility flag. The parser emits a deprecation diagnostic and does not select a peer or backend; use an explicit worker, reasoner, or owner second-opinion option instead. |
+  # Query suggested next action in the current workspace
+  /dhpk:flow-guide next
 
-`--worker=auto --cross-provider` allows the configured external candidates to
-participate in automatic selection for this invocation. Without the flag,
-automatic selection remains native-only; `--worker=codex` or `--worker=agy`
-remains a directional explicit choice. `--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex-cli/<model>[:<effort>]`
-chooses a Codex CLI reasoning pass; bare `--reasoner=codex` is a compatibility shorthand. `CODEX=on` and `--codex` are
-retired compatibility flags: they emit a deprecation diagnostic and never
-select a peer, worker, reasoner, or hidden backend. Only a missing selected
-executable may use the configured Claude fallback; authentication, task,
-execution, and verification failures remain blocked.
+  # Run full closeout gate checks before committing or finalizing
+  /dhpk:flow-guide close
+  ```
 
-For example, `$flow-drive confirmed-change-id --plan --plan-mode=bounded`
-requests a planner consult over named evidence. `auto` selects bounded only
-when the consult question and intended outcome are clear, the named sources
-including required protocol reads are sufficient within the bounded limit, and
-no named Material Risk Signal applies; otherwise it selects discovery. The
-bounded limit is four direct reads in total and zero discovery children. A
-missing necessary fact is reported as a blocker without searching, spawning, or
-upgrading scope. An explicit bounded choice discloses any overridden signal and
-does not waive authorization, write prerequisites, or specialist decisions.
-Discovery retains twelve reads and two read-only children; a manually requested
-warm review retains four new reads and the selected scope's child limit. See the
-[execution policy](../rules/execution-policy.md#planner-consult-scope) for the
-named signals and reporting contract.
+#### 2. flow-drive (Confirmed Specification Implementation Entrypoint)
 
-### OpenSpec lifecycle boundary
+- **Purpose**: Explicit-only implementation entrypoint for changes with confirmed specifications and acceptance boundaries. Never selects routes, drafts proposals, or skips tests.
+- **Invocation Syntax**: `/dhpk:flow-drive <confirmed-spec-or-change-id> [options]` (Codex: `$flow-drive ...`)
+- **Parameter Breakdown**:
+  | Parameter | Type / Choices | Default | Description |
+  |---|---|---|---|
+  | `<confirmed-spec-or-change-id>` | String | (Required) | Settled specification name or OpenSpec Change ID (e.g., `auth-oauth2-flow`). |
+  | `--plan[=<model>:<effort>]` | String (optional value) | None | Request pre-implementation critique by a Planner; optionally specify model and reasoning effort (e.g., `opus:xhigh`, `sonnet:high`). |
+  | `--plan-mode=<mode>` | `auto` \| `bounded` \| `discovery` | `auto` | Planner consult scope (requires `--plan`). `bounded` limits to max 4 direct reads with no child agent; `discovery` allows full exploration. |
+  | `--worker=<worker>` | `claude` \| `codex` \| `agy` \| `auto` | `auto` | Select mechanical Worker type for this change (typically uses current model). |
+  | `--worker-target=<target>` | `<provider>/<model>[:<effort>]` | None | Explicitly designate execution target provider and model (e.g., `anthropic/claude-3-7-sonnet`). |
+  | `--cross-provider` | Boolean flag | Off | Allow external cross-provider candidates (such as Codex) when `--worker=auto` is used. |
+  | `--reasoner=<target>` | `<provider>/<model>[:<effort>]` | None | Request an external read-only Reasoner pass for architecture or complex decisions (e.g., `codex-cli/gpt-6.1-sol:high`). |
+  | `--architect` / `--no-architect` | Boolean flag | Policy default | Explicitly enable or bypass the architectural design review pass. |
+- **Practical Examples**:
+  ```text
+  # Minimal implementation: execute confirmed change in the current environment
+  /dhpk:flow-drive change-add-user-avatar
 
-When acceptance, cross-session handoff, or auditability needs an OpenSpec record
-and adequate artifacts do not already exist, record a bounded wayfinder
-checkpoint, then use `/opsx:new` or `/opsx:ff` to author
-`openspec/changes/<change-id>/` artifacts. Reuse sufficient plans and approved
-specifications without creating a duplicate. After the applicable review, apply
-with the external `/opsx:apply <change>` entry or the confirmed
-`$flow-drive <change-id>` entry. A plan, passing validator, or all-green test run
-is not archival evidence. Completion requires task checkboxes, applicable
-verification gates, review obligations, and human-only actions to be resolved;
-archive, issue closure, and release publication remain separate steps.
+  # Implementation with bounded Planner consult
+  /dhpk:flow-drive change-add-user-avatar --plan --plan-mode=bounded
 
-Before implementation, record `Decision: CLEAR`, `REASONER_REQUIRED`,
-`HUMAN_REQUIRED`, or `BLOCKED`. A domain-boundary ownership question consults
-`architect` first; if uncertainty remains, record `REASONER_REQUIRED` and obtain
-a read-only reasoner result before any writer. Reuse an adequate plan regardless
-of its task count, and ask only for a missing outcome that could change the work.
-Consult a planner when unresolved decisions, dependencies, ownership, sequencing,
-or material risk leave planning necessary; honor an explicit supported consult
-request as well. Task count alone does not require a planner. The external
-`/opsx:apply` workflow is unchanged.
+  # High-effort planning model and designated Worker
+  /dhpk:flow-drive payment-webhook-retry --plan=opus:xhigh --worker=claude
 
-After each implementation wave, dispatching the applicable reviewers in one
-parallel batch is recommended; fix CRITICAL findings before reporting done.
-Delivery order is: verify all tasks and gates → archive/sync
-OpenSpec → add a valid changelog fragment → open a Draft PR targeting `develop`
-→ monitor that PR's actual CI with `gh run watch` to a completed conclusion → human
-merge gate.
-Queued or partial CI is not completion.
+  # Implementation with CLI Reasoner second opinion and architecture pass
+  /dhpk:flow-drive refactor-auth-tokens --architect --reasoner=codex-cli/gpt-6.1-sol:high
+  ```
 
-### Review, verify, and handoff
+#### 3. code-trace (Code Exploration, Root-Cause Diagnosis & Tool Selection)
 
-After an Edit/Write/MultiEdit, dispatching the reviewers recommended by the
-trigger table is advised; there is no enforced review gate. dhpk does not
-silently run formatting, lint, lockfile, or Stop advisory scripts.
-`/dhpk:review-pending` dispatches the reviewer for the selected paths; the
-legacy `sentinel_commit_gate` setting is retained for compatibility only.
+- **Purpose**: Read-only code exploration and diagnostic tool. Traces call hierarchies, reproduces failures, inspects Git history, or selects optimal code-navigation tools.
+- **Invocation Syntax**: `/dhpk:code-trace [--mode <mode>] [options] <target>`
+- **Parameter Breakdown**:
+  | Parameter | Type / Choices | Default | Description |
+  |---|---|---|---|
+  | `--mode <mode>` | `explore` \| `diagnose` \| `history` \| `select-tool` | Inferred | Trace mode. `explore` (symbols/flows), `diagnose` (bugs/regressions), `history` (Git evolution), `select-tool` (navigation tool selection). |
+  | `--depth <depth>` | `brief` \| `normal` \| `deep` | `normal` | Report verbosity and traversal depth. |
+  | `--dual` | Boolean flag | Off | Dispatches two fully isolated exploration perspectives and reconciles consensus vs differences. |
+  | `--explain` | Boolean flag | Off | Generates step-by-step explanatory prose and dataflow narrative. |
+  | `<target>` | String | (Required) | Symbol name, class, file path, error message, or symptom description. |
+- **Practical Examples**:
+  ```text
+  # Deeply explore authentication flow architecture
+  /dhpk:code-trace --mode explore --depth deep "App\Services\AuthManager"
 
-```text
-/dhpk:review-pending
-/dhpk:precommit
-/dhpk:verify
-/dhpk:smart-commit
-/dhpk:create-pr
-```
+  # Dual-perspective independent exploration of a state machine
+  /dhpk:code-trace --mode explore --dual "OrderStateMachine"
 
-Every handoff reports exactly one next command, the files/evidence it covers,
-and any `BLOCKED`, `NOT_RUN`, `UNAVAILABLE`, or `NO_SHIP` condition. A release
-or consumer result must keep structural/package evidence separate from live
-runtime proof; see [`docs/harness-workflow.md`](./harness-workflow.md).
+  # Diagnose bug root-cause and reproduction conditions
+  /dhpk:code-trace --mode diagnose "OAuth2 redirect loop on Safari"
 
-<a id="6-unattended-openspec-session-large-uncertainty-on-ramp"></a>
+  # Trace recent commit history and breaking changes for a function
+  /dhpk:code-trace --mode history "UserController::updateProfile"
 
-### OpenSpec session retirement and handoff
+  # Determine optimal navigation tool route (cx vs gitnexus vs grep)
+  /dhpk:code-trace --mode select-tool "Find all callers of PaymentGateway::charge"
+  ```
 
-The unattended goal generator is retired. External `/opsx:apply` remains unchanged.
-`opsx-apply-resume` retains save/resume for existing changes, and its context
-loader reads existing `.hard-rule-escalation.md` and `.resume-note.md` artifacts.
-This does not provide the former goal loop.
+#### 4. change-verdict (Change Review & Multi-Dimensional Quality Verdict)
 
-### Standalone assistance workflows
+- **Purpose**: Read-only quality review skill providing evidence-backed verdicts (`READY`, `BLOCKED`, or `INCONCLUSIVE`) across code standards, security, test coverage, documentation consistency, and change risk.
+- **Invocation Syntax**: `/dhpk:change-verdict --mode <mode> [options] [scope]`
+- **Parameter Breakdown**:
+  | Parameter | Type / Choices | Default | Description |
+  |---|---|---|---|
+  | `--mode <mode>` | `code` \| `pr` \| `security` \| `tests` \| `docs` \| `risk` | (Required) | Review dimension. `code` (standards/spec), `pr` (PR hygiene), `security` (OWASP/secrets), `tests` (coverage), `docs` (consistency), `risk` (blast radius). |
+  | `--ac-trace` | Boolean flag | Off | Used in `tests` mode: traces acceptance criteria to concrete test cases and outcomes. |
+  | `--second-opinion=codex-exec` | String | None | Requests an independent blind review pass via Codex CLI, presented in isolation. |
+  | `[scope]` | Commit range / branch / file list | Uncommitted diff | Review scope (e.g., `HEAD~1..HEAD`, `main..feature`, or `app/Models/`). |
+- **Practical Examples**:
+  ```text
+  # Review all uncommitted code modifications against project standards
+  /dhpk:change-verdict --mode code
 
-```text
-/dhpk:flow-guide route write E2E tests for the checkout flow
-```
+  # Audit branch diff for OWASP security vulnerabilities
+  /dhpk:change-verdict --mode security origin/main..HEAD
 
-E2E work is
-owned by `e2e-runner` and may write only specs, helpers, fixtures, and artifacts;
-application failures return a worker-ready fix spec. Dedicated harness audit
-and governance workflows are retired. Structural changes also route
-`doc-updater` to refresh codemaps and user-facing docs.
+  # Trace acceptance criteria against test suite evidence
+  /dhpk:change-verdict --mode tests --ac-trace
 
-### Implementation dispatch
+  # Assess breaking change risk and blast radius of working tree
+  /dhpk:change-verdict --mode risk
 
-With `orchestration_dispatch=on` (default), reasoning-heavy work goes to
-`deep-reasoner` and mechanical work goes through the shared selector to
-`fast-worker`, `codex-fast-worker`, or `agy-fast-worker`. A whole implementation
-step touching at most two files may remain inline; larger clear-spec batches use
-one assigned worker scope. TDD owns RED and scoped verification; the full
-applicable suite runs at phase exit. The complete dispatch and reviewer batching
-rules live in [`rules/execution-policy.md`](../rules/execution-policy.md).
+  # Check documentation consistency against current implementation
+  /dhpk:change-verdict --mode docs docs/basic-operations.md
+  ```
 
-### Codex CLI second opinions
+#### 5. review-pending (Pending Changes Review Dispatcher)
 
-dhpk is **Codex-free by default**. The retired `CODEX=on` and legacy
-`--codex` flags emit `DEPRECATED_CODEX_FLAG` and do not add a hidden
-peer or backend. Use `--worker=codex` for an explicitly selected CLI worker,
-`--reasoner=codex-cli/<model>[:<effort>]` for an explicitly selected CLI reasoning pass
-(`--reasoner=codex` is compatibility shorthand), or a
-migrated owner's `--second-opinion=codex-exec` option for an additive,
-one-shot `codex exec` opinion. `change-verdict --mode code --backend cli` is the
-explicit CLI review path; the current-model path remains the default. Missing
-CLI executables are reported as unavailable optional backends, while
-authentication, task, execution, and verification failures remain blocked.
+- **Purpose**: Automatically inspects working tree changes and dispatches specialist reviewers (code, database, security, frontend, docs) based on edited file paths.
+- **Invocation Syntax**: `/dhpk:review-pending [--files=<rel-paths>]`
+- **Parameter Breakdown**:
+  | Parameter | Type | Default | Description |
+  |---|---|---|---|
+  | `--files=<rel-paths>` | Comma-separated string | `git diff HEAD --name-only` | Restrict review to specific relative file paths. Defaults to all modified files. |
+- **Practical Examples**:
+  ```text
+  # Review all currently modified (staged + unstaged) files
+  /dhpk:review-pending
 
-This is separate from syncing Codex CLI content below, which mirrors the curated
-projection into `.codex/` and does not require a server registration.
+  # Review only designated critical files
+  /dhpk:review-pending --files="app/Models/User.php,routes/api.php"
+  ```
+
+#### 6. tdd-workflow (Test-Driven Development Workflow)
+
+- **Purpose**: Guides strict behavior-first unit and integration testing following RED → GREEN → REFACTOR, eliminating tautological test antipatterns.
+- **Invocation Syntax**: `/dhpk:tdd-workflow <mode> [target]`
+- **Parameter Breakdown**:
+  | Parameter | Type / Choices | Required | Description |
+  |---|---|---|---|
+  | `<mode>` | `standard` \| `test-generation` \| `fast-worker` | Yes | TDD operational mode. |
+  | `standard` | Mode | — | Full TDD cycle: write failing test (RED) -> minimal code to pass (GREEN) -> clean up (REFACTOR). |
+  | `test-generation` | Mode | — | Generate a minimal behavior-focused test scaffold for an existing production seam. |
+  | `fast-worker` | Mode | — | Mechanical GREEN implementation driven by settled RED specs or task contracts. |
+  | `[target]` | String | No | Target file, method, or production seam name. |
+- **Practical Examples**:
+  ```text
+  # Initiate standard TDD cycle for a new behavior
+  /dhpk:tdd-workflow standard "lock account for 15 minutes after three invalid login attempts"
+
+  # Generate behavior test scaffold for an existing controller
+  /dhpk:tdd-workflow test-generation "app/Http/Controllers/Api/OrderController.php"
+
+  # Fast mechanical execution of the GREEN pass
+  /dhpk:tdd-workflow fast-worker "tests/Unit/DiscountCalculatorTest.php"
+  ```
+
+#### 7. precommit (Pre-Commit Quality Pipeline)
+
+- **Purpose**: Deterministic pre-commit verification pipeline executing lint formatting, build checks, and unit tests tailored to the project ecosystem.
+- **Invocation Syntax**: `/dhpk:precommit [--fast]`
+- **Parameter Breakdown**:
+  | Parameter | Type | Description |
+  |---|---|---|
+  | `--fast` | Boolean flag | Fast mode: runs rapid static checks and unit tests, skipping heavy builds and end-to-end stages. Omitted = runs full pipeline (`lint:fix -> build -> test:unit`). |
+- **Practical Examples**:
+  ```text
+  # Run fast pre-commit check
+  /dhpk:precommit --fast
+
+  # Run full deterministic quality gate
+  /dhpk:precommit
+  ```
+
+#### 8. repo-verify / /dhpk:verify (Repository Cross-Layer Verification)
+
+- **Purpose**: Read-only cross-layer validation across all project levels (lint, typecheck, unit, integration, e2e).
+- **Invocation Syntax**: `/dhpk:verify [<mode>] [--integration=<path>] [--e2e=<path>]` (Codex: `$repo-verify ...`)
+- **Parameter Breakdown**:
+  | Parameter | Type / Choices | Default | Description |
+  |---|---|---|---|
+  | `<mode>` | `fast` \| `full` | `full` | Verification mode. `fast` (lint + unit tests); `full` (all stages: lint + typecheck + unit + integration + e2e). |
+  | `--integration=<path>` | String | None | Specify custom integration test path. |
+  | `--e2e=<path>` | String | None | Specify custom end-to-end test path. |
+- **Practical Examples**:
+  ```text
+  # Run full repository verification
+  /dhpk:verify
+
+  # Run fast verification stage
+  /dhpk:verify fast
+
+  # Run full verification with customized test directories
+  /dhpk:verify full --integration=tests/Integration --e2e=tests/E2E
+  ```
+
+#### 9. smart-commit (Smart Atomic Batch Commit)
+
+- **Purpose**: Analyzes unstaged/staged files, groups them by cohesion, formats Conventional Commit messages matching project conventions, and produces copy-pasteable Git commands.
+- **Invocation Syntax**: `/dhpk:smart-commit [--scope <path>] [--type <type>] [--ai-co-author]`
+- **Parameter Breakdown**:
+  | Parameter | Type | Description |
+  |---|---|---|
+  | `--scope <path>` | Path string | Restrict staging and commit grouping to a designated directory or path. |
+  | `--type <type>` | String | Enforce commit type prefix (e.g., `feat`, `fix`, `refactor`, `docs`, `test`, `chore`). |
+  | `--ai-co-author` | Boolean flag | Append AI co-author trailer (`Co-authored-by: ...`) to commit messages. |
+- **Practical Examples**:
+  ```text
+  # Analyze all working tree changes and group into atomic commits
+  /dhpk:smart-commit
+
+  # Stage only frontend assets and enforce refactor type
+  /dhpk:smart-commit --scope resources/assets/js --type refactor
+
+  # Include AI co-author trailer
+  /dhpk:smart-commit --ai-co-author
+  ```
+
+#### 10. create-pr (Pull Request Creation)
+
+- **Purpose**: Extracts ticket IDs from branch history and commits, composing project-compliant PR titles, summaries, and verification evidence.
+- **Invocation Syntax**: `/dhpk:create-pr [--head=<branch>] [--base=<branch>] [--title=<text>] [--execute] [--dry-run]`
+- **Parameter Breakdown**:
+  | Parameter | Type | Default | Description |
+  |---|---|---|---|
+  | `--dry-run` | Boolean flag | Enabled | Outputs copy-pasteable `gh pr create` command preview without making changes. |
+  | `--execute` | Boolean flag | Off | Actually executes `gh pr create` and returns the resulting PR URL. |
+  | `--head=<branch>` | String | Current branch | Source branch to open PR from. |
+  | `--base=<branch>` | String | `develop` or `main` | Target branch (defaults to project configured target branch). |
+  | `--title=<text>` | String | Auto-generated | Explicit PR title overriding ticket-aware default. |
+- **Practical Examples**:
+  ```text
+  # Preview PR title, body, and gh command (dry-run mode)
+  /dhpk:create-pr
+
+  # Open PR targeting develop branch
+  /dhpk:create-pr --execute
+
+  # Target main branch with custom title
+  /dhpk:create-pr --base=main --title="feat: [PROJ-890] Refactor checkout payment pipeline" --execute
+  ```
+
+#### 11. dhpk-deploy-list (Cross-Ecosystem Deploy File-List Generator)
+
+- **Purpose**: Generates a release file checklist from Git history, filtering dev-only assets (tests, CI, docs) and grouping files by ecosystem preset (Yii, Laravel, Node, Python, generic).
+- **Invocation Syntax**: `dhpk-deploy-list --tag <[TAG]> --description "<text>" [options]`
+- **Parameter Breakdown**:
+  | Parameter | Type | Required | Description |
+  |---|---|---|---|
+  | `--tag <[TAG]>` | String | Yes | Release tag metadata (must match bracket format `^\[.+\]$`, e.g. `[PROD-20261006]`). |
+  | `--description "<text>"` | String | Yes | Freeform release summary. |
+  | `--deploy-commits <shas>` | Comma-separated string | No | Pinned commit SHAs; diff union forms the primary deployment group. |
+  | `--anchor "<string>"` | String | No | Search source files for an inline anchor marker (mutually exclusive with `--deploy-commits`). |
+  | `--base <ref>` / `--head <ref>` | Git ref | No | Git revision comparison range (default: `main..HEAD`). |
+  | `--preset <preset>` | String | No | Ecosystem preset rule (`php-yii`, `laravel`, `node`, `python`, `generic`). |
+  | `--lang <en\|zh-TW>` | String | No | Output checklist language (default: `en`). |
+  | `--auto-detect-tag` | Boolean flag | No | Auto-search `$TAG` in commit messages to populate `--deploy-commits`. |
+- **Practical Examples**:
+  ```text
+  # Generate standard deployment checklist against main
+  dhpk-deploy-list --tag="[RELEASE-1.4.0]" --description="User profile redesign" --lang=en
+
+  # Pin specific commit range for hotfix release
+  dhpk-deploy-list --tag="[HOTFIX-20261006]" --description="Fix checkout float precision" --deploy-commits="a1b2c3d,e4f5a6b" --lang=en
+  ```
+
+#### 12. opsx-apply-resume (Long-Running Task Context Save & Resume)
+
+- **Purpose**: Snapshots live workspace state when approaching context/token limits in long apply sessions, and restores execution progress and verification gates in a fresh session.
+- **Invocation Syntax**: `/dhpk:opsx-apply-resume [<change-id>]`
+- **Parameter Breakdown**:
+  | Parameter | Type | Description |
+  |---|---|---|
+  | `<change-id>` | String (optional) | Target OpenSpec Change ID. If omitted, automatically detects latest active change. |
+- **Practical Examples**:
+  ```text
+  # Save live state before context exhaustion in current session
+  /dhpk:opsx-apply-resume change-refactor-auth-v2
+
+  # Resume in-progress change in a fresh session
+  /dhpk:opsx-apply-resume
+  ```
 
 ## Sync Codex CLI content
 
