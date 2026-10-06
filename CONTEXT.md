@@ -70,6 +70,38 @@ _Avoid_: Directory symlink, native copy
 
 ## Skill Distribution
 
+**Public Plugin**:
+A versioned skills-only dhpk package intended for public distribution through OpenAI's universal plugin directory to users of Codex and ChatGPT Work.
+_Avoid_: Local marketplace, project sync, installed skill directory
+
+**Development Marketplace**:
+A local or repository plugin catalog used to test dhpk before public publication.
+_Avoid_: Public Plugin, public release channel
+
+**Skill Identity**:
+The stable identity of one dhpk capability, retained when its public name or distribution location changes.
+_Avoid_: Public Skill Name, directory name, installation path
+
+**Public Skill Name**:
+The user-facing discovery and invocation name of a Skill Identity on a Host.
+_Avoid_: Stable ID, capability ID, source path
+
+**Public Workflow**:
+A discoverable dhpk skill entry for a recognizable user task, with a defined input, outcome, and authority boundary.
+_Avoid_: Internal runtime, Specialist Reference, every knowledge file
+
+**Specialist Reference**:
+Task-selected dhpk guidance for a language, framework, version, or other specialist concern, loaded by a Public Workflow without an independent discovery entry.
+_Avoid_: Public Workflow, optional discoverable skill, second capability owner
+
+**Discovery Source**:
+An active installation source through which a Host discovers a dhpk skill in a particular consumer context.
+_Avoid_: Canonical source, generated artifact, physical copy count
+
+**Duplicate Discovery**:
+Multiple visible entries for the same Skill Identity within one Host and consumer context, including entries under old and new public names.
+_Avoid_: Generated copies, shared content across different Hosts, same-name collision between distinct capabilities
+
 **Self-Contained Skill**:
 A Skill whose required code and bundled resources are contained in its canonical directory and remain usable when that directory is relocated, given its declared external tools and Host capabilities. Self-containment is independent of which Hosts the Skill supports.
 _Avoid_: Dependency-free skill, packaged-only completeness, cross-Host support
