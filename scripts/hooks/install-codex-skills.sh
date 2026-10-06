@@ -891,6 +891,90 @@ def receipt_path_missing(relative):
         os.close(parent_fd)
 
 
+def receipt_record_matches_relative(record, relative):
+    if not isinstance(record, dict):
+        return False
+    source = record.get('source')
+    destination = record.get('destination')
+    return (
+        source in (None, relative)
+        and destination in (None, relative)
+        and (source == relative or destination == relative)
+    )
+
+
+def is_orphan_only_projection(entries, orphaned):
+    """Validate a receipt projection containing only safely recorded orphans."""
+    if not isinstance(entries, dict) or not isinstance(orphaned, dict) or not orphaned:
+        return False
+    if any(not isinstance(entries.get(kind), dict) for kind in MANAGED_KINDS):
+        return False
+    if any(kind not in MANAGED_KINDS and bool(values) for kind, values in entries.items()):
+        return False
+
+    for relative, record in orphaned.items():
+        if not isinstance(relative, str) or not receipt_record_matches_relative(record, relative):
+            return False
+        try:
+            safe_destination(relative)
+            # Validate each parent through pinned, no-follow directory opens.
+            # The leaf may be missing, edited, or a retargeted symlink.
+            receipt_path_missing(relative)
+        except (OSError, ValueError):
+            return False
+
+    for kind in MANAGED_KINDS:
+        for name, entry in entries[kind].items():
+            if not isinstance(name, str) or not name or not isinstance(entry, dict) or entry.get('orphaned') is not True:
+                return False
+            relative = name if kind == 'supporting_assets' else f'{kind}/{name}'
+            if not receipt_record_matches_relative(entry, relative):
+                return False
+            try:
+                receipt_destination(kind, name, entry)
+            except (OSError, ValueError):
+                return False
+            if relative not in orphaned:
+                return False
+    return True
+
+
+def is_retired_orphan_only_receipt(receipt):
+    """Recognize only complete partial receipts for known retired profiles."""
+    if (not isinstance(receipt, dict)
+            or receipt.get('schema_version') != SCHEMA_VERSION
+            or receipt.get('state') != 'partial'
+            or receipt.get('mode') not in ('copy', 'symlink')):
+        return False
+    profile_id = receipt.get('profileId')
+    if not isinstance(profile_id, str) or not profile_id:
+        return False
+    if 'legacy_pending' in receipt and receipt.get('legacy_pending') is not False:
+        return False
+    if 'transaction_id' in receipt or 'transaction_final' in receipt:
+        transaction_id = receipt.get('transaction_id')
+        if (not isinstance(transaction_id, str) or not transaction_id.strip()
+                or receipt.get('transaction_final') is not True):
+            return False
+    if not receipt_has_retired_profile(receipt):
+        return False
+    return is_orphan_only_projection(receipt.get('managed_entries'), receipt.get('orphaned_entries'))
+
+
+def receipt_has_retired_profile(receipt):
+    if not isinstance(receipt, dict):
+        return False
+    profile_id = receipt.get('profileId')
+    if not isinstance(profile_id, str) or not profile_id:
+        return False
+    try:
+        profiles_document, _profiles = read_install_profiles()
+    except ValueError:
+        return False
+    historical = profiles_document.get('legacy_profiles') if isinstance(profiles_document, dict) else None
+    return isinstance(historical, dict) and profile_id in historical
+
+
 def remove_relative_path(relative, expected_fingerprint=None):
     """Remove one receipt-relative entry through a pinned parent directory.
 
@@ -2381,6 +2465,8 @@ def receipt_profile_update_block(receipt):
     profiles_document, _profiles = read_install_profiles()
     historical = profiles_document.get('legacy_profiles') if isinstance(profiles_document, dict) else None
     retired_profile = isinstance(profile_id, str) and isinstance(historical, dict) and profile_id in historical
+    if retired_profile and is_retired_orphan_only_receipt(receipt):
+        return None
     return {
         'schema_version': SCHEMA_VERSION,
         'state': 'blocked',
@@ -3314,7 +3400,7 @@ def entry_map(receipt):
 
 def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fingerprint):
     """Classify receipt/projection state before any destination mutation."""
-    if not receipt and not malformed:
+    if not malformed and (not receipt or is_retired_orphan_only_receipt(receipt)):
         return {
             'state': 'new',
             'requires_migration': False,
@@ -4549,7 +4635,8 @@ plan = build_plan(receipt, classification, sources, skill_metadata, plugin_versi
 if PLAN:
     if (isinstance(receipt, dict)
             and isinstance(receipt.get('profileId'), str)
-            and receipt.get('profileId') != 'common'):
+            and receipt.get('profileId') != 'common'
+            and not is_retired_orphan_only_receipt(receipt)):
         plan['next_action'] = 'run this installer with --uninstall, then perform a fresh install without --profile'
     print_plan(plan)
 try:
@@ -4676,13 +4763,18 @@ if UNINSTALL:
             finish_transaction('committed')
             clear_pending_transactions()
         else:
+            verified_retired_residue = (
+                receipt_has_retired_profile(receipt)
+                and is_orphan_only_projection(remaining, orphaned)
+            )
             save_receipt_with_prune_rollback(
                 plugin_version,
                 fingerprint,
                 remaining,
                 orphaned,
                 counts,
-                legacy_pending=legacy_pending,
+                legacy_pending=False if verified_retired_residue else legacy_pending,
+                state='partial' if verified_retired_residue else None,
             )
     except ReceiptCommitError as error:
         if (isinstance(TRANSACTION_JOURNAL, dict)
