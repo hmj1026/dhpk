@@ -75,6 +75,11 @@ function fakePlugin() {
       surfaces: ['cursor-sync', 'cursor-plugin'],
       legacy_names: [],
     }],
+    profile_policy: {
+      version: 'dhpk.capability-bundle-selection.v1',
+      required_core_ids: ['portable'],
+      profiles: { common: { selection: 'declared-common', compatibilityMode: 'profile' } },
+    },
     supporting_assets: [
       {
         id: 'cursor-trap',
@@ -134,7 +139,7 @@ function fakePlugin() {
     schema: 'dhpk.profile-projection-sets.v1',
     hostSurfaces: { cursor: 'cursor-sync' },
     profiles: {
-      minimal: { cursor: ['portable'] },
+      common: { cursor: ['portable'] },
     },
   }, null, 2)}\n`);
   return plugin;
@@ -145,10 +150,9 @@ function dependencyFixturePlugin() {
   const inventoryPath = path.join(plugin, 'manifests', 'distribution-inventory.json');
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
   inventory.skills.push({ id: 'code-trace', name: 'code-trace', path: 'skills/code-trace', lifecycle: 'promoted', surfaces: ['cursor-sync', 'cursor-plugin'], legacy_names: [] });
-  inventory.profile_policy = { required_core_ids: ['portable'] };
   inventory.internal_runtime_skills = { 'codex-native': [], 'cursor-sync': [] };
   inventory.project_agent_projection.profiles['portable-core'].stable_ids.push('code-trace');
-  write(path.join(plugin, 'manifests', 'install-profiles.json'), `${JSON.stringify({ version: 1, profiles: { minimal: { modules: [], skillIds: ['portable'], commandIds: [], compatibilityMode: 'profile' } } })}\n`);
+  write(path.join(plugin, 'manifests', 'install-profiles.json'), `${JSON.stringify({ version: 1, profiles: { common: { modules: [], skillIds: ['portable'], commandIds: [], compatibilityMode: 'profile' } } })}\n`);
   write(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
   const skill = '---\nname: code-trace\ndescription: dependency fixture\n---\n# Code trace\n';
   write(path.join(plugin, 'skills', 'code-trace', 'SKILL.md'), skill);
@@ -700,7 +704,7 @@ test('--plan --json does not warn when hash cache version matches local packages
   }
 });
 
-test('default minimal Cursor install keeps command and agent skill-path dependencies closed', () => {
+test('default common Cursor install keeps command and agent skill-path dependencies closed', () => {
   const scratch = projectRoot();
   const plugin = dependencyFixturePlugin();
   try {
@@ -763,13 +767,13 @@ test('default minimal Cursor install keeps command and agent skill-path dependen
   }
 });
 
-test('a profile that includes code-trace projects the gated command and agent', () => {
+test('an explicit skill overlay that includes code-trace projects the gated command and agent', () => {
   const scratch = projectRoot();
   const plugin = dependencyFixturePlugin();
   try {
     const res = runInstaller(
       scratch,
-      ['--copy', '--force', '--profile', 'minimal', '--skill', 'code-trace'],
+      ['--copy', '--force', '--skill', 'code-trace'],
       plugin,
       undefined,
       ROOT_INSTALL_TIMEOUT_MS,
@@ -801,7 +805,7 @@ test('--update removes unchanged excluded commands and keeps modified ones', () 
     const cursor = path.join(scratch, '.cursor');
     const receiptPath = path.join(cursor, '.dhpk-installed.json');
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    assert.strictEqual(receipt.profileId, 'minimal');
+    assert.strictEqual(receipt.profileId, 'common');
 
     const unchangedSource = path.join(plugin, 'cursor', 'commands', 'trace-fixture.md');
     const unchangedDest = path.join(cursor, 'commands', 'trace-fixture.md');

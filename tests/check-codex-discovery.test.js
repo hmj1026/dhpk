@@ -122,9 +122,16 @@ function discoverNativeFixture(paths) {
 test('native marketplace publication provenance accepts the complete canonical Codex catalog', () => {
   const paths = nativePublicationFixture();
   try {
-    assert.strictEqual(paths.view.publicEntries.length + paths.view.hostOnly.length, 22);
+    const expectedPublication = [...paths.view.publicEntries, ...paths.view.hostOnly]
+      .map((skill) => ({ id: skill.id, name: skill.name || skill.id }))
+      .sort((left, right) => left.id.localeCompare(right.id));
     const surfaces = discoverNativeFixture(paths);
-    assert.strictEqual(surfaces.native.length, 22);
+    const inventoryIdsByName = new Map(paths.inventory.skills.map((skill) => [skill.name || skill.id, skill.id]));
+    const observedPublication = surfaces.native
+      .map((entry) => ({ id: inventoryIdsByName.get(entry.id), name: entry.id }))
+      .sort((left, right) => String(left.id).localeCompare(String(right.id)));
+    assert.deepStrictEqual(observedPublication, expectedPublication,
+      'native directories must exactly match the selected Codex stable ID to name mapping');
     assert.ok(surfaces.native.every((entry) => entry.owned && entry.current), JSON.stringify(surfaces.native.map((entry) => ({ id: entry.id, owned: entry.owned, current: entry.current }))));
   } finally {
     fs.rmSync(paths.root, { recursive: true, force: true });

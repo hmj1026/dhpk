@@ -18,7 +18,6 @@ test('Darwin installer subset lists existing files and private-tmp env for consu
     'tests/cli-dispatch-launcher.test.js',
     'tests/install.test.js',
     'tests/consumer-gate-cli.test.js',
-    'tests/multi-ai-sync-agy-platform.test.js',
     'tests/run-bounded-node-test.test.js',
   ]);
   for (const entry of MACOS_INSTALLER_FILES) {

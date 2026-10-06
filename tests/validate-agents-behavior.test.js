@@ -241,6 +241,17 @@ test('explicitly empty optional fields fail only in strict mode', () => {
   const GENERATOR = path.join(ROOT, 'scripts', 'ci', 'gen-agents-skills.js');
   const VALIDATOR = path.join(ROOT, 'scripts', 'ci', 'validate-agents-skills.js');
 
+  const { selectPortableSkills } = require('../scripts/lib/agent-plugin-package');
+
+  function expectedAgentPluginSkillIds() {
+    const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    return selectPortableSkills(inventory, 'agent-plugin').map((skill) => skill.id).sort();
+  }
+
+  function assertSelectedSkillCount(output, selectedIds) {
+    assert.match(output, new RegExp(`PASS \\[agents-skills\\]: ${selectedIds.length} selected skills; runtime=NOT_RUN`));
+  }
+
 test('validate-agents-skills CLI reports structural PASS and runtime boundary', () => {
   const outDir = fs.mkdtempSync(path.join(ROOT, '.agents-skills-validate-'));
   try {
@@ -253,16 +264,20 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
         0,
         `${generated.stdout || ''}${generated.stderr || ''} outDir=${outDir} entries=${fs.readdirSync(outDir).join(',')}`,
       );
+    const selectedIds = expectedAgentPluginSkillIds();
     const result = spawnSync(process.execPath, [VALIDATOR, '--repo-root', ROOT, '--out-dir', outDir], {
       cwd: ROOT,
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /PASS \[agents-skills\]: 52 selected skills; runtime=NOT_RUN/);
+    assertSelectedSkillCount(result.stdout, selectedIds);
 
-    const receipt = path.join(outDir, '.dhpk-projection.json');
-    assert.ok(fs.existsSync(receipt), 'generator must write the projection receipt');
-    fs.rmSync(receipt);
+    const receiptPath = path.join(outDir, '.dhpk-projection.json');
+    assert.ok(fs.existsSync(receiptPath), 'generator must write the projection receipt');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.deepStrictEqual(receipt.selectedIds, selectedIds,
+      'receipt selection must match the current Agent Plugin inventory');
+    fs.rmSync(receiptPath);
     const missingReceipt = spawnSync(process.execPath, [VALIDATOR, '--repo-root', ROOT, '--out-dir', outDir], {
       cwd: ROOT,
       encoding: 'utf8',
@@ -283,7 +298,7 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
       encoding: 'utf8',
     });
     assert.strictEqual(restored.status, 0, restored.stderr);
-    assert.match(restored.stdout, /PASS \[agents-skills\]: 52 selected skills; runtime=NOT_RUN/);
+    assertSelectedSkillCount(restored.stdout, selectedIds);
   } finally {
     fs.rmSync(outDir, { recursive: true, force: true });
   }
@@ -301,6 +316,7 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
         '--host', 'codex',
     ], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(generated.status, 0, generated.stderr);
+    const receiptPath = path.join(projectRoot, '.agents', '.dhpk-installed.json');
     const result = spawnSync(process.execPath, [
         VALIDATOR,
         '--repo-root', ROOT,
@@ -308,11 +324,11 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
         '--project-root', projectRoot,
     ], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /PASS \[agents-skills\]: 52 selected skills; runtime=NOT_RUN/);
+    assert.ok(fs.existsSync(receiptPath), 'generator must write the external project receipt');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assertSelectedSkillCount(result.stdout, receipt.selectedIds);
 
-    const receipt = path.join(projectRoot, '.agents', '.dhpk-installed.json');
-    assert.ok(fs.existsSync(receipt), 'generator must write the external project receipt');
-    fs.rmSync(receipt);
+    fs.rmSync(receiptPath);
     const missingReceipt = spawnSync(process.execPath, [
       VALIDATOR,
       '--repo-root', ROOT,
@@ -342,7 +358,8 @@ test('validate-agents-skills CLI reports structural PASS and runtime boundary', 
       '--project-root', projectRoot,
     ], { cwd: ROOT, encoding: 'utf8' });
     assert.strictEqual(restored.status, 0, restored.stderr);
-    assert.match(restored.stdout, /PASS \[agents-skills\]: 52 selected skills; runtime=NOT_RUN/);
+    const restoredReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assertSelectedSkillCount(restored.stdout, restoredReceipt.selectedIds);
   } finally {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   }

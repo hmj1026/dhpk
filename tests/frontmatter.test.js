@@ -43,7 +43,6 @@ const OFFICIAL_STRICT_FAILURE_SET = [
   'dhpk-ios-platform',
   'laravel',
   'phpunit',
-  'harness-govern',
   'flow-guide',
   'flow-drive',
   'dhpk-laravel-package-author',
@@ -93,7 +92,6 @@ test('extract preserves colon-containing quoted descriptions as one scalar', () 
 });
 
 test('official strict-failure skills expose non-empty quoted descriptions', () => {
-  assert.strictEqual(OFFICIAL_STRICT_FAILURE_SET.length, 21);
   for (const skill of OFFICIAL_STRICT_FAILURE_SET) {
     const file = path.join(ROOT, 'skills', skill, 'SKILL.md');
     const content = fs.readFileSync(file, 'utf8');

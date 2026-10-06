@@ -4,9 +4,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { selectPortableSkills } = require('../scripts/lib/agent-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
 const GENERATOR = path.join(ROOT, 'scripts', 'ci', 'gen-agents-skills.js');
+
+function expectedAgentPluginSkillIds() {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  return selectPortableSkills(inventory, 'agent-plugin').map((skill) => skill.id).sort();
+}
 
 test('gen-agents-skills CLI materializes a project-local compatibility tree', () => {
   const outDir = fs.mkdtempSync(path.join(ROOT, '.agents-skills-cli-'));
@@ -16,8 +22,11 @@ test('gen-agents-skills CLI materializes a project-local compatibility tree', ()
       encoding: 'utf8',
     });
     assert.strictEqual(result.status, 0, result.stderr);
-    assert.match(result.stdout, /wrote 52 selected skills/);
     const receipt = JSON.parse(fs.readFileSync(path.join(outDir, '.dhpk-projection.json'), 'utf8'));
+    const selectedIds = expectedAgentPluginSkillIds();
+    assert.deepStrictEqual(receipt.selectedIds, selectedIds,
+      'projection receipt must match the current Agent Plugin selection');
+    assert.match(result.stdout, new RegExp(`wrote ${selectedIds.length} selected skills`));
     const skillPath = 'flow-guide/SKILL.md';
     const skillFile = path.join(outDir, skillPath);
     assert.strictEqual(receipt.schema, 'dhpk.agents-skills-projection.v1');
