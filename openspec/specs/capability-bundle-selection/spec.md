@@ -8,38 +8,38 @@ surface while preserving compatibility and safe rollback.
 
 ## Requirements
 
-### Requirement: Profiles expose a closed stable-ID selection
+### Requirement: Common selection is closed and inventory-owned
 
-Every selectable profile SHALL declare a normalized profile ID, a stable skill-ID allowlist, and the module/dependency closure that supplements that allowlist. With no explicit `--skill` overlay, `minimal` SHALL resolve to exactly these four canonical IDs: `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`. A repeated `--skill` option SHALL be an explicit additive overlay to the chosen profile, MUST NOT mutate the profile definition or remove required core IDs, and the normalized selection SHALL record that overlay mode. The resolver MUST reject unknown, duplicate, retired, missing, external-package-lifecycle-conflicting, or surface-incompatible IDs before returning a selection plan.
+The internal `common` collection SHALL resolve the fifteen public stable IDs declared by the shared marketplace catalog and MUST include the four `required_core_ids`: `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`. A validated repeatable `--skill` overlay SHALL be additive, preserve required core IDs, and record explicit-overlay mode without changing the collection. Module presets and standalone selection SHALL retain their existing closure rules. Public publication `--profile` flags MUST be rejected before materialization.
 
-#### Scenario: Minimal profile resolves
+#### Scenario: Default common selection resolves
 
-- **WHEN** a new installation selects `minimal` against the consolidated inventory without an explicit overlay
-- **THEN** the resolver returns exactly the four declared core IDs in deterministic order: `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`, and returns no retired predecessor
+- **WHEN** a new installation omits an explicit selection
+- **THEN** the resolver returns the catalog's fifteen common IDs deterministically, includes all four structural core IDs, and records the common selection identity
 
-#### Scenario: Explicit skill is outside the profile
+#### Scenario: Explicit overlay is valid
 
-- **WHEN** an operator adds a stable ID that is unknown, retired, absent from the target surface, conflicts with external-package ownership, or is excluded by a profile conflict
-- **THEN** resolution fails closed with the ID, failure class, and an available profile or successor guidance, and produces no materialization intent
+- **WHEN** an operator requests live inventory-owned overlay IDs supported by the target surface
+- **THEN** resolution retains the common selection and required core, adds the validated IDs, and records overlay mode without changing its definition
 
-#### Scenario: Explicit skill overlay is valid
+#### Scenario: A selection or publication flag is invalid
 
-- **WHEN** an operator selects `minimal` with repeatable `--skill` values that are live, inventory-owned, and permitted on the target surface
-- **THEN** resolution retains the four required core IDs, adds the validated overlay IDs, marks the selection as explicit-overlay mode, and leaves the `minimal` profile definition unchanged
+- **WHEN** an ID is unknown, duplicate, retired, missing, conflicting, or surface-incompatible, or a publication command receives `--profile`
+- **THEN** resolution fails closed before any materialization or filesystem mutation
 
-### Requirement: Compatibility profiles have distinct meanings
+### Requirement: Retired profile identities remain historical metadata
 
-The selection contract SHALL reserve `minimal` for the default four-capability workflow bundle, SHALL preserve `full` as the conflict-aware module closure derived from the live module and conflict catalogs, and SHALL define `compat-v1` as the explicit predecessor-compatible set of live stable IDs. Membership SHALL be derived from the catalogs and inventory rather than a fixed per-revision count. A profile name MUST NOT silently change meaning between surfaces.
+`minimal`, `full`, and `compat-v1` SHALL remain recognizable historical receipt identities and MUST NOT be selectable publication profiles or regenerated tracked artifacts. Their stored selection MUST NOT be recompiled against today's inventory or narrowed by retirement filtering. Module preset names, hook profiles, and the project-agent `portable-core` profile SHALL retain their separate contracts.
 
-#### Scenario: Full profile retains module semantics
+#### Scenario: An old named profile is requested for publication
 
-- **WHEN** a stack profile resolves `full` with mutually exclusive modules
-- **THEN** the result contains the deterministic module closure after the declared conflict exclusions, and does not claim that `full` contains every live stable skill ID
+- **WHEN** a publication request selects a retired profile
+- **THEN** it fails before output mutation and identifies the current common, module, or standalone route
 
-#### Scenario: Compatibility bundle is requested
+#### Scenario: A historical receipt is inspected
 
-- **WHEN** an existing installation or rollback path selects `compat-v1`
-- **THEN** the non-retired stable IDs declared by the compatibility profile are selected in deterministic order and the result identifies the bundle as compatibility mode
+- **WHEN** read, plan, uninstall, or recovery loads a named historical receipt
+- **THEN** its exact stored scope, including retired IDs, remains available for ownership-safe handling
 
 ### Requirement: Profile selection identity is shared across its surfaces
 
@@ -55,19 +55,24 @@ Every selection produced from this capability-profile contract SHALL carry the s
 - **WHEN** an adapter emits an entry not present in the compiler-owned selection or omits a required selected ID
 - **THEN** validation rejects the artifact and reports the surface, stable ID, and selection-fingerprint mismatch
 
-### Requirement: New and existing profile installations migrate explicitly
+### Requirement: Current and historical receipt operations remain distinct
 
-New installations using this profile-based installation contract SHALL default to `minimal`. An existing profile receipt without an explicit migration record SHALL remain on `compat-v1`; an installer MUST NOT silently shrink an existing bundle. A user-requested profile migration SHALL record the old and new selection identities before activation. This requirement does not define the independent OpenAI marketplace catalog selection.
+New installations SHALL default to `common`. Current receipts SHALL retain ordinary receipt-owned updates. Historical named-profile receipt updates MUST return `BLOCKED` before any mutation, lock, or recovery write; read, plan, uninstall, and recovery SHALL preserve the exact stored selection and existing ownership protections. Unannotated older receipts SHALL retain the existing structural migration route. This requirement MUST NOT introduce a generic live migration writer or change the independent OpenAI submission catalog contract.
 
 #### Scenario: New installation uses the default
 
-- **WHEN** a clean installation omits `--profile` and `--skill`
-- **THEN** it materializes `minimal` and records its selection identity in the receipt
+- **WHEN** a clean installation omits explicit selection
+- **THEN** it materializes common and records its canonical selection identity
 
-#### Scenario: Existing receipt is upgraded
+#### Scenario: Historical update is requested
 
-- **WHEN** an existing receipt has no profile identity or migration marker
-- **THEN** planning selects `compat-v1`, reports the preserved compatibility state, and does not remove optional entries solely because the new default is smaller
+- **WHEN** update loads a minimal, full, or compat-v1 receipt
+- **THEN** it returns BLOCKED before any filesystem side effect and preserves the receipt and installed content
+
+#### Scenario: Unannotated older receipt is handled
+
+- **WHEN** a receipt has no named selection metadata
+- **THEN** the existing structural migration and ownership route remains applicable without pretending it is a selectable retired publication profile
 
 ### Requirement: Bundle activation is atomic and rollback-safe
 

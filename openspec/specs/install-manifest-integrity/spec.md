@@ -2,7 +2,7 @@
 
 ## Purpose
 
-TBD - created by archiving change harness-consistency-audit. Update Purpose after archive.
+Keep the common installation selection, required core set, module presets, and distribution inventory consistent with shipped skills, commands, and modules.
 
 ## Requirements
 
@@ -20,32 +20,46 @@ Every module shipped under `modules/<id>/module.yaml` SHALL appear as a selectab
 - **WHEN** every `modules/<id>` has a catalog entry and every catalog module id has a `module.yaml`
 - **THEN** the manifest-integrity check passes
 
-### Requirement: The full profile is complete
+### Requirement: The common selection and module presets are complete
 
-The `full` profile in `manifests/install-profiles.json` SHALL contain every shipped module ID except those excluded by an explicit, machine-readable conflict-exclusion list. Profile validation SHALL also require a stable skill-ID selection field for `minimal`, `full`, and `compat-v1`: `minimal` SHALL contain exactly the nine default workflow IDs when no explicit `--skill` overlay is supplied, `full` SHALL preserve its conflict-aware module closure without implying all skill IDs, and `compat-v1` SHALL contain every non-retired stable skill ID from the predecessor release. An explicit `--skill` overlay SHALL be validated separately as additive selection and MUST NOT alter the stored profile definition. The manifest-integrity check SHALL fail when any declared module or profile skill selection is missing, duplicated, retired, unknown, or surface-incompatible.
+The `common` selection in `manifests/install-profiles.json` SHALL contain the
+15 public entry IDs declared by `manifests/marketplace-selection.json` and SHALL
+include every unchanged `required_core_ids` value as a required subset. The core
+invariant SHALL NOT replace or shrink the common selection. Existing module
+presets SHALL retain their declared module sets and conflict exclusions. The
+manifest-integrity check SHALL fail when the common selection is missing,
+duplicated, retired, unknown, or surface-incompatible, or when a declared
+module preset no longer matches its module catalog. Historical profile
+definitions MAY remain only as receipt-read metadata; they SHALL NOT become
+generated or published installation choices.
 
-#### Scenario: A new module is shipped without updating the full profile
+#### Scenario: Common selection covers its declared catalog
 
-- **WHEN** a new `modules/<id>` is added and `full.modules` does not include it and it is not on the conflict-exclusion list
-- **THEN** the manifest-integrity check reports the omission and exits non-zero
+- **WHEN** the common selection contains every public entry ID from the marketplace selection and includes all required core IDs
+- **THEN** manifest-integrity validation passes without treating the core subset as a separate default selection
+
+#### Scenario: Common selection or core invariant drifts
+
+- **WHEN** a public entry ID or required core ID is missing, duplicated, retired, unknown, or surface-incompatible
+- **THEN** manifest-integrity validation reports the affected ID and exits non-zero before installation
 
 #### Scenario: A conflicting module is intentionally excluded
 
-- **WHEN** `php-7.4` is on the conflict-exclusion list because `full` includes `php-5.6`
-- **THEN** the manifest-integrity check passes without requiring `php-7.4` in the profile
+- **WHEN** a module is excluded by the existing machine-readable conflict rule
+- **THEN** validation preserves the exclusion and does not require that module in the preset
 
-#### Scenario: Minimal and compatibility selections are validated
+#### Scenario: Historical profiles are used only to read receipts
 
-- **WHEN** `minimal` omits a default workflow ID, or an explicit overlay or `compat-v1` includes an unknown or retired ID
-- **THEN** profile validation reports the stable ID and exits non-zero before installation
+- **WHEN** a manifest retains a retired profile definition for an existing receipt
+- **THEN** it remains available for receipt metadata interpretation and is not emitted as an install or publication choice
 
 ### Requirement: Manifest integrity is wired into the test suite
 
 The manifest-integrity checks SHALL run as part of the repository's standard test entry point (`node tests/run-all.js`), so CI fails on install-manifest drift.
 
-#### Scenario: CI catches profile drift
+#### Scenario: CI catches selection or module-preset drift
 
-- **WHEN** a pull request adds a module without updating the catalog or full profile and CI runs the test suite
+- **WHEN** a pull request changes the common selection or makes a declared module preset inconsistent with its catalog and CI runs the test suite
 - **THEN** the suite fails with the manifest-integrity finding
 
 ### Requirement: Version-pin write guidance resolves symlinks

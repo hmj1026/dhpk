@@ -19,47 +19,57 @@ Define the discovery-visible metadata budget, progressive-loading boundary, fami
 
 ### Requirement: Discovery-visible descriptions stay within lifecycle and surface budgets
 
-Every skill published on a discovery-visible surface SHALL have a canonical frontmatter description whose whitespace-delimited word count and conservative token count are within the configured budget for its lifecycle, surface, and selected profile artifact. Discovery visibility, lifecycle, publication surface, normalized profile ID, selected stable-ID set, artifact/selection identity, estimator/version, and applicable limits MUST be explicit accounting inputs. A missing visibility or budget configuration SHALL return a structured configuration failure and MUST NOT be evaluated as a zero-valued content budget. Strict validation SHALL fail on either overflow and SHALL pass only when the complete scoped report has zero violations.
+Every skill published on a discovery-visible surface SHALL have a canonical
+frontmatter description whose whitespace-delimited word count and conservative
+token count are within the configured budget for its lifecycle, surface, and
+selection scope. Discovery visibility, lifecycle, publication surface, scope
+identity (`common`, an enabled module preset, or an explicit standalone
+selection), selected stable-ID set, artifact identity, estimator/version, and
+applicable limits MUST be explicit accounting inputs. A missing visibility or
+budget configuration SHALL return a structured configuration failure and MUST
+NOT be evaluated as a zero-valued content budget. Strict validation SHALL fail
+on either overflow and SHALL pass only when the complete requested scope has
+zero violations.
 
 #### Scenario: Explicit visibility is measured
 
-- **WHEN** a skill entry supplies declared discovery visibility, lifecycle, surface/profile scope, selected artifact identity, estimator, and applicable limits
+- **WHEN** a skill entry supplies declared discovery visibility, lifecycle, surface and selection scope, selected artifact identity, estimator, and applicable limits
 - **THEN** the report measures and labels the entry in its declared scope
 
 #### Scenario: Current report is internally consistent
 
-- **WHEN** strict context-budget validation scans the current inventory and declared surfaces for `minimal`, `full`, or `compat-v1`
-- **THEN** the report contains measured discovery-visible and optional counts for each surface/profile and zero violations, or exits non-zero with every violation listed
+- **WHEN** strict context-budget validation scans the current inventory for the declared common catalog and any selected module or standalone scopes
+- **THEN** the report contains measured discovery-visible and optional counts per scope and zero violations, or exits non-zero with every violation listed
 
 #### Scenario: Current baseline is clean
 
-- **WHEN** strict context-budget validation scans the current inventory and declared surfaces with no violations
+- **WHEN** strict context-budget validation scans the selected scopes with no violations
 - **THEN** the complete report passes and records the measured baseline by scope
 
 #### Scenario: Visibility is not known
 
-- **WHEN** an entry has no explicit host visibility or its surface/profile budget is missing
+- **WHEN** an entry has no explicit host visibility or its surface/scope budget is missing
 - **THEN** validation returns a structured configuration failure rather than treating the limit as zero or claiming the entry is discovery-visible
 
 #### Scenario: A scoped description exceeds a limit
 
 - **WHEN** a discovery-visible description exceeds either configured limit
-- **THEN** validation reports the stable ID, lifecycle, surface/profile, selected artifact, estimator, measured counts, and limits and exits non-zero
+- **THEN** validation reports the stable ID, lifecycle, surface, selection scope, selected artifact, estimator, measured counts, and limits and exits non-zero
 
 #### Scenario: A surface exceeds a limit
 
 - **WHEN** any declared discovery-visible surface exceeds its applicable word or token limit
 - **THEN** validation reports the affected surface and limit and exits non-zero
 
-#### Scenario: Profile scope is omitted
+#### Scenario: Selection scope is omitted
 
-- **WHEN** a Claude budget report mixes unscoped, `minimal`, and `compat-v1` entries without recording the selected artifact identity
-- **THEN** validation fails with a scope/provenance diagnostic rather than presenting one combined total as a bundle result
+- **WHEN** a report combines common catalog, module preset, or standalone entries without recording each selected artifact identity
+- **THEN** validation fails with a scope/provenance diagnostic rather than presenting one combined total as a scoped result
 
 #### Scenario: Metadata is within budget
 
 - **WHEN** all explicitly scoped discovery-visible descriptions meet their configured budgets
-- **THEN** the budget result passes independently of projection parity and reports totals by category, surface, and selected profile artifact
+- **THEN** the budget result passes independently of projection parity and reports totals by category, surface, and selected scope
 
 ### Requirement: Initial descriptions are progressive routing metadata
 
@@ -181,29 +191,31 @@ closed when the plan exceeds that ceiling.
 - **WHEN** an executed plan repeats sessions but covers only a single fixture, or covers the matrix without repeating sessions
 - **THEN** the receipt stays `directional-pilot` and the formal gate remains open
 
-### Requirement: Default-discoverable surface stays within an aggregate ceiling
+### Requirement: Aggregate discovery comparisons remain optional research
 
-In addition to the existing per-lifecycle/per-surface description budgets, the catalog SHALL compute and enforce a whole-catalog ceiling over the default-discoverable set (the `implicit-eligible` entries published on the `claude-core` surface for the `minimal`/default Claude install artifact): no more than 15 entries, and an aggregate description-token total reduced by at least 70% from the recorded raw-compatibility pre-curation baseline. The baseline SHALL be measured and recorded before any curation edit lands, using the same estimator and scope already defined for per-entry budgets. The measurement SHALL be reproducible: running it twice against unchanged canonical sources and inventory SHALL produce an identical entry count and token total.
+The canonical `common` catalog remains the default discovery selection, with
+membership owned by `manifests/marketplace-selection.json`. An optional
+aggregate research report MAY calculate entry and description-token totals for
+a named catalog, module, or standalone scope, and SHALL bind the result to that
+scope and estimator. The historical raw-compatibility comparison's 70%
+reduction target is retained as research context only; it MUST NOT become a
+routine validation, CI, or release gate. Normal acceptance remains governed by
+the scoped per-description budgets and current selection contracts above.
 
-#### Scenario: Baseline is recorded before curation
+#### Scenario: An aggregate comparison is requested
 
-- **WHEN** the aggregate-budget script runs against the pre-curation distribution inventory
-- **THEN** it records the current default-discoverable entry count and aggregate token total as the frozen baseline before any lifecycle or invocation-class edit is made
+- **WHEN** a researcher requests an aggregate discovery comparison
+- **THEN** the report identifies the selected scope and estimator and reports its entry count and token total without combining unrelated scopes
 
-#### Scenario: Curated default surface exceeds the entry ceiling
+#### Scenario: Routine validation runs
 
-- **WHEN** the `implicit-eligible` + `claude-core` + default-profile entry count exceeds 15
-- **THEN** validation reports the entry count, the excess entries, and exits non-zero
+- **WHEN** the standard context-budget validation runs without an aggregate research request
+- **THEN** it checks the scoped per-description budgets and current selection contracts without requiring the historical 70% comparison
 
-#### Scenario: Curated default surface fails the token-reduction target
+#### Scenario: Standalone scope is measured
 
-- **WHEN** the aggregate description-token total for the curated default set is not at least 70% below the recorded baseline
-- **THEN** validation reports the baseline, current total, and computed reduction percentage, and exits non-zero
-
-#### Scenario: Measurement is reproducible
-
-- **WHEN** the aggregate-budget script runs twice against unchanged canonical sources and inventory
-- **THEN** both runs report the identical entry count and token total
+- **WHEN** an aggregate research report measures an explicit standalone selection
+- **THEN** it reports that selection separately from the default common catalog
 
 ### Requirement: Family skill version resolution is explicit-first with self-contained detection
 

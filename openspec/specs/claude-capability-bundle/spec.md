@@ -2,49 +2,35 @@
 
 ## Purpose
 
-Define the inventory-bound, profile-scoped Claude publication artifact that
-reduces discovery-visible capability entries before Claude host discovery while
-preserving canonical sources and explicit routing compatibility.
+Define the inventory-bound common Claude marketplace artifact and retained
+standalone utilities, preserving canonical sources, explicit routing, and
+historical receipt ownership before Host discovery.
 
 ## Requirements
 
-### Requirement: Profile selection is closed and inventory-owned
+### Requirement: Common selection is closed and inventory-owned
 
-The compiler SHALL resolve profiles/modules from their catalogs and select only
-inventory entries. Minimal SHALL equal the complete reviewed
-`required_core_ids` set: `change-verdict`, `code-trace`, `flow-drive`, and
-`flow-guide`; expected count SHALL be derived from that set rather than another
-numeric constant. Unknown/duplicate/retired IDs,
-cycles, missing requirements, and conflicts SHALL fail closed before a plan.
+The compiler SHALL resolve the internal common collection and validated module/dependency closure from their catalogs and select only inventory entries. Common SHALL match the shared catalog's fifteen public IDs and include the four reviewed required-core IDs. Unknown, duplicate, retired new-selection IDs, cycles, missing requirements, and conflicts MUST fail closed before materialization. Historical receipt reads SHALL preserve exact stored IDs, including retired identities, rather than resolve a new selection. Public `--profile` flags SHALL be rejected; manual bundle generation SHALL require explicit `--out`, while read-only plans and standalone utility remain supported.
 
-#### Scenario: A known profile is selected
+#### Scenario: Common is compiled
 
-- **WHEN** minimal is compiled with unchanged inputs and no override
-- **THEN** it returns exactly the four required-core IDs and records selection identity
-- **AND** validation compares sets rather than a hard-coded count
+- **WHEN** common is compiled with unchanged inputs and no override
+- **THEN** its IDs match the shared catalog and contain all required-core IDs, and its identity is deterministic
 
-#### Scenario: A compatibility profile is selected
+#### Scenario: Historical selection is read
 
-- **WHEN** an existing receipt selects `compat-v1`
-- **THEN** all non-retired predecessor IDs are returned deterministically
+- **WHEN** a named retired-profile receipt is inspected for read, plan, uninstall, or recovery
+- **THEN** its exact stored scope is returned without retirement filtering or recompilation
 
-#### Scenario: An invalid profile or skill is selected
+#### Scenario: A new selection is invalid
 
-- **WHEN** a selected skill ID is unknown, retired, conflicting, or outside the
-  inventory-owned plan
-- **THEN** compilation returns a structured error naming the ID and no
-  materialization intent
+- **WHEN** a skill or module closure is unknown, retired, conflicting, cyclic, missing, or outside the allowed inventory plan
+- **THEN** compilation returns a structured error and no materialization intent
 
-#### Scenario: An invalid profile is selected
+#### Scenario: Output includes an undeclared public entry
 
-- **WHEN** profile/module/dependency closure is invalid
-- **THEN** compilation returns a stable profile/dependency error and no
-  materialization intent
-
-#### Scenario: A generator finds an unselected skill
-
-- **WHEN** output contains a skill outside the selected inventory plan
-- **THEN** validation reports it out of scope and excludes it
+- **WHEN** generated output contains a public entry outside the selected inventory plan
+- **THEN** validation rejects it and distinguishes declared Host support and folded child resources from public entries
 
 ### Requirement: The bundle boundary precedes Claude discovery
 
@@ -90,24 +76,24 @@ Every profile bundle SHALL be produced by the shared distribution compiler and a
 - **WHEN** an adapter attempts to write an unplanned skill, root, or manifest entry
 - **THEN** the artifact store rejects the write and leaves the previously accepted bundle unchanged
 
-### Requirement: Compatibility and explicit routing are preserved
+### Requirement: Historical ownership and explicit routing are preserved
 
-The `compat-v1` Claude package SHALL remain available as an explicit compatibility target until the selected profile bundle passes its characterization, parity, rollback, and consumer gates. Stable IDs, public names, promoted core availability, and explicit-only invocation classes SHALL remain unchanged; an unselected optional ID MUST NOT silently resolve to a different skill. Existing receipts without an explicit migration record SHALL continue to resolve to `compat-v1`.
+Stable IDs, public names, required core availability, and invocation classes SHALL retain their existing contracts. Retired minimal/full/compat-v1 artifacts MUST NOT be regenerated or offered for new publication. Their historical receipts SHALL preserve exact stored scope for read, plan, uninstall, and recovery; update MUST be BLOCKED before mutation. Unannotated receipts SHALL retain their existing structural route. Standalone and module presets SHALL remain available through their existing owners; an unavailable optional ID MUST NOT silently resolve to another skill.
 
-#### Scenario: A user needs the full catalog
+#### Scenario: A historical update is requested
 
-- **WHEN** the compatibility target is selected
-- **THEN** the characterized `compat-v1` package is generated with its predecessor stable IDs and bytes available for rollback or explicit migration
+- **WHEN** a named retired-profile receipt is updated
+- **THEN** the adapter returns BLOCKED before mutation and preserves owned, modified, and foreign content
 
-#### Scenario: An optional skill is not in a profile
+#### Scenario: An optional capability is unavailable
 
-- **WHEN** an explicit request names an optional stable ID absent from the selected bundle
-- **THEN** the system reports that the capability is unavailable in that bundle and identifies the compatibility or alternate profile path
+- **WHEN** an explicit request names an unavailable optional stable ID
+- **THEN** the system reports it unavailable and identifies an applicable retained standalone or module route without restoring a retired alias
 
-#### Scenario: A profile changes an invocation class
+#### Scenario: Compilation changes an invocation class
 
-- **WHEN** profile compilation would change an existing skill's invocation class, public name, or canonical identity
-- **THEN** compilation fails closed until a separately approved compatibility change defines the migration
+- **WHEN** compilation would change a skill's invocation class, public name, or canonical identity
+- **THEN** it fails closed unless a separately approved compatibility change defines that behavior
 
 ### Requirement: Bundle evidence separates structural and consumer claims
 
@@ -121,7 +107,7 @@ Bundle generation SHALL emit structural evidence bound to profile, selected stab
 #### Scenario: The Claude probe is unavailable
 
 - **WHEN** the configured Claude consumer executable or installation mode is absent
-- **THEN** the result records the non-pass state and a resume command without claiming discovery reduction or replacing the active compatibility bundle
+- **THEN** the result records the non-pass state and a resume command without claiming discovery reduction or replacing an active installed bundle
 
 #### Scenario: The consumer sees a stale bundle
 
@@ -131,13 +117,13 @@ Bundle generation SHALL emit structural evidence bound to profile, selected stab
 #### Scenario: Marketplace structural evidence is not Claude consumer evidence
 
 - **WHEN** the OpenAI portable marketplace artifact reports structural `PASS` with runtime `NOT_RUN`
-- **THEN** that package receipt does not satisfy Claude profile verification or claim Claude discovery/runtime support, and the active Claude profile and compatibility behavior remain governed by this bundle's own selection and consumer evidence
+- **THEN** that package receipt does not satisfy Claude profile verification or claim Claude discovery/runtime support, and the active Claude selection and historical receipt behavior remain governed by this bundle's own selection and consumer evidence
 
 ### Requirement: Default Claude marketplace publication uses the shared catalog
 
-The default Claude marketplace package SHALL derive common public entries and their bundled children from the reviewed marketplace publication view and select Host-only resources for `claude-core` separately. Its catalog provenance SHALL record the selection digest, common public stable IDs, selected Host-only IDs, and packaged resource source paths, owner identities, destinations, kinds, and content hashes. This default catalog package SHALL remain distinct from explicit `minimal`, `full`, and `compat-v1` profile artifacts and SHALL NOT claim their shared-store activation contract or native runtime acceptance from generation alone.
+The existing `dhpk@dhpk` marketplace entry SHALL publish `generated/claude-marketplace/package`, derived from the reviewed shared catalog's fifteen common public entries and bundled children, with necessary `claude-core` Host resources selected separately. Catalog provenance SHALL record actual selection and resource ownership, paths, kinds, and hashes. Publication MUST NOT introduce a separate common variant or retain tracked minimal/full/compat-v1 artifacts. Generation MUST NOT claim native runtime acceptance or live activation.
 
-#### Scenario: Default catalog and explicit profiles coexist
+#### Scenario: Main catalog package is generated
 
-- **WHEN** the default Claude marketplace package is generated from the reviewed selection
-- **THEN** its public identities match the common catalog, its receipt records actual selected resources, and explicit profile generation and compatibility behavior remain available under their own contracts
+- **WHEN** the main Claude marketplace package is generated from the reviewed selection
+- **THEN** its public identities match the common catalog, its receipt records actual selected resources, and its marketplace identity remains dhpk@dhpk

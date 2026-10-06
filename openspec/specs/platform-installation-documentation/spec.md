@@ -42,21 +42,38 @@ contradictory command list.
 - **THEN** it names only its own surface, links to the canonical guide, and
   does not imply that a static manifest proves runtime support
 
-### Requirement: Claude clean installation selects the minimal profile
+### Requirement: Claude clean installation selects the common collection
 
 The bilingual installation guide SHALL document `bash scripts/install.sh` as
-the recommended Claude clean-install route, SHALL identify
-`dhpk@dhpk-profile-minimal` as exactly `change-verdict`, `code-trace`,
-`flow-drive`, and `flow-guide`, and MUST keep structural generation evidence
-separate from fresh-session consumer discovery. Existing receipts SHALL retain
-their selection until explicit migration; rollback SHALL use a receipt-bound
-or version-pinned package without restoring retired aliases.
+the recommended Claude clean-install route and identify the existing
+`dhpk@dhpk` marketplace plugin as the main installation. Its default selection
+SHALL be the 15 public entries in `common`. The guide SHALL state that
+`minimal`, `full`, and `compat-v1` are not public selection choices and
+that the retired public `--profile` option is rejected. It SHALL keep structural
+generation evidence separate from fresh-session consumer discovery.
+
+A receipt that names a retired profile SHALL retain its exact stored selection
+metadata, including retired IDs, for read-only plan, uninstall, and recovery.
+Updating such a receipt SHALL return `BLOCKED` before filesystem mutation.
+Current common receipts and the existing unannotated structural route SHALL
+retain their ordinary receipt-owned update behavior. Retired selections SHALL
+not be automatically migrated or materialized.
 
 #### Scenario: Claude clean install is documented
 
 - **WHEN** a user follows the recommended Claude route
-- **THEN** the guide provides dry-run, install, fresh-session verification, and rollback instructions
+- **THEN** the guide identifies `dhpk@dhpk`, the common 15-entry selection, dry-run, install, and fresh-session verification
 - **AND** unobserved runtime evidence remains `NOT_RUN`
+
+#### Scenario: A historical named-profile receipt is inspected or removed
+
+- **WHEN** plan, uninstall, or recovery reads a receipt with a retired named profile
+- **THEN** it preserves the exact stored IDs and metadata, including retired IDs, without materializing them
+
+#### Scenario: An update targets a historical named-profile receipt
+
+- **WHEN** update encounters a receipt for a retired named profile
+- **THEN** it returns `BLOCKED` before any filesystem mutation
 
 #### Scenario: Generic distribution writer is unavailable
 
@@ -66,33 +83,58 @@ or version-pinned package without restoring retired aliases.
 ### Requirement: Codex installation paths are explicit and evidence-scoped
 
 The canonical guide SHALL document three distinct Codex-related routes:
-Supported project-local sync through
-`install-codex-skills.sh`; retained legacy/native marketplace installation
-through the verified `codex plugin` route; and the standard Agent Plugin
-package as a separate interoperability artifact whose Codex install command
-remains `BLOCKED` or `UNAVAILABLE` until a real client probe proves it. Each
-route SHALL document prerequisites, exact command syntax, copy/symlink and
-receipt behavior, update/uninstall/rollback, discovery verification, and the
-support tier.
+Supported project-local sync through `install-codex-skills.sh`; retained
+legacy/native marketplace installation through the verified `codex plugin`
+route; and the standard Agent Plugin package as a separate interoperability
+artifact whose Codex install command remains `BLOCKED` or `UNAVAILABLE` until
+a real client probe proves it. Each route SHALL document prerequisites, exact
+command syntax, copy/symlink and receipt behavior, update/uninstall/rollback,
+discovery verification, and the support tier.
+
+A new project-local sync install SHALL use the 15-entry `common` selection.
+The guides SHALL state that retired public profile choices and the public
+`--profile` option are unavailable. Historical named-profile receipts SHALL
+retain exact stored IDs and metadata, including retired IDs, for read-only plan,
+uninstall, and recovery; update SHALL return `BLOCKED` before mutation for
+those receipts. Current common receipts and the existing unannotated structural
+route SHALL retain their ordinary receipt-owned update behavior. No automatic
+profile migration or retired-ID materialization is allowed.
 
 Project-local sync SHALL use hybrid materialization: skills and supporting
 assets follow the selected top-level symlink/copy mode, while agent TOMLs are
-always physical files. The guides SHALL instruct existing schema-v3 consumers
-to run ordinary `--update` and SHALL distinguish installation, discovery, and
-named-role runtime evidence.
+always physical files. The guides SHALL direct current common and unannotated
+structural receipts to ordinary `--update` and distinguish installation,
+discovery, and named-role runtime evidence. They SHALL retain existing
+`--migrate` guidance for structural receipt migration, but SHALL NOT present it
+as a way to change a retired profile selection.
 
 For project-local sync, the guide SHALL show both supported invocation forms:
 `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh` from a standalone
 checkout and `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`
-when executed inside the Claude plugin runtime. The guide SHALL explain that
-the script resolves its own checkout root when `CLAUDE_PLUGIN_ROOT` is absent.
+when executed inside the Claude plugin runtime. The guide SHALL explain that the
+script resolves its own checkout root when `CLAUDE_PLUGIN_ROOT` is absent.
 
 #### Scenario: Project-local Codex setup is documented
 
 - **WHEN** a user selects the Supported Codex route
 - **THEN** the guide gives the project-root command, `--copy`, `--update`,
-  `--migrate`, `--uninstall`, guarded `--force`, schema-v3 receipt,
-  collision-preservation, verification, and rollback instructions
+  structural `--migrate`, `--uninstall`, guarded `--force`, schema-v3
+  receipt, collision-preservation, verification, and rollback instructions
+
+#### Scenario: Historical named-profile receipt remains readable
+
+- **WHEN** plan, uninstall, or recovery reads a receipt from a retired named-profile install
+- **THEN** it preserves the exact stored IDs and metadata, including retired IDs, without recreating those IDs
+
+#### Scenario: Historical named-profile update is blocked
+
+- **WHEN** update targets a receipt from a retired named-profile install
+- **THEN** it returns `BLOCKED` before any filesystem mutation
+
+#### Scenario: Existing unannotated structural receipt updates safely
+
+- **WHEN** an operator runs ordinary `--update` for the existing unannotated structural route
+- **THEN** the guide preserves the current receipt-owned update and collision-handling instructions
 
 #### Scenario: Native Codex CLI is unavailable
 
@@ -110,7 +152,7 @@ the script resolves its own checkout root when `CLAUDE_PLUGIN_ROOT` is absent.
 
 #### Scenario: Existing symlink consumer updates safely
 
-- **WHEN** an operator upgrades a receipt-owned project-local Codex projection
+- **WHEN** an operator updates a current common or unannotated receipt-owned project-local Codex projection
 - **THEN** the guide directs them to ordinary `--update`, explains that managed
   agent links become physical files, and retains collision/adoption guidance
 
@@ -195,26 +237,29 @@ file alone SHALL never be described as a runtime consumer proof.
 - **THEN** maintainers update the canonical guide first, update linked package
   READMEs, and fail the documentation drift check until all references agree
 
-### Requirement: Documentation updates are tested as a cross-file contract
+### Requirement: Bilingual installation documentation receives human review
 
-The documentation gate SHALL scan all named README, docs, Codex, package, and
-marketplace files for canonical-guide links, stale install commands, broken
-relative links, bilingual section parity, and unsupported support claims. The
-gate SHALL report the affected surface and file rather than silently accepting
-drift.
+A change to an installation route or support claim SHALL update the canonical
+English and Traditional Chinese guides together. A human reviewer SHALL check
+that both guides describe the same current route, that secondary guides link to
+the canonical guide, and that the changed links resolve. Automated checks MAY
+validate link targets and file presence; they MUST NOT gate prose wording,
+headings, examples, or line snapshots.
 
-#### Scenario: A secondary guide keeps an obsolete command
+#### Scenario: An installation route changes
 
-- **WHEN** `docs/basic-operations.md` retains a stale Codex or Cursor install
-  command after the canonical guide changes
-- **THEN** the documentation gate fails and names the stale file, surface, and
-  canonical replacement section
+- **WHEN** a route, command, or support boundary changes in the canonical guide
+- **THEN** a human review confirms equivalent English and Traditional Chinese guidance and checks affected cross-links
+
+#### Scenario: A secondary guide keeps an obsolete route
+
+- **WHEN** a secondary guide still links to an obsolete installation command after the canonical guide changes
+- **THEN** the human documentation review identifies the affected file and canonical replacement section
 
 #### Scenario: All explanatory files link to the SSOT
 
-- **WHEN** every affected document has current surface-specific instructions or
-  a canonical-guide link and both language variants agree
-- **THEN** the documentation gate passes its cross-file consistency checks
+- **WHEN** affected documents have current surface-specific instructions or a canonical-guide link and both language variants agree
+- **THEN** human review confirms the cross-file links and language parity
 
 ### Requirement: Marketplace preparation does not retire current installation routes
 

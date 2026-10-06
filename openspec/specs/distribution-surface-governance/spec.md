@@ -56,37 +56,22 @@ The Claude plugin skill registrations and every generated Codex publication tree
 
 ### Requirement: Core and optional surfaces are distinguishable
 
-The distribution model SHALL distinguish broadly applicable core workflow skills from opt-in stack skills, and documentation SHALL state whether the current host truly gates discovery or merely gates runtime hooks and activation. A profile-scoped package SHALL be identified as a pre-discovery selected artifact, while `compat-v1` SHALL be identified separately from the conflict-aware `full` module closure. The catalog SHALL report description word/token totals separately for promoted, optional, experimental, and deprecated entries and separately for each selected profile artifact. An `optional` lifecycle SHALL NOT be described as hidden from discovery when the host still publishes its description.
+The distribution model SHALL distinguish common workflow entries, bundled children, necessary Host support, and opt-in stack resources. Documentation MUST distinguish pre-discovery materialization from runtime activation and identify the current artifact scope. Optional lifecycle metadata MUST NOT be described as hidden when the Host still publishes its description. Optional context research SHALL retain exact scope and estimator identity; it MUST NOT create a routine native or GUI gate.
 
-#### Scenario: Host cannot hide optional skill descriptions
+#### Scenario: Host cannot hide optional descriptions
 
-- **WHEN** the unscoped Claude plugin host registers optional module skill descriptions regardless of selected modules
-- **THEN** documentation reports that limitation and SHALL NOT describe the optional set as hidden at discovery time
+- **WHEN** an unscoped Host registers optional module descriptions regardless of configured activation
+- **THEN** documentation reports that limitation without claiming they are discovery-hidden
 
-#### Scenario: Profile artifact excludes optional metadata
+#### Scenario: Selected artifact excludes optional metadata
 
-- **WHEN** a `minimal` or stack profile bundle is generated before Claude discovery
-- **THEN** its scoped root contains only the selected core and module entries, and its report labels excluded optional entries as absent rather than runtime-hidden
+- **WHEN** a common or standalone artifact is materialized before discovery
+- **THEN** its report identifies actual selected entries, folded resources, and Host support, and labels excluded entries absent rather than runtime-hidden
 
-#### Scenario: Compatibility and full profiles are reported separately
+#### Scenario: Discovery-visible metadata is measured
 
-- **WHEN** a report compares `minimal`, `full`, and `compat-v1`
-- **THEN** it identifies `full` as conflict-aware module closure, `compat-v1` as the legacy all-live-ID bundle, and does not combine their counts into one discovery claim
-
-#### Scenario: Optional metadata is discovery-visible
-
-- **WHEN** optional skills are published in any host discovery manifest
-- **THEN** catalog output labels them discovery-visible and runtime- or activation-optional
-
-#### Scenario: Description budget is exceeded
-
-- **WHEN** a discovery-visible skill or agent description exceeds the configured always-visible word/token budget for its lifecycle, surface, or selected profile
-- **THEN** validation reports the entry and fails or requires an explicit reviewed exemption
-
-#### Scenario: Metadata is within budget
-
-- **WHEN** all discovery-visible descriptions meet their scoped budgets
-- **THEN** validation passes and reports budget totals by publication surface and selected profile artifact
+- **WHEN** a requested report measures current catalog, standalone, or historical artifact descriptions
+- **THEN** it reports the scoped word/token totals and configured budgets separately without combining distinct artifacts or upgrading runtime evidence
 
 ### Requirement: Deprecation precedes source deletion
 
@@ -377,26 +362,16 @@ No skill or command promoted onto a discovery-visible surface SHALL declare `mcp
 
 ### Requirement: Curated distribution publication reflects the inventory, not raw directory scanning
 
-The default Claude install artifact's discoverable skill set SHALL be the
-materialized `minimal` profile derived from the distribution inventory via the
-existing profile package generator, not from an unfiltered source-directory
-scan. `full` and `compat-v1` SHALL remain explicit opt-in artifacts. Agent
-Plugin, Cursor, AGY, and Cursor-sync membership SHALL atomically replace the
-22 first-party predecessors with the six family identities while retaining the
-six GitNexus IDs unchanged. Where a manifest format cannot express per-skill
-discovery granularity, the generator SHALL perform filtering while
-materializing the package output. This projection contract does not define
-OpenAI marketplace package membership; that package uses the separate explicit
-marketplace selection.
+The existing main Claude marketplace and retained Host builders SHALL materialize the shared catalog's fifteen common entries and bundled children, with inventory-declared Host support selected separately. Publication MUST use the existing main marketplace identity and MUST NOT create a common variant or regenerate retired minimal/full/compat-v1 artifacts. The six retired bundled GitNexus wrappers MUST remain absent while direct external graph tools and protect-existing ownership remain supported. Standalone and module routes SHALL preserve their existing selection contracts. The skills-only OpenAI submission SHALL retain its separate explicit catalog and exclude Host-only entries.
 
-#### Scenario: Generator relies on the whole-directory manifest root
+#### Scenario: A manifest only supports directory roots
 
-- **WHEN** a plugin manifest registers a skill root with no per-skill discovery flag
-- **THEN** its package generator produces only the inventory-selected materialized entries and no retired predecessor
+- **WHEN** a Host manifest cannot express per-skill discovery filtering
+- **THEN** the generator materializes the inventory/catalog-selected entries and no retired wrapper or predecessor
 
-#### Scenario: Curated publication diverges from the inventory
+#### Scenario: Curated publication diverges
 
-- **WHEN** a generated package contains a retired predecessor, omits a selected family, or changes a protected external-package identity
+- **WHEN** a package contains a retired entry, omits a selected owner, or changes a protected external identity
 - **THEN** distribution validation fails and names the surface and stable ID
 
 ### Requirement: Marketplace ZIP evidence is package-scoped and structural
@@ -432,12 +407,12 @@ presentation, submission, approval, or publication.
 
 Distribution inventory schema `dhpk.distribution-inventory.v2` SHALL accept an additive top-level `external_skill_packages` array without changing the schema version. Each row SHALL have exactly `id`, `owner`, `repository`, `policy`, `license_review`, and `stable_ids`: `id` is kebab-case; `owner` is the enum `upstream`; `repository` is an HTTPS repository URL; `policy` is the enum `protect-existing`; `license_review` is one of `open`, `verified`, or `not-required`; and `stable_ids` is a non-empty lexicographically sorted array. Rows SHALL normalize by `id`, and stable IDs SHALL be unique within and across rows. Every listed ID MUST resolve to a live canonical skill and MUST remain outside the retirement ledger until a separate ownership change is reviewed.
 
-The initial row SHALL be `id: gitnexus`, `owner: upstream`, `repository: https://github.com/abhigyanpatwari/GitNexus`, `policy: protect-existing`, `license_review: open`, and the six GitNexus stable IDs. The ledger protects their existing canonical and projected identities; it SHALL NOT create a new publication surface or cause raw upstream files to be copied.
+The ledger SHALL protect declared upstream identities without creating a new publication surface or copying raw upstream files. Separately approved retirement of the six bundled GitNexus wrappers SHALL remove their live package row while preserving foreign or user-owned installed copies; this requirement MUST NOT force those wrappers to remain published.
 
-#### Scenario: GitNexus boundary is valid
+#### Scenario: A live external boundary is valid
 
-- **WHEN** the registry declares the `gitnexus` package and its six existing DHPK stable IDs
-- **THEN** validation confirms all six live entries and preserves their current names, paths, lifecycle, and surface membership
+- **WHEN** the registry declares an upstream package with live inventory IDs
+- **THEN** validation confirms their identities and protect-existing policy without republishing retired wrappers
 
 #### Scenario: External package row is incomplete
 
