@@ -398,16 +398,21 @@ test('foreign Python cache artifacts inside retired output are preserved', () =>
 });
 
 // Historical identities and paths from the parent of removal commit 096cba21.
-const GITNEXUS_IDS = [
-  'gitnexus-cli', 'gitnexus-debugging', 'gitnexus-exploring',
-  'gitnexus-guide', 'gitnexus-impact-analysis', 'gitnexus-refactoring',
+const HISTORICAL_GITNEXUS = [
+  { id: 'gitnexus-cli', name: 'dhpk-gitnexus-cli', path: 'skills/dhpk-gitnexus-cli' },
+  { id: 'gitnexus-debugging', name: 'dhpk-gitnexus-debugging', path: 'skills/dhpk-gitnexus-debugging' },
+  { id: 'gitnexus-exploring', name: 'dhpk-gitnexus-exploring', path: 'skills/dhpk-gitnexus-exploring' },
+  { id: 'gitnexus-guide', name: 'dhpk-gitnexus-guide', path: 'skills/dhpk-gitnexus-guide' },
+  { id: 'gitnexus-impact-analysis', name: 'dhpk-gitnexus-impact-analysis', path: 'skills/dhpk-gitnexus-impact-analysis' },
+  { id: 'gitnexus-refactoring', name: 'dhpk-gitnexus-refactoring', path: 'skills/dhpk-gitnexus-refactoring' },
 ];
+const GITNEXUS_IDS = HISTORICAL_GITNEXUS.map((entry) => entry.id);
 
 function gitnexusUpgradeFixture() {
   const root = tmpDir();
   const outDir = path.join(root, '.agents', 'skills');
-  const historicSkills = GITNEXUS_IDS.map((id) => ({
-    id, name: `dhpk-${id}`, path: `skills/dhpk-${id}`, lifecycle: 'promoted',
+  const historicSkills = HISTORICAL_GITNEXUS.map((entry) => ({
+    ...entry, lifecycle: 'promoted',
     surfaces: ['agent-plugin'],
   }));
   for (const skill of [ACTIVE, ...historicSkills]) {
