@@ -2,7 +2,7 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:a3945c392dcc3b5914d993c865a012282b789ee73bb345ff4c77a724550a4bdf`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:8fe6c4af04feac6bd4497eb134fb44eedb44d8787c8359cb43abd71b5006ef62`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
@@ -96,7 +96,7 @@ Actions：
 ### `$flow-drive`
 
 摘要：Implement a confirmed specification with bounded evidence
-語法：`$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]`
+語法：`$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>[/<model>[:<effort>]]] [--architect|--no-architect]`
 呼叫類別：`explicit-only`
 最高 authority：`workspace-write`
 
@@ -112,7 +112,7 @@ Actions：
 - `worker` `--worker=<worker>` (可選, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
 - `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select an explicit provider, model, and effort target
 - `cross-provider` `--cross-provider` (可選, boolean, default=false) — Allow the explicitly selected provider boundary
-- `reasoner` `--reasoner=<provider>/<model>[:<effort>]` (可選, string) — Request a bounded second opinion
+- `reasoner` `--reasoner=<provider>[/<model>[:<effort>]]` (可選, string) — Request a bounded second opinion
 - `architect` `--architect` (可選, boolean) — Enable the architecture pass
 - `no-architect` `--no-architect` (可選, boolean) — Disable the architecture pass
 

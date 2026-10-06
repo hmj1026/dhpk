@@ -719,6 +719,17 @@ test('Codex Host native fallback is derived from its Host profile', () => {
     );
   });
 
+  test('canonical requests preserve CLI xhigh and ultra efforts without downgrading', () => {
+    for (const effort of ['xhigh', 'ultra']) {
+      const normalized = createDispatchRequest(request({
+        role: 'reasoner', authority: 'read-only', effort,
+        target: { target_agent: 'codex-cli', provider: 'openai', model_id: 'gpt-6.1-sol', transport: 'local-cli' },
+      }));
+      assert.strictEqual(normalized.effort, effort);
+      assert.strictEqual(normalized.authority, 'read-only');
+    }
+  });
+
   test('provider-bound role names are rejected at the canonical seam', () => {
     assert.throws(() => createDispatchRequest(request({ role: 'codex-reasoner', authority: 'read-only' })), /canonical Role|unknown role|role/i);
     assert.throws(() => createDispatchRequest(request({ role: 'agy-worker' })), /canonical Role|unknown role|role/i);

@@ -13,10 +13,10 @@ const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const EFFORTS = Object.freeze(['low', 'medium', 'high', 'max', 'xhigh', 'ultra']);
 const EFFORT_CHOICES = EFFORTS.join('|');
 // Claude Code subagents cannot receive the dispatcher-attested 0600
-// DHPK_CLI_TRANSPORT_CONTEXT that the CLI-backed roles require, and the Agent
-// tool cannot override a subagent's frontmatter effort.
+// DHPK_CLI_TRANSPORT_CONTEXT that external CLI roles require. Codex selections
+// are handed to the parent-session launcher; AGY remains unsupported there.
 const CONTEXTLESS_HOST = 'claude-code';
-const CLI_BACKED_PROVIDERS = Object.freeze(['codex', 'agy']);
+const PROVIDER_BY_SELECTION = Object.freeze({ claude: 'anthropic', codex: 'openai', agy: 'google' });
 
 function freezeDeep(value) {
   if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
@@ -37,10 +37,20 @@ function effortDiagnostic(option, effort) {
 }
 
 function hostRoleEffort(host, role) {
-  const profiles = Array.isArray(HOST_PROFILES.profiles) ? HOST_PROFILES.profiles : [];
-  const profile = profiles.find((candidate) => candidate && candidate.host === host);
+  const profile = hostProfile(host);
   const defaults = profile && profile.role_defaults && profile.role_defaults[role];
   return defaults ? defaults.effort : null;
+}
+
+function hostProfile(host) {
+  const profiles = Array.isArray(HOST_PROFILES.profiles) ? HOST_PROFILES.profiles : [];
+  return profiles.find((candidate) => candidate && candidate.host === host) || null;
+}
+
+function isNativeSelection(host, selection) {
+  const profile = hostProfile(host);
+  const provider = PROVIDER_BY_SELECTION[selection] || selection;
+  return Boolean(profile && profile.native_provider === provider);
 }
 
 function hostFromEnvironment(env) {
@@ -68,14 +78,18 @@ function parseReasoner(value, diagnostics) {
     diagnostic(diagnostics, '--reasoner requires backend[:model[:effort]].');
     return null;
   }
-  const parts = value.includes('/')
-    ? value.replace('/', ':').split(':')
-    : value.split(':');
+  const slashParts = value.split('/');
+  const parts = slashParts.length === 1
+    ? value.split(':')
+    : slashParts.length === 2
+      ? [slashParts[0], ...slashParts[1].split(':')]
+      : [];
   if (parts.length > 3 || parts.some((part) => !TOKEN.test(part))) {
     diagnostic(diagnostics, `invalid --reasoner value '${value}'; expected backend[:model[:effort]].`);
     return null;
   }
-  const [backend, model = null, effort = null] = parts;
+  const [requestedBackend, model = null, effort = null] = parts;
+  const backend = requestedBackend === 'codex-cli' ? 'codex' : requestedBackend;
   if (!REASONER_BACKENDS.includes(backend)) {
     diagnostic(diagnostics, `unsupported reasoner backend '${backend}'; choose claude or codex.`);
   }
@@ -115,21 +129,34 @@ function parseWorker(value, diagnostics) {
 }
 
 function checkHostSupport(host, options, diagnostics, notices) {
-  if (host !== CONTEXTLESS_HOST) return;
-  const unsupported = (selection, alternative) => diagnostic(
-    diagnostics,
-    `${selection} is unavailable on the ${host} host: its subagents cannot receive the dispatcher-attested DHPK_CLI_TRANSPORT_CONTEXT; use ${alternative} instead.`,
-  );
-  if (CLI_BACKED_PROVIDERS.includes(options.worker)) unsupported(`--worker=${options.worker}`, '--worker=claude');
-  if (options.workerTarget && CLI_BACKED_PROVIDERS.includes(options.workerTarget.provider)) {
-    unsupported(`--worker-target=${options.workerTarget.provider}/...`, '--worker=claude');
+  if (host === CONTEXTLESS_HOST) {
+    const unsupported = (selection, alternative) => diagnostic(
+      diagnostics,
+      `${selection} is unavailable on the ${host} host: AGY dispatch is not supported by the parent-session CLI launcher; use ${alternative} instead.`,
+    );
+    if (!options.workerTarget && options.worker === 'agy') unsupported('--worker=agy', '--worker=claude or --worker=codex');
+    if (options.workerTarget && options.workerTarget.provider === 'agy') {
+      unsupported('--worker-target=agy/...', '--worker-target=claude/... or --worker-target=codex/...');
+    }
   }
-  if (options.reasoner && CLI_BACKED_PROVIDERS.includes(options.reasoner.backend)) {
-    unsupported(`--reasoner=${options.reasoner.backend}`, '--reasoner=claude');
-  }
-  const appliedEffort = hostRoleEffort(host, 'planner');
-  if (options.plan.effort !== null && appliedEffort !== null && options.plan.effort !== appliedEffort) {
-    notices.push(`--plan effort '${options.plan.effort}' is not applied on the ${host} host; the planner runs at its configured effort '${appliedEffort}'.`);
+
+  if (host === CONTEXTLESS_HOST) {
+    if (options.workerTarget && isNativeSelection(host, options.workerTarget.provider)) {
+      const appliedEffort = hostRoleEffort(host, 'worker');
+      if (options.workerTarget.effort !== null && appliedEffort !== null && options.workerTarget.effort !== appliedEffort) {
+        notices.push(`--worker-target effort '${options.workerTarget.effort}' is not applied on the ${host} host; the worker runs at its configured effort '${appliedEffort}'.`);
+      }
+    }
+    if (options.reasoner && isNativeSelection(host, options.reasoner.backend)) {
+      const appliedEffort = hostRoleEffort(host, 'reasoner');
+      if (options.reasoner.effort !== null && appliedEffort !== null && options.reasoner.effort !== appliedEffort) {
+        notices.push(`--reasoner effort '${options.reasoner.effort}' is not applied on the ${host} host; the reasoner runs at its configured effort '${appliedEffort}'.`);
+      }
+    }
+    const appliedEffort = hostRoleEffort(host, 'planner');
+    if (options.plan.effort !== null && appliedEffort !== null && options.plan.effort !== appliedEffort) {
+      notices.push(`--plan effort '${options.plan.effort}' is not applied on the ${host} host; the planner runs at its configured effort '${appliedEffort}'.`);
+    }
   }
 }
 
