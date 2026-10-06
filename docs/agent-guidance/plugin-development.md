@@ -4,18 +4,18 @@ dhpk is the plugin source, not an installed consumer. Source edits become
 consumer-visible only after a versioned installation, or immediately during a
 development run that points Claude Code at this checkout with `--plugin-dir`.
 
-## Required validation
+## Validation by change scope
 
-Run the smallest focused gate first, then the complete set before handoff:
+Daily and change-scoped checks follow [testing governance](../testing-governance.md),
+which owns the light/selected/full routes and behavior-based test scope. Run
+surface validators only when the corresponding Host or package contract is
+affected. Release and publication gates remain explicit; see
+[Release acceptance](#release-acceptance).
 
-- `node scripts/ci/validate-plugin.js`
-- `node scripts/ci/catalog.js --check all`
-- `bash scripts/validate/validate-harness.sh`
-- `node tests/run-all.js`
+### Claude plugin source
 
-### Claude validation (canonical root)
-
-The official Claude validator checks the canonical repository root:
+Run the official Claude validator when a change affects the Claude plugin
+manifest, metadata, or loading contract:
 
 ```bash
 claude plugin validate ~/projects/dhpk --strict
@@ -24,23 +24,34 @@ claude plugin validate ~/projects/dhpk --strict
 This command validates the Claude plugin source at the checkout root. It does
 not validate the separate Codex-native package under `plugins/dhpk/`.
 
-### Codex-native package validation
+### Codex-native package
 
-Validate the `plugins/dhpk/` Codex-native artifact with its own checks:
+When a change affects the `plugins/dhpk/` Codex-native artifact, validate its
+metadata and package contract with these checks:
 
 ```bash
 node scripts/ci/verify-codex-native-package.js
 node tests/codex-native-package-validate.test.js
+```
+
+Run the installation smoke test only for changes to the Codex installation,
+update, removal, receipt, ownership, conflict, or recovery contract:
+
+```bash
 node tests/codex-native-install-smoke.test.js
 ```
 
 These checks do not replace Claude validation of the canonical repository
-root. Keep their results attached to the publication surface they validate.
+root. Keep each result attached to the publication surface it validates.
 
-For reproducible pre/post test timing, run the same workload with
-`DHPK_TEST_TIMING_FILE=/path/to/timing.json`; the bounded runner writes a
-redacted JSON report containing aggregate, per-file, and worker durations. This
-is opt-in evidence, not a second scheduler or an always-on telemetry channel.
+For an explicitly requested performance benchmark or comparison, run the same
+workload with `DHPK_TEST_TIMING_FILE=/path/to/timing.json`; the bounded runner
+writes a redacted JSON report containing aggregate, per-file, and worker
+durations. This is optional performance evidence, not a routine CI gate,
+second scheduler, or always-on telemetry channel. CI shard timing artifacts
+remain routine execution evidence.
+
+### Release acceptance
 
 For release-shaped work also run distribution, OpenAI metadata, strict skill,
 native-package, changelog, consumer, and official Claude validation gates as
@@ -49,13 +60,13 @@ PASS; a non-zero official result blocks readiness.
 
 ## Generated and lifecycle boundaries
 
-The physical Codex-native package is generated from canonical sources. After a
-native skill changes, regenerate `plugins/dhpk/` and verify fingerprints and
-membership; never hand-edit a mirror. The same rule applies to the Agent,
-Cursor, and AGY package surfaces: regenerate every affected physical surface
-from its canonical source and run the platform determinism verifier before
-handoff. After the change, dispatching the applicable reviewers from the
-execution-policy trigger table is recommended.
+The physical Codex-native package is generated from canonical sources. When a
+change affects its canonical skills or other package inputs, regenerate
+`plugins/dhpk/` and verify fingerprints and membership; never hand-edit a
+mirror. The same rule applies to Agent, Cursor, and AGY: regenerate each
+affected physical surface from its canonical source and run the platform
+determinism verifier before handoff. After the change, dispatching the
+applicable reviewers from the execution-policy trigger table is recommended.
 
 ## CI preflight for generated and release-shaped changes
 
@@ -91,15 +102,14 @@ node scripts/ci/verify-platform-packages.js
 For daily CI, `verify-platform-packages.js --surface <name>` accepts the
 affected package subset; selecting Cursor automatically includes its Agent
 owner because Cursor consumes the Agent-owned shared skills. Canonical-only
-content plans can skip this heavy gate. Every light plan runs all four Claude
-generated checks (marketplace and three profiles, about two seconds), because
-canonical content feeds those packages even when a PR leaves `generated/`
-untouched. Canonical content with an exact owned Markdown, receipt,
-fingerprint, or resource-ledger companion keeps the light route and also runs
-every affected package check recorded by the plan;
-unknown generated data, executables, and generated-only changes use the full
-route. No-argument daily verification and release verification retain the
-complete four-surface check.
+content plans can skip unchanged physical packages. Every light plan also runs
+all four Claude generated checks (marketplace and the minimal, full, and
+compat-v1 profiles), including for prose-only canonical changes. For exact
+owned Markdown, receipt, fingerprint, or resource-ledger companions, the
+authoritative plan selects the affected physical-package checks. Unknown
+generated data, executables, and generated-only changes use the full route.
+Release verification and an explicit unfiltered platform-validation request
+retain the complete four-surface check.
 
 The distribution generators and `verify-platform-packages.js` are
 provenance-bound and require a clean checkout. Run the generators after the

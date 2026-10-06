@@ -574,8 +574,8 @@ test('CLI exposes the harness help contract', () => {
 // Consolidated source suite: harness-workflow-config.
 {
 
-  // RED-first guard for the migration boundary: CI/release invoke the public
-  // facade while retaining the legacy distribution compatibility checks.
+  // Daily CI keeps deterministic source/package checks; consumer readiness
+  // remains available through the public facade and the release workflow.
 
   const fs = require('node:fs');
   const path = require('node:path');
@@ -595,9 +595,13 @@ test('CLI exposes the harness help contract', () => {
     return next === -1 ? rest : rest.slice(0, next + 1);
   }
 
-  test('CI invokes the harness facade and keeps compatibility adapters', () => {
+  test('daily CI omits research and consumer-readiness probes while retaining package checks', () => {
     const workflow = read('.github/workflows/ci.yml');
-    assert.match(workflow, /bin\/dhpk harness/);
+    const preflight = jobBlock(workflow, 'preflight');
+    assert.doesNotMatch(preflight, /node scripts\/ci\/context-budget\.js\b/);
+    assert.doesNotMatch(preflight, /node scripts\/ci\/subagent-context-budget\.js\b/);
+    assert.doesNotMatch(preflight, /bin\/dhpk harness preflight\b/);
+    assert.match(preflight, /scripts\/validate\/validate-harness\.sh/);
     assert.match(workflow, /scripts\/ci\/verify-platform-packages\.js/);
     assert.doesNotMatch(workflow, /bin\/dhpk distribution/);
   });
