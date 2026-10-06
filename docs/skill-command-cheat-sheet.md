@@ -28,7 +28,7 @@ documented in the [platform installation SSOT](./platform-installation.md).
 | Host | First check | Boundary |
 |---|---|---|
 | Claude Code | `/dhpk:flow-guide help` | Recommended clean install: `bash scripts/install.sh`; start a new session after installation |
-| Codex CLI | `$flow-guide help` | The generated catalog lists the actual Codex surface; `change-verdict` is currently `not-codex-invokable`, not an alias |
+| Codex CLI | `$flow-guide help` | The generated catalog lists the installed Codex surface, including the common `change-verdict` entry |
 | Cursor | Reload the selected Agent Plugin or project-local projection, then verify discovery | Structure or installation is not runtime proof; record unavailable client evidence as `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE` |
 | AGY | `agy agents` after receipt-owned installation | Native load evidence is separate from runtime execution; no direct skill syntax is claimed without a passing client probe |
 

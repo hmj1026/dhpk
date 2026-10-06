@@ -29,7 +29,7 @@
 | 還沒有 proposal 或 OpenSpec artifacts | 外部 `$openspec-propose`，再依流程使用 `/opsx:apply` | proposal authoring 不屬於 `flow-drive` |
 | 要分組 Git commit | `$git-smart-commit` | `git-smart-commit` stable ID 與 public name 保持不變；需要明確 Git authority |
 
-##  portable family
+## Portable family
 
 family 名稱刻意不加 `dhpk-` 前綴；其他 first-party skill 維持 collision-safe 的
 `dhpk-*` 名稱。每個 family 只保留一個窄入口，mode/selector 由 usage card 揭露。
@@ -95,7 +95,7 @@ Git、release、setup、review 與其他 slash command 的完整清單在
 | Host | 第一個檢查 | 邊界 |
 |---|---|---|
 | Claude Code | `/dhpk:flow-guide help` | 推薦以 `bash scripts/install.sh` 安裝，完成後重開 session |
-| Codex CLI | `$flow-guide help` | 只列實際 Codex surface；`change-verdict` 目前是 `not-codex-invokable`，不是 alias |
+| Codex CLI | `$flow-guide help` | 列出已安裝的 Codex surface，包含 common 的 `change-verdict` 入口 |
 | Cursor | reload 後確認 Agent Plugin 或 project-local projection discovery | 安裝不等於 runtime；缺 client 時記 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE` |
 | AGY | receipt-owned 安裝後執行 `agy agents` | native load 與 runtime 分開；沒有 probe 就不宣稱直接 skill 語法 |
 
