@@ -2,8 +2,10 @@
 
 ## Purpose
 
-Define one portable explicit workflow entry that routes work across supported
-hosts while keeping adapters thin and capability claims evidence-based.
+Record the former explicit `dhpk-do` workflow contract and its current
+distribution retirement. Stable ID `do` is not an active publication entry;
+the remaining route and adapter clauses describe behavior only where that
+historical entry is still present.
 
 ## Requirements
 
@@ -129,13 +131,16 @@ SHALL return `BLOCKED` before write-capable dispatch.
 - **WHEN** the host cannot preserve the parent across a write-capable child
 - **THEN** `dhpk-do` returns `BLOCKED` before mutation
 
-### Requirement: The portable entry is distributed as required core
+### Requirement: Retired stable ID do stays out of current distribution
 
-Stable ID `do` SHALL be promoted/core, selected by minimal Claude, and published
-to `claude-core`, `cursor-sync`, `codex-sync`, and `codex-native` with matching
-identity, explicit-only metadata, and surface provenance.
+The current distribution inventory SHALL retain stable ID `do` as retired in
+0.53.0 with `flow-guide` route as its historical replacement. Generators and
+resolvers SHALL NOT treat its prior surfaces, core status, or a remaining
+source directory as current selection evidence, restore it as a compatibility
+alias, or publish it in a current surface.
 
-#### Scenario: Declared projections are generated
+#### Scenario: Current publication follows the retired inventory row
 
-- **WHEN** publication runs from inventory
-- **THEN** all four surfaces contain their expected generated `dhpk-do` representation
+- **WHEN** current inventory projections or consumer discovery are generated
+- **THEN** stable ID `do` is absent, and any `flow-guide` route is selected only
+  through its own current inventory declaration

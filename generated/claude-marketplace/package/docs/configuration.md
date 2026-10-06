@@ -4,13 +4,11 @@
 
 dhpk exposes **76 active `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md) and the [Skill & Slash Command quick reference](./skill-command-cheat-sheet.zh-TW.md).
 
-The default Claude discovery artifact is the materialized `minimal` profile,
-derived from `manifests/distribution-inventory.json`; it is not an unfiltered
-scan of the source `skills/` directory. It publishes exactly `change-verdict`,
-`code-trace`, `flow-drive`, and `flow-guide`. `full` and `compat-v1` are explicit opt-in profile
-artifacts. Agent Plugin and Cursor publication memberships are unchanged. See
-[`docs/platform-installation.md`](./platform-installation.md) for the profile
-selection and receipt rules.
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default. Former `minimal`, `full`, and `compat-v1` selections are
+historical receipt metadata, not publication choices. Module presets remain
+separate. See [`docs/platform-installation.md`](./platform-installation.md) for
+host-specific selection and receipt rules.
 
 ## Where to set a value
 
@@ -85,7 +83,7 @@ reported as `BLOCKED` without invalidating unrelated settings. Diagnostics keep
 catalog support, Host access, runtime availability, and fallback permission
 separate; static catalog membership or package discovery is never runtime proof.
 The dispatch Roles are `planner`, `reasoner`, `worker`, and `reviewer`.
-`orchestrator`/`spec-miner` map to `planner`, `architect`/`deep-reasoner` to
+`orchestrator` maps to `planner`, `architect`/`deep-reasoner` to
 `reasoner`, `codex-worker`/`agy-worker` to `worker`, and
 `doc-reviewer`/`code-reviewer`/`security-reviewer` to `reviewer`. These policy
 aliases/subroles do not create additional default sets. Static
@@ -98,17 +96,25 @@ Legacy `fast_worker_*`, provider-specific model keys, and provider-bound Role
 aliases remain accepted only at the compatibility boundary and are recorded as
 translation evidence.
 
-The project-local Codex clean-install profile remains `compat-v1` for backward
-compatibility. The unified distribution/lifecycle default is `minimal` and
-contains the new four-capability public set. These skill-installation profiles
-are independent from Model default/fallback pairs.
+Former skill-bundle selections, including `compat-v1`, remain only as historical
+receipt metadata. The current main installation default is the `common`
+collection in `manifests/install-profiles.json`. These skill-installation
+selections are independent from Model default/fallback pairs.
 
 ## Core dispatch & review
+
+Planner consult scope is selected per invocation with
+`--plan-mode=auto|bounded|discovery` and requires `--plan`; an enabled `--plan`
+without a mode defaults to `auto`. This is not a `userConfig` key and does not
+change the `planner_model` / `planner_effort` defaults or the planner's work
+mode. See [Basic Operations](./basic-operations.md)
+for the scope budgets and [execution policy](../rules/execution-policy.md#planner-consult-scope)
+for the selection rule.
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of active deterministic hook output. Retired Stop reminders are not default-wired. |
-| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by Review Gate dispatch, in role order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
+| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by advisory reviewer dispatch, in role order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus` (whatever the running Claude Code version supports) | Model tier for `dhpk:deep-reasoner` Agent-call dispatches (reasoning-heavy implementation work). Applied per dispatch via the Agent call's `model` param when it differs from the agent's frontmatter default. Invalid value warns once per session and falls back to the frontmatter default — never fails the dispatch. |
 | `fast_worker_model` | string | `sonnet` | same as above | Model tier for `dhpk:fast-worker` Agent-call dispatches (mechanical implementation work). Same validation/fallback behavior as `deep_reasoner_model`. |
 | `planner_model` | string | `opus` | same as above | Model tier for `dhpk:planner` Agent-call dispatches (the opt-in `/dhpk:flow-drive --plan` pre-implementation critique / post-implementation warm review). Same validation/fallback behavior as `deep_reasoner_model`. |
@@ -118,17 +124,17 @@ are independent from Model default/fallback pairs.
 | `codex_worker_model` | string | `gpt-6-luna` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-worker` dispatches. Resolved via the standard layering (project pluginConfigs > global pluginConfigs > shipped default) and passed into `run-codex.sh`. Codex model names rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Legacy alias: `codex_fast_worker_model`. |
 | `codex_worker_effort` | string | `xhigh` | any effort the codex CLI accepts (e.g. `low` \| `medium` \| `high` \| `xhigh`) | `model_reasoning_effort` passed to the codex CLI backend for `codex-worker` dispatches — the strong mechanical tier. Legacy alias: `codex_fast_worker_effort`. |
 | `codex_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-worker`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_fast_worker_timeout_secs`. |
-| `codex_reasoner_model` | string | `gpt-6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex-cli/<model>[:<effort>]` in a read-only sandbox. The bare `--reasoner=codex` value is a compatibility shorthand. Legacy alias: `codex_deep_reasoner_model`. |
+| `codex_reasoner_model` | string | `gpt-6.1-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reasoner` dispatches via `--reasoner=codex-cli/<model>[:<effort>]` in a read-only sandbox. The bare `--reasoner=codex` value is a compatibility shorthand. Legacy alias: `codex_deep_reasoner_model`. |
 | `codex_reasoner_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reasoner` dispatches. Legacy alias: `codex_deep_reasoner_effort`. |
 | `codex_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed at dispatch time. Legacy alias: `codex_deep_reasoner_timeout_secs`. |
-| `codex_reviewer_model` | string | `gpt-6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reviewer` (internal-only in this rollout; not directly dispatchable). |
+| `codex_reviewer_model` | string | `gpt-6.1-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for canonical role `codex-reviewer` (internal-only in this rollout; not directly dispatchable). |
 | `codex_reviewer_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `codex-reviewer` dispatches. |
 | `codex_reviewer_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific dispatcher deadline for canonical role `codex-reviewer`. It wins over the shared value in the same scope; project values win over global values. Legacy alias: `codex_bridge_timeout_secs`. |
 | `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared dispatcher deadline for all Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. The resolved value is copied into the immutable transport context, never read by a wrapper from its environment. |
 | `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
-| `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes, plus `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
+| `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive; applicable verification gates remain active, and planner applicability follows missing outcomes or an explicit consult request rather than task count. |
 | `cross_provider` | boolean | `false` | `true` \| `false` | Opt-in for cross-Agent candidates during automatic fast-worker selection. `false` keeps `auto` on the current Host's native/default path; `true` allows declared cross-Agent fallback candidates to be checked. An explicit `--worker=<target>` remains directional and does not open other target Agents. |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:flow-drive --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used by `auto` when `cross_provider=true`; rejected candidates and reasons are recorded. With the opt-in disabled, external entries are suppressed and not probed. Invalid values warn once per session and use the shipped order. |
@@ -228,16 +234,16 @@ request a second opinion by its named `codex exec` opt-in.
 
 ### Codex agent roles (dual-track sync)
 
-This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.codex/agents/`), not the retired MCP mechanism. Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; Codex agent definitions use TOML only. dhpk publishes these files for Codex's documented project-local discovery path, and the installer always materializes them as physical files even when skills use symlinks. The 12 generated roles (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`) are produced from `agents/<name>.md` by `scripts/gen-codex-agents.js`, joining 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) for a total of 16 direct roles.
+This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.codex/agents/`), not the retired MCP mechanism. Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; Codex agent definitions use TOML only. dhpk publishes these files for Codex's documented project-local discovery path, and the installer always materializes them as physical files even when skills use symlinks. The 11 generated roles (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`) are produced from `agents/<name>.md` by `scripts/gen-codex-agents.js`, joining 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) for a total of 15 direct roles.
 
-`[agents.<name>]` blocks in `config.toml.example` are optional metadata, not a workaround for a runtime registry failure. The supported top-level concurrency setting is `max_concurrent_threads_per_session`; the example also records the effective default subagent model and reasoning effort. Static metadata, a physical TOML, or built-in `explorer` success does not prove custom-role callability; require an observed non-built-in spawn and targeted wait. See [`codex/AGENTS.md`](../codex/AGENTS.md) for diagnostics and [`platform-installation.md`](platform-installation.md) for the evidence boundary.
+`[agents.<name>]` blocks in `config.toml.example` are optional metadata, not a workaround for a runtime registry failure. The supported top-level concurrency setting is `max_concurrent_threads_per_session`; the example also records the effective default subagent model and reasoning effort. Static metadata, a physical TOML, or built-in `explorer` success does not prove custom-role callability; require an observed non-built-in spawn and targeted wait. See [`codex/guidance.md`](../codex/guidance.md) for diagnostics and [`platform-installation.md`](platform-installation.md) for the evidence boundary.
 
 ## Docker & stack modules
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
 | `docker_containers` | string[] | `[]` | container name(s) | Retained for explicitly registered Docker tooling; default SessionStart does not probe containers or export container variables. |
-| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences Review Gate triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
+| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences reviewer triggers and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
 
 ## Review triggers & risk heuristics
 
@@ -250,7 +256,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Env override | Purpose |
 |-----|------|---------|---------|--------------|---------|
-| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | Retained legacy setting; current Review Gate obligations are evaluated by the orchestrator. `warn` = stderr reminder (exit 0); `block` = reject the tool call (exit 2); `off` = silent. |
+| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | Retained legacy setting; reviewer dispatch is advisory. `warn` = stderr reminder (exit 0); `block` = reject the tool call (exit 2); `off` = silent. |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | Behavior when a history-mutating git verb (`commit/merge/rebase/cherry-pick/reset/push`) runs on a protected branch. |
 | `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | branch name(s) / bash `case` globs | — | Branches the `branch_safety` gate checks against. Set to `[]` to disable per-branch gating without setting `branch_safety=off`. |
 

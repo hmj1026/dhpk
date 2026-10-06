@@ -120,8 +120,7 @@ valid_payload() {
         scripts)
             [ -d "$SOURCE_ARTIFACT/scripts" ] &&
               [ -d "$SOURCE_ARTIFACT/skills/precommit/scripts" ] &&
-              [ -d "$SOURCE_ARTIFACT/skills/repo-verify/scripts" ] &&
-              [ -d "$SOURCE_ARTIFACT/skills/harness-audit/scripts" ] ;;
+              [ -d "$SOURCE_ARTIFACT/skills/repo-verify/scripts" ] ;;
         all)
             [ -f "$SOURCE_ARTIFACT/hooks/hooks.json" ] &&
               [ ! -L "$SOURCE_ARTIFACT/hooks/hooks.json" ] &&
@@ -129,8 +128,7 @@ valid_payload() {
               [ -d "$SOURCE_ARTIFACT/rules" ] &&
               [ -d "$SOURCE_ARTIFACT/scripts" ] &&
               [ -d "$SOURCE_ARTIFACT/skills/precommit/scripts" ] &&
-              [ -d "$SOURCE_ARTIFACT/skills/repo-verify/scripts" ] &&
-              [ -d "$SOURCE_ARTIFACT/skills/harness-audit/scripts" ] ;;
+              [ -d "$SOURCE_ARTIFACT/skills/repo-verify/scripts" ] ;;
         *) return 1 ;;
     esac
 }

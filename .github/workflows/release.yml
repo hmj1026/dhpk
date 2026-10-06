@@ -237,15 +237,19 @@ jobs:
           probe_exit="${PIPESTATUS[0]}"
           set -e
           outcome="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).outcome)" "$result_file")"
+          report_contract="$(node scripts/release/validate-harness-result.js "$result_file" "$probe_exit")"
+          legacy_report=0
+          if [ "$report_contract" = "LEGACY" ]; then legacy_report=1; fi
           {
             echo "## Consumer verification — ${GITHUB_REF_NAME}"
             echo ""
             echo "Outcome: \`$outcome\`"
             echo ""
+            node -e "const result=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); for (const check of ((result.acceptance && result.acceptance.requiredChecks) || [])) console.log('- Required acceptance check ' + check.id + ' (' + check.surface + '): ' + check.status);" "$result_file"
             node -e "const result=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); for (const row of (result.surfaceResults || [])) { const adapter = row.adapter && typeof row.adapter === 'object' ? row.adapter : {}; const version = row.surface === 'claude' && adapter.version ? ' (CLI ' + adapter.version + ')' : ''; console.log('- ' + row.surface + ': ' + row.status + version); }" "$result_file" >> "$GITHUB_STEP_SUMMARY"
             node -e "const result=JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')); const p=result.probeExecution; if (p) console.log('- Probe schedule: ' + p.mode + ', concurrency=' + p.concurrency + ', wallTimeMs=' + p.wallTimeMs);" "$result_file" >> "$GITHUB_STEP_SUMMARY"
             echo ""
-            echo "Tag \`${GITHUB_REF_NAME}\` is PUBLISHED. Overall release status is COMPLETE only when all seven consumer rows are PASS; non-pass evidence keeps the release PUBLISHED/PENDING or PUBLISHED/UNHEALTHY and never edits the immutable tag."
+            echo "Tag \`${GITHUB_REF_NAME}\` is PUBLISHED. Readiness outcome is \`$outcome\`; required acceptance checks and raw per-surface observations are listed separately. This job never edits the immutable tag."
           } >> "$GITHUB_STEP_SUMMARY"
           case "$outcome" in
             COMPLETE)
@@ -253,6 +257,7 @@ jobs:
               exit 0
               ;;
             PUBLISHED_PENDING)
+              [ "$legacy_report" -eq 1 ] || exit 1
               [ "$probe_exit" -eq 2 ] || exit 1
               echo "Consumer runtime evidence is pending; keeping the published tag immutable and the CI job non-blocking."
               exit 0

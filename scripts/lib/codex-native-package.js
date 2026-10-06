@@ -30,6 +30,8 @@ const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { collectStandalonePackageAssets } = require('./standalone-package-assets');
+const { compileMarketplaceSkillContent } = require('./marketplace-skill-content');
+const { loadMarketplaceHostPublication } = require('./marketplace-host-publication');
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
@@ -175,17 +177,43 @@ function readSkillFrontmatterName(skillFile, budget = null) {
 // Validate the identity dimension independently from fingerprints and
 // membership. A public native directory must carry the same public name in
 // SKILL.md frontmatter; stable inventory ids remain provenance-only.
-function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsField = './skills/' }) {
+function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsField = './skills/', publicationView = null }) {
   const errors = [];
   if (!resolvesInsidePackage(manifestSkillsField, packageRoot)) return { ok: true, errors };
   const skillsRoot = path.resolve(packageRoot, manifestSkillsField);
-  for (const skill of selectNativeSkills(inventory)) {
-    const publicName = skill.name || skill.id;
-    const skillFile = path.join(skillsRoot, publicName, 'SKILL.md');
-    if (!fs.existsSync(skillFile)) continue;
+  const expectedFiles = [];
+  if (publicationView) {
+    const entries = [...publicationView.publicEntries, ...(publicationView.hostOnly || [])];
+    const inventoryById = new Map((inventory.skills || []).map((skill) => [skill.id, skill]));
+    for (const entry of entries) {
+      const owner = inventoryById.get(entry.id);
+      if (!owner) continue;
+      const ownerName = owner.name || owner.id;
+      expectedFiles.push({ name: ownerName, relative: path.posix.join(ownerName, 'SKILL.md') });
+      for (const child of publicationView.bundledChildren[entry.id] || []) {
+        const childSkill = inventoryById.get(child.id);
+        if (!childSkill) continue;
+        expectedFiles.push({
+          name: childSkill.name || childSkill.id,
+          relative: path.posix.join(ownerName, 'references', childSkill.name || childSkill.id, 'SKILL.md'),
+        });
+      }
+    }
+  } else {
+    expectedFiles.push(...selectNativeSkills(inventory).map((skill) => ({
+      name: skill.name || skill.id,
+      relative: path.posix.join(skill.name || skill.id, 'SKILL.md'),
+    })));
+  }
+  for (const expected of expectedFiles) {
+    const skillFile = path.join(skillsRoot, ...expected.relative.split('/'));
+    if (!fs.existsSync(skillFile)) {
+      if (publicationView) errors.push(`native published skill SKILL.md is missing: '${expected.relative}'`);
+      continue;
+    }
     const actualName = readSkillFrontmatterName(skillFile);
-    if (actualName !== publicName) {
-      errors.push(`native skill '${publicName}' SKILL.md frontmatter name '${actualName || '(missing)'}' does not match public name '${publicName}'`);
+    if (actualName !== expected.name) {
+      errors.push(`native skill '${expected.name}' SKILL.md frontmatter name '${actualName || '(missing)'}' does not match public name '${expected.name}'`);
     }
   }
   return { ok: errors.length === 0, errors };
@@ -227,16 +255,40 @@ function materializeNativeSkills(inventory, selectedStableIds = null) {
 // `candidateSkillIds` remains accepted as a compatibility alias for callers
 // that have not yet renamed their local variable; its values are directory
 // names, i.e. public names for v2 inventories.
-function validateNativeMembership({ candidateSkillNames, candidateSkillIds, inventory, selectedStableIds = null }) {
-  const selection = compileDistribution({ inventory, surface: 'codex-native' });
-  if (!selection.ok) throw new Error(selection.error.message);
-  const { materialized } = materializeNativeSkills(
-    inventory,
-    Array.isArray(selectedStableIds)
-      ? selectedStableIds
-      : (selection.value.selectionPolicy ? selection.value.selectedStableIds : null),
-  );
-  const expected = new Map(materialized.map((s) => [s.name || s.id, s.id]));
+function validateNativeMembership({
+  candidateSkillNames,
+  candidateSkillIds,
+  inventory,
+  selectedStableIds = null,
+  expectedSkillNames = null,
+  publicationView = null,
+  sourceRoot = null,
+}) {
+  const effectivePublicationView = publicationView || (sourceRoot
+    ? loadMarketplaceHostPublication({ root: sourceRoot, inventory, hostSurface: 'codex-native' })
+    : null);
+  let expectedNames = Array.isArray(expectedSkillNames) ? expectedSkillNames : null;
+  if (effectivePublicationView) {
+    expectedNames = [...effectivePublicationView.publicEntries, ...effectivePublicationView.hostOnly]
+      .map((entry) => entry.name || entry.id);
+  }
+  let materialized = [];
+  if (!expectedNames) {
+    const selection = compileDistribution({ inventory, surface: 'codex-native' });
+    if (!selection.ok) throw new Error(selection.error.message);
+    materialized = materializeNativeSkills(
+      inventory,
+      Array.isArray(selectedStableIds)
+        ? selectedStableIds
+        : (selection.value.selectionPolicy ? selection.value.selectedStableIds : null),
+    ).materialized;
+  }
+  const expected = expectedNames
+    ? new Map(expectedNames.map((name) => {
+      const skill = (inventory.skills || []).find((entry) => (entry.name || entry.id) === name);
+      return [name, skill ? skill.id : name];
+    }))
+    : new Map(materialized.map((s) => [s.name || s.id, s.id]));
   const inventoryIdsByName = new Map((inventory.skills || []).map((s) => [s.name || s.id, s.id]));
   const candidateNames = candidateSkillNames || candidateSkillIds || [];
   const candidate = new Set(candidateNames);
@@ -369,6 +421,7 @@ function compileNativePackage({
   traversalOptions = {},
   selectionMode = 'compiler',
   profileSelection = null,
+  publication = null,
 } = {}) {
   if (!root || !outDir) throw new Error('compileNativePackage requires root and outDir');
   if (profileSelection) {
@@ -391,14 +444,31 @@ function compileNativePackage({
   const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
   const traversalBudget = createTraversalBudget(traversalOptions);
 
-  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'codex-native', profileSelection });
+  const hostPublication = selectionMode !== 'legacy'
+    ? loadMarketplaceHostPublication({ root: resolvedRoot, inventory, hostSurface: 'codex-native', profileSelection })
+    : null;
+  const selection = selectionMode === 'legacy' || (hostPublication && !profileSelection)
+    ? null
+    : compileDistribution({ inventory, surface: 'codex-native', profileSelection });
   if (selection && !selection.ok) throw new Error(selection.error.message);
-  const nativeSelection = materializeNativeSkills(
-    inventory,
-    selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
-  );
+  const nativeSelection = hostPublication
+    ? {
+      selected: [...hostPublication.publicEntries, ...hostPublication.hostOnly]
+        .sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id))),
+      runtimeSupportStableIds: runtimeSupportSkillIds(inventory, 'codex-native'),
+    }
+    : materializeNativeSkills(
+      inventory,
+      selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
+    );
   // Each Skill directory is complete; no peer Skill is added implicitly.
-  const materializedSkills = nativeSelection.materialized;
+  const materializedSkills = hostPublication ? nativeSelection.selected : nativeSelection.materialized;
+  const catalogContent = hostPublication
+    ? compileMarketplaceSkillContent({ root: resolvedRoot, inventory, publicationView: hostPublication })
+    : null;
+  if (catalogContent && !catalogContent.ok) {
+    throw new Error(`Codex marketplace content is invalid: ${catalogContent.errors.join('; ')}`);
+  }
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
@@ -409,6 +479,39 @@ function compileNativePackage({
   for (const skill of materializedSkills) {
     const publicName = skill.name || skill.id;
     const sourcePath = skill.path;
+    if (catalogContent) {
+      const ownerFiles = catalogContent.files.filter((file) => file.ownerId === skill.id);
+      for (const file of ownerFiles) {
+        const fileSkill = (inventory.skills || []).find((entry) => entry.id === file.skillId);
+        if (!fileSkill) throw new Error(`Codex marketplace content references unknown skill '${file.skillId}'`);
+        traversalBudget.accountBytes(file.bytes.byteLength, file.path);
+        const transform = file.skillId === skill.id
+          ? { id: 'codex-native-skill', version: generatorVersion }
+          : { id: 'codex-native-bundled-content', version: generatorVersion };
+        const skillMetadata = skillProjectionMetadata(fileSkill, {
+          transform,
+          owner: SURFACE_OWNERS['codex-native'],
+          inventoryRevision,
+          ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+        });
+        files.push(nativeOutputRecord(
+          `skill:${file.ownerId}:${file.skillId}:${file.path}`,
+          file.sourcePath,
+          file.path,
+          file.bytes,
+          transform,
+          file.mode,
+          { ...skillMetadata, ownerId: file.ownerId, sourcePath: file.sourcePath, contentKind: file.kind },
+        ));
+      }
+      const ownerFingerprintFiles = ownerFiles.map((file) => ({
+        destination: path.posix.relative(path.posix.join('skills', publicName), file.path),
+        content: file.bytes,
+      }));
+      fingerprints[publicName] = nativeSkillFingerprint(ownerFingerprintFiles);
+      selectedEntries.push(skill);
+      continue;
+    }
     if (typeof sourcePath !== 'string' || !sourcePath || path.posix.normalize(sourcePath) !== sourcePath || path.posix.isAbsolute(sourcePath) || sourcePath.startsWith('../')) {
       throw new Error(`unsafe source path for '${publicName}': ${sourcePath}`);
     }
@@ -487,6 +590,24 @@ function compileNativePackage({
     materializedSkillIds,
     materializedSkillNames,
     runtimeSupportStableIds: nativeSelection.runtimeSupportStableIds,
+    ...(publication || {}),
+    ...(hostPublication ? {
+      marketplacePublication: {
+        selectionDigest: hostPublication.selectionDigest,
+        publicEntryIds: hostPublication.publicEntries.map((entry) => entry.id).sort(),
+        hostOnlyIds: hostPublication.hostOnly.map((entry) => entry.id).sort(),
+      },
+      bundledContentProvenance: {
+        ...catalogContent.bundleProvenance,
+        files: catalogContent.files.map((file) => ({
+          ownerId: file.ownerId,
+          skillId: file.skillId,
+          sourcePath: file.sourcePath,
+          destination: file.path,
+          kind: file.kind,
+        })),
+      },
+    } : {}),
     fingerprints,
     ...(selectedSkillIds.length > 0 ? { installation: createInstallationReceiptIdentity({
       surface: 'codex-native', scope: 'project', sourceVersion: version,
@@ -510,7 +631,9 @@ function compileNativePackage({
       profileId: profileSelection.profileId || profileSelection.id,
       selectedStableIds: profileSelection.selectedStableIds,
       canonicalSelectedStableIds: profileSelection.selectedStableIds,
-      emittedStableIds: selectedSkillIds,
+      emittedStableIds: hostPublication && profileSelection
+        ? (profileSelection.emittedStableIds || profileSelection.selectedStableIds)
+        : selectedSkillIds,
       compatibilityMode: profileSelection.compatibilityMode || profileSelection.mode || null,
       selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
       selectionFingerprint: profileSelection.selectionFingerprint || null,
@@ -559,7 +682,7 @@ function compileNativePackage({
     } : {}),
   }));
   const compiled = compileDistribution({
-    internalCharacterization: selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy),
+    internalCharacterization: Boolean(hostPublication) || (selectionMode !== 'legacy' && (!selection || !selection.value.selectionPolicy)),
     surface: 'codex-native',
     compilerVersion: `codex-native-${generatorVersion}`,
     inventoryFingerprint: inventoryDigest,
@@ -567,10 +690,10 @@ function compileNativePackage({
     ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: resolvedOut,
     entries,
-    selectedStableIds: selection && selection.ok && selection.value.selectionPolicy
+    selectedStableIds: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
       ? selection.value.selectedStableIds
       : undefined,
-    selectionPolicy: selection && selection.ok && selection.value.selectionPolicy
+    selectionPolicy: !hostPublication && selection && selection.ok && selection.value.selectionPolicy
       ? selection.value.selectionPolicy
       : undefined,
     selectionEntries: selection && selection.ok && selection.value.selectionPolicy
@@ -587,8 +710,17 @@ function compileNativePackage({
         } : entry;
       })
       : undefined,
-    profileSelection: profileSelection ? { ...profileSelection, emittedStableIds: selectedSkillIds } : null,
-    emittedStableIds: profileSelection ? selectedSkillIds : undefined,
+    profileSelection: profileSelection ? {
+      ...profileSelection,
+      emittedStableIds: hostPublication
+        ? (profileSelection.emittedStableIds || profileSelection.selectedStableIds)
+        : selectedSkillIds,
+    } : null,
+    emittedStableIds: profileSelection
+      ? (hostPublication
+        ? (profileSelection.emittedStableIds || profileSelection.selectedStableIds)
+        : selectedSkillIds)
+      : undefined,
     selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
     surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
   });
@@ -644,11 +776,13 @@ function compileNativePackage({
           : [],
         inventory,
         selectedStableIds: profileSelection ? selectedSkillIds : null,
+        publicationView: hostPublication,
       });
       const identity = validateNativeSkillIdentity({
         manifestSkillsField: rendered.metadata.manifestSkillsField,
         packageRoot: context.session.stageRoot,
         inventory,
+        publicationView: hostPublication,
       });
       const errors = [...structural.errors, ...membership.errors, ...identity.errors];
       if (errors.length > 0) throw new Error(`generated Codex native package failed validation: ${errors.join('; ')}`);
@@ -693,6 +827,7 @@ function materializeNativePackage({
   artifactStore,
   traversalOptions = {},
   profileSelection = null,
+  publication = null,
 }) {
   if (!root || !outDir) throw new Error('materializeNativePackage requires root and outDir');
   const resolvedRoot = path.resolve(root);
@@ -713,6 +848,7 @@ function materializeNativePackage({
     generatorVersion,
     traversalOptions,
     profileSelection,
+    publication,
   });
   const parent = path.dirname(resolvedOut);
   const store = artifactStore || new ProjectionArtifactStore({
@@ -758,6 +894,7 @@ function readNativeManifest(packageRoot) {
 
 function verifyNativePackage({
   packageRoot,
+  sourceRoot = null,
   inventory = {},
   stage = 'structural',
   observedAt,
@@ -778,6 +915,9 @@ function verifyNativePackage({
     };
   }
   const manifest = readNativeManifest(resolvedPackageRoot) || {};
+  const hostPublication = sourceRoot
+    ? loadMarketplaceHostPublication({ root: sourceRoot, inventory, hostSurface: 'codex-native', profileSelection })
+    : null;
   const manifestSkillsField = typeof manifest.skills === 'string' ? manifest.skills : './skills/';
   const structural = validateNativeCandidate({ manifestSkillsField, packageRoot: resolvedPackageRoot });
   const skillsRoot = path.resolve(resolvedPackageRoot, manifestSkillsField);
@@ -790,10 +930,34 @@ function verifyNativePackage({
     candidateSkillNames,
     inventory,
     selectedStableIds: profileSelection && profileSelection.selectedStableIds,
+    publicationView: hostPublication,
   });
-  const identity = validateNativeSkillIdentity({ manifestSkillsField, packageRoot: resolvedPackageRoot, inventory });
+  const identity = validateNativeSkillIdentity({
+    manifestSkillsField,
+    packageRoot: resolvedPackageRoot,
+    inventory,
+    publicationView: hostPublication,
+  });
   const errors = [...structural.errors, ...membership.errors, ...identity.errors];
   const provenance = readNativeProvenance(resolvedPackageRoot);
+  if (hostPublication) {
+    const expectedPublication = {
+      selectionDigest: hostPublication.selectionDigest,
+      publicEntryIds: hostPublication.publicEntries.map((entry) => entry.id).sort(),
+      hostOnlyIds: hostPublication.hostOnly.map((entry) => entry.id).sort(),
+    };
+    const actualPublication = provenance && provenance.marketplacePublication;
+    if (!actualPublication
+      || actualPublication.selectionDigest !== expectedPublication.selectionDigest
+      || JSON.stringify(actualPublication.publicEntryIds) !== JSON.stringify(expectedPublication.publicEntryIds)
+      || JSON.stringify(actualPublication.hostOnlyIds) !== JSON.stringify(expectedPublication.hostOnlyIds)) {
+      errors.push('native provenance marketplacePublication does not match the canonical selection');
+    }
+    const expectedSkillIds = [...expectedPublication.publicEntryIds, ...expectedPublication.hostOnlyIds].sort();
+    if (!provenance || JSON.stringify(provenance.selectedSkillIds) !== JSON.stringify(expectedSkillIds)) {
+      errors.push('native provenance selectedSkillIds do not match the canonical marketplace publication');
+    }
+  }
   let routingParity = { ok: true, diagnostics: [], mismatches: [] };
   if (provenance && !Object.prototype.hasOwnProperty.call(provenance, 'routingProjection')) {
     routingParity = {

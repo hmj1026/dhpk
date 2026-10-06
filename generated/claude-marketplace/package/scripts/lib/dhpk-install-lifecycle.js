@@ -48,13 +48,14 @@ function parseRequest(argv) {
     json: false,
     agentProfile: null,
     agents: [],
-    profileId: null,
     skillIds: [],
     standaloneSkillIds: [],
   };
   for (let index = 0; index < rest.length; index += 1) {
     const option = rest[index];
-    if (option === '--offline') request.offline = true;
+    if (option === '--profile' || option.startsWith('--profile=')) {
+      throw failure('--profile is no longer supported; the common collection is selected automatically');
+    } else if (option === '--offline') request.offline = true;
     else if (option === '--dry-run') request.dryRun = true;
     else if (option === '--yes') request.yes = true;
     else if (option === '--json') request.json = true;
@@ -67,16 +68,11 @@ function parseRequest(argv) {
       else if (option === '--source') request.source = value;
       else if (option === '--agent-profile') request.agentProfile = value;
       else request.agents.push(value);
-    } else if (option === '--profile' || option === '--skill') {
+    } else if (option === '--skill') {
       const value = rest[index + 1];
       if (!value || value.startsWith('--')) throw failure(`${option} requires a value`);
       index += 1;
-      if (option === '--profile') request.profileId = value;
-      else request.skillIds.push(value);
-    } else if (option.startsWith('--profile=')) {
-      const value = option.slice('--profile='.length);
-      if (!value) throw failure('--profile requires a value');
-      request.profileId = value;
+      request.skillIds.push(value);
     } else if (option.startsWith('--skill=')) {
       const value = option.slice('--skill='.length);
       if (!value) throw failure('--skill requires a value');
@@ -92,8 +88,8 @@ function parseRequest(argv) {
       if (!request.standaloneSkillIds.includes(value)) request.standaloneSkillIds.push(value);
     } else throw failure(`unknown option '${option}'`);
   }
-  if (request.standaloneSkillIds.length > 0 && (request.profileId || request.skillIds.length > 0)) {
-    throw failure('--standalone cannot be combined with --profile or --skill');
+  if (request.standaloneSkillIds.length > 0 && request.skillIds.length > 0) {
+    throw failure('--standalone cannot be combined with --skill');
   }
   request.scope = request.scope || defaultScope(surface);
   if (!request.scope) throw failure(`--scope is required for '${surface}'`);
@@ -112,7 +108,6 @@ function parseRequest(argv) {
   request.skillIds = request.skillIds.slice().sort();
   request.standaloneSkillIds = request.standaloneSkillIds.slice().sort();
   const normalized = { ...request };
-  if (!normalized.profileId) delete normalized.profileId;
   if (normalized.skillIds.length === 0) delete normalized.skillIds;
   else normalized.skillIds = Object.freeze(normalized.skillIds);
   if (normalized.standaloneSkillIds.length === 0) delete normalized.standaloneSkillIds;
@@ -167,10 +162,9 @@ function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
   }
   let profileSelection = null;
   const standaloneSkillIds = Array.isArray(request.standaloneSkillIds) ? request.standaloneSkillIds : [];
-  if ((surface !== 'codex-sync' || standaloneSkillIds.length > 0)
-    && profiles && moduleCatalog && inventory && inventory.profile_policy) {
+  if (profiles && moduleCatalog && inventory && inventory.profile_policy) {
     const standalone = standaloneSkillIds.length > 0;
-    const selectedProfileId = request.profileId || (standalone ? null : 'minimal');
+    const selectedProfileId = standalone ? null : 'common';
     const skillIds = Array.isArray(request.skillIds) ? request.skillIds : [];
     const resolved = resolveCapabilitySelection({
       inventory,
@@ -240,7 +234,7 @@ function compileLifecyclePlan(request, inventory, selectionConfig = {}) {
       source: Object.freeze({ version: sourceVersion, source: request.source }),
       target: Object.freeze({ surface: request.surface, scope: request.scope, mode: request.mode }),
       selection: Object.freeze({
-        profileId: profileSelection && profileSelection.profileId || request.profileId || null,
+        profileId: profileSelection && profileSelection.profileId || null,
         selectedStableIds: Object.freeze(selectedIds.slice()),
         supportClosure,
       }),

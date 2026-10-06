@@ -4,7 +4,6 @@ description: 'Specialist for libraries shipping a CI matrix across multiple depe
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
-maxTurns: 15
 ---
 
 # Version Matrix Impact Reviewer
@@ -174,4 +173,4 @@ Don't produce a per-cell table when one row would do.
 
 ## Closing — Artifact Output
 
-Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). No consolidated Review Gate obligation by default; invoke this role as the orchestrator's version-matrix back-stop. Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.
+Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). Not part of the recommended post-edit reviewer batch by default; invoke this role as the orchestrator's version-matrix back-stop. Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.

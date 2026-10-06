@@ -472,19 +472,6 @@ function runHeuristics(inputs, files, gates, root, featureCtx) {
     }
   }
 
-  // 9. skill-lint-needed: skills changed, lint not evidenced (profile-gated)
-  if (dirExists('skills')) {
-    const skillFiles = changedPaths.filter(p => /^skills\/.*\/SKILL\.md$/.test(p));
-    if (skillFiles.length > 0) {
-      findings.push({
-        id: 'skill-lint-needed',
-        priority: 'P2',
-        message: `${skillFiles.length} SKILL.md file(s) changed — lint not evidenced`,
-        suggestion: 'Run $skill-scope --mode health to validate skill quality',
-      });
-    }
-  }
-
   // 10. locale-drift: one locale README changed, siblings not (profile-gated)
   if (globFilesExist('^README\\..+\\.md$')) {
     const allReadmes = (() => {

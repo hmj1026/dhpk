@@ -75,14 +75,6 @@
         "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
       },
       {
-        "source": "docs/contracts/review-lifecycle.md",
-        "destination": "references/execution-bundle/docs/contracts/review-lifecycle.md"
-      },
-      {
-        "source": "docs/contracts/reviewer-contract.md",
-        "destination": "references/execution-bundle/docs/contracts/reviewer-contract.md"
-      },
-      {
         "source": "skills/flow-guide/references/invocation-precedence.md",
         "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
       },
@@ -93,10 +85,6 @@
       {
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
-      },
-      {
-        "source": "skills/flow-guide/references/review-gate-mechanics.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
       },
       {
         "source": "skills/flow-guide/references/premise-verification.md",
@@ -173,14 +161,6 @@
         "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
       },
       {
-        "source": "docs/contracts/review-lifecycle.md",
-        "destination": "references/execution-bundle/docs/contracts/review-lifecycle.md"
-      },
-      {
-        "source": "docs/contracts/reviewer-contract.md",
-        "destination": "references/execution-bundle/docs/contracts/reviewer-contract.md"
-      },
-      {
         "source": "skills/flow-guide/references/invocation-precedence.md",
         "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
       },
@@ -191,10 +171,6 @@
       {
         "source": "skills/flow-guide/references/implementation-dispatch.md",
         "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
-      },
-      {
-        "source": "skills/flow-guide/references/review-gate-mechanics.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
       },
       {
         "source": "skills/flow-guide/references/premise-verification.md",
@@ -271,82 +247,6 @@
         "destination": "scripts/lib/install-codex-skills.sh"
       },
       {
-        "source": "scripts/review-gate-runtime.js",
-        "destination": "scripts/review-gate-runtime.js"
-      },
-      {
-        "source": "scripts/lib/claude-review-gate-adapter.js",
-        "destination": "scripts/lib/claude-review-gate-adapter.js"
-      },
-      {
-        "source": "scripts/lib/physical-file.js",
-        "destination": "scripts/lib/physical-file.js"
-      },
-      {
-        "source": "scripts/lib/receipt-json-primitives.js",
-        "destination": "scripts/lib/receipt-json-primitives.js"
-      },
-      {
-        "source": "scripts/lib/receipt-primitives.js",
-        "destination": "scripts/lib/receipt-primitives.js"
-      },
-      {
-        "source": "scripts/lib/redaction.js",
-        "destination": "scripts/lib/redaction.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-evidence.js",
-        "destination": "scripts/lib/review-gate-evidence.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-receipt-store.js",
-        "destination": "scripts/lib/review-gate-receipt-store.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime.js",
-        "destination": "scripts/lib/review-gate-runtime.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-attestation.js",
-        "destination": "scripts/lib/review-gate-runtime-attestation.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-checkpoint.js",
-        "destination": "scripts/lib/review-gate-runtime-checkpoint.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-composition.js",
-        "destination": "scripts/lib/review-gate-runtime-composition.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-errors.js",
-        "destination": "scripts/lib/review-gate-runtime-errors.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-evidence.js",
-        "destination": "scripts/lib/review-gate-runtime-evidence.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-storage.js",
-        "destination": "scripts/lib/review-gate-runtime-storage.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-store-budget.js",
-        "destination": "scripts/lib/review-gate-store-budget.js"
-      },
-      {
-        "source": "scripts/lib/review-gate.js",
-        "destination": "scripts/lib/review-gate.js"
-      },
-      {
-        "source": "scripts/lib/reviewer-contract.js",
-        "destination": "scripts/lib/reviewer-contract.js"
-      },
-      {
-        "source": "scripts/lib/risk-router.js",
-        "destination": "scripts/lib/risk-router.js"
-      },
-      {
         "source": "manifests/module-catalog.json",
         "destination": "data/module-catalog.json"
       },
@@ -421,216 +321,6 @@
         "destination": "references/frontend-framework-routing.md"
       }
     ],
-    "opsx-apply-goal": [
-      {
-        "source": "rules/execution-policy.md",
-        "destination": "references/execution-bundle/rules/execution-policy.md"
-      },
-      {
-        "source": "rules/execution-policy-kernel.md",
-        "destination": "references/execution-bundle/rules/execution-policy-kernel.md"
-      },
-      {
-        "source": "rules/model-economics.md",
-        "destination": "references/execution-bundle/rules/model-economics.md"
-      },
-      {
-        "source": "rules/anti-rationalization.md",
-        "destination": "references/execution-bundle/rules/anti-rationalization.md"
-      },
-      {
-        "source": "rules/tool-routing.md",
-        "destination": "references/execution-bundle/rules/tool-routing.md"
-      },
-      {
-        "source": "docs/subagent-prompt-template.md",
-        "destination": "references/execution-bundle/docs/subagent-prompt-template.md"
-      },
-      {
-        "source": "docs/contracts/review-lifecycle.md",
-        "destination": "references/execution-bundle/docs/contracts/review-lifecycle.md"
-      },
-      {
-        "source": "docs/contracts/reviewer-contract.md",
-        "destination": "references/execution-bundle/docs/contracts/reviewer-contract.md"
-      },
-      {
-        "source": "skills/flow-guide/references/invocation-precedence.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-precedence.md"
-      },
-      {
-        "source": "skills/flow-guide/references/invocation-classification.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/invocation-classification.md"
-      },
-      {
-        "source": "skills/flow-guide/references/implementation-dispatch.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md"
-      },
-      {
-        "source": "skills/flow-guide/references/review-gate-mechanics.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md"
-      },
-      {
-        "source": "skills/flow-guide/references/premise-verification.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/premise-verification.md"
-      },
-      {
-        "source": "skills/flow-guide/references/deterministic-first.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/deterministic-first.md"
-      },
-      {
-        "source": "skills/flow-guide/references/testing-policy.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/testing-policy.md"
-      },
-      {
-        "source": "skills/flow-guide/references/component-addition-policy.md",
-        "destination": "references/execution-bundle/skills/flow-guide/references/component-addition-policy.md"
-      },
-      {
-        "source": "scripts/fast-worker-selector.js",
-        "destination": "references/execution-bundle/scripts/fast-worker-selector.js"
-      },
-      {
-        "source": "scripts/lib/dispatch-contract.js",
-        "destination": "references/execution-bundle/scripts/lib/dispatch-contract.js"
-      },
-      {
-        "source": "scripts/lib/dispatch-engine.js",
-        "destination": "references/execution-bundle/scripts/lib/dispatch-engine.js"
-      },
-      {
-        "source": "scripts/lib/native-dispatch-policy.js",
-        "destination": "references/execution-bundle/scripts/lib/native-dispatch-policy.js"
-      },
-      {
-        "source": "scripts/lib/partial-writer-handoff.js",
-        "destination": "references/execution-bundle/scripts/lib/partial-writer-handoff.js"
-      },
-      {
-        "source": "scripts/lib/flow-handoff-contract.js",
-        "destination": "references/execution-bundle/scripts/lib/flow-handoff-contract.js"
-      },
-      {
-        "source": "manifests/provider-model-catalog.json",
-        "destination": "references/execution-bundle/manifests/provider-model-catalog.json"
-      },
-      {
-        "source": "manifests/host-profiles.json",
-        "destination": "references/execution-bundle/manifests/host-profiles.json"
-      },
-      {
-        "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-        "destination": "scripts/launch-cli-dispatch.js"
-      },
-      {
-        "source": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-        "destination": "scripts/build-cli-dispatch-context.js"
-      },
-      {
-        "source": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-        "destination": "scripts/cli-role-resolver.js"
-      },
-      {
-        "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-        "destination": "scripts/physical-file.js"
-      },
-      {
-        "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-        "destination": "scripts/physical-file.py"
-      },
-      {
-        "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
-        "destination": "scripts/run-codex.sh"
-      },
-      {
-        "source": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh",
-        "destination": "scripts/run-agy.sh"
-      },
-      {
-        "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-        "destination": "scripts/cli-transport/prepare-cli-request.py"
-      },
-      {
-        "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-        "destination": "scripts/cli-transport/run-cli-transport.py"
-      },
-      {
-        "source": "scripts/lib/claude-review-gate-adapter.js",
-        "destination": "scripts/lib/claude-review-gate-adapter.js"
-      },
-      {
-        "source": "scripts/lib/physical-file.js",
-        "destination": "scripts/lib/physical-file.js"
-      },
-      {
-        "source": "scripts/lib/receipt-json-primitives.js",
-        "destination": "scripts/lib/receipt-json-primitives.js"
-      },
-      {
-        "source": "scripts/lib/receipt-primitives.js",
-        "destination": "scripts/lib/receipt-primitives.js"
-      },
-      {
-        "source": "scripts/lib/redaction.js",
-        "destination": "scripts/lib/redaction.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-evidence.js",
-        "destination": "scripts/lib/review-gate-evidence.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-receipt-store.js",
-        "destination": "scripts/lib/review-gate-receipt-store.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-attestation.js",
-        "destination": "scripts/lib/review-gate-runtime-attestation.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-checkpoint.js",
-        "destination": "scripts/lib/review-gate-runtime-checkpoint.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-composition.js",
-        "destination": "scripts/lib/review-gate-runtime-composition.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-errors.js",
-        "destination": "scripts/lib/review-gate-runtime-errors.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-evidence.js",
-        "destination": "scripts/lib/review-gate-runtime-evidence.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime-storage.js",
-        "destination": "scripts/lib/review-gate-runtime-storage.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-runtime.js",
-        "destination": "scripts/lib/review-gate-runtime.js"
-      },
-      {
-        "source": "scripts/lib/review-gate-store-budget.js",
-        "destination": "scripts/lib/review-gate-store-budget.js"
-      },
-      {
-        "source": "scripts/lib/review-gate.js",
-        "destination": "scripts/lib/review-gate.js"
-      },
-      {
-        "source": "scripts/lib/reviewer-contract.js",
-        "destination": "scripts/lib/reviewer-contract.js"
-      },
-      {
-        "source": "scripts/lib/risk-router.js",
-        "destination": "scripts/lib/risk-router.js"
-      },
-      {
-        "source": "scripts/review-gate-runtime.js",
-        "destination": "scripts/review-gate-runtime.js"
-      }
-    ],
     "opsx-apply-resume": [
       {
         "source": "skills/dhpk-opsx-load-context/scripts/extract-compact.sh",
@@ -659,16 +349,6 @@
       {
         "source": "scripts/lib/command-namespace.js",
         "destination": "scripts/lib/command-namespace.js"
-      }
-    ],
-    "project-setup": [
-      {
-        "source": "scripts/setup/install-assets.sh",
-        "destination": "scripts/lib/install-assets-writer.sh"
-      },
-      {
-        "source": "skills/harness-setup/scripts/install-assets.sh",
-        "destination": "scripts/install-project-assets.sh"
       }
     ],
     "react-18-notes": [

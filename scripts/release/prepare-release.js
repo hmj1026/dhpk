@@ -589,6 +589,7 @@ function main() {
       });
       stagedAgyValidation = validateAgyPluginPackage(stagedAgy, {
         inventory,
+        sourceRoot: args.root,
         expectedVersion: args.version,
       });
       const agyProvenance = JSON.parse(fs.readFileSync(path.join(stagedAgy, 'provenance.json'), 'utf8'));

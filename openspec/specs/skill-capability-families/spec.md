@@ -6,15 +6,16 @@ Define a compact, ownership-aware skill interface that lets users and agents sel
 
 ## Requirements
 
-### Requirement: First-party workflows are exposed through nine capability families
+### Requirement: Family interfaces are separate from public catalog membership
 
-dhpk SHALL expose exactly nine portable first-party capability families:
-`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
-`code-trace`, `laravel`, `phpunit`, and `harness-govern`. Each family SHALL
-publish one discriminating description, a finite mode or selector set, and one
-output contract while placing mode- or selector-specific mechanics behind
-conditional references. The standalone `git-smart-commit` skill SHALL remain a
-prefixed, unchanged capability owner and SHALL NOT be replaced by a family.
+Capability-family interfaces SHALL retain their task boundary, finite mode or
+selector set, and output contract while placing mode- or selector-specific
+mechanics behind conditional references. Public workflow membership and its
+count SHALL be determined by the accepted inventory selection for the target
+publication; the existence or number of family directories SHALL NOT act as a
+publication quota. The standalone `git-smart-commit` skill SHALL remain a
+separately owned capability and SHALL NOT be replaced by a family; its public
+selection is decided independently.
 
 #### Scenario: User requests a first-party workflow
 
@@ -32,13 +33,19 @@ prefixed, unchanged capability owner and SHALL NOT be replaced by a family.
 
 - **WHEN** a user explicitly requests commit grouping or commit execution
 - **THEN** routing selects `git-smart-commit` with its existing public name and
-  authority contract rather than inventing a `commit-craft` family
+  authority contract rather than inventing a `commit-craft` family, while
+  publication membership continues to follow the accepted inventory selection
+
+#### Scenario: A family interface is not selected for publication
+
+- **WHEN** an accepted publication selection omits a retained family interface
+- **THEN** generation follows that selection and does not infer membership from
+  the family directory, historical family count, or predecessor mapping
 
 ### Requirement: Family modes preserve predecessor behavior and authority
 
 The family interfaces SHALL provide these modes and selectors: `skill-scope`
-has `health`, `judge`, `stocktake`, and `scout`; `skill-forge` has `create` and
-`distill-rules`; `flow-guide` has `route`, `rules`, `next`, and `close`, plus a
+has `health`, `judge`, `stocktake`, and `scout`; `flow-guide` has `route`, `rules`, `next`, and `close`, plus a
 read-only `help` metadata action that is not a workflow mode; `flow-drive` has
 no modes and exposes one explicit implementation entry for confirmed
 specifications; `change-verdict` has `code`, `pr`, `security`, `tests`, `docs`,
@@ -47,7 +54,8 @@ and `risk`; `code-trace` has `explore`, `diagnose`, `history`, and `select-tool`
 `phpunit` has selectors `9`, `10`, and `11`; and `harness-govern` has modes
 `health`, `budget`, `fill`, `revise`, and `sync`. A mode or selector SHALL
 preserve the applicable predecessor's authorization boundary and terminal
-evidence.
+evidence. These interface contracts do not require every family to be selected
+as a public workflow.
 
 #### Scenario: Read-only verdict is selected
 
@@ -56,7 +64,7 @@ evidence.
 
 #### Scenario: Mutating family requires explicit invocation
 
-- **WHEN** work requires `skill-forge`, `flow-drive`, or `harness-govern`
+- **WHEN** work requires `flow-drive` or `harness-govern`
 - **THEN** the family remains explicit-only and the model may recommend it
   without starting it absent direct human invocation or an already authorized
   explicit router delegation
@@ -79,8 +87,10 @@ The alias-free family consolidation SHALL use exactly this stable-ID mapping for
 family predecessors; the complete second-wave retirement set, including
 non-family replacements, is defined by `skill-retirement-migration`. No
 implementation step may infer additional family predecessors or modes. The
-mapping preserves the existing family ownership while routing the revised Flow
-interfaces and the new Laravel, PHPUnit, and harness families:
+mapping is the historical ownership and behavior record for the revised Flow
+interfaces and the Laravel, PHPUnit, and harness families. It does not require
+each mapped successor to remain a current public entry or make any predecessor
+an invokable alias:
 
 | Predecessor stable ID | Successor family | Mode or selector |
 |---|---|---|
@@ -88,8 +98,8 @@ interfaces and the new Laravel, PHPUnit, and harness families:
 | `skill-judge` | `skill-scope` | `judge` |
 | `skill-stocktake` | `skill-scope` | `stocktake` |
 | `skill-scout` | `skill-scope` | `scout` |
-| `create-skill` | `skill-forge` | `create` |
-| `rules-distill` | `skill-forge` | `distill-rules` |
+| `create-skill` | model default (`skill-forge` retired in 0.65.0) | — |
+| `rules-distill` | model default (`skill-forge` retired in 0.65.0) | — |
 | `adaptive-dev-workflow` | `flow-guide` | `route` |
 | `dhpk-execution-policy` | `flow-guide` | `rules` |
 | `next-step` | `flow-guide` | `next` |
@@ -127,6 +137,14 @@ interfaces and the new Laravel, PHPUnit, and harness families:
 
 - **WHEN** a retirement, profile replacement, source deletion, or generated projection adds, omits, or remaps a predecessor from this matrix
 - **THEN** validation fails with the predecessor, expected family, and expected mode or selector
+
+#### Scenario: A retired predecessor remains historical
+
+- **WHEN** migration evidence consults `create-skill` or `rules-distill` after
+  `skill-forge` has been retired
+- **THEN** the existing model-default disposition and retirement note remain
+  authoritative, and neither `skill-forge` nor its predecessor names are
+  restored as active entries or aliases
 
 ### Requirement: External-package skills remain outside family rebirth
 

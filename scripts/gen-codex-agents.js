@@ -16,21 +16,20 @@ const ROLE_MAP = path.join(ROOT, 'codex', 'agent-role-map.json');
 // Claude runtime and must not silently overwrite the effective Codex model or
 // reasoning effort.
 const RUNTIME_METADATA = Object.freeze({
-  architect: { model: 'gpt-6-sol', effort: 'high' },
-  'code-reviewer': { model: 'gpt-6-sol', effort: 'medium' },
-  'security-reviewer': { model: 'gpt-6-sol', effort: 'high' },
-  'database-reviewer': { model: 'gpt-6-sol', effort: 'high' },
+  architect: { model: 'gpt-6.1-sol', effort: 'high' },
+  'code-reviewer': { model: 'gpt-6.1-sol', effort: 'medium' },
+  'security-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
+  'database-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
   'tdd-guide': { model: 'gpt-6-luna', effort: 'max' },
-  'deep-reasoner': { model: 'gpt-6-sol', effort: 'high' },
+  'deep-reasoner': { model: 'gpt-6.1-sol', effort: 'high' },
   'doc-reviewer': { model: 'gpt-6-luna', effort: 'medium' },
-  planner: { model: 'gpt-6-sol', effort: 'high' },
-  'spec-miner': { model: 'gpt-6-sol', effort: 'high' },
-  'frontend-reviewer': { model: 'gpt-6-sol', effort: 'high' },
-  'migration-reviewer': { model: 'gpt-6-sol', effort: 'high' },
-  'e2e-runner': { model: 'gpt-6-sol', effort: 'high' },
+  planner: { model: 'gpt-6.1-sol', effort: 'high' },
+  'frontend-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
+  'migration-reviewer': { model: 'gpt-6.1-sol', effort: 'high' },
+  'e2e-runner': { model: 'gpt-6.1-sol', effort: 'high' },
 });
 
-// Curated allowlist — EXACTLY these 12, in emit order. Each entry pins a
+// Curated allowlist — EXACTLY these 11, in emit order. Each entry pins a
 // category (not the source frontmatter's effort). The 4 hand-maintained Codex
 // roles (bug-investigator, explorer, monitor, worker) are intentionally absent
 // and are never read or overwritten: any drift check scopes to these names.
@@ -43,7 +42,6 @@ const AGENTS = [
   { name: 'deep-reasoner' },
   { name: 'doc-reviewer' },
   { name: 'planner' },
-  { name: 'spec-miner' },
   { name: 'frontend-reviewer' },
   { name: 'migration-reviewer' },
   { name: 'e2e-runner' },
@@ -51,10 +49,18 @@ const AGENTS = [
 
 const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
 
-// Codex has no host hook lifecycle. The generated role points to the manual
-// Codex artifact handoff used by its parent flow.
+// Codex has no host hook lifecycle. Only reviewer roles with a review artifact
+// deliverable receive this final-review location instruction.
 const CODEX_MANUAL_REVIEW_LIFECYCLE =
-  "The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.";
+  "Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.";
+const CODEX_MANUAL_REVIEW_ROLES = new Set([
+  'code-reviewer',
+  'security-reviewer',
+  'database-reviewer',
+  'doc-reviewer',
+  'frontend-reviewer',
+  'migration-reviewer',
+]);
 
 function readJson(file, label) {
   if (!fs.existsSync(file)) {
@@ -139,7 +145,7 @@ function assertNoStaleToml(outDir, ownership) {
 // Fixed, line-level boilerplate matchers. Every match is a Claude-only tooling
 // reference irrelevant to Codex (cx/gitnexus routing, untrusted-input defense,
 // or Claude-only lifecycle paths. Codex-readable trap-sheet, prompt-defense,
-// execution-policy, and reviewer-contract references are retained and
+// and execution-policy references are retained and
 // rewritten to receipt-managed `.codex/dhpk/` assets.
 function isBoilerplate(line) {
   return (
@@ -325,7 +331,10 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`ui-ux-verifier`', 'a manual page-vs-spec UI audit fallback')
       .replaceAll('**ui-ux-verifier**', '**manual page-vs-spec UI audit fallback**')
       .replaceAll('ui-ux-verifier', 'manual page-vs-spec UI audit fallback')
-      .replaceAll('Verdict: PASS | WARNING | FAIL', 'Verdict: PASS | WARNING | FAIL | BLOCKED')
+      .replace(
+        /Verdict: PASS \| WARNING \| FAIL(?: \| BLOCKED)*/g,
+        'Verdict: PASS | WARNING | FAIL | BLOCKED',
+      )
       .replace(
         'Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project\'s typecheck command',
         "If Playwright or the browser capability is unavailable, return `Verdict: BLOCKED` as the first line with the missing capability and the exact command needed to resume. Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project's typecheck command",
@@ -419,8 +428,9 @@ function buildToml(agent, frontmatter, body) {
     'Use the supplied scoped task packet and load only references required by the route.',
     '',
     adaptCodexBody(agent.name, cleanBody(body)),
-    '',
-    CODEX_MANUAL_REVIEW_LIFECYCLE,
+    ...(CODEX_MANUAL_REVIEW_ROLES.has(agent.name)
+      ? ['', CODEX_MANUAL_REVIEW_LIFECYCLE]
+      : []),
   ]
     .join('\n')
     .trim();

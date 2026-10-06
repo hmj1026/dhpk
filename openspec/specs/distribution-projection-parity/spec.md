@@ -1,5 +1,16 @@
 # distribution-projection-parity Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
 ## Purpose
 
 Define the projection-parity capability that compares compiler-selected,
@@ -82,6 +93,11 @@ Every parity result SHALL bind target surface, profile or artifact identity when
 
 - **WHEN** structural or package parity passes but the requested consumer-runtime adapter is absent, unconfigured, or not run
 - **THEN** the structural or package result remains independently addressable while runtime evidence is `NOT_CONFIGURED`, `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE`, and no combined report claims runtime support
+
+#### Scenario: Selected installation acceptance retains a non-run observation
+
+- **WHEN** a schema-v2 CONSUMER acceptance passes for a selected installation and its separate raw runtime observation is `NOT_RUN`
+- **THEN** aggregation retains both results and does not promote the installation result to consumer-runtime parity
 
 ### Requirement: Parity migration preserves characterized behavior
 

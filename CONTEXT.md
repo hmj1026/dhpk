@@ -32,6 +32,14 @@ _Avoid_: Universal CLI route, Provider transport, `native` as a Target Agent nam
 A policy or subagent name that resolves to exactly one canonical Role (`planner`, `reasoner`, `worker`, `reviewer`) and nothing else. A Role Alias never pins a Target Agent, Provider, or Model; a caller that wants a specific backend states an explicit target instead.
 _Avoid_: Provider-bound role, backend alias
 
+**Bounded Consult**:
+A planner consult that checks a brief's stated facts against only the sources the brief names, spawns no discovery children, and reports missing facts as a blocker instead of exploring.
+_Avoid_: Lightweight consult, Facts-only consult, quick plan
+
+**Discovery Consult**:
+A planner consult that may explore beyond the brief's named sources within its read and discovery-child budget.
+_Avoid_: Full consult, default consult
+
 **Role Default**:
 The preferred Target Agent, Model, and Effort for one Role on one current Host, followed by an explicitly ordered fallback list when the preferred choice is unavailable before side effects.
 _Avoid_: Global default, first catalog entry

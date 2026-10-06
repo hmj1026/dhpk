@@ -117,8 +117,7 @@ function fakePlugin() {
     schema: 'dhpk.profile-projection-sets.v1',
     hostSurfaces: { cursor: 'cursor-sync', 'codex-sync': 'codex-sync' },
     profiles: {
-      minimal: { cursor: ['portable'], 'codex-sync': ['codex-only'] },
-      'compat-v1': { cursor: ['portable'], 'codex-sync': ['codex-only'] },
+      common: { cursor: ['portable'], 'codex-sync': ['codex-only'] },
     },
   }, null, 2)}\n`);
   return plugin;

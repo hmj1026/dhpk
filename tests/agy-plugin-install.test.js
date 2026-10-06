@@ -33,7 +33,7 @@ const { test, run, assert } = require('./_lib/tinytest');
     fs.mkdirSync(path.join(root, 'rules'), { recursive: true });
     fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample'), { recursive: true });
     fs.writeFileSync(path.join(root, 'agents', 'sample.md'), [
-      '---', 'name: sample', 'description: Sample', 'tools: ["read_file"]', 'model: inherit', '---', '', body,
+      '---', 'name: sample', 'description: Sample', 'tools: ["view_file"]', 'model: inherit', '---', '', body,
     ].join('\n'));
     fs.writeFileSync(path.join(root, 'rules', 'sample.md'), '# Rule\n');
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), '---\nname: dhpk-sample\ndescription: Sample\n---\n# Skill\n');
@@ -673,17 +673,17 @@ const { test, run, assert } = require('./_lib/tinytest');
       '',
     ];
     if (includeHarnessReference) {
-      fs.mkdirSync(path.join(root, 'skills', 'harness-govern'), { recursive: true });
-      fs.writeFileSync(path.join(root, 'skills', 'harness-govern', 'SKILL.md'), [
+      fs.mkdirSync(path.join(root, 'skills', 'harness-setup'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'skills', 'harness-setup', 'SKILL.md'), [
         '---',
-        'name: harness-govern',
+        'name: harness-setup',
         'description: Harness governance skill',
         '---',
         '',
         '# Harness Revise',
         '',
       ].join('\n'));
-      skillLines.push('Use @skills/harness-govern/references/harness-directory-contract.md when resolving a harness.');
+      skillLines.push('Use @skills/harness-setup/references/harness-directory-contract.md when resolving a harness.');
     }
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), `${skillLines.join('\n')}\n`);
     const inventory = {
@@ -692,11 +692,11 @@ const { test, run, assert } = require('./_lib/tinytest');
       skills: [
         { id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] },
         ...(includeHarnessReference
-          ? [{ id: 'harness-govern', path: 'skills/harness-govern', surfaces: ['agy-plugin'] }]
+          ? [{ id: 'harness-setup', path: 'skills/harness-setup', surfaces: ['agy-plugin'] }]
           : []),
       ],
       modules: [],
-      surface_membership: { 'agy-plugin': ['sample', ...(includeHarnessReference ? ['harness-govern'] : [])] },
+      surface_membership: { 'agy-plugin': ['sample', ...(includeHarnessReference ? ['harness-setup'] : [])] },
       agy_plugin: {
         agents: ['sample.md'],
         rules: ['rules/sample.md'],
@@ -818,8 +818,8 @@ const { test, run, assert } = require('./_lib/tinytest');
     try {
       materializeFixture(root, outDir, { includeHarnessReference: true });
       const projected = fs.readFileSync(path.join(outDir, 'skills', 'dhpk-sample', 'SKILL.md'), 'utf8');
-      assert.ok(projected.includes('harness-govern'));
-      assert.ok(!projected.includes('@skills/harness-govern/references/harness-directory-contract.md'));
+      assert.ok(projected.includes('harness-setup'));
+      assert.ok(!projected.includes('@skills/harness-setup/references/harness-directory-contract.md'));
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -962,7 +962,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       const inventory = writeFixture(root);
       fs.appendFileSync(
         path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'),
-        '\nUse @skills/harness-govern/references/harness-directory-contract.md when resolving a harness.\n',
+        '\nUse @skills/harness-setup/references/harness-directory-contract.md when resolving a harness.\n',
       );
       assert.throws(() => materializeAgyPluginPackage({
         root,
@@ -971,7 +971,7 @@ const { test, run, assert } = require('./_lib/tinytest');
         version: '0.39.0',
         sourceVersion: '0.39.0',
         sourceCommit: COMMIT,
-      }), /AGY skill reference target is not selected: harness-govern/);
+      }), /AGY skill reference target is not selected: harness-setup/);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -1236,21 +1236,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
   const ROOT = path.join(__dirname, '..');
   const SCRIPT = path.join(ROOT, 'scripts', 'ci', 'install-agy-plugin.js');
-  const SOURCE = path.join(ROOT, 'plugins', 'dhpk-agy');
   const SCRATCH_COMMIT = 'c'.repeat(40);
-
-  function invoke(action, target) {
-    return spawnSync(process.execPath, [SCRIPT, action, '--source', SOURCE, '--target', target, '--json'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      timeout: 30000,
-    });
-  }
-
-  function invokeReport(action, target) {
-    const result = invoke(action, target);
-    return { result, report: JSON.parse(result.stdout) };
-  }
 
   function invokeForSource(action, source, target) {
     return spawnSync(process.execPath, [SCRIPT, action, '--source', source, '--target', target, '--json'], {
@@ -1284,7 +1270,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       '---',
       'name: sample',
       'description: Sample',
-      'tools: ["read_file"]',
+      'tools: ["view_file"]',
       'model: inherit',
       '---',
       '',
@@ -1335,7 +1321,8 @@ const { test, run, assert } = require('./_lib/tinytest');
     const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-install-'));
     const target = path.join(temp, 'target');
     try {
-      const installed = invokeReport('install', target);
+      const source = scratchPackage(temp, 'source', '0.39.0', '# Source\n');
+      const installed = invokeReportForSource('install', source, target);
       assert.strictEqual(installed.result.status, 0, `${installed.result.stdout}\n${installed.result.stderr}`);
       assert.ok(installed.report.installed.length > 0, 'install report must identify receipt-owned package files');
       const targetRoot = path.resolve(target);
@@ -1349,7 +1336,7 @@ const { test, run, assert } = require('./_lib/tinytest');
       }
       assert.ok(fs.existsSync(path.join(target, 'provenance.json')));
 
-      const rolledBack = invokeReport('rollback', target);
+      const rolledBack = invokeReportForSource('rollback', source, target);
       assert.strictEqual(rolledBack.result.status, 0, `${rolledBack.result.stdout}\n${rolledBack.result.stderr}`);
       assert.deepStrictEqual(rolledBack.report.removed, installed.report.installed);
       for (const relative of installed.report.installed) {
@@ -1365,10 +1352,11 @@ const { test, run, assert } = require('./_lib/tinytest');
     const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-plan-'));
     const target = path.join(temp, 'target');
     try {
+      const source = scratchPackage(temp, 'source', '0.39.0', '# Source\n');
       fs.mkdirSync(path.join(target, '.git'), { recursive: true });
       fs.writeFileSync(path.join(target, 'plugin.json'), '{"name":"dhpk","version":"0.38.0"}\n');
       for (const action of ['plan', 'status']) {
-        const { result, report } = invokeReport(action, target);
+        const { result, report } = invokeReportForSource(action, source, target);
         assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
         assert.strictEqual(report.status, 'BLOCKED');
         assert.strictEqual(report.classification, 'FOREIGN_CHECKOUT');
@@ -1385,21 +1373,22 @@ const { test, run, assert } = require('./_lib/tinytest');
     const temp = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'agy-cli-current-'));
     const target = path.join(temp, 'target');
     try {
-      const installed = invoke('install', target);
+      const source = scratchPackage(temp, 'source', '0.39.0', '# Source\n');
+      const installed = invokeForSource('install', source, target);
       assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
-      const sourceBefore = snapshotFiles(SOURCE);
+      const sourceBefore = snapshotFiles(source);
       const targetBefore = snapshotFiles(target);
       assert.deepStrictEqual(targetBefore, sourceBefore);
 
-      const plan = invokeReport('plan', target);
-      const status = invokeReport('status', target);
+      const plan = invokeReportForSource('plan', source, target);
+      const status = invokeReportForSource('status', source, target);
       assert.strictEqual(plan.result.status, 0, `${plan.result.stdout}\n${plan.result.stderr}`);
       assert.strictEqual(status.result.status, 0, `${status.result.stdout}\n${status.result.stderr}`);
       assert.deepStrictEqual({ ...plan.report, action: undefined }, { ...status.report, action: undefined });
       assert.strictEqual(plan.report.status, 'PASS');
       assert.strictEqual(plan.report.state, 'CURRENT');
       assert.strictEqual(plan.report.classification, 'AGY_OWNED');
-      assert.deepStrictEqual(snapshotFiles(SOURCE), sourceBefore);
+      assert.deepStrictEqual(snapshotFiles(source), sourceBefore);
       assert.deepStrictEqual(snapshotFiles(target), targetBefore);
     } finally {
       fs.rmSync(temp, { recursive: true, force: true });
@@ -1438,9 +1427,10 @@ const { test, run, assert } = require('./_lib/tinytest');
     const legacy = path.join(temp, '.gemini/config/plugins/dhpk');
     const canonical = path.join(temp, '.gemini/antigravity-cli/plugins/dhpk');
     try {
-      const installed = invoke('install', legacy);
+      const source = scratchPackage(temp, 'source', '0.39.0', '# Source\n');
+      const installed = invokeForSource('install', source, legacy);
       assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
-      const migrated = invokeWithHome('migrate', SOURCE, temp);
+      const migrated = invokeWithHome('migrate', source, temp);
       assert.strictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
       const report = JSON.parse(migrated.stdout);
       assert.strictEqual(report.classification, 'MIGRATED_LEGACY');

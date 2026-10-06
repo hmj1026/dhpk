@@ -25,7 +25,7 @@ With the setup installer, the runner is
 The runner owns ecosystem detection, package-manager selection,
 `lint:fix -> build -> test:unit` ordering, graceful skips, changed-file
 reporting, and the final verdict. Read
-[`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/precommit/references/workflow.md) for the terminal boundary.
+[`references/workflow.md`](references/workflow.md) for the terminal boundary.
 
 ## When NOT to Use
 
@@ -53,5 +53,5 @@ pass from partial output.
 
 ## References
 
-- [`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/precommit/references/workflow.md) — mode mapping,
+- [`references/workflow.md`](references/workflow.md) — mode mapping,
   `$SKILL_DIR` resolution, runner ownership, and failure handling.

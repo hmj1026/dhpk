@@ -34,16 +34,33 @@ This project is indexed by GitNexus as **dhpk**.
 
 | Task | Read this skill file |
 | --- | --- |
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus-cli/SKILL.md` |
-
+| Understand architecture / "How does X work?" | `docs/agent-guidance/gitnexus.md` |
+| Blast radius / "What breaks if I change X?" | `docs/agent-guidance/gitnexus.md` |
+| Trace bugs / "Why is X failing?" | `docs/agent-guidance/gitnexus.md` |
+| Rename / extract / split / refactor | `docs/agent-guidance/gitnexus.md` |
+| Tools, resources, schema reference | `docs/agent-guidance/gitnexus.md` |
+| Index, status, clean, wiki CLI commands | `docs/agent-guidance/gitnexus.md` |
 <!-- gitnexus:end -->
 
-- **Editing plugin sources, skills, agents, rules, or guidance:** load the matching page from the [agent guidance index](docs/agent-guidance/README.md), including [plugin development](docs/agent-guidance/plugin-development.md) and [writing for agents](docs/agent-guidance/writing-for-agents.md); Codex projection rules live in [Codex guidance](codex/AGENTS.md).
+- **Editing plugin sources, skills, agents, rules, or guidance:** load the matching page from the [agent guidance index](docs/agent-guidance/README.md), including [plugin development](docs/agent-guidance/plugin-development.md) and [writing for agents](docs/agent-guidance/writing-for-agents.md); Codex projection rules live in [Codex guidance](codex/guidance.md). For specifications and development records, follow [document storage by type](docs/README.md) and [OpenSpec authoring](docs/agent-guidance/openspec-authoring.md), including superpowers workflows.
+- **Changing `generated/` or `plugins/` outputs:** follow the [generated-output preflight](docs/agent-guidance/plugin-development.md#ci-preflight-for-generated-and-release-shaped-changes) for commands and clean-checkout ordering; use [distribution surfaces](docs/distribution-surfaces.md) for surface ownership.
 - **Orchestrating implementation:** follow the canonical [execution policy](rules/execution-policy.md) — record decision state, run the read-only reasoner before a writer when required, keep planner/review/CI/archive/PR checkpoints, and leave external `/opsx:apply` unchanged.
-- **Issues and triage:** use `gh` per [issue-tracker.md](docs/agents/issue-tracker.md) and the labels in [triage-labels.md](docs/agents/triage-labels.md).
-- **Domain terms and decisions:** read root `CONTEXT.md` and the relevant `docs/adr/` entries; see [domain.md](docs/agents/domain.md).
+- **Project workflow defaults:** Agent-First and multi-file Plan Mode are task-fit recommendations; use them when ownership, uncertainty, risk, or coordination supports them. Apply an 80% coverage target only when project/task acceptance or runner configuration makes it applicable; do not invent a universal threshold. See the [execution policy](rules/execution-policy.md) and [testing governance](docs/testing-governance.md). They do not override stronger current-session instructions or change user-global settings.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues 是本專案的 issue tracker。依 `docs/agents/issue-tracker.md` 使用 `gh`。
+
+### Triage labels
+
+使用 `needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。詳見 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+本專案採 single-context。讀取根目錄的 `CONTEXT.md` 和相關 `docs/adr/`。詳見 `docs/agents/domain.md`。
+
+## Guidance ownership
+
+`AGENTS.md` is the only repository instruction entrypoint source. Edit it directly; `CLAUDE.md`, `codex/AGENTS.md`, and `cursor/AGENTS.md` are relative symlinks to this file. Resolve reference links from the repository root. Load [Codex guidance](codex/guidance.md) for Codex work and [Cursor guidance](cursor/guidance.md) for Cursor work; these are topic references, not separate instruction entrypoints.

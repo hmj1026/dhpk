@@ -1,7 +1,7 @@
 ---
 name: swift-build-resolver
 description: 'Swift / Xcode / SwiftPM build-error resolution specialist. Use PROACTIVELY when `swift build`, `xcodebuild`, or SPM dependency resolution fails — compile errors, strict-concurrency / Sendable / actor-isolation errors, Codable/protocol-conformance breaks, package version conflicts, or code-signing failures. Applies the smallest fix that preserves intent, re-running the build after each attempt. Stops and escalates after 3 failed attempts or when the fix needs an architectural redesign. Pairs with the `swift` / `xcode-tooling` modules; hands a green build to `code-reviewer`.'
-tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "mcp_gitnexus_impact"]
+tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "mcp_gitnexus_impact"]
 model: pro
 ---
 
@@ -26,12 +26,14 @@ compiler, fix the root cause, re-build, repeat — never paper over an error.
 
 **SwiftPM**
 ```sh
+git status --short
+git diff -- Package.swift Package.resolved
+swift --version                   # toolchain / language mode
 swift build 2>&1
 swift package resolve 2>&1
 swift package show-dependencies 2>&1
 swift package dump-package        # validate Package.swift syntax
 cat Package.resolved | head -40   # pinned versions
-swift --version                   # toolchain / language mode
 ```
 
 **Xcode**
@@ -71,15 +73,24 @@ For the concurrency rows, the fix usually follows from the isolation model in th
 ## SPM dependency failures
 
 ```sh
-swift package reset && swift package resolve     # clear a corrupt resolution
+swift package resolve                            # resolve the current declared constraints
 swift package show-dependencies --format json     # full tree
-swift package update <PackageName>                # bump one dependency
+swift package update <PackageName>                # update one implicated dependency when needed
 swift package resolve 2>&1 | grep -iE 'conflict|error'
 ```
 
-A version conflict is resolved by relaxing/aligning the requirement in
-`Package.swift` (and committing the new `Package.resolved`), **not** by deleting
-a dependency the code still uses.
+A version conflict is resolved by aligning the affected requirement in
+`Package.swift`, **not** by deleting a dependency the code still uses. Refresh
+`Package.resolved` only when the repair requires it, inspect its diff, and keep
+that required lockfile change in the proposed repair. Do not commit or push
+unless separately authorized.
+
+Use `swift package reset` only when the failure evidence points to corrupt or
+stale package-local state and that reset is within the task's authorized scope.
+It can discard package resolution and build state, so inspect the workspace
+first and preserve source files, lockfiles, and dirty or untracked work. Ask
+before resetting shared or user-level state. A reset does not repair a genuine
+version conflict; fix the declared constraint instead.
 
 ## Code-signing / provisioning (Xcode)
 

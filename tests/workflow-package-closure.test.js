@@ -128,13 +128,14 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
     'plugins/dhpk',
     'plugins/dhpk-agent',
     'plugins/dhpk-agy',
-    'generated/claude-profiles/minimal/package',
+    'generated/claude-marketplace/package',
   ];
 
   function isolatedEnvironment() {
     const env = { ...process.env };
     delete env.DHPK_SOURCE_ROOT;
     delete env.PLUGIN_ROOT;
+    delete env.CLAUDECODE;
     return env;
   }
 
@@ -172,13 +173,40 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
       }
 
       const invocation = runIsolated(path.join(surface, 'skills/flow-drive/scripts/invocation.js'), [
-        'confirmed-change-123', '--cross-provider', '--reasoner=codex:terra:high', '--architect',
+        'confirmed-change-123', '--plan-mode=bounded', '--plan=sol:medium',
+        '--cross-provider', '--reasoner=codex:terra:high', '--architect',
       ]);
       assert.strictEqual(invocation.status, 0, invocation.stdout + '\n' + invocation.stderr);
       const context = JSON.parse(invocation.stdout);
       assert.strictEqual(context.schema, 'dhpk.flow-drive-invocation.v1');
+      assert.strictEqual(context.options.plan.enabled, true);
+      assert.strictEqual(context.options.plan.model, 'sol');
+      assert.strictEqual(context.options.plan.effort, 'medium');
+      assert.strictEqual(context.options.plan.mode, 'bounded');
       assert.strictEqual(context.options.crossProvider, true);
       assert.strictEqual(context.options.reasoner.backend, 'codex');
+    });
+
+    test(surface + ' flow-drive CLI rejects malformed planner modes with exit 2', () => {
+      const invocationScript = path.join(surface, 'skills/flow-drive/scripts/invocation.js');
+      const invalidOptions = [
+        ['empty', ['--plan', '--plan-mode=']],
+        ['unknown', ['--plan', '--plan-mode=unknown']],
+        ['duplicate', ['--plan', '--plan-mode=bounded', '--plan-mode=discovery']],
+        ['orphan', ['--plan-mode=bounded']],
+        ['bare', ['--plan-mode']],
+        ['separated', ['--plan-mode', 'bounded']],
+      ];
+
+      for (const [label, options] of invalidOptions) {
+        const result = runIsolated(invocationScript, ['confirmed-change-123', ...options]);
+        const message = `${surface} ${label}: ${result.stdout}\n${result.stderr}`;
+
+        assert.strictEqual(result.status, 2, message);
+        const context = JSON.parse(result.stdout);
+        assert.strictEqual(context.schema, 'dhpk.flow-drive-invocation.v1');
+        assert.strictEqual(context.status, 'blocked');
+      }
     });
   }
 

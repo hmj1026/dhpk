@@ -20,7 +20,7 @@ const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PAT
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
 
 const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 76;
-const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '21635fd9fcbaddc682105395cfa8206ff12b8e3ffd7bf48f80ee1ccd15ce72a2';
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = '53cc964a6a31d4c3a63bde9ab9a14951a9b1ebfc9440162a3f4ef0422b042b36';
 const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
   'cross_provider',
   'worker_target',
@@ -140,6 +140,9 @@ test('active userConfig preserves the canonical 76-key contract and metadata cov
 
   assert.strictEqual(activeEntries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
   assert.strictEqual(digest(activeEntries), EXPECTED_ACTIVE_USER_CONFIG_SHA256);
+  for (const key of ['codex_deep_reasoner_model', 'codex_reasoner_model', 'codex_reviewer_model']) {
+    assert.strictEqual(activeManifest.userConfig[key].default, 'gpt-6.1-sol', key);
+  }
   assert.deepStrictEqual(canonicalOnlyKeys, EXPECTED_CANONICAL_ROLE_CONFIG_KEYS);
   assert.ok(EXPECTED_CANONICAL_ROLE_CONFIG_KEYS.every((key) => !legacyKeys.includes(key)));
   assert.strictEqual(canonicalMetadataDocument.entries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);

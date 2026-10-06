@@ -1,7 +1,7 @@
 ---
 name: refactor-cleaner
 description: 'Dead-code removal specialist (language-agnostic). Use when files exceed 800 lines, when user explicitly asks to "dedupe" / "remove dead code" / "split file", or during refactor-pass after large feature work. Removes unused functions, merges duplicate logic, splits oversized files, and consolidates scattered patterns.'
-tools: ["read_file", "write_to_file", "replace_file_content", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_rename"]
+tools: ["view_file", "write_to_file", "replace_file_content", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_rename"]
 model: pro
 ---
 
@@ -89,4 +89,4 @@ Verification: unit ✅ / smoke ✅ / JS console ✅
 
 ## Closing — Artifact Output
 
-When producing a cleanup report: category `refactors/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`removed[]` / `consolidated[]` / `verdict`). No consolidated Review Gate obligation by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.
+When producing a cleanup report: category `refactors/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`removed[]` / `consolidated[]` / `verdict`). Not part of the recommended post-edit reviewer batch by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.

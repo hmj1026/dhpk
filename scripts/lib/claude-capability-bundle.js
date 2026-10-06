@@ -129,7 +129,12 @@ function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory, s
   const inventoryResult = inventoryEntries(inventory);
   if (inventoryResult.error) return fail(inventoryResult.error.code, inventoryResult.error.message);
   const profileTable = profiles && profiles.profiles ? profiles.profiles : profiles;
-  const requested = profileId === undefined || profileId === null || profileId === '' ? null : profileId;
+  const hasCommonProfile = profileTable && typeof profileTable === 'object' && !Array.isArray(profileTable)
+    && Object.prototype.hasOwnProperty.call(profileTable, 'common');
+  const standaloneSelection = standaloneSkillIds !== undefined && standaloneSkillIds !== null;
+  const requested = profileId === undefined || profileId === null || profileId === ''
+    ? (standaloneSelection ? null : (hasCommonProfile ? 'common' : null))
+    : profileId;
   if (requested !== null && (typeof requested !== 'string' || !PROFILE_ID_PATTERN.test(requested))) {
     return fail('INVALID_PROFILE_ID', 'profile id must use a finite safe alias');
   }
@@ -145,7 +150,6 @@ function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory, s
   // metadata retain the module-only characterization below until they opt in.
   const canonicalProfile = profile && Array.isArray(profile.skillIds)
     && inventory && inventory.profile_policy;
-  const standaloneSelection = standaloneSkillIds !== undefined && standaloneSkillIds !== null;
   if (canonicalProfile || standaloneSelection) {
     const normalized = resolveCapabilitySelection({
       inventory,

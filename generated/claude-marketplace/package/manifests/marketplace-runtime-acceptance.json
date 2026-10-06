@@ -1,0 +1,113 @@
+{
+  "schema": "dhpk.marketplace-runtime-acceptance.v1",
+  "requiredScopes": [
+    {
+      "id": "codex-default-clean",
+      "host": "codex",
+      "profile": "default",
+      "consumer": "clean",
+      "surface": "openai-submission",
+      "budget": {
+        "policy": "codex-skill-list",
+        "version": "2026-10-01"
+      },
+      "rationale": "Apply the current Codex official initial-skill-list policy: 2% of observed effective model context in tokens when known; otherwise 8000 characters. Measure the actual model-visible list, including observed skill roots and metadata, separately from the installed catalog. Explicit-only entries remain selectable but are not fabricated into the initial model list."
+    },
+    {
+      "id": "codex-default-coexistence",
+      "host": "codex",
+      "profile": "default",
+      "consumer": "coexistence",
+      "surface": "openai-submission",
+      "budget": {
+        "policy": "codex-skill-list",
+        "version": "2026-10-01"
+      },
+      "rationale": "Apply the current Codex official initial-skill-list policy: 2% of observed effective model context in tokens when known; otherwise 8000 characters. Measure the actual model-visible list, including observed skill roots and metadata, separately from the installed catalog. Explicit-only entries remain selectable but are not fabricated into the initial model list."
+    },
+    {
+      "id": "claude-default-clean",
+      "host": "claude",
+      "profile": "default",
+      "consumer": "clean",
+      "surface": "claude-core",
+      "budget": {
+        "policy": "configured",
+        "version": "2026-10-03",
+        "unit": "characters",
+        "limit": 16000
+      },
+      "rationale": "Project-owned engineering allocation of 16000 Unicode codepoints for the complete observed initial discovery list, including foreign skills in coexistence. This is an explicit project budget, not a claimed Host platform limit."
+    },
+    {
+      "id": "claude-default-coexistence",
+      "host": "claude",
+      "profile": "default",
+      "consumer": "coexistence",
+      "surface": "claude-core",
+      "budget": {
+        "policy": "configured",
+        "version": "2026-10-03",
+        "unit": "characters",
+        "limit": 16000
+      },
+      "rationale": "Project-owned engineering allocation of 16000 Unicode codepoints for the complete observed initial discovery list, including foreign skills in coexistence. This is an explicit project budget, not a claimed Host platform limit."
+    },
+    {
+      "id": "cursor-default-clean",
+      "host": "cursor",
+      "profile": "default",
+      "consumer": "clean",
+      "surface": "cursor-plugin+agent-plugin",
+      "budget": {
+        "policy": "configured",
+        "version": "2026-10-03",
+        "unit": "characters",
+        "limit": 16000
+      },
+      "rationale": "Project-owned engineering allocation of 16000 Unicode codepoints for the complete observed initial discovery list, including foreign skills in coexistence. This is an explicit project budget, not a claimed Host platform limit. Cursor uses the native overlay and Agent companion together."
+    },
+    {
+      "id": "cursor-default-coexistence",
+      "host": "cursor",
+      "profile": "default",
+      "consumer": "coexistence",
+      "surface": "cursor-plugin+agent-plugin",
+      "budget": {
+        "policy": "configured",
+        "version": "2026-10-03",
+        "unit": "characters",
+        "limit": 16000
+      },
+      "rationale": "Project-owned engineering allocation of 16000 Unicode codepoints for the complete observed initial discovery list, including foreign skills in coexistence. This is an explicit project budget, not a claimed Host platform limit. Cursor uses the native overlay and Agent companion together."
+    },
+    {
+      "id": "agy-default-clean",
+      "host": "agy",
+      "profile": "default",
+      "consumer": "clean",
+      "surface": "agy-plugin",
+      "budget": {
+        "policy": "configured",
+        "version": "2026-10-03",
+        "unit": "characters",
+        "limit": 16000
+      },
+      "rationale": "Project-owned engineering allocation of 16000 Unicode codepoints for the complete observed initial discovery list, including foreign skills in coexistence. This is an explicit project budget, not a claimed Host platform limit."
+    },
+    {
+      "id": "agy-default-coexistence",
+      "host": "agy",
+      "profile": "default",
+      "consumer": "coexistence",
+      "surface": "agy-plugin",
+      "budget": {
+        "policy": "configured",
+        "version": "2026-10-03",
+        "unit": "characters",
+        "limit": 16000
+      },
+      "rationale": "Project-owned engineering allocation of 16000 Unicode codepoints for the complete observed initial discovery list, including foreign skills in coexistence. This is an explicit project budget, not a claimed Host platform limit."
+    }
+  ]
+}

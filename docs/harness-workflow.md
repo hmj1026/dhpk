@@ -44,63 +44,37 @@ evidence result. The two fields are intentionally independent.
 
 | Outcome | Meaning | Exit |
 | --- | --- | ---: |
-| `PASS`, `COMPLETE` | Evidence passed; `COMPLETE` is aggregate release success | 0 |
-| `FAIL` | Deterministic assertion or gate failed | 1 |
-| `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN` | Evidence is absent, non-pass, or explicitly held | 2 |
+| `PASS` from a non-release phase or current consumer-gate child; aggregate `COMPLETE` | Evidence passed; `COMPLETE` is aggregate readiness for the selected release scope | 0 |
+| Any current schema-v2 outer release result except aggregate `COMPLETE` | Current selected-scope acceptance or release readiness is incomplete or non-pass, even if its outcome is `PASS`, `BLOCKED`, `PUBLISHED_PENDING`, or `PUBLISHED_UNHEALTHY` | 1 |
+| Legacy or unrelated-phase `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN` | Historical or unrelated-phase evidence is absent, non-pass, or explicitly held | 2 |
 | invalid usage | Unknown phase, option, or missing argument | 64 |
 | unexpected harness error | Unhandled facade failure | 70 |
 
-Structural and package evidence remain separate from consumer runtime evidence.
-For example, a package may be `PASS` while a required runtime probe is
-`NOT_RUN` or `UNAVAILABLE`; that state cannot be promoted to full-platform
-`COMPLETE`. The seven full-release surface IDs are owned by the inventory
-platform matrix: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`,
+For the consumer-gate CLI, a current schema-v2 CONSUMER result exits according
+to `acceptance.verdict`: `PASS` exits 0; `FAIL` and `BLOCKED` exit 1. The
+facade preserves this envelope and verifies that the JSON result and actual
+child exit are consistent. The outer release facade separately maps a current
+schema-v2 result to exit 0 only when its aggregate outcome is `COMPLETE`; an
+incomplete outcome such as `PUBLISHED_PENDING` exits 1 even if consumer
+acceptance itself passed. A historical result without acceptance keeps its
+existing outcome and exit convention, including `PUBLISHED_PENDING` exit 2; it
+does not gain a synthetic schema-v2 acceptance.
+
+Structural, package, consumer installation, and native-runtime evidence remain
+separate. A selected-scope installation acceptance may be `PASS` while a raw
+runtime observation is `NOT_RUN`; that does not claim runtime support. Release
+readiness combines SOURCE, PACKAGE, and the current acceptance verdict for the
+selected consumer scope. `COMPLETE` means those readiness gates passed; it is
+not publication or deployment authority. The seven supported consumer surface
+IDs are `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`,
 `cursor-plugin`, `agent-plugin`, and `agy-plugin`.
 
-## Review Gate runtime checkpoint
-
-The Review Gate runtime is an explicit, dependency-free composition path for
-durable reviewer obligations. A consumer opts in with `/dhpk:setup
---review-gate`, which creates the private local integrity key. The Application
-Session then runs the single `scripts/review-gate-runtime.js` CLI in this
-order:
-
-```text
-init (setup) -> prepare (Work Request and plan) -> reviewer batch
-  -> lifecycle/readiness evidence -> observe (one obligation/lane at a time)
-```
-
-`prepare` consumes the canonical Work Request JSON, runs the Risk Router, and
-returns the registered Review Plan plus one immutable Review Request for each
-applicable lane. It does not invoke reviewers. The Session owns the parallel
-reviewer dispatch and invokes `observe` only after every selected lane has
-written its Markdown artifact and structured companion. The Claude adapter
-records the validated Review Gate result; it does not select lanes or dispatch
-reviewers.
-
-The CLI result envelope is `dhpk.review-gate.runtime.v1`. It reports the
-command, bounded status, plan/obligation identity when applicable, and
-redacted diagnostic codes. `observe` returns the durable Review Gate result,
-obligation identity, and receipt summary. A successful envelope is lifecycle
-evidence; it does not replace the review contract or infer completion for a
-different obligation.
-
-Each lane's machine companion is a same-stem
-`<review-artifact-stem>.result.json` with schema
-`dhpk.claude-review-result.v1`. It contains the exact Review Request digest,
-the unchanged `dhpk.reviewer-contract.v2` Review Result, the review artifact
-digest and bounded lifecycle/readiness identity, and a command digest plus
-bounded command outcome. It never contains prompts, source, secrets, raw
-commands, output, logs, session transcripts, or absolute paths. The runtime
-rejects unknown major schemas and missing, foreign, stale, malformed, or
-extra raw-evidence fields; it does not parse Markdown to recover a verdict.
-
-An invalid or unavailable `prepare`/`observe` operation exits nonzero and
-writes a redacted diagnostic sidecar. The obligation remains unresolved until
-the orchestrator receives a matching identity-bound result; no hook or file
-marker can satisfy it. Missing, foreign, stale, malformed, or failed evidence
-fails closed. Runtime evidence is diagnostic until the normal Review Gate
-completion rules record every applicable reviewer verdict.
+An explicit requirements declaration stays atomic across the facade boundary.
+For example, `bin/dhpk harness release --requirements requirements.json --json`
+passes that complete file to one consumer gate invocation; it is not partitioned
+into per-surface calls. Without `--requirements`, the release uses its
+deterministic selected-surface scope and combines the current per-surface gate
+envelopes in that scope.
 
 ## Receipts and resume
 
@@ -132,9 +106,9 @@ See [distribution surface ownership](distribution-surfaces.md) for the
 inventory/compiler boundary and [platform installation](platform-installation.zh-TW.md)
 for consumer installation and verification details.
 
-## Issue #237 controlled runtime-proof runner
+## Controlled consumer runtime-proof runner
 
-The local runner is the exact-head promotion wrapper for a complete Issue #237
+The local runner is the exact-head promotion wrapper for a complete
 consumer-runtime proof. The installation and support policy remains in the
 [platform installation SSOT](platform-installation.md). Run this wrapper from
 a clean checkout of the exact merged commit. It starts an empty disposable

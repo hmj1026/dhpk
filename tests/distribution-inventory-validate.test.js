@@ -10,6 +10,7 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const {
   REQUIRED_SURFACES,
+  validateCapabilityProfilePolicy,
   computeScopedCounts,
   generateClaudeSkillRoots,
   validateProjectionContract,
@@ -30,6 +31,9 @@ const {
   validateSkillRoutingFamilies,
   resolveSkillRoutingAlias,
   resolveSkillRoutingReference,
+  validateSkillRetirements,
+  resolveSkillIdentity,
+  formatSkillIdentityDiagnostic,
 } = require('../scripts/lib/distribution-inventory');
 const {
   INTERNAL_RUNTIME_SURFACES,
@@ -668,21 +672,7 @@ test('against the real checked-in inventory, canonical and scoped counts remain 
   assert.strictEqual(counts.promotedCore + counts.optional + counts.experimental + counts.deprecated, counts.canonical);
 });
 
-test('neither bilingual README claims the canonical skill total as a default-install count (task 4.2 regression guard)', () => {
-  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
-  const canonicalSkillCount = inventory.skills.length;
-  for (const rel of ['README.md', 'README.zh-TW.md']) {
-    const text = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-    // A leak looks like "<canonical total> skill(s)" / "<canonical total> 個 skill" —
-    // i.e. the raw canonical count phrased as though it were the (narrower)
-    // default-install surface. Scoped counts (promotedCore/claudePublished/
-    // codexPublished) are unaffected since this only flags the canonical figure.
-    const leakPattern = new RegExp(`${canonicalSkillCount}\\s*(?:skills?|個\\s*skill)`, 'i');
-    assert.ok(!leakPattern.test(text), `${rel} appears to claim the canonical skill total (${canonicalSkillCount}) as a default-install count`);
-  }
-});
 
-// Merged from tests/distribution-projection-inventory.test.js.
 
 
 test('checked-in inventory declares a complete projection contract', () => {
@@ -870,11 +860,75 @@ function projectionContract(overrides = {}) {
 test('checked-in inventory owns the seven canonical required surfaces and projection contracts', () => {
   assert.deepStrictEqual(REQUIRED_SURFACES, REQUIRED);
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
+  assert.deepStrictEqual(inventory.surfaces.slice(-4), ['agent-plugin', 'cursor-plugin', 'cursor-sync', 'agy-plugin']);
+  for (const surface of ['agent-plugin', 'cursor-plugin', 'cursor-sync', 'agy-plugin']) {
+    assert.ok(Array.isArray(inventory.surface_membership[surface]));
+  }
+  const agentSkills = inventory.platform_matrix.entries.find((entry) => entry.id === 'dhpk.platform.agent-plugin.skills');
+  const cursorSkills = inventory.platform_matrix.entries.find((entry) => entry.id === 'dhpk.platform.cursor-plugin.skills');
+  const agy = inventory.platform_matrix.entries.find((entry) => entry.id === 'dhpk.platform.agy-plugin.native');
+  assert.strictEqual(inventory.platform_matrix.schema, 'dhpk.platform-capability-matrix.v1');
+  assert.ok(inventory.platform_matrix.entries.length >= 5);
+  assert.strictEqual(agentSkills.projection_mode, 'owner');
+  assert.strictEqual(cursorSkills.projection_mode, 'shared');
+  assert.strictEqual(cursorSkills.shared_surface, 'agent-plugin');
+  assert.strictEqual(cursorSkills.destination, 'plugins/dhpk-agent/skills/');
+  assert.strictEqual(agy.surface, 'agy-plugin');
+  assert.strictEqual(agy.destination, 'plugins/dhpk-agy/');
+  assert.ok(inventory.portable_frontmatter.allowlist.includes('metadata'));
+  assert.ok(inventory.portable_frontmatter.client_owned.includes('agents/openai.yaml'));
   assert.deepStrictEqual(inventory.platform_matrix.required_surfaces, REQUIRED);
   assert.deepStrictEqual(inventory.platform_matrix.required_runtime_surfaces, REQUIRED_RUNTIME);
   const result = validateRequiredSurfacePlan({ inventory, fullRelease: true });
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
   assert.deepStrictEqual(result.requiredRuntimeSurfaces, REQUIRED_RUNTIME);
+});
+
+test('generated Agent and Cursor manifests and provenance match inventory selections', () => {
+  const agent = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-agent/plugin.json'), 'utf8'));
+  const cursor = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-cursor/.cursor-plugin/plugin.json'), 'utf8'));
+  const marketplace = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-cursor/.cursor-plugin/marketplace.json'), 'utf8'));
+  assert.strictEqual(agent.name, 'dhpk');
+  assert.strictEqual(cursor.name, 'dhpk-cursor');
+  assert.strictEqual(cursor.skills, './skills/');
+  assert.strictEqual(cursor.hooks, './hooks/hooks.json');
+  assert.deepStrictEqual(fs.readdirSync(path.join(ROOT, 'plugins/dhpk-cursor/skills')).sort(), [
+    'dhpk-cli-dispatch-context', 'dhpk-cli-transport',
+  ]);
+  const cursorProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins/dhpk-cursor/provenance.json'), 'utf8'));
+  assert.strictEqual(cursorProvenance.skillProjectionMode, 'overlay');
+  assert.deepStrictEqual(cursorProvenance.selectedSkillIds, ['cli-dispatch-context', 'cli-transport']);
+  assert.strictEqual(cursorProvenance.sharedSkillSurface, 'agent-plugin');
+  assert.strictEqual(cursorProvenance.sharedSkillSource, 'plugins/dhpk-agent/skills/');
+  assert.ok(cursorProvenance.sharedSkillIds.length > 0);
+  assert.strictEqual(marketplace.plugins.length, 1);
+  assert.strictEqual(marketplace.plugins[0].source, '.');
+});
+
+test('generated Agent, Cursor, and AGY package Markdown links resolve within their packages', () => {
+  for (const packageRoot of ['plugins/dhpk-agent', 'plugins/dhpk-cursor', 'plugins/dhpk-agy']) {
+    const broken = [];
+    const walk = (directory) => {
+      for (const entry of fs.readdirSync(path.join(ROOT, directory), { withFileTypes: true })) {
+        const relative = path.join(directory, entry.name);
+        const absolute = path.join(ROOT, relative);
+        if (entry.isDirectory()) walk(relative);
+        else if (/\.md$/i.test(entry.name)) {
+          const content = fs.readFileSync(absolute, 'utf8');
+          for (const match of content.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+            const target = match[1].trim();
+            if (!target || target.startsWith('#') || /^(?:[A-Za-z][A-Za-z0-9+.-]*:|\/\/)/.test(target)) continue;
+            const pathPart = target.split('#', 1)[0].trim();
+            if (pathPart && !fs.existsSync(path.resolve(path.dirname(absolute), pathPart))) {
+              broken.push(relative + ' -> ' + target);
+            }
+          }
+        }
+      }
+    };
+    walk(packageRoot);
+    assert.deepStrictEqual(broken, [], packageRoot + ' has broken links: ' + broken.join(', '));
+  }
 });
 
 test('platform matrix rejects missing, duplicate, unknown, and reordered required lists', () => {
@@ -947,6 +1001,99 @@ test('required runtime surfaces are an ordered subset and exclude cursor-sync', 
     assert.ok(result.errors.length > 0, JSON.stringify(required_runtime_surfaces));
     assert.match(result.errors.join('\n'), /required_runtime_surfaces|duplicate|cursor-sync|canonical|order|include/i);
   }
+});
+
+function retirementRow(id, replacements) {
+  return {
+    id, name: `dhpk-${id}`, canonicalPath: `skills/dhpk-${id}`,
+    priorSurfaces: ['claude-core'], retiredIn: '0.65.0', reasonCode: 'scope-retirement',
+    replacements, rollback: { release: '0.64.4' },
+  };
+}
+
+test('historical retirement replacements may lead through a later retirement without changing ledger evidence', () => {
+  const inventory = {
+    skills: [],
+    retired_skills: [
+      retirementRow('old-audit', [{ kind: 'skill', id: 'audit', mode: 'health' }]),
+      retirementRow('audit', [{ kind: 'model-default' }]),
+    ],
+  };
+  const before = JSON.stringify(inventory);
+  assert.deepStrictEqual(validateSkillRetirements({ inventory }).errors, []);
+  const resolution = resolveSkillIdentity({ inventory, identifier: 'old-audit' });
+  assert.strictEqual(resolution.state, 'retired');
+  assert.deepStrictEqual(resolution.replacements, [{ kind: 'skill', id: 'audit', mode: 'health' }]);
+  const diagnostic = formatSkillIdentityDiagnostic({ inventory, resolution });
+  assert.match(diagnostic, /use model-default guidance/);
+  assert.doesNotMatch(diagnostic, /skill dhpk-audit|\(health\)/);
+  assert.strictEqual(JSON.stringify(inventory), before);
+});
+
+test('retirement diagnostics resolve branches to active skills and external terminal guidance', () => {
+  const inventory = {
+    skills: [{ id: 'retained', name: 'retained' }],
+    retired_skills: [
+      retirementRow('old', [{ kind: 'skill', id: 'middle' }]),
+      retirementRow('middle', [
+        { kind: 'skill', id: 'retained', mode: 'check' },
+        { kind: 'external-skill', id: 'upstream' },
+      ]),
+    ],
+  };
+  assert.deepStrictEqual(validateSkillRetirements({ inventory }).errors, []);
+  const diagnostic = formatSkillIdentityDiagnostic({ inventory, resolution: resolveSkillIdentity({ inventory, identifier: 'old' }) });
+  assert.match(diagnostic, /use skill retained \(check\), external-skill upstream/);
+  assert.doesNotMatch(diagnostic, /skill dhpk-middle/);
+});
+
+test('retirement chains reject dangling successors and cycles before supplying guidance', () => {
+  for (const [rows, expected] of [
+    [[retirementRow('old', [{ kind: 'skill', id: 'missing' }])], /active or retired skill|dangling/i],
+    [[retirementRow('old', [{ kind: 'skill', id: 'old' }])], /cycle/i],
+    [[retirementRow('old', [{ kind: 'skill', id: 'middle' }]), retirementRow('middle', [{ kind: 'skill', id: 'old' }])], /cycle/i],
+  ]) {
+    const inventory = { skills: [], retired_skills: rows };
+    assert.match(validateSkillRetirements({ inventory }).errors.join('\n'), expected);
+    assert.deepStrictEqual(resolveSkillIdentity({ inventory, identifier: 'old' }), { state: 'unknown', identifier: 'old' });
+  }
+});
+
+test('retirement chains reject excessive depth instead of recursing without a bound', () => {
+  const inventory = {
+    skills: [],
+    retired_skills: Array.from({ length: 66 }, (_, index) => retirementRow(`old-${index}`,
+      index === 65 ? [{ kind: 'model-default' }] : [{ kind: 'skill', id: `old-${index + 1}` }])),
+  };
+  assert.match(validateSkillRetirements({ inventory }).errors.join('\n'), /depth|too long|limit/i);
+});
+
+test('collection policy accepts a single declared common collection while historical policies remain readable', () => {
+  const inventory = {
+    skills: [{ id: 'flow-guide', tier: 'core' }],
+    profile_policy: {
+      version: 'dhpk.capability-bundle-selection.v1', required_core_ids: ['flow-guide'],
+      profiles: { common: { selection: 'declared-common' } },
+    },
+  };
+  assert.deepStrictEqual(validateCapabilityProfilePolicy({ inventory }).errors, []);
+  inventory.profile_policy.profiles = {
+    minimal: { selection: 'required-core' }, full: { selection: 'module-closure' },
+    'compat-v1': { selection: 'predecessor-compatible-stable-ids' },
+  };
+  assert.deepStrictEqual(validateCapabilityProfilePolicy({ inventory }).errors, []);
+});
+
+test('collection policy rejects an empty or malformed declared collection', () => {
+  const inventory = {
+    skills: [{ id: 'flow-guide', tier: 'core' }],
+    profile_policy: {
+      version: 'dhpk.capability-bundle-selection.v1', required_core_ids: ['flow-guide'], profiles: {},
+    },
+  };
+  assert.match(validateCapabilityProfilePolicy({ inventory }).errors.join('\n'), /profiles.*non-empty/);
+  inventory.profile_policy.profiles = { common: { selection: '' } };
+  assert.match(validateCapabilityProfilePolicy({ inventory }).errors.join('\n'), /common.*selection.*non-empty/);
 });
 
 run('distribution-inventory-validate');

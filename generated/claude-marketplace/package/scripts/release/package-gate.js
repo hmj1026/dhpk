@@ -50,11 +50,6 @@ function defaultSteps(root, version) {
     { name: 'claude-marketplace-package-deterministic-generation', cmd: 'node', args: [path.join(root, 'scripts/ci/gen-claude-marketplace-package.js'), '--check'] },
     { name: 'claude-distribution-layout', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-distribution.js'), '--strict'] },
     { name: 'staged-package-version', cmd: 'node', args: [path.join(root, 'scripts/ci/verify-staged-package-version.js'), '--version', version] },
-    { name: 'codex-native-deterministic-generation', cmd: 'bash', args: [path.join(root, 'bin/dhpk'), 'distribution', 'codex-native', 'verify', '--json'] },
-    { name: 'agent-package-structural-provenance', cmd: 'bash', args: [path.join(root, 'bin/dhpk'), 'distribution', 'agent-plugin', 'validate', '--json'] },
-    { name: 'cursor-package-structural-provenance', cmd: 'bash', args: [path.join(root, 'bin/dhpk'), 'distribution', 'cursor-plugin', 'validate', '--json'] },
-    { name: 'codex-native-structural-provenance', cmd: 'bash', args: [path.join(root, 'bin/dhpk'), 'distribution', 'codex-native', 'validate', '--json'] },
-    { name: 'agy-package-structural-provenance', cmd: 'bash', args: [path.join(root, 'bin/dhpk'), 'distribution', 'agy-plugin', 'validate', '--json'] },
     { name: 'cursor-sync-layout', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-cursor-sync.js')] },
     { name: 'projected-platform-deterministic-generation', cmd: 'node', args: [path.join(root, 'scripts/ci/verify-platform-packages.js')] },
   ];

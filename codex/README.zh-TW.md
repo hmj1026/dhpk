@@ -71,32 +71,32 @@ updated、migrated、preserved、collision、pruned 與 orphaned 數量，不暴
 ## 呼叫 skill
 
 Skill invocation 是 chat syntax，不是 plugin-management command。每個同步 skill
-都在 `agents/openai.yaml` 宣告 public trigger。六個 capability family 使用未加
-前綴名稱（`skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、
+都在 `agents/openai.yaml` 宣告 public trigger。五個 capability family 使用未加
+前綴名稱（`skill-scope`、`flow-guide`、`flow-drive`、
 `change-verdict`、`code-trace`）；其他 first-party skill 維持 `dhpk-` 前綴。不要
 使用 `$dhpk:<name>` 或 predecessor name；`codex plugin list` 只證明管理層安裝狀態，
 仍須確認選定的 family 或 `$dhpk-<name>` 能解析。
 
 主要流程的 Codex 入口是 `$flow-drive <task>`（該 family 被發現時），只分類可用
 `$flow-guide route <task>`。Codex 沒有 `/dhpk:do` command。若 `$flow-drive`
-未被發現，使用 `AGENTS.md` 的 instruction routing 與明確 `/opsx:*`；不要虛構可呼叫
+未被發現，使用 `guidance.md` 的 instruction routing 與明確 `/opsx:*`；不要虛構可呼叫
 的 `/dhpk:do`。
 
 ## Agent roles
 
-`codex/agents/` 提供 16 個可直接派送的角色：4 個手動維護的通用角色（`explorer`、
-`worker`、`monitor`、`bug-investigator`），以及 12 個由 canonical agent 產生的角色
+`codex/agents/` 提供 15 個可直接派送的角色：4 個手動維護的通用角色（`explorer`、
+`worker`、`monitor`、`bug-investigator`），以及 11 個由 canonical agent 產生的角色
 （`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、
-`deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、
+`deep-reasoner`、`doc-reviewer`、`planner`、`frontend-reviewer`、
 `migration-reviewer`、`e2e-runner`）。完整 role map、fallback 與 capability gate 見
-[`AGENTS.md`](./AGENTS.md) 及 [`agent-role-map.json`](./agent-role-map.json)。
+[`guidance.md`](./guidance.md) 及 [`agent-role-map.json`](./agent-role-map.json)。
 
 靜態 validation 與 current receipt 不等於可派發。必須啟動 fresh Codex session
 並實際派發一個非內建 custom role；內建 `explorer` 不能作為 custom registry
 canary。只有觀測到真實 spawn 與 targeted wait 才能記為 PASS；此前 named-role
 runtime 維持 `NOT_RUN`、`UNAVAILABLE` 或實際觀測到的失敗。精確 ID 仍出現
 `unknown agent_type` 時，應分類為 registry failure，不能據此改名或把
-GPT-6 family model 換掉；診斷邊界見 [`AGENTS.md`](AGENTS.md#role-discovery)。
+GPT-6 family model 換掉；診斷邊界見 [`guidance.md`](guidance.md#role-discovery)。
 
 ## 移除
 

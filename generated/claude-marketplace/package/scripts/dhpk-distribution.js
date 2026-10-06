@@ -7,7 +7,7 @@ const { execute } = require('./lib/dhpk-distribution');
 const result = execute(process.argv.slice(2), path.join(__dirname, '..'));
 if (!result.ok && result.error) {
   console.error(`dhpk distribution: ${result.error}`);
-  process.exit(result.status);
+} else {
+  console.log(JSON.stringify(result.payload));
 }
-console.log(JSON.stringify(result.payload));
-process.exit(result.status);
+process.exitCode = result.status;

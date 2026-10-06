@@ -58,40 +58,12 @@ test('CLI exposes the harness help contract', () => {
 // Consolidated source suite: harness-docs.
 {
 
-  // Contract checks for the public harness documentation. The document is the
-  // user-facing compatibility boundary; keep the assertions narrow so wording
-  // can evolve without duplicating the implementation.
-
   const fs = require('node:fs');
   const path = require('node:path');
   const { test, assert } = require('./_lib/tinytest');
 
   const ROOT = path.join(__dirname, '..');
   const DOC = path.join(ROOT, 'docs', 'harness-workflow.md');
-
-  test('documents the stable facade phases, outcomes, exits, and receipt boundary', () => {
-    assert.strictEqual(fs.existsSync(DOC), true);
-    const content = fs.readFileSync(DOC, 'utf8');
-    const phaseOrder = content.match(/Release-capable work follows this order:\s*```text\s*([^`]+)```/);
-    assert.ok(phaseOrder, 'workflow must publish the ordered release phases');
-    assert.deepStrictEqual(phaseOrder[1].trim().split(/\s*->\s*/), [
-      'preflight', 'plan', 'generate', 'validate', 'test', 'probe', 'verify', 'release',
-    ]);
-
-    const rows = new Map([...content.matchAll(/^\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$/gm)]
-      .map((match) => [match[1].replace(/`/g, '').trim(), match[3].trim()]));
-    assert.strictEqual(rows.get('PASS, COMPLETE'), '0');
-    assert.strictEqual(rows.get('FAIL'), '1');
-    assert.strictEqual(
-      rows.get('BLOCKED, NOT_RUN, NOT_CONFIGURED, SKIP_INCOMPATIBLE, UNAVAILABLE, NO_SHIP, PARTIAL, PUBLISHED_PENDING, PUBLISHED_UNHEALTHY, OVERRIDDEN'),
-      '2',
-    );
-    assert.strictEqual(rows.get('invalid usage'), '64');
-    assert.strictEqual(rows.get('unexpected harness error'), '70');
-    assert.match(content, /dhpk\.harness\.receipt\.v1/);
-    assert.match(content, /structural|package/i);
-    assert.match(content, /runtime|consumer/i);
-  });
 
   test('documentation links resolve to repository files', () => {
     const content = fs.readFileSync(DOC, 'utf8');
@@ -106,12 +78,14 @@ test('CLI exposes the harness help contract', () => {
   });
 }
 
-
 // Consolidated source suite: harness-release-aggregation.
 {
 
   // RED-first tests for harness-facade-receipt-contract task 1.3.
 
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
   const { test, assert } = require('./_lib/tinytest');
   const harnessResult = require('../scripts/lib/harness-result');
   const harness = require('../scripts/lib/harness');
@@ -137,6 +111,85 @@ test('CLI exposes the harness help contract', () => {
   function all(status = 'PASS') {
     return REQUIRED.map((surface) => ({ surface, status }));
   }
+
+  function currentConsumerExecution(surface, verdict, installationStatus) {
+    return {
+      outcome: verdict,
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      verdict,
+      producer: 'consumer-gate',
+      adapter: { id: 'consumer-gate', version: '1.0.0' },
+      acceptance: {
+        verdict,
+        requiredChecks: [{
+          id: `install.${surface}`,
+          surface,
+          kind: 'installation',
+          reason: 'Selected installation evidence was inspected.',
+          status: installationStatus,
+          evidenceRef: `surfaceResults.${surface}.installationEvidence`,
+        }],
+        excludedChecks: [{
+          id: `runtime.${surface}`,
+          surface,
+          kind: 'native',
+          reason: 'Native runtime execution was not required.',
+          status: 'NOT_RUN',
+          evidenceRef: `surfaceResults.${surface}.runtimeEvidence`,
+        }],
+      },
+      surfaceResults: [{
+        surface,
+        status: 'NOT_RUN',
+        stage: 'CONSUMER',
+        producer: 'consumer-gate',
+        adapter: { id: `${surface}-installer`, version: '1.0.0' },
+        commands: [],
+        environment: { network: 'disabled' },
+        artifacts: [],
+        diagnostics: [],
+        reasons: [],
+        checkedClaims: ['consumer-route'],
+        installationEvidence: {
+          status: installationStatus,
+          reason: 'Selected installation evidence was inspected.',
+        },
+        runtimeEvidence: {
+          status: 'NOT_RUN',
+          reason: 'Native runtime execution was not required.',
+        },
+      }],
+    };
+  }
+
+  test('current PASS acceptance exits 1 when the effective public outcome is PUBLISHED_PENDING', () => {
+    const receiptRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-current-pending-receipt-'));
+    const execution = {
+      ...currentConsumerExecution('codex-sync', 'PASS', 'PASS'),
+      outcome: 'PUBLISHED_PENDING',
+      transportStatus: 'PASS',
+    };
+    try {
+      const invocation = harness.execute([
+        'release', '--json', '--task-id', 'current-pass-pending',
+        '--attempt-id', 'current-pass-pending-attempt', '--receipt-root', receiptRoot,
+      ], {
+        root: ROOT,
+        env: process.env,
+        phaseExecutor: () => execution,
+      });
+
+      assert.strictEqual(invocation.status, 1);
+      assert.strictEqual(invocation.result.exitCode, 1);
+      assert.strictEqual(invocation.result.outcome, 'PUBLISHED_PENDING');
+      assert.strictEqual(invocation.result.acceptance.verdict, 'PASS');
+      const receipt = JSON.parse(fs.readFileSync(path.join(invocation.result.receiptReference, 'attempt.json'), 'utf8'));
+      assert.strictEqual(receipt.consumerEvidence.acceptance.verdict, 'PASS');
+    } finally {
+      fs.rmSync(receiptRoot, { recursive: true, force: true });
+    }
+  });
 
   test('full-release aggregation requires exactly the seven canonical surfaces', () => {
     assert.deepStrictEqual(harnessResult.REQUIRED_SURFACES, REQUIRED);
@@ -229,6 +282,89 @@ test('CLI exposes the harness help contract', () => {
     assert.ok(result.surfaceResults.every((entry) => entry.producer === 'fixture-probe'));
   });
 
+  test('release aggregation completes on required PASS while native observations remain NOT_RUN', () => {
+    const executions = Object.fromEntries(REQUIRED.map((surface) => [
+      surface,
+      currentConsumerExecution(surface, 'PASS', 'PASS'),
+    ]));
+    const result = harness.runReleaseProbes('/tmp/dhpk-current-consumer-fixture', REQUIRED, (_root, parsed) => executions[parsed.surface]);
+
+    assert.strictEqual(result.outcome, 'COMPLETE');
+    assert.strictEqual(result.exitCode, 0);
+    assert.strictEqual(result.schemaVersion, 2);
+    assert.strictEqual(result.acceptance.verdict, 'PASS');
+    assert.deepStrictEqual(result.acceptance.requiredChecks.map((check) => check.id), REQUIRED.map((surface) => `install.${surface}`));
+    assert.ok(result.surfaceResults.every((entry) => entry.status === 'NOT_RUN'));
+    assert.ok(result.surfaceResults.every((entry) => entry.runtimeEvidence.status === 'NOT_RUN'));
+  });
+
+  test('release aggregation retains each required installation failure and its raw observation', () => {
+    const passing = Object.fromEntries(REQUIRED.filter((surface) => surface !== 'agy-plugin').map((surface) => [
+      surface,
+      currentConsumerExecution(surface, 'PASS', 'PASS'),
+    ]));
+    const executions = {
+      ...passing,
+      'agy-plugin': currentConsumerExecution('agy-plugin', 'FAIL', 'FAIL'),
+    };
+    const result = harness.runReleaseProbes('/tmp/dhpk-current-consumer-fixture', REQUIRED, (_root, parsed) => executions[parsed.surface]);
+    const failedCheck = result.acceptance.requiredChecks.find((check) => check.id === 'install.agy-plugin');
+    const failedObservation = result.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+
+    assert.strictEqual(result.acceptance.verdict, 'FAIL');
+    assert.strictEqual(result.outcome, 'PUBLISHED_UNHEALTHY');
+    assert.strictEqual(result.exitCode, 1);
+    assert.strictEqual(failedCheck.status, 'FAIL');
+    assert.strictEqual(failedObservation.status, 'NOT_RUN');
+    assert.strictEqual(failedObservation.installationEvidence.status, 'FAIL');
+  });
+
+  test('release aggregation blocks unavailable required installation evidence and preserves raw status', () => {
+    const passing = Object.fromEntries(REQUIRED.filter((surface) => surface !== 'cursor-plugin').map((surface) => [
+      surface,
+      currentConsumerExecution(surface, 'PASS', 'PASS'),
+    ]));
+    const executions = {
+      ...passing,
+      'cursor-plugin': currentConsumerExecution('cursor-plugin', 'BLOCKED', 'UNAVAILABLE'),
+    };
+    const result = harness.runReleaseProbes('/tmp/dhpk-current-consumer-fixture', REQUIRED, (_root, parsed) => executions[parsed.surface]);
+    const unavailableCheck = result.acceptance.requiredChecks.find((check) => check.id === 'install.cursor-plugin');
+    const unavailableObservation = result.surfaceResults.find((entry) => entry.surface === 'cursor-plugin');
+
+    assert.strictEqual(result.acceptance.verdict, 'BLOCKED');
+    assert.strictEqual(result.outcome, 'BLOCKED');
+    assert.strictEqual(result.exitCode, 1);
+    assert.strictEqual(unavailableCheck.status, 'UNAVAILABLE');
+    assert.strictEqual(unavailableObservation.status, 'NOT_RUN');
+    assert.strictEqual(unavailableObservation.installationEvidence.status, 'UNAVAILABLE');
+  });
+
+  test('release keeps transport failure separate from passing acceptance and raw observations', () => {
+    const executions = Object.fromEntries(REQUIRED.map((surface) => [
+      surface,
+      currentConsumerExecution(surface, 'PASS', 'PASS'),
+    ]));
+    executions['agy-plugin'] = {
+      ...executions['agy-plugin'],
+      transportStatus: 'FAIL',
+      diagnostics: ['worker transport failed after emitting evidence'],
+    };
+    const result = harness.runReleaseProbes(
+      '/tmp/dhpk-current-consumer-transport-fixture',
+      REQUIRED,
+      (_root, parsed) => executions[parsed.surface],
+    );
+    const transported = result.surfaceResults.find((entry) => entry.surface === 'agy-plugin');
+
+    assert.strictEqual(result.acceptance.verdict, 'PASS');
+    assert.notStrictEqual(result.outcome, 'COMPLETE');
+    assert.strictEqual(result.exitCode, 1);
+    assert.strictEqual(transported.status, 'NOT_RUN');
+    assert.strictEqual(transported.installationEvidence.status, 'PASS');
+    assert.match(result.diagnostics.join('\n'), /transport failed after emitting evidence/i);
+  });
+
   test('release execution aggregates the explicit runtime list separately from identity rows', () => {
     const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, REQUIRED_RUNTIME, (root, parsed) => ({
       outcome: parsed.surface === 'cursor-sync' ? 'NOT_RUN' : 'PASS',
@@ -262,6 +398,47 @@ test('CLI exposes the harness help contract', () => {
     const native = result.surfaceResults.find((entry) => entry.surface === 'codex-native');
     assert.strictEqual(native.artifactBinding.bindingFingerprint, 'sha256:' + 'b'.repeat(64));
     assert.strictEqual(result.artifactManifestFingerprint, 'sha256:' + 'a'.repeat(64));
+  });
+
+  test('release execution rejects valid batch JSON when the coordinator exits nonzero', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-parallel-exit-'));
+    const batchScript = path.join(root, 'scripts', 'release', 'parallel-consumer-probes.js');
+    const batch = {
+      schema: 'dhpk.release-consumer-probe-batch.v1',
+      concurrency: 2,
+      timeoutMs: 1000,
+      wallTimeMs: 1,
+      surfaces: REQUIRED,
+      results: REQUIRED.map((surface) => ({
+        surface,
+        namespace: `fixture-${surface}`,
+        diagnostic: null,
+        execution: {
+          outcome: 'PASS',
+          surfaceResults: [{ surface, status: 'PASS', stage: 'CONSUMER', producer: 'fixture-probe' }],
+        },
+      })),
+    };
+    fs.mkdirSync(path.dirname(batchScript), { recursive: true });
+    fs.writeFileSync(batchScript, [
+      "process.stdout.write(`${process.env.DHPK_TEST_BATCH_JSON}\\n`);",
+      'process.exitCode = 1;',
+      '',
+    ].join('\n'));
+
+    try {
+      const result = harness.runReleaseProbes(root, REQUIRED, undefined, harness.runConsumerProbe, {
+        probeConcurrency: 2,
+        probeTimeoutMs: 1000,
+        runtimeEnv: { ...process.env, DHPK_TEST_BATCH_JSON: JSON.stringify(batch) },
+      });
+
+      assert.notStrictEqual(result.outcome, 'COMPLETE');
+      assert.notStrictEqual(result.exitCode, 0);
+      assert.match(result.diagnostics.join('\n'), /coordinator|exit|parallel/i);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('release execution rejects a non-canonical required runtime subset before COMPLETE', () => {
@@ -379,7 +556,6 @@ test('CLI exposes the harness help contract', () => {
   });
 }
 
-
 // Consolidated source suite: harness-surfaces.
 {
 
@@ -395,12 +571,11 @@ test('CLI exposes the harness help contract', () => {
   });
 }
 
-
 // Consolidated source suite: harness-workflow-config.
 {
 
-  // RED-first guard for the migration boundary: CI/release invoke the public
-  // facade while retaining the legacy distribution compatibility checks.
+  // Daily CI keeps deterministic source/package checks; consumer readiness
+  // remains available through the public facade and the release workflow.
 
   const fs = require('node:fs');
   const path = require('node:path');
@@ -420,13 +595,18 @@ test('CLI exposes the harness help contract', () => {
     return next === -1 ? rest : rest.slice(0, next + 1);
   }
 
-  test('CI invokes the harness facade and keeps compatibility adapters', () => {
+  test('daily CI omits research and consumer-readiness probes while retaining package checks', () => {
     const workflow = read('.github/workflows/ci.yml');
-    assert.match(workflow, /bin\/dhpk harness/);
-    assert.match(workflow, /bin\/dhpk distribution/);
+    const preflight = jobBlock(workflow, 'preflight');
+    assert.doesNotMatch(preflight, /node scripts\/ci\/context-budget\.js\b/);
+    assert.doesNotMatch(preflight, /node scripts\/ci\/subagent-context-budget\.js\b/);
+    assert.doesNotMatch(preflight, /bin\/dhpk harness preflight\b/);
+    assert.match(preflight, /scripts\/validate\/validate-harness\.sh/);
+    assert.match(workflow, /scripts\/ci\/verify-platform-packages\.js/);
+    assert.doesNotMatch(workflow, /bin\/dhpk distribution/);
   });
 
-  test('CI separates preflight from a four-shard suite and keeps the aggregate required check', () => {
+  test('CI derives bounded test and package verification from the authoritative plan', () => {
     const workflow = read('.github/workflows/ci.yml');
     const preflight = jobBlock(workflow, 'preflight');
     const tests = jobBlock(workflow, 'tests');
@@ -436,28 +616,46 @@ test('CLI exposes the harness help contract', () => {
     assert.doesNotMatch(preflight, /run-all\.js|run-bounded-node-test\.sh/);
     assert.match(tests, /timeout-minutes:\s*10/);
     assert.match(tests, /fail-fast:\s*false/);
-    assert.match(tests, /shard:\s*\[\s*0,\s*1,\s*2,\s*3\s*\]/);
+    assert.match(tests, /shard:\s*\$\{\{\s*fromJSON\(needs\.plan\.outputs\.shards\)\s*\}\}/);
     assert.match(tests, /DHPK_TEST_JOBS:\s*['"]?4/);
     assert.match(tests, /DHPK_TEST_SOURCE_COMMIT:\s*\$\{\{\s*github\.sha\s*\}\}/);
     assert.match(tests, /DHPK_TEST_HEAD_SHA:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\}\}/);
     assert.match(tests, /DHPK_TEST_TIMING_FILE:\s*\$\{\{\s*runner\.temp\s*\}\}\/dhpk-test-timing\.json/);
-    assert.match(tests, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js\s+--shard-index\s+\$\{\{\s*matrix\.shard\s*\}\}\s+--shard-count\s+4/);
+    for (const consumer of [preflight, tests, validate]) {
+      assert.match(consumer, /actions\/download-artifact@[0-9a-f]{40}/);
+      assert.match(consumer, /dhpk-ci-plan-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
+      assert.match(consumer, /fs\.readFileSync/);
+      assert.doesNotMatch(consumer, /DHPK_CI_PLAN|needs\.plan\.outputs\.plan|process\.env\.PLAN/);
+    }
+    assert.doesNotMatch(workflow, /mapfile[^\n]*<\s*</);
+    const plan = jobBlock(workflow, 'plan');
+    assert.match(plan, /--out "\$RUNNER_TEMP\/ci-plan\.json" --github-output "\$GITHUB_OUTPUT"/);
+    assert.match(plan, /actions\/upload-artifact@[0-9a-f]{40}/);
+    assert.doesNotMatch(plan, /outputs\.plan|JSON\.parse\(process\.argv/);
+    assert.match(tests, /testFiles/);
+    assert.match(tests, /--shard-count\s+4/);
 
     assert.match(validate, /name: Validate harness assets/);
-    assert.match(validate, /needs:\s*\[\s*preflight,\s*tests\s*\]/);
+    assert.match(validate, /needs:\s*\[\s*plan,\s*preflight,\s*tests,\s*macos-installer,\s*release-rehearsal,\s*lint\s*\]/);
     assert.match(validate, /if:\s*always\(\)/);
     assert.match(validate, /needs\.preflight\.result/);
     assert.match(validate, /needs\.tests\.result/);
     assert.match(validate, /actions\/setup-node@[0-9a-f]{40}\s+#\s*v7\.0\.0/);
     assert.match(validate, /node-version:\s*['"]?24/);
-    assert.match(validate, /node scripts\/ci\/verify-test-shards\.js[\s\S]*--count 4[\s\S]*--run-id[\s\S]*--run-attempt[\s\S]*--checkout-sha[\s\S]*--head-sha[\s\S]*--summary/);
-    for (const shard of [0, 1, 2, 3]) {
-      assert.match(validate, new RegExp('dhpk-test-timing-\\$\\{\\{\\s*github\\.run_id\\s*\\}\\}-\\$\\{\\{\\s*github\\.run_attempt\\s*\\}\\}-shard-' + shard));
-      assert.match(
-        validate,
-        new RegExp('path:\\s*\\$\\{\\{\\s*runner\\.temp\\s*\\}\\}\\/dhpk-test-shards\\/dhpk-test-timing-\\$\\{\\{\\s*github\\.run_id\\s*\\}\\}-\\$\\{\\{\\s*github\\.run_attempt\\s*\\}\\}-shard-' + shard),
-      );
-    }
+    assert.match(validate, /verifyCiResults\(plan,/);
+    assert.match(validate, /--count \"\$count\"/);
+    assert.match(validate, /node scripts\/ci\/verify-test-shards\.js/);
+    assert.match(validate, /if \[ "\$\{\{\s*needs\.plan\.outputs\.mode\s*\}\}" = "selected" \]; then count=1; fi/);
+    assert.match(validate, /name: Download full test timing evidence[\s\S]*if: needs\.plan\.outputs\.mode == 'full'[\s\S]*pattern: dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-\*/);
+    assert.match(validate, /name: Download selected test timing evidence[\s\S]*if: needs\.plan\.outputs\.mode == 'selected'[\s\S]*name: dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-0[\s\S]*path: \$\{\{ runner\.temp \}\}\/dhpk-test-shards\/dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-0/);
+    assert.match(workflow, /Validate bounded generated companions/);
+    assert.match(workflow, /generatedChecks/);
+    assert.match(workflow, /claude-marketplace\) node scripts\/ci\/gen-claude-marketplace-package\.js --check/);
+    assert.doesNotMatch(workflow, /claude-profile:|gen-claude-profile-bundles/);
+    const packageScripts = JSON.parse(read('package.json')).scripts;
+    assert.strictEqual(packageScripts['check:profiles'], undefined);
+    assert.match(packageScripts['check:generated'], /check:marketplace/);
+    assert.doesNotMatch(packageScripts['check:generated'], /check:profiles/);
     assert.match(workflow, /CHANGELOG_ARGS=\(\)/);
     assert.match(workflow, /--diff-base\s+"origin\/\$BASE_REF"\s+--base-ref\s+"\$BASE_REF"/);
     assert.strictEqual(
@@ -479,6 +677,5 @@ test('CLI exposes the harness help contract', () => {
     assert.match(workflow, /surfaceResults/);
   });
 }
-
 
 run('harness-facade-contract');

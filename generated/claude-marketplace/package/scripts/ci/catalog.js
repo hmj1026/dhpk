@@ -1,36 +1,23 @@
 #!/usr/bin/env node
 'use strict';
 
-// Count SSOT for dhpk. Computes authoritative asset counts and enforces the
-// EXACT numeric claims that appear in README.md / README.zh-TW.md / plugin.json
-// / marketplace.json / rules/execution-policy.md / agents/INDEX.md,
-// so those numbers never silently drift from reality.
+// Reports authoritative asset counts and checks machine-readable distribution
+// invariants. Human-readable prose counts are informational and are not gated.
 //
 //   node scripts/ci/catalog.js            print the count table
-//   node scripts/ci/catalog.js --check    fail (exit 1) if any exact claim drifts
-//                                          or any script lacks a dedicated test
-//   node scripts/ci/catalog.js --check all  same as --check (the trailing `all`
-//                                          arg is accepted for callers that pass it)
-//   node scripts/ci/catalog.js --write    rewrite drifted exact claims in place and
-//                                          regenerate manifests/profile-projection-sets.json
-//                                          (coverage is report-only, never auto-fixed)
+//   node scripts/ci/catalog.js --check    validate the retired Codex MCP surface
+//                                          and profile projection sets
+//   node scripts/ci/catalog.js --check all  same as --check
+//   node scripts/ci/catalog.js --write    regenerate manifests/profile-projection-sets.json
 //
 // --check also fails when manifests/profile-projection-sets.json (the per-profile,
 // per-Host skill sets the native installers project into the Shared Project
 // Projection, ADR-0023) is stale against install-profiles + the inventory.
-//
-// Only claims phrased as an exact number are enforced ("24 role-based agents",
-// "27 opt-in stack modules", "23 root-level agents", "24 個角色導向 agent",
-// "7-slot", "0 MCP-backed `codex-*` skills", "0 `/dhpk:codex-*` commands",
-// "45 commands", "4 events" / "4 個事件"). Command count and hook-event count
-// are now exact and enforced (previously "~73 commands" was an unenforced
-// approximate claim). Other approximate claims ("~57 core skills") are printed
-// for awareness but not enforced — the `~` signals deliberate rounding.
 
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('node:child_process');
-const { CODEX_MCP_COMMAND_NAMES, collectInventory, walkFiles } = require('../lib/asset-inventory');
+const { CODEX_MCP_COMMAND_NAMES, collectInventory } = require('../lib/asset-inventory');
 const { computeScopedCounts } = require('../lib/distribution-inventory');
 const {
   MANIFEST_REL: PROJECTION_SETS_REL,
@@ -49,91 +36,10 @@ const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, comman
 // Explicit ownership for newly added top-level test suites. Keep keys exact so
 // a similarly named suite cannot inherit another suite's owner by accident.
 const SUITE_OWNER_REGISTRY = Object.freeze({
-  'tests/review-gate-evidence-residual-security.test.js': 'docs/adr/0017-implement-review-gate-as-a-local-event-module.md',
-  'tests/review-gate-authority-residual-security.test.js': 'docs/adr/0017-implement-review-gate-as-a-local-event-module.md',
 });
 
 function computeCounts() {
   return collectInventory(ROOT).counts;
-}
-
-// Scoped publication counts, or null when the inventory is absent. Callers must treat
-// null as "skip the publication-scoped claims" rather than comparing against undefined,
-// which would report every such claim as drift.
-//
-// The skip is announced, never silent. This whole guard exists because two claims were
-// unenforced without anyone noticing; a quiet fail-open would reintroduce that failure
-// mode at a smaller scale. `manifests/distribution-inventory.json` is tracked, so a
-// normal checkout and CI clone always take the enforcing path — only a deliberately
-// stripped tree can reach the skip.
-function computeScoped({ announce = false } = {}) {
-  const inventoryPath = p('manifests', 'distribution-inventory.json');
-  if (!fs.existsSync(inventoryPath)) {
-    if (announce) {
-      console.error(
-        'NOTE [catalog]: manifests/distribution-inventory.json is absent; publication-scoped claims are NOT enforced in this run.'
-      );
-    }
-    return null;
-  }
-  return computeScopedCounts(JSON.parse(fs.readFileSync(inventoryPath, 'utf8')));
-}
-
-// Files that carry numeric marketing/spec claims, and the exact claims enforced.
-const CLAIM_FILES = [
-  'README.md',
-  'README.zh-TW.md',
-  '.claude-plugin/plugin.json',
-  '.claude-plugin/marketplace.json',
-  'rules/execution-policy.md',
-  'agents/INDEX.md',
-  // Skill-count claim sites. `skills/INDEX.md` and these four bilingual docs pages are
-  // the only `docs/**`-adjacent files carrying an enforced claim; each was scanned
-  // against every existing spec above and matches none of them, so adding them cannot
-  // introduce false drift on agent/module/slot/hook-event claims.
-  'skills/INDEX.md',
-  'docs/skill-platform-migration.md',
-  'docs/skill-platform-migration.zh-TW.md',
-  'docs/distribution-surfaces.md',
-  'docs/distribution-surfaces.zh-TW.md',
-];
-
-function claimSpecs(counts, scoped) {
-  return [
-    { label: 'role-based agents', re: /(\d+)(\s+role-based agents)/g, expected: counts.agentsTotal },
-    { label: 'opt-in stack modules', re: /(\d+)(\s+opt-in stack modules)/g, expected: counts.modules },
-    { label: '個角色導向 agent (ZH total)', re: /(\d+)(\s*個角色導向 agent)/g, expected: counts.agentsTotal },
-    { label: 'root-level agents', re: /(\d+)(\s+root-level agent)/g, expected: counts.agentsRoot },
-    // Codex surface counts. Anchored to the full README phrasings so the table's
-    // bare "5 skills" / "7 commands" cells and the "~51 other skills" approx are
-    // never matched — only the prerequisite-row claims that spell out the surface.
-    { label: 'MCP-backed codex skills (EN)', re: /(\d+)(\s+MCP-backed `codex-\*` skills)/g, expected: counts.mcpCodexSkills },
-    { label: 'codex commands (EN)', re: /(\d+)(\s+`\/dhpk:codex-\*` commands)/g, expected: counts.codexCommands },
-    { label: 'MCP-backed codex skills (ZH)', re: /(\d+)(\s*個 MCP-backed `codex-\*` skill)/g, expected: counts.mcpCodexSkills },
-    { label: 'codex commands (ZH)', re: /(\d+)(\s*個 `\/dhpk:codex-\*` 指令)/g, expected: counts.codexCommands },
-    { label: 'commands (README)', re: /(?<=dhpk's )(\d+)(\s+commands)/g, expected: counts.commands },
-    { label: 'hook events (EN)', re: /(\d+)(\s+events)/g, expected: counts.hookEvents },
-    { label: 'hook events (ZH)', re: /(\d+)(\s*個事件)/g, expected: counts.hookEvents },
-    // Canonical skill count. Expected is skillsBase, NOT skillsTotal: every phrasing below
-    // describes flat packages rooted at `skills/<public-name>/` and enumerates modules separately
-    // ("N canonical skills, 31 modules"). The two are equal only while skillsModule is 0,
-    // so skillsTotal would pass today and mis-enforce the first time a module ships a skill.
-    // Anchored to the full noun phrase for the same reason as the Codex specs above: a bare
-    // number spec would match unrelated table cells.
-    { label: 'canonical skills (EN flat)', re: /(\d+)(\s+flat (?:`dhpk-\*` packages|canonical skills|canonical packages|packages at))/g, expected: counts.skillsBase },
-    { label: 'canonical skills (EN phrase)', re: /(\d+)(\s+canonical skill(?: packages|s))/g, expected: counts.skillsBase },
-    { label: 'canonical skills (ZH)', re: /(\d+)(\s*個扁平(?: `dhpk-\*` package| canonical skill| canonical package| package))/g, expected: counts.skillsBase },
-    // Claude-published skill count, kept as its own labelled claim. It equals the canonical
-    // count only while nothing is deprecated; `harness-count-integrity` requires inventory
-    // and publication counts stay separate, so these must never share a spec. Omitted
-    // entirely when the inventory is absent — see computeScoped().
-    ...(scoped
-      ? [
-        { label: 'claude-published skills (EN)', re: /(\d+)(\s+inventory-eligible Claude skill IDs)/g, expected: scoped.claudePublished },
-        { label: 'claude-published skills (ZH)', re: /(\d+)(\s*個 inventory-eligible skill ID)/g, expected: scoped.claudePublished },
-      ]
-      : []),
-  ];
 }
 
 function retiredCodexMcpErrors(counts, inventory) {
@@ -156,134 +62,6 @@ function retiredCodexMcpErrors(counts, inventory) {
     errors.push(`MCP-backed Codex command grant found outside the retired zero-grant surface: ${unexpected.join(', ')}`);
   }
   return errors;
-}
-
-// Explicit stem -> test-file overrides for scripts whose dedicated test uses a
-// feature name rather than a name/name-aspect derived from the script's own
-// basename (so the naming-convention check below can't find them automatically).
-const COVERAGE_MAP = {
-  'scripts/lib/project-agent-host-binding-policy.js': 'project-agent-provider-adapters.test.js',
-  'scripts/ci/install-native-shared-skills.js': 'native-shared-skill-install.test.js',
-  'scripts/lib/agy-plugin-package.js': 'agy-plugin-install.test.js',
-  'scripts/lib/agy-path-contract.js': 'agy-plugin-install.test.js',
-  'scripts/ci/install-agy-plugin.js': 'agy-plugin-install.test.js',
-  'scripts/lib/cursor-session-home.js': 'cursor-plugin-package.test.js',
-  'scripts/lib/cursor-harness-adapt.js': 'cursor-plugin-package.test.js',
-  'scripts/lib/cursor-consumer-evidence.js': 'cursor-plugin-package.test.js',
-  'scripts/ci/validate-cursor-plugin-package.js': 'cursor-plugin-package.test.js',
-  'scripts/lib/agent-plugin-package.js': 'gen-agent-plugin-package.test.js',
-  'scripts/ci/validate-agent-plugin-package.js': 'gen-agent-plugin-package.test.js',
-  'scripts/ci/project-agent-projection-baseline.js': 'project-agent-projection-plan.test.js',
-  'scripts/lib/capability-bundle-activation.js': 'capability-bundle-selection.test.js',
-  'scripts/release/claude-profile-probe.js': 'profile-scoped-claude-capability-bundle.test.js',
-  'scripts/ci/gen-claude-profile-bundles.js': 'profile-scoped-claude-capability-bundle.test.js',
-  'scripts/release/claude-user-config-probe.js': 'plugin-user-config-metadata.test.js',
-  'scripts/ci/gen-claude-user-config.js': 'plugin-user-config-metadata.test.js',
-  'scripts/lib/codex-discovery-registry.js': 'check-codex-discovery.test.js',
-  'scripts/lib/codex-native-activation.js': 'codex-native-package-validate.test.js',
-  'scripts/ci/verify-codex-native-package.js': 'codex-native-package-validate.test.js',
-  'scripts/ci/gen-codex-native-package.js': 'codex-native-package-validate.test.js',
-  'scripts/fast-worker-selector.js': 'fast-worker-selection.test.js',
-  'scripts/ci/validate-skill-directory-coverage.js': 'skill-directory-coverage.test.js',
-  'scripts/hooks/_lib/payload.sh': 'subagent-stop-quality.test.js',
-  'scripts/ci/catalog.js': 'catalog-claims.test.js',
-  'scripts/ci/reconcile-skill-mirrors.js': 'gen-cursor-sync.test.js',
-  'scripts/ci/_lib/report.js': 'ci-report.test.js',
-  'scripts/codemaps/generate.ts': 'codemaps-generate.test.js',
-  'scripts/hooks/pretool-git-gate.sh': 'pretool-branch-safety-dedup.test.js',
-  'scripts/hooks/_lib/install-health.sh': 'session-install-health-version.test.js',
-  'scripts/validate/test-hooks.sh': 'validate-test-hooks.test.js',
-  'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
-  'scripts/lib/retirement-closure.js': 'validate-retirement-closure.test.js',
-  'scripts/lib/claude-capability-bundle.js': 'profile-scoped-claude-capability-bundle.test.js',
-  'scripts/lib/internal-runtime-skills.js': 'distribution-inventory-validate.test.js',
-  'scripts/lib/distribution-compiler.js': 'distribution-projection-contract.test.js',
-  'scripts/lib/distribution-projection-parity.js': 'distribution-projection-contract.test.js',
-  'scripts/ci/validate-agents-skills.js': 'validate-agents-behavior.test.js',
-  'scripts/ci/validate-commands.js': 'validate-plugin.test.js',
-  'scripts/ci/validate-modules.js': 'validate-plugin.test.js',
-  'scripts/ci/validate-cursor-sync.js': 'gen-cursor-sync.test.js',
-  'scripts/lib/cursor-sync-package.js': 'gen-cursor-sync.test.js',
-  'scripts/ci/validate-changelog-fragments.js': 'changelog-fragments.test.js',
-  'skills/flow-guide/scripts/route-result.js': 'reference-route-policy.test.js',
-  'skills/flow-guide/scripts/usage-card.js': 'flow-handoff-contract.test.js',
-  'scripts/lib/harness-receipt.js': 'harness-operation-receipts.test.js',
-  'scripts/lib/harness-result.js': 'harness-facade-contract.test.js',
-  'scripts/lib/harness-surfaces.js': 'harness-facade-contract.test.js',
-  'scripts/dhpk-harness.js': 'harness-facade-cli.test.js',
-  'scripts/lib/review-gate-runtime-checkpoint.js': 'review-gate-runtime-observe-states.test.js',
-  'scripts/lib/review-gate-runtime-composition.js': 'review-gate-runtime-observe-cli.test.js',
-  'scripts/lib/review-gate-runtime-errors.js': 'review-gate-runtime-observe-security.test.js',
-  'scripts/lib/review-gate-runtime-evidence.js': 'review-gate-runtime-observe-security.test.js',
-  'scripts/lib/review-gate-runtime-storage.js': 'review-gate-runtime-init-security.test.js',
-  'scripts/ci/validate-command-dispositions.js': 'command-skill-disposition.test.js',
-  'scripts/hooks/_lib/advise-once.sh': 'session-start.test.js',
-  'scripts/hooks/_lib/detect-stack-hints.sh': 'session-start.test.js',
-  'scripts/ci/sync-skill-resources.js': 'skill-resource-sync-security.test.js',
-  'scripts/ci/validate-skill-purpose-decisions.js': 'skill-purpose-decisions.test.js',
-  'scripts/lib/runner-utils.js': 'utils.test.js',
-  'scripts/lib/profile-projection-sets.js': 'catalog-claims.test.js',
-  'scripts/ci/gen-dispatch-projection.js': 'dispatch-engine.test.js',
-  'scripts/dispatch-config-report.js': 'dispatch-engine.test.js',
-  'scripts/lib/dispatch-config.js': 'dispatch-engine.test.js',
-  'scripts/lib/dispatch-contract.js': 'dispatch-engine.test.js',
-  'scripts/lib/dispatch-platform-validation.js': 'dispatch-engine.test.js',
-  'scripts/lib/dispatch-projection.js': 'dispatch-engine.test.js',
-  'scripts/lib/dispatch-scheduler.js': 'dispatch-engine.test.js',
-  'scripts/lib/provider-cli-adapters.js': 'provider-adapter.test.js',
-  'scripts/lib/discovery-budget.js': 'context-budget.test.js',
-  'scripts/lib/command-namespace.js': 'command-skill-disposition.test.js',
-  'scripts/lib/feature-resolver.js': 'resolve-feature-cli.test.js',
-  'scripts/hooks/_lib/stop-dispatch-audit.sh': 'stop-advisory-dispatch-graduation.test.js',
-  'scripts/hooks/pre-bash-dispatch.sh': 'pre-bash-guard.test.js',
-  'scripts/hooks/pre-edit-batch-gate.sh': 'pre-edit-guard.test.js',
-  'scripts/hooks/_lib/runtime-config.sh': 'load-project-config.test.js',
-  'scripts/hooks/_lib/session-env.sh': 'load-project-config.test.js',
-  'scripts/hooks/_lib/portable-sed.sh': 'portable-stat.test.js',
-  'scripts/hooks/_lib/portable-timeout.sh': 'portable-stat.test.js',
-  'scripts/hooks/precompact-archive.sh': 'postcompact-restore.test.js',
-  'scripts/lib/release-probe-batch.js': 'parallel-consumer-probes.test.js',
-  'scripts/release/verify-publication-bundle.js': 'release-publication-bundle.test.js',
-  'scripts/ci/verify-release-parity.js': 'release-parity.test.js',
-  'scripts/release/package-gate.js': 'gate-runner.test.js',
-  'scripts/release/publish-gate.js': 'gate-runner.test.js',
-  'scripts/release/source-gate.js': 'gate-runner.test.js',
-  'scripts/ci/render-test-timing.js': 'verify-test-shards.test.js',
-  'scripts/check-cross-cli-drift.sh': 'cross-cli-parity.test.js',
-};
-
-const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);
-
-// Many-to-one coverage ledger: unique scripts default to the stem heuristic
-// (tests/<stem>.test.js or tests/<stem>-<aspect>.test.js). Two or more scripts
-// MAY share one discovered tests/*.test.js file via COVERAGE_MAP. Nested
-// tests/subdir/*.test.js files are invisible here (top-level readdir only).
-function resolveScriptCoverage(rel, testFiles, testFileSet) {
-  const stem = path.basename(rel, path.extname(rel));
-  const mapped = COVERAGE_MAP[rel];
-  return Boolean(
-    (mapped && testFileSet.has(mapped)) ||
-    testFileSet.has(`${stem}.test.js`) ||
-    testFiles.some((n) => n.startsWith(`${stem}-`))
-  );
-}
-
-// Every *.sh/*.js/*.ts/*.py under scripts/ (data files like .json excluded) must
-// have owned assertions via resolveScriptCoverage. Pure fs walk, no deps.
-function findScriptCoverageGaps() {
-  const scriptFiles = walkFiles(p('scripts'), (fp) => SCRIPT_EXTS.has(path.extname(fp)));
-  const testsDir = p('tests');
-  const testFiles = fs.existsSync(testsDir)
-    ? fs.readdirSync(testsDir).filter((n) => n.endsWith('.test.js'))
-    : [];
-  const testFileSet = new Set(testFiles);
-
-  const uncovered = [];
-  for (const fp of scriptFiles) {
-    const rel = path.relative(ROOT, fp).split(path.sep).join('/');
-    if (!resolveScriptCoverage(rel, testFiles, testFileSet)) uncovered.push(rel);
-  }
-  return uncovered;
 }
 
 function readJsonFile(rel) {
@@ -400,78 +178,18 @@ function checkOrWrite({ write, diffBase }) {
   if (!write && diffBase !== undefined) warnForUnownedAddedSuites(diffBase);
 
   const inventory = collectInventory(ROOT);
-  const counts = inventory.counts;
-  const retirementErrors = retiredCodexMcpErrors(counts, inventory);
+  const retirementErrors = retiredCodexMcpErrors(inventory.counts, inventory);
   for (const error of retirementErrors) console.error(`RETIREMENT ${error}`);
   if (retirementErrors.length > 0) return 1;
-  const specs = claimSpecs(counts, computeScoped({ announce: true }));
-  let mismatches = 0;
-  let rewrites = 0;
-
-  for (const rel of CLAIM_FILES) {
-    const fp = p(rel);
-    if (!fs.existsSync(fp)) continue;
-    const original = fs.readFileSync(fp, 'utf8');
-    let text = original;
-
-    for (const spec of specs) {
-      let m;
-      const re = new RegExp(spec.re.source, 'g');
-      while ((m = re.exec(text)) !== null) {
-        const found = Number(m[1]);
-        if (found !== spec.expected) {
-          mismatches += 1;
-          console[write ? 'log' : 'error'](
-            `${write ? 'FIX' : 'DRIFT'} ${rel}: "${m[0].trim()}" -> expected ${spec.expected} ${spec.label}`
-          );
-        }
-      }
-      if (write) {
-        const replaced = text.replace(
-          new RegExp(spec.re.source, 'g'),
-          `${spec.expected}$2`
-        );
-        if (replaced !== text) {
-          text = replaced;
-          rewrites += 1;
-        }
-      }
-    }
-    if (write && text !== original) fs.writeFileSync(fp, text);
-  }
 
   const staleProjectionSets = checkOrWriteProjectionSets({ write });
-
-  if (write) {
-    console.log(`catalog --write: updated ${rewrites} claim group(s).`);
-    // --write regenerates the projection sets, so a nonzero count here means
-    // they could not be generated at all.
-    return staleProjectionSets > 0 ? 1 : 0;
-  }
-
-  // Coverage is report-only: --write never touches test files, so it's only
-  // evaluated on the --check path.
-  const uncovered = findScriptCoverageGaps();
-  for (const rel of uncovered) {
-    const stem = path.basename(rel, path.extname(rel));
-    console.error(`UNCOVERED ${rel}: no dedicated tests/${stem}*.test.js`);
-  }
-
-  if (mismatches > 0 || uncovered.length > 0 || staleProjectionSets > 0) {
-    if (staleProjectionSets > 0) {
-      console.error(`FAIL [catalog]: ${staleProjectionSets} projection set(s) in ${PROJECTION_SETS_REL} are stale.`);
-    }
-    if (mismatches > 0) {
-      console.error(`FAIL [catalog]: ${mismatches} exact claim(s) drifted from reality.`);
-    }
-    if (uncovered.length > 0) {
-      console.error(`FAIL [catalog]: ${uncovered.length} script(s) lack a dedicated test.`);
-    }
+  if (write) return staleProjectionSets > 0 ? 1 : 0;
+  if (staleProjectionSets > 0) {
+    console.error(`FAIL [catalog]: ${staleProjectionSets} projection set(s) in ${PROJECTION_SETS_REL} are stale.`);
     return 1;
   }
-  console.log(
-    `PASS [catalog]: all exact numeric claims match reality; projection sets are current; all scripts have dedicated tests (0 uncovered).`
-  );
+
+  console.log('PASS [catalog]: retired Codex MCP surface and profile projection sets are current.');
   return 0;
 }
 

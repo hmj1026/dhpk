@@ -12,7 +12,6 @@ const {
 const { resolveSkillIdentity } = require('./distribution-inventory');
 
 const SELECTION_POLICY_VERSION = 'dhpk.capability-bundle-selection.v1';
-const PROFILE_IDS = Object.freeze(['minimal', 'full', 'compat-v1']);
 const PROFILE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const SURFACE_ALIASES = Object.freeze({
   'claude-profile': ['claude-profile', 'claude-core', 'claude-module'],
@@ -499,7 +498,7 @@ function resolveCapabilitySelection(input = {}) {
   });
   if (standalone) return standalone;
   const table = profileTable(input.profiles);
-  const profileId = input.profileId === undefined || input.profileId === null || input.profileId === '' ? 'minimal' : input.profileId;
+  const profileId = input.profileId === undefined || input.profileId === null || input.profileId === '' ? 'common' : input.profileId;
   if (typeof profileId !== 'string' || !PROFILE_ID_PATTERN.test(profileId)) return fail('INVALID_PROFILE_ID', 'profile id must use a finite safe alias');
   if (!Object.prototype.hasOwnProperty.call(table, profileId)) return fail('UNKNOWN_PROFILE', `unknown profile '${profileId}'`);
   const profile = table[profileId];
@@ -544,6 +543,16 @@ function resolveCapabilitySelection(input = {}) {
       }
     } else if (!sameIdSet(core, selectedDefinition)) {
       return fail('PROFILE_CORE_MISMATCH', 'minimal profile stable IDs must match inventory required core IDs', selectedDefinition);
+    }
+  }
+  if (profileId === 'common') {
+    const core = requiredCoreIds(input.inventory, profile);
+    if (!selectedDefinition) {
+      return fail('INVALID_PROFILE', 'common profile must declare stable IDs');
+    }
+    const missingCore = core.filter((id) => !selectedDefinition.includes(id));
+    if (missingCore.length > 0) {
+      return fail('PROFILE_CORE_MISMATCH', 'common profile must include every required_core_ids entry', missingCore);
     }
   }
   let baseIds;
@@ -644,11 +653,8 @@ function resolveCapabilitySelection(input = {}) {
 function validateProfileDefinitions({ inventory, profiles, moduleCatalog } = {}) {
   const errors = [];
   const table = profileTable(profiles);
-  for (const id of PROFILE_IDS) {
-    if (!Object.prototype.hasOwnProperty.call(table, id)) {
-      errors.push(`missing capability profile '${id}'`);
-      continue;
-    }
+  if (!Object.prototype.hasOwnProperty.call(table, 'common')) errors.push("missing capability profile 'common'");
+  for (const id of Object.keys(table).sort()) {
     const declaredIds = profileSkillIds(table[id]);
     if (declaredIds) {
       const duplicate = declaredIds.find((stableId, index) => declaredIds.indexOf(stableId) !== index);
@@ -781,6 +787,43 @@ function resolveReceiptSelection({ receipt, ...input } = {}) {
   }
   const explicit = typeof existing.profileId === 'string' && existing.profileId !== '';
   const profileId = explicit ? existing.profileId : 'compat-v1';
+  const profiles = input.profiles;
+  const legacyProfiles = profiles && profiles.legacy_profiles
+    && typeof profiles.legacy_profiles === 'object'
+    && !Array.isArray(profiles.legacy_profiles)
+    ? profiles.legacy_profiles
+    : {};
+  const legacyProfile = Object.prototype.hasOwnProperty.call(legacyProfiles, profileId)
+    ? legacyProfiles[profileId]
+    : null;
+  if (legacyProfile) {
+    const recordedIds = Array.isArray(existing.selectedStableIds)
+      ? existing.selectedStableIds
+      : profileSkillIds(legacyProfile);
+    if (!Array.isArray(recordedIds) || recordedIds.some((id) => typeof id !== 'string' || id.trim() === '')) {
+      return fail('MISSING_HISTORICAL_SELECTION', `historical receipt '${profileId}' has no stable-ID selection`);
+    }
+    return { ok: true, value: freeze({
+      profileId,
+      profileDefinition: clone(legacyProfile),
+      selectedStableIds: recordedIds.slice(),
+      selectedCommandIds: Array.isArray(existing.selectedCommandIds)
+        ? existing.selectedCommandIds.slice()
+        : profileCommandIds(legacyProfile),
+      moduleClosure: Array.isArray(existing.moduleClosure) ? existing.moduleClosure.slice() : [],
+      compatibilityMode: existing.compatibilityMode || (profileId === 'compat-v1' ? 'compat-v1' : 'profile'),
+      selectionMode: 'profile',
+      selectionPolicyVersion: existing.selectionPolicyVersion || null,
+      sourceFingerprint: existing.sourceFingerprint || null,
+      inventoryFingerprint: existing.inventoryFingerprint || null,
+      profileFingerprint: existing.profileFingerprint || null,
+      selectionFingerprint: existing.selectionFingerprint || null,
+      migration: existing.migration || null,
+      preservedCompatibility: true,
+      preservedStandalone: false,
+      materializationSupported: false,
+    }) };
+  }
   const result = resolveCapabilitySelection({ ...input, profileId, skillIds: explicit ? undefined : undefined });
   if (!result.ok) return result;
   return { ok: true, value: freeze({
@@ -796,6 +839,9 @@ function planProfileMigration({ receipt, targetProfileId, targetStandaloneSkillI
   if (!standaloneTarget && (typeof targetProfileId !== 'string' || targetProfileId.trim() === '')) return fail('MIGRATION_PROFILE_REQUIRED', 'target profile is required');
   const oldSelection = resolveReceiptSelection({ receipt, ...input });
   if (!oldSelection.ok) return oldSelection;
+  if (oldSelection.value.materializationSupported === false) {
+    return fail('LEGACY_PROFILE_UPDATE_BLOCKED', 'historical profile selections cannot be migrated through the current selection plan');
+  }
   const next = resolveCapabilitySelection({
     ...input,
     profileId: standaloneTarget ? null : targetProfileId,
@@ -832,7 +878,6 @@ function evaluateActivation({ requiredRuntimeSurfaces = [], evidence = [] } = {}
 
 module.exports = {
   SELECTION_POLICY_VERSION,
-  PROFILE_IDS,
   NON_PASS_VERDICTS,
   canonicalize,
   fingerprint,

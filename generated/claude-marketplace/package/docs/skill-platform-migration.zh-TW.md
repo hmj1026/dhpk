@@ -8,32 +8,48 @@ Pocock 或其他全域 skill 的使用者。
 
 目前 Codex/Cursor 安裝路徑與 rollback 邊界請以[平台安裝 SSOT](./platform-installation.zh-TW.md)為準。
 
-Issue #534 預設轉換時，Claude 先執行 `bash scripts/install.sh --dry-run`；
-其他 host 分別使用 `scripts/hooks/install-codex-skills.sh`、
-`scripts/hooks/install-cursor-harness.sh` 或
-`node scripts/ci/install-agy-plugin.js plan`。Clean install 選擇精確四項的
-minimal profile；既有 receipt 在明確 migration 前保留原 selection。結構成功
-不會把未觀察的 consumer 升級為 runtime 成功：應記錄 `NOT_RUN`，缺少 tooling
-記為 `UNAVAILABLE`，prerequisite 失敗記為 `BLOCKED`。Generic
-`dhpk-install` 寫入維持 `NOT_IMPLEMENTED`。
+`manifests/install-profiles.json` 的 `common` collection 是唯一主要安裝預設。
+舊 `minimal`、`full` 與 `compat-v1` 選擇只保留作為歷史 receipt metadata，不是
+發布選項。既有 receipt 在明確 migration 前保留原 selection。目前 Host 程序、
+支援狀態與 lifecycle 邊界請以[平台安裝 SSOT](./platform-installation.zh-TW.md)為準。
+結構成功不會把未觀察的 consumer 升級為 runtime 成功：應記錄 `NOT_RUN`，缺少
+tooling 記為 `UNAVAILABLE`，prerequisite 失敗記為 `BLOCKED`。
 
 ## 目前契約
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/<public-name>/` 下 84 個扁平 package |
-| Public identity | 33 個 public name 不加前綴，包含九個 capability family 與可攜 command skill；其他 51 個 first-party name 維持 `dhpk-*` |
+| Canonical source | `skills/<public-name>/` 下由 inventory 管理的 Skill package |
+| Public identity | Stable ID 與 public name 由 distribution inventory 管理 |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
-| Module projection | `modules/*/skills/` 下 37 個相對 symlink |
-| Codex 專案 projection | `codex/skills/` 下 34 個相對 symlink（32 個可呼叫加內部 transport 與 dispatch-context runtime） |
-| Codex native package | `plugins/dhpk/skills/` 下 34 個實體 package，零 symlink |
+| Module projection | `modules/*/skills/` 下由 inventory 選取的相對 symlink |
+| Codex 專案 projection | `codex/skills/` 下由 receipt 管理的 projection，含內部 transport 與 dispatch-context runtime |
+| Codex native package | `plugins/dhpk/skills/` 下由 inventory 選取的實體 package，不使用 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
-| Profile 大小 | `minimal=4`、`full=55`、`compat-v1=62`（不含 overlays）；minimal 為 `change-verdict`、`code-trace`、`flow-drive`、`flow-guide` |
-| Agent/Cursor/AGY publication | Agent Plugin 與 AGY 各選 55 個 stable ID；Cursor native 擁有 4 個 overlay entry，portable skills 與 Agent 共用 |
+| 主要安裝預設 | `manifests/install-profiles.json` 的 `common` collection；舊選擇只保留為歷史 receipt metadata |
+| Host publication | Membership 與必要 Host helper 由 distribution inventory 與 projection manifest 管理 |
 
 目錄位置與 README 清單都不是權威來源。Inventory 管理 stable id、public name、
 lifecycle、module 與 publication surface；validator 會將每個 projection 與它對齊。
+
+### Module design 公開名稱遷移
+
+`dhpk-module-design` 更名為 `module-design`；canonical source 路徑以
+distribution inventory 中的 `module-design` entry 為準。
+Stable ID `software-architecture`、capability ID、
+四種 mode、參數與 Claude/Cursor surface selection 維持原契約。
+Rename ledger 讓舊公開名稱指向目前 owner，供診斷與 receipt-owned 遷移使用；
+它不安裝第二份相容技能。`software-architecture` legacy identifier 仍解析至同一 owner。
+
+既有專案 receipt 只在舊檔案仍受管理且未修改時遷移。使用者修改或未受管理的
+目的地維持既有 collision handling，rollback 使用記錄的 `0.64.4` release。
+Generated package 與已安裝 consumer 會保留原發佈內容，直到各自 update flow
+完成更新；canonical source 更名本身不代表 consumer 已更新。
+
+Claude 呼叫方式為 `/dhpk:module-design`。Inventory 並未將此技能選入
+`codex-sync` 或 `codex-native`；Codex 呼叫需要獨立的 discovery 證據，不能由
+metadata 檔案推論可用。
 
 ## 呼叫語法
 
@@ -41,7 +57,7 @@ lifecycle、module 與 publication surface；validator 會將每個 projection �
 
 | Surface | 語法 | 範例 |
 |---|---|---|
-| Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
+| Claude command | `/dhpk:<command>` | `/dhpk:precommit` |
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$change-verdict --mode code` |
 | Cursor generated command | 產生的 host adapter | Cursor `do` command（`host=cursor`） |
@@ -62,7 +78,7 @@ Codex 參數採 progressive discovery：`$flow-guide help` 列出目前 catalogu
 人類導覽見 [`codex-skill-usage.zh-TW.md`](codex-skill-usage.zh-TW.md)。Help 不會載入
 目標 procedure，也不會授予其 authority。
 
-`dhpk` prefix 仍是 Claude plugin namespace 的一部分。九個 family name 刻意使用未加
+`dhpk` prefix 仍是 Claude plugin namespace 的一部分。八個 family name 刻意使用未加
 前綴的名稱，讓使用者選擇 task-shaped capability 而不必記住 predecessor 的
 implementation name。`git-smart-commit` 維持原 public name 且獨立存在；不新增
 `commit-craft`。OpenSpec proposal authoring 由外部 `$openspec-propose` 負責；
@@ -76,15 +92,15 @@ OnePassword 登入是 operator action `op signin`。
 `retired_skills` 包含五筆 0.47.0 historical rows 及後續 retirement wave；下表是這些
 historical row 的原 stable identity、`reasonCode`、
 replacement 指引與 rollback pin 的文件投影。Retirement row 只供診斷 metadata 使用：
-不是 active skill、materialized package、discovery alias，也不會進入任何 generated
-projection。
+generated usage catalog 可以保留原名稱，用來回傳退役診斷。這些紀錄不會讓技能
+變成可呼叫項目，也不會加入 discovery 或套件成員清單。
 
 | Former stable ID | Former public name | `reasonCode` | Replacement guidance | `rollback.release` |
 |---|---|---|---|---|
 | `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | current successor `flow-guide`（`classify` mode）；0.47.0 historical route was `adaptive-dev-workflow`（`bug` mode） | `0.46.1` |
 | `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | current successor `flow-guide`（`classify` mode）；0.47.0 historical route was `adaptive-dev-workflow`（`feature` mode） | `0.46.1` |
 | `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`；Claude `/dhpk:dhpk-tdd-workflow`；Codex `$dhpk-tdd-workflow`（`unit-integration` mode）；agent `e2e-runner`（`playwright-journey` mode） | `0.46.1` |
-| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`；Claude `/dhpk:dhpk-module-design`；Codex `$dhpk-module-design`（`adversarial` mode） | `0.46.1` |
+| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`；Claude `/dhpk:module-design`（`adversarial` mode）；目前未選入 Codex | `0.46.1` |
 | `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` 指引；沒有 successor package | `0.46.1` |
 
 ### Direct-host 呼叫邊界
@@ -115,7 +131,7 @@ target 或 hidden fallback。Parity matrix 記錄完整 capability evidence；�
 
 | Former stable ID | Former MCP-facing identity | Replacement owner and behavior | `reasonCode` | `rollback.release` |
 |---|---|---|---|---|
-| `codex-architect` | `dhpk-codex-architect` | `dhpk-module-design`；current-model design/review/compare/adversarial mode，只能明確選用 `codex exec` | `migrated-to-module-design` | `0.51.0` |
+| `codex-architect` | `dhpk-codex-architect` | `module-design`；current-model design/review/compare/adversarial mode，只能明確選用 `codex exec` | `migrated-to-module-design` | `0.51.0` |
 | `codex-implement` | `dhpk-codex-implement` | `flow-drive`；current-model decomposition、implementation、verification、review 與 bounded retry loop（`implement` mode） | `migrated-to-backend-neutral-implement` | `0.51.0` |
 | `codex-code-review` | `dhpk-change-review` 的 MCP default | `dhpk-change-review --backend cli`；current-model default 與明確 CLI review，不提供 MCP fallback | `migrated-to-cli-review-owner` | `0.51.0` |
 | `doc-review` | `dhpk-doc-review` 的 MCP review/reply | `dhpk-doc-review`；portable 五維 review 與 gate，只能明確選用 `codex exec` | `migrated-to-portable-review` | `0.51.0` |
@@ -141,7 +157,7 @@ retirement ledger 見下方。前身 stable ID 只存在歷史 retirement metada
 
 Inventory 準確擁有 22 筆 alias-free row。每筆都使用
 `reasonCode: capability-family-consolidation`、rollback `0.52.0`，並指向一個
-family mode。下表是這個 closed mapping 的文件投影，不是 discovery 或 compatibility
+family mode（下方註明的兩筆除外）。下表是這個 closed mapping 的文件投影，不是 discovery 或 compatibility
 registry。
 
 | Former stable ID | Former public name | Replacement family/mode | `reasonCode` | `rollback.release` |
@@ -150,8 +166,8 @@ registry。
 | `skill-judge` | `dhpk-skill-quality-judge` | `skill-scope` / `judge` | `capability-family-consolidation` | `0.52.0` |
 | `skill-stocktake` | `dhpk-skill-stocktake` | `skill-scope` / `stocktake` | `capability-family-consolidation` | `0.52.0` |
 | `skill-scout` | `dhpk-skill-scout` | `skill-scope` / `scout` | `capability-family-consolidation` | `0.52.0` |
-| `create-skill` | `dhpk-create-skill` | `skill-forge` / `create` | `capability-family-consolidation` | `0.52.0` |
-| `rules-distill` | `dhpk-rules-distill` | `skill-forge` / `distill-rules` | `capability-family-consolidation` | `0.52.0` |
+| `create-skill` | `dhpk-create-skill` | model default（原為 `skill-forge` / `create`） | `capability-family-consolidation` | `0.52.0` |
+| `rules-distill` | `dhpk-rules-distill` | model default（原為 `skill-forge` / `distill-rules`） | `capability-family-consolidation` | `0.52.0` |
 | `adaptive-dev-workflow` | `dhpk-adaptive-dev-workflow` | `flow-guide` / `classify` | `capability-family-consolidation` | `0.52.0` |
 | `dhpk-execution-policy` | `dhpk-execution-policy` | `flow-guide` / `policy` | `capability-family-consolidation` | `0.52.0` |
 | `next-step` | `dhpk-next-step` | `flow-guide` / `next` | `capability-family-consolidation` | `0.52.0` |
@@ -169,17 +185,19 @@ registry。
 | `git-investigate` | `dhpk-git-history-investigation` | `code-trace` / `history` | `capability-family-consolidation` | `0.52.0` |
 | `tool-routing` | `dhpk-tool-routing` | `code-trace` / `select-tool` | `capability-family-consolidation` | `0.52.0` |
 
-## 目前 0.54 capability families 與 retirement
+0.65.0 退休了 `skill-forge` 本身（reason code `third-party-text-overlap`），所以
+`create-skill` 與 `rules-distill` 兩筆 row 現在改指向 model default，而不是 family mode。
 
-0.54 引入九個 portable family，至今仍是目前的 family：`skill-scope`、
-`skill-forge`、`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、
-`laravel`、`phpunit`、`harness-govern`。其他 active public name 維持 `dhpk-*`
-前綴；目前的 skill 清單以 `manifests/distribution-inventory.json` 為準。
+## 0.54 capability family 歷史與 retirement
 
-| 目前 family | Interface | 邊界 |
+0.54 引入九個 portable family。0.65 的 optional-tool retirement 已移除
+`skill-scope` 與 `harness-govern`；它們不是目前的入口。下表記錄該次 release
+的介面，不代表目前可用選項。目前 public name 由
+`manifests/distribution-inventory.json` 管理。
+
+| 0.54 family | Interface | 該 release 的邊界 |
 |---|---|---|
 | `skill-scope` | `health`、`judge`、`stocktake`、`scout` | explicit governance handoff |
-| `skill-forge` | `create`、`distill-rules` | explicit authoring handoff |
 | `flow-guide` | `help`、`route`、`rules`、`next`、`close` | read-only guidance；`route --go` 是單一 bounded handoff |
 | `flow-drive` | confirmed specification 或 change；無 mode | explicit-only implementation |
 | `change-verdict` | `code`、`pr`、`security`、`tests`、`docs`、`risk` | read-only review |
@@ -248,9 +266,7 @@ vault scope。
 3. Session start 時驗證並啟用設定的 module。
 4. Subagent stop 時清理已停止 fast-worker 的 liveness state。
 
-Reviewer 的選擇、identity binding、artifact/result 記錄與 obligation resolution
-屬於 orchestrator-owned 的 Review Gate 與其 durable evidence store。完成判定依據
-identity-bound evidence，不依賴 hook side effect。
+Reviewer 的選擇由 orchestrator 負責且為建議性質；hook 不會強制執行 review gate。
 
 Formatting、lint、Docker probe、prompt hint、session snapshot
 與其他 advisory 工作都改為 consumer 明確啟用的 extension，而非預設 hook。見
@@ -285,7 +301,7 @@ claude plugin update --scope project -y dhpk@dhpk
 TTY 的環境（例如 CI）執行更新時，請加上 `-y`／`--yes`。
 
 啟動新的 Claude session 或執行 `/reload-plugins`。確認 `/dhpk:setup`、
-`/dhpk:flow-guide`、`/dhpk:flow-drive` 與 `/dhpk:harness-govern` 都能解析。Marketplace 不會更新專案本地複製的
+`/dhpk:flow-guide`、`/dhpk:flow-drive` 與 `/dhpk:change-verdict` 都能解析。Marketplace 不會更新專案本地複製的
 舊 dhpk skill；只有在確認它們已重複且有版控或其他可恢復方式後才移除。
 
 ## 升級專案本地 Codex projection
@@ -321,15 +337,27 @@ public name、destination、source、mode 與 fingerprint。Migration 只接管�
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
 bin/dhpk distribution codex-native verify --json
-node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲由 inventory 管理 canonical package 數量、31 個 module，以及 inventory 所屬的
-Codex project/native 項目（可呼叫 skill 加上內部 transport 與 dispatch-context runtime）。
-上述九個 MCP capability identity 只存在 ledger，不計入任何 active count。Profiles 應為
-`minimal=4`、`full=55`、`compat-v1=62`。相對 symlink 只能出現在
-module/Codex projection，native package 必須零 symlink。
+Distribution validator 會檢查 inventory 管理的 canonical package 與 project/native
+projection，包含內部 transport 與 dispatch-context runtime；也會檢查 module/Codex
+projection 的相對 symlink，以及 native package 的實體檔案政策。上述九個 MCP
+capability identity 只存在 ledger，不屬於 active publication。
+
+## 第三方文字重疊退休（0.65.0）
+
+2026-10-03 起，下列項目因含有未保留授權聲明的第三方文字，已從所有 package 移除。
+每個 skill 都有 alias-free retirement row：`reasonCode: third-party-text-overlap`、
+`model-default` replacement，rollback release 為 `0.64.4`。
+
+| 移除項目 | 類型 |
+|---|---|
+| `agent-architecture-audit`（`dhpk-agent-architecture-audit`） | skill |
+| `skill-forge` | skill |
+| `spec-mine` | skill 與 `/dhpk:spec-mine` command |
+| `agent-evaluator` | agent |
+| `spec-miner` | agent |
 
 ## Rollback
 

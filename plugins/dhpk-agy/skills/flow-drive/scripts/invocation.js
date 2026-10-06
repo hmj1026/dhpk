@@ -1,11 +1,22 @@
 'use strict';
 
+const path = require('node:path');
+
+const HOST_PROFILES = require(path.join(__dirname, '..', 'references', 'execution-bundle', 'manifests', 'host-profiles.json'));
+
 const SCHEMA = 'dhpk.flow-drive-invocation.v1';
+const PLAN_MODES = Object.freeze(['auto', 'bounded', 'discovery']);
 const WORKERS = Object.freeze(['claude', 'codex', 'agy', 'auto']);
 const TARGET_PROVIDERS = Object.freeze(['claude', 'codex', 'agy']);
 const REASONER_BACKENDS = Object.freeze(['claude', 'codex']);
 const TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const EFFORT = /^(?:low|medium|high|max|xhigh|ultra)$/;
+const EFFORTS = Object.freeze(['low', 'medium', 'high', 'max', 'xhigh', 'ultra']);
+const EFFORT_CHOICES = EFFORTS.join('|');
+// Claude Code subagents cannot receive the dispatcher-attested 0600
+// DHPK_CLI_TRANSPORT_CONTEXT that the CLI-backed roles require, and the Agent
+// tool cannot override a subagent's frontmatter effort.
+const CONTEXTLESS_HOST = 'claude-code';
+const CLI_BACKED_PROVIDERS = Object.freeze(['codex', 'agy']);
 
 function freezeDeep(value) {
   if (value === null || typeof value !== 'object' || Object.isFrozen(value)) return value;
@@ -15,6 +26,25 @@ function freezeDeep(value) {
 
 function diagnostic(diagnostics, message) {
   diagnostics.push(message);
+}
+
+function invalidEffort(effort) {
+  return effort !== null && !EFFORTS.includes(effort);
+}
+
+function effortDiagnostic(option, effort) {
+  return `invalid ${option} effort '${effort}'; choose ${EFFORT_CHOICES}.`;
+}
+
+function hostRoleEffort(host, role) {
+  const profiles = Array.isArray(HOST_PROFILES.profiles) ? HOST_PROFILES.profiles : [];
+  const profile = profiles.find((candidate) => candidate && candidate.host === host);
+  const defaults = profile && profile.role_defaults && profile.role_defaults[role];
+  return defaults ? defaults.effort : null;
+}
+
+function hostFromEnvironment(env) {
+  return env.CLAUDECODE === '1' ? CONTEXTLESS_HOST : null;
 }
 
 function parsePlan(value, diagnostics) {
@@ -29,9 +59,7 @@ function parsePlan(value, diagnostics) {
     return { enabled: true, model: null, effort: null };
   }
   const [model, effort = null] = parts;
-  if (effort !== null && !EFFORT.test(effort)) {
-    diagnostic(diagnostics, `invalid --plan effort '${effort}'.`);
-  }
+  if (invalidEffort(effort)) diagnostic(diagnostics, effortDiagnostic('--plan', effort));
   return { enabled: true, model, effort };
 }
 
@@ -51,9 +79,7 @@ function parseReasoner(value, diagnostics) {
   if (!REASONER_BACKENDS.includes(backend)) {
     diagnostic(diagnostics, `unsupported reasoner backend '${backend}'; choose claude or codex.`);
   }
-  if (effort !== null && !EFFORT.test(effort)) {
-    diagnostic(diagnostics, `invalid --reasoner effort '${effort}'.`);
-  }
+  if (invalidEffort(effort)) diagnostic(diagnostics, effortDiagnostic('--reasoner', effort));
   return { backend, model, effort };
 }
 
@@ -76,9 +102,7 @@ function parseWorkerTarget(value, diagnostics) {
   if (!TARGET_PROVIDERS.includes(provider)) {
     diagnostic(diagnostics, `unsupported worker-target provider '${provider}'; choose ${TARGET_PROVIDERS.join(', ')}.`);
   }
-  if (effort !== null && !EFFORT.test(effort)) {
-    diagnostic(diagnostics, `invalid --worker-target effort '${effort}'.`);
-  }
+  if (invalidEffort(effort)) diagnostic(diagnostics, effortDiagnostic('--worker-target', effort));
   return { provider, model, effort };
 }
 
@@ -90,12 +114,33 @@ function parseWorker(value, diagnostics) {
   return value;
 }
 
-function parseInvocation(argv = []) {
+function checkHostSupport(host, options, diagnostics, notices) {
+  if (host !== CONTEXTLESS_HOST) return;
+  const unsupported = (selection, alternative) => diagnostic(
+    diagnostics,
+    `${selection} is unavailable on the ${host} host: its subagents cannot receive the dispatcher-attested DHPK_CLI_TRANSPORT_CONTEXT; use ${alternative} instead.`,
+  );
+  if (CLI_BACKED_PROVIDERS.includes(options.worker)) unsupported(`--worker=${options.worker}`, '--worker=claude');
+  if (options.workerTarget && CLI_BACKED_PROVIDERS.includes(options.workerTarget.provider)) {
+    unsupported(`--worker-target=${options.workerTarget.provider}/...`, '--worker=claude');
+  }
+  if (options.reasoner && CLI_BACKED_PROVIDERS.includes(options.reasoner.backend)) {
+    unsupported(`--reasoner=${options.reasoner.backend}`, '--reasoner=claude');
+  }
+  const appliedEffort = hostRoleEffort(host, 'planner');
+  if (options.plan.effort !== null && appliedEffort !== null && options.plan.effort !== appliedEffort) {
+    notices.push(`--plan effort '${options.plan.effort}' is not applied on the ${host} host; the planner runs at its configured effort '${appliedEffort}'.`);
+  }
+}
+
+function parseInvocation(argv = [], { host = null } = {}) {
   const tokens = Array.isArray(argv) ? argv.map(String) : String(argv).trim().split(/\s+/).filter(Boolean);
   const diagnostics = [];
+  const notices = [];
   const seen = new Set();
   let changeId = null;
   let architect = null;
+  let requestedPlanMode = null;
   const options = {
     plan: { enabled: false, model: null, effort: null },
     worker: 'auto',
@@ -122,6 +167,14 @@ function parseInvocation(argv = []) {
     }
     if (token === '--plan' || token.startsWith('--plan=')) {
       if (markOnce('--plan')) options.plan = parsePlan(token.includes('=') ? token.slice('--plan='.length) : undefined, diagnostics);
+      continue;
+    }
+    if (token.startsWith('--plan-mode=')) {
+      if (markOnce('--plan-mode')) {
+        const mode = token.slice('--plan-mode='.length);
+        if (PLAN_MODES.includes(mode)) requestedPlanMode = mode;
+        else diagnostic(diagnostics, `invalid --plan-mode value '${mode}'; choose ${PLAN_MODES.join('|')}.`);
+      }
       continue;
     }
     if (token.startsWith('--worker=')) {
@@ -152,24 +205,36 @@ function parseInvocation(argv = []) {
   }
 
   if (!changeId) diagnostic(diagnostics, 'a confirmed specification or change id is required.');
+  if (seen.has('--plan-mode') && !options.plan.enabled) {
+    diagnostic(diagnostics, '--plan-mode requires --plan to enable a planner consult.');
+  }
   if (architect !== null && seen.has('--architect') && seen.has('--no-architect')) {
     diagnostic(diagnostics, '--architect and --no-architect are mutually exclusive.');
     architect = null;
   }
-  options.architect = architect;
+  const normalizedOptions = {
+    ...options,
+    plan: {
+      ...options.plan,
+      mode: options.plan.enabled ? requestedPlanMode || 'auto' : null,
+    },
+    architect,
+  };
+  checkHostSupport(host, normalizedOptions, diagnostics, notices);
   return freezeDeep({
     schema: SCHEMA,
     status: diagnostics.length === 0 ? 'ready' : 'blocked',
     changeId,
-    options,
+    options: normalizedOptions,
     diagnostics,
+    notices,
   });
 }
 
 module.exports = Object.freeze({ parseInvocation });
 
 if (require.main === module) {
-  const context = parseInvocation(process.argv.slice(2));
+  const context = parseInvocation(process.argv.slice(2), { host: hostFromEnvironment(process.env) });
   process.stdout.write(`${JSON.stringify(context)}\n`);
   process.exitCode = context.status === 'blocked' ? 2 : 0;
 }

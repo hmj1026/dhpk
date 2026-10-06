@@ -100,11 +100,17 @@ test('Claude adapter enables safe mode and disables tools', () => {
 });
 
 test('evidence output accepts only a direct child JSON file', () => {
-  assert.match(validateEvidenceTarget(ROOT, 'docs/evidence/pilot.json'), /docs\/evidence\/pilot\.json$/);
-  assert.throws(
-    () => validateEvidenceTarget(ROOT, 'docs/evidence/nested/pilot.json'),
-    /direct JSON child/,
-  );
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-evidence-target-'));
+  try {
+    fs.mkdirSync(path.join(root, 'docs', 'evidence'), { recursive: true });
+    assert.match(validateEvidenceTarget(root, 'docs/evidence/pilot.json'), /docs\/evidence\/pilot\.json$/);
+    assert.throws(
+      () => validateEvidenceTarget(root, 'docs/evidence/nested/pilot.json'),
+      /direct JSON child/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('dry run plans every client and variant without invoking a model', async () => {
@@ -424,10 +430,4 @@ test('evidence class is promoted only at three sessions over a multi-fixture mat
   assert.ok(formal.aggregate.variants.every((entry) => entry.passes === entry.total));
 });
 
-test('the merged directional pilot receipt stays on its own schema and is not rewritten', () => {
-  const pilot = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs', 'evidence', 'issue-534-worker-context-pilot.json'), 'utf8'));
-  assert.strictEqual(pilot.schema, 'dhpk.worker-context-benchmark-receipt.v1');
-  assert.strictEqual(pilot.evidenceClass, 'directional-pilot');
-  assert.strictEqual(pilot.source.commit, '9b3c230c33e32731b20b34743965276e768ed68a');
-});
 run('worker-context-benchmark');

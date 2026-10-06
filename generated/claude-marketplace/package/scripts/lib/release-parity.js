@@ -1,13 +1,12 @@
 'use strict';
 
-// Version-parity checks for one release target across every version-bearing
-// surface: the Claude plugin manifest, root Codex manifest, thin Codex
-// wrapper manifest, standard Agent Plugin, native AGY plugin, and Cursor
+// Version-parity checks for one release target across every retained
+// version-bearing surface: the Claude plugin manifest, root Codex manifest, thin
+// Codex wrapper manifest, standard Agent Plugin, native AGY plugin, Cursor
 // Plugin manifests plus owner-scoped receipts, marketplace descriptor, the
-// the tracked generated Claude marketplace package manifest, three generated
-// Claude profile package manifests (minimal, full, compat-v1), the CHANGELOG.md
-// release heading, and the bilingual AGY
-// generator pin in platform-installation SSOT. Composes (does not replace)
+// tracked generated Claude marketplace package manifest, the CHANGELOG.md
+// release heading, and the bilingual AGY generator pin in platform-installation
+// SSOT. Composes (does not replace)
 // the pairwise manifest parity already covered by
 // tests/codex-native-package-validate.test.js.
 
@@ -29,9 +28,7 @@ const MANIFEST_PATHS = [
   'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
   'plugins/dhpk-cursor/provenance.json',
   'generated/claude-marketplace/package/.claude-plugin/plugin.json',
-  'generated/claude-profiles/minimal/package/plugin.json',
-  'generated/claude-profiles/full/package/plugin.json',
-  'generated/claude-profiles/compat-v1/package/plugin.json',
+  'package.json',
 ];
 
 const AGY_GENERATOR_DOC_PATHS = [

@@ -7,7 +7,7 @@ metadata:
 
 # Update Codemaps
 
-Forward to the canonical [`$update-codemaps` skill](../skills/update-codemaps/SKILL.md)
+Forward to the canonical [`$update-codemaps` skill](../skills/update-docs/references/update-codemaps/SKILL.md)
 with `$ARGUMENTS` unchanged (including an empty argument list). It owns the
 live structure scan, five codemap outputs, metadata header, 30% confirmation
 guard, and `.reports/codemap-diff.txt` report.

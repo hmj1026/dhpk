@@ -8,6 +8,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { compileMarketplacePublicationView } = require('../lib/marketplace-selection');
 
 const {
   compileSkillUsageCatalog,
@@ -23,6 +24,7 @@ function parseArgs(argv) {
   const result = {
     root: DEFAULT_ROOT,
     inventory: null,
+    selection: null,
     output: null,
     docs: null,
     docsZh: null,
@@ -58,6 +60,13 @@ function parseArgs(argv) {
         index += 1;
       }
     } else if (arg.startsWith('--inventory=')) result.inventory = arg.slice('--inventory='.length);
+    else if (arg === '--selection') {
+      const value = valueFor(index, '--selection');
+      if (value !== null) {
+        result.selection = value;
+        index += 1;
+      }
+    } else if (arg.startsWith('--selection=')) result.selection = arg.slice('--selection='.length);
     else if (arg === '--out' || arg === '--output') {
       const value = valueFor(index, arg);
       if (value !== null) {
@@ -117,7 +126,8 @@ function writeAtomically(filePath, content) {
 function usageText() {
   return [
     'Usage: node scripts/ci/gen-skill-usage.js [--check|--write] [--root DIR]',
-    '       [--inventory FILE] [--out FILE] [--docs FILE] [--docs-zh FILE]',
+    '       [--inventory FILE] [--selection FILE] [--out FILE] [--docs FILE] [--docs-zh FILE]',
+    'Canonical generation requires marketplace selection; custom inventories retain legacy selection unless --selection is supplied.',
   ].join('\n');
 }
 
@@ -134,6 +144,14 @@ function expectedProjections(root, args, catalog, inventory) {
       label: 'Traditional Chinese usage documentation',
     },
   ];
+  const runtimeSource = path.join(root, 'scripts/lib/skill-usage.js');
+  if (fs.existsSync(runtimeSource)) {
+    projections.push({
+      path: path.join(root, 'skills/flow-guide/scripts/_lib/skill-usage.js'),
+      content: fs.readFileSync(runtimeSource, 'utf8'),
+      label: 'self-contained usage runtime library',
+    });
+  }
   for (const entry of inventory.skills || []) {
     if (!entry.usage || !entry.path) continue;
     const skillPath = path.join(root, entry.path, 'SKILL.md');
@@ -172,7 +190,13 @@ function run(argv, io) {
   let catalog;
   try {
     inventory = readJson(inventoryPath, 'distribution inventory');
-    catalog = compileSkillUsageCatalog({ inventory });
+    const publicationView = args.selection !== null || args.inventory === null
+      ? compileMarketplacePublicationView({
+        inventory,
+        selection: readJson(resolvePath(root, args.selection, 'manifests/marketplace-selection.json'), 'marketplace selection'),
+      })
+      : undefined;
+    catalog = compileSkillUsageCatalog({ inventory, publicationView });
     const runtimeValidation = validateRuntimeIndex(catalog.runtimeIndex);
     if (!runtimeValidation.ok) throw new Error(runtimeValidation.errors.join('; '));
   } catch (error) {

@@ -1,38 +1,61 @@
-# Bug Investigation Examples
+# Diagnosis Examples
 
-此文件說明 `examples/` 內的案例與建議使用方式。
+These short examples show how to state evidence and its limits in the
+response. Replace placeholders with observed facts; they are not pass-rate or
+performance thresholds. See [`reproduction-evidence.md`](reproduction-evidence.md)
+for the probe details.
 
-## 範例清單
+## Reproduction unavailable
 
-- `examples/state-inconsistency-example/`
-  - 場景：系統狀態不一致
-  - 重點：資料流追蹤、矛盾點定位、Mermaid 圖表輔助
-
-## 使用方式
-
-1. 閱讀範例，理解 5 階段調查流程
-2. 套用結構到當前問題
-3. 以通用術語撰寫，移除任何敏感資料
-
-## 建議結構模板
-
-```markdown
-# [您的問題] 調查
-
-## 問題描述
-- **預期**：
-- **實際**：
-- **樣本**：
-
-## 調查過程
-### Phase 1: Problem Discovery
-### Phase 2: Evidence Gathering
-### Phase 3: Root Cause Analysis
-### Phase 4: Solution Proposal
-### Phase 5: Knowledge Documentation
+```text
+Expected: [observable behavior]
+Observed: [symptom in the report or existing evidence]
+Reproduction: BLOCKED — [missing environment, input, or access]
+Probe run: none; [why it could not be run safely or with current access]
+Finding: root cause unconfirmed; current evidence shows [fact], not [inference]
+Next handoff: [owner/workflow] to provide [smallest missing evidence]
 ```
 
-## 注意事項
+The blocked status does not prevent reporting a code path or existing trace,
+but those observations remain separate from a confirmed reproduction.
 
-- 盡量提供可重現步驟與樣本 ID
-- 記錄資料庫與程式碼的對照位置
+## Intermittent signal
+
+```text
+Command/interaction: [exact redacted operation]
+Observed: [successes] successes in [attempts] attempts
+Conditions: [known input/environment/order differences, or unknown]
+Assertion: [the output or condition used to classify the symptom]
+Finding: [what these observations support; what remains uncertain]
+```
+
+The counts describe the runs that occurred. They do not imply a minimum sample
+size or a universal flaky-test cutoff.
+
+## Performance comparison
+
+```text
+Workload: [same request or operation, input/data volume, and configuration]
+Baseline: [measurement, environment, and observation method]
+Current: [measurement, environment, and observation method]
+Comparison: [comparable dimensions and any differences]
+Finding: [supported change, or why the comparison is inconclusive]
+```
+
+If a comparable baseline is unavailable, state that limitation and leave the
+performance cause unconfirmed. Do not label a run a regression based only on
+an arbitrary duration or a different workload.
+
+## Read-only diagnosis handoff
+
+```text
+Confirmed cause: [cause and confirming evidence] / not confirmed
+Evidence: [commands, output excerpts, code locations, or authorized read-only records]
+Hypotheses: [ranked alternatives with discriminating checks]
+Constraints: [access, shared-resource, or side-effect boundary]
+Next handoff: [existing workflow/owner and one next check]
+```
+
+Return this report in the response by default. A knowledge document or other
+artifact is created only when explicitly authorized under the main skill's
+artifact-writing rule.

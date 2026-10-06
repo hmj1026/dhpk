@@ -10,14 +10,8 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { withIsolatedSkill } = require('./_lib/skill-directory-isolation');
 const {
-  getOrCreateHostKey,
-  hostInitArgs,
-} = require('./_lib/review-gate-host-attestation-fixture');
-const {
   SOURCES,
   RESERVED_ENV,
-  AUTO_DETECTED_PLACEHOLDERS,
-  ECOSYSTEM_TAGS,
   outputOf,
   fileSnapshot,
   fingerprint,
@@ -30,12 +24,6 @@ const {
 } = require('./_lib/skill-setup-family-fixtures');
 
 const FIXTURES = registerSetupFixtures();
-const WORK_REQUEST_PATH = path.join(
-  __dirname,
-  'fixtures',
-  'review-gate',
-  'runtime-work-request-v1.json',
-);
 
 function hostileEnvironment() {
   return Object.fromEntries(RESERVED_ENV.map((name) => [name, '/hostile/setup-root']));
@@ -104,10 +92,6 @@ test('setup-family fixture registry exposes stable public entries', () => {
     'setup-harness-explicit-hooks-success',
     'setup-harness-invalid-artifact-no-mutation',
     'setup-harness-missing-local-writer',
-    'setup-harness-review-gate-local-closure',
-    'setup-project-explicit-artifact-required',
-    'setup-project-explicit-hooks-success',
-    'setup-project-missing-local-writer',
   ]);
   for (const fixture of Object.values(FIXTURES)) {
     assert.ok(fixture.entry.startsWith('scripts/'), fixture.id);
@@ -270,169 +254,13 @@ test('relocated Codex setup pins source roots to the artifact and rejects a Skil
   });
 });
 
-test('relocated harness Review Gate closure supports trusted init and status in a temporary project', () => {
-  isolated('harness', (context) => {
-    const host = getOrCreateHostKey(context.projectDir, 'setup-family-review-gate');
-    const initialized = runEntry(
-      context,
-      FIXTURES['setup-harness-review-gate-local-closure'].entry,
-      [...hostInitArgs(host), '--repo-root', context.projectDir],
-    );
-    assertSuccess(initialized);
-    const initOutput = JSON.parse(initialized.stdout);
-    assert.strictEqual(initOutput.schema, 'dhpk.review-gate.runtime.v1');
-    assert.ok(['INITIALIZED', 'ALREADY_INITIALIZED'].includes(initOutput.status));
-
-    const prepared = runEntry(
-      context,
-      FIXTURES['setup-harness-review-gate-local-closure'].entry,
-      ['prepare', '--repo-root', context.projectDir],
-      { input: fs.readFileSync(WORK_REQUEST_PATH) },
-    );
-    assertSuccess(prepared);
-    const preparedOutput = JSON.parse(prepared.stdout);
-    assert.strictEqual(preparedOutput.status, 'PREPARED');
-    assert.match(preparedOutput.workId, /^work-[a-f0-9]{64}$/);
-
-    const status = runEntry(context, FIXTURES['setup-harness-review-gate-local-closure'].entry, [
-      'status',
-      '--work-id', preparedOutput.workId,
-      '--repo-root', context.projectDir,
-    ]);
-    assertSuccess(status);
-    const statusOutput = JSON.parse(status.stdout);
-    assert.strictEqual(statusOutput.schema, 'dhpk.review-gate.runtime.v1');
-    assert.strictEqual(statusOutput.command, 'status');
-    assert.strictEqual(statusOutput.status, 'PENDING');
-    assert.deepStrictEqual(statusOutput.receiptSummary, { total: 0, byKind: {} });
-    assert.strictEqual(fs.existsSync(path.join(context.projectDir, '.dhpk', 'review-gate', 'v1', 'config.json')), true);
-    return { result: status };
-  });
-});
-
-test('relocated project setup installs selected hooks through its own adapter and explicit artifact', () => {
-  isolated('project', (context) => {
-    const marker = path.join(context.projectDir, 'project-artifact-installer-ran');
-    const artifact = makeHooksArtifact(context.projectDir, { marker, includeInstaller: false });
-    const target = path.join(context.projectDir, 'project consumer target');
-    const result = runEntry(context, FIXTURES['setup-project-explicit-hooks-success'].entry, [
-      '--source-artifact', artifact.artifact,
-      '--target', target,
-      '--install', 'hooks',
-    ]);
-    assertHookInstall(result, artifact, target);
-    assert.strictEqual(fs.existsSync(marker), false, 'artifact installer canary must not run');
-    return { result };
-  });
-});
-
-test('project setup requires an explicit artifact and does not consult an ambient lookalike', () => {
-  isolated('project', (context) => {
-    const marker = path.join(context.projectDir, 'project-ambient-installer-ran');
-    const ambient = makeLookalikeDistribution(
-      path.join(path.dirname(context.skillDir), 'project ambient distribution'),
-      marker,
-    );
-    const target = path.join(context.projectDir, 'project consumer target');
-    const result = runEntry(context, FIXTURES['setup-project-explicit-artifact-required'].entry, [
-      '--target', target,
-      '--install', 'hooks',
-    ]);
-    assertNonPass(result, [/SOURCE_ARTIFACT_REQUIRED/i]);
-    assert.strictEqual(fileSnapshot(target), null, 'required artifact failure must not create a target');
-    assert.strictEqual(fs.existsSync(marker), false, 'ambient installer canary must not run');
-    assert.ok(fs.existsSync(path.join(ambient.artifact, 'hooks', 'hooks.json')));
-    return { result };
-  });
-});
-
-test('project setup reports a missing local writer before target mutation', () => {
-  isolated('project', (context) => {
-    const marker = path.join(context.projectDir, 'project-missing-writer-canary-ran');
-    const artifact = makeHooksArtifact(context.projectDir, { marker, includeInstaller: true });
-    fs.rmSync(path.join(context.skillDir, 'scripts', 'lib', 'install-assets-writer.sh'), { force: true });
-    const target = path.join(context.projectDir, 'project consumer target');
-    const before = fileSnapshot(target);
-    const result = runEntry(context, FIXTURES['setup-project-missing-local-writer'].entry, [
-      '--source-artifact', artifact.artifact,
-      '--target', target,
-      '--install', 'hooks',
-    ]);
-    assertNonPass(result, [/BLOCKED_RESOURCE_MISSING/i]);
-    assert.deepStrictEqual(fileSnapshot(target), before, 'missing local writer must fail before target mutation');
-    assert.strictEqual(fs.existsSync(marker), false, 'artifact installer canary must not run');
-    return { result };
-  });
-});
-
-test('relocated project setup keeps Host procedure resources local and declares the non-pass capability boundary', () => {
-  isolated('project', (context) => {
-    const skill = fs.readFileSync(path.join(context.skillDir, 'SKILL.md'), 'utf8');
-    const frontmatter = skill.match(/^---\n([\s\S]*?)\n---\n/);
-    assert.ok(frontmatter, 'project setup frontmatter is required');
-    for (const tool of ['Read', 'Glob', 'AskUserQuestion', 'Edit', 'Write']) {
-      assert.match(frontmatter[1], new RegExp(`\\b${tool}\\b`), `missing declared tool ${tool}`);
-    }
-
-    const template = fs.readFileSync(path.join(context.skillDir, 'templates', 'CLAUDE.md'), 'utf8');
-    const settingsTemplate = fs.readFileSync(
-      path.join(context.skillDir, 'templates', 'claude-settings-hooks.json'),
-      'utf8',
-    );
-    const settings = JSON.parse(settingsTemplate);
-    assert.ok(settings && settings.hooks && typeof settings.hooks === 'object', 'settings template must be JSON');
-    for (const placeholder of AUTO_DETECTED_PLACEHOLDERS) {
-      assert.ok(template.includes(placeholder), `first-install template is missing ${placeholder}`);
-    }
-    const blocks = Array.from(template.matchAll(/<!-- block:([^ ]+) -->/g));
-    const closings = Array.from(template.matchAll(/<!-- \/block -->/g));
-    assert.deepStrictEqual(
-      blocks.map((match) => match[1]).sort(),
-      [...ECOSYSTEM_TAGS].sort(),
-      'each ecosystem must own exactly one block marker',
-    );
-    assert.strictEqual(closings.length, blocks.length, 'every ecosystem block must have one closing marker');
-    for (let index = 0; index < blocks.length; index += 1) {
-      assert.ok(blocks[index].index < closings[index].index, `${blocks[index][1]} must close after it opens`);
-      if (blocks[index + 1]) {
-        assert.ok(closings[index].index < blocks[index + 1].index, `${blocks[index][1]} must close before the next block`);
-      }
-    }
-
-    const body = skill.replace(/^---\n[\s\S]*?\n---\n/, '');
-    assert.match(body, /templates\/CLAUDE\.md/);
-    assert.match(body, /templates\/claude-settings-hooks\.json/);
-    assert.match(body, /references\//);
-    assert.match(body, /scripts\/install-project-assets\.sh/);
-    assert.doesNotMatch(body, /docs\/(?:hook-extension|docker-setup)\.md|scripts\/install\.sh|node_modules|plugin cache|walk(?:ing)? parents/i);
-    assert.match(body, /AskUserQuestion[\s\S]*(?:confirmation|confirm)[\s\S]*(?:before|prior to)[\s\S]*(?:write|Edit)/i);
-    assert.match(body, /HOST_CAPABILITY_UNAVAILABLE/);
-    assert.match(body, /\b(?:BLOCKED|UNAVAILABLE)\b/);
-    assert.match(body, /\b(?:AskUserQuestion|project edit\/write|edit\/write)\b/);
-    assert.match(body, /NOT_RUN/);
-    assert.doesNotMatch(body, /--host\b/);
-    return { result: { evidenceKind: 'fixture', hostStatus: 'NOT_RUN' } };
-  });
-});
-
-test('setup asset adapters are one manifest-synchronized source that names itself', () => {
+test('harness setup asset adapter names itself and requires an explicit artifact', () => {
   const ROOT = path.join(__dirname, '..');
   const { spawnSync } = require('node:child_process');
   const canonical = 'skills/harness-setup/scripts/install-assets.sh';
   const adapters = {
     'harness-setup/install-assets': canonical,
-    'dhpk-project-setup/install-project-assets': 'skills/dhpk-project-setup/scripts/install-project-assets.sh',
   };
-  const bytes = Object.values(adapters).map(rel => fs.readFileSync(path.join(ROOT, rel)));
-  assert.ok(bytes[0].equals(bytes[1]), 'adapters must be byte-identical copies of one source');
-
-  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'skill-resources.json'), 'utf8'));
-  const projectEntries = manifest.skills['project-setup'] || [];
-  assert.ok(
-    projectEntries.some(entry => entry.source === canonical && entry.destination === 'scripts/install-project-assets.sh'),
-    'dhpk-project-setup adapter must be synchronized from the harness-setup source',
-  );
-
   for (const [name, rel] of Object.entries(adapters)) {
     const result = spawnSync('bash', [path.join(ROOT, rel), '--help'], { encoding: 'utf8' });
     assert.strictEqual(result.status, 0, outputOf(result));

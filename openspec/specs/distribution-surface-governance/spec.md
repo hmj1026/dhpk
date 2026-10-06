@@ -1,5 +1,22 @@
 # distribution-surface-governance Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
+This amendment qualifies successor consumer evidence: structural and package
+acceptance may establish the applicable surface contract, while native discovery
+or runtime evidence remains required for a selected native claim, affected
+integration, defect, or explicit request. It does not weaken retirement,
+ownership, coexistence, rollback, or publication prerequisites.
+
 ## Purpose
 
 Define the governed publication lifecycle for every consumer-reachable skill
@@ -39,37 +56,22 @@ The Claude plugin skill registrations and every generated Codex publication tree
 
 ### Requirement: Core and optional surfaces are distinguishable
 
-The distribution model SHALL distinguish broadly applicable core workflow skills from opt-in stack skills, and documentation SHALL state whether the current host truly gates discovery or merely gates runtime hooks and activation. A profile-scoped package SHALL be identified as a pre-discovery selected artifact, while `compat-v1` SHALL be identified separately from the conflict-aware `full` module closure. The catalog SHALL report description word/token totals separately for promoted, optional, experimental, and deprecated entries and separately for each selected profile artifact. An `optional` lifecycle SHALL NOT be described as hidden from discovery when the host still publishes its description.
+The distribution model SHALL distinguish common workflow entries, bundled children, necessary Host support, and opt-in stack resources. Documentation MUST distinguish pre-discovery materialization from runtime activation and identify the current artifact scope. Optional lifecycle metadata MUST NOT be described as hidden when the Host still publishes its description. Optional context research SHALL retain exact scope and estimator identity; it MUST NOT create a routine native or GUI gate.
 
-#### Scenario: Host cannot hide optional skill descriptions
+#### Scenario: Host cannot hide optional descriptions
 
-- **WHEN** the unscoped Claude plugin host registers optional module skill descriptions regardless of selected modules
-- **THEN** documentation reports that limitation and SHALL NOT describe the optional set as hidden at discovery time
+- **WHEN** an unscoped Host registers optional module descriptions regardless of configured activation
+- **THEN** documentation reports that limitation without claiming they are discovery-hidden
 
-#### Scenario: Profile artifact excludes optional metadata
+#### Scenario: Selected artifact excludes optional metadata
 
-- **WHEN** a `minimal` or stack profile bundle is generated before Claude discovery
-- **THEN** its scoped root contains only the selected core and module entries, and its report labels excluded optional entries as absent rather than runtime-hidden
+- **WHEN** a common or standalone artifact is materialized before discovery
+- **THEN** its report identifies actual selected entries, folded resources, and Host support, and labels excluded entries absent rather than runtime-hidden
 
-#### Scenario: Compatibility and full profiles are reported separately
+#### Scenario: Discovery-visible metadata is measured
 
-- **WHEN** a report compares `minimal`, `full`, and `compat-v1`
-- **THEN** it identifies `full` as conflict-aware module closure, `compat-v1` as the legacy all-live-ID bundle, and does not combine their counts into one discovery claim
-
-#### Scenario: Optional metadata is discovery-visible
-
-- **WHEN** optional skills are published in any host discovery manifest
-- **THEN** catalog output labels them discovery-visible and runtime- or activation-optional
-
-#### Scenario: Description budget is exceeded
-
-- **WHEN** a discovery-visible skill or agent description exceeds the configured always-visible word/token budget for its lifecycle, surface, or selected profile
-- **THEN** validation reports the entry and fails or requires an explicit reviewed exemption
-
-#### Scenario: Metadata is within budget
-
-- **WHEN** all discovery-visible descriptions meet their scoped budgets
-- **THEN** validation passes and reports budget totals by publication surface and selected profile artifact
+- **WHEN** a requested report measures current catalog, standalone, or historical artifact descriptions
+- **THEN** it reports the scoped word/token totals and configured budgets separately without combining distinct artifacts or upgrading runtime evidence
 
 ### Requirement: Deprecation precedes source deletion
 
@@ -117,7 +119,10 @@ Codex surfaces.
 Every skill, agent, command, rule, hook, and MCP entry published on one of
 these surfaces MUST have an inventory-owned stable ID, public name, lifecycle,
 source path, and surface membership. No surface may be inferred from a
-directory, README list, or manifest presence.
+directory, README list, or manifest presence. This membership contract
+governs adapters targeting these explicit inventory surfaces; the separate
+`openai-submission` package uses the marketplace selection and canonical
+inventory records without adding membership to another surface.
 
 #### Scenario: Portable skill is intentionally selected
 
@@ -133,11 +138,25 @@ directory, README list, or manifest presence.
 
 ### Requirement: Cross-surface projections have one canonical source
 
-All generated Agent Plugins, Codex, Cursor, AGY, and Claude projections, including profile-scoped bundles, SHALL be derived from canonical sources plus explicit adaptation rules and one inventory-owned canonical selection identity. Generated files MUST NOT become an independently authored source of behavior, and identical portable skill content across surfaces SHALL share a fingerprint or a recorded intentional transform. The canonical profile ID, ordered canonical stable-ID set, and canonical selection fingerprint SHALL be part of projection provenance. A surface MAY additionally record emitted stable IDs and a surface selection fingerprint only for a declared transform; Codex's emitted set SHALL be the canonical selection intersected with its existing supported allowlist.
+Every projection generated through `compileDistribution` for Agent Plugin,
+Codex, Cursor, AGY, and Claude surfaces, including profile-scoped bundles,
+SHALL derive from canonical sources, explicit adaptation rules, and one
+inventory-owned canonical selection identity. Generated files MUST NOT become
+an independently authored source of behavior, and identical portable skill
+content across those surfaces SHALL share a fingerprint or a recorded
+intentional transform. The canonical profile ID, ordered canonical stable-ID
+set, and canonical selection fingerprint SHALL be part of projection
+provenance. A surface MAY additionally record emitted stable IDs and a surface
+selection fingerprint only for a declared transform; Codex's emitted set
+SHALL be the canonical selection intersected with its existing supported
+allowlist. The separately compiled `openai-submission` package shares canonical
+inventory sources but uses the explicit marketplace selection and package
+receipt requirements below; it does not set profile membership or the
+Codex-supported intersection for these projections.
 
 #### Scenario: Generated package contains an undeclared skill
 
-- **WHEN** any generated surface or profile bundle contains a public name absent from its inventory surface and selected profile
+- **WHEN** a `compileDistribution` surface or profile bundle contains a public name absent from its inventory surface and selected profile
 - **THEN** the distribution gate fails and names the extra entry
 
 #### Scenario: Native adaptation is intentional
@@ -198,6 +217,16 @@ stable-ID provenance linking it to the owner.
 
 `manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, symlink policy, and profile membership supplied to `compileDistribution`. Install profiles and module catalogs MAY provide normalized selection inputs, but generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry. Retirement rows from Change A are never selectable entries. `--write` MUST reject an existing inventory with schema `dhpk.distribution-inventory.v2` before invoking the atomic file-replacement helper (`writeInventoryAtomically`), return a nonzero status, leave the existing bytes unchanged, and direct digest-only updates to `--refresh-supporting-digests`. Missing inventories and existing v1 inventories SHALL retain the current generation behavior for entries whose canonical paths match `skills/<id>/SKILL.md` or `modules/<module>/skills/<id>/SKILL.md`. Any canonical entry outside those two recognized path shapes SHALL fail closed before a write. An existing inventory that is neither valid v1 nor exact v2 MUST retain the existing schema-validation failure and MUST NOT be reinterpreted as missing or v1 bootstrap input. Regeneration MUST NOT use an unconditional per-entry union that can resurrect a deliberately removed v2 membership; an explicitly reviewed v2 inventory edit or a dedicated reconciliation workflow is outside this requirement.
 
+This requirement governs entries and membership supplied to `compileDistribution`.
+The OpenAI portable package also consumes the explicit
+`manifests/marketplace-selection.json` through its marketplace-selection
+compiler. That document controls the shared default marketplace catalog consumed by
+retained Host publication adapters and the portable OpenAI submission package.
+It does not change the inventory's canonical names, source paths, lifecycles,
+physical owners, explicit compatibility-profile definitions, or inventory
+surface memberships. Each Host selects its declared Host-only resources
+separately while preserving the shared common public identities.
+
 #### Scenario: Surface adapter discovers an extra component
 
 - **WHEN** a surface-specific adapter or profile generator finds a package in a conventional directory that is not selected for that surface by the inventory and explicit profile input
@@ -244,9 +273,21 @@ stable-ID provenance linking it to the owner.
 - **WHEN** `--write` reads an existing inventory that is malformed or has a schema other than a valid v1 or exact `dhpk.distribution-inventory.v2`
 - **THEN** the existing schema-validation path fails nonzero without treating the file as missing or v1 bootstrap input and without writing replacement bytes
 
-### Requirement: Every migrated generated surface uses the shared projection pipeline
+### Requirement: Every migrated distribution surface uses the shared projection pipeline
 
-After its characterization gate and cutover, each Agent Plugin, Codex native, Cursor, AGY, and Claude generated surface SHALL be planned through `compileDistribution`, materialized through `materializeDistribution` and `ProjectionArtifactStore`, and assessed through `verifyDistribution` for each supported verification stage. A profile-scoped Claude artifact SHALL be planned before host discovery and SHALL retain a separate unscoped compatibility path until its migration gates pass. Before that per-surface cutover, the characterized legacy implementation remains authoritative as the rollback path. Surface adapters MAY render consumer-native syntax but MUST NOT bypass the shared selection, ownership, provenance, or evidence contracts after cutover.
+After its characterization gate and cutover, each existing distribution-inventory
+surface adapter for Agent Plugin, Codex native, Cursor, AGY, and Claude SHALL be
+planned through `compileDistribution`, materialized through
+`materializeDistribution` and `ProjectionArtifactStore`, and assessed through
+`verifyDistribution` for each supported verification stage. A profile-scoped
+Claude artifact SHALL be planned before host discovery and SHALL retain a
+separate unscoped compatibility path until its migration gates pass. Before
+that per-surface cutover, the characterized legacy implementation remains
+authoritative as the rollback path. Surface adapters MAY render
+consumer-native syntax but MUST NOT bypass the shared selection, ownership,
+provenance, or evidence contracts after cutover. The separately compiled
+`openai-submission` package follows the marketplace ZIP evidence requirement
+and is not an installation or cutover claim for these adapters.
 
 #### Scenario: Consumer requires a native manifest format
 
@@ -319,30 +360,59 @@ No skill or command promoted onto a discovery-visible surface SHALL declare `mcp
 - **WHEN** a formerly frozen Codex-MCP skill or removed command retains an `mcp__codex__*` grant, regardless of its invocation class
 - **THEN** distribution validation fails and reports the retired dependency; changing its invocation class cannot make the grant valid
 
-### Requirement: Curated publication reflects the distribution inventory, not raw directory scanning
+### Requirement: Curated distribution publication reflects the inventory, not raw directory scanning
 
-The default Claude install artifact's discoverable skill set SHALL be the materialized `minimal` profile derived from the distribution inventory via the existing profile package generator, not from an unfiltered source-directory scan. `full` and `compat-v1` SHALL remain explicit opt-in artifacts. Agent Plugin, Cursor, AGY, and Cursor-sync membership SHALL atomically replace the 22 first-party predecessors with the six family identities while retaining the six GitNexus IDs unchanged. Where a manifest format cannot express per-skill discovery granularity, the generator SHALL perform filtering while materializing the package output.
+The existing main Claude marketplace and retained Host builders SHALL materialize the shared catalog's fifteen common entries and bundled children, with inventory-declared Host support selected separately. Publication MUST use the existing main marketplace identity and MUST NOT create a common variant or regenerate retired minimal/full/compat-v1 artifacts. The six retired bundled GitNexus wrappers MUST remain absent while direct external graph tools and protect-existing ownership remain supported. Standalone and module routes SHALL preserve their existing selection contracts. The skills-only OpenAI submission SHALL retain its separate explicit catalog and exclude Host-only entries.
 
-#### Scenario: Generator relies on the whole-directory manifest root
+#### Scenario: A manifest only supports directory roots
 
-- **WHEN** a plugin manifest registers a skill root with no per-skill discovery flag
-- **THEN** its package generator produces only the inventory-selected materialized entries and no retired predecessor
+- **WHEN** a Host manifest cannot express per-skill discovery filtering
+- **THEN** the generator materializes the inventory/catalog-selected entries and no retired wrapper or predecessor
 
-#### Scenario: Curated publication diverges from the inventory
+#### Scenario: Curated publication diverges
 
-- **WHEN** a generated package contains a retired predecessor, omits a selected family, or changes a protected external-package identity
+- **WHEN** a package contains a retired entry, omits a selected owner, or changes a protected external identity
 - **THEN** distribution validation fails and names the surface and stable ID
+
+### Requirement: Marketplace ZIP evidence is package-scoped and structural
+
+The OpenAI portable package SHALL be compiled from the explicit marketplace
+selection and distribution inventory. It SHALL contain selected common public
+entries and their bundled children; host-only entries and withdrawn identities
+SHALL not be included in this package. Its provenance SHALL bind the source
+identity, inventory and canonical selection digests, selected stable IDs, and
+packaged file fingerprints. The package receipt SHALL bind the ZIP archive
+digest and extracted-file fingerprints. A successful package validation SHALL
+report structural `PASS` separately from consumer runtime, which remains
+`NOT_RUN` until an exact configured consumer is actually exercised. It SHALL
+not imply a different surface's ownership or support tier, listing
+presentation, submission, approval, or publication.
+
+#### Scenario: Marketplace package receipt matches the ZIP
+
+- **WHEN** the package receipt and ZIP are validated against the current
+  marketplace selection
+- **THEN** the receipt's archive and extracted-file digests match the package,
+  and its provenance identifies the selected source and inventory inputs
+
+#### Scenario: Structural validation completes without a consumer probe
+
+- **WHEN** the package and receipt pass structural validation without an exact
+  consumer execution
+- **THEN** the result reports structural `PASS` and runtime `NOT_RUN`, without
+  upgrading another surface's support tier or claiming marketplace submission
+  or publication
 
 ### Requirement: Distribution inventory records external-package ownership
 
 Distribution inventory schema `dhpk.distribution-inventory.v2` SHALL accept an additive top-level `external_skill_packages` array without changing the schema version. Each row SHALL have exactly `id`, `owner`, `repository`, `policy`, `license_review`, and `stable_ids`: `id` is kebab-case; `owner` is the enum `upstream`; `repository` is an HTTPS repository URL; `policy` is the enum `protect-existing`; `license_review` is one of `open`, `verified`, or `not-required`; and `stable_ids` is a non-empty lexicographically sorted array. Rows SHALL normalize by `id`, and stable IDs SHALL be unique within and across rows. Every listed ID MUST resolve to a live canonical skill and MUST remain outside the retirement ledger until a separate ownership change is reviewed.
 
-The initial row SHALL be `id: gitnexus`, `owner: upstream`, `repository: https://github.com/abhigyanpatwari/GitNexus`, `policy: protect-existing`, `license_review: open`, and the six GitNexus stable IDs. The ledger protects their existing canonical and projected identities; it SHALL NOT create a new publication surface or cause raw upstream files to be copied.
+The ledger SHALL protect declared upstream identities without creating a new publication surface or copying raw upstream files. Separately approved retirement of the six bundled GitNexus wrappers SHALL remove their live package row while preserving foreign or user-owned installed copies; this requirement MUST NOT force those wrappers to remain published.
 
-#### Scenario: GitNexus boundary is valid
+#### Scenario: A live external boundary is valid
 
-- **WHEN** the registry declares the `gitnexus` package and its six existing DHPK stable IDs
-- **THEN** validation confirms all six live entries and preserves their current names, paths, lifecycle, and surface membership
+- **WHEN** the registry declares an upstream package with live inventory IDs
+- **THEN** validation confirms their identities and protect-existing policy without republishing retired wrappers
 
 #### Scenario: External package row is incomplete
 

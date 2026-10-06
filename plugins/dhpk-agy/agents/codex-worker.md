@@ -1,7 +1,7 @@
 ---
 name: codex-worker
 description: 'CLI-backed mechanical implementer — the codex variant of `fast-worker`. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec when the shared selector chooses the Codex CLI backend (default `gpt-6-luna` @ `xhigh`) instead of the in-process sonnet worker. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Accepts the same task spec (target files + exact change intent + verification command), shells the edits out to `codex exec` in workspace-write, then independently runs verification and derives the edited-file list from the working tree. Escalates on ambiguous specs; stops after 3 failed verification attempts; BLOCKED (never simulated) when the CLI is missing or the model is rejected.'
-tools: ["run_command", "read_file", "write_to_file", "grep_search", "list_dir"]
+tools: ["run_command", "view_file", "write_to_file", "grep_search", "list_dir"]
 model: pro
 ---
 
@@ -136,9 +136,7 @@ derived **independently of the backend's narrative** by diffing `git status --po
 (single-worker mode) or the path-scoped `git status --porcelain -- <assigned files>`
 (parallel mode) captured before and after the CLI run (plus any file the verification
 step touched). The backend may under-report its edits; the working-tree diff is the
-   source of truth. The orchestrator uses this list as the Review Gate accounting
-   back-stop for the CLI's out-of-band writes and derives applicable reviewer
-   obligations from the actual edited paths. Omitting it (or reporting it incompletely)
+   source of truth. The orchestrator uses this list as the reviewer-scope back-stop for the CLI's out-of-band writes and derives applicable reviewers from the actual edited paths. Omitting it (or reporting it incompletely)
    breaks that back-stop. In parallel mode, a file appearing outside the assigned scope is an
 out-of-scope observation for the report, never part of this edited-file list.
 
@@ -181,5 +179,4 @@ On `BLOCKED`, name the exact backend failure and confirm no file edits were made
 
 **No artifact** — reports inline to its dispatcher; its deliverable is the applied diff
 plus the report above, not a persisted `.claude/artifacts/` file. The CLI's edits are
-real working-tree changes and remain subject to the Review Gate, which the orchestrator
-dispatches from the returned edited-file list.
+real working-tree changes and should be reviewed; the orchestrator dispatches reviewers from the returned edited-file list.

@@ -2,6 +2,14 @@
 
 > **Languages**: **English** · [繁體中文](./RELEASE.zh-TW.md)
 
+## Acceptance applicability
+
+The three release proofs, immutable tag, and human merge/publication boundary
+remain unchanged. Current SOURCE, PACKAGE, and applicable CONSUMER evidence may
+establish readiness without claiming every native Host workflow. Missing,
+unavailable, or failed required evidence remains non-passing; excluded runtime
+research stays visible with its real status.
+
 dhpk uses a direct, PR-driven release flow:
 
 ```
@@ -61,9 +69,9 @@ passes.
 
 ## Current skill-platform topology (release preparation)
 
-The current release-preparation topology is 84 canonical packages, 55 entries
+The current release-preparation topology is 81 canonical packages, 52 entries
 on both the Agent Plugin and AGY surfaces, a 4-entry Cursor-native overlay, 37
-module projections, and 34 Codex project/native entries (32 invokable skills
+module projections, and 33 Codex project/native entries (31 invokable skills
 plus internal transport and dispatch-context runtimes). Five alias-free rows remain in the `retired_skills` ledger and are
 excluded from discovery. Module and Codex project projections use relative
 symlinks; the native package contains no symlinks.
@@ -73,6 +81,22 @@ target's version and provenance must be read from the exact clean checkout used
 for that release. Claude, Codex, and other consumer runtime probes must be
 reported separately as `PASS`, `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED`; package
 generation alone is not consumer-runtime proof.
+
+## OpenAI Public Plugin submission candidate
+
+The OpenAI skills-only candidate follows the separate
+[submission preparation guide](docs/openai-submission.md). Build it from the
+exact clean release commit with the candidate manifest version matching
+`.claude-plugin/plugin.json`, and keep the ZIP, receipt, consumer probes, portal
+scans, submission, approval, and public listing as separate evidence states.
+The current candidate is `NOT_PUBLISHED`; identity verification, upload, scans,
+submission, approval, and publication remain `NOT_RUN` until recorded by their
+respective owners. The candidate's privacy URL is not a published policy until
+the linked content is reviewed and publicly available.
+
+This submission checklist does not change the GitHub release PR, merge, tag,
+or Release workflow described below. A GitHub Release does not imply that the
+OpenAI listing was submitted or published.
 
 For the Issue #534 breaking default transition, release evidence MUST cover
 `scripts/install.sh`, `scripts/hooks/install-codex-skills.sh`,

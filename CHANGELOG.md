@@ -2,6 +2,80 @@
 
 ## [Unreleased]
 
+## 0.65.0 — 2026-10-06 — Default to common plugin collection, remove Review Gate, retire third-party overlap and obsolete entries, and add session usage telemetry
+
+- **BREAKING(Plugin installation collection)** — Select the common collection by default and retire public minimal/full/compat-v1 profile options and their generated packages, CI checks and release ownership. Historical receipts remain readable for planning, uninstall and recovery; updating a legacy profile stops before mutation. Standalone skills, language/module presets and hook profiles remain available. Optional aggregate discovery measurement uses the common selection.
+- **BREAKING(harness)** — Remove the Review Gate runtime, reviewer contract, workflow coordinator, and the --review-gate setup option; reviewer agents remain available as advisory post-edit reviewers.
+- **BREAKING(distribution)** — Remove the agent-architecture-audit, skill-forge, and spec-mine skills, the spec-mine command, and the agent-evaluator and spec-miner agents from every package because they contained third-party text without a retained notice.
+- **BREAKING(Obsolete public front doors)** — Retire six deprecated command aliases and six bundled GitNexus wrappers while retaining canonical command owners, direct graph navigation and generic foreign-file protection.
+- **BREAKING(Optional governance and workflow tools)** — Retire seven optional tool entries and their unused scripts, preserving installation protection, hook audit records, canonical AGY consumer validation, resume/context helpers and readable retirement successor history.
+- **feat(workflow)** — Reuse sufficient plans and choose planning or delegation from missing outcomes, ownership, dependencies, and material risk instead of task or file counts.
+- **feat(specialist-role-guidance)** — Load framework, authentication, database-engine, and migration rules conditionally, with concrete threat and failure evidence required for severity decisions.
+- **feat(e2e acceptance)** — Run focused journeys once by default, select configured checks by applicability, and keep retries, project-defined thresholds, runtime gaps, and critical-journey evidence explicit.
+- **feat(workflow)** — Add Flow Drive planner consult scopes with named-source bounded reads, retained discovery limits, and explicit use and blocker reporting.
+- **feat(consumer acceptance)** — Scope unrequested consumer surfaces from ADR-0002 local markers, report empty scope as a blocker distinct from absent optional Hosts, preserve native runtime observations separately, and keep declared requirements fail-closed with versioned installation acceptance evidence. Requirement evidence references use stable one-based checkN slots while each evidence value retains its validated ID.
+- **feat(consumer acceptance)** — Resolve declared conditional checks through fixed contract and native capability adapters, preserving required BLOCKED and FAIL outcomes and limiting runtime proof to the capability actually verified.
+---
+- **feat(verification)** — Reuse Codex named-role native evidence only when its capability key, current source/resource closure, delivered role artifacts, Host version, effective settings, and typed proof still match; preserve conflict origins and execution authorization while rejecting unsafe or malformed evidence inputs.
+- **feat(context and discovery research)** — Keep the strict eight-scope marketplace context/discovery evaluator explicit and fail-closed; ordinary consumer acceptance does not invoke it or start model workflows, and research results remain separate from installation, runtime, and support evidence.
+- **feat(release-acceptance)** — Carry selected-scope consumer acceptance through aggregation and preserve legacy exit behavior.
+
+## Release acceptance
+
+The consumer-gate child maps acceptance `PASS` to exit 0 and `FAIL` or
+`BLOCKED` to exit 1. The outer schema-v2 release result exits 0 only for
+aggregate `COMPLETE` and exits 1 for every current non-completion outcome;
+legacy results without acceptance retain their existing exit mapping,
+including exit 2 for `PUBLISHED_PENDING` and `BLOCKED`. The harness carries
+acceptance through selected-scope aggregation and keeps installation checks
+separate from raw runtime observations. AGY acceptance validates either a
+concrete project binding or an isolated canonical package installation; native
+runtime remains `NOT_RUN` and unsupported native requirements remain
+`BLOCKED`. Release workflows validate current JSON and process exits and
+summarize selected acceptance separately from observations. Readiness does not
+publish or deploy.
+- **feat(distribution)** — Document the skills-only OpenAI submission workflow and add candidate listing, privacy, and support metadata while keeping publication gates explicit.
+- **feat(agent-model-tiers)** — Refresh GPT and Claude model defaults, align effort settings, and let resumable Claude Code work continue once without a turn cap.
+- **feat(installer)** — Add --non-interactive, --yes, and --hook-profile flags for automated installation and dry runs, with explicit consent required for non-interactive installation.
+- **feat(distribution)** — Add deterministic, provenance-bound skills-only OpenAI submission ZIP generation and independent validation; synchronize retained Host builders and usage catalogs around 15 common entries and 45 bundled child resources while preserving explicit legacy profiles. Consumer execution and marketplace submission remain separate acceptance steps.
+- **feat(Root package.json command entrypoint)** — Add a private root package.json with npm scripts for install, test, validation, and generated-output checks; its version joins the release version lockstep.
+- **feat(session-usage-audit)** — The telemetry sidecar now reports planner, descendant, and unattributed subtotals only from verified per-event links, while native sources without verified ancestry remain unattributed.
+- **feat(session-usage-audit)** — Normalize supported usage counters and reconcile non-overlapping unattributed subtotals in optional telemetry.
+- **feat(session-usage-audit)** — Add optional --usage-telemetry with a private nullable sidecar and explicit unsupported usage and ancestry coverage, preserving the legacy report and collection boundaries.
+- **feat(verification)** — Document applicability-bound verification evidence, mutation ordering, focused checks, and explicit non-pass states for unsupported or skipped runners.
+- **fix(Swift, Python, and Rust build resolvers)** — Keep required lockfiles in proposed repairs, limit resets and cleanup to evidenced authorized scope, and preserve dirty work without implying commit or push authority.
+- **fix(agents-skills)** — Report a `MANAGED_ROOT_ALIAS` error telling consumers to omit `--host claude` when `.claude/skills` is a directory symlink to the managed skill root.
+- **fix(agent-workflows)** — Codex role guidance now chooses inline GREEN work or worker handback from ownership, coupling, settled test seams, and material risk instead of a fixed production-file cutoff, while preserving TDD and explicit higher-priority instructions.
+- **fix(review-workflow)** — Accept applicable external review evidence and reuse unchanged review outcomes without dispatching duplicate semantic reviews; reviewer roles report findings without applying fixes.
+- **fix(flow-drive)** — Block `--worker=codex|agy`, CLI-backed `--worker-target`, and `--reasoner=codex` at parse time on Claude Code, report an unapplied `--plan` effort as a notice, and list the legal effort values in invalid-effort errors.
+- **fix(flow-drive)** — Flow Drive step 0 now states the exact single parser command and stops as BLOCKED on a denial instead of retrying, and step 1 directs discovery to the Host's file tools and lists the only permitted shell uses.
+- **fix(goal-composition)** — Align goal generation and resume guidance with outcome-based planning, shared recovery budgets, interrupted-writer reconciliation, and CLI-resolved OpenSpec paths.
+---
+- **fix(harness-govern)** — Remove retired T7, T10.2, and S2 Sentinel lifecycle coverage plus the dedicated Sentinel backup/restore and pending-artifact glob deletion; preserve user-owned pending files, T5 artifact backup restoration, and T10.1 version JSON validation.
+- **fix(Shared skill compatibility updates)** — Preserve modified receipt-owned skill files and the accepted projection when updating canonical sources; report the ownership conflict instead of silently overwriting local edits.
+- **fix(harness)** — Harness diagnostics describe the retired review hook and their current version and configuration checks without claiming ownership of Sentinel routing or review state.
+- **fix(installation)** — Local skill projection updates reconcile explicitly retired entries only when receipt ownership and unchanged file fingerprints are verified, preserving conflicting files and transactional rollback.
+- **fix(CI and test guardrails from the package.json retrospective)** — Light CI plans now run every Claude generated companion check, so docs-only PRs cannot leave the marketplace package stale; pre-route.sh reads stdin only when no argument is given, so test-hooks no longer hangs under npm; release fixtures derive manifests from MANIFEST_PATHS.
+- **fix(agent-workflows)** — Generated Codex roles keep inline-only analysis replies free of generic review-artifact writes, and task packets select tool guidance from the recipient's capabilities while supplying required context when a tool is unavailable.
+- **refactor(Agent and stack review guidance)** — Independently rewrite role and stack guidance, preserve dispatch contracts, and generate Host-neutral supporting assets from canonical owners.
+- **refactor(Audit and skill stocktake runtimes)** — Independently implement the audit and stocktake utilities while preserving their public command and result contracts; replace stocktake shell logic with a package-local Node runtime.
+- **refactor(Technical reference guidance)** — Independently rewrite Swift, PHP, module boundary, and issue triage references with inline authoritative citations and preserved resource ownership.
+- **refactor(consumer acceptance maintenance)** — Share versioned harness-result validation across CI and release workflows and consolidate bounded descriptor reads and consumer-gate evidence normalization without changing the public contract.
+- **refactor(Development validation)** — Remove automatic discovery-budget, subagent-context and consumer-readiness reports from daily CI, retain their on-demand tools and release contracts, and centralize change-scoped validation guidance without live discovery-count or token-reduction test gates.
+- **refactor(skill-guidance)** — Rename dhpk-module-design to module-design while preserving stable identity and Host surfaces; align diagnosis and review evidence contracts and refine proposal, PR, handoff, intake, and dependency guidance.
+- **docs(Repository agent instruction entrypoints)** — Use root AGENTS.md as the single source, with relative Claude, Codex, and Cursor aliases and linked Host reference guides.
+- **docs(Documentation and telemetry planning)** — Consolidate proposal content into existing installation and audit references, publish the complete pending telemetry checklist in its issue, and remove the redundant proposals folder.
+- **docs(Documentation storage and specification authoring)** — Keep development designs and evidence local under ignored docs/design/ and docs/evidence/, consolidate reusable guides and contracts in docs/, and route accepted superpowers requirements to OpenSpec.
+- **docs(acceptance policy and follow-up disposition)** — Record the durable #854 acceptance applicability policy, all twelve historical follow-up dispositions, and the retained publication, ownership, compatibility, and authorization boundaries.
+- **docs(agy-cli-subagent-plugin)** — Align the accepted AGY Read mapping with view_file, native compatibility, unsupported read_file frontmatter rejection, and unchanged body literals.
+- **docs(TDD skill dispatch ownership)** — Align dispatch with outcome-based ownership: reuse adequate RED/GREEN evidence, resolve unsettled test seams or runtime setup with specialist help, and preserve explicit tdd-guide requirements and mechanical GREEN workers.
+- **docs(docs)** — Remove internal issue-number tracking markers from user and maintainer guide headings.
+- **docs(Telemetry and cutover planning)** — Share telemetry and cutover planning through their existing specifications, issue checklist, audit reference and installation guide while keeping implementation, installation and retirement as separate checkpoints.
+- **docs(Session usage telemetry specification)** — Consolidate the eight maintainer-adopted telemetry requirements into one OpenSpec capability, with proposed adapter context in the existing audit reference and the complete pending implementation checklist in issue #817.
+- **docs(Marketplace documentation)** — Remove the standalone licensing review document and its links; maintain source acknowledgments with the relevant content.
+- **docs(yii-1.1)** — Rewrite the four `dhpk-yii1-php56-development` references as dhpk-authored guidance and drop their unverified Context7 source claims.
+- **test(Consumer scope tests)** — Isolate default installation acceptance and release receipt tests from checkout-local Host configuration, replacing a surface-count quota with explicit fixture evidence while preserving installation, JSON, exit-code and receipt contracts.
+
 ## 0.64.4 — 2026-10-01 — Preserve hidden selected Codex skills, add test writing and timing standards, and warn on unregistered test suites
 
 - **fix(project-skills)** — Preserve hidden selected Codex skills when installing or removing another Host binding.
@@ -2952,7 +3026,7 @@ First public release of `dhpk` — a generic, install-and-go Claude Code harness
 - **Statusline script** (`scripts/statusline/statusline.sh`) — opt-in via project `settings.json`. Renders branch, staged/modified counts, docker status, profile, active modules, pending sentinels.
 - **24 codex skills + 5 codex agents** under `codex/` for dual-assistant projects.
 - **`manifests/install-profiles.json`** — curated module bundles (`minimal`, `legacy-php-yii`, `php-only`, `full`).
-- **`codex/AGENTS.md`** — dual-harness expectations document.
+- **`codex/guidance.md`** — dual-harness expectations document.
 - **`docs/subagent-prompt-template.md`** — source-reading and DB-access boilerplate to paste into sub-agent prompts.
 
 ### `userConfig`

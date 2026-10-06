@@ -181,7 +181,7 @@ public name SHALL be the unprefixed inventory name. Codex
 generated package paths, receipts, and documentation MUST use that exact name
 without injecting or stripping a client-specific prefix; the host plugin
 namespace remains separate from the skill identity. The reviewed portable set
-for this change is `skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`,
+for this change is `skill-scope`, `flow-guide`, `flow-drive`,
 `change-verdict`, `code-trace`, `laravel`, `phpunit`, and `harness-govern`.
 
 #### Scenario: Codex metadata names a new portable family

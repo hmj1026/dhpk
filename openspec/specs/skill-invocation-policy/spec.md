@@ -241,10 +241,19 @@ A reviewed capability-family consolidation MAY publish an unprefixed kebab-case 
 
 #### Scenario: Declared portable family is validated
 
-- **WHEN** a successor named `skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, or `code-trace` declares `name_style: portable-family`
+- **WHEN** a successor named `skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`, or `code-trace` declares `name_style: portable-family`
 - **THEN** inventory validation accepts the unprefixed name and validates its canonical path, capability ID, and invocation class normally
 
 #### Scenario: Arbitrary skill drops its prefix
 
 - **WHEN** any other canonical entry uses an unprefixed name without the reviewed portable-family declaration
 - **THEN** inventory validation fails and names the invalid public identity
+
+### Requirement: Marketplace selection preserves approved invocation identities
+
+Marketplace publication SHALL retain each selected inventory public name, stable identity, reviewed naming policy, and canonical invocation class. An initial trial selection MUST NOT become a fixed final membership quota. Existing portable-family and portable-skill markers remain distinct reviewed policies; an unprefixed name MUST NOT be used to infer or rewrite its marker. Unapproved aliases or selected-name collisions SHALL fail selection validation.
+
+#### Scenario: A public name is retained after review
+
+- **WHEN** a selected skill uses an approved unprefixed name
+- **THEN** publication preserves its inventory naming policy and invocation class rather than inferring a new family marker

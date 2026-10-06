@@ -18,9 +18,15 @@ commits, and diff statistics before composing the request.
 
 Extract a ticket from the branch with `{TICKET_PATTERN}` (default
 `[A-Z]+-\d+`), then generate `<type>: [<TICKET>] <summary>` unless
-`--title` overrides it. The body contains summary bullets, the ticket link,
-and a test plan. Before any PR creation, run the pre-flight checks in
-[`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/create-pr/references/workflow.md), including
+`--title` overrides it. Build the body from a concise summary, the ticket link
+when resolved, and verification evidence. Separate checks actually run from
+planned checks marked `NOT RUN`; for behavior changes, include a compact
+before/after example or evidence. Label an unobserved after-state as expected
+and list its check as `NOT RUN`. Add rollback and blast-radius details when
+they materially affect review. Use a visual aid only when it clarifies the
+change; do not include one by default. Before any PR creation, run the
+pre-flight checks in
+[`references/workflow.md`](references/workflow.md), including
 `git rev-list --count <base>..HEAD`. A zero count stops with the exact message
 `No commits between <base> and HEAD — nothing to open a PR for`.
 
@@ -48,9 +54,12 @@ for confirmation, and then report the URL. Do not push or create commits.
 - [ ] Head and base resolve and the base-to-HEAD commit count is non-zero.
 - [ ] The head is pushed and no matching PR already exists.
 - [ ] Dry-run performed no PR mutation, or execute mode has a returned URL.
-- [ ] The selected title, ticket, body, and test plan are present.
+- [ ] The title and body match the branch diff and any resolved ticket.
+- [ ] Observed checks and planned `NOT RUN` checks are distinct; behavior
+      changes include before/after evidence, with unobserved after-states
+      marked expected; material rollback or blast radius is described.
 
 ## References
 
-- [`references/workflow.md`](https://github.com/hmj1026/dhpk/blob/main/skills/create-pr/references/workflow.md) — option resolution,
+- [`references/workflow.md`](references/workflow.md) — option resolution,
   pre-flight evidence, command shape, and failure handling.

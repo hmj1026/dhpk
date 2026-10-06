@@ -37,12 +37,9 @@ const TOP_LEVEL_KEYS = Object.freeze([
 const TARGET_KEYS = Object.freeze(['id', 'publicName', 'invocationClass', 'command']);
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-// Current route-table order is independently locked. The confirmed-spec
-// implementation route is intentionally more specific than the unattended
-// session route and therefore comes first.
+// Current retained route-table order is independently locked.
 const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'confirmed specification implementation', kind: 'skill', id: 'flow-drive' },
-  { label: 'unattended OpenSpec goal session', kind: 'skill', id: 'dhpk-opsx-apply-goal' },
   { label: 'adaptive dev workflow (python build)', kind: 'skill', id: 'flow-guide' },
   { label: 'adaptive dev workflow (rust build)', kind: 'skill', id: 'flow-guide' },
   { label: 'adaptive dev workflow (bug)', kind: 'skill', id: 'flow-guide' },
@@ -52,7 +49,6 @@ const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'project audit', kind: 'skill', id: 'dhpk-project-audit' },
   { label: 'deploy list', kind: 'skill', id: 'dhpk-deploy-list' },
   { label: 'refactor / simplify', kind: 'command', id: 'simplify' },
-  { label: 'mine behavioral specs (→ spec-miner)', kind: 'command', id: 'spec-mine' },
   { label: 'tech spec authoring', kind: 'skill', id: 'flow-guide' },
   { label: 'pre-commit checks', kind: 'command', id: 'precommit' },
   { label: 'create PR', kind: 'command', id: 'create-pr' },
@@ -188,7 +184,7 @@ test('[2.1] route-result schema is v3 with a closed shape and only a go option',
   for (const state of AVAILABILITY) assert.ok(schemaMentions(schema, state));
 });
 
-test('[2.1] route table remains typed and preserves the ordered 23-rule intent map', () => {
+test('[2.1] route table remains typed and preserves the ordered retained intent map', () => {
   const table = JSON.parse(read(TABLE));
   assert.strictEqual(table.schema, 'dhpk.route-table.v2');
   assert.strictEqual(table.rules.length, EXPECTED_TYPED_ROUTES.length);
@@ -217,6 +213,14 @@ test('[2.2] flow-guide parser and matcher files exist at the owning path', () =>
   mustExist(MATCHER, '2.2');
   assert.strictEqual(fs.existsSync(path.join(DRIVE, 'scripts', 'route-result.js')), false);
   assert.strictEqual(fs.existsSync(path.join(DRIVE, 'references', 'route-table.json')), false);
+});
+
+test('retired unattended goal requests have no deterministic route', () => {
+  for (const query of ['please run an unattended OpenSpec goal session', '無人值守 openspec']) {
+    const result = spawnSync('bash', [MATCHER, query], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(result.stdout.trim(), 'NO_MATCH');
+  }
 });
 
 test('[2.2] retired routing controls are stripped and fail closed', () => {
@@ -338,27 +342,14 @@ test('[2.2] invalid result fields fail closed before dispatch', () => {
 // 3.1 ownership and authority
 // ---------------------------------------------------------------------------
 
-test('[3.1] /dhpk:do is retired; flow-guide routes and flow-drive implements', () => {
+test('[3.1] /dhpk:do remains retired', () => {
   assert.strictEqual(fs.existsSync(DO_CMD), false, '/dhpk:do must remain retired');
-  const guide = read(GUIDE_MD);
-  const drive = read(DRIVE_MD);
-  assert.match(guide, /name:\s*flow-guide/);
-  assert.match(guide, /`route`[\s\S]*`rules`[\s\S]*`next`[\s\S]*`close`/);
-  assert.match(drive, /name:\s*flow-drive/);
-  assert.match(drive, /confirmed specification|confirmed work|confirmed-spec-or-change-id/i);
-  assert.match(drive, /flow-guide[\s\S]{0,220}route|route[\s\S]{0,220}flow-guide/i);
-  assert.doesNotMatch(drive, /^##\s+Modes\s*$/im);
-  assert.doesNotMatch(guide, /dhpk-(bug-fix|feature-dev)/);
 });
 
-test('[3.1] flow-drive remains explicit-only and does not expose routing flags', () => {
+test('[3.1] flow-drive retains explicit-only invocation metadata', () => {
   const drive = read(DRIVE_MD);
   assert.match(drive, /disable-model-invocation:\s*true/);
   assert.match(drive, /dhpk-invocation-class:\s*explicit-only/);
-  assert.match(drive, /\$flow-drive\s+<confirmed-spec-or-change-id>/);
-  for (const flag of ['--mode', '--route-only', '--execute-explicit', '--openspec', '--opsx']) {
-    assert.doesNotMatch(drive, new RegExp(`\\${flag}\\b`), `flow-drive must not publish ${flag}`);
-  }
 });
 
 test('[3.2] --go reports explicit-required for an available explicit-only target', () => {

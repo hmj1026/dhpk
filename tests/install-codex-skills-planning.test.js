@@ -31,6 +31,117 @@ const {
   provenanceDriftPlanFixture
 } = fixtures;
 
+test('historical Codex profile receipts remain readable and block every live update', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const codexRoot = path.join(scratch, '.codex');
+    const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
+    fs.rmSync(path.join(codexRoot, '.dhpk-install.lock'), { force: true });
+    const cleanReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const profileManifest = JSON.parse(fs.readFileSync(
+      path.join(ROOT, 'manifests', 'install-profiles.json'),
+      'utf8',
+    ));
+
+    for (const profileId of ['minimal', 'full', 'compat-v1']) {
+      const historical = profileManifest.legacy_profiles[profileId];
+      assert.ok(historical, `fixture must retain historical ${profileId} receipt metadata`);
+      const selectedStableIds = [...historical.skillIds];
+      if (profileId !== 'minimal' && !selectedStableIds.includes('harness-govern')) {
+        selectedStableIds.push('harness-govern');
+      }
+      const oldReceipt = {
+        ...cleanReceipt,
+        profileId,
+        selectedStableIds,
+        emittedStableIds: [...selectedStableIds],
+        compatibilityMode: profileId === 'compat-v1' ? 'compat-v1' : 'profile',
+      };
+      fs.writeFileSync(receiptPath, `${JSON.stringify(oldReceipt, null, 2)}\n`);
+      const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+      const projectionBefore = completeTreeFingerprint(codexRoot);
+      const transactionBefore = transactionMetadataSnapshot(codexRoot);
+
+      const blockedArgs = profileId === 'full'
+        ? ['--migrate', '--update', '--json', '--force']
+        : ['--update', '--json', '--force'];
+      const blocked = runInstaller(scratch, blockedArgs);
+      assert.strictEqual(blocked.status, 2, `${blocked.stdout}\n${blocked.stderr}`);
+      const report = JSON.parse(blocked.stdout);
+      assert.strictEqual(report.state, 'blocked');
+      assert.strictEqual(report.reasonCode, 'LEGACY_PROFILE_UPDATE_UNSUPPORTED');
+      assert.strictEqual(report.receipt_profile_id, profileId);
+      assert.match(report.next_action, /--uninstall/);
+      assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore,
+        `${profileId} update must leave the old receipt byte-for-byte unchanged`);
+      assert.strictEqual(completeTreeFingerprint(codexRoot), projectionBefore,
+        `${profileId} update must leave the project projection unchanged`);
+      assert.deepStrictEqual(transactionMetadataSnapshot(codexRoot), transactionBefore,
+        `${profileId} update must not create or change transaction metadata`);
+      assert.strictEqual(fs.existsSync(path.join(codexRoot, '.dhpk-install.lock')), false,
+        `${profileId} update must be blocked before creating the project lock`);
+    }
+
+    const profileId = 'full';
+    const historicalIds = [...profileManifest.legacy_profiles[profileId].skillIds];
+    if (!historicalIds.includes('harness-govern')) historicalIds.push('harness-govern');
+    const readableReceipt = {
+      ...cleanReceipt,
+      profileId,
+      selectedStableIds: historicalIds,
+      emittedStableIds: [...historicalIds],
+    };
+    fs.writeFileSync(receiptPath, `${JSON.stringify(readableReceipt, null, 2)}\n`);
+    const beforePlan = fs.readFileSync(receiptPath, 'utf8');
+    const projectionBeforePlan = completeTreeFingerprint(codexRoot);
+    const planned = runInstaller(scratch, ['--update', '--plan', '--json', '--force']);
+    assert.notStrictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    assert.strictEqual(report.receipt_profile_id, profileId);
+    assert.deepStrictEqual(report.receipt_selected_stable_ids, historicalIds,
+      'planning must report the selection stored in the old receipt, including retired IDs');
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), beforePlan,
+      'read-only planning must not rewrite the old receipt');
+    assert.strictEqual(completeTreeFingerprint(codexRoot), projectionBeforePlan,
+      'read-only planning must not alter the project projection');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('uninstall preserves exact historical selection in its receipt archive', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const selectedStableIds = ['cli-dispatch-context', 'cli-transport', 'harness-govern'];
+    receipt.profileId = 'compat-v1';
+    receipt.selectedStableIds = selectedStableIds;
+    receipt.emittedStableIds = [...selectedStableIds];
+    receipt.runtimeSupportStableIds = ['cli-dispatch-context', 'cli-transport'];
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+
+    const removed = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+    assert.strictEqual(fs.existsSync(receiptPath), false,
+      'uninstall should remove the live receipt after removing owned entries');
+    const archives = fs.readdirSync(path.join(scratch, '.codex', '.dhpk-backups'))
+      .map((run) => path.join(scratch, '.codex', '.dhpk-backups', run, 'receipt.json'))
+      .filter((candidate) => fs.existsSync(candidate));
+    assert.ok(archives.length > 0, 'uninstall should retain the original receipt archive');
+    const archived = JSON.parse(fs.readFileSync(archives[0], 'utf8'));
+    assert.strictEqual(archived.profileId, 'compat-v1');
+    assert.deepStrictEqual(archived.selectedStableIds, selectedStableIds,
+      'uninstall must retain the receipt-owned historical selection exactly');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('--plan --json reports collision evidence without mutating projection or receipt', () => {
   const fixture = collisionFixture();
   try {
@@ -415,7 +526,7 @@ test('adoption recovery rolls forward a durable partial receipt after a receipt-
 
 test('adoption is path-scoped when multiple collisions are reported', () => {
   const fixture = collisionFixture();
-  const second = 'dhpk-legacy-characterization-tests';
+  const second = 'flow-guide';
   try {
     const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
     assert.ok(receipt.managed_entries.skills[second], `expected fixture receipt entry for ${second}`);

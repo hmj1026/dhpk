@@ -1,7 +1,7 @@
 'use strict';
 
 // Coverage for scripts/gen-codex-agents.js — generates Codex CLI role .toml
-// files from the curated 12-agent allowlist under agents/<name>.md. Source
+// files from the curated 11-agent allowlist under agents/<name>.md. Source
 // dir is fixed to the repo's real agents/ (read-only, never mutated by this
 // script), but the output dir is a CLI arg — always point it at a temp dir
 // so the repo's own codex/agents/ output is never touched.
@@ -24,7 +24,6 @@ const EXPECTED_AGENTS = [
   'deep-reasoner',
   'doc-reviewer',
   'planner',
-  'spec-miner',
   'frontend-reviewer',
   'migration-reviewer',
   'e2e-runner',
@@ -153,20 +152,20 @@ test('generated source keeps unknown prose and fenced-code mentions out of the e
   }
 });
 
-test('generates exactly the 12-agent allowlist as .toml files with derived fields', () => {
+test('generates exactly the 11-agent allowlist as .toml files with derived fields', () => {
   const tmp = mkTmp();
   try {
     const outDir = path.join(tmp, 'out');
     const res = runScript([outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stdout.includes('Generated 12 Codex role file(s).'), res.stdout);
+    assert.ok(res.stdout.includes('Generated 11 Codex role file(s).'), res.stdout);
 
     const files = fs.readdirSync(outDir).sort();
     assert.deepStrictEqual(files, EXPECTED_AGENTS.map((n) => `${n}.toml`).sort());
 
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
     assert.ok(architect.includes('name = "architect"'), architect);
-    assert.ok(architect.includes('model = "gpt-6-sol"'), architect);
+    assert.ok(architect.includes('model = "gpt-6.1-sol"'), architect);
     assert.ok(architect.includes('model_reasoning_effort = "high"'), architect);
     assert.ok(architect.includes('developer_instructions = """'), architect);
 
@@ -235,7 +234,6 @@ test('generated reviewer roles retain reachable Codex trap and contract referenc
     const codeReviewer = fs.readFileSync(path.join(outDir, 'code-reviewer.toml'), 'utf8');
     assert.match(codeReviewer, /\.codex\/dhpk\/agent-traps\/_common\/prompt-defense\.md/);
     assert.match(codeReviewer, /\.codex\/dhpk\/agent-traps\/_common\/trap-sheet-loader\.md/);
-    assert.match(codeReviewer, /\.codex\/dhpk\/contracts\/reviewer-contract\.md/);
     assert.match(codeReviewer, /\.codex\/dhpk\/policies\/execution-policy\.md/);
     assert.doesNotMatch(codeReviewer, /\$\{CLAUDE_PLUGIN_ROOT\}/);
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
@@ -264,22 +262,131 @@ test('selected role prompts do not duplicate discovery descriptions', () => {
   }
 });
 
-test('generated reviewer roles use Codex manual review and artifact semantics', () => {
+test('generated reviewer roles use Codex review artifact semantics', () => {
   const tmp = mkTmp();
   try {
     const outDir = path.join(tmp, 'out');
     const res = runScript([outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
-    for (const name of ['code-reviewer', 'security-reviewer', 'database-reviewer', 'doc-reviewer']) {
+    for (const name of [
+      'code-reviewer',
+      'security-reviewer',
+      'database-reviewer',
+      'doc-reviewer',
+      'frontend-reviewer',
+      'migration-reviewer',
+    ]) {
       const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
       assert.doesNotMatch(body, /\.pending-[a-z-]+/);
       assert.doesNotMatch(body, /subagent-stop-verify|clear-sentinel|post-edit-remind/);
       assert.doesNotMatch(body, /\.claude\/artifacts|CLAUDE_PLUGIN_ROOT/);
       assert.match(body, /\.codex\/artifacts/);
-      assert.match(body, /manual/i);
+      assert.match(body, /\.codex\/artifacts\/reviews\//);
     }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('generated planner keeps its inline verdict protocol without a review artifact requirement', () => {
+  const root = cloneGeneratorFixture('gen-codex-planner-inline');
+  try {
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    assert.strictEqual(result.status, 0, diagnostic(result));
+
+    const planner = fs.readFileSync(path.join(outDir, 'planner.toml'), 'utf8');
+    assert.doesNotMatch(planner, /Write the final review under `\.codex\/artifacts\/reviews\//);
+    assert.match(planner, /Every reply begins with `VERDICT:` and ends with literal `END`/);
+    assert.match(planner, /model = "gpt-6.1-sol"/);
+    assert.match(planner, /model_reasoning_effort = "high"/);
+    assert.match(planner, /sandbox_mode = "read-only"/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('generated deep reasoner keeps its inline conclusion contract without a review artifact requirement', () => {
+  const root = cloneGeneratorFixture('gen-codex-reasoner-inline');
+  try {
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    assert.strictEqual(result.status, 0, diagnostic(result));
+
+    const reasoner = fs.readFileSync(path.join(outDir, 'deep-reasoner.toml'), 'utf8');
+    assert.doesNotMatch(reasoner, /Write the final review under `\.codex\/artifacts\/reviews\//);
+    assert.match(reasoner, /Reasoner result: READY_FOR_DISPATCH/);
+    assert.match(reasoner, /## Next actions/);
+    assert.match(reasoner, /model = "gpt-6.1-sol"/);
+    assert.match(reasoner, /model_reasoning_effort = "high"/);
+    assert.match(reasoner, /sandbox_mode = "read-only"/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('generated architect keeps its plan and ADR artifact paths without a review artifact requirement', () => {
+  const root = cloneGeneratorFixture('gen-codex-architect-artifacts');
+  try {
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    assert.strictEqual(result.status, 0, diagnostic(result));
+
+    const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
+    assert.match(architect, /\.codex\/artifacts\/plans\/architect-/);
+    assert.match(architect, /\.codex\/artifacts\/adr\/ADR-/);
+    assert.doesNotMatch(architect, /Write the final review under `\.codex\/artifacts\/reviews\//);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('generated TDD guide keeps its substantive report contract without a review artifact mandate', () => {
+  const root = cloneGeneratorFixture('gen-codex-tdd-artifacts');
+  try {
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    assert.strictEqual(result.status, 0, diagnostic(result));
+
+    const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
+    assert.match(tddGuide, /substantive TDD session report/);
+    assert.match(tddGuide, /tdd-\{yyyymmdd-HHMMSS\}-\{slug\}\.md/);
+    assert.doesNotMatch(tddGuide, /Write the final review under `\.codex\/artifacts\/reviews\//);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('generated E2E runner keeps its journey artifact contract without a review artifact mandate', () => {
+  const root = cloneGeneratorFixture('gen-codex-e2e-artifacts');
+  try {
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    assert.strictEqual(result.status, 0, diagnostic(result));
+
+    const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
+    assert.match(e2eRunner, /artifact_paths:/);
+    assert.doesNotMatch(e2eRunner, /Write the final review under `\.codex\/artifacts\/reviews\//);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('E2E verdict projection is idempotent when BLOCKED is already present', () => {
+  const root = cloneGeneratorFixture('gen-codex-e2e-verdict-idempotence');
+  try {
+    const e2eSource = fs.readFileSync(path.join(root, 'agents', 'e2e-runner.md'), 'utf8');
+    assert.match(e2eSource, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED/);
+
+    const outDir = path.join(root, 'out');
+    const result = runFixtureScript(root, [outDir]);
+    assert.strictEqual(result.status, 0, diagnostic(result));
+
+    const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
+    assert.match(e2eRunner, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED/);
+    assert.doesNotMatch(e2eRunner, /Verdict: PASS \| WARNING \| FAIL \| BLOCKED(?: \| BLOCKED)+/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -294,7 +401,6 @@ test('planner projection uses direct Codex explorer fallback and reconsult seman
       planner,
       /several-file discovery, dispatch the direct Codex `explorer` role\. If `explorer` is unavailable, return `VERDICT: RECONSULT/,
     );
-    assert.match(planner, /bounded read-only discovery uses at most 2 Explore children/);
     assert.strictEqual(
       planner.includes('spawn the built-in read-only `Explore` agent through\n  `Agent`'),
       false,

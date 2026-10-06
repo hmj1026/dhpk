@@ -1,7 +1,7 @@
 ---
 name: agy-worker
 description: 'CLI-backed mechanical implementer — the agy variant of `fast-worker`. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec when the session wants the work offloaded to the agy (Antigravity) CLI backend (default model `Gemini 3.8 Flash (High)`) as a cheap high-throughput tier instead of the in-process sonnet worker. Available only when the agy CLI is confirmed available; the plain `fast-worker` stays the default and this is an opt-in alternative. Accepts the same task spec (target files + exact change intent + verification command), shells the edits out to agy in non-interactive print mode, then independently runs the verification command and derives the edited-file list from the working tree. Escalates on ambiguous specs; stops after 3 failed verification attempts; BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected.'
-tools: ["run_command", "read_file", "write_to_file", "grep_search", "list_dir"]
+tools: ["run_command", "view_file", "write_to_file", "grep_search", "list_dir"]
 model: pro
 ---
 
@@ -133,8 +133,8 @@ Every report — pass, fail, or escalation — includes the complete list of fil
 derived **independently of the backend's narrative** by diffing `git status --porcelain`
 captured before and after the CLI run (plus any file the verification step touched). The
 backend may under-report its edits; the working-tree diff is the source of truth. The
-orchestrator uses this list as the Review Gate accounting back-stop for the CLI's out-of-band
-writes and derives applicable reviewer obligations from the actual edited paths. Omitting it
+orchestrator uses this list as the reviewer-scope back-stop for the CLI's out-of-band
+writes and derives applicable reviewers from the actual edited paths. Omitting it
 (or reporting it incompletely) breaks that back-stop.
 
 ## Output
@@ -175,5 +175,4 @@ On `BLOCKED`, name the exact backend failure and confirm no file edits were made
 
 **No artifact** — reports inline to its dispatcher; its deliverable is the applied diff
 plus the report above, not a persisted `.claude/artifacts/` file. The CLI's edits are
-real working-tree changes and remain subject to the Review Gate, which the orchestrator
-dispatches from the returned edited-file list.
+real working-tree changes and should be reviewed; the orchestrator dispatches reviewers from the returned edited-file list.

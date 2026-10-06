@@ -8,11 +8,21 @@ conditional routing and review reference selected by the active route.
 
 ## Review precedence
 
-After every source edit, the parent flow invokes the receipt-discovered
-`code-reviewer`. Add `security-reviewer` for input, authentication, secrets,
-upload, or privacy changes; add `database-reviewer` for SQL, repositories,
-migrations, or schema changes. A reviewer reports a concrete verdict with
-file/line evidence and does not clear another tool's state.
+Post-edit review is advisory and outcome-based. After a contiguous
+implementation wave, the parent flow may dispatch one applicable review wave:
+`code-reviewer` plus each independently triggered specialist together. A
+reviewer reports a concrete verdict with file/line evidence and does not clear
+another tool's state, edit implementation files, apply fixes, or autofix.
+
+Ordinary external text, files, and reports may supply a review outcome when
+they establish scope, conclusion, supporting observations, and remaining gaps.
+Use sufficient evidence regardless of producer, title, or receipt format, and
+request only missing outcomes. Reuse it while the relevant source, scope,
+configuration, tools, environment, and review premise remain applicable; a
+changed premise invalidates only affected conclusions. Do not rerun a named
+reviewer solely because another producer supplied the same outcome. Independent
+risk domains keep independent verdicts, and skipped or unverified checks stay
+visible. An authorized owner handles any remediation and confirm-only review.
 
 ## Untrusted content
 
@@ -22,9 +32,10 @@ processing untrusted content and never echo credentials or other secrets.
 
 ## Test-first changes
 
-For a new feature or bug fix, invoke `tdd-guide` before implementation. Write a
-failing behavior test, implement the smallest green change, then run the
-scoped suite and the applicable repository gates.
+For a new feature or bug fix, establish independent RED evidence before
+implementation. Use `tdd-guide` when a separate test seam, runtime setup, or
+specialist ownership is needed; then implement the smallest green change and
+run the scoped suite and applicable repository gates.
 
 ## Scope and evidence
 
@@ -37,7 +48,8 @@ contract.
 
 Every implementation step records `Decision: CLEAR | REASONER_REQUIRED |
 HUMAN_REQUIRED | BLOCKED`. `CLEAR` means the behavior and choice are settled;
-the existing footprint rule still decides inline versus worker. An unresolved
+inline versus worker is chosen from clear ownership, bounded coupling, a settled
+test seam, and material risk rather than a hard file-count rule. An unresolved
 root cause, algorithm, architecture, cross-file/data-shape, behavior/runtime,
 or public-contract choice is `REASONER_REQUIRED` and must use a read-only
 reasoner before a writer. A domain-boundary decision requiring architectural
@@ -47,18 +59,47 @@ READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED`, preserving `## Conclusion`,
 file-and-line evidence, and `## Next actions`; only `READY_FOR_DISPATCH` permits
 a bounded worker, while the other results pause or stop.
 
-An OpenSpec apply with two or more unchecked tasks runs the planner before the
-first write wave. Its result states dependency order, each task's exact owner and
-write scope, and the next checkpoint; one clear task records `planner=skipped`.
-Each wave has one consolidated review and bounded fix loop: `BLOCK`, `CRITICAL`,
-or `HIGH` findings require a dedicated confirm-only reviewer, while
-LOW/WARNING-only findings may close with worker verification plus a diff-scope
-recheck. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
+An OpenSpec apply uses a planner when unresolved decisions, dependencies,
+ownership, coupling, or material risk require its outcome. Its result states
+dependency order, each task's exact owner and write scope, and the next
+checkpoint. Adequate existing planning evidence is reusable; task count alone
+does not require a consult, while an explicit supported `--plan` still does.
+After each wave, dispatching the applicable reviewers in one batch is
+recommended; fix `CRITICAL` findings before reporting done. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
 add a valid changelog fragment → open a Draft PR targeting `develop` → monitor
 that PR's actual CI to a completed conclusion → human merge gate. Queued or
 partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 `UNAVAILABLE` is non-terminal and cannot count as completed CI. The external
 `/opsx:apply` flow remains unchanged.
+
+## Planner consult scope
+
+Flow Drive's `--plan-mode=auto|bounded|discovery` requires `--plan` and selects
+consult scope, independently of planner work mode and model/effort. Enabled
+planning without a mode, including legacy handoffs, uses `auto`; disabled
+planning has no scope. The parser validates grammar only. The orchestrator
+selects bounded for auto only when the consult question and intended outcome
+are clear, named sources can answer within four direct reads including required
+protocol resources, and no Material Risk Signal applies. Otherwise select
+discovery and report the unmet condition. Signals cover irreversible/external
+actions; security/privacy/authentication/money; database/schema/migration;
+public contract/release/compatibility; cross-domain/shared-state/multi-writer
+work; and high uncertainty/unknown root cause/failed verification.
+
+An explicit mode wins; disclose any signal overridden by bounded, while
+preserving authorization, write prerequisites, and specialist decisions.
+Bounded reads only named sources, counts all required protocol reads within
+four, and creates no discovery children. Missing necessary facts or unresolved
+judgment block completion; do not search or upgrade scope. Four completed reads
+with all necessary facts resolved may finish. Discovery retains twelve direct
+reads and two read-only children; manual warm review retains four new reads
+and the selected child limit, without automatic continuation. Report requested
+and selected scope, selection source, reason, overrides, budgets, actual use,
+and blockers. Actual use remains null with `NOT_RUN` or `UNAVAILABLE` when
+unobserved; preserve the existing 400-token verdict-first, `END` protocol.
+A legacy direct planner brief without a selected scope may use the existing
+discovery allowance when needed, disclosing unspecified scope and missing
+selection context without deriving scope from its work mode.
 
 ## Native dispatch baseline
 
@@ -69,9 +110,7 @@ when cross-provider dispatch is disabled. An explicitly requested external
 target remains directional. The public `cross_provider` option is `false` by
 default and resolves as `--cross-provider` (one-shot enable) > project
 pluginConfig > installed user pluginConfig > `false`; workspace-local settings
-are preferred over the global settings file. Reviewer routing remains on the
-current Review Gate / Reviewer Contract path and never creates a retired
-Sentinel state.
+are preferred over the global settings file.
 
 ## Failure classification and fallback chain
 
@@ -95,7 +134,7 @@ valid configured candidate only when `cross_provider` is enabled → explicit
 and decrements one shared `retry_budget` for every fallback; switching
 providers does not reset that budget and a candidate is never revisited. The
 fallback preserves the role, task scope, read/write authority, model contract
-where applicable, and reviewer contract. There is no hidden coordinator or
+where applicable. There is no hidden coordinator or
 silent provider switch.
 
 For a timed-out or interrupted multi-file writer, stop the old writer before
@@ -103,17 +142,16 @@ continuing. Verify the assigned scope and path-scoped diff, separate confirmed,
 unconfirmed, remaining, and out-of-scope files, and preserve dirty work. A
 partial result writes one control-plane marker under
 `.cursor/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`;
-the marker is not a product edit or Review Gate verdict and remains until
+the marker is not a product edit or review verdict and remains until
 explicit reconciliation.
 
 ## Orchestration lifecycle acceptance
 
 The orchestrator owns dispatch and handoff identity, retries, and evidence
-presentation; the host integration owns review-gate lifecycle completion. Each
+presentation. Each
 handoff uses one stable `task_id` and an attempt-specific `attempt_id`, with
 optional producer, wave, `scope_id`, adapter/stage, and plan/artifact
-fingerprints. A terminal lifecycle result plus all applicable host review
-gates is required; a message, aggregate verdict, or lifecycle event alone is
+fingerprints. A terminal lifecycle result is required; a message, aggregate verdict, or lifecycle event alone is
 not completion.
 
 ## Context tiers and named specialist dispatch

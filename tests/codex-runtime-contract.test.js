@@ -28,26 +28,25 @@ const { collectCodexCoverageErrors } = require(
 );
 
 const EXPECTED_RUNTIME = {
-  architect: ['gpt-6-sol', 'high'],
-  'code-reviewer': ['gpt-6-sol', 'medium'],
-  'security-reviewer': ['gpt-6-sol', 'high'],
-  'database-reviewer': ['gpt-6-sol', 'high'],
+  architect: ['gpt-6.1-sol', 'high'],
+  'code-reviewer': ['gpt-6.1-sol', 'medium'],
+  'security-reviewer': ['gpt-6.1-sol', 'high'],
+  'database-reviewer': ['gpt-6.1-sol', 'high'],
   'tdd-guide': ['gpt-6-luna', 'max'],
-  'deep-reasoner': ['gpt-6-sol', 'high'],
+  'deep-reasoner': ['gpt-6.1-sol', 'high'],
   'doc-reviewer': ['gpt-6-luna', 'medium'],
-  planner: ['gpt-6-sol', 'high'],
-  'spec-miner': ['gpt-6-sol', 'high'],
-  'frontend-reviewer': ['gpt-6-sol', 'high'],
-  'migration-reviewer': ['gpt-6-sol', 'high'],
-  'e2e-runner': ['gpt-6-sol', 'high'],
+  planner: ['gpt-6.1-sol', 'high'],
+  'frontend-reviewer': ['gpt-6.1-sol', 'high'],
+  'migration-reviewer': ['gpt-6.1-sol', 'high'],
+  'e2e-runner': ['gpt-6.1-sol', 'high'],
 };
 
 const EXPECTED_DIRECT_RUNTIME = {
   ...EXPECTED_RUNTIME,
-  explorer: ['gpt-6-sol', 'medium'],
+  explorer: ['gpt-6.1-sol', 'medium'],
   worker: ['gpt-6-luna', 'max'],
   monitor: ['gpt-6-luna', 'low'],
-  'bug-investigator': ['gpt-6-sol', 'high'],
+  'bug-investigator': ['gpt-6.1-sol', 'high'],
 };
 
 const UNAVAILABLE_HANDOFFS = /`(?:silent-failure-hunter|type-design-analyzer|ui-ux-verifier|fast-worker)`/;
@@ -60,15 +59,14 @@ const CODEX_BRIDGE_SURFACES = [
   'skills/flow-guide/references/implementation-dispatch.md',
   'cursor/agents/codex-bridge.md',
   'cursor/rules/execution-policy.mdc',
-  'plugins/dhpk-agent/skills/dhpk-codex-bridge/SKILL.md',
+  'plugins/dhpk-agent/skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md',
   'plugins/dhpk-agent/skills/flow-guide/references/implementation-dispatch.md',
   'plugins/dhpk-agy/agents/codex-bridge.md',
   'plugins/dhpk-agy/rules/execution-policy.md',
-  'plugins/dhpk-agy/skills/dhpk-codex-bridge/SKILL.md',
+  'plugins/dhpk-agy/skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md',
   'plugins/dhpk-agy/skills/flow-guide/references/implementation-dispatch.md',
   'plugins/dhpk-cursor/agents/codex-bridge.md',
   'plugins/dhpk-cursor/rules/execution-policy.mdc',
-  'plugins/dhpk-cursor/skills/dhpk-codex-bridge/SKILL.md',
 ];
 
 function tmpRoot(prefix) {
@@ -142,7 +140,7 @@ test('all committed direct roles match the approved runtime map and global defau
     const file = path.join(ROOT, 'codex', 'agents', `${role}.toml`);
     assert.strictEqual(readTomlField(file, 'model'), model, role);
     assert.strictEqual(readTomlField(file, 'model_reasoning_effort'), effort, role);
-    assert.match(model, /^gpt-6-(?:sol|luna)$/, role);
+    assert.match(model, /^gpt-6(?:\.1-sol|-(?:sol|luna))$/, role);
   }
   const config = fs.readFileSync(path.join(ROOT, 'codex', 'config.toml.example'), 'utf8');
   assert.match(config, /default_subagent_model\s*=\s*"gpt-6-luna"/);
@@ -156,7 +154,7 @@ test('every active Codex bridge surface selects only the GPT-6 family', () => {
       .map((match) => match[0]);
     assert.ok(identifiers.length > 0, `${relative}: missing explicit Codex model`);
     for (const identifier of identifiers) {
-      assert.match(identifier, /^gpt-6(?:-(?:sol|luna))?$/i, relative);
+      assert.match(identifier, /^gpt-6(?:\.1-sol|-(?:sol|luna))?$/i, relative);
     }
   }
 });
@@ -203,7 +201,7 @@ test('the Codex runtime validator catches stale labels, unavailable handoffs, an
       [
         'name = "code-reviewer"',
         'description = "Review role (Haiku)"',
-        'model = "gpt-6-sol"',
+        'model = "gpt-6.1-sol"',
         'model_reasoning_effort = "medium"',
         'developer_instructions = "Use `silent-failure-hunter`, `type-design-analyzer`, `ui-ux-verifier`, and `dhpk:legacy-agent`; do not consult claude-mem."',
         '',
@@ -255,9 +253,9 @@ test('clean consumer projection reports a missing supporting asset', () => {
       encoding: 'utf8',
     });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
-    fs.rmSync(path.join(root, '.codex', 'dhpk', 'contracts', 'reviewer-contract.md'));
+    fs.rmSync(path.join(root, '.codex', 'dhpk', 'contracts', 'artifact-contract.md'));
     const errors = collectCodexProjectionReferenceErrors(root, ROOT);
-    assert.ok(errors.some((error) => error.includes('reviewer-contract.md')), errors.join('\n'));
+    assert.ok(errors.some((error) => error.includes('artifact-contract.md')), errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -416,7 +414,7 @@ test('generic Codex roles skip the neighbor fence while metadata, ownership, and
     const explorer = path.join(root, 'codex', 'agents', 'explorer.toml');
     fs.writeFileSync(
       explorer,
-      fs.readFileSync(explorer, 'utf8').replace('model = "gpt-6-sol"', 'model = "not-a-codex-model"'),
+      fs.readFileSync(explorer, 'utf8').replace('model = "gpt-6.1-sol"', 'model = "not-a-codex-model"'),
     );
     fs.rmSync(path.join(root, 'codex', 'agents', 'monitor.toml'));
 
@@ -447,7 +445,7 @@ test('mutation: role metadata, filename, and sandbox drift fail closed', () => {
     const file = path.join(root, 'codex', 'agents', 'explorer.toml');
     let source = fs.readFileSync(file, 'utf8')
       .replace('name = "explorer"', 'name = "not-explorer"')
-      .replace('model = "gpt-6-sol"', 'model = "not-a-codex-model"')
+      .replace('model = "gpt-6.1-sol"', 'model = "not-a-codex-model"')
       .replace('model_reasoning_effort = "medium"', 'model_reasoning_effort = "not-an-effort"')
       .replace('sandbox_mode = "read-only"', 'sandbox_mode = "not-a-sandbox"');
     fs.writeFileSync(file, source);

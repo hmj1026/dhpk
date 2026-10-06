@@ -12,3 +12,10 @@ project-local Codex projection.
 
 The mapped files are receipt-managed supporting assets. A missing required
 sheet is a projection error and must be reported before the role proceeds.
+
+Loaded sheets are conditional evidence, not a universal pattern library. A
+matching sheet may add checks for the detected framework or engine; it must not
+turn an example from another stack into a requirement. When a required child
+dispatch capability is unavailable, the owning role reports an escalation and
+the unresolved outcome rather than inventing a delegate or silently changing
+authority.

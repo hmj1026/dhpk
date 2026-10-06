@@ -10,21 +10,21 @@
 
 ## Generic Guidance
 
-- 先從 repo 權威文件推導語言、版本、架構與 work-item system
-- 若 repo 沒有明確預填值，就把 profile 視為需要完整補齊
-- handoff 與 command template 依通用 workflow 決策，不依賴既有專案命令別名
+- 先沿用 repo 權威文件與使用者提供的文字、檔案或報告；只確認會影響此任務的語言、版本、架構或 work-item 前置結果
+- 不因缺少預填 profile 而建立全套 profile；只要求會改變實作的未知事實
+- handoff 與 command template 依已確認的 outcomes 與專案 authority 決策，不依賴既有專案命令別名
 
 ## Example 1: New CSV Import Flow
 
 - 情境：Node / Fastify 服務新增 CSV 匯入
 - workflow：`Feature Delivery`
-- 重點：補 profile、work-item、legacy-reference、RED，再進入實作
+- 重點：沿用能說明匯入範圍、欄位 mapping 與驗收的既有計畫；只補未決 mapping 與新行為的 test evidence
 
 ## Example 2: Intermittent Billing Bug
 
 - 情境：偶發重複扣款，根因未明
 - workflow：`Bug Investigation & Fix`
-- 重點：先證據與 regression path；缺 profile 不單獨擋住流程
+- 重點：沿用既有症狀與 root-cause report；只追查會改變修復的缺口，再建立 regression evidence
 
 ## Example 3: Extract Repeated Constants
 

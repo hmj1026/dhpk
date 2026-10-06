@@ -2,6 +2,13 @@
 
 > **語言**：[English](./distribution-surfaces.md) · **繁體中文**
 
+## 驗收適用性
+
+結構與 package 證據可以完成適用的安裝契約，但 native consumer observation
+仍是獨立、按觸發條件執行的要求。不得將 experimental surface 升級，也不得把
+`NOT_RUN`、`UNAVAILABLE` 或 `BLOCKED` 改成 runtime success。所有權、provenance、
+共存、唯一 discovery、rollback 與 publication authorization 維持不變。
+
 本文件說明 dhpk 如何決定每個 skill/module 會進入哪個 consumer surface，以及各
 host 能與不能過濾的內容。所有數值與歸屬以
 `manifests/distribution-inventory.json` 為 SSOT。
@@ -10,6 +17,48 @@ host 能與不能過濾的內容。所有數值與歸屬以
 [平台安裝 SSOT](./platform-installation.zh-TW.md)為準。
 Projection 與 ownership 決策記錄於
 [ADR-0009](adr/0009-distribution-projection-and-orchestration-ownership.md)。
+
+## OpenAI submission artifact
+
+Skills-only OpenAI submission builder 已實作；產物仍是 submission candidate，
+不代表 plugin 已安裝或發布。公開 listing、consumer workflow、平台 scans 與
+marketplace publication 是分開的驗收狀態；命令與目前 release checklist 見
+[提交準備 SSOT](./openai-submission.zh-TW.md)。
+
+保留 Host 的預設 builder 共用 15 個入口與 45 個 bundled 子技能資源；
+Host 專用列與公開提交 catalog 分開。Cursor 引用 Agent-owned common 入口。
+實體 package membership 由 generated metadata 記錄，不另維護數量表，也不能
+當作 consumer discovery 證據。Standalone 保留既有規則；publication profile
+旗標已退休。
+
+`bin/dhpk distribution openai-submission` 從
+[已接受的 marketplace catalog](contracts/marketplace-catalog.md)
+產製 skills-only portable package。套件包含 root `plugin.json`、
+`skills/` 下的公開 owner 及其 contained 子技能資源；排除 Host-only
+與 withdrawn 技能。
+
+請提供在 `extensions["com.openai"].interface` 宣告 listing metadata
+的 portable manifest。來源 checkout 必須乾淨；比較重複產製結果時，
+請使用 checkout 外的輸出目錄：
+
+```bash
+bin/dhpk distribution openai-submission generate --manifest /path/to/plugin.json --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission validate --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission verify --output /tmp/dhpk-openai-artifact --json
+```
+
+產製程序會先驗證完整 catalog，再發布 `package.zip` 與
+`provenance.json` sidecar。Sidecar 綁定來源 identity、selection、
+archive digest 與解開後的檔案 fingerprints。覆蓋輸出須有有效的
+owner receipt：雙檔輸出中的 ZIP 必須通過結構驗證，sidecar 的 schema、
+surface、archive digest 與解開後的 fingerprints 必須符合該 ZIP。
+輸入無效時保留既有 artifact。此路由不支援
+`--profile`、`--skill` 或 `--standalone` 部分選取。
+
+這些命令的 `PASS` 表示本地結構證據。Consumer 執行、官方 scans、
+portal submission 與公開 publication 是分開的證據狀態。
+`manifests/discovery-budgets.json` 的靜態 catalog 上限也不代表
+已通過 rendered consumer discovery 或 token-budget 驗收。
 
 ## Lifecycle model
 
@@ -96,24 +145,21 @@ reference。它不會把 canonical skill 改成新 owner，也不會把 `.agents
 `.agents/rules` 宣稱為官方路徑；Codex、Cursor、AGY 的 agent/rule projection 仍保留
 各自文件定義的 platform-native 位置。
 
-## Claude publication：raw compatibility surface 與實體化預設
+## Claude publication 與來源 ownership
 
-`scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
-skill root。raw source checkout 仍保留作為明確指定的 compatibility surface；目前是一個
-registered directory root，下面有 82 個 inventory-eligible skill ID。
-所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
-projection。`0.47.0` 的五筆 retirement row 只存在於診斷 ledger，不會 materialize 成
-package 或 alias；請參閱 [alias-free retirement 指引](./skill-platform-migration.zh-TW.md#alias-free-retirement-ledger-0470)。
+Source checkout 是 authoring tree；`scripts/ci/gen-claude-manifest.js` 從 inventory
+產生註冊的 skill roots，這些 roots 不代表安裝後的 discovery catalog。主
+`dhpk@dhpk` marketplace 指向 `generated/claude-marketplace/package`，由
+`scripts/ci/gen-claude-marketplace-package.js` 依 shared catalog 產生。
 
-Clean install 的預設 discovery artifact 是下方說明的實體化 `minimal` profile，不是這個
-未過濾的 raw root。
+Catalog 擁有 15 個 common 公開入口、folded branches/references 與必要 Host support。
+Canonical 總數、實體目錄數量與原生 discovery 是不同 scope，不能互相當成證據。
+請參閱 [catalog 契約](./contracts/marketplace-catalog.md) 與
+[安裝指南](./platform-installation.zh-TW.md)。Claude manifest 註冊 directory root，
+不是逐 skill allowlist；module 設定控制 runtime activation。
 
-Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlist。因此：
-
-- 無法只隱藏同一 root 裡的一個 deprecated skill。
-- 若某個 root 全部 deprecated，generator 可以移除整個 root。
-- `userConfig.modules` 只控制 runtime hook/guidance activation；host 仍會列出所有
-  module skill description。
+Retirement row 留在診斷 ledger，不會安裝為 alias；請參閱
+[retirement 指引](./skill-platform-migration.zh-TW.md#alias-free-retirement-ledger-0470)。
 
 ## Two-stage deprecation
 
@@ -137,47 +183,23 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 
 與相容期一樣，這是人工審查閘門；CI 不會驗證這三個前置條件。
 
-## Capability profile 與相容性 migration
+## Common 選取與歷史 receipt 相容性
 
-`manifests/install-profiles.json` 是 inventory-owned 的三種選擇：
+`manifests/install-profiles.json` 擁有內部 `common` 集合。主 publication 使用現有
+shared catalog 與 marketplace identity，不建立另一個 common variant。公開
+`--profile` 旗標及 tracked minimal/full/compat-v1 artifacts 已退休。指定 `--out`
+的 standalone generation、既有 validated skill overlays 與 module presets 保留。
 
-| Profile | 意義 |
-|---|---|
-| `minimal` | 只含 `change-verdict`、`code-trace`、`flow-drive`、`flow-guide`；clean install 的預設。 |
-| `full` | 既有 conflict-aware module closure 加上明確 stable IDs；不代表完整 catalog。 |
-| `compat-v1` | predecessor-compatible allowlist 的 stable ID；未標註舊 receipt 的相容 fallback。 |
+歷史 named-profile receipt 的 read、plan、uninstall、recovery 保留精確 stored IDs，
+包含已退休入口；update 在任何 filesystem mutation 前 `BLOCKED`。未標註舊 receipt
+維持既有 structural migration 路徑；current receipt 保留普通 update。不新增 generic
+live migration writer。
 
-各 profile 目前的 `selectedStableIds` 請執行
-`node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan` 查詢。
-
-Distribution 與 project-local installer 支援 `--profile <id>` 及可重複的
-`--skill <stable-id>` additive overlay。unknown、retired、deprecated、surface
-不相容、重複或 conflict-excluded ID 都會在 plan 或 filesystem mutation 前 fail
-closed。Claude、Cursor、Agent Plugin 與 AGY 共用 normalized selection fingerprint；
-Codex 保存相同 canonical identity，但只輸出 inventory-owned native allowlist 的
-intersection。
-
-Receipt 會記錄 profile、canonical/emitted IDs、compatibility mode、policy 與
-selection fingerprints。沒有 profile metadata 的既有 receipt 維持 `compat-v1`，不能
-靜默縮小；切換到 `minimal` 或其他 profile 必須明確使用 `--migrate`，並記錄新舊
-identity、保留 modified 或 unowned destination。structural、package、budget、rollback
-與 consumer-runtime evidence 分開；static `PASS` 永遠不是 runtime proof。
-
-Claude 的 default materialized package 由
-`node scripts/ci/gen-claude-profile-bundles.js --profile minimal` 產生，並由
-`scripts/install.sh` 建立 local marketplace wrapper 後安裝為
-`dhpk@dhpk-profile-minimal`。`full` 與 `compat-v1` 仍須明確 opt-in；生成或 package
-validation 只代表 structural/package evidence，不代表 consumer runtime PASS；agent、hook、
-rule 與 `userConfig` 行為仍需獨立的 package／consumer validation。
-
-```bash
-node scripts/ci/gen-claude-profile-bundles.js --profile minimal --plan
-node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
-```
-
-`--plan` 只輸出編譯後的選取結果，不寫入檔案。`--check` 會重新產生到暫存目錄，
-若與已提交的 `generated/claude-profiles/<profile>/package` 不一致就失敗，並逐一
-列出缺少、多出或內容不同的檔案；CI 對 `minimal`、`full`、`compat-v1` 都會執行。
+Receipt 保留 selection identity、owned roots、fingerprints 與 Host support metadata。
+Structural、installation、選用 budget research 與 native runtime evidence 分開記錄。
+只有對應 integration 改動或明確請求才執行 native／model／GUI 觀察；未執行或無法
+執行維持 non-pass。詳細安裝與 recovery 流程集中於
+[安裝指南](./platform-installation.zh-TW.md)。
 
 ## Claude userConfig metadata candidate 與 rollback
 

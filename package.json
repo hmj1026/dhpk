@@ -1,0 +1,62 @@
+{
+  "name": "dhpk",
+  "version": "0.65.0",
+  "private": true,
+  "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
+  "license": "MIT",
+  "homepage": "https://github.com/hmj1026/dhpk",
+  "engines": {
+    "node": ">=24"
+  },
+  "bin": {
+    "dhpk": "bin/dhpk",
+    "dhpk-install": "bin/dhpk-install"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "manifests/",
+    ".claude-plugin/",
+    "agents/",
+    "skills/",
+    "commands/",
+    "hooks/",
+    "rules/"
+  ],
+  "scripts": {
+    "setup": "bash scripts/install.sh",
+    "setup:dry-run": "bash scripts/install.sh --dry-run --non-interactive",
+    "setup:status": "node scripts/dhpk-install.js claude status --scope user",
+    "dhpk-install": "node scripts/dhpk-install.js",
+    "test": "node tests/run-all.js",
+    "test:hooks": "bash scripts/validate/test-hooks.sh",
+    "test:one": "node",
+    "validate:agents": "node scripts/ci/validate-agents.js --strict",
+    "validate:skills": "node scripts/ci/validate-skills.js --strict",
+    "validate:commands": "node scripts/ci/validate-commands.js --strict",
+    "validate:modules": "node scripts/ci/validate-modules.js --strict",
+    "validate:plugin": "node scripts/ci/validate-plugin.js --strict",
+    "validate:distribution": "node scripts/ci/validate-distribution.js --strict",
+    "validate:workflow-policy": "node scripts/ci/validate-workflow-policy.js",
+    "validate:json-cli": "node scripts/ci/validate-json-cli-termination.js",
+    "validate:js-guardrails": "node scripts/ci/validate-js-guardrails.js",
+    "validate:references": "node scripts/ci/validate-references.js",
+    "validate:invocation-policy": "node scripts/ci/validate-invocation-policy.js",
+    "validate:cursor-sync": "node scripts/ci/validate-cursor-sync.js",
+    "validate:harness": "bash scripts/validate/validate-harness.sh || [ $? -eq 2 ]",
+    "validate": "npm run validate:agents && npm run validate:skills && npm run validate:commands && npm run validate:modules && npm run validate:plugin && npm run validate:distribution && npm run validate:workflow-policy && npm run validate:json-cli && npm run validate:js-guardrails && npm run validate:references && npm run validate:invocation-policy && npm run validate:cursor-sync && npm run validate:harness",
+    "check:manifest": "node scripts/ci/gen-claude-manifest.js --check",
+    "check:marketplace": "node scripts/ci/gen-claude-marketplace-package.js --check",
+    "check:skill-resources": "node scripts/ci/sync-skill-resources.js --check",
+    "check:packages": "node scripts/ci/verify-platform-packages.js",
+    "check:generated": "npm run check:manifest && npm run check:marketplace && npm run check:skill-resources && npm run check:packages",
+    "check:portability": "bash scripts/check-portability.sh",
+    "catalog:check": "node scripts/ci/catalog.js --check all",
+    "ci": "npm run validate && npm run check:generated && npm run catalog:check && npm test",
+    "catalog:write": "node scripts/ci/catalog.js --write",
+    "gen:manifest": "node scripts/ci/gen-claude-manifest.js",
+    "gen:marketplace": "node scripts/ci/gen-claude-marketplace-package.js",
+    "gen:codex-agents": "node scripts/gen-codex-agents.js",
+    "gen:all": "npm run catalog:write && npm run gen:manifest && npm run gen:marketplace && npm run gen:codex-agents"
+  }
+}

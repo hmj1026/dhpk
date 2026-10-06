@@ -8,42 +8,42 @@ surface while preserving compatibility and safe rollback.
 
 ## Requirements
 
-### Requirement: Profiles expose a closed stable-ID selection
+### Requirement: Common selection is closed and inventory-owned
 
-Every selectable profile SHALL declare a normalized profile ID, a stable skill-ID allowlist, and the module/dependency closure that supplements that allowlist. With no explicit `--skill` overlay, `minimal` SHALL resolve to exactly these four canonical IDs: `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`. A repeated `--skill` option SHALL be an explicit additive overlay to the chosen profile, MUST NOT mutate the profile definition or remove required core IDs, and the normalized selection SHALL record that overlay mode. The resolver MUST reject unknown, duplicate, retired, missing, external-package-lifecycle-conflicting, or surface-incompatible IDs before returning a selection plan.
+The internal `common` collection SHALL resolve the fifteen public stable IDs declared by the shared marketplace catalog and MUST include the four `required_core_ids`: `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`. A validated repeatable `--skill` overlay SHALL be additive, preserve required core IDs, and record explicit-overlay mode without changing the collection. Module presets and standalone selection SHALL retain their existing closure rules. Public publication `--profile` flags MUST be rejected before materialization.
 
-#### Scenario: Minimal profile resolves
+#### Scenario: Default common selection resolves
 
-- **WHEN** a new installation selects `minimal` against the consolidated inventory without an explicit overlay
-- **THEN** the resolver returns exactly the four declared core IDs in deterministic order: `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`, and returns no retired predecessor
+- **WHEN** a new installation omits an explicit selection
+- **THEN** the resolver returns the catalog's fifteen common IDs deterministically, includes all four structural core IDs, and records the common selection identity
 
-#### Scenario: Explicit skill is outside the profile
+#### Scenario: Explicit overlay is valid
 
-- **WHEN** an operator adds a stable ID that is unknown, retired, absent from the target surface, conflicts with external-package ownership, or is excluded by a profile conflict
-- **THEN** resolution fails closed with the ID, failure class, and an available profile or successor guidance, and produces no materialization intent
+- **WHEN** an operator requests live inventory-owned overlay IDs supported by the target surface
+- **THEN** resolution retains the common selection and required core, adds the validated IDs, and records overlay mode without changing its definition
 
-#### Scenario: Explicit skill overlay is valid
+#### Scenario: A selection or publication flag is invalid
 
-- **WHEN** an operator selects `minimal` with repeatable `--skill` values that are live, inventory-owned, and permitted on the target surface
-- **THEN** resolution retains the four required core IDs, adds the validated overlay IDs, marks the selection as explicit-overlay mode, and leaves the `minimal` profile definition unchanged
+- **WHEN** an ID is unknown, duplicate, retired, missing, conflicting, or surface-incompatible, or a publication command receives `--profile`
+- **THEN** resolution fails closed before any materialization or filesystem mutation
 
-### Requirement: Compatibility profiles have distinct meanings
+### Requirement: Retired profile identities remain historical metadata
 
-The selection contract SHALL reserve `minimal` for the default four-capability workflow bundle, SHALL preserve `full` as the conflict-aware module closure with exactly 55 selected canonical stable IDs for this inventory revision, and SHALL define `compat-v1` as an explicit legacy bundle containing exactly 62 non-retired stable IDs accepted by the predecessor release. A profile name MUST NOT silently change meaning between surfaces.
+`minimal`, `full`, and `compat-v1` SHALL remain recognizable historical receipt identities and MUST NOT be selectable publication profiles or regenerated tracked artifacts. Their stored selection MUST NOT be recompiled against today's inventory or narrowed by retirement filtering. Module preset names, hook profiles, and the project-agent `portable-core` profile SHALL retain their separate contracts.
 
-#### Scenario: Full profile retains module semantics
+#### Scenario: An old named profile is requested for publication
 
-- **WHEN** a stack profile resolves `full` with mutually exclusive modules
-- **THEN** the result contains exactly 55 canonical stable IDs, preserves the existing explicit conflict exclusions, and does not claim that `full` contains every stable skill ID
+- **WHEN** a publication request selects a retired profile
+- **THEN** it fails before output mutation and identifies the current common, module, or standalone route
 
-#### Scenario: Compatibility bundle is requested
+#### Scenario: A historical receipt is inspected
 
-- **WHEN** an existing installation or rollback path selects `compat-v1`
-- **THEN** all 62 non-retired predecessor-compatible stable IDs are selected in deterministic order and the result identifies the bundle as compatibility mode
+- **WHEN** read, plan, uninstall, or recovery loads a named historical receipt
+- **THEN** its exact stored scope, including retired IDs, remains available for ownership-safe handling
 
-### Requirement: Selection identity is shared across surfaces
+### Requirement: Profile selection identity is shared across its surfaces
 
-Every generated surface selection SHALL carry the same canonical normalized profile ID, ordered canonical stable-ID set, selection-policy version, source/profile/inventory inputs, and canonical selection fingerprint. A surface artifact MAY expose a separate `emittedStableIds` set only when it is the declared result of a surface transform; native Codex SHALL use the intersection of canonical IDs and its existing supported allowlist and SHALL record a surface selection fingerprint for that emitted set. A surface adapter MUST NOT change canonical membership or emit an undeclared ID.
+Every selection produced from this capability-profile contract SHALL carry the same canonical normalized profile ID, ordered canonical stable-ID set, selection-policy version, source/profile/inventory inputs, and canonical selection fingerprint across its declared surfaces. A surface artifact MAY expose a separate `emittedStableIds` set only when it is the declared result of a surface transform; native Codex SHALL use the intersection of canonical IDs and its existing supported allowlist and SHALL record a surface selection fingerprint for that emitted set. A surface adapter MUST NOT change canonical membership or emit an undeclared ID. This profile identity contract does not select or constrain the separately compiled OpenAI marketplace catalog.
 
 #### Scenario: Equivalent surfaces compile the same selection
 
@@ -55,23 +55,28 @@ Every generated surface selection SHALL carry the same canonical normalized prof
 - **WHEN** an adapter emits an entry not present in the compiler-owned selection or omits a required selected ID
 - **THEN** validation rejects the artifact and reports the surface, stable ID, and selection-fingerprint mismatch
 
-### Requirement: New and existing installations migrate explicitly
+### Requirement: Current and historical receipt operations remain distinct
 
-New installations SHALL default to `minimal`. An existing receipt without an explicit migration record SHALL remain on `compat-v1`; an installer MUST NOT silently shrink an existing bundle. A user-requested profile migration SHALL record the old and new selection identities before activation.
+New installations SHALL default to `common`. Current receipts SHALL retain ordinary receipt-owned updates. Historical named-profile receipt updates MUST return `BLOCKED` before any mutation, lock, or recovery write; read, plan, uninstall, and recovery SHALL preserve the exact stored selection and existing ownership protections. Unannotated older receipts SHALL retain the existing structural migration route. This requirement MUST NOT introduce a generic live migration writer or change the independent OpenAI submission catalog contract.
 
 #### Scenario: New installation uses the default
 
-- **WHEN** a clean installation omits `--profile` and `--skill`
-- **THEN** it materializes `minimal` and records its selection identity in the receipt
+- **WHEN** a clean installation omits explicit selection
+- **THEN** it materializes common and records its canonical selection identity
 
-#### Scenario: Existing receipt is upgraded
+#### Scenario: Historical update is requested
 
-- **WHEN** an existing receipt has no profile identity or migration marker
-- **THEN** planning selects `compat-v1`, reports the preserved compatibility state, and does not remove optional entries solely because the new default is smaller
+- **WHEN** update loads a minimal, full, or compat-v1 receipt
+- **THEN** it returns BLOCKED before any filesystem side effect and preserves the receipt and installed content
+
+#### Scenario: Unannotated older receipt is handled
+
+- **WHEN** a receipt has no named selection metadata
+- **THEN** the existing structural migration and ownership route remains applicable without pretending it is a selectable retired publication profile
 
 ### Requirement: Bundle activation is atomic and rollback-safe
 
-Profile generation, materialization, and every required consumer verification SHALL stage a complete candidate bundle before activation. A generation failure or any non-pass result for a required runtime surface MUST leave the previously active bundle and receipt unchanged and MUST report the failed stage and candidate identity. Optional or unavailable non-required surfaces remain separate evidence rows and follow the declared activation policy.
+Profile generation, materialization, and every required consumer verification for a profile-based installation SHALL stage a complete candidate bundle before activation. A generation failure or any non-pass result for a required runtime surface MUST leave the previously active bundle and receipt unchanged and MUST report the failed stage and candidate identity. Optional or unavailable non-required surfaces remain separate evidence rows and follow the declared activation policy. OpenAI marketplace package generation is structural and does not activate a consumer bundle.
 
 #### Scenario: Candidate generation fails
 
@@ -90,7 +95,7 @@ Profile generation, materialization, and every required consumer verification SH
 
 ### Requirement: Selection evidence is stage-honest
 
-Selection reports SHALL distinguish profile resolution, structural/package generation, rollback, and consumer-runtime stages. Static counts, selected IDs, and token estimates MUST NOT be presented as live runtime savings; unavailable stages SHALL use `NOT_RUN`, `NOT_CONFIGURED`, `BLOCKED`, or `UNAVAILABLE` as applicable.
+Profile-selection reports SHALL distinguish profile resolution, structural/package generation, rollback, and consumer-runtime stages. Static counts, selected IDs, and token estimates MUST NOT be presented as live runtime savings; unavailable stages SHALL use `NOT_RUN`, `NOT_CONFIGURED`, `BLOCKED`, or `UNAVAILABLE` as applicable. The separate marketplace selection and package receipt follow the marketplace evidence requirements below.
 
 #### Scenario: Structural selection passes
 
@@ -102,16 +107,41 @@ Selection reports SHALL distinguish profile resolution, structural/package gener
 - **WHEN** no exact configured consumer can load the candidate artifact
 - **THEN** the report retains the structural result, records the closed non-pass runtime state, and includes a bounded resume instruction
 
-### Requirement: Consolidated profiles replace predecessors atomically
+### Requirement: Marketplace catalog selection is independent of platform profiles
 
-Profile definitions SHALL replace every selected predecessor with its successor family at most once, preserve all six protected GitNexus stable IDs, and reject retired IDs in every profile. For this inventory revision, the canonical catalog SHALL contain exactly 65 skills, exactly 9 live `portable-family` entries, and exactly 56 live entries whose public name retains the `dhpk-` prefix. The normalized profile counts SHALL be `minimal=4`, `full=55`, and `compat-v1=62` before any explicit overlay.
+The OpenAI portable marketplace publication view SHALL compile the explicit
+`manifests/marketplace-selection.json` rows against
+`manifests/distribution-inventory.json`. It SHALL NOT derive marketplace
+membership from `minimal`, `full`, `compat-v1`, or a native surface allowlist.
+The selection SHALL cover each inventory stable ID once, use the inventory's
+public name and canonical metadata, and fail closed for missing, duplicate,
+unknown, or invalid rows, invalid child ownership, runtime-alias names, or
+selected-name collisions. Common public entries and their bundled children
+SHALL be derived from the declared selection and grouped by owner. Host-only
+entries SHALL remain distinct and be included only when a supported host
+surface is explicitly supplied; withdrawn entries SHALL be excluded from
+publication. The view SHALL carry a SHA-256 digest of the canonicalized
+selection document. Counts and names SHALL describe the current selection and
+inventory rather than impose quotas or rename entries.
 
-#### Scenario: Consolidated topology is exact
+#### Scenario: Marketplace selection compiles
 
-- **WHEN** inventory and profile validation run against the target revision
-- **THEN** the report records `canonical=65`, `portable-family=9`, `dhpk-prefixed=56`, `minimal=4`, `full=55`, and `compat-v1=62`, and identifies any unexpected entry by stable ID
+- **WHEN** the current marketplace selection is compiled against a valid
+  distribution inventory
+- **THEN** the view returns inventory-owned names and metadata for common
+  entries, groups selected common children under their declared owners, keeps
+  host-only rows separate, omits withdrawn rows, and includes the canonical
+  selection digest
 
-#### Scenario: One profile retains both identities
+#### Scenario: A profile or surface has different membership
 
-- **WHEN** a profile contains a retired predecessor and its successor family, contains a duplicate successor, or drops a protected GitNexus identity
-- **THEN** selection validation fails and reports the duplicate migration or protected omission before materialization
+- **WHEN** a marketplace selection is compiled while legacy profiles or native
+  surface selections have different membership
+- **THEN** the marketplace view follows its explicit selection document and
+  does not mutate or claim parity with those other selections
+
+#### Scenario: Marketplace selection is incomplete or ambiguous
+
+- **WHEN** a selection omits an inventory ID, repeats an ID, names an unknown
+  ID, has an invalid owner, or collides on a selected public name
+- **THEN** compilation returns errors without a publication view

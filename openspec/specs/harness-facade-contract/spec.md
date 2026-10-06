@@ -1,5 +1,16 @@
 # harness-facade-contract Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
 ## Purpose
 
 Provide one observable command contract for the dhpk workflow so routing, package generation, testing, consumer probing, and release decisions are deterministic, resumable, and consistent across supported host adapters.
@@ -22,12 +33,17 @@ The harness SHALL expose one public workflow command with phase subcommands for 
 
 ### Requirement: Harness results have stable status and exit semantics
 
-Every phase result SHALL expose a machine-readable outcome separate from the receipt lifecycle phase. The outcome vocabulary SHALL be `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN`, or aggregate `COMPLETE`. The receipt lifecycle phase SHALL be one of `PLANNED`, `RED`, `GREEN`, `REFACTOR`, `VERIFIED`, or terminal `COMPLETE`; `RED`, `GREEN`, `REFACTOR`, and `VERIFIED` SHALL never be emitted as result outcomes. `PASS` and aggregate `COMPLETE` SHALL exit `0`; deterministic `FAIL` SHALL exit `1`; every other non-pass outcome SHALL exit `2`; invalid usage SHALL exit `64`; and an unexpected harness failure SHALL exit `70`. A non-pass outcome MUST NOT be represented as a successful exit.
+Every phase result SHALL expose a machine-readable outcome separate from the receipt lifecycle phase. The outcome vocabulary SHALL be `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN`, or aggregate `COMPLETE`. The receipt lifecycle phase SHALL be one of `PLANNED`, `RED`, `GREEN`, `REFACTOR`, `VERIFIED`, or terminal `COMPLETE`; `RED`, `GREEN`, `REFACTOR`, and `VERIFIED` SHALL never be emitted as result outcomes. A result without schema-v2 CONSUMER acceptance SHALL preserve the characterized legacy mapping: `PASS` and aggregate `COMPLETE` exit `0`, deterministic `FAIL` exits `1`, and other non-pass outcomes exit `2`. A current schema-v2 CONSUMER gate child result SHALL map acceptance `PASS` to exit `0` and acceptance `FAIL` or `BLOCKED` to exit `1`; the facade SHALL preserve the acceptance envelope and validate the child exit against its JSON result. For a current schema-v2 release result, the outer workflow outcome is separate from the child gate verdict and SHALL exit `0` only when the aggregate outcome is `COMPLETE`; every other current non-completion outcome, including `PUBLISHED_PENDING`, SHALL exit `1`. Invalid usage SHALL exit `64`, and an unexpected harness failure SHALL exit `70`. A non-pass outcome MUST NOT be represented as a successful exit.
 
-#### Scenario: Required evidence is absent
+#### Scenario: Current consumer acceptance is blocked
 
-- **WHEN** a required phase cannot run or lacks required evidence
-- **THEN** the result records the applicable non-pass status and exits `2`
+- **WHEN** a schema-v2 CONSUMER result has `acceptance.verdict: "BLOCKED"`
+- **THEN** the facade preserves the acceptance and raw observations and exits `1`
+
+#### Scenario: Historical blocked result keeps its exit convention
+
+- **WHEN** a result without schema-v2 CONSUMER acceptance is `BLOCKED`
+- **THEN** the facade preserves the characterized legacy outcome and exit `2`
 
 #### Scenario: Phase fails deterministically
 
@@ -88,52 +104,104 @@ The harness SHALL delegate projection selection/materialization to the canonical
 
 ### Requirement: Release aggregation requires required consumer evidence
 
-The release phase SHALL retain independent evidence rows for the seven canonical Q239 surface IDs: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`. The inventory platform matrix SHALL expose an explicit `required_surfaces` list containing those IDs, and a full-release plan SHALL copy and identity-check that list; no implicit directory discovery or adapter default may add or remove a required row. If the inventory list is absent, incomplete, duplicated, or names a surface without a matching projection contract, preflight SHALL return `BLOCKED` and no full-release result may be emitted. A scoped non-full-release plan MAY select a subset, but its result SHALL identify the scope and MUST NOT claim full-platform `COMPLETE`. Structural/package PASS SHALL NOT promote a surface to runtime PASS.
+The release phase SHALL support the seven canonical Q239 consumer surface IDs:
+`claude-core`, `codex-sync`, `codex-native`, `cursor-sync`, `cursor-plugin`,
+`agent-plugin`, and `agy-plugin`. For a current schema-v2 CONSUMER result, the
+acceptance scope SHALL be derived from the unchanged requirements declaration,
+an explicit surface selection, or the consumer gate's deterministic configured
+scope, in that order. The harness MUST NOT add a surface because a client is on
+`PATH`, split one requirements declaration into per-surface calls, or drop or
+duplicate declared obligations. It SHALL retain one independently addressable
+observation for each selected surface and preserve required checks, exclusions,
+raw statuses, commands, reasons, and validated evidence references. The
+consumer gate owns configured markers and selected installation checks as
+specified in the [consumer acceptance contract](../../../docs/contracts/consumer-acceptance.md).
 
-The inventory platform matrix SHALL also expose an explicit `required_runtime_surfaces` list that is an ordered subset of `required_surfaces`. A full-release `COMPLETE` outcome SHALL require fresh matching consumer-runtime PASS evidence for every ID in `required_runtime_surfaces`. `required_runtime_surfaces` SHALL include `claude-core`, `codex-sync`, `codex-native`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`, and SHALL NOT include `cursor-sync`. Installer `NOT_RUN` on the `cursor-sync` identity row MUST NOT by itself produce `NO_SHIP` or block `COMPLETE`. `FAIL` on the `cursor-sync` installer path SHALL remain unhealthy and MUST NOT produce `COMPLETE`. Required-runtime consumer `NOT_RUN` or `UNAVAILABLE` SHALL produce a non-complete release outcome, required-runtime consumer FAIL SHALL produce an unhealthy/non-ship outcome, and only all required-runtime consumer PASS results SHALL produce `COMPLETE`.
+The inventory platform matrix SHALL retain an explicit `required_surfaces`
+list containing all seven IDs above. A full distribution plan copies and
+identity-checks that list; directory discovery and adapter defaults MUST NOT
+add or remove entries. An absent, incomplete, duplicated, or unmapped list
+blocks a full plan before it is emitted. A scoped non-full-release plan MAY
+select a subset and SHALL identify that scope; `COMPLETE` describes only the
+readiness of the selected scope and MUST NOT claim that unselected surfaces
+passed. The full-plan artifact identity does not make every raw runtime
+observation a required installation check in the selected CONSUMER scope.
 
-When a consumer-runtime preflight is attached to a full-release plan, the
-preflight SHALL use the same task, attempt, source/tree, target/tree, and
-surface identity as the deployment and consumer rows. A preflight `PASS` SHALL
-remain runner-readiness evidence and MUST NOT replace fresh consumer-runtime
-`PASS` evidence.
+Current release readiness SHALL require SOURCE and PACKAGE PASS plus schema-v2
+CONSUMER acceptance PASS for every required check in the selected scope. It
+MUST NOT infer acceptance from raw surface status, require an unselected
+surface, or promote installation PASS to native-runtime PASS. A selected
+surface may retain raw runtime `NOT_RUN` when no native obligation was selected;
+an applicable required native obligation that is blocked, unavailable, or not
+run prevents acceptance PASS. For historical CONSUMER results without
+acceptance, the facade SHALL preserve the legacy aggregation and exit path.
+`COMPLETE` records readiness only and SHALL NOT authorize publication or
+deployment.
 
-#### Scenario: One required surface is unavailable
+The legacy full-release path SHALL retain the characterized inventory
+`required_runtime_surfaces` list as the ordered subset
+`claude-core`, `codex-sync`, `codex-native`, `cursor-plugin`, `agent-plugin`,
+and `agy-plugin`; it excludes `cursor-sync`. Legacy `COMPLETE` requires fresh
+runtime PASS for that subset. A `cursor-sync` installer `NOT_RUN` alone does
+not block legacy completion, while its `FAIL` remains unhealthy. These legacy
+rules do not turn raw runtime observations into implicit obligations in the
+current selected-scope acceptance path.
 
-- **WHEN** source and package gates pass but one required consumer probe returns `UNAVAILABLE`
-- **THEN** the release result remains non-complete and records the affected surface and resume evidence
+When consumer-runtime preflight is attached to a release plan, it SHALL remain
+runner-readiness evidence with its existing attempt identity and MUST NOT
+replace current selected-scope CONSUMER acceptance.
 
-#### Scenario: All required runtime surfaces pass
+#### Scenario: Selected installation acceptance passes without a native run
 
-- **WHEN** source, package, and every required-runtime consumer row have fresh matching PASS evidence, and `cursor-sync` is installer `NOT_RUN` rather than `FAIL`
-- **THEN** the release result records `COMPLETE` and retains the independent per-surface evidence including the `cursor-sync` identity row
+- **WHEN** SOURCE and PACKAGE pass, every selected schema-v2 CONSUMER required check passes, and a selected surface's raw runtime is `NOT_RUN` with no required native check
+- **THEN** readiness may be `COMPLETE`, the raw observation remains `NOT_RUN`, and no runtime support is claimed
 
-#### Scenario: Required surface list is incomplete
+#### Scenario: A required selected check is blocked
 
-- **WHEN** a full-release plan omits one of the seven canonical surface IDs or names an ID absent from the inventory platform matrix
-- **THEN** preflight rejects the plan as invalid or `BLOCKED` and the release cannot claim `COMPLETE`
+- **WHEN** SOURCE and PACKAGE pass but a selected schema-v2 CONSUMER required check is `BLOCKED` or `UNAVAILABLE`
+- **THEN** readiness is non-complete, the facade preserves the check and observation, and its acceptance-aware result exits `1`
 
-#### Scenario: Required runtime surface list is invalid
+#### Scenario: Requirements input remains atomic
 
-- **WHEN** the inventory platform matrix does not expose the explicit `required_runtime_surfaces` list, the list is not an ordered subset of `required_surfaces`, or it includes `cursor-sync`
-- **THEN** preflight returns `BLOCKED` and no release result may claim `COMPLETE`
+- **WHEN** a caller supplies `--requirements` to `release`
+- **THEN** the complete declaration is forwarded unchanged to one gate invocation without per-surface partitioning
 
-#### Scenario: cursor-sync installer FAIL remains unhealthy
+#### Scenario: A raw observation does not override acceptance
 
-- **WHEN** required-runtime consumer rows are PASS but the `cursor-sync` installer path returns `FAIL`
-- **THEN** the release result is unhealthy/non-ship and does not claim `COMPLETE`
+- **WHEN** a schema-v2 CONSUMER envelope has a `PASS` observation but a required acceptance check is `BLOCKED` or `FAIL`
+- **THEN** release readiness follows the acceptance check and remains non-pass
 
-#### Scenario: Inventory required-surface SSOT is missing
+#### Scenario: Legacy pending release retains its historical path
 
-- **WHEN** the inventory platform matrix does not expose the explicit `required_surfaces` or `required_runtime_surfaces` list, or a listed ID lacks a projection contract
-- **THEN** preflight returns `BLOCKED` and does not infer the list from directory contents or adapter defaults
+- **WHEN** a historical CONSUMER result has no acceptance field and reports `PUBLISHED_PENDING`
+- **THEN** the legacy path preserves its characterized pending result and exit convention without synthesizing schema-v2 acceptance
 
-#### Scenario: Preflight is foreign to the release attempt
+#### Scenario: Legacy runtime matrix keeps the cursor-sync identity row
 
-- **WHEN** a full-release plan presents preflight evidence with a different task, attempt, source/tree, target/tree, or surface identity
-- **THEN** the plan is rejected as stale or `BLOCKED` and no consumer row is promoted from that evidence
+- **WHEN** a historical full-release result has fresh PASS for every listed required-runtime surface and the `cursor-sync` installer is `NOT_RUN`
+- **THEN** it may preserve legacy `COMPLETE` while retaining the independent `cursor-sync` identity row
 
-#### Scenario: Preflight passes while a required runtime remains non-pass
+#### Scenario: Legacy cursor-sync installation FAIL remains unhealthy
 
-- **WHEN** the preflight reports runner readiness but a required consumer row is `NOT_RUN`, `UNAVAILABLE`, or `SKIP_INCOMPATIBLE`
-- **THEN** the release remains non-complete and records the consumer row as the blocking resume condition
+- **WHEN** the historical full-release runtime subset passes but the `cursor-sync` installer reports `FAIL`
+- **THEN** the legacy aggregate remains unhealthy and does not report `COMPLETE`
+
+#### Scenario: Selected scope is invalid or incomplete
+
+- **WHEN** the current configured or explicit scope is empty, duplicated, or has a missing selected-surface observation
+- **THEN** the current release result is `BLOCKED` and does not infer the list from directory contents or adapter defaults
+
+#### Scenario: Full plan surface identity is incomplete
+
+- **WHEN** a full distribution plan omits a canonical surface, duplicates an ID, or names a surface without a projection contract
+- **THEN** preflight returns `BLOCKED` and does not infer missing surfaces from directory contents or adapter defaults
+
+#### Scenario: Selected cursor-sync installation fails
+
+- **WHEN** `cursor-sync` is selected and its required installation check is `FAIL`
+- **THEN** current acceptance is non-pass and release readiness cannot be `COMPLETE`
+
+#### Scenario: Preflight identity does not replace current acceptance
+
+- **WHEN** a release plan presents runner-readiness evidence with a different task, attempt, source/tree, target/tree, or surface identity
+- **THEN** the plan is rejected as stale or `BLOCKED`, and a matching preflight still cannot replace current selected-scope CONSUMER acceptance

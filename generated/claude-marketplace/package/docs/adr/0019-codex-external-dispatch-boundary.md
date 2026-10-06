@@ -7,7 +7,7 @@ shared CLI dispatch context, but they do not publish the Claude-side
 `agy-fast-worker` or `codex-bridge` adapters. Explicit external worker
 selection on either Codex surface is therefore an unavailable capability:
 routing and launcher checks fail closed before adapter execution, `auto`
-remains native-only, AGY points to the [Codex handoff boundary](../../codex/AGENTS.md#codex-handoff-boundary)
+remains native-only, AGY points to the [Codex handoff boundary](../../codex/guidance.md#codex-handoff-boundary)
 for its documented manual fallback, and
 `codex-bridge` remains intentionally unavailable. This preserves Codex's
 curated subset and prevents an advertised route from depending on an absent

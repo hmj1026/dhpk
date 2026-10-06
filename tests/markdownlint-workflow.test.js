@@ -32,9 +32,6 @@ test('Markdown lint job remains blocking and covers the intended asset globs', (
     'commands/**/*.md',
     'rules/**/*.md',
     'modules/**/*.md',
-    '.codex/agents/**/*.md',
-    '.codex/dhpk/**/*.md',
-    '.codex/skills/**/*.md',
   ]) {
     assert.ok(lintJob.includes(`            ${glob}`), `missing Markdown lint glob: ${glob}`);
   }
@@ -49,10 +46,15 @@ test('Markdown table column validation remains enabled', () => {
   assert.notStrictEqual(markdownlint.MD056, false, 'MD056 must not be disabled');
 });
 
-test('repository tests run through the bounded Node wrapper on all four shards', () => {
+test('repository tests follow the authoritative light, selected, and full CI plan', () => {
   assert.match(testsJob, /fail-fast:\s*false/);
-  assert.match(testsJob, /shard:\s*\[\s*0,\s*1,\s*2,\s*3\s*\]/);
-  assert.match(testsJob, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js\s+--shard-index\s+\$\{\{\s*matrix\.shard\s*\}\}\s+--shard-count\s+4/);
+  assert.match(testsJob, /shard:\s*\$\{\{\s*fromJSON\(needs\.plan\.outputs\.shards\)\s*\}\}/);
+  assert.match(testsJob, /dhpk-ci-plan-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
+  assert.match(testsJob, /fs\.readFileSync/);
+  assert.doesNotMatch(testsJob, /DHPK_CI_PLAN|needs\.plan\.outputs\.plan/);
+  assert.match(testsJob, /if \[ "\$\{\{\s*needs\.plan\.outputs\.mode\s*\}\}" = "selected" \]/);
+  assert.match(testsJob, /testFiles/);
+  assert.match(testsJob, /--shard-count\s+4/);
   assert.match(testsJob, /DHPK_BOUNDED_REQUIRE_CGROUP:\s*['"]?1/);
   assert.match(testsJob, /DHPK_TEST_JOBS:\s*['"]?4/);
 });

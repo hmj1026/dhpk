@@ -2,25 +2,34 @@
 
 <!-- GENERATED: inventory-owned Usage Grammar. Do not edit manually. -->
 
-來源 inventory revision：`sha256:cce5b750f0a8919f282d99784c312e0b6805aaf34b49c5a5e7296984fb829392`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
+來源 inventory revision：`sha256:a3945c392dcc3b5914d993c865a012282b789ee73bb345ff4c77a724550a4bdf`。使用 `$flow-guide help` 取得唯讀、逐步揭露的參數卡。
 
 ## 可用技能
 
-### `$code-simplify`
+### `$change-verdict`
 
-摘要：Clean changed code without changing behavior
-語法：`$code-simplify [<target>]`
+摘要：Return an evidence-backed read-only change verdict
+語法：`$change-verdict [--mode=<mode>] [--coverage] [<target>]`
 呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
+最高 authority：`read-only`
 
 輸入：
-- `target` `<target>` (可選, string) — PR, branch, file, or directory
+- `target` `<target>` (可選, string) — Change, PR, test, document, or risk target
 
 Actions：
-- `simplify` `$code-simplify [<target>]` — Apply bounded cleanup with test evidence
+- `code` `$change-verdict --mode=code [<target>]` — Judge code changes
+- `pr` `$change-verdict --mode=pr [<target>]` — Judge pull-request evidence
+- `security` `$change-verdict --mode=security [<target>]` — Judge security evidence
+- `tests` `$change-verdict --mode=tests [--coverage] [<target>]` — Judge test and coverage evidence
+- `docs` `$change-verdict --mode=docs [<target>]` — Judge documentation evidence
+- `risk` `$change-verdict --mode=risk [<target>]` — Judge change-risk evidence
+
+選項：
+- `mode` `--mode=<mode>` (可選, enum, values=code|pr|security|tests|docs|risk) — Select one verdict mode
+- `coverage` `--coverage` (可選, boolean, default=false) — Include coverage evidence in tests mode
 
 範例：
-- `$code-simplify src/` — Use code simplify with its declared interface
+- `$change-verdict --mode=tests --coverage` — Use change verdict with its declared interface
 
 ### `$code-trace`
 
@@ -84,122 +93,10 @@ Actions：
 範例：
 - `$dep-audit --level=high` — Use dependency audit with its declared interface
 
-### `$dhpk-legacy-characterization-tests`
-
-摘要：Lock observed legacy behavior before refactoring safely
-語法：`$dhpk-legacy-characterization-tests <legacy-target>`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `legacy-target` `<legacy-target>` (必要, string) — Select the legacy code target to characterize
-
-Actions：
-- `characterize` `$dhpk-legacy-characterization-tests <legacy-target>` — Write tests that capture the current legacy behavior
-
-範例：
-- `$dhpk-legacy-characterization-tests protected/models/Order.php` — Lock an untested legacy model before refactoring
-
-### `$dhpk-opsx-load-context`
-
-摘要：Load resume context through the deterministic fallback chain
-語法：`$dhpk-opsx-load-context`
-呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
-
-Actions：
-- `load` `$dhpk-opsx-load-context` — Resolve the best available resume context
-
-範例：
-- `$dhpk-opsx-load-context` — Load context for an opsx-apply-resume session
-
-### `$dhpk-opsx-post-observation`
-
-摘要：Post one resume observation through the observer boundary
-語法：`$dhpk-opsx-post-observation <observation-context>`
-呼叫類別：`implicit-eligible`
-最高 authority：`delegate`
-
-輸入：
-- `observation-context` `<observation-context>` (必要, string) — Describe the compact session observation
-
-Actions：
-- `post` `$dhpk-opsx-post-observation <observation-context>` — Submit the compact session observation
-
-範例：
-- `$dhpk-opsx-post-observation save-phase summary` — Post the observation during opsx save phase
-
-### `$dhpk-php-runtime-router`
-
-摘要：Detect PHP runtime and select safe framework guidance
-語法：`$dhpk-php-runtime-router <php-task>`
-呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
-
-輸入：
-- `php-task` `<php-task>` (必要, string) — Describe the PHP or framework task
-
-Actions：
-- `route` `$dhpk-php-runtime-router <php-task>` — Detect the runtime and select matching references
-
-範例：
-- `$dhpk-php-runtime-router review this Yii 1.1 controller` — Select PHP-compatible guidance for a backend task
-
-### `$dhpk-yii1-php56-development`
-
-摘要：Implement Yii 1.x backend changes with PHP 5.6-safe tests
-語法：`$dhpk-yii1-php56-development <backend-task>`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `backend-task` `<backend-task>` (必要, string) — Describe the Yii backend implementation task
-
-Actions：
-- `implement` `$dhpk-yii1-php56-development <backend-task>` — Design, test, and implement a Yii 1.x backend change
-
-範例：
-- `$dhpk-yii1-php56-development fix this Yii 1.1 controller` — Apply PHP 5.6-safe backend implementation guidance
-
-### `$dhpk-yii1-security-audit`
-
-摘要：Audit Yii 1.1 security boundaries with evidence and fixes
-語法：`$dhpk-yii1-security-audit <source-path> [--output-path=<path>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
-
-輸入：
-- `source-path` `<source-path>` (必要, string) — Select the Yii source path to audit
-
-Actions：
-- `audit` `$dhpk-yii1-security-audit <source-path> [--output-path=<path>]` — Inspect Yii 1.1 framework security boundaries
-
-選項：
-- `output-path` `--output-path=<path>` (可選, string) — Choose the audit report output directory
-
-範例：
-- `$dhpk-yii1-security-audit protected` — Audit a Yii 1.1 project for framework security issues
-
-### `$doc-refactor`
-
-摘要：Refactor one bounded Markdown document while preserving facts
-語法：`$doc-refactor <file-path>`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `file-path` `<file-path>` (必要, string) — One Markdown document
-
-Actions：
-- `refactor` `$doc-refactor <file-path>` — Rewrite one bounded document and validate its links
-
-範例：
-- `$doc-refactor docs/guide.md` — Use doc refactor with its declared interface
-
 ### `$flow-drive`
 
 摘要：Implement a confirmed specification with bounded evidence
-語法：`$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]`
+語法：`$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]`
 呼叫類別：`explicit-only`
 最高 authority：`workspace-write`
 
@@ -211,6 +108,7 @@ Actions：
 
 選項：
 - `plan` `--plan[=<model>:<effort>]` (可選, string) — Request a planning pass before implementation
+- `plan-mode` `--plan-mode=auto|bounded|discovery` (可選, enum, values=auto|bounded|discovery, default=auto) — Select the consult scope; requires --plan and defaults to auto when enabled
 - `worker` `--worker=<worker>` (可選, enum, values=claude|codex|agy|auto) — Select an explicitly requested implementation worker
 - `worker-target` `--worker-target=<provider>/<model>[:<effort>]` (可選, string) — Select an explicit provider, model, and effort target
 - `cross-provider` `--cross-provider` (可選, boolean, default=false) — Allow the explicitly selected provider boundary
@@ -286,123 +184,6 @@ Actions：
 範例：
 - `$git-worktree list` — Use git worktree with its declared interface
 
-### `$harness-audit`
-
-摘要：Audit repository harness health with a deterministic scorecard
-語法：`$harness-audit [<scope>] [--format=<format>] [--root=<path>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
-
-輸入：
-- `scope` `<scope>` (可選, enum, values=repo|hooks|skills|commands|agents, default=repo) — Harness area to inspect
-
-Actions：
-- `audit` `$harness-audit [<scope>]` — Run the deterministic harness audit
-
-選項：
-- `format` `--format=<format>` (可選, enum, values=text|json, default=text) — Output format
-- `root` `--root=<path>` (可選, string) — Consumer repository root
-
-範例：
-- `$harness-audit skills --format=json` — Use harness audit with its declared interface
-
-### `$harness-govern`
-
-摘要：Govern harness health, budget, filling, revision, and sync
-語法：`$harness-govern <health|budget|fill|revise|sync> [options]`
-呼叫類別：`explicit-only`
-最高 authority：`external-write`
-
-輸入：
-- `mode` `<health|budget|fill|revise|sync>` (必要, enum, values=health|budget|fill|revise|sync) — Choose one harness governance mode
-
-Actions：
-- `health` `$harness-govern health [options]` — Check harness structure and optionally fix safe issues
-- `budget` `$harness-govern budget [options]` — Measure harness context cost and ranked savings
-- `fill` `$harness-govern fill [options]` — Preview or apply missing harness layers
-- `revise` `$harness-govern revise [options]` — Review and revise an active harness
-- `sync` `$harness-govern sync [options]` — Plan or apply cross-platform harness synchronization
-
-選項：
-- `dir` `--dir=<path>` (可選, string) — Select the harness directory
-- `dry-run` `--dry-run` (可選, boolean, default=false) — Preview changes without writing
-- `fix-safe` `--fix-safe` (可選, boolean, default=false) — Apply only approved safe health fixes
-- `fix` `--fix` (可選, boolean, default=false) — Apply the selected health fixes
-
-範例：
-- `$harness-govern health --dry-run` — Inspect harness health without changing files
-
-### `$js-static-check-strategy`
-
-摘要：Plan staged TypeScript checks and inspect strict-check progress
-語法：`$js-static-check-strategy status [--path=<path>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
-
-Actions：
-- `status` `$js-static-check-strategy status [--path=<path>]` — Report the current static-check status
-
-選項：
-- `path` `--path=<path>` (可選, string) — Frontend root to scan
-
-範例：
-- `$js-static-check-strategy status --path=js/` — Use js static check strategy with its declared interface
-
-### `$matrix-cell-onboard`
-
-摘要：Plan and optionally apply one multi-major CI matrix cell
-語法：`$matrix-cell-onboard <php-version> <laravel-version> [<phpunit>] [<monolog>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `php-version` `<php-version>` (必要, string) — PHP runtime version
-- `laravel-version` `<laravel-version>` (必要, string) — Laravel version
-- `phpunit` `<phpunit>` (可選, string) — PHPUnit version
-- `monolog` `<monolog>` (可選, string) — Monolog version
-
-Actions：
-- `onboard` `$matrix-cell-onboard <php-version> <laravel-version>` — Plan and apply one matrix cell
-
-範例：
-- `$matrix-cell-onboard 8.3 12 11 3` — Use matrix cell onboard with its declared interface
-
-### `$merge-prep`
-
-摘要：Analyze a branch merge without mutating the repository
-語法：`$merge-prep <source-branch> [--target=<branch>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
-
-輸入：
-- `source-branch` `<source-branch>` (必要, string) — Branch to analyze
-
-Actions：
-- `prepare` `$merge-prep <source-branch>` — Analyze merge conflicts and manual commands
-
-選項：
-- `target` `--target=<branch>` (可選, string) — Target branch for the analysis
-
-範例：
-- `$merge-prep feature/topic --target=main` — Use merge prep with its declared interface
-
-### `$pr-summary`
-
-摘要：Summarize open pull requests with evidence
-語法：`$pr-summary [--author=<user>] [--label=<label>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`read-only`
-
-Actions：
-- `summarize` `$pr-summary` — Group accessible open pull requests
-
-選項：
-- `author` `--author=<user>` (可選, string) — Filter by pull-request author
-- `label` `--label=<label>` (可選, string) — Filter by pull-request label
-
-範例：
-- `$pr-summary --label=ready` — Use pr summary with its declared interface
-
 ### `$precommit`
 
 摘要：Run the packaged deterministic pre-commit pipeline
@@ -418,25 +199,6 @@ Actions：
 
 範例：
 - `$precommit --fast` — Use precommit with its declared interface
-
-### `$project-brief`
-
-摘要：Convert one technical specification into an executive brief
-語法：`$project-brief <tech-spec-path> [--output=<output-path>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `tech-spec-path` `<tech-spec-path>` (必要, string) — Readable technical specification
-
-Actions：
-- `brief` `$project-brief <tech-spec-path>` — Write an executive summary without changing the source
-
-選項：
-- `output` `--output=<output-path>` (可選, string) — Destination for the brief
-
-範例：
-- `$project-brief docs/spec.md --output=docs/brief.md` — Use project brief with its declared interface
 
 ### `$proposal-analyze`
 
@@ -493,58 +255,6 @@ Actions：
 範例：
 - `$repo-verify fast` — Use repo verify with its declared interface
 
-### `$review-pending`
-
-摘要：Delegate a read-only pending-change review
-語法：`$review-pending [--files=<rel-paths>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`delegate`
-
-Actions：
-- `review` `$review-pending` — Delegate the selected pending files to code-reviewer
-
-選項：
-- `files` `--files=<rel-paths>` (可選, string) — Comma-separated relative file paths
-
-範例：
-- `$review-pending --files=src/a.js` — Use review pending with its declared interface
-
-### `$skill-scope`
-
-摘要：Route skill governance to one focused mode with evidence
-語法：`$skill-scope <health|judge|stocktake|scout>`
-呼叫類別：`implicit-eligible`
-最高 authority：`delegate`
-
-輸入：
-- `mode` `<health|judge|stocktake|scout>` (必要, enum, values=health|judge|stocktake|scout) — Choose one skill governance mode
-- `target` `<target>` (可選, string) — Select the skill or capability to inspect
-
-Actions：
-- `health` `$skill-scope health <skill>` — Check one skill or package structure
-- `judge` `$skill-scope judge <skill>` — Score one skill or package quality
-- `stocktake` `$skill-scope stocktake` — Audit installed consumer skills and commands
-- `scout` `$skill-scope scout <capability>` — Search for an existing skill or capability
-
-範例：
-- `$skill-scope health flow-guide` — Run a focused health check for one skill
-
-### `$spec-mine`
-
-摘要：Extract one capability baseline into an OpenSpec behavioral spec
-語法：`$spec-mine [<capability-or-path>]`
-呼叫類別：`implicit-eligible`
-最高 authority：`workspace-write`
-
-輸入：
-- `capability-or-path` `<capability-or-path>` (可選, string) — Capability or path to mine first
-
-Actions：
-- `mine` `$spec-mine [<capability-or-path>]` — Write one bounded behavioral baseline
-
-範例：
-- `$spec-mine billing` — Use spec mine with its declared interface
-
 ### `$tdd-workflow`
 
 摘要：Drive behavior-first tests through a minimal red-green loop
@@ -563,18 +273,22 @@ Actions：
 範例：
 - `$tdd-workflow test-generation tests/OrderTest.php` — Use tdd with its declared interface
 
-### `$update-codemaps`
+### `$ui-ux-verify`
 
-摘要：Refresh architecture codemaps from the live project structure
-語法：`$update-codemaps`
+摘要：Audit one rendered page against one UI specification
+語法：`$ui-ux-verify [<url>] [spec:<spec-path>]`
 呼叫類別：`implicit-eligible`
 最高 authority：`workspace-write`
 
+輸入：
+- `url` `<url>` (可選, string) — Page URL
+- `spec-path` `<spec-path>` (可選, string) — OpenSpec UI specification
+
 Actions：
-- `update` `$update-codemaps` — Refresh the bounded architecture codemaps
+- `verify` `$ui-ux-verify [<url>] [spec:<spec-path>]` — Capture and report one read-only UI audit
 
 範例：
-- `$update-codemaps` — Use update codemaps with its declared interface
+- `$ui-ux-verify spec:openspec/changes/example/spec.md` — Use ui ux verify with its declared interface
 
 ### `$update-docs`
 

@@ -6,7 +6,7 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Forward to the canonical [`$doc-refactor` skill](../skills/doc-refactor/SKILL.md)
+Forward to the canonical [`$doc-refactor` skill](../skills/update-docs/references/doc-refactor/SKILL.md)
 with `$ARGUMENTS` unchanged. It owns the bounded-file guard, fact/pointer map,
 structure edit, and Markdownlint/link validation.
 

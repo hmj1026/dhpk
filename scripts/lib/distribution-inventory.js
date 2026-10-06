@@ -57,7 +57,6 @@ const PORTABLE_FAMILY_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const PORTABLE_SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const PORTABLE_FAMILY_NAMES = Object.freeze([
   'skill-scope',
-  'skill-forge',
   'flow-guide',
   'flow-drive',
   'change-verdict',
@@ -71,8 +70,10 @@ const CAPABILITY_FAMILY_RETIREMENTS = Object.freeze({
   'skill-judge': Object.freeze({ family: 'skill-scope', mode: 'judge' }),
   'skill-stocktake': Object.freeze({ family: 'skill-scope', mode: 'stocktake' }),
   'skill-scout': Object.freeze({ family: 'skill-scope', mode: 'scout' }),
-  'create-skill': Object.freeze({ family: 'skill-forge', mode: 'create' }),
-  'rules-distill': Object.freeze({ family: 'skill-forge', mode: 'distill-rules' }),
+  // skill-forge was retired in 0.65.0 (third-party-text-overlap), so its two
+  // 0.53 predecessors now resolve to the model default instead of a family.
+  'create-skill': Object.freeze({ kind: 'model-default' }),
+  'rules-distill': Object.freeze({ kind: 'model-default' }),
   'adaptive-dev-workflow': Object.freeze({ family: 'flow-guide', mode: 'route' }),
   'dhpk-execution-policy': Object.freeze({ family: 'flow-guide', mode: 'rules' }),
   'next-step': Object.freeze({ family: 'flow-guide', mode: 'next' }),
@@ -628,9 +629,58 @@ function validateExternalSkillPackages(input = {}) {
   return { errors };
 }
 
+function describeFamilyRetirement(expected) {
+  if (expected.kind === 'model-default') return 'model-default';
+  return `${expected.family}${expected.mode ? `:${expected.mode}` : ''}`;
+}
+
 // Retirement rows are deliberately separate from active skill entries. They
 // are identity and migration evidence only: no projection compiler is allowed
 // to treat them as materializable skills or discovery aliases.
+// Resolve diagnostic guidance without rewriting the historical retirement ledger.
+function resolveRetirementGuidance({ inventory, entry }) {
+  const activeSkills = Array.isArray(inventory.skills) ? inventory.skills : [];
+  const retiredRows = Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [];
+  const activeIds = new Set(activeSkills.filter(Boolean).map((skill) => skill.id));
+  const retiredById = new Map(retiredRows.filter(Boolean).map((row) => [row.id, row]));
+  const terminals = new Map();
+  const expanded = new Set();
+  const errors = [];
+  const maxDepth = 64;
+
+  function visit(replacements, ancestors, depth) {
+    for (const replacement of Array.isArray(replacements) ? replacements : []) {
+      if (!replacement || typeof replacement !== 'object') continue;
+      if (replacement.kind !== 'skill' || activeIds.has(replacement.id)) {
+        terminals.set(JSON.stringify(replacement), { ...replacement });
+        continue;
+      }
+      const successor = retiredById.get(replacement.id);
+      if (!successor) {
+        errors.push(`dangling retirement successor: '${replacement.id}'`);
+        continue;
+      }
+      if (ancestors.has(successor.id)) {
+        errors.push(`retirement successor cycle at '${successor.id}'`);
+        continue;
+      }
+      if (depth >= maxDepth) {
+        errors.push(`retirement successor depth exceeds limit ${maxDepth} at '${successor.id}'`);
+        continue;
+      }
+      // Depth is part of the key so a shorter branch cannot hide an excessive
+      // longer path through the same successor. Deduplicate completed branches.
+      const key = `${successor.id}:${depth}`;
+      if (expanded.has(key)) continue;
+      visit(successor.replacements, new Set([...ancestors, successor.id]), depth + 1);
+      expanded.add(key);
+    }
+  }
+
+  visit(entry.replacements, new Set([entry.id]), 0);
+  return { replacements: [...terminals.values()], errors };
+}
+
 function validateSkillRetirements({ inventory } = {}) {
   const errors = [];
   if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) return { errors };
@@ -649,6 +699,7 @@ function validateSkillRetirements({ inventory } = {}) {
       : [],
   );
   const retiredIds = new Set();
+  const declaredRetiredIds = new Set(rows.filter((entry) => entry && typeof entry.id === 'string').map((entry) => entry.id));
   const retiredNames = new Set();
   const allowedSurfaces = new Set(SURFACES);
   const agentRoster = new Set(
@@ -688,8 +739,10 @@ function validateSkillRetirements({ inventory } = {}) {
       errors.push(`${prefix}.id '${entry.id}' overlaps an external-package protected skill and cannot be retired`);
     }
 
-    if (typeof entry.name !== 'string' || !PUBLIC_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
-      errors.push(`${prefix}.name must match ^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$ and be at most 63 characters: '${entry.name}'`);
+    if (typeof entry.name !== 'string'
+      || !(PUBLIC_SKILL_NAME.test(entry.name) || PORTABLE_SKILL_NAME.test(entry.name))
+      || entry.name.length > 63) {
+      errors.push(`${prefix}.name must be a dhpk- public name or an unprefixed portable name (lowercase hyphenated) of at most 63 characters: '${entry.name}'`);
     } else if (retiredNames.has(entry.name)) {
       errors.push(`duplicate retired public skill name: ${entry.name}`);
     } else if (activeNames.has(entry.name)) {
@@ -748,8 +801,8 @@ function validateSkillRetirements({ inventory } = {}) {
           }
         } else if (typeof replacement.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(replacement.id)) {
           errors.push(`${replacementPrefix}.id must be a safe non-empty identifier for ${replacement.kind} replacements`);
-        } else if (replacement.kind === 'skill' && !activeIds.has(replacement.id)) {
-          errors.push(`${replacementPrefix}.id must reference an active skill: '${replacement.id}'`);
+        } else if (replacement.kind === 'skill' && !activeIds.has(replacement.id) && !declaredRetiredIds.has(replacement.id)) {
+          errors.push(`${replacementPrefix}.id must reference an active or retired skill: '${replacement.id}'`);
         } else if (replacement.kind === 'agent'
             && (!Array.isArray(inventory.agent_roster) || !agentRoster.has(replacement.id))) {
           errors.push(`${replacementPrefix}.id must reference an inventory-owned active agent: '${replacement.id}'`);
@@ -778,6 +831,12 @@ function validateSkillRetirements({ inventory } = {}) {
     }
   });
 
+  rows.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object' || !Array.isArray(entry.replacements)) return;
+    const guidance = resolveRetirementGuidance({ inventory: { ...inventory, skills: activeSkills }, entry });
+    errors.push(...guidance.errors.map((error) => `retired_skills[${index}]: ${error}`));
+  });
+
   // The 0.53 capability-family wave is a closed migration contract.  Only
   // inventories that actually contain all six successor families opt into
   // this check; older v1/v2 fixtures can continue validating their historical
@@ -792,7 +851,7 @@ function validateSkillRetirements({ inventory } = {}) {
     for (const [predecessor, expected] of Object.entries(CAPABILITY_FAMILY_RETIREMENTS)) {
       const entry = retirementById.get(predecessor);
       if (!entry) {
-        errors.push(`missing capability-family retirement mapping: ${predecessor} must map to ${expected.family}${expected.mode ? `:${expected.mode}` : ''}`);
+        errors.push(`missing capability-family retirement mapping: ${predecessor} must map to ${describeFamilyRetirement(expected)}`);
         continue;
       }
       if (entry.retiredIn !== '0.53.0') {
@@ -807,9 +866,11 @@ function validateSkillRetirements({ inventory } = {}) {
       const modeMatches = expected.mode === undefined
         ? replacement && replacement.mode === undefined
         : replacement && replacement.mode === expected.mode;
-      if (!replacement || replacement.kind !== 'skill'
-        || replacement.id !== expected.family || !modeMatches) {
-        errors.push(`capability-family retirement ${predecessor} must map exactly to ${expected.family}${expected.mode ? `:${expected.mode}` : ''}`);
+      const mapsExactly = expected.kind === 'model-default'
+        ? replacement && replacement.kind === 'model-default'
+        : replacement && replacement.kind === 'skill' && replacement.id === expected.family && modeMatches;
+      if (!mapsExactly) {
+        errors.push(`capability-family retirement ${predecessor} must map exactly to ${describeFamilyRetirement(expected)}`);
       }
     }
     for (const entry of rows) {
@@ -1606,7 +1667,9 @@ function formatSkillIdentityDiagnostic({ inventory, resolution } = {}) {
     && JSON.stringify(entry.replacements) === JSON.stringify(resolution.replacements));
   if (!retiredEntry) return '';
   const skills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
-  const replacements = (resolution.replacements || []).map((replacement) => {
+  const terminalGuidance = resolveRetirementGuidance({ inventory, entry: retiredEntry });
+  if (terminalGuidance.errors.length > 0) return '';
+  const replacements = terminalGuidance.replacements.map((replacement) => {
     if (replacement.kind === 'model-default') return 'model-default guidance';
     let identity = replacement.id || '<missing successor>';
     if (replacement.kind === 'skill') {
@@ -2089,8 +2152,9 @@ function validateCapabilityProfilePolicy({ inventory } = {}) {
   if (!policy.profiles || typeof policy.profiles !== 'object' || Array.isArray(policy.profiles)) {
     errors.push('profile_policy.profiles must be an object');
   } else {
-    for (const id of ['minimal', 'full', 'compat-v1']) {
-      const profile = policy.profiles[id];
+    if (Object.keys(policy.profiles).length === 0) errors.push('profile_policy.profiles must be non-empty');
+    for (const [id, profile] of Object.entries(policy.profiles)) {
+      if (!/^[a-z][a-z0-9-]*$/.test(id)) errors.push(`profile_policy.profiles contains an unsafe identifier '${id}'`);
       if (!profile || typeof profile !== 'object' || Array.isArray(profile)) errors.push(`profile_policy.profiles.${id} is required`);
       else if (typeof profile.selection !== 'string' || profile.selection.trim() === '') errors.push(`profile_policy.profiles.${id}.selection must be a non-empty string`);
     }

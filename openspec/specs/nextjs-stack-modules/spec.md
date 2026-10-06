@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change add-nextjs-modules. Update Purpose after archive.
+Define the identity, trigger, and registration contracts for the supported
+Next.js opt-in modules.
 
 ## Requirements
 
@@ -38,16 +39,16 @@ The `nextjs-16-notes` skill's Migration traps section SHALL list the React 19 re
 - **WHEN** a reader opens `modules/nextjs-16/skills/nextjs-16-notes/SKILL.md`'s Migration traps section
 - **THEN** the React 19 requirement appears as the first item, marked with language signaling its criticality (e.g. "CRITICAL"), before other traps like Turbopack-by-default or removed runtime-config APIs
 
-### Requirement: Both modules are registered at all four registration points
+### Requirement: Both modules are registered at all machine-readable points
 
-Shipping `nextjs-15.5` and `nextjs-16` SHALL include registering both module ids in `manifests/module-catalog.json` (satisfying the existing install-manifest-integrity "catalog-selectable" requirement), classifying both in `manifests/install-profiles.json`'s `full` profile (satisfying the existing "full profile is complete" requirement), adding both skill paths to `.claude-plugin/plugin.json` `skills[]`, and updating the exact module-count claim (`scripts/ci/catalog.js`-enforced) in every file that carries it.
+Shipping `nextjs-15.5` and `nextjs-16` SHALL include registering both module ids in `manifests/module-catalog.json` (satisfying the existing install-manifest-integrity "catalog-selectable" requirement), classifying both in `manifests/install-profiles.json`'s `full` profile (satisfying the existing "full profile is complete" requirement), and adding both skill paths to `.claude-plugin/plugin.json` `skills[]`. Documentation may report computed inventory counts, but prose count synchronization is not a catalog gate.
 
 #### Scenario: A module ships without full registration
 
-- **WHEN** `modules/nextjs-15.5/module.yaml` exists but `manifests/module-catalog.json` has no selectable entry, or `.claude-plugin/plugin.json` `skills[]` has no `./modules/nextjs-15.5/skills/` entry, or `README.md`'s `27 opt-in stack modules` phrase occurrences still read `27`
-- **THEN** the existing CI guards catch it: `tests/module-catalog.test.js` (catalog-selectable), `scripts/ci/validate-plugin.js` (skill path resolution), and `scripts/ci/catalog.js --check` (exact-count drift — enforced in `README.md` only; the `README.zh-TW.md` counts, the README table cells, and `plugin.json`'s digit-free prose are manual-lockstep edits caught by review, not CI), respectively
+- **WHEN** a shipped module lacks a selectable catalog entry, full-profile classification, or plugin skill path
+- **THEN** the module-catalog and plugin validators report the missing machine-readable registration; documentation count wording remains informational
 
 #### Scenario: Both modules are fully registered
 
-- **WHEN** both modules have `module-catalog.json` entries, `install-profiles.json` classification (in `full.modules` or `full.excludes`), `plugin.json` `skills[]` entries, and the module count reads `29` everywhere it is claimed
+- **WHEN** both modules have `module-catalog.json` entries, `install-profiles.json` classification (in `full.modules` or `full.excludes`), and `plugin.json` `skills[]` entries
 - **THEN** `node scripts/ci/validate-modules.js`, `node scripts/ci/validate-plugin.js`, `node scripts/ci/catalog.js --check`, and `node tests/run-all.js` all pass

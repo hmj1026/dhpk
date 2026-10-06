@@ -1,6 +1,6 @@
 ---
 name: codex-reasoner
-description: "CLI-backed read-only deep-reasoning worker — the codex variant of `deep-reasoner`. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase when the `--reasoner=codex-cli/<model>[:<effort>]` target is selected (default `gpt-6-sol` @ `high`) instead of the in-process opus deep-reasoner. The bare `--reasoner=codex` value is a compatibility shorthand. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Runs `codex exec` in a read-only sandbox (never modifies the working tree), then returns the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture to `architect`. BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected. Not a reviewer and not a Review Gate lane."
+description: "CLI-backed read-only deep-reasoning worker — the codex variant of `deep-reasoner`. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase when the `--reasoner=codex-cli/<model>[:<effort>]` target is selected (default `gpt-6.1-sol` @ `high`) instead of the in-process opus deep-reasoner. The bare `--reasoner=codex` value is a compatibility shorthand. Availability depends on the codex executable; the retired `CODEX=on`/`--codex` review-peer flags never select this role. Runs `codex exec` in a read-only sandbox (never modifies the working tree), then returns the deep-reasoner conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture to `architect`. BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected. Not a reviewer."
 model: "cursor-grok-4.6-high"
 readonly: true
 ---
@@ -26,7 +26,6 @@ report.
 - This file is only the Codex CLI backend of the same reasoning role — not a duplicate role.
 - DDD-layer placement / cross-module architecture → `architect` (do not produce a competing design).
 - Opt-in `$flow-drive --plan` critique or plan sketch → `planner`
-- Brownfield spec extraction into openspec → `spec-miner`
 
 ## Shared reasoning contract
 
@@ -64,7 +63,7 @@ backend or produce a reasoning result from your own analysis when the CLI is una
    PROMPT
    ```
 3. Run the shared wrapper in **`read-only`** sandbox with the resolved model/effort
-   (defaults `gpt-6-sol` / `high`; overridden by the dispatcher's resolved
+   (defaults `gpt-6.1-sol` / `high`; overridden by the dispatcher's resolved
    `codex_deep_reasoner_model` / `codex_deep_reasoner_effort` or `--reasoner` segments):
 
    ```bash
@@ -127,5 +126,5 @@ shared contract.
 
 **No artifact** — like `deep-reasoner`, its deliverable is the inline conclusion contract,
 consumed directly by the orchestrator or handed to a fast-worker as a task spec. The codex
-run is read-only, so there is no working-tree diff and no post-implementation review gate to
-fire. Not part of the consolidated Review Gate reviewer batch.
+run is read-only, so there is no working-tree diff and nothing for a post-edit reviewer to
+review. Not part of the post-edit reviewer batch.

@@ -2,38 +2,34 @@
 
 ## Change verdict: <mode>
 
-- Fixed point: <merge-base or HEAD>
-- Scope: <path/diff/branch/document>
+- Fixed point: <resolved commit or supplied snapshot>
+- Scope: <selected paths, diff, branch, or document>
 - Sources: primary=<complete|degraded>; cli=<not requested|passed|failed>
 
-<1-3 sentences on risks and conclusions>
+<One to three sentences on the evidence and conclusion.>
+
+## Code evidence
+
+Include this section only for `code` mode.
+
+| Axis | Status | Evidence |
+|---|---|---|
+| Standards | MET / GAP / UNAVAILABLE | <standard and file:line evidence, or explicit gap> |
+| Spec | MET / GAP / UNAVAILABLE | <spec and acceptance evidence, or explicit gap> |
 
 ## Findings
 
-### P0
+List normalized findings in severity order, highest first. Use one line per
+finding and the source labels defined in
+[`review-common.md`](../references/shared/review-common.md).
 
-- [file:line] <title>
-  - Impact:
-  - Fix:
-  - Test:
-
-### P1
-
-- ...
-
-### P2
-
-- ...
-
-### Nit
-
-- ...
+- [P0/P1/P2/Nit] <file:line> <evidence-backed issue> -> <text-only recommendation> [source: primary|cli|both]
 
 ## Tests
 
-- unit: <suggestion>
-- integration: <suggestion>
-- e2e: <suggestion>
+Include relevant existing test evidence or text-only test recommendations.
+
+- <test evidence or recommendation>
 
 ## Evidence gaps
 
@@ -43,7 +39,11 @@
 
 READY / BLOCKED / INCONCLUSIVE
 
-- Blocking conditions (if any):
+- Blocking conditions: <condition or none>
+
+Use [`references/shared/review-rubric.md`](../references/shared/review-rubric.md)
+for severity and final verdict meanings.
 
 This template is returned in the response only. Do not save it as a report or
-use it to update a gate or sentinel.
+use it to update a gate or sentinel. Omit the Code evidence section outside
+`code` mode; other modes use their own dimensions.

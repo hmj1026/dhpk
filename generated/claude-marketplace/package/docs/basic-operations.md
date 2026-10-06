@@ -2,16 +2,22 @@
 
 > **Languages**: **English** · [繁體中文](./basic-operations.zh-TW.md)
 
+## Acceptance applicability
+
+Installed structure and selected lifecycle checks are the default acceptance
+boundary. A command or CLI being present does not prove native runtime
+execution; native checks are triggered by an affected integration, activation
+defect, or explicit request. Preserve `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED`
+states in operational records.
+
 This page walks through the operational lifecycle of dhpk: installing it, the day-to-day command flow, the automatic review cycle, and how to migrate an existing project onto it. For exact Codex/Cursor installation, status, and rollback instructions, use the [platform installation SSOT](./platform-installation.md). For the full `userConfig` knob reference, see [`docs/configuration.md`](./configuration.md).
 
 ## Decision ladder
 
-Clean installs expose exactly four default capabilities: `change-verdict`,
-`code-trace`, `flow-drive`, and `flow-guide`. Use `bash scripts/install.sh` for
-Claude, `scripts/hooks/install-codex-skills.sh` for Codex,
-`scripts/hooks/install-cursor-harness.sh` for Cursor, and
-`node scripts/ci/install-agy-plugin.js plan` before AGY installation. Static
-package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default. Current Host routes, support status, and receipt handling
+are documented in the [platform installation SSOT](./platform-installation.md).
+Static package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
 `UNAVAILABLE` until the corresponding consumer is observed.
 
 Use this order for a fresh request: **inspect** the repository and session
@@ -55,7 +61,16 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | `install-codex-skills.sh` | Supported | Stable, canonical Codex project sync path; runtime activation is mutually exclusive with the native `dhpk@dhpk` plugin. |
 | `install-cursor-harness.sh` | Supported | Stable Cursor project-local sync path (`.cursor/`). |
 | Codex plugin marketplace | Experimental | Physical publication package for isolated disposable `CODEX_HOME` experiments; runtime activation is mutually exclusive with project-local sync and the tier stays Experimental until a separate graduation decision. |
+| OpenAI Public Plugin Directory | Submission candidate (`NOT_PUBLISHED`) | Intended daily-use route for Codex and ChatGPT Work after platform approval and publication; local/repository marketplaces are development/testing sources. |
 | Antigravity / AGY sync | Adapter/package | Antigravity project skills use `.agents/skills` mapping while rules/workflows remain under `.agent`; AGY uses its native plugin package and validator. |
+
+The OpenAI Public Plugin is not yet available in the public directory. Until it
+is published, use the existing supported and compatibility procedures below
+only where they currently apply. The public directory becomes the target
+daily-use route after publication; no one-time legacy-installation cutover
+executor has shipped. The current native Codex marketplace route is a separate
+experimental package, and a local repository marketplace does not publish the
+OpenAI listing. See the [submission preparation SSOT](./openai-submission.md).
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
 from skill invocation. Choose one Codex runtime route per host: use the
@@ -79,10 +94,9 @@ Both surfaces read the same `.claude-plugin/marketplace.json` shipped in this re
 
 No clone needed. Fastest path for end users.
 
-The direct GitHub marketplace entry is the raw `dhpk@dhpk` compatibility
-surface. The measured, pre-discovery `minimal` artifact is produced by the
-interactive installer in Path B (or by the profile generator command below)
-until a release publishes that generated package as its marketplace source.
+The GitHub marketplace uses the selected common default collection. Current
+Claude install, update, migration, receipt, and collision procedures are owned
+by the [platform installation SSOT](./platform-installation.md).
 
 ```bash
 # Terminal
@@ -105,7 +119,7 @@ claude plugin install dhpk@dhpk \
   --config hook_profile=standard
 ```
 
-Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.6.0`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docker-setup.md).
+Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.6.0`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated module presets are in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docker-setup.md).
 
 After install, reconfigure any time from inside Claude Code:
 
@@ -126,13 +140,10 @@ claude plugin marketplace add ~/projects/dhpk
 bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
 ```
 
-With no stack modules selected, the script materializes the inventory-owned
-`minimal` profile, registers a local marketplace wrapper, and installs
-`dhpk@dhpk-profile-minimal`; selecting stack modules keeps the explicit raw
-compatibility route. The script walks stack/version selection, docker
-prerequisites, review-agent overrides, and hook profile, then runs
-`claude plugin install` for you. Append `--dry-run` to print the resolved
-commands without executing them.
+With no stack modules selected, the installer uses the selected common default
+collection. The [platform installation SSOT](./platform-installation.md) owns
+the current Host install/update/uninstall commands and receipt behavior; this
+guide keeps the local-clone route as a development entry point.
 
 Validate the local checkout with the source gates:
 
@@ -257,22 +268,19 @@ Use the skill groups below as a reusable decision ladder:
 | Routing/decision | `flow-guide`, `flow-drive` | Discover, advise, and execute only confirmed work. | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
 | Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore\|diagnose\|history` |
 | Read-only verdict | `change-verdict` (`code\|pr\|security\|tests\|docs\|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
-| Delivery / implementation prep | `tdd-workflow`, `dhpk-module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `tdd-workflow` + scoped verification |
-| OpenSpec session control | `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`, `dhpk-opsx-apply-goal` | Resume / handoff an OpenSpec edit sequence. | `dhpk-opsx-apply-goal <change-id>` for long-run, `dhpk-opsx-load-context` for resume |
-| Harness and platform hygiene | `harness-govern` (`health\|budget\|fill\|revise\|sync`) | Keep plugin/sync state clean and repeatable across environments. | `$harness-govern health --dry-run` (read-first) |
-| Skill governance | `skill-scope`, `skill-forge` | Author, audit, and compare skill quality or usage | `skill-scope` for quick checks, `skill-forge` when changing structure |
-| Git / release prep | `git-smart-commit`, `release-creator`, `dhpk-deploy-list`, `dhpk-project-setup` | Group commits, prepare release and deploy artifacts, set up repo policy. | `dhpk-project-setup` → `git-smart-commit` / `release-creator` |
+| Delivery / implementation prep | `tdd-workflow`, `module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `tdd-workflow` + scoped verification |
+| OpenSpec session handoff | `opsx-apply-resume`, `dhpk-opsx-load-context`, `dhpk-opsx-post-observation` | Resume and save evidence for an existing change. | `opsx-apply-resume <change-id>` |
+| Git / release prep | `git-smart-commit`, `release-creator`, `dhpk-deploy-list` | Group commits and prepare release or deploy artifacts. | Explicitly invoke the selected owner. |
 
 ### Parameter quick reference
 
 | Skill | Common invocation pattern |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `[--plan[=<model>[:<effort>]]]` `[--plan-mode=auto\|bounded\|discovery]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
 | `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
 Use the lane first, then reduce flags: fewer inputs -> fewer routing misses and cleaner outputs.
@@ -331,6 +339,7 @@ Use these invocation-only modifiers when they change the decision for this run:
 | Modifier | Effect and boundary |
 |---|---|
 | `--plan[=<model>[:<effort>]]` | Adds a planner critique to confirmed implementation work. |
+| `--plan-mode=auto\|bounded\|discovery` | Selects the scope for an enabled `--plan` consult. Omitted mode defaults to `auto`; it does not change planner work mode or model/effort. |
 | `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; it does not persist configuration. |
 | `--cross-provider` | One-shot opt-in for configured external candidates when `--worker=auto`; it does not persist configuration or broaden an explicit worker target. |
 | `--reasoner=<provider>/<model>[:<effort>]` | Requests a bounded reasoning pass for confirmed implementation work. |
@@ -347,29 +356,46 @@ select a peer, worker, reasoner, or hidden backend. Only a missing selected
 executable may use the configured Claude fallback; authentication, task,
 execution, and verification failures remain blocked.
 
+For example, `$flow-drive confirmed-change-id --plan --plan-mode=bounded`
+requests a planner consult over named evidence. `auto` selects bounded only
+when the consult question and intended outcome are clear, the named sources
+including required protocol reads are sufficient within the bounded limit, and
+no named Material Risk Signal applies; otherwise it selects discovery. The
+bounded limit is four direct reads in total and zero discovery children. A
+missing necessary fact is reported as a blocker without searching, spawning, or
+upgrading scope. An explicit bounded choice discloses any overridden signal and
+does not waive authorization, write prerequisites, or specialist decisions.
+Discovery retains twelve reads and two read-only children; a manually requested
+warm review retains four new reads and the selected scope's child limit. See the
+[execution policy](../rules/execution-policy.md#planner-consult-scope) for the
+named signals and reporting contract.
+
 ### OpenSpec lifecycle boundary
 
-For unclear or multi-session work, record a wayfinder checkpoint, then use
-`/opsx:new` or `/opsx:ff` to author `openspec/changes/<change-id>/` artifacts.
-After the Planning Review Gate, apply with the external `/opsx:apply <change>`
-entry or the confirmed `$flow-drive <change-id>` entry. A plan, passing validator, or
-all-green test run is not archival evidence. Completion requires task checkboxes,
-applicable verification gates, review obligations, and human-only actions to be
-resolved; archive, issue closure, and release publication remain separate steps.
+When acceptance, cross-session handoff, or auditability needs an OpenSpec record
+and adequate artifacts do not already exist, record a bounded wayfinder
+checkpoint, then use `/opsx:new` or `/opsx:ff` to author
+`openspec/changes/<change-id>/` artifacts. Reuse sufficient plans and approved
+specifications without creating a duplicate. After the applicable review, apply
+with the external `/opsx:apply <change>` entry or the confirmed
+`$flow-drive <change-id>` entry. A plan, passing validator, or all-green test run
+is not archival evidence. Completion requires task checkboxes, applicable
+verification gates, review obligations, and human-only actions to be resolved;
+archive, issue closure, and release publication remain separate steps.
 
 Before implementation, record `Decision: CLEAR`, `REASONER_REQUIRED`,
 `HUMAN_REQUIRED`, or `BLOCKED`. A domain-boundary ownership question consults
 `architect` first; if uncertainty remains, record `REASONER_REQUIRED` and obtain
-a read-only reasoner result before any writer. Two or more unchecked OpenSpec
-tasks require a planner before the first write wave. Its result states dependency
-order, each task's exact owner and write scope, and the next checkpoint. For one
-clear task, record `planner=skipped`. The external `/opsx:apply` workflow is
-unchanged.
+a read-only reasoner result before any writer. Reuse an adequate plan regardless
+of its task count, and ask only for a missing outcome that could change the work.
+Consult a planner when unresolved decisions, dependencies, ownership, sequencing,
+or material risk leave planning necessary; honor an explicit supported consult
+request as well. Task count alone does not require a planner. The external
+`/opsx:apply` workflow is unchanged.
 
-Each implementation wave ends with one consolidated review and a bounded fix
-loop: `BLOCK`, `CRITICAL`, and `HIGH` findings require a dedicated confirm-only
-reviewer; LOW/WARNING-only findings may close with worker verification plus a
-diff-scope recheck. Delivery order is: verify all tasks and gates → archive/sync
+After each implementation wave, dispatching the applicable reviewers in one
+parallel batch is recommended; fix CRITICAL findings before reporting done.
+Delivery order is: verify all tasks and gates → archive/sync
 OpenSpec → add a valid changelog fragment → open a Draft PR targeting `develop`
 → monitor that PR's actual CI with `gh run watch` to a completed conclusion → human
 merge gate.
@@ -377,11 +403,11 @@ Queued or partial CI is not completion.
 
 ### Review, verify, and handoff
 
-After an Edit/Write/MultiEdit, the orchestrator derives the applicable Review
-Gate obligations from the completed wave. It does not silently run formatting,
-lint, lockfile, or Stop advisory scripts. `/dhpk:review-pending` dispatches the
-reviewer for the selected paths; the legacy `sentinel_commit_gate` setting is
-retained for compatibility and does not replace Review Gate verdict tracking.
+After an Edit/Write/MultiEdit, dispatching the reviewers recommended by the
+trigger table is advised; there is no enforced review gate. dhpk does not
+silently run formatting, lint, lockfile, or Stop advisory scripts.
+`/dhpk:review-pending` dispatches the reviewer for the selected paths; the
+legacy `sentinel_commit_gate` setting is retained for compatibility only.
 
 ```text
 /dhpk:review-pending
@@ -398,38 +424,23 @@ runtime proof; see [`docs/harness-workflow.md`](./harness-workflow.md).
 
 <a id="6-unattended-openspec-session-large-uncertainty-on-ramp"></a>
 
-### Explicit long-running OpenSpec session
+### OpenSpec session retirement and handoff
 
-Use this only when an existing change should generate a bounded paste-ready
-`/goal` session:
-
-```text
-/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
-```
-
-`<change-id>` is the directory name under `openspec/changes/`, not free text.
-`--turns N`, `--max-duration`, `--min-coverage`, `--smoke`,
-`--no-smoke`, and `--dry-run` constrain the generated session. Turn/time limits
-write `.resume-note.md`; human-only work is `[blocked: <reason>]`; hard-rule
-conflicts write `.hard-rule-escalation.md` with file:line evidence. The generated
-goal keeps the selector-resolved worker, applicable specialist reviewers, and
-completion gates; it never removes required gates to fit the roughly 4,000
-UTF-8-byte paste ceiling.
+The unattended goal generator is retired. External `/opsx:apply` remains unchanged.
+`opsx-apply-resume` retains save/resume for existing changes, and its context
+loader reads existing `.hard-rule-escalation.md` and `.resume-note.md` artifacts.
+This does not provide the former goal loop.
 
 ### Standalone assistance workflows
 
 ```text
-/dhpk:spec-mine user-authentication
 /dhpk:flow-guide route write E2E tests for the checkout flow
-/dhpk:harness-audit
-/dhpk:harness-govern
-/dhpk:harness-govern --fix
 ```
 
-`spec-mine` writes brownfield behavioral specs to `openspec/specs/`. E2E work is
+E2E work is
 owned by `e2e-runner` and may write only specs, helpers, fixtures, and artifacts;
-application failures return a worker-ready fix spec. Harness audit is read-only;
-govern is read-only unless `--fix` is supplied. Structural changes also route
+application failures return a worker-ready fix spec. Dedicated harness audit
+and governance workflows are retired. Structural changes also route
 `doc-updater` to refresh codemaps and user-facing docs.
 
 ### Implementation dispatch
@@ -504,12 +515,12 @@ malformed, or ambiguous legacy paths remain reported conflicts. Use
 `--uninstall` to remove unchanged receipt-owned entries without deleting
 unrelated project assets.
 The Codex tree is an explicitly curated subset of the canonical Claude
-packages, not a second complete inventory. `codex/agents/` ships 16 direct
-roles: four hand-maintained generic roles and 12 generated from canonical
-Claude agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
+packages, not a second complete inventory. `codex/agents/` ships 15 direct
+roles: four hand-maintained generic roles and 11 generated from canonical
+Claude agents via `scripts/gen-codex-agents.js`. See `codex/guidance.md` and
 `codex/README.md` for the dual-harness model.
 
-Generated roles may depend on shared prompt-defense, trap-sheet, reviewer-contract,
+Generated roles may depend on shared prompt-defense, trap-sheet,
 artifact-contract, or execution-policy content. Those support files are mapped in
 the `supporting_assets` section of `manifests/distribution-inventory.json`, copied
 under `.codex/dhpk/`, and tracked in the same schema-v3 receipt. The runtime
@@ -559,7 +570,7 @@ the manifest level (both `.codex-plugin/plugin.json` and
 `plugins/dhpk/.codex-plugin/plugin.json` now resolve to the same tracked
 physical tree). This proof runs as part of the release CONSUMER gate
 whenever a `codex` CLI is available; see
-[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package-github-issue-88)
+[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package)
 for the full gate model.
 
 A passing install proof is necessary evidence, not sufficient by itself:
@@ -584,8 +595,8 @@ See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 ## Migrating an existing project
 
 If the project already has its own `.claude/` harness, the following is a
-legacy migration plan for hook compatibility. New review work uses the Review
-Gate trigger table and durable obligations described above.
+legacy migration plan for hook compatibility. New review work uses the advisory
+reviewer trigger table described above.
 
 1. **Phase A — baseline**: snapshot pre-install hook outputs and test results.
 2. **Phase B — install (parallel)**: install the plugin with `userConfig.review_agents` pointing at the project's existing agents. Both sets of hooks fire side-by-side.
@@ -608,3 +619,39 @@ claude --plugin-dir ~/projects/dhpk
 Edits to plugin files take effect after `/reload-plugins` (hooks, MCP, LSP) or session restart (monitors, skill listings).
 
 The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update -y dhpk@dhpk` (or the equivalent command with `--scope project` for a project-scoped install).
+
+### npm script shortcuts
+
+The root `package.json` is private and has zero dependencies. It offers two kinds of commands.
+
+**For package installers (`bin`)** — available through `npx` or after a global install:
+
+| Command | Purpose |
+|---------|---------|
+| `dhpk-install <claude\|cursor\|codex-sync\|agy-plugin> <plan\|status\|verify>` | Plan, check, or verify an install surface |
+| `dhpk harness ...` | Harness facade |
+| `dhpk distribution <surface> <generate\|preview\|validate\|verify>` | Distribution package operations |
+
+**For developers (`npm run` inside a clone)**:
+
+| Group | Command | Runs |
+|-------|---------|------|
+| Setup | `npm run setup` | Interactive installer (`scripts/install.sh`) |
+| | `npm run setup:dry-run` | Non-interactive installer dry run |
+| | `npm run setup:status` | `dhpk-install claude status --scope user` |
+| | `npm run dhpk-install -- <surface> <action>` | `scripts/dhpk-install.js` |
+| Test | `npm test` | Full suite (`tests/run-all.js`) |
+| | `npm run test:hooks` | Hook tests |
+| | `npm run test:one -- tests/<name>.test.js` | One test file |
+| Validate | `npm run validate` | Every CI validator (`validate:*`) |
+| | `npm run check:generated` | Generated manifest, marketplace, skill-resource, and package drift checks |
+| | `npm run check:portability` | Portability check |
+| | `npm run catalog:check` | `catalog.js --check all` |
+| | `npm run ci` | `validate` + `check:generated` + `catalog:check` + `test` |
+| Generate (writes files) | `npm run gen:all` | `catalog:write`, then `gen:manifest`, `gen:marketplace`, `gen:codex-agents` |
+
+Notes:
+- `catalog:write` must run before the other generators; `gen:all` keeps that order.
+- No npm lifecycle script (`install`, `postinstall`, `prepare`, ...) is defined, so installing the package never runs developer scripts.
+- Release scripts and `gen-distribution-inventory.js --write` are intentionally not exposed; run them by hand.
+- The `package.json` version is part of the release version lockstep.

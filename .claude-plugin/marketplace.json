@@ -10,7 +10,7 @@
     {
       "name": "dhpk",
       "source": "./generated/claude-marketplace/package",
-      "description": "Reusable Claude Code harness with role-based agents, routed commands, Review Gate dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection."
+      "description": "Reusable Claude Code harness with role-based agents, routed commands, advisory reviewer dispatch, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection."
     }
   ]
 }

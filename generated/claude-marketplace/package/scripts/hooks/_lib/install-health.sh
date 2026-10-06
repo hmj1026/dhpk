@@ -325,10 +325,10 @@ dhpk_version_message() {
         # A policy exists. Only an already-blessed version may be recommended.
         if printf '%s\n' "$ranges" | dhpk__version_covered "$installed"; then
             if printf '%s\n' "$ranges" | dhpk__version_covered "$available"; then
-                printf 'dhpk %s installed; %s available and covered by this project'"'"'s verified ranges (marketplace last fetched %s). Run `%s` — a hook cannot run it, and it only takes effect in a fresh session. For the full configuration audit, use `$harness-govern health`.' \
+                printf 'dhpk %s installed; %s available and covered by this project'"'"'s verified ranges (marketplace last fetched %s). Run `%s` — a hook cannot run it, and it only takes effect in a fresh session. To inspect effective setup, use `$harness-setup --show`.' \
                     "$installed" "$available" "$phrase" "$update_cmd"
             else
-                printf 'dhpk %s installed and %s is available (marketplace last fetched %s), but .claude/dhpk-versions.json does not list %s among this project'"'"'s verified ranges — the upgrade is not recommended until the pin file blesses it. For the full configuration audit, use `$harness-govern health`.' \
+                printf 'dhpk %s installed and %s is available (marketplace last fetched %s), but .claude/dhpk-versions.json does not list %s among this project'"'"'s verified ranges — the upgrade is not recommended until the pin file blesses it. To inspect effective setup, use `$harness-setup --show`.' \
                     "$installed" "$available" "$phrase" "$available"
             fi
         fi
@@ -337,7 +337,7 @@ dhpk_version_message() {
         return 0
     fi
 
-    printf 'dhpk %s installed; %s available (marketplace last fetched %s). Run `%s` — a hook cannot run it, and it only takes effect in a fresh session. For the full configuration audit, use `$harness-govern health`.' \
+    printf 'dhpk %s installed; %s available (marketplace last fetched %s). Run `%s` — a hook cannot run it, and it only takes effect in a fresh session. To inspect effective setup, use `$harness-setup --show`.' \
         "$installed" "$available" "$phrase" "$update_cmd"
 }
 
@@ -443,5 +443,5 @@ dhpk_install_health_report() {
         update_cmd="$(dhpk__version_update_command "$scope")"
         printf -- '- version: `%s`. A hook cannot run it, and it only takes effect in a fresh session.\n' "$update_cmd"
     fi
-    printf -- '- For the deep configuration audit, use `$harness-govern health` rather than re-deriving it here.\n'
+    printf -- '- To inspect effective setup, use `$harness-setup --show`.\n'
 }

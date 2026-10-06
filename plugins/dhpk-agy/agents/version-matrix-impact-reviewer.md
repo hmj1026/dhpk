@@ -1,7 +1,7 @@
 ---
 name: version-matrix-impact-reviewer
 description: 'Specialist for libraries shipping a CI matrix across multiple dependency-version cells (e.g. PHP × Laravel/Symfony, Yii 1×2). Use when editing version-specific source dirs (src/Laravel/, src/Symfony/), composer.json require constraints, or .github/workflows/ matrices, or before tagging a release. Identifies which matrix cells a diff could break and recommends the minimum local testsuite subset. Does NOT duplicate code-reviewer or database-reviewer; pairs with the polyfill-version-matrix-audit skill.'
-tools: ["read_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
+tools: ["view_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
 model: pro
 ---
 
@@ -172,4 +172,4 @@ Don't produce a per-cell table when one row would do.
 
 ## Closing — Artifact Output
 
-Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). No consolidated Review Gate obligation by default; invoke this role as the orchestrator's version-matrix back-stop. Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.
+Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). Not part of the recommended post-edit reviewer batch by default; invoke this role as the orchestrator's version-matrix back-stop. Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.

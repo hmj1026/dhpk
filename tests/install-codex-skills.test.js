@@ -20,9 +20,82 @@ const {
   copyDistributionInventory,
 } = fixtures;
 
+const COMMON_SKILL_IDS = [
+  'flow-guide',
+  'code-trace',
+  'change-verdict',
+  'flow-drive',
+  'git-smart-commit',
+  'release-creator',
+  'tdd',
+  'create-pr',
+  'git-worktree',
+  'proposal-analyze',
+  'update-docs',
+  'precommit',
+  'dep-audit',
+  'repo-verify',
+  'ui-ux-verify',
+];
+
 test('bash -n syntax check passes', () => {
   const res = spawnSync('bash', ['-n', HOOK], { encoding: 'utf8' });
   assert.strictEqual(res.status, 0, `syntax error: ${res.stderr}`);
+});
+
+test('fresh Codex install selects the common collection and keeps runtime support', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(
+      path.join(scratch, '.codex', '.dhpk-installed.json'),
+      'utf8',
+    ));
+    assert.strictEqual(receipt.profileId, 'common');
+    assert.deepStrictEqual([...receipt.selectedStableIds].sort(), [...COMMON_SKILL_IDS].sort());
+    assert.deepStrictEqual([...receipt.emittedStableIds].sort(), [...COMMON_SKILL_IDS].sort());
+    assert.deepStrictEqual(receipt.runtimeSupportStableIds, [
+      'cli-dispatch-context',
+      'cli-transport',
+    ]);
+    for (const name of ['dhpk-cli-dispatch-context', 'dhpk-cli-transport']) {
+      assert.ok(receipt.managed_entries.skills[name], `${name} must remain installed as runtime support`);
+    }
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('Codex installer and harness-setup adapter reject retired profile flags before writes', () => {
+  for (const args of [['--profile', 'minimal'], ['--profile=compat-v1']]) {
+    const scratch = projectRoot();
+    try {
+      const result = runInstaller(scratch, args);
+      assert.strictEqual(result.status, 64, `${result.stdout}\n${result.stderr}`);
+      assert.match(result.stderr, /profile.*(?:retired|removed|supported)/i);
+      assert.strictEqual(fs.existsSync(path.join(scratch, '.codex')), false,
+        'a retired profile flag must be rejected before creating the project projection');
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+
+  const scratch = projectRoot();
+  const adapter = path.join(ROOT, 'skills', 'harness-setup', 'scripts', 'install-codex-project.sh');
+  try {
+    const result = spawnSync('bash', [adapter, '--profile=full'], {
+      cwd: scratch,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    assert.strictEqual(result.status, 64, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stderr, /profile.*(?:retired|removed|supported)/i);
+    assert.strictEqual(fs.existsSync(path.join(scratch, '.codex')), false,
+      'the portable adapter must reject retired profile flags before project writes');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
 });
 
 test('shared surface diagnostics do not hard-code Codex wording', () => {
@@ -99,15 +172,17 @@ test('enabled provider reports stale receipt and owned broken links before migra
     )).version;
     copyDistributionInventory(fakePlugin);
 
-    const installed = runInstaller(scratch, ['--force'], fakePlugin);
+    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const retired = 'dhpk-yii1-security-audit';
+    const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
+    assert.ok(retiredEntry, 'fixture needs its historical security-audit skill');
+
+    const installed = runInstaller(scratch, ['--force', '--skill', retiredEntry.id], fakePlugin);
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
 
     // Keep this provider-gating fixture on a still-prefixed historical skill;
     // the renamed tdd stable ID is covered by the dedicated migration cases.
-    const retired = 'dhpk-yii1-security-audit';
-    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
-    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
-    const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
     const replacement = inventory.skills.find((entry) => entry.id !== retiredEntry.id);
     assert.ok(retiredEntry && replacement, 'fixture needs a retired skill and active replacement');
     inventory.skills = inventory.skills.filter((entry) => entry.name !== retired);

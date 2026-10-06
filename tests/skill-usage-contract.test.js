@@ -9,6 +9,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { resolveSkillIdentity } = require('../scripts/lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..');
 const USAGE_MODULE = path.join(ROOT, 'scripts', 'lib', 'skill-usage.js');
@@ -337,7 +338,7 @@ test('generated usage artifacts bind to one catalog revision and derive Argument
 
   const flowDrive = inventory.skills.find((skill) => skill.id === 'flow-drive');
   assert.ok(flowDrive, 'the source inventory must contain flow-drive');
-  const expectedArgumentHint = '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]';
+  const expectedArgumentHint = '<confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]';
   assert.strictEqual(flowDrive.usage.syntax, '$flow-drive ' + expectedArgumentHint);
   const frontmatter = fs.readFileSync(path.join(ROOT, 'skills/flow-drive/SKILL.md'), 'utf8');
   assert.ok(
@@ -360,7 +361,7 @@ test('generator check detects manual edits to generated usage documentation', ()
     fs.mkdirSync(path.join(fixture, 'manifests'), { recursive: true });
     fs.mkdirSync(path.join(fixture, 'skills/flow-guide/references'), { recursive: true });
     fs.mkdirSync(path.join(fixture, 'docs'), { recursive: true });
-    for (const relative of ['manifests/distribution-inventory.json', 'skills/flow-guide/references/codex-usage-catalog.json', 'docs/codex-skill-usage.md', 'docs/codex-skill-usage.zh-TW.md']) {
+    for (const relative of ['manifests/distribution-inventory.json', 'manifests/marketplace-selection.json', 'skills/flow-guide/references/codex-usage-catalog.json', 'docs/codex-skill-usage.md', 'docs/codex-skill-usage.zh-TW.md']) {
       const destination = path.join(fixture, relative);
       fs.copyFileSync(path.join(ROOT, relative), destination);
     }
@@ -382,6 +383,74 @@ test('Codex metadata keeps the narrow OpenAI interface without custom argument s
     assert.doesNotMatch(metadata, /argument_schema|input_schema|parameters:|arguments:/i);
     assert.match(metadata, new RegExp('default_prompt: "Use \\$' + name));
   }
+});
+
+test('renamed shipped skill preserves stable identity and routes its old public name', () => {
+  const inventory = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'manifests', 'distribution-inventory.json'),
+    'utf8',
+  ));
+  const skill = inventory.skills.find((entry) => entry.id === 'software-architecture');
+  assert.ok(skill, 'the shipped inventory must retain the software-architecture stable ID');
+
+  const oldNameResolution = resolveSkillIdentity({ inventory, identifier: 'dhpk-module-design' });
+  const legacyNameResolution = resolveSkillIdentity({ inventory, identifier: 'software-architecture' });
+  const runtimeIndex = usageApi().compileSkillUsageCatalog({ inventory }).runtimeIndex;
+  const matchingTargets = Object.values(runtimeIndex.targets)
+    .filter((target) => target.id === 'software-architecture')
+    .map(({ id, publicName }) => ({ id, publicName }));
+
+  assert.deepStrictEqual({
+    canonical: {
+      id: skill.id,
+      capabilityId: skill.capability_id,
+      name: skill.name,
+      path: skill.path,
+      surfaces: skill.surfaces,
+      retainsLegacyName: skill.legacy_names.includes('software-architecture'),
+      oldPublicNameIsNotLegacy: !skill.legacy_names.includes('dhpk-module-design'),
+    },
+    oldNameResolution: {
+      state: oldNameResolution.state,
+      stableId: oldNameResolution.stableId,
+      publicName: oldNameResolution.publicName,
+      oldName: oldNameResolution.oldName,
+    },
+    legacyNameResolution: {
+      state: legacyNameResolution.state,
+      stableId: legacyNameResolution.stableId,
+      publicName: legacyNameResolution.publicName,
+    },
+    runtime: {
+      targetsForStableId: matchingTargets,
+      oldNameAlias: runtimeIndex.aliases['dhpk-module-design'] || null,
+    },
+  }, {
+    canonical: {
+      id: 'software-architecture',
+      capabilityId: 'dhpk.skill.software-architecture',
+      name: 'module-design',
+      path: 'skills/module-design',
+      surfaces: ['claude-core', 'cursor-sync'],
+      retainsLegacyName: true,
+      oldPublicNameIsNotLegacy: true,
+    },
+    oldNameResolution: {
+      state: 'renamed',
+      stableId: 'software-architecture',
+      publicName: 'module-design',
+      oldName: 'dhpk-module-design',
+    },
+    legacyNameResolution: {
+      state: 'active',
+      stableId: 'software-architecture',
+      publicName: 'module-design',
+    },
+    runtime: {
+      targetsForStableId: [{ id: 'software-architecture', publicName: 'module-design' }],
+      oldNameAlias: { target: 'module-design', disposition: 'renamed' },
+    },
+  });
 });
 
 run('skill-usage-contract');

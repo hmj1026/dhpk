@@ -1,5 +1,16 @@
 # skill-discovery-context-budget Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
 ## Purpose
 
 Define the discovery-visible metadata budget, progressive-loading boundary, family-router compatibility contract, and deterministic publication parity for dhpk skills.
@@ -8,47 +19,57 @@ Define the discovery-visible metadata budget, progressive-loading boundary, fami
 
 ### Requirement: Discovery-visible descriptions stay within lifecycle and surface budgets
 
-Every skill published on a discovery-visible surface SHALL have a canonical frontmatter description whose whitespace-delimited word count and conservative token count are within the configured budget for its lifecycle, surface, and selected profile artifact. Discovery visibility, lifecycle, publication surface, normalized profile ID, selected stable-ID set, artifact/selection identity, estimator/version, and applicable limits MUST be explicit accounting inputs. A missing visibility or budget configuration SHALL return a structured configuration failure and MUST NOT be evaluated as a zero-valued content budget. Strict validation SHALL fail on either overflow and SHALL pass only when the complete scoped report has zero violations.
+Every skill published on a discovery-visible surface SHALL have a canonical
+frontmatter description whose whitespace-delimited word count and conservative
+token count are within the configured budget for its lifecycle, surface, and
+selection scope. Discovery visibility, lifecycle, publication surface, scope
+identity (`common`, an enabled module preset, or an explicit standalone
+selection), selected stable-ID set, artifact identity, estimator/version, and
+applicable limits MUST be explicit accounting inputs. A missing visibility or
+budget configuration SHALL return a structured configuration failure and MUST
+NOT be evaluated as a zero-valued content budget. Strict validation SHALL fail
+on either overflow and SHALL pass only when the complete requested scope has
+zero violations.
 
 #### Scenario: Explicit visibility is measured
 
-- **WHEN** a skill entry supplies declared discovery visibility, lifecycle, surface/profile scope, selected artifact identity, estimator, and applicable limits
+- **WHEN** a skill entry supplies declared discovery visibility, lifecycle, surface and selection scope, selected artifact identity, estimator, and applicable limits
 - **THEN** the report measures and labels the entry in its declared scope
 
 #### Scenario: Current report is internally consistent
 
-- **WHEN** strict context-budget validation scans the current inventory and declared surfaces for `minimal`, `full`, or `compat-v1`
-- **THEN** the report contains measured discovery-visible and optional counts for each surface/profile and zero violations, or exits non-zero with every violation listed
+- **WHEN** strict context-budget validation scans the current inventory for the declared common catalog and any selected module or standalone scopes
+- **THEN** the report contains measured discovery-visible and optional counts per scope and zero violations, or exits non-zero with every violation listed
 
 #### Scenario: Current baseline is clean
 
-- **WHEN** strict context-budget validation scans the current inventory and declared surfaces with no violations
+- **WHEN** strict context-budget validation scans the selected scopes with no violations
 - **THEN** the complete report passes and records the measured baseline by scope
 
 #### Scenario: Visibility is not known
 
-- **WHEN** an entry has no explicit host visibility or its surface/profile budget is missing
+- **WHEN** an entry has no explicit host visibility or its surface/scope budget is missing
 - **THEN** validation returns a structured configuration failure rather than treating the limit as zero or claiming the entry is discovery-visible
 
 #### Scenario: A scoped description exceeds a limit
 
 - **WHEN** a discovery-visible description exceeds either configured limit
-- **THEN** validation reports the stable ID, lifecycle, surface/profile, selected artifact, estimator, measured counts, and limits and exits non-zero
+- **THEN** validation reports the stable ID, lifecycle, surface, selection scope, selected artifact, estimator, measured counts, and limits and exits non-zero
 
 #### Scenario: A surface exceeds a limit
 
 - **WHEN** any declared discovery-visible surface exceeds its applicable word or token limit
 - **THEN** validation reports the affected surface and limit and exits non-zero
 
-#### Scenario: Profile scope is omitted
+#### Scenario: Selection scope is omitted
 
-- **WHEN** a Claude budget report mixes unscoped, `minimal`, and `compat-v1` entries without recording the selected artifact identity
-- **THEN** validation fails with a scope/provenance diagnostic rather than presenting one combined total as a bundle result
+- **WHEN** a report combines common catalog, module preset, or standalone entries without recording each selected artifact identity
+- **THEN** validation fails with a scope/provenance diagnostic rather than presenting one combined total as a scoped result
 
 #### Scenario: Metadata is within budget
 
 - **WHEN** all explicitly scoped discovery-visible descriptions meet their configured budgets
-- **THEN** the budget result passes independently of projection parity and reports totals by category, surface, and selected profile artifact
+- **THEN** the budget result passes independently of projection parity and reports totals by category, surface, and selected scope
 
 ### Requirement: Initial descriptions are progressive routing metadata
 
@@ -170,29 +191,31 @@ closed when the plan exceeds that ceiling.
 - **WHEN** an executed plan repeats sessions but covers only a single fixture, or covers the matrix without repeating sessions
 - **THEN** the receipt stays `directional-pilot` and the formal gate remains open
 
-### Requirement: Default-discoverable surface stays within an aggregate ceiling
+### Requirement: Aggregate discovery comparisons remain optional research
 
-In addition to the existing per-lifecycle/per-surface description budgets, the catalog SHALL compute and enforce a whole-catalog ceiling over the default-discoverable set (the `implicit-eligible` entries published on the `claude-core` surface for the `minimal`/default Claude install artifact): no more than 15 entries, and an aggregate description-token total reduced by at least 70% from the recorded raw-compatibility pre-curation baseline. The baseline SHALL be measured and recorded before any curation edit lands, using the same estimator and scope already defined for per-entry budgets. The measurement SHALL be reproducible: running it twice against unchanged canonical sources and inventory SHALL produce an identical entry count and token total.
+The canonical `common` catalog remains the default discovery selection, with
+membership owned by `manifests/marketplace-selection.json`. An optional
+aggregate research report MAY calculate entry and description-token totals for
+a named catalog, module, or standalone scope, and SHALL bind the result to that
+scope and estimator. The historical raw-compatibility comparison's 70%
+reduction target is retained as research context only; it MUST NOT become a
+routine validation, CI, or release gate. Normal acceptance remains governed by
+the scoped per-description budgets and current selection contracts above.
 
-#### Scenario: Baseline is recorded before curation
+#### Scenario: An aggregate comparison is requested
 
-- **WHEN** the aggregate-budget script runs against the pre-curation distribution inventory
-- **THEN** it records the current default-discoverable entry count and aggregate token total as the frozen baseline before any lifecycle or invocation-class edit is made
+- **WHEN** a researcher requests an aggregate discovery comparison
+- **THEN** the report identifies the selected scope and estimator and reports its entry count and token total without combining unrelated scopes
 
-#### Scenario: Curated default surface exceeds the entry ceiling
+#### Scenario: Routine validation runs
 
-- **WHEN** the `implicit-eligible` + `claude-core` + default-profile entry count exceeds 15
-- **THEN** validation reports the entry count, the excess entries, and exits non-zero
+- **WHEN** the standard context-budget validation runs without an aggregate research request
+- **THEN** it checks the scoped per-description budgets and current selection contracts without requiring the historical 70% comparison
 
-#### Scenario: Curated default surface fails the token-reduction target
+#### Scenario: Standalone scope is measured
 
-- **WHEN** the aggregate description-token total for the curated default set is not at least 70% below the recorded baseline
-- **THEN** validation reports the baseline, current total, and computed reduction percentage, and exits non-zero
-
-#### Scenario: Measurement is reproducible
-
-- **WHEN** the aggregate-budget script runs twice against unchanged canonical sources and inventory
-- **THEN** both runs report the identical entry count and token total
+- **WHEN** an aggregate research report measures an explicit standalone selection
+- **THEN** it reports that selection separately from the default common catalog
 
 ### Requirement: Family skill version resolution is explicit-first with self-contained detection
 
@@ -272,12 +295,20 @@ The consolidated PHPUnit family SHALL follow the authoritative annotation lifecy
 
 ### Requirement: Capability-family discovery exposes interfaces rather than modes
 
-Discovery-visible metadata SHALL expose one concise description for each capability family and SHALL keep mode procedures out of the initial context. For this inventory revision the canonical inventory SHALL contain exactly 65 skills, exactly 9 live `portable-family` entries, and exactly 56 live entries whose public name retains the `dhpk-` prefix. The selected profile counts SHALL be `minimal=4`, `full=55`, and `compat-v1=62` before any explicit overlay.
+Discovery-visible metadata SHALL expose one concise description for each
+selected public capability family and SHALL keep mode procedures out of the
+initial context. The active distribution inventory and accepted selection
+SHALL determine canonical skill, family, naming-style, and profile counts.
+Reports SHALL show the measured counts and included or excluded stable IDs;
+directory presence and historical inventory/profile totals SHALL NOT act as
+shipping quotas.
 
 #### Scenario: Family surface meets the structural baseline
 
-- **WHEN** inventory and profile validation run after the consolidation
-- **THEN** the reported canonical, naming-style, and profile counts match `65`, `9`, `56`, `4`, `55`, and `62`, and identify any unexpected entry by stable ID
+- **WHEN** inventory and profile validation run after catalog selection
+- **THEN** the report records actual canonical, naming-style, and per-profile
+  counts and identifies each selected or excluded stable ID without comparing
+  them to superseded fixed totals
 
 #### Scenario: Mode procedures leak into discovery metadata
 
@@ -302,6 +333,74 @@ The inventory SHALL be the single source of truth for a generated usage catalog 
 
 - **WHEN** an option is undocumented, an example uses an unsupported action, invocation class conflicts with policy, or effect authority exceeds its parent
 - **THEN** validation fails closed with the field-level diagnostic and produces no accepted help catalog
+
+### Requirement: Budget baselines and context measurements remain scope-specific
+
+The strict discovery-budget baseline SHALL retain its eight declared scope
+rows and evaluate each row independently with its configured identity,
+estimator, units, and limits. Every baseline row MUST pass for the baseline to
+pass; `SKIPPED`, `NOT_RUN`, `BLOCKED`, `UNAVAILABLE`, or missing measurement
+MUST remain non-pass. A scope exception recorded by a separate acceptance
+process SHALL NOT change the evaluator's scope set or convert a non-pass row
+into a baseline pass. Reports SHALL distinguish static description/catalog
+estimates, the complete Host-rendered discovery list, the plugin's contribution
+to that list, and selected-task context (including roles, task packets,
+conditional resources, and observed runtime context). A measurement in one
+scope SHALL NOT stand in for another.
+
+#### Scenario: A baseline scope is skipped
+
+- **WHEN** any of the eight declared baseline rows is `SKIPPED` or lacks its
+  required measurement
+- **THEN** the overall strict baseline remains non-pass and identifies that
+  row without treating a separate exception as evaluator acceptance
+
+#### Scenario: Plugin and full consumer measurements differ
+
+- **WHEN** the portable plugin's selected entries fit their contribution
+  budget but the complete Host-rendered discovery list exceeds its limit
+- **THEN** reports preserve both measurements and the complete-list result
+  fails independently of the plugin-only result
+
+#### Scenario: Static role collection is compared with task context
+
+- **WHEN** a static estimate sums multiple role definitions or task resources
+- **THEN** it labels that collection and does not report it as observed
+  per-session context for a task that selects only a subset
+
+### Requirement: Complete context and discovery baselines are opt-in research
+
+Ordinary consumer acceptance SHALL NOT invoke the strict marketplace runtime
+acceptance evaluator, run a complete context/discovery baseline, or start a
+cross-Host model workflow solely to collect research measurements. The existing
+evaluator MAY be used when performance, cost, discovery, a relevant defect, or
+another explicit measurement question requires it. An explicit evaluation
+SHALL retain the manifest's eight scopes, existing formulas, and fail-closed
+meaning: every required scope must pass, and missing or invalid measurement
+evidence remains non-pass. Research results SHALL remain separate from
+installation and native-runtime observations and SHALL NOT change Host,
+Provider, Model, or Route support and availability declarations.
+
+#### Scenario: Ordinary acceptance has no measurement request
+
+- **WHEN** a consumer acceptance run has no explicit context or discovery
+  research obligation
+- **THEN** it does not invoke the strict evaluator or start a model workflow to
+  measure context/discovery, and installation success does not claim that
+  research or native runtime was observed
+
+#### Scenario: One required strict research scope is missing
+
+- **WHEN** an explicitly requested strict evaluation omits any of the eight
+  configured scope measurements
+- **THEN** the overall research result remains non-pass and identifies the
+  missing scope without changing the configured scope set
+
+#### Scenario: Research does not replace consumer evidence
+
+- **WHEN** a context/discovery study reports a result for one Host and scope
+- **THEN** it leaves installation evidence, native-runtime evidence, and support
+  or availability declarations unchanged
 
 ### Requirement: Family selectors have an alias-free distribution contract
 

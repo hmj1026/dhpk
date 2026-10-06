@@ -17,7 +17,6 @@ owner's authority.
 - Implementing a confirmed change: invoke `$flow-drive <confirmed-spec-or-change-id>` directly.
 - Reviewing a completed diff: use `change-verdict`.
 - Tracing code or diagnosing a failure: use `code-trace`.
-- Authoring or restructuring a skill: use `skill-forge`.
 
 ## Actions
 
@@ -74,12 +73,17 @@ current branch/worktree evidence, each required or unavailable gate, and one
 next route. If the script cannot run, record the fallback evidence and the
 reason instead of treating the missing check as a pass.
 
+When the request is an inbound issue with unsettled intent or acceptance, use
+the bounded read-only intake in
+`references/execution-bundle/skills/flow-guide/references/premise-verification.md`.
+Settled specifications, approved tasks, and resumptions skip that intake and
+continue from their existing evidence.
+
 ## `close`
 
 Account for changed files, TDD evidence when behavior changed, applicable
 reviewers, triggered security/database/frontend/runtime checks, unresolved
-risks, and the next handoff. Use `references/handoff-and-verification.md` and
-`references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md` only when their conditional detail is
+risks, and the next handoff. Use `references/handoff-and-verification.md` only when its conditional detail is
 needed. Never claim commit, merge, release, deployment, or archive completion
 from a local closeout report.
 
@@ -115,7 +119,6 @@ repository inventory, environment variable, or upward search is consulted.
 - `references/projects-index.md` — project-specific policy references.
 - `references/progression-tables.md` — fallback progression for `next`.
 - `references/handoff-and-verification.md` — conditional handoff evidence.
-- `references/execution-bundle/skills/flow-guide/references/review-gate-mechanics.md` — conditional reviewer mechanics.
 - `rules`: load `references/execution-bundle/skills/flow-guide/references/deterministic-first.md`,
   `references/dispatch-and-gates.md`, `references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md`,
   `references/execution-bundle/skills/flow-guide/references/testing-policy.md`, or `references/execution-bundle/skills/flow-guide/references/component-addition-policy.md`
@@ -144,4 +147,6 @@ repository inventory, environment variable, or upward search is consulted.
 
 - [ ] Exactly one action was selected and its completion criterion is met; only action-relevant references and scripts were loaded.
 - [ ] Required, skipped, unavailable, and failed gates are distinct; a route report was validated as `dhpk.route-result.v3`.
+- [ ] Raw issue intake ran only for unsettled intent, reused relevant
+      discussion and decisions, and left tracker state unchanged.
 - [ ] No target was executed and no target authority was inherited.

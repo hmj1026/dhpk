@@ -1,8 +1,21 @@
 # orchestration-evidence-lifecycle Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
 ## Purpose
 
-TBD - created by archiving change harden-session-audit-and-agent-orchestration. Update Purpose after archive.
+Define the durable lifecycle and evidence bindings that let orchestration
+consume worker and reviewer results without confusing readiness, freshness,
+scope, or gate enforcement with task completion.
 
 ## Requirements
 
@@ -101,6 +114,40 @@ Every `EvidenceResult` consumed by orchestration SHALL identify the producer dis
 - **WHEN** an evidence result has no new identity fields and carries an explicit legacy-compatibility marker
 - **THEN** orchestration applies the characterized legacy binding path and does not require fields that were not declared by that result
 
+### Requirement: Verification evidence is applicability-bound and mutation-ordered
+
+An evidence result SHALL be reusable only when its recorded scope, relevant source
+and specification content, command and configuration, tool identity, and execution
+environment still apply to the current obligation. A source, specification,
+lockfile, configuration, tool, environment, or acceptance change SHALL invalidate
+the affected evidence and SHALL trigger re-evaluation of that scope; unrelated
+changes MAY retain applicable evidence. Mutating checks SHALL run before the final
+affected review or verification, or the affected evidence SHALL be regenerated
+after the mutation. Unsupported runners, missing capabilities, skipped checks,
+and `NOT_RUN` SHALL remain non-passing outcomes, and a manual alternative SHALL
+be recorded as separate evidence rather than promoted to a pass for the original
+runner.
+
+#### Scenario: Unchanged evidence is reused
+
+- **WHEN** a prior result matches the current scope, source and specification fingerprints, command/configuration, tool, and environment
+- **THEN** orchestration reuses the result without rerunning unrelated checks
+
+#### Scenario: Changed source invalidates affected evidence
+
+- **WHEN** a source, lockfile, configuration, tool, environment, or acceptance criterion changes within the result's scope
+- **THEN** orchestration marks that result stale and re-evaluates the affected obligation while retaining unaffected evidence
+
+#### Scenario: Mutation precedes final verification
+
+- **WHEN** a formatter, generator, fixture refresh, package materialization, or migration changes the candidate after an earlier check
+- **THEN** orchestration runs the affected final verification after the mutation and does not use the earlier result as completion evidence
+
+#### Scenario: Unsupported verification remains visible
+
+- **WHEN** the requested runner is unavailable or a capability is missing and a manual alternative is performed
+- **THEN** orchestration records the original check as `UNAVAILABLE`, `BLOCKED`, or `NOT_RUN` and records the manual observation separately without claiming the runner passed
+
 ### Requirement: Handoffs preserve one traceable lifecycle identity
 
 Dispatch, follow-up handoff, corrected retry, artifact readiness, evidence production, and final acceptance SHALL remain linked by one canonical task identity plus explicit attempt identities. A handoff MUST preserve the prior context boundary and obligation identity; it MUST NOT create a false second completion or silently detach evidence from the originating task.
@@ -133,3 +180,64 @@ Artifact stores and consumer adapters SHALL persist and report evidence but SHAL
 
 - **WHEN** a worker and reviewer have reached terminal states but current qualifying Sentinel evidence is absent
 - **THEN** orchestration reports incomplete review closure and does not declare completion
+
+### Requirement: REQ-851-02 Per-capability reuse is exact and execution-authority separated
+
+An orchestration evidence result SHALL be reused only for the same gate-owned
+semantic check key and complete current capability identity. The identity
+SHALL bind relevant canonical source and specification content, delivered
+artifact bytes and bindings, selected capability and proof claims, exact
+current Host version, and effective configuration. Producer, workflow,
+request ID, reason, question, timestamp, and authorization are not capability
+identity. A change to an identity component invalidates only checks whose
+fixed descriptor includes that component; unrelated source or attribution
+changes MUST NOT require unrelated capability re-execution.
+
+Reuse SHALL require the candidate check's own `PASS` status and the existing
+typed proof for its native capability. Installation/static evidence and a
+generic runtime flag are insufficient. Current installation validation and
+required prerequisites SHALL still run and may independently block acceptance.
+Reuse satisfies an obligation but MUST NOT grant authority for a new native
+execution. When current authorization is false, exact valid prior evidence may
+satisfy the obligation without a new native call; absent or mismatched evidence
+remains `BLOCKED`. If current authorization separately permits a fresh probe,
+its observation remains distinct from prior evidence and does not erase prior
+conflicts. Exact-identity contradictory `PASS` and `FAIL` records are
+ambiguous and MUST be retained as an explicit conflict rather than resolved by
+last-wins selection. Consumed evidence remains immutable.
+
+#### Scenario: Attribution changes do not invalidate a capability result
+
+- **WHEN** the semantic check and complete current identity are unchanged but
+  request ID, producer, workflow, reason, or question changes
+- **THEN** the prior typed proof may satisfy the current check without another
+  native call, and its origin remains traceable
+
+#### Scenario: A relevant resource change invalidates only its role check
+
+- **WHEN** a source, specification, delivered role/resource, Host version, or
+  effective setting inside one role descriptor changes
+- **THEN** that role's historical evidence is rejected with its changed
+  identity field, while independent checks outside that closure remain
+  reusable
+
+#### Scenario: Old evidence does not authorize execution
+
+- **WHEN** prior evidence is absent or mismatched and current authorization is
+  false
+- **THEN** the required native obligation remains `BLOCKED` without invoking
+  the native adapter
+
+#### Scenario: Authorized replacement preserves a historical conflict
+
+- **WHEN** contradictory same-identity `PASS` and `FAIL` evidence is present
+  and current authorization permits a new native probe
+- **THEN** the fresh observation may resolve the current required check, but
+  the rejection record retains both historical outcomes and their origins
+
+#### Scenario: Reuse preserves the not-run observation
+
+- **WHEN** matching prior native evidence satisfies an unauthorized current
+  check
+- **THEN** the current obligation may pass with zero native calls while the
+  current runtime observation remains `NOT_RUN`

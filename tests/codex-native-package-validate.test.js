@@ -19,6 +19,7 @@ const {
   validateNativeMembership,
   verifyNativePackage,
 } = require('../scripts/lib/codex-native-package');
+const { compileMarketplacePublicationView } = require('../scripts/lib/marketplace-selection');
 
 function makeTempPackage() {
   const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-native-candidate-'));
@@ -337,14 +338,6 @@ test('native structural verification returns stage-bound evidence instead of a l
     return JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8'));
   }
 
-  function markdownSection(content, heading) {
-    const lines = content.split(/\r?\n/);
-    const start = lines.indexOf(heading);
-    assert.notStrictEqual(start, -1, `missing Markdown section: ${heading}`);
-    const end = lines.findIndex((line, index) => index > start && /^## /.test(line));
-    return lines.slice(start, end === -1 ? lines.length : end).join('\n');
-  }
-
   test('the native .codex-plugin/plugin.json now passes native-candidate structural validation (physical tracked package, no symlinks)', () => {
     const manifest = loadManifest('.codex-plugin/plugin.json');
     const result = validateNativeCandidate({ manifestSkillsField: manifest.skills, packageRoot: ROOT });
@@ -360,44 +353,29 @@ test('native structural verification returns stage-bound evidence instead of a l
     assert.ok(result.ok);
   });
 
-  test('the tracked package contains exactly the inventory codex-native surface — no membership drift', () => {
+  test('the tracked package contains the canonical common and Codex-only entries', () => {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
-    const candidateSkillIds = fs.readdirSync(path.join(ROOT, 'plugins', 'dhpk', 'skills'));
-    const result = validateNativeMembership({ candidateSkillIds, inventory });
+    const selection = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
+    const publicationView = compileMarketplacePublicationView({ inventory, selection, hostSurface: 'codex-native' });
+    const packageRoot = path.join(ROOT, 'plugins', 'dhpk');
+    const candidateSkillNames = fs.readdirSync(path.join(packageRoot, 'skills'));
+    const provenance = JSON.parse(fs.readFileSync(path.join(packageRoot, 'provenance.json'), 'utf8'));
+    const expectedPublicIds = publicationView.publicEntries.map((entry) => entry.id).sort();
+    const expectedHostOnlyIds = publicationView.hostOnly.map((entry) => entry.id).sort();
+    const expectedIds = [...expectedPublicIds, ...expectedHostOnlyIds].sort();
+    const expectedNames = [...publicationView.publicEntries, ...publicationView.hostOnly]
+      .map((entry) => entry.name || entry.id).sort();
+    const result = validateNativeMembership({ candidateSkillNames, inventory, publicationView });
+
+    assert.deepStrictEqual(publicationView.errors, []);
+    assert.strictEqual(expectedPublicIds.length, 15);
     assert.deepStrictEqual(result.errors, []);
     assert.ok(result.ok);
-  });
-
-  test('the native Codex marketplace support decision remains Experimental until explicit graduation', () => {
-    const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
-    const readmeSection = markdownSection(readme, '## Sync Codex CLI content');
-    assert.match(
-      readmeSection,
-      /Codex Plugin Marketplace support\s+nevertheless remains experimental until a separate graduation decision\./,
-      'the Codex CLI section must keep the marketplace support tier Experimental pending separate graduation',
-    );
-
-    const pluginReadme = fs.readFileSync(path.join(ROOT, '.codex-plugin', 'README.md'), 'utf8');
-    const structureSection = markdownSection(pluginReadme, '## Structure');
-    assert.match(
-      structureSection,
-      /This native surface is experimental and must be exercised only with a\s+disposable isolated `CODEX_HOME`\./,
-      'the native plugin structure section must keep the surface Experimental and limited to a disposable isolated CODEX_HOME',
-    );
-
-    const distributionDocs = fs.readFileSync(path.join(ROOT, 'docs', 'distribution-surfaces.md'), 'utf8');
-    const marker = '**Experimental status, not automatic graduation.**';
-    const markerOffset = distributionDocs.indexOf(marker);
-    assert.notStrictEqual(markerOffset, -1, 'native Codex publication docs must retain the specific experimental-status section');
-
-    const afterMarker = distributionDocs.slice(markerOffset);
-    const nextSectionOffset = afterMarker.search(/^## /m);
-    const supportSection = nextSectionOffset === -1 ? afterMarker : afterMarker.slice(0, nextSectionOffset);
-    assert.match(
-      supportSection,
-      /Native Codex marketplace support remains \*\*experimental\*\* until a later,\s*separately approved graduation decision/,
-      'the native Codex marketplace support section must state that its tier remains Experimental pending a separate graduation decision',
-    );
+    assert.deepStrictEqual(candidateSkillNames.sort(), expectedNames);
+    assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);
+    assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, expectedPublicIds);
+    assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, expectedHostOnlyIds);
+    assert.strictEqual(provenance.marketplacePublication.selectionDigest, publicationView.selectionDigest);
   });
 }
 
@@ -489,26 +467,6 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     return fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), prefix));
   }
 
-  function packageFiles(root, relative = '') {
-    const files = {};
-    for (const entry of fs.readdirSync(path.join(root, relative), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
-      const child = path.posix.join(relative, entry.name);
-      const absolute = path.join(root, relative, entry.name);
-      if (entry.isDirectory()) Object.assign(files, packageFiles(root, child));
-      else if (entry.isFile()) files[child] = fs.readFileSync(absolute);
-      else throw new Error(`unexpected package entry: ${child}`);
-    }
-    return files;
-  }
-
-  function assertPackageFilesEquivalent(actualFiles, expectedFiles) {
-    assert.deepStrictEqual(Object.keys(actualFiles).sort(), Object.keys(expectedFiles).sort());
-    for (const [key, content] of Object.entries(actualFiles)) {
-      assert.ok(content.equals(expectedFiles[key]), `Content mismatch for package entry: ${key}`);
-    }
-  }
-
   test('native compiler plan preserves explicit selection, public identity, and generated output intent', () => {
     const inventory = {
       skills: [
@@ -555,22 +513,65 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     }
   });
 
-  test('compiler-backed native generation preserves the accepted package bytes', () => {
+  test('generation without a marketplace manifest preserves legacy inventory-surface membership', () => {
     const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
     const tracked = path.join(ROOT, 'plugins', 'dhpk');
     const trackedManifest = JSON.parse(fs.readFileSync(path.join(tracked, '.codex-plugin', 'plugin.json'), 'utf8'));
     const trackedProvenance = JSON.parse(fs.readFileSync(path.join(tracked, 'provenance.json'), 'utf8'));
+    const legacyRoot = tmpDir('dhpk-native-legacy-source-');
     const out = tmpDir('dhpk-native-byte-equivalence-');
     try {
+      fs.mkdirSync(path.join(legacyRoot, 'manifests'), { recursive: true });
+      fs.copyFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), path.join(legacyRoot, 'manifests', 'distribution-inventory.json'));
+      fs.cpSync(path.join(ROOT, 'skills'), path.join(legacyRoot, 'skills'), { recursive: true });
       materializeNativePackage({
         inventory,
-        root: ROOT,
+        root: legacyRoot,
         outDir: out,
         name: trackedManifest.name,
         version: trackedManifest.version,
         sourceCommit: trackedProvenance.sourceCommit,
       });
-      assertPackageFilesEquivalent(packageFiles(out), packageFiles(tracked));
+      const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
+      const surfaceIds = inventory.skills.filter((entry) => entry.lifecycle !== 'deprecated'
+        && Array.isArray(entry.surfaces) && entry.surfaces.includes('codex-native')).map((entry) => entry.id);
+      const expectedIds = [...new Set([...surfaceIds, ...inventory.internal_runtime_skills['codex-native']])];
+      const expectedNames = expectedIds.map((id) => inventoryById.get(id).name || id).sort();
+      assert.deepStrictEqual(
+        fs.readdirSync(path.join(out, 'skills')).sort(),
+        expectedNames,
+        'a source fixture without marketplace-selection.json must keep the inventory-surface root set',
+      );
+    } finally {
+      fs.rmSync(legacyRoot, { recursive: true, force: true });
+      fs.rmSync(out, { recursive: true, force: true });
+    }
+  });
+
+  test('explicit Codex profile selection remains separate from the default catalog', () => {
+    const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    const out = tmpDir('dhpk-native-profile-');
+    try {
+      const requiredCoreIds = inventory.profile_policy.required_core_ids.slice().sort();
+      const { resolveCapabilitySelection } = require('../scripts/lib/capability-bundle-selection');
+      const resolved = resolveCapabilitySelection({
+        inventory,
+        profileId: 'minimal',
+        profiles: { profiles: { minimal: { skillIds: requiredCoreIds, modules: [] } } },
+      });
+      assert.ok(resolved.ok, resolved.error && resolved.error.message);
+      materializeNativePackage({
+        inventory,
+        root: ROOT,
+        outDir: out,
+        name: 'dhpk',
+        version: '1.0.0',
+        sourceCommit: 'a'.repeat(40),
+        profileSelection: resolved.value,
+      });
+      const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
+      assert.strictEqual(Object.prototype.hasOwnProperty.call(provenance, 'marketplacePublication'), false);
+      assert.strictEqual(provenance.profileId, 'minimal');
     } finally { fs.rmSync(out, { recursive: true, force: true }); }
   });
 
@@ -876,7 +877,7 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     }
   });
 
-  test('CLI generates the real repo codex-native set with zero symlinks and provenance', () => {
+  test('CLI generates the canonical Codex owner catalog with zero symlinks and provenance', () => {
     const out = tmpDir('dhpk-native-cli-');
     try {
       const res = spawnSync('node', [path.join(ROOT, 'scripts', 'ci', 'gen-codex-native-package.js'), out], { encoding: 'utf8' });
@@ -897,11 +898,18 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
       assert.strictEqual(manifest.skills, './skills/');
 
       const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
-      assert.strictEqual(provenance.selectedSkillIds.length, 32);
-      assert.strictEqual(provenance.selectedSkillNames.length, 32);
+      const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+      const selection = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
+      const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
+      const commonIds = selection.skills.filter((entry) => entry.selection === 'common' && entry.kind === 'entry')
+        .map((entry) => entry.id).sort();
+      const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
+        && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
+      const expectedIds = [...commonIds, ...hostOnlyIds].sort();
       assert.deepStrictEqual(provenance.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
-      assert.strictEqual(provenance.materializedSkillIds.length, 34);
-      assert.strictEqual(provenance.materializedSkillNames.length, 34);
+      assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
+      assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);
+      assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);
       assert.deepStrictEqual(
         fs.readdirSync(path.join(out, 'skills')).sort(),
         provenance.materializedSkillNames,
@@ -933,6 +941,10 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
 
   const ROOT = path.join(__dirname, '..');
   const CLI = path.join(ROOT, 'scripts', 'ci', 'verify-codex-native-package.js');
+
+  function tmpDir(prefix) {
+    return fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), prefix));
+  }
 
   function fixtureRepo() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-drift-repo-'));
@@ -1029,9 +1041,78 @@ test('root .codex-plugin/plugin.json skills path resolves to an existing directo
     }
   });
 
-  test('against the real repo, the tracked plugins/dhpk/ package matches a fresh generation', () => {
-    const res = spawnSync('node', [CLI], { encoding: 'utf8' });
-    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+  test('default Codex generation publishes the canonical owner catalog and verifies against its source root', () => {
+    const packageRoot = tmpDir('dhpk-native-catalog-real-');
+    try {
+      const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+      const selection = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
+      const priorReceipt = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk', 'provenance.json'), 'utf8'));
+      const inventoryById = new Map(inventory.skills.map((entry) => [entry.id, entry]));
+      const commonIds = selection.skills.filter((entry) => entry.selection === 'common' && entry.kind === 'entry')
+        .map((entry) => entry.id).sort();
+      const hostOnlyIds = selection.skills.filter((entry) => entry.selection === 'host-only'
+        && inventoryById.get(entry.id).surfaces.includes('codex-native')).map((entry) => entry.id).sort();
+      const expectedIds = [...commonIds, ...hostOnlyIds].sort();
+
+      const generated = materializeNativePackage({
+        inventory,
+        root: ROOT,
+        outDir: packageRoot,
+        name: 'dhpk',
+        version: '1.0.0',
+        sourceCommit: priorReceipt.sourceCommit,
+      });
+      const verified = verifyNativePackage({ packageRoot, inventory, sourceRoot: ROOT, stage: 'structural' });
+      const provenance = JSON.parse(fs.readFileSync(path.join(packageRoot, 'provenance.json'), 'utf8'));
+      const actualNames = fs.readdirSync(path.join(packageRoot, 'skills')).filter((name) => fs.existsSync(path.join(packageRoot, 'skills', name, 'SKILL.md'))).sort();
+
+      assert.ok(verified.ok, verified.errors.join('\n'));
+      assert.strictEqual(commonIds.length, 15);
+      assert.deepStrictEqual(actualNames, expectedIds.map((id) => inventoryById.get(id).name).sort());
+      assert.deepStrictEqual(generated.skillIds, expectedIds);
+      assert.deepStrictEqual(provenance.marketplacePublication.publicEntryIds, commonIds);
+      assert.deepStrictEqual(provenance.marketplacePublication.hostOnlyIds, hostOnlyIds);
+      assert.deepStrictEqual(provenance.selectedSkillIds, expectedIds);
+    } finally {
+      fs.rmSync(packageRoot, { recursive: true, force: true });
+    }
+  });
+
+  test('explicit Codex profile selection stays separate from the default catalog', () => {
+    const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+    const packageRoot = tmpDir('dhpk-native-profile-real-');
+    try {
+      const requiredCoreIds = inventory.profile_policy.required_core_ids.slice().sort();
+      const { resolveCapabilitySelection } = require('../scripts/lib/capability-bundle-selection');
+      const resolved = resolveCapabilitySelection({
+        inventory,
+        profileId: 'minimal',
+        profiles: { profiles: { minimal: { skillIds: requiredCoreIds, modules: [] } } },
+      });
+      assert.ok(resolved.ok, resolved.error && resolved.error.message);
+      materializeNativePackage({
+        inventory,
+        root: ROOT,
+        outDir: packageRoot,
+        name: 'dhpk',
+        version: '1.0.0',
+        sourceCommit: 'a'.repeat(40),
+        profileSelection: resolved.value,
+      });
+      const verified = verifyNativePackage({
+        packageRoot,
+        inventory,
+        sourceRoot: ROOT,
+        profileSelection: resolved.value,
+        stage: 'structural',
+      });
+      const provenance = JSON.parse(fs.readFileSync(path.join(packageRoot, 'provenance.json'), 'utf8'));
+      assert.ok(verified.ok, verified.errors.join('\n'));
+      assert.strictEqual(Object.prototype.hasOwnProperty.call(provenance, 'marketplacePublication'), false);
+      assert.strictEqual(provenance.profileId, 'minimal');
+    } finally {
+      fs.rmSync(packageRoot, { recursive: true, force: true });
+    }
   });
 
   test('consumer-runtime verification preserves NOT_CONFIGURED without upgrading structural evidence', () => {

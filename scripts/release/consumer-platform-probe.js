@@ -680,6 +680,29 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
         : platform === 'claude-project'
           ? 'claude-project'
         : 'cursor-plugin';
+  const loaderRoute = platform === 'agent-plugin'
+    ? 'agent-plugin-loader'
+    : platform === 'cursor' ? 'cursor-plugin-loader' : null;
+  const nativeProof = loaderRoute
+    && result.status === 'PASS'
+    && result.exit_code === 0
+    && ['shared', 'disabled'].includes(result.network)
+    && result.challenge_verified === true
+    && result.loader_attestation === true
+    && Array.isArray(result.session_files)
+    && result.session_files.includes('.config/cursor/auth.json')
+    ? {
+      executionOrigin: 'native',
+      adapterRoute: loaderRoute,
+      exit_code: 0,
+      network: result.network,
+      challenge_verified: true,
+      loader_attestation: true,
+      session_files: result.session_files
+        .filter((file) => typeof file === 'string' && file.length <= 200)
+        .slice(0, 32),
+    }
+    : null;
   const evidence = normalizeConsumerEvidence({
     stage: 'CONSUMER',
     producer: 'consumer-platform-probe',
@@ -704,6 +727,7 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
       ...(result.artifactFingerprint ? { artifactFingerprint: result.artifactFingerprint } : {}),
       ...(result.reason_code ? { reason_code: result.reason_code } : {}),
       ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
+      ...(nativeProof ? { nativeProof } : {}),
     }],
   });
   return { surfaceEvidence: evidence.surfaceResults[0], surfaceResults: evidence.surfaceResults };

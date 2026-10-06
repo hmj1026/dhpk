@@ -2,6 +2,15 @@
 
 > **Languages**: **English** · [繁體中文](./distribution-surfaces.zh-TW.md)
 
+## Acceptance applicability
+
+Structural and package evidence may complete the applicable installation
+contract while native consumer observation remains a separate, triggered
+obligation. Do not promote an experimental surface or rewrite `NOT_RUN`,
+`UNAVAILABLE`, or `BLOCKED` as runtime success. Ownership, provenance,
+coexistence, unique discovery, rollback, and publication authorization remain
+unchanged.
+
 How dhpk decides which skills and modules reach each consumer surface
 (Claude plugin, opt-in stack modules, Codex project-local sync, experimental
 Codex marketplace), and what each surface can and cannot filter.
@@ -10,6 +19,51 @@ For exact installation commands, support tiers, status vocabulary, consumer
 evidence, and rollback, use the [platform installation SSOT](./platform-installation.md).
 The ownership and projection decision is recorded in
 [ADR-0009](adr/0009-distribution-projection-and-orchestration-ownership.md).
+
+## OpenAI submission artifact
+
+The skills-only OpenAI submission builder is implemented. Its artifact is a
+submission candidate, not an installed or published plugin. The public listing,
+consumer workflows, platform scans, and marketplace publication remain separate
+acceptance states; see the [submission preparation SSOT](./openai-submission.md)
+for commands and the current release checklist.
+
+Default retained Host builders use the same 15 common entries and 45 bundled
+child resources. Their Host-specific rows remain separate from the public
+submission catalog. Cursor references the Agent-owned common entries. Physical
+package membership is recorded in generated metadata, not maintained as another
+count table here; it does not prove consumer discovery.
+Standalone selections retain their existing selection rules; publication profile
+flags are retired.
+
+`bin/dhpk distribution openai-submission` produces a skills-only portable
+package from the [accepted marketplace catalog](contracts/marketplace-catalog.md).
+It uses root `plugin.json`, the public owners under `skills/`, and their
+contained child resources. Host-only and withdrawn skills are excluded.
+
+Provide a portable manifest containing the intended listing metadata under
+`extensions["com.openai"].interface`. Use a clean source checkout and an output
+directory outside the checkout when comparing repeated builds:
+
+```bash
+bin/dhpk distribution openai-submission generate --manifest /path/to/plugin.json --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission validate --output /tmp/dhpk-openai-artifact --json
+bin/dhpk distribution openai-submission verify --output /tmp/dhpk-openai-artifact --json
+```
+
+Generation validates the complete catalog before publishing `package.zip`
+and its `provenance.json` sidecar. The sidecar binds source identity, selection,
+archive digest and extracted file fingerprints. Replacing an output requires
+a valid owner receipt: the two-file output must contain a structurally valid ZIP
+and a sidecar with the expected schema, surface, archive digest and extracted
+fingerprints matching that ZIP. Invalid inputs leave the previous artifact intact.
+Partial `--profile`, `--skill` and `--standalone` selections are unsupported.
+
+`PASS` from these commands records local structural evidence. Consumer
+execution, official scans, portal submission and public publication remain
+separate evidence states. The static catalog ceilings in
+`manifests/discovery-budgets.json` likewise do not establish rendered consumer
+discovery or token-budget acceptance.
 
 ## Lifecycle model
 
@@ -27,7 +81,7 @@ Each entry also declares its publication `surfaces`: `claude-core`,
 `claude-module`, `codex-sync` (the supported `install-codex-skills.sh` path),
 `codex-native` (the experimental marketplace package — see
 [ADR-0006](adr/0006-codex-native-publication-artifact.md)
-and [Codex native plugin package](#codex-native-plugin-package-github-issue-88)
+and [Codex native plugin package](#codex-native-plugin-package)
 below), `agent-plugin`, `cursor-plugin`, and `cursor-sync` (the supported
 `install-cursor-harness.sh` project-local path). `agent-plugin` and
 `cursor-plugin` identify the generated Agent Plugin and Cursor publication
@@ -119,32 +173,22 @@ skills and it does not make `.agents/agents` or `.agents/rules` official paths:
 Codex, Cursor, and AGY keep their documented platform-native agent/rule
 projections.
 
-## Claude publication: raw compatibility surface and materialized default
+## Claude publication and source ownership
 
-`scripts/ci/gen-claude-manifest.js` derives the expected `.claude-plugin/plugin.json`
-`skills[]` root set from the inventory (`generateClaudeSkillRoots()` in
-`scripts/lib/distribution-inventory.js`) and checks it with `--check`.
+The source checkout is the authoring tree. `scripts/ci/gen-claude-manifest.js`
+derives its registered skill roots from the inventory; these roots do not
+represent the installed discovery catalog. The main `dhpk@dhpk` marketplace
+entry points to `generated/claude-marketplace/package`, generated by
+`scripts/ci/gen-claude-marketplace-package.js` from the shared catalog.
 
-The raw source checkout remains available as an explicit compatibility surface:
-as of the current inventory, no skill is `deprecated`, so its generated root
-set is identical to the currently-registered set. Regenerate and inspect
-scope-specific counts instead of copying a historical snapshot:
+The catalog owns the 15 common public entries, folded branches/references, and
+necessary Host support. Canonical totals and physical directory counts are
+separate scopes and do not prove native discovery. See the
+[catalog contract](./contracts/marketplace-catalog.md) and
+[installation guide](./platform-installation.md).
 
-```bash
-node scripts/ci/gen-claude-manifest.js
-node scripts/ci/gen-distribution-inventory.js
-```
-
-The raw compatibility commands report one registered Claude directory root, 82
-inventory-eligible Claude skill IDs, 84 canonical skills (including two
-non-invokable internal runtime packages), and 34 Codex-sync entries (32
-invokable skills plus internal transport and dispatch-context runtimes). These
-are independently derived scopes; a canonical total is not a default-install
-or runtime count. Clean default installs use the materialized `minimal` profile
-described below rather than this unfiltered root.
-The five `0.47.0` retirement rows are
-diagnostic ledger entries and are not materialized as packages or aliases;
-see the [alias-free retirement guidance](./skill-platform-migration.md#alias-free-retirement-ledger-0470).
+Retirement rows remain diagnostic ledger entries rather than installed aliases;
+see [retirement guidance](./skill-platform-migration.md#alias-free-retirement-ledger-0470).
 
 ## Claude userConfig metadata candidate and rollback
 
@@ -204,69 +248,27 @@ count-scoping construct, not a claim about what the Claude host actually
 lists. `scripts/ci/gen-claude-manifest.js --check` verifies the directory-root
 set only; it cannot and does not assert per-skill hiding.
 
-## Claude publication: materialized default and compatibility profiles
+## Common selection and historical receipt compatibility
 
-The materialized `minimal` profile is the default Claude discovery artifact.
-The source checkout remains the authoring tree, while the unfiltered
-compatibility package (`dhpk@dhpk`) is retained as an explicit rollback and
-legacy path. Finite aliases declared in `manifests/install-profiles.json` are
-compiled before discovery with:
+`manifests/install-profiles.json` owns the internal `common` collection. Main
+publication uses the existing shared catalog and marketplace identity; it does
+not create another common variant. Public `--profile` flags and tracked
+minimal/full/compat-v1 artifacts are retired. Standalone generation with an
+explicit `--out`, validated additive skill overlays, and module presets remain
+available through their existing owners.
 
-```bash
-node scripts/ci/gen-claude-profile-bundles.js --profile minimal --plan
-node scripts/ci/gen-claude-profile-bundles.js --profile minimal --out /tmp/dhpk-profile
-node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
-```
+Historical named-profile receipts preserve their exact stored IDs, including
+retired entries, for read, plan, uninstall, and recovery. Update is `BLOCKED`
+before any filesystem mutation. Unannotated older receipts retain the existing
+structural migration route; current receipts retain ordinary updates. No generic
+live migration writer is introduced.
 
-`--plan` prints the compiled selection without writing files. `--check`
-regenerates into a temporary directory and fails when the committed
-`generated/claude-profiles/<profile>/package` differs, listing each missing,
-extra, or changed file; CI runs it for `minimal`, `full`, and `compat-v1`.
-
-The generated package has its own physical `./skills/` and `./commands/` roots
-and a `bundle-receipt.json` containing the profile, selected stable IDs, plan
-fingerprint, and compatibility mode. The installer registers a local
-marketplace wrapper for this package and installs `dhpk@dhpk-profile-minimal`.
-Selection is inventory-owned and module closure is resolved from the profile
-and module catalogs; SessionStart remains runtime activation only. Arbitrary
-module combinations are not published as profile artifacts. `full` and
-`compat-v1` remain explicit opt-in compatibility profiles. A local
-`--plugin-dir` or package validation is generation evidence, not
-consumer-runtime proof.
-
-When the configured Claude executable or installation mode is unavailable, the
-consumer result remains `NOT_CONFIGURED`, `NOT_RUN`, or `UNAVAILABLE` with a
-resume command. A generated package or context-budget report alone never
-claims a smaller live Claude context. The materialized package intentionally
-scopes the discovery-facing skill and command roots; agent, hook, rule, and
-`userConfig` behavior remain a separate package/consumer validation concern.
-
-## Capability profiles and compatibility migration
-
-`manifests/install-profiles.json` defines three inventory-owned selections:
-
-| Profile | Meaning |
-|---|---|
-| `minimal` | Exactly `change-verdict`, `code-trace`, `flow-drive`, and `flow-guide`; the default for a clean install. |
-| `full` | The existing conflict-aware module closure plus its explicit stable IDs; it is not the complete catalog. |
-| `compat-v1` | The stable IDs carried by the predecessor-compatible allowlist; this is the compatibility fallback for an unannotated existing receipt. |
-
-Run `node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan` for a
-profile's current `selectedStableIds`.
-
-Distribution and project-local installers accept `--profile <id>` and repeatable
-additive `--skill <stable-id>` overlays. Unknown, retired, deprecated,
-surface-incompatible, duplicate, or conflict-excluded IDs fail before a plan or
-filesystem mutation. The normalized selection fingerprint is shared across
-Claude, Cursor, Agent Plugin, and AGY; Codex records the same canonical identity
-but emits only the intersection with its inventory-owned native allowlist.
-
-Receipts record profile, canonical/emitted IDs, compatibility mode, policy and
-selection fingerprints. A receipt without profile metadata remains `compat-v1`
-and cannot silently shrink. Moving it to `minimal` or another profile requires
-an explicit `--migrate`; migration records old/new identity and preserves
-modified or unowned destinations. Structural, package, budget, rollback, and
-consumer-runtime evidence remain separate; static `PASS` is never runtime proof.
+Receipts retain selection identity, owned roots, fingerprints, and Host support
+metadata. Structural, installation, optional budget research, and native runtime
+evidence remain separate. Native/model/GUI observations run for a corresponding
+integration change or explicit request; unavailable or unexecuted results stay
+non-pass. Installation commands and recovery detail belong to the
+[installation guide](./platform-installation.md).
 
 ## Two-stage deprecation
 
@@ -324,7 +326,7 @@ enabled, does not qualify — the two-stage process above applies.
 Like the compatibility window, this is a human review gate; no CI check
 evaluates the three preconditions.
 
-## Codex native plugin package (GitHub issue #88)
+## Codex native plugin package
 
 The native Codex marketplace package is a tracked, physical publication
 artifact at `plugins/dhpk/`, generated by `bin/dhpk distribution codex-native generate`

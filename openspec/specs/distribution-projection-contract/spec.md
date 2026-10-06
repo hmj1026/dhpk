@@ -1,5 +1,16 @@
 # distribution-projection-contract Specification
 
+## Applicability policy (#848/#854)
+
+The applicable installation, structural, and package contract is the default
+acceptance boundary. Native workflow, rendered discovery, context measurement,
+and full Host observation are required only for an affected integration,
+activation defect, or explicit native request. Required failures remain
+blocking; excluded or historical `NOT_RUN`, `UNAVAILABLE`, and `BLOCKED` results
+remain visible and are never synthesized as `PASS`. Ownership, compatibility,
+coexistence, rollback, publication, and manual authorization requirements remain
+in force.
+
 ## Purpose
 
 Define the deterministic, inventory-bound projection compiler, artifact-store,
@@ -111,6 +122,12 @@ The distribution layer SHALL expose `verifyDistribution(stage, artifact, consume
 
 - **WHEN** a consumer adapter cannot execute the declared verification stage
 - **THEN** the result uses the configured non-pass support state such as `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, or `UNAVAILABLE` rather than reporting success
+
+#### Scenario: Installation acceptance does not promote runtime support
+
+- **WHEN** the current consumer gate accepts a selected installation while its raw runtime observation is `NOT_RUN`
+- **THEN** the projection evidence remains bound to its requested structural or package stage and does not claim consumer-runtime support
+- **AND** the separate [consumer acceptance contract](../../../docs/contracts/consumer-acceptance.md) remains the authority for that installation result
 
 ### Requirement: Projection contracts use one structured result strategy
 

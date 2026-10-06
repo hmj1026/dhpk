@@ -34,13 +34,19 @@ than copying it into this repository.
 - Commands: invocation/route, accepted arguments, failure boundary, and
   observable output or exit contract.
 - Root guidance: universal constraints plus links to the topic document; keep
-  `AGENTS.md` and `CLAUDE.md` under 50 lines and keep Codex-specific details in
-  `codex/AGENTS.md`.
+  the maintained root `AGENTS.md` index under 50 lines (excluding the GitNexus-managed block) and keep Host entrypoints as relative symlinks to the root source and Codex-specific details in
+  `codex/guidance.md`.
 - Trap sheets: unique agent×stack traps in `agent-traps/<agent>/<stack>.md`;
   shared loader, prompt-defense, build-resolver skeleton, and CLI prompt
-  composition live only in `agent-traps/_common/`; every canonical file needs a
-  disposition in [trap-sheet-disposition.md](trap-sheet-disposition.md). Do not
-  restate per-stack traps here.
+  composition live only in `agent-traps/_common/`. Keep source credits beside
+  retained sourced material and use existing OpenSpec tasks for review decisions;
+  do not create a separate disposition report or restate per-stack traps here.
 
-Run Markdownlint, the strict frontmatter/invocation validators, route and
-distribution checks, and the focused contract test before claiming completion.
+## Verification
+
+Follow [testing governance](../testing-governance.md) for the route that
+matches the changed behavior and any affected distribution surface. Review
+Markdown content and links directly; run metadata, invocation, route,
+distribution, or contract validators only when their machine-readable
+contract or surface is affected. Release acceptance remains in the
+[plugin development contract](plugin-development.md#release-acceptance).

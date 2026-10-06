@@ -8,7 +8,6 @@
     "intentionally-unavailable"
   ],
   "roles": {
-    "agent-evaluator": { "status": "skill/manual-fallback", "target": "capability:harness-quality" },
     "agy-fast-worker": { "status": "skill/manual-fallback", "target": "worker" },
     "agy-worker": { "status": "skill/manual-fallback", "target": "worker" },
     "architect": { "status": "direct", "target": "architect" },
@@ -41,7 +40,6 @@
     "security-reviewer": { "status": "direct", "target": "security-reviewer" },
     "silent-failure-hunter": { "status": "merged", "target": "code-reviewer/deep-reasoner" },
     "smoke-tester": { "status": "capability-gated", "target": "capability:runtime-probe" },
-    "spec-miner": { "status": "direct", "target": "spec-miner" },
     "swift-build-resolver": { "status": "skill/manual-fallback", "target": "capability:language-build" },
     "tdd-guide": { "status": "direct", "target": "tdd-guide" },
     "type-design-analyzer": { "status": "merged", "target": "architect/deep-reasoner" },

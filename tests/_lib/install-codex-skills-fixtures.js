@@ -250,7 +250,7 @@ function collisionFixture() {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
   // Keep only the collision target and sibling skills used by planning cases.
-  const collisionSkills = ['harness-govern', 'tdd-workflow', 'dhpk-legacy-characterization-tests'];
+  const collisionSkills = ['code-trace', 'tdd-workflow', 'flow-guide'];
   const fakeCodexSkills = path.join(fakePlugin, 'codex', 'skills');
   fs.mkdirSync(fakeCodexSkills, { recursive: true });
   for (const name of collisionSkills) {
@@ -287,7 +287,7 @@ function collisionFixture() {
   }, null, 2));
   const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
   assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-  const collision = 'harness-govern';
+  const collision = 'code-trace';
   const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
   const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
   assert.ok(receipt.managed_entries.skills[collision], `expected fixture receipt entry for ${collision}`);

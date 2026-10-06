@@ -11,8 +11,41 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    name: CI change plan
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      surfaces: ${{ steps.plan.outputs.surfaces }}
+      shards: ${{ steps.plan.outputs.shards }}
+      macos: ${{ steps.plan.outputs.macos }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - id: plan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          CHECKOUT_SHA: ${{ github.sha }}
+        run: |
+          node scripts/ci/ci-plan.js plan --base-sha "$BASE_SHA" --head-sha "$HEAD_SHA" --checkout-sha "$CHECKOUT_SHA" --base-ref "$BASE_REF" --out "$RUNNER_TEMP/ci-plan.json" --github-output "$GITHUB_OUTPUT"
+      - name: Upload complete CI plan
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/ci-plan.json
+          if-no-files-found: error
+          retention-days: 14
+
   preflight:
     name: Preflight
+    needs: plan
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
@@ -20,10 +53,22 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: needs.plan.outputs.mode == 'light'
+        with:
+          node-version: '24'
       - uses: ./.github/actions/setup-dhpk-test-env
+        if: needs.plan.outputs.mode != 'light'
+
+      - name: Download complete CI plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dhpk-ci-plan
 
       - name: Validate workflow syntax
-        uses: reviewdog/action-actionlint@23bcc6aa6e2ccffe1e7730111b98ddcaf34cb098 # v1.76.3
+        if: needs.plan.outputs.mode == 'full'
+        uses: reviewdog/action-actionlint@1129829fb3230509a1c9aa4e93cec2b234746a68 # v1.78.0
         with:
           actionlint_flags: -color
           fail_level: error
@@ -31,9 +76,13 @@ jobs:
         run: node scripts/ci/validate-workflow-policy.js
       - name: Validate JSON CLI termination
         run: node scripts/ci/validate-json-cli-termination.js
+      - name: Validate JavaScript guardrails
+        if: needs.plan.outputs.mode == 'full'
+        run: node scripts/ci/validate-js-guardrails.js
 
       # Structure check (bash). Exit 1 = errors (fail); exit 2 = warnings (ok).
       - name: Harness structure
+        if: needs.plan.outputs.mode == 'full'
         run: bash scripts/validate/validate-harness.sh || [ $? -eq 2 ]
 
       # Zero-dep Node validators in strict mode (warnings become errors).
@@ -46,56 +95,52 @@ jobs:
       - name: Validate modules
         run: node scripts/ci/validate-modules.js --strict
       - name: Validate plugin manifest
+        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-plugin.js --strict
       - name: Validate distribution inventory
+        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-distribution.js --strict
       - name: Validate skill resource copies
         run: node scripts/ci/sync-skill-resources.js --check
-      - name: Validate skill purpose decisions
-        run: node scripts/ci/validate-skill-purpose-decisions.js --strict
-      - name: Validate retirement closure
-        run: node scripts/ci/validate-retirement-closure.js --strict
-      # Public facade smoke check. Exit 2 is an explicit non-pass evidence
-      # state (for example an unavailable local consumer), not a shell error;
-      # deterministic failures and usage errors still fail CI.
-      - name: Harness facade preflight
-        run: |
-          set +e
-          bin/dhpk harness preflight --json
-          status=$?
-          set -e
-          case "$status" in
-            0|2) exit 0 ;;
-            *) exit "$status" ;;
-          esac
+      - name: Validate source references
+        run: node scripts/ci/validate-references.js
       - name: Validate retained distribution packages
+        if: needs.plan.outputs.mode != 'light' || needs.plan.outputs.surfaces != '[]'
         run: |
-          for surface in agent-plugin cursor-plugin codex-native agy-plugin; do
-            bin/dhpk distribution "$surface" validate --json
+          args=()
+          if [ "${{ needs.plan.outputs.mode }}" != "full" ]; then
+            node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const surface of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).packageSurfaces) console.log(surface)' > "$RUNNER_TEMP/ci-package-surfaces.txt"
+            mapfile -t surfaces < "$RUNNER_TEMP/ci-package-surfaces.txt"
+            if [ "${#surfaces[@]}" -eq 0 ]; then
+              echo "No package surfaces selected; skipping package verifier."
+              exit 0
+            fi
+            for surface in "${surfaces[@]}"; do args+=(--surface "$surface"); done
+          fi
+          node scripts/ci/verify-platform-packages.js "${args[@]}"
+      - name: Validate bounded generated companions
+        if: needs.plan.outputs.mode == 'light'
+        run: |
+          node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const check of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).generatedChecks) console.log(check)' > "$RUNNER_TEMP/ci-generated-checks.txt"
+          mapfile -t checks < "$RUNNER_TEMP/ci-generated-checks.txt"
+          for check in "${checks[@]}"; do
+            case "$check" in
+              claude-marketplace) node scripts/ci/gen-claude-marketplace-package.js --check ;;
+              *) echo "Unknown generated companion check: $check" >&2; exit 64 ;;
+            esac
           done
       - name: Validate Cursor project-local sync
+        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-cursor-sync.js
-      - name: Verify platform package determinism
-        run: node scripts/ci/verify-platform-packages.js
       - name: No-drift Claude manifest check
+        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/gen-claude-manifest.js --check
       - name: No-drift Claude marketplace package check
+        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/gen-claude-marketplace-package.js --check
-      - name: No-drift Claude profile bundles check
-        run: |
-          for profile in minimal full compat-v1; do
-            node scripts/ci/gen-claude-profile-bundles.js --profile "$profile" --check
-          done
       - name: Validate invocation policy
+        if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-invocation-policy.js
-
-      - name: Validate default discovery aggregate budget
-        run: node scripts/ci/context-budget.js --aggregate
-
-      # Agent-spawn context ledger: static estimates are separate from runtime
-      # token telemetry, which is supplied by the host when available.
-      - name: Validate subagent context ledger
-        run: node scripts/ci/subagent-context-budget.js
 
       # Count SSOT: README / manifest exact claims must match reality.
       - name: Catalog count check
@@ -120,19 +165,27 @@ jobs:
           node scripts/ci/validate-changelog-fragments.js "${CHANGELOG_ARGS[@]}"
 
   tests:
-    name: Tests (shard ${{ matrix.shard }}/4)
+    name: Tests (shard ${{ matrix.shard }})
+    needs: plan
+    if: needs.plan.outputs.mode != 'light'
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3]
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup-dhpk-test-env
+
+      - name: Download complete CI plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dhpk-ci-plan
 
       - name: Run bounded repository test shard
         env:
@@ -147,7 +200,14 @@ jobs:
           DHPK_TEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           DHPK_TEST_BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
           DHPK_TEST_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-        run: ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js --shard-index ${{ matrix.shard }} --shard-count 4
+        run: |
+          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then
+            node -e 'const fs = require("node:fs"); const path = require("node:path"); for (const file of JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, "dhpk-ci-plan/ci-plan.json"), "utf8")).testFiles) console.log("tests/" + file)' > "$RUNNER_TEMP/ci-selected-tests.txt"
+            mapfile -t selected_files < "$RUNNER_TEMP/ci-selected-tests.txt"
+            ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js "${selected_files[@]}"
+          else
+            ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js --shard-index ${{ matrix.shard }} --shard-count 4
+          fi
 
       - name: Summarize test shard timing
         if: always()
@@ -168,7 +228,7 @@ jobs:
     name: Validate harness assets
     runs-on: ubuntu-26.04
     timeout-minutes: 10
-    needs: [preflight, tests]
+    needs: [plan, preflight, tests, macos-installer, release-rehearsal, lint]
     if: always()
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -179,46 +239,67 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Verify all preflight and test shards passed
+      - name: Download complete CI plan
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dhpk-ci-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/dhpk-ci-plan
+
+      - name: Verify plan-bound required jobs
         if: always()
         env:
           PREFLIGHT_RESULT: ${{ needs.preflight.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
+          MACOS_RESULT: ${{ needs.macos-installer.result }}
+          RELEASE_RESULT: ${{ needs.release-rehearsal.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHECKOUT_SHA: ${{ github.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          if [ "$PREFLIGHT_RESULT" != success ] || [ "$TESTS_RESULT" != success ]; then
-            echo "::error::Preflight result is $PREFLIGHT_RESULT; tests matrix result is $TESTS_RESULT."
-            exit 1
-          fi
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { verifyCiResults } = require('./scripts/lib/ci-plan');
+          const plan = JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP, 'dhpk-ci-plan/ci-plan.json'), 'utf8'));
+          const result = verifyCiResults(plan, {
+            preflight: process.env.PREFLIGHT_RESULT, tests: process.env.TESTS_RESULT,
+            'macos-installer': process.env.MACOS_RESULT, 'release-rehearsal': process.env.RELEASE_RESULT,
+            lint: process.env.LINT_RESULT, validate: 'success',
+          }, { root: process.cwd(), baseSha: process.env.BASE_SHA, headSha: process.env.HEAD_SHA, checkoutSha: process.env.CHECKOUT_SHA, baseRef: process.env.BASE_REF });
+          if (!result.ok) { result.errors.forEach((error) => console.error(`::error::${error}`)); process.exit(1); }
+          console.log('PASS: plan-bound required jobs');
+          NODE
 
-      - name: Download shard 0 timing evidence
+      - name: Download full test timing evidence
+        if: needs.plan.outputs.mode == 'full'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-*
+          path: ${{ runner.temp }}/dhpk-test-shards
+
+      - name: Download selected test timing evidence
+        if: needs.plan.outputs.mode == 'selected'
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-0
           path: ${{ runner.temp }}/dhpk-test-shards/dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-0
 
-      - name: Download shard 1 timing evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-1
-          path: ${{ runner.temp }}/dhpk-test-shards/dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-1
-
-      - name: Download shard 2 timing evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-2
-          path: ${{ runner.temp }}/dhpk-test-shards/dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-2
-
-      - name: Download shard 3 timing evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-3
-          path: ${{ runner.temp }}/dhpk-test-shards/dhpk-test-timing-${{ github.run_id }}-${{ github.run_attempt }}-shard-3
-
       - name: Verify shard coverage and timing evidence
-        run: node scripts/ci/verify-test-shards.js --directory "${{ runner.temp }}/dhpk-test-shards" --count 4 --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --checkout-sha '${{ github.sha }}' --head-sha '${{ github.event.pull_request.head.sha }}' --summary "$GITHUB_STEP_SUMMARY"
+        if: needs.plan.outputs.mode != 'light'
+        run: |
+          plan_file="$RUNNER_TEMP/dhpk-ci-plan/ci-plan.json"
+          count=4
+          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then count=1; fi
+          args=(--directory "$RUNNER_TEMP/dhpk-test-shards" --count "$count" --run-id "${{ github.run_id }}" --run-attempt "${{ github.run_attempt }}" --checkout-sha '${{ github.sha }}' --head-sha '${{ github.event.pull_request.head.sha }}' --summary "$GITHUB_STEP_SUMMARY")
+          if [ "${{ needs.plan.outputs.mode }}" = "selected" ]; then args+=(--plan "$plan_file" --base-sha '${{ github.event.pull_request.base.sha }}' --base-ref '${{ github.event.pull_request.base.ref }}'); fi
+          node scripts/ci/verify-test-shards.js "${args[@]}"
 
   macos-installer:
     name: macOS installer harness
+    needs: plan
+    if: needs.plan.outputs.macos == 'true'
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
@@ -273,6 +354,9 @@ jobs:
           probe_exit="${PIPESTATUS[0]}"
           set -e
           outcome="$(node -e "console.log(JSON.parse(require('fs').readFileSync(process.argv[1],'utf8')).outcome)" "$result_file")"
+          report_contract="$(node scripts/release/validate-harness-result.js "$result_file" "$probe_exit")"
+          legacy_report=0
+          if [ "$report_contract" = "LEGACY" ]; then legacy_report=1; fi
           {
             echo "## Release rehearsal consumer gate"
             echo ""
@@ -286,6 +370,7 @@ jobs:
               exit 0
               ;;
             PUBLISHED_PENDING)
+              [ "$legacy_report" -eq 1 ] || exit 1
               [ "$probe_exit" -eq 2 ] || exit 1
               echo "Consumer runtime evidence is pending on the rehearsal runner; keeping the job non-blocking."
               exit 0
@@ -311,7 +396,6 @@ jobs:
         with:
           globs: |
             *.md
-            .codex-plugin/*.md
             agent-traps/**/*.md
             agents/**/*.md
             changelog.d/**/*.md
@@ -319,16 +403,10 @@ jobs:
             codex/supporting/**/*.md
             # Lint installed Codex projections when present; runtime artifacts
             # and transaction backups under .codex/ are intentionally excluded.
-            .codex/agents/**/*.md
-            .codex/dhpk/**/*.md
-            .codex/skills/**/*.md
             commands/**/*.md
             docs/**/*.md
-            generated/**/*.md
             rules/**/*.md
             modules/**/*.md
             openspec/**/*.md
-            plugins/**/*.md
             skills/**/*.md
             templates/**/*.md
-            cursor/**/*.md

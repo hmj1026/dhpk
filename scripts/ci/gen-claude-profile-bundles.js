@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-// Generate a finite-alias Claude profile package. The materialized `minimal`
-// profile is the default discovery artifact; `full` and `compat-v1` remain
-// explicit opt-in compatibility profiles.
+// Generate an internal Claude bundle from the common collection or an explicit
+// standalone selection. The common collection is the default; retired public
+// profile selectors remain readable only in installation receipts.
 //
 // --plan prints the compiled selection plan without writing anything.
 // --check regenerates into a temporary directory and compares it file by file
@@ -26,7 +26,7 @@ function readJson(relative) {
 }
 
 function usage() {
-  console.error('usage: node scripts/ci/gen-claude-profile-bundles.js (--profile <alias> [--skill <stable-id>] | --standalone <skill-id-or-public-name>) [--out <directory>] [--plan | --check]');
+  console.error('usage: node scripts/ci/gen-claude-profile-bundles.js [--skill <stable-id>] [--standalone <skill-id-or-public-name>] [--out <directory>] [--plan | --check]');
 }
 
 function parseArgs(argv) {
@@ -35,7 +35,7 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === '--check') result.check = true;
     else if (arg === '--plan') result.plan = true;
-    else if (arg === '--profile' || arg === '-p') result.profile = argv[++i] || null;
+    else if (arg === '--profile' || arg === '-p') return { error: '--profile is retired; generation uses the common collection' };
     else if (arg === '--skill') {
       const value = argv[++i];
       if (!value || value.startsWith('--')) return { error: '--skill requires a value' };
@@ -61,10 +61,9 @@ function parseArgs(argv) {
     else return { error: `unknown argument '${arg}'` };
   }
   if (result.plan && result.check) return { error: '--plan and --check are mutually exclusive' };
-  if (result.standaloneSkillIds.length > 0 && (result.profile || result.skillIds.length > 0)) {
-    return { error: '--standalone cannot be combined with --profile or --skill' };
+  if (result.standaloneSkillIds.length > 0 && result.skillIds.length > 0) {
+    return { error: '--standalone cannot be combined with --skill' };
   }
-  if (!result.profile && result.standaloneSkillIds.length === 0) return { error: '--profile or --standalone is required' };
   return result;
 }
 
@@ -152,13 +151,18 @@ function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.help) { usage(); return 0; }
   if (args.error) { console.error(`FAIL [gen-claude-profile-bundles]: ${args.error}`); usage(); return 2; }
+  if (!args.plan && !args.out && args.standaloneSkillIds.length === 0) {
+    console.error('FAIL [gen-claude-profile-bundles]: --out is required to materialize the internal common collection');
+    usage();
+    return 2;
+  }
   const compiled = compileClaudeCapabilityBundle({
     root: ROOT,
     inventory: readJson('manifests/distribution-inventory.json'),
     profiles: readJson('manifests/install-profiles.json'),
     moduleCatalog: readJson('manifests/module-catalog.json'),
-    profileId: args.profile,
-    skillIds: args.skillIds,
+    profileId: args.standaloneSkillIds.length === 0 ? 'common' : null,
+    skillIds: args.standaloneSkillIds.length > 0 ? undefined : args.skillIds,
     ...(args.standaloneSkillIds.length > 0 ? { standaloneSkillIds: args.standaloneSkillIds } : {}),
   });
   if (!compiled.ok) {
@@ -174,9 +178,14 @@ function main(argv = process.argv.slice(2)) {
     }, null, 2));
     return 0;
   }
-  const outputName = args.profile || `standalone-${args.standaloneSkillIds.join('-')}`;
+  const outputName = args.standaloneSkillIds.length > 0
+    ? `standalone-${args.standaloneSkillIds.join('-')}`
+    : 'common';
   const outputRoot = path.resolve(args.out || path.join(ROOT, 'generated', 'claude-profiles', outputName));
-  const resumeCommand = `node scripts/ci/gen-claude-profile-bundles.js ${args.profile ? `--profile ${args.profile} ${args.skillIds.map((id) => `--skill ${id}`).join(' ')}` : args.standaloneSkillIds.map((id) => `--standalone ${id}`).join(' ')} --out ${outputRoot}`.replace(/  +/g, ' ').trim();
+  const selectionArgs = args.standaloneSkillIds.length > 0
+    ? args.standaloneSkillIds.map((id) => `--standalone ${id}`)
+    : args.skillIds.map((id) => `--skill ${id}`);
+  const resumeCommand = `node scripts/ci/gen-claude-profile-bundles.js ${selectionArgs.join(' ')} --out ${outputRoot}`.replace(/  +/g, ' ').trim();
   if (args.check) return check(compiled.value, outputRoot, resumeCommand);
   const artifact = materialize(compiled.value, outputRoot);
   if (!artifact.ok) {
@@ -184,7 +193,7 @@ function main(argv = process.argv.slice(2)) {
     return 1;
   }
   console.log(JSON.stringify({
-    profile: args.profile,
+    profile: compiled.value.selection.profileId,
     selectionMode: compiled.value.selection.selectionMode,
     requestedStableIds: compiled.value.selection.requestedStableIds || [],
     outputRoot: path.join(outputRoot, 'package'),

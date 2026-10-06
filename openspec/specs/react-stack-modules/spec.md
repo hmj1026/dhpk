@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change add-react-modules. Update Purpose after archive.
+Define React-major module identity, activation, registration, and skill
+compatibility contracts.
 
 ## Requirements
 
@@ -40,9 +41,9 @@ SHALL hold.
 - WHEN `node tests/run-all.js` and `node scripts/ci/catalog.js --check` run
 - THEN `module-catalog.json` has an exclusive `react` stack mapping `18`→`react-18`
   and `19`→`react-19`; both ids appear in `install-profiles.json` `full.excludes`
-  (union with `full.modules` equals every shipped module, disjoint); both skill
-  paths are in `plugin.json` `skills[]`; and the `31 opt-in stack modules` claim
-  is satisfied in the CLAIM_FILES
+  (union with `full.modules` equals every shipped module, disjoint); and both
+  skill paths are in `plugin.json` `skills[]`. Documentation counts are
+  informational and are not a catalog gate.
 
 ### Requirement: React skills lead with verified version-floor facts
 

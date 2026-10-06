@@ -6,55 +6,96 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
+  resolveSurfaceSelection,
   reportFromSurfaces,
   expectedAgyPolicy,
   expectedCursorPolicyBody,
+  cleanCheckoutReport,
 } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
 
-test('an unprofiled generation preserves legacy package membership while adding only declared runtime support', () => {
-  // Package generators reject symlinked ancestors; macOS exposes os.tmpdir() as /var.
-  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-platform-'));
-  try {
-    for (const surface of ['agent-plugin', 'agy-plugin']) {
-      const output = path.join(root, surface);
-      const result = spawnSync(path.join(ROOT, 'bin', 'dhpk'), [
-        'distribution', surface, 'generate', '--output', output, '--version', '0.48.3', '--json',
-      ], { encoding: 'utf8' });
-      assert.strictEqual(result.status, 0, result.stdout + result.stderr);
-      const report = JSON.parse(result.stdout);
-      assert.strictEqual(report.skillCount, 55, `${surface} must retain the current 55 inventory-selected skills`);
-      const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
-      assert.strictEqual(provenance.profileId, undefined, `${surface} must not narrow without an explicit --profile`);
-    }
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+test('surface selection rejects unknown surfaces and dependency metadata', () => {
+  assert.deepStrictEqual(resolveSurfaceSelection(['agent-plugin']), {
+    ok: true, requested: ['agent-plugin'], resolved: ['agent-plugin'],
+  });
+  assert.match(resolveSurfaceSelection(['missing-surface']).error, /unknown package surface/);
+  assert.match(resolveSurfaceSelection(['cursor-plugin'], { 'cursor-plugin': ['missing-owner'] }).error, /unknown dependency/);
+  assert.match(resolveSurfaceSelection(['cursor-plugin'], { 'cursor-plugin': ['agent-plugin'] }).error, /missing dependency metadata/);
 });
 
-test('platform package verifier reports deterministic four-platform outputs', () => {
-  const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js')], { encoding: 'utf8' });
-  assert.strictEqual(result.status, 0, result.stdout + result.stderr);
-  const report = JSON.parse(result.stdout);
+test('subset reporting does not dereference absent Host surfaces', () => {
+  const report = reportFromSurfaces({ 'codex-native': { selectedSkillIds: [], errors: [] } });
   assert.strictEqual(report.verdict, 'PASS');
-  assert.strictEqual(report.surfaces['agent-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['cursor-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['codex-native'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['agy-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 55);
-  assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 4);
-  assert.strictEqual(report.surfaces['codex-native'].selectedSkills, 34);
-  assert.strictEqual(report.surfaces['agy-plugin'].selectedSkills, 55);
-  assert.strictEqual(report.policyParity.verdict, 'PASS');
-  assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSurface, 'agent-plugin');
-  assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSource, 'plugins/dhpk-agent/skills/');
-  const cursorLocal = report.surfaces['cursor-plugin'].selectedSkillIds;
-  const cursorShared = report.surfaces['cursor-plugin'].sharedSkillIds;
-  const cursorProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-cursor', 'provenance.json'), 'utf8'));
-  assert.deepStrictEqual(cursorLocal, ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']);
-  assert.ok(cursorLocal.every((id) => cursorShared.includes(id) && cursorProvenance.runtimeSupportStableIds.includes(id)));
   assert.deepStrictEqual(report.errors, []);
+});
+
+test('default common receipts retain canonical IDs and the platform verifier replays them', () => {
+  // Package generators reject symlinked ancestors; macOS exposes os.tmpdir() as /var.
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-platform-'));
+  const sourceParent = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-unprofiled-source-'));
+  const sourceRoot = path.join(sourceParent, 'checkout');
+  let worktreeAdded = false;
+  try {
+    const checkedOut = spawnSync('git', ['worktree', 'add', '--detach', sourceRoot, 'HEAD'], {
+      cwd: ROOT, encoding: 'utf8',
+    });
+    assert.strictEqual(checkedOut.status, 0, checkedOut.stdout + checkedOut.stderr);
+    worktreeAdded = true;
+    const version = JSON.parse(fs.readFileSync(path.join(sourceRoot, '.claude-plugin', 'plugin.json'), 'utf8')).version;
+    const commonIds = JSON.parse(fs.readFileSync(path.join(sourceRoot, 'manifests', 'install-profiles.json'), 'utf8'))
+      .profiles.common.skillIds;
+    assert.strictEqual(commonIds.length, 15);
+    const verificationFailures = [];
+    for (const surface of ['agent-plugin', 'agy-plugin', 'codex-native']) {
+      const output = path.join(root, surface);
+      const result = spawnSync(path.join(sourceRoot, 'bin', 'dhpk'), [
+        'distribution', surface, 'generate', '--output', output, '--version', version, '--json',
+      ], { cwd: sourceRoot, encoding: 'utf8' });
+      assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+      const report = JSON.parse(result.stdout);
+      const expectedPhysicalCount = surface === 'codex-native' ? 19 : 17;
+      assert.strictEqual(report.skillCount, expectedPhysicalCount, `${surface} must retain its Host-only physical entries`);
+      const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
+      assert.strictEqual(provenance.profileId, 'common', `${surface} must record the default common selection`);
+      assert.deepStrictEqual(provenance.selectedStableIds, commonIds, `${surface} must retain canonical public selection IDs`);
+      assert.deepStrictEqual(provenance.emittedStableIds, commonIds, `${surface} must not claim Host-only entries as public selection IDs`);
+
+      const packagePath = surface === 'agy-plugin' ? 'plugins/dhpk-agy' : surface === 'codex-native' ? 'plugins/dhpk' : null;
+      if (!packagePath) continue;
+      const tracked = path.join(sourceRoot, packagePath);
+      fs.rmSync(tracked, { recursive: true, force: true });
+      fs.cpSync(output, tracked, { recursive: true });
+      for (const args of [['config', 'user.email', 'test@example.invalid'], ['config', 'user.name', 'common-verifier-fixture']]) {
+        const configured = spawnSync('git', args, { cwd: sourceRoot, encoding: 'utf8' });
+        assert.strictEqual(configured.status, 0, configured.stdout + configured.stderr);
+      }
+      const added = spawnSync('git', ['add', packagePath], { cwd: sourceRoot, encoding: 'utf8' });
+      assert.strictEqual(added.status, 0, added.stdout + added.stderr);
+      const committed = spawnSync('git', ['commit', '--quiet', '-m', `refresh ${surface} common fixture`], { cwd: sourceRoot, encoding: 'utf8' });
+      assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
+
+      const verified = spawnSync(process.execPath, [
+        path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+        '--surface', surface, '--repo-root', sourceRoot,
+      ], { encoding: 'utf8' });
+      let verification;
+      try { verification = JSON.parse(verified.stdout); } catch (_) {
+        verificationFailures.push(`${surface}: verifier returned non-JSON output: ${verified.stdout}${verified.stderr}`);
+        continue;
+      }
+      const summary = verification.surfaces && verification.surfaces[surface];
+      if (!summary || summary.structural !== 'PASS' || summary.receipt !== 'PASS'
+        || summary.deterministic !== 'PASS' || (summary.errors || []).length > 0) {
+        verificationFailures.push(`${surface}: ${JSON.stringify(summary || verification)}${verified.stderr}`);
+      }
+    }
+    assert.deepStrictEqual(verificationFailures, [], verificationFailures.join('\n'));
+  } finally {
+    if (worktreeAdded) spawnSync('git', ['worktree', 'remove', '--force', sourceRoot], { cwd: ROOT, encoding: 'utf8' });
+    fs.rmSync(sourceParent, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test('platform package verifier permits declared Cursor runtime support but reports undeclared shared overlaps at the top level', () => {
@@ -115,6 +156,90 @@ test('policy parity applies the generators\' repository-link rewrite before comp
     assert.ok(!cursor.includes('../docs/contracts/reviewer-contract.md'), cursor);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a dirty source checkout yields a FAIL report instead of a thrown stack trace', () => {
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-dirty-checkout-'));
+  try {
+    spawnSync('git', ['init', '-q'], { cwd: root });
+    fs.writeFileSync(path.join(root, 'untracked.txt'), 'dirty\n');
+    const report = cleanCheckoutReport(root);
+    assert.deepStrictEqual(report, {
+      verdict: 'FAIL',
+      surfaces: {},
+      errors: ['source checkout must be clean before generating provenance-bound package'],
+    });
+    fs.rmSync(path.join(root, 'untracked.txt'));
+    assert.strictEqual(cleanCheckoutReport(root), null);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function createHistoricalFixture() {
+  const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), 'dhpk-platform-subset-'));
+  const clone = path.join(root, 'repo');
+  const cloned = spawnSync('git', ['clone', '--quiet', ROOT, clone], { encoding: 'utf8' });
+  assert.strictEqual(cloned.status, 0, cloned.stdout + cloned.stderr);
+  const provenance = JSON.parse(fs.readFileSync(path.join(clone, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
+  const checkedOut = spawnSync('git', ['checkout', '--quiet', provenance.generatedFromCommit], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(checkedOut.status, 0, checkedOut.stdout + checkedOut.stderr);
+  const cursorReceiptPath = path.join(clone, 'plugins', 'dhpk-cursor', 'provenance.json');
+  const cursorReceipt = JSON.parse(fs.readFileSync(cursorReceiptPath, 'utf8'));
+  cursorReceipt.owner = 'plugins/dhpk-agent';
+  fs.writeFileSync(cursorReceiptPath, `${JSON.stringify(cursorReceipt, null, 2)}\n`);
+  for (const args of [['config', 'user.email', 'test@example.invalid'], ['config', 'user.name', 'subset-fixture']]) {
+    const configured = spawnSync('git', args, { cwd: clone, encoding: 'utf8' });
+    assert.strictEqual(configured.status, 0, configured.stdout + configured.stderr);
+  }
+  const committed = spawnSync('git', ['add', 'plugins/dhpk-cursor/provenance.json'], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(committed.status, 0, committed.stdout + committed.stderr);
+  const commit = spawnSync('git', ['commit', '--quiet', '-m', 'corrupt unrelated Cursor receipt'], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(commit.status, 0, commit.stdout + commit.stderr);
+  const generated = path.join(root, 'generated-agent');
+  const generatedResult = spawnSync(process.execPath, [
+    path.join(clone, 'scripts', 'ci', 'gen-agent-plugin-package.js'), generated,
+  ], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(generatedResult.status, 0, generatedResult.stdout + generatedResult.stderr);
+  fs.rmSync(path.join(clone, 'plugins', 'dhpk-agent'), { recursive: true, force: true });
+  fs.cpSync(generated, path.join(clone, 'plugins', 'dhpk-agent'), { recursive: true });
+  const regenerated = spawnSync('git', ['add', 'plugins/dhpk-agent'], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(regenerated.status, 0, regenerated.stdout + regenerated.stderr);
+  const packageCommit = spawnSync('git', ['commit', '--quiet', '-m', 'refresh Agent fixture package'], { cwd: clone, encoding: 'utf8' });
+  assert.strictEqual(packageCommit.status, 0, packageCommit.stdout + packageCommit.stderr);
+  return { root, clone };
+}
+
+const historicalFixture = createHistoricalFixture();
+
+test('public verifier filters an unrelated corrupt Cursor receipt from an Agent-only run', () => {
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+    '--surface', 'agent-plugin', '--repo-root', historicalFixture.clone,
+  ], { encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+  const report = JSON.parse(result.stdout);
+  assert.strictEqual(report.verdict, 'PASS');
+  assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin']);
+  assert.deepStrictEqual(report.selection, { requested: ['agent-plugin'], resolved: ['agent-plugin'] });
+  assert.deepStrictEqual(Object.keys(report.policyParity.projections), ['claude']);
+});
+
+test('public Cursor selection verifies its Agent owner dependency and fails on the selected receipt', () => {
+  try {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'verify-platform-packages.js'),
+      '--surface', 'cursor-plugin', '--repo-root', historicalFixture.clone,
+    ], { encoding: 'utf8' });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.verdict, 'FAIL');
+    assert.deepStrictEqual(Object.keys(report.surfaces), ['agent-plugin', 'cursor-plugin']);
+    assert.deepStrictEqual(report.selection, { requested: ['cursor-plugin'], resolved: ['agent-plugin', 'cursor-plugin'] });
+    assert.ok(report.surfaces['cursor-plugin'].errors.some((error) => /provenance owner/i.test(error)), report.errors.join('; '));
+  } finally {
+    fs.rmSync(historicalFixture.root, { recursive: true, force: true });
   }
 });
 

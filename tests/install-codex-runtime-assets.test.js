@@ -19,7 +19,7 @@ const {
   materializeFixtureSkill,
 } = require('./_lib/install-codex-skills-fixtures');
 
-const LOCAL_SCRIPT = path.join('scripts', 'harness-audit.js');
+const LOCAL_SCRIPT = path.join('scripts', 'fixture-runtime.js');
 
 function makePlugin() {
   const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-runtime-plugin-')));
@@ -36,19 +36,16 @@ function makePlugin() {
   // cpSync's dereference option does not dereference nested Codex skill links
   // on every supported Node release. Materialize before writing fixture files
   // so this test never follows a link back into ROOT/skills.
-  materializeFixtureSkill(plugin, 'harness-govern');
-  const skill = path.join(plugin, 'codex', 'skills', 'harness-govern');
-  fs.copyFileSync(
-    path.join(ROOT, 'skills', 'harness-audit', 'scripts', 'harness-audit.js'),
-    path.join(skill, LOCAL_SCRIPT),
-  );
+  materializeFixtureSkill(plugin, 'code-trace');
+  const skill = path.join(plugin, 'codex', 'skills', 'code-trace');
+  fs.writeFileSync(path.join(skill, LOCAL_SCRIPT), 'process.stdout.write("fixture runtime help\\n");\n');
   // A stale retired descriptor still names a plugin-root overlay.  It must be
   // inert: nothing outside the Skill directory may be injected.
   fs.mkdirSync(path.join(plugin, 'scripts'), { recursive: true });
   fs.writeFileSync(path.join(plugin, 'scripts', 'overlay-only.js'), 'module.exports = "overlay";\n');
   fs.writeFileSync(path.join(skill, 'skill-package.json'), `${JSON.stringify({
     schema: 'dhpk.skill-package.v1',
-    id: 'harness-govern',
+    id: 'code-trace',
     version: '1.0.0',
     entry: 'SKILL.md',
     resources: [{ path: 'SKILL.md', kind: 'entry', required: true }],
@@ -58,11 +55,11 @@ function makePlugin() {
 }
 
 function sourceSkill(plugin) {
-  return path.join(plugin, 'codex', 'skills', 'harness-govern');
+  return path.join(plugin, 'codex', 'skills', 'code-trace');
 }
 
 function installedSkill(project) {
-  return path.join(project, '.codex', 'skills', 'harness-govern');
+  return path.join(project, '.codex', 'skills', 'code-trace');
 }
 
 function runRunner(target) {
@@ -89,7 +86,7 @@ function stageMutationShim() {
     '        asset_fd = None',
     '        try:',
     "            stage_fd = os.open(src, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0), dir_fd=src_dir_fd)",
-    "            asset_fd = os.open('scripts/harness-audit.js', os.O_WRONLY | os.O_APPEND, dir_fd=stage_fd)",
+    "            asset_fd = os.open('scripts/fixture-runtime.js', os.O_WRONLY | os.O_APPEND, dir_fd=stage_fd)",
     "            os.write(asset_fd, b'\\n# test staged mutation\\n')",
     '            os.fsync(asset_fd)',
     '            _dhpk_mutated = True',
@@ -123,7 +120,7 @@ test('a stale descriptor cannot inject plugin-root files into an installed Skill
         `${mode.join(' ')}: a plugin-root overlay must never be injected`);
       if (mode.includes('--copy')) {
         const receipt = JSON.parse(fs.readFileSync(path.join(project, '.codex', '.dhpk-installed.json'), 'utf8'));
-        assert.strictEqual(receipt.managed_entries.skills['harness-govern'].source_fingerprint,
+        assert.strictEqual(receipt.managed_entries.skills['code-trace'].source_fingerprint,
           completeTreeFingerprint(target), 'receipt source hash must cover the complete installed tree');
         fs.rmSync(path.join(plugin, 'scripts'), { recursive: true, force: true });
         const runner = runRunner(target);
@@ -227,10 +224,10 @@ test('rejects a symlinked Skill-local script before creating a copy projection',
   const plugin = makePlugin();
   const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-runtime-outside-')));
   try {
-    fs.writeFileSync(path.join(outside, 'harness-audit.js'), 'outside runtime\n');
+    fs.writeFileSync(path.join(outside, 'fixture-runtime.js'), 'outside runtime\n');
     const local = path.join(sourceSkill(plugin), LOCAL_SCRIPT);
     fs.rmSync(local);
-    fs.symlinkSync(path.join(outside, 'harness-audit.js'), local);
+    fs.symlinkSync(path.join(outside, 'fixture-runtime.js'), local);
     const rejected = runInstaller(project, ['--copy', '--force'], plugin);
     assert.notStrictEqual(rejected.status, 0, `${rejected.stdout}\n${rejected.stderr}`);
     assert.ok(!fs.existsSync(path.join(project, '.codex', '.dhpk-installed.json')),

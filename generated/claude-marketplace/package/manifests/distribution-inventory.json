@@ -10,17 +10,9 @@
       "flow-guide"
     ],
     "profiles": {
-      "minimal": {
-        "selection": "required-core",
+      "common": {
+        "selection": "declared-common",
         "compatibilityMode": "profile"
-      },
-      "full": {
-        "selection": "conflict-aware-module-closure",
-        "compatibilityMode": "profile"
-      },
-      "compat-v1": {
-        "selection": "predecessor-compatible-stable-ids",
-        "compatibilityMode": "compat-v1"
       }
     }
   },
@@ -62,6 +54,18 @@
         {
           "source": "rules/tool-routing.md",
           "destination": "rules/tool-routing.md"
+        },
+        {
+          "source": "rules/execution-policy.md",
+          "destination": "rules/execution-policy.md"
+        },
+        {
+          "source": "rules/execution-policy-kernel.md",
+          "destination": "rules/execution-policy-kernel.md"
+        },
+        {
+          "source": "docs/subagent-prompt-template.md",
+          "destination": "docs/subagent-prompt-template.md"
         }
       ]
     }
@@ -83,7 +87,6 @@
     "agy-plugin"
   ],
   "agent_roster": [
-    "agent-evaluator",
     "agy-fast-worker",
     "agy-worker",
     "architect",
@@ -112,7 +115,6 @@
     "security-reviewer",
     "silent-failure-hunter",
     "smoke-tester",
-    "spec-miner",
     "swift-build-resolver",
     "tdd-guide",
     "type-design-analyzer",
@@ -293,8 +295,8 @@
       "id": "codex-supporting-agent-traps-_common-trap-sheet-loader-md",
       "source": "codex/supporting/agent-traps/_common/trap-sheet-loader.md",
       "canonical_source": "agent-traps/_common/trap-sheet-loader.md",
-      "canonical_digest": "3a91e43ff71735426254494e34460df034f1c75ef81995115bd5a31df43ee77b",
-      "projection_digest": "1791f859680eb85074ac25e8e4aeaea5a3fdfbe95871a89695e57371e2fdc9d7",
+      "canonical_digest": "455bd99b50d68c2332a16dbdadc530a51767cccf4e29f6a3473a70c7929a3588",
+      "projection_digest": "a215bceb37660146caa1dd1191ea4efeea173564d03f301b55cc12d87382432b",
       "destination": "dhpk/agent-traps/_common/trap-sheet-loader.md"
     },
     {
@@ -330,10 +332,7 @@
     },
     {
       "id": "codex-supporting-agent-traps-code-reviewer-python-md",
-      "source": "codex/supporting/agent-traps/code-reviewer/python.md",
-      "canonical_source": "agent-traps/code-reviewer/python.md",
-      "canonical_digest": "0e61065c5208a799804222e10a915fa65a1037d33c954eacf6b87aab37893fc4",
-      "projection_digest": "b3054f8681a533798bd745aedf1048abe0f2b499cabc764ea01e8d8ac969ecaa",
+      "source": "agent-traps/code-reviewer/python.md",
       "destination": "dhpk/agent-traps/code-reviewer/python.md"
     },
     {
@@ -394,10 +393,7 @@
     },
     {
       "id": "codex-supporting-agent-traps-security-reviewer-php-md",
-      "source": "codex/supporting/agent-traps/security-reviewer/php.md",
-      "canonical_source": "agent-traps/security-reviewer/php.md",
-      "canonical_digest": "56718d2b3d645eb310fffe62232a0c75269330f42291973d1aaf03d747b1e57a",
-      "projection_digest": "435ff3d678304cd7dc5aa3472cdcf22ce95c4e48c413ac9522c522a3ddb2f106",
+      "source": "agent-traps/security-reviewer/php.md",
       "destination": "dhpk/agent-traps/security-reviewer/php.md"
     },
     {
@@ -409,8 +405,8 @@
       "id": "codex-supporting-agent-traps-security-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/security-reviewer/yii.md",
       "canonical_source": "agent-traps/security-reviewer/yii.md",
-      "canonical_digest": "3c86b9dc6097b73aba8a1df5426161aa0740e1969b21992bec48766f72e83b93",
-      "projection_digest": "c455e3d172257a01a7331dde8aa188f594150aa3854eec4d17f5b06c5c5fec64",
+      "canonical_digest": "a9193bf4021c69ffef55ce93beea35bc78ec05968c46c35606ad46c0ba6785b0",
+      "projection_digest": "d1b204ec3b44571e13029667c14a02c1d65c1b3c1fdc23b8ddae521aaad6b15d",
       "destination": "dhpk/agent-traps/security-reviewer/yii.md"
     },
     {
@@ -428,10 +424,7 @@
     },
     {
       "id": "codex-supporting-agent-traps-tdd-guide-python-md",
-      "source": "codex/supporting/agent-traps/tdd-guide/python.md",
-      "canonical_source": "agent-traps/tdd-guide/python.md",
-      "canonical_digest": "1d36094aff0bad44a832521ca396c70e60f2ac99ea10757c528b004cd4c760c2",
-      "projection_digest": "9202e20ff8a178ae3e547e42725aa3a10e92b8e0b3c6a82a419de15045d5e0ca",
+      "source": "agent-traps/tdd-guide/python.md",
       "destination": "dhpk/agent-traps/tdd-guide/python.md"
     },
     {
@@ -464,40 +457,32 @@
       "id": "codex-supporting-contracts-artifact-contract-md",
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",
-      "canonical_digest": "439c7da7ae73943a3484155d2b4ee951ebbb39b97d229dd030f6e805b834ada0",
-      "projection_digest": "0eec19c5350c0ad5572d49807b5512c5b409c0e2364eeb96698bf1db41ba4a36",
+      "canonical_digest": "66a2d48d31c56db5612596db273a5365a33b8660a6765e471c10ca9f839ce2e0",
+      "projection_digest": "ad5a05ceaa56719084e99a37c7c57563727982cbf24bc7f0a907981071e1ac7e",
       "destination": "dhpk/contracts/artifact-contract.md"
-    },
-    {
-      "id": "codex-supporting-contracts-reviewer-contract-md",
-      "source": "codex/supporting/contracts/reviewer-contract.md",
-      "canonical_source": "docs/contracts/reviewer-contract.md",
-      "canonical_digest": "7d3794c676d8080856e76a477ad8abb973277bc4464ffe1ba637bb73afaaef73",
-      "projection_digest": "d04688af1f527bf4aaf318b1ac3572eacbf91ad70052f8cf63ecb3fc00dcce64",
-      "destination": "dhpk/contracts/reviewer-contract.md"
     },
     {
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "3153a82e68542739952cce9182cad31a2cd89bd703580139ef56824c8a23cbc1",
-      "projection_digest": "f6aa7015ee4aff4460901ff0498311de16355bdcce6ea9981b8e3351a98c9805",
+      "canonical_digest": "31496cc65eef5b44d2ab0c37b94b976279118c1c8a09a74ca8c219dc7ea87a64",
+      "projection_digest": "ba068511f42bac22d06ebfc59c4c0a4fc4007d4d6a8dd22ecdab75986ce2611a",
       "destination": "dhpk/policies/execution-policy.md"
     },
     {
       "id": "codex-supporting-agent-traps-_common-build-resolver-skeleton-md",
       "source": "codex/supporting/agent-traps/_common/build-resolver-skeleton.md",
       "canonical_source": "agent-traps/_common/build-resolver-skeleton.md",
-      "canonical_digest": "a9a8cbc1d8c8efb249aaac1f12c79f71ebb375773d4b1a519209734469b7f125",
-      "projection_digest": "0c4491481d52237c657b208d019d921ab836362c11c7a284fbee3e8d05359c27",
+      "canonical_digest": "6dba9375b0fe8834f9086b423e5e6f812e83c29ed2800aed85550d24907868e5",
+      "projection_digest": "21b71a73d06407fb8a561b885a07d318630f0a44c93b91ac1b90ac0ddabd4041",
       "destination": "dhpk/agent-traps/_common/build-resolver-skeleton.md"
     },
     {
       "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
       "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
       "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
-      "canonical_digest": "510702d0fdc82908ea2049a51779bf123866efee078dd05e6ba7c124d9cb7f14",
-      "projection_digest": "e9344365e347160bea810c46a580678113474c34f93dd99f4781e8f3bc34470e",
+      "canonical_digest": "566306b9a9757b5cb413181e8d9c73ffbd0122757853df1dcdd2b60444741e4c",
+      "projection_digest": "ce688871d91c199c68f8395ac8a6614237dca27dc94d651dfc5c2b98a46b879c",
       "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
     },
     {
@@ -1366,24 +1351,6 @@
       }
     },
     {
-      "id": "agent-architecture-audit",
-      "name": "dhpk-agent-architecture-audit",
-      "path": "skills/dhpk-agent-architecture-audit",
-      "capability_id": "dhpk.skill.agent-architecture-audit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "agent-architecture-audit"
-      ]
-    },
-    {
       "id": "agy-fast-worker",
       "name": "dhpk-agy-fast-worker",
       "path": "skills/dhpk-agy-fast-worker",
@@ -1609,7 +1576,9 @@
       ],
       "surfaces": [
         "claude-core",
-        "cursor-sync"
+        "cursor-sync",
+        "codex-sync",
+        "codex-native"
       ],
       "usage": {
         "display_name": "Change Verdict",
@@ -1725,7 +1694,7 @@
       "usage": {
         "display_name": "Flow Drive",
         "summary": "Implement a confirmed specification with bounded evidence",
-        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--plan-mode=auto|bounded|discovery] [--worker=<worker>] [--worker-target=<provider>/<model>[:<effort>]] [--cross-provider] [--reasoner=<provider>/<model>[:<effort>]] [--architect|--no-architect]",
         "input_kind": "mixed",
         "inputs": [
           {
@@ -1757,6 +1726,22 @@
             "value_kind": "string",
             "required": false,
             "summary": "Request a planning pass before implementation",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "plan-mode",
+            "syntax": "--plan-mode=auto|bounded|discovery",
+            "value_kind": "enum",
+            "required": false,
+            "default": "auto",
+            "enum_values": [
+              "auto",
+              "bounded",
+              "discovery"
+            ],
+            "summary": "Select the consult scope; requires --plan and defaults to auto when enabled",
             "applies_to": [
               "apply"
             ]
@@ -1868,23 +1853,6 @@
       ],
       "legacy_names": [
         "composer-package-hygiene"
-      ]
-    },
-    {
-      "id": "skill-forge",
-      "name": "skill-forge",
-      "name_style": "portable-family",
-      "path": "skills/skill-forge",
-      "capability_id": "dhpk.skill.skill-forge",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
       ]
     },
     {
@@ -2001,114 +1969,6 @@
       "name_style": "portable-skill"
     },
     {
-      "id": "gitnexus-cli",
-      "name": "dhpk-gitnexus-cli",
-      "path": "skills/dhpk-gitnexus-cli",
-      "capability_id": "dhpk.skill.gitnexus-cli",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-cli"
-      ]
-    },
-    {
-      "id": "gitnexus-debugging",
-      "name": "dhpk-gitnexus-debugging",
-      "path": "skills/dhpk-gitnexus-debugging",
-      "capability_id": "dhpk.skill.gitnexus-debugging",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-debugging"
-      ]
-    },
-    {
-      "id": "gitnexus-exploring",
-      "name": "dhpk-gitnexus-exploring",
-      "path": "skills/dhpk-gitnexus-exploring",
-      "capability_id": "dhpk.skill.gitnexus-exploring",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-exploring"
-      ]
-    },
-    {
-      "id": "gitnexus-guide",
-      "name": "dhpk-gitnexus-guide",
-      "path": "skills/dhpk-gitnexus-guide",
-      "capability_id": "dhpk.skill.gitnexus-guide",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-guide"
-      ]
-    },
-    {
-      "id": "gitnexus-impact-analysis",
-      "name": "dhpk-gitnexus-impact-analysis",
-      "path": "skills/dhpk-gitnexus-impact-analysis",
-      "capability_id": "dhpk.skill.gitnexus-impact-analysis",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-impact-analysis"
-      ]
-    },
-    {
-      "id": "gitnexus-refactoring",
-      "name": "dhpk-gitnexus-refactoring",
-      "path": "skills/dhpk-gitnexus-refactoring",
-      "capability_id": "dhpk.skill.gitnexus-refactoring",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "gitnexus-refactoring"
-      ]
-    },
-    {
       "id": "issue-analyze",
       "name": "dhpk-issue-analyze",
       "path": "skills/dhpk-issue-analyze",
@@ -2161,24 +2021,6 @@
       ],
       "legacy_names": [
         "laravel-testbench-matrix"
-      ]
-    },
-    {
-      "id": "opsx-apply-goal",
-      "name": "dhpk-opsx-apply-goal",
-      "path": "skills/dhpk-opsx-apply-goal",
-      "capability_id": "dhpk.skill.opsx-apply-goal",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "opsx-apply-goal"
       ]
     },
     {
@@ -2318,42 +2160,6 @@
       ]
     },
     {
-      "id": "project-setup",
-      "name": "dhpk-project-setup",
-      "path": "skills/dhpk-project-setup",
-      "capability_id": "dhpk.skill.project-setup",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "project-setup"
-      ]
-    },
-    {
-      "id": "prompt-optimize",
-      "name": "dhpk-prompt-optimize",
-      "path": "skills/dhpk-prompt-optimize",
-      "capability_id": "dhpk.skill.prompt-optimize",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "prompt-optimize"
-      ]
-    },
-    {
       "id": "release-creator",
       "name": "release-creator",
       "path": "skills/release-creator",
@@ -2433,118 +2239,11 @@
       ]
     },
     {
-      "id": "session-usage-audit",
-      "name": "dhpk-session-usage-audit",
-      "path": "skills/dhpk-session-usage-audit",
-      "capability_id": "dhpk.skill.session-usage-audit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "session-usage-audit"
-      ]
-    },
-    {
-      "id": "skill-scope",
-      "name": "skill-scope",
-      "name_style": "portable-family",
-      "path": "skills/skill-scope",
-      "capability_id": "dhpk.skill.skill-scope",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Skill Scope",
-        "summary": "Route skill governance to one focused mode with evidence",
-        "syntax": "$skill-scope <health|judge|stocktake|scout>",
-        "input_kind": "action-first",
-        "inputs": [
-          {
-            "id": "mode",
-            "syntax": "<health|judge|stocktake|scout>",
-            "value_kind": "enum",
-            "required": true,
-            "summary": "Choose one skill governance mode",
-            "enum_values": [
-              "health",
-              "judge",
-              "stocktake",
-              "scout"
-            ]
-          },
-          {
-            "id": "target",
-            "syntax": "<target>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select the skill or capability to inspect",
-            "applies_to": [
-              "health",
-              "judge",
-              "scout"
-            ]
-          }
-        ],
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "delegate",
-        "actions": [
-          {
-            "id": "health",
-            "summary": "Check one skill or package structure",
-            "syntax": "$skill-scope health <skill>",
-            "input_kind": "identifier",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "judge",
-            "summary": "Score one skill or package quality",
-            "syntax": "$skill-scope judge <skill>",
-            "input_kind": "identifier",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "stocktake",
-            "summary": "Audit installed consumer skills and commands",
-            "syntax": "$skill-scope stocktake",
-            "input_kind": "none",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "scout",
-            "summary": "Search for an existing skill or capability",
-            "syntax": "$skill-scope scout <capability>",
-            "input_kind": "free-text",
-            "effect_authority": "delegate"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$skill-scope health flow-guide",
-            "summary": "Run a focused health check for one skill"
-          }
-        ]
-      }
-    },
-    {
       "id": "software-architecture",
-      "name": "dhpk-module-design",
-      "path": "skills/dhpk-module-design",
+      "name": "module-design",
+      "name_style": "portable-skill",
+      "invocation_class": "implicit-eligible",
+      "path": "skills/module-design",
       "capability_id": "dhpk.skill.software-architecture",
       "lifecycle": "promoted",
       "tier": "core",
@@ -2634,138 +2333,6 @@
         ]
       },
       "name_style": "portable-skill"
-    },
-    {
-      "id": "harness-govern",
-      "name": "harness-govern",
-      "name_style": "portable-family",
-      "path": "skills/harness-govern",
-      "capability_id": "dhpk.skill.harness-govern",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Harness Govern",
-        "summary": "Govern harness health, budget, filling, revision, and sync",
-        "syntax": "$harness-govern <health|budget|fill|revise|sync> [options]",
-        "input_kind": "action-first",
-        "inputs": [
-          {
-            "id": "mode",
-            "syntax": "<health|budget|fill|revise|sync>",
-            "value_kind": "enum",
-            "required": true,
-            "summary": "Choose one harness governance mode",
-            "enum_values": [
-              "health",
-              "budget",
-              "fill",
-              "revise",
-              "sync"
-            ]
-          }
-        ],
-        "invocation_class": "explicit-only",
-        "effect_authority": "external-write",
-        "actions": [
-          {
-            "id": "health",
-            "summary": "Check harness structure and optionally fix safe issues",
-            "syntax": "$harness-govern health [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "budget",
-            "summary": "Measure harness context cost and ranked savings",
-            "syntax": "$harness-govern budget [options]",
-            "input_kind": "none",
-            "effect_authority": "read-only"
-          },
-          {
-            "id": "fill",
-            "summary": "Preview or apply missing harness layers",
-            "syntax": "$harness-govern fill [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "revise",
-            "summary": "Review and revise an active harness",
-            "syntax": "$harness-govern revise [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "sync",
-            "summary": "Plan or apply cross-platform harness synchronization",
-            "syntax": "$harness-govern sync [options]",
-            "input_kind": "none",
-            "effect_authority": "external-write"
-          }
-        ],
-        "options": [
-          {
-            "id": "dir",
-            "syntax": "--dir=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select the harness directory"
-          },
-          {
-            "id": "dry-run",
-            "syntax": "--dry-run",
-            "value_kind": "boolean",
-            "required": false,
-            "default": false,
-            "summary": "Preview changes without writing",
-            "applies_to": [
-              "health",
-              "budget",
-              "fill",
-              "revise",
-              "sync"
-            ]
-          },
-          {
-            "id": "fix-safe",
-            "syntax": "--fix-safe",
-            "value_kind": "boolean",
-            "required": false,
-            "default": false,
-            "summary": "Apply only approved safe health fixes",
-            "applies_to": [
-              "health"
-            ]
-          },
-          {
-            "id": "fix",
-            "syntax": "--fix",
-            "value_kind": "boolean",
-            "required": false,
-            "default": false,
-            "summary": "Apply the selected health fixes",
-            "applies_to": [
-              "health"
-            ]
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$harness-govern health --dry-run",
-            "summary": "Inspect harness health without changing files"
-          }
-        ]
-      }
     },
     {
       "id": "create-pr",
@@ -3553,89 +3120,6 @@
       }
     },
     {
-      "id": "harness-audit",
-      "name": "harness-audit",
-      "name_style": "portable-skill",
-      "path": "skills/harness-audit",
-      "capability_id": "dhpk.skill.harness-audit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Harness Audit",
-        "summary": "Audit repository harness health with a deterministic scorecard",
-        "syntax": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
-        "input_kind": "action-first",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [
-          {
-            "id": "scope",
-            "syntax": "<scope>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Harness area to inspect",
-            "default": "repo",
-            "enum_values": [
-              "repo",
-              "hooks",
-              "skills",
-              "commands",
-              "agents"
-            ],
-            "applies_to": [
-              "audit"
-            ]
-          }
-        ],
-        "actions": [
-          {
-            "id": "audit",
-            "summary": "Run the deterministic harness audit",
-            "syntax": "$harness-audit [<scope>]",
-            "input_kind": "action-first",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "format",
-            "syntax": "--format=<format>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Output format",
-            "default": "text",
-            "enum_values": [
-              "text",
-              "json"
-            ]
-          },
-          {
-            "id": "root",
-            "syntax": "--root=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Consumer repository root"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$harness-audit skills --format=json",
-            "summary": "Use harness audit with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "review-pending",
       "name": "review-pending",
       "name_style": "portable-skill",
@@ -3688,58 +3172,6 @@
       }
     },
     {
-      "id": "spec-mine",
-      "name": "spec-mine",
-      "name_style": "portable-skill",
-      "path": "skills/spec-mine",
-      "capability_id": "dhpk.skill.spec-mine",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Spec Mine",
-        "summary": "Extract one capability baseline into an OpenSpec behavioral spec",
-        "syntax": "$spec-mine [<capability-or-path>]",
-        "input_kind": "free-text",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "workspace-write",
-        "inputs": [
-          {
-            "id": "capability-or-path",
-            "syntax": "<capability-or-path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Capability or path to mine first"
-          }
-        ],
-        "actions": [
-          {
-            "id": "mine",
-            "summary": "Write one bounded behavioral baseline",
-            "syntax": "$spec-mine [<capability-or-path>]",
-            "input_kind": "free-text",
-            "effect_authority": "workspace-write"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$spec-mine billing",
-            "summary": "Use spec mine with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "harness-setup",
       "name": "harness-setup",
       "name_style": "portable-skill",
@@ -3758,7 +3190,7 @@
       "usage": {
         "display_name": "Harness Setup",
         "summary": "Inspect or configure host harness assets",
-        "syntax": "$harness-setup [--show] [--review-gate] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force] [--vendor]",
+        "syntax": "$harness-setup [--show] [--source-artifact=<dir>] [--install=<group>] [--dry-run] [--force] [--vendor]",
         "input_kind": "none",
         "invocation_class": "explicit-only",
         "effect_authority": "workspace-write",
@@ -3779,14 +3211,6 @@
             "value_kind": "boolean",
             "required": false,
             "summary": "Inspect effective state without writes",
-            "default": false
-          },
-          {
-            "id": "review-gate",
-            "syntax": "--review-gate",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Initialize or inspect the Review Gate",
             "default": false
           },
           {
@@ -3906,7 +3330,9 @@
       "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-core",
-        "cursor-sync"
+        "cursor-sync",
+        "codex-sync",
+        "codex-native"
       ],
       "usage": {
         "display_name": "UI UX Verify",
@@ -4202,7 +3628,6 @@
   ],
   "surface_membership": {
     "agent-plugin": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -4220,21 +3645,12 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "gitnexus-cli",
-      "gitnexus-debugging",
-      "gitnexus-exploring",
-      "gitnexus-guide",
-      "gitnexus-impact-analysis",
-      "gitnexus-refactoring",
-      "harness-audit",
-      "harness-govern",
       "issue-analyze",
       "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
       "matrix-cell-onboard",
       "merge-prep",
-      "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
@@ -4242,24 +3658,17 @@
       "precommit",
       "project-audit",
       "project-brief",
-      "project-setup",
-      "prompt-optimize",
       "proposal-analyze",
       "release-creator",
       "repo-intake",
       "repo-verify",
       "review-pending",
-      "session-usage-audit",
-      "skill-forge",
-      "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "update-codemaps",
       "update-docs"
     ],
     "cursor-plugin": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -4277,14 +3686,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "gitnexus-cli",
-      "gitnexus-debugging",
-      "gitnexus-exploring",
-      "gitnexus-guide",
-      "gitnexus-impact-analysis",
-      "gitnexus-refactoring",
-      "harness-audit",
-      "harness-govern",
       "harness-setup",
       "issue-analyze",
       "js-static-check-strategy",
@@ -4292,7 +3693,6 @@
       "laravel-testbench-matrix",
       "matrix-cell-onboard",
       "merge-prep",
-      "opsx-apply-goal",
       "opsx-apply-resume",
       "opsx-load-context",
       "opsx-post-obs",
@@ -4301,25 +3701,18 @@
       "precommit",
       "project-audit",
       "project-brief",
-      "project-setup",
-      "prompt-optimize",
       "proposal-analyze",
       "release-creator",
       "repo-intake",
       "repo-verify",
       "review-pending",
-      "session-usage-audit",
-      "skill-forge",
-      "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "ui-ux-verify",
       "update-codemaps",
       "update-docs"
     ],
     "agy-plugin": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -4337,21 +3730,12 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "gitnexus-cli",
-      "gitnexus-debugging",
-      "gitnexus-exploring",
-      "gitnexus-guide",
-      "gitnexus-impact-analysis",
-      "gitnexus-refactoring",
-      "harness-audit",
-      "harness-govern",
       "issue-analyze",
       "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
       "matrix-cell-onboard",
       "merge-prep",
-      "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
@@ -4359,24 +3743,17 @@
       "precommit",
       "project-audit",
       "project-brief",
-      "project-setup",
-      "prompt-optimize",
       "proposal-analyze",
       "release-creator",
       "repo-intake",
       "repo-verify",
       "review-pending",
-      "session-usage-audit",
-      "skill-forge",
-      "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "update-codemaps",
       "update-docs"
     ],
     "cursor-sync": [
-      "agent-architecture-audit",
       "agy-fast-worker",
       "change-verdict",
       "cli-dispatch-context",
@@ -4394,14 +3771,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "gitnexus-cli",
-      "gitnexus-debugging",
-      "gitnexus-exploring",
-      "gitnexus-guide",
-      "gitnexus-impact-analysis",
-      "gitnexus-refactoring",
-      "harness-audit",
-      "harness-govern",
       "harness-setup",
       "issue-analyze",
       "js-static-check-strategy",
@@ -4409,7 +3778,6 @@
       "laravel-testbench-matrix",
       "matrix-cell-onboard",
       "merge-prep",
-      "opsx-apply-goal",
       "opsx-apply-resume",
       "opsx-load-context",
       "opsx-post-obs",
@@ -4418,18 +3786,12 @@
       "precommit",
       "project-audit",
       "project-brief",
-      "project-setup",
-      "prompt-optimize",
       "proposal-analyze",
       "release-creator",
       "repo-intake",
       "repo-verify",
       "review-pending",
-      "session-usage-audit",
-      "skill-forge",
-      "skill-scope",
       "software-architecture",
-      "spec-mine",
       "tdd",
       "ui-ux-verify",
       "update-codemaps",
@@ -4467,7 +3829,6 @@
     "adapter": "agy-agent-frontmatter-v1",
     "transform": "agy-agent-frontmatter-v1",
     "agents": [
-      "agent-evaluator.md",
       "agy-fast-worker.md",
       "agy-worker.md",
       "architect.md",
@@ -4496,7 +3857,6 @@
       "security-reviewer.md",
       "silent-failure-hunter.md",
       "smoke-tester.md",
-      "spec-miner.md",
       "swift-build-resolver.md",
       "tdd-guide.md",
       "type-design-analyzer.md",
@@ -5044,9 +4404,7 @@
       "reasonCode": "capability-family-consolidation",
       "replacements": [
         {
-          "kind": "skill",
-          "id": "skill-forge",
-          "mode": "create"
+          "kind": "model-default"
         }
       ],
       "rollback": {
@@ -5065,9 +4423,7 @@
       "reasonCode": "capability-family-consolidation",
       "replacements": [
         {
-          "kind": "skill",
-          "id": "skill-forge",
-          "mode": "distill-rules"
+          "kind": "model-default"
         }
       ],
       "rollback": {
@@ -5849,26 +5205,218 @@
       "rollback": {
         "release": "0.53.0"
       }
-    }
-  ],
-  "external_skill_packages": [
+    },
     {
-      "id": "gitnexus",
-      "owner": "upstream",
-      "repository": "https://github.com/abhigyanpatwari/GitNexus",
-      "policy": "protect-existing",
-      "license_review": "open",
-      "stable_ids": [
-        "gitnexus-cli",
-        "gitnexus-debugging",
-        "gitnexus-exploring",
-        "gitnexus-guide",
-        "gitnexus-impact-analysis",
-        "gitnexus-refactoring"
-      ]
+      "id": "agent-architecture-audit",
+      "name": "dhpk-agent-architecture-audit",
+      "canonicalPath": "skills/dhpk-agent-architecture-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "third-party-text-overlap",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "skill-forge",
+      "name": "skill-forge",
+      "canonicalPath": "skills/skill-forge",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "third-party-text-overlap",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "spec-mine",
+      "name": "spec-mine",
+      "canonicalPath": "skills/spec-mine",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "third-party-text-overlap",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "opsx-apply-goal",
+      "name": "dhpk-opsx-apply-goal",
+      "canonicalPath": "skills/dhpk-opsx-apply-goal",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "project-setup",
+      "name": "dhpk-project-setup",
+      "canonicalPath": "skills/dhpk-project-setup",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "prompt-optimize",
+      "name": "dhpk-prompt-optimize",
+      "canonicalPath": "skills/dhpk-prompt-optimize",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "session-usage-audit",
+      "name": "dhpk-session-usage-audit",
+      "canonicalPath": "skills/dhpk-session-usage-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "skill-scope",
+      "name": "skill-scope",
+      "canonicalPath": "skills/skill-scope",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "harness-govern",
+      "name": "harness-govern",
+      "canonicalPath": "skills/harness-govern",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "harness-audit",
+      "name": "harness-audit",
+      "canonicalPath": "skills/harness-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
     }
   ],
+  "external_skill_packages": [],
   "renamed_skill_names": [
+    {
+      "id": "software-architecture",
+      "oldName": "dhpk-module-design",
+      "oldPath": "skills/dhpk-module-design",
+      "newName": "module-design",
+      "newPath": "skills/module-design",
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
     {
       "id": "laravel",
       "oldName": "dhpk-laravel",
@@ -5951,7 +5499,6 @@
         "version": "portable-core-v1",
         "compatibility_mode": "portable-core",
         "stable_ids": [
-          "agent-architecture-audit",
           "agy-fast-worker",
           "change-verdict",
           "cli-dispatch-context",
@@ -5969,21 +5516,12 @@
           "flow-guide",
           "git-smart-commit",
           "git-worktree",
-          "gitnexus-cli",
-          "gitnexus-debugging",
-          "gitnexus-exploring",
-          "gitnexus-guide",
-          "gitnexus-impact-analysis",
-          "gitnexus-refactoring",
-          "harness-audit",
-          "harness-govern",
           "issue-analyze",
           "js-static-check-strategy",
           "laravel-package-author",
           "laravel-testbench-matrix",
           "matrix-cell-onboard",
           "merge-prep",
-          "opsx-apply-goal",
           "opsx-load-context",
           "opsx-post-obs",
           "polyfill-version-matrix-audit",
@@ -5991,18 +5529,12 @@
           "precommit",
           "project-audit",
           "project-brief",
-          "project-setup",
-          "prompt-optimize",
           "proposal-analyze",
           "release-creator",
           "repo-intake",
           "repo-verify",
           "review-pending",
-          "session-usage-audit",
-          "skill-forge",
-          "skill-scope",
           "software-architecture",
-          "spec-mine",
           "tdd",
           "update-codemaps",
           "update-docs"

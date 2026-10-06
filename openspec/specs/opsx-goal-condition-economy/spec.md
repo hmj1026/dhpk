@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change harvest-advice-20260712. Update Purpose after archive.
+Keep generated goal conditions compact and evaluator-scorable while retaining
+required safety, verification, and evidence boundaries.
 
 ## Requirements
 
@@ -56,3 +57,22 @@ The goal generator SHALL compose a `<TASK_DIGEST>` — open-task section headers
 
 - **WHEN** open-task titles exceed 200 bytes
 - **THEN** the digest is truncated deterministically (no over-cap emission, no generation error caused by the digest alone)
+
+### Requirement: Evidence is accepted by outcome, not producer
+
+The generated condition SHALL allow ordinary text, files, and reports to supply
+an applicable plan, review, diagnosis, or verification outcome when they state
+their scope, conclusion, supporting observations, and remaining gaps. It SHALL
+request only missing outcomes and SHALL NOT require a named dhpk producer,
+duplicate document, retired review receipt, or proprietary heading. Evidence
+does not grant authority or expand the task scope.
+
+#### Scenario: Existing review report is sufficient
+
+- **WHEN** an external report covers the unchanged implementation scope and states findings and gaps
+- **THEN** the goal reuses it and requests only affected or missing review evidence
+
+#### Scenario: Changed source invalidates evidence
+
+- **WHEN** source, configuration, tool, or environment changes affect a reused result
+- **THEN** the goal marks that result inapplicable and reruns only the affected outcome unless a complete checkpoint is required

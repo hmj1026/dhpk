@@ -34,7 +34,7 @@ first. Quota/rate-limit fallback requires an explicitly different authorized
 pool and cross-provider opt-in. Safety/user denial stays on authorization,
 task/semantic failure stays on repair, and timeout/interruption requires the
 partial-writer reconciliation contract. Preserve this worker's role, assigned
-files, workspace-write authority, verification, and Review Gate contract on
+files, workspace-write authority, and verification contract on
 every handoff; never silently switch or retry from inside the worker.
 
 ## When NOT
@@ -86,8 +86,8 @@ In parallel mode, derive before/after edits only from path-scoped status/diff fo
 
 Every report — pass, fail, or escalation — includes the complete list of files
 touched so far, even a partial/failed attempt. The orchestrator uses this list
-as the Review Gate accounting back-stop when provider or out-of-band writes
-bypass normal tool events, deriving applicable reviewer obligations from the
+as the reviewer-scope back-stop when provider or out-of-band writes
+bypass normal tool events, deriving applicable reviewers from the
 actual edited paths. Omitting it (or reporting it incompletely) breaks that
 back-stop.
 
@@ -128,6 +128,6 @@ at the point of escalation.
 
 **No artifact** — fast-worker reports inline to its dispatcher (orchestrator or
 `deep-reasoner`'s handoff); its deliverable is the applied diff plus the report
-above, not a persisted `.claude/artifacts/` file. Its edits remain subject to
-the Review Gate; the orchestrator dispatches applicable reviewer obligations
+above, not a persisted `.claude/artifacts/` file. Its edits should be reviewed;
+the orchestrator dispatches applicable reviewers
 from the returned edited-file list.

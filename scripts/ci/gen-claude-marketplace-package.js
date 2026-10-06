@@ -9,6 +9,8 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { loadMarketplaceHostPublication } = require('../lib/marketplace-host-publication');
+const { compileMarketplaceSkillContent } = require('../lib/marketplace-skill-content');
 
 const ROOT = path.join(__dirname, '..', '..');
 const DEFAULT_OUTPUT = path.join(ROOT, 'generated', 'claude-marketplace', 'package');
@@ -51,6 +53,9 @@ function isInside(root, candidate) {
 }
 
 function copyPhysicalEntry(source, destination, root) {
+  const relative = path.relative(root, source).split(path.sep).join('/');
+  if (['docs/design', 'docs/evidence', 'docs/knowledge'].some((local) =>
+    relative === local || relative.startsWith(`${local}/`))) return;
   const stat = fs.lstatSync(source);
   if (stat.isSymbolicLink()) {
     const resolved = fs.realpathSync(source);
@@ -71,12 +76,71 @@ function copyPhysicalEntry(source, destination, root) {
 
 function copyCanonicalTree(root, output) {
   const sourceRoot = fs.realpathSync(root);
+  const inventoryPath = path.join(sourceRoot, 'manifests/distribution-inventory.json');
+  const inventory = fs.existsSync(inventoryPath) ? JSON.parse(fs.readFileSync(inventoryPath, 'utf8')) : null;
+  const publicationView = inventory
+    ? loadMarketplaceHostPublication({ root: sourceRoot, inventory, hostSurface: 'claude-core' }) : null;
+  const retainedHostResourcePaths = new Set(['rules']);
+  const collectRetainedDocs = (directory, relative = 'docs') => {
+    if (['docs/design', 'docs/evidence', 'docs/knowledge'].includes(relative)) return;
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const child = path.join(directory, entry.name);
+      const childRelative = `${relative}/${entry.name}`;
+      if (entry.isDirectory()) collectRetainedDocs(child, childRelative);
+      else if (entry.isFile()) retainedHostResourcePaths.add(childRelative);
+    }
+  };
+  if (publicationView) collectRetainedDocs(path.join(sourceRoot, 'docs'));
+  const content = publicationView
+    ? compileMarketplaceSkillContent({ root: sourceRoot, inventory, publicationView, retainedHostResourcePaths }) : null;
+  if (content && !content.ok) throw new Error(content.errors.join('; '));
   fs.mkdirSync(output, { recursive: true });
   for (const relative of PACKAGE_PATHS) {
     const source = path.join(sourceRoot, relative);
     if (!fs.existsSync(source)) throw new Error(`canonical Claude package source is missing: ${relative}`);
-    copyPhysicalEntry(source, path.join(output, relative), sourceRoot);
+    if (relative === 'skills' && content) {
+      for (const file of content.files) {
+        const destination = path.join(output, file.path);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.writeFileSync(destination, file.bytes, { mode: file.mode & 0o111 ? 0o755 : 0o644 });
+      }
+    } else copyPhysicalEntry(source, path.join(output, relative), sourceRoot);
   }
+  if (content) {
+    const relocations = content.files
+      .filter((file) => file.kind !== 'dependency' && file.sourcePath.endsWith('/SKILL.md'))
+      .map((file) => ({ source: file.sourcePath.slice(0, -9), destination: file.path.slice(0, -9) }))
+      .filter((entry) => entry.source !== entry.destination)
+      .sort((left, right) => right.source.length - left.source.length);
+    const relocateDocuments = (directory) => {
+      for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        const absolute = path.join(directory, entry.name);
+        if (entry.isDirectory()) relocateDocuments(absolute);
+        else if (entry.isFile() && entry.name.endsWith('.md')) {
+          const original = fs.readFileSync(absolute, 'utf8');
+          const rewritten = relocations.reduce((body, relocation) => {
+            const escaped = relocation.source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return body.replace(new RegExp(`${escaped}(?=/)`, 'g'), relocation.destination);
+          }, original);
+          if (rewritten !== original) fs.writeFileSync(absolute, rewritten);
+        }
+      }
+    };
+    for (const relative of ['commands', 'docs', 'agents', 'rules', 'templates']) {
+      relocateDocuments(path.join(output, relative));
+    }
+  }
+  if (content) fs.writeFileSync(path.join(output, 'provenance.json'), `${JSON.stringify({
+    schema: 'dhpk.claude-marketplace-catalog.v1',
+    selectionDigest: publicationView.selectionDigest,
+    publicEntryIds: publicationView.publicEntries.map((entry) => entry.id),
+    hostOnlyIds: publicationView.hostOnly.map((entry) => entry.id),
+    files: content.files.map((file) => ({
+      skillId: file.skillId, ownerId: file.ownerId, sourcePath: file.sourcePath,
+      destination: file.path, kind: file.kind,
+      sha256: crypto.createHash('sha256').update(file.bytes).digest('hex'),
+    })),
+  }, null, 2)}\n`);
 }
 
 function assertSafeOutput(root, output) {

@@ -3,9 +3,15 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const { fingerprintPath } = require('../scripts/release/consumer-gate');
+const {
+  discoverCodexSurfaces,
+  fingerprintDir,
+  fingerprintPath,
+} = require('../scripts/release/consumer-gate');
+const { loadMarketplaceHostPublication } = require('../scripts/lib/marketplace-host-publication');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'ci', 'check-codex-discovery.js');
@@ -47,6 +53,144 @@ function fixture() {
   fs.writeFileSync(path.join(project, '.codex', 'skills', 'demo', 'SKILL.md'), '# demo\n');
   return { root, project, native };
 }
+
+function nativePublicationFixture({ marker = 'valid', profile = false, removeSelection = false } = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-publication-'));
+  const nativeRoot = path.join(root, 'native');
+  const project = path.join(root, 'project');
+  fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
+  fs.mkdirSync(project, { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), path.join(root, 'manifests', 'distribution-inventory.json'));
+  fs.copyFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), path.join(root, 'manifests', 'marketplace-selection.json'));
+  const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const selectionPath = path.join(root, 'manifests', 'marketplace-selection.json');
+  const selection = JSON.parse(fs.readFileSync(selectionPath, 'utf8'));
+  const view = loadMarketplaceHostPublication({ root, inventory, hostSurface: 'codex-native' });
+  const legacyExpected = inventory.skills.filter((skill) => (
+    (skill.surfaces || []).includes('codex-native') && skill.lifecycle !== 'deprecated'
+  ));
+  const selectedSkills = marker === 'absent'
+    ? legacyExpected
+    : [...view.publicEntries, ...view.hostOnly];
+  const materializedSkills = profile ? [legacyExpected[0]] : selectedSkills;
+  const names = materializedSkills.map((skill) => skill.name || skill.id).sort();
+  const ids = materializedSkills.map((skill) => skill.id).sort();
+
+  fs.mkdirSync(path.join(nativeRoot, '.codex-plugin'), { recursive: true });
+  fs.mkdirSync(path.join(nativeRoot, 'skills'), { recursive: true });
+  fs.writeFileSync(path.join(nativeRoot, '.codex-plugin', 'plugin.json'), JSON.stringify({ version: '1.2.3' }));
+  const fingerprints = {};
+  for (const name of names) {
+    const skillRoot = path.join(nativeRoot, 'skills', name);
+    fs.mkdirSync(skillRoot, { recursive: true });
+    fs.writeFileSync(path.join(skillRoot, 'SKILL.md'), `# ${name}\n`);
+    fingerprints[name] = fingerprintDir(skillRoot);
+  }
+  fs.writeFileSync(path.join(nativeRoot, 'fingerprints.json'), `${JSON.stringify(fingerprints)}\n`);
+
+  const provenance = {
+    sourceCommit: 'a'.repeat(40),
+    sourceVersion: '1.2.3',
+    inventoryDigest: crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
+    materializedSkillIds: ids,
+    materializedSkillNames: names,
+  };
+  if (marker !== 'absent') {
+    provenance.marketplacePublication = {
+      selectionDigest: marker === 'tampered-digest' ? '0'.repeat(64) : view.selectionDigest,
+      publicEntryIds: [...view.publicEntries.map((entry) => entry.id)].sort(),
+      hostOnlyIds: [...view.hostOnly.map((entry) => entry.id)].sort(),
+    };
+    if (marker === 'tampered-list') provenance.marketplacePublication.hostOnlyIds.pop();
+  }
+  if (profile) {
+    provenance.emittedStableIds = [ids[0]];
+    provenance.materializedSkillIds = [ids[0]];
+    provenance.materializedSkillNames = [names[0]];
+    provenance.runtimeSupportStableIds = [];
+  }
+  fs.writeFileSync(path.join(nativeRoot, 'provenance.json'), `${JSON.stringify(provenance)}\n`);
+  if (removeSelection) fs.rmSync(selectionPath);
+
+  return { root, project, nativeRoot, inventory, selection, view };
+}
+
+function discoverNativeFixture(paths) {
+  return discoverCodexSurfaces({ root: paths.root, project: paths.project, version: '1.2.3', nativeRoot: paths.nativeRoot });
+}
+
+test('native marketplace publication provenance accepts the complete canonical Codex catalog', () => {
+  const paths = nativePublicationFixture();
+  try {
+    const expectedPublication = [...paths.view.publicEntries, ...paths.view.hostOnly]
+      .map((skill) => ({ id: skill.id, name: skill.name || skill.id }))
+      .sort((left, right) => left.id.localeCompare(right.id));
+    const surfaces = discoverNativeFixture(paths);
+    const inventoryIdsByName = new Map(paths.inventory.skills.map((skill) => [skill.name || skill.id, skill.id]));
+    const observedPublication = surfaces.native
+      .map((entry) => ({ id: inventoryIdsByName.get(entry.id), name: entry.id }))
+      .sort((left, right) => String(left.id).localeCompare(String(right.id)));
+    assert.deepStrictEqual(observedPublication, expectedPublication,
+      'native directories must exactly match the selected Codex stable ID to name mapping');
+    assert.ok(surfaces.native.every((entry) => entry.owned && entry.current), JSON.stringify(surfaces.native.map((entry) => ({ id: entry.id, owned: entry.owned, current: entry.current }))));
+  } finally {
+    fs.rmSync(paths.root, { recursive: true, force: true });
+  }
+});
+
+test('native marketplace publication provenance rejects a tampered selection digest', () => {
+  const paths = nativePublicationFixture({ marker: 'tampered-digest' });
+  try {
+    const surfaces = discoverNativeFixture(paths);
+    assert.ok(surfaces.native.length > 0);
+    assert.ok(surfaces.native.every((entry) => !entry.owned && !entry.current));
+  } finally {
+    fs.rmSync(paths.root, { recursive: true, force: true });
+  }
+});
+
+test('native marketplace publication provenance rejects a tampered host-only ID list', () => {
+  const paths = nativePublicationFixture({ marker: 'tampered-list' });
+  try {
+    const surfaces = discoverNativeFixture(paths);
+    assert.ok(surfaces.native.length > 0);
+    assert.ok(surfaces.native.every((entry) => !entry.owned && !entry.current));
+  } finally {
+    fs.rmSync(paths.root, { recursive: true, force: true });
+  }
+});
+
+test('native marketplace publication marker fails closed when its canonical selection is unavailable', () => {
+  const paths = nativePublicationFixture({ marker: 'absent', removeSelection: true });
+  try {
+    const provenancePath = path.join(paths.nativeRoot, 'provenance.json');
+    const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+    provenance.marketplacePublication = {
+      selectionDigest: 'b'.repeat(64),
+      publicEntryIds: [],
+      hostOnlyIds: [],
+    };
+    fs.writeFileSync(provenancePath, `${JSON.stringify(provenance)}\n`);
+    const surfaces = discoverNativeFixture(paths);
+    assert.ok(surfaces.native.length > 0);
+    assert.ok(surfaces.native.every((entry) => !entry.owned && !entry.current));
+  } finally {
+    fs.rmSync(paths.root, { recursive: true, force: true });
+  }
+});
+
+test('legacy and explicit-profile native provenance without a marketplace marker keeps its prior validation', () => {
+  for (const options of [{ marker: 'absent' }, { marker: 'absent', profile: true }]) {
+    const paths = nativePublicationFixture(options);
+    try {
+      const surfaces = discoverNativeFixture(paths);
+      assert.ok(surfaces.native.length > 0);
+      assert.ok(surfaces.native.every((entry) => entry.owned && entry.current));
+    } finally {
+      fs.rmSync(paths.root, { recursive: true, force: true });
+    }
+  }
+});
 
 test('check-codex-discovery reports a read-only PASS for a single surface', () => {
   const paths = fixture();

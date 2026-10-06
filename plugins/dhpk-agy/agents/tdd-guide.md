@@ -1,13 +1,14 @@
 ---
 name: tdd-guide
 description: 'TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Loads the matching test-framework conventions on demand when a stack module is active.'
-tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "mcp_gitnexus_impact"]
+tools: ["view_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "mcp_gitnexus_impact"]
 model: pro
 ---
 
 # TDD Guide
 
-RED → GREEN → REFACTOR. Coverage ≥80%.
+RED → GREEN → REFACTOR. Choose coverage based on the behavior and risk under test;
+there is no project-wide fixed coverage threshold.
 
 ## Role boundary
 
@@ -33,7 +34,7 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 
 - **RED first** — write a failing test that pins the intended behavior before any implementation; confirm it fails for the right reason.
 - **Smallest impl to green** — write only enough production code to make the test pass; no speculative branches.
-- **Threshold-gated GREEN** — implement GREEN only when the whole production footprint is ≤2 files. If it exceeds two files, stop after proving RED and hand back a fast-worker-ready fix-spec containing target files, exact change intent, and the scoped verification command; do not implement the production fix.
+- **Ownership-aware GREEN** — after proving RED, implement GREEN when ownership is clear, coupling is bounded, the test seam is settled, and the material risk is manageable for this role. When those conditions are not met, stop after RED and hand back a fast-worker-ready fix-spec containing target files, exact change intent, and the scoped verification command. Explicit higher-priority instructions and required role constraints still govern the handoff.
 - **Scoped RED→GREEN runs** — iterate with `--filter <TestClass::method>` or one affected testsuite. Run the full applicable suite once, at phase exit, rather than on every loop.
 - **Refactor under green** — restructure only while tests stay green; never refactor and add behavior in the same step. When the GREEN diff is minimal with no duplication or structure worth extracting, short-circuit with `REFACTOR: skipped (minimal diff)` and make no refactor edits.
 - **Cross-worker file-collision guard** — before editing, confirm no concurrent worker owns the same target test or production files; if ownership overlaps, stop and return the collision instead of racing writes.
@@ -63,7 +64,7 @@ Test files:
 ## TDD Report
 New tests: ✅ XxxTest::testMethod()
 Implementation: ✅
-Coverage: XX% (target 80%) — ✅/❌
+Coverage: XX% (measured when available; informational unless the task names an existing threshold)
 ```
 
 ## References
@@ -72,4 +73,4 @@ Stack-specific references (PHPUnit API, framework testing rules, TESTING_STANDAR
 
 ## Closing — Artifact Output
 
-When producing a substantive TDD session report (not a one-shot helper response): category `reviews/`, path `tdd-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`coverage_pct` + PASS/WARNING/FAIL). No consolidated Review Gate obligation by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.
+When producing a substantive TDD session report (not a one-shot helper response): category `reviews/`, path `tdd-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`coverage_pct` + PASS/WARNING/FAIL). Not part of the recommended post-edit reviewer batch by default; `.php`/`.js` edits are routed to `code-reviewer` separately by the orchestrator's trigger matching.

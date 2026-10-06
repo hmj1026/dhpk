@@ -201,37 +201,6 @@ function registerAuditFamilyFixtures() {
 
   const fixtures = [
     jsonDefinition({
-      id: 'audit-harness-json-scorecard',
-      skill: 'harness-audit',
-      entry: 'scripts/harness-audit.js',
-      args: ['repo', '--format', 'json'],
-      prepare: prepareConsumerProject,
-      stubs: {},
-      expected: {
-        status: 0,
-        output: ['"target_mode": "consumer"', '"overall_score":', '"categories": {', '"checks": ['],
-      },
-    }, (report) => {
-      assert.strictEqual(report.scope, 'repo');
-      assert.strictEqual(report.target_mode, 'consumer');
-      assert.ok(Number.isInteger(report.overall_score));
-      assert.ok(Number.isInteger(report.max_score));
-      assert.ok(Array.isArray(report.checks) && report.checks.length > 0);
-      assert.ok(report.categories && typeof report.categories === 'object');
-    }),
-    textDefinition({
-      id: 'audit-harness-invalid-scope',
-      skill: 'harness-audit',
-      entry: 'scripts/harness-audit.js',
-      args: ['--scope', 'not-a-scope', '--format', 'json'],
-      prepare: prepareEmptyProject,
-      stubs: {},
-      expected: {
-        status: 1,
-        output: ['Invalid scope: not-a-scope'],
-      },
-    }),
-    jsonDefinition({
       id: 'audit-change-verdict-clean',
       skill: 'change-verdict',
       entry: 'scripts/risk-analyze.js',

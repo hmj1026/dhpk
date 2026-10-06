@@ -33,13 +33,32 @@ preserved even when a caller presents a ready-looking route.
 
 ## Implementation contract
 
+0. Before anything else, run the parser as one shell command, exactly
+   `cd <this Skill directory> && node scripts/invocation.js <identifier> [options] && cd <project root>`,
+   with the identifier and options supplied, verbatim. `<project root>` is the
+   working directory the session started in. Read the exit status and the
+   parser's JSON from the tool result; add nothing else to the command (no
+   `echo`, redirect, or extra step). If the command is denied, report step 0
+   as `BLOCKED` with the denial and stop; do not retry it in another form.
+   Exit `2` (`status: blocked`) stops the run with its `diagnostics` before
+   any dispatch. The return `cd` does not run on a non-zero exit, so begin any
+   later command in this session with `cd <project root>`. Carry every
+   `notices` entry into the report.
 1. Read the confirmed specification or change artifacts in order. Resolve
    repository instructions, context, target files, nearby tests, and the
-   verification commands before editing.
+   verification commands before editing. When the Host has dedicated
+   file-reading and search tools (on Claude Code: Read, Grep, Glob), use them
+   for this discovery, and run shell commands only for the step 0 parser, the
+   verification commands resolved here, the diff inspection in step 3, or a
+   command the current grant lists. On a Host without such tools, use its
+   read-only shell access for discovery.
 2. Convert the work into dependency-ordered observable items. Preserve
-   OpenSpec task order and leave incomplete tasks unchecked.
-   An OpenSpec apply with two or more unchecked tasks requires the planner
-   gate before workspace writes; record the policy-approved skip for one task.
+   OpenSpec task order and leave incomplete tasks unchecked. Reuse sufficient
+   plan and handoff evidence; consult the planner only when an unresolved
+   decision, dependency, ownership boundary, cross-owner sequence, or material
+   risk leaves a required planning outcome missing. The number of unchecked
+   tasks alone does not trigger a planner. Preserve an accepted explicit
+   `--plan` request under the existing parser and capability rules.
 3. At each behavior boundary, run the smallest non-tautological test first,
    make the smallest compatible edit, inspect the diff, and run the focused
    verification. Preserve unrelated dirty work.
@@ -55,7 +74,16 @@ action.
 
 ## Implementation options
 
-- `--plan[=<model>:<effort>]` requests a planning pass.
+- `--plan[=<model>:<effort>]` explicitly requests a pre-implementation planner
+  consult on supported implementation-class routes.
+- `--plan-mode=auto|bounded|discovery` selects that consult's scope. It
+  requires `--plan`, is independent of option order, and does not change the
+  planner's work mode or model/effort. An enabled plan with no mode defaults to
+  `auto`; a disabled plan has mode `null`. The parser checks grammar only.
+  Flow Drive applies the scope-selection policy in
+  [`execution-policy.md`](references/execution-bundle/rules/execution-policy.md#planner-consult-scope),
+  reports its selection and evidence, and preserves the required authority and
+  specialist gates.
 - `--worker=<claude|codex|agy|auto>` selects the Worker Selector and preserves
   the existing worker-routing enum.
 - `--worker-target=<provider>/<model>[:<effort>]` selects an explicit
@@ -72,12 +100,22 @@ action.
 These options refine confirmed implementation work; they do not change its
 owner or completion contract.
 
+Host support: on Claude Code, `--worker=codex|agy`, a `codex`/`agy`
+`--worker-target`, and `--reasoner=codex` are blocked at parse time because
+its subagents cannot receive the dispatcher-attested
+`DHPK_CLI_TRANSPORT_CONTEXT`; use `--worker=claude` or `--reasoner=claude`.
+The `--plan` effort is not applied there either: the planner runs at its
+configured effort and the parser reports that as a notice.
+
 ## Output
 
 Report the ordered work items, changed files, tests and static checks, retry
-state, unresolved risks, and next handoff. Mark missing evidence as `BLOCKED`
-or `NOT RUN`. Keep implementation, verification, and archive as separate
-states.
+state, unresolved risks, and next handoff. For a planner consult, include the
+requested and selected scope, selection reason, overridden signals, read and
+child budgets, observed actual use, and blockers. Mark unobserved actuals as
+`null` with `NOT_RUN` or `UNAVAILABLE`; never present a maximum as observed use.
+Mark missing evidence as `BLOCKED` or `NOT RUN`. Keep implementation,
+verification, and archive as separate states.
 
 ## References
 

@@ -467,7 +467,7 @@ test('skill sources fail closed when distribution metadata is incomplete', () =>
   }
 });
 
-test('external source symlink is rejected before an owned retirement prune', () => {
+test('external source symlink is rejected before receipt mutation', () => {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-plugin-')));
   const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-outside-')));
@@ -480,27 +480,8 @@ test('external source symlink is rejected before an owned retirement prune', () 
     const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
-    assert.ok(sourceNames.length >= 2, 'fixture needs a retired and active skill');
-    const retired = sourceNames.find((name) => name === 'dhpk-legacy-characterization-tests');
-    const malicious = sourceNames.find((name) => name === 'dhpk-yii1-security-audit');
-    assert.ok(retired && malicious, 'fixture needs a retired and an active skill');
-    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
-    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
-    const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
-    assert.ok(retiredEntry, `missing fixture inventory entry for ${retired}`);
-    inventory.skills = inventory.skills.filter((entry) => entry.name !== retired);
-    inventory.retired_skills = [{
-      id: retiredEntry.id,
-      name: retiredEntry.name,
-      canonicalPath: retiredEntry.path,
-      retiredIn: '0.47.0',
-      reasonCode: 'test-retirement',
-      priorSurfaces: retiredEntry.surfaces,
-      replacements: [{ kind: 'skill', id: 'code-trace', mode: 'test-successor' }],
-      rollback: { release: '0.46.1' },
-    }];
-    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
-    fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
+    const malicious = 'flow-guide';
+    assert.ok(sourceNames.includes(malicious), 'fixture needs a selected common skill source');
 
     const outsideSource = path.join(outside, malicious);
     fs.mkdirSync(outsideSource, { recursive: true });
@@ -509,12 +490,10 @@ test('external source symlink is rejected before an owned retirement prune', () 
     fs.rmSync(maliciousSource, { recursive: true, force: true });
     fs.symlinkSync(outsideSource, maliciousSource, 'dir');
 
-    const retiredTarget = path.join(scratch, '.codex', 'skills', retired);
     const receiptBefore = fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8');
     const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
     assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
     assert.match(`${updated.stdout}\n${updated.stderr}`, /(source|symlink|outside|escape)/i);
-    assert.ok(fs.existsSync(retiredTarget), 'retirement target must remain when source validation fails');
     assert.strictEqual(
       fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'),
       receiptBefore,
@@ -724,9 +703,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fakePlugin,
     'codex',
     'skills',
-    'harness-govern',
+    'code-trace',
     'scripts',
-    'multi_ai_sync_lib',
+    'fixture_runtime_lib',
     '__pycache__',
   );
   const bytecode = path.join(bytecodeDir, 'fixture.pyc');
@@ -734,9 +713,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fakePlugin,
     'codex',
     'skills',
-    'harness-govern',
+    'code-trace',
     'scripts',
-    'multi_ai_sync_lib',
+    'fixture_runtime_lib',
     'standalone-fixture.pyc',
   );
   try {
@@ -744,9 +723,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
-    // cpSync keeps nested directory symlinks (codex/skills/harness-govern ->
-    // skills/harness-govern) even with dereference, so materialize a real copy.
-    const skillDir = path.join(fakePlugin, 'codex', 'skills', 'harness-govern');
+    // cpSync keeps nested directory symlinks (codex/skills/code-trace ->
+    // skills/code-trace) even with dereference, so materialize a real copy.
+    const skillDir = path.join(fakePlugin, 'codex', 'skills', 'code-trace');
     if (fs.lstatSync(skillDir).isSymbolicLink()) {
       const source = fs.realpathSync(skillDir);
       fs.rmSync(skillDir);
@@ -770,9 +749,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
       scratch,
       '.codex',
       'skills',
-      'harness-govern',
+      'code-trace',
       'scripts',
-      'multi_ai_sync_lib',
+      'fixture_runtime_lib',
       '__pycache__',
       'fixture.pyc',
     );
@@ -780,9 +759,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
       scratch,
       '.codex',
       'skills',
-      'harness-govern',
+      'code-trace',
       'scripts',
-      'multi_ai_sync_lib',
+      'fixture_runtime_lib',
       'standalone-fixture.pyc',
     );
     assert.ok(!fs.existsSync(copiedBytecode), 'copy mode must omit ignored Python bytecode');
@@ -812,7 +791,7 @@ test('copy update cleans legacy bytecode while preserving receipt ownership', ()
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     const skillName = firstNativeManagedSkill(scratch);
     const skillTarget = path.join(scratch, '.codex', 'skills', skillName);
-    const legacyBytecode = path.join(skillTarget, 'scripts', 'multi_ai_sync_lib', '__pycache__', 'legacy.pyc');
+    const legacyBytecode = path.join(skillTarget, 'scripts', 'fixture_runtime_lib', '__pycache__', 'legacy.pyc');
     fs.mkdirSync(path.dirname(legacyBytecode), { recursive: true });
     fs.writeFileSync(legacyBytecode, 'legacy-bytecode\n');
 
@@ -902,20 +881,22 @@ test('same plugin version but changed source content is not treated as up-to-dat
 
 test('re-running without --update when version and source fingerprint are unchanged is a reported no-op', () => {
   const scratch = projectRoot();
+  const { fakePlugin } = tddRenamePlugin();
   try {
-    const first = runInstaller(scratch, ['--copy', '--force']);
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const manifestPath = path.join(scratch, '.codex', '.dhpk-installed.json');
     const before = fs.readFileSync(manifestPath, 'utf8');
 
     // No --update this time — the idempotency check should short-circuit
     // before touching .codex/ at all.
-    const second = runInstaller(scratch, ['--copy']);
+    const second = runInstaller(scratch, ['--copy'], fakePlugin);
     assert.strictEqual(second.status, 0, `${second.stdout}\n${second.stderr}`);
     assert.match(second.stdout, /already up-to-date/);
     assert.strictEqual(fs.readFileSync(manifestPath, 'utf8'), before, 'manifest must be untouched by a reported no-op run');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
   }
 });
 
@@ -1144,9 +1125,9 @@ test('--update prunes only unchanged removed sources and preserves edited/unrela
     const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const skills = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills'));
-    assert.ok(skills.length >= 3, 'fixture needs at least three skills');
-    const removed = skills[0];
-    const edited = skills[1];
+    const removed = 'change-verdict';
+    const edited = 'flow-guide';
+    assert.ok(skills.includes(removed) && skills.includes(edited), 'fixture needs selected common skills');
     const unrelated = 'project-owned-skill';
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills', removed), { recursive: true, force: true });
     const editedTarget = path.join(scratch, '.codex', 'skills', edited);
@@ -1241,7 +1222,7 @@ test('--migrate renames a receipt-owned unchanged legacy skill destination to it
       'skills',
       legacyName,
       'scripts',
-      'multi_ai_sync_lib',
+      'fixture_runtime_lib',
       '__pycache__',
       'legacy.pyc',
     );
@@ -1391,7 +1372,11 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
 
-    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    const first = runInstaller(
+      scratch,
+      ['--copy', '--force', '--skill', 'code-simplify', '--skill', 'update-codemaps'],
+      fakePlugin,
+    );
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
     const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
@@ -1399,14 +1384,20 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
       .map((stableId) => inventory.skills.find((entry) => entry.id === stableId))
       .filter(Boolean)
       .map((entry) => entry.name));
-    const sourceSkills = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills'))
-      .filter((name) => name.startsWith('dhpk-') && !codexRuntimeNames.has(name))
-      .sort();
-    assert.ok(sourceSkills.length >= 4, 'fixture needs owned/modified retired, updated, and colliding skills');
-    const retired = sourceSkills[0];
-    const modifiedRetired = sourceSkills[1];
-    const updated = sourceSkills[2];
-    const collision = sourceSkills[3];
+    const skillName = (stableId) => {
+      const entry = inventory.skills.find((item) => item.id === stableId);
+      assert.ok(entry && entry.surfaces.includes('codex-sync'), `fixture needs Codex-sync skill ${stableId}`);
+      assert.ok(!codexRuntimeNames.has(entry.name), `${stableId} must be a public skill, not a runtime helper`);
+      return entry.name;
+    };
+    const retired = skillName('code-simplify');
+    const modifiedRetired = skillName('update-codemaps');
+    const updated = skillName('flow-guide');
+    const collision = skillName('tdd');
+    const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills'));
+    for (const name of [retired, modifiedRetired, updated, collision]) {
+      assert.ok(sourceNames.includes(name), `missing selected Codex source ${name}`);
+    }
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills', modifiedRetired), { recursive: true, force: true });
 
@@ -1443,7 +1434,11 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     fs.writeFileSync(userMarker, 'do not overwrite\n');
 
     const receiptBeforePlan = fs.readFileSync(receiptPath, 'utf8');
-    const planRun = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], fakePlugin);
+    const planRun = runInstaller(
+      scratch,
+      ['--copy', '--update', '--migrate', '--plan', '--json', '--force'],
+      fakePlugin,
+    );
     assert.notStrictEqual(planRun.status, 0, 'plan remains non-pass while an unowned collision requires adoption');
     const plan = JSON.parse(planRun.stdout);
     for (const name of [retired, modifiedRetired]) {
@@ -1456,7 +1451,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBeforePlan, 'retirement plan must not mutate receipt');
     assert.strictEqual(fs.readFileSync(retiredUserMarker, 'utf8'), 'preserve retired edit\n', 'retirement plan must not mutate destination');
 
-    const updatedRun = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    const updatedRun = runInstaller(scratch, ['--copy', '--update', '--migrate', '--force'], fakePlugin);
     assert.notStrictEqual(updatedRun.status, 0, `${updatedRun.stdout}\n${updatedRun.stderr}`);
     assert.match(`${updatedRun.stdout}\n${updatedRun.stderr}`, /--adopt/);
     assert.strictEqual(fs.readFileSync(userMarker, 'utf8'), 'do not overwrite\n');
@@ -1469,7 +1464,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     assert.ok(reconciliation.backed_up >= 1, JSON.stringify(reconciliation));
     assert.ok(reconciliation.skipped_collision >= 1, JSON.stringify(reconciliation));
     assert.ok(reconciliation.collided >= 1, JSON.stringify(reconciliation));
-    assert.strictEqual(reconciliation.state, 'partial');
+    assert.strictEqual(reconciliation.state, 'stale', 'a collision keeps explicit migration pending');
     assert.strictEqual(reconciliation.complete, false);
     const evidence = reconciliation.evidence;
     assert.strictEqual(evidence.paths.destination_root, '.codex');

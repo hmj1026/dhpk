@@ -13,24 +13,7 @@ const { outputText } = require('./fixture-assertions');
 const ROOT = path.join(__dirname, '..', '..');
 const SOURCES = Object.freeze({
   harness: path.join(ROOT, 'skills', 'harness-setup'),
-  project: path.join(ROOT, 'skills', 'dhpk-project-setup'),
 });
-
-const AUTO_DETECTED_PLACEHOLDERS = Object.freeze([
-  '{PROJECT_NAME}',
-  '{FRAMEWORK}',
-  '{DATABASE}',
-  '{CONFIG_FILE}',
-  '{BOOTSTRAP_FILE}',
-  '{TEST_COMMAND}',
-  '{LINT_FIX_COMMAND}',
-  '{BUILD_COMMAND}',
-  '{TYPECHECK_COMMAND}',
-]);
-
-const ECOSYSTEM_TAGS = Object.freeze([
-  'node-ts', 'python', 'go', 'rust', 'ruby', 'java',
-]);
 
 const RESERVED_ENV = Object.freeze([
   'CLAUDE_PLUGIN_ROOT', 'PLUGIN_ROOT', 'DHPK_SOURCE_ROOT',
@@ -222,30 +205,6 @@ function registerSetupFixtures() {
       entry: 'scripts/install-codex-project.sh',
       expected: { status: 1, outcome: 'nonzero', output: ['SOURCE_ARTIFACT_INVALID', 'pinned artifact root'] },
     },
-    {
-      id: 'setup-harness-review-gate-local-closure',
-      family: 'harness',
-      entry: 'scripts/review-gate-runtime.js',
-      expected: { status: 0, outcome: 'success', output: ['review-gate.runtime.v1', 'PENDING'] },
-    },
-    {
-      id: 'setup-project-explicit-hooks-success',
-      family: 'project',
-      entry: 'scripts/install-project-assets.sh',
-      expected: { status: 0, outcome: 'success', output: ['"status":"PASS"', '"code":"OK"'] },
-    },
-    {
-      id: 'setup-project-explicit-artifact-required',
-      family: 'project',
-      entry: 'scripts/install-project-assets.sh',
-      expected: { status: 1, outcome: 'nonzero', output: ['SOURCE_ARTIFACT_REQUIRED'] },
-    },
-    {
-      id: 'setup-project-missing-local-writer',
-      family: 'project',
-      entry: 'scripts/install-project-assets.sh',
-      expected: { status: 1, outcome: 'nonzero', output: ['BLOCKED_RESOURCE_MISSING'] },
-    },
   ];
   for (const definition of definitions) {
     registerFixture({
@@ -269,8 +228,6 @@ module.exports = {
   ROOT,
   SOURCES,
   RESERVED_ENV,
-  AUTO_DETECTED_PLACEHOLDERS,
-  ECOSYSTEM_TAGS,
   outputOf,
   fileSnapshot,
   fingerprint,

@@ -38,7 +38,7 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    List unstaged changes and ask whether to include them. If skipped or the
    optional `smart-commit` capability is unavailable, record
    `commit: SKIPPED` or `commit: UNAVAILABLE` and continue from the live tree.
-2. **Optional precommit gate.** Run `precommit-fast` only when the operator or
+2. **Optional precommit gate.** Run `precommit --fast` only when the operator or
    project enables it. `PASS` continues. `FAIL` reports details and asks
    whether to save; a confirmed continuation records `precommit: FAILED`.
    A refusal stops without writing a handoff.
@@ -66,10 +66,12 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    change. Count `[ ]` and `[~]`, classify actionable steps versus completion
    criteria, and preserve the live worktree as truth.
 6. **Non-blocking snapshot.** Record the current `change-verdict` risk level
-   (`low|medium|high|critical`) when available. Recommend `opus` for complex
-   work or at least five remaining tasks, `sonnet` for one to four general
-   tasks, and `haiku` for docs/config-only work. This recommendation never
-   changes the active model automatically.
+   (`low|medium|high|critical`) when available. Set `model_suggestion` from
+   the current Host/Role Default for the Role already implied by the next
+   action, when that Role and default source are available. Otherwise write
+   `unavailable`; do not infer a model from task count, task type, or vendor
+   tiers, and do not require a dhpk catalog or a resource from another
+   repository. The suggestion is advisory and never changes the active model.
 7. **Write the handoff.** Create the host artifact directory and assemble the
    handoff payload with frontmatter containing:
 
@@ -85,11 +87,20 @@ handoff bytes on stdin after the Save content is assembled. Missing package asse
    Pipe the complete payload to the package-local
    `"$SKILL_DIR/scripts/write-handoff.sh" "$HANDOFF_PATH"` helper; its `python3` prerequisite must be available before
    Save can pass.
-8. **Recommend the boundary.** `remaining_tasks_count <= 3` recommends Claude
-   `/fork`; a larger count recommends `/new`. Codex names a new turn/session
-   instead and never emits a required Claude slash command. If commit was
-   skipped or unavailable, state that uncommitted files remain in the live
-   worktree and the same worktree must be retained.
+8. **Recommend the session boundary.** Continue in the current session when
+   the next phase needs the discussion or decisions as its primary source and
+   there is room to continue. A separate session can use Claude's `/fork` when
+   the full discussion still matters, or `/new` when the saved summary and
+   evidence pointers carry what is needed. Use a portable handoff when work
+   moves to another Host, repository, directory, or person. If uncommitted
+   changes matter, name the same live worktree; the handoff records context
+   but does not carry the working tree. If an unresolved human decision can
+   change scope or route, make that decision the next action. Base the
+   recommendation on next-phase relevance, portability, live-worktree
+   dependence, and open decisions, never the remaining-task count. Codex
+   describes a current or new turn/session and never emits a required Claude
+   command. If commit was skipped or unavailable, state that uncommitted files
+   remain in the live worktree and the same worktree must be retained.
 
 ## Output and verification
 

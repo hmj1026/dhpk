@@ -80,8 +80,6 @@ test('audit-family fixture registry exposes all local runner contracts', () => {
   assert.deepStrictEqual(ids, [
     'audit-change-verdict-clean',
     'audit-change-verdict-unsupported-source',
-    'audit-harness-invalid-scope',
-    'audit-harness-json-scorecard',
     'audit-project-audit-empty',
     'audit-project-audit-healthy',
     'audit-repo-intake-cached',
@@ -91,8 +89,6 @@ test('audit-family fixture registry exposes all local runner contracts', () => {
     'audit-repo-intake-scan-no-git',
   ]);
   const expectedEntries = {
-    'audit-harness-json-scorecard': 'scripts/harness-audit.js',
-    'audit-harness-invalid-scope': 'scripts/harness-audit.js',
     'audit-change-verdict-clean': 'scripts/risk-analyze.js',
     'audit-change-verdict-unsupported-source': 'scripts/risk-analyze.js',
     'audit-project-audit-empty': 'scripts/audit.js',
@@ -110,14 +106,6 @@ test('audit-family fixture registry exposes all local runner contracts', () => {
     assert.ok(fixture.expected.output.every((fragment) => typeof fragment === 'string' && fragment.length > 0), id);
     assert.strictEqual(fixture.evidenceKind, 'fixture', id);
   }
-});
-
-test('harness-audit Skill emits a JSON scorecard for a consumer project', () => {
-  runAuditFixture('audit-harness-json-scorecard');
-});
-
-test('harness-audit Skill reports invalid scope as a failure', () => {
-  runAuditFixture('audit-harness-invalid-scope');
 });
 
 test('change-verdict Skill emits a passing low-risk JSON result for a clean tree', () => {

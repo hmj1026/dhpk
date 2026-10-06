@@ -67,10 +67,13 @@ function makeAttempt(root, options = {}) {
     diffId: 'diff-1',
     planFingerprint: PLAN,
     artifactFingerprint: ARTIFACT,
-    surface: 'agent-plugin',
-    adapter: 'codex-sync',
-    stage: 'verify',
-    producer: 'harness-test',
+    surface: options.surface || 'agent-plugin',
+    adapter: options.adapter || 'codex-sync',
+    stage: options.stage || 'verify',
+    producer: options.producer || 'harness-test',
+    ...(options.surfaceResults ? { surfaceResults: options.surfaceResults } : {}),
+    ...(options.consumerEvidence ? { consumerEvidence: options.consumerEvidence } : {}),
+    ...(options.outcome ? { outcome: options.outcome } : {}),
     identity: {
       targetCommit: current.sourceCommit,
       targetTree: current.sourceTree,
@@ -80,6 +83,232 @@ function makeAttempt(root, options = {}) {
     retryOf: options.retryOf,
     backupReference: options.backupReference,
   });
+}
+
+function installationOnlyConsumerEvidence(observationStatus = 'NOT_RUN') {
+  return {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    runtimeVerified: true,
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: 'install.codex-sync',
+        surface: 'codex-sync',
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'native.codex-sync',
+        surface: 'codex-sync',
+        kind: 'native',
+        reason: 'Native execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.codex-sync.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: observationStatus,
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: 'codex-sync',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+}
+
+// This follows requirementEvidenceReport in tests/release-evidence.test.js:
+// aggregate runtimeVerified is absent, while the required native capability
+// record carries the typed proof and its own runtimeVerified claim.
+function nativeRequirementConsumerEvidence() {
+  return {
+    version: '0.43.0',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'consumer-gate', version: '1.0.0' },
+    planFingerprint: PLAN,
+    artifactFingerprint: ARTIFACT,
+    schemaVersion: 2,
+    verdict: 'PASS',
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'PASS',
+      adapter: { id: 'codex-named-role-probe', version: '1.0.0' },
+      commands: [],
+      environment: { CI: 'true' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: [],
+      installationEvidence: { status: 'PASS', reason: 'Selected installation contract passed.' },
+      runtimeEvidence: { status: 'NOT_RUN', reason: 'No aggregate runtime claim was made.' },
+      syntheticEvidence: {
+        apiToken: 'wave1b-synthetic-surface-token-canary',
+        diagnostic: 'Authorization: Bearer wave1b-synthetic-bearer-canary',
+        summary: 'password=wave1b-synthetic-password-canary',
+        transcript: '-----BEGIN PRIVATE KEY-----\nwave1b-synthetic-private-key-canary\n-----END PRIVATE KEY-----',
+      },
+      requirementEvidence: {
+        check1: {
+          id: 'selected-capability',
+          host: 'codex',
+          capability: 'named-role-security-reviewer',
+          trigger: 'explicit-native',
+          reason: 'Verify only the selected capability.',
+          question: 'Did the selected check pass?',
+          requestedEvidenceKind: 'native',
+          evidenceKind: 'native',
+          authorized: true,
+          checkKey: 'codex-sync:named-role-security-reviewer:native',
+          status: 'PASS',
+          adapter: { id: 'codex-named-role-probe', version: '1.0.0' },
+          nativeProof: {
+            executionOrigin: 'native',
+            adapterRoute: 'codex-named-role',
+            roles: [{ id: 'security-reviewer', agentTypeAccepted: true, threadId: 'thread-1', childCompleted: true }],
+            registryPreconditions: {
+              disposableCodexHome: true,
+              authReference: 'symlink',
+              projectTrust: 'trusted',
+              userConfigIgnored: false,
+            },
+            cliVersion: 'codex-cli fixture',
+          },
+          identity: {
+            contractVersion: 'consumer-check-identity.v1',
+            sourceFingerprint: `sha256:${'3'.repeat(64)}`,
+            artifactFingerprint: `sha256:${'4'.repeat(64)}`,
+            selectionFingerprint: `sha256:${'5'.repeat(64)}`,
+            hostVersion: 'codex-cli fixture',
+            configFingerprint: `sha256:${'6'.repeat(64)}`,
+          },
+          evidenceReuse: {
+            decision: 'REUSED',
+            origin: {
+              envelopeIndex: 0,
+              surface: 'codex-sync',
+              slot: 'check1',
+              checkId: 'selected-capability',
+            },
+            mismatchFields: [],
+          },
+          runtimeVerified: true,
+        },
+      },
+    }],
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [
+        {
+          id: 'install.codex-sync',
+          surface: 'codex-sync',
+          kind: 'installation',
+          reason: 'Selected installation contract passed.',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+        },
+        {
+          id: 'requirement.selected-capability',
+          surface: 'codex-sync',
+          kind: 'native',
+          reason: 'Verify only the selected capability.',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.codex-sync.requirementEvidence.check1',
+        },
+      ],
+      excludedChecks: [],
+    },
+  };
+}
+
+function claudeContractConsumerEvidence() {
+  return {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: 'install.claude-core',
+        surface: 'claude-core',
+        kind: 'installation',
+        reason: 'The selected Claude installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.claude-core.installationEvidence',
+      }, {
+        id: 'requirement.claude-installation',
+        surface: 'claude-core',
+        kind: 'contract',
+        reason: 'The selected Claude installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.claude-core.requirementEvidence.check1',
+      }],
+      excludedChecks: [{
+        id: 'native.claude-core',
+        surface: 'claude-core',
+        kind: 'native',
+        reason: 'Native execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.claude-core.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface: 'claude-core',
+      producerSurface: 'claude',
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: 'claude-plugin-cli', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+      requirementEvidence: {
+        check1: {
+          id: 'claude-installation',
+          host: 'claude',
+          capability: 'installation-contract',
+          trigger: 'new-host',
+          reason: 'Verify only the selected Claude installation contract.',
+          question: 'Did the selected Claude installation contract pass?',
+          requestedEvidenceKind: 'contract',
+          evidenceKind: 'contract',
+          authorized: false,
+          checkKey: 'claude-core:installation-contract:contract',
+          status: 'PASS',
+          adapter: { id: 'consumer-gate', version: '1.0.0' },
+          contractEvidence: {
+            status: 'PASS',
+            adapterRoute: 'consumer-gate-installation',
+            reason: 'Installation evidence was observed.',
+            evidenceRef: 'surfaceResults.claude-core.installationEvidence',
+          },
+        },
+      },
+    }],
+  };
+}
+
+function writeConsumerEvidence(attempt, consumerEvidence) {
+  const envelopePath = path.join(attempt.path, 'attempt.json');
+  const envelope = JSON.parse(fs.readFileSync(envelopePath, 'utf8'));
+  envelope.consumerEvidence = consumerEvidence;
+  fs.writeFileSync(envelopePath, JSON.stringify(envelope, null, 2) + '\n');
 }
 
 test('exact source commit and resolved tree must match the consuming checkout', () => {
@@ -106,6 +335,387 @@ test('exact source commit and resolved tree must match the consuming checkout', 
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(checkoutRoot, { recursive: true, force: true });
+  }
+});
+
+test('receipt v1 preserves the current consumer acceptance envelope as optional evidence', () => {
+  const root = temporaryReceiptRoot();
+  const consumerEvidence = {
+    schemaVersion: 2,
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    runtimeVerified: false,
+    acceptance: {
+      verdict: 'PASS',
+      requiredChecks: [{
+        id: 'install.codex-sync',
+        surface: 'codex-sync',
+        kind: 'installation',
+        reason: 'The selected installation contract passed.',
+        status: 'PASS',
+        evidenceRef: 'surfaceResults.codex-sync.installationEvidence',
+      }],
+      excludedChecks: [{
+        id: 'native.codex-sync',
+        surface: 'codex-sync',
+        kind: 'native',
+        reason: 'Native execution was not required.',
+        status: 'NOT_RUN',
+        evidenceRef: 'surfaceResults.codex-sync.runtimeEvidence',
+      }],
+    },
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'NOT_RUN',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      producerSurface: 'codex-sync',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      installationEvidence: { status: 'PASS' },
+      runtimeEvidence: { status: 'NOT_RUN' },
+    }],
+  };
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      adapter: 'codex-sync-installer',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      surfaceResults: consumerEvidence.surfaceResults,
+      consumerEvidence,
+      outcome: 'PASS',
+    });
+    const checked = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(checked.ok, true, checked.errors.join('; '));
+    assert.strictEqual(checked.envelope.schema, 'dhpk.harness.receipt.v1');
+    assert.deepStrictEqual(checked.envelope.surfaceResults, consumerEvidence.surfaceResults);
+    assert.deepStrictEqual(checked.envelope.consumerEvidence, consumerEvidence);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation rejects acceptance references that do not resolve to the selected observation', () => {
+  const root = temporaryReceiptRoot();
+  const surfaceResults = [{
+    surface: 'codex-sync',
+    status: 'PASS',
+    installationEvidence: { status: 'FAIL' },
+  }];
+  const attempt = makeAttempt(root, {
+    surface: 'codex-sync',
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    surfaceResults,
+    outcome: 'PASS',
+  });
+  try {
+    const envelopePath = path.join(attempt.path, 'attempt.json');
+    const envelope = JSON.parse(fs.readFileSync(envelopePath, 'utf8'));
+    envelope.consumerEvidence = {
+      schemaVersion: 2,
+      stage: 'CONSUMER',
+      verdict: 'PASS',
+      acceptance: {
+        verdict: 'PASS',
+        requiredChecks: [{
+          id: 'install.codex-sync',
+          surface: 'codex-sync',
+          kind: 'installation',
+          reason: 'The selected installation contract passed.',
+          status: 'PASS',
+          evidenceRef: 'surfaceResults.cursor-sync.installationEvidence',
+        }],
+        excludedChecks: [],
+      },
+      surfaceResults,
+    };
+    fs.writeFileSync(envelopePath, JSON.stringify(envelope, null, 2) + '\n');
+
+    const checked = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(checked.ok, false);
+    assert.match(checked.errors.join('\n'), /acceptance|evidence|surface|reference/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation rejects v2 installation PASS beside runtime NOT_RUN with aggregate runtimeVerified true', () => {
+  const root = temporaryReceiptRoot();
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+    });
+    writeConsumerEvidence(attempt, installationOnlyConsumerEvidence('NOT_RUN'));
+
+    const rejected = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(rejected.ok, false);
+    assert.match(rejected.errors.join('\n'), /runtimeVerified|runtime proof|runtime evidence/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation rejects v2 aggregate runtimeVerified based only on an unrelated surface PASS', () => {
+  const root = temporaryReceiptRoot();
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+    });
+    writeConsumerEvidence(attempt, installationOnlyConsumerEvidence('PASS'));
+
+    const rejected = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(rejected.ok, false);
+    assert.match(rejected.errors.join('\n'), /runtimeVerified|runtime proof|runtime evidence/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt creation and replay preserve typed v2 native proof without an aggregate runtime claim', () => {
+  const root = temporaryReceiptRoot();
+  const consumerEvidence = nativeRequirementConsumerEvidence();
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      adapter: 'codex-named-role-probe',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      outcome: 'PASS',
+      surfaceResults: consumerEvidence.surfaceResults,
+      consumerEvidence,
+    });
+    receipts.appendEvent(attempt, { lifecyclePhase: 'VERIFIED', outcome: 'PASS' });
+    const receiptBytes = fs.readFileSync(attempt.envelopePath);
+    const eventBytes = fs.readFileSync(path.join(attempt.eventsPath, '0001.json'));
+
+    const accepted = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(accepted.ok, true, accepted.errors.join('; '));
+    assert.strictEqual(accepted.envelope.consumerEvidence.runtimeVerified, undefined);
+    assert.strictEqual(accepted.envelope.consumerEvidence.surfaceResults[0].runtimeEvidence.status, 'NOT_RUN');
+    assert.strictEqual(accepted.envelope.consumerEvidence.surfaceResults[0].requirementEvidence.check1.runtimeVerified, true);
+    assert.strictEqual(accepted.envelope.consumerEvidence.acceptance.requiredChecks[1].kind, 'native');
+    const nestedCheck = accepted.envelope.consumerEvidence.surfaceResults[0].requirementEvidence.check1;
+    const topLevelCheck = accepted.envelope.surfaceResults[0].requirementEvidence.check1;
+    for (const check of [nestedCheck, topLevelCheck]) {
+      assert.strictEqual(check.nativeProof.roles[0].id, 'security-reviewer');
+      assert.deepStrictEqual(check.nativeProof.registryPreconditions, {
+        disposableCodexHome: true,
+        authReference: 'symlink',
+        projectTrust: 'trusted',
+        userConfigIgnored: false,
+      });
+      assert.deepStrictEqual(check.identity, {
+        contractVersion: 'consumer-check-identity.v1',
+        sourceFingerprint: `sha256:${'3'.repeat(64)}`,
+        artifactFingerprint: `sha256:${'4'.repeat(64)}`,
+        selectionFingerprint: `sha256:${'5'.repeat(64)}`,
+        hostVersion: 'codex-cli fixture',
+        configFingerprint: `sha256:${'6'.repeat(64)}`,
+      });
+      assert.deepStrictEqual(check.evidenceReuse, {
+        decision: 'REUSED',
+        origin: {
+          envelopeIndex: 0,
+          surface: 'codex-sync',
+          slot: 'check1',
+          checkId: 'selected-capability',
+        },
+        mismatchFields: [],
+      });
+      assert.strictEqual(check.runtimeVerified, true);
+    }
+    for (const row of [accepted.envelope.consumerEvidence.surfaceResults[0], accepted.envelope.surfaceResults[0]]) {
+      assert.deepStrictEqual(row.syntheticEvidence, {
+        apiToken: '<redacted>',
+        diagnostic: 'Authorization: <redacted>',
+        summary: 'password: <redacted>',
+        transcript: '<redacted>',
+      });
+    }
+    assert.doesNotMatch(
+      JSON.stringify(accepted.envelope),
+      /wave1b-synthetic-(?:surface-token|bearer|password|private-key)-canary/,
+    );
+    assert.strictEqual(accepted.eventCount, 1);
+
+    const replayed = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(replayed.ok, true, replayed.errors.join('; '));
+    assert.strictEqual(replayed.eventCount, 1);
+    assert.deepStrictEqual(replayed.lastEvent, accepted.lastEvent);
+    for (const row of [replayed.envelope.consumerEvidence.surfaceResults[0], replayed.envelope.surfaceResults[0]]) {
+      assert.deepStrictEqual(row.syntheticEvidence, {
+        apiToken: '<redacted>',
+        diagnostic: 'Authorization: <redacted>',
+        summary: 'password: <redacted>',
+        transcript: '<redacted>',
+      });
+    }
+    assert.doesNotMatch(
+      JSON.stringify(replayed.envelope),
+      /wave1b-synthetic-(?:surface-token|bearer|password|private-key)-canary/,
+    );
+    assert.deepStrictEqual(fs.readFileSync(attempt.envelopePath), receiptBytes);
+    assert.deepStrictEqual(fs.readFileSync(path.join(attempt.eventsPath, '0001.json')), eventBytes);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt creation preserves the nested adapter and evidence reference in current Claude contract evidence', () => {
+  const root = temporaryReceiptRoot();
+  const consumerEvidence = claudeContractConsumerEvidence();
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'claude-core',
+      adapter: 'claude-plugin-cli',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      surfaceResults: consumerEvidence.surfaceResults,
+      consumerEvidence,
+      outcome: 'PASS',
+    });
+    const accepted = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(accepted.ok, true, accepted.errors.join('; '));
+    for (const row of [accepted.envelope.consumerEvidence.surfaceResults[0], accepted.envelope.surfaceResults[0]]) {
+      const requirement = row.requirementEvidence.check1;
+      assert.strictEqual(requirement.adapter.id, 'consumer-gate');
+      assert.strictEqual(
+        requirement.contractEvidence.evidenceRef,
+        'surfaceResults.claude-core.installationEvidence',
+      );
+      assert.strictEqual(requirement.contractEvidence.adapterRoute, 'consumer-gate-installation');
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('current consumer evidence rejects unsafe nested values before creating an attempt', () => {
+  const createEvidence = () => {
+    const evidence = installationOnlyConsumerEvidence('PASS');
+    evidence.runtimeVerified = false;
+    return evidence;
+  };
+  const unsafeInputs = [
+    ['cycle', (evidence) => {
+      evidence.surfaceResults[0].unsafePayload = {};
+      evidence.surfaceResults[0].unsafePayload.self = evidence.surfaceResults[0].unsafePayload;
+    }],
+    ['nested getter', (evidence, state) => {
+      Object.defineProperty(evidence.surfaceResults[0], 'unsafeValue', {
+        enumerable: true,
+        get() {
+          state.getterCalls += 1;
+          return 'wave1b-private-getter-canary';
+        },
+      });
+    }],
+    ['oversized string', (evidence) => {
+      evidence.surfaceResults[0].unsafePayload = 'x'.repeat(16_385);
+    }],
+    ...['__proto__', 'constructor', 'prototype'].map((key) => [key, (evidence) => {
+      Object.defineProperty(evidence.surfaceResults[0], key, {
+        configurable: true,
+        enumerable: true,
+        value: 'unsafe-property-canary',
+        writable: true,
+      });
+    }]),
+  ];
+
+  for (const [label, mutate] of unsafeInputs) {
+    const root = temporaryReceiptRoot();
+    const state = { getterCalls: 0 };
+    try {
+      const evidence = createEvidence();
+      mutate(evidence, state);
+      let error = null;
+      try {
+        makeAttempt(root, { consumerEvidence: evidence });
+      } catch (caught) {
+        error = caught;
+      }
+      assert.ok(error, `${label} must be rejected`);
+      assert.match(error.message, /consumer evidence/i);
+      assert.doesNotMatch(error.message, /wave1b-private-getter-canary|unsafeValue|unsafe-property-canary/);
+      assert.strictEqual(state.getterCalls, 0, `${label} getter must not be invoked`);
+      assert.strictEqual(fs.existsSync(path.join(root, 'task-identity', 'attempt-1')), false, `${label} must reject before receipt creation`);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  const root = temporaryReceiptRoot();
+  const state = { schemaGetterCalls: 0 };
+  try {
+    const evidence = createEvidence();
+    delete evidence.schemaVersion;
+    Object.defineProperty(evidence, 'schemaVersion', {
+      configurable: true,
+      enumerable: true,
+      get() {
+        state.schemaGetterCalls += 1;
+        return 2;
+      },
+    });
+    let error = null;
+    try {
+      makeAttempt(root, { consumerEvidence: evidence });
+    } catch (caught) {
+      error = caught;
+    }
+    assert.ok(error, 'schemaVersion accessor must be rejected');
+    assert.match(error.message, /consumer evidence/i);
+    assert.doesNotMatch(error.message, /schemaVersion|wave1b/);
+    assert.strictEqual(state.schemaGetterCalls, 0);
+    assert.strictEqual(fs.existsSync(path.join(root, 'task-identity', 'attempt-1')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation preserves historical non-v2 runtimeVerified compatibility', () => {
+  const root = temporaryReceiptRoot();
+  const consumerEvidence = {
+    stage: 'CONSUMER',
+    verdict: 'PASS',
+    runtimeVerified: true,
+    surfaceResults: [{
+      surface: 'codex-sync',
+      status: 'PASS',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      adapter: { id: 'codex-sync-installer', version: '1.0.0' },
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+    }],
+  };
+  try {
+    const attempt = makeAttempt(root, {
+      surface: 'codex-sync',
+      adapter: 'codex-sync-installer',
+      stage: 'CONSUMER',
+      producer: 'consumer-gate',
+      surfaceResults: consumerEvidence.surfaceResults,
+      consumerEvidence,
+      outcome: 'PASS',
+    });
+
+    const accepted = receipts.validateReceipt(attempt.path);
+    assert.strictEqual(accepted.ok, true, accepted.errors.join('; '));
+    assert.strictEqual(accepted.envelope.consumerEvidence.runtimeVerified, true);
+    assert.strictEqual(accepted.envelope.consumerEvidence.schemaVersion, undefined);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
@@ -294,6 +904,34 @@ test('lifecycle transitions are forward-only and keep outcome separate', () => {
     assert.strictEqual(complete.outcome, 'COMPLETE');
     assert.throws(() => receipts.appendEvent(attempt, { lifecyclePhase: 'GREEN', outcome: 'PASS' }), /transition|monotonic|backward|terminal/i);
     assert.strictEqual(receipts.validateReceipt(attempt.path).ok, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('failed current surface serialization does not reserve the operation key', () => {
+  const root = temporaryReceiptRoot();
+  const operationKey = 'publish:agent-plugin:surface-retry';
+  try {
+    const unsafeSurfaceResults = nativeRequirementConsumerEvidence().surfaceResults;
+    unsafeSurfaceResults[0].unsafePayload = {};
+    unsafeSurfaceResults[0].unsafePayload.self = unsafeSurfaceResults[0].unsafePayload;
+
+    assert.throws(() => makeAttempt(root, {
+      consumerEvidence: nativeRequirementConsumerEvidence(),
+      surfaceResults: unsafeSurfaceResults,
+      operationKey,
+    }), /CURRENT_EVIDENCE_UNSAFE_JSON/i);
+    assert.deepStrictEqual(fs.readdirSync(root), []);
+
+    const retry = makeAttempt(root, {
+      attemptId: 'attempt-2',
+      operationKey,
+      consumerEvidence: nativeRequirementConsumerEvidence(),
+      surfaceResults: nativeRequirementConsumerEvidence().surfaceResults,
+    });
+    assert.strictEqual(receipts.findAttemptByOperationKey(root, operationKey).attemptId, 'attempt-2');
+    assert.strictEqual(receipts.validateReceipt(retry.path).ok, true);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

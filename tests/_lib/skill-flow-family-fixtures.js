@@ -177,7 +177,7 @@ const DEFINITIONS = [
   definition({
     id: 'flow-guide-help-known-non-codex',
     entry: FLOW_GUIDE_ACTION,
-    args: ['help', 'dhpk-module-design'],
+    args: ['help', 'module-design'],
     expected: { status: 1, output: ['not-codex-invokable'] },
   }),
   definition({
@@ -214,7 +214,7 @@ const DEFINITIONS = [
     args: ['close'],
     expected: {
       status: 0,
-      output: ['references/handoff-and-verification.md', 'references/review-gate-mechanics.md'],
+      output: ['references/handoff-and-verification.md'],
       absent: ['skills/flow-guide/references/'],
     },
   }),

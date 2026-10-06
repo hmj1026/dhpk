@@ -52,6 +52,24 @@ test('unknown arguments fail before a plan or filesystem mutation', () => {
   } finally { fs.rmSync(project, { recursive: true, force: true }); }
 });
 
+test('rejects every public profile selector before accepting a lifecycle plan', () => {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-profile-option-'));
+  const retiredSelectors = [
+    ['--profile', 'minimal'],
+    ['--profile=full'],
+    ['--profile', 'compat-v1'],
+    ['--profile=common'],
+  ];
+  try {
+    for (const selector of retiredSelectors) {
+      const result = invoke(['codex-sync', 'plan', '--scope', 'project', ...selector, '--json'], { cwd: project });
+      assert.strictEqual(result.status, 64, result.stderr);
+      assert.match(result.stderr, /--profile.*(retired|unsupported|no longer)/i);
+      assert.deepStrictEqual(fs.readdirSync(project), [], 'a rejected profile selector must not create project state');
+    }
+  } finally { fs.rmSync(project, { recursive: true, force: true }); }
+});
+
 test('standalone install selection is a separate normalized request boundary', () => {
   const lifecycle = require('../scripts/lib/dhpk-install-lifecycle');
   const request = lifecycle.parseRequest([
@@ -76,13 +94,13 @@ test('write actions remain explicitly blocked while legacy Codex sync is preserv
 });
 
 test('plans expose the shared installation identity and recovery contract', () => {
-  const result = invoke(['codex-sync', 'plan', '--scope', 'project', '--profile', 'minimal', '--json']);
+  const result = invoke(['codex-sync', 'plan', '--scope', 'project', '--json']);
   assert.strictEqual(result.status, 0, result.stderr);
   const plan = json(result).plan;
   assert.strictEqual(plan.schema, 'dhpk.installation-plan.v1');
   assert.match(plan.source.version, /^\d+\.\d+\.\d+/);
   assert.deepStrictEqual(plan.target, { surface: 'codex-sync', scope: 'project', mode: 'auto' });
-  assert.strictEqual(plan.selection.profileId, 'minimal');
+  assert.strictEqual(plan.selection.profileId, 'common');
   assert.deepStrictEqual(plan.selection.selectedStableIds, plan.selectedIds);
   assert.ok(plan.selection.supportClosure);
   assert.ok(plan.ownership.owner);
@@ -124,6 +142,7 @@ test('non-Cursor plans select actual inventory entries and retain their IDs for 
     assert.strictEqual(result.status, 0, result.stderr);
     const output = json(result);
     assert.ok(output.plan.selectedIds.length > 0, `${action} must select Codex inventory IDs`);
+    assert.strictEqual(output.plan.selection.profileId, 'common');
     assert.deepStrictEqual(output.plan.selectedIds, output.plan.distribution.entries.map((entry) => entry.stableId));
     assert.strictEqual(output.lifecycle.verdict, 'NOT_RUN');
   }

@@ -2,6 +2,12 @@
 
 > **語言**： [English](./basic-operations.md) · **繁體中文**
 
+## 驗收適用性
+
+已安裝結構與選定生命週期檢查是預設驗收邊界。CLI 存在不代表 native runtime
+已執行；只有受影響的整合、啟用缺陷或明確要求才觸發 native 檢查。操作紀錄要
+保留 `NOT_RUN`、`UNAVAILABLE` 與 `BLOCKED`。
+
 本頁說明 dhpk 的操作生命週期：安裝、日常指令流程、自動 Review 週期，以及
 如何將既有專案遷移到 dhpk。Codex/Cursor 的安裝、狀態與回滾細節請看
 [平台安裝 SSOT](./platform-installation.zh-TW.md)；完整的 `userConfig` 旋鈕請看
@@ -9,13 +15,10 @@
 
 ## 決策階梯
 
-Clean install 只暴露四個預設 capability：`change-verdict`、`code-trace`、
-`flow-drive`、`flow-guide`。Claude 使用 `bash scripts/install.sh`，Codex 使用
-`scripts/hooks/install-codex-skills.sh`，Cursor 使用
-`scripts/hooks/install-cursor-harness.sh`，AGY 安裝前先執行
-`node scripts/ci/install-agy-plugin.js plan`。Static package evidence 不等於
-runtime evidence；在對應 consumer 被實際觀察前應記錄 `NOT_RUN`、`BLOCKED`
-或 `UNAVAILABLE`。
+`manifests/install-profiles.json` 的 `common` collection 是唯一主要安裝預設。
+目前 Host 路徑、支援狀態與 receipt 管理由[平台安裝 SSOT](./platform-installation.zh-TW.md)
+說明。Static package evidence 不等於 runtime evidence；在對應 consumer 被實際觀察前
+應記錄 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE`。
 
 新請求依序執行：**檢查** repository 與 session 狀態 → **確認** 已安裝的
 surface → **選擇** Claude、支援的 Codex sync 或實驗性的原生 Codex surface →
@@ -54,7 +57,14 @@ dhpk 刻意提供多個不同支援等級的 surface：
 | `install-codex-skills.sh` | Supported | 穩定且 canonical 的 Codex project sync 路徑；runtime activation 與 native `dhpk@dhpk` plugin 互斥。 |
 | `install-cursor-harness.sh` | Supported | 穩定的 Cursor project-local sync 路徑（`.cursor/`）。 |
 | Codex plugin marketplace | Experimental | 僅供 disposable isolated `CODEX_HOME` 實驗的實體 publication package；runtime activation 與 project-local sync 互斥，在另一次升級決策前維持 Experimental。 |
+| OpenAI Public Plugin Directory | Submission candidate（`NOT_PUBLISHED`） | 平台核准並發布後，才是 Codex 與 ChatGPT Work 的預定日常路徑；local/repository marketplace 只供開發與測試。 |
 | Antigravity / AGY sync | Adapter/package | Antigravity project skills 使用 `.agents/skills` mapping，rules/workflows 仍在 `.agent`；AGY 使用原生 plugin package 與 validator。 |
+
+OpenAI Public Plugin 尚未出現在公開目錄。發布前，僅在現有流程仍適用時使用下方的
+supported 與 compatibility 程序。公開 listing 發布後才成為預定日常路徑；一次性舊安裝
+cutover executor 尚未交付。目前的 native Codex marketplace 是另一個 experimental
+package；local repository marketplace 不會發布 OpenAI listing。詳見
+[提交準備 SSOT](./openai-submission.zh-TW.md)。
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invocation 分開。
 每個 host 只選一條 Codex runtime route：日常工作使用支援的 project-local
@@ -80,10 +90,8 @@ dhpk 遵循標準的 [Claude Code plugin distribution model](https://docs.claude
 
 不需要 clone，適合一般使用者。
 
-直接使用 GitHub marketplace 目前取得的是 raw `dhpk@dhpk` compatibility
-surface。完成量測、在 discovery 前套用的 `minimal` artifact，請使用下方
-Path B 的 interactive installer（或 profile generator）；待 release 將生成
-package 發布為 marketplace source 後，才會由遠端路徑直接提供該 artifact。
+GitHub marketplace 使用目前選定的 common 預設集合。Claude 安裝、更新、
+migration、receipt 與 collision 的操作程序由[平台安裝 SSOT](./platform-installation.zh-TW.md)管理。
 
 ```bash
 # Terminal
@@ -131,11 +139,9 @@ claude plugin marketplace add ~/projects/dhpk
 bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
 ```
 
-未選任何 stack module 時，腳本會實體化 inventory-owned 的 `minimal` profile、
-註冊 local marketplace wrapper，並安裝 `dhpk@dhpk-profile-minimal`；選取 stack
-module 則維持明確指定的 raw compatibility 路徑。腳本會引導 stack／版本、Docker
-前置條件、review-agent override 與 hook profile，最後替你執行
-`claude plugin install`。加上 `--dry-run` 可只印出解析後的命令而不執行。
+未選 stack module 時，installer 使用目前選定的 common 預設集合。[平台安裝
+SSOT](./platform-installation.zh-TW.md)負責目前 Host 安裝／更新／移除指令與
+receipt 行為；本指南保留 local-clone 作為開發入口。
 
 請使用以下 source gate 驗證 local checkout：
 
@@ -246,22 +252,19 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 | 路由/決策 | `flow-guide`、`flow-drive` | Discovery、提供建議，並只實作已確認工作 | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
 | 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore\|diagnose\|history` |
 | 只讀審閱 | `change-verdict`（`code\|pr\|security\|tests\|docs\|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
-| 交付前置 | `tdd-workflow`、`dhpk-module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `tdd-workflow` 做 RED |
-| OpenSpec 續作 | `dhpk-opsx-load-context`、`dhpk-opsx-post-observation`、`dhpk-opsx-apply-goal` | 續接 / 交付長時間 `/opsx:apply` 工作流 | 長跑用 `dhpk-opsx-apply-goal <change-id>`，續場景用 `dhpk-opsx-load-context` |
-| Harness / 平台 | `harness-govern`（`health\|budget\|fill\|revise\|sync`） | 同步跨 host 的 harness、plugin、版本與規格 | 先 `$harness-govern health --dry-run` |
-| 技能治理 | `skill-forge`、`skill-scope` | 編寫、稽核、比較 skill 品質 | 快速盤點用 `skill-scope`，結構調整用 `skill-forge` |
-| Git / 發版準備 | `git-smart-commit`、`release-creator`、`dhpk-deploy-list`、`dhpk-project-setup` | 大量變更分群提交、發版、部署檔清單、專案初始化 | `dhpk-project-setup` 後接 `git-smart-commit` / `release-creator` |
+| 交付前置 | `tdd-workflow`、`module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `tdd-workflow` 做 RED |
+| OpenSpec 續作 | `opsx-apply-resume`、`dhpk-opsx-load-context`、`dhpk-opsx-post-observation` | 儲存或續接既有 change 證據 | `opsx-apply-resume <change-id>` |
+| Git / 發版準備 | `git-smart-commit`、`release-creator`、`dhpk-deploy-list` | 分群提交、發版與部署檔清單 | 明確呼叫所選 owner |
 
 ### 參數速查
 
 | Skill | 常用參數 |
 |---|---|
 | `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
-| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `[--plan[=<model>[:<effort>]]]` `[--plan-mode=auto\|bounded\|discovery]` `--worker=<claude\|codex\|agy\|auto>` `[--cross-provider]` `--reasoner=<provider>/<model>[:<effort>]` `--architect\|--no-architect` |
 | `code-trace` | `--mode explore\|diagnose\|history\|select-tool` `--dual` `--explain` `--depth brief\|normal\|deep` |
 | `change-verdict` | `--mode code\|pr\|security\|tests\|docs\|risk` `--ac-trace` `--second-opinion=codex-exec` |
 | `tdd-workflow` | `test-generation` `fast-worker` `standard` |
-| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm\|Nh>` `--min-coverage N` `--smoke\|--no-smoke` |
 | `dhpk-repo-intake` | `save` `--mode auto\|delta\|full` `--top N` |
 
 建議原則：先選對群組再補齊最少參數，路由與回呼會更穩定。
@@ -315,6 +318,7 @@ navigation fallback。
 | Modifier | 效果與邊界 |
 |---|---|
 | `--plan[=<model>[:<effort>]]` | 為已確認的 implementation work 加入 planner critique。 |
+| `--plan-mode=auto\|bounded\|discovery` | 選擇已啟用 `--plan` 的 consult 範圍；省略時預設 `auto`，不改變 planner work mode 或 model/effort。 |
 | `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker，不會持久化設定。 |
 | `--cross-provider` | 當使用 `--worker=auto` 時，僅對本次 invocation 開放設定的 external candidate；不會持久化，也不會擴大明確選定的 worker target。 |
 | `--reasoner=<provider>/<model>[:<effort>]` | 為已確認 implementation work 要求 bounded reasoning pass。 |
@@ -329,35 +333,45 @@ deprecation diagnostic，絕不選擇 peer、worker、reasoner 或 hidden backen
 executable 缺少時才允許 configured Claude fallback；authentication、task、execution 與
 verification failure 都維持 blocked。
 
+例如，`$flow-drive confirmed-change-id --plan --plan-mode=bounded` 會要求 planner
+只檢查 brief 列出的證據。`auto` 只有在 consult 問題與預期結果清楚、包含必要 protocol
+reads 的 named sources 足以在有界預算內回答，而且沒有 named Material Risk Signal 時才選
+bounded；否則選 discovery。Bounded 最多四次 direct reads，包含必要 protocol read，且不得建立
+discovery child。必要事實不足時要回報 blocker，不得搜尋、spawn 或自行升級 scope。明確選擇
+bounded 時，必須揭露被覆寫的 signal；這不會略過 authorization、write prerequisite 或必要的
+specialist decision。Discovery 維持十二次 reads 與兩個唯讀 children；明確要求的 warm review
+維持四次新的 reads，並遵守已選 scope 的 child limit。named signals 與回報契約見
+[execution policy](../rules/execution-policy.md#planner-consult-scope)。
+
 ### OpenSpec 生命週期邊界
 
-不明確或跨 session 的工作先記錄 wayfinder checkpoint，再用 `/opsx:new` 或 `/opsx:ff`
-建立 `openspec/changes/<change-id>/` artifacts。通過 Planning Review Gate 後，以外部
-`/opsx:apply <change>` 或已確認的 `$flow-drive <change-id>` entry 實作。
+若 acceptance、跨 session handoff 或 auditability 需要 OpenSpec 記錄，而且尚無足夠 artifacts，
+先記錄有界的 wayfinder checkpoint，再用 `/opsx:new` 或 `/opsx:ff` 建立
+`openspec/changes/<change-id>/` artifacts。沿用充分計畫與已批准規格，不建立重複文件。完成適用的
+review 後，以外部 `/opsx:apply <change>` 或已確認的 `$flow-drive <change-id>` entry 實作。
 Plan、validator 通過或全綠測試都不是 archive evidence。完成仍需 task checkbox、適用的
 verification gate、Review obligation 與 human-only action 都已解決；archive、issue closure
 與 release publication 仍是分開的步驟。
 
 開始 implementation 前，記錄 `Decision: CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或
 `BLOCKED`。domain-boundary ownership 問題先諮詢 `architect`；若仍有不確定性，記錄
-`REASONER_REQUIRED`，並在任何 writer 前取得 read-only reasoner result。有兩個以上
-unchecked OpenSpec task 時，必須在第一個 write wave 前使用 planner；其 result 必須說明
-dependency order、每個 task 的 exact owner 與 write scope，以及下一個 checkpoint。只有一個
-clear task 時，記錄 `planner=skipped`。外部 `/opsx:apply` workflow 維持不變。
+`REASONER_REQUIRED`，並在任何 writer 前取得 read-only reasoner result。無論 task count，皆可沿用
+充分的既有計畫；只詢問會影響工作的缺失 outcome。若未決選擇、dependency、ownership、sequence
+或 material risk 使 planning outcome 仍必要，才 consult planner；也須遵守 caller 明確提出且受支援的
+consult request。Task count 本身不要求 planner。外部 `/opsx:apply` workflow 維持不變。
 
-每個 implementation wave 結束時，執行一次 consolidated review 與有界的 fix loop：
-`BLOCK`、`CRITICAL`、`HIGH` finding 修復後必須有 dedicated confirm-only reviewer；只有
-LOW/WARNING finding 時，可用 worker verification 加上 diff-scope recheck 結案。delivery order
+每個 implementation wave 結束後，建議以一批 parallel batch 派遣適用的 reviewer；CRITICAL
+finding 須在回報完成前修正。delivery order
 為：verify all tasks and gates → archive/sync OpenSpec → add a valid changelog fragment → open a
 Draft PR targeting `develop` → 使用 `gh run watch` 監視該 PR 的 actual CI 到 completed conclusion → human
 merge gate。queued 或 partial CI 都不是 completion。
 
 ### Review、驗證與交接
 
-每次 Edit／Write／MultiEdit 後，orchestrator 會從完成的 wave 推導適用的 Review Gate
-obligation。不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
+每次 Edit／Write／MultiEdit 後，建議依 trigger table 派遣 reviewer；沒有強制的 review
+gate。dhpk 不會默默執行 formatter、lint、lockfile 或 Stop advisory script。
 `/dhpk:review-pending` 會為指定路徑派工 reviewer；legacy `sentinel_commit_gate` 僅為
-相容性保留，不能取代 Review Gate verdict tracking。
+相容性保留。
 
 ```text
 /dhpk:review-pending
@@ -371,34 +385,21 @@ obligation。不會默默執行 formatter、lint、lockfile 或 Stop advisory sc
 `NOT_RUN`、`UNAVAILABLE` 或 `NO_SHIP`。Release 或 consumer 結果必須將 structural／package
 證據與 live runtime proof 分開；請看 [`docs/harness-workflow.md`](./harness-workflow.md)。
 
-### 明確的長時間 OpenSpec session
+### OpenSpec session 退役與續作
 
-只有既有 change 需要產生有界、可貼上的 `/goal` session 時才使用：
-
-```text
-/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
-```
-
-`<change-id>` 是 `openspec/changes/` 下的 directory name，不是自由文字。
-`--turns N`、`--max-duration`、`--min-coverage`、`--smoke`、`--no-smoke` 與
-`--dry-run` 都可約束產生的 session。turn／time limit 會寫 `.resume-note.md`；human-only
-work 標為 `[blocked: <reason>]`；hard-rule conflict 會以 file:line evidence 寫入
-`.hard-rule-escalation.md`。Generated goal 保留 selector-resolved worker、適用的 specialist
-reviewer 與 completion gate，不會為了約 4,000 UTF-8-byte 的 paste ceiling 而刪除必要 gate。
+無人值守 goal 產生入口已退役。外部 `/opsx:apply` 不變；
+`opsx-apply-resume` 保留既有 change 的 save／resume，context loader 保留
+`.hard-rule-escalation.md` 與 `.resume-note.md` 的讀取。這不提供原有 goal loop。
 
 ### 獨立協助工作流
 
 ```text
-/dhpk:spec-mine user-authentication
 /dhpk:flow-guide route write E2E tests for the checkout flow
-/dhpk:harness-audit
-/dhpk:harness-govern
-/dhpk:harness-govern --fix
 ```
 
-`spec-mine` 將 brownfield behavioral spec 寫入 `openspec/specs/`。E2E 工作由 `e2e-runner`
+E2E 工作由 `e2e-runner`
 負責，只能寫 spec、helper、fixture 與 artifact；application failure 會回傳 worker-ready
-fix spec。Harness audit 是 read-only；govern 只有在加上 `--fix` 時才會修改。Structural change
+fix spec。專用 harness audit 與治理工作流已退役。Structural change
 也會路由 `doc-updater` 更新 codemap 與使用者文件。
 
 ### Implementation dispatch
@@ -457,10 +458,10 @@ Plugin 更新後以 `--update` 重新執行。Unowned collision 會保留；`--m
 receipt-owned、未修改的 legacy destination；edited、third-party、retargeted、malformed 或
 ambiguous path 仍會報告 conflict。`--uninstall` 只移除未修改且 receipt-owned 的 entry。
 Codex tree 是 canonical Claude package 的 curated subset，不是第二份完整 inventory。
-`codex/agents/` 有 16 個 direct role：4 個手動維護 generic role 與由 canonical Claude agent
-產生的 12 個 role。雙 harness 模型請看 `codex/AGENTS.md` 與 `codex/README.md`。
+`codex/agents/` 有 15 個 direct role：4 個手動維護 generic role 與由 canonical Claude agent
+產生的 11 個 role。雙 harness 模型請看 `codex/guidance.md` 與 `codex/README.md`。
 
-Generated role 可能依賴共用的 prompt-defense、trap-sheet、reviewer-contract、artifact-contract
+Generated role 可能依賴共用的 prompt-defense、trap-sheet、artifact-contract
 或 execution-policy。這些 support file 由 `manifests/distribution-inventory.json` 的
 `supporting_assets` section mapping，複製到 `.codex/dhpk/`，並用同一份 schema-v3 receipt 追蹤。
 Runtime projection validator 會拒絕 unreachable reference 或 Claude plugin-root path。
@@ -520,7 +521,7 @@ native plugin 已 enabled，會在寫入前阻擋，`--force` 不能繞過；`--
 ## 遷移現有專案
 
 如果 project 已有自己的 `.claude/` harness，以下是 legacy hook 相容性遷移計畫；
-新的 review 工作使用上方所述的 Review Gate trigger table 與 durable obligation：
+新的 review 工作使用上方所述的建議性 reviewer trigger table：
 
 1. **Phase A — baseline**：先保存安裝前 hook output 與測試結果。
 2. **Phase B — install (parallel)**：設定 `userConfig.review_agents` 指向既有 agent 後安裝 plugin，兩組 hook 並行。
@@ -547,3 +548,39 @@ Marketplace install path（`claude plugin install`）會將 plugin 複製到
 `~/.claude/plugins/cache/`；source repository 的修改要等到
 `claude plugin update -y dhpk@dhpk` 才會反映（project scope 安裝則使用加上
 `--scope project` 的對應指令）。
+
+### npm script 快速指令
+
+Root `package.json` 為 private、零 dependency，提供兩類指令。
+
+**套件安裝者（`bin`）**：可透過 `npx` 或全域安裝後使用：
+
+| 指令 | 用途 |
+|------|------|
+| `dhpk-install <claude\|cursor\|codex-sync\|agy-plugin> <plan\|status\|verify>` | 規劃、查詢或驗證安裝面 |
+| `dhpk harness ...` | Harness facade |
+| `dhpk distribution <surface> <generate\|preview\|validate\|verify>` | 分發套件操作 |
+
+**開發者（clone 後在 repo 內 `npm run`）**：
+
+| 分類 | 指令 | 執行內容 |
+|------|------|----------|
+| 安裝 | `npm run setup` | 互動式安裝（`scripts/install.sh`） |
+| | `npm run setup:dry-run` | 非互動式安裝 dry run |
+| | `npm run setup:status` | `dhpk-install claude status --scope user` |
+| | `npm run dhpk-install -- <surface> <action>` | `scripts/dhpk-install.js` |
+| 測試 | `npm test` | 完整測試（`tests/run-all.js`） |
+| | `npm run test:hooks` | Hook 測試 |
+| | `npm run test:one -- tests/<name>.test.js` | 單一測試檔 |
+| 驗證 | `npm run validate` | 所有 CI validator（`validate:*`） |
+| | `npm run check:generated` | 產生的 manifest、marketplace、skill resource、package drift 檢查 |
+| | `npm run check:portability` | 可攜性檢查 |
+| | `npm run catalog:check` | `catalog.js --check all` |
+| | `npm run ci` | `validate` + `check:generated` + `catalog:check` + `test` |
+| 產生（會寫檔） | `npm run gen:all` | 先 `catalog:write`，再 `gen:manifest`、`gen:marketplace`、`gen:codex-agents` |
+
+注意事項：
+- `catalog:write` 必須先於其他 generator；`gen:all` 已維持此順序。
+- 未定義任何 npm lifecycle script（`install`、`postinstall`、`prepare` 等），安裝套件不會執行開發者腳本。
+- 發版腳本與 `gen-distribution-inventory.js --write` 刻意不提供，請手動執行。
+- `package.json` 的版本納入 release version lockstep。

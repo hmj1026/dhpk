@@ -6,7 +6,7 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-Forward to the canonical [`$code-simplify` skill](../skills/code-simplify/SKILL.md)
+Forward to the canonical [`$code-simplify` skill](../skills/flow-drive/references/code-simplify/SKILL.md)
 with `$ARGUMENTS` unchanged. It owns explicit/automatic scope resolution,
 baseline/final test gates, the four cleanup angles, degraded inline fallback,
 and registered worker/architect escalation for heavy cleanup.

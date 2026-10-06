@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# PreToolUse (Edit|Write|MultiEdit): enforce dispatch-mode inline batch bounds.
+# PreToolUse (Edit|Write|MultiEdit): observe inline edit batches and offer an
+# advisory at three distinct source files. Scope and authority checks belong to
+# their own guards; file count alone never blocks an edit.
 # Any state/probe failure is deliberately fail-open.
 
 set -o pipefail
@@ -12,7 +14,7 @@ batch_gate_main() {
     payload="$(dhpk_read_payload)"
     file_path="$(extract_tool_input file_path "$payload")"
     [ -n "$file_path" ] || return 0
-    # NOTE: DHPK_INLINE_BATCH_OK is checked LATER (just before the WARN/block),
+    # NOTE: DHPK_INLINE_BATCH_OK is checked LATER (just before the advisory),
     # not here — the override must suppress the advisory/block, but the distinct-
     # file counter below MUST still accumulate so the Stop-time dispatch audit
     # (_lib/stop-dispatch-audit.sh, issue #80) can flag an override that grinds
@@ -55,15 +57,12 @@ batch_gate_main() {
     count="$(awk 'NF {seen[$0]=1} END {for (x in seen) n++; print n+0}' "$counter" 2>/dev/null)" || return 0
     case "$count" in ''|*[!0-9]*) return 0 ;; esac
 
-    # The override suppresses only the advisory/block — the counter above has
+    # The override suppresses only the advisory — the counter above has
     # already recorded this file for the Stop-time audit.
     [ "${DHPK_INLINE_BATCH_OK:-0}" = "1" ] && return 0
 
     if [ "$count" -eq 3 ]; then
-        echo "[edit-batch-gate] WARN: 3-file inline batch threshold reached; dispatch ≥3-file mechanical work as one fast-worker batch." >&2
-    elif [ "$count" -ge 4 ] && [ "${DHPK_ORCHESTRATION_DISPATCH:-off}" = "on" ]; then
-        echo "[edit-batch-gate] blocked: $count distinct inline source files; dispatch the pending mechanical work as one fast-worker batch or set DHPK_INLINE_BATCH_OK=1." >&2
-        return 2
+        echo "[edit-batch-gate] WARN: 3-file advisory; choose inline work or delegation from scope, ownership, coupling, and coordination needs. File count alone does not decide." >&2
     fi
     return 0
 }

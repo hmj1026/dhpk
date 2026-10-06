@@ -8,6 +8,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const fs = require('node:fs');
 const path = require('node:path');
 const selection = require('../scripts/lib/capability-bundle-selection');
+const { computeProfileProjectionSets } = require('../scripts/lib/profile-projection-sets');
 // Consolidated imports from capability-bundle-activation.test.js.
 const os = require('node:os');
 const { ProjectionArtifactStore } = require('../scripts/lib/projection-artifact-store');
@@ -79,6 +80,7 @@ function fixture() {
     profiles: {
       version: 1,
       profiles: {
+        common: { modules: ['module-a'], skillIds: CORE_IDS.concat(['module-a-skill']) },
         minimal: { modules: [], skillIds: CORE_IDS.slice() },
         full: { modules: ['module-a'], skillIds: CORE_IDS.concat(['module-a-skill']), excludes: { 'module-b': 'conflict' } },
         'compat-v1': { modules: [], skillIds: skills.filter((entry) => entry.invokable !== false).map((entry) => entry.id) },
@@ -105,6 +107,42 @@ test('fixture declares nine minimal IDs, conflict-aware full inputs, and compat-
   assert.deepStrictEqual(source.profiles.profiles.minimal.skillIds, CORE_IDS);
   assert.deepStrictEqual(source.profiles.profiles.full.excludes, { 'module-b': 'conflict' });
   assert.strictEqual(source.profiles.profiles['compat-v1'].skillIds.length, source.inventory.skills.filter((entry) => entry.invokable !== false).length);
+});
+
+test('omitted profile selects the common collection', () => {
+  const result = resolve();
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.strictEqual(result.value.profileId, 'common');
+  assert.deepStrictEqual(result.value.selectedStableIds, CORE_IDS.concat(['module-a-skill']).sort());
+});
+
+test('general selection cannot expose profiles stored only for historical receipts', () => {
+  const source = fixture();
+  const profiles = {
+    profiles: { common: { modules: [], skillIds: CORE_IDS.slice() } },
+    legacy_profiles: { minimal: { modules: [], skillIds: CORE_IDS.slice() } },
+  };
+  const result = selection.resolveCapabilitySelection({
+    inventory: source.inventory,
+    profiles,
+    moduleCatalog: source.moduleCatalog,
+    profileId: 'minimal',
+  });
+  assert.strictEqual(result.ok, false);
+  assert.strictEqual(result.error.code, 'UNKNOWN_PROFILE');
+});
+
+test('host projection sets include common and omit historical profiles', () => {
+  const root = path.join(__dirname, '..');
+  const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'install-profiles.json'), 'utf8'));
+  const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'module-catalog.json'), 'utf8'));
+  const projection = computeProfileProjectionSets({ inventory, profiles, moduleCatalog });
+  assert.ok(Object.hasOwn(projection.profiles, 'common'));
+  assert.ok(Object.hasOwn(projection.profiles, 'legacy-php-yii'));
+  for (const id of ['minimal', 'full', 'compat-v1']) {
+    assert.ok(!Object.hasOwn(projection.profiles, id), `${id} is historical receipt metadata only`);
+  }
 });
 
 test('minimal resolves exactly nine required core IDs', () => {
@@ -306,6 +344,38 @@ test('receipt selection preserves compat-v1 until explicit migration', () => {
   assert.strictEqual(migration.value.newSelection.profileId, 'minimal');
 });
 
+test('historical receipt selection preserves exact retired IDs without materializing them', () => {
+  const source = fixture();
+  const recordedIds = ['retired-id', 'core-01'];
+  const receipt = { profileId: 'full', selectedStableIds: recordedIds.slice() };
+  const profiles = {
+    profiles: { common: { modules: [], skillIds: CORE_IDS.slice() } },
+    legacy_profiles: { full: { modules: [], skillIds: CORE_IDS.concat(['retired-id']) } },
+  };
+  const replay = selection.resolveReceiptSelection({
+    receipt,
+    inventory: source.inventory,
+    profiles,
+    moduleCatalog: source.moduleCatalog,
+    surface: 'claude-profile',
+  });
+  assert.strictEqual(replay.ok, true, replay.error && replay.error.message);
+  assert.strictEqual(replay.value.profileId, 'full');
+  assert.deepStrictEqual(replay.value.selectedStableIds, recordedIds);
+  assert.strictEqual(replay.value.materializationSupported, false);
+
+  const migration = selection.planProfileMigration({
+    receipt,
+    targetProfileId: 'common',
+    inventory: source.inventory,
+    profiles,
+    moduleCatalog: source.moduleCatalog,
+    surface: 'claude-profile',
+  });
+  assert.strictEqual(migration.ok, false);
+  assert.strictEqual(migration.error.code, 'LEGACY_PROFILE_UPDATE_BLOCKED');
+});
+
 test('standalone receipts preserve their requested boundary during validation and update planning', () => {
   const source = fixture();
   source.inventory.standalone_dependencies = { 'module-a-skill': { requires: ['core-01'] } };
@@ -362,38 +432,47 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'module-catalog.json'), 'utf8'));
   const checked = selection.validateProfileDefinitions({ inventory, profiles, moduleCatalog });
   assert.strictEqual(checked.ok, true, checked.errors.join('; '));
-  const minimal = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
-  const compat = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'compat-v1' });
-  assert.deepStrictEqual(minimal.value.selectedStableIds, [
-    'change-verdict',
-    'code-trace',
-    'flow-drive',
-    'flow-guide',
-  ]);
-  const declaredCompatIds = profiles.profiles['compat-v1'].skillIds.slice().sort();
-  assert.deepStrictEqual(compat.value.selectedStableIds, declaredCompatIds);
-  for (const familyId of (inventory.skill_routing_families || []).map((family) => family.id)) {
-    assert.ok(compat.value.selectedStableIds.includes(familyId), `${familyId} family must remain in compat-v1`);
+  assert.deepStrictEqual(Object.keys(profiles.legacy_profiles).sort(), ['compat-v1', 'full', 'minimal']);
+  const common = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog });
+  assert.strictEqual(common.ok, true, common.error && common.error.message);
+  assert.strictEqual(common.value.profileId, 'common');
+  assert.deepStrictEqual(common.value.selectedStableIds, profiles.profiles.common.skillIds);
+  for (const id of ['minimal', 'full', 'compat-v1']) {
+    const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: id });
+    assert.strictEqual(result.ok, false, `${id} is retained for historical reads only`);
+    assert.strictEqual(result.error.code, 'UNKNOWN_PROFILE');
   }
-  assert.ok(compat.value.selectedStableIds.every((id) => !inventory.retired_skills.some((row) => row.id === id)));
 });
 
-test('checked-in minimal profile is the curated four-entry Claude default', () => {
+test('checked-in common collection is the curated fifteen-entry default', () => {
   const root = path.join(__dirname, '..');
   const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests/distribution-inventory.json'), 'utf8'));
   const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'));
   const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests/module-catalog.json'), 'utf8'));
-  const expected = ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide'];
-  const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
+  const expected = [
+    'flow-guide', 'code-trace', 'change-verdict', 'flow-drive', 'git-smart-commit',
+    'release-creator', 'tdd', 'create-pr', 'git-worktree', 'proposal-analyze',
+    'update-docs', 'precommit', 'dep-audit', 'repo-verify', 'ui-ux-verify',
+  ];
+  const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog });
   assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.strictEqual(result.value.profileId, 'common');
   assert.deepStrictEqual(result.value.selectedStableIds, expected);
-  assert.strictEqual(result.value.selectedStableIds.length, 4);
+  assert.strictEqual(result.value.selectedStableIds.length, 15);
   assert.deepStrictEqual(result.value.supportClosure.skillStableIds, []);
-  assert.deepStrictEqual(
-    [...new Set(result.value.supportClosure.files.map((file) => file.destination))].sort(),
-    ['rules/execution-policy-kernel.md', 'rules/execution-policy.md', 'rules/tool-routing.md', 'scripts/lib/flow-handoff-contract.js'],
-  );
   assert.ok(result.value.supportClosure.files.every((file) => expected.includes(file.requiredBy)));
+});
+
+test('common collection cannot drop a required core skill', () => {
+  const root = path.join(__dirname, '..');
+  const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests/distribution-inventory.json'), 'utf8'));
+  const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'));
+  const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests/module-catalog.json'), 'utf8'));
+  profiles.profiles.common.skillIds = profiles.profiles.common.skillIds.filter((id) => id !== 'flow-drive');
+  const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog });
+  assert.strictEqual(result.ok, false);
+  assert.strictEqual(result.error.code, 'PROFILE_CORE_MISMATCH');
+  assert.ok(result.error.message.includes('required_core_ids'));
 });
 
 // RED contract for issue #534 P2.  A renamed public name may improve the

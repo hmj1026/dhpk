@@ -11,6 +11,8 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'module-catalog.json'), 'utf8'));
 const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
+const marketplaceSelection = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'marketplace-selection.json'), 'utf8'));
+const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
 
 function catalogModuleIds() {
   const ids = new Set();
@@ -52,24 +54,40 @@ test('every shipped module is catalog-selectable', () => {
   }
 });
 
-test('full profile: full.modules union full.excludes = every shipped module, disjoint', () => {
-  const full = profiles.profiles.full;
-  const inc = new Set(full.modules);
-  const exc = new Set(Object.keys(full.excludes || {}));
-  const shipped = shippedModuleIds();
-  const shippedSet = new Set(shipped);
+test('active profiles select catalogued shipped modules and common owns marketplace skills', () => {
+  const declaredProfiles = profiles.profiles;
+  const catalogIds = new Set(ids);
+  const shippedIds = new Set(shippedModuleIds());
+  for (const [profileId, profile] of Object.entries(declaredProfiles)) {
+    const selected = Array.isArray(profile.modules) ? profile.modules : [];
+    const excluded = Object.keys(profile.excludes || {});
+    const excludedIds = new Set(excluded);
+    const overlap = selected.filter((id) => excludedIds.has(id));
+    assert.deepStrictEqual(overlap, [], `${profileId} selects and excludes the same modules`);
 
-  const overlap = [...inc].filter((id) => exc.has(id));
-  assert.ok(overlap.length === 0, `ids in both full.modules and full.excludes: ${overlap.join(', ')}`);
+    for (const id of [...selected, ...excluded]) {
+      assert.ok(catalogIds.has(id), `${profileId} module '${id}' is missing from the module catalog`);
+      assert.ok(shippedIds.has(id), `${profileId} module '${id}' has no shipped modules/${id}/module.yaml`);
+    }
+  }
 
-  const missing = shipped.filter((id) => !inc.has(id) && !exc.has(id));
-  assert.ok(missing.length === 0, `shipped modules missing from full.modules and full.excludes: ${missing.join(', ')}`);
+  const common = declaredProfiles.common;
+  assert.deepStrictEqual(common.modules, [], 'common selects no language/framework modules');
+  const commonSkillIds = common.skillIds;
+  const marketplaceCommonIds = marketplaceSelection.skills
+    .filter((entry) => entry.selection === 'common' && entry.kind === 'entry')
+    .map((entry) => entry.id);
+  assert.ok(Array.isArray(commonSkillIds), 'common.skillIds must be an explicit list');
+  assert.strictEqual(new Set(commonSkillIds).size, commonSkillIds.length, 'common.skillIds must be unique');
+  assert.deepStrictEqual(commonSkillIds.slice().sort(), marketplaceCommonIds.slice().sort(),
+    'common.skillIds must match marketplace common entry ownership');
 
-  const phantomInc = [...inc].filter((id) => !shippedSet.has(id));
-  assert.ok(phantomInc.length === 0, `full.modules ids with no modules/<id>/module.yaml: ${phantomInc.join(', ')}`);
-
-  const phantomExc = [...exc].filter((id) => !shippedSet.has(id));
-  assert.ok(phantomExc.length === 0, `full.excludes ids with no modules/<id>/module.yaml: ${phantomExc.join(', ')}`);
+  const inventorySkillIds = new Set(inventory.skills.map((entry) => entry.id));
+  const commonSkillSet = new Set(commonSkillIds);
+  for (const id of inventory.profile_policy.required_core_ids) {
+    assert.ok(inventorySkillIds.has(id), `required core skill '${id}' must have an active inventory entry`);
+    assert.ok(commonSkillSet.has(id), `common must include required core skill '${id}'`);
+  }
 });
 
 run('module-catalog');

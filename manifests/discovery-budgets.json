@@ -2,6 +2,21 @@
   "schema": "dhpk.discovery-budgets.v1",
   "description": "Budgets for discovery-visible metadata. Optional entries remain host-discoverable and are runtime/activation optional.",
   "units": { "words": "whitespace-delimited words", "tokens": "conservative four-characters-per-token estimate" },
+  "marketplaceCatalog": {
+    "scope": "static-selection",
+    "selection": "manifests/marketplace-selection.json",
+    "maxCommonEntries": 15,
+    "maxBundledChildren": 45,
+    "maxHostOnlyRows": {
+      "openai-submission": 0,
+      "agent-plugin": 2,
+      "codex-native": 7,
+      "cursor-plugin": 2,
+      "agy-plugin": 2,
+      "claude-core": 15
+    },
+    "note": "Children are resources, not discovery entries. Host-only rows include supported internal runtimes. Rendered token and consumer-list measurements are separate acceptance evidence."
+  },
   "estimator": {
     "id": "dhpk-conservative-context-estimator",
     "version": "1",
@@ -10,7 +25,7 @@
     "aggregation": "measure-each-entry-then-sum"
   },
   "aggregate": {
-    "profile": "minimal",
+    "profile": "common",
     "surface": "claude-core",
     "maxEntries": 15,
     "minReductionPercent": 70,

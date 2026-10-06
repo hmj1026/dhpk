@@ -10,33 +10,53 @@ installed.
 Current Codex/Cursor installation routes and rollback boundaries live in the
 [platform installation SSOT](./platform-installation.md).
 
-For the Issue #534 default transition, preview Claude with `bash scripts/install.sh
---dry-run`; use `scripts/hooks/install-codex-skills.sh`,
-`scripts/hooks/install-cursor-harness.sh`, or `node scripts/ci/install-agy-plugin.js
-plan` for the other hosts. A clean install selects the exact four-capability
-minimal profile. Existing receipts keep their recorded selection until explicit
-migration. Structural success never upgrades an unobserved consumer: record
-`NOT_RUN`, missing tooling as `UNAVAILABLE`, and failed prerequisites as
-`BLOCKED`. Generic `dhpk-install` writes remain `NOT_IMPLEMENTED`.
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default. Former `minimal`, `full`, and `compat-v1` selections are
+historical receipt metadata, not publication choices. Existing receipts keep
+their recorded selection until explicit migration. Current Host procedures,
+support status, and lifecycle boundaries live in the [platform installation
+SSOT](./platform-installation.md). Structural success never upgrades an
+unobserved consumer: record `NOT_RUN`, missing tooling as `UNAVAILABLE`, and
+failed prerequisites as `BLOCKED`.
 
 ## Current contract
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 84 flat packages at `skills/<public-name>/` |
-| Public identity | 33 public names are unprefixed, including the nine capability families and the portable command skills; the other 51 first-party names retain `dhpk-*` |
+| Canonical source | Inventory-owned Skill packages at `skills/<public-name>/` |
+| Public identity | Stable IDs and public names are owned by the distribution inventory |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
-| Module projection | 37 relative symlinks under `modules/*/skills/` |
-| Codex project projection | 34 relative symlinks under `codex/skills/` (32 invokable plus two internal transport and dispatch-context runtimes) |
-| Codex native package | 34 physical packages under `plugins/dhpk/skills/`; zero symlinks |
+| Module projection | Inventory-selected relative symlinks under `modules/*/skills/` |
+| Codex project projection | Receipt-owned projections under `codex/skills/`, including internal transport and dispatch-context runtimes |
+| Codex native package | Inventory-selected physical packages under `plugins/dhpk/skills/`; no symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
-| Profile sizes | `minimal=4`, `full=55`, `compat-v1=62` before overlays; minimal is `change-verdict`, `code-trace`, `flow-drive`, `flow-guide` |
-| Agent/Cursor/AGY publication | Agent Plugin and AGY each select 55 stable IDs; Cursor native owns 4 overlay entries and shares Agent portable skills |
+| Main installation default | The `common` collection from `manifests/install-profiles.json`; legacy selections remain historical receipt metadata |
+| Host publication | Membership and required Host helpers are owned by the distribution inventory and projection manifests |
 
 Directory placement and README lists are not authoritative. The inventory
 owns stable ids, public names, lifecycle, modules, and publication surfaces;
 the validators reconcile every projection against it.
+
+### Module design public-name migration
+
+`dhpk-module-design` is renamed to `module-design`; its canonical source path
+is owned by the `module-design` entry in the distribution inventory.
+The stable ID `software-architecture`, capability ID,
+four modes, parameters, and Claude/Cursor surface selection are unchanged.
+The rename ledger maps the old public name to the current owner for diagnostics
+and receipt-owned migration. It does not install a second compatibility skill.
+The `software-architecture` legacy identifier still resolves to that owner.
+
+Existing project receipts migrate only when their old files remain owned and
+unchanged. Modified or unowned destinations retain the existing collision
+handling. Rollback uses the recorded `0.64.4` release. Current generated packages
+and installed consumers keep their published content until they are refreshed
+through their own update flow; a canonical-source rename alone is not an update.
+
+Claude invocation is `/dhpk:module-design`. The inventory does not select this
+skill for `codex-sync` or `codex-native`; Codex usage requires independently
+discovered availability and must not be inferred from its metadata file.
 
 ## Invocation syntax
 
@@ -44,7 +64,7 @@ Names are deliberately different across host surfaces:
 
 | Surface | Syntax | Example |
 |---|---|---|
-| Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
+| Claude command | `/dhpk:<command>` | `/dhpk:precommit` |
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
 | Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
 | Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
@@ -73,7 +93,7 @@ proposals to the external `$openspec-propose` owner, while
 [feasibility comparison](./agent-guidance/feasibility-comparison.md) keeps
 options analysis separate from implementation.
 
-The `dhpk` prefix remains part of the Claude plugin namespace. The nine family
+The `dhpk` prefix remains part of the Claude plugin namespace. The eight family
 names are intentionally unprefixed so users select a task-shaped capability
 without learning predecessor implementation names. `git-smart-commit` remains
 the standalone public commit owner; it is not renamed to or replaced by a
@@ -86,15 +106,16 @@ identity. Its `retired_skills` contains five historical 0.47.0 rows plus the lat
 waves; the table below is the documentation projection of those historical
 rows' former identity, `reasonCode`,
 replacement guidance, and rollback pin. Retirement rows are diagnostic
-metadata only: they are not active skills, materialized packages, discovery
-aliases, or entries in any generated projection.
+metadata only. Generated usage catalogs may retain their former names to
+return retirement diagnostics. These records never make a skill callable or
+add it to discovery or package membership.
 
 | Former stable ID | Former public name | `reasonCode` | Replacement guidance | `rollback.release` |
 |---|---|---|---|---|
 | `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | current successor `flow-guide` (`classify` mode); the historical 0.47.0 route was `adaptive-dev-workflow` (`bug` mode) | `0.46.1` |
 | `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | current successor `flow-guide` (`classify` mode); the historical 0.47.0 route was `adaptive-dev-workflow` (`feature` mode) | `0.46.1` |
 | `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`; Claude `/dhpk:dhpk-tdd-workflow`; Codex `$dhpk-tdd-workflow` (`unit-integration` mode); agent `e2e-runner` (`playwright-journey` mode) | `0.46.1` |
-| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`; Claude `/dhpk:dhpk-module-design`; Codex `$dhpk-module-design` (`adversarial` mode) | `0.46.1` |
+| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`; Claude `/dhpk:module-design` (`adversarial` mode); not currently Codex-selected | `0.46.1` |
 | `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` guidance; no successor package | `0.46.1` |
 
 ### Direct-host invocation boundary
@@ -129,7 +150,7 @@ evidence; this table records the identity disposition and rollback pin.
 
 | Former stable ID | Former MCP-facing identity | Replacement owner and behavior | `reasonCode` | `rollback.release` |
 |---|---|---|---|---|
-| `codex-architect` | `dhpk-codex-architect` | `dhpk-module-design`; current-model design/review/compare/adversarial modes, with explicit optional `codex exec` only | `migrated-to-module-design` | `0.51.0` |
+| `codex-architect` | `dhpk-codex-architect` | `module-design`; current-model design/review/compare/adversarial modes, with explicit optional `codex exec` only | `migrated-to-module-design` | `0.51.0` |
 | `codex-implement` | `dhpk-codex-implement` | `flow-drive`; current-model decomposition, implementation, verification, review, and bounded retry loop (`implement` mode) | `migrated-to-backend-neutral-implement` | `0.51.0` |
 | `codex-code-review` | `dhpk-change-review` with the MCP default | `dhpk-change-review --backend cli`; current-model default and explicit CLI review, with no MCP fallback | `migrated-to-cli-review-owner` | `0.51.0` |
 | `doc-review` | `dhpk-doc-review` with MCP review/reply | `dhpk-doc-review`; portable five-dimension review and gate, with explicit optional `codex exec` only | `migrated-to-portable-review` | `0.51.0` |
@@ -153,7 +174,7 @@ mode-shaped families. This section is preserved as the 0.53 historical record;
 the live 0.54 family contract follows the second-wave ledger below. The
 predecessor stable IDs remain only in historical retirement metadata.
 
-| Current family | Modes | Retained predecessor contracts |
+| Family in 0.53.0 | Modes | Retained predecessor contracts |
 |---|---|---|
 | `skill-scope` | `health`, `judge`, `stocktake`, `scout` | skill health, quality, inventory, and discovery checks |
 | `skill-forge` | `create`, `distill-rules` | skill authoring and rule distillation |
@@ -169,7 +190,7 @@ there are no compatibility aliases or duplicate predecessor packages.
 
 The inventory owns exactly 22 alias-free rows. Every row uses
 `reasonCode: capability-family-consolidation`, rolls back to `0.52.0`, and
-points to one family mode. This table is a documentation projection of that
+points to one family mode, except the two rows noted below. This table is a documentation projection of that
 closed mapping; it is not a discovery or compatibility registry.
 
 | Former stable ID | Former public name | Replacement family/mode | `reasonCode` | `rollback.release` |
@@ -178,8 +199,8 @@ closed mapping; it is not a discovery or compatibility registry.
 | `skill-judge` | `dhpk-skill-quality-judge` | `skill-scope` / `judge` | `capability-family-consolidation` | `0.52.0` |
 | `skill-stocktake` | `dhpk-skill-stocktake` | `skill-scope` / `stocktake` | `capability-family-consolidation` | `0.52.0` |
 | `skill-scout` | `dhpk-skill-scout` | `skill-scope` / `scout` | `capability-family-consolidation` | `0.52.0` |
-| `create-skill` | `dhpk-create-skill` | `skill-forge` / `create` | `capability-family-consolidation` | `0.52.0` |
-| `rules-distill` | `dhpk-rules-distill` | `skill-forge` / `distill-rules` | `capability-family-consolidation` | `0.52.0` |
+| `create-skill` | `dhpk-create-skill` | model default (was `skill-forge` / `create`) | `capability-family-consolidation` | `0.52.0` |
+| `rules-distill` | `dhpk-rules-distill` | model default (was `skill-forge` / `distill-rules`) | `capability-family-consolidation` | `0.52.0` |
 | `adaptive-dev-workflow` | `dhpk-adaptive-dev-workflow` | `flow-guide` / `classify` | `capability-family-consolidation` | `0.52.0` |
 | `dhpk-execution-policy` | `dhpk-execution-policy` | `flow-guide` / `policy` | `capability-family-consolidation` | `0.52.0` |
 | `next-step` | `dhpk-next-step` | `flow-guide` / `next` | `capability-family-consolidation` | `0.52.0` |
@@ -197,18 +218,21 @@ closed mapping; it is not a discovery or compatibility registry.
 | `git-investigate` | `dhpk-git-history-investigation` | `code-trace` / `history` | `capability-family-consolidation` | `0.52.0` |
 | `tool-routing` | `dhpk-tool-routing` | `code-trace` / `select-tool` | `capability-family-consolidation` | `0.52.0` |
 
-## 0.54 capability families and retirement
+In 0.65.0, `skill-forge` itself was retired (reason code
+`third-party-text-overlap`), so the `create-skill` and `rules-distill` rows now
+point to the model default instead of a family mode.
 
-The 0.54 release introduced nine portable families, and they remain current:
-`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
-`code-trace`, `laravel`, `phpunit`, and `harness-govern`. Every other active
-public name retains the `dhpk-` prefix; `manifests/distribution-inventory.json`
-is the source for the current skill list.
+## 0.54 capability-family history and retirement
 
-| Current family | Interface | Boundary |
+The 0.54 release introduced nine portable families. The optional-tool
+retirement in 0.65 removed `skill-scope` and `harness-govern`; they are not
+current entry points. The table records release-time interfaces before that
+retirement. Current public names are owned by
+`manifests/distribution-inventory.json`.
+
+| 0.54 family | Interface | Boundary at that release |
 |---|---|---|
 | `skill-scope` | `health`, `judge`, `stocktake`, `scout` | explicit governance handoff |
-| `skill-forge` | `create`, `distill-rules` | explicit authoring handoff |
 | `flow-guide` | `help`, `route`, `rules`, `next`, `close` | read-only guidance; `route --go` is one bounded handoff |
 | `flow-drive` | confirmed specification or change; no mode | explicit-only implementation |
 | `change-verdict` | `code`, `pr`, `security`, `tests`, `docs`, `risk` | read-only review |
@@ -276,9 +300,8 @@ The default hook surface now has four focused responsibilities:
 3. Validate and activate configured modules at session start.
 4. Clean up stopped fast-worker liveness state at subagent stop.
 
-Reviewer selection, identity binding, artifact/result recording, and obligation
-resolution belong to the orchestrator-owned Review Gate and its durable evidence
-store. Completion is based on that identity-bound evidence, not hook side effects.
+Reviewer selection is orchestrator-owned and advisory; hooks never enforce a
+review gate.
 
 Formatting, lint, Docker probes, prompt hints, session snapshots, and other
 advisory work are explicit consumer extensions rather than default hooks.
@@ -317,7 +340,7 @@ to the user scope, and `-y`/`--yes` is required when the update runs without a
 TTY (for example in CI).
 
 Start a fresh Claude session or run `/reload-plugins`. Confirm that
-`/dhpk:setup`, `/dhpk:flow-guide`, `/dhpk:flow-drive`, and `/dhpk:harness-govern` resolve. Project-local
+`/dhpk:setup`, `/dhpk:flow-guide`, `/dhpk:flow-drive`, and `/dhpk:change-verdict` resolve. Project-local
 copies of old dhpk skills are not updated by the marketplace; remove them only
 after confirming they are redundant and version controlled or otherwise
 recoverable.
@@ -356,16 +379,29 @@ Maintainers should run:
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
 bin/dhpk distribution codex-native verify --json
-node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-Expected topology is the inventory-owned canonical package count, 31 modules,
-and the inventory-owned Codex project/native entries (invokable skills plus
-internal transport and dispatch-context runtimes), with relative symlinks only
-in module/Codex projections and no symlinks in the native package. The nine
-MCP capability identities above are ledger rows only and are excluded from all
-active counts.
+The distribution validator checks inventory-owned canonical packages and
+project/native projections, including internal transport and dispatch-context
+runtimes. It also checks relative symlinks in module/Codex projections and the
+native package's physical-file policy. The nine MCP capability identities above
+are ledger rows only and are excluded from active publication.
+
+## Third-party text overlap retirement (0.65.0)
+
+On 2026-10-03 these items were removed from every package because they
+contained third-party text without a retained notice. Each skill has an
+alias-free retirement row with `reasonCode: third-party-text-overlap`, a
+`model-default` replacement, and rollback release `0.64.4`.
+
+| Removed item | Kind |
+|---|---|
+| `agent-architecture-audit` (`dhpk-agent-architecture-audit`) | skill |
+| `skill-forge` | skill |
+| `spec-mine` | skill and `/dhpk:spec-mine` command |
+| `agent-evaluator` | agent |
+| `spec-miner` | agent |
 
 ## Rollback
 

@@ -16,9 +16,7 @@ const MACOS_INSTALLER_FILES = Object.freeze([
   { file: 'tests/install-cursor-harness.test.js' },
   { file: 'tests/cli-dispatch-launcher.test.js' },
   { file: 'tests/install.test.js' },
-  { file: 'tests/session-usage-audit.test.js', env: { TMPDIR: '/private/tmp' } },
   { file: 'tests/consumer-gate-cli.test.js', env: { TMPDIR: '/private/tmp' } },
-  { file: 'tests/multi-ai-sync-agy-platform.test.js' },
   { file: 'tests/run-bounded-node-test.test.js' },
 ]);
 

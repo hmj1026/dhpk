@@ -4,12 +4,10 @@
 
 dhpk 在 `.claude-plugin/plugin.json` 中暴露 **76 個 active `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。如果你不確定要先呼叫哪個技能/指令，先看 [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
 
-Claude 的預設 discovery artifact 是由
-`manifests/distribution-inventory.json` 產生的實體化 `minimal` profile，並非
-直接掃描未過濾的 `skills/` 原始目錄。此 profile 只發布 `change-verdict`、
-`code-trace`、`flow-drive`、`flow-guide`；`full` 與 `compat-v1` 是明確 opt-in 的 profile
-artifact。Agent Plugin 與 Cursor 的發布 membership 維持不變。profile 選擇與
-receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installation.zh-TW.md)。
+`manifests/install-profiles.json` 的 `common` collection 是唯一主要安裝預設。
+舊 `minimal`、`full` 與 `compat-v1` 選擇只保留作為歷史 receipt metadata，不是
+發布選項。Module preset 仍是獨立設定。Host 選擇與 receipt 規則請見
+[`docs/platform-installation.zh-TW.md`](./platform-installation.zh-TW.md)。
 
 ## 在哪裡設定
 
@@ -75,10 +73,17 @@ key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保�
 
 ## 核心派發與 Review
 
+Planner consult scope 使用逐次 invocation 旗標
+`--plan-mode=auto|bounded|discovery` 選擇，且必須搭配 `--plan`；啟用 `--plan` 但省略
+mode 時預設為 `auto`。這不是 `userConfig` 設定，不會改變 `planner_model` 的 `opus`、
+`planner_effort` 的 `high`，也不會改變 planner work mode。範圍預算見
+[基本操作](./basic-operations.zh-TW.md)，選擇規則見
+[execution policy](../rules/execution-policy.md#planner-consult-scope)。
+
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
 | `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Hook 輸出的詳細程度。`minimal` 抑制 Stop 提醒；`strict` 增加額外警告。 |
-| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 role 順序（code、db、sec、frontend、doc、polyfill、migration）由 Review Gate 派工的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 role。Slot 5–6（polyfill、migration）僅在 opt-in trigger 時選取。 |
+| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 role 順序（code、db、sec、frontend、doc、polyfill、migration）由建議性 reviewer 派工使用的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 role。Slot 5–6（polyfill、migration）僅在 opt-in trigger 時選取。 |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus`（依當前 Claude Code 版本支援的模型而定） | `dhpk:deep-reasoner` Agent-call 派發（推理密集的實作工作）使用的模型層級。當與 agent frontmatter 預設值不同時，透過 Agent call 的 `model` 參數套用。設定值無效時每個 session 只警告一次並退回 frontmatter 預設值——絕不會讓派發失敗。 |
 | `fast_worker_model` | string | `sonnet` | 同上 | `dhpk:fast-worker` Agent-call 派發（機械式實作工作）使用的模型層級。驗證/退回行為與 `deep_reasoner_model` 相同。 |
 | `planner_model` | string | `opus` | 同上 | `dhpk:planner` Agent-call 派發使用的模型層級（`/dhpk:flow-drive --plan` opt-in 的實作前批判 / 實作後 warm review）。驗證/退回行為與 `deep_reasoner_model` 相同。 |
@@ -88,17 +93,17 @@ key 與 Provider-bound Role alias 只在 compatibility boundary 轉譯，並保�
 | `codex_worker_model` | string | `gpt-6-luna` | codex CLI 接受的任何模型 | 規範角色 `codex-worker` 派發時傳給 codex CLI 後端的模型。依標準分層解析（專案 pluginConfigs > 全域 pluginConfigs > 出廠預設）後傳入 `run-codex.sh`。Codex 模型名稱汰換快速——預設值失效時在此覆寫，而非改原始碼（可用 `codex models` 查詢）。舊別名：`codex_fast_worker_model`。 |
 | `codex_worker_effort` | string | `xhigh` | codex CLI 接受的任何強度（如 `low` \| `medium` \| `high` \| `xhigh`） | `codex-worker` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`——強力機械層。舊別名：`codex_fast_worker_effort`。 |
 | `codex_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_fast_worker_timeout_secs`。 |
-| `codex_reasoner_model` | string | `gpt-6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex-cli/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 是相容性 shorthand。舊別名：`codex_deep_reasoner_model`。 |
+| `codex_reasoner_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex-cli/<model>[:<effort>]` 使用唯讀 sandbox。裸值 `--reasoner=codex` 是相容性 shorthand。舊別名：`codex_deep_reasoner_model`。 |
 | `codex_reasoner_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reasoner` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。舊別名：`codex_deep_reasoner_effort`。 |
 | `codex_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed。舊別名：`codex_deep_reasoner_timeout_secs`。 |
-| `codex_reviewer_model` | string | `gpt-6-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reviewer` 派發時傳給 codex CLI 後端的模型（此版本內部只用，無法直接派發）。 |
+| `codex_reviewer_model` | string | `gpt-6.1-sol` | codex CLI 接受的任何模型 | 規範角色 `codex-reviewer` 派發時傳給 codex CLI 後端的模型（此版本內部只用，無法直接派發）。 |
 | `codex_reviewer_effort` | string | `high` | codex CLI 接受的任何強度 | `codex-reviewer` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。 |
 | `codex_reviewer_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 規範角色 `codex-reviewer` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。舊別名：`codex_bridge_timeout_secs`。 |
 | `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 所有 Codex CLI 角色共用的 dispatcher deadline。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。解析後的值會寫入 immutable transport context，wrapper 不會從環境讀取它。 |
 | `agy_worker_model` | string | `Gemini 3.8 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
-| `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode，以及 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示，但多任務 OpenSpec 的 mandatory planner 與 verification gates 仍然有效。 |
+| `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示；適用的 verification gates 仍有效，planner 是否適用依缺少的 outcome 或明確 consult request 決定，不依 task count。 |
 | `cross_provider` | boolean | `false` | `true` \| `false` | 自動 fast-worker 選擇時開放外部候選的 opt-in。`false` 讓 `auto` 僅使用 native 並禁止外部探查；`true` 才依 `fast_worker_backend_order` 檢查。明確的 `--worker=<target>` 仍是定向選取，不會連帶開放其他 provider。 |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 只有在 `cross_provider=true` 時才依 `fast_worker_backend_order` 檢查外部可用性。`/dhpk:flow-drive --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | `cross_provider=true` 時供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。未 opt-in 時會抑制外部項目且不探查。值無效時每個 session 警告一次並使用 shipped 順序。 |
@@ -186,16 +191,16 @@ role，並以具名 `codex exec` opt-in 請求第二意見。
 
 ### Codex agent 角色（雙軌同步）
 
-這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與已退休的 MCP 機制無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`model`、`model_reasoning_effort`、`developer_instructions`；Codex agent 定義只使用 TOML。dhpk 依 Codex 文件中的 project-local discovery path 發布這些檔案，Project-local installer 即使讓 skill 使用 symlink，也一律把 agent TOML materialize 為實體檔。12 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、`migration-reviewer`、`e2e-runner`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 16 個 direct role。
+這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與已退休的 MCP 機制無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`model`、`model_reasoning_effort`、`developer_instructions`；Codex agent 定義只使用 TOML。dhpk 依 Codex 文件中的 project-local discovery path 發布這些檔案，Project-local installer 即使讓 skill 使用 symlink，也一律把 agent TOML materialize 為實體檔。11 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`、`planner`、`frontend-reviewer`、`migration-reviewer`、`e2e-runner`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 15 個 direct role。
 
-`config.toml.example` 裡的 `[agents.<name>]` 區塊是選用 metadata，不是 runtime registry failure 的 workaround。現行支援的頂層並發設定是 `max_concurrent_threads_per_session`；範例也記錄有效的預設 subagent model 與 reasoning effort。靜態 metadata、實體 TOML 或內建 `explorer` 成功都不能證明 custom role 可派發；必須觀測到非內建 role 的真實 spawn 與 targeted wait。診斷見 [`codex/AGENTS.md`](../codex/AGENTS.md)，證據邊界見 [`platform-installation.zh-TW.md`](platform-installation.zh-TW.md)。
+`config.toml.example` 裡的 `[agents.<name>]` 區塊是選用 metadata，不是 runtime registry failure 的 workaround。現行支援的頂層並發設定是 `max_concurrent_threads_per_session`；範例也記錄有效的預設 subagent model 與 reasoning effort。靜態 metadata、實體 TOML 或內建 `explorer` 成功都不能證明 custom role 可派發；必須觀測到非內建 role 的真實 spawn 與 targeted wait。診斷見 [`codex/guidance.md`](../codex/guidance.md)，證據邊界見 [`platform-installation.zh-TW.md`](platform-installation.zh-TW.md)。
 
 ## Docker 與技術棧模組
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
 | `docker_containers` | string[] | `[]` | container 名稱 | 保留給明確註冊的 Docker tooling；預設 SessionStart 不會檢查 container 或輸出 container 變數。 |
-| `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 Review Gate trigger 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
+| `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 reviewer trigger 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
 
 ## Review 觸發與風險啟發式
 
@@ -208,7 +213,7 @@ role，並以具名 `codex exec` opt-in 請求第二意見。
 
 | Key | 型別 | 預設值 | 選項 | Env 覆寫 | 用途 |
 |-----|------|--------|------|----------|------|
-| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | 保留的 legacy 設定；目前 Review Gate obligation 由 orchestrator 評估。`warn` = stderr 提醒（exit 0）；`block` = 拒絕該工具呼叫（exit 2）；`off` = 靜默。 |
+| `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | 保留的 legacy 設定；reviewer 派工為建議性質。`warn` = stderr 提醒（exit 0）；`block` = 拒絕該工具呼叫（exit 2）；`off` = 靜默。 |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | 在受保護分支上執行破壞歷史的 git 動詞（`commit/merge/rebase/cherry-pick/reset/push`）時的行為。 |
 | `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | 分支名稱／bash `case` glob | — | `branch_safety` 閘門檢查的分支清單。設為 `[]` 可在不將 `branch_safety` 設為 `off` 的情況下停用逐分支檢查。 |
 

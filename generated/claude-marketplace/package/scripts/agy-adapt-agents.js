@@ -7,7 +7,7 @@ const os = require('os');
 const crypto = require('crypto');
 
 const TOOL_NAME_MAP = new Map([
-  ['Read', 'read_file'],
+  ['Read', 'view_file'],
   ['Write', 'write_to_file'],
   ['Edit', 'replace_file_content'],
   ['Bash', 'run_command'],

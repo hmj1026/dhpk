@@ -1,6 +1,6 @@
 name = "frontend-reviewer"
-description = "Frontend reviewer for legacy or progressive JS/TS bundles. Use PROACTIVELY after editing any frontend-tier `*.{js,ts,jsx,tsx,vue,svelte}` file, or after touching `<script>` blocks inside server-side template files (PHP / ERB / Twig / Razor — path matching can't detect view-embedded script edits, so AI judgment backstops here). Audits ESLint tier consistency, AJAX SSOT-facade adherence (no bare `$.ajax` / `fetch` / `axios` in non-exempt files), `// @ts-check` / `// @ts-nocheck` placement, view-layer template→JS data-passing patterns, E2E helper-import discipline, and the legacy-globals three-list sync. Review Gate trigger: frontend-tier paths and template-embedded scripts. Does NOT review backend code — that is code-reviewer / security-reviewer. Skip for vendored libraries, `*.min.js`, and any file in the project's permanent ESLint Global ignores."
-model = "gpt-6-sol"
+description = "Frontend reviewer for legacy or progressive JS/TS bundles. Use PROACTIVELY after editing any frontend-tier `*.{js,ts,jsx,tsx,vue,svelte}` file, or after touching `<script>` blocks inside server-side template files (PHP / ERB / Twig / Razor — path matching can't detect view-embedded script edits, so AI judgment backstops here). Audits ESLint tier consistency, AJAX SSOT-facade adherence (no bare `$.ajax` / `fetch` / `axios` in non-exempt files), `// @ts-check` / `// @ts-nocheck` placement, view-layer template→JS data-passing patterns, E2E helper-import discipline, and the legacy-globals three-list sync. Recommended for frontend-tier paths and template-embedded scripts. Does NOT review backend code — that is code-reviewer / security-reviewer. Skip for vendored libraries, `*.min.js`, and any file in the project's permanent ESLint Global ignores."
+model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
@@ -29,14 +29,11 @@ edits. Loads the following on demand:
 
 ## Process
 
-1. Apply the immutable Review Request and exact Review Gate obligation supplied
-   by the orchestrator. Use the reviewer-dispatch rules in
-   `.codex/dhpk/policies/execution-policy.md`; missing scope or identity
-   is a completed `BLOCKED` result. Back-stop/full-review fallback restricts to
+1. Use the changed-file scope supplied by the orchestrator and the reviewer
+   rules in `.codex/dhpk/policies/execution-policy.md`. Back-stop/full-review fallback restricts to
    `<frontend-root>/<view-template-roots>/`.
 2. Walk each leaf through the priority tiers below.
-3. Close out: write the artifact; the orchestrator records the Review Gate
-   obligation result.
+3. Close out: write the artifact.
 
 ## Priority tiers
 
@@ -92,15 +89,11 @@ edits. Loads the following on demand:
 
 ## Shared reviewer contract
 
-Use [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
-
-## Structured Review Gate Companion
-
-The normal Markdown report remains the human-readable artifact. Only when the dispatch request explicitly contains the Review Gate opt-in envelope, write one machine companion after the final verdict; an ordinary invocation produces no companion.
-
-Follow [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) §Structured migration companion for schema, digest-only fields, command outcomes, and Review Gate obligation independence. `CHANGES_REQUIRED` is valid only as `reviewResult.semanticVerdict`, never as `command.outcome`. Do not inline a second JSON example here.
-
 Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
+
+This is a read-only review role. Report frontend findings and bounded fixes for
+the owner; do not edit source, templates, tests, or configuration, and do not
+autofix the reviewed scope.
 
 ### Specialist checks
 
@@ -124,7 +117,7 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, and degradation: [`.codex/dhpk/contracts/artifact-contract.md`](.codex/dhpk/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation; [`.codex/dhpk/contracts/reviewer-contract.md`](.codex/dhpk/contracts/reviewer-contract.md) §Single-run verdict defines the same-run output rule. The orchestrator owns Review Gate dispatch and obligation status; this reviewer writes evidence only.
+Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Verdict shape: APPROVE/WARNING/BLOCK. Path, frontmatter, retention, and degradation: [`.codex/dhpk/contracts/artifact-contract.md`](.codex/dhpk/contracts/artifact-contract.md) §Reviewer-family extension and §Degradation.
 
-The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.
+Write the final review under `.codex/artifacts/reviews/` with the role's required frontmatter and final verdict.
 """

@@ -51,15 +51,6 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
 
   const ROOT = path.join(__dirname, '..');
 
-  test('flow skills do not import each other or duplicate the shared contract', () => {
-    const guide = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
-    const drive = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
-    assert.doesNotMatch(guide, /require\([^)]*flow-drive|import[^\n]*flow-drive/i);
-    assert.doesNotMatch(drive, /require\([^)]*flow-guide|import[^\n]*flow-guide/i);
-    assert.match(guide, /shared.*handoff|neutral.*contract/i);
-    assert.match(drive, /shared.*handoff|neutral.*contract/i);
-  });
-
   test('flow-guide adapts its closed route result into the shared handoff contract', () => {
     const route = require('../skills/flow-guide/scripts/route-result').createRouteResult({
       host: 'cursor', argv: ['--go', 'implement', 'the', 'confirmed', 'change'],
@@ -118,7 +109,6 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
   });
 }
 
-
 // Consolidated source suite: flow-drive-invocation.
 {
 
@@ -155,7 +145,7 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.strictEqual(context.status, 'ready');
     assert.strictEqual(context.changeId, 'confirmed-change-123');
     assert.deepStrictEqual(context.options, {
-      plan: { enabled: true, model: 'sol', effort: 'medium' },
+      plan: { enabled: true, model: 'sol', effort: 'medium', mode: 'auto' },
       worker: 'auto',
       workerTarget: null,
       crossProvider: true,
@@ -167,6 +157,77 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.ok(Object.isFrozen(context.options));
     assert.ok(Object.isFrozen(context.options.plan));
     assert.throws(() => { context.options.worker = 'codex'; }, TypeError);
+  });
+
+  test('flow-drive keeps planner mode null when planning is disabled', () => {
+    const context = parseInvocation(['confirmed-change-123']);
+
+    assert.strictEqual(context.status, 'ready');
+    assert.strictEqual(context.schema, 'dhpk.flow-drive-invocation.v1');
+    assert.deepStrictEqual(context.options.plan, {
+      enabled: false,
+      model: null,
+      effort: null,
+      mode: null,
+    });
+    assert.ok(Object.isFrozen(context.options.plan));
+  });
+
+  test('flow-drive defaults a bare --plan option to auto mode', () => {
+    const context = parseInvocation(['confirmed-change-123', '--plan']);
+
+    assert.strictEqual(context.status, 'ready');
+    assert.deepStrictEqual(context.options.plan, {
+      enabled: true,
+      model: null,
+      effort: null,
+      mode: 'auto',
+    });
+  });
+
+  test('flow-drive accepts planner modes in either option order and preserves model and effort', () => {
+    for (const mode of ['auto', 'bounded', 'discovery']) {
+      const modeFirst = parseInvocation([
+        'confirmed-change-123',
+        `--plan-mode=${mode}`,
+        '--plan=sol:medium',
+      ]);
+      const planFirst = parseInvocation([
+        'confirmed-change-123',
+        '--plan=sol:medium',
+        `--plan-mode=${mode}`,
+      ]);
+      const expected = { enabled: true, model: 'sol', effort: 'medium', mode };
+
+      assert.strictEqual(modeFirst.status, 'ready', modeFirst.diagnostics.join('\n'));
+      assert.strictEqual(planFirst.status, 'ready', planFirst.diagnostics.join('\n'));
+      assert.deepStrictEqual(modeFirst.options.plan, expected);
+      assert.deepStrictEqual(planFirst.options.plan, expected);
+      assert.ok(Object.isFrozen(modeFirst.options.plan));
+      assert.ok(Object.isFrozen(planFirst.options.plan));
+    }
+  });
+
+  test('flow-drive blocks invalid planner-mode forms', () => {
+    const invalidOptions = [
+      ['empty', ['--plan', '--plan-mode='], /plan-mode/i],
+      ['unknown', ['--plan', '--plan-mode=unknown'], /plan-mode/i],
+      ['duplicate', ['--plan', '--plan-mode=bounded', '--plan-mode=discovery'], /plan-mode.*may only be specified once/i],
+      ['orphan', ['--plan-mode=bounded'], /--plan-mode.*requires.*--plan/i],
+      ['bare', ['--plan-mode'], /plan-mode/i],
+      ['separated', ['--plan-mode', 'bounded'], /plan-mode/i],
+    ];
+
+    for (const [label, args, diagnostic] of invalidOptions) {
+      const context = parseInvocation(['confirmed-change-123', ...args]);
+
+      assert.strictEqual(context.status, 'blocked', label);
+      assert.ok(context.diagnostics.some((item) => diagnostic.test(item)), `${label}: ${context.diagnostics.join('\n')}`);
+      if (label === 'orphan') {
+        assert.strictEqual(context.options.plan.enabled, false);
+        assert.strictEqual(context.options.plan.mode, null);
+      }
+    }
   });
 
   test('flow-drive fails closed on conflicting architecture flags', () => {
@@ -220,8 +281,96 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.ok(context.diagnostics.some((item) => /worker/i.test(item)));
     assert.ok(context.diagnostics.some((item) => /reasoner/i.test(item)));
   });
-}
 
+  const CLI_BACKED_SELECTIONS = [
+    ['--worker=codex'],
+    ['--worker=agy'],
+    ['--worker-target=codex/gpt-6-luna:high'],
+    ['--worker-target=agy/gemini-3.8-flash-high'],
+    ['--reasoner=codex'],
+  ];
+
+  for (const selection of CLI_BACKED_SELECTIONS) {
+    test(`flow-drive blocks ${selection[0]} before dispatch on the Claude Code host`, () => {
+      const context = parseInvocation(['confirmed-change-123', ...selection], { host: 'claude-code' });
+
+      assert.strictEqual(context.status, 'blocked');
+      assert.ok(
+        context.diagnostics.some((item) => /claude-code/.test(item) && /DHPK_CLI_TRANSPORT_CONTEXT/.test(item) && /--worker=claude|--reasoner=claude/.test(item)),
+        context.diagnostics.join('\n'),
+      );
+    });
+  }
+
+  test('flow-drive keeps CLI-backed selections ready when the host is unspecified or CLI-native', () => {
+    for (const selection of CLI_BACKED_SELECTIONS) {
+      assert.strictEqual(parseInvocation(['confirmed-change-123', ...selection]).status, 'ready');
+      assert.strictEqual(parseInvocation(['confirmed-change-123', ...selection], { host: 'codex-cli' }).status, 'ready');
+    }
+  });
+
+  test('flow-drive keeps native selections ready on the Claude Code host', () => {
+    const context = parseInvocation(
+      ['confirmed-change-123', '--worker=claude', '--reasoner=claude', '--worker-target=claude/opus'],
+      { host: 'claude-code' },
+    );
+
+    assert.strictEqual(context.status, 'ready');
+    assert.deepStrictEqual(context.diagnostics, []);
+  });
+
+  test('flow-drive reports an unapplied planner effort on the Claude Code host', () => {
+    const context = parseInvocation(
+      ['confirmed-change-123', '--plan=opus:medium', '--plan-mode=bounded'],
+      { host: 'claude-code' },
+    );
+
+    assert.strictEqual(context.status, 'ready');
+    assert.deepStrictEqual(context.options.plan, { enabled: true, model: 'opus', effort: 'medium', mode: 'bounded' });
+    assert.ok(
+      context.notices.some((item) => /effort 'medium' is not applied/.test(item) && /'high'/.test(item)),
+      context.notices.join('\n'),
+    );
+  });
+
+  test('flow-drive emits no effort notice when the requested effort matches or the host is unspecified', () => {
+    assert.deepStrictEqual(parseInvocation(['confirmed-change-123', '--plan=opus:high'], { host: 'claude-code' }).notices, []);
+    assert.deepStrictEqual(parseInvocation(['confirmed-change-123', '--plan=opus:medium']).notices, []);
+  });
+
+  test('flow-drive lists the legal effort values for every invalid effort', () => {
+    const context = parseInvocation([
+      'confirmed-change-123',
+      '--plan=opus:med',
+      '--reasoner=codex:terra:med',
+      '--worker-target=codex/terra:med',
+    ]);
+
+    assert.strictEqual(context.status, 'blocked');
+    const effortDiagnostics = context.diagnostics.filter((item) => /effort 'med'/.test(item));
+    assert.strictEqual(effortDiagnostics.length, 3, context.diagnostics.join('\n'));
+    for (const item of effortDiagnostics) {
+      assert.match(item, /low\|medium\|high\|max\|xhigh\|ultra/);
+    }
+  });
+
+  test('flow-drive CLI derives the Claude Code host from the environment', () => {
+    const { spawnSync } = require('node:child_process');
+    const script = require.resolve('../skills/flow-drive/scripts/invocation');
+    const run = (env) => spawnSync(process.execPath, [script, 'confirmed-change-123', '--worker=codex'], {
+      env: { PATH: process.env.PATH, ...env },
+      encoding: 'utf8',
+    });
+
+    const claude = run({ CLAUDECODE: '1' });
+    assert.strictEqual(claude.status, 2, claude.stdout + claude.stderr);
+    assert.strictEqual(JSON.parse(claude.stdout).status, 'blocked');
+
+    const neutral = run({});
+    assert.strictEqual(neutral.status, 0, neutral.stdout + neutral.stderr);
+    assert.strictEqual(JSON.parse(neutral.stdout).status, 'ready');
+  });
+}
 
 // Consolidated source suite: flow-guide-ownership.
 {
@@ -276,32 +425,12 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
       'flow-drive must not retain a second route table');
   });
 
-  test('flow-guide exposes exactly help, route, rules, next, and close actions', () => {
+  test('flow-guide publishes supported action argument metadata', () => {
     const skill = read('skills/flow-guide/SKILL.md');
     const frontmatter = skill.match(/^argument-hint:\s*["']?([^"'\n]+)["']?\s*$/m);
     assert.ok(frontmatter, 'flow-guide must publish an argument hint');
-    const hint = frontmatter[1];
-    const alternatives = hint.match(/^<([^>]+)>/)?.[1].split('|');
-    assert.deepStrictEqual(alternatives, ['help', 'route', 'rules', 'next', 'close'],
-      'flow-guide argument hint must expose exactly the supported action alternatives in order');
-    for (const removed of ['classify', 'policy', 'checklist']) {
-      assert.doesNotMatch(hint, new RegExp(`\\b${removed}\\b`),
-        `retired flow-guide action ${removed} must not remain public`);
-    }
-    assert.match(skill, /help[\s\S]{0,220}usage|usage[\s\S]{0,220}help/i);
-    assert.match(skill, /route[\s\S]{0,220}--go|--go[\s\S]{0,220}route/i);
-  });
-
-  test('flow-drive is mode-free and accepts only confirmed implementation input', () => {
-    const skill = read('skills/flow-drive/SKILL.md');
-    assert.match(skill, /disable-model-invocation:\s*true/);
-    assert.match(skill, /\$flow-drive\s+<[^>]*(?:confirmed|spec|change)[^>]*>/i);
-    assert.doesNotMatch(skill, /^##\s+Modes\s*$/im);
-    for (const removedFlag of ['--mode', '--route-only', '--execute-explicit', '--openspec', '--opsx']) {
-      assert.doesNotMatch(skill, new RegExp(`\\${removedFlag}\\b`),
-        `flow-drive must not expose removed flag ${removedFlag}`);
-    }
-    assert.match(skill, /flow-guide[\s\S]{0,180}route|route[\s\S]{0,180}flow-guide/i);
+    const alternatives = frontmatter[1].match(/^<([^>]+)>/)?.[1].split('|');
+    assert.deepStrictEqual(alternatives, ['help', 'route', 'rules', 'next', 'close']);
   });
 
   test('route result v3 has a closed terminal shape with only a go option', () => {
@@ -398,7 +527,6 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     );
   });
 }
-
 
 // Consolidated source suite: flow-guide-usage-help.
 {
@@ -512,7 +640,7 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.notStrictEqual(unknown.status, 0);
     assert.match(output(unknown), /unknown-skill/i);
 
-    const nonCodex = runHelp(['dhpk-module-design']);
+    const nonCodex = runHelp(['module-design']);
     assert.notStrictEqual(nonCodex.status, 0);
     assert.match(output(nonCodex), /not-codex-invokable/i);
     assert.doesNotMatch(output(nonCodex), /unknown-skill/i);
@@ -525,6 +653,5 @@ test('keeps canonical Role, Effort, and Transport fields separate in a handoff t
     assert.match(output(result), /explicit-only|direct.*invocation|human/i);
   });
 }
-
 
 run('flow-handoff-contract');

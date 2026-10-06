@@ -47,4 +47,4 @@ The Glossary in `rules/execution-policy.md` SHALL be the sole normative definiti
 #### Scenario: Reference-integrity guards stay green
 
 - **WHEN** `node scripts/ci/validate-references.js` and `node scripts/ci/catalog.js --check all` run after the dedup
-- **THEN** both pass (pointer paths carry the `${CLAUDE_PLUGIN_ROOT}` fallback convention; catalog counts match)
+- **THEN** both pass (resource pointer paths resolve; the catalog's machine-readable retired-grant and projection checks pass)
