@@ -10,6 +10,7 @@ const path = require('node:path');
 const ROOT = path.join(__dirname, '..');
 const {
   REQUIRED_SURFACES,
+  validateCapabilityProfilePolicy,
   computeScopedCounts,
   generateClaudeSkillRoots,
   validateProjectionContract,
@@ -1065,6 +1066,34 @@ test('retirement chains reject excessive depth instead of recursing without a bo
       index === 65 ? [{ kind: 'model-default' }] : [{ kind: 'skill', id: `old-${index + 1}` }])),
   };
   assert.match(validateSkillRetirements({ inventory }).errors.join('\n'), /depth|too long|limit/i);
+});
+
+test('collection policy accepts a single declared common collection while historical policies remain readable', () => {
+  const inventory = {
+    skills: [{ id: 'flow-guide', tier: 'core' }],
+    profile_policy: {
+      version: 'dhpk.capability-bundle-selection.v1', required_core_ids: ['flow-guide'],
+      profiles: { common: { selection: 'declared-common' } },
+    },
+  };
+  assert.deepStrictEqual(validateCapabilityProfilePolicy({ inventory }).errors, []);
+  inventory.profile_policy.profiles = {
+    minimal: { selection: 'required-core' }, full: { selection: 'module-closure' },
+    'compat-v1': { selection: 'predecessor-compatible-stable-ids' },
+  };
+  assert.deepStrictEqual(validateCapabilityProfilePolicy({ inventory }).errors, []);
+});
+
+test('collection policy rejects an empty or malformed declared collection', () => {
+  const inventory = {
+    skills: [{ id: 'flow-guide', tier: 'core' }],
+    profile_policy: {
+      version: 'dhpk.capability-bundle-selection.v1', required_core_ids: ['flow-guide'], profiles: {},
+    },
+  };
+  assert.match(validateCapabilityProfilePolicy({ inventory }).errors.join('\n'), /profiles.*non-empty/);
+  inventory.profile_policy.profiles = { common: { selection: '' } };
+  assert.match(validateCapabilityProfilePolicy({ inventory }).errors.join('\n'), /common.*selection.*non-empty/);
 });
 
 run('distribution-inventory-validate');

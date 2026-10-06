@@ -55,10 +55,13 @@ function resolveSourceCommit(root) {
 
 function parseRequest(argv) {
   const positional = [];
-  const options = { json: false, output: null, version: null, manifest: null, profileId: null, skillIds: [], standaloneSkillIds: [], profileExplicit: false };
+  const options = { json: false, output: null, version: null, manifest: null, skillIds: [], standaloneSkillIds: [] };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--json') options.json = true;
+    else if (arg === '--profile' || arg.startsWith('--profile=')) {
+      return { ok: false, status: 64, error: '--profile is no longer supported; the common collection is selected automatically' };
+    }
     else if (arg === '--manifest') {
       const value = argv[++index];
       if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'a manifest option value is required' };
@@ -88,18 +91,6 @@ function parseRequest(argv) {
       const value = arg.slice('--version='.length);
       if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
       options.version = value;
-    }
-    else if (arg === '--profile') {
-      const value = argv[++index];
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      options.profileId = value;
-      options.profileExplicit = true;
-    }
-    else if (arg.startsWith('--profile=')) {
-      const value = arg.slice('--profile='.length);
-      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
-      options.profileId = value;
-      options.profileExplicit = true;
     }
     else if (arg === '--skill') {
       const value = argv[++index];
@@ -132,7 +123,7 @@ function parseRequest(argv) {
     if (operation === 'preview') {
       return { ok: false, status: 64, error: 'preview is supported only for agent-plugin, cursor-plugin, codex-native, and agy-plugin' };
     }
-    if (options.profileId || options.skillIds.length || options.standaloneSkillIds.length) {
+    if (options.skillIds.length || options.standaloneSkillIds.length) {
       return { ok: false, status: 64, error: 'OpenAI submission requires the complete public catalog; partial selectors are forbidden' };
     }
     if (operation === 'generate' && !options.manifest) {
@@ -144,8 +135,8 @@ function parseRequest(argv) {
   if (operation === 'preview' && options.output) {
     return { ok: false, status: 64, error: 'preview uses a disposable temporary output and does not accept --output' };
   }
-  if (options.standaloneSkillIds.length > 0 && (options.profileId || options.skillIds.length > 0)) {
-    return { ok: false, status: 64, error: '--standalone cannot be combined with --profile or --skill' };
+  if (options.standaloneSkillIds.length > 0 && options.skillIds.length > 0) {
+    return { ok: false, status: 64, error: '--standalone cannot be combined with --skill' };
   }
   return {
     ok: true,
@@ -184,10 +175,11 @@ function runtime(root, request) {
     ? request.options.standaloneSkillIds
     : (receiptSelectionMode === 'standalone' ? receiptStandaloneSkillIds : []);
   const standalone = standaloneSkillIds.length > 0;
-  const profileId = standalone ? null : request.options.profileId || receiptProfileId;
+  const defaultToCommon = request.operation === 'generate' || request.operation === 'preview' || request.options.skillIds.length > 0;
+  const profileId = standalone ? null : receiptProfileId || (defaultToCommon ? 'common' : null);
   let profileSelection = null;
   if (profileId || request.options.skillIds.length > 0 || standalone) {
-    const selectionProfileId = profileId || 'minimal';
+    const selectionProfileId = profileId || 'common';
     const resolved = resolveCapabilitySelection({
       inventory,
       profiles,

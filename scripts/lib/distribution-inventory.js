@@ -2152,8 +2152,9 @@ function validateCapabilityProfilePolicy({ inventory } = {}) {
   if (!policy.profiles || typeof policy.profiles !== 'object' || Array.isArray(policy.profiles)) {
     errors.push('profile_policy.profiles must be an object');
   } else {
-    for (const id of ['minimal', 'full', 'compat-v1']) {
-      const profile = policy.profiles[id];
+    if (Object.keys(policy.profiles).length === 0) errors.push('profile_policy.profiles must be non-empty');
+    for (const [id, profile] of Object.entries(policy.profiles)) {
+      if (!/^[a-z][a-z0-9-]*$/.test(id)) errors.push(`profile_policy.profiles contains an unsafe identifier '${id}'`);
       if (!profile || typeof profile !== 'object' || Array.isArray(profile)) errors.push(`profile_policy.profiles.${id} is required`);
       else if (typeof profile.selection !== 'string' || profile.selection.trim() === '') errors.push(`profile_policy.profiles.${id}.selection must be a non-empty string`);
     }

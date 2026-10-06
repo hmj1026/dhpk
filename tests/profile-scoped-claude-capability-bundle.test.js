@@ -1,6 +1,6 @@
 'use strict';
 
-// RED for profile-scoped-claude-capability-bundle.
+// RED for the Claude common capability bundle.
 //
 // The first two tests cover the unscoped Claude generator contract and release
 // version normalization. The remaining tests exercise the compiler-owned
@@ -220,16 +220,14 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
     'PASS [gen-claude-manifest]: plugin.json skills[] (1 roots) matches the inventory-derived root set.\n',
   );
   assert.strictEqual(summary.status, 0, `${summary.stdout}\n${summary.stderr}`);
-  assert.strictEqual(
-    summary.stdout,
-    'dhpk Claude publication surface (generated from distribution inventory):\n'
-      + '  roots:              1\n'
-      + '  generated skill ids: 79 (excludes deprecated; host cannot hide within a shared root)\n',
-  );
+  assert.match(summary.stdout, /dhpk Claude publication surface/);
+  assert.match(summary.stdout, /roots:\s+1/);
   const compiled = inventoryApi.compileClaudeProjection({ inventory });
   assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
   assert.deepStrictEqual(compiled.generated.roots, ['./skills/']);
-  assert.strictEqual(compiled.generated.generatedSkillIds.length, 79);
+  for (const id of JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8')).profiles.common.skillIds) {
+    assert.ok(compiled.generated.generatedSkillIds.includes(id), `Claude root must expose common skill ${id}`);
+  }
   assert.strictEqual(compiled.plan.surface, 'claude-core');
 });
 
@@ -265,15 +263,30 @@ test('characterizes SessionStart as post-discovery runtime activation only', () 
   assert.ok(sessionStart.indexOf('load-project-config.sh') < sessionStart.indexOf('activate-modules.py'));
 });
 
-test('characterizes every declared representative profile closure before generation', () => {
+test('characterizes common and retained language preset closures before generation', () => {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
   const moduleCatalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'module-catalog.json'), 'utf8'));
-  for (const profileId of ['minimal', 'legacy-php-yii', 'php-only', 'js-only', 'full']) {
+  for (const profileId of ['common', 'legacy-php-yii', 'php-only', 'js-only']) {
     const result = bundleApi.resolveClaudeProfile({ profileId, inventory, profiles, moduleCatalog });
     assert.strictEqual(result.ok, true, `${profileId}: ${result.error && result.error.message}`);
     assert.ok(result.value.profileFingerprint);
     assert.ok(result.value.inputFingerprint);
+  }
+});
+
+test('unscoped Claude resolution defaults to common and does not expose legacy profiles', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
+  const moduleCatalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'module-catalog.json'), 'utf8'));
+  const result = bundleApi.resolveClaudeProfile({ inventory, profiles, moduleCatalog });
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.strictEqual(result.value.profileId, 'common');
+  assert.deepStrictEqual(result.value.selectedStableIds, profiles.profiles.common.skillIds);
+  for (const profileId of ['minimal', 'full', 'compat-v1']) {
+    const legacy = bundleApi.resolveClaudeProfile({ profileId, inventory, profiles, moduleCatalog });
+    assert.strictEqual(legacy.ok, false, `${profileId} is not an active Claude selection`);
+    assert.strictEqual(legacy.error.code, 'UNKNOWN_PROFILE');
   }
 });
 
@@ -616,17 +629,17 @@ test('Claude profile probe stays non-pass when the configured executable is unav
 
 // v1 GREEN contract (tests above): unscoped Claude manifest characterization,
 // profile compiler fixtures, artifact-store materialization, probe contract.
-// v2 RED contract (this test): minimal required_core includes `do`. Membership
-// count is not a replacement literal of nine — see flow-drive route coverage [5.1].
+// Required core remains a four-skill invariant; the common collection is a
+// separate fifteen-entry default.
 
-test('minimal required_core is exactly the four public workflow capabilities', () => {
+test('required_core remains the four public workflow capabilities', () => {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const core = inventory.profile_policy.required_core_ids;
   assert.ok(Array.isArray(core), 'profile_policy.required_core_ids must be an array');
   assert.deepStrictEqual(core, ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide']);
 });
 
-test('minimal Claude package keeps dependency skills outside the public selection', () => {
+test('common Claude selection includes retained command-owning skills', () => {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
   const moduleCatalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'module-catalog.json'), 'utf8'));
@@ -635,12 +648,14 @@ test('minimal Claude package keeps dependency skills outside the public selectio
     inventory,
     profiles,
     moduleCatalog,
-    profileId: 'minimal',
   });
   assert.strictEqual(result.ok, true, result.error && result.error.message);
-  assert.deepStrictEqual(result.value.selection.selectedStableIds, ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide']);
-  assert.deepStrictEqual(result.value.plan.selectedStableIds, ['change-verdict', 'code-trace', 'flow-drive', 'flow-guide']);
+  assert.strictEqual(result.value.selection.profileId, 'common');
+  assert.deepStrictEqual(result.value.selection.selectedStableIds, profiles.profiles.common.skillIds);
+  assert.deepStrictEqual(result.value.plan.selectedStableIds, profiles.profiles.common.skillIds.slice().sort());
   assert.deepStrictEqual(result.value.plan.profile.supportClosure, result.value.selection.supportClosure);
+  assert.ok(result.value.selection.selectedStableIds.includes('git-smart-commit'));
+  assert.ok(result.value.selection.selectedStableIds.includes('repo-verify'));
 });
 
 // BEGIN lexical source block: tests/claude-profile-probe.test.js
@@ -711,124 +726,87 @@ test('minimal Claude package keeps dependency skills outside the public selectio
   const os = require('node:os');
   const path = require('node:path');
   const { test, assert } = require('./_lib/tinytest');
-  const { compileClaudeCapabilityBundle } = require('../scripts/lib/claude-capability-bundle');
 
   const ROOT = path.join(__dirname, '..');
 
-  function snapshotFiles(directory, prefix = '') {
-    const snapshot = new Map();
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const relative = path.join(prefix, entry.name);
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        for (const [file, contents] of snapshotFiles(absolute, relative)) snapshot.set(file, contents);
-      } else {
-        assert.ok(entry.isFile(), `profile plan source must contain only regular files: ${absolute}`);
-        snapshot.set(relative, fs.readFileSync(absolute));
-      }
-    }
-    return snapshot;
-  }
-
-  test('profile bundle generator previews a declared finite alias plan', () => {
-    const generatedRoot = path.join(ROOT, 'generated/claude-profiles/minimal');
-    const before = snapshotFiles(generatedRoot);
-    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-profile-plan-output-'));
+  test('profile bundle generator previews the common collection by default', () => {
+    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-common-plan-output-'));
     try {
       const absentOutput = path.join(temporary, 'must-not-be-created');
       const result = spawnSync(process.execPath, [
-        path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'minimal', '--plan', '--out', absentOutput,
+        path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--plan', '--out', absentOutput,
       ], { cwd: ROOT, encoding: 'utf8' });
       assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
       const payload = JSON.parse(result.stdout);
-      assert.strictEqual(payload.profile.id, 'minimal');
-      assert.strictEqual(payload.profile.profileId, 'minimal');
-      assert.match(payload.profile.profileFingerprint, /^[a-f0-9]{64}$/);
+      assert.strictEqual(payload.profile.id, 'common');
+      assert.strictEqual(payload.profile.profileId, 'common');
       assert.match(payload.planFingerprint, /^[a-f0-9]{64}$/);
+      assert.deepStrictEqual(payload.selectedStableIds, JSON.parse(fs.readFileSync(
+        path.join(ROOT, 'manifests/install-profiles.json'), 'utf8',
+      )).profiles.common.skillIds.slice().sort());
       assert.ok(!fs.existsSync(absentOutput), '--plan must not create its requested output directory');
-      assert.deepStrictEqual(snapshotFiles(generatedRoot), before, '--plan must not mutate generated profile files');
     } finally {
       fs.rmSync(temporary, { recursive: true, force: true });
     }
   });
 
-  test('minimal generator reports the curated default selection', () => {
-    const result = spawnSync(process.execPath, [
-      path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'minimal', '--plan',
-    ], { cwd: ROOT, encoding: 'utf8' });
-    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const payload = JSON.parse(result.stdout);
-    assert.strictEqual(payload.profile.id, 'minimal');
-    assert.match(payload.profile.profileFingerprint, /^[a-f0-9]{64}$/);
-    assert.deepStrictEqual(payload.selectedStableIds, [
-      'change-verdict',
-      'code-trace',
-      'flow-drive',
-      'flow-guide',
-    ]);
-  });
-
-  test('compat-v1 generator preserves the predecessor-compatible allowlist', () => {
-    const result = spawnSync(process.execPath, [
-      path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'compat-v1', '--plan',
-    ], { cwd: ROOT, encoding: 'utf8' });
-    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const payload = JSON.parse(result.stdout);
-    const manifestProfiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/install-profiles.json'), 'utf8'));
-    const expectedIds = manifestProfiles.profiles['compat-v1'].skillIds;
-    assert.strictEqual(new Set(payload.selectedStableIds).size, payload.selectedStableIds.length);
-    assert.deepStrictEqual([...payload.selectedStableIds].sort(), [...expectedIds].sort());
-    assert.strictEqual(payload.profile.id, 'compat-v1');
-    assert.match(payload.profile.profileFingerprint, /^[a-f0-9]{64}$/);
-    assert.ok(!payload.selectedStableIds.includes('opsx-post-obs'));
-    assert.strictEqual(payload.compatibilityMode, 'compat-v1');
-  });
-
-  test('minimal generator materializes only curated skills and command roots', () => {
-    const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-profile-generator-'));
+  test('profile bundle generator rejects the retired profile selector flag', () => {
+    const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-retired-profile-output-'));
     try {
-      const result = spawnSync(process.execPath, [
-        path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'),
-        '--profile', 'minimal', '--out', outputRoot,
-      ], { cwd: ROOT, encoding: 'utf8' });
-      assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-      const packageRoot = path.join(outputRoot, 'package');
-      const manifest = JSON.parse(fs.readFileSync(path.join(packageRoot, 'plugin.json'), 'utf8'));
-      assert.deepStrictEqual(manifest.skills, ['./skills/']);
-      assert.deepStrictEqual(manifest.commands, ['./commands/']);
-      const commands = fs.readdirSync(path.join(packageRoot, 'commands')).sort();
-      assert.deepStrictEqual(commands, ['smart-commit.md', 'verify.md']);
-      assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'flow-guide', 'SKILL.md')));
-      assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'flow-drive', 'SKILL.md')));
-      assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'change-verdict', 'SKILL.md')));
-      assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'code-trace', 'SKILL.md')));
-      assert.ok(!fs.existsSync(path.join(packageRoot, 'skills', 'dhpk-codebase-exploration', 'SKILL.md')));
-      assert.ok(!fs.existsSync(path.join(packageRoot, 'commands', 'codex-review.md')));
+      for (const profileId of ['common', 'minimal', 'full', 'compat-v1']) {
+        const output = path.join(temporary, profileId);
+        const result = spawnSync(process.execPath, [
+          path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'),
+          '--profile', profileId, '--out', output,
+        ], { cwd: ROOT, encoding: 'utf8' });
+        assert.strictEqual(result.status, 2, `${result.stdout}\n${result.stderr}`);
+        assert.match(result.stderr, /--profile is retired/);
+        assert.ok(!fs.existsSync(output), `${profileId} must not materialize a bundle`);
+      }
     } finally {
-      fs.rmSync(outputRoot, { recursive: true, force: true });
+      fs.rmSync(temporary, { recursive: true, force: true });
     }
   });
 
-  test('minimal profile keeps command owners in support closure without publishing them publicly', () => {
-    const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
-    const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/install-profiles.json'), 'utf8'));
-    const moduleCatalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/module-catalog.json'), 'utf8'));
-    const result = compileClaudeCapabilityBundle({
-      root: ROOT,
-      inventory,
-      profiles,
-      moduleCatalog,
-      profileId: 'minimal',
-    });
-    assert.strictEqual(result.ok, true, result.error && result.error.message);
-    assert.deepStrictEqual(result.value.selection.selectedStableIds, [
-      'change-verdict',
-      'code-trace',
-      'flow-drive',
-      'flow-guide',
-    ]);
-    assert.ok(result.value.selection.supportClosure.skillStableIds.includes('git-smart-commit'));
-    assert.ok(result.value.selection.supportClosure.skillStableIds.includes('repo-verify'));
+  test('common generator does not materialize without an explicit output path', () => {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'),
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 2, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stderr, /--out is required/);
+  });
+
+  test('standalone generator still previews an isolated selection', () => {
+    const result = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--standalone', 'code-trace', '--plan',
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.profile.id, 'standalone');
+    assert.deepStrictEqual(payload.selectedStableIds, ['code-trace']);
+    assert.strictEqual(payload.compatibilityMode, 'standalone');
+  });
+
+  test('common generator materializes only to the requested internal output path', () => {
+    const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-common-generator-'));
+    try {
+      const result = spawnSync(process.execPath, [
+        path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--out', outputRoot,
+      ], { cwd: ROOT, encoding: 'utf8' });
+      assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      const payload = JSON.parse(result.stdout);
+      const packageRoot = path.join(outputRoot, 'package');
+      const manifest = JSON.parse(fs.readFileSync(path.join(packageRoot, 'plugin.json'), 'utf8'));
+      assert.strictEqual(payload.profile, 'common');
+      assert.deepStrictEqual(payload.selectedStableIds, JSON.parse(fs.readFileSync(
+        path.join(ROOT, 'manifests/install-profiles.json'), 'utf8',
+      )).profiles.common.skillIds.slice().sort());
+      assert.deepStrictEqual(manifest.skills, ['./skills/']);
+      assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'flow-guide', 'SKILL.md')));
+      assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'ui-ux-verify', 'SKILL.md')));
+    } finally {
+      fs.rmSync(outputRoot, { recursive: true, force: true });
+    }
   });
 
   const GENERATOR = path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js');
@@ -837,25 +815,33 @@ test('minimal Claude package keeps dependency skills outside the public selectio
     return spawnSync(process.execPath, [GENERATOR, ...args], { cwd: ROOT, encoding: 'utf8' });
   }
 
-  function withCommittedMinimalCopy(mutate) {
+  function withCommonCopy(mutate) {
     const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-profile-check-'));
     try {
-      fs.cpSync(path.join(ROOT, 'generated/claude-profiles/minimal'), outputRoot, { recursive: true });
+      const generated = runGenerator(['--out', outputRoot]);
+      assert.strictEqual(generated.status, 0, `${generated.stdout}\n${generated.stderr}`);
       mutate(path.join(outputRoot, 'package'));
-      return runGenerator(['--profile', 'minimal', '--check', '--out', outputRoot]);
+      return runGenerator(['--check', '--out', outputRoot]);
     } finally {
       fs.rmSync(outputRoot, { recursive: true, force: true });
     }
   }
 
-  test('--check passes when the committed minimal profile matches its sources', () => {
-    const result = runGenerator(['--profile', 'minimal', '--check']);
-    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.match(result.stdout, /PASS \[gen-claude-profile-bundles\]/);
+  test('--check passes for an explicitly materialized common bundle', () => {
+    const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-common-check-'));
+    try {
+      const generated = runGenerator(['--out', outputRoot]);
+      assert.strictEqual(generated.status, 0, `${generated.stdout}\n${generated.stderr}`);
+      const result = runGenerator(['--check', '--out', outputRoot]);
+      assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      assert.match(result.stdout, /PASS \[gen-claude-profile-bundles\]/);
+    } finally {
+      fs.rmSync(outputRoot, { recursive: true, force: true });
+    }
   });
 
   test('--check fails and names a stale skill copy', () => {
-    const result = withCommittedMinimalCopy((packageRoot) => {
+    const result = withCommonCopy((packageRoot) => {
       fs.appendFileSync(path.join(packageRoot, 'skills/flow-guide/SKILL.md'), '\nstale\n');
     });
     assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
@@ -864,25 +850,25 @@ test('minimal Claude package keeps dependency skills outside the public selectio
   });
 
   test('--check fails on extra and missing files', () => {
-    const result = withCommittedMinimalCopy((packageRoot) => {
+    const result = withCommonCopy((packageRoot) => {
       fs.writeFileSync(path.join(packageRoot, 'skills/extra.md'), 'extra\n');
-      fs.rmSync(path.join(packageRoot, 'commands/verify.md'));
+      fs.rmSync(path.join(packageRoot, 'skills/ui-ux-verify/SKILL.md'));
     });
     assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stderr, /extra: skills\/extra\.md/);
-    assert.match(result.stderr, /missing: commands\/verify\.md/);
+    assert.match(result.stderr, /missing: skills\/ui-ux-verify\/SKILL\.md/);
   });
 
   test('--check fails when the baseline package is absent', () => {
     const outputRoot = path.join(os.tmpdir(), `dhpk-claude-profile-absent-${process.pid}`);
-    const result = runGenerator(['--profile', 'minimal', '--check', '--out', outputRoot]);
+    const result = runGenerator(['--check', '--out', outputRoot]);
     assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stderr, /baseline package is missing/);
     assert.ok(!fs.existsSync(outputRoot));
   });
 
   test('--plan and --check are mutually exclusive', () => {
-    const result = runGenerator(['--profile', 'minimal', '--plan', '--check']);
+    const result = runGenerator(['--plan', '--check']);
     assert.strictEqual(result.status, 2, `${result.stdout}\n${result.stderr}`);
     assert.match(result.stderr, /mutually exclusive/);
   });

@@ -321,7 +321,7 @@ test('inventory regeneration preserves the project projection contract', () => {
     assert.strictEqual(first.selection.currentAgentPlugin.contract, FIXTURE.currentSelection.contract);
     const codex = first.hosts.find((host) => host.host === 'Codex');
     assert.strictEqual(codex.selection.count, codex.selection.selectedStableIds.length);
-    assert.deepStrictEqual(codex.selection.selectedStableIds, FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds.filter((id) => !['harness-govern', 'harness-audit', 'skill-scope'].includes(id)));
+    assert.deepStrictEqual(codex.selection.selectedStableIds, [...FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds.filter((id) => !['harness-govern', 'harness-audit', 'skill-scope'].includes(id)), 'change-verdict', 'ui-ux-verify'].sort());
     assert.strictEqual(first.selection.portableCore.declared, true);
     assert.strictEqual(first.selection.portableCore.profileId, FIXTURE.portableCore.profileId);
     assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, retainedBaselineIds);

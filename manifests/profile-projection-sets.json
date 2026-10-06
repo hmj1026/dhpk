@@ -6,154 +6,45 @@
     "cursor": "cursor-sync"
   },
   "profiles": {
-    "compat-v1": {
+    "common": {
       "codex-sync": [
-        "code-simplify",
-        "code-trace",
-        "create-pr",
-        "dep-audit",
-        "doc-refactor",
-        "flow-drive",
-        "flow-guide",
-        "git-smart-commit",
-        "git-worktree",
-        "js-static-check-strategy",
-        "legacy-code-characterization",
-        "matrix-cell-onboard",
-        "merge-prep",
-        "opsx-load-context",
-        "php-pro",
-        "php56-yii-dev",
-        "pr-summary",
-        "precommit",
-        "project-brief",
-        "proposal-analyze",
-        "release-creator",
-        "repo-verify",
-        "review-pending",
-        "tdd",
-        "update-codemaps",
-        "update-docs",
-        "yii1-security-audit"
-      ],
-      "cursor": [
-        "agy-fast-worker",
         "change-verdict",
-        "code-simplify",
         "code-trace",
-        "codex-bridge",
-        "composer-package-hygiene",
         "create-pr",
         "dep-audit",
-        "deploy-list",
-        "doc-refactor",
-        "feature-verify",
         "flow-drive",
         "flow-guide",
         "git-smart-commit",
         "git-worktree",
-        "harness-setup",
-        "issue-analyze",
-        "js-static-check-strategy",
-        "laravel-package-author",
-        "laravel-testbench-matrix",
-        "matrix-cell-onboard",
-        "merge-prep",
-        "opsx-apply-resume",
-        "opsx-load-context",
-        "polyfill-version-matrix-audit",
-        "pr-summary",
         "precommit",
-        "project-audit",
-        "project-brief",
         "proposal-analyze",
         "release-creator",
-        "repo-intake",
         "repo-verify",
-        "review-pending",
-        "software-architecture",
         "tdd",
         "ui-ux-verify",
-        "update-codemaps",
         "update-docs"
-      ]
-    },
-    "full": {
-      "codex-sync": [
-        "code-simplify",
-        "code-trace",
-        "create-pr",
-        "dep-audit",
-        "doc-refactor",
-        "flow-drive",
-        "flow-guide",
-        "git-smart-commit",
-        "git-worktree",
-        "js-static-check-strategy",
-        "legacy-code-characterization",
-        "matrix-cell-onboard",
-        "merge-prep",
-        "opsx-load-context",
-        "opsx-post-obs",
-        "php-pro",
-        "php56-yii-dev",
-        "pr-summary",
-        "precommit",
-        "project-brief",
-        "proposal-analyze",
-        "release-creator",
-        "repo-verify",
-        "review-pending",
-        "tdd",
-        "update-codemaps",
-        "update-docs",
-        "yii1-security-audit"
       ],
       "cursor": [
-        "agy-fast-worker",
         "change-verdict",
-        "code-simplify",
         "code-trace",
-        "codex-bridge",
-        "composer-package-hygiene",
         "create-pr",
         "dep-audit",
-        "deploy-list",
-        "doc-refactor",
-        "feature-verify",
         "flow-drive",
         "flow-guide",
         "git-smart-commit",
         "git-worktree",
-        "harness-setup",
-        "issue-analyze",
-        "js-static-check-strategy",
-        "laravel-package-author",
-        "laravel-testbench-matrix",
-        "matrix-cell-onboard",
-        "merge-prep",
-        "opsx-apply-resume",
-        "opsx-load-context",
-        "opsx-post-obs",
-        "polyfill-version-matrix-audit",
-        "pr-summary",
         "precommit",
-        "project-audit",
-        "project-brief",
         "proposal-analyze",
         "release-creator",
-        "repo-intake",
         "repo-verify",
-        "review-pending",
-        "software-architecture",
         "tdd",
         "ui-ux-verify",
-        "update-codemaps",
         "update-docs"
       ]
     },
     "ios-app": {
       "codex-sync": [
+        "change-verdict",
         "code-simplify",
         "code-trace",
         "create-pr",
@@ -174,6 +65,7 @@
         "repo-verify",
         "review-pending",
         "tdd",
+        "ui-ux-verify",
         "update-codemaps",
         "update-docs"
       ],
@@ -220,6 +112,7 @@
     },
     "js-fullstack": {
       "codex-sync": [
+        "change-verdict",
         "code-simplify",
         "code-trace",
         "create-pr",
@@ -240,6 +133,7 @@
         "repo-verify",
         "review-pending",
         "tdd",
+        "ui-ux-verify",
         "update-codemaps",
         "update-docs"
       ],
@@ -286,6 +180,7 @@
     },
     "js-only": {
       "codex-sync": [
+        "change-verdict",
         "code-simplify",
         "code-trace",
         "create-pr",
@@ -306,6 +201,7 @@
         "repo-verify",
         "review-pending",
         "tdd",
+        "ui-ux-verify",
         "update-codemaps",
         "update-docs"
       ],
@@ -352,6 +248,7 @@
     },
     "legacy-php-yii": {
       "codex-sync": [
+        "change-verdict",
         "code-simplify",
         "code-trace",
         "create-pr",
@@ -372,6 +269,7 @@
         "repo-verify",
         "review-pending",
         "tdd",
+        "ui-ux-verify",
         "update-codemaps",
         "update-docs"
       ],
@@ -416,21 +314,9 @@
         "update-docs"
       ]
     },
-    "minimal": {
-      "codex-sync": [
-        "code-trace",
-        "flow-drive",
-        "flow-guide"
-      ],
-      "cursor": [
-        "change-verdict",
-        "code-trace",
-        "flow-drive",
-        "flow-guide"
-      ]
-    },
     "php-only": {
       "codex-sync": [
+        "change-verdict",
         "code-simplify",
         "code-trace",
         "create-pr",
@@ -451,6 +337,7 @@
         "repo-verify",
         "review-pending",
         "tdd",
+        "ui-ux-verify",
         "update-codemaps",
         "update-docs"
       ],
@@ -497,6 +384,7 @@
     },
     "python-api": {
       "codex-sync": [
+        "change-verdict",
         "code-simplify",
         "code-trace",
         "create-pr",
@@ -517,6 +405,7 @@
         "repo-verify",
         "review-pending",
         "tdd",
+        "ui-ux-verify",
         "update-codemaps",
         "update-docs"
       ],
@@ -563,6 +452,7 @@
     },
     "python-fullstack": {
       "codex-sync": [
+        "change-verdict",
         "code-simplify",
         "code-trace",
         "create-pr",
@@ -583,6 +473,7 @@
         "repo-verify",
         "review-pending",
         "tdd",
+        "ui-ux-verify",
         "update-codemaps",
         "update-docs"
       ],

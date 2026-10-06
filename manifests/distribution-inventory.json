@@ -10,17 +10,9 @@
       "flow-guide"
     ],
     "profiles": {
-      "minimal": {
-        "selection": "required-core",
+      "common": {
+        "selection": "declared-common",
         "compatibilityMode": "profile"
-      },
-      "full": {
-        "selection": "conflict-aware-module-closure",
-        "compatibilityMode": "profile"
-      },
-      "compat-v1": {
-        "selection": "predecessor-compatible-stable-ids",
-        "compatibilityMode": "compat-v1"
       }
     }
   },
@@ -1584,7 +1576,9 @@
       ],
       "surfaces": [
         "claude-core",
-        "cursor-sync"
+        "cursor-sync",
+        "codex-sync",
+        "codex-native"
       ],
       "usage": {
         "display_name": "Change Verdict",
@@ -3336,7 +3330,9 @@
       "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-core",
-        "cursor-sync"
+        "cursor-sync",
+        "codex-sync",
+        "codex-native"
       ],
       "usage": {
         "display_name": "UI UX Verify",

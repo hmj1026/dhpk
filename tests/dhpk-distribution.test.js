@@ -97,10 +97,39 @@ test('distribution parser keeps standalone selection separate from additive over
   assert.strictEqual(parsed.ok, true, parsed.error);
   assert.deepStrictEqual(parsed.options.standaloneSkillIds, ['flow-guide']);
   assert.deepStrictEqual(parsed.options.skillIds, []);
-  assert.strictEqual(parsed.options.profileId, null);
+  assert.strictEqual(Object.hasOwn(parsed.options, 'profileId'), false);
   const mixed = distribution.parseRequest(['agent-plugin', 'validate', '--standalone', 'flow-guide', '--skill', 'tdd']);
   assert.strictEqual(mixed.ok, false);
   assert.match(mixed.error, /cannot be combined/i);
+});
+
+test('rejects every public profile selector before package generation can write output', () => {
+  const retiredSelectors = [
+    ['--profile', 'minimal'],
+    ['--profile=full'],
+    ['--profile', 'compat-v1'],
+    ['--profile=common'],
+  ];
+  for (const surface of [...SURFACES, 'openai-submission']) {
+    for (const selector of retiredSelectors) {
+      const operation = surface === 'openai-submission' ? 'validate' : 'generate';
+      const parsed = distribution.parseRequest([surface, operation, ...selector]);
+      assert.strictEqual(parsed.ok, false, `${surface} ${selector.join(' ')}`);
+      assert.strictEqual(parsed.status, 64);
+      assert.match(parsed.error, /--profile.*(retired|unsupported|no longer)/i);
+    }
+  }
+
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-profile-option-'));
+  const output = path.join(temporaryRoot, 'package');
+  try {
+    const result = invoke(['agy-plugin', 'generate', '--output', output, '--profile', 'full', '--json']);
+    assert.strictEqual(result.status, 64, result.stderr);
+    assert.match(result.stderr, /--profile.*(retired|unsupported|no longer)/i);
+    assert.strictEqual(fs.existsSync(output), false, 'a rejected profile selector must not materialize a package');
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
 });
 
 test('rejects preview for the formal OpenAI submission surface', () => {
@@ -119,6 +148,16 @@ test('validates every retained package surface through one JSON command contract
     assert.strictEqual(payload.operation, 'validate');
     assert.strictEqual(payload.verdict, 'PASS', JSON.stringify(payload));
   }
+});
+
+test('new distribution previews use the common collection by default', () => {
+  const result = invoke(['agent-plugin', 'preview', '--json']);
+  assert.strictEqual(result.status, 0, result.stderr);
+  const output = report(result).output;
+  try {
+    const receipt = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
+    assert.strictEqual(receipt.profileId, 'common');
+  } finally { fs.rmSync(output, { recursive: true, force: true }); }
 });
 
 test('generates a disposable AGY package and validates that exact output', () => {
