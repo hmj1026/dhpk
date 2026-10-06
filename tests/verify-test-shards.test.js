@@ -799,6 +799,85 @@ test('public CI plan CLI classifies content, metadata, mixed, deletion, and rena
   }
 });
 
+test('CI plan CLI writes full plans to artifacts and keeps routing outputs bounded', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ci-plan-transport-'));
+  const planPath = path.join(root, 'ci-plan.json');
+  const githubOutputPath = path.join(root, 'github-output');
+  const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
+  try {
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Test');
+    git('config', 'commit.gpgsign', 'false');
+
+    const retiredOutput = path.join(root, 'generated', 'claude-marketplace', 'package', 'modules', 'retired-output');
+    fs.mkdirSync(retiredOutput, { recursive: true });
+    for (let index = 0; index < 3000; index += 1) {
+      const name = `retired-${String(index).padStart(4, '0')}.json`;
+      fs.writeFileSync(path.join(retiredOutput, name), '{"retired":true}\n');
+    }
+    fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'tests', 'fixture.test.js'), '// fixture\n');
+    fs.writeFileSync(path.join(root, 'plugin.json'), '{"name":"dhpk"}\n');
+    git('add', '-A');
+    git('commit', '--no-verify', '-m', 'base');
+    const baseSha = git('rev-parse', 'HEAD');
+
+    fs.writeFileSync(path.join(root, 'plugin.json'), '{"name":"dhpk","version":"next"}\n');
+    fs.rmSync(retiredOutput, { recursive: true, force: true });
+    git('add', '-A');
+    git('commit', '--no-verify', '-m', 'retire generated files');
+    const headSha = git('rev-parse', 'HEAD');
+    const checkoutSha = headSha;
+    fs.writeFileSync(githubOutputPath, '');
+
+    const result = spawnSync(process.execPath, [
+      path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'plan',
+      '--base-sha', baseSha,
+      '--head-sha', headSha,
+      '--checkout-sha', checkoutSha,
+      '--base-ref', 'develop',
+      '--out', planPath,
+      '--github-output', githubOutputPath,
+    ], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(fs.existsSync(planPath), 'the complete plan must be written to the artifact file');
+    assert.strictEqual(result.stdout, '', 'file output must not also print the full plan');
+
+    const planJson = fs.readFileSync(planPath, 'utf8');
+    const plan = JSON.parse(planJson);
+    const planBytes = Buffer.byteLength(planJson);
+    assert.ok(
+      planBytes > 131072,
+      `fixture plan is ${planBytes} bytes with ${plan.files.length} paths (${plan.reason}: ${plan.diffError || 'no diff error'}); it must exceed 128 KiB`,
+    );
+    assert.strictEqual(plan.mode, 'full');
+    assert.strictEqual(plan.shardCount, 4);
+    assert.deepStrictEqual(plan.packageSurfaces, ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
+    assert.ok(plan.requiredJobs.includes('macos-installer'));
+    assert.deepStrictEqual(fs.readFileSync(githubOutputPath, 'utf8').trim().split('\n'), [
+      'mode=full',
+      'shards=[0,1,2,3]',
+      'macos=true',
+      'surfaces=["agent-plugin","cursor-plugin","codex-native","agy-plugin"]',
+    ]);
+    assert.ok(fs.statSync(githubOutputPath).size < 1024, 'job outputs must contain only bounded routing metadata');
+
+    const validated = spawnSync(process.execPath, [
+      path.join(__dirname, '..', 'scripts/ci/ci-plan.js'), 'validate',
+      '--plan', planPath,
+      '--base-sha', baseSha,
+      '--head-sha', headSha,
+      '--checkout-sha', checkoutSha,
+      '--base-ref', 'develop',
+    ], { cwd: root, encoding: 'utf8' });
+    assert.strictEqual(validated.status, 0, validated.stderr);
+    assert.match(validated.stdout, /PASS: CI plan is valid/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('public CI plan validation rejects forged identity, missing fields, and unavailable diff', () => {
   const fixture = gitFixture((root) => { fs.mkdirSync(path.join(root, 'skills/demo'), { recursive: true }); fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'old\n'); }, (root) => fs.writeFileSync(path.join(root, 'skills/demo/SKILL.md'), 'new\n'));
   try {

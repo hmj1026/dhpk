@@ -621,7 +621,17 @@ test('CLI exposes the harness help contract', () => {
     assert.match(tests, /DHPK_TEST_SOURCE_COMMIT:\s*\$\{\{\s*github\.sha\s*\}\}/);
     assert.match(tests, /DHPK_TEST_HEAD_SHA:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\}\}/);
     assert.match(tests, /DHPK_TEST_TIMING_FILE:\s*\$\{\{\s*runner\.temp\s*\}\}\/dhpk-test-timing\.json/);
-    assert.match(tests, /DHPK_CI_PLAN/);
+    for (const consumer of [preflight, tests, validate]) {
+      assert.match(consumer, /actions\/download-artifact@[0-9a-f]{40}/);
+      assert.match(consumer, /dhpk-ci-plan-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/);
+      assert.match(consumer, /fs\.readFileSync/);
+      assert.doesNotMatch(consumer, /DHPK_CI_PLAN|needs\.plan\.outputs\.plan|process\.env\.PLAN/);
+    }
+    assert.doesNotMatch(workflow, /mapfile[^\n]*<\s*</);
+    const plan = jobBlock(workflow, 'plan');
+    assert.match(plan, /--out "\$RUNNER_TEMP\/ci-plan\.json" --github-output "\$GITHUB_OUTPUT"/);
+    assert.match(plan, /actions\/upload-artifact@[0-9a-f]{40}/);
+    assert.doesNotMatch(plan, /outputs\.plan|JSON\.parse\(process\.argv/);
     assert.match(tests, /testFiles/);
     assert.match(tests, /--shard-count\s+4/);
 
@@ -632,7 +642,7 @@ test('CLI exposes the harness help contract', () => {
     assert.match(validate, /needs\.tests\.result/);
     assert.match(validate, /actions\/setup-node@[0-9a-f]{40}\s+#\s*v7\.0\.0/);
     assert.match(validate, /node-version:\s*['"]?24/);
-    assert.match(validate, /verifyCiResults\(JSON\.parse\(process\.env\.PLAN\)/);
+    assert.match(validate, /verifyCiResults\(plan,/);
     assert.match(validate, /--count \"\$count\"/);
     assert.match(validate, /node scripts\/ci\/verify-test-shards\.js/);
     assert.match(validate, /if \[ "\$\{\{\s*needs\.plan\.outputs\.mode\s*\}\}" = "selected" \]; then count=1; fi/);
