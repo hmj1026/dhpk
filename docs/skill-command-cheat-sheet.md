@@ -7,9 +7,11 @@
 Use this page to choose an entry point. The inventory and generated Codex
 usage catalog remain authoritative for availability and argument grammar.
 
-## The four default capabilities
+## Start with these entry points
 
-A clean Claude `minimal` installation exposes exactly these public skills:
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default. These four skills are common entry points, not a complete
+list of the selected collection:
 
 | Capability | Use it when | Output / stopping boundary |
 |---|---|---|
@@ -18,9 +20,8 @@ A clean Claude `minimal` installation exposes exactly these public skills:
 | `flow-drive` | The specification or change is already confirmed | Workspace implementation and verification; stops on missing authority, unresolved gates, or scope expansion |
 | `change-verdict` | You need a read-only verdict on code, PRs, security, tests, docs, or risk | Findings plus `READY`, `BLOCKED`, or `INCONCLUSIVE`; never edits the reviewed scope |
 
-`git-smart-commit`, full TDD guidance, project audit, prompt optimization, and
-stack-specific skills remain optional capabilities. They are not silently
-re-added to `minimal`.
+Host support, selected collection membership, and supported skill selection are
+documented in the [platform installation SSOT](./platform-installation.md).
 
 ## Host syntax and availability
 
@@ -37,10 +38,8 @@ re-added to `minimal`.
   project-local projection can preview an additive skill with
   `install-codex-skills.sh --plan --json --skill <stable-id>` and apply it with
   the same `--skill` plus the appropriate install/update action.
-- Claude: generate a standalone package with
-  `node scripts/ci/gen-claude-profile-bundles.js --standalone <stable-id>`.
-  This is a checkout/development route; the generic `dhpk-install` writer is
-  still `BLOCKED` with `NOT_IMPLEMENTED`.
+- Claude: use `/dhpk:flow-guide help` to discover available entries. Current
+  installation and selection routes are in the [platform installation SSOT](./platform-installation.md).
 - Cursor and AGY: use the inventory-selected package for that surface. Dynamic
   per-skill writes are not documented unless the surface adapter implements
   them.
@@ -68,12 +67,11 @@ Use the [migration guide](./skill-platform-migration.md) for successor mappings
 and receipt-bound rollback. Do not recreate an old alias in the current
 package.
 
-## Evidence boundary
+## Installation selection and evidence
 
-The canonical profile is `minimal`, which selects exactly the four capabilities
-above; `full` and `compat-v1` remain explicit opt-ins. Check a profile's
-selection with `node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan`
-and a generated package's selection in its `provenance.json`
-(`selectedSkillIds`). The Cursor native overlay shares the Agent Plugin skills.
-These are structural/package facts, not runtime `PASS`. Report unavailable
-probes as `NOT_RUN`, `BLOCKED`, or `UNAVAILABLE`.
+The `common` collection is the sole main installation default. Former
+`minimal`, `full`, and `compat-v1` selections are historical receipt metadata,
+not publication choices. Consult the [platform installation SSOT](./platform-installation.md)
+for current route and receipt evidence. Structural/package evidence is not
+runtime `PASS`; report unavailable probes as `NOT_RUN`, `BLOCKED`, or
+`UNAVAILABLE`.

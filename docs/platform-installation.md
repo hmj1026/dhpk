@@ -19,7 +19,7 @@ callable only after the named consumer probe discovers the projected content.
 
 | Surface | Install | Update / remove | Verify | Support boundary |
 |---|---|---|---|---|
-| Claude Code default | `bash scripts/install.sh` → `dhpk@dhpk-profile-minimal` | Re-run the installer or select an explicit compatibility package | Fresh-session `/dhpk:flow-guide help` | Structural checks can pass; consumer discovery stays `NOT_RUN` until observed |
+| Claude Code default | `bash scripts/install.sh` → `dhpk@dhpk` | Use the receipt-owned update/rollback route | Fresh-session `/dhpk:flow-guide help` | Structural checks can pass; consumer discovery stays `NOT_RUN` until observed |
 | Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
 | Codex legacy/native | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe | Experimental; test only in a disposable isolated `CODEX_HOME`; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | OpenAI Public Plugin Directory (Codex and ChatGPT Work) | Search for DHPK in the product's Plugins Directory after the public listing appears | Use that product's plugin manager | Approved public listing and a fresh-session workflow probe per Host | Candidate only; currently `NOT_PUBLISHED`; local/repository marketplaces are development sources |
@@ -48,7 +48,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
 | Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, a logged-in Cursor session, and verified bubblewrap on Linux; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI/sandbox is `UNAVAILABLE`/`BLOCKED`, and discovery must be recorded separately; API-key-only auth is not accepted |
-| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available; AGY 1.2.2 has been observed loading the canonical path | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` unless `--agy-runtime-probe` is explicitly used |
+| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available; AGY 1.2.2 has been observed loading the canonical path | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` without an applicable explicitly requested native probely used |
 
 ## Status vocabulary
 
@@ -64,7 +64,7 @@ result; do not infer a runtime `PASS` from a package check.
 Never turn a static manifest, marketplace entry, generated file, or enabled
 flag into a runtime `PASS`.
 
-## Claude Code minimal profile (recommended)
+## Claude Code marketplace installation (recommended)
 
 For a clean install, preview and then materialize the default package:
 
@@ -85,11 +85,7 @@ bash scripts/install.sh --non-interactive --yes
 choice) and cannot install without `--yes`; `--hook-profile minimal|standard|strict`
 selects the hook profile (default `standard`). Requires the `claude` CLI.
 
-`dhpk@dhpk-profile-minimal` exposes exactly `change-verdict`, `code-trace`,
-`flow-drive`, and `flow-guide`. Start a fresh Claude session and run
-`/dhpk:flow-guide help`; until that observation is recorded, runtime evidence is
-`NOT_RUN`. The root marketplace remains a compatibility route, and an existing
-receipt keeps its selection until an explicit migration.
+`dhpk@dhpk` is the existing main marketplace package. It publishes the shared catalog’s 15 common entries and required Host runtime/reference content. Start a fresh Claude session and run `/dhpk:flow-guide help`; runtime evidence remains `NOT_RUN` until observed. The installer does not create a separate common variant.
 
 Maintainers may generate one optional capability for development inspection:
 
@@ -226,10 +222,10 @@ activation defect, or
 explicit native-acceptance request; package results are not native-runtime evidence. This
 procedure authorizes no apply, publication, or retirement and claims no cutover execution.
 
-### Standalone selection and profile selection
+### Standalone and common selection
 
-New installs without an explicit selection continue to use the inventory-owned
-`minimal` profile. A standalone request is a separate boundary:
+New installs use the inventory-owned `common` collection. Public publication
+`--profile` flags are rejected. A standalone request is a separate boundary:
 
 ```bash
 dhpk-install codex-native plan --scope project --standalone flow-guide --json
@@ -349,21 +345,9 @@ operation before any write; `--force` cannot bypass this gate, while
 JSON result reports `providerCheck: UNAVAILABLE` and project sync may proceed.
 The installer never removes a global native plugin automatically.
 
-The unified distribution/lifecycle installers use the inventory-owned
-`minimal` profile (inventory `required_core_ids`). The retained project-local Codex
-compatibility route keeps `compat-v1` by default; select `minimal` explicitly
-when migrating that route or add stable-ID overlays:
+New Codex installs use the `common` collection and may add existing `--skill <stable-id>` overlays. Public `--profile` selection is retired.
 
-```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile full --skill git-smart-commit
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal --skill bug-investigation --skill tdd
-```
-
-An existing receipt without profile metadata remains `compat-v1`; changing it
-to a smaller profile requires `--migrate --update`. The receipt records the
-canonical and surface-emitted IDs plus selection fingerprints, while unavailable
-consumer probes remain non-pass evidence.
+For historical named-profile receipts (`minimal`, `full`, `compat-v1`), read, plan, uninstall, and recovery preserve the exact stored scope, including retired IDs. Updates return `BLOCKED` before any mutation. Older receipts without selection metadata retain the existing structural migration route. Ordinary `--update` remains available for current receipts.
 
 For an existing schema-v3 symlink projection, ordinary `--update` converts
 unchanged receipt-owned agent links to physical files and leaves skill links in
@@ -392,7 +376,7 @@ entries are not rematerialized:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
   --update \
-  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/flow-guide@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 Adoption is path-scoped and creates a rollback-addressable backup before
@@ -877,10 +861,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate -
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
 ```
 
-Cursor sync accepts the same profile and additive overlay flags. New installs
-default to `minimal`; an unannotated existing receipt stays on `compat-v1` until
-an explicit `--migrate` is supplied. The installer rejects unknown, retired,
-deprecated, duplicate, or surface-incompatible IDs before changing `.cursor/`.
+New Cursor installs also use `common`, retain additive `--skill` overlays, and reject public `--profile` flags. Historical named-profile receipts preserve exact stored scope for read, plan, uninstall, and recovery; update is `BLOCKED` before mutation. Unannotated older receipts retain the existing structural migration route. Unknown, retired, deprecated, duplicate, or surface-incompatible IDs in new selections fail before changing `.cursor/`.
 
 `--force` bypasses only the project-root heuristic. It never bypasses receipt
 ownership or path safety. The schema-v3 receipt records stable ID, public name,
@@ -904,7 +885,7 @@ entries are not rematerialized:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
   --update \
-  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/flow-guide@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 Adoption is path-scoped and creates a rollback-addressable backup before
@@ -1026,51 +1007,13 @@ evidence. A physical Git checkout without a matching AGY receipt is classified
 move, or retire that checkout before a clean install. The diagnostic never
 migrates, adopts, overwrites, or removes a foreign target.
 
-Run configured-platform validation separately from package validation:
+Use the existing [consumer-gate](../scripts/release/consumer-gate.js) and AGY adapter for installation and required-resource evidence. Produce a read-only platform probe plan with:
 
 ```bash
-python3 skills/harness-govern/scripts/multi_ai_sync.py \
-  --root . validate --targets agy --format json
-agy --version
-agy plugins list
-agy agents
+node scripts/release/consumer-platform-probe.js --platform agy-project --package-root plugins/dhpk-agy
 ```
 
-AGY runtime prerequisites are an `agy` CLI, the currently supported `bwrap`
-POSIX sandbox backend, and an explicitly supplied `DHPK_AGY_HOST_HOME` that
-contains one of the allowlisted login files. The runtime probe clones only
-those files into a disposable HOME, mounts the package read-only, and enables
-network sharing only for the runtime invocation. Missing login is `BLOCKED`;
-missing `agy` or `bwrap` is `UNAVAILABLE`; runtime is `NOT_RUN` unless
-`--agy-runtime-probe` is explicitly used. Runtime diagnostics are bounded and
-redacted, and no host credential contents are recorded. AGY free-form client
-output is reduced to a fixed reason-class placeholder, so private paths,
-prompts, tool payloads, and host overlay markers are not persisted.
-
-`agy plugins list` reports import records only. A native receipt-owned package
-at the canonical `~/.gemini/antigravity-cli/plugins/dhpk` path is discovered by
-isolated `agy agents`, not by matching `dhpk` in the import JSON. The validator
-mounts the package at the inventory-owned consumer path inside a read-only
-sandbox HOME. On AGY 1.1.13, isolated
-`agy agents` stays empty because the CLI has no native filesystem plugin
-loader; that pair is `SKIP_INCOMPATIBLE`, not a package-shape `FAIL`. Do not
-run `agy plugin install` against a receipt-owned target: it is not a native
-registration step and can truncate `plugin.json`.
-
-The report keeps package structure, plugin/agent discovery, and Subagent
-runtime as independent rows. If `agy` is absent, discovery is `UNAVAILABLE`;
-without `--agy-runtime-probe`, runtime remains `NOT_RUN`. When the CLI is
-available, the opt-in probe is bounded and read-only:
-
-```bash
-python3 skills/harness-govern/scripts/multi_ai_sync.py \
-  --root . validate --targets agy --agy-runtime-probe --format json
-```
-
-Do not promote a static manifest, `agy agents` listing, or a foreign-checkout
-diagnostic to runtime `PASS`.
-Rollback/uninstall removes only files matching the AGY provenance receipt and
-preserves user-owned files in the plugin directory.
+Native discovery, model execution, and Subagent runtime run only for a corresponding integration change or explicit request. Unexecuted observations remain `NOT_RUN`, and missing capabilities remain non-pass. A receipt, static manifest, or discovery listing is not runtime `PASS`. Historical AGY 1.1.13 loader observations retain their recorded evidence state. Rollback/uninstall removes only unchanged receipt-owned files and preserves user-owned and foreign content.
 
 ## Maintainer evidence
 

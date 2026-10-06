@@ -15,26 +15,25 @@ runtime availability are separate evidence.
 | `smart-commit` | `$git-smart-commit` |
 | `create-release` | `$release-creator` |
 | `matrix-cell-onboard` | `$matrix-cell-onboard` |
-| `codex-test-gen` | `$tdd-workflow test-generation <target>` |
-| `check-coverage` | `$change-verdict --mode tests --coverage` |
-| `precommit-fast` | `$precommit --fast` |
 | `ts-check-status` | `$js-static-check-strategy status --path <directory>` |
+
+Retired aliases no longer provide entry points; use the current portable skill
+directly.
 
 The other generic command workflows use the command's name directly:
 `create-pr`, `git-worktree`, `merge-prep`, `pr-summary`, `project-brief`,
 `doc-refactor`, `update-docs`, `update-codemaps`, `precommit`, `dep-audit`,
-`harness-audit`, and `review-pending`. Existing `flow-guide`,
-`flow-drive`, and `harness-govern` keep their names.
+and `review-pending`. Current `flow-guide` and `flow-drive` keep their names.
 
 The five existing `dhpk-` names for commit, release, matrix onboarding, TDD,
 and JS static-check guidance migrate to the names above. Their stable IDs and
 capability identities do not change. Other prefixed Skills are unaffected.
 The rename ledger supplies diagnostics; it does not publish duplicate aliases.
 
-The purpose ledger records new Skills as ADR-backed additions. The historical
-65-Skill baseline stays unchanged; current decisions cover all 81 Skills.
+The purpose ledger records Skills as ADR-backed additions. The distribution
+inventory owns current active membership.
 
-### Runner and script migration
+### Historical runner and script migration
 
 These exclusive script paths are removed as a breaking cutover; no
 compatibility shims are published:
@@ -43,13 +42,11 @@ compatibility shims are published:
 | --- | --- |
 | `scripts/precommit-runner.js` | `skills/precommit/scripts/` |
 | `scripts/verify-runner.js` | `skills/repo-verify/scripts/` |
-| `scripts/harness-audit.js` | `skills/harness-audit/scripts/` |
 | `scripts/opsx-apply-resume/*.sh` | `skills/opsx-apply-resume/scripts/` |
 
 The setup installer copies complete local trees to
 `.claude/dhpk/skills/precommit/scripts/`,
-`.claude/dhpk/skills/repo-verify/scripts/`, and
-`.claude/dhpk/skills/harness-audit/scripts/`, including each runner's adjacent
+`.claude/dhpk/skills/repo-verify/scripts/`, including each runner's adjacent
 `lib/runner-utils.js` helper where one exists. A Skill resolves its helpers from
 its own directory automatically, so it does not need an ambient dhpk checkout.
 The resume helpers are used from the installed `opsx-apply-resume` Skill; the
@@ -84,7 +81,7 @@ Each canonical Skill directory is its complete distribution unit: `SKILL.md`,
 - Helpers shared by several Skills are copied into each Skill that needs them.
   dhpk maintainers keep those copies in sync with a repository-only tool;
   consumers never run a synchronization or build step.
-- Claude profile bundles and the AGY package now publish each selected Skill's
+- The Claude marketplace package and the AGY package publish each selected Skill's
   full directory. Previously some Skills shipped only `SKILL.md`.
 - New package receipts omit `skillPackageClosure`. Older receipts that still
   carry it remain valid.

@@ -102,21 +102,17 @@ node scripts/ci/verify-platform-packages.js
 For daily CI, `verify-platform-packages.js --surface <name>` accepts the
 affected package subset; selecting Cursor automatically includes its Agent
 owner because Cursor consumes the Agent-owned shared skills. Canonical-only
-content plans can skip unchanged physical packages. Every light plan also runs
-all four Claude generated checks (marketplace and the minimal, full, and
-compat-v1 profiles), including for prose-only canonical changes. For exact
-owned Markdown, receipt, fingerprint, or resource-ledger companions, the
-authoritative plan selects the affected physical-package checks. Unknown
-generated data, executables, and generated-only changes use the full route.
-Release verification and an explicit unfiltered platform-validation request
-retain the complete four-surface check.
+content plans can skip unchanged physical packages. Every daily light plan
+runs the main Claude marketplace generated check; it does not generate separate
+profile variants. For exact owned Markdown, receipt, fingerprint, or
+resource-ledger companions, the authoritative plan selects the affected
+physical-package checks. Unknown generated data, executables, and generated-only
+changes use the full route. Release verification and an explicit unfiltered
+platform-validation request retain the complete four-surface check.
 
 The distribution generators and `verify-platform-packages.js` are
 provenance-bound and require a clean checkout. Run the generators after the
-canonical-source commit, commit their outputs, then run the verifier. If
-`.claude-plugin/plugin.json` or a profile manifest changes, also run
-`node tests/profile-scoped-claude-capability-bundle.test.js` to verify profile
-selection, generated bundle behavior, and artifact/source fingerprint binding.
+canonical-source commit, commit their outputs, then run the verifier.
 
 The project-local `.agents/skills` compatibility projection is generated from
 the same canonical `skills/` tree and is not hand-edited:

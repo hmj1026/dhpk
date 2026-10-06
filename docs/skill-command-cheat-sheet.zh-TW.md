@@ -12,12 +12,11 @@
 `/dhpk:<name>`；Codex 先用 `$flow-guide help`，再使用查到的
 `$<public-name>`。
 
-## 四項預設能力
+## 預設集合與常用入口
 
-Claude 的乾淨 `minimal` 安裝只公開 `flow-guide`、`code-trace`、
-`flow-drive` 與 `change-verdict`。`git-smart-commit`、完整 TDD、project
-audit、prompt optimization 與 stack-specific skills 都是明確選裝，不會被
-偷偷加回預設。
+`manifests/install-profiles.json` 的 `common` collection 是唯一主要安裝預設。
+`flow-guide`、`code-trace`、`flow-drive` 與 `change-verdict` 是常用入口，
+不代表完整集合清單。Host 支援、集合內容與選裝方式請見[平台安裝 SSOT](./platform-installation.zh-TW.md)。
 
 ## 30 秒選入口
 
@@ -101,18 +100,14 @@ Git、release、setup、review 與其他 slash command 的完整清單在
 | AGY | receipt-owned 安裝後執行 `agy agents` | native load 與 runtime 分開；沒有 probe 就不宣稱直接 skill 語法 |
 
 Codex 可先執行 `install-codex-skills.sh --plan --json --skill <stable-id>`
-預覽選裝，再以同一 `--skill` 套用 install/update。Claude standalone package
-使用 `node scripts/ci/gen-claude-profile-bundles.js --standalone <stable-id>`；
-這是 checkout/development route，generic `dhpk-install` writer 仍回
-`BLOCKED`／`NOT_IMPLEMENTED`。Cursor 與 AGY 依各自 inventory-selected package，
-沒有實作的動態單技能寫入不可寫成可用功能。
+預覽選裝，再以同一 `--skill` 套用 install/update。Claude 使用
+`/dhpk:flow-guide help` 尋找可用入口；目前安裝與選裝路徑請見[平台安裝 SSOT](./platform-installation.zh-TW.md)。
+Cursor 與 AGY 依各自 inventory-selected package；未實作的動態單技能寫入不可寫成可用功能。
 
-## Profile 與證據
+## 安裝選擇與證據
 
-預設 profile 是 `minimal`，只選上述四項能力；`full` 與 `compat-v1` 仍是明確
-選裝。profile 目前選了哪些 ID 請執行
-`node scripts/ci/gen-claude-profile-bundles.js --profile <id> --plan` 查詢，
-已產生 package 的選取清單見其 `provenance.json`（`selectedSkillIds`）；Cursor
-native overlay 共用 Agent Plugin skills。Local usage card 或 catalogue 只證明
-metadata 已產生，不代表 skill runtime、測試、deployment、commit 或 release 已完成；
-交接時分開標示 `PASS`、`BLOCKED`、`NOT_RUN`、`UNAVAILABLE`。
+`common` collection 是唯一主要安裝預設。舊 `minimal`、`full` 與 `compat-v1`
+選擇只保留作為歷史 receipt metadata，不是發布選項。Host 路徑與 receipt 證據
+請見[平台安裝 SSOT](./platform-installation.zh-TW.md)。Local usage card 或 catalogue
+只證明 metadata 已產生，不代表 skill runtime、測試、deployment、commit 或 release
+已完成；交接時分開標示 `PASS`、`BLOCKED`、`NOT_RUN`、`UNAVAILABLE`。

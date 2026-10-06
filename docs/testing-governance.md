@@ -85,5 +85,4 @@ The macOS CI job `macos-installer` executes the files in
 `tests/_lib/macos-installer-files.js` (`MACOS_INSTALLER_FILES`). Adding or
 removing a Host-unique installer suite from the Ubuntu aggregate runner must
 update that list in the same change; the job already runs the list.
-`session-usage-audit` and `consumer-gate-cli` keep `TMPDIR=/private/tmp` on
-Darwin.
+`consumer-gate-cli` keeps `TMPDIR=/private/tmp` on Darwin.
