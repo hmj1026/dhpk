@@ -23,7 +23,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 
 The default projection is hybrid: `codex/skills/` and inventory-declared supporting assets are symlinked into the project, while every `.codex/agents/*.toml` is materialized as a physical file. `--copy` makes the entire projection physical. `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-v3 `.dhpk-installed.json` receipt, including each entry's effective mode and each skill's stable ID/current public name, and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
 
-The current Codex projection contains 33 skill entries: 31 invokable skills and
+The current Codex projection contains 32 skill entries: 30 invokable skills and
 two internal transport/dispatch-context runtimes. The inventory and generated
 receipt, not this file, own that selection.
 
@@ -101,9 +101,9 @@ arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
 the implementation target and acceptance contract are settled; it is
 explicit-only and has no route/workflow mode. Its `--plan-mode` selects planner
 consult scope only. Codex CLI has no `/dhpk:do` command or dhpk
-slash-command router. The eight portable families
-(`skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`,
-`code-trace`, `laravel`, `phpunit`, and `harness-govern`) use their unprefixed
+slash-command router. The six portable families
+(`flow-guide`, `flow-drive`, `change-verdict`,
+`code-trace`, `laravel`, and `phpunit`) use their unprefixed
 public names; other first-party skills retain the `dhpk-` prefix. The standalone
 `git-smart-commit` skill keeps its existing public name (`$git-smart-commit`).
 Codex built-in commands such as `/hooks` and `/agent` are not custom dhpk

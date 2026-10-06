@@ -146,10 +146,11 @@ Release PR 必須通過 `validate`、`release-rehearsal` 與 Markdown `lint` job
 
 它不會建立 tag，也不會發布。Tag workflow 不取代 pull-request 驗證。
 
-Skill platform 的預期 topology：100 個 canonical package、62 個 Agent Plugin
-skill、31 modules、18 個 Codex project/native 項目（16 個可呼叫 skill 加上內部
-transport 與 dispatch-context runtime）；另有五筆不進入 discovery 的
-`retired_skills` ledger row。Module/Codex project projection 使用相對 symlink，
+Skill platform 的預期 topology：68 個 canonical package、39 個 Agent Plugin
+與 AGY surface 項目、4-entry Cursor-native overlay、37 個 module projection、32 個
+Codex 專案項目（30 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime，
+tracked native package 內有 19 個實體項目，零 symlink）。Alias-free rows 保留在
+`retired_skills` ledger 中，不進入 discovery。Module/Codex project projection 使用相對 symlink，
 native package 零 symlink。
 
 Release gate 分三層：

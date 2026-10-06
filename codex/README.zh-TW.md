@@ -71,8 +71,8 @@ updated、migrated、preserved、collision、pruned 與 orphaned 數量，不暴
 ## 呼叫 skill
 
 Skill invocation 是 chat syntax，不是 plugin-management command。每個同步 skill
-都在 `agents/openai.yaml` 宣告 public trigger。五個 capability family 使用未加
-前綴名稱（`skill-scope`、`flow-guide`、`flow-drive`、
+都在 `agents/openai.yaml` 宣告 public trigger。四個通用 capability family 使用未加
+前綴名稱（`flow-guide`、`flow-drive`、
 `change-verdict`、`code-trace`）；其他 first-party skill 維持 `dhpk-` 前綴。不要
 使用 `$dhpk:<name>` 或 predecessor name；`codex plugin list` 只證明管理層安裝狀態，
 仍須確認選定的 family 或 `$dhpk-<name>` 能解析。

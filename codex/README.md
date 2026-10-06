@@ -62,8 +62,8 @@ The script detects the version delta from `.dhpk-installed.json` and re-syncs ev
 Skill invocation is chat syntax, not a plugin-management command — `codex
 plugin list` / `codex plugin add` only install or report status; they never
 execute a skill. Every synced skill carries its public trigger in
-`agents/openai.yaml`. The five capability families use unprefixed names
-(`skill-scope`, `flow-guide`, `flow-drive`, `change-verdict`, `code-trace`); other first-party skills retain the `dhpk-` prefix. Do not
+`agents/openai.yaml`. The four general capability families use unprefixed names
+(`flow-guide`, `flow-drive`, `change-verdict`, `code-trace`); other first-party skills retain the `dhpk-` prefix. Do not
 write `$dhpk:<name>` or a retired predecessor name. Confirm that the selected
 family or `dhpk-*` trigger resolves.
 

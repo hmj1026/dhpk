@@ -4,16 +4,16 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills index
 
-This index describes the 81 canonical skill packages currently published. The inventory is
+This index describes the 68 canonical skill packages currently published. The inventory is
 the source of truth for lifecycle, stable IDs, public names, profile selection,
 and publication surfaces; this page is a navigation aid. Every package lives
 under `skills/<public-name>/SKILL.md` and keeps its procedure and completion
 contract in that file.
 
-The clean-install `minimal` profile contains exactly `change-verdict`,
-`code-trace`, `flow-drive`, and `flow-guide`. `flow-guide help <skill>` returns
-the selected skill's usage and stop conditions; optional skills require an
-explicit profile, overlay, or host-supported standalone projection.
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default; public profiles are retired. `flow-guide help <skill>`
+returns the selected skill's usage and stop conditions; optional skills require
+an explicit overlay or host-supported standalone projection.
 
 For Codex parameter discovery, use [`$flow-guide help`](../docs/codex-skill-usage.md)
 or `$flow-guide help <skill>`. The generated metadata-only catalogue is
@@ -22,7 +22,7 @@ do not copy its grammar into a skill procedure.
 
 ## Portable capability families
 
-These are the eight recognizable family entry points. Family modes and selectors
+These are the six recognizable family entry points. Family modes and selectors
 are finite and disclosed by the family package.
 
 | Public skill | Stable ID | Interface |

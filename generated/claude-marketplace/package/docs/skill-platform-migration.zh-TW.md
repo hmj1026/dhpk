@@ -78,7 +78,7 @@ Codex 參數採 progressive discovery：`$flow-guide help` 列出目前 catalogu
 人類導覽見 [`codex-skill-usage.zh-TW.md`](codex-skill-usage.zh-TW.md)。Help 不會載入
 目標 procedure，也不會授予其 authority。
 
-`dhpk` prefix 仍是 Claude plugin namespace 的一部分。八個 family name 刻意使用未加
+`dhpk` prefix 仍是 Claude plugin namespace 的一部分。六個 family name 刻意使用未加
 前綴的名稱，讓使用者選擇 task-shaped capability 而不必記住 predecessor 的
 implementation name。`git-smart-commit` 維持原 public name 且獨立存在；不新增
 `commit-craft`。OpenSpec proposal authoring 由外部 `$openspec-propose` 負責；
