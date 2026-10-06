@@ -14,12 +14,10 @@ This page walks through the operational lifecycle of dhpk: installing it, the da
 
 ## Decision ladder
 
-Clean installs expose exactly four default capabilities: `change-verdict`,
-`code-trace`, `flow-drive`, and `flow-guide`. Use `bash scripts/install.sh` for
-Claude, `scripts/hooks/install-codex-skills.sh` for Codex,
-`scripts/hooks/install-cursor-harness.sh` for Cursor, and
-`node scripts/ci/install-agy-plugin.js plan` before AGY installation. Static
-package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
+The `common` collection in `manifests/install-profiles.json` is the sole main
+installation default. Current Host routes, support status, and receipt handling
+are documented in the [platform installation SSOT](./platform-installation.md).
+Static package evidence is not runtime evidence: report `NOT_RUN`, `BLOCKED`, or
 `UNAVAILABLE` until the corresponding consumer is observed.
 
 Use this order for a fresh request: **inspect** the repository and session
@@ -96,10 +94,9 @@ Both surfaces read the same `.claude-plugin/marketplace.json` shipped in this re
 
 No clone needed. Fastest path for end users.
 
-The direct GitHub marketplace entry is the raw `dhpk@dhpk` compatibility
-surface. The measured, pre-discovery `minimal` artifact is produced by the
-interactive installer in Path B (or by the profile generator command below)
-until a release publishes that generated package as its marketplace source.
+The GitHub marketplace uses the selected common default collection. Current
+Claude install, update, migration, receipt, and collision procedures are owned
+by the [platform installation SSOT](./platform-installation.md).
 
 ```bash
 # Terminal
@@ -122,7 +119,7 @@ claude plugin install dhpk@dhpk \
   --config hook_profile=standard
 ```
 
-Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.6.0`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docker-setup.md).
+Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.6.0`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated module presets are in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docker-setup.md).
 
 After install, reconfigure any time from inside Claude Code:
 
@@ -143,13 +140,10 @@ claude plugin marketplace add ~/projects/dhpk
 bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
 ```
 
-With no stack modules selected, the script materializes the inventory-owned
-`minimal` profile, registers a local marketplace wrapper, and installs
-`dhpk@dhpk-profile-minimal`; selecting stack modules keeps the explicit raw
-compatibility route. The script walks stack/version selection, docker
-prerequisites, review-agent overrides, and hook profile, then runs
-`claude plugin install` for you. Append `--dry-run` to print the resolved
-commands without executing them.
+With no stack modules selected, the installer uses the selected common default
+collection. The [platform installation SSOT](./platform-installation.md) owns
+the current Host install/update/uninstall commands and receipt behavior; this
+guide keeps the local-clone route as a development entry point.
 
 Validate the local checkout with the source gates:
 
@@ -650,7 +644,7 @@ The root `package.json` is private and has zero dependencies. It offers two kind
 | | `npm run test:hooks` | Hook tests |
 | | `npm run test:one -- tests/<name>.test.js` | One test file |
 | Validate | `npm run validate` | Every CI validator (`validate:*`) |
-| | `npm run check:generated` | Generated manifest, marketplace, profile, skill-resource, and package drift checks |
+| | `npm run check:generated` | Generated manifest, marketplace, skill-resource, and package drift checks |
 | | `npm run check:portability` | Portability check |
 | | `npm run catalog:check` | `catalog.js --check all` |
 | | `npm run ci` | `validate` + `check:generated` + `catalog:check` + `test` |

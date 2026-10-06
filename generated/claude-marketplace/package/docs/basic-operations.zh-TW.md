@@ -15,13 +15,10 @@
 
 ## 決策階梯
 
-Clean install 只暴露四個預設 capability：`change-verdict`、`code-trace`、
-`flow-drive`、`flow-guide`。Claude 使用 `bash scripts/install.sh`，Codex 使用
-`scripts/hooks/install-codex-skills.sh`，Cursor 使用
-`scripts/hooks/install-cursor-harness.sh`，AGY 安裝前先執行
-`node scripts/ci/install-agy-plugin.js plan`。Static package evidence 不等於
-runtime evidence；在對應 consumer 被實際觀察前應記錄 `NOT_RUN`、`BLOCKED`
-或 `UNAVAILABLE`。
+`manifests/install-profiles.json` 的 `common` collection 是唯一主要安裝預設。
+目前 Host 路徑、支援狀態與 receipt 管理由[平台安裝 SSOT](./platform-installation.zh-TW.md)
+說明。Static package evidence 不等於 runtime evidence；在對應 consumer 被實際觀察前
+應記錄 `NOT_RUN`、`BLOCKED` 或 `UNAVAILABLE`。
 
 新請求依序執行：**檢查** repository 與 session 狀態 → **確認** 已安裝的
 surface → **選擇** Claude、支援的 Codex sync 或實驗性的原生 Codex surface →
@@ -93,10 +90,8 @@ dhpk 遵循標準的 [Claude Code plugin distribution model](https://docs.claude
 
 不需要 clone，適合一般使用者。
 
-直接使用 GitHub marketplace 目前取得的是 raw `dhpk@dhpk` compatibility
-surface。完成量測、在 discovery 前套用的 `minimal` artifact，請使用下方
-Path B 的 interactive installer（或 profile generator）；待 release 將生成
-package 發布為 marketplace source 後，才會由遠端路徑直接提供該 artifact。
+GitHub marketplace 使用目前選定的 common 預設集合。Claude 安裝、更新、
+migration、receipt 與 collision 的操作程序由[平台安裝 SSOT](./platform-installation.zh-TW.md)管理。
 
 ```bash
 # Terminal
@@ -144,11 +139,9 @@ claude plugin marketplace add ~/projects/dhpk
 bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
 ```
 
-未選任何 stack module 時，腳本會實體化 inventory-owned 的 `minimal` profile、
-註冊 local marketplace wrapper，並安裝 `dhpk@dhpk-profile-minimal`；選取 stack
-module 則維持明確指定的 raw compatibility 路徑。腳本會引導 stack／版本、Docker
-前置條件、review-agent override 與 hook profile，最後替你執行
-`claude plugin install`。加上 `--dry-run` 可只印出解析後的命令而不執行。
+未選 stack module 時，installer 使用目前選定的 common 預設集合。[平台安裝
+SSOT](./platform-installation.zh-TW.md)負責目前 Host 安裝／更新／移除指令與
+receipt 行為；本指南保留 local-clone 作為開發入口。
 
 請使用以下 source gate 驗證 local checkout：
 
@@ -580,7 +573,7 @@ Root `package.json` 為 private、零 dependency，提供兩類指令。
 | | `npm run test:hooks` | Hook 測試 |
 | | `npm run test:one -- tests/<name>.test.js` | 單一測試檔 |
 | 驗證 | `npm run validate` | 所有 CI validator（`validate:*`） |
-| | `npm run check:generated` | 產生的 manifest、marketplace、profile、skill resource、package drift 檢查 |
+| | `npm run check:generated` | 產生的 manifest、marketplace、skill resource、package drift 檢查 |
 | | `npm run check:portability` | 可攜性檢查 |
 | | `npm run catalog:check` | `catalog.js --check all` |
 | | `npm run ci` | `validate` + `check:generated` + `catalog:check` + `test` |
