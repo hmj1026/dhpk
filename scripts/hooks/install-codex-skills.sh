@@ -3089,8 +3089,13 @@ def inventory_retirement_metadata(active_metadata=None):
     }
     seen_ids = set()
     seen_names = set()
+    declared_retired_ids = {
+        row.get('id') for row in rows
+        if isinstance(row, dict) and isinstance(row.get('id'), str)
+    }
 
     result = {}
+    retired_by_id = {}
     for index, row in enumerate(rows):
         prefix = f'retired_skills[{index}]'
         if not isinstance(row, dict):
@@ -3152,8 +3157,8 @@ def inventory_retirement_metadata(active_metadata=None):
             replacement_id = replacement.get('id')
             if not isinstance(replacement_id, str) or not safe_identifier.fullmatch(replacement_id):
                 raise ValueError(f'{replacement_prefix}.id is not a safe identifier')
-            if kind == 'skill' and replacement_id not in active_ids:
-                raise ValueError(f'{replacement_prefix}.id is not an active skill: {replacement_id}')
+            if kind == 'skill' and replacement_id not in active_ids and replacement_id not in declared_retired_ids:
+                raise ValueError(f'{replacement_prefix}.id is not an active or retired skill: {replacement_id}')
             if kind == 'agent' and replacement_id not in agent_roster:
                 raise ValueError(f'{replacement_prefix}.id is not an inventory-owned active agent: {replacement_id}')
             normalized_replacement = {'kind': kind, 'id': replacement_id}
@@ -3184,9 +3189,35 @@ def inventory_retirement_metadata(active_metadata=None):
             'replacements': replacements,
             'rollback': {'release': rollback.get('release')},
         }
+        retired_by_id[stable_id] = evidence
         keys = [stable_id, name, canonical, canonical.rsplit('/', 1)[-1]]
         for key in keys:
             result[key] = evidence
+
+    # Keep historical replacement evidence intact, but validate every path to
+    # terminal guidance before any reconciliation can mutate a receipt.
+    max_depth = 64
+
+    def validate_successor_chain(row, ancestors, depth, expanded):
+        for replacement in row['replacements']:
+            if replacement['kind'] != 'skill' or replacement['id'] in active_ids:
+                continue
+            successor_id = replacement['id']
+            successor = retired_by_id.get(successor_id)
+            if successor is None:
+                raise ValueError(f'dangling retirement successor: {successor_id}')
+            if successor_id in ancestors:
+                raise ValueError(f'retirement successor cycle at {successor_id}')
+            if depth >= max_depth:
+                raise ValueError(f'retirement successor depth exceeds limit {max_depth} at {successor_id}')
+            key = (successor_id, depth)
+            if key in expanded:
+                continue
+            validate_successor_chain(successor, ancestors | {successor_id}, depth + 1, expanded)
+            expanded.add(key)
+
+    for stable_id, row in retired_by_id.items():
+        validate_successor_chain(row, frozenset({stable_id}), 0, set())
     return result
 
 

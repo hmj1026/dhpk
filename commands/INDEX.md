@@ -39,7 +39,6 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 | Command | 用途 |
 |---------|------|
-| `/dhpk:harness-audit` / `/dhpk:harness-govern` | Harness 的單次評估與 measure→conform→fix→verify 迴圈。 |
 | `/dhpk:update-docs` / `/dhpk:update-codemaps` / `/dhpk:doc-refactor` | 更新、產生或精簡文件；`update-docs` 以實作證據與 writing-for-agents 契約為準。 |
 | `/dhpk:project-brief` | 將技術內容整理為 PM/CTO 摘要。 |
 | `/dhpk:setup` | 設定 plugin；用 `--install hooks\|rules\|scripts\|all` 安裝資產。 |
@@ -71,14 +70,13 @@ implementation. Proposal authoring belongs to external `$openspec-propose`;
 OnePassword authentication is the operator action `op signin`.
 
 `git-smart-commit` keeps its existing public name and stable ID. `agy-commit` is
-retired without an alias. The five harness governance predecessors are modes of
-`harness-govern`: `health`, `budget`, `fill`, `revise`, and `sync`.
+retired without an alias. Dedicated harness governance and its predecessor
+commands are retired; their former modes are no longer callable.
 
 - `/dhpk:<name>` — 本 plugin 實際註冊的 command namespace。
-- `dhpk-<skill-name>` — 一般 public skill identity，不是 `commands/` alias。八個
-  portable capability-family 例外使用無前綴名稱：`skill-scope`、
-  `flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、`laravel`、
-  `phpunit`、`harness-govern`。
+- `dhpk-<skill-name>` — 一般 public skill identity，不是 `commands/` alias。
+  portable capability-family 例外使用無前綴名稱：  `flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、`laravel`、
+  `phpunit`。
 
 ## 修改本檔時
 

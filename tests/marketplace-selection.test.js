@@ -53,8 +53,8 @@ test('the accepted catalog compiles to 15 public entries with every child folded
   for (const owner of Object.keys(result.bundledChildren)) {
     assert.ok(result.publicEntries.some((entry) => entry.id === owner), `${owner} must be a public entry`);
   }
-  assert.strictEqual(result.hostOnly.length, 15);
-  assert.strictEqual(result.withdrawn.length, 6);
+  assert.strictEqual(result.hostOnly.length, SELECTION.skills.filter((row) => row.selection === 'host-only').length);
+  assert.strictEqual(result.withdrawn.length, 0);
 });
 
 test('the publication view preserves full catalog descriptors and folds all common children', () => {
@@ -63,7 +63,7 @@ test('the publication view preserves full catalog descriptors and folds all comm
   assert.strictEqual(result.publicEntries.length, 15);
   assert.strictEqual(Object.values(result.bundledChildren).reduce((total, rows) => total + rows.length, 0), 45);
   assert.strictEqual(result.hostOnly.length, 0);
-  assert.strictEqual(result.withdrawn.length, 6);
+  assert.strictEqual(result.withdrawn.length, 0);
 
   const entry = result.publicEntries.find((row) => row.id === 'flow-guide');
   const entrySource = INVENTORY.skills.find((row) => row.id === 'flow-guide');
@@ -90,20 +90,13 @@ test('common entries ignore old inventory surface membership in a host view', ()
 });
 
 test('host-only rows follow the requested inventory surface and no surface is implied', () => {
-  const expectedCounts = {
-    'claude-core': 15,
-    'claude-module': 2,
-    'codex-sync': 7,
-    'codex-native': 7,
-    'agent-plugin': 2,
-    'cursor-plugin': 2,
-    'cursor-sync': 15,
-    'agy-plugin': 2,
-  };
-  for (const [surface, count] of Object.entries(expectedCounts)) {
+  for (const surface of INVENTORY.surfaces) {
     const result = compilePublication({ hostSurface: surface });
     assert.deepStrictEqual(result.errors, [], `${surface} errors`);
-    assert.strictEqual(result.hostOnly.length, count, `${surface} host-only rows`);
+    const expected = SELECTION.skills.filter((row) => row.selection === 'host-only')
+      .filter((row) => INVENTORY.skills.find((skill) => skill.id === row.id).surfaces.includes(surface))
+      .map((row) => row.id).sort();
+    assert.deepStrictEqual(result.hostOnly.map((row) => row.id).sort(), expected, `${surface} host-only rows`);
   }
   const agentOnly = compilePublication({ hostSurface: 'agent-plugin' }).hostOnly.map((entry) => entry.id).sort();
   assert.deepStrictEqual(agentOnly, ['cli-dispatch-context', 'cli-transport']);
@@ -261,7 +254,8 @@ test('a selected name that collides with a runtime alias fails closed', () => {
 
 test('a withdrawn row that claims an owner or a common selection fails closed', () => {
   const selection = clone(SELECTION);
-  const withdrawn = selection.skills.find((skill) => skill.selection === 'withdrawn');
+  const withdrawn = selection.skills[0];
+  withdrawn.kind = 'withdrawn';
   withdrawn.selection = 'common';
   const text = errorText(compile({ selection }));
   assert.match(text, new RegExp(withdrawn.id));
@@ -289,11 +283,11 @@ const ledger = (overrides = {}) => compileDispositionLedger({
   ...overrides,
 });
 
-test('the disposition ledger covers all 81 IDs exactly once with owner, version condition, authority, and behavior', () => {
+test('the disposition ledger covers every active ID exactly once with owner, version condition, authority, and behavior', () => {
   const result = ledger();
   assert.deepStrictEqual(result.errors, []);
-  assert.strictEqual(result.rows.length, 81);
-  assert.strictEqual(new Set(result.rows.map((row) => row.id)).size, 81);
+  assert.strictEqual(result.rows.length, INVENTORY.skills.length);
+  assert.strictEqual(new Set(result.rows.map((row) => row.id)).size, INVENTORY.skills.length);
   for (const row of result.rows) {
     assert.ok(['script', 'guidance-only', 'withdrawn'].includes(row.behavior), `${row.id} behavior`);
     assert.ok(Array.isArray(row.versionCondition), `${row.id} version condition`);
@@ -304,7 +298,7 @@ test('the disposition ledger covers all 81 IDs exactly once with owner, version 
 
 test('every skill that ships scripts traces to at least one test file', () => {
   const scripted = ledger().rows.filter((row) => row.behavior === 'script');
-  assert.ok(scripted.length >= 28, `expected the scripted skills to be found, got ${scripted.length}`);
+  assert.ok(scripted.length > 0, 'scripted skills must retain executable test owners');
   for (const row of scripted) assert.ok(row.tests.length > 0, `${row.id} has no tracing test`);
 });
 

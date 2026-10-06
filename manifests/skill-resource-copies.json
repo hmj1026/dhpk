@@ -133,186 +133,6 @@
       "sha256": "sha256:023bb806d566f57a6280cf9ea619502c6ad1c8e93ee666d65618ef6b0782e9c6",
       "mode": "0644"
     },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/docs/subagent-prompt-template.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "docs/subagent-prompt-template.md",
-      "sha256": "sha256:fb6ac6e589c9a25c8039a9d38c4ba4f66e396b9ed2d1f6d75379ae7ecf67eae9",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/host-profiles.json": {
-      "skill_id": "opsx-apply-goal",
-      "source": "manifests/host-profiles.json",
-      "sha256": "sha256:3af9a81e2e5bdd78f2af845436ac2f78f5ffcf1f58389309e936c9b07f5a92e0",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/manifests/provider-model-catalog.json": {
-      "skill_id": "opsx-apply-goal",
-      "source": "manifests/provider-model-catalog.json",
-      "sha256": "sha256:630e9ec9b1b8c53987af1c688f8c415462d0fe6689d8e5498c2ccd06ba421d76",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/anti-rationalization.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "rules/anti-rationalization.md",
-      "sha256": "sha256:af4e49880d9420734e2cf3ed03fd84bdb55aeeaf1755f9211a67e42bf58b8352",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy-kernel.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "rules/execution-policy-kernel.md",
-      "sha256": "sha256:485054f397effdf054209cda993ea1d55e09246d24b8f4f20891abe15ef66a7a",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/execution-policy.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "rules/execution-policy.md",
-      "sha256": "sha256:d7069c054f2619e7ceb31019ba52af35ccbbad57dc0a952bc921cceebf00a0b5",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/model-economics.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "rules/model-economics.md",
-      "sha256": "sha256:234205a89be4a63ecc3f91c219eb84692d10f4b78975a15b6a7f697844ddbe5a",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/rules/tool-routing.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "rules/tool-routing.md",
-      "sha256": "sha256:4b7ddc3d61375d29b48e101a4ada052c94cd82302bcda14ad0626ffd4d4ae039",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/fast-worker-selector.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "scripts/fast-worker-selector.js",
-      "sha256": "sha256:c67e86cb8352afb08864aacae10a0403166581f01d4adf2709b888ace2d6e976",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/dispatch-contract.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "scripts/lib/dispatch-contract.js",
-      "sha256": "sha256:943f22d39cbe34bd6deb31e38f28175c8ea6b1d013c6bb755a61d1871a93bc1b",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/dispatch-engine.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "scripts/lib/dispatch-engine.js",
-      "sha256": "sha256:e859d183be0d5dc4b011c6cd70234f6fea083062609488cf2f820588892083ff",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/flow-handoff-contract.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "scripts/lib/flow-handoff-contract.js",
-      "sha256": "sha256:d784b09cef0e9847e0b2a1586b1ce2d1578db45065456b1cfb457f22a49c8a70",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/native-dispatch-policy.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "scripts/lib/native-dispatch-policy.js",
-      "sha256": "sha256:639ea3e4b750547b02aef37ee2d9b64074a6880f3ff88489780c0a49cf553b34",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/scripts/lib/partial-writer-handoff.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "scripts/lib/partial-writer-handoff.js",
-      "sha256": "sha256:aa92ae684a6eb95532a8ca77d3e99fbda4013906f7e2447e2d327ec3c7de98ea",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/component-addition-policy.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/flow-guide/references/component-addition-policy.md",
-      "sha256": "sha256:97007c5be09a1845bd6beffd24b90da680933f03d37cce78c3e793a39b295978",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/deterministic-first.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/flow-guide/references/deterministic-first.md",
-      "sha256": "sha256:99cb11b0d5b04c71b790fb1424ca2b8ab85cdedcce4db0d050a79b9f6ec1e7c3",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5c1cdfe11b3bdbea99b872e44227b1cb3ce3963c35db21716976363e5cfa5921",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/flow-guide/references/invocation-classification.md",
-      "sha256": "sha256:6b3e68ab289e6d1fa84afe1df4c19eb42092c14c7507bd909b2ff0062c555bc5",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/invocation-precedence.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/flow-guide/references/invocation-precedence.md",
-      "sha256": "sha256:7f585bcc5c085ebc69fbc244864d84d90336420d2cf4e09f9b321f1bf2776f7d",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/premise-verification.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/flow-guide/references/premise-verification.md",
-      "sha256": "sha256:97e141e65014b674bddb208c2411f0107239947e98c2df5917fc72de115c985d",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/references/execution-bundle/skills/flow-guide/references/testing-policy.md": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/flow-guide/references/testing-policy.md",
-      "sha256": "sha256:3b36e935ed0964c855ceca8e460559fcacfe16d4483ac19d9e12d6b1b0f6a0f9",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/build-cli-dispatch-context.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/build-cli-dispatch-context.js",
-      "sha256": "sha256:a8330be39319fc8fcf6c71d7a17dfe61b62ee851c2b9753594fef21b7d62446e",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/cli-role-resolver.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/cli-role-resolver.js",
-      "sha256": "sha256:5bca594d35d92312e56b8ebe179f7d7f6bda5ac384372dd650e7202431d7e7fb",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/cli-transport/prepare-cli-request.py": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-cli-transport/scripts/prepare-cli-request.py",
-      "sha256": "sha256:ca83a90c54c04dd8e5e6667b15531655d9734152dfe8a6e20fcf4548edaaac90",
-      "mode": "0755"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/cli-transport/run-cli-transport.py": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-cli-transport/scripts/run-cli-transport.py",
-      "sha256": "sha256:fd3cb1059cd00dfb9bea92d28d8ea3ed7280b8632f0edb58536172369d1f4464",
-      "mode": "0755"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/launch-cli-dispatch.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js",
-      "sha256": "sha256:1c4ab71a0b1547f93d3dbdc27dd8fe7eab7af93de30455110cdc791f2ec9a85c",
-      "mode": "0755"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/physical-file.js": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.js",
-      "sha256": "sha256:fc3698a983dca798bbe66899606d4f98f308cd5c7bfedc85254966cfc4b24b77",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/physical-file.py": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-cli-dispatch-context/scripts/physical-file.py",
-      "sha256": "sha256:5b313380d83f8d2c20eb666a588ad641547522bea7c38f048114a674bd020bed",
-      "mode": "0644"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/run-agy.sh": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-agy-fast-worker/scripts/run-agy.sh",
-      "sha256": "sha256:820a761a17af96812de9896f0de1bce3d107cee2a1ea479c43ba26ba84e95fbd",
-      "mode": "0755"
-    },
-    "skills/dhpk-opsx-apply-goal/scripts/run-codex.sh": {
-      "skill_id": "opsx-apply-goal",
-      "source": "skills/dhpk-codex-bridge/scripts/run-codex.sh",
-      "sha256": "sha256:c53f3c806c3545822f0c6c5a45cd653dab86f482f92faa8c517e48af2293b140",
-      "mode": "0755"
-    },
     "skills/dhpk-project-audit/scripts/lib/command-namespace.js": {
       "skill_id": "project-audit",
       "source": "scripts/lib/command-namespace.js",
@@ -324,18 +144,6 @@
       "source": "scripts/lib/runner-utils.js",
       "sha256": "sha256:195dac741891eaf7baf29319493386d76317d93678cd4ba73f17179167557da4",
       "mode": "0644"
-    },
-    "skills/dhpk-project-setup/scripts/install-project-assets.sh": {
-      "skill_id": "project-setup",
-      "source": "skills/harness-setup/scripts/install-assets.sh",
-      "sha256": "sha256:04bf6ce4758de8f1164ba674f76024b2eaa91c1d9379e41c8024e009342bc8e1",
-      "mode": "0755"
-    },
-    "skills/dhpk-project-setup/scripts/lib/install-assets-writer.sh": {
-      "skill_id": "project-setup",
-      "source": "scripts/setup/install-assets.sh",
-      "sha256": "sha256:8287f75ab620db413a63255d47acf487453b89e291f66fd2e276923333295edf",
-      "mode": "0755"
     },
     "skills/dhpk-react-18-notes/references/frontend-framework-routing.md": {
       "skill_id": "react-18-notes",
@@ -496,13 +304,13 @@
     "skills/flow-drive/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-drive",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:d7069c054f2619e7ceb31019ba52af35ccbbad57dc0a952bc921cceebf00a0b5",
+      "sha256": "sha256:31496cc65eef5b44d2ab0c37b94b976279118c1c8a09a74ca8c219dc7ea87a64",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-drive",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:234205a89be4a63ecc3f91c219eb84692d10f4b78975a15b6a7f697844ddbe5a",
+      "sha256": "sha256:f5b6cedfa72f393ace35460cbb39d72160f4f484b4a68192f0857f794a792ac7",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/rules/tool-routing.md": {
@@ -556,13 +364,13 @@
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/deterministic-first.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/deterministic-first.md",
-      "sha256": "sha256:99cb11b0d5b04c71b790fb1424ca2b8ab85cdedcce4db0d050a79b9f6ec1e7c3",
+      "sha256": "sha256:876be6413d8981138bb7bbed93a751b1559f0e70cbb6e422369fce82b69b68a5",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-drive",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5c1cdfe11b3bdbea99b872e44227b1cb3ce3963c35db21716976363e5cfa5921",
+      "sha256": "sha256:6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389",
       "mode": "0644"
     },
     "skills/flow-drive/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -622,13 +430,13 @@
     "skills/flow-guide/references/execution-bundle/rules/execution-policy.md": {
       "skill_id": "flow-guide",
       "source": "rules/execution-policy.md",
-      "sha256": "sha256:d7069c054f2619e7ceb31019ba52af35ccbbad57dc0a952bc921cceebf00a0b5",
+      "sha256": "sha256:31496cc65eef5b44d2ab0c37b94b976279118c1c8a09a74ca8c219dc7ea87a64",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/model-economics.md": {
       "skill_id": "flow-guide",
       "source": "rules/model-economics.md",
-      "sha256": "sha256:234205a89be4a63ecc3f91c219eb84692d10f4b78975a15b6a7f697844ddbe5a",
+      "sha256": "sha256:f5b6cedfa72f393ace35460cbb39d72160f4f484b4a68192f0857f794a792ac7",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/rules/tool-routing.md": {
@@ -682,13 +490,13 @@
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/deterministic-first.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/deterministic-first.md",
-      "sha256": "sha256:99cb11b0d5b04c71b790fb1424ca2b8ab85cdedcce4db0d050a79b9f6ec1e7c3",
+      "sha256": "sha256:876be6413d8981138bb7bbed93a751b1559f0e70cbb6e422369fce82b69b68a5",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/implementation-dispatch.md": {
       "skill_id": "flow-guide",
       "source": "skills/flow-guide/references/implementation-dispatch.md",
-      "sha256": "sha256:5c1cdfe11b3bdbea99b872e44227b1cb3ce3963c35db21716976363e5cfa5921",
+      "sha256": "sha256:6fc9a29eb62aafd3ae8d62f5d02a25d099324a359d812d93d3cab43d0a961389",
       "mode": "0644"
     },
     "skills/flow-guide/references/execution-bundle/skills/flow-guide/references/invocation-classification.md": {
@@ -748,13 +556,13 @@
     "skills/harness-setup/scripts/lib/install-assets-writer.sh": {
       "skill_id": "harness-setup",
       "source": "scripts/setup/install-assets.sh",
-      "sha256": "sha256:8287f75ab620db413a63255d47acf487453b89e291f66fd2e276923333295edf",
+      "sha256": "sha256:f84e50bdef8011651a3b17aef4e8f55287a8b8136c4b45ef691b07b29ebec5e1",
       "mode": "0755"
     },
     "skills/harness-setup/scripts/lib/install-codex-skills.sh": {
       "skill_id": "harness-setup",
       "source": "scripts/hooks/install-codex-skills.sh",
-      "sha256": "sha256:c27d9ab049b574eea186668788106c777fb2bcb7657c09858fd879455f4e7001",
+      "sha256": "sha256:bd35bb46ff1348202b76f7561e2ed69bd3bbe962ec9d239375d757cb0562ca17",
       "mode": "0755"
     },
     "skills/harness-setup/templates/settings.local.json.example": {

@@ -57,22 +57,6 @@
         }
       ]
     },
-    "harness-govern": {
-      "files": [
-        {
-          "source": "rules/execution-policy.md",
-          "destination": "rules/execution-policy.md"
-        },
-        {
-          "source": "rules/execution-policy-kernel.md",
-          "destination": "rules/execution-policy-kernel.md"
-        },
-        {
-          "source": "docs/subagent-prompt-template.md",
-          "destination": "docs/subagent-prompt-template.md"
-        }
-      ]
-    },
     "code-trace": {
       "files": [
         {
@@ -2046,24 +2030,6 @@
       ]
     },
     {
-      "id": "opsx-apply-goal",
-      "name": "dhpk-opsx-apply-goal",
-      "path": "skills/dhpk-opsx-apply-goal",
-      "capability_id": "dhpk.skill.opsx-apply-goal",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "opsx-apply-goal"
-      ]
-    },
-    {
       "id": "opsx-load-context",
       "name": "dhpk-opsx-load-context",
       "path": "skills/dhpk-opsx-load-context",
@@ -2200,42 +2166,6 @@
       ]
     },
     {
-      "id": "project-setup",
-      "name": "dhpk-project-setup",
-      "path": "skills/dhpk-project-setup",
-      "capability_id": "dhpk.skill.project-setup",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "project-setup"
-      ]
-    },
-    {
-      "id": "prompt-optimize",
-      "name": "dhpk-prompt-optimize",
-      "path": "skills/dhpk-prompt-optimize",
-      "capability_id": "dhpk.skill.prompt-optimize",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "prompt-optimize"
-      ]
-    },
-    {
       "id": "release-creator",
       "name": "release-creator",
       "path": "skills/release-creator",
@@ -2313,187 +2243,6 @@
       "legacy_names": [
         "repo-intake"
       ]
-    },
-    {
-      "id": "session-usage-audit",
-      "name": "dhpk-session-usage-audit",
-      "path": "skills/dhpk-session-usage-audit",
-      "capability_id": "dhpk.skill.session-usage-audit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "session-usage-audit"
-      ],
-      "invocation_class": "explicit-only",
-      "usage": {
-        "display_name": "Session Usage Audit",
-        "summary": "Audit local evidence with optional nullable usage coverage",
-        "syntax": "$dhpk-session-usage-audit [--date YYYY-MM-DD | --from YYYY-MM-DD --to YYYY-MM-DD] [--agent NAME] [--format text|json] [--create-issues] [--usage-telemetry]",
-        "input_kind": "none",
-        "invocation_class": "explicit-only",
-        "effect_authority": "external-write",
-        "inputs": [],
-        "actions": [],
-        "options": [
-          {
-            "id": "date",
-            "syntax": "--date",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select one local day"
-          },
-          {
-            "id": "from",
-            "syntax": "--from",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select the first day; requires --to"
-          },
-          {
-            "id": "to",
-            "syntax": "--to",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select the last day; requires --from"
-          },
-          {
-            "id": "agent",
-            "syntax": "--agent",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Narrow agent selection; repeatable"
-          },
-          {
-            "id": "format",
-            "syntax": "--format",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Choose legacy report rendering",
-            "enum_values": [
-              "text",
-              "json"
-            ]
-          },
-          {
-            "id": "create-issues",
-            "syntax": "--create-issues",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Prepare issue creation under existing verification and digest confirmation gates"
-          },
-          {
-            "id": "usage-telemetry",
-            "syntax": "--usage-telemetry",
-            "value_kind": "boolean",
-            "required": false,
-            "summary": "Write a nullable unsupported-coverage sidecar without changing the legacy report"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$dhpk-session-usage-audit --date 2026-08-06 --usage-telemetry",
-            "summary": "Write local legacy audit artifacts and optional nullable usage coverage"
-          }
-        ]
-      }
-    },
-    {
-      "id": "skill-scope",
-      "name": "skill-scope",
-      "name_style": "portable-family",
-      "path": "skills/skill-scope",
-      "capability_id": "dhpk.skill.skill-scope",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Skill Scope",
-        "summary": "Route skill governance to one focused mode with evidence",
-        "syntax": "$skill-scope <health|judge|stocktake|scout>",
-        "input_kind": "action-first",
-        "inputs": [
-          {
-            "id": "mode",
-            "syntax": "<health|judge|stocktake|scout>",
-            "value_kind": "enum",
-            "required": true,
-            "summary": "Choose one skill governance mode",
-            "enum_values": [
-              "health",
-              "judge",
-              "stocktake",
-              "scout"
-            ]
-          },
-          {
-            "id": "target",
-            "syntax": "<target>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select the skill or capability to inspect",
-            "applies_to": [
-              "health",
-              "judge",
-              "scout"
-            ]
-          }
-        ],
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "delegate",
-        "actions": [
-          {
-            "id": "health",
-            "summary": "Check one skill or package structure",
-            "syntax": "$skill-scope health <skill>",
-            "input_kind": "identifier",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "judge",
-            "summary": "Score one skill or package quality",
-            "syntax": "$skill-scope judge <skill>",
-            "input_kind": "identifier",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "stocktake",
-            "summary": "Audit installed consumer skills and commands",
-            "syntax": "$skill-scope stocktake",
-            "input_kind": "none",
-            "effect_authority": "delegate"
-          },
-          {
-            "id": "scout",
-            "summary": "Search for an existing skill or capability",
-            "syntax": "$skill-scope scout <capability>",
-            "input_kind": "free-text",
-            "effect_authority": "delegate"
-          }
-        ],
-        "options": [],
-        "examples": [
-          {
-            "prompt": "$skill-scope health flow-guide",
-            "summary": "Run a focused health check for one skill"
-          }
-        ]
-      }
     },
     {
       "id": "software-architecture",
@@ -2590,138 +2339,6 @@
         ]
       },
       "name_style": "portable-skill"
-    },
-    {
-      "id": "harness-govern",
-      "name": "harness-govern",
-      "name_style": "portable-family",
-      "path": "skills/harness-govern",
-      "capability_id": "dhpk.skill.harness-govern",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Harness Govern",
-        "summary": "Govern harness health, budget, filling, revision, and sync",
-        "syntax": "$harness-govern <health|budget|fill|revise|sync> [options]",
-        "input_kind": "action-first",
-        "inputs": [
-          {
-            "id": "mode",
-            "syntax": "<health|budget|fill|revise|sync>",
-            "value_kind": "enum",
-            "required": true,
-            "summary": "Choose one harness governance mode",
-            "enum_values": [
-              "health",
-              "budget",
-              "fill",
-              "revise",
-              "sync"
-            ]
-          }
-        ],
-        "invocation_class": "explicit-only",
-        "effect_authority": "external-write",
-        "actions": [
-          {
-            "id": "health",
-            "summary": "Check harness structure and optionally fix safe issues",
-            "syntax": "$harness-govern health [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "budget",
-            "summary": "Measure harness context cost and ranked savings",
-            "syntax": "$harness-govern budget [options]",
-            "input_kind": "none",
-            "effect_authority": "read-only"
-          },
-          {
-            "id": "fill",
-            "summary": "Preview or apply missing harness layers",
-            "syntax": "$harness-govern fill [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "revise",
-            "summary": "Review and revise an active harness",
-            "syntax": "$harness-govern revise [options]",
-            "input_kind": "none",
-            "effect_authority": "workspace-write"
-          },
-          {
-            "id": "sync",
-            "summary": "Plan or apply cross-platform harness synchronization",
-            "syntax": "$harness-govern sync [options]",
-            "input_kind": "none",
-            "effect_authority": "external-write"
-          }
-        ],
-        "options": [
-          {
-            "id": "dir",
-            "syntax": "--dir=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Select the harness directory"
-          },
-          {
-            "id": "dry-run",
-            "syntax": "--dry-run",
-            "value_kind": "boolean",
-            "required": false,
-            "default": false,
-            "summary": "Preview changes without writing",
-            "applies_to": [
-              "health",
-              "budget",
-              "fill",
-              "revise",
-              "sync"
-            ]
-          },
-          {
-            "id": "fix-safe",
-            "syntax": "--fix-safe",
-            "value_kind": "boolean",
-            "required": false,
-            "default": false,
-            "summary": "Apply only approved safe health fixes",
-            "applies_to": [
-              "health"
-            ]
-          },
-          {
-            "id": "fix",
-            "syntax": "--fix",
-            "value_kind": "boolean",
-            "required": false,
-            "default": false,
-            "summary": "Apply the selected health fixes",
-            "applies_to": [
-              "health"
-            ]
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$harness-govern health --dry-run",
-            "summary": "Inspect harness health without changing files"
-          }
-        ]
-      }
     },
     {
       "id": "create-pr",
@@ -3509,89 +3126,6 @@
       }
     },
     {
-      "id": "harness-audit",
-      "name": "harness-audit",
-      "name_style": "portable-skill",
-      "path": "skills/harness-audit",
-      "capability_id": "dhpk.skill.harness-audit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "invocation_class": "implicit-eligible",
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "usage": {
-        "display_name": "Harness Audit",
-        "summary": "Audit repository harness health with a deterministic scorecard",
-        "syntax": "$harness-audit [<scope>] [--format=<format>] [--root=<path>]",
-        "input_kind": "action-first",
-        "invocation_class": "implicit-eligible",
-        "effect_authority": "read-only",
-        "inputs": [
-          {
-            "id": "scope",
-            "syntax": "<scope>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Harness area to inspect",
-            "default": "repo",
-            "enum_values": [
-              "repo",
-              "hooks",
-              "skills",
-              "commands",
-              "agents"
-            ],
-            "applies_to": [
-              "audit"
-            ]
-          }
-        ],
-        "actions": [
-          {
-            "id": "audit",
-            "summary": "Run the deterministic harness audit",
-            "syntax": "$harness-audit [<scope>]",
-            "input_kind": "action-first",
-            "effect_authority": "read-only"
-          }
-        ],
-        "options": [
-          {
-            "id": "format",
-            "syntax": "--format=<format>",
-            "value_kind": "enum",
-            "required": false,
-            "summary": "Output format",
-            "default": "text",
-            "enum_values": [
-              "text",
-              "json"
-            ]
-          },
-          {
-            "id": "root",
-            "syntax": "--root=<path>",
-            "value_kind": "string",
-            "required": false,
-            "summary": "Consumer repository root"
-          }
-        ],
-        "examples": [
-          {
-            "prompt": "$harness-audit skills --format=json",
-            "summary": "Use harness audit with its declared interface"
-          }
-        ]
-      }
-    },
-    {
       "id": "review-pending",
       "name": "review-pending",
       "name_style": "portable-skill",
@@ -4115,15 +3649,12 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "harness-audit",
-      "harness-govern",
       "issue-analyze",
       "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
       "matrix-cell-onboard",
       "merge-prep",
-      "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
@@ -4131,15 +3662,11 @@
       "precommit",
       "project-audit",
       "project-brief",
-      "project-setup",
-      "prompt-optimize",
       "proposal-analyze",
       "release-creator",
       "repo-intake",
       "repo-verify",
       "review-pending",
-      "session-usage-audit",
-      "skill-scope",
       "software-architecture",
       "tdd",
       "update-codemaps",
@@ -4163,8 +3690,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "harness-audit",
-      "harness-govern",
       "harness-setup",
       "issue-analyze",
       "js-static-check-strategy",
@@ -4172,7 +3697,6 @@
       "laravel-testbench-matrix",
       "matrix-cell-onboard",
       "merge-prep",
-      "opsx-apply-goal",
       "opsx-apply-resume",
       "opsx-load-context",
       "opsx-post-obs",
@@ -4181,15 +3705,11 @@
       "precommit",
       "project-audit",
       "project-brief",
-      "project-setup",
-      "prompt-optimize",
       "proposal-analyze",
       "release-creator",
       "repo-intake",
       "repo-verify",
       "review-pending",
-      "session-usage-audit",
-      "skill-scope",
       "software-architecture",
       "tdd",
       "ui-ux-verify",
@@ -4214,15 +3734,12 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "harness-audit",
-      "harness-govern",
       "issue-analyze",
       "js-static-check-strategy",
       "laravel-package-author",
       "laravel-testbench-matrix",
       "matrix-cell-onboard",
       "merge-prep",
-      "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
@@ -4230,15 +3747,11 @@
       "precommit",
       "project-audit",
       "project-brief",
-      "project-setup",
-      "prompt-optimize",
       "proposal-analyze",
       "release-creator",
       "repo-intake",
       "repo-verify",
       "review-pending",
-      "session-usage-audit",
-      "skill-scope",
       "software-architecture",
       "tdd",
       "update-codemaps",
@@ -4262,8 +3775,6 @@
       "flow-guide",
       "git-smart-commit",
       "git-worktree",
-      "harness-audit",
-      "harness-govern",
       "harness-setup",
       "issue-analyze",
       "js-static-check-strategy",
@@ -4271,7 +3782,6 @@
       "laravel-testbench-matrix",
       "matrix-cell-onboard",
       "merge-prep",
-      "opsx-apply-goal",
       "opsx-apply-resume",
       "opsx-load-context",
       "opsx-post-obs",
@@ -4280,15 +3790,11 @@
       "precommit",
       "project-audit",
       "project-brief",
-      "project-setup",
-      "prompt-optimize",
       "proposal-analyze",
       "release-creator",
       "repo-intake",
       "repo-verify",
       "review-pending",
-      "session-usage-audit",
-      "skill-scope",
       "software-architecture",
       "tdd",
       "ui-ux-verify",
@@ -5762,6 +5268,145 @@
       "rollback": {
         "release": "0.64.4"
       }
+    },
+    {
+      "id": "opsx-apply-goal",
+      "name": "dhpk-opsx-apply-goal",
+      "canonicalPath": "skills/dhpk-opsx-apply-goal",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "project-setup",
+      "name": "dhpk-project-setup",
+      "canonicalPath": "skills/dhpk-project-setup",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "prompt-optimize",
+      "name": "dhpk-prompt-optimize",
+      "canonicalPath": "skills/dhpk-prompt-optimize",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "session-usage-audit",
+      "name": "dhpk-session-usage-audit",
+      "canonicalPath": "skills/dhpk-session-usage-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "skill-scope",
+      "name": "skill-scope",
+      "canonicalPath": "skills/skill-scope",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "harness-govern",
+      "name": "harness-govern",
+      "canonicalPath": "skills/harness-govern",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
+    },
+    {
+      "id": "harness-audit",
+      "name": "harness-audit",
+      "canonicalPath": "skills/harness-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.65.0",
+      "reasonCode": "optional-tool-retirement",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.64.4"
+      }
     }
   ],
   "external_skill_packages": [],
@@ -5875,15 +5520,12 @@
           "flow-guide",
           "git-smart-commit",
           "git-worktree",
-          "harness-audit",
-          "harness-govern",
           "issue-analyze",
           "js-static-check-strategy",
           "laravel-package-author",
           "laravel-testbench-matrix",
           "matrix-cell-onboard",
           "merge-prep",
-          "opsx-apply-goal",
           "opsx-load-context",
           "opsx-post-obs",
           "polyfill-version-matrix-audit",
@@ -5891,15 +5533,11 @@
           "precommit",
           "project-audit",
           "project-brief",
-          "project-setup",
-          "prompt-optimize",
           "proposal-analyze",
           "release-creator",
           "repo-intake",
           "repo-verify",
           "review-pending",
-          "session-usage-audit",
-          "skill-scope",
           "software-architecture",
           "tdd",
           "update-codemaps",

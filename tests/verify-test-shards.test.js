@@ -826,13 +826,13 @@ test('public CI plan selects existing owner suites and enables macOS only for in
     fs.mkdirSync(path.join(root, 'scripts', 'hooks'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
     fs.writeFileSync(path.join(root, 'scripts', 'hooks', 'sample.sh'), 'old\n');
-    for (const owner of ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-audit-integrity-fixtures.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'session-usage-audit.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']) {
+    for (const owner of ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']) {
       fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
     }
   }, (root) => fs.writeFileSync(path.join(root, 'scripts', 'hooks', 'sample.sh'), 'new\n'));
   try {
     assert.strictEqual(fixture.plan.mode, 'selected');
-    assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-audit-integrity-fixtures.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'session-usage-audit.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']);
+    assert.deepStrictEqual(fixture.plan.testFiles, ['hooks-wiring.test.js', 'postcompact-restore.test.js', 'pre-agent-warmstart.test.js', 'pre-bash-guard.test.js', 'pre-edit-guard.test.js', 'pre-route.test.js', 'pretool-branch-safety-dedup.test.js', 'session-end.test.js', 'session-install-health-ask.test.js', 'session-install-health-version.test.js', 'session-start.test.js', 'stop-advisory-dispatch-graduation.test.js', 'subagent-stop-quality.test.js', 'subagent-stop-verify.test.js', 'userpromptsubmit-skill-hint.test.js', 'validate-test-hooks.test.js']);
     assert.strictEqual(fixture.plan.shardCount, 1);
     assert.ok(fixture.plan.skippedJobs.includes('macos-installer'));
     const runner = spawnSync(process.execPath, [path.join(__dirname, 'run-all.js'), 'tests/utils.test.js'], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
@@ -847,7 +847,7 @@ test('known resource families select their existing owner suites', () => {
     fs.mkdirSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts'), { recursive: true });
     fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh'), 'old\n');
-    for (const owner of ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'session-usage-audit.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js']) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
+    for (const owner of ['modules.test.js', 'run-agy.test.js', 'run-cli-transport.test.js', 'skill-resource-sync-security.test.js', 'skill-runtime-path-contract.test.js']) fs.writeFileSync(path.join(root, 'tests', owner), '// owner\n');
   }, (root) => fs.writeFileSync(path.join(root, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh'), 'new\n'));
   try { assert.strictEqual(fixture.plan.mode, 'selected'); assert.ok(fixture.plan.testFiles.includes('run-agy.test.js')); }
   finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }

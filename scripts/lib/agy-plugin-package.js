@@ -48,9 +48,9 @@ const SECRET_PATTERNS = [
 ];
 const AGY_SKILL_REFERENCE_REWRITES = Object.freeze([
   Object.freeze({
-    source: '@skills/harness-govern/references/harness-directory-contract.md',
-    target: 'harness-govern',
-    targetSkillId: 'harness-govern',
+    source: '@skills/harness-setup/references/harness-directory-contract.md',
+    target: 'harness-setup',
+    targetSkillId: 'harness-setup',
   }),
 ]);
 

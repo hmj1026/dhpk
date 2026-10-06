@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.command-skill-disposition.v3",
-  "source_revision": "sha256:638ee13d0c6a4be3adfbcd63f006de47a22889eb406cbc806d8598ede06f156d",
+  "source_revision": "sha256:9d066a08acac94dbd84c25b45c539df711594bcba1a573e6ad1d0a114e4e4aa6",
   "commands": [
     {
       "id": "create-pr",
@@ -177,50 +177,6 @@
         "commands/git-worktree.md"
       ],
       "resource": "skills/git-worktree/SKILL.md"
-    },
-    {
-      "id": "harness-audit",
-      "path": "commands/harness-audit.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:harness-audit",
-      "argument_contract": "[scope] [--format text|json] [--root <path>]",
-      "authority": "read-only",
-      "skill_owner": "harness-audit",
-      "disposition": "thin-front-door",
-      "reason": "Canonical $harness-audit Skill owns behavior; this Claude command preserves its public grammar and evidence boundary.",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/harness-audit.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/harness-audit.md"
-      ],
-      "resource": "skills/harness-audit/SKILL.md"
-    },
-    {
-      "id": "harness-govern",
-      "path": "commands/harness-govern.md",
-      "host_surface": "claude-command",
-      "public_name": "/dhpk:harness-govern",
-      "argument_contract": "<health|budget|fill|revise|sync> [options]",
-      "authority": "external-write",
-      "skill_owner": "harness-govern",
-      "disposition": "thin-front-door",
-      "evidence": {
-        "structural": "PASS",
-        "host_smoke": "NOT_RUN",
-        "consumer": "NOT_RUN",
-        "source": "commands/harness-govern.md"
-      },
-      "outcome": "retain",
-      "callers": [
-        "commands/harness-govern.md"
-      ],
-      "resource": "skills/harness-govern/SKILL.md",
-      "reason": "Canonical $harness-govern Skill owns behavior; this Claude command preserves its public grammar and evidence boundary."
     },
     {
       "id": "matrix-cell-onboard",
@@ -917,7 +873,43 @@
         "host_smoke": "NOT_RUN",
         "consumer": "NOT_RUN"
       }
+    },
+    {
+      "id": "harness-audit",
+      "path": "commands/harness-audit.md",
+      "public_name": "/dhpk:harness-audit",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "model-default"
+      },
+      "reason": "Optional governance tool retired under issue #888; no replacement public tool is promised.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
+    },
+    {
+      "id": "harness-govern",
+      "path": "commands/harness-govern.md",
+      "public_name": "/dhpk:harness-govern",
+      "outcome": "remove",
+      "disposition": "removed",
+      "successor": {
+        "kind": "model-default"
+      },
+      "reason": "Optional governance tool retired under issue #888; no replacement public tool is promised.",
+      "callers": [],
+      "evidence": {
+        "source": "https://github.com/hmj1026/dhpk/issues/888",
+        "structural": "NOT_RUN",
+        "host_smoke": "NOT_RUN",
+        "consumer": "NOT_RUN"
+      }
     }
   ],
-  "removed_source_revision": "sha256:8878e702b46fe0d35d93c03d00f8a8824a2a0dd49f53f9308b733b13b0db0a4f"
+  "removed_source_revision": "sha256:1625b32e3cff65d8c55563978d30d0fcd3efc84afcddf3168e30eec75f6e91bb"
 }

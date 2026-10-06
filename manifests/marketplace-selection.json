@@ -308,13 +308,6 @@
       "selection": "common"
     },
     {
-      "id": "opsx-apply-goal",
-      "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "opsx-apply-goal",
-      "selection": "host-only"
-    },
-    {
       "id": "opsx-load-context",
       "authority": "read-only",
       "kind": "entry",
@@ -343,20 +336,6 @@
       "selection": "common"
     },
     {
-      "id": "project-setup",
-      "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "project-setup",
-      "selection": "host-only"
-    },
-    {
-      "id": "prompt-optimize",
-      "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "prompt-optimize",
-      "selection": "host-only"
-    },
-    {
       "id": "release-creator",
       "authority": "external-write",
       "kind": "entry",
@@ -371,20 +350,6 @@
       "selection": "common"
     },
     {
-      "id": "session-usage-audit",
-      "authority": "guidance-only",
-      "kind": "entry",
-      "owner": "session-usage-audit",
-      "selection": "host-only"
-    },
-    {
-      "id": "skill-scope",
-      "authority": "delegate",
-      "kind": "entry",
-      "owner": "skill-scope",
-      "selection": "host-only"
-    },
-    {
       "id": "software-architecture",
       "authority": "guidance-only",
       "kind": "reference",
@@ -397,13 +362,6 @@
       "kind": "entry",
       "owner": "tdd",
       "selection": "common"
-    },
-    {
-      "id": "harness-govern",
-      "authority": "external-write",
-      "kind": "entry",
-      "owner": "harness-govern",
-      "selection": "host-only"
     },
     {
       "id": "create-pr",
@@ -495,13 +453,6 @@
       "kind": "branch",
       "owner": "flow-drive",
       "selection": "common"
-    },
-    {
-      "id": "harness-audit",
-      "authority": "read-only",
-      "kind": "entry",
-      "owner": "harness-audit",
-      "selection": "host-only"
     },
     {
       "id": "review-pending",

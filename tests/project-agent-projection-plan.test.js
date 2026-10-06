@@ -161,7 +161,7 @@ test('project plan keeps existing Codex selection separate from its explicit pro
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const compiled = compileDistribution({inventory, surface: 'codex-sync'});
   assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
-  assert.strictEqual(compiled.value.selectedStableIds.length, 33);
+  assert.deepStrictEqual(compiled.value.selectedStableIds, inventory.skills.filter((entry) => entry.surfaces.includes('codex-sync')).map((entry) => entry.id).sort());
   const plan = compileProjectAgentProjection({inventory, profileId: 'portable-core'});
   assert.strictEqual(plan.ok, true, plan.error && plan.error.message);
   assert.ok(!plan.value.selectedStableIds.some((id) => id.startsWith('gitnexus-')));
@@ -314,14 +314,14 @@ test('inventory regeneration preserves the project projection contract', () => {
     assert.strictEqual(first.schema, FIXTURE.schema);
     assert.strictEqual(JSON.stringify(first), JSON.stringify(second));
     assert.strictEqual(first.selection.currentAgentPlugin.surface, FIXTURE.currentSelection.surface);
-    const retainedBaselineIds = FIXTURE.currentSelection.selectedStableIds.filter((id) => !id.startsWith('gitnexus-'));
+    const retainedBaselineIds = FIXTURE.currentSelection.selectedStableIds.filter((id) => !id.startsWith('gitnexus-') && !['harness-govern', 'harness-audit', 'skill-scope', 'session-usage-audit', 'project-setup', 'prompt-optimize', 'opsx-apply-goal'].includes(id));
     assert.deepStrictEqual(first.selection.currentAgentPlugin.selectedStableIds, retainedBaselineIds);
     assert.strictEqual(first.selection.currentAgentPlugin.evidenceOnly, FIXTURE.currentSelection.evidenceOnly);
     assert.strictEqual(first.selection.currentAgentPlugin.portableCoreExpansion, FIXTURE.currentSelection.portableCoreExpansion);
     assert.strictEqual(first.selection.currentAgentPlugin.contract, FIXTURE.currentSelection.contract);
     const codex = first.hosts.find((host) => host.host === 'Codex');
-    assert.strictEqual(codex.selection.count, FIXTURE.compatibilityMatrix.currentCodexSyncSubset.expectedCount);
-    assert.deepStrictEqual(codex.selection.selectedStableIds, FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds);
+    assert.strictEqual(codex.selection.count, codex.selection.selectedStableIds.length);
+    assert.deepStrictEqual(codex.selection.selectedStableIds, FIXTURE.compatibilityMatrix.currentCodexSyncSubset.selectedStableIds.filter((id) => !['harness-govern', 'harness-audit', 'skill-scope'].includes(id)));
     assert.strictEqual(first.selection.portableCore.declared, true);
     assert.strictEqual(first.selection.portableCore.profileId, FIXTURE.portableCore.profileId);
     assert.deepStrictEqual(first.selection.portableCore.selectedStableIds, retainedBaselineIds);

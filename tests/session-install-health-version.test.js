@@ -327,10 +327,10 @@ test('a project installation for another project is ignored without a user fallb
   }
 });
 
-test('the stale message points at harness-govern health rather than duplicating its audit', () => {
+test('the stale message points at harness-setup --show rather than duplicating its audit', () => {
   withPlugins({ installed: '0.28.17', available: '0.29.0' }, (dir) => {
     const msg = message(dir);
-    assert.ok(/harness-govern\s+health/.test(msg), `harness-govern health pointer missing: ${msg}`);
+    assert.ok(/harness-setup\s+--show/.test(msg), `harness-setup --show pointer missing: ${msg}`);
   });
 });
 

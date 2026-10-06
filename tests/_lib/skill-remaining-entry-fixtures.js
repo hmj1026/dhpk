@@ -21,10 +21,7 @@ const SOURCES = Object.freeze({
   'code-trace': 'code-trace',
   'deploy-list': 'dhpk-deploy-list',
   'feature-verify': 'dhpk-feature-verify',
-  'session-usage-audit': 'dhpk-session-usage-audit',
-  'harness-govern': 'harness-govern',
   'change-verdict': 'change-verdict',
-  'skill-scope': 'skill-scope',
   'flow-guide': 'flow-guide',
 });
 
@@ -86,10 +83,6 @@ function writeFile(filePath, content, mode = 0o644) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content, { mode });
   fs.chmodSync(filePath, mode);
-}
-
-function jsonFile(filePath, value, mode = 0o644) {
-  writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, mode);
 }
 
 function fixture(definition) {
@@ -194,100 +187,6 @@ function prepareReviewRepository(context) {
   return { promptLog: path.join(context.projectDir, 'codex-prompt.txt') };
 }
 
-function prepareHarnessProject(context) {
-  initGit(context);
-  writeFile(path.join(context.projectDir, 'CLAUDE.md'), '# Fixture harness\n');
-  writeFile(path.join(context.projectDir, '.claude', 'rules', 'fixture.md'), '## Fixture rule\n');
-  writeFile(path.join(context.projectDir, '.claude', 'memory.md'), 'fixture memory\n');
-  writeFile(path.join(context.projectDir, '.claude', 'hooks', 'fixture.sh'), '#!/bin/sh\nexit 0\n', 0o755);
-  writeFile(path.join(context.projectDir, '.claude', 'agents', 'fixture.md'), '# agent\n');
-  fs.mkdirSync(path.join(context.projectDir, '.claude', 'skills', 'fixture'), { recursive: true });
-  fs.mkdirSync(path.join(context.projectDir, '.claude', 'commands'), { recursive: true });
-  fs.mkdirSync(path.join(context.projectDir, '.claude', 'scripts'), { recursive: true });
-  jsonFile(path.join(context.projectDir, '.claude', 'settings.json'), {
-    permissions: { allow: ['Read'], deny: ['Write'] },
-    env: { CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'fixture' },
-    hooks: {},
-  });
-  git(context, ['add', '.']);
-  git(context, ['commit', '-qm', 'fixture harness']);
-}
-
-function prepareAuditHome(context, options = {}) {
-  const home = context.homeDir;
-  const session = path.join(home, '.claude', 'projects', 'fixture', 'session.jsonl');
-  fs.mkdirSync(path.dirname(session), { recursive: true });
-  const record = {
-    type: 'hook_failure',
-    timestamp: '2026-08-06T01:00:00Z',
-    sessionId: 'fixture-session',
-    agent: 'code-reviewer',
-    message: { content: [{ type: 'text', text: 'dhpk hook timed out after 30s Authorization: Bearer ghp_fixture_secret' }] },
-  };
-  writeFile(session, `${JSON.stringify(record)}\n`);
-  jsonFile(path.join(home, '.claude', 'plugins', 'installed_plugins.json'), {
-    version: 2,
-    plugins: {
-      'dhpk@dhpk': [{ installPath: path.join(home, '.claude', 'plugins', 'cache', 'dhpk', '0.1.0') }],
-    },
-  });
-  writeFile(path.join(home, '.claude', 'plugins', 'cache', 'dhpk', '0.1.0', 'agents', 'fixture-agent.md'), '# agent\n');
-  writeFile(path.join(home, '.codex', '.dhpk-installed.json'), JSON.stringify({ version: '0.1.0', mode: 'fixture' }));
-  if (options.pluginRoot) {
-    jsonFile(path.join(options.pluginRoot, '.claude-plugin', 'plugin.json'), {
-      name: 'dhpk', version: '0.99.0',
-    });
-  }
-  return { session };
-}
-
-function prepareAmbientParent(state) {
-  if (!state.ambientRoot) return;
-  jsonFile(path.join(state.ambientRoot, '.claude-plugin', 'plugin.json'), {
-    name: 'ambient-dhpk', version: '9.9.9',
-  });
-  writeFile(path.join(state.ambientRoot, 'agents', 'ambient.md'), '# ambient role\n');
-}
-
-function prepareSkillScopeTree(context) {
-  const projectSkills = path.join(context.projectDir, '.claude', 'skills');
-  const globalSkills = path.join(context.homeDir, '.claude', 'skills');
-  writeFile(path.join(projectSkills, 'project-skill', 'SKILL.md'), '---\nname: project-skill\ndescription: project fixture\n---\n# Project\n');
-  writeFile(path.join(globalSkills, 'global-skill', 'SKILL.md'), '---\nname: global-skill\ndescription: global fixture\n---\n# Global\n');
-  return { projectSkills, globalSkills };
-}
-
-function prepareSkillLintProject(context) {
-  writeFile(path.join(context.projectDir, 'skills', 'probe', 'SKILL.md'), [
-    '---',
-    'name: probe',
-    'description: "Use when: probing Skill routing. Not for: unrelated work. Output: a health report."',
-    '---',
-    '',
-    '# Probe Skill',
-    '',
-    '## When NOT to Use',
-    '',
-    '- For unrelated work.',
-    '',
-    '## Output',
-    '',
-    '- A health report.',
-    '',
-    '## Verification',
-    '',
-    '- Run the focused health check.',
-    '',
-  ].join('\n'));
-  fs.mkdirSync(path.join(context.projectDir, 'agents'), { recursive: true });
-  fs.mkdirSync(path.join(context.projectDir, 'commands'), { recursive: true });
-  return {
-    skillsDir: path.join(context.projectDir, 'skills'),
-    agentsDir: path.join(context.projectDir, 'agents'),
-    commandsDir: path.join(context.projectDir, 'commands'),
-  };
-}
-
 function prepareFlowFixture(context) {
   return { query: 'How does this code flow work?' };
 }
@@ -339,16 +238,6 @@ function codexStub() {
       "process.exitCode=0;",
     ].join(''),
   };
-}
-
-function auditArgs(context, state, extra = []) {
-  return [
-    '--home', context.homeDir,
-    '--date', '2026-08-06',
-    '--format', 'json',
-    '--output', path.join(context.homeDir, 'audit-output'),
-    ...extra,
-  ];
 }
 
 let registered = false;
@@ -470,60 +359,6 @@ function registerRemainingFixtures() {
       verify(_result, context) { assert.strictEqual(fs.readFileSync(path.join(context.projectDir, 'codes'), 'utf8').trim(), '200'); },
     },
     {
-      id: 'remaining-session-usage-audit-report', skill: 'session-usage-audit', entry: 'scripts/session-usage-audit.js',
-      argsFactory(context) {
-        const pluginRoot = path.join(context.homeDir, 'fixture-plugin');
-        return auditArgs(context, {}, ['--plugin-root', pluginRoot]);
-      },
-      env: { DHPK_SESSION_USAGE_AUDIT_TEST_MODE: '1' },
-      prepare(context) { return prepareAuditHome(context, { pluginRoot: path.join(context.homeDir, 'fixture-plugin') }); },
-      expected: { status: 0, output: ['dhpk.session-usage-audit.report.v1', 'hook timed out'] },
-      verify(_result, context) {
-        const report = JSON.parse(fs.readFileSync(path.join(context.homeDir, 'audit-output', 'report.json'), 'utf8'));
-        assert.ok(report.records.length >= 1);
-        assert.ok(!JSON.stringify(report).includes('ghp_fixture_secret'));
-        assert.ok(fs.existsSync(path.join(context.homeDir, 'audit-output', 'report.md')));
-      },
-    },
-    {
-      id: 'remaining-session-usage-audit-issue-approval', skill: 'session-usage-audit', entry: 'scripts/session-usage-audit.js',
-      argsFactory(context) { return auditArgs(context, {}, ['--create-issues']); },
-      env: { DHPK_SESSION_USAGE_AUDIT_TEST_MODE: '1' },
-      prepare: prepareAuditHome,
-      expected: { status: 0, output: ['human-confirmation-required'] },
-    },
-    {
-      id: 'remaining-session-usage-audit-no-ambient-package-root', skill: 'session-usage-audit', entry: 'scripts/session-usage-audit.js',
-      argsFactory(context) { return auditArgs(context); },
-      env: { DHPK_SESSION_USAGE_AUDIT_TEST_MODE: '1' }, ambientParent: true,
-      prepare(context, state) { prepareAuditHome(context); prepareAmbientParent(state); },
-      expected: { status: 0, output: ['dhpk.session-usage-audit.report.v1', 'packageOwnedRoleSet'] },
-      verify(result) {
-        const report = JSON.parse(String(result.stdout));
-        assert.deepStrictEqual(report.coverage.packageOwnedRoleSet.claude, []);
-      },
-    },
-    {
-      id: 'remaining-harness-govern-inventory', skill: 'harness-govern', entry: 'scripts/harness-inventory.sh',
-      args: ['--dir', '.claude', '--json'], stubs: fixtureTools('git', 'jq'), prepare: prepareHarnessProject,
-      expected: { status: 0, output: ['"harness"', '"settings"'] },
-      verify(result) { const report = JSON.parse(String(result.stdout)); assert.strictEqual(report.settings.valid, 'yes'); assert.strictEqual(report.hook_exec.ok, 1); },
-    },
-    {
-      id: 'remaining-harness-govern-scenarios-not-run', skill: 'harness-govern', entry: 'scripts/harness-scenarios.sh',
-      args: ['--dir', '.claude'], prepare: prepareHarnessProject,
-      expected: { status: 3, output: ['NOT_RUN', 'execute-hooks'] },
-    },
-    {
-      id: 'remaining-harness-govern-test-not-run', skill: 'harness-govern', entry: 'scripts/test-harness.sh',
-      args: ['--dir', '.claude'], prepare: prepareHarnessProject,
-      expected: { status: 3, output: ['NOT_RUN', 'execute-hooks'] },
-    },
-    {
-      id: 'remaining-harness-govern-sync-self-test', skill: 'harness-govern', entry: 'scripts/multi_ai_sync.py',
-      args: ['--root', '.', 'self-test', '--format', 'json'], expected: { status: 0, output: ['"failed": 0', '"passed": 4'] },
-    },
-    {
       id: 'remaining-change-verdict-unrelated-squash-warning', skill: 'change-verdict', entry: 'scripts/check-unrelated-changes.sh',
       args: ['42', '--merge-method', 'squash'], stubs: { gh: ghStub() }, env: { GH_BODY: '## Summary\nNo unrelated section here\n' },
       expected: { status: 0, output: ["MISSING '## Unrelated Changes' SECTION", 'src/feature.js'] },
@@ -539,43 +374,6 @@ function registerRemainingFixtures() {
       envFactory(context, state) { return { CODEX_PROMPT_LOG: state.promptLog }; },
       expected: { status: 0, output: ['CODEX CLI REVIEW (Uncommitted Changes)', 'fixture review output'] },
       verify(_result, context, state) { const prompt = fs.readFileSync(state.promptLog, 'utf8'); assert.match(prompt, /Review scope: tests/); assert.match(prompt, /fixture prompt/); assert.match(prompt, /Pinned merge base:/); },
-    },
-    {
-      id: 'remaining-skill-scope-scan', skill: 'skill-scope', entry: 'scripts/scan.sh',
-      args: ['.claude/skills'], prepare: prepareSkillScopeTree,
-      envFactory(context) { return { SKILL_STOCKTAKE_GLOBAL_DIR: path.join(context.homeDir, '.claude', 'skills'), SKILL_STOCKTAKE_PROJECT_DIR: path.join(context.projectDir, '.claude', 'skills'), SKILL_STOCKTAKE_OBSERVATIONS: path.join(context.homeDir, 'observations.jsonl') }; },
-      stubs: fixtureTools('jq'), expected: { status: 0, output: ['"scan_summary"', 'project-skill', 'global-skill'] },
-      verify(result) { const report = JSON.parse(String(result.stdout)); assert.strictEqual(report.skills.length, 2); },
-    },
-    {
-      id: 'remaining-skill-scope-lint', skill: 'skill-scope', entry: 'scripts/skill-lint.js',
-      argsFactory(_context, state) {
-        return ['--skills-dir', state.skillsDir, '--agents-dir', state.agentsDir, '--commands-dir', state.commandsDir, '--json'];
-      },
-      prepare: prepareSkillLintProject,
-      expected: { status: 0, output: ['"overallPass": true', '"skills": 1'] },
-      verify(result) {
-        const report = JSON.parse(String(result.stdout));
-        assert.strictEqual(report.overallPass, true);
-        assert.strictEqual(report.stats.p1, 0);
-      },
-    },
-    {
-      id: 'remaining-skill-scope-quick-diff', skill: 'skill-scope', entry: 'scripts/quick-diff.sh',
-      argsFactory(context) { return ['results.json', '.claude/skills']; }, prepare(context) {
-        const state = prepareSkillScopeTree(context);
-        jsonFile(path.join(context.projectDir, 'results.json'), { evaluated_at: '2020-01-01T00:00:00Z', skills: [{ path: '~/.claude/skills/global-skill/SKILL.md' }] });
-        return state;
-      },
-      envFactory(context) { return { SKILL_STOCKTAKE_GLOBAL_DIR: path.join(context.homeDir, '.claude', 'skills'), SKILL_STOCKTAKE_PROJECT_DIR: path.join(context.projectDir, '.claude', 'skills') }; },
-      stubs: fixtureTools('jq'), expected: { status: 0, output: ['"is_new": false', '"is_new": true'] },
-    },
-    {
-      id: 'remaining-skill-scope-save-results', skill: 'skill-scope', entry: 'scripts/save-results.sh',
-      args: ['results.json'], prepare(context) { jsonFile(path.join(context.projectDir, 'results.json'), { evaluated_at: '2020-01-01T00:00:00Z', skills: { old: { grade: 'A' } }, mode: 'full' }); },
-      inputFactory() { return JSON.stringify({ skills: { new: { grade: 'B' } }, mode: 'quick', batch_progress: { done: 1 } }); },
-      stubs: fixtureTools('jq'), expected: { status: 0, stdout: '' },
-      verify(_result, context) { const saved = JSON.parse(fs.readFileSync(path.join(context.projectDir, 'results.json'), 'utf8')); assert.strictEqual(saved.skills.old.grade, 'A'); assert.strictEqual(saved.skills.new.grade, 'B'); assert.strictEqual(saved.mode, 'quick'); assert.deepStrictEqual(saved.batch_progress, { done: 1 }); assert.match(saved.evaluated_at, /^\d{4}-\d{2}-\d{2}T/); },
     },
     {
       id: 'remaining-flow-guide-pre-route-local-table', skill: 'flow-guide', entry: 'scripts/pre-route.sh',

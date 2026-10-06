@@ -724,9 +724,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fakePlugin,
     'codex',
     'skills',
-    'harness-govern',
+    'code-trace',
     'scripts',
-    'multi_ai_sync_lib',
+    'fixture_runtime_lib',
     '__pycache__',
   );
   const bytecode = path.join(bytecodeDir, 'fixture.pyc');
@@ -734,9 +734,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fakePlugin,
     'codex',
     'skills',
-    'harness-govern',
+    'code-trace',
     'scripts',
-    'multi_ai_sync_lib',
+    'fixture_runtime_lib',
     'standalone-fixture.pyc',
   );
   try {
@@ -744,9 +744,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     copyDistributionInventory(fakePlugin);
-    // cpSync keeps nested directory symlinks (codex/skills/harness-govern ->
-    // skills/harness-govern) even with dereference, so materialize a real copy.
-    const skillDir = path.join(fakePlugin, 'codex', 'skills', 'harness-govern');
+    // cpSync keeps nested directory symlinks (codex/skills/code-trace ->
+    // skills/code-trace) even with dereference, so materialize a real copy.
+    const skillDir = path.join(fakePlugin, 'codex', 'skills', 'code-trace');
     if (fs.lstatSync(skillDir).isSymbolicLink()) {
       const source = fs.realpathSync(skillDir);
       fs.rmSync(skillDir);
@@ -770,9 +770,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
       scratch,
       '.codex',
       'skills',
-      'harness-govern',
+      'code-trace',
       'scripts',
-      'multi_ai_sync_lib',
+      'fixture_runtime_lib',
       '__pycache__',
       'fixture.pyc',
     );
@@ -780,9 +780,9 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
       scratch,
       '.codex',
       'skills',
-      'harness-govern',
+      'code-trace',
       'scripts',
-      'multi_ai_sync_lib',
+      'fixture_runtime_lib',
       'standalone-fixture.pyc',
     );
     assert.ok(!fs.existsSync(copiedBytecode), 'copy mode must omit ignored Python bytecode');
@@ -812,7 +812,7 @@ test('copy update cleans legacy bytecode while preserving receipt ownership', ()
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     const skillName = firstNativeManagedSkill(scratch);
     const skillTarget = path.join(scratch, '.codex', 'skills', skillName);
-    const legacyBytecode = path.join(skillTarget, 'scripts', 'multi_ai_sync_lib', '__pycache__', 'legacy.pyc');
+    const legacyBytecode = path.join(skillTarget, 'scripts', 'fixture_runtime_lib', '__pycache__', 'legacy.pyc');
     fs.mkdirSync(path.dirname(legacyBytecode), { recursive: true });
     fs.writeFileSync(legacyBytecode, 'legacy-bytecode\n');
 
@@ -902,20 +902,22 @@ test('same plugin version but changed source content is not treated as up-to-dat
 
 test('re-running without --update when version and source fingerprint are unchanged is a reported no-op', () => {
   const scratch = projectRoot();
+  const { fakePlugin } = tddRenamePlugin();
   try {
-    const first = runInstaller(scratch, ['--copy', '--force']);
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const manifestPath = path.join(scratch, '.codex', '.dhpk-installed.json');
     const before = fs.readFileSync(manifestPath, 'utf8');
 
     // No --update this time — the idempotency check should short-circuit
     // before touching .codex/ at all.
-    const second = runInstaller(scratch, ['--copy']);
+    const second = runInstaller(scratch, ['--copy'], fakePlugin);
     assert.strictEqual(second.status, 0, `${second.stdout}\n${second.stderr}`);
     assert.match(second.stdout, /already up-to-date/);
     assert.strictEqual(fs.readFileSync(manifestPath, 'utf8'), before, 'manifest must be untouched by a reported no-op run');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
   }
 });
 
@@ -1241,7 +1243,7 @@ test('--migrate renames a receipt-owned unchanged legacy skill destination to it
       'skills',
       legacyName,
       'scripts',
-      'multi_ai_sync_lib',
+      'fixture_runtime_lib',
       '__pycache__',
       'legacy.pyc',
     );

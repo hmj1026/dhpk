@@ -15,15 +15,12 @@ const {
   record,
   remove,
   skillRow,
-  validLintBody,
   validationInput,
   writeFile,
   writeIntegritySkill,
   writeSkill,
 } = require('./_lib/skill-directory-coverage-fixtures');
-const lint = require('../skills/skill-scope/scripts/skill-lint');
 const { callerReferencesHelper } = require('../scripts/lib/skill-directory-coverage');
-const { scriptMentions } = require('../skills/skill-scope/scripts/skill-lint');
 const canonicalInventory = require('../manifests/distribution-inventory.json');
 const canonicalCoverage = require('../manifests/skill-directory-coverage.json').skills;
 const { scanCanonicalSkillDeclarations, scanSkillScripts } = require('./_lib/skill-declared-entry-audit');
@@ -67,12 +64,6 @@ function validateSkills(root, rows, records, fixtures = {}) {
 
 function validateIntegrity(root, skillPath, skillRecord, fixtures = {}) {
   return validateSkill(root, 'integrity-fixture', skillPath, skillRecord, fixtures);
-}
-
-function scriptsFinding(result) {
-  const finding = result.findings.find((entry) => entry.check === 'scripts-contract');
-  assert.ok(finding, 'expected scripts-contract finding');
-  return finding;
 }
 
 test('coverage accepts complete instruction-only Skill coverage', () => {
@@ -622,64 +613,6 @@ test('a required_by caller must be a declared public, API, or helper entry', () 
   }
 });
 
-test('the scripts lint rejects an external symlink used as a documented public script', () => {
-  const root = physicalTemp('dhpk lint integrity public-symlink-');
-  const outside = physicalTemp('dhpk lint integrity outside-public-');
-  try {
-    const external = writeFile(outside, 'external.js', 'module.exports = "outside";\n');
-    const { skillRoot } = writeIntegritySkill(root, {
-      body: validLintBody('scripts/public.js'),
-      symlinks: [{ path: 'scripts/public.js', target: external }],
-    });
-    const finding = scriptsFinding(lint.lintSkill('integrity-fixture', skillRoot, ['integrity-fixture']));
-
-    assert.strictEqual(finding.pass, false);
-    assert.match(finding.message, /symlink|physical|contained|public\.js/i);
-  } finally {
-    remove(root, outside);
-  }
-});
-
-test('the scripts lint rejects an external symlink reached as an imported helper', () => {
-  const root = physicalTemp('dhpk lint integrity helper-symlink-');
-  const outside = physicalTemp('dhpk lint integrity outside-helper-');
-  try {
-    const external = writeFile(outside, 'helper.js', 'module.exports = "outside";\n');
-    const { skillRoot } = writeIntegritySkill(root, {
-      body: validLintBody('scripts/public.js'),
-      scripts: { 'scripts/public.js': "module.exports = require('./helper.js');\n" },
-      symlinks: [{ path: 'scripts/helper.js', target: external }],
-    });
-    const finding = scriptsFinding(lint.lintSkill('integrity-fixture', skillRoot, ['integrity-fixture']));
-
-    assert.strictEqual(finding.pass, false);
-    assert.match(finding.message, /symlink|physical|contained|helper\.js/i);
-  } finally {
-    remove(root, outside);
-  }
-});
-
-test('a bare basename cannot document two nested scripts at once', () => {
-  const root = physicalTemp('dhpk lint integrity duplicate-basename-');
-  try {
-    const { skillRoot } = writeIntegritySkill(root, {
-      body: validLintBody('run.js'),
-      scripts: {
-        'scripts/alpha/run.js': 'module.exports = "alpha";\n',
-        'scripts/beta/run.js': 'module.exports = "beta";\n',
-      },
-    });
-    const finding = scriptsFinding(lint.lintSkill('integrity-fixture', skillRoot, ['integrity-fixture']));
-
-    assert.strictEqual(finding.pass, false);
-    assert.match(finding.message, /ambiguous|basename|alpha\/run\.js|beta\/run\.js/i);
-  } finally {
-    remove(root);
-  }
-});
-
-// ----- Canonical declaration coverage (consolidated from skill-declared-entry-coverage) -----
-
 test('runnable script declarations require public coverage while prose examples stay non-public', () => {
   const root = physicalTemp('skill coverage declared entry-');
   const row = skillRow('declared-entry', 'skills/declared-entry');
@@ -751,7 +684,6 @@ const dependencyCases = [
 for (const [description, callerPath, callerText, helperPath, expected] of dependencyCases) {
   test(`dependency evidence: ${description}`, () => {
     assert.strictEqual(callerReferencesHelper(callerText, callerPath, helperPath), expected, 'coverage validator');
-    assert.strictEqual(scriptMentions(callerPath, callerText, helperPath), expected, 'skill linter');
   });
 }
 

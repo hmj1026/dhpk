@@ -30,6 +30,9 @@ const {
   validateSkillRoutingFamilies,
   resolveSkillRoutingAlias,
   resolveSkillRoutingReference,
+  validateSkillRetirements,
+  resolveSkillIdentity,
+  formatSkillIdentityDiagnostic,
 } = require('../scripts/lib/distribution-inventory');
 const {
   INTERNAL_RUNTIME_SURFACES,
@@ -997,6 +1000,71 @@ test('required runtime surfaces are an ordered subset and exclude cursor-sync', 
     assert.ok(result.errors.length > 0, JSON.stringify(required_runtime_surfaces));
     assert.match(result.errors.join('\n'), /required_runtime_surfaces|duplicate|cursor-sync|canonical|order|include/i);
   }
+});
+
+function retirementRow(id, replacements) {
+  return {
+    id, name: `dhpk-${id}`, canonicalPath: `skills/dhpk-${id}`,
+    priorSurfaces: ['claude-core'], retiredIn: '0.65.0', reasonCode: 'scope-retirement',
+    replacements, rollback: { release: '0.64.4' },
+  };
+}
+
+test('historical retirement replacements may lead through a later retirement without changing ledger evidence', () => {
+  const inventory = {
+    skills: [],
+    retired_skills: [
+      retirementRow('old-audit', [{ kind: 'skill', id: 'audit', mode: 'health' }]),
+      retirementRow('audit', [{ kind: 'model-default' }]),
+    ],
+  };
+  const before = JSON.stringify(inventory);
+  assert.deepStrictEqual(validateSkillRetirements({ inventory }).errors, []);
+  const resolution = resolveSkillIdentity({ inventory, identifier: 'old-audit' });
+  assert.strictEqual(resolution.state, 'retired');
+  assert.deepStrictEqual(resolution.replacements, [{ kind: 'skill', id: 'audit', mode: 'health' }]);
+  const diagnostic = formatSkillIdentityDiagnostic({ inventory, resolution });
+  assert.match(diagnostic, /use model-default guidance/);
+  assert.doesNotMatch(diagnostic, /skill dhpk-audit|\(health\)/);
+  assert.strictEqual(JSON.stringify(inventory), before);
+});
+
+test('retirement diagnostics resolve branches to active skills and external terminal guidance', () => {
+  const inventory = {
+    skills: [{ id: 'retained', name: 'retained' }],
+    retired_skills: [
+      retirementRow('old', [{ kind: 'skill', id: 'middle' }]),
+      retirementRow('middle', [
+        { kind: 'skill', id: 'retained', mode: 'check' },
+        { kind: 'external-skill', id: 'upstream' },
+      ]),
+    ],
+  };
+  assert.deepStrictEqual(validateSkillRetirements({ inventory }).errors, []);
+  const diagnostic = formatSkillIdentityDiagnostic({ inventory, resolution: resolveSkillIdentity({ inventory, identifier: 'old' }) });
+  assert.match(diagnostic, /use skill retained \(check\), external-skill upstream/);
+  assert.doesNotMatch(diagnostic, /skill dhpk-middle/);
+});
+
+test('retirement chains reject dangling successors and cycles before supplying guidance', () => {
+  for (const [rows, expected] of [
+    [[retirementRow('old', [{ kind: 'skill', id: 'missing' }])], /active or retired skill|dangling/i],
+    [[retirementRow('old', [{ kind: 'skill', id: 'old' }])], /cycle/i],
+    [[retirementRow('old', [{ kind: 'skill', id: 'middle' }]), retirementRow('middle', [{ kind: 'skill', id: 'old' }])], /cycle/i],
+  ]) {
+    const inventory = { skills: [], retired_skills: rows };
+    assert.match(validateSkillRetirements({ inventory }).errors.join('\n'), expected);
+    assert.deepStrictEqual(resolveSkillIdentity({ inventory, identifier: 'old' }), { state: 'unknown', identifier: 'old' });
+  }
+});
+
+test('retirement chains reject excessive depth instead of recursing without a bound', () => {
+  const inventory = {
+    skills: [],
+    retired_skills: Array.from({ length: 66 }, (_, index) => retirementRow(`old-${index}`,
+      index === 65 ? [{ kind: 'model-default' }] : [{ kind: 'skill', id: `old-${index + 1}` }])),
+  };
+  assert.match(validateSkillRetirements({ inventory }).errors.join('\n'), /depth|too long|limit/i);
 });
 
 run('distribution-inventory-validate');

@@ -10,4 +10,4 @@ For audit / setup / inventory / generation work, separate fact-collection from i
 
 **Tool output is immutable**: invoke the deterministic tool, forward its stdout verbatim. Never hand-construct or post-process contract output (e.g. `dhpk-deploy-list` schema=v1); if a tool fails, stop and report — do not simulate its output.
 
-Applies to: skill-scope health/judge/stocktake/scout, flow-guide route/rules/next/close, and deterministic inventory or generation work.
+Applies to: flow-guide route/rules/next/close and retained deterministic inventory or generation work. Specialized skill governance scoring and stocktake are retired.

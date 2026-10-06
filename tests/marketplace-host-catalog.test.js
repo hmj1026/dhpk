@@ -24,11 +24,11 @@ const COMMON_IDS = [
   'ui-ux-verify', 'update-docs',
 ];
 const HOSTS = [
-  { name: 'Agent', surface: 'agent-plugin', hostOnlyCount: 2, generate: materializeAgentPluginPackage },
-  { name: 'Codex', surface: 'codex-native', hostOnlyCount: 7, generate: materializeNativePackage },
-  { name: 'Cursor', surface: 'cursor-plugin', hostOnlyCount: 2, generate: materializeCursorPackage },
-  { name: 'AGY', surface: 'agy-plugin', hostOnlyCount: 2, generate: materializeAgyPluginPackage },
-  { name: 'Claude', surface: 'claude-core', hostOnlyCount: 15, generate: (options) => claude.materialize({ root: options.root, out: options.outDir }) },
+  { name: 'Agent', surface: 'agent-plugin', generate: materializeAgentPluginPackage },
+  { name: 'Codex', surface: 'codex-native', generate: materializeNativePackage },
+  { name: 'Cursor', surface: 'cursor-plugin', generate: materializeCursorPackage },
+  { name: 'AGY', surface: 'agy-plugin', generate: materializeAgyPluginPackage },
+  { name: 'Claude', surface: 'claude-core', generate: (options) => claude.materialize({ root: options.root, out: options.outDir }) },
 ];
 const inventoryById = new Map(INVENTORY.skills.map((skill) => [skill.id, skill]));
 const CHILDREN = SELECTION.skills.filter((row) => row.selection === 'common' && row.kind !== 'entry');
@@ -130,7 +130,6 @@ for (const host of HOSTS) {
   test(`${host.name} default generation publishes 15 common owners and only its supported Host-only identities`, () => withFixture((state) => {
     generate(host, state);
     const hostOnly = expectedHostOnly(host);
-    assert.strictEqual(hostOnly.length, host.hostOnlyCount, 'accepted Host-only count changed');
     const commonNames = COMMON_IDS.map((id) => inventoryById.get(id).name).sort();
     assert.strictEqual(commonNames.length, 15);
     if (host.name === 'Cursor') {

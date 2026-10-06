@@ -637,6 +637,50 @@ function describeFamilyRetirement(expected) {
 // Retirement rows are deliberately separate from active skill entries. They
 // are identity and migration evidence only: no projection compiler is allowed
 // to treat them as materializable skills or discovery aliases.
+// Resolve diagnostic guidance without rewriting the historical retirement ledger.
+function resolveRetirementGuidance({ inventory, entry }) {
+  const activeSkills = Array.isArray(inventory.skills) ? inventory.skills : [];
+  const retiredRows = Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [];
+  const activeIds = new Set(activeSkills.filter(Boolean).map((skill) => skill.id));
+  const retiredById = new Map(retiredRows.filter(Boolean).map((row) => [row.id, row]));
+  const terminals = new Map();
+  const expanded = new Set();
+  const errors = [];
+  const maxDepth = 64;
+
+  function visit(replacements, ancestors, depth) {
+    for (const replacement of Array.isArray(replacements) ? replacements : []) {
+      if (!replacement || typeof replacement !== 'object') continue;
+      if (replacement.kind !== 'skill' || activeIds.has(replacement.id)) {
+        terminals.set(JSON.stringify(replacement), { ...replacement });
+        continue;
+      }
+      const successor = retiredById.get(replacement.id);
+      if (!successor) {
+        errors.push(`dangling retirement successor: '${replacement.id}'`);
+        continue;
+      }
+      if (ancestors.has(successor.id)) {
+        errors.push(`retirement successor cycle at '${successor.id}'`);
+        continue;
+      }
+      if (depth >= maxDepth) {
+        errors.push(`retirement successor depth exceeds limit ${maxDepth} at '${successor.id}'`);
+        continue;
+      }
+      // Depth is part of the key so a shorter branch cannot hide an excessive
+      // longer path through the same successor. Deduplicate completed branches.
+      const key = `${successor.id}:${depth}`;
+      if (expanded.has(key)) continue;
+      visit(successor.replacements, new Set([...ancestors, successor.id]), depth + 1);
+      expanded.add(key);
+    }
+  }
+
+  visit(entry.replacements, new Set([entry.id]), 0);
+  return { replacements: [...terminals.values()], errors };
+}
+
 function validateSkillRetirements({ inventory } = {}) {
   const errors = [];
   if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) return { errors };
@@ -655,6 +699,7 @@ function validateSkillRetirements({ inventory } = {}) {
       : [],
   );
   const retiredIds = new Set();
+  const declaredRetiredIds = new Set(rows.filter((entry) => entry && typeof entry.id === 'string').map((entry) => entry.id));
   const retiredNames = new Set();
   const allowedSurfaces = new Set(SURFACES);
   const agentRoster = new Set(
@@ -756,8 +801,8 @@ function validateSkillRetirements({ inventory } = {}) {
           }
         } else if (typeof replacement.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(replacement.id)) {
           errors.push(`${replacementPrefix}.id must be a safe non-empty identifier for ${replacement.kind} replacements`);
-        } else if (replacement.kind === 'skill' && !activeIds.has(replacement.id)) {
-          errors.push(`${replacementPrefix}.id must reference an active skill: '${replacement.id}'`);
+        } else if (replacement.kind === 'skill' && !activeIds.has(replacement.id) && !declaredRetiredIds.has(replacement.id)) {
+          errors.push(`${replacementPrefix}.id must reference an active or retired skill: '${replacement.id}'`);
         } else if (replacement.kind === 'agent'
             && (!Array.isArray(inventory.agent_roster) || !agentRoster.has(replacement.id))) {
           errors.push(`${replacementPrefix}.id must reference an inventory-owned active agent: '${replacement.id}'`);
@@ -784,6 +829,12 @@ function validateSkillRetirements({ inventory } = {}) {
         }
       }
     }
+  });
+
+  rows.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object' || !Array.isArray(entry.replacements)) return;
+    const guidance = resolveRetirementGuidance({ inventory: { ...inventory, skills: activeSkills }, entry });
+    errors.push(...guidance.errors.map((error) => `retired_skills[${index}]: ${error}`));
   });
 
   // The 0.53 capability-family wave is a closed migration contract.  Only
@@ -1616,7 +1667,9 @@ function formatSkillIdentityDiagnostic({ inventory, resolution } = {}) {
     && JSON.stringify(entry.replacements) === JSON.stringify(resolution.replacements));
   if (!retiredEntry) return '';
   const skills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
-  const replacements = (resolution.replacements || []).map((replacement) => {
+  const terminalGuidance = resolveRetirementGuidance({ inventory, entry: retiredEntry });
+  if (terminalGuidance.errors.length > 0) return '';
+  const replacements = terminalGuidance.replacements.map((replacement) => {
     if (replacement.kind === 'model-default') return 'model-default guidance';
     let identity = replacement.id || '<missing successor>';
     if (replacement.kind === 'skill') {
