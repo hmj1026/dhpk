@@ -57,7 +57,7 @@ test('budget report is deterministic and identifies out-of-budget fixture entrie
   assert.match(output, /fixture/);
 });
 
-test('aggregate default discovery budget reports the curated count and reduction', () => {
+test('aggregate budget preserves an explicit selection and reports its reduction', () => {
   const report = inspectAggregateDiscoveryContext({
     root: ROOT,
     inventory: {
@@ -74,11 +74,34 @@ test('aggregate default discovery budget reports the curated count and reduction
     minReductionPercent: 70,
   });
   assert.strictEqual(report.ok, true, JSON.stringify(report));
+  assert.deepStrictEqual(report.selectedStableIds, ['one', 'two']);
   assert.strictEqual(report.entries, 1);
   assert.strictEqual(report.tokens, 5);
   assert.strictEqual(report.baseline.entries, 10);
   assert.strictEqual(report.baseline.tokens, 100);
   assert.ok(report.reductionPercent >= 70);
+});
+
+test('aggregate default selection uses current install-profiles common skill IDs', () => {
+  const inventory = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'manifests', 'distribution-inventory.json'),
+    'utf8',
+  ));
+  const installProfiles = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'manifests', 'install-profiles.json'),
+    'utf8',
+  ));
+  const discoveryBudgets = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'manifests', 'discovery-budgets.json'),
+    'utf8',
+  ));
+  const commonIds = installProfiles.profiles.common.skillIds;
+  const report = inspectAggregateDiscoveryContext({ root: ROOT, inventory });
+
+  assert.strictEqual(report.profileId, 'common');
+  assert.strictEqual(discoveryBudgets.aggregate.profile, 'common');
+  assert.deepStrictEqual(report.selectedStableIds, commonIds);
+  assert.strictEqual(report.selectedEntries, 15);
 });
 
 test('aggregate budget excludes explicit-only entries and fails closed on count/reduction ceilings', () => {
@@ -135,7 +158,8 @@ test('aggregate CLI emits a JSON report with an exit code matching its verdict',
   assert.ifError(result.error);
   const report = JSON.parse(result.stdout);
   assert.strictEqual(report.schema, 'dhpk.aggregate-discovery-report.v1');
-  assert.strictEqual(report.profileId, 'minimal');
+  assert.strictEqual(report.profileId, 'common');
+  assert.strictEqual(report.selectedEntries, 15);
   assert.strictEqual(typeof report.ok, 'boolean');
   assert.strictEqual(result.status, report.ok ? 0 : 1, result.stderr);
 });

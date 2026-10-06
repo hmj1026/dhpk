@@ -771,6 +771,7 @@ test('CI plan falls back to full for unknown, and release-base paths', () => {
   const release = classifyChangedPaths([{ status: 'M', path: 'skills/example/SKILL.md' }], { baseRef: 'main' });
   assert.strictEqual(release.mode, 'full');
   assert.ok(release.requiredJobs.includes('release-rehearsal'));
+  assert.deepStrictEqual(release.generatedChecks, []);
 });
 
 test('aggregate accepts only explicitly skipped jobs and requires plan-bound evidence', () => {
@@ -860,14 +861,28 @@ test('selected package changes carry only their affected platform surfaces', () 
   assert.deepStrictEqual(packageSurfacesForFiles(['scripts/ci/verify-platform-packages.js']), ['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
 });
 
-test('testCiPlan_lightDocsOnlyChange_runsEveryGeneratedCompanionCheck', () => {
+test('light docs-only CI checks the retained Claude marketplace package', () => {
   const fixture = gitFixture((root) => {
     fs.mkdirSync(path.join(root, 'docs', 'contracts'), { recursive: true });
     fs.writeFileSync(path.join(root, 'docs', 'contracts', 'licensing.md'), 'old\n');
   }, (root) => fs.rmSync(path.join(root, 'docs', 'contracts', 'licensing.md')));
   try {
     assert.strictEqual(fixture.plan.mode, 'light');
-    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace', 'claude-profile:compat-v1', 'claude-profile:full', 'claude-profile:minimal']);
+    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace']);
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
+});
+
+test('release-base CI checks the retained Claude marketplace package', () => {
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+    fs.writeFileSync(path.join(root, 'tests', 'example.test.js'), '// fixture owner\n');
+  }, (root) => fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'new\n'), 'main');
+  try {
+    assert.strictEqual(fixture.plan.mode, 'full');
+    assert.ok(fixture.plan.requiredJobs.includes('release-rehearsal'));
+    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace']);
   } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
@@ -876,11 +891,10 @@ test('canonical content with owned evidence companions stays light and carries e
     ['plugins/dhpk-agent/skills/demo/SKILL.md', ['agent-plugin']],
     ['plugins/dhpk-agent/provenance.json', ['agent-plugin']],
     ['generated/claude-marketplace/package/docs/README.md', []],
-    ['generated/claude-profiles/minimal/package/bundle-receipt.json', []],
     ['manifests/skill-resource-copies.json', []],
     ['generated/claude-marketplace/package/manifests/skill-resource-copies.json', []],
   ];
-  const generatedChecks = ['claude-marketplace', 'claude-profile:compat-v1', 'claude-profile:full', 'claude-profile:minimal'];
+  const generatedChecks = ['claude-marketplace'];
   for (const [companion, packageSurfaces] of cases) {
     const fixture = gitFixture((root) => {
       fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
@@ -904,6 +918,26 @@ test('canonical content with owned evidence companions stays light and carries e
       assert.strictEqual(aggregate.ok, true, aggregate.errors.join('; '));
     } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
   }
+});
+
+test('retired profile output changes fail closed to full CI', () => {
+  const companion = 'generated/claude-profiles/minimal/package/bundle-receipt.json';
+  const fixture = gitFixture((root) => {
+    fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'tests'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'old\n');
+    fs.writeFileSync(path.join(root, 'tests', 'example.test.js'), '// fixture owner\n');
+    fs.mkdirSync(path.dirname(path.join(root, companion)), { recursive: true });
+    fs.writeFileSync(path.join(root, companion), 'old\n');
+  }, (root) => {
+    fs.writeFileSync(path.join(root, 'docs', 'guide.md'), 'new\n');
+    fs.writeFileSync(path.join(root, companion), 'new\n');
+  });
+  try {
+    assert.strictEqual(fixture.plan.mode, 'full');
+    assert.strictEqual(fixture.plan.reason, 'generated-companion-without-canonical');
+    assert.deepStrictEqual(fixture.plan.generatedChecks, ['claude-marketplace']);
+  } finally { fs.rmSync(fixture.root, { recursive: true, force: true }); }
 });
 
 test('unknown or generated-only companions fail closed to full CI', () => {

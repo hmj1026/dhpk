@@ -128,7 +128,7 @@ test('nested bytecode is ignored and a skill-package.json name has no special me
     'plugins/dhpk',
     'plugins/dhpk-agent',
     'plugins/dhpk-agy',
-    'generated/claude-profiles/minimal/package',
+    'generated/claude-marketplace/package',
   ];
 
   function isolatedEnvironment() {

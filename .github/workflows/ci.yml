@@ -119,10 +119,6 @@ jobs:
           for check in "${checks[@]}"; do
             case "$check" in
               claude-marketplace) node scripts/ci/gen-claude-marketplace-package.js --check ;;
-              claude-profile:minimal|claude-profile:full|claude-profile:compat-v1)
-                profile="${check#claude-profile:}"
-                node scripts/ci/gen-claude-profile-bundles.js --profile "$profile" --check
-                ;;
               *) echo "Unknown generated companion check: $check" >&2; exit 64 ;;
             esac
           done
@@ -135,12 +131,6 @@ jobs:
       - name: No-drift Claude marketplace package check
         if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/gen-claude-marketplace-package.js --check
-      - name: No-drift Claude profile bundles check
-        if: needs.plan.outputs.mode == 'full'
-        run: |
-          for profile in minimal full compat-v1; do
-            node scripts/ci/gen-claude-profile-bundles.js --profile "$profile" --check
-          done
       - name: Validate invocation policy
         if: needs.plan.outputs.mode == 'full'
         run: node scripts/ci/validate-invocation-policy.js

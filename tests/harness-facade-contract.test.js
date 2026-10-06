@@ -640,7 +640,12 @@ test('CLI exposes the harness help contract', () => {
     assert.match(validate, /name: Download selected test timing evidence[\s\S]*if: needs\.plan\.outputs\.mode == 'selected'[\s\S]*name: dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-0[\s\S]*path: \$\{\{ runner\.temp \}\}\/dhpk-test-shards\/dhpk-test-timing-\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}-shard-0/);
     assert.match(workflow, /Validate bounded generated companions/);
     assert.match(workflow, /generatedChecks/);
-    assert.match(workflow, /claude-profile:minimal\|claude-profile:full\|claude-profile:compat-v1/);
+    assert.match(workflow, /claude-marketplace\) node scripts\/ci\/gen-claude-marketplace-package\.js --check/);
+    assert.doesNotMatch(workflow, /claude-profile:|gen-claude-profile-bundles/);
+    const packageScripts = JSON.parse(read('package.json')).scripts;
+    assert.strictEqual(packageScripts['check:profiles'], undefined);
+    assert.match(packageScripts['check:generated'], /check:marketplace/);
+    assert.doesNotMatch(packageScripts['check:generated'], /check:profiles/);
     assert.match(workflow, /CHANGELOG_ARGS=\(\)/);
     assert.match(workflow, /--diff-base\s+"origin\/\$BASE_REF"\s+--base-ref\s+"\$BASE_REF"/);
     assert.strictEqual(

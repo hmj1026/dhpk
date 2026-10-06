@@ -16,7 +16,6 @@ const bundleApi = require('../scripts/lib/claude-capability-bundle');
 const inventoryApi = require('../scripts/lib/distribution-inventory');
 const contextBudget = require('../scripts/ci/context-budget');
 const { ProjectionArtifactStore } = require('../scripts/lib/projection-artifact-store');
-const { runClaudeProfileProbe } = require('../scripts/release/claude-profile-probe');
 
 const ROOT = path.join(__dirname, '..');
 const RELEASE_VERSION_SENTINEL = '<release-version>';
@@ -550,85 +549,8 @@ test('profile materialization uses the artifact store and publishes only planned
   }
 });
 
-test('profile probe binds a materialized package to the artifact-store fingerprint', () => {
-  const fixture = profileFixture();
-  const root = makeFixtureRoot(fixture);
-  const publishRoot = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-claude-profile-probe-'));
-  try {
-    const compiled = compileProfile(fixture, 'minimal', root);
-    assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
-    const artifact = bundleApi.materializeClaudeCapabilityBundle({
-      compiled: compiled.value,
-      artifactStore: new ProjectionArtifactStore({ root: publishRoot, sourceRoot: root, publishRoot: path.join(publishRoot, 'package') }),
-      root,
-    });
-    assert.strictEqual(artifact.ok, true, artifact.error && artifact.error.message);
-    const packageRoot = path.join(publishRoot, 'package');
-    let invocation = 0;
-    const runner = () => {
-      invocation += 1;
-      return invocation === 1
-        ? { status: 0, stdout: JSON.stringify({ plugins: [{ id: 'dhpk@dhpk-profile-minimal', installPath: packageRoot }] }) }
-        : { status: 0, stdout: JSON.stringify({ installPath: packageRoot, secretPath: '/opt/dhpk/private', token: 'top-secret', skills: [] }) };
-    };
-    const result = runClaudeProfileProbe({
-      profileId: 'minimal',
-      packageRoot,
-      expectedPlanFingerprint: artifact.value.planFingerprint,
-      expectedArtifactFingerprint: artifact.value.artifactFingerprint,
-      runner,
-    });
-    assert.strictEqual(result.status, 'PASS', result.reason);
-    assert.strictEqual(result.artifactFingerprint, artifact.value.artifactFingerprint);
-    assert.strictEqual(result.packageRoot, '<profile-package>');
-    assert.doesNotMatch(JSON.stringify(result), /top-secret|\/opt\/dhpk/);
-
-    fs.mkdirSync(path.join(packageRoot, 'skills', 'evil'), { recursive: true });
-    fs.writeFileSync(path.join(packageRoot, 'skills', 'evil', 'SKILL.md'), 'unexpected\n');
-    const contaminated = runClaudeProfileProbe({
-      profileId: 'minimal',
-      packageRoot,
-      expectedPlanFingerprint: artifact.value.planFingerprint,
-      expectedArtifactFingerprint: artifact.value.artifactFingerprint,
-      runner,
-    });
-    assert.strictEqual(contaminated.status, 'FAIL');
-    assert.match(contaminated.reason, /outside|ledger/i);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-    fs.rmSync(publishRoot, { recursive: true, force: true });
-  }
-});
-
-test('Claude profile probe stays non-pass when the configured executable is unavailable', () => {
-  const root = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'dhpk-claude-profile-probe-missing-'));
-  try {
-    fs.writeFileSync(path.join(root, 'plugin.json'), JSON.stringify({ name: 'dhpk' }) + '\n');
-    fs.writeFileSync(path.join(root, 'bundle-receipt.json'), JSON.stringify({
-      schema: 'dhpk.claude-capability-bundle.v1',
-      profile: { id: 'minimal' },
-      consumerPluginId: 'dhpk@dhpk-profile-minimal',
-      selectedStableIds: [],
-      planFingerprint: 'plan',
-      outputs: [
-        { stableId: 'claude-profile:manifest', destination: 'plugin.json' },
-        { stableId: 'claude-profile:receipt', destination: 'bundle-receipt.json' },
-      ],
-    }) + '\n');
-    const result = runClaudeProfileProbe({
-      profileId: 'minimal',
-      packageRoot: root,
-      runner: () => ({ error: Object.assign(new Error('missing'), { code: 'ENOENT' }), status: null }),
-    });
-    assert.strictEqual(result.status, 'NOT_CONFIGURED');
-    assert.match(result.resumeCommand, /plugin details/);
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
-
 // v1 GREEN contract (tests above): unscoped Claude manifest characterization,
-// profile compiler fixtures, artifact-store materialization, probe contract.
+// profile compiler fixtures, artifact-store materialization.
 // Required core remains a four-skill invariant; the common collection is a
 // separate fifteen-entry default.
 
@@ -657,67 +579,6 @@ test('common Claude selection includes retained command-owning skills', () => {
   assert.ok(result.value.selection.selectedStableIds.includes('git-smart-commit'));
   assert.ok(result.value.selection.selectedStableIds.includes('repo-verify'));
 });
-
-// BEGIN lexical source block: tests/claude-profile-probe.test.js
-{
-  const fs = require('node:fs');
-  const os = require('node:os');
-  const path = require('node:path');
-  const { test, assert } = require('./_lib/tinytest');
-  const probe = require('../scripts/release/claude-profile-probe');
-
-  test('Claude profile probe keeps its closed status vocabulary and rejects unsafe aliases without leaking paths', () => {
-    assert.deepStrictEqual(probe.STATUSES, [
-      'PASS', 'FAIL', 'NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE', 'BLOCKED', 'UNAVAILABLE',
-    ]);
-
-    const result = probe.runClaudeProfileProbe({ profileId: '../unsafe', packageRoot: '/nonexistent/profile' });
-    assert.strictEqual(result.status, 'BLOCKED');
-    assert.doesNotMatch(JSON.stringify(result), /nonexistent|unsafe/);
-
-    const missing = probe.runClaudeProfileProbe({ profileId: 'safe-profile', packageRoot: '/nonexistent/private-profile-root' });
-    assert.strictEqual(missing.status, 'BLOCKED');
-    assert.strictEqual(missing.packageRoot, '<profile-package>');
-    assert.doesNotMatch(JSON.stringify(missing), /private-profile-root/);
-  });
-
-  test('profile tree digest rejects a symlinked entry', () => {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-profile-tree-'));
-    const packageRoot = path.join(tempRoot, 'package');
-    const outsideFile = path.join(tempRoot, 'outside.json');
-    try {
-      fs.mkdirSync(packageRoot);
-      fs.writeFileSync(outsideFile, '{"private":true}\n');
-      fs.symlinkSync(outsideFile, path.join(packageRoot, 'linked.json'));
-
-      const result = probe.digestTree(packageRoot);
-      assert.ok(result.error, 'a symlink inside the profile tree must be rejected');
-      assert.match(result.error, /symlink/i);
-    } finally {
-      fs.rmSync(tempRoot, { recursive: true, force: true });
-    }
-  });
-
-  test('artifact digest rejects a receipt output that resolves outside the package root', () => {
-    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-profile-artifact-'));
-    const packageRoot = path.join(tempRoot, 'package');
-    const outsideFile = path.join(tempRoot, 'outside.json');
-    try {
-      fs.mkdirSync(packageRoot);
-      fs.writeFileSync(outsideFile, '{"valid":"outside artifact"}\n');
-      assert.strictEqual(fs.existsSync(path.resolve(packageRoot, '../outside.json')), true);
-
-      const result = probe.digestArtifact(packageRoot, {
-        outputs: [{ stableId: 'outside-artifact', destination: '../outside.json' }],
-      });
-      assert.ok(result.error, 'an output ledger must not digest an existing file outside the package root');
-      assert.match(result.error, /invalid|escapes/i);
-    } finally {
-      fs.rmSync(tempRoot, { recursive: true, force: true });
-    }
-  });
-}
-// END lexical source block: tests/claude-profile-probe.test.js
 
 // BEGIN lexical source block: tests/gen-claude-profile-bundles.test.js
 {

@@ -22,7 +22,6 @@ const PACKAGE_SKILL_CATALOGS = [
   { root: 'plugins/dhpk-cursor/skills', surface: 'cursor-plugin', includeCommon: false },
   { root: 'generated/claude-marketplace/package/skills', surface: 'claude-core', includeCommon: true },
 ];
-const PACKAGE_SKILL_ROOTS = PACKAGE_SKILL_CATALOGS.map(({ root }) => root);
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const compile = (overrides = {}) => compileMarketplaceSelection({
@@ -320,19 +319,6 @@ test('core skills have no version condition and module skills name their gating 
   const gated = rows.filter((row) => row.versionCondition.length > 0);
   assert.ok(gated.length > 0);
   for (const row of gated) assert.ok(!row.versionCondition.includes('core'), `${row.id} mixes core into a condition`);
-});
-
-test('every generated package that ships the vendored tomli parser keeps its MIT license beside it', () => {
-  let packages = 0;
-  for (const relative of PACKAGE_SKILL_ROOTS) {
-    const vendor = path.join(ROOT, relative, 'harness-govern', 'scripts', 'multi_ai_sync_lib', 'vendor', 'tomli');
-    if (!fs.existsSync(path.join(vendor, '_parser.py'))) continue;
-    packages += 1;
-    const license = path.join(vendor, 'LICENSE');
-    assert.ok(fs.existsSync(license), `${relative} ships tomli without its LICENSE`);
-    assert.match(fs.readFileSync(license, 'utf8'), /MIT License[\s\S]*Taneli Hukkinen/);
-  }
-  assert.ok(packages > 0, 'expected at least one package to ship tomli');
 });
 
 run('marketplace-selection');

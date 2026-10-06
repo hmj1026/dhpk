@@ -11,10 +11,9 @@ const LIGHT_REQUIRED = Object.freeze(['preflight', 'validate', 'lint']);
 const FULL_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'macos-installer', 'lint']);
 const SELECTED_REQUIRED = Object.freeze(['preflight', 'tests', 'validate', 'lint']);
 const PACKAGE_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native', 'agy-plugin']);
-const FULL_GENERATED_CHECKS = Object.freeze(['claude-marketplace', 'claude-profile:minimal', 'claude-profile:full', 'claude-profile:compat-v1']);
-// Light plans skip the full validate job, so they run every generated companion
-// check: canonical docs/content edits feed the generated packages even when the
-// PR does not touch generated/ itself (#865/#870 drift). All four take ~2s.
+const FULL_GENERATED_CHECKS = Object.freeze(['claude-marketplace']);
+// Light plans skip the full validate job, so they check the retained generated
+// Claude marketplace package when canonical docs/content edits may affect it.
 const LIGHT_GENERATED_CHECKS = Object.freeze([...FULL_GENERATED_CHECKS].sort());
 const RESOURCE_COMPANIONS = Object.freeze([
   'manifests/skill-resource-copies.json',
@@ -143,14 +142,6 @@ function companionRoutingForFiles(files) {
       generatedChecks.add('claude-marketplace');
       hasCompanion = true;
       companion = true;
-    }
-    for (const profile of ['minimal', 'full', 'compat-v1']) {
-      const root = `generated/claude-profiles/${profile}/package`;
-      if (file === `${root}/bundle-receipt.json` || (file.startsWith(`${root}/`) && file.endsWith('.md'))) {
-        generatedChecks.add(`claude-profile:${profile}`);
-        hasCompanion = true;
-        companion = true;
-      }
     }
     if (RESOURCE_COMPANIONS.includes(file)) {
       companion = true;
